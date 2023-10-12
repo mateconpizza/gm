@@ -6,11 +6,46 @@ import (
 	"gomarks/database"
 	"io"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
 var Menus = make(map[string][]string)
+
+func LoadMenus() {
+	RegisterMenu("dmenu", []string{"dmenu", "-p", "GoMarks>", "-l", "10"})
+	RegisterMenu("rofi", []string{
+		"rofi", "-dmenu", "-p", "GoMarks>", "-l", "10", "-mesg",
+		" > Welcome to GoMarks\n", "-theme-str", "window {width: 75%; height: 55%;}",
+		"-kb-custom-1", "Alt-a"})
+}
+
+func getCurrentFile() (string, string, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return "", "", err
+	}
+	exPath := filepath.Dir(ex)
+	return ex, exPath, nil
+}
+
+func GetDatabasePath(dbName string) string {
+	_, currentFile, _ := getCurrentFile()
+	parentDir := filepath.Dir(currentFile)
+	dbPath := filepath.Join(parentDir, dbName)
+	log.Println("DBPATH", dbPath)
+	return dbPath
+}
+
+func FolderExists(path string) bool {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
 
 func RegisterMenu(menuName string, command []string) {
 	log.Printf("Registering menu: %s", menuName)
