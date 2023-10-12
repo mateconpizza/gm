@@ -80,7 +80,7 @@ func shortenString(input string, maxLength int) string {
 	return input
 }
 
-func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) string {
+func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) (string, error) {
 	cmd := exec.Command(menuArgs[0], menuArgs[1:]...)
 
 	// Create a pipe to send the list of elements as input to the dmenu process
@@ -130,12 +130,12 @@ func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) string {
 	// Wait for the dmenu process to finish
 	err = cmd.Wait()
 	if err != nil {
-		log.Fatal("Error waiting for dmenu to finish:", err)
+		return "", fmt.Errorf("Program exited with non-zero status: %s", err)
 	}
 
 	// Extract the ID from the selected text (assuming the format is "ID - URL")
 	selectedText := string(output)
 	words := strings.Fields(selectedText)
 	selectedID := words[0]
-	return selectedID
+	return selectedID, nil
 }
