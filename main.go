@@ -50,12 +50,12 @@ func main() {
 	bookmarksRepository := database.NewSQLiteRepository(db)
 
 	if byQuery != "" {
-		bookmarks, err = bookmarksRepository.GetRecordsByQuery(byQuery)
+		bookmarks, err = bookmarksRepository.RecordsByQuery(byQuery)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		bookmarks, err = bookmarksRepository.GetRecordsAll()
+		bookmarks, err = bookmarksRepository.RecordsAll()
 		if err != nil {
 			log.Fatal("Error getting bookmarks:", err)
 		}
@@ -76,7 +76,7 @@ func main() {
 		log.Fatal("Error converting string to int:", err)
 	}
 
-	bookmark, err := bookmarksRepository.GetRecordByID(bookmark_id)
+	bookmark, err := bookmarksRepository.RecordByID(bookmark_id)
 	if err != nil {
 		log.Fatal("Error getting bookmark:", err)
 	}

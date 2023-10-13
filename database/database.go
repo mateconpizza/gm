@@ -8,6 +8,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// [TODO):
+// [ ] Add Tables (bookmarks, deleted)
+// [ ] Add CRUD methods
+// [ ] Add tests
+// [ ] Add error handling
+
 type SQLiteRepository struct {
 	db *sql.DB
 }
@@ -48,7 +54,7 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	}
 }
 
-func (r *SQLiteRepository) GetRecordByID(id int) (*Bookmark, error) {
+func (r *SQLiteRepository) RecordByID(id int) (*Bookmark, error) {
 	row := r.db.QueryRow("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks WHERE id = ?", id)
 	var b Bookmark
 	if err := row.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.Created_at, &b.Last_used); err != nil {
@@ -80,11 +86,11 @@ func (r *SQLiteRepository) getRecordsBySQL(query string, args ...interface{}) ([
 	return all, nil
 }
 
-func (r *SQLiteRepository) GetRecordsAll() ([]Bookmark, error) {
+func (r *SQLiteRepository) RecordsAll() ([]Bookmark, error) {
 	return r.getRecordsBySQL("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks")
 }
 
-func (r *SQLiteRepository) GetRecordsByQuery(query string) ([]Bookmark, error) {
+func (r *SQLiteRepository) RecordsByQuery(query string) ([]Bookmark, error) {
 	queryValue := "%" + query + "%"
 	return r.getRecordsBySQL("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks WHERE title LIKE ? OR url LIKE ? or tags LIKE ? or desc LIKE ?",
 		queryValue, queryValue, queryValue, queryValue)
