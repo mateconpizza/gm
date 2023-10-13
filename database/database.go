@@ -24,7 +24,8 @@ type Bookmark struct {
 
 func (b Bookmark) String() string {
 	return fmt.Sprintf("ID: %d, URL: %s, Title: %s, Tags: %s, Desc: %s, Created_at: %s, Last_used: %s",
-		b.ID, b.URL, validString(b.Title), validString(b.Tags), validString(b.Desc), validString(b.Created_at), validString(b.Last_used))
+		b.ID, b.URL, validString(b.Title), validString(b.Tags), validString(b.Desc),
+		validString(b.Created_at), validString(b.Last_used))
 }
 
 var (

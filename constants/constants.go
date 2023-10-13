@@ -41,6 +41,6 @@ func SetupProject() {
 			log.Fatal(err)
 		}
 	} else {
-		log.Println("AppHome already exists:", AppHome)
+    return
 	}
 }

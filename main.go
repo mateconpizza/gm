@@ -54,7 +54,7 @@ func main() {
 	if byQuery != "" {
 		bookmarks, err = bookmarksRepository.GetRecordsByQuery(byQuery)
 		if err != nil {
-			log.Fatal("Error getting bookmarks by tag:", err)
+			log.Fatal(err)
 		}
 	} else {
 		bookmarks, err = bookmarksRepository.GetRecordsAll()
