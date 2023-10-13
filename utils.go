@@ -1,11 +1,8 @@
-package utils
+package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"gomarks/database"
-  "gomarks/constants"
 	"io"
 	"log"
 	"os"
@@ -24,40 +21,21 @@ func LoadMenus() {
 		"-kb-custom-1", "Alt-a"})
 }
 
-func getCurrentFile() (string, string, error) {
-	ex, err := os.Executable()
-	if err != nil {
-		return "", "", err
-	}
-	exPath := filepath.Dir(ex)
-	return ex, exPath, nil
-}
-
 func FolderExists(path string) bool {
 	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
+	return !os.IsNotExist(err)
 }
 
-func RegisterMenu(menuName string, command []string) {
-	Menus[menuName] = command
+func RegisterMenu(s string, command []string) {
+	Menus[s] = command
 }
 
-func Menu(menuName string) ([]string, error) {
-	menu, ok := Menus[menuName]
+func Menu(s string) ([]string, error) {
+	menu, ok := Menus[s]
 	if !ok {
-		return nil, fmt.Errorf("Menu '%s' not found", menuName)
+		return nil, fmt.Errorf("Menu '%s' not found", s)
 	}
 	return menu, nil
-}
-
-func validString(title sql.NullString) string {
-	if title.Valid {
-		return title.String
-	}
-	return "N/A"
 }
 
 func shortenString(input string, maxLength int) string {
@@ -67,7 +45,7 @@ func shortenString(input string, maxLength int) string {
 	return input
 }
 
-func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) (string, error) {
+func Prompt(menuArgs []string, bookmarks *[]Bookmark) (string, error) {
 	cmd := exec.Command(menuArgs[0], menuArgs[1:]...)
 
 	stdinPipe, err := cmd.StdinPipe()
@@ -87,7 +65,12 @@ func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) (string, error) {
 
 	var itemsText []string
 	for _, bm := range *bookmarks {
-		itemText := fmt.Sprintf("%-4d %-80s %-10s", bm.ID, shortenString(bm.URL, 80), validString(bm.Tags))
+		itemText := fmt.Sprintf(
+			"%-4d %-80s %-10s",
+			bm.ID,
+			shortenString(bm.URL, 80),
+			bm.Tags,
+		)
 		itemsText = append(itemsText, itemText)
 	}
 
@@ -106,7 +89,7 @@ func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) (string, error) {
 
 	err = cmd.Wait()
 	if err != nil {
-		return "", fmt.Errorf("Program exited with non-zero status: %s", err)
+		return "", fmt.Errorf("program exited with non-zero status: %s", err)
 	}
 
 	// Extract the ID from the selected text (assuming the format is "ID - URL")
@@ -116,7 +99,7 @@ func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) (string, error) {
 	return selectedID, nil
 }
 
-func ToJSON(bookmarks *[]database.Bookmark) string {
+func ToJSON(bookmarks *[]Bookmark) string {
 	actualBookmarks := *bookmarks
 	jsonData, err := json.MarshalIndent(actualBookmarks, "", "  ")
 	if err != nil {
@@ -128,10 +111,10 @@ func ToJSON(bookmarks *[]database.Bookmark) string {
 }
 
 func getAppHome() (string, error) {
-	if constants.ConfigHome == "" {
+	if ConfigHome == "" {
 		return "", fmt.Errorf("XDG_CONFIG_HOME not set")
 	}
-	return filepath.Join(constants.ConfigHome, constants.AppName), nil
+	return filepath.Join(ConfigHome, AppName), nil
 }
 
 func GetDatabasePath() (string, error) {
@@ -139,10 +122,10 @@ func GetDatabasePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(appPath, constants.DBName), nil
+	return filepath.Join(appPath, DBName), nil
 }
 
-func SetupProject() {
+func SetupHomeProject() {
 	AppHome, err := getAppHome()
 	if err != nil {
 		log.Fatal(err)

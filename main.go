@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"gomarks/database"
-	"gomarks/utils"
 	"log"
 	"strconv"
 
@@ -16,7 +14,7 @@ var (
 	menuName      string
 	byQuery       string
 	jsonFlag      *bool
-	bookmarks     []database.Bookmark
+	bookmarks     []Bookmark
 	selectedIDStr string
 )
 
@@ -28,15 +26,15 @@ func init() {
 
 func main() {
 	flag.Parse()
-	utils.LoadMenus()
-	utils.SetupProject()
+	LoadMenus()
+	SetupHomeProject()
 
-	dbPath, err := utils.GetDatabasePath()
+	dbPath, err := GetDatabasePath()
 	if err != nil {
 		log.Fatal("Error getting database path:", err)
 	}
 
-	menuArgs, err := utils.Menu(menuName)
+	menuArgs, err := Menu(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}
@@ -47,25 +45,26 @@ func main() {
 	}
 	defer db.Close()
 
-	bookmarksRepository := database.NewSQLiteRepository(db)
+	bookmarksRepository := NewSQLiteRepository(db)
+	bookmarksRepository.InitDB()
 
 	if byQuery != "" {
-		bookmarks, err = bookmarksRepository.RecordsByQuery(byQuery)
+		bookmarks, err = bookmarksRepository.GetRecordsByQuery(byQuery)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		bookmarks, err = bookmarksRepository.RecordsAll()
+		bookmarks, err = bookmarksRepository.GetRecordsAll()
 		if err != nil {
 			log.Fatal("Error getting bookmarks:", err)
 		}
 	}
 
 	if *jsonFlag {
-		utils.ToJSON(&bookmarks)
+		ToJSON(&bookmarks)
 		return
 	} else {
-		selectedIDStr, err = utils.Prompt(menuArgs, &bookmarks)
+		selectedIDStr, err = Prompt(menuArgs, &bookmarks)
 		if err != nil {
 			return
 		}
@@ -76,7 +75,7 @@ func main() {
 		log.Fatal("Error converting string to int:", err)
 	}
 
-	bookmark, err := bookmarksRepository.RecordByID(bookmark_id)
+	bookmark, err := bookmarksRepository.GetRecordByID(bookmark_id)
 	if err != nil {
 		log.Fatal("Error getting bookmark:", err)
 	}

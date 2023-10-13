@@ -1,5 +1,5 @@
 build:
-	go build -o gomarks main.go
+	go build -o gomarks
 
 run:
 	go run main.go
