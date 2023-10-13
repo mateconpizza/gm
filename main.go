@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"gomarks/constants"
 	"gomarks/database"
 	"gomarks/utils"
 	"log"
@@ -30,9 +29,9 @@ func init() {
 func main() {
 	flag.Parse()
 	utils.LoadMenus()
-	constants.SetupProject()
+	utils.SetupProject()
 
-	dbPath, err := constants.GetDatabasePath()
+	dbPath, err := utils.GetDatabasePath()
 	if err != nil {
 		log.Fatal("Error getting database path:", err)
 	}

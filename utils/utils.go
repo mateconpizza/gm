@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gomarks/database"
+  "gomarks/constants"
 	"io"
 	"log"
 	"os"
@@ -30,14 +31,6 @@ func getCurrentFile() (string, string, error) {
 	}
 	exPath := filepath.Dir(ex)
 	return ex, exPath, nil
-}
-
-func GetDatabasePath(dbName string) string {
-	_, currentFile, _ := getCurrentFile()
-	parentDir := filepath.Dir(currentFile)
-	dbPath := filepath.Join(parentDir, dbName)
-	log.Println("DBPATH", dbPath)
-	return dbPath
 }
 
 func FolderExists(path string) bool {
@@ -132,4 +125,36 @@ func ToJSON(bookmarks *[]database.Bookmark) string {
 	jsonString := string(jsonData)
 	fmt.Println(jsonString)
 	return jsonString
+}
+
+func getAppHome() (string, error) {
+	if constants.ConfigHome == "" {
+		return "", fmt.Errorf("XDG_CONFIG_HOME not set")
+	}
+	return filepath.Join(constants.ConfigHome, constants.AppName), nil
+}
+
+func GetDatabasePath() (string, error) {
+	appPath, err := getAppHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(appPath, constants.DBName), nil
+}
+
+func SetupProject() {
+	AppHome, err := getAppHome()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if !FolderExists(AppHome) {
+		log.Println("Creating AppHome:", AppHome)
+		err = os.Mkdir(AppHome, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		return
+	}
 }
