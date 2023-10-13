@@ -49,11 +49,10 @@ func FolderExists(path string) bool {
 }
 
 func RegisterMenu(menuName string, command []string) {
-	// log.Printf("Registering menu: %s", menuName)
 	Menus[menuName] = command
 }
 
-func GetMenu(menuName string) ([]string, error) {
+func Menu(menuName string) ([]string, error) {
 	menu, ok := Menus[menuName]
 	if !ok {
 		return nil, fmt.Errorf("Menu '%s' not found", menuName)

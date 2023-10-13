@@ -22,9 +22,8 @@ var (
 )
 
 func init() {
-	flag.StringVar(&menuName, "menu", "rofi", "the name of the menu [dmenu rofi]")
-	flag.StringVar(&byQuery, "query", "", "the query to filter bookmarks")
-	flag.StringVar(&byQuery, "q", "", "shorthand for query")
+	flag.StringVar(&menuName, "m", "rofi", "name of the menu [dmenu rofi]")
+	flag.StringVar(&byQuery, "q", "", "query to filter bookmarks")
 	jsonFlag = flag.Bool("json", false, "JSON output")
 }
 
@@ -38,7 +37,7 @@ func main() {
 		log.Fatal("Error getting database path:", err)
 	}
 
-	menuArgs, err := utils.GetMenu(menuName)
+	menuArgs, err := utils.Menu(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}
@@ -87,6 +86,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error copying to clipboard: %v", err)
 	} else {
-		log.Fatal("Text copied to clipboard:", bookmark.URL)
+		log.Println("Text copied to clipboard:", bookmark.URL)
 	}
 }
