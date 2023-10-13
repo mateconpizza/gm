@@ -48,25 +48,6 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	}
 }
 
-func (r *SQLiteRepository) GetRecordsAll() ([]Bookmark, error) {
-  // FIX: DRY
-	rows, err := r.db.Query("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var all []Bookmark
-	for rows.Next() {
-		var b Bookmark
-		if err := rows.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.Created_at, &b.Last_used); err != nil {
-			return nil, err
-		}
-		all = append(all, b)
-	}
-	return all, nil
-}
-
 func (r *SQLiteRepository) GetRecordByID(id int) (*Bookmark, error) {
 	row := r.db.QueryRow("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks WHERE id = ?", id)
 	var b Bookmark
@@ -76,11 +57,8 @@ func (r *SQLiteRepository) GetRecordByID(id int) (*Bookmark, error) {
 	return &b, nil
 }
 
-func (r *SQLiteRepository) GetRecordsByQuery(query string) ([]Bookmark, error) {
-  // FIX: DRY
-	queryValue := "%" + query + "%"
-	rows, err := r.db.Query("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks WHERE title LIKE ? OR url LIKE ? or tags LIKE ? or desc LIKE ?",
-		queryValue, queryValue, queryValue, queryValue)
+func (r *SQLiteRepository) getRecordsBySQL(query string, args ...interface{}) ([]Bookmark, error) {
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,5 +72,20 @@ func (r *SQLiteRepository) GetRecordsByQuery(query string) ([]Bookmark, error) {
 		}
 		all = append(all, b)
 	}
+
+	if len(all) == 0 {
+		return nil, fmt.Errorf("No bookmarks found for query: %s", args[0])
+	}
+
 	return all, nil
+}
+
+func (r *SQLiteRepository) GetRecordsAll() ([]Bookmark, error) {
+	return r.getRecordsBySQL("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks")
+}
+
+func (r *SQLiteRepository) GetRecordsByQuery(query string) ([]Bookmark, error) {
+	queryValue := "%" + query + "%"
+	return r.getRecordsBySQL("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks WHERE title LIKE ? OR url LIKE ? or tags LIKE ? or desc LIKE ?",
+		queryValue, queryValue, queryValue, queryValue)
 }
