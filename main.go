@@ -13,21 +13,26 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var menuName string
+var (
+	menuName      string
+	byQuery       string
+	jsonFlag      *bool
+	bookmarks     []database.Bookmark
+	selectedIDStr string
+)
 
 func init() {
-	const (
-		defaultMenuName = "rofi"
-		usage           = "the name of menu"
-	)
-	flag.StringVar(&menuName, "menu", defaultMenuName, usage)
-	flag.StringVar(&menuName, "m", defaultMenuName, usage+" (shorthand)")
+	flag.StringVar(&menuName, "menu", "rofi", "the name of the menu [dmenu rofi]")
+	flag.StringVar(&byQuery, "query", "", "the query to filter bookmarks")
+	flag.StringVar(&byQuery, "q", "", "shorthand for query")
+	jsonFlag = flag.Bool("json", false, "JSON output")
 }
 
 func main() {
 	flag.Parse()
 	utils.LoadMenus()
 	constants.SetupProject()
+
 	dbPath, err := constants.GetDatabasePath()
 	if err != nil {
 		log.Fatal("Error getting database path:", err)
@@ -45,10 +50,17 @@ func main() {
 	defer db.Close()
 
 	bookmarksRepository := database.NewSQLiteRepository(db)
-	bookmarks, err := bookmarksRepository.GetRecordsAll()
-	if err != nil {
-		log.Fatal("Error getting bookmarks:", err)
-		return
+
+	if byQuery != "" {
+		bookmarks, err = bookmarksRepository.GetRecordsByQuery(byQuery)
+		if err != nil {
+			log.Fatal("Error getting bookmarks by tag:", err)
+		}
+	} else {
+		bookmarks, err = bookmarksRepository.GetRecordsAll()
+		if err != nil {
+			log.Fatal("Error getting bookmarks:", err)
+		}
 	}
 
 	selectedIDStr, err := utils.Prompt(menuArgs, &bookmarks)

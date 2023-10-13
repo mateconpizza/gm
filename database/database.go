@@ -48,6 +48,7 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 }
 
 func (r *SQLiteRepository) GetRecordsAll() ([]Bookmark, error) {
+  // FIX: DRY
 	rows, err := r.db.Query("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks")
 	if err != nil {
 		return nil, err
@@ -56,20 +57,41 @@ func (r *SQLiteRepository) GetRecordsAll() ([]Bookmark, error) {
 
 	var all []Bookmark
 	for rows.Next() {
-		var bookmark Bookmark
-		if err := rows.Scan(&bookmark.ID, &bookmark.URL, &bookmark.Title, &bookmark.Tags, &bookmark.Desc, &bookmark.Created_at, &bookmark.Last_used); err != nil {
+		var b Bookmark
+		if err := rows.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.Created_at, &b.Last_used); err != nil {
 			return nil, err
 		}
-		all = append(all, bookmark)
+		all = append(all, b)
 	}
 	return all, nil
 }
 
 func (r *SQLiteRepository) GetRecordByID(id int) (*Bookmark, error) {
 	row := r.db.QueryRow("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks WHERE id = ?", id)
-	var bookmark Bookmark
-	if err := row.Scan(&bookmark.ID, &bookmark.URL, &bookmark.Title, &bookmark.Tags, &bookmark.Desc, &bookmark.Created_at, &bookmark.Last_used); err != nil {
+	var b Bookmark
+	if err := row.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.Created_at, &b.Last_used); err != nil {
 		return nil, err
 	}
-	return &bookmark, nil
+	return &b, nil
+}
+
+func (r *SQLiteRepository) GetRecordsByQuery(query string) ([]Bookmark, error) {
+  // FIX: DRY
+	queryValue := "%" + query + "%"
+	rows, err := r.db.Query("SELECT id, url, title, tags, desc, created_at, last_used FROM bookmarks WHERE title LIKE ? OR url LIKE ? or tags LIKE ? or desc LIKE ?",
+		queryValue, queryValue, queryValue, queryValue)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var all []Bookmark
+	for rows.Next() {
+		var b Bookmark
+		if err := rows.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.Created_at, &b.Last_used); err != nil {
+			return nil, err
+		}
+		all = append(all, b)
+	}
+	return all, nil
 }
