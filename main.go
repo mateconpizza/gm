@@ -63,9 +63,14 @@ func main() {
 		}
 	}
 
-	selectedIDStr, err := utils.Prompt(menuArgs, &bookmarks)
-	if err != nil {
+	if *jsonFlag {
+		utils.ToJSON(&bookmarks)
 		return
+	} else {
+		selectedIDStr, err = utils.Prompt(menuArgs, &bookmarks)
+		if err != nil {
+			return
+		}
 	}
 
 	bookmark_id, err := strconv.Atoi(selectedIDStr)

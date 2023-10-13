@@ -2,6 +2,7 @@ package utils
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"gomarks/database"
 	"io"
@@ -138,4 +139,18 @@ func Prompt(menuArgs []string, bookmarks *[]database.Bookmark) (string, error) {
 	words := strings.Fields(selectedText)
 	selectedID := words[0]
 	return selectedID, nil
+}
+
+func ToJSON(bookmarks *[]database.Bookmark) string {
+	if bookmarks == nil {
+		return "[]"
+	}
+	actualBookmarks := *bookmarks
+	jsonData, err := json.MarshalIndent(actualBookmarks, "", "  ")
+	if err != nil {
+		log.Fatal("Error marshaling to JSON:", err)
+	}
+	jsonString := string(jsonData)
+	fmt.Println(jsonString)
+	return jsonString
 }
