@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/atotto/clipboard"
 )
 
 var Menus = make(map[string][]string)
@@ -140,4 +142,12 @@ func SetupHomeProject() {
 	} else {
 		return
 	}
+}
+
+func CopyToClipboard(s string) {
+	err := clipboard.WriteAll(s)
+	if err != nil {
+		log.Fatalf("Error copying to clipboard: %v", err)
+	}
+	log.Println("Text copied to clipboard:", s)
 }

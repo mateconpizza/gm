@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -11,50 +12,50 @@ import (
 )
 
 // [TODO):
-// [ ] Add Tables (bookmarks, deleted)
+// [X] Add Tables (bookmarks, deleted)
 // [ ] Add CRUD methods
 // [ ] Add tests
 // [X] Add error handling
+
+var (
+	ErrDuplicate    = errors.New("record already exists")
+	ErrNotExists    = errors.New("row not exists")
+	ErrUpdateFailed = errors.New("update failed")
+	ErrDeleteFailed = errors.New("delete failed")
+)
 
 type SQLiteRepository struct {
 	db *sql.DB
 }
 
 type Bookmark struct {
-	ID         int
-	URL        string
-	Title      string
-	Tags       string
-	Desc       string
-	Created_at sql.NullString
-	Last_used  sql.NullString
+	ID         int        `json:"ID,omitempty"`
+	URL        string     `json:"URL,omitempty"`
+	Title      NullString `json:"Title,omitempty"`
+	Tags       string     `json:"Tags,omitempty"`
+	Desc       NullString `json:"Desc,omitempty"`
+	Created_at NullString `json:"Created_at,omitempty"`
+	Last_used  NullString `json:"Last_used,omitempty"`
 }
 
-var (
-	ErrDuplicate    = errors.New("::::record already exists")
-	ErrNotExists    = errors.New("::::row not exists")
-	ErrUpdateFailed = errors.New("::::update failed")
-	ErrDeleteFailed = errors.New("::::delete failed")
-)
-
-func (b Bookmark) String() string {
-	return fmt.Sprintf(
-		"ID: %d, URL: %s, Title: %s, Tags: %s, Desc: %s, Created_at: %s, Last_used: %s",
-		b.ID,
-		b.URL,
-		b.Title,
-		b.Tags,
-		b.Desc,
-		validString(b.Created_at),
-		validString(b.Last_used),
-	)
+type NullString struct {
+	sql.NullString
 }
 
-func validString(title sql.NullString) string {
-	if title.Valid {
-		return title.String
+func (s NullString) MarshalJSON() ([]byte, error) {
+	if !s.Valid {
+		return []byte("null"), nil
 	}
-	return ""
+	return json.Marshal(s.String)
+}
+
+func (s *NullString) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		s.String, s.Valid = "", false
+		return nil
+	}
+	s.String, s.Valid = string(data), true
+	return nil
 }
 
 func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
@@ -65,6 +66,10 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 
 func (r *SQLiteRepository) InitDB() {
 	_, err := r.db.Exec(BookmarksSquema)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = r.db.Exec(DeletedBookmarksSchema)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,16 +100,19 @@ func (r *SQLiteRepository) CreateRecord(b *Bookmark) error {
 	return nil
 }
 
+func (r *SQLiteRepository) UpdateRecord(b *Bookmark) error {
+	return nil
+}
+
 func (r *SQLiteRepository) RemoveRecord(b *Bookmark) error {
 	if !r.RecordExists(b) {
-		log.Println(ErrNotExists, b.URL)
-		return nil
+    return fmt.Errorf("error removing bookmark %s: %s", ErrNotExists, b.URL)
 	}
 	_, err := r.db.Exec("DELETE FROM bookmarks WHERE id = ?", b.ID)
 	if err != nil {
 		return err
 	}
-	return nil
+  return nil
 }
 
 func (r *SQLiteRepository) GetRecordByID(n int) (*Bookmark, error) {

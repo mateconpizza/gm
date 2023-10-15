@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"os"
 )
 
@@ -9,7 +10,7 @@ const (
 	AppName         string = "GoBookmarks"
 	BookmarksSquema string = `
     CREATE TABLE IF NOT EXISTS bookmarks (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         url TEXT NOT NULL UNIQUE,
         title TEXT DEFAULT "",
         tags TEXT DEFAULT ",",
@@ -18,14 +19,29 @@ const (
         last_used TIMESTAMP
     )
   `
+	DeletedBookmarksSchema string = `
+    CREATE TABLE IF NOT EXISTS deleted (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT NOT NULL UNIQUE,
+        title TEXT DEFAULT "",
+        tags TEXT DEFAULT ",",
+        desc TEXT DEFAULT "",
+        deleted_at TIMESTAMP
+    )
+  `
 )
 
 var InitBookmark Bookmark = Bookmark{
 	ID:    0,
 	URL:   "https://github.com/haaag/GoMarks/",
-	Title: "GoMarks",
+	Title: NullString{sql.NullString{String: "GoMarks", Valid: true}},
 	Tags:  "golang,awesome,bookmarks",
-	Desc:  "Makes accessing, adding, updating, and removing bookmarks easier",
+	Desc: NullString{
+		sql.NullString{
+			String: "Makes accessing, adding, updating, and removing bookmarks easier",
+			Valid:  true,
+		},
+	},
 }
 var ConfigHome string = os.Getenv("XDG_CONFIG_HOME")
 
