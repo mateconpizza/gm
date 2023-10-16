@@ -4,18 +4,16 @@ import (
 	"database/sql"
 	"flag"
 	"log"
-	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
-	menuName      string
-	byQuery       string
-	jsonFlag      *bool
-	testFlag      *bool
-	bookmarks     []Bookmark
-	selectedIDStr string
+	menuName    string
+	byQuery     string
+	jsonFlag    *bool
+	testFlag    *bool
+	optionsFlag *bool
 )
 
 func init() {
@@ -23,14 +21,16 @@ func init() {
 	flag.StringVar(&byQuery, "q", "", "query to filter bookmarks")
 	jsonFlag = flag.Bool("json", false, "JSON output")
 	testFlag = flag.Bool("test", false, "test mode")
+	optionsFlag = flag.Bool("options", false, "show options")
 }
 
 func main() {
 	flag.Parse()
-	LoadMenus()
-	SetupHomeProject()
+	loadMenus()
+	setupHomeProject()
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	dbPath, err := GetDatabasePath()
+	dbPath, err := getDBPath()
 	if err != nil {
 		log.Fatal("Error getting database path:", err)
 	}
@@ -41,50 +41,37 @@ func main() {
 	}
 	defer db.Close()
 
-	bookmarksRepo := NewSQLiteRepository(db)
-
-	if *testFlag {
-		return
-	}
-
-	bookmarksRepo.InitDB()
-
-	if byQuery != "" {
-		bookmarks, err = bookmarksRepo.GetRecordsByQuery(byQuery)
-		if err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		bookmarks, err = bookmarksRepo.GetRecordsAll()
-		if err != nil {
-			log.Fatal("Error getting bookmarks:", err)
-		}
-	}
-
-	if *jsonFlag {
-		ToJSON(&bookmarks)
-		return
-	}
-
-	menuArgs, err := Menu(menuName)
+	menuArgs, err := getMenu(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}
 
-	selectedIDStr, err = Prompt(menuArgs, &bookmarks)
-	if err != nil {
+	bookmarksRepo := NewSQLiteRepository(db)
+	bookmarksRepo.InitDB()
+
+	if *testFlag {
+		handleTestMode(menuArgs, bookmarksRepo)
 		return
 	}
 
-	bookmark_id, err := strconv.Atoi(selectedIDStr)
-	if err != nil {
-		log.Fatal("Error converting string to int:", err)
+	if *optionsFlag {
+		handleOptionsMode(menuArgs)
+		return
 	}
 
-	bookmark, err := bookmarksRepo.GetRecordByID(bookmark_id)
+	bookmarks, err := fetchBookmarks(bookmarksRepo)
 	if err != nil {
-		log.Fatal("Error getting bookmark:", err)
+		log.Fatal(err)
 	}
 
-	CopyToClipboard(bookmark.URL)
+	if *jsonFlag {
+		toJSON(&bookmarks)
+		return
+	}
+
+	b, err := SelectBookmark(menuArgs, &bookmarks)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b.CopyToClipboard()
 }

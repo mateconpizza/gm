@@ -9,33 +9,21 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/atotto/clipboard"
 )
 
-var Menus = make(map[string][]string)
-
-func LoadMenus() {
-	RegisterMenu("dmenu", []string{"dmenu", "-p", "GoMarks>", "-l", "10"})
-	RegisterMenu("rofi", []string{
-		"rofi", "-dmenu", "-p", "GoMarks>", "-l", "10", "-mesg",
-		" > Welcome to GoMarks\n", "-theme-str", "window {width: 75%; height: 55%;}",
-		"-kb-custom-1", "Alt-a"})
-}
-
-func FolderExists(path string) bool {
+func folderExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
 }
 
-func RegisterMenu(s string, command []string) {
+func registerMenu(s string, command []string) {
 	Menus[s] = command
 }
 
-func Menu(s string) ([]string, error) {
+func getMenu(s string) ([]string, error) {
 	menu, ok := Menus[s]
 	if !ok {
-		return nil, fmt.Errorf("Menu '%s' not found", s)
+		return nil, fmt.Errorf("menu '%s' not found", s)
 	}
 	return menu, nil
 }
@@ -47,12 +35,11 @@ func shortenString(input string, maxLength int) string {
 	return input
 }
 
-func Prompt(menuArgs []string, bookmarks *[]Bookmark) (string, error) {
+func NewexecuteCommand(menuArgs []string, input string) (string, int, error) {
 	cmd := exec.Command(menuArgs[0], menuArgs[1:]...)
 
-	stdinPipe, err := cmd.StdinPipe()
-	if err != nil {
-		log.Fatal("Error creating pipe:", err)
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
 	}
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -65,44 +52,52 @@ func Prompt(menuArgs []string, bookmarks *[]Bookmark) (string, error) {
 		log.Fatal("Error starting dmenu:", err)
 	}
 
-	var itemsText []string
-	for _, bm := range *bookmarks {
-		itemText := fmt.Sprintf(
-			"%-4d %-80s %-10s",
-			bm.ID,
-			shortenString(bm.URL, 80),
-			bm.Tags,
-		)
-		itemsText = append(itemsText, itemText)
-	}
-
-	itemsString := strings.Join(itemsText, "\n")
-
-	_, err = stdinPipe.Write([]byte(itemsString))
+	output, err := io.ReadAll(stdoutPipe)
 	if err != nil {
-		log.Fatal("Error writing to pipe:", err)
+		log.Fatal("Error reading output:", err)
 	}
-	stdinPipe.Close()
+
+	err = cmd.Wait()
+	if err != nil {
+		return "", cmd.ProcessState.ExitCode(), fmt.Errorf(
+			"program exited with non-zero status: %s",
+			err,
+		)
+	}
+	return string(output), cmd.ProcessState.ExitCode(), nil
+}
+
+func executeCommand(menuArgs []string, input string) (string, error) {
+	cmd := exec.Command(menuArgs[0], menuArgs[1:]...)
+
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
+	}
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal("Error creating output pipe:", err)
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		log.Fatal("Error starting dmenu:", err)
+	}
 
 	output, err := io.ReadAll(stdoutPipe)
 	if err != nil {
-		log.Fatal("Error reading dmenu output:", err)
+		log.Fatal("Error reading output:", err)
 	}
 
 	err = cmd.Wait()
 	if err != nil {
 		return "", fmt.Errorf("program exited with non-zero status: %s", err)
 	}
-
-	// Extract the ID from the selected text (assuming the format is "ID - URL")
-	selectedText := string(output)
-	words := strings.Fields(selectedText)
-	selectedID := words[0]
-	return selectedID, nil
+	return string(output), nil
 }
 
-func ToJSON(bookmarks *[]Bookmark) string {
-	actualBookmarks := *bookmarks
+func toJSON(b *[]Bookmark) string {
+	actualBookmarks := *b
 	jsonData, err := json.MarshalIndent(actualBookmarks, "", "  ")
 	if err != nil {
 		log.Fatal("Error marshaling to JSON:", err)
@@ -119,7 +114,7 @@ func getAppHome() (string, error) {
 	return filepath.Join(ConfigHome, AppName), nil
 }
 
-func GetDatabasePath() (string, error) {
+func getDBPath() (string, error) {
 	appPath, err := getAppHome()
 	if err != nil {
 		return "", err
@@ -127,13 +122,13 @@ func GetDatabasePath() (string, error) {
 	return filepath.Join(appPath, DBName), nil
 }
 
-func SetupHomeProject() {
+func setupHomeProject() {
 	AppHome, err := getAppHome()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if !FolderExists(AppHome) {
+	if !folderExists(AppHome) {
 		log.Println("Creating AppHome:", AppHome)
 		err = os.Mkdir(AppHome, 0755)
 		if err != nil {
@@ -144,10 +139,20 @@ func SetupHomeProject() {
 	}
 }
 
-func CopyToClipboard(s string) {
-	err := clipboard.WriteAll(s)
-	if err != nil {
-		log.Fatalf("Error copying to clipboard: %v", err)
+func isSelectedTextInItems(selectedText string, itemsText []string) bool {
+	for _, item := range itemsText {
+		if strings.Contains(item, selectedText) {
+			return true
+		}
 	}
-	log.Println("Text copied to clipboard:", s)
+	return false
+}
+
+func findSelectedIndex(selectedStr string, itemsText []string) int {
+	for index, itemText := range itemsText {
+		if strings.Contains(selectedStr, itemText) {
+			return index
+		}
+	}
+	return -1
 }
