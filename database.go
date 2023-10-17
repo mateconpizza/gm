@@ -72,6 +72,22 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	}
 }
 
+func getDB() *SQLiteRepository {
+	dbPath, err := getDBPath()
+	if err != nil {
+		log.Fatal("Error getting database path:", err)
+	}
+
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		log.Fatal("Error opening database:", err)
+	}
+
+	bookmarksRepo := NewSQLiteRepository(db)
+	bookmarksRepo.InitDB()
+	return bookmarksRepo
+}
+
 func (r *SQLiteRepository) InitDB() {
 	_, err := r.db.Exec(BookmarksSquema)
 	if err != nil {

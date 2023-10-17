@@ -1,11 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"flag"
 	"log"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -30,24 +27,13 @@ func main() {
 	setupHomeProject()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	dbPath, err := getDBPath()
-	if err != nil {
-		log.Fatal("Error getting database path:", err)
-	}
-
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		log.Fatal("Error opening database:", err)
-	}
-	defer db.Close()
-
 	menuArgs, err := getMenu(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}
 
-	bookmarksRepo := NewSQLiteRepository(db)
-	bookmarksRepo.InitDB()
+	bookmarksRepo := getDB()
+	defer bookmarksRepo.db.Close()
 
 	if *testFlag {
 		handleTestMode(menuArgs, bookmarksRepo)
