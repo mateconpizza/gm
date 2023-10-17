@@ -26,12 +26,12 @@ func TestFolderExists(t *testing.T) {
 }
 
 func TestExecuteCommand(t *testing.T) {
-	menu := Menu{
+	m := Menu{
 		Command:   "echo",
 		Arguments: []string{"Hello, World!"},
 	}
 
-	output, err := executeCommand(&menu, "")
+	output, err := m.Run("")
 
 	if err != nil {
 		t.Errorf("Error executing command: %v", err)

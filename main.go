@@ -28,7 +28,7 @@ func main() {
 	flag.Parse()
 
 	// Load menus from a source
-	loadMenus()
+  Menus.Load()
 
 	// Set up the home project
 	setupHomeProject()
@@ -36,7 +36,7 @@ func main() {
 	// Set up logging
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	menu, err := getMenu(menuName)
+	menu, err := Menus.Get(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}

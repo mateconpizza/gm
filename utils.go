@@ -2,11 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -21,35 +18,6 @@ func shortenString(s string, maxLength int) string {
 		return s[:maxLength-3] + "..."
 	}
 	return s
-}
-
-func executeCommand(m *Menu, s string) (string, error) {
-	cmd := exec.Command(m.Command, m.Arguments...)
-
-	if s != "" {
-		cmd.Stdin = strings.NewReader(s)
-	}
-
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Fatal("Error creating output pipe:", err)
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		log.Fatal("Error starting dmenu:", err)
-	}
-
-	output, err := io.ReadAll(stdoutPipe)
-	if err != nil {
-		log.Fatal("Error reading output:", err)
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		return "", fmt.Errorf("program exited with non-zero status: %s", err)
-	}
-	return string(output), nil
 }
 
 func toJSON(b *[]Bookmark) string {

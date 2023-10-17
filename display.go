@@ -21,7 +21,7 @@ func ShowOptions(m *Menu) (int, error) {
 		Option{"Delete a bookmark"},
 		Option{"Exit"},
 	}
-	idx, err := Select(m, options)
+	idx, err := m.Select(options)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,13 +47,13 @@ func editBookmark(r *SQLiteRepository, m *Menu, b *Bookmark) (Bookmark, error) {
 
 func deleteBookmark(r *SQLiteRepository, m *Menu, b *Bookmark) error {
 	msg := fmt.Sprintf("Deleting bookmark: %s", b.URL)
-	if !Confirm(m, msg, "Are you sure?") {
+	if !m.Confirm(msg, "Are you sure?") {
 		return fmt.Errorf("Cancelled")
 	}
-  err := r.RemoveRecord(b)
-  if err != nil {
-    return err
-  }
+	err := r.RemoveRecord(b)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -85,6 +85,9 @@ func fetchBookmarks(bookmarksRepo *SQLiteRepository) ([]Bookmark, error) {
 		}
 	}
 
+	if len(bookmarks) == 0 {
+		return []Bookmark{}, fmt.Errorf("no bookmarks found")
+	}
 	return bookmarks, nil
 }
 
@@ -103,7 +106,7 @@ func SelectBookmark(m *Menu, bookmarks *[]Bookmark) (Bookmark, error) {
 	}
 
 	itemsString := strings.Join(itemsText, "\n")
-	output, err := executeCommand(m, itemsString)
+	output, err := m.Run(itemsString)
 	if err != nil {
 		log.Fatal(err)
 	}
