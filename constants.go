@@ -2,42 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 )
 
 const (
-	DBName          string = "bookmarks.db"
-	AppName         string = "GoBookmarks"
-	BookmarksSquema string = `
-    CREATE TABLE IF NOT EXISTS bookmarks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        url TEXT NOT NULL UNIQUE,
-        title TEXT DEFAULT "",
-        tags TEXT DEFAULT ",",
-        desc TEXT DEFAULT "",
-        created_at TIMESTAMP
-    )
-  `
-	DeletedBookmarksSchema string = `
-    CREATE TABLE IF NOT EXISTS deleted (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        url TEXT NOT NULL UNIQUE,
-        title TEXT DEFAULT "",
-        tags TEXT DEFAULT ",",
-        desc TEXT DEFAULT "",
-        created_at TIMESTAMP
-    )
-  `
-	TempBookmarksSchema string = `
-    CREATE TABLE IF NOT EXISTS temp_bookmarks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        url TEXT NOT NULL UNIQUE,
-        title TEXT DEFAULT "",
-        tags TEXT DEFAULT ",",
-        desc TEXT DEFAULT "",
-        created_at TIMESTAMP
-    )
-  `
+	DBName      string = "bookmarks.db"
+	DBTableName string = "bookmarks"
+	AppName     string = "GoBookmarks"
 )
 
 var (
@@ -66,6 +38,36 @@ var (
 			},
 		},
 	}
+	BookmarksSquema string = fmt.Sprintf(`
+    CREATE TABLE IF NOT EXISTS %s (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        url         TEXT    NOT NULL UNIQUE,
+        title       TEXT    DEFAULT "",
+        tags        TEXT    DEFAULT ",",
+        desc        TEXT    DEFAULT "",
+        created_at  TIMESTAMP
+    )
+  `, DBTableName)
+	DeletedBookmarksSchema string = `
+    CREATE TABLE IF NOT EXISTS deleted (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url         TEXT    NOT NULL UNIQUE,
+        title       TEXT    DEFAULT "",
+        tags        TEXT    DEFAULT ",",
+        desc        TEXT    DEFAULT "",
+        created_at  TIMESTAMP
+    )
+  `
+	TempBookmarksSchema string = fmt.Sprintf(`
+    CREATE TABLE IF NOT EXISTS temp_%s (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        url         TEXT    NOT NULL UNIQUE,
+        title       TEXT    DEFAULT "",
+        tags        TEXT    DEFAULT ",",
+        desc        TEXT    DEFAULT "",
+        created_at  TIMESTAMP
+    )
+  `, DBTableName)
 )
 
 // gomarks -json | jq '.[].ID, .[].URL' | sed 's/"\(.*\)"/\1/'

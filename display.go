@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 type Option struct {
@@ -62,4 +63,30 @@ func fetchBookmarks(bookmarksRepo *SQLiteRepository) ([]Bookmark, error) {
 	}
 
 	return bookmarks, nil
+}
+
+func SelectBookmark(menuArgs []string, bookmarks *[]Bookmark) (Bookmark, error) {
+	var itemsText []string
+	for _, bm := range *bookmarks {
+		itemText := fmt.Sprintf(
+			"%-4d %-80s %-10s",
+			bm.ID,
+			shortenString(bm.URL, 80),
+			bm.Tags,
+		)
+		itemsText = append(itemsText, itemText)
+	}
+
+	itemsString := strings.Join(itemsText, "\n")
+	output, err := executeCommand(menuArgs, itemsString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	selectedStr := strings.Trim(output, "\n")
+	index := findSelectedIndex(selectedStr, itemsText)
+	if index != -1 {
+		return (*bookmarks)[index], nil
+	}
+	return Bookmark{}, fmt.Errorf("item not found: %s", selectedStr)
 }

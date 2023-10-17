@@ -16,55 +16,11 @@ func folderExists(path string) bool {
 	return !os.IsNotExist(err)
 }
 
-func registerMenu(s string, command []string) {
-	Menus[s] = command
-}
-
-func getMenu(s string) ([]string, error) {
-	menu, ok := Menus[s]
-	if !ok {
-		return nil, fmt.Errorf("menu '%s' not found", s)
-	}
-	return menu, nil
-}
-
 func shortenString(input string, maxLength int) string {
 	if len(input) > maxLength {
 		return input[:maxLength-3] + "..."
 	}
 	return input
-}
-
-func NewexecuteCommand(menuArgs []string, input string) (string, int, error) {
-	cmd := exec.Command(menuArgs[0], menuArgs[1:]...)
-
-	if input != "" {
-		cmd.Stdin = strings.NewReader(input)
-	}
-
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Fatal("Error creating output pipe:", err)
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		log.Fatal("Error starting dmenu:", err)
-	}
-
-	output, err := io.ReadAll(stdoutPipe)
-	if err != nil {
-		log.Fatal("Error reading output:", err)
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		return "", cmd.ProcessState.ExitCode(), fmt.Errorf(
-			"program exited with non-zero status: %s",
-			err,
-		)
-	}
-	return string(output), cmd.ProcessState.ExitCode(), nil
 }
 
 func executeCommand(menuArgs []string, input string) (string, error) {
@@ -109,7 +65,8 @@ func toJSON(b *[]Bookmark) string {
 
 func getAppHome() (string, error) {
 	if ConfigHome == "" {
-		return "", fmt.Errorf("XDG_CONFIG_HOME not set")
+		ConfigHome = os.Getenv("HOME")
+		ConfigHome += "/.config"
 	}
 	return filepath.Join(ConfigHome, AppName), nil
 }
@@ -149,9 +106,9 @@ func isSelectedTextInItems(selectedText string, itemsText []string) bool {
 }
 
 func findSelectedIndex(selectedStr string, itemsText []string) int {
-	for index, itemText := range itemsText {
-		if strings.Contains(selectedStr, itemText) {
-			return index
+	for i, itemText := range itemsText {
+		if selectedStr == itemText {
+			return i
 		}
 	}
 	return -1

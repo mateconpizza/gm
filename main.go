@@ -19,6 +19,7 @@ func init() {
 	jsonFlag = flag.Bool("json", false, "JSON output")
 	testFlag = flag.Bool("test", false, "test mode")
 	optionsFlag = flag.Bool("options", false, "show options")
+	deleteFlag = flag.Bool("delete", false, "delete a bookmark")
 }
 
 func main() {
