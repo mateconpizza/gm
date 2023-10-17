@@ -24,9 +24,16 @@ func init() {
 }
 
 func main() {
+	// Parse command-line flags
 	flag.Parse()
+
+	// Load menus from a source
 	loadMenus()
+
+	// Set up the home project
 	setupHomeProject()
+
+	// Set up logging
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	menu, err := getMenu(menuName)
@@ -58,13 +65,22 @@ func main() {
 	}
 
 	if *jsonFlag {
-		toJSON(&bookmarks)
+		jsonString := toJSON(&bookmarks)
+		fmt.Println(jsonString)
 		return
 	}
 
-	b, err := SelectBookmark(&menu, &bookmarks)
+	selectedBookmark, err := SelectBookmark(&menu, &bookmarks)
 	if err != nil {
 		log.Fatal(err)
 	}
-	b.CopyToClipboard()
+
+	if *deleteFlag {
+		if err := deleteBookmark(bookmarksRepo, &menu, &selectedBookmark); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	selectedBookmark.CopyToClipboard()
 }
