@@ -53,13 +53,11 @@ func executeCommand(m *Menu, s string) (string, error) {
 }
 
 func toJSON(b *[]Bookmark) string {
-	actualBookmarks := *b
-	jsonData, err := json.MarshalIndent(actualBookmarks, "", "  ")
+	jsonData, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
 		log.Fatal("Error marshaling to JSON:", err)
 	}
 	jsonString := string(jsonData)
-	fmt.Println(jsonString)
 	return jsonString
 }
 
