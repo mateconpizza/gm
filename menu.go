@@ -6,48 +6,94 @@ import (
 	"strings"
 )
 
-var Menus = make(map[string][]string)
+var Menus = make(map[string]Menu)
+
+type Menu struct {
+	Command   string
+	Arguments []string
+}
+
+func (m *Menu) UpdateMessage(message string) {
+	m.replaceArg("-mesg", message)
+}
+
+func (m *Menu) UpdatePrompt(prompt string) {
+	m.replaceArg("-p", prompt)
+}
+
+func (m *Menu) replaceArg(argName, newValue string) {
+	for i := 0; i < len(m.Arguments); i++ {
+		if m.Arguments[i] == argName {
+			m.Arguments[i+1] = newValue
+		}
+	}
+}
+
+var rofiMenu = Menu{
+	Command: "rofi",
+	Arguments: []string{
+		"-dmenu",
+		"-l", "10",
+		"-p", "GoMarks",
+		"-mesg", "Welcome to GoMarks",
+		"-theme-str", "window {width: 75%; height: 55%;}",
+		"-theme-str", "textbox {markup: false;}",
+	},
+}
+
+var dmenuMenu = Menu{
+	Command: "dmenu",
+	Arguments: []string{
+		"-i",
+		"-p", "GoMarks>",
+		"-l", "10",
+	},
+}
 
 func loadMenus() {
-	registerMenu("dmenu", []string{"dmenu", "-i", "-p", "GoMarks>", "-l", "10"})
-	registerMenu("rofi", []string{
-		"rofi", "-dmenu", "-p", "GoMarks>", "-l", "10", "-mesg", " Welcome to GoMarks",
-		"-theme-str", "window {width: 75%; height: 55%;}"})
+	registerMenu(dmenuMenu)
+	registerMenu(rofiMenu)
 }
 
-func registerMenu(s string, command []string) {
-	Menus[s] = command
+func registerMenu(m Menu) {
+	Menus[m.Command] = m
 }
 
-func getMenu(s string) ([]string, error) {
+func getMenu(s string) (Menu, error) {
 	menu, ok := Menus[s]
 	if !ok {
-		return nil, fmt.Errorf("menu '%s' not found", s)
+		return Menu{}, fmt.Errorf("menu '%s' not found", s)
 	}
 	return menu, nil
 }
 
-func Prompt(menuArgs []string) (string, error) {
-	input, err := executeCommand(menuArgs, "")
+func Prompt(m *Menu) (string, error) {
+	input, err := executeCommand(m, "")
 	if err != nil {
 		log.Fatal(err)
 	}
 	return strings.Trim(input, "\n"), nil
 }
 
-func Confirm(menuArgs []string, message string) bool {
+func Confirm(m *Menu, msg string, pmt string) bool {
+	if msg != "" {
+		m.UpdateMessage(msg)
+	}
+	if pmt != "" {
+		m.UpdatePrompt(pmt)
+	}
 	options := []fmt.Stringer{
 		Option{"Yes"},
 		Option{"No"},
 	}
-	idx, err := Select(menuArgs, options)
+	idx, err := Select(m, options)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return idx == 0
 }
 
-func Select(menuArgs []string, items []fmt.Stringer) (int, error) {
+func Select(m *Menu, items []fmt.Stringer) (int, error) {
 	var itemsText []string
 	for _, item := range items {
 		itemText := item.String()
@@ -55,7 +101,7 @@ func Select(menuArgs []string, items []fmt.Stringer) (int, error) {
 	}
 
 	itemsString := strings.Join(itemsText, "\n")
-	output, err := executeCommand(menuArgs, itemsString)
+	output, err := executeCommand(m, itemsString)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -65,10 +111,9 @@ func Select(menuArgs []string, items []fmt.Stringer) (int, error) {
 		log.Fatal("invalid selection:", selectedStr)
 	}
 
-	for index, itemText := range itemsText {
-		if strings.Contains(selectedStr, itemText) {
-			return index, nil
-		}
-	}
+  index := findSelectedIndex(selectedStr, itemsText)
+  if index != -1 {
+    return index, nil
+  }
 	return -1, fmt.Errorf("item not found")
 }

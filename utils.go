@@ -11,23 +11,23 @@ import (
 	"strings"
 )
 
-func folderExists(path string) bool {
-	_, err := os.Stat(path)
+func folderExists(p string) bool {
+	_, err := os.Stat(p)
 	return !os.IsNotExist(err)
 }
 
-func shortenString(input string, maxLength int) string {
-	if len(input) > maxLength {
-		return input[:maxLength-3] + "..."
+func shortenString(s string, maxLength int) string {
+	if len(s) > maxLength {
+		return s[:maxLength-3] + "..."
 	}
-	return input
+	return s
 }
 
-func executeCommand(menuArgs []string, input string) (string, error) {
-	cmd := exec.Command(menuArgs[0], menuArgs[1:]...)
+func executeCommand(m *Menu, s string) (string, error) {
+	cmd := exec.Command(m.Command, m.Arguments...)
 
-	if input != "" {
-		cmd.Stdin = strings.NewReader(input)
+	if s != "" {
+		cmd.Stdin = strings.NewReader(s)
 	}
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -96,18 +96,18 @@ func setupHomeProject() {
 	}
 }
 
-func isSelectedTextInItems(selectedText string, itemsText []string) bool {
-	for _, item := range itemsText {
-		if strings.Contains(item, selectedText) {
+func isSelectedTextInItems(s string, items []string) bool {
+	for _, item := range items {
+		if strings.Contains(item, s) {
 			return true
 		}
 	}
 	return false
 }
 
-func findSelectedIndex(selectedStr string, itemsText []string) int {
-	for i, itemText := range itemsText {
-		if selectedStr == itemText {
+func findSelectedIndex(s string, items []string) int {
+	for i, itemText := range items {
+		if s == itemText {
 			return i
 		}
 	}

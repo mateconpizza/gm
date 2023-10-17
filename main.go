@@ -11,6 +11,7 @@ var (
 	jsonFlag    *bool
 	testFlag    *bool
 	optionsFlag *bool
+	deleteFlag  *bool
 )
 
 func init() {
@@ -28,7 +29,7 @@ func main() {
 	setupHomeProject()
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	menuArgs, err := getMenu(menuName)
+	menu, err := getMenu(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}
@@ -37,12 +38,17 @@ func main() {
 	defer bookmarksRepo.db.Close()
 
 	if *testFlag {
-		handleTestMode(menuArgs, bookmarksRepo)
+		handleTestMode(&menu, bookmarksRepo)
+		return
+	}
+
+	if *migrateDB {
+		MigrateDB(bookmarksRepo)
 		return
 	}
 
 	if *optionsFlag {
-		handleOptionsMode(menuArgs)
+		handleOptionsMode(&menu)
 		return
 	}
 
@@ -56,7 +62,7 @@ func main() {
 		return
 	}
 
-	b, err := SelectBookmark(menuArgs, &bookmarks)
+	b, err := SelectBookmark(&menu, &bookmarks)
 	if err != nil {
 		log.Fatal(err)
 	}

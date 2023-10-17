@@ -131,7 +131,7 @@ func (r *SQLiteRepository) RemoveRecord(b *Bookmark) error {
 	if !r.RecordExists(b) {
 		return fmt.Errorf("error removing bookmark %s: %s", ErrNotExists, b.URL)
 	}
-  sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id = ?", DBTableName)
+	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id = ?", DBTableName)
 	_, err := r.db.Exec(sqlQuery, b.ID)
 	if err != nil {
 		return err
@@ -255,7 +255,10 @@ func (r *SQLiteRepository) ReorderIDs() error {
 		return err
 	}
 
-  sqlQuery := fmt.Sprintf("INSERT INTO temp_%s (url, title, tags, desc, created_at) VALUES (?, ?, ?, ?, ?)", DBTableName)
+	sqlQuery := fmt.Sprintf(
+		"INSERT INTO temp_%s (url, title, tags, desc, created_at) VALUES (?, ?, ?, ?, ?)",
+		DBTableName,
+	)
 	stmt, err := tx.Prepare(sqlQuery)
 	if err != nil {
 		err = tx.Rollback()
