@@ -1,12 +1,29 @@
-build:
-	go build -o gomarks
+# gomarks - simple bookmark manager
+# See LICENSE file for copyright and license details.
+
+NAME = gomarks
+SRC = ./main.go
+BIN = ./$(NAME)
+
+.PHONY: all build run test vet clean
+
+all: build
+
+build: vet test
+	@echo Building $(NAME)
+	go build -o $(BIN)
 
 run:
-	go run main.go
+	go run $(SRC)
 
-test:
-	go test
+test: vet
+	@echo Testing $(NAME)
+	go test ./...
 
-testfn:
-	go build -o gomarks
-	gomarks -test
+vet:
+	@echo Checking code with go vet
+	go vet ./...
+
+clean:
+	@echo Cleaning up
+	rm -f $(BIN)
