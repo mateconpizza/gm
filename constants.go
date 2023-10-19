@@ -7,16 +7,17 @@ import (
 )
 
 const (
-	DBName      string = "bookmarks.db"
-	DBTableName string = "bookmarks"
-	AppName     string = "GoBookmarks"
+	DBName         string = "bookmarks.db"
+	DBMainTable    string = "bookmarks"
+	DBDeletedTable string = "deleted_bookmarks"
+	AppName        string = "GoMarks"
 )
 
 var (
 	ConfigHome   string   = os.Getenv("XDG_CONFIG_HOME")
 	InitBookmark Bookmark = Bookmark{
 		ID:    0,
-		URL:   "https://github.com/haaag/GoMarks/",
+		URL:   "https://github.com/haaag/GoMarks#readme",
 		Title: NullString{sql.NullString{String: "GoMarks", Valid: true}},
 		Tags:  "golang,awesome,bookmarks",
 		Desc: NullString{
@@ -47,9 +48,9 @@ var (
         desc        TEXT    DEFAULT "",
         created_at  TIMESTAMP
     )
-  `, DBTableName)
-	DeletedBookmarksSchema string = `
-    CREATE TABLE IF NOT EXISTS deleted (
+  `, DBMainTable)
+	DeletedBookmarksSchema string = fmt.Sprintf(`
+    CREATE TABLE IF NOT EXISTS %s (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         url         TEXT    NOT NULL UNIQUE,
         title       TEXT    DEFAULT "",
@@ -57,7 +58,7 @@ var (
         desc        TEXT    DEFAULT "",
         created_at  TIMESTAMP
     )
-  `
+  `, DBDeletedTable)
 	TempBookmarksSchema string = fmt.Sprintf(`
     CREATE TABLE IF NOT EXISTS temp_%s (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +68,7 @@ var (
         desc        TEXT    DEFAULT "",
         created_at  TIMESTAMP
     )
-  `, DBTableName)
+  `, DBMainTable)
 )
 
 // gomarks -json | jq '.[].ID, .[].URL' | sed 's/"\(.*\)"/\1/'

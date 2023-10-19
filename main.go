@@ -13,6 +13,7 @@ var (
 	testFlag    *bool
 	optionsFlag *bool
 	deleteFlag  *bool
+	dropDB      *bool
 )
 
 func init() {
@@ -22,19 +23,16 @@ func init() {
 	testFlag = flag.Bool("test", false, "test mode")
 	optionsFlag = flag.Bool("options", false, "show options")
 	deleteFlag = flag.Bool("delete", false, "delete a bookmark")
+	dropDB = flag.Bool("drop", false, "drop the database")
 }
 
 func main() {
-	// Parse command-line flags
 	flag.Parse()
-
-	// Load menus from a source
-  Menus.Load()
+	Menus.Load()
 
 	// Set up the home project
 	setupHomeProject()
 
-	// Set up logging
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	menu, err := Menus.Get(menuName)
@@ -42,11 +40,11 @@ func main() {
 		log.Fatal("Error getting menu:", err)
 	}
 
-	bookmarksRepo := getDB()
-	defer bookmarksRepo.db.Close()
+	r := getDB()
+	defer r.db.Close()
 
-	if *testFlag {
-		handleTestMode(&menu, bookmarksRepo)
+	if *dropDB {
+		r.dropDB()
 		return
 	}
 
@@ -55,7 +53,7 @@ func main() {
 		return
 	}
 
-	bookmarks, err := fetchBookmarks(bookmarksRepo)
+	bookmarks, err := fetchBookmarks(r)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,7 +70,7 @@ func main() {
 	}
 
 	if *deleteFlag {
-		if err := deleteBookmark(bookmarksRepo, &menu, &selectedBookmark); err != nil {
+		if err := deleteBookmark(r, &menu, &selectedBookmark); err != nil {
 			log.Fatal(err)
 		}
 		return

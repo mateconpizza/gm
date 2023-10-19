@@ -56,7 +56,17 @@ func deleteBookmark(r *SQLiteRepository, m *Menu, b *Bookmark) error {
 	if !m.Confirm(msg, "Are you sure?") {
 		return fmt.Errorf("Cancelled")
 	}
-	err := r.RemoveRecord(b)
+	err := r.deleteRecord(b, DBMainTable)
+	if err != nil {
+		return err
+	}
+
+	err = r.insertRecord(b, DBDeletedTable)
+	if err != nil {
+		return err
+	}
+
+	err = r.reorderIDs()
 	if err != nil {
 		return err
 	}
@@ -72,20 +82,20 @@ func handleOptionsMode(m *Menu) {
 }
 
 func handleTestMode(m *Menu, r *SQLiteRepository) {
-	fmt.Println("Test mode")
+	fmt.Print("::::::::Test Mode::::::::\n\n")
 }
 
-func fetchBookmarks(bookmarksRepo *SQLiteRepository) ([]Bookmark, error) {
+func fetchBookmarks(r *SQLiteRepository) ([]Bookmark, error) {
 	var bookmarks []Bookmark
 	var err error
 
 	if byQuery != "" {
-		bookmarks, err = bookmarksRepo.GetRecordsByQuery(byQuery)
+		bookmarks, err = r.getRecordsByQuery(byQuery)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		bookmarks, err = bookmarksRepo.GetRecordsAll()
+		bookmarks, err = r.getRecordsAll()
 		if err != nil {
 			return nil, err
 		}
