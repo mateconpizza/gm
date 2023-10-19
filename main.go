@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 )
 
@@ -46,11 +47,6 @@ func main() {
 
 	if *testFlag {
 		handleTestMode(&menu, bookmarksRepo)
-		return
-	}
-
-	if *migrateDB {
-		MigrateDB(bookmarksRepo)
 		return
 	}
 

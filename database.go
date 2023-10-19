@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -44,6 +45,15 @@ func (b *Bookmark) CopyToClipboard() {
 		log.Fatalf("Error copying to clipboard: %v", err)
 	}
 	log.Println("Text copied to clipboard:", b.URL)
+}
+
+func (b Bookmark) String() string {
+	s := prettyFormatLine("ID", strconv.Itoa(b.ID))
+	s += prettyFormatLine("Title", b.Title.String)
+	s += prettyFormatLine("URL", b.URL)
+	s += prettyFormatLine("Tags", b.Tags)
+	s += prettyFormatLine("Desc", b.Desc.String)
+	return s
 }
 
 type NullString struct {
@@ -97,9 +107,9 @@ func (r *SQLiteRepository) InitDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	/* if err := r.CreateRecord(&InitBookmark); err != nil {
+	if err := r.CreateRecord(&InitBookmark); err != nil {
 		return
-	} */
+	}
 }
 
 func (r *SQLiteRepository) CreateRecord(b *Bookmark) error {
@@ -174,22 +184,20 @@ func (r *SQLiteRepository) getRecordsBySQL(q string, args ...interface{}) ([]Boo
 }
 
 func (r *SQLiteRepository) GetRecordsAll() ([]Bookmark, error) {
-	sqlQuery := fmt.Sprintf("SELECT * FROM %s", DBTableName)
+	sqlQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", DBTableName)
 	bookmarks, err := r.getRecordsBySQL(sqlQuery)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if len(bookmarks) == 0 {
-		var b []Bookmark
-		b = append(b, InitBookmark)
-		return b, nil
+		return []Bookmark{}, nil
 	}
 	return bookmarks, nil
 }
 
 func (r *SQLiteRepository) GetRecordsByQuery(q string) ([]Bookmark, error) {
 	sqlQuery := fmt.Sprintf(
-		"SELECT * FROM %s WHERE title LIKE ? OR url LIKE ? or tags LIKE ? or desc LIKE ?",
+		"SELECT id, url, title, tags, desc, created_at FROM %s WHERE title LIKE ? OR url LIKE ? or tags LIKE ? or desc LIKE ?",
 		DBTableName,
 	)
 	queryValue := "%" + q + "%"
@@ -304,30 +312,4 @@ func (r *SQLiteRepository) ReorderIDs() error {
 	}
 
 	return nil
-}
-
-func MigrateDB(d *SQLiteRepository) {
-	var dbPath = "/home/void/.config/pymarks/databases/bookmarks.db"
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	recordsRepo := NewSQLiteRepository(db)
-	bookmarks, err := recordsRepo.GetRecordsAll()
-
-	if err != nil {
-		log.Fatalf("Error getting bookmarks: %s", err)
-	}
-
-	var all []Bookmark
-	all = append(all, bookmarks...)
-
-	for _, bm := range all {
-		err := d.CreateRecord(&bm)
-		if err != nil {
-			log.Fatal("::::::::::", err)
-		}
-	}
 }

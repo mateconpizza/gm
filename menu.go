@@ -51,12 +51,8 @@ func (m *Menu) replaceArg(argName, newValue string) {
 }
 
 func (m *Menu) Confirm(msg, prompt string) bool {
-	if msg != "" {
-		m.UpdateMessage(msg)
-	}
-	if prompt != "" {
-		m.UpdatePrompt(prompt)
-	}
+  m.UpdateMessage(msg)
+  m.UpdatePrompt(prompt)
 	options := []fmt.Stringer{
 		Option{"Yes"},
 		Option{"No"},

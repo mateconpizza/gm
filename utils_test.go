@@ -18,7 +18,7 @@ func TestShortenString(t *testing.T) {
 
 func TestFolderExists(t *testing.T) {
 	testFolder := "/tmp/testfolder"
-	exists := folderExists(testFolder)
+	exists := fileExists(testFolder)
 
 	if exists {
 		t.Errorf("Expected folder not to exist, but it does.")
@@ -83,5 +83,15 @@ func TestToJSON(t *testing.T) {
 
 	if jsonString != expectedJSON {
 		t.Errorf("Unexpected JSON output:\nExpected: %s\nActual: %s", expectedJSON, jsonString)
+	}
+}
+
+func TestPrettyFormatLine(t *testing.T) {
+	label := "Test"
+	testString := "This is a test string"
+	expectedOutput := "Test                : This is a test string\n"
+	s := prettyFormatLine(label, testString)
+	if s != expectedOutput {
+		t.Errorf("Expected %s, but got %s", expectedOutput, s)
 	}
 }

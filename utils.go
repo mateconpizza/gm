@@ -2,14 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-func folderExists(p string) bool {
-	_, err := os.Stat(p)
+func fileExists(s string) bool {
+	_, err := os.Stat(s)
 	return !os.IsNotExist(err)
 }
 
@@ -51,7 +52,7 @@ func setupHomeProject() {
 		log.Fatal(err)
 	}
 
-	if !folderExists(AppHome) {
+	if !fileExists(AppHome) {
 		log.Println("Creating AppHome:", AppHome)
 		err = os.Mkdir(AppHome, 0755)
 		if err != nil {
@@ -78,4 +79,8 @@ func findSelectedIndex(s string, items []string) int {
 		}
 	}
 	return -1
+}
+
+func prettyFormatLine(label, value string) string {
+	return fmt.Sprintf("%-20s: %s\n", label, value)
 }

@@ -18,7 +18,7 @@ run:
 
 test: vet
 	@echo Testing $(NAME)
-	go test ./...
+	go test -v ./...
 
 vet:
 	@echo Checking code with go vet

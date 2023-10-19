@@ -42,7 +42,13 @@ func addBookmark(r *SQLiteRepository, m *Menu, b *Bookmark) (Bookmark, error) {
 }
 
 func editBookmark(r *SQLiteRepository, m *Menu, b *Bookmark) (Bookmark, error) {
-	return Bookmark{}, nil
+	m.UpdatePrompt(fmt.Sprintf("Editing ID: %d", b.ID))
+	s, err := m.Run(b.String())
+	if err != nil {
+		return Bookmark{}, err
+	}
+	fmt.Println(s)
+	return *b, nil
 }
 
 func deleteBookmark(r *SQLiteRepository, m *Menu, b *Bookmark) error {
