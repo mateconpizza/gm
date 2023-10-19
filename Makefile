@@ -2,7 +2,7 @@
 # See LICENSE file for copyright and license details.
 
 NAME = gomarks
-SRC = ./main.go
+SRC = ./cmd/main.go
 BIN = ./$(NAME)
 
 .PHONY: all build run test vet clean
@@ -11,7 +11,7 @@ all: build
 
 build: vet test
 	@echo Building $(NAME)
-	go build -o $(BIN)
+	go build -o $(BIN) $(SRC)
 
 run:
 	go run $(SRC)

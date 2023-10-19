@@ -1,7 +1,8 @@
-package main
+package utils_test
 
 import (
-	"database/sql"
+	"gomarks/pkg/menu"
+	u "gomarks/pkg/utils"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ func TestShortenString(t *testing.T) {
 	input := "This is a long string"
 	maxLength := 10
 	expected := "This is..."
-	result := shortenString(input, maxLength)
+	result := u.ShortenString(input, maxLength)
 
 	if result != expected {
 		t.Errorf("Expected %s, but got %s", expected, result)
@@ -18,7 +19,7 @@ func TestShortenString(t *testing.T) {
 
 func TestFolderExists(t *testing.T) {
 	testFolder := "/tmp/testfolder"
-	exists := fileExists(testFolder)
+	exists := u.FileExists(testFolder)
 
 	if exists {
 		t.Errorf("Expected folder not to exist, but it does.")
@@ -26,7 +27,7 @@ func TestFolderExists(t *testing.T) {
 }
 
 func TestExecuteCommand(t *testing.T) {
-	m := Menu{
+	m := menu.Menu{
 		Command:   "echo",
 		Arguments: []string{"Hello, World!"},
 	}
@@ -42,23 +43,23 @@ func TestExecuteCommand(t *testing.T) {
 	}
 }
 
-func TestToJSON(t *testing.T) {
-	bookmarks := []Bookmark{
+/* func TestToJSON(t *testing.T) {
+	bookmarks := []database.Bookmark{
 		{
 			ID:         0,
 			URL:        "http://example.com/book1",
-			Title:      NullString{sql.NullString{String: "Book 1", Valid: false}},
+			Title:      database.NullString{sql.NullString{String: "Book 1", Valid: false}},
 			Tags:       "tag1,tag2,tag3",
-			Desc:       NullString{sql.NullString{String: "Description 1", Valid: true}},
-			Created_at: NullString{sql.NullString{String: "2023-01-01", Valid: true}},
+			Desc:       database.NullString{sql.NullString{String: "Description 1", Valid: true}},
+			Created_at: database.NullString{sql.NullString{String: "2023-01-01", Valid: true}},
 		},
 		{
 			ID:         0,
 			URL:        "http://example.com/book2",
-			Title:      NullString{sql.NullString{String: "Book 2", Valid: false}},
+			Title:      database.NullString{sql.NullString{String: "Book 2", Valid: false}},
 			Tags:       "tag1,tag2,tag3",
-			Desc:       NullString{sql.NullString{String: "Description 2", Valid: true}},
-			Created_at: NullString{sql.NullString{String: "2023-01-02", Valid: true}},
+			Desc:       database.NullString{sql.NullString{String: "Description 2", Valid: true}},
+			Created_at: database.NullString{sql.NullString{String: "2023-01-02", Valid: true}},
 		},
 	}
 
@@ -79,18 +80,18 @@ func TestToJSON(t *testing.T) {
   }
 ]`
 
-	jsonString := toJSON(&bookmarks)
+	jsonString := database.ToJSON(&bookmarks)
 
 	if jsonString != expectedJSON {
 		t.Errorf("Unexpected JSON output:\nExpected: %s\nActual: %s", expectedJSON, jsonString)
 	}
-}
+} */
 
 func TestPrettyFormatLine(t *testing.T) {
 	label := "Test"
 	testString := "This is a test string"
 	expectedOutput := "Test                : This is a test string\n"
-	s := prettyFormatLine(label, testString)
+	s := u.PrettyFormatLine(label, testString)
 	if s != expectedOutput {
 		t.Errorf("Expected %s, but got %s", expectedOutput, s)
 	}

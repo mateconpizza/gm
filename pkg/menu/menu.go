@@ -1,12 +1,21 @@
-package main
+package menu
 
 import (
 	"fmt"
+	u "gomarks/pkg/utils"
 	"io"
 	"log"
 	"os/exec"
 	"strings"
 )
+
+type Option struct {
+	Label string
+}
+
+func (o Option) String() string {
+	return o.Label
+}
 
 type MenuCollection map[string]Menu
 
@@ -51,8 +60,8 @@ func (m *Menu) replaceArg(argName, newValue string) {
 }
 
 func (m *Menu) Confirm(msg, prompt string) bool {
-  m.UpdateMessage(msg)
-  m.UpdatePrompt(prompt)
+	m.UpdateMessage(msg)
+	m.UpdatePrompt(prompt)
 	options := []fmt.Stringer{
 		Option{"Yes"},
 		Option{"No"},
@@ -88,11 +97,11 @@ func (m *Menu) Select(items []fmt.Stringer) (int, error) {
 	}
 
 	selectedStr := strings.TrimSpace(output)
-	if !isSelectedTextInItems(selectedStr, itemsText) {
+	if !u.IsSelectedTextInItems(selectedStr, itemsText) {
 		log.Fatal("invalid selection:", selectedStr)
 	}
 
-	index := findSelectedIndex(selectedStr, itemsText)
+	index := u.FindSelectedIndex(selectedStr, itemsText)
 	if index != -1 {
 		return index, nil
 	}
