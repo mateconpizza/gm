@@ -17,7 +17,7 @@ var (
 	testFlag    *bool
 	optionsFlag *bool
 	deleteFlag  *bool
-	addFlag     string
+	addFlag     *bool
 	dropDB      *bool
 	migrateDB   *bool
 )
@@ -26,7 +26,7 @@ func init() {
 	flag.StringVar(&menuName, "m", "rofi", "name of the menu [dmenu rofi]")
 	flag.StringVar(&byQuery, "q", "", "query to filter bookmarks")
 	flag.BoolVar(&jsonFlag, "json", false, "JSON output")
-  flag.StringVar(&addFlag, "add", "", "add a bookmark")
+  addFlag = flag.Bool("add", false, "add a bookmark")
 	testFlag = flag.Bool("test", false, "test mode")
 	optionsFlag = flag.Bool("options", false, "show options")
 	deleteFlag = flag.Bool("delete", false, "delete a bookmark")
@@ -66,9 +66,13 @@ func main() {
 		return
 	}
 
-  if addFlag != "" {
-    // handleAddMode(&menu, r, addFlag)
-    fmt.Println("Add mode: ", addFlag)
+  if *addFlag {
+    b, err := display.AddBookmark(r, &menu)
+    if err != nil {
+      log.Fatal(err)
+    }
+		j := database.ToJSON(&[]database.Bookmark{b})
+		fmt.Println(j)
     return
   }
 
@@ -83,8 +87,8 @@ func main() {
 	}
 
 	if jsonFlag {
-		jsonString := database.ToJSON(&bookmarks)
-		fmt.Println(jsonString)
+		j := database.ToJSON(&bookmarks)
+		fmt.Println(j)
 		return
 	}
 

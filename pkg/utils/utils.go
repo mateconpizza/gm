@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 func FileExists(s string) bool {
@@ -64,12 +66,10 @@ func IsSelectedTextInItems(s string, items []string) bool {
 }
 
 func FindSelectedIndex(s string, items []string) int {
-	for i, itemText := range items {
-		if s == itemText {
-			return i
-		}
-	}
-	return -1
+	idx := slices.IndexFunc(items, func(item string) bool {
+		return strings.Contains(item, s)
+	})
+	return idx
 }
 
 func PrettyFormatLine(label, value string) string {

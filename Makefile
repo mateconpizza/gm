@@ -12,6 +12,7 @@ all: build
 build: vet test
 	@echo Building $(NAME)
 	go build -o $(BIN) $(SRC)
+	@echo
 
 run:
 	go run $(SRC)
@@ -19,11 +20,14 @@ run:
 test: vet
 	@echo Testing $(NAME)
 	go test -v ./...
+	@echo
 
 vet:
 	@echo Checking code with go vet
 	go vet ./...
+	@echo
 
 clean:
 	@echo Cleaning up
 	rm -f $(BIN)
+	@echo

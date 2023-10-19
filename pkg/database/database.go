@@ -10,7 +10,7 @@ import (
 	"time"
 
 	c "gomarks/pkg/constants"
-	u "gomarks/pkg/utils"
+	"gomarks/pkg/utils"
 
 	"github.com/atotto/clipboard"
 	_ "github.com/mattn/go-sqlite3"
@@ -48,12 +48,12 @@ type SQLiteRepository struct {
 
 // https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
 type Bookmark struct {
-	ID         int        `json:"ID,omitempty"`
-	URL        string     `json:"URL,omitempty"`
-	Title      NullString `json:"Title,omitempty"`
-	Tags       string     `json:"Tags,omitempty"`
-	Desc       NullString `json:"Desc,omitempty"`
-	Created_at NullString `json:"Created_at,omitempty"`
+	ID         int        `json:"ID"`
+	URL        string     `json:"URL"`
+	Title      NullString `json:"Title"`
+	Tags       string     `json:"Tags"`
+	Desc       NullString `json:"Desc"`
+	Created_at string     `json:"Created_at"`
 }
 
 func (b *Bookmark) CopyToClipboard() {
@@ -65,11 +65,11 @@ func (b *Bookmark) CopyToClipboard() {
 }
 
 func (b Bookmark) String() string {
-	s := u.PrettyFormatLine("ID", strconv.Itoa(b.ID))
-	s += u.PrettyFormatLine("Title", b.Title.String)
-	s += u.PrettyFormatLine("URL", b.URL)
-	s += u.PrettyFormatLine("Tags", b.Tags)
-	s += u.PrettyFormatLine("Desc", b.Desc.String)
+	s := utils.PrettyFormatLine("ID", strconv.Itoa(b.ID))
+	s += utils.PrettyFormatLine("Title", b.Title.String)
+	s += utils.PrettyFormatLine("URL", b.URL)
+	s += utils.PrettyFormatLine("Tags", b.Tags)
+	s += utils.PrettyFormatLine("Desc", b.Desc.String)
 	return s
 }
 
@@ -100,7 +100,7 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 }
 
 func GetDB() *SQLiteRepository {
-	dbPath, err := u.GetDBPath()
+	dbPath, err := utils.GetDBPath()
 	if err != nil {
 		log.Fatal("Error getting database path:", err)
 	}
@@ -130,7 +130,7 @@ func (r *SQLiteRepository) initDB() {
 	}
 	log.Printf("%s: Database initialized. Table: %s\n", c.AppName, c.DBDeletedTable)
 
-	if err := r.InsertRecord(&InitBookmark, c.DBMainTable); err != nil {
+	if _, err := r.InsertRecord(&InitBookmark, c.DBMainTable); err != nil {
 		return
 	}
 }
@@ -147,9 +147,14 @@ func (r *SQLiteRepository) HandleDropDB() {
 	fmt.Printf("%s: Database dropped.\n", c.AppName)
 }
 
-func (r *SQLiteRepository) InsertRecord(b *Bookmark, tableName string) error {
-	if r.isRecordExists(b, c.DBDeletedTable) {
-		return fmt.Errorf("error inserting bookmark %s: %s", ErrDuplicate, b.URL)
+func (r *SQLiteRepository) InsertRecord(b *Bookmark, tableName string) (Bookmark, error) {
+	if r.isRecordExists(b, tableName) {
+		return *b, fmt.Errorf(
+			"bookmark already exists in %s table %s: %s",
+			tableName,
+			ErrDuplicate,
+			b.URL,
+		)
 	}
 
 	currentTime := time.Now()
@@ -157,7 +162,7 @@ func (r *SQLiteRepository) InsertRecord(b *Bookmark, tableName string) error {
 		`INSERT INTO %s(
       url, title, tags, desc, created_at)
       VALUES(?, ?, ?, ?, ?)`, tableName)
-	_, err := r.DB.Exec(
+	result, err := r.DB.Exec(
 		sqlQuery,
 		b.URL,
 		b.Title,
@@ -166,13 +171,20 @@ func (r *SQLiteRepository) InsertRecord(b *Bookmark, tableName string) error {
 		currentTime.Format("2006-01-02 15:04:05"),
 	)
 	if err != nil {
-		return err
+		return *b, err
 	}
-	fmt.Printf("Inserted bookmark: %s (table: %s)\n", b.URL, tableName)
-	return nil
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return *b, err
+	}
+  b.ID = int(id)
+
+	log.Printf("Inserted bookmark: %s (table: %s)\n", b.URL, tableName)
+	return *b, nil
 }
 
-func (r *SQLiteRepository) updateRecord(b *Bookmark) error {
+func (r *SQLiteRepository) UpdateRecord(b *Bookmark) error {
 	return nil
 }
 
@@ -371,7 +383,7 @@ func MigrateData(r *SQLiteRepository) {
 			log.Fatal(err)
 		}
 
-		err := r.InsertRecord(&b, c.DBMainTable)
+		b, err := r.InsertRecord(&b, c.DBMainTable)
 		if err != nil {
 			log.Fatal(err)
 		}

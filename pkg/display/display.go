@@ -1,13 +1,16 @@
 package display
 
 import (
+	"database/sql"
 	"fmt"
 	c "gomarks/pkg/constants"
 	db "gomarks/pkg/database"
-  u "gomarks/pkg/utils"
 	"gomarks/pkg/menu"
+	"gomarks/pkg/scrape"
+	"gomarks/pkg/utils"
 	"log"
 	"strings"
+	"time"
 )
 
 /* func ShowOptions(m *menu.Menu) (int, error) {
@@ -31,13 +34,41 @@ func PavelOptions(menuArgs []string) (int, error) {
 	optionsMap["Delete a bookmark"] = DeleteBookmark
 	optionsMap["Exit"] = nil
 	return -1, nil
+} */
+
+func AddBookmark(r *db.SQLiteRepository, m *menu.Menu) (db.Bookmark, error) {
+	currentTime := time.Now()
+	currentTimeString := currentTime.Format("2006-01-02 15:04:05")
+	url, err := m.Run("")
+	if err != nil {
+		return db.Bookmark{}, err
+	}
+
+	tags, err := m.Run("")
+	if err != nil {
+		return db.Bookmark{}, err
+	}
+
+	s, err := scrape.TitleAndDescription(url)
+  if err != nil {
+    return db.Bookmark{}, err
+  }
+
+	b, err := r.InsertRecord(&db.Bookmark{
+		ID:         0,
+		URL:        url,
+		Title:      db.NullString{NullString: sql.NullString{String: s.Title, Valid: true}},
+		Tags:       tags,
+		Desc:       db.NullString{NullString: sql.NullString{String: s.Description, Valid: true}},
+		Created_at: currentTimeString,
+	}, c.DBMainTable)
+	if err != nil {
+		return db.Bookmark{}, err
+	}
+	return b, nil
 }
 
-func addBookmark(r *db.SQLiteRepository, m *menu.Menu, b *db.Bookmark) (db.Bookmark, error) {
-	return db.Bookmark{}, nil
-}
-
-func editBookmark(r *db.SQLiteRepository, m *menu.Menu, b *db.Bookmark) (db.Bookmark, error) {
+func EditBookmark(r *db.SQLiteRepository, m *menu.Menu, b *db.Bookmark) (db.Bookmark, error) {
 	m.UpdatePrompt(fmt.Sprintf("Editing ID: %d", b.ID))
 	s, err := m.Run(b.String())
 	if err != nil {
@@ -57,7 +88,7 @@ func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *db.Bookmark) error 
 		return err
 	}
 
-	err = r.InsertRecord(b, c.DBDeletedTable)
+	_, err = r.InsertRecord(b, c.DBDeletedTable)
 	if err != nil {
 		return err
 	}

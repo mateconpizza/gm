@@ -80,7 +80,7 @@ func (m *Menu) Prompt(msg, prompt string) (string, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return strings.Trim(input, "\n"), nil
+	return strings.TrimRight(input, "\n"), nil
 }
 
 func (m *Menu) Select(items []fmt.Stringer) (int, error) {
@@ -134,7 +134,8 @@ func (m *Menu) Run(s string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("program exited with non-zero status: %s", err)
 	}
-	return string(output), nil
+  outputStr := string(output)
+	return strings.TrimRight(outputStr, "\n"), nil
 }
 
 var rofiMenu = Menu{
