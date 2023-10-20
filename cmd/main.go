@@ -15,12 +15,12 @@ var (
 	menuName    string
 	byQuery     string
 	jsonFlag    bool
-	testFlag    *bool
-	optionsFlag *bool
-	deleteFlag  *bool
-	addFlag     *bool
-	dropDB      *bool
-	migrateData *bool
+	testFlag    bool
+	optionsFlag bool
+	deleteFlag  bool
+	addFlag     bool
+	dropDB      bool
+	migrateData bool
 	verboseFlag bool
 )
 
@@ -29,12 +29,12 @@ func init() {
 	flag.StringVar(&byQuery, "q", "", "query to filter bookmarks")
 	flag.BoolVar(&jsonFlag, "json", false, "JSON output")
 	flag.BoolVar(&verboseFlag, "v", false, "Enable verbose output")
-	addFlag = flag.Bool("add", false, "add a bookmark")
-	testFlag = flag.Bool("test", false, "test mode")
-	optionsFlag = flag.Bool("options", false, "show options")
-	deleteFlag = flag.Bool("delete", false, "delete a bookmark")
-	dropDB = flag.Bool("drop", false, "drop the database")
-	migrateData = flag.Bool("migrate", false, "migrate data")
+	flag.BoolVar(&addFlag, "add", false, "add a bookmark")
+	flag.BoolVar(&testFlag, "test", false, "test mode")
+	flag.BoolVar(&optionsFlag, "options", false, "show options")
+	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
+	flag.BoolVar(&dropDB, "drop", false, "drop the database")
+	flag.BoolVar(&migrateData, "migrate", false, "migrate data")
 }
 
 func main() {
@@ -63,17 +63,12 @@ func main() {
 		return
 	}
 
-	if *testFlag {
+	if testFlag {
 		display.HandleTestMode(&menu, r)
 		return
 	}
 
-	if *migrateDB {
-		database.MigrateData(r)
-		return
-	}
-
-	if *addFlag {
+	if addFlag {
 		b, err := display.AddBookmark(r, &menu)
 		if err != nil {
 			log.Fatal(err)
@@ -83,12 +78,12 @@ func main() {
 		return
 	}
 
-	if *optionsFlag {
+	if optionsFlag {
 		// display.HandleOptionsMode(&menu)
 		return
 	}
 
-	if *migrateData {
+	if migrateData {
 		tableName = constants.DBDeletedTableName
 	}
 
@@ -108,7 +103,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *deleteFlag {
+	if deleteFlag {
 		if err := display.DeleteBookmark(r, &menu, &selectedBookmark); err != nil {
 			log.Fatal(err)
 		}
