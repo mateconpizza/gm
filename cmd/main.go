@@ -44,13 +44,13 @@ func main() {
 	// Set log level
 	utils.SetLogLevel(verboseFlag)
 
-	// Load menus
-	m.Menus.Load()
-
 	// Set up the home project
 	utils.SetupHomeProject()
 
-	menu, err := m.Menus.Get(menuName)
+	// Load menus
+	mc := make(m.MenuCollection)
+	mc.Load()
+	menu, err := mc.Get(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}

@@ -19,8 +19,6 @@ func (o Option) String() string {
 
 type MenuCollection map[string]Menu
 
-var Menus = make(MenuCollection)
-
 func (mc MenuCollection) Register(m Menu) {
 	log.Println("Registering menu:", m.Command)
 	mc[m.Command] = m
@@ -54,9 +52,10 @@ func (m *Menu) UpdatePrompt(prompt string) {
 }
 
 func (m *Menu) replaceArg(argName, newValue string) {
-	for i := 0; i < len(m.Arguments); i++ {
+	for i := 0; i < len(m.Arguments)-1; i++ {
 		if m.Arguments[i] == argName {
 			m.Arguments[i+1] = newValue
+			break
 		}
 	}
 }
@@ -79,17 +78,13 @@ func (m *Menu) Prompt(msg, prompt string) (string, error) {
 	m.UpdateMessage(msg)
 	m.UpdatePrompt(prompt)
 	input, err := m.Run("")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return strings.TrimRight(input, "\n"), nil
+	return strings.TrimRight(input, "\n"), err
 }
 
 func (m *Menu) Select(items []fmt.Stringer) (int, error) {
 	var itemsText []string
 	for _, item := range items {
-		itemText := item.String()
-		itemsText = append(itemsText, itemText)
+		itemsText = append(itemsText, item.String())
 	}
 
 	itemsString := strings.Join(itemsText, "\n")
@@ -97,17 +92,12 @@ func (m *Menu) Select(items []fmt.Stringer) (int, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	selectedStr := strings.TrimSpace(output)
-	if !u.IsSelectedTextInItems(selectedStr, itemsText) {
-		log.Fatal("invalid selection:", selectedStr)
-	}
 
-	index := u.FindSelectedIndex(selectedStr, itemsText)
-	if index != -1 {
-		return index, nil
+	if !u.IsSelectedTextInItems(selectedStr, itemsText) {
+		return -1, fmt.Errorf("invalid selection: %s", selectedStr)
 	}
-	return -1, fmt.Errorf("item not found")
+	return u.FindSelectedIndex(selectedStr, itemsText), nil
 }
 
 func (m *Menu) Run(s string) (string, error) {
@@ -120,17 +110,17 @@ func (m *Menu) Run(s string) (string, error) {
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatal("Error creating output pipe:", err)
+		return "", fmt.Errorf("error creating output pipe: %s", err)
 	}
 
 	err = cmd.Start()
 	if err != nil {
-		log.Fatal("Error starting dmenu:", err)
+		return "", fmt.Errorf("error starting dmenu: %s", err)
 	}
 
 	output, err := io.ReadAll(stdoutPipe)
 	if err != nil {
-		log.Fatal("Error reading output:", err)
+		return "", fmt.Errorf("error reading output: %s", err)
 	}
 
 	err = cmd.Wait()
@@ -139,7 +129,7 @@ func (m *Menu) Run(s string) (string, error) {
 	}
 	outputStr := string(output)
 	outputStr = strings.TrimRight(outputStr, "\n")
-  log.Println("Output:", outputStr)
+	log.Println("Output:", outputStr)
 	return outputStr, nil
 }
 
