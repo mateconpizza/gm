@@ -8,6 +8,7 @@ import (
   "gomarks/pkg/utils"
   "gomarks/pkg/menu"
   "gomarks/pkg/display"
+  "gomarks/pkg/constants"
 )
 
 var (
@@ -31,11 +32,15 @@ func init() {
 	optionsFlag = flag.Bool("options", false, "show options")
 	deleteFlag = flag.Bool("delete", false, "delete a bookmark")
 	dropDB = flag.Bool("drop", false, "drop the database")
-	migrateDB = flag.Bool("migrate", false, "migrate database")
+	migrateDB = flag.Bool("migrateDB", false, "migrate database")
+  migrateData = flag.Bool("migrate", false, "migrate data")
 }
 
 func main() {
+  var tableName string = constants.DBMainTable
 	flag.Parse()
+
+  // Load menus
 	menu.Menus.Load()
 
 	// Set up the home project
@@ -81,7 +86,11 @@ func main() {
 		return
 	}
 
-	bookmarks, err := database.FetchBookmarks(r, byQuery)
+  if *migrateData {
+    tableName = constants.DBDeletedTable
+  }
+
+	bookmarks, err := database.FetchBookmarks(r, byQuery, tableName)
 	if err != nil {
 		log.Fatal(err)
 	}

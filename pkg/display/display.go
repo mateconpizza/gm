@@ -25,7 +25,7 @@ import (
 		log.Fatal(err)
 	}
 	return idx, nil
-} */
+}
 
 func PavelOptions(menuArgs []string) (int, error) {
 	optionsMap := make(map[string]interface{})
@@ -110,11 +110,17 @@ func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *db.Bookmark) error 
 
 func HandleTestMode(m *menu.Menu, r *db.SQLiteRepository) {
 	fmt.Print("::::::::Test Mode::::::::\n\n")
-	a, _ := r.GetRecordByID(1)
-	_, err := editBookmark(r, m, a)
+	a, _ := r.GetRecordByID(664, c.DBMainTable)
+	_, err := EditBookmark(r, m, a)
 	if err != nil {
 		log.Fatal(err)
 	}
+	/* b, _ := r.GetRecordByID(664)
+	bookmark, err := SelectBookmark(m, &[]db.Bookmark{*b})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(bookmark) */
 }
 
 func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error) {
@@ -125,7 +131,7 @@ func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error)
 		itemText := fmt.Sprintf(
 			"%-4d %-80s %-10s",
 			bm.ID,
-			u.ShortenString(bm.URL, 80),
+			utils.ShortenString(bm.URL, 80),
 			bm.Tags,
 		)
 		itemsText = append(itemsText, itemText)
@@ -138,7 +144,7 @@ func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error)
 	}
 
 	selectedStr := strings.Trim(output, "\n")
-	index := u.FindSelectedIndex(selectedStr, itemsText)
+	index := utils.FindSelectedIndex(selectedStr, itemsText)
 	if index != -1 {
 		return (*bookmarks)[index], nil
 	}
