@@ -118,26 +118,26 @@ func GetDB() *SQLiteRepository {
 	}
 
 	r := NewSQLiteRepository(db)
-	if exists, _ := r.TableExists(c.DBMainTable); !exists {
+	if exists, _ := r.TableExists(c.DBMainTableName); !exists {
 		r.initDB()
 	}
 	return r
 }
 
 func (r *SQLiteRepository) initDB() {
-	_, err := r.DB.Exec(c.BookmarksSquema)
+	err := r.CreateTable(c.DBMainTableName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("%s: Database initialized. Table: %s\n", c.AppName, c.DBMainTable)
+	log.Printf("%s: Database initialized. Table: %s\n", c.AppName, c.DBMainTableName)
 
-	_, err = r.DB.Exec(c.DeletedBookmarksSchema)
+	err = r.CreateTable(c.DBDeletedTableName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("%s: Database initialized. Table: %s\n", c.AppName, c.DBDeletedTable)
+	log.Printf("%s: Database initialized. Table: %s\n", c.AppName, c.DBDeletedTableName)
 
-	if _, err := r.InsertRecord(&InitBookmark, c.DBMainTable); err != nil {
+	if _, err := r.InsertRecord(&InitBookmark, c.DBMainTableName); err != nil {
 		return
 	}
 }
@@ -306,7 +306,7 @@ func (r *SQLiteRepository) RecordExists(b *Bookmark, tableName string) bool {
 }
 
 func (r *SQLiteRepository) getMaxID() int {
-	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", c.DBMainTable)
+	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", c.DBMainTableName)
 	var lastIndex int
 	err := r.DB.QueryRow(sqlQuery).Scan(&lastIndex)
 	if err != nil {
@@ -376,77 +376,51 @@ func (r *SQLiteRepository) ReorderIDs() error {
 		return err
 	}
 
-	_, err = r.DB.Exec(fmt.Sprintf("ALTER TABLE temp_%s RENAME TO bookmarks", c.DBMainTable))
+func (r *SQLiteRepository) RenameTable(tempTable string, mainTable string) error {
+	fmt.Printf("Renaming table %s to %s\n", tempTable, mainTable)
+	_, err := r.DB.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", tempTable, mainTable))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *SQLiteRepository) TableExists(t string) (bool, error) {
-	sqlQuery := "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
-	rows, err := r.DB.Query(sqlQuery, t)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	rows.Next()
-	return true, nil
+func (r *SQLiteRepository) CreateTable(s string) error {
+	schema := fmt.Sprintf(c.MainTableSchema, s)
+	_, err := r.DB.Exec(schema)
+	return err
 }
 
-func MigrateData(r *SQLiteRepository) {
-	sqlQuery := fmt.Sprintf("SELECT url, title, tags, desc, created_at FROM %s", c.DBMainTable)
+func (r *SQLiteRepository) ReorderIDs() error {
+	var tempTable string = fmt.Sprintf("temp_%s", c.DBMainTableName)
+	if r.getMaxID() == 0 {
+		return nil
+	}
 
-	sourceDB, err := sql.Open("sqlite3", "/home/void/.config/GoMarks/migrate.db")
+	err := r.CreateTable(tempTable)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	rows, err := sourceDB.Query(sqlQuery)
+
+	bookmarks, err := r.getRecordsAll(c.DBMainTableName)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var b Bookmark
-		if err := rows.Scan(&b.URL, &b.Title, &b.Tags, &b.Desc, &b.Created_at); err != nil {
-			log.Fatal(err)
-		}
-
-		b, err := r.InsertRecord(&b, c.DBMainTable)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
-func ToJSON(b *[]Bookmark) string {
-	jsonData, err := json.MarshalIndent(b, "", "  ")
+	err = r.InsertRecordsBulk(tempTable, bookmarks)
 	if err != nil {
-		log.Fatal("Error marshaling to JSON:", err)
-	}
-	jsonString := string(jsonData)
-	return jsonString
-}
-
-func FetchBookmarks(r *SQLiteRepository, byQuery, t string) ([]Bookmark, error) {
-	var bookmarks []Bookmark
-	var err error
-
-	if byQuery != "" {
-		bookmarks, err = r.getRecordsByQuery(byQuery, t)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		bookmarks, err = r.getRecordsAll(t)
-		if err != nil {
-			return nil, err
-		}
+		return err
 	}
 
-	if len(bookmarks) == 0 {
-		return []Bookmark{}, fmt.Errorf("no bookmarks found")
+	err = r.DropTable(c.DBMainTableName)
+	if err != nil {
+		return err
 	}
-	return bookmarks, nil
+
+	err = r.RenameTable(tempTable, c.DBMainTableName)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

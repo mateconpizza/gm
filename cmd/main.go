@@ -37,7 +37,7 @@ func init() {
 }
 
 func main() {
-  var tableName string = constants.DBMainTable
+  var tableName string = constants.DBMainTableName
 	flag.Parse()
 
   // Load menus
@@ -87,7 +87,7 @@ func main() {
 	}
 
   if *migrateData {
-    tableName = constants.DBDeletedTable
+    tableName = constants.DBDeletedTableName
   }
 
 	bookmarks, err := database.FetchBookmarks(r, byQuery, tableName)
