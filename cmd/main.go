@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"gomarks/pkg/constants"
+	"gomarks/pkg/database"
+	"gomarks/pkg/display"
+	m "gomarks/pkg/menu"
+	"gomarks/pkg/utils"
 	"log"
-  "gomarks/pkg/database"
-  "gomarks/pkg/utils"
-  "gomarks/pkg/menu"
-  "gomarks/pkg/display"
-  "gomarks/pkg/constants"
 )
 
 var (
@@ -20,40 +20,42 @@ var (
 	deleteFlag  *bool
 	addFlag     *bool
 	dropDB      *bool
-	migrateDB   *bool
+	migrateData *bool
+	verboseFlag bool
 )
 
 func init() {
 	flag.StringVar(&menuName, "m", "rofi", "name of the menu [dmenu rofi]")
 	flag.StringVar(&byQuery, "q", "", "query to filter bookmarks")
 	flag.BoolVar(&jsonFlag, "json", false, "JSON output")
-  addFlag = flag.Bool("add", false, "add a bookmark")
+	flag.BoolVar(&verboseFlag, "v", false, "Enable verbose output")
+	addFlag = flag.Bool("add", false, "add a bookmark")
 	testFlag = flag.Bool("test", false, "test mode")
 	optionsFlag = flag.Bool("options", false, "show options")
 	deleteFlag = flag.Bool("delete", false, "delete a bookmark")
 	dropDB = flag.Bool("drop", false, "drop the database")
-	migrateDB = flag.Bool("migrateDB", false, "migrate database")
-  migrateData = flag.Bool("migrate", false, "migrate data")
+	migrateData = flag.Bool("migrate", false, "migrate data")
 }
 
 func main() {
-  var tableName string = constants.DBMainTableName
+	var tableName string = constants.DBMainTableName
 	flag.Parse()
 
-  // Load menus
-	menu.Menus.Load()
+	// Set log level
+	utils.SetLogLevel(verboseFlag)
+
+	// Load menus
+	m.Menus.Load()
 
 	// Set up the home project
 	utils.SetupHomeProject()
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	menu, err := menu.Menus.Get(menuName)
+	menu, err := m.Menus.Get(menuName)
 	if err != nil {
 		log.Fatal("Error getting menu:", err)
 	}
 
-  r := database.GetDB()
+	r := database.GetDB()
 	defer r.DB.Close()
 
 	if *dropDB {
@@ -71,24 +73,24 @@ func main() {
 		return
 	}
 
-  if *addFlag {
-    b, err := display.AddBookmark(r, &menu)
-    if err != nil {
-      log.Fatal(err)
-    }
+	if *addFlag {
+		b, err := display.AddBookmark(r, &menu)
+		if err != nil {
+			log.Fatal(err)
+		}
 		j := database.ToJSON(&[]database.Bookmark{b})
 		fmt.Println(j)
-    return
-  }
+		return
+	}
 
 	if *optionsFlag {
 		// display.HandleOptionsMode(&menu)
 		return
 	}
 
-  if *migrateData {
-    tableName = constants.DBDeletedTableName
-  }
+	if *migrateData {
+		tableName = constants.DBDeletedTableName
+	}
 
 	bookmarks, err := database.FetchBookmarks(r, byQuery, tableName)
 	if err != nil {
@@ -112,6 +114,5 @@ func main() {
 		}
 		return
 	}
-
 	selectedBookmark.CopyToClipboard()
 }

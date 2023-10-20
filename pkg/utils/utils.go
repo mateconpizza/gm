@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	c "gomarks/pkg/constants"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,7 +29,8 @@ func getAppHome() (string, error) {
 		c.ConfigHome = os.Getenv("HOME")
 		c.ConfigHome += "/.config"
 	}
-	return filepath.Join(c.ConfigHome, c.AppName), nil
+	s := filepath.Join(c.ConfigHome, c.AppName)
+	return s, nil
 }
 
 func GetDBPath() (string, error) {
@@ -36,7 +38,9 @@ func GetDBPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(appPath, c.DBName), nil
+	s := filepath.Join(appPath, c.DBName)
+	log.Print("GetDBPath: ", s)
+	return s, nil
 }
 
 func SetupHomeProject() {
@@ -52,6 +56,7 @@ func SetupHomeProject() {
 			log.Fatal(err)
 		}
 	} else {
+    log.Println("AppHome already exists:", AppHome)
 		return
 	}
 }
@@ -66,12 +71,24 @@ func IsSelectedTextInItems(s string, items []string) bool {
 }
 
 func FindSelectedIndex(s string, items []string) int {
+  log.Printf("Finding selected in %d items", len(items))
 	idx := slices.IndexFunc(items, func(item string) bool {
 		return strings.Contains(item, s)
 	})
+  log.Println("FindSelectedIndex:", idx)
 	return idx
 }
 
 func PrettyFormatLine(label, value string) string {
 	return fmt.Sprintf("%-20s: %s\n", label, value)
+}
+
+func SetLogLevel(verboseFlag bool) {
+	if verboseFlag {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+    log.Println("Verbose mode")
+		return
+	}
+	silentLogger := log.New(io.Discard, "", 0)
+	log.SetOutput(silentLogger.Writer())
 }

@@ -22,6 +22,7 @@ type MenuCollection map[string]Menu
 var Menus = make(MenuCollection)
 
 func (mc MenuCollection) Register(m Menu) {
+	log.Println("Registering menu:", m.Command)
 	mc[m.Command] = m
 }
 
@@ -30,6 +31,7 @@ func (mc MenuCollection) Get(s string) (Menu, error) {
 	if !ok {
 		return Menu{}, fmt.Errorf("menu '%s' not found", s)
 	}
+	log.Println("Got menu:", menu.Command)
 	return menu, nil
 }
 
@@ -109,6 +111,7 @@ func (m *Menu) Select(items []fmt.Stringer) (int, error) {
 }
 
 func (m *Menu) Run(s string) (string, error) {
+	log.Println("Running menu:", m.Command, m.Arguments)
 	cmd := exec.Command(m.Command, m.Arguments...)
 
 	if s != "" {
@@ -132,10 +135,12 @@ func (m *Menu) Run(s string) (string, error) {
 
 	err = cmd.Wait()
 	if err != nil {
-		return "", fmt.Errorf("program exited with non-zero status: %s", err)
+		return "", fmt.Errorf("user hit scape: %s", err)
 	}
-  outputStr := string(output)
-	return strings.TrimRight(outputStr, "\n"), nil
+	outputStr := string(output)
+	outputStr = strings.TrimRight(outputStr, "\n")
+  log.Println("Output:", outputStr)
+	return outputStr, nil
 }
 
 var rofiMenu = Menu{

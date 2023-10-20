@@ -126,6 +126,7 @@ func HandleTestMode(m *menu.Menu, r *db.SQLiteRepository) {
 func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error) {
 	var itemsText []string
 	m.UpdateMessage(fmt.Sprintf(" Welcome to GoMarks\n Showing (%d) bookmarks", len(*bookmarks)))
+  log.Printf("Selecting bookmark from %d bookmarks\n", len(*bookmarks))
 
 	for _, bm := range *bookmarks {
 		itemText := fmt.Sprintf(
@@ -146,7 +147,9 @@ func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error)
 	selectedStr := strings.Trim(output, "\n")
 	index := utils.FindSelectedIndex(selectedStr, itemsText)
 	if index != -1 {
-		return (*bookmarks)[index], nil
+    b := (*bookmarks)[index]
+    log.Printf("Selected bookmark:\n%s", b)
+		return b, nil
 	}
 	return db.Bookmark{}, fmt.Errorf("item not found: %s", selectedStr)
 }
