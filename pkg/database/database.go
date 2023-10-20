@@ -142,16 +142,13 @@ func (r *SQLiteRepository) initDB() {
 	}
 }
 
-func (r *SQLiteRepository) HandleDropDB() {
-	_, err := r.DB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", c.DBMainTable))
+func (r *SQLiteRepository) DropTable(t string) error {
+	_, err := r.DB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	_, err = r.DB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", c.DBDeletedTable))
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s: Database dropped.\n", c.AppName)
+	fmt.Printf("Table dropped: %s\n", t)
+	return nil
 }
 
 func (r *SQLiteRepository) InsertRecord(b *Bookmark, tableName string) (Bookmark, error) {
@@ -224,9 +221,8 @@ func (r *SQLiteRepository) DeleteRecord(b *Bookmark, tableName string) error {
 	return nil
 }
 
-func (r *SQLiteRepository) GetRecordByID(n int, tableName string) (*Bookmark, error) {
-	sqlQuery := fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tableName)
-	row := r.DB.QueryRow(sqlQuery, n)
+func (r *SQLiteRepository) GetRecordByID(n int, t string) (*Bookmark, error) {
+	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", t), n)
 
 	var b Bookmark
 	err := row.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.Created_at)
@@ -270,7 +266,7 @@ func (r *SQLiteRepository) getRecordsAll(t string) ([]Bookmark, error) {
 	return bookmarks, nil
 }
 
-func (r *SQLiteRepository) getRecordsByQuery(q, t string) ([]Bookmark, error) {
+func (r *SQLiteRepository) GetRecordsByQuery(q, t string) ([]Bookmark, error) {
 	sqlQuery := fmt.Sprintf(
 		`SELECT 
         id, url, title, tags, desc, created_at
@@ -315,34 +311,60 @@ func (r *SQLiteRepository) getMaxID() int {
 	return lastIndex
 }
 
-func (r *SQLiteRepository) ReorderIDs() error {
-	if r.getMaxID() == 0 {
-		return nil
-	}
-	_, err := r.DB.Exec(c.TempBookmarksSchema)
+func (r *SQLiteRepository) TableExists(t string) (bool, error) {
+	rows, err := r.DB.Query("SELECT name FROM sqlite_master WHERE type='table' AND name=?", t)
 	if err != nil {
-		return err
+		return false, err
 	}
-	bookmarks, err := r.getRecordsAll(c.DBMainTable)
+	defer rows.Close()
+	rows.Next()
+	return true, nil
+}
+
+func ToJSON(b *[]Bookmark) string {
+	jsonData, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
-		return err
+		log.Fatal("Error marshaling to JSON:", err)
+	}
+	jsonString := string(jsonData)
+	return jsonString
+}
+
+func FetchBookmarks(r *SQLiteRepository, byQuery, t string) ([]Bookmark, error) {
+	var bookmarks []Bookmark
+	var err error
+
+	if byQuery != "" {
+		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		bookmarks, err = r.getRecordsAll(t)
+		if err != nil {
+			return nil, err
+		}
 	}
 
+	if len(bookmarks) == 0 {
+		return []Bookmark{}, fmt.Errorf("no bookmarks found")
+	}
+	return bookmarks, nil
+}
+
+func (r *SQLiteRepository) InsertRecordsBulk(tempTable string, bookmarks []Bookmark) error {
 	tx, err := r.DB.Begin()
 	if err != nil {
 		return err
 	}
 
 	sqlQuery := fmt.Sprintf(
-		"INSERT INTO temp_%s (url, title, tags, desc, created_at) VALUES (?, ?, ?, ?, ?)",
-		c.DBMainTable,
+		"INSERT INTO %s (url, title, tags, desc, created_at) VALUES (?, ?, ?, ?, ?)",
+		tempTable,
 	)
 	stmt, err := tx.Prepare(sqlQuery)
 	if err != nil {
 		err = tx.Rollback()
-		if err != nil {
-			return err
-		}
 		return err
 	}
 
@@ -350,31 +372,21 @@ func (r *SQLiteRepository) ReorderIDs() error {
 		_, err = stmt.Exec(b.URL, b.Title, b.Tags, b.Desc, b.Created_at)
 		if err != nil {
 			err = tx.Rollback()
-			if err != nil {
-				return err
-			}
 			return err
 		}
 	}
 
-	err = stmt.Close()
-	if err != nil {
+	if err := stmt.Close(); err != nil {
 		err = tx.Rollback()
-		if err != nil {
-			return err
-		}
 		return err
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 
-	_, err = r.DB.Exec(fmt.Sprintf("DROP TABLE %s", c.DBMainTable))
-	if err != nil {
-		return err
-	}
+	return nil
+}
 
 func (r *SQLiteRepository) RenameTable(tempTable string, mainTable string) error {
 	fmt.Printf("Renaming table %s to %s\n", tempTable, mainTable)
