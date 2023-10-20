@@ -7,27 +7,47 @@ BIN = ./$(NAME)
 
 .PHONY: all build run test vet clean
 
-all: build
+all: full
+
+full: vet lint fmt test build
 
 build: vet test
-	@echo Building $(NAME)
+	@echo '>> Building $(NAME)'
 	go build -o $(BIN) $(SRC)
 	@echo
 
-run:
-	go run $(SRC)
+run: build
+	@echo '>> Running $(NAME)'
+	$(BIN)
 
 test: vet
-	@echo Testing $(NAME)
+	@echo '>> Testing $(NAME)'
+	go test ./...
+	@echo
+
+test-verbose: vet
+	@echo '>> Testing $(NAME) (verbose)'
 	go test -v ./...
 	@echo
 
 vet:
-	@echo Checking code with go vet
+	@echo '>> Checking code with go vet'
 	go vet ./...
 	@echo
 
 clean:
-	@echo Cleaning up
+	@echo '>> Cleaning up'
 	rm -f $(BIN)
+	@echo
+
+.PHONY: fmt
+fmt:
+	@echo '>> Formatting code'
+	go fmt ./...
+	@echo
+
+.PHONY: lint
+lint: vet
+	@echo '>> Linting code'
+	golangci-lint run ./...
 	@echo
