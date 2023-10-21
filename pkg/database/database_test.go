@@ -39,7 +39,7 @@ func getValidBookmark() database.Bookmark {
 	return database.Bookmark{
 		URL:   "https://www.example.com",
 		Title: database.NullString{NullString: sql.NullString{String: "Title", Valid: true}},
-		Tags:  "test",
+		Tags:  "test,testme,go",
 		Desc: database.NullString{
 			NullString: sql.NullString{String: "Description", Valid: true},
 		},
@@ -143,13 +143,13 @@ func TestDeleteRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Prueba la eliminación exitosa
+	// Test the deletion of a valid record
 	err = r.DeleteRecord(&bookmark, "test_table")
 	if err != nil {
 		t.Errorf("DeleteRecord returned an error: %v", err)
 	}
 
-	// Prueba la eliminación de un registro que no existe
+	// Test the deletion of a non-existent record
 	err = r.DeleteRecord(&bookmark, "test_table")
 	if err == nil {
 		t.Error("DeleteRecord did not return an error for a non-existent record")
@@ -338,19 +338,19 @@ func TestInsertRecordsBulk(t *testing.T) {
 }
 
 func TestRenameTable(t *testing.T) {
-  db, r := setupTestDB(t)
-  defer teardownTestDB(db)
+	db, r := setupTestDB(t)
+	defer teardownTestDB(db)
 
-  err := r.RenameTable(tempTableName, c.DBDeletedTableName)
-  if err != nil {
-    t.Errorf("Error renaming table: %v", err)
-  }
+	err := r.RenameTable(tempTableName, c.DBDeletedTableName)
+	if err != nil {
+		t.Errorf("Error renaming table: %v", err)
+	}
 
-  exists, err := r.TableExists(c.DBDeletedTableName)
-  if err != nil {
-    t.Errorf("Error checking if table exists: %v", err)
-  }
-  if !exists {
-    t.Errorf("Table %s does not exist", c.DBDeletedTableName)
-  }
+	exists, err := r.TableExists(c.DBDeletedTableName)
+	if err != nil {
+		t.Errorf("Error checking if table exists: %v", err)
+	}
+	if !exists {
+		t.Errorf("Table %s does not exist", c.DBDeletedTableName)
+	}
 }

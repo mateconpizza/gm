@@ -337,37 +337,6 @@ func (r *SQLiteRepository) TableExists(t string) (bool, error) {
 	return true, nil
 }
 
-func ToJSON(b *[]Bookmark) string {
-	jsonData, err := json.MarshalIndent(b, "", "  ")
-	if err != nil {
-		log.Fatal("Error marshaling to JSON:", err)
-	}
-	jsonString := string(jsonData)
-	return jsonString
-}
-
-func FetchBookmarks(r *SQLiteRepository, byQuery, t string) ([]Bookmark, error) {
-	var bookmarks []Bookmark
-	var err error
-
-	if byQuery != "" {
-		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		bookmarks, err = r.getRecordsAll(t)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if len(bookmarks) == 0 {
-		return []Bookmark{}, fmt.Errorf("no bookmarks found")
-	}
-	return bookmarks, nil
-}
-
 func (r *SQLiteRepository) InsertRecordsBulk(tempTable string, bookmarks []Bookmark) error {
 	log.Printf("Inserting %d bookmarks into table: %s", len(bookmarks), tempTable)
 	tx, err := r.DB.Begin()
@@ -427,15 +396,14 @@ func (r *SQLiteRepository) CreateTable(s string) error {
 }
 
 func (r *SQLiteRepository) ReorderIDs() error {
-	var tempTable string = fmt.Sprintf("temp_%s", c.DBMainTableName)
 	log.Printf("Reordering IDs in table: %s", c.DBMainTableName)
 
 	if r.getMaxID() == 0 {
 		return nil
 	}
 
-	err := r.CreateTable(tempTable)
-	if err != nil {
+	tempTable := fmt.Sprintf("temp_%s", c.DBMainTableName)
+	if err := r.CreateTable(tempTable); err != nil {
 		return err
 	}
 
@@ -444,20 +412,73 @@ func (r *SQLiteRepository) ReorderIDs() error {
 		return err
 	}
 
-	err = r.InsertRecordsBulk(tempTable, bookmarks)
-	if err != nil {
+	if err := r.InsertRecordsBulk(tempTable, bookmarks); err != nil {
 		return err
 	}
 
-	err = r.DropTable(c.DBMainTableName)
-	if err != nil {
+	if err := r.DropTable(c.DBMainTableName); err != nil {
 		return err
 	}
 
-	err = r.RenameTable(tempTable, c.DBMainTableName)
-	if err != nil {
+	if err := r.RenameTable(tempTable, c.DBMainTableName); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (r *SQLiteRepository) TagsWithCount() (utils.Counter, error) {
+	tagCounter := make(utils.Counter)
+
+	bookmarks, err := r.getRecordsAll(c.DBMainTableName)
+	if err != nil {
+		return nil, err
+	}
+	for _, bookmark := range bookmarks {
+		tagCounter.Add(bookmark.Tags)
+	}
+	return tagCounter, nil
+}
+
+func (r *SQLiteRepository) GetRecordsByTag(t string) ([]Bookmark, error) {
+	bookmarks, err := r.getRecordsBySQL(
+		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", c.DBMainTableName),
+		fmt.Sprintf("%%%s%%", t),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return bookmarks, nil
+}
+
+func ToJSON(b *[]Bookmark) string {
+	jsonData, err := json.MarshalIndent(b, "", "  ")
+	if err != nil {
+		log.Fatal("Error marshaling to JSON:", err)
+	}
+	jsonString := string(jsonData)
+	return jsonString
+}
+
+func FetchBookmarks(r *SQLiteRepository, byQuery, byTag, t string) ([]Bookmark, error) {
+	var bookmarks []Bookmark
+	var err error
+
+	switch {
+	case byQuery != "":
+		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
+	case byTag != "":
+		bookmarks, err = r.GetRecordsByTag(byTag)
+	default:
+		bookmarks, err = r.getRecordsAll(t)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(bookmarks) == 0 {
+		return []Bookmark{}, fmt.Errorf("no bookmarks found")
+	}
+	return bookmarks, nil
 }
