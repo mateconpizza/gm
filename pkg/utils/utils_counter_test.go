@@ -6,11 +6,13 @@ import (
 	"testing"
 )
 
+var sep string = ","
+
 func TestCounter_Add(t *testing.T) {
 	c := make(utils.Counter)
-	c.Add("tag1,tag2,tag3")
-	c.Add("tag2,tag3,tag4")
-	c.Add("tag1,tag2,tag4")
+	c.Add("tag1,tag2,tag3", sep)
+	c.Add("tag2,tag3,tag4", sep)
+	c.Add("tag1,tag2,tag4", sep)
 
 	expected := map[string]int{
 		"tag1": 2,
@@ -32,8 +34,8 @@ func TestCounter_Add(t *testing.T) {
 
 func TestCounter_GetCount(t *testing.T) {
 	c := make(utils.Counter)
-	c.Add("tag1,tag2,tag3")
-	c.Add("tag2,tag3,tag4")
+	c.Add("tag1,tag2,tag3", sep)
+	c.Add("tag2,tag3,tag4", sep)
 
 	count := c.GetCount("tag2")
 	expectedCount := 2
@@ -54,8 +56,8 @@ func TestCounter_GetCount(t *testing.T) {
 
 func TestCounter_Remove(t *testing.T) {
 	c := make(utils.Counter)
-	c.Add("tag1,tag2,tag3")
-	c.Add("tag2,tag3,tag4")
+	c.Add("tag1,tag2,tag3", sep)
+	c.Add("tag2,tag3,tag4", sep)
 
 	c.Remove("tag3")
 	if c.GetCount("tag3") != 0 {
@@ -70,8 +72,8 @@ func TestCounter_Remove(t *testing.T) {
 
 func TestCounter_ToStringSlice(t *testing.T) {
 	c := make(utils.Counter)
-	c.Add("tag1,tag2,tag3")
-	c.Add("tag2,tag3,tag4")
+	c.Add("tag1,tag2,tag3", sep)
+	c.Add("tag2,tag3,tag4", sep)
 
 	expected := []string{
 		"tag1 (1)",

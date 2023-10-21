@@ -15,8 +15,8 @@ import (
 
 type Counter map[string]int
 
-func (c Counter) Add(tags string) {
-	for _, tag := range strings.Split(tags, ",") {
+func (c Counter) Add(tags, sep string) {
+	for _, tag := range strings.Split(tags, sep) {
 		tag = strings.TrimSpace(tag)
 		if tag != "" {
 			c[tag]++

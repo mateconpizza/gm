@@ -435,7 +435,7 @@ func (r *SQLiteRepository) TagsWithCount() (utils.Counter, error) {
 		return nil, err
 	}
 	for _, bookmark := range bookmarks {
-		tagCounter.Add(bookmark.Tags)
+		tagCounter.Add(bookmark.Tags, ",")
 	}
 	return tagCounter, nil
 }
