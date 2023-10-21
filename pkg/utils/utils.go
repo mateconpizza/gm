@@ -7,10 +7,39 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"golang.org/x/exp/slices"
 )
+
+type Counter map[string]int
+
+func (c Counter) Add(tags string) {
+	for _, tag := range strings.Split(tags, ",") {
+		tag = strings.TrimSpace(tag)
+		if tag != "" {
+			c[tag]++
+		}
+	}
+}
+
+func (c Counter) GetCount(item string) int {
+	return c[item]
+}
+
+func (c Counter) Remove(item string) {
+	delete(c, item)
+}
+
+func (c Counter) ToStringSlice() []string {
+	var results []string
+	for tag, count := range c {
+		results = append(results, fmt.Sprintf("%s (%d)", tag, count))
+	}
+	sort.Strings(results)
+	return results
+}
 
 func FileExists(s string) bool {
 	_, err := os.Stat(s)
