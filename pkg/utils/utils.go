@@ -85,7 +85,7 @@ func SetupHomeProject() {
 			log.Fatal(err)
 		}
 	} else {
-    log.Println("AppHome already exists:", AppHome)
+		log.Println("AppHome already exists:", AppHome)
 		return
 	}
 }
@@ -100,11 +100,11 @@ func IsSelectedTextInItems(s string, items []string) bool {
 }
 
 func FindSelectedIndex(s string, items []string) int {
-  log.Printf("Finding selected in %d items", len(items))
+	log.Printf("Finding selected in %d items", len(items))
 	idx := slices.IndexFunc(items, func(item string) bool {
 		return strings.Contains(item, s)
 	})
-  log.Println("FindSelectedIndex:", idx)
+	log.Println("FindSelectedIndex:", idx)
 	return idx
 }
 
@@ -115,9 +115,18 @@ func PrettyFormatLine(label, value string) string {
 func SetLogLevel(verboseFlag bool) {
 	if verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
-    log.Println("Verbose mode")
+		log.Println("Verbose mode")
 		return
 	}
 	silentLogger := log.New(io.Discard, "", 0)
 	log.SetOutput(silentLogger.Writer())
+}
+
+func ReplaceArg(args []string, argName, newValue string) {
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == argName {
+			args[i+1] = newValue
+			break
+		}
+	}
 }

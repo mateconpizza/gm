@@ -1,6 +1,7 @@
 package scrape
 
 import (
+	"log"
 	"strings"
 
 	"github.com/gocolly/colly"
@@ -12,7 +13,7 @@ type ScrapeResult struct {
 }
 
 func TitleAndDescription(url string) (*ScrapeResult, error) {
-  log.Printf("Scraping: %s", url)
+	log.Printf("Scraping: %s", url)
 	url = strings.Replace(url, "www.reddit.com", "old.reddit.com", -1)
 
 	c := colly.NewCollector()
@@ -31,7 +32,7 @@ func TitleAndDescription(url string) (*ScrapeResult, error) {
 	if err != nil {
 		return nil, err
 	}
-  log.Printf("Title: %s", result.Title)
-  log.Printf("Description: %s", result.Description)
+	log.Printf("Title: %s", result.Title)
+	log.Printf("Description: %s", result.Description)
 	return result, nil
 }
