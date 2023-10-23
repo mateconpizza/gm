@@ -2,17 +2,14 @@ package database
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	c "gomarks/pkg/constants"
 	"gomarks/pkg/utils"
 
-	"github.com/atotto/clipboard"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -29,76 +26,8 @@ var (
 	ErrDeleteFailed = errors.New("sql: delete failed")
 )
 
-var InitBookmark Bookmark = Bookmark{
-	ID:    0,
-	URL:   "https://github.com/haaag/GoMarks#readme",
-	Title: NullString{NullString: sql.NullString{String: "GoMarks", Valid: true}},
-	Tags:  "golang,awesome,bookmarks",
-	Desc: NullString{
-		sql.NullString{
-			String: "Makes accessing, adding, updating, and removing bookmarks easier",
-			Valid:  true,
-		},
-	},
-}
-
 type SQLiteRepository struct {
 	DB *sql.DB
-}
-
-// https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
-type Bookmark struct {
-	ID         int        `json:"ID"         db:"id"`
-	URL        string     `json:"URL"        db:"url"`
-	Title      NullString `json:"Title"      db:"title"`
-	Tags       string     `json:"Tags"       db:"tags"`
-	Desc       NullString `json:"Desc"       db:"desc"`
-	Created_at string     `json:"Created_at" db:"created_at"`
-}
-
-func (b *Bookmark) CopyToClipboard() {
-	err := clipboard.WriteAll(b.URL)
-	if err != nil {
-		log.Fatalf("Error copying to clipboard: %v", err)
-	}
-	log.Print("Text copied to clipboard:", b.URL)
-}
-
-func (b Bookmark) String() string {
-	s := utils.PrettyFormatLine("ID", strconv.Itoa(b.ID))
-	s += utils.PrettyFormatLine("Title", b.Title.String)
-	s += utils.PrettyFormatLine("URL", b.URL)
-	s += utils.PrettyFormatLine("Tags", b.Tags)
-	s += utils.PrettyFormatLine("Desc", b.Desc.String)
-	return s
-}
-
-func (b Bookmark) IsValid() bool {
-	if b.Title.Valid && b.URL != "" {
-		log.Print("IsValid: Bookmark is valid")
-		return true
-	}
-	return false
-}
-
-type NullString struct {
-	sql.NullString
-}
-
-func (s NullString) MarshalJSON() ([]byte, error) {
-	if !s.Valid {
-		return []byte("null"), nil
-	}
-	return json.Marshal(s.String)
-}
-
-func (s *NullString) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" {
-		s.String, s.Valid = "", false
-		return nil
-	}
-	s.String, s.Valid = string(data), true
-	return nil
 }
 
 func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
@@ -240,7 +169,6 @@ func (r *SQLiteRepository) GetRecordByID(n int, t string) (*Bookmark, error) {
 }
 
 func (r *SQLiteRepository) getRecordsBySQL(q string, args ...interface{}) ([]Bookmark, error) {
-	log.Printf("Getting records by SQL: '%s'", q)
 	rows, err := r.DB.Query(q, args...)
 	if err != nil {
 		return nil, err
@@ -267,7 +195,7 @@ func (r *SQLiteRepository) getRecordsAll(t string) ([]Bookmark, error) {
 	}
 	if len(bookmarks) == 0 {
 		log.Printf("No records found in table: '%s'", t)
-		return []Bookmark{}, nil
+		return []Bookmark{}, fmt.Errorf("no bookmarks found")
 	}
 	log.Printf("Got %d records from table: '%s'", len(bookmarks), t)
 	return bookmarks, nil
@@ -298,7 +226,11 @@ func (r *SQLiteRepository) GetRecordsByQuery(q, t string) ([]Bookmark, error) {
 		queryValue,
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
+	}
+	if len(bs) == 0 {
+		log.Printf("No records found by query: '%s'", q)
+		return []Bookmark{}, fmt.Errorf("no bookmarks found")
 	}
 	log.Printf("Got %d records by query: '%s'", len(bs), q)
 	return bs, err
@@ -448,35 +380,20 @@ func (r *SQLiteRepository) GetRecordsByTag(t string) ([]Bookmark, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(bookmarks) == 0 {
+		return []Bookmark{}, fmt.Errorf("no bookmarks found")
+	}
 	return bookmarks, nil
 }
 
-func ToJSON(b *[]Bookmark) string {
-	jsonData, err := json.MarshalIndent(b, "", "  ")
-	if err != nil {
-		log.Fatal("Error marshaling to JSON:", err)
-	}
-	jsonString := string(jsonData)
-	return jsonString
-}
-
-func FetchBookmarks(r *SQLiteRepository, byQuery, byTag, t string) ([]Bookmark, error) {
-	var bookmarks []Bookmark
-	var err error
-
-	switch {
-	case byQuery != "":
-		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
-	case byTag != "":
-		bookmarks, err = r.GetRecordsByTag(byTag)
-	default:
-		bookmarks, err = r.getRecordsAll(t)
-	}
-
+func (r *SQLiteRepository) GetLastRecords(n int, t string) ([]Bookmark, error) {
+	bookmarks, err := r.getRecordsBySQL(
+		fmt.Sprintf("SELECT * FROM %s ORDER BY id DESC LIMIT ?", t),
+		n,
+	)
 	if err != nil {
 		return nil, err
 	}
-
 	if len(bookmarks) == 0 {
 		return []Bookmark{}, fmt.Errorf("no bookmarks found")
 	}
