@@ -1,6 +1,6 @@
 package main
 
-// TODO:
+// [TODO):
 // = [ ] add sub-commands
 // = [X] add format option to json, pretty, color-pretty
 
@@ -8,8 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"gomarks/pkg/cli"
-	"gomarks/pkg/constants"
-	"gomarks/pkg/database"
+	c "gomarks/pkg/constants"
+	db "gomarks/pkg/database"
 	"gomarks/pkg/display"
 	m "gomarks/pkg/menu"
 	u "gomarks/pkg/utils"
@@ -27,6 +27,7 @@ var (
 	menuName    string
 	testFlag    bool
 	verboseFlag bool
+	versionFlag bool
 )
 
 func init() {
@@ -34,6 +35,7 @@ func init() {
 	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
 	flag.BoolVar(&testFlag, "test", false, "test mode")
 	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
+	flag.BoolVar(&versionFlag, "version", false, "version")
 	flag.IntVar(&limit, "limit", 0, "limit number of bookmarks")
 	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
 	flag.StringVar(&byTag, "tag", "", "filter bookmarks by tag")
@@ -41,10 +43,15 @@ func init() {
 	flag.StringVar(&menuName, "m", "rofi", "name of the menu [dmenu rofi]")
 }
 
-func parseAndExit(r *database.SQLiteRepository, flags *flag.FlagSet, menu *m.Menu) {
+func parseAndExit(r *db.SQLiteRepository, flags *flag.FlagSet, menu *m.Menu) {
 	err := flags.Parse(os.Args[1:])
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if testFlag {
+		display.HandleTestMode(menu, r)
+		os.Exit(0)
 	}
 
 	if addFlag {
@@ -52,28 +59,23 @@ func parseAndExit(r *database.SQLiteRepository, flags *flag.FlagSet, menu *m.Men
 		if err != nil {
 			log.Fatal(err)
 		}
-		j := database.ToJSON(&[]database.Bookmark{b})
+		j := db.ToJSON(&[]db.Bookmark{b})
 		fmt.Println(j)
-		return
+		os.Exit(0)
 	}
-}
 
-func getMenu(s string) m.Menu {
-	mc := make(m.MenuCollection)
-	mc.Load()
-	menu, err := mc.Get(menuName)
-	if err != nil {
-		log.Fatal("Error getting menu:", err)
+	if versionFlag {
+		fmt.Println(cli.Version)
+		os.Exit(0)
 	}
-	return menu
 }
 
 func main() {
-	tableName := constants.DBMainTableName
-	var bookmarks []database.Bookmark
+	tableName := c.DBMainTableName
+	var bookmarks []db.Bookmark
 	var err error
 
-	fmt.Printf("Args: %s\n\n", os.Args)
+	// fmt.Printf("Args: %s\n\n", os.Args)
 	flag.Parse()
 
 	// Set log level
@@ -83,14 +85,14 @@ func main() {
 	u.SetupHomeProject()
 
 	// Load menus
-	menu := getMenu(menuName)
+	menu := m.GetMenu(menuName)
 
-	r := database.GetDB()
+	r := db.GetDB()
 	defer r.DB.Close()
 
 	parseAndExit(r, flag.CommandLine, &menu)
 
-	bookmarks, err = database.FetchBookmarks(r, byQuery, byTag, tableName)
+	bookmarks, err = db.FetchBookmarks(r, byQuery, byTag, tableName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -119,5 +121,6 @@ func main() {
 		}
 		return
 	}
+
 	selectedBookmark.CopyToClipboard()
 }

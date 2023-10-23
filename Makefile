@@ -3,7 +3,7 @@
 
 NAME = gomarks
 SRC = ./cmd/main.go
-BIN = ./$(NAME)
+BIN = ./bin/$(NAME)
 
 .PHONY: all build run test vet clean
 

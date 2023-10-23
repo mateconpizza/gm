@@ -10,6 +10,7 @@ const (
 	DBDeletedTableName string = "deleted_bookmarks"
 	DBTempTableName    string = "temp_bookmarks"
 	AppName            string = "GoMarks"
+	Version            string = "0.0.1"
 )
 
 var (

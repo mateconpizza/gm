@@ -9,6 +9,16 @@ import (
 	"strings"
 )
 
+func GetMenu(s string) Menu {
+	mc := make(MenuCollection)
+	mc.Load()
+	menu, err := mc.Get(s)
+	if err != nil {
+		log.Fatalf("Error: %v\n", err)
+	}
+	return menu
+}
+
 type Option struct {
 	Label string
 }
@@ -44,20 +54,11 @@ type Menu struct {
 }
 
 func (m *Menu) UpdateMessage(message string) {
-	m.replaceArg("-mesg", message)
+	u.ReplaceArg(m.Arguments, "-mesg", message)
 }
 
 func (m *Menu) UpdatePrompt(prompt string) {
-	m.replaceArg("-p", prompt)
-}
-
-func (m *Menu) replaceArg(argName, newValue string) {
-	for i := 0; i < len(m.Arguments)-1; i++ {
-		if m.Arguments[i] == argName {
-			m.Arguments[i+1] = newValue
-			break
-		}
-	}
+	u.ReplaceArg(m.Arguments, "-p", prompt)
 }
 
 func (m *Menu) Confirm(msg, prompt string) bool {
