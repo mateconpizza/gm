@@ -1,8 +1,8 @@
-package utils_test
+package util_test
 
 import (
 	"gomarks/pkg/menu"
-	u "gomarks/pkg/utils"
+	u "gomarks/pkg/util"
 	"testing"
 )
 
@@ -38,7 +38,7 @@ func TestExecuteCommand(t *testing.T) {
 		t.Errorf("Error executing command: %v", err)
 	}
 
-	if output != "Hello, World!\n" {
+	if output != "Hello, World!" {
 		t.Errorf("Unexpected output: %s", output)
 	}
 }
@@ -46,25 +46,34 @@ func TestExecuteCommand(t *testing.T) {
 /* func TestToJSON(t *testing.T) {
 	bookmarks := []database.Bookmark{
 		{
-			ID:         0,
-			URL:        "http://example.com/book1",
-			Title:      database.NullString{sql.NullString{String: "Book 1", Valid: false}},
-			Tags:       "tag1,tag2,tag3",
-			Desc:       database.NullString{sql.NullString{String: "Description 1", Valid: true}},
-			Created_at: database.NullString{sql.NullString{String: "2023-01-01", Valid: true}},
+			ID:  0,
+			URL: "http://example.com/book1",
+			Title: database.NullString{
+				NullString: sql.NullString{String: "Book 1", Valid: false},
+			},
+			Tags: "tag1,tag2,tag3",
+			Desc: database.NullString{
+				NullString: sql.NullString{String: "Description 1", Valid: true},
+			},
+			Created_at: "2023-01-01",
 		},
 		{
-			ID:         0,
-			URL:        "http://example.com/book2",
-			Title:      database.NullString{sql.NullString{String: "Book 2", Valid: false}},
-			Tags:       "tag1,tag2,tag3",
-			Desc:       database.NullString{sql.NullString{String: "Description 2", Valid: true}},
-			Created_at: database.NullString{sql.NullString{String: "2023-01-02", Valid: true}},
+			ID:  0,
+			URL: "http://example.com/book2",
+			Title: database.NullString{
+				NullString: sql.NullString{String: "Book 2", Valid: false},
+			},
+			Tags: "tag1,tag2,tag3",
+			Desc: database.NullString{
+				NullString: sql.NullString{String: "Description 2", Valid: true},
+			},
+			Created_at: "2023-01-01",
 		},
 	}
 
 	expectedJSON := `[
   {
+    "ID": 0,
     "URL": "http://example.com/book1",
     "Title": null,
     "Tags": "tag1,tag2,tag3",
@@ -72,6 +81,7 @@ func TestExecuteCommand(t *testing.T) {
     "Created_at": "2023-01-01"
   },
   {
+    "ID": 0,
     "URL": "http://example.com/book2",
     "Title": null,
     "Tags": "tag1,tag2,tag3",

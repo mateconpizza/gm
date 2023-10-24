@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 	"encoding/json"
-	"gomarks/pkg/utils"
+	u "gomarks/pkg/util"
 	"log"
 	"strconv"
 
@@ -43,11 +43,11 @@ func (b *Bookmark) CopyToClipboard() {
 }
 
 func (b Bookmark) String() string {
-	s := utils.PrettyFormatLine("ID", strconv.Itoa(b.ID))
-	s += utils.PrettyFormatLine("Title", b.Title.String)
-	s += utils.PrettyFormatLine("URL", b.URL)
-	s += utils.PrettyFormatLine("Tags", b.Tags)
-	s += utils.PrettyFormatLine("Desc", b.Desc.String)
+	s := u.PrettyFormatLine("ID", strconv.Itoa(b.ID))
+	s += u.PrettyFormatLine("Title", b.Title.String)
+	s += u.PrettyFormatLine("URL", b.URL)
+	s += u.PrettyFormatLine("Tags", b.Tags)
+	s += u.PrettyFormatLine("Desc", b.Desc.String)
 	return s
 }
 

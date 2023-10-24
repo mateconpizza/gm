@@ -12,7 +12,7 @@ import (
 	db "gomarks/pkg/database"
 	"gomarks/pkg/display"
 	m "gomarks/pkg/menu"
-	u "gomarks/pkg/utils"
+	u "gomarks/pkg/util"
 	"log"
 	"math"
 	"os"

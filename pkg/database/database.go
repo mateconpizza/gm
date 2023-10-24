@@ -8,16 +8,10 @@ import (
 	"time"
 
 	c "gomarks/pkg/constants"
-	"gomarks/pkg/utils"
+	u "gomarks/pkg/util"
 
 	_ "github.com/mattn/go-sqlite3"
 )
-
-// [TODO):
-// [X] Add Tables (bookmarks, deleted)
-// [X] Add CRUD methods
-// [X] Add tests
-// [X] Add error handling
 
 var (
 	ErrDuplicate    = errors.New("sql: record already exists")
@@ -37,7 +31,7 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 }
 
 func GetDB() *SQLiteRepository {
-	dbPath, err := utils.GetDBPath()
+	dbPath, err := u.GetDBPath()
 	if err != nil {
 		log.Fatal("Error getting database path:", err)
 	}
@@ -359,8 +353,8 @@ func (r *SQLiteRepository) ReorderIDs() error {
 	return nil
 }
 
-func (r *SQLiteRepository) TagsWithCount() (utils.Counter, error) {
-	tagCounter := make(utils.Counter)
+func (r *SQLiteRepository) TagsWithCount() (u.Counter, error) {
+	tagCounter := make(u.Counter)
 
 	bookmarks, err := r.getRecordsAll(c.DBMainTableName)
 	if err != nil {

@@ -1,7 +1,7 @@
-package utils_test
+package util_test
 
 import (
-	"gomarks/pkg/utils"
+	u "gomarks/pkg/util"
 	"reflect"
 	"testing"
 )
@@ -9,7 +9,7 @@ import (
 var sep string = ","
 
 func TestCounter_Add(t *testing.T) {
-	c := make(utils.Counter)
+	c := make(u.Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 	c.Add("tag1,tag2,tag4", sep)
@@ -33,7 +33,7 @@ func TestCounter_Add(t *testing.T) {
 }
 
 func TestCounter_GetCount(t *testing.T) {
-	c := make(utils.Counter)
+	c := make(u.Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 
@@ -55,7 +55,7 @@ func TestCounter_GetCount(t *testing.T) {
 }
 
 func TestCounter_Remove(t *testing.T) {
-	c := make(utils.Counter)
+	c := make(u.Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 
@@ -71,7 +71,7 @@ func TestCounter_Remove(t *testing.T) {
 }
 
 func TestCounter_ToStringSlice(t *testing.T) {
-	c := make(utils.Counter)
+	c := make(u.Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 

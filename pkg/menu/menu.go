@@ -2,7 +2,7 @@ package menu
 
 import (
 	"fmt"
-	u "gomarks/pkg/utils"
+	u "gomarks/pkg/util"
 	"io"
 	"log"
 	"os/exec"
