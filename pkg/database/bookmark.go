@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"encoding/json"
+	"gomarks/pkg/color"
 	u "gomarks/pkg/util"
 	"log"
 	"strconv"
@@ -42,13 +43,22 @@ func (b *Bookmark) CopyToClipboard() {
 	log.Print("Text copied to clipboard:", b.URL)
 }
 
-func (b Bookmark) String() string {
-	s := u.PrettyFormatLine("ID", strconv.Itoa(b.ID))
-	s += u.PrettyFormatLine("Title", b.Title.String)
-	s += u.PrettyFormatLine("URL", b.URL)
-	s += u.PrettyFormatLine("Tags", b.Tags)
-	s += u.PrettyFormatLine("Desc", b.Desc.String)
+func (b Bookmark) formatBookmarkString(color string) string {
+	s := u.PrettyFormatLine("ID", strconv.Itoa(b.ID), color)
+	s += u.PrettyFormatLine("Title", b.Title.String, color)
+	s += u.PrettyFormatLine("URL", b.URL, color)
+	s += u.PrettyFormatLine("Tags", b.Tags, color)
+	s += u.PrettyFormatLine("Desc", b.Desc.String, color)
 	return s
+}
+
+func (b Bookmark) String() string {
+	return b.formatBookmarkString("")
+}
+
+func (b Bookmark) PrettyColorString() string {
+	c := color.GetRandomColor()
+	return b.formatBookmarkString(c)
 }
 
 func (b Bookmark) IsValid() bool {

@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"gomarks/pkg/color"
 	c "gomarks/pkg/constants"
 	"io"
 	"log"
@@ -79,8 +80,12 @@ func FindSelectedIndex(s string, items []string) int {
 	return idx
 }
 
-func PrettyFormatLine(label, value string) string {
-	return fmt.Sprintf("%-20s: %s\n", label, value)
+func PrettyFormatLine(label, value, c string) string {
+	labelLength := 8
+	if c == "" {
+		return fmt.Sprintf(" %-*s: %s\n", labelLength, label, value)
+	}
+	return fmt.Sprintf(" %s%s%-*s:%s %s\n", color.Bold, c, labelLength, label, color.Reset, value)
 }
 
 func SetLogLevel(verboseFlag bool) {
