@@ -14,16 +14,18 @@ import (
 	m "gomarks/pkg/menu"
 	u "gomarks/pkg/utils"
 	"log"
+	"math"
 	"os"
+	"strings"
 )
 
 var (
 	addFlag     bool
 	byQuery     string
-	byTag       string
 	deleteFlag  bool
 	format      string
-	limit       int
+	head        int
+	tail        int
 	menuName    string
 	testFlag    bool
 	verboseFlag bool
@@ -36,9 +38,9 @@ func init() {
 	flag.BoolVar(&testFlag, "test", false, "test mode")
 	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
 	flag.BoolVar(&versionFlag, "version", false, "version")
-	flag.IntVar(&limit, "limit", 0, "limit number of bookmarks")
+	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
+	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
 	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
-	flag.StringVar(&byTag, "tag", "", "filter bookmarks by tag")
 	flag.StringVar(&format, "f", "", "output format [json|pretty|color-pretty]")
 	flag.StringVar(&menuName, "m", "rofi", "name of the menu [dmenu rofi]")
 }
@@ -70,12 +72,22 @@ func parseAndExit(r *db.SQLiteRepository, flags *flag.FlagSet, menu *m.Menu) {
 	}
 }
 
+func parseQueryFlag() {
+	// Handle 'query' flag
+	args := os.Args[1:]
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		byQuery = args[0]
+		args = args[1:]
+	}
+	os.Args = append([]string{os.Args[0]}, args...)
+}
+
 func main() {
 	tableName := c.DBMainTableName
 	var bookmarks []db.Bookmark
 	var err error
 
-	// fmt.Printf("Args: %s\n\n", os.Args)
+	parseQueryFlag()
 	flag.Parse()
 
 	// Set log level
@@ -92,15 +104,18 @@ func main() {
 
 	parseAndExit(r, flag.CommandLine, &menu)
 
-	bookmarks, err = db.FetchBookmarks(r, byQuery, byTag, tableName)
-	if err != nil {
+	if bookmarks, err = db.FetchBookmarks(r, byQuery, tableName); err != nil {
 		log.Fatal(err)
 	}
 
-	if limit > 0 {
-		if len(bookmarks) > limit {
-			bookmarks = bookmarks[:limit]
-		}
+	if head > 0 {
+		head = int(math.Min(float64(head), float64(len(bookmarks))))
+		bookmarks = bookmarks[:head]
+	}
+
+	if tail > 0 {
+		tail = int(math.Min(float64(tail), float64(len(bookmarks))))
+		bookmarks = bookmarks[len(bookmarks)-tail:]
 	}
 
 	if format != "" {
@@ -110,17 +125,16 @@ func main() {
 		return
 	}
 
-	selectedBookmark, err := display.SelectBookmark(&menu, &bookmarks)
+	bm, err := display.SelectBookmark(&menu, &bookmarks)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if deleteFlag {
-		if err := display.DeleteBookmark(r, &menu, &selectedBookmark); err != nil {
+		if err := display.DeleteBookmark(r, &menu, &bm); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
-
-	selectedBookmark.CopyToClipboard()
+	bm.CopyToClipboard()
 }

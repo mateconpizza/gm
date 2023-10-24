@@ -101,15 +101,13 @@ func ToJSON(b *[]Bookmark) string {
 	return jsonString
 }
 
-func FetchBookmarks(r *SQLiteRepository, byQuery, byTag, t string) ([]Bookmark, error) {
+func FetchBookmarks(r *SQLiteRepository, byQuery, t string) ([]Bookmark, error) {
 	var bookmarks []Bookmark
 	var err error
 
 	switch {
 	case byQuery != "":
 		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
-	case byTag != "":
-		bookmarks, err = r.GetRecordsByTag(byTag)
 	default:
 		bookmarks, err = r.getRecordsAll(t)
 	}
