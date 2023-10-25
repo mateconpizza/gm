@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func GetMenu(s string) Menu {
+func New(s string) Menu {
 	mc := make(MenuCollection)
 	mc.Load()
 	menu, err := mc.Get(s)

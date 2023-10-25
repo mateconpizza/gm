@@ -6,7 +6,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"gomarks/pkg/cli"
 	c "gomarks/pkg/constants"
 	db "gomarks/pkg/database"
@@ -22,10 +21,15 @@ import (
 var (
 	addFlag     bool
 	byQuery     string
+	copyFlag    bool
 	deleteFlag  bool
+	filterBy    string
 	format      string
 	head        int
+	idFlag      int
+	listFlag    bool
 	menuName    string
+	restoreFlag bool
 	tail        int
 	testFlag    bool
 	verboseFlag bool
@@ -34,32 +38,20 @@ var (
 
 func init() {
 	flag.BoolVar(&addFlag, "add", false, "add a bookmark")
+	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
 	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
+	flag.BoolVar(&listFlag, "list", false, "list all bookmarks")
+	flag.BoolVar(&restoreFlag, "restore", false, "restore a bookmark")
 	flag.BoolVar(&testFlag, "test", false, "test mode")
 	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
 	flag.BoolVar(&versionFlag, "version", false, "version")
 	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
+	flag.IntVar(&idFlag, "id", 0, "bookmark id")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
 	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
-	flag.StringVar(&format, "f", "plain", "output format [json|pretty]")
+	flag.StringVar(&format, "f", "pretty", "output format [json|pretty]")
 	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu rofi]")
-}
-
-func parseAndExit(r *db.SQLiteRepository, flags *flag.FlagSet, menu *m.Menu) {
-	err := flags.Parse(os.Args[1:])
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if testFlag {
-		display.HandleTestMode(menu, r)
-		os.Exit(0)
-	}
-
-	if versionFlag {
-		fmt.Println(cli.Version)
-		os.Exit(0)
-	}
+	flag.StringVar(&filterBy, "filter", "", "filter bookmarks")
 }
 
 func parseQueryFlag() {
@@ -91,10 +83,34 @@ func main() {
 	r := db.GetDB()
 	defer r.DB.Close()
 
-	parseAndExit(r, flag.CommandLine, &menu)
+	if restoreFlag {
+		tableName = c.DBDeletedTableName
+	}
 
-	if bookmarks, err = db.FetchBookmarks(r, byQuery, tableName); err != nil {
-		log.Fatal(err)
+	if idFlag != 0 {
+		if bm, err = r.GetRecordByID(idFlag, tableName); err != nil {
+			log.Fatal(err)
+		}
+		if copyFlag {
+			bm.CopyToClipboard()
+			return
+		}
+		if err := cli.HandleFormat(format, []db.Bookmark{bm}); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if byQuery != "" {
+		if bookmarks, err = r.GetRecordsByQuery(byQuery, tableName); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if listFlag {
+		if bookmarks, err = r.GetRecordsAll(tableName); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	if head > 0 {
@@ -108,8 +124,8 @@ func main() {
 	}
 
 	if menuName != "" {
-		// Load menus
-		menu = m.GetMenu(menuName)
+		// Get menu
+		menu = m.New(menuName)
 
 		if bm, err = display.SelectBookmark(&menu, &bookmarks); err != nil {
 			log.Fatal(err)
@@ -135,11 +151,7 @@ func main() {
 
 	bm.CopyToClipboard()
 
-	if format != "" {
-		if err := cli.HandleFormat(format, bookmarks); err != nil {
-			log.Fatal(err)
-		}
-		return
+	if err := cli.HandleFormat(format, bookmarks); err != nil {
+		log.Fatal(err)
 	}
-
 }

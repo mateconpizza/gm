@@ -136,7 +136,7 @@ func FetchBookmarks(r *SQLiteRepository, byQuery, t string) ([]Bookmark, error) 
 	case byQuery != "":
 		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
 	default:
-		bookmarks, err = r.getRecordsAll(t)
+		bookmarks, err = r.GetRecordsAll(t)
 	}
 	return bookmarks, err
 }
