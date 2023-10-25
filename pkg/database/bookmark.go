@@ -6,7 +6,6 @@ import (
 	"gomarks/pkg/color"
 	u "gomarks/pkg/util"
 	"log"
-	"strconv"
 
 	"github.com/atotto/clipboard"
 )
@@ -43,22 +42,40 @@ func (b *Bookmark) CopyToClipboard() {
 	log.Print("Text copied to clipboard:", b.URL)
 }
 
-func (b Bookmark) formatBookmarkString(color string) string {
-	s := u.PrettyFormatLine("ID", strconv.Itoa(b.ID), color)
-	s += u.PrettyFormatLine("Title", b.Title.String, color)
-	s += u.PrettyFormatLine("URL", b.URL, color)
-	s += u.PrettyFormatLine("Tags", b.Tags, color)
-	s += u.PrettyFormatLine("Desc", b.Desc.String, color)
+func (b Bookmark) formatBookmarkString() string {
+	maxLen := 80
+	title := u.SplitAndAlignString(b.Title.String, maxLen)
+	s := u.FormatTitleLine(b.ID, title, color.Purple)
+	s += u.FormatLine("      + ", b.URL, color.Blue)
+	s += u.FormatLine("      + ", b.Tags, color.Gray)
+	if b.Desc.String != "" {
+		desc := u.SplitAndAlignString(b.Desc.String, maxLen)
+		s += u.FormatLine("      + ", desc, color.White)
+	} else {
+		s += u.FormatLine("      + ", "Untitled", color.White)
+	}
+	return s
+}
+
+func (b Bookmark) PlainString() string {
+	maxLen := 80
+	title := u.SplitAndAlignString(b.Title.String, maxLen)
+	s := u.FormatTitleLine(b.ID, title, "")
+	s += u.FormatLine("      + ", b.URL, "")
+	s += u.FormatLine("      + ", b.Tags, "")
+	if b.Desc.String != "" {
+		desc := u.SplitAndAlignString(b.Desc.String, maxLen)
+		s += u.FormatLine("      + ", desc, "")
+	}
 	return s
 }
 
 func (b Bookmark) String() string {
-	return b.formatBookmarkString("")
+	return b.PlainString()
 }
 
 func (b Bookmark) PrettyColorString() string {
-	c := color.GetRandomColor()
-	return b.formatBookmarkString(c)
+	return b.formatBookmarkString()
 }
 
 func (b Bookmark) IsValid() bool {

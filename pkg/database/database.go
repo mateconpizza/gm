@@ -127,7 +127,7 @@ func (r *SQLiteRepository) UpdateRecord(b *Bookmark, t string) (Bookmark, error)
 	)
 	_, err := r.DB.Exec(sqlQuery, b.URL, b.Title, b.Tags, b.Desc, b.Created_at, b.ID)
 	if err != nil {
-		return *b, err
+		return *b, fmt.Errorf("error updating bookmark %s: %s", ErrUpdateFailed, err)
 	}
 	log.Printf("Updated bookmark %s (table: %s)\n", b.URL, t)
 	return *b, nil
@@ -140,7 +140,7 @@ func (r *SQLiteRepository) DeleteRecord(b *Bookmark, tableName string) error {
 	}
 	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), b.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error removing bookmark %s: %s", ErrDeleteFailed, err)
 	}
 	log.Printf("Deleted bookmark %s (table: %s)\n", b.URL, tableName)
 	return nil

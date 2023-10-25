@@ -65,8 +65,8 @@ func (m *Menu) Confirm(msg, prompt string) bool {
 	m.UpdateMessage(msg)
 	m.UpdatePrompt(prompt)
 	options := []fmt.Stringer{
-		Option{"Yes"},
 		Option{"No"},
+		Option{"Yes"},
 	}
 	idx, err := m.Select(options)
 	if err != nil {

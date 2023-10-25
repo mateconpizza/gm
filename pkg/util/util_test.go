@@ -97,7 +97,7 @@ func TestExecuteCommand(t *testing.T) {
 	}
 } */
 
-func TestPrettyFormatLine(t *testing.T) {
+/* func TestPrettyFormatLine(t *testing.T) {
 	label := "Test"
 	testString := "This is a test string"
 	expectedOutput := "Test                : This is a test string\n"
@@ -105,4 +105,4 @@ func TestPrettyFormatLine(t *testing.T) {
 	if s != expectedOutput {
 		t.Errorf("Expected %s, but got %s", expectedOutput, s)
 	}
-}
+} */

@@ -3,7 +3,7 @@ package util
 import (
 	"fmt"
 	"gomarks/pkg/color"
-	c "gomarks/pkg/constants"
+	"gomarks/pkg/constants"
 	"io"
 	"log"
 	"os"
@@ -26,11 +26,11 @@ func ShortenString(s string, maxLength int) string {
 }
 
 func getAppHome() (string, error) {
-	if c.ConfigHome == "" {
-		c.ConfigHome = os.Getenv("HOME")
-		c.ConfigHome += "/.config"
+	if constants.ConfigHome == "" {
+		constants.ConfigHome = os.Getenv("HOME")
+		constants.ConfigHome += "/.config"
 	}
-	s := filepath.Join(c.ConfigHome, c.AppName)
+	s := filepath.Join(constants.ConfigHome, constants.AppName)
 	return s, nil
 }
 
@@ -39,7 +39,7 @@ func GetDBPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s := filepath.Join(appPath, c.DBName)
+	s := filepath.Join(appPath, constants.DBName)
 	log.Print("GetDBPath: ", s)
 	return s, nil
 }
@@ -56,10 +56,9 @@ func SetupHomeProject() {
 		if err != nil {
 			log.Fatal(err)
 		}
-	} else {
-		log.Println("AppHome already exists:", AppHome)
 		return
 	}
+	log.Println("AppHome already exists:", AppHome)
 }
 
 func IsSelectedTextInItems(s string, items []string) bool {
@@ -80,18 +79,27 @@ func FindSelectedIndex(s string, items []string) int {
 	return idx
 }
 
-func PrettyFormatLine(label, value, c string) string {
-	labelLength := 8
-	if c == "" {
-		return fmt.Sprintf(" %-*s: %s\n", labelLength, label, value)
+func FormatTitleLine(n int, v, c string) string {
+	if v == "" {
+		v = "Untitled"
 	}
-	return fmt.Sprintf(" %s%s%-*s:%s %s\n", color.Bold, c, labelLength, label, color.Reset, value)
+	if c == "" {
+		return fmt.Sprintf(" %-4d %s %s\n", n, constants.BulletPoint, v)
+	}
+	return fmt.Sprintf(" %-4d %s%s%s %s%s\n", n, color.Bold, constants.BulletPoint, c, v, color.Reset)
+}
+
+func FormatLine(prefix, v, c string) string {
+	if c == "" {
+		return fmt.Sprintf("%s%s\n", prefix, v)
+	}
+	return fmt.Sprintf("%s%s%s%s\n", c, prefix, v, color.Reset)
 }
 
 func SetLogLevel(verboseFlag bool) {
 	if verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
-		log.Println("Verbose mode")
+		log.Println("VVerbose mode")
 		return
 	}
 	silentLogger := log.New(io.Discard, "", 0)
@@ -105,4 +113,26 @@ func ReplaceArg(args []string, argName, newValue string) {
 			break
 		}
 	}
+}
+
+func SplitAndAlignString(s string, lineLength int) string {
+	words := strings.Fields(s)
+	var result string
+	currentLine := ""
+
+	for _, word := range words {
+		if len(currentLine)+len(word)+1 > lineLength {
+			result += currentLine + "\n"
+			currentLine = word
+			currentLine = fmt.Sprintf("        %s", currentLine)
+		} else {
+			if currentLine != "" {
+				currentLine += " "
+			}
+			currentLine += word
+		}
+	}
+
+	result += currentLine
+	return result
 }

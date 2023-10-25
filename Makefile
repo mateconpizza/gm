@@ -9,7 +9,7 @@ BIN = ./bin/$(NAME)
 
 all: full
 
-full: vet lint fmt test build
+full: vet lint test build
 
 build: vet test
 	@echo '>> Building $(NAME)'

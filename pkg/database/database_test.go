@@ -354,3 +354,23 @@ func TestRenameTable(t *testing.T) {
 		t.Errorf("Table %s does not exist", c.DBDeletedTableName)
 	}
 }
+
+func TestBookmarkIsValid(t *testing.T) {
+	validBookmark := database.Bookmark{
+		Title: database.NullString{sql.NullString{String: "Example", Valid: true}},
+		URL:   "https://www.example.com",
+	}
+
+	if !validBookmark.IsValid() {
+		t.Errorf("TestBookmarkIsValid: expected valid bookmark to be valid")
+	}
+
+	invalidBookmark := database.Bookmark{
+		Title: database.NullString{sql.NullString{String: "", Valid: false}},
+		URL:   "https://www.example.com",
+	}
+
+	if invalidBookmark.IsValid() {
+		t.Errorf("TestBookmarkIsValid: expected invalid bookmark to be invalid")
+	}
+}
