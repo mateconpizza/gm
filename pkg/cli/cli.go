@@ -3,11 +3,9 @@ package cli
 import (
 	"errors"
 	"fmt"
-	c "gomarks/pkg/constants"
 	db "gomarks/pkg/database"
 )
 
-var Version = fmt.Sprintf("%s v%s", c.AppName, c.Version)
 var ErrInvalidInput = errors.New("invalid input type")
 
 func HandleFormat(f string, bookmarks []db.Bookmark) error {
@@ -15,16 +13,16 @@ func HandleFormat(f string, bookmarks []db.Bookmark) error {
 	case "json":
 		j := db.ToJSON(&bookmarks)
 		fmt.Println(j)
-		return nil
 	case "pretty":
 		for _, b := range bookmarks {
 			fmt.Println(b.PrettyColorString())
 		}
-	default:
+	case "plain":
 		for _, b := range bookmarks {
 			fmt.Println(b)
 		}
-		return nil
+	default:
+		return fmt.Errorf("invalid output format: %s", f)
 	}
-	return ErrInvalidInput
+	return nil
 }

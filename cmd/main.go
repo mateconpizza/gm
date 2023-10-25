@@ -2,18 +2,17 @@ package main
 
 // [TODO):
 // = [ ] add sub-commands
-// = [X] add format option to json, pretty, color-pretty
+// = [X] add format option to json, pretty, plain
 
 import (
 	"flag"
+	"fmt"
 	"gomarks/pkg/cli"
 	c "gomarks/pkg/constants"
+	"gomarks/pkg/data"
 	db "gomarks/pkg/database"
-	"gomarks/pkg/display"
-	m "gomarks/pkg/menu"
 	u "gomarks/pkg/util"
 	"log"
-	"math"
 	"os"
 	"strings"
 )
@@ -65,11 +64,9 @@ func parseQueryFlag() {
 }
 
 func main() {
+	/* var bookmarks []db.Bookmark
+	var err error */
 	tableName := c.DBMainTableName
-	var bookmarks []db.Bookmark
-	var bm db.Bookmark
-	var menu m.Menu
-	var err error
 
 	parseQueryFlag()
 	flag.Parse()
@@ -80,77 +77,37 @@ func main() {
 	// Set up the home project
 	u.SetupHomeProject()
 
+	// Connect to the database
 	r := db.GetDB()
 	defer r.DB.Close()
 
+	// Print version
+	if versionFlag {
+		fmt.Println(c.Version)
+		return
+	}
+
+	// Set tableName as deleted table for restore
 	if restoreFlag {
 		tableName = c.DBDeletedTableName
 	}
 
-	if idFlag != 0 {
-		if bm, err = r.GetRecordByID(idFlag, tableName); err != nil {
-			log.Fatal(err)
-		}
-		if copyFlag {
-			bm.CopyToClipboard()
-			return
-		}
-		if err := cli.HandleFormat(format, []db.Bookmark{bm}); err != nil {
-			log.Fatal(err)
-		}
+	// By ID, list or query
+	bookmarks, err := data.RetrieveBookmarks(r, tableName, byQuery, idFlag, listFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Apply head and tail options
+	bookmarks = data.HeadAndTail(bookmarks, head, tail)
+
+	// Copy to clipboard
+	if len(bookmarks) > 0 && copyFlag {
+		bookmarks[0].CopyToClipboard()
 		return
 	}
 
-	if byQuery != "" {
-		if bookmarks, err = r.GetRecordsByQuery(byQuery, tableName); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	if listFlag {
-		if bookmarks, err = r.GetRecordsAll(tableName); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	if head > 0 {
-		head = int(math.Min(float64(head), float64(len(bookmarks))))
-		bookmarks = bookmarks[:head]
-	}
-
-	if tail > 0 {
-		tail = int(math.Min(float64(tail), float64(len(bookmarks))))
-		bookmarks = bookmarks[len(bookmarks)-tail:]
-	}
-
-	if menuName != "" {
-		// Get menu
-		menu = m.New(menuName)
-
-		if bm, err = display.SelectBookmark(&menu, &bookmarks); err != nil {
-			log.Fatal(err)
-		}
-
-		if deleteFlag {
-			if err := display.DeleteBookmark(r, &menu, &bm); err != nil {
-				log.Fatal(err)
-			}
-			return
-		}
-
-		if addFlag {
-			bm, err = display.AddBookmark(r, &menu)
-			if err != nil {
-				log.Fatal(err)
-			}
-			/* j := db.ToJSON(&[]db.Bookmark{bm})
-			fmt.Println(j)
-			os.Exit(0) */
-		}
-	}
-
-	bm.CopyToClipboard()
-
+	// Handle format
 	if err := cli.HandleFormat(format, bookmarks); err != nil {
 		log.Fatal(err)
 	}
