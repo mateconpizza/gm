@@ -7,14 +7,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gomarks/pkg/cli"
+	"log"
+	"os"
+	"strings"
+
 	c "gomarks/pkg/constants"
 	"gomarks/pkg/data"
 	db "gomarks/pkg/database"
 	u "gomarks/pkg/util"
-	"log"
-	"os"
-	"strings"
 )
 
 var (
@@ -22,12 +22,12 @@ var (
 	byQuery     string
 	copyFlag    bool
 	deleteFlag  bool
-	filterBy    string
 	format      string
 	head        int
 	idFlag      int
 	listFlag    bool
 	menuName    string
+	pick        string
 	restoreFlag bool
 	tail        int
 	testFlag    bool
@@ -50,7 +50,7 @@ func init() {
 	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
 	flag.StringVar(&format, "f", "pretty", "output format [json|pretty]")
 	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu rofi]")
-	flag.StringVar(&filterBy, "filter", "", "filter bookmarks")
+	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
 }
 
 func parseQueryFlag() {
@@ -64,8 +64,6 @@ func parseQueryFlag() {
 }
 
 func main() {
-	/* var bookmarks []db.Bookmark
-	var err error */
 	tableName := c.DBMainTableName
 
 	parseQueryFlag()
@@ -107,8 +105,16 @@ func main() {
 		return
 	}
 
+	// Handle pick
+	if pick != "" {
+		if err = data.PickAttribute(bookmarks, pick); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	// Handle format
-	if err := cli.HandleFormat(format, bookmarks); err != nil {
+	if err := data.HandleFormat(format, bookmarks); err != nil {
 		log.Fatal(err)
 	}
 }

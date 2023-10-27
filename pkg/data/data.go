@@ -2,8 +2,9 @@ package data
 
 import (
 	"fmt"
-	db "gomarks/pkg/database"
 	"math"
+
+	db "gomarks/pkg/database"
 )
 
 func QueryAndList(
@@ -71,6 +72,25 @@ func HandleFormat(f string, bookmarks []db.Bookmark) error {
 		}
 	default:
 		return fmt.Errorf("invalid output format: %s", f)
+	}
+	return nil
+}
+
+func PickAttribute(bmarks []db.Bookmark, s string) error {
+	if len(bmarks) == 0 {
+		return fmt.Errorf("no bookmarks found")
+	}
+	for _, b := range bmarks {
+		switch s {
+		case "url":
+			fmt.Println(b.URL)
+		case "title":
+			if b.Title.String != "" {
+				fmt.Println(b.Title.String)
+			}
+		case "tags":
+			fmt.Println(b.Tags)
+		}
 	}
 	return nil
 }
