@@ -5,6 +5,8 @@ import (
 	"math"
 
 	db "gomarks/pkg/database"
+	"gomarks/pkg/display"
+	m "gomarks/pkg/menu"
 )
 
 func QueryAndList(
@@ -93,4 +95,14 @@ func PickAttribute(bmarks []db.Bookmark, s string) error {
 		}
 	}
 	return nil
+}
+
+func PickBookmarkWithMenu(bmarks []db.Bookmark, s string) ([]db.Bookmark, error) {
+	menu := m.New(s)
+
+	bm, err := display.SelectBookmark(&menu, &bmarks)
+	if err != nil {
+		return bmarks, err
+	}
+	return []db.Bookmark{bm}, nil
 }

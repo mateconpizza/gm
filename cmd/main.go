@@ -113,6 +113,19 @@ func main() {
 		return
 	}
 
+  // Handle menu option
+	if menuName != "" {
+		if bookmarks, err = data.PickBookmarkWithMenu(bookmarks, menuName); err != nil {
+			log.Fatal(err)
+		}
+		if copyFlag {
+			bookmarks[0].CopyToClipboard()
+			return
+		}
+		return
+	}
+
+
 	// Handle format
 	if err := data.HandleFormat(format, bookmarks); err != nil {
 		log.Fatal(err)
