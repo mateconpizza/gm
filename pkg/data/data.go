@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"log"
 	"math"
 
 	bm "gomarks/pkg/bookmark"
@@ -118,4 +119,18 @@ func FetchBookmarks(r *db.SQLiteRepository, byQuery, t string) (bm.BookmarkSlice
 		bookmarks, err = r.GetRecordsAll(t)
 	}
 	return bookmarks, err
+}
+
+func HandleEdit(r *db.SQLiteRepository, b *bm.Bookmark, t string) error {
+	be, err := bm.Edit(b)
+	if err != nil {
+		return err
+	}
+	_, err = r.UpdateRecord(be, t)
+	if err != nil {
+    log.Printf("Error updating bookmark %s: %s", db.ErrUpdateFailed, err)
+		return err
+	}
+  log.Printf("Updated bookmark %s (table: %s)\n", b.URL, t)
+	return nil
 }

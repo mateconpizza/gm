@@ -24,23 +24,25 @@ var (
 	byQuery     string
 	copyFlag    bool
 	deleteFlag  bool
+	editFlag    bool
 	format      string
 	head        int
 	idFlag      int
 	listFlag    bool
 	menuName    string
+	openFlag    bool
 	pick        string
 	restoreFlag bool
 	tail        int
 	testFlag    bool
 	verboseFlag bool
 	versionFlag bool
-	openFlag    bool
 )
 
 func init() {
 	flag.BoolVar(&addFlag, "add", false, "add a bookmark")
 	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
+	flag.BoolVar(&editFlag, "edit", false, "edit a bookmark")
 	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
 	flag.BoolVar(&listFlag, "list", false, "list all bookmarks")
 	flag.BoolVar(&openFlag, "open", false, "open bookmark in default browser")
@@ -52,7 +54,7 @@ func init() {
 	flag.IntVar(&idFlag, "id", 0, "bookmark id")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
 	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
-	flag.StringVar(&format, "f", "", "output format [json|pretty]")
+	flag.StringVar(&format, "f", "", "output format [json|pretty|plain]")
 	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu rofi]")
 	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
 }
@@ -125,6 +127,14 @@ func main() {
 		}
 		return
 	}
+
+  // Handle edit
+  if editFlag {
+    if err = data.HandleEdit(r, &bookmarks[0], tableName); err != nil {
+      log.Fatal(err)
+    }
+    return
+  }
 
 	// Handle action
 	if copyFlag || openFlag {

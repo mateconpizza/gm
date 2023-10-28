@@ -12,7 +12,7 @@ const (
 	DBTempTableName    string = "temp_bookmarks"
 	AppName            string = "GoMarks"
 	BulletPoint        string = "\u2022"
-	version            string = "0.0.1"
+	version            string = "0.0.2"
 )
 
 var (
