@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	bm "gomarks/pkg/bookmark"
 	db "gomarks/pkg/database"
 	"gomarks/pkg/display"
 	m "gomarks/pkg/menu"
@@ -14,8 +15,8 @@ func QueryAndList(
 	byQuery string,
 	listFlag bool,
 	tableName string,
-) ([]db.Bookmark, error) {
-	var bookmarks []db.Bookmark
+) (bm.BookmarkSlice, error) {
+	var bookmarks bm.BookmarkSlice
 	var err error
 
 	if byQuery != "" {
@@ -32,7 +33,7 @@ func QueryAndList(
 	return bookmarks, nil
 }
 
-func HeadAndTail(bookmarks []db.Bookmark, head, tail int) []db.Bookmark {
+func HeadAndTail(bookmarks bm.BookmarkSlice, head, tail int) bm.BookmarkSlice {
 	if head > 0 {
 		head = int(math.Min(float64(head), float64(len(bookmarks))))
 		bookmarks = bookmarks[:head]
@@ -51,18 +52,18 @@ func RetrieveBookmarks(
 	byQuery string,
 	idFlag int,
 	listFlag bool,
-) ([]db.Bookmark, error) {
+) (bm.BookmarkSlice, error) {
 	if idFlag != 0 {
 		bookmark, err := r.GetRecordByID(idFlag, tableName)
-		return []db.Bookmark{bookmark}, err
+		return bm.BookmarkSlice{bookmark}, err
 	}
 	return QueryAndList(r, byQuery, listFlag, tableName)
 }
 
-func HandleFormat(f string, bookmarks []db.Bookmark) error {
+func HandleFormat(f string, bookmarks bm.BookmarkSlice) error {
 	switch f {
 	case "json":
-		j := db.ToJSON(&bookmarks)
+		j := bm.ToJSON(&bookmarks)
 		fmt.Println(j)
 	case "pretty":
 		for _, b := range bookmarks {
@@ -78,7 +79,7 @@ func HandleFormat(f string, bookmarks []db.Bookmark) error {
 	return nil
 }
 
-func PickAttribute(bmarks []db.Bookmark, s string) error {
+func PickAttribute(bmarks bm.BookmarkSlice, s string) error {
 	if len(bmarks) == 0 {
 		return fmt.Errorf("no bookmarks found")
 	}
@@ -97,12 +98,24 @@ func PickAttribute(bmarks []db.Bookmark, s string) error {
 	return nil
 }
 
-func PickBookmarkWithMenu(bmarks []db.Bookmark, s string) ([]db.Bookmark, error) {
+func PickBookmarkWithMenu(bmarks bm.BookmarkSlice, s string) (bm.BookmarkSlice, error) {
 	menu := m.New(s)
-
-	bm, err := display.SelectBookmark(&menu, &bmarks)
+	b, err := display.SelectBookmark(&menu, &bmarks)
 	if err != nil {
 		return bmarks, err
 	}
-	return []db.Bookmark{bm}, nil
+	return bm.BookmarkSlice{b}, nil
+}
+
+func FetchBookmarks(r *db.SQLiteRepository, byQuery, t string) (bm.BookmarkSlice, error) {
+	var bookmarks bm.BookmarkSlice
+	var err error
+
+	switch {
+	case byQuery != "":
+		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
+	default:
+		bookmarks, err = r.GetRecordsAll(t)
+	}
+	return bookmarks, err
 }

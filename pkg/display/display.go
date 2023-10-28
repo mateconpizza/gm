@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	bm "gomarks/pkg/bookmark"
 	c "gomarks/pkg/constants"
 	db "gomarks/pkg/database"
 	"gomarks/pkg/menu"
@@ -37,52 +38,52 @@ func PavelOptions(menuArgs []string) (int, error) {
 	return -1, nil
 } */
 
-func AddBookmark(r *db.SQLiteRepository, m *menu.Menu) (db.Bookmark, error) {
+func AddBookmark(r *db.SQLiteRepository, m *menu.Menu) (bm.Bookmark, error) {
 	currentTime := time.Now()
 	currentTimeString := currentTime.Format("2006-01-02 15:04:05")
 
 	m.UpdatePrompt("Enter URL:")
 	url, err := m.Run("")
 	if err != nil {
-		return db.Bookmark{}, err
+		return bm.Bookmark{}, err
 	}
 
 	m.UpdatePrompt("Enter tags:")
 	tags, err := m.Run("")
 	if err != nil {
-		return db.Bookmark{}, err
+		return bm.Bookmark{}, err
 	}
 
 	s, err := scrape.TitleAndDescription(url)
 	if err != nil {
-		return db.Bookmark{}, err
+		return bm.Bookmark{}, err
 	}
 
-	b, err := r.InsertRecord(&db.Bookmark{
+	b, err := r.InsertRecord(&bm.Bookmark{
 		ID:         0,
 		URL:        url,
-		Title:      db.NullString{NullString: sql.NullString{String: s.Title, Valid: true}},
+		Title:      bm.NullString{NullString: sql.NullString{String: s.Title, Valid: true}},
 		Tags:       tags,
-		Desc:       db.NullString{NullString: sql.NullString{String: s.Description, Valid: true}},
+		Desc:       bm.NullString{NullString: sql.NullString{String: s.Description, Valid: true}},
 		Created_at: currentTimeString,
 	}, c.DBMainTableName)
 	if err != nil {
-		return db.Bookmark{}, err
+		return bm.Bookmark{}, err
 	}
 	return b, nil
 }
 
-func EditBookmark(r *db.SQLiteRepository, m *menu.Menu, b *db.Bookmark) (db.Bookmark, error) {
+func EditBookmark(r *db.SQLiteRepository, m *menu.Menu, b *bm.Bookmark) (bm.Bookmark, error) {
 	m.UpdatePrompt(fmt.Sprintf("Editing ID: %d", b.ID))
 	s, err := m.Run(b.String())
 	if err != nil {
-		return db.Bookmark{}, err
+		return bm.Bookmark{}, err
 	}
 	fmt.Println(s)
 	return *b, nil
 }
 
-func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *db.Bookmark) error {
+func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *bm.Bookmark) error {
 	msg := fmt.Sprintf("Deleting bookmark: %s", b.URL)
 	if !m.Confirm(msg, "Are you sure?") {
 		return fmt.Errorf("Cancelled")
@@ -117,7 +118,7 @@ func HandleTestMode(m *menu.Menu, r *db.SQLiteRepository) {
 	fmt.Print("\n::::::::End Test Mode::::::::\n\n")
 }
 
-func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error) {
+func SelectBookmark(m *menu.Menu, bookmarks *bm.BookmarkSlice) (bm.Bookmark, error) {
 	var itemsText []string
 	m.UpdateMessage(fmt.Sprintf(" Welcome to GoMarks\n Showing (%d) bookmarks", len(*bookmarks)))
 	log.Printf("Selecting bookmark from %d bookmarks\n", len(*bookmarks))
@@ -145,10 +146,10 @@ func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error)
 		log.Printf("Selected bookmark:\n%s", b)
 		return b, nil
 	}
-	return db.Bookmark{}, fmt.Errorf("item not found: %s", selectedStr)
+	return bm.Bookmark{}, fmt.Errorf("item not found: %s", selectedStr)
 }
 
-func HandleAction(bmarks []db.Bookmark, c, o bool) error {
+func HandleAction(bmarks bm.BookmarkSlice, c, o bool) error {
 	if len(bmarks) == 0 {
 		return fmt.Errorf("no bookmarks found")
 	}
@@ -156,8 +157,8 @@ func HandleAction(bmarks []db.Bookmark, c, o bool) error {
 		bmarks[0].CopyToClipboard()
 	}
 	if o {
-		s := bmarks[0].PlainString()
-		fmt.Println(s)
+		fmt.Println("Not implemented yet")
+		fmt.Println(bmarks[0])
 	}
 	return nil
 }
