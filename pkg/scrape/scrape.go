@@ -14,7 +14,7 @@ type ScrapeResult struct {
 
 func TitleAndDescription(url string) (*ScrapeResult, error) {
 	log.Printf("Scraping: %s", url)
-	url = strings.Replace(url, "www.reddit.com", "old.reddit.com", -1)
+	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
 	c := colly.NewCollector()
 

@@ -3,14 +3,15 @@ package display
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"strings"
+	"time"
+
 	c "gomarks/pkg/constants"
 	db "gomarks/pkg/database"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/scrape"
 	u "gomarks/pkg/util"
-	"log"
-	"strings"
-	"time"
 )
 
 /* func ShowOptions(m *menu.Menu) (int, error) {
@@ -145,4 +146,18 @@ func SelectBookmark(m *menu.Menu, bookmarks *[]db.Bookmark) (db.Bookmark, error)
 		return b, nil
 	}
 	return db.Bookmark{}, fmt.Errorf("item not found: %s", selectedStr)
+}
+
+func HandleAction(bmarks []db.Bookmark, c, o bool) error {
+	if len(bmarks) == 0 {
+		return fmt.Errorf("no bookmarks found")
+	}
+	if c {
+		bmarks[0].CopyToClipboard()
+	}
+	if o {
+		s := bmarks[0].PlainString()
+		fmt.Println(s)
+	}
+	return nil
 }

@@ -1,8 +1,9 @@
 package main
 
 // [TODO):
-// = [ ] add sub-commands
-// = [X] add format option to json, pretty, plain
+// - [ ] add sub-commands
+// - [X] add format option to json, pretty, plain
+// - [ ] better module/pkg naming.
 
 import (
 	"flag"
@@ -14,6 +15,7 @@ import (
 	c "gomarks/pkg/constants"
 	"gomarks/pkg/data"
 	db "gomarks/pkg/database"
+	"gomarks/pkg/display"
 	u "gomarks/pkg/util"
 )
 
@@ -33,6 +35,7 @@ var (
 	testFlag    bool
 	verboseFlag bool
 	versionFlag bool
+	openFlag    bool
 )
 
 func init() {
@@ -40,6 +43,7 @@ func init() {
 	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
 	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
 	flag.BoolVar(&listFlag, "list", false, "list all bookmarks")
+	flag.BoolVar(&openFlag, "open", false, "open bookmark in default browser")
 	flag.BoolVar(&restoreFlag, "restore", false, "restore a bookmark")
 	flag.BoolVar(&testFlag, "test", false, "test mode")
 	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
@@ -48,7 +52,7 @@ func init() {
 	flag.IntVar(&idFlag, "id", 0, "bookmark id")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
 	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
-	flag.StringVar(&format, "f", "pretty", "output format [json|pretty]")
+	flag.StringVar(&format, "f", "", "output format [json|pretty]")
 	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu rofi]")
 	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
 }
@@ -99,12 +103,6 @@ func main() {
 	// Apply head and tail options
 	bookmarks = data.HeadAndTail(bookmarks, head, tail)
 
-	// Copy to clipboard
-	if len(bookmarks) > 0 && copyFlag {
-		bookmarks[0].CopyToClipboard()
-		return
-	}
-
 	// Handle pick
 	if pick != "" {
 		if err = data.PickAttribute(bookmarks, pick); err != nil {
@@ -113,21 +111,27 @@ func main() {
 		return
 	}
 
-  // Handle menu option
+	// Handle menu option
 	if menuName != "" {
 		if bookmarks, err = data.PickBookmarkWithMenu(bookmarks, menuName); err != nil {
 			log.Fatal(err)
 		}
-		if copyFlag {
-			bookmarks[0].CopyToClipboard()
-			return
+	}
+
+	// Handle format
+	if format != "" {
+		if err = data.HandleFormat(format, bookmarks); err != nil {
+			log.Fatal(err)
 		}
 		return
 	}
 
-
-	// Handle format
-	if err := data.HandleFormat(format, bookmarks); err != nil {
-		log.Fatal(err)
+	// Handle action
+	if copyFlag || openFlag {
+		err = display.HandleAction(bookmarks, copyFlag, openFlag)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 }
