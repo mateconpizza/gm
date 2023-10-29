@@ -1,14 +1,17 @@
 package util
 
 import (
+	"bytes"
 	"fmt"
-	"gomarks/pkg/color"
-	"gomarks/pkg/constants"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"gomarks/pkg/color"
+	"gomarks/pkg/constants"
 
 	"golang.org/x/exp/slices"
 )
@@ -52,7 +55,7 @@ func SetupHomeProject() {
 
 	if !FileExists(AppHome) {
 		log.Println("Creating AppHome:", AppHome)
-		err = os.Mkdir(AppHome, 0755)
+		err = os.Mkdir(AppHome, 0o755)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -79,14 +82,22 @@ func FindSelectedIndex(s string, items []string) int {
 	return idx
 }
 
-func FormatTitleLine(n int, v, c string) string {
-	if v == "" {
-		v = "Untitled"
+func FormatTitleLine(n int, title, c string) string {
+	if title == "" {
+		title = "Untitled"
 	}
 	if c == "" {
-		return fmt.Sprintf(" %-4d %s %s\n", n, constants.BulletPoint, v)
+		return fmt.Sprintf("%-4d\t%s %s\n", n, constants.BulletPoint, title)
 	}
-	return fmt.Sprintf(" %-4d %s%s%s %s%s\n", n, color.Bold, constants.BulletPoint, c, v, color.Reset)
+	return fmt.Sprintf(
+		"%s%-4d\t%s%s %s%s\n",
+		color.Bold,
+		n,
+		constants.BulletPoint,
+		c,
+		title,
+		color.Reset,
+	)
 }
 
 func FormatLine(prefix, v, c string) string {
@@ -99,7 +110,7 @@ func FormatLine(prefix, v, c string) string {
 func SetLogLevel(verboseFlag bool) {
 	if verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
-		log.Println("VVerbose mode")
+		log.Println("Verbose mode")
 		return
 	}
 	silentLogger := log.New(io.Discard, "", 0)
@@ -124,7 +135,7 @@ func SplitAndAlignString(s string, lineLength int) string {
 		if len(currentLine)+len(word)+1 > lineLength {
 			result += currentLine + "\n"
 			currentLine = word
-			currentLine = fmt.Sprintf("        %s", currentLine)
+			currentLine = fmt.Sprintf("\t%s", currentLine)
 		} else {
 			if currentLine != "" {
 				currentLine += " "
@@ -135,4 +146,63 @@ func SplitAndAlignString(s string, lineLength int) string {
 
 	result += currentLine
 	return result
+}
+
+func binaryExists(binaryName string) bool {
+	cmd := exec.Command("which", binaryName)
+	err := cmd.Run()
+	return err == nil
+}
+
+func ReadFile(file string) []byte {
+	content, err := os.ReadFile(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return content
+}
+
+func IsSameContentBytes(a, b []byte) bool {
+	return bytes.Equal(a, b)
+}
+
+func EditFile(file string) error {
+	editor, err := getEditor()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(editor, file)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func getEditor() (string, error) {
+	GomarksEditor := os.Getenv("GOMARKS_EDITOR")
+	if GomarksEditor != "" {
+		log.Printf("Var $GOMARKS_EDITOR set to %s", GomarksEditor)
+		return GomarksEditor, nil
+	}
+
+	Editor := os.Getenv("EDITOR")
+	if Editor != "" {
+		log.Printf("Var $EDITOR set to %s", Editor)
+		return Editor, nil
+	}
+
+	log.Printf("Var $EDITOR not set.")
+	if binaryExists("vim") {
+		return "vim", nil
+	}
+	if binaryExists("nano") {
+		return "nano", nil
+	}
+	if binaryExists("nvim") {
+		return "nvim", nil
+	}
+	if binaryExists("emacs") {
+		return "emacs", nil
+	}
+	return "", fmt.Errorf("no editor found")
 }

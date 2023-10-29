@@ -5,25 +5,25 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 
 	"gomarks/pkg/scrape"
+	"gomarks/pkg/util"
 )
 
 func Edit(b *Bookmark) (*Bookmark, error) {
 	data := editTempContent(b)
 	tempFile := saveDataToTemporaryFile(data)
 
-	err := editFile(tempFile)
+	err := util.EditFile(tempFile)
 	if err != nil {
 		return b, err
 	}
 
-	editedContent := readFile(tempFile)
+	editedContent := util.ReadFile(tempFile)
 	content := parseEditedContent(editedContent)
 
-	if isSameContentBytes(data, editedContent) {
+	if util.IsSameContentBytes(data, editedContent) {
 		return b, fmt.Errorf("no changes made. editing cancelled")
 	}
 
@@ -58,23 +58,6 @@ func saveDataToTemporaryFile(data []byte) string {
 	return tempFile
 }
 
-func editFile(file string) error {
-	editor := getEditor()
-	cmd := exec.Command(editor, file)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-func readFile(file string) []byte {
-	content, err := os.ReadFile(file)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return content
-}
-
 func editTempContent(b *Bookmark) []byte {
 	data := []byte(fmt.Sprintf(`## Editing %s
 ## lines starting with # will be ignored.
@@ -89,32 +72,6 @@ func editTempContent(b *Bookmark) []byte {
 ## End
 `, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
 	return bytes.TrimRight(data, " ")
-}
-
-func getEditor() string {
-	Editor := os.Getenv("EDITOR")
-	if Editor == "" {
-		log.Printf("Var $EDITOR not set.")
-	}
-	if binaryExists("vim") {
-		Editor = "vim"
-		return Editor
-	}
-	if binaryExists("nano") {
-		Editor = "nano"
-		return Editor
-	}
-	if binaryExists("nvim") {
-		Editor = "nvim"
-		return Editor
-	}
-	return Editor
-}
-
-func binaryExists(binaryName string) bool {
-	cmd := exec.Command("which", binaryName)
-	err := cmd.Run()
-	return err == nil
 }
 
 func isValidContent(content []string) bool {
@@ -138,10 +95,6 @@ func parseEditedContent(content []byte) []string {
 		}
 	}
 	return resultLines
-}
-
-func isSameContentBytes(a, b []byte) bool {
-	return bytes.Equal(a, b)
 }
 
 func cleanupTemporaryFile(file string) {
