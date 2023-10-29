@@ -171,7 +171,7 @@ func TestIsRecordExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exists := r.RecordExists(bookmark, "test_table")
+	exists := r.RecordExists(bookmark.URL, "test_table")
 	if !exists {
 		t.Errorf("isRecordExists returned false for an existing record")
 	}
@@ -179,7 +179,7 @@ func TestIsRecordExists(t *testing.T) {
 	nonExistentBookmark := &bm.Bookmark{
 		URL: "https://non_existent.com",
 	}
-	exists = r.RecordExists(nonExistentBookmark, "test_table")
+	exists = r.RecordExists(nonExistentBookmark.URL, "test_table")
 	if exists {
 		t.Errorf("isRecordExists returned true for a non-existent record")
 	}
@@ -250,7 +250,7 @@ func TestGetRecordByID(t *testing.T) {
 }
 
 func TestGetRecordsByQuery(t *testing.T) {
-	var expectedRecords int = 2
+	var expectedRecords = 2
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 

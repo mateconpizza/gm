@@ -128,9 +128,44 @@ func HandleEdit(r *db.SQLiteRepository, b *bm.Bookmark, t string) error {
 	}
 	_, err = r.UpdateRecord(be, t)
 	if err != nil {
-    log.Printf("Error updating bookmark %s: %s", db.ErrUpdateFailed, err)
+		log.Printf("Error updating bookmark %s: %s", db.ErrUpdateFailed, err)
 		return err
 	}
-  log.Printf("Updated bookmark %s (table: %s)\n", b.URL, t)
+	log.Printf("Updated bookmark %s (table: %s)\n", b.URL, t)
+	return nil
+}
+
+func HandleAction(bmarks bm.BookmarkSlice, c, o bool) error {
+	if len(bmarks) == 0 {
+		return fmt.Errorf("no bookmarks found")
+	}
+	if c {
+		bmarks[0].CopyToClipboard()
+	}
+	if o {
+		fmt.Println("Not implemented yet")
+		fmt.Println(bmarks[0])
+	}
+	return nil
+}
+
+func HandleAdd(r *db.SQLiteRepository, url, tags, tableName string) error {
+	if url == "" {
+		log.Fatal("URL is empty")
+	}
+	if tags == "" {
+		log.Fatal("TAGs is empty")
+	}
+  if r.RecordExists(url, tableName) {
+    return fmt.Errorf("bookmark already exists")
+  }
+	b, err := bm.Add(url, tags)
+	if err != nil {
+		return err
+	}
+	_, err = r.InsertRecord(b, tableName)
+	if err != nil {
+		return err
+	}
 	return nil
 }

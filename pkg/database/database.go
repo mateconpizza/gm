@@ -82,7 +82,7 @@ func (r *SQLiteRepository) InsertRecord(b *bm.Bookmark, tableName string) (bm.Bo
 		return *b, fmt.Errorf("invalid bookmark: %s", ErrNotExists)
 	}
 
-	if r.RecordExists(b, tableName) {
+	if r.RecordExists(b.URL, tableName) {
 		return *b, fmt.Errorf(
 			"bookmark already exists in %s table %s: %s",
 			tableName,
@@ -119,7 +119,7 @@ func (r *SQLiteRepository) InsertRecord(b *bm.Bookmark, tableName string) (bm.Bo
 }
 
 func (r *SQLiteRepository) UpdateRecord(b *bm.Bookmark, t string) (bm.Bookmark, error) {
-	if !r.RecordExists(b, t) {
+	if !r.RecordExists(b.URL, t) {
 		return *b, fmt.Errorf("error updating bookmark %s: %s", ErrNotExists, b.URL)
 	}
 	sqlQuery := fmt.Sprintf(
@@ -136,7 +136,7 @@ func (r *SQLiteRepository) UpdateRecord(b *bm.Bookmark, t string) (bm.Bookmark, 
 
 func (r *SQLiteRepository) DeleteRecord(b *bm.Bookmark, tableName string) error {
 	log.Printf("Deleting bookmark %s (table: %s)\n", b.URL, tableName)
-	if !r.RecordExists(b, tableName) {
+	if !r.RecordExists(b.URL, tableName) {
 		return fmt.Errorf("error removing bookmark %s: %s", ErrNotExists, b.URL)
 	}
 	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), b.ID)
@@ -231,10 +231,10 @@ func (r *SQLiteRepository) GetRecordsByQuery(q, t string) ([]bm.Bookmark, error)
 	return bs, err
 }
 
-func (r *SQLiteRepository) RecordExists(b *bm.Bookmark, tableName string) bool {
+func (r *SQLiteRepository) RecordExists(url, tableName string) bool {
 	sqlQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE url=?", tableName)
 	var recordCount int
-	err := r.DB.QueryRow(sqlQuery, b.URL).Scan(&recordCount)
+	err := r.DB.QueryRow(sqlQuery, url).Scan(&recordCount)
 	if err != nil {
 		log.Fatal(err)
 	}

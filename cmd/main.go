@@ -15,12 +15,11 @@ import (
 	c "gomarks/pkg/constants"
 	"gomarks/pkg/data"
 	db "gomarks/pkg/database"
-	"gomarks/pkg/display"
 	u "gomarks/pkg/util"
 )
 
 var (
-	addFlag     bool
+	add         string
 	byQuery     string
 	copyFlag    bool
 	deleteFlag  bool
@@ -33,6 +32,7 @@ var (
 	openFlag    bool
 	pick        string
 	restoreFlag bool
+	tags        string
 	tail        int
 	testFlag    bool
 	verboseFlag bool
@@ -40,10 +40,9 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&addFlag, "add", false, "add a bookmark")
 	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
-	flag.BoolVar(&editFlag, "edit", false, "edit a bookmark")
 	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
+	flag.BoolVar(&editFlag, "edit", false, "edit a bookmark")
 	flag.BoolVar(&listFlag, "list", false, "list all bookmarks")
 	flag.BoolVar(&openFlag, "open", false, "open bookmark in default browser")
 	flag.BoolVar(&restoreFlag, "restore", false, "restore a bookmark")
@@ -53,10 +52,12 @@ func init() {
 	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
 	flag.IntVar(&idFlag, "id", 0, "bookmark id")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
+	flag.StringVar(&add, "add", "", "add a bookmark [format: URL Tags]")
 	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
 	flag.StringVar(&format, "f", "", "output format [json|pretty|plain]")
-	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu rofi]")
+	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu|rofi]")
 	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
+	flag.StringVar(&tags, "tags", "", "tag a bookmark")
 }
 
 func parseQueryFlag() {
@@ -128,17 +129,23 @@ func main() {
 		return
 	}
 
-  // Handle edit
-  if editFlag {
-    if err = data.HandleEdit(r, &bookmarks[0], tableName); err != nil {
-      log.Fatal(err)
-    }
-    return
-  }
+	if add != "" {
+		if err = data.HandleAdd(r, add, tags, tableName); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Handle edit
+	if editFlag {
+		if err = data.HandleEdit(r, &bookmarks[0], tableName); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	// Handle action
 	if copyFlag || openFlag {
-		err = display.HandleAction(bookmarks, copyFlag, openFlag)
+		err = data.HandleAction(bookmarks, copyFlag, openFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
