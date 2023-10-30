@@ -394,7 +394,7 @@ func (r *SQLiteRepository) getRecordsLength(t string) (int, error) {
 }
 
 func (r *SQLiteRepository) GetDBInfo() string {
-  // FIX: Name
+	// FIX: Name
 	s := u.FormatTitle("info", []string{
 		u.FormatBulletLine("name", c.AppName),
 		u.FormatBulletLine("home", u.GetAppHome()),
