@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	bm "gomarks/pkg/bookmark"
 	c "gomarks/pkg/constants"
 	"gomarks/pkg/data"
 	db "gomarks/pkg/database"
@@ -20,7 +21,7 @@ import (
 
 var (
 	add         string
-	byQuery     string
+	queryFilter string
 	copyFlag    bool
 	deleteFlag  bool
 	editFlag    bool
@@ -49,11 +50,13 @@ func init() {
 	flag.BoolVar(&testFlag, "test", false, "test mode")
 	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
 	flag.BoolVar(&versionFlag, "version", false, "version")
+
 	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
 	flag.IntVar(&idFlag, "id", 0, "bookmark id")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
+
 	flag.StringVar(&add, "add", "", "add a bookmark [format: URL Tags]")
-	flag.StringVar(&byQuery, "query", "", "query to filter bookmarks")
+	flag.StringVar(&queryFilter, "query", "", "query to filter bookmarks")
 	flag.StringVar(&format, "f", "", "output format [json|pretty|plain]")
 	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu|rofi]")
 	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
@@ -64,7 +67,7 @@ func parseQueryFlag() {
 	// Handle 'query' flag
 	args := os.Args[1:]
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		byQuery = args[0]
+		queryFilter = args[0]
 		args = args[1:]
 	}
 	os.Args = append([]string{os.Args[0]}, args...)
@@ -86,9 +89,15 @@ func main() {
 	r := db.GetDB()
 	defer r.DB.Close()
 
+  // Test mode
+  if testFlag {
+    s := r.GetDBInfo()
+    fmt.Println(s)
+  }
+
 	// Print version
 	if versionFlag {
-		fmt.Println(c.Version)
+    fmt.Printf("%s v%s\n", c.AppName, c.Version)
 		return
 	}
 
@@ -98,17 +107,19 @@ func main() {
 	}
 
 	// By ID, list or query
-	bookmarks, err := data.RetrieveBookmarks(r, tableName, byQuery, idFlag, listFlag)
+	bookmarks, err := data.RetrieveBookmarks(r, tableName, queryFilter, idFlag, listFlag)
 	if err != nil {
+		fmt.Printf("%s: error %s\n", c.AppName, err)
 		log.Fatal(err)
 	}
 
 	// Apply head and tail options
-	bookmarks = data.HeadAndTail(bookmarks, head, tail)
+	bookmarks = data.HeadAndTail(&bookmarks, head, tail)
 
 	// Handle pick
 	if pick != "" {
-		if err = data.PickAttribute(bookmarks, pick); err != nil {
+		if err = data.PickAttribute(&bookmarks, pick); err != nil {
+			fmt.Printf("%s: error %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return
@@ -116,28 +127,28 @@ func main() {
 
 	// Handle menu option
 	if menuName != "" {
-		if bookmarks, err = data.PickBookmarkWithMenu(bookmarks, menuName); err != nil {
+		var newBookmarks *bm.BookmarkSlice
+		newBookmarks, err = data.PickBookmarkWithMenu(&bookmarks, menuName)
+		if err != nil {
+			fmt.Printf("%s: error %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
+		bookmarks = *newBookmarks
 	}
 
-	// Handle format
-	if format != "" {
-		if err = data.HandleFormat(format, bookmarks); err != nil {
+	// Handle add
+	if add != "" {
+		if err = data.HandleAdd(r, add, tags, tableName); err != nil {
+			fmt.Printf("%s: error %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return
 	}
 
-	if add != "" {
-		if err = data.HandleAdd(r, add, tags, tableName); err != nil {
-			log.Fatal(err)
-		}
-	}
-
 	// Handle edit
 	if editFlag {
 		if err = data.HandleEdit(r, &bookmarks[0], tableName); err != nil {
+			fmt.Printf("%s: error %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return
@@ -145,8 +156,18 @@ func main() {
 
 	// Handle action
 	if copyFlag || openFlag {
-		err = data.HandleAction(bookmarks, copyFlag, openFlag)
+		err = data.HandleAction(&bookmarks, copyFlag, openFlag)
 		if err != nil {
+			fmt.Printf("%s: error %s\n", c.AppName, err)
+			log.Fatal(err)
+		}
+		return
+	}
+
+	// Handle format
+	if format != "" {
+		if err = data.HandleFormat(format, &bookmarks); err != nil {
+			fmt.Printf("%s: error %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return

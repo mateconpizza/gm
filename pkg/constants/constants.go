@@ -1,7 +1,6 @@
 package constants
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -10,9 +9,9 @@ const (
 	DBMainTableName    string = "bookmarks"
 	DBDeletedTableName string = "deleted_bookmarks"
 	DBTempTableName    string = "temp_bookmarks"
-	AppName            string = "GoMarks"
+	AppName            string = "gomarks"
 	BulletPoint        string = "\u2022"
-	version            string = "0.0.2"
+	Version            string = "0.0.2"
 )
 
 var (
@@ -27,5 +26,4 @@ var (
         created_at  TIMESTAMP
     )
   `
-	Version = fmt.Sprintf("%s v%s", AppName, version)
 )

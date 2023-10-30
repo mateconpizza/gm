@@ -28,34 +28,28 @@ func ShortenString(s string, maxLength int) string {
 	return s
 }
 
-func getAppHome() (string, error) {
+func GetAppHome() string {
 	if constants.ConfigHome == "" {
 		constants.ConfigHome = os.Getenv("HOME")
 		constants.ConfigHome += "/.config"
 	}
-	s := filepath.Join(constants.ConfigHome, constants.AppName)
-	return s, nil
+	s := filepath.Join(constants.ConfigHome, strings.ToLower(constants.AppName))
+	return s
 }
 
-func GetDBPath() (string, error) {
-	appPath, err := getAppHome()
-	if err != nil {
-		return "", err
-	}
+func GetDBPath() string {
+	appPath := GetAppHome()
 	s := filepath.Join(appPath, constants.DBName)
 	log.Print("GetDBPath: ", s)
-	return s, nil
+	return s
 }
 
 func SetupHomeProject() {
-	AppHome, err := getAppHome()
-	if err != nil {
-		log.Fatal(err)
-	}
+	AppHome := GetAppHome()
 
 	if !FileExists(AppHome) {
 		log.Println("Creating AppHome:", AppHome)
-		err = os.Mkdir(AppHome, 0o755)
+		err := os.Mkdir(AppHome, 0o755)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -105,6 +99,20 @@ func FormatLine(prefix, v, c string) string {
 		return fmt.Sprintf("%s%s\n", prefix, v)
 	}
 	return fmt.Sprintf("%s%s%s%s\n", c, prefix, v, color.Reset)
+}
+
+func FormatBulletLine(label string, value string) string {
+	return fmt.Sprintf("    %s %-15s: %s\n", constants.BulletPoint, label, value)
+}
+
+func FormatTitle(title string, items []string) string {
+	var s string
+	t := fmt.Sprintf("> %s:\n", title)
+	s += t
+	for _, item := range items {
+		s += item
+	}
+	return s
 }
 
 func SetLogLevel(verboseFlag bool) {

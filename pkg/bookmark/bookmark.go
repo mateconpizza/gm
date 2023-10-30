@@ -91,7 +91,7 @@ func (b *Bookmark) setTags(tags string) {
 }
 
 func (b Bookmark) IsValid() bool {
-	if b.Title.Valid && b.URL != "" {
+	if b.URL != "" {
 		log.Print("IsValid: Bookmark is valid")
 		return true
 	}
