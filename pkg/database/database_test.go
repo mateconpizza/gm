@@ -73,7 +73,7 @@ func TestTableExists(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	exists, err := r.TableExists("test_table")
+	exists, err := r.TableExists(tempTableName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestTableDoesNotExists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !exists {
+	if exists {
 		t.Error("TableExists returned true for a non-existent table")
 	}
 }

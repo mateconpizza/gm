@@ -32,11 +32,7 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 }
 
 func GetDB() *SQLiteRepository {
-	dbPath, err := u.GetDBPath()
-	if err != nil {
-		log.Fatal("Error getting database path:", err)
-	}
-
+	dbPath := u.GetDBPath()
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatal("Error opening database:", err)
@@ -45,6 +41,8 @@ func GetDB() *SQLiteRepository {
 	r := NewSQLiteRepository(db)
 	if exists, _ := r.TableExists(c.DBMainTableName); !exists {
 		r.initDB()
+		s := r.GetDBInfo()
+		fmt.Println(s)
 	}
 	return r
 }
@@ -54,13 +52,11 @@ func (r *SQLiteRepository) initDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("%s: Database initialized. Table: %s\n", c.AppName, c.DBMainTableName)
 
 	err = r.CreateTable(c.DBDeletedTableName)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("%s: Database initialized. Table: %s\n", c.AppName, c.DBDeletedTableName)
 
 	if _, err := r.InsertRecord(&bm.InitBookmark, c.DBMainTableName); err != nil {
 		return
@@ -77,13 +73,13 @@ func (r *SQLiteRepository) DropTable(t string) error {
 	return nil
 }
 
-func (r *SQLiteRepository) InsertRecord(b *bm.Bookmark, tableName string) (bm.Bookmark, error) {
+func (r *SQLiteRepository) InsertRecord(b *bm.Bookmark, tableName string) (*bm.Bookmark, error) {
 	if !b.IsValid() {
-		return *b, fmt.Errorf("invalid bookmark: %s", ErrNotExists)
+		return nil, fmt.Errorf("invalid bookmark: %s", ErrNotExists)
 	}
 
 	if r.RecordExists(b.URL, tableName) {
-		return *b, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"bookmark already exists in %s table %s: %s",
 			tableName,
 			ErrDuplicate,
@@ -105,17 +101,17 @@ func (r *SQLiteRepository) InsertRecord(b *bm.Bookmark, tableName string) (bm.Bo
 		currentTime.Format("2006-01-02 15:04:05"),
 	)
 	if err != nil {
-		return *b, err
+		return nil, err
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return *b, err
+		return nil, err
 	}
 	b.ID = int(id)
 
 	log.Printf("Inserted bookmark: %s (table: %s)\n", b.URL, tableName)
-	return *b, nil
+	return b, nil
 }
 
 func (r *SQLiteRepository) UpdateRecord(b *bm.Bookmark, t string) (bm.Bookmark, error) {
@@ -254,12 +250,15 @@ func (r *SQLiteRepository) getMaxID() int {
 
 func (r *SQLiteRepository) TableExists(t string) (bool, error) {
 	log.Printf("Checking if table '%s' exists", t)
-	rows, err := r.DB.Query("SELECT name FROM sqlite_master WHERE type='table' AND name=?", t)
+	query := "SELECT name FROM sqlite_master WHERE type='table' AND name = ?"
+	rows, err := r.DB.Query(query, t)
 	if err != nil {
 		return false, err
 	}
 	defer rows.Close()
-	rows.Next()
+	if !rows.Next() {
+		return false, nil
+	}
 	log.Printf("Table '%s' exists", t)
 	return true, nil
 }
