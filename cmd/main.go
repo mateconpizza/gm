@@ -20,47 +20,52 @@ import (
 )
 
 var (
-	add         string
-	queryFilter string
-	copyFlag    bool
-	deleteFlag  bool
+	// bookmarks
+	addFlag     string
 	editFlag    bool
-	format      string
-	head        int
+	deleteFlag  bool
+	tagsFlag    string
 	idFlag      int
 	listFlag    bool
-	menuName    string
+	queryFilter string
+	copyFlag    bool
 	openFlag    bool
-	pick        string
-	restoreFlag bool
-	tags        string
+
+	// actions
+	format      string
+	head        int
 	tail        int
-	testFlag    bool
+	pick        string
+	menuName    string
+	restoreFlag bool
+
+	// app
 	verboseFlag bool
 	versionFlag bool
+	testFlag    bool
 )
 
 func init() {
-	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
-	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
+	flag.StringVar(&addFlag, "add", "", "add a bookmark [format: URL Tags]")
 	flag.BoolVar(&editFlag, "edit", false, "edit a bookmark")
+	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
+	flag.StringVar(&tagsFlag, "tags", "", "tag a bookmark")
+	flag.IntVar(&idFlag, "id", 0, "bookmark id")
 	flag.BoolVar(&listFlag, "list", false, "list all bookmarks")
+	flag.StringVar(&queryFilter, "query", "", "query to filter bookmarks")
+	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
 	flag.BoolVar(&openFlag, "open", false, "open bookmark in default browser")
+
+	flag.StringVar(&format, "f", "", "output format [json|pretty|plain]")
+	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
+	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
+	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
+	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu|rofi]")
 	flag.BoolVar(&restoreFlag, "restore", false, "restore a bookmark")
+
 	flag.BoolVar(&testFlag, "test", false, "test mode")
 	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
 	flag.BoolVar(&versionFlag, "version", false, "version")
-
-	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
-	flag.IntVar(&idFlag, "id", 0, "bookmark id")
-	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
-
-	flag.StringVar(&add, "add", "", "add a bookmark [format: URL Tags]")
-	flag.StringVar(&queryFilter, "query", "", "query to filter bookmarks")
-	flag.StringVar(&format, "f", "", "output format [json|pretty|plain]")
-	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu|rofi]")
-	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
-	flag.StringVar(&tags, "tags", "", "tag a bookmark")
 }
 
 func parseQueryFlag() {
@@ -89,15 +94,15 @@ func main() {
 	r := db.GetDB()
 	defer r.DB.Close()
 
-  // Test mode
-  if testFlag {
-    s := r.GetDBInfo()
-    fmt.Println(s)
-  }
+	// Test mode
+	if testFlag {
+		s := r.GetDBInfo()
+		fmt.Println(s)
+	}
 
 	// Print version
 	if versionFlag {
-    fmt.Printf("%s v%s\n", c.AppName, c.Version)
+		fmt.Printf("%s v%s\n", c.AppName, c.Version)
 		return
 	}
 
@@ -137,8 +142,8 @@ func main() {
 	}
 
 	// Handle add
-	if add != "" {
-		if err = data.HandleAdd(r, add, tags, tableName); err != nil {
+	if addFlag != "" {
+		if err = data.HandleAdd(r, addFlag, tagsFlag, tableName); err != nil {
 			fmt.Printf("%s: error %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
