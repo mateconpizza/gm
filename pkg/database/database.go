@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	bm "gomarks/pkg/bookmark"
@@ -354,6 +355,7 @@ func (r *SQLiteRepository) ReorderIDs() error {
 }
 
 func (r *SQLiteRepository) TagsWithCount() (u.Counter, error) {
+	// FIX: make it local
 	tagCounter := make(u.Counter)
 
 	bookmarks, err := r.GetRecordsAll(c.DBMainTableName)
@@ -367,6 +369,7 @@ func (r *SQLiteRepository) TagsWithCount() (u.Counter, error) {
 }
 
 func (r *SQLiteRepository) GetRecordsByTag(t string) ([]bm.Bookmark, error) {
+	// FIX: make it local
 	bookmarks, err := r.getRecordsBySQL(
 		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", c.DBMainTableName),
 		fmt.Sprintf("%%%s%%", t),
@@ -380,16 +383,31 @@ func (r *SQLiteRepository) GetRecordsByTag(t string) ([]bm.Bookmark, error) {
 	return bookmarks, nil
 }
 
-func (r *SQLiteRepository) GetLastRecords(n int, t string) ([]bm.Bookmark, error) {
-	bookmarks, err := r.getRecordsBySQL(
-		fmt.Sprintf("SELECT * FROM %s ORDER BY id DESC LIMIT ?", t),
-		n,
-	)
+func (r *SQLiteRepository) getRecordsLength(t string) (int, error) {
+	var length int
+	row := r.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", t))
+	err := row.Scan(&length)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	if len(bookmarks) == 0 {
-		return []bm.Bookmark{}, fmt.Errorf("no bookmarks found")
+	return length, nil
+}
+
+func (r *SQLiteRepository) GetDBInfo() string {
+  // FIX: Name
+	s := u.FormatTitle("info", []string{
+		u.FormatBulletLine("name", c.AppName),
+		u.FormatBulletLine("home", u.GetAppHome()),
+		u.FormatBulletLine("version", c.Version),
+	})
+	records, err := r.getRecordsLength(c.DBMainTableName)
+	if err != nil {
+		return s
 	}
-	return bookmarks, nil
+	s += u.FormatTitle("database", []string{
+		u.FormatBulletLine("path", u.GetDBPath()),
+		u.FormatBulletLine("records", strconv.Itoa(records)),
+		u.FormatBulletLine("last backup", "not implemented yet"),
+	})
+	return s
 }

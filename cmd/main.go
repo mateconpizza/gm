@@ -43,6 +43,7 @@ var (
 	verboseFlag bool
 	versionFlag bool
 	testFlag    bool
+	infoFlag    bool
 )
 
 func init() {
@@ -66,6 +67,7 @@ func init() {
 	flag.BoolVar(&testFlag, "test", false, "test mode")
 	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
 	flag.BoolVar(&versionFlag, "version", false, "version")
+	flag.BoolVar(&infoFlag, "info", false, "show app info")
 }
 
 func parseQueryFlag() {
@@ -96,14 +98,19 @@ func main() {
 
 	// Test mode
 	if testFlag {
-		s := r.GetDBInfo()
-		fmt.Println(s)
+		fmt.Println("Testing...")
+		return
 	}
 
 	// Print version
 	if versionFlag {
 		fmt.Printf("%s v%s\n", c.AppName, c.Version)
 		return
+	}
+
+	// Print info
+	if infoFlag {
+		fmt.Println(r.GetDBInfo())
 	}
 
 	// Set tableName as deleted table for restore
