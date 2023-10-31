@@ -200,3 +200,11 @@ func getEditor() (string, error) {
 	}
 	return "", fmt.Errorf("no editor found")
 }
+
+func PrintErrMsg(m string, verbose bool) {
+	if verbose {
+		log.Fatal(m)
+	}
+	fmt.Printf("%s: %s\n", constants.AppName, m)
+	os.Exit(1)
+}

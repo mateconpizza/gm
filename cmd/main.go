@@ -122,8 +122,7 @@ func main() {
 	// By ID, list or query
 	bookmarks, err := data.RetrieveBookmarks(r, tableName, queryFilter, idFlag, listFlag)
 	if err != nil {
-		fmt.Printf("%s: %s\n", c.AppName, err)
-		log.Fatal(err)
+		util.PrintErrMsg(err.Error(), verboseFlag)
 	}
 
 	// Apply head and tail options
@@ -132,8 +131,7 @@ func main() {
 	// Handle pick
 	if pick != "" {
 		if err = data.PickAttribute(&bookmarks, pick); err != nil {
-			fmt.Printf("%s: %s\n", c.AppName, err)
-			log.Fatal(err)
+			util.PrintErrMsg(err.Error(), verboseFlag)
 		}
 		return
 	}
@@ -143,8 +141,7 @@ func main() {
 		var newBookmarks *bm.BookmarkSlice
 		newBookmarks, err = data.PickBookmarkWithMenu(&bookmarks, menuName)
 		if err != nil {
-			fmt.Printf("%s: %s\n", c.AppName, err)
-			log.Fatal(err)
+			util.PrintErrMsg(err.Error(), verboseFlag)
 		}
 		bookmarks = *newBookmarks
 	}
@@ -152,17 +149,15 @@ func main() {
 	// Handle add
 	if addFlag != "" {
 		if err = data.HandleAdd(r, addFlag, tagsFlag, tableName); err != nil {
-			fmt.Printf("%s: %s\n", c.AppName, err)
-			log.Fatal(err)
+			util.PrintErrMsg(err.Error(), verboseFlag)
 		}
 		return
 	}
 
 	// Handle edit
 	if editFlag {
-		if err = data.HandleEdit(r, &bookmarks[0], tableName); err != nil {
-			fmt.Printf("%s: %s\n", c.AppName, err)
-			log.Fatal(err)
+		if err = data.HandleEdit(r, &bookmarks, tableName); err != nil {
+			util.PrintErrMsg(err.Error(), verboseFlag)
 		}
 		return
 	}
@@ -171,8 +166,7 @@ func main() {
 	if copyFlag || openFlag {
 		err = data.HandleAction(&bookmarks, copyFlag, openFlag)
 		if err != nil {
-			fmt.Printf("%s: %s\n", c.AppName, err)
-			log.Fatal(err)
+			util.PrintErrMsg(err.Error(), verboseFlag)
 		}
 		return
 	}
@@ -180,8 +174,7 @@ func main() {
 	// Handle format
 	if format != "" {
 		if err = data.HandleFormat(format, &bookmarks); err != nil {
-			fmt.Printf("%s: %s\n", c.AppName, err)
-			log.Fatal(err)
+			util.PrintErrMsg(err.Error(), verboseFlag)
 		}
 		return
 	}
