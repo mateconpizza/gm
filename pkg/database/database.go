@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	bm "gomarks/pkg/bookmark"
@@ -42,8 +41,7 @@ func GetDB() *SQLiteRepository {
 	r := NewSQLiteRepository(db)
 	if exists, _ := r.TableExists(c.DBMainTableName); !exists {
 		r.initDB()
-		s := r.GetDBInfo()
-		fmt.Println(s)
+		fmt.Printf("Initialized database: %s", dbPath)
 	}
 	return r
 }
@@ -383,7 +381,7 @@ func (r *SQLiteRepository) GetRecordsByTag(t string) ([]bm.Bookmark, error) {
 	return bookmarks, nil
 }
 
-func (r *SQLiteRepository) getRecordsLength(t string) (int, error) {
+func (r *SQLiteRepository) GetRecordsLength(t string) (int, error) {
 	var length int
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", t))
 	err := row.Scan(&length)
@@ -391,23 +389,4 @@ func (r *SQLiteRepository) getRecordsLength(t string) (int, error) {
 		return 0, err
 	}
 	return length, nil
-}
-
-func (r *SQLiteRepository) GetDBInfo() string {
-	// FIX: Name
-	s := u.FormatTitle("info", []string{
-		u.FormatBulletLine("name", c.AppName),
-		u.FormatBulletLine("home", u.GetAppHome()),
-		u.FormatBulletLine("version", c.Version),
-	})
-	records, err := r.getRecordsLength(c.DBMainTableName)
-	if err != nil {
-		return s
-	}
-	s += u.FormatTitle("database", []string{
-		u.FormatBulletLine("path", u.GetDBPath()),
-		u.FormatBulletLine("records", strconv.Itoa(records)),
-		u.FormatBulletLine("last backup", "not implemented yet"),
-	})
-	return s
 }

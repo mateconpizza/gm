@@ -16,6 +16,7 @@ import (
 	c "gomarks/pkg/constants"
 	"gomarks/pkg/data"
 	db "gomarks/pkg/database"
+	"gomarks/pkg/info"
 	u "gomarks/pkg/util"
 )
 
@@ -57,7 +58,7 @@ func init() {
 	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
 	flag.BoolVar(&openFlag, "open", false, "open bookmark in default browser")
 
-	flag.StringVar(&format, "f", "", "output format [json|pretty|plain]")
+	flag.StringVar(&format, "f", "pretty", "output format [json|pretty|plain]")
 	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
 	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
@@ -110,7 +111,7 @@ func main() {
 
 	// Print info
 	if infoFlag {
-		fmt.Println(r.GetDBInfo())
+		fmt.Println(info.AppInfo(r))
 	}
 
 	// Set tableName as deleted table for restore
@@ -121,7 +122,7 @@ func main() {
 	// By ID, list or query
 	bookmarks, err := data.RetrieveBookmarks(r, tableName, queryFilter, idFlag, listFlag)
 	if err != nil {
-		fmt.Printf("%s: error %s\n", c.AppName, err)
+		fmt.Printf("%s: %s\n", c.AppName, err)
 		log.Fatal(err)
 	}
 
@@ -131,7 +132,7 @@ func main() {
 	// Handle pick
 	if pick != "" {
 		if err = data.PickAttribute(&bookmarks, pick); err != nil {
-			fmt.Printf("%s: error %s\n", c.AppName, err)
+			fmt.Printf("%s: %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return
@@ -142,7 +143,7 @@ func main() {
 		var newBookmarks *bm.BookmarkSlice
 		newBookmarks, err = data.PickBookmarkWithMenu(&bookmarks, menuName)
 		if err != nil {
-			fmt.Printf("%s: error %s\n", c.AppName, err)
+			fmt.Printf("%s: %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		bookmarks = *newBookmarks
@@ -151,7 +152,7 @@ func main() {
 	// Handle add
 	if addFlag != "" {
 		if err = data.HandleAdd(r, addFlag, tagsFlag, tableName); err != nil {
-			fmt.Printf("%s: error %s\n", c.AppName, err)
+			fmt.Printf("%s: %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return
@@ -160,7 +161,7 @@ func main() {
 	// Handle edit
 	if editFlag {
 		if err = data.HandleEdit(r, &bookmarks[0], tableName); err != nil {
-			fmt.Printf("%s: error %s\n", c.AppName, err)
+			fmt.Printf("%s: %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return
@@ -170,7 +171,7 @@ func main() {
 	if copyFlag || openFlag {
 		err = data.HandleAction(&bookmarks, copyFlag, openFlag)
 		if err != nil {
-			fmt.Printf("%s: error %s\n", c.AppName, err)
+			fmt.Printf("%s: %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return
@@ -179,7 +180,7 @@ func main() {
 	// Handle format
 	if format != "" {
 		if err = data.HandleFormat(format, &bookmarks); err != nil {
-			fmt.Printf("%s: error %s\n", c.AppName, err)
+			fmt.Printf("%s: %s\n", c.AppName, err)
 			log.Fatal(err)
 		}
 		return

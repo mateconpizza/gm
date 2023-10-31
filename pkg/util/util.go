@@ -101,20 +101,6 @@ func FormatLine(prefix, v, c string) string {
 	return fmt.Sprintf("%s%s%s%s\n", c, prefix, v, color.Reset)
 }
 
-func FormatBulletLine(label string, value string) string {
-	return fmt.Sprintf("    %s %-15s: %s\n", constants.BulletPoint, label, value)
-}
-
-func FormatTitle(title string, items []string) string {
-	var s string
-	t := fmt.Sprintf("> %s:\n", title)
-	s += t
-	for _, item := range items {
-		s += item
-	}
-	return s
-}
-
 func SetLogLevel(verboseFlag bool) {
 	if verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
