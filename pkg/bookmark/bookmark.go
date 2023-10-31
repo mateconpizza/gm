@@ -91,12 +91,16 @@ func (b *Bookmark) setTags(tags string) {
 }
 
 func (b Bookmark) IsValid() bool {
-	if b.URL != "" {
-		log.Print("IsValid: Bookmark is valid")
-		return true
+	if b.URL == "" {
+		log.Print("IsValid: Bookmark is invalid. URL is empty")
+		return false
 	}
-	log.Print("IsValid: Bookmark is invalid")
-	return false
+	if b.Tags == "" {
+		log.Print("IsValid: Bookmark is invalid. Tags is empty")
+		return false
+	}
+	log.Print("IsValid: Bookmark is valid")
+	return true
 }
 
 type NullString struct {

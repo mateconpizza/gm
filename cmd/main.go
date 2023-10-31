@@ -1,23 +1,21 @@
 package main
 
 // [TODO):
-// - [ ] add sub-commands
+// - [ ] add sub-commands (maybe use Cobra!)
 // - [X] add format option to json, pretty, plain
 // - [ ] better module/pkg naming.
 
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
-	bm "gomarks/pkg/bookmark"
-	c "gomarks/pkg/constants"
+	"gomarks/pkg/constants"
 	"gomarks/pkg/data"
-	db "gomarks/pkg/database"
+	"gomarks/pkg/database"
 	"gomarks/pkg/info"
-	u "gomarks/pkg/util"
+	"gomarks/pkg/util"
 )
 
 var (
@@ -72,7 +70,6 @@ func init() {
 }
 
 func parseQueryFlag() {
-	// Handle 'query' flag
 	args := os.Args[1:]
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		queryFilter = args[0]
@@ -82,30 +79,24 @@ func parseQueryFlag() {
 }
 
 func main() {
-	tableName := c.DBMainTableName
+	tableName := constants.DBMainTableName
 
 	parseQueryFlag()
 	flag.Parse()
 
-	// Set log level
-	u.SetLogLevel(verboseFlag)
+	if versionFlag {
+		fmt.Printf("%s v%s\n", constants.AppName, constants.Version)
+		return
+	}
 
-	// Set up the home project
-	u.SetupHomeProject()
-
-	// Connect to the database
-	r := db.GetDB()
+	util.SetLogLevel(verboseFlag)
+	util.SetupHomeProject()
+	r := database.GetDB()
 	defer r.DB.Close()
 
 	// Test mode
 	if testFlag {
 		fmt.Println("Testing...")
-		return
-	}
-
-	// Print version
-	if versionFlag {
-		fmt.Printf("%s v%s\n", c.AppName, c.Version)
 		return
 	}
 
@@ -116,17 +107,17 @@ func main() {
 
 	// Set tableName as deleted table for restore
 	if restoreFlag {
-		tableName = c.DBDeletedTableName
+		tableName = constants.DBDeletedTableName
 	}
 
 	// By ID, list or query
-	bookmarks, err := data.RetrieveBookmarks(r, tableName, queryFilter, idFlag, listFlag)
+	bookmarks, err := data.RetrieveBookmarks(r, &tableName, &queryFilter, idFlag, &listFlag)
 	if err != nil {
 		util.PrintErrMsg(err.Error(), verboseFlag)
 	}
 
 	// Apply head and tail options
-	bookmarks = data.HeadAndTail(&bookmarks, head, tail)
+	data.HeadAndTail(&bookmarks, head, tail)
 
 	// Handle pick
 	if pick != "" {
@@ -138,12 +129,10 @@ func main() {
 
 	// Handle menu option
 	if menuName != "" {
-		var newBookmarks *bm.BookmarkSlice
-		newBookmarks, err = data.PickBookmarkWithMenu(&bookmarks, menuName)
+		err = data.PickBookmarkWithMenu(&bookmarks, menuName)
 		if err != nil {
 			util.PrintErrMsg(err.Error(), verboseFlag)
 		}
-		bookmarks = *newBookmarks
 	}
 
 	// Handle add
