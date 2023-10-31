@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
-	"strings"
 
 	"gomarks/pkg/color"
 	u "gomarks/pkg/util"
@@ -70,9 +69,9 @@ func (b Bookmark) PrettyColorString() string {
 	return b.prettyString()
 }
 
-func (b *Bookmark) setURL(url string) {
+/* func (b *Bookmark) setURL(url string) {
 	b.URL = url
-}
+} */
 
 func (b *Bookmark) setTitle(title string) {
 	b.Title.String = title
@@ -84,11 +83,11 @@ func (b *Bookmark) setDesc(desc string) {
 	b.Desc.Valid = true
 }
 
-func (b *Bookmark) setTags(tags string) {
+/* func (b *Bookmark) setTags(tags string) {
 	words := strings.Fields(tags)
 	strWithoutSpaces := strings.Join(words, "")
 	b.Tags = strWithoutSpaces
-}
+} */
 
 func (b Bookmark) IsValid() bool {
 	if b.URL == "" {

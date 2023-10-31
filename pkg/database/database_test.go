@@ -361,6 +361,7 @@ func TestBookmarkIsValid(t *testing.T) {
 	validBookmark := bm.Bookmark{
 		Title: bm.NullString{NullString: sql.NullString{String: "Example", Valid: true}},
 		URL:   "https://www.example.com",
+		Tags:  "tag1,tag2",
 	}
 
 	if !validBookmark.IsValid() {

@@ -208,3 +208,7 @@ func PrintErrMsg(m string, verbose bool) {
 	fmt.Printf("%s: %s\n", constants.AppName, m)
 	os.Exit(1)
 }
+
+func IsEmptyLine(line string) bool {
+	return strings.TrimSpace(line) == ""
+}

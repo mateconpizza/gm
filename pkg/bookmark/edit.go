@@ -11,6 +11,43 @@ import (
 	"gomarks/pkg/util"
 )
 
+type TempBookmark struct {
+	url   string
+	title string
+	tags  string
+	desc  string
+}
+
+func getTempBookmark(content []string) *TempBookmark {
+	url := ExtractBlock(content, "## url", "## title")
+	title := ExtractBlock(content, "## title", "## tags")
+	tags := ExtractBlock(content, "## tags", "## description")
+	desc := ExtractBlock(content, "## description", "## end")
+	return &TempBookmark{
+		url:   url,
+		title: title,
+		tags:  tags,
+		desc:  desc,
+	}
+}
+
+func getTitleAndDescription(t *TempBookmark) {
+	var scrapeResult *scrape.ScrapeResult
+	var err error
+	if t.title == "" || t.desc == "" {
+		scrapeResult, err = scrape.TitleAndDescription(t.url)
+		if err != nil {
+			log.Printf("Error on %s: %s\n", t.url, err)
+		}
+	}
+	if t.title == "" {
+		t.title = scrapeResult.Title
+	}
+	if t.desc == "" {
+		t.desc = scrapeResult.Description
+	}
+}
+
 func Edit(b *Bookmark) (*Bookmark, error) {
 	data := editTempContent(b)
 	tempFile := saveDataToTemporaryFile(data)
@@ -21,31 +58,25 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	}
 
 	editedContent := util.ReadFile(tempFile)
-	content := parseEditedContent(editedContent)
+	tempContent := strings.Split(string(editedContent), "\n")
 
-	if util.IsSameContentBytes(data, editedContent) {
-		return b, fmt.Errorf("no changes made. editing cancelled")
-	}
-
-	b.setURL(content[0])
-	b.setTitle(content[1])
-	b.setTags(content[2])
-	b.setDesc(content[3])
-
-	if b.Title.String == "" || b.Desc.String == "" {
-		result, err := scrape.TitleAndDescription(b.URL)
-		if err != nil {
-			return b, err
-		}
-		b.setTitle(result.Title)
-		b.setDesc(result.Description)
-	}
-
-	if !b.IsValid() {
-		return b, fmt.Errorf("invalid bookmark: %s", b)
+	if err = validateContent(tempContent); err != nil {
+		return b, err
 	}
 
 	cleanupTemporaryFile(tempFile)
+
+	if util.IsSameContentBytes(data, editedContent) {
+		return b, nil
+	}
+
+	tempBookmark := getTempBookmark(tempContent)
+	getTitleAndDescription(tempBookmark)
+
+	b.URL = tempBookmark.url
+	b.Title.String = tempBookmark.title
+	b.Tags = tempBookmark.tags
+	b.Desc.String = tempBookmark.desc
 	return b, nil
 }
 
@@ -59,7 +90,7 @@ func saveDataToTemporaryFile(data []byte) string {
 }
 
 func editTempContent(b *Bookmark) []byte {
-	data := []byte(fmt.Sprintf(`## Editing %s
+	data := []byte(fmt.Sprintf(`## Editing [%d] %s
 ## lines starting with # will be ignored.
 ## url:
 %s
@@ -69,32 +100,21 @@ func editTempContent(b *Bookmark) []byte {
 %s
 ## description: (leave empty line for web fetch)
 %s
-## End
-`, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
+## end
+`, b.ID, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
 	return bytes.TrimRight(data, " ")
 }
 
-func isValidContent(content []string) bool {
-	const linesInContent = 11
-	return len(content) == linesInContent
-}
+func validateContent(content []string) error {
+	url := ExtractBlock(content, "## url:", "## title:")
+	tags := ExtractBlock(content, "## tags:", "## description:")
 
-func parseEditedContent(content []byte) []string {
-	// BUG: I dont know Rick. Make some tests
-	resultLines := []string{}
-	str := string(content)
-	lines := strings.Split(strings.TrimSpace(str), "\n")
-	if !isValidContent(lines) {
-		errMsg := "Invalid content"
-		fmt.Println(errMsg)
-		log.Fatal(errMsg)
+	if util.IsEmptyLine(url) {
+		return fmt.Errorf("url is empty")
+	} else if util.IsEmptyLine(tags) {
+		return fmt.Errorf("tags is empty")
 	}
-	for _, line := range lines {
-		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
-			resultLines = append(resultLines, line)
-		}
-	}
-	return resultLines
+	return nil
 }
 
 func cleanupTemporaryFile(file string) {
@@ -102,4 +122,34 @@ func cleanupTemporaryFile(file string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func ExtractBlock(content []string, startMarker, endMarker string) string {
+	startIndex := -1
+	endIndex := -1
+	isInBlock := false
+	var cleanedBlock []string
+
+	for i, line := range content {
+		if strings.HasPrefix(line, startMarker) {
+			startIndex = i
+			isInBlock = true
+			continue // Skip start marker line
+		}
+
+		if strings.HasPrefix(line, endMarker) && isInBlock {
+			endIndex = i
+			break // Found end marker line
+		}
+
+		if isInBlock {
+			cleanedBlock = append(cleanedBlock, line)
+		}
+	}
+
+	if startIndex == -1 || endIndex == -1 {
+		return ""
+	}
+
+	return strings.Join(cleanedBlock, "\n")
 }
