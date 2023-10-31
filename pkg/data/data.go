@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"math"
 
-	bm "gomarks/pkg/bookmark"
-	db "gomarks/pkg/database"
+	"gomarks/pkg/bookmark"
+	"gomarks/pkg/database"
 	"gomarks/pkg/display"
-	m "gomarks/pkg/menu"
+	"gomarks/pkg/menu"
 )
 
 func QueryAndList(
-	r *db.SQLiteRepository,
+	r *database.SQLiteRepository,
 	byQuery string,
 	listFlag bool,
 	tableName string,
-) (bm.BookmarkSlice, error) {
-	var bookmarks bm.BookmarkSlice
+) (bookmark.BookmarkSlice, error) {
+	var bookmarks bookmark.BookmarkSlice
 	var err error
 
 	if byQuery != "" {
@@ -33,7 +33,7 @@ func QueryAndList(
 	return bookmarks, nil
 }
 
-func HeadAndTail(bookmarks *bm.BookmarkSlice, head, tail int) {
+func HeadAndTail(bookmarks *bookmark.BookmarkSlice, head, tail int) {
 	if head > 0 {
 		head = int(math.Min(float64(head), float64(len(*bookmarks))))
 		*bookmarks = (*bookmarks)[:head]
@@ -46,23 +46,23 @@ func HeadAndTail(bookmarks *bm.BookmarkSlice, head, tail int) {
 }
 
 func RetrieveBookmarks(
-	r *db.SQLiteRepository,
+	r *database.SQLiteRepository,
 	tableName *string,
 	byQuery *string,
 	idFlag int,
 	listFlag *bool,
-) (bm.BookmarkSlice, error) {
+) (bookmark.BookmarkSlice, error) {
 	if idFlag != 0 {
-		bookmark, err := r.GetRecordByID(idFlag, *tableName)
-		return bm.BookmarkSlice{bookmark}, err
+		b, err := r.GetRecordByID(idFlag, *tableName)
+		return bookmark.BookmarkSlice{b}, err
 	}
 	return QueryAndList(r, *byQuery, *listFlag, *tableName)
 }
 
-func HandleFormat(f string, bookmarks *bm.BookmarkSlice) error {
+func HandleFormat(f string, bookmarks *bookmark.BookmarkSlice) error {
 	switch f {
 	case "json":
-		j := bm.ToJSON(bookmarks)
+		j := bookmark.ToJSON(bookmarks)
 		fmt.Println(j)
 	case "pretty":
 		for _, b := range *bookmarks {
@@ -78,7 +78,7 @@ func HandleFormat(f string, bookmarks *bm.BookmarkSlice) error {
 	return nil
 }
 
-func PickAttribute(bmarks *bm.BookmarkSlice, s string) error {
+func PickAttribute(bmarks *bookmark.BookmarkSlice, s string) error {
 	if len(*bmarks) == 0 {
 		return fmt.Errorf("no bookmarks found")
 	}
@@ -97,18 +97,21 @@ func PickAttribute(bmarks *bm.BookmarkSlice, s string) error {
 	return nil
 }
 
-func PickBookmarkWithMenu(bmarks *bm.BookmarkSlice, s string) error {
-	menu := m.New(s)
-	b, err := display.SelectBookmark(&menu, bmarks)
+func PickBookmarkWithMenu(bmarks *bookmark.BookmarkSlice, s string) error {
+	m := menu.New(s)
+	b, err := display.SelectBookmark(&m, bmarks)
 	if err != nil {
 		return err
 	}
-	*bmarks = bm.BookmarkSlice{b}
+	*bmarks = bookmark.BookmarkSlice{b}
 	return nil
 }
 
-func FetchBookmarks(r *db.SQLiteRepository, byQuery, t string) (bm.BookmarkSlice, error) {
-	var bookmarks bm.BookmarkSlice
+func FetchBookmarks(
+	r *database.SQLiteRepository,
+	byQuery, t string,
+) (bookmark.BookmarkSlice, error) {
+	var bookmarks bookmark.BookmarkSlice
 	var err error
 
 	switch {
@@ -120,13 +123,13 @@ func FetchBookmarks(r *db.SQLiteRepository, byQuery, t string) (bm.BookmarkSlice
 	return bookmarks, err
 }
 
-func HandleEdit(r *db.SQLiteRepository, bs *bm.BookmarkSlice, t string) error {
+func HandleEdit(r *database.SQLiteRepository, bs *bookmark.BookmarkSlice, t string) error {
 	if bs == nil || len(*bs) == 0 {
 		return fmt.Errorf("no bookmarks selected for editing")
 	}
 
 	for _, b := range *bs {
-		editedBookmark, err := bm.Edit(&b)
+		editedBookmark, err := bookmark.Edit(&b)
 		if err != nil {
 			return fmt.Errorf("error editing bookmark: %w", err)
 		}
@@ -138,7 +141,7 @@ func HandleEdit(r *db.SQLiteRepository, bs *bm.BookmarkSlice, t string) error {
 	return nil
 }
 
-func HandleAction(bmarks *bm.BookmarkSlice, c, o bool) error {
+func HandleAction(bmarks *bookmark.BookmarkSlice, c, o bool) error {
 	if len(*bmarks) == 0 {
 		return fmt.Errorf("no bookmarks found")
 	}
@@ -152,7 +155,7 @@ func HandleAction(bmarks *bm.BookmarkSlice, c, o bool) error {
 	return nil
 }
 
-func HandleAdd(r *db.SQLiteRepository, url, tags, tableName string) error {
+func HandleAdd(r *database.SQLiteRepository, url, tags, tableName string) error {
 	if url == "" {
 		return fmt.Errorf("URL is empty")
 	}
@@ -162,7 +165,7 @@ func HandleAdd(r *db.SQLiteRepository, url, tags, tableName string) error {
 	if r.RecordExists(url, tableName) {
 		return fmt.Errorf("bookmark already exists")
 	}
-	b, err := bm.Add(url, tags)
+	b, err := bookmark.Add(url, tags)
 	if err != nil {
 		return err
 	}

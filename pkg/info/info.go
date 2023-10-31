@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strconv"
 
-	c "gomarks/pkg/constants"
+	"gomarks/pkg/constants"
 	"gomarks/pkg/database"
 	"gomarks/pkg/util"
 )
 
 func FormatBulletLine(label string, value string) string {
-	return fmt.Sprintf("    %s %-15s: %s\n", c.BulletPoint, label, value)
+	return fmt.Sprintf("    %s %-15s: %s\n", constants.BulletPoint, label, value)
 }
 
 func FormatTitle(title string, items []string) string {
@@ -24,11 +24,11 @@ func FormatTitle(title string, items []string) string {
 }
 
 func getDBInfo(r *database.SQLiteRepository) string {
-	records, err := r.GetRecordsLength(c.DBMainTableName)
+	records, err := r.GetRecordsLength(constants.DBMainTableName)
 	if err != nil {
 		return ""
 	}
-	deleted, err := r.GetRecordsLength(c.DBDeletedTableName)
+	deleted, err := r.GetRecordsLength(constants.DBDeletedTableName)
 	if err != nil {
 		return ""
 	}
@@ -42,9 +42,9 @@ func getDBInfo(r *database.SQLiteRepository) string {
 
 func getAppInfo() string {
 	s := FormatTitle("info", []string{
-		FormatBulletLine("name", c.AppName),
+		FormatBulletLine("name", constants.AppName),
 		FormatBulletLine("home", util.GetAppHome()),
-		FormatBulletLine("version", c.Version),
+		FormatBulletLine("version", constants.Version),
 	})
 	return s
 }
@@ -57,7 +57,7 @@ func getBackupInfo() string {
 }
 
 func AppInfo(r *database.SQLiteRepository) string {
-	s := fmt.Sprintf("App: %s\n\n", c.AppName)
+	s := fmt.Sprintf("App: %s\n\n", constants.AppName)
 	s += getAppInfo()
 	s += getDBInfo(r)
 	s += getBackupInfo()

@@ -2,7 +2,7 @@ package util_test
 
 import (
 	"gomarks/pkg/menu"
-	u "gomarks/pkg/util"
+	"gomarks/pkg/util"
 	"testing"
 )
 
@@ -10,7 +10,7 @@ func TestShortenString(t *testing.T) {
 	input := "This is a long string"
 	maxLength := 10
 	expected := "This is..."
-	result := u.ShortenString(input, maxLength)
+	result := util.ShortenString(input, maxLength)
 
 	if result != expected {
 		t.Errorf("Expected %s, but got %s", expected, result)
@@ -19,7 +19,7 @@ func TestShortenString(t *testing.T) {
 
 func TestFolderExists(t *testing.T) {
 	testFolder := "/tmp/testfolder"
-	exists := u.FileExists(testFolder)
+	exists := util.FileExists(testFolder)
 
 	if exists {
 		t.Errorf("Expected folder not to exist, but it does.")

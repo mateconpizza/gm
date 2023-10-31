@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"gomarks/pkg/color"
-	u "gomarks/pkg/util"
+	"gomarks/pkg/util"
 
 	"github.com/atotto/clipboard"
 )
@@ -34,15 +34,15 @@ func (b *Bookmark) CopyToClipboard() {
 func (b Bookmark) prettyString() string {
 	// FIX: DRY
 	maxLen := 80
-	title := u.SplitAndAlignString(b.Title.String, maxLen)
-	s := u.FormatTitleLine(b.ID, title, color.Purple)
-	s += u.FormatLine("\t+ ", b.URL, color.Blue)
-	s += u.FormatLine("\t+ ", b.Tags, color.Gray)
+	title := util.SplitAndAlignString(b.Title.String, maxLen)
+	s := util.FormatTitleLine(b.ID, title, color.Purple)
+	s += util.FormatLine("\t+ ", b.URL, color.Blue)
+	s += util.FormatLine("\t+ ", b.Tags, color.Gray)
 	if b.Desc.String != "" {
-		desc := u.SplitAndAlignString(b.Desc.String, maxLen)
-		s += u.FormatLine("\t+ ", desc, color.White)
+		desc := util.SplitAndAlignString(b.Desc.String, maxLen)
+		s += util.FormatLine("\t+ ", desc, color.White)
 	} else {
-		s += u.FormatLine("\t+ ", "Untitled", color.White)
+		s += util.FormatLine("\t+ ", "Untitled", color.White)
 	}
 	return s
 }
@@ -50,13 +50,13 @@ func (b Bookmark) prettyString() string {
 func (b Bookmark) PlainString() string {
 	// FIX: DRY
 	maxLen := 80
-	title := u.SplitAndAlignString(b.Title.String, maxLen)
-	s := u.FormatTitleLine(b.ID, title, "")
-	s += u.FormatLine("\t+ ", b.URL, "")
-	s += u.FormatLine("\t+ ", b.Tags, "")
+	title := util.SplitAndAlignString(b.Title.String, maxLen)
+	s := util.FormatTitleLine(b.ID, title, "")
+	s += util.FormatLine("\t+ ", b.URL, "")
+	s += util.FormatLine("\t+ ", b.Tags, "")
 	if b.Desc.String != "" {
-		desc := u.SplitAndAlignString(b.Desc.String, maxLen)
-		s += u.FormatLine("\t+ ", desc, "")
+		desc := util.SplitAndAlignString(b.Desc.String, maxLen)
+		s += util.FormatLine("\t+ ", desc, "")
 	}
 	return s
 }
