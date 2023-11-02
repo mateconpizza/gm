@@ -15,61 +15,73 @@ func QueryAndList(
 	byQuery string,
 	listFlag bool,
 	tableName string,
-) (bookmark.BookmarkSlice, error) {
-	var bookmarks bookmark.BookmarkSlice
+) (*bookmark.BookmarkSlice, error) {
+	var bs *bookmark.BookmarkSlice
 	var err error
 
 	if byQuery != "" {
-		if bookmarks, err = r.GetRecordsByQuery(byQuery, tableName); err != nil {
+		if bs, err = r.GetRecordsByQuery(byQuery, tableName); err != nil {
 			return nil, err
 		}
 	}
 
 	if listFlag {
-		if bookmarks, err = r.GetRecordsAll(tableName); err != nil {
+		if bs, err = r.GetRecordsAll(tableName); err != nil {
 			return nil, err
 		}
 	}
-	return bookmarks, nil
+	return bs, nil
 }
 
-func HeadAndTail(bookmarks *bookmark.BookmarkSlice, head, tail int) {
+func HeadAndTail(bs *bookmark.BookmarkSlice, head, tail int) error {
+	if bs == nil {
+		return fmt.Errorf("no bookmarks selected")
+	}
 	if head > 0 {
-		head = int(math.Min(float64(head), float64(len(*bookmarks))))
-		*bookmarks = (*bookmarks)[:head]
+		head = int(math.Min(float64(head), float64(len(*bs))))
+		*bs = (*bs)[:head]
 	}
 
 	if tail > 0 {
-		tail = int(math.Min(float64(tail), float64(len(*bookmarks))))
-		*bookmarks = (*bookmarks)[len(*bookmarks)-tail:]
+		tail = int(math.Min(float64(tail), float64(len(*bs))))
+		*bs = (*bs)[len(*bs)-tail:]
 	}
+	return nil
 }
 
 func RetrieveBookmarks(
 	r *database.SQLiteRepository,
 	tableName *string,
 	byQuery *string,
-	idFlag int,
+	id int,
 	listFlag *bool,
-) (bookmark.BookmarkSlice, error) {
-	if idFlag != 0 {
-		b, err := r.GetRecordByID(idFlag, *tableName)
-		return bookmark.BookmarkSlice{b}, err
+	incomplete bool,
+) (*bookmark.BookmarkSlice, error) {
+	if id != 0 {
+		b, err := r.GetRecordByID(id, *tableName)
+		return &bookmark.BookmarkSlice{*b}, err
+	}
+	if incomplete {
+		bs, err := r.GetRecordsWithoutTitleorDesc(*tableName)
+		if err != nil {
+			return nil, err
+		}
+		return bs, nil
 	}
 	return QueryAndList(r, *byQuery, *listFlag, *tableName)
 }
 
-func HandleFormat(f string, bookmarks *bookmark.BookmarkSlice) error {
+func HandleFormat(f string, bs *bookmark.BookmarkSlice) error {
 	switch f {
 	case "json":
-		j := bookmark.ToJSON(bookmarks)
+		j := bookmark.ToJSON(bs)
 		fmt.Println(j)
 	case "pretty":
-		for _, b := range *bookmarks {
+		for _, b := range *bs {
 			fmt.Println(b.PrettyColorString())
 		}
 	case "plain":
-		for _, b := range *bookmarks {
+		for _, b := range *bs {
 			fmt.Println(b)
 		}
 	default:
@@ -78,11 +90,11 @@ func HandleFormat(f string, bookmarks *bookmark.BookmarkSlice) error {
 	return nil
 }
 
-func PickAttribute(bmarks *bookmark.BookmarkSlice, s string) error {
-	if len(*bmarks) == 0 {
+func PickAttribute(bs *bookmark.BookmarkSlice, s string) error {
+	if bs == nil {
 		return fmt.Errorf("no bookmarks found")
 	}
-	for _, b := range *bmarks {
+	for _, b := range *bs {
 		switch s {
 		case "url":
 			fmt.Println(b.URL)
@@ -97,30 +109,33 @@ func PickAttribute(bmarks *bookmark.BookmarkSlice, s string) error {
 	return nil
 }
 
-func PickBookmarkWithMenu(bmarks *bookmark.BookmarkSlice, s string) error {
+func PickBookmarkWithMenu(bs *bookmark.BookmarkSlice, s string) error {
+	if s == "" {
+		return nil
+	}
 	m := menu.New(s)
-	b, err := display.SelectBookmark(&m, bmarks)
+	b, err := display.SelectBookmark(&m, bs)
 	if err != nil {
 		return err
 	}
-	*bmarks = bookmark.BookmarkSlice{b}
+	*bs = bookmark.BookmarkSlice{b}
 	return nil
 }
 
 func FetchBookmarks(
 	r *database.SQLiteRepository,
 	byQuery, t string,
-) (bookmark.BookmarkSlice, error) {
-	var bookmarks bookmark.BookmarkSlice
+) (*bookmark.BookmarkSlice, error) {
+	var bs *bookmark.BookmarkSlice
 	var err error
 
 	switch {
 	case byQuery != "":
-		bookmarks, err = r.GetRecordsByQuery(byQuery, t)
+		bs, err = r.GetRecordsByQuery(byQuery, t)
 	default:
-		bookmarks, err = r.GetRecordsAll(t)
+		bs, err = r.GetRecordsAll(t)
 	}
-	return bookmarks, err
+	return bs, err
 }
 
 func HandleEdit(r *database.SQLiteRepository, bs *bookmark.BookmarkSlice, t string) error {
@@ -131,11 +146,11 @@ func HandleEdit(r *database.SQLiteRepository, bs *bookmark.BookmarkSlice, t stri
 	for _, b := range *bs {
 		editedBookmark, err := bookmark.Edit(&b)
 		if err != nil {
-			return fmt.Errorf("error editing bookmark: %w", err)
+			return fmt.Errorf("bookmark %w", err)
 		}
 
 		if _, err := r.UpdateRecord(editedBookmark, t); err != nil {
-			return fmt.Errorf("error updating bookmark: %w", err)
+			return fmt.Errorf("editing bookmark %w", err)
 		}
 	}
 	return nil

@@ -20,53 +20,58 @@ import (
 
 var (
 	// bookmarks
-	addFlag     string
-	editFlag    bool
-	deleteFlag  bool
-	tagsFlag    string
-	idFlag      int
-	listFlag    bool
+	add         string
+	edit        bool
+	delete      bool
+	tags        string
+	id          int
+	list        bool
 	queryFilter string
-	copyFlag    bool
-	openFlag    bool
+	copy        bool
+	open        bool
 
 	// actions
-	format      string
-	head        int
-	tail        int
-	pick        string
-	menuName    string
-	restoreFlag bool
+	format     string
+	head       int
+	tail       int
+	pick       string
+	menu       string
+	restore    bool
+	incomplete bool
 
 	// app
-	verboseFlag bool
-	versionFlag bool
-	testFlag    bool
-	infoFlag    bool
+	verbose  bool
+	version  bool
+	testFlag bool
+	showInfo bool
 )
 
 func init() {
-	flag.StringVar(&addFlag, "add", "", "add a bookmark [format: URL Tags]")
-	flag.BoolVar(&editFlag, "edit", false, "edit a bookmark")
-	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
-	flag.StringVar(&tagsFlag, "tags", "", "tag a bookmark")
-	flag.IntVar(&idFlag, "id", 0, "bookmark id")
-	flag.BoolVar(&listFlag, "list", false, "list all bookmarks")
+	// bookmarks
+	flag.StringVar(&add, "add", "", "add a bookmark [format: URL Tags]")
+	flag.BoolVar(&edit, "edit", false, "edit a bookmark")
+	flag.BoolVar(&delete, "delete", false, "delete a bookmark")
+	flag.StringVar(&tags, "tags", "", "tag a bookmark")
+	flag.IntVar(&id, "id", 0, "bookmark id")
+	flag.BoolVar(&list, "list", false, "list all bookmarks")
 	flag.StringVar(&queryFilter, "query", "", "query to filter bookmarks")
-	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
-	flag.BoolVar(&openFlag, "open", false, "open bookmark in default browser")
+	flag.BoolVar(&copy, "copy", false, "copy a bookmark")
+	flag.BoolVar(&open, "open", false, "open bookmark in default browser")
 
+	// actions
 	flag.StringVar(&format, "f", "pretty", "output format [json|pretty|plain]")
 	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
 	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
-	flag.StringVar(&menuName, "menu", "", "menu mode [dmenu|rofi]")
-	flag.BoolVar(&restoreFlag, "restore", false, "restore a bookmark")
+	flag.StringVar(&menu, "menu", "", "menu mode [dmenu|rofi]")
+	flag.BoolVar(&restore, "restore", false, "restore a bookmark")
+	flag.BoolVar(&incomplete, "incomplete", false, "filter by incomplete bookmark")
 
+	// app
 	flag.BoolVar(&testFlag, "test", false, "test mode")
-	flag.BoolVar(&verboseFlag, "v", false, "enable verbose output")
-	flag.BoolVar(&versionFlag, "version", false, "version")
-	flag.BoolVar(&infoFlag, "info", false, "show app info")
+	flag.BoolVar(&verbose, "v", false, "enable verbose output")
+	flag.BoolVar(&version, "version", false, "version")
+	flag.BoolVar(&showInfo, "info", false, "show app info")
 }
 
 func parseQueryFlag() {
@@ -84,12 +89,12 @@ func main() {
 	parseQueryFlag()
 	flag.Parse()
 
-	if versionFlag {
+	if version {
 		fmt.Printf("%s v%s\n", constants.AppName, constants.Version)
 		return
 	}
 
-	util.SetLogLevel(verboseFlag)
+	util.SetLogLevel(&verbose)
 	util.SetupHomeProject()
 	r := database.GetDB()
 	defer r.DB.Close()
@@ -101,69 +106,68 @@ func main() {
 	}
 
 	// Print info
-	if infoFlag {
+	if showInfo {
 		fmt.Println(info.AppInfo(r))
 	}
 
 	// Set tableName as deleted table for restore
-	if restoreFlag {
+	if restore {
+		// FIX: finish it. Restore is missing
 		tableName = constants.DBDeletedTableName
 	}
 
 	// By ID, list or query
-	bookmarks, err := data.RetrieveBookmarks(r, &tableName, &queryFilter, idFlag, &listFlag)
+	bs, err := data.RetrieveBookmarks(r, &tableName, &queryFilter, id, &list, incomplete)
 	if err != nil {
-		util.PrintErrMsg(err.Error(), verboseFlag)
+		util.PrintErrMsg(err, verbose)
 	}
 
 	// Apply head and tail options
-	data.HeadAndTail(&bookmarks, head, tail)
+	if err = data.HeadAndTail(bs, head, tail); err != nil {
+		util.PrintErrMsg(err, verbose)
+	}
 
 	// Handle pick
 	if pick != "" {
-		if err = data.PickAttribute(&bookmarks, pick); err != nil {
-			util.PrintErrMsg(err.Error(), verboseFlag)
+		if err = data.PickAttribute(bs, pick); err != nil {
+			util.PrintErrMsg(err, verbose)
 		}
 		return
 	}
 
 	// Handle menu option
-	if menuName != "" {
-		err = data.PickBookmarkWithMenu(&bookmarks, menuName)
-		if err != nil {
-			util.PrintErrMsg(err.Error(), verboseFlag)
-		}
+	if err = data.PickBookmarkWithMenu(bs, menu); err != nil {
+		util.PrintErrMsg(err, verbose)
 	}
 
 	// Handle add
-	if addFlag != "" {
-		if err = data.HandleAdd(r, addFlag, tagsFlag, tableName); err != nil {
-			util.PrintErrMsg(err.Error(), verboseFlag)
+	if add != "" {
+		if err = data.HandleAdd(r, add, tags, tableName); err != nil {
+			util.PrintErrMsg(err, verbose)
 		}
 		return
 	}
 
 	// Handle edit
-	if editFlag {
-		if err = data.HandleEdit(r, &bookmarks, tableName); err != nil {
-			util.PrintErrMsg(err.Error(), verboseFlag)
+	if edit {
+		if err = data.HandleEdit(r, bs, tableName); err != nil {
+			util.PrintErrMsg(err, verbose)
 		}
 		return
 	}
 
 	// Handle action
-	if copyFlag || openFlag {
-		err = data.HandleAction(&bookmarks, copyFlag, openFlag)
-		if err != nil {
-			util.PrintErrMsg(err.Error(), verboseFlag)
+	if copy || open {
+		if err = data.HandleAction(bs, copy, open); err != nil {
+			util.PrintErrMsg(err, verbose)
 		}
 		return
 	}
 
 	// Handle format
 	if format != "" {
-		if err = data.HandleFormat(format, &bookmarks); err != nil {
-			util.PrintErrMsg(err.Error(), verboseFlag)
+		if err = data.HandleFormat(format, bs); err != nil {
+			util.PrintErrMsg(err, verbose)
 		}
 		return
 	}

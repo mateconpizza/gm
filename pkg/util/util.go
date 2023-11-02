@@ -101,8 +101,8 @@ func FormatLine(prefix, v, c string) string {
 	return fmt.Sprintf("%s%s%s%s\n", c, prefix, v, color.Reset)
 }
 
-func SetLogLevel(verboseFlag bool) {
-	if verboseFlag {
+func SetLogLevel(verboseFlag *bool) {
+	if *verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
 		log.Println("Verbose mode")
 		return
@@ -201,11 +201,11 @@ func getEditor() (string, error) {
 	return "", fmt.Errorf("no editor found")
 }
 
-func PrintErrMsg(m string, verbose bool) {
+func PrintErrMsg(m error, verbose bool) {
 	if verbose {
 		log.Fatal(m)
 	}
-	fmt.Printf("%s: %s\n", constants.AppName, m)
+	fmt.Printf("%s: %s\n", constants.AppName, m.Error())
 	os.Exit(1)
 }
 

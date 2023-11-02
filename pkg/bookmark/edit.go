@@ -67,7 +67,7 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	cleanupTemporaryFile(tempFile)
 
 	if util.IsSameContentBytes(data, editedContent) {
-		return b, nil
+		return b, fmt.Errorf("unchanged")
 	}
 
 	tempBookmark := getTempBookmark(tempContent)
@@ -90,6 +90,7 @@ func saveDataToTemporaryFile(data []byte) string {
 }
 
 func editTempContent(b *Bookmark) []byte {
+	// FIX: replace with b.Buffer()
 	data := []byte(fmt.Sprintf(`## Editing [%d] %s
 ## lines starting with # will be ignored.
 ## url:

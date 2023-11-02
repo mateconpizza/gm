@@ -266,8 +266,8 @@ func TestGetRecordsByQuery(t *testing.T) {
 		t.Errorf("Error getting bookmarks by query: %v", err)
 	}
 
-	if len(records) != expectedRecords {
-		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", len(records), 2)
+	if records.Len() != expectedRecords {
+		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", records.Len(), 2)
 	}
 
 	var count int
@@ -277,8 +277,8 @@ func TestGetRecordsByQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if count != len(records) {
-		t.Errorf("Expected %d records, got %d", len(records), count)
+	if count != records.Len() {
+		t.Errorf("Expected %d records, got %d", records.Len(), count)
 	}
 }
 
@@ -287,7 +287,7 @@ func TestInsertRecordsBulk(t *testing.T) {
 	defer teardownTestDB(db)
 
 	// Crear una lista de marcadores de posición de prueba
-	bookmarks := []bm.Bookmark{
+	bookmarks := bm.BookmarkSlice{
 		{
 			URL: "url1",
 			Title: bm.NullString{
@@ -323,7 +323,7 @@ func TestInsertRecordsBulk(t *testing.T) {
 		},
 	}
 
-	err := r.InsertRecordsBulk(tempTableName, bookmarks)
+	err := r.InsertRecordsBulk(tempTableName, &bookmarks)
 	if err != nil {
 		t.Fatal(err)
 	}

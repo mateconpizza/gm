@@ -1,8 +1,10 @@
 package bookmark
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"gomarks/pkg/color"
@@ -12,6 +14,10 @@ import (
 )
 
 type BookmarkSlice []Bookmark
+
+func (bs *BookmarkSlice) Len() int {
+	return len(*bs)
+}
 
 // https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
 type Bookmark struct {
@@ -100,6 +106,22 @@ func (b Bookmark) IsValid() bool {
 	}
 	log.Print("IsValid: Bookmark is valid")
 	return true
+}
+
+func (b Bookmark) Buffer() []byte {
+	data := []byte(fmt.Sprintf(`## Editing [%d] %s
+## lines starting with # will be ignored.
+## url:
+%s
+## title: (leave empty line for web fetch)
+%s
+## tags: (comma separated)
+%s
+## description: (leave empty line for web fetch)
+%s
+## end
+`, b.ID, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
+	return bytes.TrimRight(data, " ")
 }
 
 type NullString struct {
