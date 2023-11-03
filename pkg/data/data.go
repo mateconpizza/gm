@@ -19,14 +19,14 @@ func QueryAndList(
 	var bs *bookmark.BookmarkSlice
 	var err error
 
-	if byQuery != "" {
-		if bs, err = r.GetRecordsByQuery(byQuery, tableName); err != nil {
+	if listFlag {
+		if bs, err = r.GetRecordsAll(tableName); err != nil {
 			return nil, err
 		}
 	}
 
-	if listFlag {
-		if bs, err = r.GetRecordsAll(tableName); err != nil {
+	if byQuery != "" {
+		if bs, err = r.GetRecordsByQuery(byQuery, tableName); err != nil {
 			return nil, err
 		}
 	}
@@ -34,15 +34,19 @@ func QueryAndList(
 }
 
 func HeadAndTail(bs *bookmark.BookmarkSlice, head, tail int) error {
-	if bs == nil {
-		return fmt.Errorf("no bookmarks selected")
-	}
+	// FIX: DRY with 'no bookmarks selected'
 	if head > 0 {
+		if bs == nil {
+			return fmt.Errorf("no bookmarks selected")
+		}
 		head = int(math.Min(float64(head), float64(len(*bs))))
 		*bs = (*bs)[:head]
 	}
 
 	if tail > 0 {
+		if bs == nil {
+			return fmt.Errorf("no bookmarks selected")
+		}
 		tail = int(math.Min(float64(tail), float64(len(*bs))))
 		*bs = (*bs)[len(*bs)-tail:]
 	}
@@ -72,6 +76,9 @@ func RetrieveBookmarks(
 }
 
 func HandleFormat(f string, bs *bookmark.BookmarkSlice) error {
+	/* if bs == nil {
+		return fmt.Errorf("no bookmarks selected")
+	} */
 	switch f {
 	case "json":
 		j := bookmark.ToJSON(bs)

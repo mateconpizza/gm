@@ -53,7 +53,7 @@ func init() {
 	flag.BoolVar(&delete, "delete", false, "delete a bookmark")
 	flag.StringVar(&tags, "tags", "", "tag a bookmark")
 	flag.IntVar(&id, "id", 0, "bookmark id")
-	flag.BoolVar(&list, "list", false, "list all bookmarks")
+	flag.BoolVar(&list, "list", true, "list all bookmarks")
 	flag.StringVar(&queryFilter, "query", "", "query to filter bookmarks")
 	flag.BoolVar(&copy, "copy", false, "copy a bookmark")
 	flag.BoolVar(&open, "open", false, "open bookmark in default browser")
