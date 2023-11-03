@@ -34,7 +34,7 @@ var (
 	format     string
 	head       int
 	tail       int
-	pick       string
+	oneline    string
 	menu       string
 	restore    bool
 	incomplete bool
@@ -62,7 +62,7 @@ func init() {
 	flag.StringVar(&format, "f", "pretty", "output format [json|pretty|plain]")
 	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
-	flag.StringVar(&pick, "pick", "", "pick data [url|title|tags]")
+	flag.StringVar(&oneline, "oneline", "", "pick oneline data [url|title|tags]")
 	flag.StringVar(&menu, "menu", "", "menu mode [dmenu|rofi]")
 	flag.BoolVar(&restore, "restore", false, "restore a bookmark")
 	flag.BoolVar(&incomplete, "incomplete", false, "filter by incomplete bookmark")
@@ -127,9 +127,9 @@ func main() {
 		util.PrintErrMsg(err, verbose)
 	}
 
-	// Handle pick
-	if pick != "" {
-		if err = data.PickAttribute(bs, pick); err != nil {
+	// Handle oneline
+	if oneline != "" {
+		if err = data.PickAttribute(bs, oneline); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
 		return

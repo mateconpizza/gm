@@ -113,5 +113,5 @@ func SelectBookmark(m *menu.Menu, bookmarks *bm.BookmarkSlice) (bm.Bookmark, err
 		log.Printf("Selected bookmark:\n%s", b)
 		return b, nil
 	}
-	return bm.Bookmark{}, fmt.Errorf("item not found: %s", selectedStr)
+	return bm.Bookmark{}, fmt.Errorf("item not found: '%s'", selectedStr)
 }

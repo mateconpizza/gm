@@ -111,6 +111,8 @@ func PickAttribute(bs *bookmark.BookmarkSlice, s string) error {
 			}
 		case "tags":
 			fmt.Println(b.Tags)
+		default:
+			return fmt.Errorf("oneline option not found '%s'", s)
 		}
 	}
 	return nil
