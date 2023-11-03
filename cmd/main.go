@@ -59,7 +59,7 @@ func init() {
 	flag.BoolVar(&open, "open", false, "open bookmark in default browser")
 
 	// actions
-	flag.StringVar(&format, "f", "pretty", "output format [json|pretty|plain]")
+	flag.StringVar(&format, "format", "pretty", "output format [json|pretty|plain]")
 	flag.IntVar(&head, "head", 0, "output the first part of bookmarks")
 	flag.IntVar(&tail, "tail", 0, "output the last part of bookmarks")
 	flag.StringVar(&oneline, "oneline", "", "pick oneline data [url|title|tags]")
@@ -87,6 +87,9 @@ func main() {
 	tableName := constants.DBMainTableName
 
 	parseQueryFlag()
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, constants.AppHelp)
+	}
 	flag.Parse()
 
 	if version {

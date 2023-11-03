@@ -129,7 +129,7 @@ func SplitAndAlignString(s string, lineLength int) string {
 		if len(currentLine)+len(word)+1 > lineLength {
 			result += currentLine + "\n"
 			currentLine = word
-			currentLine = fmt.Sprintf("\t%s", currentLine)
+			currentLine = fmt.Sprintf("\t  %s", currentLine)
 		} else {
 			if currentLine != "" {
 				currentLine += " "
