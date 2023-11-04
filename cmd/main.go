@@ -1,7 +1,7 @@
 package main
 
 // [TODO):
-// - [ ] add sub-commands (maybe use Cobra!)
+// - [ ] use Cobra commander!
 // - [X] add format option to json, pretty, plain
 // - [ ] better module/pkg naming.
 
@@ -11,8 +11,8 @@ import (
 	"os"
 	"strings"
 
+	"gomarks/pkg/actions"
 	"gomarks/pkg/constants"
-	"gomarks/pkg/data"
 	"gomarks/pkg/database"
 	"gomarks/pkg/info"
 	"gomarks/pkg/util"
@@ -31,13 +31,12 @@ var (
 	openFlag    bool
 
 	// actions
-	format     string
-	head       int
-	tail       int
-	oneline    string
-	menu       string
-	restore    bool
-	incomplete bool
+	format  string
+	head    int
+	tail    int
+	oneline string
+	menu    string
+	restore bool
 
 	// app
 	verbose  bool
@@ -65,7 +64,6 @@ func init() {
 	flag.StringVar(&oneline, "oneline", "", "pick oneline data [url|title|tags]")
 	flag.StringVar(&menu, "menu", "", "menu mode [dmenu|rofi]")
 	flag.BoolVar(&restore, "restore", false, "restore a bookmark")
-	flag.BoolVar(&incomplete, "incomplete", false, "filter by incomplete bookmark")
 
 	// app
 	flag.BoolVar(&testFlag, "test", false, "test mode")
@@ -105,14 +103,20 @@ func main() {
 	util.SetupHomeProject()
 
 	r := database.GetDB()
-	defer r.DB.Close()
+	defer func() {
+		if err := r.DB.Close(); err != nil {
+			util.PrintErrMsg(err, verbose)
+		}
+	}()
 
 	// Test mode
 	if testFlag {
-		tags := r.GetUniqueTags(tableName)
+		tags, err := r.GetUniqueTags(tableName)
+		if err != nil {
+			util.PrintErrMsg(err, verbose)
+		}
 		fmt.Println("TAGS::::", tags)
 		fmt.Println("Testing...")
-
 		return
 	}
 
@@ -128,19 +132,19 @@ func main() {
 	}
 
 	// By ID, list or query
-	bs, err := data.RetrieveBookmarks(r, &tableName, &queryFilter, id, &list, incomplete)
+	bs, err := actions.RetrieveBookmarks(r, &tableName, &queryFilter, id, &list)
 	if err != nil {
 		util.PrintErrMsg(err, verbose)
 	}
 
 	// Apply head and tail options
-	if err = data.HeadAndTail(bs, head, tail); err != nil {
+	if err = actions.HeadAndTail(bs, head, tail); err != nil {
 		util.PrintErrMsg(err, verbose)
 	}
 
 	// Handle oneline
 	if oneline != "" {
-		if err = data.PickAttribute(bs, oneline); err != nil {
+		if err = actions.PickAttribute(bs, oneline); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
 
@@ -148,13 +152,13 @@ func main() {
 	}
 
 	// Handle menu option
-	if err = data.PickBookmarkWithMenu(bs, menu); err != nil {
+	if err = actions.PickBookmarkWithMenu(bs, menu); err != nil {
 		util.PrintErrMsg(err, verbose)
 	}
 
 	// Handle add
 	if add != "" {
-		bs, err = data.HandleAdd(r, add, tableName)
+		bs, err = actions.HandleAdd(r, add, tableName)
 		if err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
@@ -162,7 +166,7 @@ func main() {
 
 	// Handle edit
 	if edit {
-		if err = data.HandleEdit(r, bs, tableName); err != nil {
+		if err = actions.HandleEdit(r, bs, tableName); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
 
@@ -171,7 +175,7 @@ func main() {
 
 	// Handle action
 	if copyFlag || openFlag {
-		if err = data.HandleAction(bs, copyFlag, openFlag); err != nil {
+		if err = actions.HandleAction(bs, copyFlag, openFlag); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
 
@@ -180,7 +184,7 @@ func main() {
 
 	// Handle format
 	if format != "" {
-		if err = data.HandleFormat(format, bs); err != nil {
+		if err = actions.HandleFormat(format, bs); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
 

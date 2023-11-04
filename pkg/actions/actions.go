@@ -1,10 +1,12 @@
-package data
+package actions
 
 import (
 	"fmt"
+	"log"
 	"math"
 
 	"gomarks/pkg/bookmark"
+	"gomarks/pkg/color"
 	"gomarks/pkg/database"
 	"gomarks/pkg/display"
 	"gomarks/pkg/menu"
@@ -15,8 +17,8 @@ func QueryAndList(
 	byQuery string,
 	listFlag bool,
 	tableName string,
-) (*bookmark.BookmarkSlice, error) {
-	var bs *bookmark.BookmarkSlice
+) (*bookmark.Slice, error) {
+	var bs *bookmark.Slice
 	var err error
 
 	if listFlag {
@@ -30,15 +32,17 @@ func QueryAndList(
 			return nil, err
 		}
 	}
+
 	return bs, nil
 }
 
-func HeadAndTail(bs *bookmark.BookmarkSlice, head, tail int) error {
+func HeadAndTail(bs *bookmark.Slice, head, tail int) error {
 	// FIX: DRY with 'no bookmarks selected'
 	if head > 0 {
 		if bs == nil {
 			return fmt.Errorf("no bookmarks selected")
 		}
+
 		head = int(math.Min(float64(head), float64(len(*bs))))
 		*bs = (*bs)[:head]
 	}
@@ -47,9 +51,11 @@ func HeadAndTail(bs *bookmark.BookmarkSlice, head, tail int) error {
 		if bs == nil {
 			return fmt.Errorf("no bookmarks selected")
 		}
+
 		tail = int(math.Min(float64(tail), float64(len(*bs))))
 		*bs = (*bs)[len(*bs)-tail:]
 	}
+
 	return nil
 }
 
@@ -59,26 +65,16 @@ func RetrieveBookmarks(
 	byQuery *string,
 	id int,
 	listFlag *bool,
-	incomplete bool,
-) (*bookmark.BookmarkSlice, error) {
+) (*bookmark.Slice, error) {
 	if id != 0 {
 		b, err := r.GetRecordByID(id, *tableName)
-		return &bookmark.BookmarkSlice{*b}, err
+		return &bookmark.Slice{*b}, err
 	}
-	if incomplete {
-		bs, err := r.GetRecordsWithoutTitleorDesc(*tableName)
-		if err != nil {
-			return nil, err
-		}
-		return bs, nil
-	}
+
 	return QueryAndList(r, *byQuery, *listFlag, *tableName)
 }
 
-func HandleFormat(f string, bs *bookmark.BookmarkSlice) error {
-	/* if bs == nil {
-		return fmt.Errorf("no bookmarks selected")
-	} */
+func HandleFormat(f string, bs *bookmark.Slice) error {
 	switch f {
 	case "json":
 		j := bookmark.ToJSON(bs)
@@ -94,13 +90,15 @@ func HandleFormat(f string, bs *bookmark.BookmarkSlice) error {
 	default:
 		return fmt.Errorf("invalid output format: %s", f)
 	}
+
 	return nil
 }
 
-func PickAttribute(bs *bookmark.BookmarkSlice, s string) error {
+func PickAttribute(bs *bookmark.Slice, s string) error {
 	if bs == nil {
 		return fmt.Errorf("no bookmarks found")
 	}
+
 	for _, b := range *bs {
 		switch s {
 		case "url":
@@ -115,27 +113,32 @@ func PickAttribute(bs *bookmark.BookmarkSlice, s string) error {
 			return fmt.Errorf("oneline option not found '%s'", s)
 		}
 	}
+
 	return nil
 }
 
-func PickBookmarkWithMenu(bs *bookmark.BookmarkSlice, s string) error {
+func PickBookmarkWithMenu(bs *bookmark.Slice, s string) error {
 	if s == "" {
 		return nil
 	}
+
 	m := menu.New(s)
 	b, err := display.SelectBookmark(&m, bs)
 	if err != nil {
 		return err
 	}
-	*bs = bookmark.BookmarkSlice{b}
+
+	*bs = bookmark.Slice{b}
+
 	return nil
 }
 
 func FetchBookmarks(
 	r *database.SQLiteRepository,
 	byQuery, t string,
-) (*bookmark.BookmarkSlice, error) {
-	var bs *bookmark.BookmarkSlice
+) (*bookmark.Slice, error) {
+	var bs *bookmark.Slice
+
 	var err error
 
 	switch {
@@ -144,16 +147,18 @@ func FetchBookmarks(
 	default:
 		bs, err = r.GetRecordsAll(t)
 	}
+
 	return bs, err
 }
 
-func HandleEdit(r *database.SQLiteRepository, bs *bookmark.BookmarkSlice, t string) error {
+func HandleEdit(r *database.SQLiteRepository, bs *bookmark.Slice, t string) error {
 	if bs == nil || len(*bs) == 0 {
 		return fmt.Errorf("no bookmarks selected for editing")
 	}
 
 	for _, b := range *bs {
-		editedBookmark, err := bookmark.Edit(&b)
+		bookmarkToEdit := b
+		editedBookmark, err := bookmark.Edit(&bookmarkToEdit)
 		if err != nil {
 			return fmt.Errorf("bookmark %w", err)
 		}
@@ -162,20 +167,24 @@ func HandleEdit(r *database.SQLiteRepository, bs *bookmark.BookmarkSlice, t stri
 			return fmt.Errorf("editing bookmark %w", err)
 		}
 	}
+
 	return nil
 }
 
-func HandleAction(bmarks *bookmark.BookmarkSlice, c, o bool) error {
+func HandleAction(bmarks *bookmark.Slice, c, o bool) error {
 	if len(*bmarks) == 0 {
 		return fmt.Errorf("no bookmarks found")
 	}
+
 	if c {
 		(*bmarks)[0].CopyToClipboard()
 	}
+
 	if o {
 		fmt.Println("Not implemented yet")
 		fmt.Println((*bmarks)[0])
 	}
+
 	return nil
 }
 
