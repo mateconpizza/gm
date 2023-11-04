@@ -7,12 +7,7 @@ import (
 	"github.com/gocolly/colly"
 )
 
-type Result struct {
-	Title       string
-	Description string
-}
-
-func TitleAndDescription(url string) (*Result, error) {
+func GetTitle(url string) (string, error) {
 	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
 	titleSelectors := []string{
@@ -22,6 +17,35 @@ func TitleAndDescription(url string) (*Result, error) {
 		"meta[name=og:title]",
 		"meta[property=og:title]",
 	}
+
+	c := colly.NewCollector()
+	var title string
+
+	for _, selector := range titleSelectors {
+		c.OnHTML(selector, func(e *colly.HTMLElement) {
+			title = strings.TrimSpace(e.Text)
+		})
+
+		if title != "" {
+			break
+		}
+	}
+
+	c.OnResponse(func(r *colly.Response) {
+		log.Println("Got a response from", r.Request.URL)
+	})
+
+	err := c.Visit(url)
+	if err != nil {
+		return "", err
+	}
+
+	return title, nil
+}
+
+func GetDescription(url string) (string, error) {
+	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
+
 	descSelectors := []string{
 		"meta[name=description]",
 		"meta[name=Description]",
@@ -34,25 +58,14 @@ func TitleAndDescription(url string) (*Result, error) {
 	}
 
 	c := colly.NewCollector()
-
-	result := &Result{}
-
-	for _, selector := range titleSelectors {
-		c.OnHTML(selector, func(e *colly.HTMLElement) {
-			result.Title = strings.TrimSpace(e.Text)
-		})
-
-		if result.Title != "" {
-			break
-		}
-	}
+	var description string
 
 	for _, selector := range descSelectors {
 		c.OnHTML(selector, func(e *colly.HTMLElement) {
-			result.Description = e.Attr("content")
+			description = e.Attr("content")
 		})
 
-		if result.Description != "" {
+		if description != "" {
 			break
 		}
 	}
@@ -63,11 +76,8 @@ func TitleAndDescription(url string) (*Result, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	log.Printf("Title: %s", result.Title)
-	log.Printf("Description: %s", result.Description)
-
-	return result, nil
+	return description, nil
 }

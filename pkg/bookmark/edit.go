@@ -33,19 +33,20 @@ func getTempBookmark(content []string) *tempBookmark {
 }
 
 func getTitleAndDescription(t *tempBookmark) {
-	if t.title == "" || t.desc == "" {
-		scrapeResult, err := scrape.TitleAndDescription(t.url)
+	if t.title == "" {
+		title, err := scrape.GetTitle(t.url)
 		if err != nil {
 			log.Printf("Error on %s: %s\n", t.url, err)
 		}
+		t.title = title
+	}
 
-		if t.title == "" {
-			t.title = scrapeResult.Title
+	if t.desc == "" {
+		description, err := scrape.GetDescription(t.url)
+		if err != nil {
+			log.Printf("Error on %s: %s\n", t.url, err)
 		}
-
-		if t.desc == "" {
-			t.desc = scrapeResult.Description
-		}
+		t.desc = description
 	}
 }
 

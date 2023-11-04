@@ -1,7 +1,6 @@
 package bookmark
 
 import (
-	"fmt"
 	"strings"
 
 	"gomarks/pkg/scrape"
@@ -26,14 +25,20 @@ func Add(url, tags string) (*Bookmark, error) {
 		URL:  url,
 		Tags: parseTags(tags),
 	}
-	result, err := scrape.TitleAndDescription(b.URL)
+
+	title, err := scrape.GetTitle(b.URL)
 	if err != nil {
-		fmt.Printf("Error on %s: %s\n", b.URL, err)
-		return b, nil
+		return b, err
 	}
 
-	b.setTitle(result.Title)
-	b.setDesc(result.Description)
+	b.setTitle(title)
+
+	description, err := scrape.GetDescription(url)
+	if err != nil {
+		return b, err
+	}
+
+	b.setDesc(description)
 
 	return b, nil
 }

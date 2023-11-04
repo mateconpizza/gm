@@ -7,16 +7,21 @@ import (
 func TestTitleAndDescription(t *testing.T) {
 	url := "https://old.reddit.com"
 
-	result, err := TitleAndDescription(url)
+	title, err := GetTitle(url)
 	if err != nil {
 		t.Fatalf("Error scraping: %v", err)
 	}
 
-	if result.Title == "" {
+	if title == "" {
 		t.Error("Title is empty")
 	}
 
-	if result.Description == "" {
+	description, err := GetDescription(url)
+	if err != nil {
+		t.Fatalf("Error scraping: %v", err)
+	}
+
+	if description == "" {
 		t.Error("Description is empty")
 	}
 }
