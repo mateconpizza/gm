@@ -13,20 +13,20 @@ import (
 	"github.com/atotto/clipboard"
 )
 
-type BookmarkSlice []Bookmark
+type Slice []Bookmark
 
-func (bs *BookmarkSlice) Len() int {
+func (bs *Slice) Len() int {
 	return len(*bs)
 }
 
 // https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
 type Bookmark struct {
-	ID         int        `json:"id"         db:"id"`
-	URL        string     `json:"url"        db:"url"`
-	Title      NullString `json:"title"      db:"title"`
-	Tags       string     `json:"tags"       db:"tags"`
-	Desc       NullString `json:"desc"       db:"desc"`
-	Created_at string     `json:"created_at" db:"created_at"`
+	CreatedAt string     `json:"created_at" db:"created_at"`
+	URL       string     `json:"url"        db:"url"`
+	Tags      string     `json:"tags"       db:"tags"`
+	Title     NullString `json:"title"      db:"title"`
+	Desc      NullString `json:"desc"       db:"desc"`
+	ID        int        `json:"id"         db:"id"`
 }
 
 func (b *Bookmark) CopyToClipboard() {
@@ -34,44 +34,49 @@ func (b *Bookmark) CopyToClipboard() {
 	if err != nil {
 		log.Fatalf("Error copying to clipboard: %v", err)
 	}
+
 	log.Print("Text copied to clipboard:", b.URL)
 }
 
-func (b Bookmark) prettyString() string {
+func (b *Bookmark) prettyString() string {
 	// FIX: DRY
 	maxLen := 80
 	title := util.SplitAndAlignString(b.Title.String, maxLen)
 	s := util.FormatTitleLine(b.ID, title, color.Purple)
 	s += util.FormatLine("\t+ ", b.URL, color.Blue)
 	s += util.FormatLine("\t+ ", b.Tags, color.Gray)
+
 	if b.Desc.String != "" {
 		desc := util.SplitAndAlignString(b.Desc.String, maxLen)
 		s += util.FormatLine("\t+ ", desc, color.White)
 	} else {
 		s += util.FormatLine("\t+ ", "Untitled", color.White)
 	}
+
 	return s
 }
 
-func (b Bookmark) PlainString() string {
+func (b *Bookmark) PlainString() string {
 	// FIX: DRY
 	maxLen := 80
 	title := util.SplitAndAlignString(b.Title.String, maxLen)
 	s := util.FormatTitleLine(b.ID, title, "")
 	s += util.FormatLine("\t+ ", b.URL, "")
 	s += util.FormatLine("\t+ ", b.Tags, "")
+
 	if b.Desc.String != "" {
 		desc := util.SplitAndAlignString(b.Desc.String, maxLen)
 		s += util.FormatLine("\t+ ", desc, "")
 	}
+
 	return s
 }
 
-func (b Bookmark) String() string {
+func (b *Bookmark) String() string {
 	return b.PlainString()
 }
 
-func (b Bookmark) PrettyColorString() string {
+func (b *Bookmark) PrettyColorString() string {
 	return b.prettyString()
 }
 
@@ -95,20 +100,23 @@ func (b *Bookmark) setDesc(desc string) {
 	b.Tags = strWithoutSpaces
 } */
 
-func (b Bookmark) IsValid() bool {
+func (b *Bookmark) IsValid() bool {
 	if b.URL == "" {
 		log.Print("IsValid: Bookmark is invalid. URL is empty")
 		return false
 	}
+
 	if b.Tags == "" {
 		log.Print("IsValid: Bookmark is invalid. Tags is empty")
 		return false
 	}
+
 	log.Print("IsValid: Bookmark is valid")
+
 	return true
 }
 
-func (b Bookmark) Buffer() []byte {
+func (b *Bookmark) Buffer() []byte {
 	data := []byte(fmt.Sprintf(`## Editing [%d] %s
 ## lines starting with # will be ignored.
 ## url:
@@ -121,6 +129,7 @@ func (b Bookmark) Buffer() []byte {
 %s
 ## end
 `, b.ID, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
+
 	return bytes.TrimRight(data, " ")
 }
 
@@ -132,6 +141,7 @@ func (s NullString) MarshalJSON() ([]byte, error) {
 	if !s.Valid {
 		return []byte("null"), nil
 	}
+
 	return json.Marshal(s.String)
 }
 
@@ -140,11 +150,13 @@ func (s *NullString) UnmarshalJSON(data []byte) error {
 		s.String, s.Valid = "", false
 		return nil
 	}
+
 	s.String, s.Valid = string(data), true
+
 	return nil
 }
 
-var InitBookmark Bookmark = Bookmark{
+var InitBookmark = Bookmark{
 	ID:    0,
 	URL:   "https://github.com/haaag/GoMarks#readme",
 	Title: NullString{NullString: sql.NullString{String: "GoMarks", Valid: true}},
@@ -157,11 +169,13 @@ var InitBookmark Bookmark = Bookmark{
 	},
 }
 
-func ToJSON(b *BookmarkSlice) string {
+func ToJSON(b *Slice) string {
 	jsonData, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
 		log.Fatal("Error marshaling to JSON:", err)
 	}
+
 	jsonString := string(jsonData)
+
 	return jsonString
 }

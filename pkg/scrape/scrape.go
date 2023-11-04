@@ -7,12 +7,12 @@ import (
 	"github.com/gocolly/colly"
 )
 
-type ScrapeResult struct {
+type Result struct {
 	Title       string
 	Description string
 }
 
-func TitleAndDescription(url string) (*ScrapeResult, error) {
+func TitleAndDescription(url string) (*Result, error) {
 	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
 	titleSelectors := []string{
@@ -35,12 +35,13 @@ func TitleAndDescription(url string) (*ScrapeResult, error) {
 
 	c := colly.NewCollector()
 
-	result := &ScrapeResult{}
+	result := &Result{}
 
 	for _, selector := range titleSelectors {
 		c.OnHTML(selector, func(e *colly.HTMLElement) {
 			result.Title = strings.TrimSpace(e.Text)
 		})
+
 		if result.Title != "" {
 			break
 		}
@@ -50,6 +51,7 @@ func TitleAndDescription(url string) (*ScrapeResult, error) {
 		c.OnHTML(selector, func(e *colly.HTMLElement) {
 			result.Description = e.Attr("content")
 		})
+
 		if result.Description != "" {
 			break
 		}
@@ -66,5 +68,6 @@ func TitleAndDescription(url string) (*ScrapeResult, error) {
 
 	log.Printf("Title: %s", result.Title)
 	log.Printf("Description: %s", result.Description)
+
 	return result, nil
 }

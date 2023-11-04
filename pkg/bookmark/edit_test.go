@@ -1,16 +1,15 @@
-package bookmark_test
+package bookmark
 
 import (
-	"gomarks/pkg/bookmark"
 	"testing"
 )
 
 func TestExtractBlock(t *testing.T) {
 	tests := []struct {
-		content     []string
 		startMarker string
 		endMarker   string
 		expected    string
+		content     []string
 	}{
 		{
 			content: []string{
@@ -39,7 +38,7 @@ func TestExtractBlock(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := bookmark.ExtractBlock(test.content, test.startMarker, test.endMarker)
+		result := extractBlock(test.content, test.startMarker, test.endMarker)
 		if result != test.expected {
 			t.Errorf(
 				"Failed for content: %v, startMarker: %s, endMarker: %s\nExpected: %s\nGot: %s\n",

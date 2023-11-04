@@ -1,10 +1,5 @@
 package color
 
-import (
-	"math/rand"
-	"time"
-)
-
 var (
 	Blue   = "\033[34m"
 	Cyan   = "\033[36m"
@@ -17,11 +12,3 @@ var (
 	Bold   = "\033[1m"
 	Reset  = "\033[0m"
 )
-
-func GetRandomColor() string {
-	colors := []string{Red, Green, Yellow, Blue, Purple, Cyan, Gray, White}
-	source := rand.NewSource(time.Now().UnixNano())
-	random := rand.New(source)
-	randomIndex := random.Intn(len(colors))
-	return colors[randomIndex]
-}

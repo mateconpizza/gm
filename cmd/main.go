@@ -22,13 +22,13 @@ var (
 	// bookmarks
 	add         string
 	edit        bool
-	delete      bool
+	deleteFlag  bool
 	tags        string
 	id          int
 	list        bool
 	queryFilter string
-	copy        bool
-	open        bool
+	copyFlag    bool
+	openFlag    bool
 
 	// actions
 	format     string
@@ -50,13 +50,13 @@ func init() {
 	// bookmarks
 	flag.StringVar(&add, "add", "", "add a bookmark [format: URL Tags]")
 	flag.BoolVar(&edit, "edit", false, "edit a bookmark")
-	flag.BoolVar(&delete, "delete", false, "delete a bookmark")
+	flag.BoolVar(&deleteFlag, "delete", false, "delete a bookmark")
 	flag.StringVar(&tags, "tags", "", "tag a bookmark")
 	flag.IntVar(&id, "id", 0, "bookmark id")
 	flag.BoolVar(&list, "list", true, "list all bookmarks")
 	flag.StringVar(&queryFilter, "query", "", "query to filter bookmarks")
-	flag.BoolVar(&copy, "copy", false, "copy a bookmark")
-	flag.BoolVar(&open, "open", false, "open bookmark in default browser")
+	flag.BoolVar(&copyFlag, "copy", false, "copy a bookmark")
+	flag.BoolVar(&openFlag, "open", false, "open bookmark in default browser")
 
 	// actions
 	flag.StringVar(&format, "format", "pretty", "output format [json|pretty|plain]")
@@ -80,13 +80,17 @@ func parseQueryFlag() {
 		queryFilter = args[0]
 		args = args[1:]
 	}
-	os.Args = append([]string{os.Args[0]}, args...)
+
+	newArgs := []string{os.Args[0]}
+	newArgs = append(newArgs, args...)
+	os.Args = newArgs
 }
 
 func main() {
 	tableName := constants.DBMainTableName
 
 	parseQueryFlag()
+
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, constants.AppHelp)
 	}
@@ -99,12 +103,16 @@ func main() {
 
 	util.SetLogLevel(&verbose)
 	util.SetupHomeProject()
+
 	r := database.GetDB()
 	defer r.DB.Close()
 
 	// Test mode
 	if testFlag {
+		tags := r.GetUniqueTags(tableName)
+		fmt.Println("TAGS::::", tags)
 		fmt.Println("Testing...")
+
 		return
 	}
 
@@ -135,6 +143,7 @@ func main() {
 		if err = data.PickAttribute(bs, oneline); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
+
 		return
 	}
 
@@ -145,10 +154,10 @@ func main() {
 
 	// Handle add
 	if add != "" {
-		if err = data.HandleAdd(r, add, tags, tableName); err != nil {
+		bs, err = data.HandleAdd(r, add, tableName)
+		if err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
-		return
 	}
 
 	// Handle edit
@@ -156,14 +165,16 @@ func main() {
 		if err = data.HandleEdit(r, bs, tableName); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
+
 		return
 	}
 
 	// Handle action
-	if copy || open {
-		if err = data.HandleAction(bs, copy, open); err != nil {
+	if copyFlag || openFlag {
+		if err = data.HandleAction(bs, copyFlag, openFlag); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
+
 		return
 	}
 
@@ -172,6 +183,7 @@ func main() {
 		if err = data.HandleFormat(format, bs); err != nil {
 			util.PrintErrMsg(err, verbose)
 		}
+
 		return
 	}
 }

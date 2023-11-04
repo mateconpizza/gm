@@ -16,7 +16,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func FileExists(s string) bool {
+func fileExists(s string) bool {
 	_, err := os.Stat(s)
 	return !os.IsNotExist(err)
 }
@@ -25,6 +25,7 @@ func ShortenString(s string, maxLength int) string {
 	if len(s) > maxLength {
 		return s[:maxLength-3] + "..."
 	}
+
 	return s
 }
 
@@ -33,7 +34,9 @@ func GetAppHome() string {
 		constants.ConfigHome = os.Getenv("HOME")
 		constants.ConfigHome += "/.config"
 	}
+
 	s := filepath.Join(constants.ConfigHome, strings.ToLower(constants.AppName))
+
 	return s
 }
 
@@ -41,20 +44,25 @@ func GetDBPath() string {
 	appPath := GetAppHome()
 	s := filepath.Join(appPath, constants.DBName)
 	log.Print("GetDBPath: ", s)
+
 	return s
 }
 
 func SetupHomeProject() {
+	const directoryPermissions = 0o755
+
 	AppHome := GetAppHome()
 
-	if !FileExists(AppHome) {
+	if !fileExists(AppHome) {
 		log.Println("Creating AppHome:", AppHome)
-		err := os.Mkdir(AppHome, 0o755)
+		err := os.Mkdir(AppHome, directoryPermissions)
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		return
 	}
+
 	log.Println("AppHome already exists:", AppHome)
 }
 
@@ -64,6 +72,7 @@ func IsSelectedTextInItems(s string, items []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -73,6 +82,7 @@ func FindSelectedIndex(s string, items []string) int {
 		return strings.Contains(item, s)
 	})
 	log.Println("FindSelectedIndex:", idx)
+
 	return idx
 }
 
@@ -80,9 +90,11 @@ func FormatTitleLine(n int, title, c string) string {
 	if title == "" {
 		title = "Untitled"
 	}
+
 	if c == "" {
 		return fmt.Sprintf("%-4d\t%s %s\n", n, constants.BulletPoint, title)
 	}
+
 	return fmt.Sprintf(
 		"%s%-4d\t%s%s %s%s\n",
 		color.Bold,
@@ -98,6 +110,7 @@ func FormatLine(prefix, v, c string) string {
 	if c == "" {
 		return fmt.Sprintf("%s%s\n", prefix, v)
 	}
+
 	return fmt.Sprintf("%s%s%s%s\n", c, prefix, v, color.Reset)
 }
 
@@ -105,8 +118,10 @@ func SetLogLevel(verboseFlag *bool) {
 	if *verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
 		log.Println("Verbose mode")
+
 		return
 	}
+
 	silentLogger := log.New(io.Discard, "", 0)
 	log.SetOutput(silentLogger.Writer())
 }
@@ -121,8 +136,9 @@ func ReplaceArg(args []string, argName, newValue string) {
 }
 
 func SplitAndAlignString(s string, lineLength int) string {
-	words := strings.Fields(s)
 	var result string
+
+	words := strings.Fields(s)
 	currentLine := ""
 
 	for _, word := range words {
@@ -139,12 +155,14 @@ func SplitAndAlignString(s string, lineLength int) string {
 	}
 
 	result += currentLine
+
 	return result
 }
 
 func binaryExists(binaryName string) bool {
 	cmd := exec.Command("which", binaryName)
 	err := cmd.Run()
+
 	return err == nil
 }
 
@@ -153,6 +171,7 @@ func ReadFile(file string) []byte {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	return content
 }
 
@@ -165,10 +184,12 @@ func EditFile(file string) error {
 	if err != nil {
 		return err
 	}
+
 	cmd := exec.Command(editor, file)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
 	return cmd.Run()
 }
 
@@ -186,18 +207,23 @@ func getEditor() (string, error) {
 	}
 
 	log.Printf("Var $EDITOR not set.")
+
 	if binaryExists("vim") {
 		return "vim", nil
 	}
+
 	if binaryExists("nano") {
 		return "nano", nil
 	}
+
 	if binaryExists("nvim") {
 		return "nvim", nil
 	}
+
 	if binaryExists("emacs") {
 		return "emacs", nil
 	}
+
 	return "", fmt.Errorf("no editor found")
 }
 
@@ -205,10 +231,32 @@ func PrintErrMsg(m error, verbose bool) {
 	if verbose {
 		log.Fatal(m)
 	}
+
 	fmt.Printf("%s: %s\n", constants.AppName, m.Error())
 	os.Exit(1)
 }
 
 func IsEmptyLine(line string) bool {
 	return strings.TrimSpace(line) == ""
+}
+
+func ParseUniqueStrings(input []string, sep string) []string {
+	uniqueTags := make([]string, 0)
+	uniqueMap := make(map[string]struct{})
+
+	for _, tags := range input {
+		tagList := strings.Split(tags, sep)
+		for _, tag := range tagList {
+			tag = strings.TrimSpace(tag)
+			if tag != "" {
+				uniqueMap[tag] = struct{}{}
+			}
+		}
+	}
+
+	for tag := range uniqueMap {
+		uniqueTags = append(uniqueTags, tag)
+	}
+
+	return uniqueTags
 }

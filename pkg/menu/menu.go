@@ -2,50 +2,54 @@ package menu
 
 import (
 	"fmt"
-	u "gomarks/pkg/util"
 	"io"
 	"log"
 	"os/exec"
 	"strings"
+
+	"gomarks/pkg/util"
 )
 
 func New(s string) Menu {
-	mc := make(MenuCollection)
-	mc.Load()
-	menu, err := mc.Get(s)
+	mc := make(menuCollection)
+	mc.load()
+	menu, err := mc.get(s)
 	if err != nil {
 		log.Fatalf("Error: %v\n", err)
 	}
+
 	return menu
 }
 
-type Option struct {
+type option struct {
 	Label string
 }
 
-func (o Option) String() string {
+func (o option) String() string {
 	return o.Label
 }
 
-type MenuCollection map[string]Menu
+type menuCollection map[string]Menu
 
-func (mc MenuCollection) Register(m Menu) {
+func (mc menuCollection) register(m Menu) {
 	log.Println("Registering menu:", m.Command)
 	mc[m.Command] = m
 }
 
-func (mc MenuCollection) Get(s string) (Menu, error) {
+func (mc menuCollection) get(s string) (Menu, error) {
 	menu, ok := mc[s]
 	if !ok {
 		return Menu{}, fmt.Errorf("menu '%s' not found", s)
 	}
+
 	log.Println("Got menu:", menu.Command)
+
 	return menu, nil
 }
 
-func (mc MenuCollection) Load() {
-	mc.Register(rofiMenu)
-	mc.Register(dmenuMenu)
+func (mc menuCollection) load() {
+	mc.register(rofiMenu)
+	mc.register(dmenuMenu)
 }
 
 type Menu struct {
@@ -54,24 +58,26 @@ type Menu struct {
 }
 
 func (m *Menu) UpdateMessage(message string) {
-	u.ReplaceArg(m.Arguments, "-mesg", message)
+	util.ReplaceArg(m.Arguments, "-mesg", message)
 }
 
 func (m *Menu) UpdatePrompt(prompt string) {
-	u.ReplaceArg(m.Arguments, "-p", prompt)
+	util.ReplaceArg(m.Arguments, "-p", prompt)
 }
 
 func (m *Menu) Confirm(msg, prompt string) bool {
 	m.UpdateMessage(msg)
 	m.UpdatePrompt(prompt)
+
 	options := []fmt.Stringer{
-		Option{"No"},
-		Option{"Yes"},
+		option{"No"},
+		option{"Yes"},
 	}
 	idx, err := m.Select(options)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	return idx == 0
 }
 
@@ -79,11 +85,12 @@ func (m *Menu) Prompt(msg, prompt string) (string, error) {
 	m.UpdateMessage(msg)
 	m.UpdatePrompt(prompt)
 	input, err := m.Run("")
+
 	return strings.TrimRight(input, "\n"), err
 }
 
 func (m *Menu) Select(items []fmt.Stringer) (int, error) {
-	var itemsText []string
+	itemsText := make([]string, 0, len(items))
 	for _, item := range items {
 		itemsText = append(itemsText, item.String())
 	}
@@ -93,12 +100,14 @@ func (m *Menu) Select(items []fmt.Stringer) (int, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	selectedStr := strings.TrimSpace(output)
 
-	if !u.IsSelectedTextInItems(selectedStr, itemsText) {
+	if !util.IsSelectedTextInItems(selectedStr, itemsText) {
 		return -1, fmt.Errorf("invalid selection: %s", selectedStr)
 	}
-	return u.FindSelectedIndex(selectedStr, itemsText), nil
+
+	return util.FindSelectedIndex(selectedStr, itemsText), nil
 }
 
 func (m *Menu) Run(s string) (string, error) {
@@ -128,9 +137,11 @@ func (m *Menu) Run(s string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("user hit scape: %s", err)
 	}
+
 	outputStr := string(output)
 	outputStr = strings.TrimRight(outputStr, "\n")
 	log.Println("Output:", outputStr)
+
 	return outputStr, nil
 }
 

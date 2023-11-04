@@ -16,8 +16,8 @@ const (
 )
 
 var (
-	ConfigHome      string = os.Getenv("XDG_CONFIG_HOME")
-	MainTableSchema string = `
+	ConfigHome      = os.Getenv("XDG_CONFIG_HOME")
+	MainTableSchema = `
     CREATE TABLE IF NOT EXISTS %s (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         url         TEXT    NOT NULL UNIQUE,

@@ -62,6 +62,7 @@ func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *bm.Bookmark) error 
 	if !m.Confirm(msg, "Are you sure?") {
 		return fmt.Errorf("Cancelled")
 	}
+
 	err := r.DeleteRecord(b, c.DBMainTableName)
 	if err != nil {
 		return err
@@ -76,16 +77,14 @@ func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *bm.Bookmark) error 
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func HandleTestMode(m *menu.Menu, r *db.SQLiteRepository) {
-	fmt.Print("\n::::::::Start Test Mode::::::::\n\n")
-	fmt.Print("\n::::::::End Test Mode::::::::\n\n")
-}
+func SelectBookmark(m *menu.Menu, bookmarks *bm.Slice) (bm.Bookmark, error) {
+	maxLen := 80
+	itemsText := make([]string, 0, len(*bookmarks))
 
-func SelectBookmark(m *menu.Menu, bookmarks *bm.BookmarkSlice) (bm.Bookmark, error) {
-	var itemsText []string
 	msg := fmt.Sprintf(" Welcome to GoMarks\n Showing (%d) bookmarks", len(*bookmarks))
 	m.UpdateMessage(msg)
 	log.Printf("Selecting bookmark from %d bookmarks\n", len(*bookmarks))
@@ -94,13 +93,14 @@ func SelectBookmark(m *menu.Menu, bookmarks *bm.BookmarkSlice) (bm.Bookmark, err
 		itemText := fmt.Sprintf(
 			"%-4d %-80s %-10s",
 			bm.ID,
-			u.ShortenString(bm.URL, 80),
+			u.ShortenString(bm.URL, maxLen),
 			bm.Tags,
 		)
 		itemsText = append(itemsText, itemText)
 	}
 
 	itemsString := strings.Join(itemsText, "\n")
+
 	output, err := m.Run(itemsString)
 	if err != nil {
 		log.Fatal(err)
@@ -108,10 +108,13 @@ func SelectBookmark(m *menu.Menu, bookmarks *bm.BookmarkSlice) (bm.Bookmark, err
 
 	selectedStr := strings.Trim(output, "\n")
 	index := u.FindSelectedIndex(selectedStr, itemsText)
+
 	if index != -1 {
 		b := (*bookmarks)[index]
-		log.Printf("Selected bookmark:\n%s", b)
+		log.Printf("Selected bookmark:\n%+v", b)
+
 		return b, nil
 	}
+
 	return bm.Bookmark{}, fmt.Errorf("item not found: '%s'", selectedStr)
 }

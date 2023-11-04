@@ -1,14 +1,13 @@
-package scrape_test
+package scrape
 
 import (
-	"gomarks/pkg/scrape"
 	"testing"
 )
 
 func TestTitleAndDescription(t *testing.T) {
 	url := "https://old.reddit.com"
 
-	result, err := scrape.TitleAndDescription(url)
+	result, err := TitleAndDescription(url)
 	if err != nil {
 		t.Fatalf("Error scraping: %v", err)
 	}

@@ -1,20 +1,19 @@
-package menu_test
+package menu
 
 import (
-	m "gomarks/pkg/menu"
 	"testing"
 )
 
 func TestMenuCollection(t *testing.T) {
-	mc := make(m.MenuCollection)
-	rofiMenu := m.Menu{Command: "rofi", Arguments: []string{"-dmenu"}}
-	dmenuMenu := m.Menu{Command: "dmenu", Arguments: []string{}}
+	mc := make(menuCollection)
+	rofiMenu := Menu{Command: "rofi", Arguments: []string{"-dmenu"}}
+	dmenuMenu := Menu{Command: "dmenu", Arguments: []string{}}
 
-	mc.Register(rofiMenu)
-	mc.Register(dmenuMenu)
+	mc.register(rofiMenu)
+	mc.register(dmenuMenu)
 
 	t.Run("Get Registered Menu", func(t *testing.T) {
-		menu, err := mc.Get("rofi")
+		menu, err := mc.get("rofi")
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -24,7 +23,7 @@ func TestMenuCollection(t *testing.T) {
 	})
 
 	t.Run("Get Unregistered Menu", func(t *testing.T) {
-		_, err := mc.Get("nonexistent")
+		_, err := mc.get("nonexistent")
 		expectedError := "menu 'nonexistent' not found"
 		if err == nil || err.Error() != expectedError {
 			t.Errorf("Expected error: %s, got: %v", expectedError, err)

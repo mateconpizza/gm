@@ -11,19 +11,20 @@ import (
 	"gomarks/pkg/util"
 )
 
-type TempBookmark struct {
+type tempBookmark struct {
 	url   string
 	title string
 	tags  string
 	desc  string
 }
 
-func getTempBookmark(content []string) *TempBookmark {
-	url := ExtractBlock(content, "## url", "## title")
-	title := ExtractBlock(content, "## title", "## tags")
-	tags := ExtractBlock(content, "## tags", "## description")
-	desc := ExtractBlock(content, "## description", "## end")
-	return &TempBookmark{
+func getTempBookmark(content []string) *tempBookmark {
+	url := extractBlock(content, "## url", "## title")
+	title := extractBlock(content, "## title", "## tags")
+	tags := extractBlock(content, "## tags", "## description")
+	desc := extractBlock(content, "## description", "## end")
+
+	return &tempBookmark{
 		url:   url,
 		title: title,
 		tags:  tags,
@@ -31,20 +32,20 @@ func getTempBookmark(content []string) *TempBookmark {
 	}
 }
 
-func getTitleAndDescription(t *TempBookmark) {
-	var scrapeResult *scrape.ScrapeResult
-	var err error
+func getTitleAndDescription(t *tempBookmark) {
 	if t.title == "" || t.desc == "" {
-		scrapeResult, err = scrape.TitleAndDescription(t.url)
+		scrapeResult, err := scrape.TitleAndDescription(t.url)
 		if err != nil {
 			log.Printf("Error on %s: %s\n", t.url, err)
 		}
-	}
-	if t.title == "" {
-		t.title = scrapeResult.Title
-	}
-	if t.desc == "" {
-		t.desc = scrapeResult.Description
+
+		if t.title == "" {
+			t.title = scrapeResult.Title
+		}
+
+		if t.desc == "" {
+			t.desc = scrapeResult.Description
+		}
 	}
 }
 
@@ -60,7 +61,7 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	editedContent := util.ReadFile(tempFile)
 	tempContent := strings.Split(string(editedContent), "\n")
 
-	if err = validateContent(tempContent); err != nil {
+	if err := validateContent(tempContent); err != nil {
 		return b, err
 	}
 
@@ -77,15 +78,20 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	b.Title.String = tempBookmark.title
 	b.Tags = tempBookmark.tags
 	b.Desc.String = tempBookmark.desc
+
 	return b, nil
 }
 
+// FIX: replace with tempFile.
 func saveDataToTemporaryFile(data []byte) string {
+	const filePermission = 0o600
+
 	tempFile := "/tmp/gomarks-data-temp.md"
-	err := os.WriteFile(tempFile, data, 0o666)
+	err := os.WriteFile(tempFile, data, filePermission)
 	if err != nil {
 		panic(err)
 	}
+
 	return tempFile
 }
 
@@ -103,18 +109,20 @@ func editTempContent(b *Bookmark) []byte {
 %s
 ## end
 `, b.ID, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
+
 	return bytes.TrimRight(data, " ")
 }
 
 func validateContent(content []string) error {
-	url := ExtractBlock(content, "## url:", "## title:")
-	tags := ExtractBlock(content, "## tags:", "## description:")
+	url := extractBlock(content, "## url:", "## title:")
+	tags := extractBlock(content, "## tags:", "## description:")
 
 	if util.IsEmptyLine(url) {
 		return fmt.Errorf("url is empty")
 	} else if util.IsEmptyLine(tags) {
 		return fmt.Errorf("tags is empty")
 	}
+
 	return nil
 }
 
@@ -125,17 +133,19 @@ func cleanupTemporaryFile(file string) {
 	}
 }
 
-func ExtractBlock(content []string, startMarker, endMarker string) string {
+func extractBlock(content []string, startMarker, endMarker string) string {
 	startIndex := -1
 	endIndex := -1
 	isInBlock := false
+
 	var cleanedBlock []string
 
 	for i, line := range content {
 		if strings.HasPrefix(line, startMarker) {
 			startIndex = i
 			isInBlock = true
-			continue // Skip start marker line
+
+			continue
 		}
 
 		if strings.HasPrefix(line, endMarker) && isInBlock {

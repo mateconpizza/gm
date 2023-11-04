@@ -26,10 +26,13 @@ func (c Counter) Remove(item string) {
 }
 
 func (c Counter) ToStringSlice() []string {
-	var results []string
+	results := make([]string, 0, len(c))
+
 	for tag, count := range c {
 		results = append(results, fmt.Sprintf("%s (%d)", tag, count))
 	}
+
 	sort.Strings(results)
+
 	return results
 }

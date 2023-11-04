@@ -1,15 +1,14 @@
-package util_test
+package util
 
 import (
-	u "gomarks/pkg/util"
 	"reflect"
 	"testing"
 )
 
-var sep string = ","
+var sep = ","
 
 func TestCounter_Add(t *testing.T) {
-	c := make(u.Counter)
+	c := make(Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 	c.Add("tag1,tag2,tag4", sep)
@@ -33,18 +32,20 @@ func TestCounter_Add(t *testing.T) {
 }
 
 func TestCounter_GetCount(t *testing.T) {
-	c := make(u.Counter)
+	c := make(Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 
 	count := c.GetCount("tag2")
 	expectedCount := 2
+
 	if count != expectedCount {
 		t.Errorf("GetCount returned %d, expected %d", count, expectedCount)
 	}
 
 	nonExistentCount := c.GetCount("tag5")
 	expectedNonExistentCount := 0
+
 	if nonExistentCount != expectedNonExistentCount {
 		t.Errorf(
 			"GetCount returned %d, expected %d for non-existent tag",
@@ -55,23 +56,25 @@ func TestCounter_GetCount(t *testing.T) {
 }
 
 func TestCounter_Remove(t *testing.T) {
-	c := make(u.Counter)
+	c := make(Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 
 	c.Remove("tag3")
+
 	if c.GetCount("tag3") != 0 {
 		t.Errorf("Remove did not work as expected. Tag 'tag3' still exists.")
 	}
 
 	c.Remove("tag4")
+
 	if c.GetCount("tag4") != 0 {
 		t.Errorf("Remove did not work as expected. Tag 'tag4' still exists.")
 	}
 }
 
 func TestCounter_ToStringSlice(t *testing.T) {
-	c := make(u.Counter)
+	c := make(Counter)
 	c.Add("tag1,tag2,tag3", sep)
 	c.Add("tag2,tag3,tag4", sep)
 
@@ -82,6 +85,7 @@ func TestCounter_ToStringSlice(t *testing.T) {
 		"tag4 (1)",
 	}
 	result := c.ToStringSlice()
+
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf(
 			"ToStringSlice result does not match expected values. Got: %v, Expected: %v",
