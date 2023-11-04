@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"testing"
 
 	bm "gomarks/pkg/bookmark"
@@ -36,7 +37,9 @@ func setupTestDB(t *testing.T) (*sql.DB, *SQLiteRepository) {
 }
 
 func teardownTestDB(db *sql.DB) {
-	db.Close()
+	if err := db.Close(); err != nil {
+		log.Printf("Error closing rows: %v", err)
+	}
 }
 
 func getValidBookmark() bm.Bookmark {
