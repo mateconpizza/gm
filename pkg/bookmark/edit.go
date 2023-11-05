@@ -32,6 +32,7 @@ func getTempBookmark(content []string) *tempBookmark {
 	}
 }
 
+// FIX: Necessary?
 func getTitleAndDescription(t *tempBookmark) {
 	if t.title == "" {
 		title, err := scrape.GetTitle(t.url)

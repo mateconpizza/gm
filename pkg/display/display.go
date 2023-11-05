@@ -5,11 +5,11 @@ import (
 	"log"
 	"strings"
 
-	bm "gomarks/pkg/bookmark"
-	c "gomarks/pkg/constants"
-	db "gomarks/pkg/database"
+	"gomarks/pkg/bookmark"
+	"gomarks/pkg/constants"
+	"gomarks/pkg/database"
 	"gomarks/pkg/menu"
-	u "gomarks/pkg/util"
+	"gomarks/pkg/util"
 )
 
 /* func AddBookmark(r *db.SQLiteRepository, m *menu.Menu) (bm.Bookmark, error) {
@@ -57,18 +57,18 @@ import (
 	return *b, nil
 } */
 
-func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *bm.Bookmark) error {
+func DeleteBookmark(r *database.SQLiteRepository, m *menu.Menu, b *bookmark.Bookmark) error {
 	msg := fmt.Sprintf("Deleting bookmark: %s", b.URL)
 	if !m.Confirm(msg, "Are you sure?") {
 		return fmt.Errorf("Cancelled")
 	}
 
-	err := r.DeleteRecord(b, c.DBMainTableName)
+	err := r.DeleteRecord(b, constants.DBMainTableName)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.InsertRecord(b, c.DBDeletedTableName)
+	_, err = r.InsertRecord(b, constants.DBDeletedTableName)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func DeleteBookmark(r *db.SQLiteRepository, m *menu.Menu, b *bm.Bookmark) error 
 	return nil
 }
 
-func SelectBookmark(m *menu.Menu, bookmarks *bm.Slice) (bm.Bookmark, error) {
+func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (bookmark.Bookmark, error) {
 	maxLen := 80
 	itemsText := make([]string, 0, len(*bookmarks))
 
@@ -93,7 +93,7 @@ func SelectBookmark(m *menu.Menu, bookmarks *bm.Slice) (bm.Bookmark, error) {
 		itemText := fmt.Sprintf(
 			"%-4d %-80s %-10s",
 			bm.ID,
-			u.ShortenString(bm.URL, maxLen),
+			util.ShortenString(bm.URL, maxLen),
 			bm.Tags,
 		)
 		itemsText = append(itemsText, itemText)
@@ -107,7 +107,7 @@ func SelectBookmark(m *menu.Menu, bookmarks *bm.Slice) (bm.Bookmark, error) {
 	}
 
 	selectedStr := strings.Trim(output, "\n")
-	index := u.FindSelectedIndex(selectedStr, itemsText)
+	index := util.FindSelectedIndex(selectedStr, itemsText)
 
 	if index != -1 {
 		b := (*bookmarks)[index]
@@ -116,5 +116,5 @@ func SelectBookmark(m *menu.Menu, bookmarks *bm.Slice) (bm.Bookmark, error) {
 		return b, nil
 	}
 
-	return bm.Bookmark{}, fmt.Errorf("item not found: '%s'", selectedStr)
+	return bookmark.Bookmark{}, fmt.Errorf("item not found: '%s'", selectedStr)
 }

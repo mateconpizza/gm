@@ -51,11 +51,11 @@ func GetDBPath() string {
 func SetupHomeProject() {
 	const directoryPermissions = 0o755
 
-	AppHome := GetAppHome()
+	appHome := GetAppHome()
 
-	if !fileExists(AppHome) {
-		log.Println("Creating AppHome:", AppHome)
-		err := os.Mkdir(AppHome, directoryPermissions)
+	if !fileExists(appHome) {
+		log.Println("Creating AppHome:", appHome)
+		err := os.Mkdir(appHome, directoryPermissions)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -63,7 +63,7 @@ func SetupHomeProject() {
 		return
 	}
 
-	log.Println("AppHome already exists:", AppHome)
+	log.Println("AppHome already exists:", appHome)
 }
 
 func IsSelectedTextInItems(s string, items []string) bool {
@@ -194,16 +194,16 @@ func EditFile(file string) error {
 }
 
 func getEditor() (string, error) {
-	GomarksEditor := os.Getenv("GOMARKS_EDITOR")
-	if GomarksEditor != "" {
-		log.Printf("Var $GOMARKS_EDITOR set to %s", GomarksEditor)
-		return GomarksEditor, nil
+	gomarksEditor := os.Getenv("GOMARKS_EDITOR")
+	if gomarksEditor != "" {
+		log.Printf("Var $GOMARKS_EDITOR set to %s", gomarksEditor)
+		return gomarksEditor, nil
 	}
 
-	Editor := os.Getenv("EDITOR")
-	if Editor != "" {
-		log.Printf("Var $EDITOR set to %s", Editor)
-		return Editor, nil
+	editor := os.Getenv("EDITOR")
+	if editor != "" {
+		log.Printf("Var $EDITOR set to %s", editor)
+		return editor, nil
 	}
 
 	log.Printf("Var $EDITOR not set.")

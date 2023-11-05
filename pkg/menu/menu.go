@@ -120,22 +120,22 @@ func (m *Menu) Run(s string) (string, error) {
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", fmt.Errorf("error creating output pipe: %s", err)
+		return "", fmt.Errorf("error creating output pipe: %w", err)
 	}
 
 	err = cmd.Start()
 	if err != nil {
-		return "", fmt.Errorf("error starting dmenu: %s", err)
+		return "", fmt.Errorf("error starting dmenu: %w", err)
 	}
 
 	output, err := io.ReadAll(stdoutPipe)
 	if err != nil {
-		return "", fmt.Errorf("error reading output: %s", err)
+		return "", fmt.Errorf("error reading output: %w", err)
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		return "", fmt.Errorf("user hit scape: %s", err)
+		return "", fmt.Errorf("user hit scape: %w", err)
 	}
 
 	outputStr := string(output)

@@ -432,11 +432,7 @@ func (r *SQLiteRepository) ReorderIDs() error {
 		return err
 	}
 
-	if err := r.renameTable(tempTable, constants.DBMainTableName); err != nil {
-		return err
-	}
-
-	return nil
+	return r.renameTable(tempTable, constants.DBMainTableName)
 }
 
 func (r *SQLiteRepository) TagsWithCount() (util.Counter, error) {
