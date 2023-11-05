@@ -43,12 +43,13 @@ vet:
 clean:
 	@echo '>> Cleaning up'
 	rm -f $(BIN)
+	go clean -cache
 	@echo
 
 .PHONY: fmt
 fmt:
 	@echo '>> Formatting code'
-	go fmt ./...
+	gofumpt -l -w .
 	@echo
 
 .PHONY: lint

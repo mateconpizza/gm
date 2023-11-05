@@ -1,0 +1,103 @@
+issues:
+  include:
+    - EXC0001
+    - EXC0005
+    - EXC0011
+    - EXC0012
+    - EXC0013
+linters:
+  disable-all: true
+  enable:
+    - dupl
+    - errcheck
+    - errname
+    - errorlint
+    - exportloopref
+    - forcetypeassert
+    - goconst
+    - gocritic
+    - goimports
+    - gomnd
+    - gosec
+    - gosimple
+    - ineffassign
+    - makezero
+    - misspell
+    - nakedret
+    - nestif
+    - nilerr
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+    - whitespace
+run:
+  tests: true
+  issues-exit-code: 1
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
+  path-prefix: ""
+  sort-results: true
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+    exclude: ""
+    exclude-functions: []
+  goconst:
+    min-len: 2
+    min-occurrences: 3
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+  govet:
+    check-shadowing: true
+    enable:
+      - fieldalignment
+  nolintlint:
+    require-explanation: false
+    require-specific: true
+  gosec:
+    excludes:
+      - G201
+      - G204
+  errorlint:
+    errorf: true
+    asserts: false
+    comparison: false
+  revive:
+    ignore-generated-header: true
+    severity: warning
+    rules:
+      - name: unexported-return
+      - name: errorf
+      - name: error-return
+      - name: error-naming
+      - name: if-return
+      - name: increment-decrement
+      - name: range
+      - name: receiver-naming
+      - name: empty-block
+      - name: confusing-naming
+      - name: unnecessary-stmt
+      - name: struct-tag
+      - name: modifies-value-receiver
+      - name: bool-literal-in-expr
+      - name: early-return
+      - name: unexported-naming
+      - name: nested-structs
