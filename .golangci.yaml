@@ -12,10 +12,12 @@ linters:
     - errcheck
     - errname
     - errorlint
+    - execinquery
     - exportloopref
     - forcetypeassert
     - goconst
     - gocritic
+    - goerr113
     - goimports
     - gomnd
     - gosec
@@ -39,6 +41,7 @@ linters:
     - unused
     - wastedassign
     - whitespace
+    - wrapcheck
 run:
   tests: true
   issues-exit-code: 1

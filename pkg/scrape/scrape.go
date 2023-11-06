@@ -1,6 +1,7 @@
 package scrape
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -37,7 +38,7 @@ func GetTitle(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: visiting and scraping URL", err)
 	}
 
 	return title, nil
@@ -76,7 +77,7 @@ func GetDescription(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: visiting and scraping URL", err)
 	}
 
 	return description, nil

@@ -111,12 +111,7 @@ func main() {
 
 	// Test mode
 	if testFlag {
-		tags, err := r.GetUniqueTags(tableName)
-		if err != nil {
-			util.PrintErrMsg(err, verbose)
-		}
-		fmt.Println("TAGS::::", tags)
-		fmt.Println("Testing...")
+		fmt.Println("testing mode...")
 		return
 	}
 

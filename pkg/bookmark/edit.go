@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"gomarks/pkg/errs"
 	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
 )
@@ -57,7 +58,7 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 
 	err := util.EditFile(tempFile)
 	if err != nil {
-		return b, err
+		return b, fmt.Errorf("%w: editing bookmark", err)
 	}
 
 	editedContent := util.ReadFile(tempFile)
@@ -70,7 +71,7 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	cleanupTemporaryFile(tempFile)
 
 	if util.IsSameContentBytes(data, editedContent) {
-		return b, fmt.Errorf("unchanged")
+		return b, errs.ErrBookmarkUnchaged
 	}
 
 	tempBookmark := getTempBookmark(tempContent)
@@ -120,9 +121,9 @@ func validateContent(content []string) error {
 	tags := extractBlock(content, "## tags:", "## description:")
 
 	if util.IsEmptyLine(url) {
-		return fmt.Errorf("url is empty")
+		return errs.ErrURLEmpty
 	} else if util.IsEmptyLine(tags) {
-		return fmt.Errorf("tags is empty")
+		return errs.ErrTagsEmpty
 	}
 
 	return nil

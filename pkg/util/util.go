@@ -12,6 +12,7 @@ import (
 
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
+	"gomarks/pkg/errs"
 
 	"golang.org/x/exp/slices"
 )
@@ -190,7 +191,12 @@ func EditFile(file string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("error running editor: %w", err)
+	}
+
+	return nil
 }
 
 func getEditor() (string, error) {
@@ -224,7 +230,7 @@ func getEditor() (string, error) {
 		return "emacs", nil
 	}
 
-	return "", fmt.Errorf("no editor found")
+	return "", errs.ErrEditorNotFound
 }
 
 func PrintErrMsg(m error, verbose bool) {

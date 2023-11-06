@@ -6,7 +6,9 @@ import (
 	"log"
 	"testing"
 
-	bm "gomarks/pkg/bookmark"
+	"gomarks/pkg/errs"
+
+	"gomarks/pkg/bookmark"
 	c "gomarks/pkg/constants"
 )
 
@@ -42,12 +44,12 @@ func teardownTestDB(db *sql.DB) {
 	}
 }
 
-func getValidBookmark() bm.Bookmark {
-	return bm.Bookmark{
+func getValidBookmark() bookmark.Bookmark {
+	return bookmark.Bookmark{
 		URL:   "https://www.example.com",
-		Title: bm.NullString{NullString: sql.NullString{String: "Title", Valid: true}},
+		Title: bookmark.NullString{NullString: sql.NullString{String: "Title", Valid: true}},
 		Tags:  "test,testme,go",
-		Desc: bm.NullString{
+		Desc: bookmark.NullString{
 			NullString: sql.NullString{String: "Description", Valid: true},
 		},
 		CreatedAt: "2023-01-01 12:00:00",
@@ -107,17 +109,17 @@ func TestInsertRecord(t *testing.T) {
 	defer teardownTestDB(db)
 
 	// Insert a valid record
-	bookmark := &bm.Bookmark{
+	b := &bookmark.Bookmark{
 		URL:   "https://example.com",
-		Title: bm.NullString{NullString: sql.NullString{String: "Title", Valid: true}},
+		Title: bookmark.NullString{NullString: sql.NullString{String: "Title", Valid: true}},
 		Tags:  "test",
-		Desc: bm.NullString{
+		Desc: bookmark.NullString{
 			NullString: sql.NullString{String: "Description", Valid: true},
 		},
 		CreatedAt: "2023-01-01 12:00:00",
 	}
 
-	inserted, err := r.InsertRecord(bookmark, tempTableName)
+	inserted, err := r.InsertRecord(b, tempTableName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +129,7 @@ func TestInsertRecord(t *testing.T) {
 	}
 
 	// Insert a duplicate record
-	duplicate := &bm.Bookmark{
+	duplicate := &bookmark.Bookmark{
 		URL: "https://example.com",
 	}
 
@@ -137,7 +139,7 @@ func TestInsertRecord(t *testing.T) {
 	}
 
 	// Insert an invalid record
-	invalidBookmark := &bm.Bookmark{}
+	invalidBookmark := &bookmark.Bookmark{}
 
 	_, err = r.InsertRecord(invalidBookmark, tempTableName)
 	if err == nil {
@@ -150,21 +152,21 @@ func TestDeleteRecord(t *testing.T) {
 	defer teardownTestDB(db)
 
 	// Insert a valid record
-	bookmark := getValidBookmark()
+	b := getValidBookmark()
 
-	_, err := r.InsertRecord(&bookmark, tempTableName)
+	_, err := r.InsertRecord(&b, tempTableName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Test the deletion of a valid record
-	err = r.DeleteRecord(&bookmark, tempTableName)
+	err = r.DeleteRecord(&b, tempTableName)
 	if err != nil {
 		t.Errorf("DeleteRecord returned an error: %v", err)
 	}
 
 	// Test the deletion of a non-existent record
-	err = r.DeleteRecord(&bookmark, tempTableName)
+	err = r.DeleteRecord(&b, tempTableName)
 	if err == nil {
 		t.Error("DeleteRecord did not return an error for a non-existent record")
 	}
@@ -174,23 +176,23 @@ func TestIsRecordExists(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	bookmark := &bm.Bookmark{
+	b := &bookmark.Bookmark{
 		URL: "https://example.com",
 	}
 
 	query := fmt.Sprintf("INSERT INTO %s (url) VALUES (?)", tempTableName)
 
-	_, err := db.Exec(query, bookmark.URL)
+	_, err := db.Exec(query, b.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	exists := r.RecordExists(bookmark.URL, tempTableName)
+	exists := r.RecordExists(b.URL, tempTableName)
 	if !exists {
 		t.Errorf("isRecordExists returned false for an existing record")
 	}
 
-	nonExistentBookmark := &bm.Bookmark{
+	nonExistentBookmark := &bookmark.Bookmark{
 		URL: "https://non_existent.com",
 	}
 
@@ -204,11 +206,11 @@ func TestUpdateRecordSuccess(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	bookmark := getValidBookmark()
+	validB := getValidBookmark()
 
 	q := fmt.Sprintf("INSERT INTO %s (url) VALUES (?)", tempTableName)
 
-	result, err := db.Exec(q, bookmark.URL)
+	result, err := db.Exec(q, validB.URL)
 	if err != nil {
 		t.Errorf("Error inserting bookmark: %v", err)
 	}
@@ -218,25 +220,25 @@ func TestUpdateRecordSuccess(t *testing.T) {
 		t.Errorf("Error getting last insert ID: %v", err)
 	}
 
-	bookmark.ID = int(id)
+	validB.ID = int(id)
 
-	_, err = r.UpdateRecord(&bookmark, tempTableName)
+	_, err = r.UpdateRecord(&validB, tempTableName)
 	if err != nil {
 		t.Error(err)
 	}
 
 	q = fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tempTableName)
-	row := db.QueryRow(q, bookmark.ID)
+	row := db.QueryRow(q, validB.ID)
 
-	var b bm.Bookmark
+	var b bookmark.Bookmark
 
 	err = row.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.CreatedAt)
 	if err != nil {
 		t.Errorf("Error scanning row: %v", err)
 	}
 
-	if b.ID != bookmark.ID {
-		t.Errorf("Error updating bookmark: %v", ErrUpdateFailed)
+	if b.ID != validB.ID {
+		t.Errorf("Error updating bookmark: %v", errs.ErrRecordUpdate)
 	}
 }
 
@@ -244,7 +246,7 @@ func TestUpdateRecordError(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	_, err := r.UpdateRecord(&bm.Bookmark{}, tempTableName)
+	_, err := r.UpdateRecord(&bookmark.Bookmark{}, tempTableName)
 	if err == nil {
 		t.Error("UpdateRecord did not return an error for an invalid record")
 	}
@@ -309,36 +311,36 @@ func TestInsertRecordsBulk(t *testing.T) {
 	defer teardownTestDB(db)
 
 	// Crear una lista de marcadores de posición de prueba
-	bookmarks := bm.Slice{
+	bookmarks := bookmark.Slice{
 		{
 			URL: "url1",
-			Title: bm.NullString{
+			Title: bookmark.NullString{
 				NullString: sql.NullString{String: "title1", Valid: true},
 			},
 			Tags: "tag1",
-			Desc: bm.NullString{
+			Desc: bookmark.NullString{
 				NullString: sql.NullString{String: "desc1", Valid: true},
 			},
 			CreatedAt: "2023-01-01 12:00:00",
 		},
 		{
 			URL: "url2",
-			Title: bm.NullString{
+			Title: bookmark.NullString{
 				NullString: sql.NullString{String: "title2", Valid: true},
 			},
 			Tags: "tag2",
-			Desc: bm.NullString{
+			Desc: bookmark.NullString{
 				NullString: sql.NullString{String: "desc2", Valid: true},
 			},
 			CreatedAt: "2023-01-01 12:00:00",
 		},
 		{
 			URL: "url3",
-			Title: bm.NullString{
+			Title: bookmark.NullString{
 				NullString: sql.NullString{String: "title2", Valid: true},
 			},
 			Tags: "tag3",
-			Desc: bm.NullString{
+			Desc: bookmark.NullString{
 				NullString: sql.NullString{String: "desc2", Valid: true},
 			},
 			CreatedAt: "2023-01-01 12:00:00",
@@ -382,8 +384,8 @@ func TestRenameTable(t *testing.T) {
 }
 
 func TestBookmarkIsValid(t *testing.T) {
-	validBookmark := bm.Bookmark{
-		Title: bm.NullString{NullString: sql.NullString{String: "Example", Valid: true}},
+	validBookmark := bookmark.Bookmark{
+		Title: bookmark.NullString{NullString: sql.NullString{String: "Example", Valid: true}},
 		URL:   "https://www.example.com",
 		Tags:  "tag1,tag2",
 	}
@@ -392,8 +394,8 @@ func TestBookmarkIsValid(t *testing.T) {
 		t.Errorf("TestBookmarkIsValid: expected valid bookmark to be valid")
 	}
 
-	invalidBookmark := bm.Bookmark{
-		Title: bm.NullString{NullString: sql.NullString{String: "", Valid: false}},
+	invalidBookmark := bookmark.Bookmark{
+		Title: bookmark.NullString{NullString: sql.NullString{String: "", Valid: false}},
 		URL:   "",
 	}
 

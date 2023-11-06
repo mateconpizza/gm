@@ -1,7 +1,10 @@
 package menu
 
 import (
+	"fmt"
 	"testing"
+
+	"gomarks/pkg/errs"
 )
 
 func TestMenuCollection(t *testing.T) {
@@ -23,9 +26,10 @@ func TestMenuCollection(t *testing.T) {
 	})
 
 	t.Run("Get Unregistered Menu", func(t *testing.T) {
-		_, err := mc.get("nonexistent")
-		expectedError := "menu 'nonexistent' not found"
-		if err == nil || err.Error() != expectedError {
+		menuNonExistent := "nonexistent"
+		_, err := mc.get(menuNonExistent)
+		expectedError := fmt.Errorf("%w: '%s'", errs.ErrOptionInvalid, menuNonExistent)
+		if err == nil || err.Error() != expectedError.Error() {
 			t.Errorf("Expected error: %s, got: %v", expectedError, err)
 		}
 	})

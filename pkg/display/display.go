@@ -8,6 +8,7 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/database"
+	"gomarks/pkg/errs"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
 )
@@ -60,22 +61,22 @@ import (
 func DeleteBookmark(r *database.SQLiteRepository, m *menu.Menu, b *bookmark.Bookmark) error {
 	msg := fmt.Sprintf("Deleting bookmark: %s", b.URL)
 	if !m.Confirm(msg, "Are you sure?") {
-		return fmt.Errorf("Cancelled")
+		return errs.ErrActionCancelled
 	}
 
 	err := r.DeleteRecord(b, constants.DBMainTableName)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: deleting record with menu", err)
 	}
 
 	_, err = r.InsertRecord(b, constants.DBDeletedTableName)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: deleting and inserting record", err)
 	}
 
 	err = r.ReorderIDs()
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: reordering Ids after deletion", err)
 	}
 
 	return nil
@@ -116,5 +117,5 @@ func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (bookmark.Bookmark,
 		return b, nil
 	}
 
-	return bookmark.Bookmark{}, fmt.Errorf("item not found: '%s'", selectedStr)
+	return bookmark.Bookmark{}, fmt.Errorf("%w: '%s'", errs.ErrItemNotFound, selectedStr)
 }

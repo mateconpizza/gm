@@ -102,16 +102,16 @@ func (b *Bookmark) setDesc(desc string) {
 
 func (b *Bookmark) IsValid() bool {
 	if b.URL == "" {
-		log.Print("IsValid: Bookmark is invalid. URL is empty")
+		log.Print("Bookmark is invalid. URL is empty")
 		return false
 	}
 
 	if b.Tags == "" {
-		log.Print("IsValid: Bookmark is invalid. Tags is empty")
+		log.Print("Bookmark is invalid. Tags is empty")
 		return false
 	}
 
-	log.Print("IsValid: Bookmark is valid")
+	log.Print("Bookmark is valid")
 
 	return true
 }
@@ -142,7 +142,12 @@ func (s NullString) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 
-	return json.Marshal(s.String)
+	data, err := json.Marshal(s.String)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling NullString: %w", err)
+	}
+
+	return data, nil
 }
 
 func (s *NullString) UnmarshalJSON(data []byte) error {
