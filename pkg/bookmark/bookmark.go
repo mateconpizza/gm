@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"gomarks/pkg/color"
 	"gomarks/pkg/util"
@@ -106,8 +107,8 @@ func (b *Bookmark) IsValid() bool {
 		return false
 	}
 
-	if b.Tags == "" {
-		log.Print("Bookmark is invalid. Tags is empty")
+	if b.Tags == "," || b.Tags == "" {
+		log.Print("Bookmark is invalid. Tags are empty")
 		return false
 	}
 
@@ -183,4 +184,32 @@ func ToJSON(b *Slice) string {
 	jsonString := string(jsonData)
 
 	return jsonString
+}
+
+func Create(url, title, tags, desc string) *Bookmark {
+	return &Bookmark{
+		URL:   url,
+		Title: NullString{NullString: sql.NullString{String: title, Valid: true}},
+		Tags:  parseTags(tags),
+		Desc: NullString{
+			sql.NullString{
+				String: desc,
+				Valid:  true,
+			},
+		},
+	}
+}
+
+// convert: "tag1, tag3, tag tag"
+// to:      "tag1,tag3,tag,tag,"
+func parseTags(tags string) string {
+	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	}), ",")
+
+	if strings.HasSuffix(tags, ",") {
+		return tags
+	}
+
+	return tags + ","
 }

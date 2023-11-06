@@ -281,3 +281,30 @@ func TakeInput(prompt string) string {
 
 	return strings.Trim(s, "\n")
 }
+
+func ConfirmChanges(prompt string) bool {
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Print(prompt)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			return false
+		}
+
+		input = strings.TrimSpace(input)
+		input = strings.ToLower(input)
+
+		switch input {
+		case "y", "yes":
+			return true
+		case "n", "no":
+			return false
+		case "":
+			return true
+		default:
+			fmt.Println("Invalid response. Please enter 'Y' or 'n'.")
+		}
+	}
+}

@@ -38,7 +38,11 @@ func GetTitle(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return "", fmt.Errorf("%w: visiting and scraping URL", err)
+		return "Untitled", fmt.Errorf("%w: visiting and scraping URL", err)
+	}
+
+	if title == "" {
+		return "Untitled", nil
 	}
 
 	return title, nil
@@ -77,7 +81,11 @@ func GetDescription(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return "", fmt.Errorf("%w: visiting and scraping URL", err)
+		return "No description available", fmt.Errorf("%w: visiting and scraping URL", err)
+	}
+
+	if description == "" {
+		return "No description available", nil
 	}
 
 	return description, nil
