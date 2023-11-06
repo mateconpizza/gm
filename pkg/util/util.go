@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -265,4 +266,18 @@ func ParseUniqueStrings(input []string, sep string) []string {
 	}
 
 	return uniqueTags
+}
+
+func TakeInput(prompt string) string {
+	var s string
+
+	fmt.Printf("%s\n  > ", prompt)
+
+	reader := bufio.NewReader(os.Stdin)
+	s, err := reader.ReadString('\n')
+	if err != nil {
+		return ""
+	}
+
+	return strings.Trim(s, "\n")
 }

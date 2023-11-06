@@ -2,11 +2,9 @@ package actions
 
 import (
 	"fmt"
-	"log"
 	"math"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/color"
 	"gomarks/pkg/database"
 	"gomarks/pkg/display"
 	"gomarks/pkg/errs"
@@ -192,23 +190,7 @@ func HandleAction(bmarks *bookmark.Slice, c, o bool) error {
 	return nil
 }
 
-func HandleAdd(r *database.SQLiteRepository, url, tags, tableName string) error {
-	if url == "" {
-		return fmt.Errorf("URL is empty")
-	}
-	if tags == "" {
-		return fmt.Errorf("TAGs is empty")
-	}
-	if r.RecordExists(url, tableName) {
-		return fmt.Errorf("bookmark already exists")
-	}
-	b, err := bookmark.Add(url, tags)
-	if err != nil {
-		return err
-	}
-	_, err = r.InsertRecord(b, tableName)
-	if err != nil {
-		return err
-	}
-	return nil
+func HandleAdd(r *database.SQLiteRepository, url, tableName string) (*bookmark.Slice, error) {
+	fmt.Println("not implemented yet")
+	return &bookmark.Slice{}, nil
 }
