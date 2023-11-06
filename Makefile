@@ -2,7 +2,7 @@
 # See LICENSE file for copyright and license details.
 
 NAME = gomarks
-SRC = ./cmd/main.go
+SRC = ./main.go
 BIN = ./bin/$(NAME)
 
 .PHONY: all build run test vet clean
