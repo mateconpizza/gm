@@ -16,6 +16,7 @@ var (
 	ErrOptionInvalid       = errors.New("invalid option")
 	ErrTagsEmpty           = errors.New("tags cannot be empty")
 	ErrURLEmpty            = errors.New("URL cannot be empty")
+	ErrNoIDProvided        = errors.New("no id provided")
 
 	// database
 	ErrRecordNotExists = errors.New("row not exists")

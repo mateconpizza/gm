@@ -13,7 +13,6 @@ import (
 
 var Verbose bool
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gomarks",
 	Short: "Gomarks is a bookmark manager for your terminal",
@@ -28,8 +27,6 @@ var rootCmd = &cobra.Command{
 // 	return verbose
 // }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -46,8 +43,6 @@ func init() {
 	rootCmd.Flags().StringVarP(&query, "query", "", "", "query to filter bookmarks")
 	rootCmd.PersistentFlags().IntVarP(&id, "id", "", 0, "select bookmark by id")
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
-	rootCmd.PersistentFlags().
-		StringP("author", "a", "YOUR NAME", "author name for copyright attribution")
 }
 
 func initConfig() {
@@ -59,12 +54,6 @@ func initConfig() {
 
 	if query != "" {
 		fmt.Println("NewQuery::::", query)
-	}
-
-	_, err = rootCmd.Flags().GetInt("id")
-	if err != nil {
-		fmt.Println("err:", err)
-		return
 	}
 }
 

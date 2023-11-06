@@ -2,7 +2,6 @@ package scrape
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/gocolly/colly"
@@ -31,10 +30,6 @@ func GetTitle(url string) (string, error) {
 			break
 		}
 	}
-
-	c.OnResponse(func(r *colly.Response) {
-		log.Println("Got a response from", r.Request.URL)
-	})
 
 	err := c.Visit(url)
 	if err != nil {
@@ -74,10 +69,6 @@ func GetDescription(url string) (string, error) {
 			break
 		}
 	}
-
-	c.OnResponse(func(r *colly.Response) {
-		log.Println("Got a response from", r.Request.URL)
-	})
 
 	err := c.Visit(url)
 	if err != nil {
