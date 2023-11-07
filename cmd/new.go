@@ -107,7 +107,7 @@ var newCmd = &cobra.Command{
 	Short: "add a new bookmark",
 	Long:  "add a new bookmark",
 	Run: func(_ *cobra.Command, args []string) {
-		db := initDB()
+		r := getDB()
 		fmt.Printf(
 			"%s%s%s: adding a new bookmark\n\t use %s%sctrl+c%s for quit\n\n",
 			color.Bold,
@@ -120,7 +120,7 @@ var newCmd = &cobra.Command{
 
 		url := handleURL(&args)
 
-		if db.RecordExists(url, "bookmarks") {
+		if r.RecordExists(url, "bookmarks") {
 			fmt.Println("Sha existe loco...")
 			return
 		}

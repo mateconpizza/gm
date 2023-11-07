@@ -57,7 +57,7 @@ func initConfig() {
 	}
 }
 
-func initDB() *database.SQLiteRepository {
-	db := database.GetDB()
-	return db
+func getDB() *database.SQLiteRepository {
+	r := database.GetDB()
+	return r
 }

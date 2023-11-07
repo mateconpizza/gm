@@ -23,7 +23,7 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		db := initDB()
+		r := getDB()
 
 		bID, err := strconv.Atoi(args[0])
 		if err != nil {
@@ -31,7 +31,7 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		b, err := db.GetRecordByID(bID, "bookmarks")
+		b, err := r.GetRecordByID(bID, "bookmarks")
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -43,7 +43,7 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		if _, err := db.UpdateRecord(b, "bookmarks"); err != nil {
+		if _, err := r.UpdateRecord(b, "bookmarks"); err != nil {
 			fmt.Println(err)
 			return
 		}
