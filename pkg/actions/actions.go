@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"gomarks/pkg/bookmark"
+	"gomarks/pkg/color"
 	"gomarks/pkg/database"
 	"gomarks/pkg/display"
 	"gomarks/pkg/errs"
@@ -85,6 +86,7 @@ func HandleFormat(f string, bs *bookmark.Slice) error {
 		for _, b := range *bs {
 			fmt.Println(b.PrettyColorString())
 		}
+		fmt.Printf("%stotal [%d]%s\n", color.Gray, bs.Len(), color.Reset)
 	case "plain":
 		for _, b := range *bs {
 			fmt.Println(b)
@@ -193,4 +195,9 @@ func HandleAction(bmarks *bookmark.Slice, c, o bool) error {
 func HandleAdd(r *database.SQLiteRepository, url, tableName string) (*bookmark.Slice, error) {
 	fmt.Println("not implemented yet")
 	return &bookmark.Slice{}, nil
+}
+
+func SelectBookmark(bs *bookmark.Slice) (*bookmark.Bookmark, error) {
+	fmt.Println("not implemented yet")
+	return &bookmark.Bookmark{}, nil
 }

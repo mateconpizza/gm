@@ -61,7 +61,7 @@ import (
 func DeleteBookmark(r *database.SQLiteRepository, m *menu.Menu, b *bookmark.Bookmark) error {
 	msg := fmt.Sprintf("Deleting bookmark: %s", b.URL)
 	if !m.Confirm(msg, "Are you sure?") {
-		return errs.ErrActionCancelled
+		return errs.ErrActionAborted
 	}
 
 	err := r.DeleteRecord(b, constants.DBMainTableName)
