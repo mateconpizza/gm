@@ -13,7 +13,6 @@ import (
 
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
-	"gomarks/pkg/errs"
 
 	"golang.org/x/exp/slices"
 )
@@ -161,15 +160,16 @@ func SplitAndAlignString(s string, lineLength int) string {
 	return result
 }
 
-func binaryExists(binaryName string) bool {
+func BinaryExists(binaryName string) bool {
 	cmd := exec.Command("which", binaryName)
 	err := cmd.Run()
 
 	return err == nil
 }
 
-func ReadFile(file string) []byte {
-	content, err := os.ReadFile(file)
+func ReadContentFile(file *os.File) []byte {
+	tempFileName := file.Name()
+	content, err := os.ReadFile(tempFileName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -179,59 +179,6 @@ func ReadFile(file string) []byte {
 
 func IsSameContentBytes(a, b []byte) bool {
 	return bytes.Equal(a, b)
-}
-
-func EditFile(file string) error {
-	editor, err := getEditor()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command(editor, file)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("error running editor: %w", err)
-	}
-
-	return nil
-}
-
-func getEditor() (string, error) {
-	gomarksEditor := os.Getenv("GOMARKS_EDITOR")
-	if gomarksEditor != "" {
-		log.Printf("Var $GOMARKS_EDITOR set to %s", gomarksEditor)
-		return gomarksEditor, nil
-	}
-
-	editor := os.Getenv("EDITOR")
-	if editor != "" {
-		log.Printf("Var $EDITOR set to %s", editor)
-		return editor, nil
-	}
-
-	log.Printf("Var $EDITOR not set.")
-
-	if binaryExists("vim") {
-		return "vim", nil
-	}
-
-	if binaryExists("nano") {
-		return "nano", nil
-	}
-
-	if binaryExists("nvim") {
-		return "nvim", nil
-	}
-
-	if binaryExists("emacs") {
-		return "emacs", nil
-	}
-
-	return "", errs.ErrEditorNotFound
 }
 
 func PrintErrMsg(m error, verbose bool) {

@@ -1,10 +1,10 @@
 package bookmark
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	"gomarks/pkg/errs"
@@ -19,22 +19,7 @@ type tempBookmark struct {
 	desc  string
 }
 
-func getTempBookmark(content []string) *tempBookmark {
-	url := extractBlock(content, "## url", "## title")
-	title := extractBlock(content, "## title", "## tags")
-	tags := extractBlock(content, "## tags", "## description")
-	desc := extractBlock(content, "## description", "## end")
-
-	return &tempBookmark{
-		url:   url,
-		title: title,
-		tags:  tags,
-		desc:  desc,
-	}
-}
-
-// FIX: Necessary?
-func getTitleAndDescription(t *tempBookmark) {
+func (t *tempBookmark) fetchTitleAndDescription() {
 	if t.title == "" {
 		title, err := scrape.GetTitle(t.url)
 		if err != nil {
@@ -52,68 +37,83 @@ func getTitleAndDescription(t *tempBookmark) {
 	}
 }
 
-func Edit(b *Bookmark) (*Bookmark, error) {
-	data := editTempContent(b)
-	tempFile := saveDataToTemporaryFile(data)
+func parseTempBookmark(content []string) *tempBookmark {
+	url := extractBlock(content, "## url", "## title")
+	title := extractBlock(content, "## title", "## tags")
+	tags := extractBlock(content, "## tags", "## description")
+	desc := extractBlock(content, "## description", "## end")
 
-	err := util.EditFile(tempFile)
+	return &tempBookmark{
+		url:   url,
+		title: title,
+		tags:  tags,
+		desc:  desc,
+	}
+}
+
+func Edit(b *Bookmark) (*Bookmark, error) {
+	tf := createTempFile()
+
+	data := b.Buffer()
+	tf = saveDataToTempFile(tf, data)
+
+	defer func() {
+		if err := tf.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	editor, err := getEditor()
 	if err != nil {
-		return b, fmt.Errorf("%w: editing bookmark", err)
+		return b, fmt.Errorf("bookmark edition: %w", err)
 	}
 
-	editedContent := util.ReadFile(tempFile)
+	err = editFile(editor, tf)
+	if err != nil {
+		return b, fmt.Errorf("bookmark edition: %w", err)
+	}
+
+	editedContent := util.ReadContentFile(tf)
 	tempContent := strings.Split(string(editedContent), "\n")
 
 	if err := validateContent(tempContent); err != nil {
 		return b, err
 	}
 
-	cleanupTemporaryFile(tempFile)
+	cleanupTempFile(tf.Name())
 
 	if util.IsSameContentBytes(data, editedContent) {
-		return b, errs.ErrBookmarkUnchaged
+		return b, fmt.Errorf("bookmark edition: %w", errs.ErrBookmarkUnchaged)
 	}
 
-	tempBookmark := getTempBookmark(tempContent)
-	getTitleAndDescription(tempBookmark)
+	tb := parseTempBookmark(tempContent)
+	tb.fetchTitleAndDescription()
 
-	b.URL = tempBookmark.url
-	b.Title.String = tempBookmark.title
-	b.Tags = tempBookmark.tags
-	b.Desc.String = tempBookmark.desc
-
+	b.Update(tb.url, tb.title, tb.tags, tb.desc)
 	return b, nil
 }
 
-// FIX: replace with tempFile.
-func saveDataToTemporaryFile(data []byte) string {
+func saveDataToTempFile(file *os.File, data []byte) *os.File {
 	const filePermission = 0o600
 
-	tempFile := "/tmp/gomarks-data-temp.md"
-	err := os.WriteFile(tempFile, data, filePermission)
+	err := os.WriteFile(file.Name(), data, filePermission)
+	if err != nil {
+		panic(err)
+	}
+
+	return file
+}
+
+func createTempFile() *os.File {
+	tempDir := "/tmp/"
+	prefix := "gomarks-"
+
+	tempFile, err := os.CreateTemp(tempDir, prefix)
 	if err != nil {
 		panic(err)
 	}
 
 	return tempFile
-}
-
-func editTempContent(b *Bookmark) []byte {
-	// FIX: replace with b.Buffer()
-	data := []byte(fmt.Sprintf(`## Editing [%d] %s
-## lines starting with # will be ignored.
-## url:
-%s
-## title: (leave empty line for web fetch)
-%s
-## tags: (comma separated)
-%s
-## description: (leave empty line for web fetch)
-%s
-## end
-`, b.ID, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
-
-	return bytes.TrimRight(data, " ")
 }
 
 func validateContent(content []string) error {
@@ -129,8 +129,8 @@ func validateContent(content []string) error {
 	return nil
 }
 
-func cleanupTemporaryFile(file string) {
-	err := os.Remove(file)
+func cleanupTempFile(fileName string) {
+	err := os.Remove(fileName)
 	if err != nil {
 		panic(err)
 	}
@@ -166,4 +166,45 @@ func extractBlock(content []string, startMarker, endMarker string) string {
 	}
 
 	return strings.Join(cleanedBlock, "\n")
+}
+
+func editFile(editor string, file *os.File) error {
+	tempFileName := file.Name()
+
+	cmd := exec.Command(editor, tempFileName)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("error running editor: %w", err)
+	}
+
+	return nil
+}
+
+func getEditor() (string, error) {
+	gomarksEditor := os.Getenv("GOMARKS_EDITOR")
+	if gomarksEditor != "" {
+		log.Printf("$GOMARKS_EDITOR set to %s", gomarksEditor)
+		return gomarksEditor, nil
+	}
+
+	editor := os.Getenv("EDITOR")
+	if editor != "" {
+		log.Printf("$EDITOR set to %s", editor)
+		return editor, nil
+	}
+
+	log.Printf("$EDITOR not set.")
+
+	editors := []string{"vim", "nvim", "nano", "emacs"}
+	for _, e := range editors {
+		if util.BinaryExists(e) {
+			return e, nil
+		}
+	}
+
+	return "", errs.ErrEditorNotFound
 }
