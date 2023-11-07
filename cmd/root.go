@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	Verbose bool
 	Menu    *menu.Menu
+	Verbose bool
+	idFlag  int
 )
 
 var rootCmd = &cobra.Command{
@@ -80,12 +81,14 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&copyFlag, "copy", "c", true, "copy to system clipboard")
 	rootCmd.PersistentFlags().BoolVarP(&openFlag, "open", "o", false, "open in default browser")
+	rootCmd.PersistentFlags().IntVarP(&idFlag, "id", "", 0, "select bookmark by id")
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu | rofi]")
 }
 
 func initConfig() {
 	util.SetLogLevel(&Verbose)
 	Menu = handleMenu()
+	handleID()
 }
 
 func getDB() *database.SQLiteRepository {
@@ -114,4 +117,12 @@ func handleQuery(args []string) string {
 		query = args[0]
 	}
 	return query
+}
+
+func handleID() {
+	id, err := rootCmd.Flags().GetInt("id")
+	if err != nil {
+		fmt.Println("err getting id:", err)
+	}
+	idFlag = id
 }
