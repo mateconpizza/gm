@@ -14,6 +14,7 @@ import (
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
 
+	"github.com/atotto/clipboard"
 	"golang.org/x/exp/slices"
 )
 
@@ -254,4 +255,13 @@ func ConfirmChanges(prompt string) bool {
 			fmt.Println("Invalid response. Please enter 'Y' or 'n'.")
 		}
 	}
+}
+
+func CopyToClipboard(s string) {
+	err := clipboard.WriteAll(s)
+	if err != nil {
+		log.Fatalf("Error copying to clipboard: %v", err)
+	}
+
+	log.Print("Text copied to clipboard:", s)
 }

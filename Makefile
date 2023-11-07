@@ -57,3 +57,9 @@ lint: vet
 	@echo '>> Linting code'
 	golangci-lint run ./...
 	@echo
+
+.PHONY: check
+check:
+	@echo '>> Linting everything'
+	golangci-lint run -p bugs -p error
+	@echo
