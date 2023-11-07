@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	// bookmark
-	ErrActionCancelled     = errors.New("action cancelled")
+	ErrActionAborted       = errors.New("action aborted")
 	ErrBookmarkDuplicate   = errors.New("bookmark already exists")
 	ErrBookmarkEdition     = errors.New("")
 	ErrBookmarkInvalid     = errors.New("bookmark invalid")

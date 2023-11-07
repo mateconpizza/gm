@@ -11,7 +11,7 @@ import (
 	"gomarks/pkg/util"
 )
 
-func New(s string) Menu {
+func New(s string) *Menu {
 	mc := make(menuCollection)
 	mc.load()
 	menu, err := mc.get(s)
@@ -19,7 +19,7 @@ func New(s string) Menu {
 		log.Fatalf("Error: %v\n", err)
 	}
 
-	return menu
+	return &menu
 }
 
 type option struct {
