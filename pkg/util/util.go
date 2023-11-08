@@ -1,4 +1,6 @@
-package util
+/*
+Copyright © 2023 haaag <git.haaag@gmail.com>
+*/package util
 
 import (
 	"bufio"
@@ -230,7 +232,16 @@ func TakeInput(prompt string) string {
 	return strings.Trim(s, "\n")
 }
 
-func ConfirmChanges(prompt string) bool {
+func ConfirmChanges(q string) bool {
+	prompt := fmt.Sprintf(
+		"\n%s%s%s %s[Y/n]:%s ",
+		color.Bold,
+		q,
+		color.Reset,
+		color.Gray,
+		color.Reset,
+	)
+
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -264,4 +275,17 @@ func CopyToClipboard(s string) {
 	}
 
 	log.Print("Text copied to clipboard:", s)
+}
+
+func CmdTitle(s string) {
+	fmt.Printf(
+		"%s%s%s: %s\n\t use %s%sctrl+c%s for quit\n\n",
+		color.Bold,
+		constants.AppName,
+		color.Reset,
+		s,
+		color.Bold,
+		color.Red,
+		color.Reset,
+	)
 }

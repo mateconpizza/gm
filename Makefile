@@ -27,7 +27,7 @@ run: build
 
 test: vet
 	@echo '>> Testing $(NAME)'
-	go test -cover ./...
+	go test ./...
 	@echo
 
 test-verbose: vet

@@ -1,40 +1,53 @@
 /*
 Copyright © 2023 haaag <git.haaag@gmail.com>
-*/
-package cmd
+*/package cmd
 
 import (
 	"fmt"
 	"strconv"
 
 	"gomarks/pkg/errs"
+	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
 
+var ID int
+
 var deleteCmd = &cobra.Command{
-	Use:   "delete",
-	Short: "delete selected bookmark",
-	Long:  "delete selected bookmark",
-	Args:  cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("CMD::::%+v\n", cmd)
-		var err error
-		if idFlag == 0 && len(args) == 0 {
-			fmt.Println(errs.ErrNoIDProvided)
-			return
+	Use:          "delete",
+	Short:        "delete a bookmark by id",
+	Long:         "delete a bookmark by id",
+	Example:      "  gomarks delete <bookmark_id>",
+	SilenceUsage: true,
+	Args:         cobra.ExactArgs(1),
+	RunE: func(_ *cobra.Command, args []string) error {
+		util.CmdTitle("deleting a bookmark")
+
+		id, err := strconv.Atoi(args[0])
+		if err != nil || id <= 0 {
+			return fmt.Errorf("%w", errs.ErrNoIDProvided)
 		}
 
-		idFlag, err = strconv.Atoi(args[0])
+		r, err := getDB()
 		if err != nil {
-			fmt.Println("err converting idFlag:", err)
+			return fmt.Errorf("%w", err)
 		}
 
-		fmt.Println("IDFLAG::::", idFlag)
-
-		if Menu != nil {
-			fmt.Println("Menu selected::::", Menu)
+		b, err := r.GetRecordByID(id, "bookmarks")
+		if err != nil {
+			return fmt.Errorf("%w", err)
 		}
+
+		fmt.Println(b.PrettyColorString())
+		confirm := util.ConfirmChanges("Delete bookmark?")
+		if !confirm {
+			return fmt.Errorf("%w", errs.ErrActionAborted)
+		}
+
+		fmt.Println("delete bookmark:", b.URL)
+
+		return nil
 	},
 }
 
