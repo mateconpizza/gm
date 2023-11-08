@@ -4,6 +4,7 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -16,39 +17,44 @@ import (
 var editCmd = &cobra.Command{
 	Use:   "edit",
 	Short: "edit selected bookmark",
-	Args:  cobra.MaximumNArgs(1),
-	Run: func(_ *cobra.Command, args []string) {
-		if len(args) == 0 {
-			fmt.Println(errs.ErrNoIDProvided)
-			return
+	Args:  cobra.ExactArgs(1),
+	RunE: func(_ *cobra.Command, args []string) error {
+		var id int
+		var err error
+
+		if len(args) > 0 {
+			id, err = strconv.Atoi(args[0])
 		}
 
-		r := getDB()
-
-		bID, err := strconv.Atoi(args[0])
 		if err != nil {
-			fmt.Println(err)
-			return
+			if errors.Is(err, strconv.ErrSyntax) {
+				return fmt.Errorf("%w", errs.ErrNoIDProvided)
+			}
+			return fmt.Errorf("%w", err)
 		}
 
-		b, err := r.GetRecordByID(bID, "bookmarks")
+		r, err := getDB()
 		if err != nil {
-			fmt.Println(err)
-			return
+			return fmt.Errorf("%w", err)
+		}
+
+		b, err := r.GetRecordByID(id, "bookmarks")
+		if err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		b, err = bookmark.Edit(b)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return fmt.Errorf("%w", err)
 		}
 
 		if _, err := r.UpdateRecord(b, "bookmarks"); err != nil {
-			fmt.Println(err)
-			return
+			return fmt.Errorf("%w", err)
 		}
 
 		fmt.Println(b.PrettyColorString())
+
+		return nil
 	},
 }
 
