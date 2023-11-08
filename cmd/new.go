@@ -8,11 +8,73 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
+	"gomarks/pkg/errs"
 	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
+
+var newCmd = &cobra.Command{
+	Use:   "new",
+	Short: "add a new bookmark",
+	Long:  "add a new bookmark",
+	Example: fmt.Sprintf(
+		"  %s new\n  %s new <url>\n  %s new <url> <tags>",
+		constants.AppName,
+		constants.AppName,
+		constants.AppName,
+	),
+	RunE: func(_ *cobra.Command, args []string) error {
+		r, err := getDB()
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		util.CmdTitle("adding a new bookmark")
+
+		url := handleURL(&args)
+
+		if r.RecordExists(url, "bookmarks") {
+			b, _ := r.GetRecordByURL(url, "bookmarks")
+			return fmt.Errorf("%w with id: %d", errs.ErrBookmarkDuplicate, b.ID)
+		}
+
+		tags := handleTags(&args)
+		title := handleTitle(url)
+		desc := handleDesc(url)
+
+		b := bookmark.Create(url, title, tags, desc)
+
+		confirm := util.ConfirmChanges("Save bookmark?")
+		if !confirm {
+			return fmt.Errorf("%w", errs.ErrActionAborted)
+		}
+
+		if !b.IsValid() {
+			return fmt.Errorf("%w", errs.ErrBookmarkInvalid)
+		}
+
+		fmt.Print("\nSaving bookmark...")
+
+		b, err = r.InsertRecord(b, "bookmarks")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		fmt.Printf("with id: %d\n", b.ID)
+
+		return nil
+	},
+}
+
+func init() {
+	var url string
+	var tags string
+	newCmd.Flags().StringVarP(&url, "url", "u", "", "url for new bookmark")
+	newCmd.Flags().StringVarP(&tags, "tags", "t", "", "tags for new bookmark")
+	rootCmd.AddCommand(newCmd)
+}
 
 func handleURL(args *[]string) string {
 	var url string
@@ -100,60 +162,4 @@ func handleDesc(url string) string {
 	)
 	fmt.Println(titlePrompt)
 	return desc
-}
-
-var newCmd = &cobra.Command{
-	Use:   "new",
-	Short: "add a new bookmark",
-	Long:  "add a new bookmark",
-	Run: func(_ *cobra.Command, args []string) {
-		r := getDB()
-		fmt.Printf(
-			"%s%s%s: adding a new bookmark\n\t use %s%sctrl+c%s for quit\n\n",
-			color.Bold,
-			constants.AppName,
-			color.Reset,
-			color.Bold,
-			color.Red,
-			color.Reset,
-		)
-
-		url := handleURL(&args)
-
-		if r.RecordExists(url, "bookmarks") {
-			fmt.Println("Sha existe loco...")
-			return
-		}
-
-		tags := handleTags(&args)
-		title := handleTitle(url)
-		desc := handleDesc(url)
-
-		b := bookmark.Create(url, title, tags, desc)
-
-		confirmPrompt := fmt.Sprintf(
-			"\n%sSave bookmark?%s %s[Y/n]:%s ",
-			color.Bold,
-			color.Reset,
-			color.Gray,
-			color.Reset,
-		)
-		confirm := util.ConfirmChanges(confirmPrompt)
-		if !confirm {
-			return
-		}
-		if !b.IsValid() {
-			return
-		}
-		fmt.Println("TAGS::", b.Tags)
-		fmt.Println("Saving bookmark...")
-	},
-}
-
-func init() {
-	var url string
-	var tags string
-	newCmd.Flags().StringVarP(&url, "url", "u", "", "url for new bookmark")
-	newCmd.Flags().StringVarP(&tags, "tags", "t", "", "tags for new bookmark")
-	rootCmd.AddCommand(newCmd)
 }
