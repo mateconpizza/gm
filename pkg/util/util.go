@@ -234,7 +234,7 @@ func TakeInput(prompt string) string {
 
 func ConfirmChanges(q string) bool {
 	prompt := fmt.Sprintf(
-		"\n%s%s%s %s[Y/n]:%s ",
+		"\n%s%s%s %s[y/N]:%s ",
 		color.Bold,
 		q,
 		color.Reset,
@@ -261,7 +261,7 @@ func ConfirmChanges(q string) bool {
 		case "n", "no":
 			return false
 		case "":
-			return true
+			return false
 		default:
 			fmt.Println("Invalid response. Please enter 'Y' or 'n'.")
 		}
@@ -275,17 +275,4 @@ func CopyToClipboard(s string) {
 	}
 
 	log.Print("Text copied to clipboard:", s)
-}
-
-func CmdTitle(s string) {
-	fmt.Printf(
-		"%s%s%s: %s\n\t use %s%sctrl+c%s for quit\n\n",
-		color.Bold,
-		constants.AppName,
-		color.Reset,
-		s,
-		color.Bold,
-		color.Red,
-		color.Reset,
-	)
 }
