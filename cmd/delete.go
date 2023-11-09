@@ -21,9 +21,16 @@ var deleteCmd = &cobra.Command{
 	Example:      exampleUsage(deleteExamples),
 	SilenceUsage: true,
 	Args:         cobra.MaximumNArgs(1),
+	PreRunE: func(_ *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("%w", errs.ErrNoIDorQueryPrivided)
+		}
+		return nil
+	},
 	RunE: func(_ *cobra.Command, args []string) error {
 		ids := make([]int, 0)
 		urls := make([]string, 0)
+
 		cmdTitle("delete mode")
 
 		r, err := getDB()
@@ -60,12 +67,13 @@ var deleteCmd = &cobra.Command{
 			fmt.Printf("\t+ %s\n", url)
 		}
 
-		confirm := util.ConfirmChanges(
-			fmt.Sprintf("Deleting [%d] bookmarks, are you sure?", len(ids)),
-		)
-
-		if !confirm {
-			return fmt.Errorf("%w", errs.ErrActionAborted)
+		if len(ids) > 1 {
+			confirm := util.ConfirmChanges(
+				fmt.Sprintf("Deleting [%d] bookmarks, are you sure?", len(ids)),
+			)
+			if !confirm {
+				return fmt.Errorf("%w", errs.ErrActionAborted)
+			}
 		}
 
 		err = r.DeleteRecordsBulk(constants.DBMainTableName, ids)

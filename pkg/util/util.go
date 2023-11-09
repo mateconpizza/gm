@@ -52,7 +52,7 @@ func GetDBPath() string {
 	return s
 }
 
-func SetupHomeProject() {
+func SetupHomeProject() string {
 	const directoryPermissions = 0o755
 
 	appHome := GetAppHome()
@@ -63,11 +63,10 @@ func SetupHomeProject() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		return
 	}
 
 	log.Println("AppHome already exists:", appHome)
+	return appHome
 }
 
 func IsSelectedTextInItems(s string, items []string) bool {
