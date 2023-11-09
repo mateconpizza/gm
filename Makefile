@@ -16,6 +16,11 @@ build: vet test
 	go build -o $(BIN) $(SRC)
 	@echo
 
+beta: vet test
+	@echo '>> Building $(NAME)'
+	go build -o $(BIN)-beta $(SRC)
+	@echo
+
 debug: vet test
 	@echo '>> Building $(NAME) with debugger'
 	go build -gcflags="all=-N -l" -o $(BIN)-debug $(SRC)

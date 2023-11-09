@@ -20,6 +20,21 @@ func (bs *Slice) Len() int {
 	return len(*bs)
 }
 
+func (bs *Slice) Get(index int) *Bookmark {
+	if index >= 0 && index < bs.Len() {
+		return &(*bs)[index]
+	}
+	return nil
+}
+
+func (bs *Slice) IDs() []int {
+	ids := make([]int, 0, bs.Len())
+	for _, b := range *bs {
+		ids = append(ids, b.ID)
+	}
+	return ids
+}
+
 // https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
 type Bookmark struct {
 	CreatedAt string     `json:"created_at" db:"created_at"`
