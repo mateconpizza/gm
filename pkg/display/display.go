@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/constants"
-	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
@@ -58,7 +56,7 @@ import (
 	return *b, nil
 } */
 
-func DeleteBookmark(r *database.SQLiteRepository, m *menu.Menu, b *bookmark.Bookmark) error {
+/* func DeleteBookmark(r *database.SQLiteRepository, m *menu.Menu, b *bookmark.Bookmark) error {
 	msg := fmt.Sprintf("Deleting bookmark: %s", b.URL)
 	if !m.Confirm(msg, "Are you sure?") {
 		return errs.ErrActionAborted
@@ -80,7 +78,7 @@ func DeleteBookmark(r *database.SQLiteRepository, m *menu.Menu, b *bookmark.Book
 	}
 
 	return nil
-}
+} */
 
 func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (bookmark.Bookmark, error) {
 	maxLen := 80

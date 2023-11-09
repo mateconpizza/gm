@@ -28,8 +28,6 @@ var editCmd = &cobra.Command{
 		var id int
 		var err error
 
-		fmt.Println("ARGS:", args)
-
 		if len(args) > 0 {
 			id, err = strconv.Atoi(args[0])
 		}

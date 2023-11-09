@@ -23,7 +23,6 @@ var (
 	Menu      *menu.Menu
 	Verbose   bool
 	Bookmarks *bookmark.Slice
-	// idFlag  int
 )
 
 func checkInitDB(_ *cobra.Command, _ []string) error {
@@ -94,7 +93,6 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&copyFlag, "copy", "c", true, "copy to system clipboard")
 	rootCmd.PersistentFlags().BoolVarP(&openFlag, "open", "o", false, "open in default browser")
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu | rofi]")
-	// rootCmd.PersistentFlags().IntVarP(&idFlag, "id", "", 0, "select bookmark by id")
 }
 
 func initConfig() {
