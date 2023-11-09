@@ -235,7 +235,7 @@ func ConfirmChanges(q string) bool {
 	prompt := fmt.Sprintf(
 		"\n%s%s%s %s[y/N]:%s ",
 		color.Bold,
-		q,
+		question,
 		color.Reset,
 		color.Gray,
 		color.Reset,

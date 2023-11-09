@@ -46,7 +46,7 @@ var newCmd = &cobra.Command{
 
 		b := bookmark.Create(url, title, tags, desc)
 
-		confirm := util.ConfirmChanges("Save bookmark?")
+		confirm := util.Confirm("Save bookmark?")
 		if !confirm {
 			return fmt.Errorf("%w", errs.ErrActionAborted)
 		}

@@ -5,6 +5,7 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 import (
 	"fmt"
 
+	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/errs"
@@ -14,6 +15,41 @@ import (
 )
 
 var deleteExamples = []string{"delete\n", "delete <id>\n", "delete <query>"}
+
+func parseSliceDel(bs bookmark.Slice) ([]int, error) {
+	if bs.Len() == 0 {
+		return nil, fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
+	}
+
+	var toDel bookmark.Slice
+
+	for i, b := range bs {
+		fmt.Println(b.PrettyColorString())
+
+		confirm := util.Confirm(fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len()))
+
+		if confirm {
+			fmt.Printf("%sAdded to delete queue%s\n", color.Red, color.Reset)
+			toDel = append(toDel, b)
+		}
+		fmt.Println("")
+	}
+
+	if toDel.Len() == 0 {
+		return nil, fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
+	}
+
+	fmt.Printf("%s%sBookmarks to delete:%s\n", color.Bold, color.Red, color.Reset)
+	for _, b := range toDel {
+		fmt.Printf("\t+ [%d] %s\n", b.ID, b.URL)
+	}
+
+	if confirm := util.Confirm(fmt.Sprintf("Deleting [%d] bookmark/s, are you sure?", toDel.Len())); !confirm {
+		return nil, fmt.Errorf("%w", errs.ErrActionAborted)
+	}
+
+	return toDel.IDs(), nil
+}
 
 var deleteCmd = &cobra.Command{
 	Use:          "delete",
@@ -28,9 +64,6 @@ var deleteCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
-		ids := make([]int, 0)
-		urls := make([]string, 0)
-
 		cmdTitle("delete mode")
 
 		r, err := getDB()
@@ -46,43 +79,16 @@ var deleteCmd = &cobra.Command{
 
 		fmt.Printf("%s%s[%d] bookmarks found%s\n\n", color.Bold, color.Red, bs.Len(), color.Reset)
 
-		for _, b := range *bs {
-			fmt.Println(b.PrettyColorString())
-
-			confirm := util.ConfirmChanges("Delete bookmark?")
-
-			if confirm {
-				ids = append(ids, b.ID)
-				urls = append(urls, b.URL)
-			}
-			fmt.Println("")
-		}
-
-		if len(ids) == 0 {
-			return fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
-		}
-
-		fmt.Printf("%s%sBookmarks to delete:%s\n", color.Bold, color.Red, color.Reset)
-		for _, url := range urls {
-			fmt.Printf("\t+ %s\n", url)
-		}
-
-		if len(ids) > 1 {
-			confirm := util.ConfirmChanges(
-				fmt.Sprintf("Deleting [%d] bookmarks, are you sure?", len(ids)),
-			)
-			if !confirm {
-				return fmt.Errorf("%w", errs.ErrActionAborted)
-			}
-		}
-
-		err = r.DeleteRecordsBulk(constants.DBMainTableName, ids)
+		toDel, err := parseSliceDel(*bs)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		err = r.ReorderIDs(constants.DBMainTableName)
-		if err != nil {
+		if err = r.DeleteRecordsBulk(constants.DBMainTableName, toDel); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		if err := r.ReorderIDs(constants.DBMainTableName); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
