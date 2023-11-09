@@ -119,7 +119,7 @@ func TestInsertRecord(t *testing.T) {
 		CreatedAt: "2023-01-01 12:00:00",
 	}
 
-	inserted, err := r.InsertRecord(b, tempTableName)
+	inserted, err := r.InsertRecord(tempTableName, b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestInsertRecord(t *testing.T) {
 		URL: "https://example.com",
 	}
 
-	_, err = r.InsertRecord(duplicate, tempTableName)
+	_, err = r.InsertRecord(tempTableName, duplicate)
 	if err == nil {
 		t.Error("InsertRecord did not return an error for a duplicate record")
 	}
@@ -141,7 +141,7 @@ func TestInsertRecord(t *testing.T) {
 	// Insert an invalid record
 	invalidBookmark := &bookmark.Bookmark{}
 
-	_, err = r.InsertRecord(invalidBookmark, tempTableName)
+	_, err = r.InsertRecord(tempTableName, invalidBookmark)
 	if err == nil {
 		t.Error("InsertRecord did not return an error for an invalid record")
 	}
@@ -154,19 +154,19 @@ func TestDeleteRecord(t *testing.T) {
 	// Insert a valid record
 	b := getValidBookmark()
 
-	_, err := r.InsertRecord(&b, tempTableName)
+	_, err := r.InsertRecord(tempTableName, &b)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Test the deletion of a valid record
-	err = r.DeleteRecord(&b, tempTableName)
+	err = r.DeleteRecord(tempTableName, &b)
 	if err != nil {
 		t.Errorf("DeleteRecord returned an error: %v", err)
 	}
 
 	// Test the deletion of a non-existent record
-	err = r.DeleteRecord(&b, tempTableName)
+	err = r.DeleteRecord(tempTableName, &b)
 	if err == nil {
 		t.Error("DeleteRecord did not return an error for a non-existent record")
 	}
@@ -187,7 +187,7 @@ func TestIsRecordExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exists := r.RecordExists(b.URL, tempTableName)
+	exists := r.RecordExists(tempTableName, b.URL)
 	if !exists {
 		t.Errorf("isRecordExists returned false for an existing record")
 	}
@@ -196,7 +196,7 @@ func TestIsRecordExists(t *testing.T) {
 		URL: "https://non_existent.com",
 	}
 
-	exists = r.RecordExists(nonExistentBookmark.URL, tempTableName)
+	exists = r.RecordExists(tempTableName, nonExistentBookmark.URL)
 	if exists {
 		t.Errorf("isRecordExists returned true for a non-existent record")
 	}
@@ -222,7 +222,7 @@ func TestUpdateRecordSuccess(t *testing.T) {
 
 	validB.ID = int(id)
 
-	_, err = r.UpdateRecord(&validB, tempTableName)
+	_, err = r.UpdateRecord(tempTableName, &validB)
 	if err != nil {
 		t.Error(err)
 	}
@@ -246,7 +246,7 @@ func TestUpdateRecordError(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	_, err := r.UpdateRecord(&bookmark.Bookmark{}, tempTableName)
+	_, err := r.UpdateRecord(tempTableName, &bookmark.Bookmark{})
 	if err == nil {
 		t.Error("UpdateRecord did not return an error for an invalid record")
 	}
@@ -258,12 +258,12 @@ func TestGetRecordByID(t *testing.T) {
 
 	b := getValidBookmark()
 
-	inserted, err := r.InsertRecord(&b, tempTableName)
+	inserted, err := r.InsertRecord(tempTableName, &b)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	record, err := r.GetRecordByID(inserted.ID, tempTableName)
+	record, err := r.GetRecordByID(tempTableName, inserted.ID)
 	if err != nil {
 		t.Errorf("Error getting bookmark by ID: %v", err)
 	}
@@ -280,12 +280,12 @@ func TestGetRecordsByQuery(t *testing.T) {
 	defer teardownTestDB(db)
 
 	b := getValidBookmark()
-	_, _ = r.InsertRecord(&b, tempTableName)
+	_, _ = r.InsertRecord(tempTableName, &b)
 	b.URL = "https://www.example2.com"
-	_, _ = r.InsertRecord(&b, tempTableName)
+	_, _ = r.InsertRecord(tempTableName, &b)
 	b.URL = "https://www.another.com"
 
-	records, err := r.GetRecordsByQuery("example", tempTableName)
+	records, err := r.GetRecordsByQuery(tempTableName, "example")
 	if err != nil {
 		t.Errorf("Error getting bookmarks by query: %v", err)
 	}

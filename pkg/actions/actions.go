@@ -28,7 +28,7 @@ func QueryAndList(
 	}
 
 	if byQuery != "" {
-		if bs, err = r.GetRecordsByQuery(byQuery, tableName); err != nil {
+		if bs, err = r.GetRecordsByQuery(tableName, byQuery); err != nil {
 			return nil, fmt.Errorf("%w: on applying query and list", err)
 		}
 	}
@@ -67,7 +67,7 @@ func RetrieveBookmarks(
 	listFlag *bool,
 ) (*bookmark.Slice, error) {
 	if id != 0 {
-		b, err := r.GetRecordByID(id, *tableName)
+		b, err := r.GetRecordByID(*tableName, id)
 		if err != nil {
 			return nil, fmt.Errorf("%w (retrieving bookmarks)", err)
 		}
@@ -147,7 +147,7 @@ func FetchBookmarks(
 
 	switch {
 	case byQuery != "":
-		bs, err = r.GetRecordsByQuery(byQuery, t)
+		bs, err = r.GetRecordsByQuery(t, byQuery)
 	default:
 		bs, err = r.GetRecordsAll(t)
 	}
@@ -155,7 +155,7 @@ func FetchBookmarks(
 	return bs, fmt.Errorf("%w: fetching bookmarks", err)
 }
 
-func HandleEdit(r *database.SQLiteRepository, bs *bookmark.Slice, t string) error {
+func HandleEdit(r *database.SQLiteRepository, bs *bookmark.Slice, tableName string) error {
 	if bs == nil || len(*bs) == 0 {
 		return errs.ErrBookmarkNotSelected
 	}
@@ -167,7 +167,7 @@ func HandleEdit(r *database.SQLiteRepository, bs *bookmark.Slice, t string) erro
 			return fmt.Errorf("bookmark %w", err)
 		}
 
-		if _, err := r.UpdateRecord(editedBookmark, t); err != nil {
+		if _, err := r.UpdateRecord(tableName, editedBookmark); err != nil {
 			return fmt.Errorf("editing bookmark %w", err)
 		}
 	}

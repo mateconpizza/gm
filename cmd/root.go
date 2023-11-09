@@ -3,13 +3,16 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 */package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"gomarks/pkg/actions"
 	"gomarks/pkg/bookmark"
+	"gomarks/pkg/constants"
 	"gomarks/pkg/database"
 	"gomarks/pkg/display"
+	"gomarks/pkg/errs"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
 
@@ -17,50 +20,59 @@ import (
 )
 
 var (
-	Menu    *menu.Menu
-	Verbose bool
-	idFlag  int
+	Menu      *menu.Menu
+	Verbose   bool
+	Bookmarks *bookmark.Slice
+	// idFlag  int
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "gomarks",
-	Short: "Gomarks is a bookmark manager for your terminal",
-	Long:  "Gomarks is a bookmark manager for your terminal",
-	Args:  cobra.MaximumNArgs(1),
-	Run: func(_ *cobra.Command, args []string) {
-		query := handleQuery(args)
-		r := getDB()
+func checkInitDB(_ *cobra.Command, _ []string) error {
+	_, err := getDB()
+	if err != nil {
+		if errors.Is(err, errs.ErrDBNotFound) {
+			return fmt.Errorf("%w: use 'init' to initialise a new database", errs.ErrDBNotFound)
+		}
+		return fmt.Errorf("%w", err)
+	}
+	return nil
+}
 
-		bs, err := r.GetRecordsByQuery(query, "bookmarks")
+var rootCmd = &cobra.Command{
+	Use:          "gomarks",
+	Short:        "Gomarks is a bookmark manager for your terminal",
+	Long:         "Gomarks is a bookmark manager for your terminal",
+	Args:         cobra.MaximumNArgs(1),
+	SilenceUsage: true,
+	PreRunE:      checkInitDB,
+	RunE: func(_ *cobra.Command, args []string) error {
+		query := handleQuery(args)
+
+		r, _ := getDB()
+
+		bs, err := r.GetRecordsByQuery(constants.DBMainTableName, query)
 		if err != nil {
-			return
+			return fmt.Errorf("%w", err)
 		}
 
 		if Menu != nil {
 			var b bookmark.Bookmark
 			b, err = display.SelectBookmark(Menu, bs)
 			if err != nil {
-				fmt.Println("err on menu:", err)
+				return fmt.Errorf("%w", err)
 			}
 			bs = &bookmark.Slice{b}
 		}
 
 		err = actions.HandleFormat("pretty", bs)
 		if err != nil {
-			return
+			return fmt.Errorf("%w", err)
 		}
 
 		util.CopyToClipboard((*bs)[0].URL)
+
+		return nil
 	},
 }
-
-// func isVerbose(cmd *cobra.Command) bool {
-// 	verbose, err := cmd.PersistentFlags().GetBool("Verbose")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return verbose
-// }
 
 func Execute() {
 	err := rootCmd.Execute()
@@ -81,19 +93,21 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&copyFlag, "copy", "c", true, "copy to system clipboard")
 	rootCmd.PersistentFlags().BoolVarP(&openFlag, "open", "o", false, "open in default browser")
-	rootCmd.PersistentFlags().IntVarP(&idFlag, "id", "", 0, "select bookmark by id")
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu | rofi]")
+	// rootCmd.PersistentFlags().IntVarP(&idFlag, "id", "", 0, "select bookmark by id")
 }
 
 func initConfig() {
 	util.SetLogLevel(&Verbose)
 	Menu = handleMenu()
-	handleID()
 }
 
-func getDB() *database.SQLiteRepository {
-	r := database.GetDB()
-	return r
+func getDB() (*database.SQLiteRepository, error) {
+	r, err := database.GetDB()
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	return r, nil
 }
 
 func handleMenu() *menu.Menu {
@@ -117,12 +131,4 @@ func handleQuery(args []string) string {
 		query = args[0]
 	}
 	return query
-}
-
-func handleID() {
-	id, err := rootCmd.Flags().GetInt("id")
-	if err != nil {
-		fmt.Println("err getting id:", err)
-	}
-	idFlag = id
 }

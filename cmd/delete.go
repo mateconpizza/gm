@@ -32,7 +32,7 @@ var deleteCmd = &cobra.Command{
 		}
 
 		q := args[0]
-		bs, err := r.GetRecordsByQuery(q, constants.DBMainTableName)
+		bs, err := r.GetRecordsByQuery(constants.DBMainTableName, q)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -68,17 +68,16 @@ var deleteCmd = &cobra.Command{
 			return fmt.Errorf("%w", errs.ErrActionAborted)
 		}
 
-		err = r.DeleteRecordsBulk("bookmarks", ids)
+		err = r.DeleteRecordsBulk(constants.DBMainTableName, ids)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		fmt.Print("reordering ids...")
-		err = r.ReorderIDs()
+		err = r.ReorderIDs(constants.DBMainTableName)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		fmt.Printf("%sdone%s\n", color.Green, color.Reset)
+
 		return nil
 	},
 }

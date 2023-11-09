@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"gomarks/pkg/bookmark"
+	"gomarks/pkg/constants"
 	"gomarks/pkg/errs"
 
 	"github.com/spf13/cobra"
@@ -45,7 +46,7 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		b, err := r.GetRecordByID(id, "bookmarks")
+		b, err := r.GetRecordByID(constants.DBMainTableName, id)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -55,7 +56,7 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if _, err := r.UpdateRecord(b, "bookmarks"); err != nil {
+		if _, err := r.UpdateRecord(constants.DBMainTableName, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

@@ -31,12 +31,12 @@ var newCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		util.CmdTitle("adding a new bookmark")
+		cmdTitle("adding a new bookmark")
 
 		url := handleURL(&args)
 
-		if r.RecordExists(url, "bookmarks") {
-			b, _ := r.GetRecordByURL(url, "bookmarks")
+		if r.RecordExists(constants.DBMainTableName, url) {
+			b, _ := r.GetRecordByURL(constants.DBMainTableName, url)
 			return fmt.Errorf("%w with id: %d", errs.ErrBookmarkDuplicate, b.ID)
 		}
 
@@ -55,14 +55,14 @@ var newCmd = &cobra.Command{
 			return fmt.Errorf("%w", errs.ErrBookmarkInvalid)
 		}
 
-		fmt.Print("\nSaving bookmark...")
+		fmt.Printf("\n%s%sNew bookmark saved with id: ", color.Bold, color.Green)
 
-		b, err = r.InsertRecord(b, "bookmarks")
+		b, err = r.InsertRecord(constants.DBMainTableName, b)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		fmt.Printf("with id: %d\n", b.ID)
+		fmt.Printf("%d%s\n", b.ID, color.Reset)
 
 		return nil
 	},
