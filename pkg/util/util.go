@@ -10,8 +10,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
@@ -231,7 +233,23 @@ func TakeInput(prompt string) string {
 	return strings.Trim(s, "\n")
 }
 
-func ConfirmChanges(q string) bool {
+func HandleInterrupt() <-chan struct{} {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		<-interrupt
+		fmt.Println("\nReceived interrupt. Quitting...")
+		os.Exit(1)
+	}()
+
+	return done
+}
+
+func Confirm(question string) bool {
 	prompt := fmt.Sprintf(
 		"\n%s%s%s %s[y/N]:%s ",
 		color.Bold,
