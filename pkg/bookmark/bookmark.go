@@ -197,8 +197,8 @@ var InitBookmark = Bookmark{
 	},
 }
 
-func ToJSON(b *Slice) string {
-	jsonData, err := json.MarshalIndent(b, "", "  ")
+func ToJSON(data interface{}) string {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		log.Fatal("Error marshaling to JSON:", err)
 	}

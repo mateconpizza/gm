@@ -13,7 +13,7 @@ full: fmt vet lint test build
 
 build: vet test
 	@echo '>> Building $(NAME)'
-	go build -o $(BIN) $(SRC)
+	go build -ldflags "-s -w" -o $(BIN) $(SRC)
 	@echo
 
 beta: vet test
