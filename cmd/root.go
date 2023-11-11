@@ -4,6 +4,7 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"gomarks/pkg/actions"
@@ -40,19 +41,21 @@ var rootCmd = &cobra.Command{
 		}
 
 		if Menu != nil {
-			var b bookmark.Bookmark
+			var b *bookmark.Bookmark
 			b, err = display.SelectBookmark(Menu, bs)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			bs = &bookmark.Slice{b}
+			bs = &bookmark.Slice{*b} // FIX: after selecting from query, work with a single bookmark
 		}
 
 		if err := actions.HandleFormat("pretty", bs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		util.CopyToClipboard((*bs)[0].URL)
+		util.CopyToClipboard(
+			(*bs)[0].URL,
+		) // FIX: after selecting from query, work with a single bookmark
 
 		return nil
 	},
@@ -79,6 +82,10 @@ func init() {
 }
 
 func initConfig() {
+	var err error
 	util.SetLogLevel(&Verbose)
-	Menu = handleMenu()
+	Menu, err = handleMenu()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

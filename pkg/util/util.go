@@ -54,7 +54,7 @@ func GetDBPath() string {
 	return s
 }
 
-func SetupHomeProject() string {
+func SetupHomeProject() (string, error) {
 	const directoryPermissions = 0o755
 
 	appHome := GetAppHome()
@@ -63,12 +63,12 @@ func SetupHomeProject() string {
 		log.Println("Creating AppHome:", appHome)
 		err := os.Mkdir(appHome, directoryPermissions)
 		if err != nil {
-			log.Fatal(err)
+			return "", fmt.Errorf("error creating AppHome: %w", err)
 		}
 	}
 
 	log.Println("AppHome already exists:", appHome)
-	return appHome
+	return appHome, nil
 }
 
 func IsSelectedTextInItems(s string, items []string) bool {
@@ -171,27 +171,18 @@ func BinaryExists(binaryName string) bool {
 	return err == nil
 }
 
-func ReadContentFile(file *os.File) []byte {
+func ReadContentFile(file *os.File) ([]byte, error) {
 	tempFileName := file.Name()
 	content, err := os.ReadFile(tempFileName)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	return content
+	return content, nil
 }
 
 func IsSameContentBytes(a, b []byte) bool {
 	return bytes.Equal(a, b)
-}
-
-func PrintErrMsg(m error, verbose bool) {
-	if verbose {
-		log.Fatal(m)
-	}
-
-	fmt.Printf("%s: %s\n", constants.AppName, m.Error())
-	os.Exit(1)
 }
 
 func IsEmptyLine(line string) bool {

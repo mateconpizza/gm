@@ -69,17 +69,22 @@ func getDB() (*database.SQLiteRepository, error) {
 	return r, nil
 }
 
-func handleMenu() *menu.Menu {
+func handleMenu() (*menu.Menu, error) {
 	menuName, err := rootCmd.Flags().GetString("menu")
 	if err != nil {
 		fmt.Println("err on getting menu:", err)
 	}
 
 	if menuName == "" {
-		return nil
+		return nil, nil
 	}
 
-	return menu.New(menuName)
+	m, err := menu.New(menuName)
+	if err != nil {
+		return nil, fmt.Errorf("error creating menu: %w", err)
+	}
+
+	return m, nil
 }
 
 func handleQuery(args []string) string {

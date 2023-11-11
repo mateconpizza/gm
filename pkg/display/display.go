@@ -11,76 +11,7 @@ import (
 	"gomarks/pkg/util"
 )
 
-/* func AddBookmark(r *db.SQLiteRepository, m *menu.Menu) (bm.Bookmark, error) {
-	currentTime := time.Now()
-	currentTimeString := currentTime.Format("2006-01-02 15:04:05")
-
-	m.UpdatePrompt("Enter URL:")
-	url, err := m.Run("")
-	if err != nil {
-		return bm.Bookmark{}, err
-	}
-
-	m.UpdatePrompt("Enter tags:")
-	tags, err := m.Run("")
-	if err != nil {
-		return bm.Bookmark{}, err
-	}
-
-	s, err := scrape.TitleAndDescription(url)
-	if err != nil {
-		return bm.Bookmark{}, err
-	}
-
-	b, err := r.InsertRecord(&bm.Bookmark{
-		ID:         0,
-		URL:        url,
-		Title:      bm.NullString{NullString: sql.NullString{String: s.Title, Valid: true}},
-		Tags:       tags,
-		Desc:       bm.NullString{NullString: sql.NullString{String: s.Description, Valid: true}},
-		Created_at: currentTimeString,
-	}, c.DBMainTableName)
-	if err != nil {
-		return bm.Bookmark{}, err
-	}
-	return b, nil
-} */
-
-/* func EditBookmark(r *db.SQLiteRepository, m *menu.Menu, b *bm.Bookmark) (bm.Bookmark, error) {
-	m.UpdatePrompt(fmt.Sprintf("Editing ID: %d", b.ID))
-	s, err := m.Run(b.String())
-	if err != nil {
-		return bm.Bookmark{}, err
-	}
-	fmt.Println(s)
-	return *b, nil
-} */
-
-/* func DeleteBookmark(r *database.SQLiteRepository, m *menu.Menu, b *bookmark.Bookmark) error {
-	msg := fmt.Sprintf("Deleting bookmark: %s", b.URL)
-	if !m.Confirm(msg, "Are you sure?") {
-		return errs.ErrActionAborted
-	}
-
-	err := r.DeleteRecord(b, constants.DBMainTableName)
-	if err != nil {
-		return fmt.Errorf("%w: deleting record with menu", err)
-	}
-
-	_, err = r.InsertRecord(b, constants.DBDeletedTableName)
-	if err != nil {
-		return fmt.Errorf("%w: deleting and inserting record", err)
-	}
-
-	err = r.ReorderIDs()
-	if err != nil {
-		return fmt.Errorf("%w: reordering Ids after deletion", err)
-	}
-
-	return nil
-} */
-
-func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (bookmark.Bookmark, error) {
+func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (*bookmark.Bookmark, error) {
 	maxLen := 80
 	itemsText := make([]string, 0, len(*bookmarks))
 
@@ -102,7 +33,7 @@ func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (bookmark.Bookmark,
 
 	output, err := m.Run(itemsString)
 	if err != nil {
-		log.Fatal(err)
+		return &bookmark.Bookmark{}, fmt.Errorf("error running menu: %w", err)
 	}
 
 	selectedStr := strings.Trim(output, "\n")
@@ -112,8 +43,8 @@ func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (bookmark.Bookmark,
 		b := (*bookmarks)[index]
 		log.Printf("Selected bookmark:\n%+v", b)
 
-		return b, nil
+		return &b, nil
 	}
 
-	return bookmark.Bookmark{}, fmt.Errorf("%w: '%s'", errs.ErrItemNotFound, selectedStr)
+	return &bookmark.Bookmark{}, fmt.Errorf("%w: '%s'", errs.ErrItemNotFound, selectedStr)
 }

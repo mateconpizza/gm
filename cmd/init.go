@@ -25,19 +25,22 @@ var initCmd = &cobra.Command{
 		r, err := database.GetDB()
 
 		if errors.Is(err, errs.ErrDBNotFound) {
-			home := util.SetupHomeProject()
+			home, err := util.SetupHomeProject()
+			if err != nil {
+				return fmt.Errorf("creating home: %w", err)
+			}
 			fmt.Printf("%sdatabase%s created at:%s", color.Bold, home, color.Reset)
 			r.InitDB()
 		}
 
 		bs, err := r.GetRecordsAll(constants.DBMainTableName)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("getting records: %w", err)
 		}
 
 		err = actions.HandleFormat("pretty", bs)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("formatting: %w", err)
 		}
 
 		return nil

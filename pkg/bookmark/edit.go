@@ -73,7 +73,10 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 		return b, fmt.Errorf("bookmark edition: %w", err)
 	}
 
-	editedContent := util.ReadContentFile(tf)
+	editedContent, err := util.ReadContentFile(tf)
+	if err != nil {
+		return b, fmt.Errorf("bookmark edition: %w", err)
+	}
 	tempContent := strings.Split(string(editedContent), "\n")
 
 	if err := validateContent(tempContent); err != nil {

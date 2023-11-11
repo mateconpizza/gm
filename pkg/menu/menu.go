@@ -11,15 +11,15 @@ import (
 	"gomarks/pkg/util"
 )
 
-func New(s string) *Menu {
+func New(s string) (*Menu, error) {
 	mc := make(menuCollection)
 	mc.load()
 	menu, err := mc.get(s)
 	if err != nil {
-		log.Fatalf("Error: %v\n", err)
+		return nil, fmt.Errorf("error creating menu: %w", err)
 	}
 
-	return &menu
+	return &menu, nil
 }
 
 type option struct {
