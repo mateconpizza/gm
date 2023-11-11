@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 
-	"gomarks/pkg/actions"
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/display"
@@ -18,9 +17,10 @@ import (
 )
 
 var (
+	Bookmarks *bookmark.Slice
 	Menu      *menu.Menu
 	Verbose   bool
-	Bookmarks *bookmark.Slice
+	Format    string
 )
 
 var rootCmd = &cobra.Command{
@@ -49,13 +49,12 @@ var rootCmd = &cobra.Command{
 			bs = &bookmark.Slice{*b} // FIX: after selecting from query, work with a single bookmark
 		}
 
-		if err := actions.HandleFormat("pretty", bs); err != nil {
-			return fmt.Errorf("%w", err)
+		if err := bookmark.Format(Format, bs); err != nil {
+			return fmt.Errorf("formatting in root: %w", err)
 		}
 
-		util.CopyToClipboard(
-			(*bs)[0].URL,
-		) // FIX: after selecting from query, work with a single bookmark
+		// FIX: after selecting from query, work with a single bookmark
+		util.CopyToClipboard((*bs)[0].URL)
 
 		return nil
 	},
@@ -69,9 +68,11 @@ func Execute() {
 }
 
 func init() {
+	// WIP: add tail and head flags
 	var copyFlag bool
 	var menuFlag string
 	var queryFlag string
+	var jsonFlag bool
 
 	cobra.OnInitialize(initConfig)
 
@@ -79,12 +80,19 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&copyFlag, "copy", "c", true, "copy to system clipboard")
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu | rofi]")
+	rootCmd.PersistentFlags().BoolVarP(&jsonFlag, "json", "j", false, "json output")
 }
 
 func initConfig() {
 	var err error
 	util.SetLogLevel(&Verbose)
+
 	Menu, err = handleMenu()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	Format, err = handleFormatOutput()
 	if err != nil {
 		log.Fatal(err)
 	}

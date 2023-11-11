@@ -10,8 +10,6 @@ import (
 
 	"gomarks/pkg/color"
 	"gomarks/pkg/util"
-
-	"github.com/atotto/clipboard"
 )
 
 type Slice []Bookmark
@@ -45,21 +43,12 @@ type Bookmark struct {
 	ID        int        `json:"id"         db:"id"`
 }
 
-func (b *Bookmark) CopyToClipboard() {
-	err := clipboard.WriteAll(b.URL)
-	if err != nil {
-		log.Fatalf("Error copying to clipboard: %v", err)
-	}
-
-	log.Print("Text copied to clipboard:", b.URL)
-}
-
 func (b *Bookmark) prettyString() string {
-	// FIX: DRY
 	maxLen := 80
+	url := util.ShortenString(b.URL, maxLen)
 	title := util.SplitAndAlignString(b.Title.String, maxLen)
 	s := util.FormatTitleLine(b.ID, title, color.Purple)
-	s += util.FormatLine("\t+ ", b.URL, color.Blue)
+	s += util.FormatLine("\t+ ", url, color.Blue)
 	s += util.FormatLine("\t+ ", b.Tags, color.Gray)
 
 	if b.Desc.String != "" {
@@ -73,11 +62,11 @@ func (b *Bookmark) prettyString() string {
 }
 
 func (b *Bookmark) PlainString() string {
-	// FIX: DRY
 	maxLen := 80
+	url := util.ShortenString(b.URL, maxLen)
 	title := util.SplitAndAlignString(b.Title.String, maxLen)
 	s := util.FormatTitleLine(b.ID, title, "")
-	s += util.FormatLine("\t+ ", b.URL, "")
+	s += util.FormatLine("\t+ ", url, "")
 	s += util.FormatLine("\t+ ", b.Tags, "")
 
 	if b.Desc.String != "" {
@@ -89,7 +78,7 @@ func (b *Bookmark) PlainString() string {
 }
 
 func (b *Bookmark) String() string {
-	return b.PlainString()
+	return b.prettyString()
 }
 
 func (b *Bookmark) PrettyColorString() string {
@@ -195,17 +184,6 @@ var InitBookmark = Bookmark{
 			Valid:  true,
 		},
 	},
-}
-
-func ToJSON(data interface{}) string {
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		log.Fatal("Error marshaling to JSON:", err)
-	}
-
-	jsonString := string(jsonData)
-
-	return jsonString
 }
 
 func Create(url, title, tags, desc string) *Bookmark {

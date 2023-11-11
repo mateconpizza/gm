@@ -12,30 +12,6 @@ import (
 	"gomarks/pkg/menu"
 )
 
-func QueryAndList(
-	r *database.SQLiteRepository,
-	byQuery string,
-	listFlag bool,
-	tableName string,
-) (*bookmark.Slice, error) {
-	var bs *bookmark.Slice
-	var err error
-
-	if listFlag {
-		if bs, err = r.GetRecordsAll(tableName); err != nil {
-			return nil, fmt.Errorf("%w: on applying query and list", err)
-		}
-	}
-
-	if byQuery != "" {
-		if bs, err = r.GetRecordsByQuery(tableName, byQuery); err != nil {
-			return nil, fmt.Errorf("%w: on applying query and list", err)
-		}
-	}
-
-	return bs, nil
-}
-
 func HeadAndTail(bs *bookmark.Slice, head, tail int) error {
 	// FIX: DRY with 'no bookmarks selected'
 	if head > 0 {
@@ -57,24 +33,6 @@ func HeadAndTail(bs *bookmark.Slice, head, tail int) error {
 	}
 
 	return nil
-}
-
-func RetrieveBookmarks(
-	r *database.SQLiteRepository,
-	tableName *string,
-	byQuery *string,
-	id int,
-	listFlag *bool,
-) (*bookmark.Slice, error) {
-	if id != 0 {
-		b, err := r.GetRecordByID(*tableName, id)
-		if err != nil {
-			return nil, fmt.Errorf("%w (retrieving bookmarks)", err)
-		}
-		return &bookmark.Slice{*b}, nil
-	}
-
-	return QueryAndList(r, *byQuery, *listFlag, *tableName)
 }
 
 func HandleFormat(f string, bs *bookmark.Slice) error {
@@ -177,28 +135,6 @@ func HandleEdit(r *database.SQLiteRepository, bs *bookmark.Slice, tableName stri
 	}
 
 	return nil
-}
-
-func HandleAction(bmarks *bookmark.Slice, c, o bool) error {
-	if len(*bmarks) == 0 {
-		return errs.ErrBookmarkNotFound
-	}
-
-	if c {
-		(*bmarks)[0].CopyToClipboard()
-	}
-
-	if o {
-		fmt.Println("Not implemented yet")
-		fmt.Println((*bmarks)[0])
-	}
-
-	return nil
-}
-
-func HandleAdd(r *database.SQLiteRepository, url, tableName string) (*bookmark.Slice, error) {
-	fmt.Println("not implemented yet")
-	return &bookmark.Slice{}, nil
 }
 
 func SelectBookmark(bs *bookmark.Slice) (*bookmark.Bookmark, error) {

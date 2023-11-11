@@ -97,6 +97,19 @@ func handleQuery(args []string) string {
 	return query
 }
 
+func handleFormatOutput() (string, error) {
+	json, err := rootCmd.Flags().GetBool("json")
+	if err != nil {
+		return "", fmt.Errorf("error getting json flag: %w", err)
+	}
+
+	if json {
+		return "json", nil
+	}
+
+	return "pretty", nil
+}
+
 func checkInitDB(_ *cobra.Command, _ []string) error {
 	if _, err := getDB(); err != nil {
 		if errors.Is(err, errs.ErrDBNotFound) {
