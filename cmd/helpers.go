@@ -1,14 +1,18 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/database"
+	"gomarks/pkg/errs"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
+
+	"github.com/spf13/cobra"
 )
 
 type Formatter interface {
@@ -86,4 +90,15 @@ func handleQuery(args []string) string {
 		query = args[0]
 	}
 	return query
+}
+
+func checkInitDB(_ *cobra.Command, _ []string) error {
+	if _, err := getDB(); err != nil {
+		if errors.Is(err, errs.ErrDBNotFound) {
+			return fmt.Errorf("%w: use 'init' to initialise a new database", errs.ErrDBNotFound)
+		}
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }

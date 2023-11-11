@@ -3,7 +3,6 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 */package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -11,7 +10,6 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/display"
-	"gomarks/pkg/errs"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
 
@@ -83,15 +81,4 @@ func init() {
 func initConfig() {
 	util.SetLogLevel(&Verbose)
 	Menu = handleMenu()
-}
-
-func checkInitDB(_ *cobra.Command, _ []string) error {
-	if _, err := getDB(); err != nil {
-		if errors.Is(err, errs.ErrDBNotFound) {
-			return fmt.Errorf("%w: use 'init' to initialise a new database", errs.ErrDBNotFound)
-		}
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
 }
