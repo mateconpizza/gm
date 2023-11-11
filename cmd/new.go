@@ -3,7 +3,10 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 */package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
@@ -46,9 +49,15 @@ var newCmd = &cobra.Command{
 
 		b := bookmark.Create(url, title, tags, desc)
 
-		confirm := util.Confirm("Save bookmark?")
-		if !confirm {
+		option := ConfirmOrEdit("Save bookmark?")
+		switch option {
+		case "n":
 			return fmt.Errorf("%w", errs.ErrActionAborted)
+		case "e":
+			b, err = bookmark.Edit(b)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
 		}
 
 		if !b.IsValid() {
@@ -162,4 +171,42 @@ func handleDesc(url string) string {
 	)
 	fmt.Println(titlePrompt)
 	return desc
+}
+
+func ConfirmOrEdit(question string) string {
+	prompt := fmt.Sprintf(
+		"\n%s%s%s %s[Yes/No/Edit]:%s ",
+		color.Bold,
+		question,
+		color.Reset,
+		color.Gray,
+		color.Reset,
+	)
+
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Print(prompt)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			return ""
+		}
+
+		input = strings.TrimSpace(input)
+		input = strings.ToLower(input)
+
+		switch input {
+		case "y", "yes":
+			return "y"
+		case "n", "no":
+			return "n"
+		case "e", "edit":
+			return "e"
+		case "":
+			return "n"
+		default:
+			fmt.Println("Invalid response. Please enter 'y' or 'n' or 'e'.")
+		}
+	}
 }

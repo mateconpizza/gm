@@ -6,12 +6,13 @@ import (
 )
 
 const (
-	DBName             string = "bookmarks.db"
-	DBMainTableName    string = "bookmarks"
-	DBDeletedTableName string = "deleted_bookmarks"
-	DBTempTableName    string = "temp_bookmarks"
 	AppName            string = "gomarks"
 	BulletPoint        string = "\u2022"
+	DBDeletedTableName string = "deleted_bookmarks"
+	DBMainTableName    string = "bookmarks"
+	DBName             string = "bookmarks.db"
+	DBTempTableName    string = "temp_bookmarks"
+	VarEditor          string = "GOMARKS_EDITOR"
 	Version            string = "0.0.2"
 )
 

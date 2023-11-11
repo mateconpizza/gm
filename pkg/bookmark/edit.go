@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"gomarks/pkg/constants"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
@@ -65,17 +66,17 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 
 	editor, err := getEditor()
 	if err != nil {
-		return b, fmt.Errorf("bookmark edition: %w", err)
+		return b, fmt.Errorf("%w", err)
 	}
 
 	err = editFile(editor, tf)
 	if err != nil {
-		return b, fmt.Errorf("bookmark edition: %w", err)
+		return b, fmt.Errorf("%w", err)
 	}
 
 	editedContent, err := util.ReadContentFile(tf)
 	if err != nil {
-		return b, fmt.Errorf("bookmark edition: %w", err)
+		return b, fmt.Errorf("%w", err)
 	}
 	tempContent := strings.Split(string(editedContent), "\n")
 
@@ -86,7 +87,7 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	cleanupTempFile(tf.Name())
 
 	if util.IsSameContentBytes(data, editedContent) {
-		return b, fmt.Errorf("bookmark edition: %w", errs.ErrBookmarkUnchaged)
+		return b, fmt.Errorf("%w", errs.ErrBookmarkUnchaged)
 	}
 
 	tb := parseTempBookmark(tempContent)
@@ -109,7 +110,7 @@ func saveDataToTempFile(file *os.File, data []byte) *os.File {
 
 func createTempFile() *os.File {
 	tempDir := "/tmp/"
-	prefix := "gomarks-"
+	prefix := fmt.Sprintf("%s-", constants.AppName)
 
 	tempFile, err := os.CreateTemp(tempDir, prefix)
 	if err != nil {
@@ -188,10 +189,10 @@ func editFile(editor string, file *os.File) error {
 }
 
 func getEditor() (string, error) {
-	gomarksEditor := os.Getenv("GOMARKS_EDITOR")
-	if gomarksEditor != "" {
-		log.Printf("$GOMARKS_EDITOR set to %s", gomarksEditor)
-		return gomarksEditor, nil
+	appEditor := os.Getenv(constants.VarEditor)
+	if appEditor != "" {
+		log.Printf("$%s set to %s", constants.VarEditor, appEditor)
+		return appEditor, nil
 	}
 
 	editor := os.Getenv("EDITOR")

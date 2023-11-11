@@ -28,7 +28,7 @@ func parseSliceDel(bs bookmark.Slice) ([]int, error) {
 
 		confirm := util.Confirm(fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len()))
 
-		if confirm {
+		if toDel.Len() > 1 && confirm {
 			fmt.Printf("%sAdded to delete queue%s\n", color.Red, color.Reset)
 			toDel = append(toDel, b)
 		}
@@ -39,13 +39,15 @@ func parseSliceDel(bs bookmark.Slice) ([]int, error) {
 		return nil, fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
 	}
 
-	fmt.Printf("%s%sBookmarks to delete:%s\n", color.Bold, color.Red, color.Reset)
-	for _, b := range toDel {
-		fmt.Printf("\t+ [%d] %s\n", b.ID, b.URL)
-	}
+	if toDel.Len() > 1 {
+		fmt.Printf("%s%sBookmarks to delete:%s\n", color.Bold, color.Red, color.Reset)
+		for _, b := range toDel {
+			fmt.Printf("\t+ [%d] %s\n", b.ID, b.URL)
+		}
 
-	if confirm := util.Confirm(fmt.Sprintf("Deleting [%d] bookmark/s, are you sure?", toDel.Len())); !confirm {
-		return nil, fmt.Errorf("%w", errs.ErrActionAborted)
+		if confirm := util.Confirm(fmt.Sprintf("Deleting [%d] bookmark/s, are you sure?", toDel.Len())); !confirm {
+			return nil, fmt.Errorf("%w", errs.ErrActionAborted)
+		}
 	}
 
 	return toDel.IDs(), nil
@@ -74,22 +76,22 @@ var deleteCmd = &cobra.Command{
 		q := args[0]
 		bs, err := r.GetRecordsByQuery(constants.DBMainTableName, q)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("getting records by query '%s': %w", q, err)
 		}
 
 		fmt.Printf("%s%s[%d] bookmarks found%s\n\n", color.Bold, color.Red, bs.Len(), color.Reset)
 
 		toDel, err := parseSliceDel(*bs)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("parsing slice: %w", err)
 		}
 
 		if err = r.DeleteRecordsBulk(constants.DBMainTableName, toDel); err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("deleting records in bulk: %w", err)
 		}
 
 		if err := r.ReorderIDs(constants.DBMainTableName); err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("reordering ids: %w", err)
 		}
 
 		return nil
