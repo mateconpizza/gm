@@ -30,7 +30,7 @@ func (bf *BookmarkFormatter) Format() string {
 		"%-4d %-*s %-10s",
 		bf.Bookmark.ID,
 		bf.MaxLen,
-		util.ShortenString(bf.Bookmark.Title.String, bf.MaxLen),
+		util.ShortenString(bf.Bookmark.Title, bf.MaxLen),
 		bf.Bookmark.Tags,
 	)
 	return s

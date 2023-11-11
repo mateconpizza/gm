@@ -178,7 +178,7 @@ func (r *SQLiteRepository) UpdateRecord(
 		tableName,
 	)
 
-	_, err := r.DB.Exec(sqlQuery, b.URL, b.Title.String, b.Tags, b.Desc.String, b.CreatedAt, b.ID)
+	_, err := r.DB.Exec(sqlQuery, b.URL, b.Title, b.Tags, b.Desc, b.CreatedAt, b.ID)
 	if err != nil {
 		return b, fmt.Errorf("%w: %w", errs.ErrRecordUpdate, err)
 	}

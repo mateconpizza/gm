@@ -46,12 +46,10 @@ func teardownTestDB(db *sql.DB) {
 
 func getValidBookmark() bookmark.Bookmark {
 	return bookmark.Bookmark{
-		URL:   "https://www.example.com",
-		Title: bookmark.NullString{NullString: sql.NullString{String: "Title", Valid: true}},
-		Tags:  "test,testme,go",
-		Desc: bookmark.NullString{
-			NullString: sql.NullString{String: "Description", Valid: true},
-		},
+		URL:       "https://www.example.com",
+		Title:     "Title",
+		Tags:      "test,testme,go",
+		Desc:      "Description",
 		CreatedAt: "2023-01-01 12:00:00",
 	}
 }
@@ -110,12 +108,10 @@ func TestInsertRecord(t *testing.T) {
 
 	// Insert a valid record
 	b := &bookmark.Bookmark{
-		URL:   "https://example.com",
-		Title: bookmark.NullString{NullString: sql.NullString{String: "Title", Valid: true}},
-		Tags:  "test",
-		Desc: bookmark.NullString{
-			NullString: sql.NullString{String: "Description", Valid: true},
-		},
+		URL:       "https://example.com",
+		Title:     "Title",
+		Tags:      "test",
+		Desc:      "Description",
 		CreatedAt: "2023-01-01 12:00:00",
 	}
 
@@ -313,36 +309,24 @@ func TestInsertRecordsBulk(t *testing.T) {
 	// Crear una lista de marcadores de posición de prueba
 	bookmarks := bookmark.Slice{
 		{
-			URL: "url1",
-			Title: bookmark.NullString{
-				NullString: sql.NullString{String: "title1", Valid: true},
-			},
-			Tags: "tag1",
-			Desc: bookmark.NullString{
-				NullString: sql.NullString{String: "desc1", Valid: true},
-			},
+			URL:       "url1",
+			Title:     "title1",
+			Tags:      "tag1",
+			Desc:      "desc1",
 			CreatedAt: "2023-01-01 12:00:00",
 		},
 		{
-			URL: "url2",
-			Title: bookmark.NullString{
-				NullString: sql.NullString{String: "title2", Valid: true},
-			},
-			Tags: "tag2",
-			Desc: bookmark.NullString{
-				NullString: sql.NullString{String: "desc2", Valid: true},
-			},
+			URL:       "url2",
+			Title:     "title2",
+			Tags:      "tag2",
+			Desc:      "desc2",
 			CreatedAt: "2023-01-01 12:00:00",
 		},
 		{
-			URL: "url3",
-			Title: bookmark.NullString{
-				NullString: sql.NullString{String: "title2", Valid: true},
-			},
-			Tags: "tag3",
-			Desc: bookmark.NullString{
-				NullString: sql.NullString{String: "desc2", Valid: true},
-			},
+			URL:       "url3",
+			Title:     "title2",
+			Tags:      "tag3",
+			Desc:      "desc2",
 			CreatedAt: "2023-01-01 12:00:00",
 		},
 	}
@@ -385,7 +369,7 @@ func TestRenameTable(t *testing.T) {
 
 func TestBookmarkIsValid(t *testing.T) {
 	validBookmark := bookmark.Bookmark{
-		Title: bookmark.NullString{NullString: sql.NullString{String: "Example", Valid: true}},
+		Title: "Example",
 		URL:   "https://www.example.com",
 		Tags:  "tag1,tag2",
 	}
@@ -395,7 +379,7 @@ func TestBookmarkIsValid(t *testing.T) {
 	}
 
 	invalidBookmark := bookmark.Bookmark{
-		Title: bookmark.NullString{NullString: sql.NullString{String: "", Valid: false}},
+		Title: "",
 		URL:   "",
 	}
 

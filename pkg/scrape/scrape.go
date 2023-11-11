@@ -72,11 +72,11 @@ func GetDescription(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return "No description available", fmt.Errorf("%w: visiting and scraping URL", err)
+		return "No description available (Unfiled)", fmt.Errorf("%w: visiting and scraping URL", err)
 	}
 
 	if description == "" {
-		return "No description available", nil
+		return "No description available (Unfiled)", nil
 	}
 
 	return description, nil

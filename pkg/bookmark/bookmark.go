@@ -2,8 +2,6 @@ package bookmark
 
 import (
 	"bytes"
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -35,24 +33,24 @@ func (bs *Slice) IDs() []int {
 
 // https://medium.com/@raymondhartoyo/one-simple-way-to-handle-null-database-value-in-golang-86437ec75089
 type Bookmark struct {
-	CreatedAt string     `json:"created_at" db:"created_at"`
-	URL       string     `json:"url"        db:"url"`
-	Tags      string     `json:"tags"       db:"tags"`
-	Title     NullString `json:"title"      db:"title"`
-	Desc      NullString `json:"desc"       db:"desc"`
-	ID        int        `json:"id"         db:"id"`
+	CreatedAt string `json:"created_at" db:"created_at"`
+	URL       string `json:"url"        db:"url"`
+	Tags      string `json:"tags"       db:"tags"`
+	Title     string `json:"title"      db:"title"`
+	Desc      string `json:"desc"       db:"desc"`
+	ID        int    `json:"id"         db:"id"`
 }
 
 func (b *Bookmark) prettyString() string {
 	maxLen := 80
 	url := util.ShortenString(b.URL, maxLen)
-	title := util.SplitAndAlignString(b.Title.String, maxLen)
+	title := util.SplitAndAlignString(b.Title, maxLen)
 	s := util.FormatTitleLine(b.ID, title, color.Purple)
 	s += util.FormatLine("\t+ ", url, color.Blue)
 	s += util.FormatLine("\t+ ", b.Tags, color.Gray)
 
-	if b.Desc.String != "" {
-		desc := util.SplitAndAlignString(b.Desc.String, maxLen)
+	if b.Desc != "" {
+		desc := util.SplitAndAlignString(b.Desc, maxLen)
 		s += util.FormatLine("\t+ ", desc, color.White)
 	} else {
 		s += util.FormatLine("\t+ ", "Untitled", color.White)
@@ -64,13 +62,13 @@ func (b *Bookmark) prettyString() string {
 func (b *Bookmark) PlainString() string {
 	maxLen := 80
 	url := util.ShortenString(b.URL, maxLen)
-	title := util.SplitAndAlignString(b.Title.String, maxLen)
+	title := util.SplitAndAlignString(b.Title, maxLen)
 	s := util.FormatTitleLine(b.ID, title, "")
 	s += util.FormatLine("\t+ ", url, "")
 	s += util.FormatLine("\t+ ", b.Tags, "")
 
-	if b.Desc.String != "" {
-		desc := util.SplitAndAlignString(b.Desc.String, maxLen)
+	if b.Desc != "" {
+		desc := util.SplitAndAlignString(b.Desc, maxLen)
 		s += util.FormatLine("\t+ ", desc, "")
 	}
 
@@ -90,13 +88,11 @@ func (b *Bookmark) setURL(url string) {
 }
 
 func (b *Bookmark) setTitle(title string) {
-	b.Title.String = title
-	b.Title.Valid = true
+	b.Title = title
 }
 
 func (b *Bookmark) setDesc(desc string) {
-	b.Desc.String = desc
-	b.Desc.Valid = true
+	b.Desc = desc
 }
 
 func (b *Bookmark) setTags(tags string) {
@@ -140,63 +136,25 @@ func (b *Bookmark) Buffer() []byte {
 ## description: (leave empty line for web fetch)
 %s
 ## end
-`, b.ID, b.URL, b.URL, b.Title.String, b.Tags, b.Desc.String))
+`, b.ID, b.URL, b.URL, b.Title, b.Tags, b.Desc))
 
 	return bytes.TrimRight(data, " ")
-}
-
-type NullString struct {
-	sql.NullString
-}
-
-func (s NullString) MarshalJSON() ([]byte, error) {
-	if !s.Valid {
-		return []byte("null"), nil
-	}
-
-	data, err := json.Marshal(s.String)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling NullString: %w", err)
-	}
-
-	return data, nil
-}
-
-func (s *NullString) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" {
-		s.String, s.Valid = "", false
-		return nil
-	}
-
-	s.String, s.Valid = string(data), true
-
-	return nil
 }
 
 var InitBookmark = Bookmark{
 	ID:    0,
 	URL:   "https://github.com/haaag/GoMarks#readme",
-	Title: NullString{NullString: sql.NullString{String: "GoMarks", Valid: true}},
+	Title: "Gomarks",
 	Tags:  "golang,awesome,bookmarks",
-	Desc: NullString{
-		sql.NullString{
-			String: "Makes accessing, adding, updating, and removing bookmarks easier",
-			Valid:  true,
-		},
-	},
+	Desc:  "Makes accessing, adding, updating, and removing bookmarks easier",
 }
 
 func Create(url, title, tags, desc string) *Bookmark {
 	return &Bookmark{
 		URL:   url,
-		Title: NullString{NullString: sql.NullString{String: title, Valid: true}},
+		Title: title,
 		Tags:  parseTags(tags),
-		Desc: NullString{
-			sql.NullString{
-				String: desc,
-				Valid:  true,
-			},
-		},
+		Desc:  desc,
 	}
 }
 

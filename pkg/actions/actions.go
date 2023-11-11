@@ -66,8 +66,8 @@ func PickAttribute(bs *bookmark.Slice, s string) error {
 		case "url":
 			fmt.Println(b.URL)
 		case "title":
-			if b.Title.String != "" {
-				fmt.Println(b.Title.String)
+			if b.Title != "" {
+				fmt.Println(b.Title)
 			}
 		case "tags":
 			fmt.Println(b.Tags)
