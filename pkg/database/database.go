@@ -42,18 +42,27 @@ func GetDB() (*SQLiteRepository, error) {
 	return r, nil
 }
 
-func (r *SQLiteRepository) InitDB() {
+func (r *SQLiteRepository) InitDB() error {
 	if err := r.createTable(constants.DBMainTableName); err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("%w", err)
 	}
 
 	if err := r.createTable(constants.DBDeletedTableName); err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("%w", err)
 	}
 
-	if _, err := r.InsertRecord(constants.DBMainTableName, &bookmark.InitBookmark); err != nil {
-		return
+	initialBookmark := bookmark.Create(
+		constants.AppURL,
+		constants.AppName,
+		constants.AppTags,
+		constants.AppDesc,
+	)
+
+	if _, err := r.InsertRecord(constants.DBMainTableName, initialBookmark); err != nil {
+		return fmt.Errorf("%w", err)
 	}
+
+	return nil
 }
 
 func (r *SQLiteRepository) dropTable(t string) error {
@@ -470,16 +479,16 @@ func (r *SQLiteRepository) renameTable(tempTable, mainTable string) error {
 	return nil
 }
 
-func (r *SQLiteRepository) createTable(s string) error {
-	log.Printf("Creating table: %s", s)
-	schema := fmt.Sprintf(constants.MainTableSchema, s)
+func (r *SQLiteRepository) createTable(name string) error {
+	log.Printf("Creating table: %s", name)
+	schema := fmt.Sprintf(constants.TableSchema, name)
 
 	_, err := r.DB.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("error creating table: %w", err)
 	}
 
-	log.Printf("created table: %s\n", s)
+	log.Printf("created table: %s\n", name)
 
 	return nil
 }

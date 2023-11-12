@@ -21,7 +21,7 @@ type tempBookmark struct {
 }
 
 func (t *tempBookmark) fetchTitleAndDescription() {
-	if t.title == "" {
+	if t.title == scrape.TitleDefault || t.title == "" {
 		title, err := scrape.GetTitle(t.url)
 		if err != nil {
 			log.Printf("Error on %s: %s\n", t.url, err)
@@ -29,7 +29,7 @@ func (t *tempBookmark) fetchTitleAndDescription() {
 		t.title = title
 	}
 
-	if t.desc == "" {
+	if t.desc == scrape.DescDefault || t.desc == "" {
 		description, err := scrape.GetDescription(t.url)
 		if err != nil {
 			log.Printf("Error on %s: %s\n", t.url, err)

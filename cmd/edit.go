@@ -58,7 +58,9 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		fmt.Println(b.String())
+		if err := bookmark.Format(Format, &bookmark.Slice{*b}); err != nil {
+			return fmt.Errorf("formatting in root: %w", err)
+		}
 
 		return nil
 	},

@@ -7,6 +7,11 @@ import (
 	"github.com/gocolly/colly"
 )
 
+const (
+	TitleDefault string = "Untitled"
+	DescDefault  string = "No description available"
+)
+
 func GetTitle(url string) (string, error) {
 	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
@@ -33,11 +38,11 @@ func GetTitle(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return "Untitled", fmt.Errorf("%w: visiting and scraping URL", err)
+		return TitleDefault, fmt.Errorf("%w: visiting and scraping URL", err)
 	}
 
 	if title == "" {
-		return "Untitled", nil
+		return TitleDefault, nil
 	}
 
 	return title, nil
@@ -72,11 +77,14 @@ func GetDescription(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return "No description available (Unfiled)", fmt.Errorf("%w: visiting and scraping URL", err)
+		return DescDefault, fmt.Errorf(
+			"%w: visiting and scraping URL",
+			err,
+		)
 	}
 
 	if description == "" {
-		return "No description available (Unfiled)", nil
+		return DescDefault, nil
 	}
 
 	return description, nil
