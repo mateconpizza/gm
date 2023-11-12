@@ -1,7 +1,6 @@
 /*
 Copyright © 2023 haaag <git.haaag@gmail.com>
-*/
-package cmd
+*/package cmd
 
 import (
 	"errors"
@@ -20,26 +19,34 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize a new bookmarks database and table",
-	Long:  "initialize a new bookmarks database and table",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		r, err := database.GetDB()
-
-		if errors.Is(err, errs.ErrDBNotFound) {
-			home, err := util.SetupHomeProject()
-			if err != nil {
-				return fmt.Errorf("creating home: %w", err)
-			}
-			fmt.Printf("%sdatabase%s created at:%s", color.Bold, home, color.Reset)
-			r.InitDB()
+		if !errors.Is(err, errs.ErrDBNotFound) {
+			return fmt.Errorf("initializing database: %w", err)
 		}
+
+		var home string
+		home, err = util.SetupHomeProject()
+		if err != nil {
+			return fmt.Errorf("creating home: %w", err)
+		}
+
+		if err = r.InitDB(); err != nil {
+			return fmt.Errorf("initializing database: %w", err)
+		}
+
+		// Print some info
+		fmt.Printf("%s v%s:\n", constants.AppName, constants.AppVersion)
+		fmt.Printf("  + app home created at: %s\n", util.Colorize(home, color.Yellow))
+		fmt.Printf("  + database '%s' initialized", util.Colorize(constants.DBName, color.Green))
+		fmt.Printf("  + creating %s bookmark\n\n", util.Colorize("initial", color.Purple))
 
 		bs, err := r.GetRecordsAll(constants.DBMainTableName)
 		if err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
 
-		err = actions.HandleFormat("pretty", bs)
-		if err != nil {
+		if err = actions.HandleFormat("pretty", bs); err != nil {
 			return fmt.Errorf("formatting: %w", err)
 		}
 

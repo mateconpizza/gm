@@ -284,3 +284,7 @@ func CopyToClipboard(s string) {
 
 	log.Print("Text copied to clipboard:", s)
 }
+
+func Colorize(s, c string) string {
+	return fmt.Sprintf("%s%s%s", c, s, color.Reset)
+}
