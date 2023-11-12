@@ -120,3 +120,12 @@ func checkInitDB(_ *cobra.Command, _ []string) error {
 
 	return nil
 }
+
+func handlePicker() (string, error) {
+	picker, err := rootCmd.Flags().GetString("pick")
+	if err != nil {
+		return "", fmt.Errorf("error getting picker flag: %w", err)
+	}
+
+	return picker, nil
+}

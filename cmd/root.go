@@ -18,9 +18,10 @@ import (
 
 var (
 	Bookmarks *bookmark.Slice
+	Format    string
 	Menu      *menu.Menu
 	Verbose   bool
-	Format    string
+	Picker    string
 )
 
 var rootCmd = &cobra.Command{
@@ -70,16 +71,19 @@ func Execute() {
 func init() {
 	// WIP: add tail and head flags
 	var copyFlag bool
+	var jsonFlag bool
 	var menuFlag string
 	var queryFlag string
-	var jsonFlag bool
+	var pickerFlag string
 
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.Flags().StringVarP(&queryFlag, "query", "", "", "query to filter bookmarks")
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&copyFlag, "copy", "c", true, "copy to system clipboard")
-	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu | rofi]")
+	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
+	rootCmd.PersistentFlags().
+		StringVarP(&pickerFlag, "pick", "p", "url", "pick oneline data [url|title|tags]")
 	rootCmd.PersistentFlags().BoolVarP(&jsonFlag, "json", "j", false, "json output")
 }
 
@@ -93,6 +97,11 @@ func initConfig() {
 	}
 
 	Format, err = handleFormatOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	Picker, err = handlePicker()
 	if err != nil {
 		log.Fatal(err)
 	}
