@@ -58,7 +58,7 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		fmt.Println(b.PrettyColorString())
+		fmt.Println(b.String())
 
 		return nil
 	},

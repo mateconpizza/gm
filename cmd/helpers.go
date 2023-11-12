@@ -37,7 +37,7 @@ func (bf *BookmarkFormatter) Format() string {
 }
 
 func (bf *BookmarkFormatter) Pretty() string {
-	return bf.Bookmark.PrettyColorString()
+	return bf.Bookmark.String()
 }
 
 func exampleUsage(l []string) string {

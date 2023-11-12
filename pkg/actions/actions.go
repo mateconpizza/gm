@@ -42,7 +42,7 @@ func HandleFormat(f string, bs *bookmark.Slice) error {
 		fmt.Println(j)
 	case "pretty":
 		for _, b := range *bs {
-			fmt.Println(b.PrettyColorString())
+			fmt.Println(b.String())
 		}
 		fmt.Printf("%stotal [%d]%s\n", color.Gray, bs.Len(), color.Reset)
 	case "plain":

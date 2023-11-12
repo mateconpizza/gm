@@ -24,7 +24,7 @@ func parseSliceDel(bs bookmark.Slice) ([]int, error) {
 	var toDel bookmark.Slice
 
 	for i, b := range bs {
-		fmt.Println(b.PrettyColorString())
+		fmt.Println(b.String())
 
 		confirm := util.Confirm(fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len()))
 
@@ -32,7 +32,7 @@ func parseSliceDel(bs bookmark.Slice) ([]int, error) {
 			fmt.Printf("%sAdded to delete queue%s\n", color.Red, color.Reset)
 			toDel = append(toDel, b)
 		}
-		fmt.Println("")
+		fmt.Println()
 	}
 
 	if toDel.Len() == 0 {

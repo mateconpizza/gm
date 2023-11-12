@@ -189,9 +189,9 @@ func editFile(editor string, file *os.File) error {
 }
 
 func getEditor() (string, error) {
-	appEditor := os.Getenv(constants.VarEditor)
+	appEditor := os.Getenv(constants.AppVarEditor)
 	if appEditor != "" {
-		log.Printf("$%s set to %s", constants.VarEditor, appEditor)
+		log.Printf("$%s set to %s", constants.AppVarEditor, appEditor)
 		return appEditor, nil
 	}
 

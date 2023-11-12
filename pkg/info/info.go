@@ -50,7 +50,7 @@ func getAppInfo() string {
 	s := FormatTitle("info", []string{
 		FormatBulletLine("name", constants.AppName),
 		FormatBulletLine("home", util.GetAppHome()),
-		FormatBulletLine("version", constants.Version),
+		FormatBulletLine("version", constants.AppVersion),
 	})
 
 	return s

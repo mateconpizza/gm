@@ -59,53 +59,15 @@ func (b *Bookmark) prettyString() string {
 	return s
 }
 
-func (b *Bookmark) PlainString() string {
-	maxLen := 80
-	url := util.ShortenString(b.URL, maxLen)
-	title := util.SplitAndAlignString(b.Title, maxLen)
-	s := util.FormatTitleLine(b.ID, title, "")
-	s += util.FormatLine("\t+ ", url, "")
-	s += util.FormatLine("\t+ ", b.Tags, "")
-
-	if b.Desc != "" {
-		desc := util.SplitAndAlignString(b.Desc, maxLen)
-		s += util.FormatLine("\t+ ", desc, "")
-	}
-
-	return s
-}
-
 func (b *Bookmark) String() string {
 	return b.prettyString()
 }
 
-func (b *Bookmark) PrettyColorString() string {
-	return b.prettyString()
-}
-
-func (b *Bookmark) setURL(url string) {
-	b.URL = url
-}
-
-func (b *Bookmark) setTitle(title string) {
-	b.Title = title
-}
-
-func (b *Bookmark) setDesc(desc string) {
-	b.Desc = desc
-}
-
-func (b *Bookmark) setTags(tags string) {
-	words := strings.Fields(tags)
-	strWithoutSpaces := strings.Join(words, "")
-	b.Tags = strWithoutSpaces
-}
-
 func (b *Bookmark) Update(url, title, tags, desc string) {
-	b.setURL(url)
-	b.setTitle(title)
-	b.setTags(tags)
-	b.setDesc(desc)
+	b.URL = url
+	b.Title = title
+	b.Tags = parseTags(tags)
+	b.Desc = desc
 }
 
 func (b *Bookmark) IsValid() bool {

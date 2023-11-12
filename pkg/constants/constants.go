@@ -6,19 +6,27 @@ import (
 )
 
 const (
-	AppName            string = "gomarks"
-	BulletPoint        string = "\u2022"
-	DBDeletedTableName string = "deleted_bookmarks"
-	DBMainTableName    string = "bookmarks"
 	DBName             string = "bookmarks.db"
+	DBMainTableName    string = "bookmarks"
+	DBDeletedTableName string = "deleted_bookmarks"
 	DBTempTableName    string = "temp_bookmarks"
-	VarEditor          string = "GOMARKS_EDITOR"
-	Version            string = "0.0.2"
+)
+
+const (
+	AppName      string = "gomarks"
+	AppURL       string = "https://github.com/haaag/GoMarks#readme"
+	AppTags      string = "golang,awesome,bookmarks"
+	AppDesc      string = "Simple yet powerful bookmark manager for your terminal"
+	AppVarEditor string = "GOMARKS_EDITOR"
+	AppVersion   string = "0.0.2"
 )
 
 var (
-	ConfigHome      = os.Getenv("XDG_CONFIG_HOME")
-	MainTableSchema = `
+	BulletPoint string = "\u2022"
+	ConfigHome  string = os.Getenv("XDG_CONFIG_HOME")
+)
+
+var TableSchema = `
     CREATE TABLE IF NOT EXISTS %s (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         url         TEXT    NOT NULL UNIQUE,
@@ -28,7 +36,6 @@ var (
         created_at  TIMESTAMP
     )
   `
-)
 
 var AppHelp = strings.TrimSpace(`
 Gomarks is a bookmark manager for your terminal.
