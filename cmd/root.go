@@ -20,8 +20,10 @@ var (
 	Bookmarks *bookmark.Slice
 	Format    string
 	Menu      *menu.Menu
-	Verbose   bool
 	Picker    string
+	Verbose   bool
+	headFlag  int
+	tailFlag  int
 )
 
 var rootCmd = &cobra.Command{
@@ -31,7 +33,7 @@ var rootCmd = &cobra.Command{
 	Args:         cobra.MaximumNArgs(1),
 	SilenceUsage: true,
 	PreRunE:      checkInitDB,
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		query := handleQuery(args)
 
 		r, _ := getDB()
@@ -50,6 +52,8 @@ var rootCmd = &cobra.Command{
 			bs = &bookmark.Slice{*b} // FIX: after selecting from query, work with a single bookmark
 		}
 
+		handleHeadAndTail(cmd, bs)
+
 		if err := bookmark.Format(Format, bs); err != nil {
 			return fmt.Errorf("formatting in root: %w", err)
 		}
@@ -64,33 +68,40 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
+		fmt.Printf("%s: %s\n", constants.AppName, err)
 		os.Exit(1)
 	}
 }
 
 func init() {
-	// WIP: add tail and head flags
-	var copyFlag bool
 	var jsonFlag bool
 	var menuFlag string
-	var queryFlag string
 	var pickerFlag string
+	var queryFlag string
 
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.Flags().StringVarP(&queryFlag, "query", "", "", "query to filter bookmarks")
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
-	rootCmd.PersistentFlags().BoolVarP(&copyFlag, "copy", "c", true, "copy to system clipboard")
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
-	rootCmd.PersistentFlags().
-		StringVarP(&pickerFlag, "pick", "p", "url", "pick oneline data [url|title|tags]")
 	rootCmd.PersistentFlags().BoolVarP(&jsonFlag, "json", "j", false, "json output")
+
+	rootCmd.PersistentFlags().
+		StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [url|title|tags]")
+
+	rootCmd.PersistentFlags().
+		IntVarP(&headFlag, "head", "H", 0, "output the <int> first part of bookmarks")
+
+	rootCmd.PersistentFlags().
+		IntVarP(&tailFlag, "tail", "T", 0, "output the <int> last part of bookmarks ")
+
+	rootCmd.SilenceErrors = true
 }
 
 func initConfig() {
-	var err error
 	util.SetLogLevel(&Verbose)
 
+	var err error
 	Menu, err = handleMenu()
 	if err != nil {
 		log.Fatal(err)

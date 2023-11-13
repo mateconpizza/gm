@@ -7,6 +7,7 @@ import (
 
 	"gomarks/pkg/color"
 	"gomarks/pkg/errs"
+	"gomarks/pkg/util"
 )
 
 func Format(f string, bs *Slice) error {
@@ -18,7 +19,8 @@ func Format(f string, bs *Slice) error {
 		for _, b := range *bs {
 			fmt.Println(b.String())
 		}
-		fmt.Printf("%stotal [%d]%s\n", color.Gray, bs.Len(), color.Reset)
+		total := util.Colorize(fmt.Sprintf("total [%d]", bs.Len()), color.Gray)
+		fmt.Println(total)
 	default:
 		return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, f)
 	}

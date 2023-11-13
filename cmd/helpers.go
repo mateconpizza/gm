@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
@@ -128,4 +129,19 @@ func handlePicker() (string, error) {
 	}
 
 	return picker, nil
+}
+
+func handleHeadAndTail(cmd *cobra.Command, bs *bookmark.Slice) {
+	head, _ := cmd.Flags().GetInt("head")
+	tail, _ := cmd.Flags().GetInt("tail")
+
+	if head > 0 {
+		head = int(math.Min(float64(head), float64(bs.Len())))
+		*bs = (*bs)[:head]
+	}
+
+	if tail > 0 {
+		tail = int(math.Min(float64(tail), float64(bs.Len())))
+		*bs = (*bs)[len(*bs)-tail:]
+	}
 }
