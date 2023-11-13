@@ -17,13 +17,12 @@ import (
 )
 
 var (
-	Bookmarks *bookmark.Slice
-	Format    string
-	Menu      *menu.Menu
-	Picker    string
-	Verbose   bool
-	headFlag  int
-	tailFlag  int
+	Menu       *menu.Menu
+	Verbose    bool
+	formatFlag string
+	headFlag   int
+	pickerFlag string
+	tailFlag   int
 )
 
 var rootCmd = &cobra.Command{
@@ -52,10 +51,16 @@ var rootCmd = &cobra.Command{
 			bs = &bookmark.Slice{*b} // FIX: after selecting from query, work with a single bookmark
 		}
 
-		handleHeadAndTail(cmd, bs)
+		if err := handleHeadAndTail(cmd, bs); err != nil {
+			return fmt.Errorf("%w", err)
+		}
 
-		if err := bookmark.Format(Format, bs); err != nil {
-			return fmt.Errorf("formatting in root: %w", err)
+		if err := handlePicker(cmd, bs); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		if err := handleFormat(cmd, bs); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		// FIX: after selecting from query, work with a single bookmark
@@ -74,20 +79,18 @@ func Execute() {
 }
 
 func init() {
-	var jsonFlag bool
 	var menuFlag string
-	var pickerFlag string
-	var queryFlag string
 
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.Flags().StringVarP(&queryFlag, "query", "", "", "query to filter bookmarks")
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
-	rootCmd.PersistentFlags().BoolVarP(&jsonFlag, "json", "j", false, "json output")
+
+	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
+	rootCmd.Flags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")
 
 	rootCmd.PersistentFlags().
-		StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [url|title|tags]")
+		StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
 
 	rootCmd.PersistentFlags().
 		IntVarP(&headFlag, "head", "H", 0, "output the <int> first part of bookmarks")
@@ -103,16 +106,6 @@ func initConfig() {
 
 	var err error
 	Menu, err = handleMenu()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	Format, err = handleFormatOutput()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	Picker, err = handlePicker()
 	if err != nil {
 		log.Fatal(err)
 	}
