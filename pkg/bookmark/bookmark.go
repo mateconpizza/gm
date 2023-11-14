@@ -2,12 +2,14 @@ package bookmark
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 
 	"gomarks/pkg/color"
-	"gomarks/pkg/util"
+	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 )
 
 type Slice []Bookmark
@@ -31,6 +33,10 @@ func (bs *Slice) IDs() []int {
 	return ids
 }
 
+func NewSlice(b *Bookmark) *Slice {
+	return &Slice{*b}
+}
+
 type Bookmark struct {
 	CreatedAt string `json:"created_at" db:"created_at"`
 	URL       string `json:"url"        db:"url"`
@@ -42,14 +48,14 @@ type Bookmark struct {
 
 func (b *Bookmark) prettyString() string {
 	maxLen := 80
-	url := util.ShortenString(b.URL, maxLen)
-	title := util.SplitAndAlignString(b.Title, maxLen)
-	desc := util.SplitAndAlignString(b.Desc, maxLen)
+	url := format.ShortenString(b.URL, maxLen)
+	title := format.SplitAndAlignString(b.Title, maxLen)
+	desc := format.SplitAndAlignString(b.Desc, maxLen)
 
-	s := util.FormatTitleLine(b.ID, title, color.Purple)
-	s += util.FormatLine("\t+ ", url, color.Blue)
-	s += util.FormatLine("\t+ ", b.Tags, color.Gray)
-	s += util.FormatLine("\t+ ", desc, color.White)
+	s := format.FormatTitleLine(b.ID, title, color.Purple)
+	s += format.FormatLine("\t+ ", url, color.Blue)
+	s += format.FormatLine("\t+ ", b.Tags, color.Gray)
+	s += format.FormatLine("\t+ ", desc, color.White)
 
 	return s
 }
@@ -119,4 +125,33 @@ func parseTags(tags string) string {
 	}
 
 	return tags + ","
+}
+
+func Format(f string, bs *Slice) error {
+	switch f {
+	case "json":
+		j := ToJSON(bs)
+		fmt.Println(j)
+	case "pretty":
+		for _, b := range *bs {
+			fmt.Println(b.String())
+		}
+		total := color.Colorize(fmt.Sprintf("total [%d]", bs.Len()), color.Gray)
+		fmt.Println(total)
+	default:
+		return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, f)
+	}
+
+	return nil
+}
+
+func ToJSON(data interface{}) string {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		log.Fatal("Error marshaling to JSON:", err)
+	}
+
+	jsonString := string(jsonData)
+
+	return jsonString
 }

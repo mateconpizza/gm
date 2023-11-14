@@ -27,14 +27,7 @@ func fileExists(s string) bool {
 	return !os.IsNotExist(err)
 }
 
-func ShortenString(s string, maxLength int) string {
-	if len(s) > maxLength {
-		return s[:maxLength-3] + "..."
-	}
-
-	return s
-}
-
+// Returns the path to the application's home directory.
 func GetAppHome() string {
 	if constants.ConfigHome == "" {
 		constants.ConfigHome = os.Getenv("HOME")
@@ -54,6 +47,8 @@ func GetDBPath() string {
 	return s
 }
 
+// Checks and creates the application's home directory.
+// Returns the path to the application's home directory and any error encountered during the process.
 func SetupHomeProject() (string, error) {
 	const directoryPermissions = 0o755
 
@@ -91,34 +86,6 @@ func FindSelectedIndex(s string, items []string) int {
 	return idx
 }
 
-func FormatTitleLine(n int, title, c string) string {
-	if title == "" {
-		title = "Untitled"
-	}
-
-	if c == "" {
-		return fmt.Sprintf("%-4d\t%s %s\n", n, constants.BulletPoint, title)
-	}
-
-	return fmt.Sprintf(
-		"%s%-4d\t%s%s %s%s\n",
-		color.Bold,
-		n,
-		constants.BulletPoint,
-		c,
-		title,
-		color.Reset,
-	)
-}
-
-func FormatLine(prefix, v, c string) string {
-	if c == "" {
-		return fmt.Sprintf("%s%s\n", prefix, v)
-	}
-
-	return fmt.Sprintf("%s%s%s%s\n", c, prefix, v, color.Reset)
-}
-
 func SetLogLevel(verboseFlag *bool) {
 	if *verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -138,30 +105,6 @@ func ReplaceArg(args []string, argName, newValue string) {
 			break
 		}
 	}
-}
-
-func SplitAndAlignString(s string, lineLength int) string {
-	var result string
-
-	words := strings.Fields(s)
-	currentLine := ""
-
-	for _, word := range words {
-		if len(currentLine)+len(word)+1 > lineLength {
-			result += currentLine + "\n"
-			currentLine = word
-			currentLine = fmt.Sprintf("\t  %s", currentLine)
-		} else {
-			if currentLine != "" {
-				currentLine += " "
-			}
-			currentLine += word
-		}
-	}
-
-	result += currentLine
-
-	return result
 }
 
 func BinaryExists(binaryName string) bool {
@@ -189,28 +132,7 @@ func IsEmptyLine(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
 
-func ParseUniqueStrings(input []string, sep string) []string {
-	uniqueTags := make([]string, 0)
-	uniqueMap := make(map[string]struct{})
-
-	for _, tags := range input {
-		tagList := strings.Split(tags, sep)
-		for _, tag := range tagList {
-			tag = strings.TrimSpace(tag)
-			if tag != "" {
-				uniqueMap[tag] = struct{}{}
-			}
-		}
-	}
-
-	for tag := range uniqueMap {
-		uniqueTags = append(uniqueTags, tag)
-	}
-
-	return uniqueTags
-}
-
-func TakeInput(prompt string) string {
+func GetInput(prompt string) string {
 	var s string
 
 	fmt.Printf("%s\n  > ", prompt)
@@ -241,13 +163,9 @@ func HandleInterrupt() <-chan struct{} {
 }
 
 func Confirm(question string) bool {
-	prompt := fmt.Sprintf(
-		"\n%s%s %s[y/N]:%s ",
-		question,
-		color.Reset,
-		color.Gray,
-		color.Reset,
-	)
+	q := color.ColorizeBold(question, color.White)
+	c := color.Colorize("[y/N]", color.Gray)
+	prompt := fmt.Sprintf("\n%s %s: ", q, c)
 
 	reader := bufio.NewReader(os.Stdin)
 

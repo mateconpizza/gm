@@ -11,6 +11,7 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -350,6 +351,7 @@ func (r *SQLiteRepository) getRecordsBySQL(
 	return &all, nil
 }
 
+// Get all records from the tableName
 func (r *SQLiteRepository) GetRecordsAll(tableName string) (*bookmark.Slice, error) {
 	log.Printf("Getting all records from table: '%s'", tableName)
 	sqlQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", tableName)
@@ -617,5 +619,5 @@ func (r *SQLiteRepository) GetUniqueTags(tableName string) ([]string, error) {
 		return []string{}, fmt.Errorf("%w: getting unique tags", err)
 	}
 
-	return util.ParseUniqueStrings(s, ","), nil
+	return format.ParseUniqueStrings(s, ","), nil
 }

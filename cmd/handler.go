@@ -6,6 +6,7 @@ import (
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 	"gomarks/pkg/menu"
 
 	"github.com/spf13/cobra"
@@ -40,14 +41,14 @@ func handleQuery(args []string) string {
 }
 
 func handleFormat(cmd *cobra.Command, bs *bookmark.Slice) error {
-	format, _ := cmd.Flags().GetString("format")
+	formatFlag, _ := cmd.Flags().GetString("format")
 	picker, _ := cmd.Flags().GetString("pick")
 
 	if picker != "" {
 		return nil
 	}
 
-	if err := bookmark.Format(format, bs); err != nil {
+	if err := bookmark.Format(formatFlag, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -60,6 +61,8 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 	if picker == "" {
 		return nil
 	}
+
+	maxLen := 80
 
 	for _, b := range *bs {
 		switch picker {
@@ -98,4 +101,12 @@ func handleHeadAndTail(cmd *cobra.Command, bs *bookmark.Slice) error {
 	}
 
 	return nil
+}
+
+func handleNoConfirmation(cmd *cobra.Command) bool {
+	noConfirm, err := cmd.Flags().GetBool("no-confirm")
+	if err != nil {
+		return false
+	}
+	return noConfirm
 }

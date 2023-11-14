@@ -7,6 +7,7 @@ import (
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
 )
@@ -23,7 +24,7 @@ func SelectBookmark(m *menu.Menu, bookmarks *bookmark.Slice) (*bookmark.Bookmark
 		itemText := fmt.Sprintf(
 			"%-4d %-80s %-10s",
 			bm.ID,
-			util.ShortenString(bm.URL, maxLen),
+			format.ShortenString(bm.URL, maxLen),
 			bm.Tags,
 		)
 		itemsText = append(itemsText, itemText)

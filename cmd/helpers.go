@@ -3,13 +3,14 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
-	"gomarks/pkg/util"
+	"gomarks/pkg/format"
 
 	"github.com/spf13/cobra"
 )
@@ -29,7 +30,7 @@ func (bf *BookmarkFormatter) Format() string {
 		"%-4d %-*s %-10s",
 		bf.Bookmark.ID,
 		bf.MaxLen,
-		util.ShortenString(bf.Bookmark.Title, bf.MaxLen),
+		format.ShortenString(bf.Bookmark.Title, bf.MaxLen),
 		bf.Bookmark.Tags,
 	)
 	return s
@@ -56,19 +57,6 @@ func exampleUsage(l []string) string {
 		s += fmt.Sprintf("  %s %s", constants.AppName, line)
 	}
 	return s
-}
-
-func cmdTitle(s string) {
-	fmt.Printf(
-		"%s%s%s: %s, use %s%sctrl+c%s for quit\n\n",
-		color.Bold,
-		constants.AppName,
-		color.Reset,
-		s,
-		color.Bold,
-		color.Red,
-		color.Reset,
-	)
 }
 
 func getDB() (*database.SQLiteRepository, error) {
