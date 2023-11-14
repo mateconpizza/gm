@@ -19,7 +19,7 @@ func Format(f string, bs *Slice) error {
 		for _, b := range *bs {
 			fmt.Println(b.String())
 		}
-		total := util.Colorize(fmt.Sprintf("total [%d]", bs.Len()), color.Gray)
+		total := color.Colorize(fmt.Sprintf("total [%d]", bs.Len()), color.Gray)
 		fmt.Println(total)
 	default:
 		return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, f)

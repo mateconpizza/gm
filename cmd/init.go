@@ -37,9 +37,9 @@ var initCmd = &cobra.Command{
 
 		// Print some info
 		fmt.Printf("%s v%s:\n", constants.AppName, constants.AppVersion)
-		fmt.Printf("  + app home created at: %s\n", util.Colorize(home, color.Yellow))
-		fmt.Printf("  + database '%s' initialized\n", util.Colorize(constants.DBName, color.Green))
-		fmt.Printf("  + creating %s bookmark\n\n", util.Colorize("initial", color.Purple))
+		fmt.Printf("  + app home created at: %s\n", color.Colorize(home, color.Yellow))
+		fmt.Printf("  + database '%s' initialized\n", color.Colorize(constants.DBName, color.Green))
+		fmt.Printf("  + creating %s bookmark\n\n", color.Colorize("initial", color.Purple))
 
 		bs, err := r.GetRecordsAll(constants.DBMainTableName)
 		if err != nil {

@@ -242,8 +242,7 @@ func HandleInterrupt() <-chan struct{} {
 
 func Confirm(question string) bool {
 	prompt := fmt.Sprintf(
-		"\n%s%s%s %s[y/N]:%s ",
-		color.Bold,
+		"\n%s%s %s[y/N]:%s ",
 		question,
 		color.Reset,
 		color.Gray,
@@ -283,8 +282,4 @@ func CopyToClipboard(s string) {
 	}
 
 	log.Print("Text copied to clipboard:", s)
-}
-
-func Colorize(s, c string) string {
-	return fmt.Sprintf("%s%s%s", c, s, color.Reset)
 }

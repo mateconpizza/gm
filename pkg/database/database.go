@@ -51,7 +51,7 @@ func (r *SQLiteRepository) InitDB() error {
 		return fmt.Errorf("%w", err)
 	}
 
-	initialBookmark := bookmark.Create(
+	initialBookmark := bookmark.New(
 		constants.AppURL,
 		constants.AppName,
 		constants.AppTags,

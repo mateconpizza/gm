@@ -15,16 +15,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	queryEdit    string
-	editExamples = []string{"edit <id>\n", "edit <query>"}
-)
+var editExamples = []string{"edit <id>\n", "edit <query>"}
 
 var editCmd = &cobra.Command{
 	Use:     "edit",
 	Short:   "edit selected bookmark",
 	Example: exampleUsage(editExamples),
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		var id int
 		var err error
 
@@ -37,6 +34,10 @@ var editCmd = &cobra.Command{
 				return fmt.Errorf("%w", errs.ErrNoIDProvided)
 			}
 			return fmt.Errorf("%w", err)
+		}
+
+		if id == 0 {
+			return fmt.Errorf("%w", errs.ErrNoIDProvided)
 		}
 
 		r, err := getDB()
@@ -58,8 +59,8 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := bookmark.Format(Format, &bookmark.Slice{*b}); err != nil {
-			return fmt.Errorf("formatting in root: %w", err)
+		if err := handleFormat(cmd, &bookmark.Slice{*b}); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		return nil
@@ -67,6 +68,5 @@ var editCmd = &cobra.Command{
 }
 
 func init() {
-	editCmd.Flags().StringVarP(&queryEdit, "query", "q", "", "query to filter bookmarks")
 	rootCmd.AddCommand(editCmd)
 }

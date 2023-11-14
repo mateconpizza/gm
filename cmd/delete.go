@@ -16,7 +16,9 @@ import (
 
 var deleteExamples = []string{"delete\n", "delete <id>\n", "delete <query>"}
 
-func parseSliceDel(bs bookmark.Slice) ([]int, error) {
+const maxLen = 80
+
+func parseSliceDel(bs bookmark.Slice) (bookmark.Slice, error) {
 	if bs.Len() == 0 {
 		return nil, fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
 	}
@@ -26,31 +28,34 @@ func parseSliceDel(bs bookmark.Slice) ([]int, error) {
 	for i, b := range bs {
 		fmt.Println(b.String())
 
-		confirm := util.Confirm(fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len()))
+		deletePrompt := fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len())
+		confirm := util.Confirm(deletePrompt)
 
-		if toDel.Len() > 1 && confirm {
-			fmt.Printf("%sAdded to delete queue%s\n", color.Red, color.Reset)
+		if confirm {
 			toDel = append(toDel, b)
+		}
+
+		if bs.Len() > 1 && confirm {
+			fmt.Println(color.Colorize("Added to delete queue", color.Red))
 		}
 		fmt.Println()
 	}
 
 	if toDel.Len() == 0 {
-		return nil, fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
+		return nil, fmt.Errorf("slice to delete: %w", errs.ErrBookmarkNotSelected)
 	}
 
 	if toDel.Len() > 1 {
-		fmt.Printf("%s%sBookmarks to delete:%s\n", color.Bold, color.Red, color.Reset)
-		for _, b := range toDel {
-			fmt.Printf("\t+ [%d] %s\n", b.ID, b.URL)
-		}
+		d := fmt.Sprintf("Bookmarks to delete [%d]", toDel.Len())
+		fmt.Println(color.ColorizeBold(d, color.Red))
+		printSliceSummary(&toDel)
 
-		if confirm := util.Confirm(fmt.Sprintf("Deleting [%d] bookmark/s, are you sure?", toDel.Len())); !confirm {
+		if confirm := util.Confirm("Are you sure?"); !confirm {
 			return nil, fmt.Errorf("%w", errs.ErrActionAborted)
 		}
 	}
 
-	return toDel.IDs(), nil
+	return toDel, nil
 }
 
 var deleteCmd = &cobra.Command{
@@ -66,33 +71,39 @@ var deleteCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
-		cmdTitle("delete mode")
-
 		r, err := getDB()
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		q := args[0]
-		bs, err := r.GetRecordsByQuery(constants.DBMainTableName, q)
+		query := args[0]
+
+		bs, err := r.GetRecordsByQuery(constants.DBMainTableName, query)
 		if err != nil {
-			return fmt.Errorf("getting records by query '%s': %w", q, err)
+			return fmt.Errorf("getting records by query '%s': %w", query, err)
 		}
 
-		fmt.Printf("%s%s[%d] bookmarks found%s\n\n", color.Bold, color.Red, bs.Len(), color.Reset)
+		cmdTitle("delete mode")
+
+		bf := color.Colorize(fmt.Sprintf("[%d] bookmarks found\n", bs.Len()), color.Red)
+		fmt.Println(bf)
 
 		toDel, err := parseSliceDel(*bs)
 		if err != nil {
 			return fmt.Errorf("parsing slice: %w", err)
 		}
 
-		if err = r.DeleteRecordsBulk(constants.DBMainTableName, toDel); err != nil {
+		if err = r.DeleteRecordsBulk(constants.DBMainTableName, toDel.IDs()); err != nil {
 			return fmt.Errorf("deleting records in bulk: %w", err)
 		}
 
 		if err := r.ReorderIDs(constants.DBMainTableName); err != nil {
 			return fmt.Errorf("reordering ids: %w", err)
 		}
+
+		total := fmt.Sprintf("[%d] bookmarks deleted.\n", toDel.Len())
+		deleting := color.Colorize(total, color.Red)
+		fmt.Printf("%s%s\n", color.Bold, deleting)
 
 		return nil
 	},

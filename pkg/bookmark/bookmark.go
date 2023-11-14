@@ -98,7 +98,7 @@ func (b *Bookmark) Buffer() []byte {
 	return bytes.TrimRight(data, " ")
 }
 
-func Create(url, title, tags, desc string) *Bookmark {
+func New(url, title, tags, desc string) *Bookmark {
 	return &Bookmark{
 		URL:   url,
 		Title: title,

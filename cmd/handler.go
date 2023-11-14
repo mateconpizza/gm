@@ -54,19 +54,6 @@ func handleFormat(cmd *cobra.Command, bs *bookmark.Slice) error {
 	return nil
 }
 
-func OldhandleFormatOutput() (string, error) {
-	json, err := rootCmd.Flags().GetBool("json")
-	if err != nil {
-		return "", fmt.Errorf("error getting json flag: %w", err)
-	}
-
-	if json {
-		return "json", nil
-	}
-
-	return "pretty", nil
-}
-
 func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 	picker, _ := cmd.Flags().GetString("pick")
 

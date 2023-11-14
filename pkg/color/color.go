@@ -1,5 +1,9 @@
 package color
 
+import (
+	"fmt"
+)
+
 var (
 	Blue   = "\033[34m"
 	Cyan   = "\033[36m"
@@ -12,3 +16,11 @@ var (
 	Bold   = "\033[1m"
 	Reset  = "\033[0m"
 )
+
+func Colorize(s, c string) string {
+	return fmt.Sprintf("%s%s%s", c, s, Reset)
+}
+
+func ColorizeBold(s, c string) string {
+	return fmt.Sprintf("%s%s%s%s", Bold, c, s, Reset)
+}
