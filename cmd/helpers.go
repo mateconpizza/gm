@@ -66,3 +66,14 @@ func getDB() (*database.SQLiteRepository, error) {
 	}
 	return r, nil
 }
+
+func printSliceSummary(bs *bookmark.Slice) {
+	for _, b := range *bs {
+		idStr := fmt.Sprintf("[%s]", strconv.Itoa(b.ID))
+		fmt.Printf(
+			"\t+ %s %s\n",
+			color.Colorize(idStr, color.Gray),
+			format.ShortenString(b.URL, maxLen),
+		)
+	}
+}
