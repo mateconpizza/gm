@@ -4,7 +4,6 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 
 import (
 	"fmt"
-	"strconv"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
@@ -33,7 +32,7 @@ var deleteCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		bs, err := getRecords(r, args)
+		bs, err := handleGetRecords(r, args)
 		if err != nil {
 			return fmt.Errorf("fetching records: %w", err)
 		}

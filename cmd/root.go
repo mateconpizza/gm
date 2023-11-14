@@ -17,12 +17,14 @@ import (
 )
 
 var (
-	Menu       *menu.Menu
-	Verbose    bool
-	formatFlag string
-	headFlag   int
-	pickerFlag string
-	tailFlag   int
+	Menu          *menu.Menu
+	formatFlag    string
+	headFlag      int
+	mmmmFlag      bool
+	noConfirmFlag bool
+	pickerFlag    string
+	tailFlag      int
+	verboseFlag   bool
 )
 
 var rootCmd = &cobra.Command{
@@ -48,7 +50,7 @@ var rootCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			bs = &bookmark.Slice{*b} // FIX: after selecting from query, work with a single bookmark
+			bs = &bookmark.Slice{*b}
 		}
 
 		if err := handleHeadAndTail(cmd, bs); err != nil {
@@ -63,7 +65,6 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		// FIX: after selecting from query, work with a single bookmark
 		util.CopyToClipboard((*bs)[0].URL)
 
 		return nil
@@ -83,11 +84,12 @@ func init() {
 
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
-	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
+	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "verbose mode")
+	rootCmd.PersistentFlags().BoolVar(&noConfirmFlag, "no-confirm", false, "no confirm mode")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
-	rootCmd.Flags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")
+	rootCmd.PersistentFlags().
+		StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")
 
 	rootCmd.PersistentFlags().
 		StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
@@ -102,7 +104,7 @@ func init() {
 }
 
 func initConfig() {
-	util.SetLogLevel(&Verbose)
+	util.SetLogLevel(&verboseFlag)
 
 	var err error
 	Menu, err = handleMenu()

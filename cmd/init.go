@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"gomarks/pkg/actions"
 	"gomarks/pkg/color"
 	"gomarks/pkg/constants"
 	"gomarks/pkg/database"
@@ -19,7 +18,7 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize a new bookmarks database and table",
-	RunE: func(_ *cobra.Command, _ []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		r, err := database.GetDB()
 		if !errors.Is(err, errs.ErrDBNotFound) {
 			return fmt.Errorf("initializing database: %w", err)
@@ -46,8 +45,8 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("getting records: %w", err)
 		}
 
-		if err = actions.HandleFormat("pretty", bs); err != nil {
-			return fmt.Errorf("formatting: %w", err)
+		if err := handleFormat(cmd, bs); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		return nil
