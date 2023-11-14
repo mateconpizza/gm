@@ -64,6 +64,13 @@ func init() {
 	rootCmd.AddCommand(deleteCmd)
 }
 
+/**
+ * Deletes the specified bookmarks from the database and reorders the remaining IDs.
+ *
+ * @param r The SQLite repository to use for accessing the database.
+ * @param toDel A pointer to a `bookmark.Slice` containing the bookmarks to be deleted.
+ * @return An error if any occurred during deletion or reordering.
+ */
 func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error {
 	if err := r.DeleteRecordsBulk(constants.DBMainTableName, toDel.IDs()); err != nil {
 		return fmt.Errorf("deleting records in bulk: %w", err)
@@ -76,28 +83,12 @@ func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error
 	return nil
 }
 
-func getRecords(r *database.SQLiteRepository, args []string) (*bookmark.Slice, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("%w", errs.ErrNoIDorQueryPrivided)
-	}
-
-	queryOrID := args[0]
-
-	if id, err := strconv.Atoi(queryOrID); err == nil {
-		b, err := r.GetRecordByID(constants.DBMainTableName, id)
-		if err != nil {
-			return nil, fmt.Errorf("getting record by id '%d': %w", id, err)
-		}
-		return bookmark.NewSlice(b), nil
-	}
-
-	bs, err := r.GetRecordsByQuery(constants.DBMainTableName, queryOrID)
-	if err != nil {
-		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
-	}
-	return bs, nil
-}
-
+/**
+ * Interactively prompts the user to select bookmarks for deletion and constructs a slice of the selected bookmarks.
+ *
+ * @param bs A slice of bookmarks from which to select.
+ * @return A slice of the selected bookmarks for deletion, or an error if no bookmarks were selected.
+ */
 func parseSliceDel(bs bookmark.Slice) (bookmark.Slice, error) {
 	if bs.Len() == 0 {
 		return nil, fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
@@ -108,6 +99,7 @@ func parseSliceDel(bs bookmark.Slice) (bookmark.Slice, error) {
 	for i, b := range bs {
 		fmt.Println(b.String())
 
+		// Prompt the user to confirm deletion for each bookmark.
 		deletePrompt := fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len())
 		confirm := util.Confirm(deletePrompt)
 
@@ -115,16 +107,19 @@ func parseSliceDel(bs bookmark.Slice) (bookmark.Slice, error) {
 			toDel = append(toDel, b)
 		}
 
+		// If there are multiple bookmarks and the user confirmed deletion, provide a confirmation message.
 		if bs.Len() > 1 && confirm {
 			fmt.Println(color.Colorize("Added to delete queue", color.Red))
 		}
 		fmt.Println()
 	}
 
+	// Check if any bookmarks were selected for deletion.
 	if toDel.Len() == 0 {
 		return nil, fmt.Errorf("slice to delete: %w", errs.ErrBookmarkNotSelected)
 	}
 
+	// If multiple bookmarks were selected, summarize the deletion and prompt for final confirmation.
 	if toDel.Len() > 1 {
 		d := fmt.Sprintf("Bookmarks to delete [%d]", toDel.Len())
 		fmt.Println(color.ColorizeBold(d, color.Red))
