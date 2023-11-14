@@ -17,10 +17,10 @@ var (
 	Reset  = "\033[0m"
 )
 
-func Colorize(s, c string) string {
-	return fmt.Sprintf("%s%s%s", c, s, Reset)
+func Colorize(s, color string) string {
+	return fmt.Sprintf("%s%s%s", color, s, Reset)
 }
 
-func ColorizeBold(s, c string) string {
-	return fmt.Sprintf("%s%s%s%s", Bold, c, s, Reset)
+func ColorizeBold(s, color string) string {
+	return fmt.Sprintf("%s%s%s%s", Bold, color, s, Reset)
 }
