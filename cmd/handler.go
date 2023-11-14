@@ -110,3 +110,32 @@ func handleNoConfirmation(cmd *cobra.Command) bool {
 	}
 	return noConfirm
 }
+
+/**
+ * Retrieves records from the database based on either an ID or a query string.
+ *
+ * @param r The SQLite repository to use for accessing the database.
+ * @param args An array of strings containing either an ID or a query string.
+ * @return A pointer to a `bookmark.Slice` containing the retrieved records, or an error if any occurred.
+ */
+func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Slice, error) {
+	if len(args) == 0 {
+		return nil, fmt.Errorf("%w", errs.ErrNoIDorQueryPrivided)
+	}
+
+	queryOrID := args[0]
+
+	if id, err := strconv.Atoi(queryOrID); err == nil {
+		b, err := r.GetRecordByID(constants.DBMainTableName, id)
+		if err != nil {
+			return nil, fmt.Errorf("getting record by id '%d': %w", id, err)
+		}
+		return bookmark.NewSlice(b), nil
+	}
+
+	bs, err := r.GetRecordsByQuery(constants.DBMainTableName, queryOrID)
+	if err != nil {
+		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
+	}
+	return bs, nil
+}
