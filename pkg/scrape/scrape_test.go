@@ -7,6 +7,35 @@ import (
 	"testing"
 )
 
+func testScrapeFunction(t *testing.T, getTitleOrDesc func(string) (string, error), tests []struct {
+	name     string
+	url      string
+	server   *httptest.Server
+	expected string
+	wantErr  bool
+},
+) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.server != nil {
+				defer tt.server.Close()
+				tt.url = tt.server.URL
+			}
+
+			got, err := getTitleOrDesc(tt.url)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("%s() error = %v, wantErr %v", tt.name, err, tt.wantErr)
+				return
+			}
+
+			if got != tt.expected {
+				t.Errorf("%s() = %v, want %v", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetTitle(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -38,25 +67,7 @@ func TestGetTitle(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.server != nil {
-				defer tt.server.Close()
-				tt.url = tt.server.URL
-			}
-
-			got, err := GetTitle(tt.url)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetTitle() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if got != tt.expected {
-				t.Errorf("GetTitle() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
+	testScrapeFunction(t, GetTitle, tests)
 }
 
 func TestGetDescription(t *testing.T) {
@@ -90,25 +101,7 @@ func TestGetDescription(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.server != nil {
-				defer tt.server.Close()
-				tt.url = tt.server.URL
-			}
-
-			got, err := GetDescription(tt.url)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetDescription() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if got != tt.expected {
-				t.Errorf("GetDescription() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
+	testScrapeFunction(t, GetDescription, tests)
 }
 
 func createTestServer(responseBody string) *httptest.Server {
