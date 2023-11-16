@@ -375,28 +375,17 @@ func (r *SQLiteRepository) GetRecordsAll(tableName string) (*bookmark.Slice, err
 func (r *SQLiteRepository) GetRecordsByQuery(tableName, q string) (*bookmark.Slice, error) {
 	log.Printf("Getting records by query: %s", q)
 
-	sqlQuery := fmt.Sprintf(
-		`SELECT 
+	sqlQuery := fmt.Sprintf(`
+      SELECT 
         id, url, title, tags, desc, created_at
       FROM %s 
-      WHERE id LIKE ? 
-        OR title LIKE ? 
-        OR url LIKE ? 
-        OR tags LIKE ? 
-        OR desc LIKE ?
+      WHERE 
+        id || title || url || tags || desc LIKE ?
       ORDER BY id ASC
-    `,
-		tableName,
-	)
+    `, tableName)
+
 	queryValue := "%" + q + "%"
-	bs, err := r.getRecordsBySQL(
-		sqlQuery,
-		queryValue,
-		queryValue,
-		queryValue,
-		queryValue,
-		queryValue,
-	)
+	bs, err := r.getRecordsBySQL(sqlQuery, queryValue)
 	if err != nil {
 		return nil, err
 	}
