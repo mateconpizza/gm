@@ -9,7 +9,7 @@ import (
 	"gomarks/pkg/errs"
 
 	"gomarks/pkg/bookmark"
-	c "gomarks/pkg/constants"
+	"gomarks/pkg/config"
 )
 
 var tempTableName = "test_table"
@@ -63,12 +63,12 @@ func TestDropTable(t *testing.T) {
 		t.Errorf("Error dropping table: %v", err)
 	}
 
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", c.DBMainTableName))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", config.DB.MainTable))
 	if err == nil {
 		t.Errorf("DBMainTable still exists after calling HandleDropDB")
 	}
 
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", c.DBDeletedTableName))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", config.DB.DeletedTable))
 	if err == nil {
 		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")
 	}
@@ -352,18 +352,18 @@ func TestRenameTable(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	err := r.renameTable(tempTableName, c.DBDeletedTableName)
+	err := r.renameTable(tempTableName, config.DB.DeletedTable)
 	if err != nil {
 		t.Errorf("Error renaming table: %v", err)
 	}
 
-	exists, err := r.tableExists(c.DBDeletedTableName)
+	exists, err := r.tableExists(config.DB.DeletedTable)
 	if err != nil {
 		t.Errorf("Error checking if table exists: %v", err)
 	}
 
 	if !exists {
-		t.Errorf("Table %s does not exist", c.DBDeletedTableName)
+		t.Errorf("Table %s does not exist", config.DB.DeletedTable)
 	}
 }
 

@@ -4,13 +4,13 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"strconv"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/constants"
-	"gomarks/pkg/errs"
+	"gomarks/pkg/color"
+	"gomarks/pkg/config"
+	"gomarks/pkg/format"
+	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
@@ -45,7 +45,9 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		b, err := r.GetRecordByID(constants.DBMainTableName, id)
+		id := (*bs)[0].ID
+
+		b, err := r.GetRecordByID(config.DB.MainTable, id)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -55,7 +57,7 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if _, err := r.UpdateRecord(constants.DBMainTableName, b); err != nil {
+		if _, err := r.UpdateRecord(config.DB.MainTable, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

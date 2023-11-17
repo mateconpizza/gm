@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
@@ -110,7 +110,7 @@ func saveDataToTempFile(file *os.File, data []byte) *os.File {
 
 func createTempFile() *os.File {
 	tempDir := "/tmp/"
-	prefix := fmt.Sprintf("%s-", constants.AppName)
+	prefix := fmt.Sprintf("%s-", config.App.Name)
 
 	tempFile, err := os.CreateTemp(tempDir, prefix)
 	if err != nil {
@@ -189,9 +189,9 @@ func editFile(editor string, file *os.File) error {
 }
 
 func getEditor() (string, error) {
-	appEditor := os.Getenv(constants.AppVarEditor)
+	appEditor := os.Getenv(config.App.Env.Editor)
 	if appEditor != "" {
-		log.Printf("$%s set to %s", constants.AppVarEditor, appEditor)
+		log.Printf("$%s set to %s", config.App.Env.Editor, appEditor)
 		return appEditor, nil
 	}
 

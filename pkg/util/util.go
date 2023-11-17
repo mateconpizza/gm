@@ -16,7 +16,8 @@ import (
 	"syscall"
 
 	"gomarks/pkg/color"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
+	"gomarks/pkg/errs"
 
 	"github.com/atotto/clipboard"
 	"golang.org/x/exp/slices"
@@ -29,19 +30,22 @@ func fileExists(s string) bool {
 
 // Returns the path to the application's home directory.
 func GetAppHome() string {
-	if constants.ConfigHome == "" {
-		constants.ConfigHome = os.Getenv("HOME")
-		constants.ConfigHome += "/.config"
+	// TODO: maybe use `github.com/adrg/xdg`
+	envHome := os.Getenv(config.App.Env.Home)
+
+	if envHome == "" {
+		envHome = os.Getenv("HOME")
+		config.Files.ConfigDir = fmt.Sprintf("%s/.config", envHome)
+	} else {
+		config.Files.ConfigDir = envHome
 	}
 
-	s := filepath.Join(constants.ConfigHome, strings.ToLower(constants.AppName))
-
-	return s
+	return filepath.Join(config.Files.ConfigDir, config.App.Name)
 }
 
 func GetDBPath() string {
 	appPath := GetAppHome()
-	s := filepath.Join(appPath, constants.DBName)
+	s := filepath.Join(appPath, config.DB.Name)
 	log.Print("GetDBPath: ", s)
 
 	return s

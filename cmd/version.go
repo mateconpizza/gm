@@ -6,7 +6,7 @@ package cmd
 import (
 	"fmt"
 
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 
 	"github.com/spf13/cobra"
 )
@@ -16,7 +16,7 @@ var versionCmd = &cobra.Command{
 	Short: "show version",
 	Args:  cobra.NoArgs,
 	Run: func(_ *cobra.Command, _ []string) {
-		fmt.Printf("%s v%s\n", constants.AppName, constants.AppVersion)
+		fmt.Printf("%s v%s\n", config.App.Name, config.App.Info.Version)
 	},
 }
 

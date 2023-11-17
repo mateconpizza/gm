@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"gomarks/pkg/color"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/util"
@@ -35,12 +35,12 @@ var initCmd = &cobra.Command{
 		}
 
 		// Print some info
-		fmt.Printf("%s v%s:\n", constants.AppName, constants.AppVersion)
+		fmt.Printf("%s v%s:\n", config.App.Name, config.App.Info.Version)
 		fmt.Printf("  + app home created at: %s\n", color.Colorize(home, color.Yellow))
-		fmt.Printf("  + database '%s' initialized\n", color.Colorize(constants.DBName, color.Green))
+		fmt.Printf("  + database '%s' initialized\n", color.Colorize(config.DB.Name, color.Green))
 		fmt.Printf("  + creating %s bookmark\n\n", color.Colorize("initial", color.Purple))
 
-		bs, err := r.GetRecordsAll(constants.DBMainTableName)
+		bs, err := r.GetRecordsAll(config.DB.MainTable)
 		if err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gomarks/pkg/color"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 )
 
 func ShortenString(s string, maxLength int) string {
@@ -49,11 +49,13 @@ func SplitAndAlignString(s string, lineLength int) string {
 }
 
 func CmdTitle(s string) {
-	t := color.Colorize(fmt.Sprintf("%s: %s,", constants.AppName, s), color.White)
-	key := color.ColorizeBold("ctrl+c", color.Red)
-	u := fmt.Sprintf("use %s for quit\n", key)
+	program := fmt.Sprintf("%s:", config.App.Name)
+	p := color.ColorizeBold(program, color.White)
+	t := color.Colorize(s, color.Blue)
+	quit := color.ColorizeBold("ctrl+c", color.Red)
+	q := fmt.Sprintf("use %s for quit\n", quit)
 
-	fmt.Println(t, u)
+	fmt.Println(p, t, q)
 }
 
 func FormatTitleLine(n int, title, c string) string {
@@ -62,14 +64,14 @@ func FormatTitleLine(n int, title, c string) string {
 	}
 
 	if c == "" {
-		return fmt.Sprintf("%-4d\t%s %s\n", n, constants.BulletPoint, title)
+		return fmt.Sprintf("%-4d\t%s %s\n", n, config.BulletPoint, title)
 	}
 
 	return fmt.Sprintf(
 		"%s%-4d\t%s%s %s%s\n",
 		color.Bold,
 		n,
-		constants.BulletPoint,
+		config.BulletPoint,
 		c,
 		title,
 		color.Reset,

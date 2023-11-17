@@ -5,6 +5,8 @@ import (
 	"math"
 
 	"gomarks/pkg/bookmark"
+	"gomarks/pkg/config"
+	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/menu"
@@ -125,15 +127,15 @@ func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Sl
 
 	queryOrID := args[0]
 
-	if id, err := strconv.Atoi(queryOrID); err == nil {
-		b, err := r.GetRecordByID(constants.DBMainTableName, id)
+	if id, err = strconv.Atoi(queryOrID); err == nil {
+		b, err = r.GetRecordByID(config.DB.MainTable, id)
 		if err != nil {
 			return nil, fmt.Errorf("getting record by id '%d': %w", id, err)
 		}
 		return bookmark.NewSlice(b), nil
 	}
 
-	bs, err := r.GetRecordsByQuery(constants.DBMainTableName, queryOrID)
+	bs, err := r.GetRecordsByQuery(config.DB.MainTable, queryOrID)
 	if err != nil {
 		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
 	}

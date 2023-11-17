@@ -7,7 +7,7 @@ import (
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
@@ -72,11 +72,11 @@ func init() {
  * @return An error if any occurred during deletion or reordering.
  */
 func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error {
-	if err := r.DeleteRecordsBulk(constants.DBMainTableName, toDel.IDs()); err != nil {
+	if err := r.DeleteRecordsBulk(config.DB.MainTable, toDel.IDs()); err != nil {
 		return fmt.Errorf("deleting records in bulk: %w", err)
 	}
 
-	if err := r.ReorderIDs(constants.DBMainTableName); err != nil {
+	if err := r.ReorderIDs(config.DB.MainTable); err != nil {
 		return fmt.Errorf("reordering ids: %w", err)
 	}
 

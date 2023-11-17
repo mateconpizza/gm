@@ -12,7 +12,7 @@ import (
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/scrape"
@@ -38,8 +38,8 @@ var newCmd = &cobra.Command{
 
 		url := handleURL(&args)
 
-		if r.RecordExists(constants.DBMainTableName, url) {
-			if b, _ := r.GetRecordByURL(constants.DBMainTableName, url); b != nil {
+		if r.RecordExists(config.DB.MainTable, url) {
+			if b, _ := r.GetRecordByURL(config.DB.MainTable, url); b != nil {
 				return fmt.Errorf("%w with id: %d", errs.ErrBookmarkDuplicate, b.ID)
 			}
 		}
@@ -54,7 +54,7 @@ var newCmd = &cobra.Command{
 			return fmt.Errorf("handle confirmation and validation: %w", err)
 		}
 
-		b, err = r.InsertRecord(constants.DBMainTableName, b)
+		b, err = r.InsertRecord(config.DB.MainTable, b)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

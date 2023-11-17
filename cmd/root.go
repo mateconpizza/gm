@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 	"gomarks/pkg/display"
 	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
@@ -28,7 +28,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "gomarks",
+	Use:          config.App.Name,
 	Short:        "Gomarks is a bookmark manager for your terminal",
 	Long:         "Gomarks is a bookmark manager for your terminal",
 	Args:         cobra.MaximumNArgs(1),
@@ -39,7 +39,11 @@ var rootCmd = &cobra.Command{
 
 		r, _ := getDB()
 
-		bs, err := r.GetRecordsByQuery(constants.DBMainTableName, query)
+		if len(args) == 0 {
+			args = []string{""}
+		}
+
+		bs, err := handleGetRecords(r, args)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -74,7 +78,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		fmt.Printf("%s: %s\n", constants.AppName, err)
+		fmt.Printf("%s: %s\n", config.App.Name, err)
 		os.Exit(1)
 	}
 }

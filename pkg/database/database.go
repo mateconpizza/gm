@@ -9,13 +9,24 @@ import (
 	"time"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+var TableSchema = `
+    CREATE TABLE IF NOT EXISTS %s (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        url         TEXT    NOT NULL UNIQUE,
+        title       TEXT    DEFAULT "",
+        tags        TEXT    DEFAULT ",",
+        desc        TEXT    DEFAULT "",
+        created_at  TIMESTAMP
+    )
+  `
 
 type SQLiteRepository struct {
 	DB *sql.DB
@@ -36,7 +47,7 @@ func GetDB() (*SQLiteRepository, error) {
 	}
 
 	r := newSQLiteRepository(db)
-	if exists, _ := r.tableExists(constants.DBMainTableName); !exists {
+	if exists, _ := r.tableExists(config.DB.MainTable); !exists {
 		return r, fmt.Errorf("%w", errs.ErrDBNotFound)
 	}
 
@@ -44,22 +55,22 @@ func GetDB() (*SQLiteRepository, error) {
 }
 
 func (r *SQLiteRepository) InitDB() error {
-	if err := r.createTable(constants.DBMainTableName); err != nil {
+	if err := r.createTable(config.DB.MainTable); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.createTable(constants.DBDeletedTableName); err != nil {
+	if err := r.createTable(config.DB.DeletedTable); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	initialBookmark := bookmark.New(
-		constants.AppURL,
-		constants.AppName,
-		constants.AppTags,
-		constants.AppDesc,
+		config.App.Info.URL,
+		config.App.Info.Title,
+		config.App.Info.Tags,
+		config.App.Info.Desc,
 	)
 
-	if _, err := r.InsertRecord(constants.DBMainTableName, initialBookmark); err != nil {
+	if _, err := r.InsertRecord(config.DB.MainTable, initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -398,7 +409,7 @@ func (r *SQLiteRepository) GetRecordsByQuery(tableName, q string) (*bookmark.Sli
 func (r *SQLiteRepository) GetRecordsByTag(tag string) (*bookmark.Slice, error) {
 	// FIX: make it local or delete it
 	bs, err := r.getRecordsBySQL(
-		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", constants.DBMainTableName),
+		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", config.DB.MainTable),
 		fmt.Sprintf("%%%s%%", tag),
 	)
 	if err != nil {
@@ -544,7 +555,7 @@ func (r *SQLiteRepository) renameTable(tempTable, mainTable string) error {
 // Creates a new table with the specified name in the SQLite database.
 func (r *SQLiteRepository) createTable(name string) error {
 	log.Printf("Creating table: %s", name)
-	schema := fmt.Sprintf(constants.TableSchema, name)
+	schema := fmt.Sprintf(TableSchema, name)
 
 	_, err := r.DB.Exec(schema)
 	if err != nil {

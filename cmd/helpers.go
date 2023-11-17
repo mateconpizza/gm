@@ -7,7 +7,7 @@ import (
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
-	"gomarks/pkg/constants"
+	"gomarks/pkg/config"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
@@ -54,8 +54,9 @@ func checkInitDB(_ *cobra.Command, _ []string) error {
 func exampleUsage(l []string) string {
 	var s string
 	for _, line := range l {
-		s += fmt.Sprintf("  %s %s", constants.AppName, line)
+		s += fmt.Sprintf("  %s %s", config.App.Name, line)
 	}
+
 	return s
 }
 
