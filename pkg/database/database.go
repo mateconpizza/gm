@@ -318,10 +318,7 @@ func (r *SQLiteRepository) GetRecordByURL(tableName, u string) (*bookmark.Bookma
 	return &b, nil
 }
 
-func (r *SQLiteRepository) getRecordsBySQL(
-	q string,
-	args ...interface{},
-) (*bookmark.Slice, error) {
+func (r *SQLiteRepository) getRecordsBySQL(q string, args ...interface{}) (*bookmark.Slice, error) {
 	rows, err := r.DB.Query(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("%w: on getting records by query", err)
@@ -329,7 +326,7 @@ func (r *SQLiteRepository) getRecordsBySQL(
 
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("Error closing rows: %v", err)
+			log.Printf("Error closing rows on getting records by sql: %v", err)
 		}
 	}()
 
@@ -340,7 +337,6 @@ func (r *SQLiteRepository) getRecordsBySQL(
 		if err := rows.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.CreatedAt); err != nil {
 			return nil, fmt.Errorf("%w: '%w'", errs.ErrRecordScan, err)
 		}
-
 		all = append(all, b)
 	}
 
@@ -387,12 +383,11 @@ func (r *SQLiteRepository) GetRecordsByQuery(tableName, q string) (*bookmark.Sli
 	queryValue := "%" + q + "%"
 	bs, err := r.getRecordsBySQL(sqlQuery, queryValue)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: by query '%s'", err, q)
 	}
 
 	if bs.Len() == 0 {
-		log.Printf("No records found by query: '%s'", q)
-		return nil, errs.ErrBookmarkNotFound
+		return nil, fmt.Errorf("%w: by query '%s'", errs.ErrBookmarkNotFound, q)
 	}
 
 	log.Printf("Got %d records by query: '%s'", bs.Len(), q)
@@ -400,145 +395,8 @@ func (r *SQLiteRepository) GetRecordsByQuery(tableName, q string) (*bookmark.Sli
 	return bs, err
 }
 
-func (r *SQLiteRepository) RecordExists(tableName, url string) bool {
-	var recordCount int
-
-	sqlQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE url=?", tableName)
-
-	err := r.DB.QueryRow(sqlQuery, url).Scan(&recordCount)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return recordCount > 0
-}
-
-func (r *SQLiteRepository) getMaxID(tableName string) int {
-	var lastIndex int
-
-	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", tableName)
-
-	err := r.DB.QueryRow(sqlQuery).Scan(&lastIndex)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Printf("Max ID: %d", lastIndex)
-
-	return lastIndex
-}
-
-func (r *SQLiteRepository) tableExists(t string) (bool, error) {
-	log.Printf("Checking if table '%s' exists", t)
-
-	query := "SELECT name FROM sqlite_master WHERE type='table' AND name = ?"
-
-	rows, err := r.DB.Query(query, t)
-	if err != nil {
-		return false, fmt.Errorf("%w: '%w'", errs.ErrSQLQuery, err)
-	}
-
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("Error closing rows: %v", err)
-		}
-	}()
-
-	if !rows.Next() {
-		return false, nil
-	}
-
-	if err := rows.Err(); err != nil {
-		return false, fmt.Errorf("%w: during iteration checking if table exists", err)
-	}
-
-	log.Printf("Table '%s' exists", t)
-
-	return true, nil
-}
-
-func (r *SQLiteRepository) renameTable(tempTable, mainTable string) error {
-	log.Printf("Renaming table %s to %s", tempTable, mainTable)
-
-	_, err := r.DB.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", tempTable, mainTable))
-	if err != nil {
-		return fmt.Errorf("%w: renaming table from '%s' to '%s'", err, tempTable, mainTable)
-	}
-
-	log.Printf("Renamed table %s to %s\n", tempTable, mainTable)
-
-	return nil
-}
-
-func (r *SQLiteRepository) createTable(name string) error {
-	log.Printf("Creating table: %s", name)
-	schema := fmt.Sprintf(constants.TableSchema, name)
-
-	_, err := r.DB.Exec(schema)
-	if err != nil {
-		return fmt.Errorf("error creating table: %w", err)
-	}
-
-	log.Printf("created table: %s\n", name)
-
-	return nil
-}
-
-func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
-	_, err := r.DB.Exec("DELETE FROM sqlite_sequence WHERE name=?", t)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
-
-func (r *SQLiteRepository) ReorderIDs(tableName string) error {
-	log.Printf("Reordering IDs in table: %s", tableName)
-
-	if r.getMaxID(tableName) == 0 {
-		return nil
-	}
-
-	tempTable := fmt.Sprintf("temp_%s", tableName)
-	if err := r.createTable(tempTable); err != nil {
-		return err
-	}
-
-	bookmarks, err := r.GetRecordsAll(tableName)
-	if err != nil {
-		return err
-	}
-
-	if err := r.insertRecordsBulk(tempTable, bookmarks); err != nil {
-		return err
-	}
-
-	if err := r.dropTable(tableName); err != nil {
-		return err
-	}
-
-	return r.renameTable(tempTable, tableName)
-}
-
-func (r *SQLiteRepository) TagsWithCount(tableName string) (util.Counter, error) {
-	// FIX: make it local
-	tagCounter := make(util.Counter)
-
-	bs, err := r.GetRecordsAll(tableName)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, bookmark := range *bs {
-		tagCounter.Add(bookmark.Tags, ",")
-	}
-
-	return tagCounter, nil
-}
-
 func (r *SQLiteRepository) GetRecordsByTag(tag string) (*bookmark.Slice, error) {
-	// FIX: make it local
+	// FIX: make it local or delete it
 	bs, err := r.getRecordsBySQL(
 		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", constants.DBMainTableName),
 		fmt.Sprintf("%%%s%%", tag),
@@ -609,4 +467,129 @@ func (r *SQLiteRepository) GetUniqueTags(tableName string) ([]string, error) {
 	}
 
 	return format.ParseUniqueStrings(s, ","), nil
+}
+
+func (r *SQLiteRepository) UniqueTagsWithCount(tableName string) (util.Counter, error) {
+	// FIX: make it local or delete it
+	tagCounter := make(util.Counter)
+
+	bs, err := r.GetRecordsAll(tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, bookmark := range *bs {
+		tagCounter.Add(bookmark.Tags, ",")
+	}
+
+	return tagCounter, nil
+}
+
+func (r *SQLiteRepository) RecordExists(tableName, url string) bool {
+	var recordCount int
+
+	sqlQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE url=?", tableName)
+
+	if err := r.DB.QueryRow(sqlQuery, url).Scan(&recordCount); err != nil {
+		log.Fatal(err)
+	}
+
+	return recordCount > 0
+}
+
+func (r *SQLiteRepository) getMaxID(tableName string) int {
+	var lastIndex int
+
+	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", tableName)
+
+	if err := r.DB.QueryRow(sqlQuery).Scan(&lastIndex); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Max ID: %d", lastIndex)
+
+	return lastIndex
+}
+
+// Checks whether a table with the specified name exists in the SQLite database.
+func (r *SQLiteRepository) tableExists(t string) (bool, error) {
+	log.Printf("Checking if table '%s' exists", t)
+
+	query := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
+
+	var count int
+	if err := r.DB.QueryRow(query, t).Scan(&count); err != nil {
+		return false, fmt.Errorf("%w: checking if table exists", err)
+	}
+
+	log.Printf("Table '%s' exists: %v", t, count > 0)
+
+	return count > 0, nil
+}
+
+// Renames the temporary table to the specified main table name.
+func (r *SQLiteRepository) renameTable(tempTable, mainTable string) error {
+	log.Printf("Renaming table %s to %s", tempTable, mainTable)
+
+	_, err := r.DB.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", tempTable, mainTable))
+	if err != nil {
+		return fmt.Errorf("%w: renaming table from '%s' to '%s'", err, tempTable, mainTable)
+	}
+
+	log.Printf("Renamed table %s to %s\n", tempTable, mainTable)
+
+	return nil
+}
+
+// Creates a new table with the specified name in the SQLite database.
+func (r *SQLiteRepository) createTable(name string) error {
+	log.Printf("Creating table: %s", name)
+	schema := fmt.Sprintf(constants.TableSchema, name)
+
+	_, err := r.DB.Exec(schema)
+	if err != nil {
+		return fmt.Errorf("error creating table: %w", err)
+	}
+
+	log.Printf("created table: %s\n", name)
+
+	return nil
+}
+
+// Resets the SQLite sequence for the given table.
+func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
+	if _, err := r.DB.Exec("DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
+		return fmt.Errorf("resetting sqlite sequence: %w", err)
+	}
+
+	return nil
+}
+
+// Reorders the IDs of all records in the specified table.
+func (r *SQLiteRepository) ReorderIDs(tableName string) error {
+	bs, err := r.GetRecordsAll(tableName)
+	if err != nil {
+		return err
+	}
+
+	if bs.Len() == 0 {
+		return nil
+	}
+
+	log.Printf("Reordering IDs in table: %s", tableName)
+
+	tempTable := fmt.Sprintf("temp_%s", tableName)
+	if err := r.createTable(tempTable); err != nil {
+		return err
+	}
+
+	if err := r.insertRecordsBulk(tempTable, bs); err != nil {
+		return err
+	}
+
+	if err := r.dropTable(tableName); err != nil {
+		return err
+	}
+
+	return r.renameTable(tempTable, tableName)
 }
