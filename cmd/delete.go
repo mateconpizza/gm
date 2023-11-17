@@ -16,16 +16,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var deleteExamples = []string{"delete\n", "delete <id>\n", "delete <query>"}
-
-const maxLen = 80
-
 var deleteCmd = &cobra.Command{
 	Use:          "delete",
 	Short:        "delete a bookmark by query",
-	Example:      exampleUsage(deleteExamples),
+	Long:         "delete a bookmark by query or id",
+	Example:      exampleUsage([]string{"delete\n", "delete <id>\n", "delete <query>"}),
 	SilenceUsage: true,
-	Args:         cobra.MaximumNArgs(1),
 	RunE: func(_ *cobra.Command, args []string) error {
 		r, err := getDB()
 		if err != nil {

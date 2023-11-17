@@ -21,13 +21,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var newExamples = []string{"new\n", "new <url>\n", "new <url> <tags>"}
-
 var newCmd = &cobra.Command{
 	Use:     "new",
 	Short:   "add a new bookmark",
 	Long:    "add a new bookmark and fetch title and description",
-	Example: exampleUsage(newExamples),
+	Example: exampleUsage([]string{"new\n", "new <url>\n", "new <url> <tags>"}),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := getDB()
 		if err != nil {
@@ -185,7 +183,7 @@ func handleDesc(url string) string {
 
 func ConfirmOrEdit(question string) string {
 	q := color.ColorizeBold(question, color.White)
-	options := color.Colorize("[yes/no/edit]: ", color.Gray)
+	options := color.Colorize("[Yes/no/edit]: ", color.Gray)
 	prompt := fmt.Sprintf("\n%s %s", q, options)
 
 	reader := bufio.NewReader(os.Stdin)
@@ -209,7 +207,7 @@ func ConfirmOrEdit(question string) string {
 		case "e", "edit":
 			return "e"
 		case "":
-			return "n"
+			return "y"
 		default:
 			fmt.Println("Invalid response. Please enter 'y' or 'n' or 'e'.")
 		}

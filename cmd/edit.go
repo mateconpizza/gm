@@ -15,34 +15,41 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var editExamples = []string{"edit <id>\n", "edit <query>"}
-
 var editCmd = &cobra.Command{
 	Use:     "edit",
 	Short:   "edit selected bookmark",
-	Example: exampleUsage(editExamples),
+	Example: exampleUsage([]string{"edit <id>\n", "edit <query>"}),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var id int
-		var err error
-
-		if len(args) > 0 {
-			id, err = strconv.Atoi(args[0])
-		}
-
-		if err != nil {
-			if errors.Is(err, strconv.ErrSyntax) {
-				return fmt.Errorf("%w", errs.ErrNoIDProvided)
-			}
-			return fmt.Errorf("%w", err)
-		}
-
-		if id == 0 {
-			return fmt.Errorf("%w", errs.ErrNoIDProvided)
-		}
+		format.CmdTitle("edition mode.")
 
 		r, err := getDB()
 		if err != nil {
 			return fmt.Errorf("%w", err)
+		}
+
+		bs, err := handleGetRecords(r, args)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		bFound := fmt.Sprintf("[%d] bookmarks found\n", bs.Len())
+		bf := color.Colorize(bFound, color.Blue)
+		fmt.Println(bf)
+
+		if bs.Len() > 1 {
+			for i, b := range *bs {
+				tempB := b
+				fmt.Println()
+				fmt.Println(b.String())
+
+				editPrompt := fmt.Sprintf("Edit bookmark [%d/%d]?", i+1, bs.Len())
+				if confirm := util.Confirm(editPrompt); confirm {
+					_, err = bookmark.Edit(&tempB)
+					if err != nil {
+						return fmt.Errorf("%w", err)
+					}
+				}
+			}
 		}
 
 		id := (*bs)[0].ID

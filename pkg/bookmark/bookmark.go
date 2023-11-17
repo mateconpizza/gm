@@ -89,7 +89,6 @@ func (b *Bookmark) IsValid() bool {
 
 func (b *Bookmark) Buffer() []byte {
 	data := []byte(fmt.Sprintf(`## editing [%d] %s
-## lines starting with # will be ignored.
 ## url:
 %s
 ## title: (leave an empty line for web fetch)

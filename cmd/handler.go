@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
@@ -10,6 +11,7 @@ import (
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/menu"
+	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
@@ -32,14 +34,17 @@ func handleMenu() (*menu.Menu, error) {
 	return m, nil
 }
 
-func handleQuery(args []string) string {
-	var query string
+func handleQuery(args []string) (string, error) {
 	if len(args) == 0 {
-		query = ""
-	} else {
-		query = args[0]
+		return "", fmt.Errorf("%w", errs.ErrNoIDorQueryPrivided)
 	}
-	return query
+
+	queryOrID, err := util.NewGetInput(args)
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	return queryOrID, nil
 }
 
 func handleFormat(cmd *cobra.Command, bs *bookmark.Slice) error {
@@ -88,7 +93,11 @@ func handleHeadAndTail(cmd *cobra.Command, bs *bookmark.Slice) error {
 	head, _ := cmd.Flags().GetInt("head")
 	tail, _ := cmd.Flags().GetInt("tail")
 
-	if head < 0 || tail < 0 {
+	if head < 0 {
+		return fmt.Errorf("%w: %d %d", errs.ErrOptionInvalid, head, tail)
+	}
+
+	if tail < 0 {
 		return fmt.Errorf("%w: %d %d", errs.ErrOptionInvalid, head, tail)
 	}
 
@@ -121,11 +130,13 @@ func handleNoConfirmation(cmd *cobra.Command) bool {
  * @return A pointer to a `bookmark.Slice` containing the retrieved records, or an error if any occurred.
  */
 func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Slice, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("%w", errs.ErrNoIDorQueryPrivided)
+	queryOrID, err := handleQuery(args)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
 
-	queryOrID := args[0]
+	var id int
+	var b *bookmark.Bookmark
 
 	if id, err = strconv.Atoi(queryOrID); err == nil {
 		b, err = r.GetRecordByID(config.DB.MainTable, id)
