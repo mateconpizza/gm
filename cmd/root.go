@@ -16,11 +16,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const maxLen = 80
+
 var (
 	Menu          *menu.Menu
 	formatFlag    string
 	headFlag      int
-	mmmmFlag      bool
 	noConfirmFlag bool
 	pickerFlag    string
 	tailFlag      int
@@ -31,12 +32,10 @@ var rootCmd = &cobra.Command{
 	Use:          config.App.Name,
 	Short:        "Gomarks is a bookmark manager for your terminal",
 	Long:         "Gomarks is a bookmark manager for your terminal",
-	Args:         cobra.MaximumNArgs(1),
 	SilenceUsage: true,
+	Args:         cobra.MinimumNArgs(0),
 	PreRunE:      checkInitDB,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		query := handleQuery(args)
-
 		r, _ := getDB()
 
 		if len(args) == 0 {
@@ -54,7 +53,7 @@ var rootCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			bs = &bookmark.Slice{*b}
+			bs = bookmark.NewSlice(b)
 		}
 
 		if err := handleHeadAndTail(cmd, bs); err != nil {
@@ -69,7 +68,9 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		util.CopyToClipboard((*bs)[0].URL)
+		if bs.Len() == 1 {
+			util.CopyToClipboard((*bs)[0].URL)
+		}
 
 		return nil
 	},
@@ -94,15 +95,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
 	rootCmd.PersistentFlags().
 		StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")
-
 	rootCmd.PersistentFlags().
 		StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
 
 	rootCmd.PersistentFlags().
-		IntVarP(&headFlag, "head", "H", 0, "output the <int> first part of bookmarks")
-
+		IntVarP(&headFlag, "head", "H", 0, "the <int> first part of bookmarks")
 	rootCmd.PersistentFlags().
-		IntVarP(&tailFlag, "tail", "T", 0, "output the <int> last part of bookmarks ")
+		IntVarP(&tailFlag, "tail", "T", 0, "the <int> last part of bookmarks")
 
 	rootCmd.SilenceErrors = true
 }

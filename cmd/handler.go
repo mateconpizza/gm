@@ -81,6 +81,14 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 			fmt.Println(b.Title)
 		case "tags":
 			fmt.Println(b.Tags)
+		case "menu":
+			i := fmt.Sprintf(
+				"%-4d %-80s %-10s",
+				b.ID,
+				format.ShortenString(b.URL, maxLen),
+				b.Tags,
+			)
+			fmt.Println(i)
 		default:
 			return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, picker)
 		}

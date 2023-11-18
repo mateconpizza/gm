@@ -2,6 +2,7 @@ package format
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"gomarks/pkg/color"
@@ -97,4 +98,21 @@ func ParseUniqueStrings(input []string, sep string) []string {
 	}
 
 	return uniqueTags
+}
+
+func ExtractMaxLen(l []string, target string) int {
+	hasMaxLen := 2
+	for _, s := range l {
+		if strings.Contains(s, target) {
+			parts := strings.Split(s, ":")
+			if len(parts) == hasMaxLen {
+				maxLen, err := strconv.Atoi(parts[1])
+				if err == nil {
+					return maxLen
+				}
+			}
+		}
+	}
+
+	return 0
 }

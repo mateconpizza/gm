@@ -32,11 +32,11 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		bFound := fmt.Sprintf("[%d] bookmarks found\n", bs.Len())
-		bf := color.Colorize(bFound, color.Blue)
-		fmt.Println(bf)
-
 		if bs.Len() > 1 {
+			bFound := fmt.Sprintf("[%d] bookmarks found\n", bs.Len())
+			bf := color.Colorize(bFound, color.Blue)
+			fmt.Println(bf)
+
 			for i, b := range *bs {
 				tempB := b
 				fmt.Println()

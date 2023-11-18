@@ -205,3 +205,24 @@ func CopyToClipboard(s string) {
 
 	log.Print("Text copied to clipboard:", s)
 }
+
+func NewGetInput(args []string) (string, error) {
+	if len(args) > 0 {
+		return strings.Join(args, " "), nil
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	text := scanner.Text()
+
+	if text == "" {
+		return "", errs.ErrNoIDorQueryPrivided
+	}
+
+	return text, nil
+}

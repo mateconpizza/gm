@@ -153,6 +153,7 @@ var rofiMenu = Menu{
 		"-l", "10",
 		"-p", "GoMarks",
 		"-mesg", "Welcome to GoMarks",
+		"-theme", "tokyonight-storm",
 		"-theme-str", "window {width: 75%; height: 55%;}",
 		"-theme-str", "textbox {markup: false;}",
 	},

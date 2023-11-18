@@ -61,6 +61,7 @@ fmt:
 lint: vet
 	@echo '>> Linting code'
 	golangci-lint run ./...
+	codespell .
 	@echo
 
 .PHONY: check
