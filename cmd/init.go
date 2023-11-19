@@ -20,12 +20,15 @@ var initCmd = &cobra.Command{
 	Short: "initialize a new bookmarks database and table",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		r, err := database.GetDB()
+		if err == nil {
+			return fmt.Errorf("%w", errs.ErrDBAlreadyInitialized)
+		}
+
 		if !errors.Is(err, errs.ErrDBNotFound) {
 			return fmt.Errorf("initializing database: %w", err)
 		}
 
-		var home string
-		home, err = util.SetupHomeProject()
+		err = util.SetupProjectPaths()
 		if err != nil {
 			return fmt.Errorf("creating home: %w", err)
 		}
@@ -34,13 +37,9 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("initializing database: %w", err)
 		}
 
-		// Print some info
-		fmt.Printf("%s v%s:\n", config.App.Name, config.App.Info.Version)
-		fmt.Printf("  + app home created at: %s\n", color.Colorize(home, color.Yellow))
-		fmt.Printf("  + database '%s' initialized\n", color.Colorize(config.DB.Name, color.Green))
-		fmt.Printf("  + creating %s bookmark\n\n", color.Colorize("initial", color.Purple))
+		printSummary()
 
-		bs, err := r.GetRecordsAll(config.DB.MainTable)
+		bs, err := r.GetRecordsAll(config.DB.Table.Main)
 		if err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
@@ -51,6 +50,13 @@ var initCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func printSummary() {
+	fmt.Printf("%s v%s:\n", config.App.Name, config.App.Info.Version)
+	fmt.Printf("  + app home created at: %s\n", color.Colorize(config.Path.Home, color.Yellow))
+	fmt.Printf("  + database '%s' initialized\n", color.Colorize(config.DB.Name, color.Green))
+	fmt.Printf("  + creating %s bookmark\n\n", color.Colorize("initial", color.Purple))
 }
 
 func init() {

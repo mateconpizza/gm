@@ -15,6 +15,7 @@ require github.com/davecgh/go-spew v1.1.1 // indirect
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1 // indirect
+	github.com/adrg/xdg v0.4.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/antchfx/htmlquery v1.3.0 // indirect
 	github.com/antchfx/xmlquery v1.3.18 // indirect
@@ -28,6 +29,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	golang.org/x/net v0.17.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect

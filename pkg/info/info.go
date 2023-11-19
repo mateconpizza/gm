@@ -6,7 +6,6 @@ import (
 
 	"gomarks/pkg/config"
 	"gomarks/pkg/database"
-	"gomarks/pkg/util"
 )
 
 func FormatBulletLine(label, value string) string {
@@ -27,18 +26,18 @@ func FormatTitle(title string, items []string) string {
 }
 
 func getDBInfo(r *database.SQLiteRepository) string {
-	records, err := r.GetRecordsLength(config.DB.MainTable)
+	records, err := r.GetRecordsLength(config.DB.Table.Main)
 	if err != nil {
 		return ""
 	}
 
-	deleted, err := r.GetRecordsLength(config.DB.DeletedTable)
+	deleted, err := r.GetRecordsLength(config.DB.Table.Deleted)
 	if err != nil {
 		return ""
 	}
 
 	s := FormatTitle("database", []string{
-		FormatBulletLine("path", util.GetDBPath()),
+		FormatBulletLine("path", config.DB.Path),
 		FormatBulletLine("records", strconv.Itoa(records)),
 		FormatBulletLine("deleted", strconv.Itoa(deleted)),
 	})
@@ -49,7 +48,7 @@ func getDBInfo(r *database.SQLiteRepository) string {
 func getAppInfo() string {
 	s := FormatTitle("info", []string{
 		FormatBulletLine("name", config.App.Name),
-		FormatBulletLine("home", util.GetAppHome()),
+		FormatBulletLine("home", config.Path.Home),
 		FormatBulletLine("version", config.App.Info.Version),
 	})
 

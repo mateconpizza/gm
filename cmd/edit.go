@@ -54,7 +54,7 @@ var editCmd = &cobra.Command{
 
 		id := (*bs)[0].ID
 
-		b, err := r.GetRecordByID(config.DB.MainTable, id)
+		b, err := r.GetRecordByID(config.DB.Table.Main, id)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -64,7 +64,7 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if _, err := r.UpdateRecord(config.DB.MainTable, b); err != nil {
+		if _, err := r.UpdateRecord(config.DB.Table.Main, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

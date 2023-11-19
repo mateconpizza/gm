@@ -147,14 +147,14 @@ func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Sl
 	var b *bookmark.Bookmark
 
 	if id, err = strconv.Atoi(queryOrID); err == nil {
-		b, err = r.GetRecordByID(config.DB.MainTable, id)
+		b, err = r.GetRecordByID(config.DB.Table.Main, id)
 		if err != nil {
 			return nil, fmt.Errorf("getting record by id '%d': %w", id, err)
 		}
 		return bookmark.NewSlice(b), nil
 	}
 
-	bs, err := r.GetRecordsByQuery(config.DB.MainTable, queryOrID)
+	bs, err := r.GetRecordsByQuery(config.DB.Table.Main, queryOrID)
 	if err != nil {
 		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
 	}

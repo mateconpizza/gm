@@ -63,12 +63,12 @@ func TestDropTable(t *testing.T) {
 		t.Errorf("Error dropping table: %v", err)
 	}
 
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", config.DB.MainTable))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", config.DB.Table.Main))
 	if err == nil {
 		t.Errorf("DBMainTable still exists after calling HandleDropDB")
 	}
 
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", config.DB.DeletedTable))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", config.DB.Table.Deleted))
 	if err == nil {
 		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")
 	}
@@ -352,18 +352,18 @@ func TestRenameTable(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	err := r.renameTable(tempTableName, config.DB.DeletedTable)
+	err := r.renameTable(tempTableName, config.DB.Table.Deleted)
 	if err != nil {
 		t.Errorf("Error renaming table: %v", err)
 	}
 
-	exists, err := r.tableExists(config.DB.DeletedTable)
+	exists, err := r.tableExists(config.DB.Table.Deleted)
 	if err != nil {
 		t.Errorf("Error checking if table exists: %v", err)
 	}
 
 	if !exists {
-		t.Errorf("Table %s does not exist", config.DB.DeletedTable)
+		t.Errorf("Table %s does not exist", config.DB.Table.Deleted)
 	}
 }
 

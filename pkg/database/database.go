@@ -39,15 +39,15 @@ func newSQLiteRepository(db *sql.DB) *SQLiteRepository {
 }
 
 func GetDB() (*SQLiteRepository, error) {
-	dbPath := util.GetDBPath()
+	util.LoadDBPath()
 
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite3", config.DB.Path)
 	if err != nil {
 		log.Fatal("Error opening database:", err)
 	}
 
 	r := newSQLiteRepository(db)
-	if exists, _ := r.tableExists(config.DB.MainTable); !exists {
+	if exists, _ := r.tableExists(config.DB.Table.Main); !exists {
 		return r, fmt.Errorf("%w", errs.ErrDBNotFound)
 	}
 
@@ -55,11 +55,11 @@ func GetDB() (*SQLiteRepository, error) {
 }
 
 func (r *SQLiteRepository) InitDB() error {
-	if err := r.createTable(config.DB.MainTable); err != nil {
+	if err := r.createTable(config.DB.Table.Main); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.createTable(config.DB.DeletedTable); err != nil {
+	if err := r.createTable(config.DB.Table.Deleted); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -70,7 +70,7 @@ func (r *SQLiteRepository) InitDB() error {
 		config.App.Info.Desc,
 	)
 
-	if _, err := r.InsertRecord(config.DB.MainTable, initialBookmark); err != nil {
+	if _, err := r.InsertRecord(config.DB.Table.Main, initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -409,7 +409,7 @@ func (r *SQLiteRepository) GetRecordsByQuery(tableName, q string) (*bookmark.Sli
 func (r *SQLiteRepository) GetRecordsByTag(tag string) (*bookmark.Slice, error) {
 	// FIX: make it local or delete it
 	bs, err := r.getRecordsBySQL(
-		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", config.DB.MainTable),
+		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", config.DB.Table.Main),
 		fmt.Sprintf("%%%s%%", tag),
 	)
 	if err != nil {

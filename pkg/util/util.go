@@ -19,6 +19,7 @@ import (
 	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 
+	"github.com/adrg/xdg"
 	"github.com/atotto/clipboard"
 	"golang.org/x/exp/slices"
 )
@@ -28,46 +29,51 @@ func fileExists(s string) bool {
 	return !os.IsNotExist(err)
 }
 
-// Returns the path to the application's home directory.
-func GetAppHome() string {
-	// TODO: maybe use `github.com/adrg/xdg`
+// Loads the path to the application's home directory.
+func LoadAppPaths() {
 	envHome := os.Getenv(config.App.Env.Home)
 
-	if envHome == "" {
-		envHome = os.Getenv("HOME")
-		config.Files.ConfigDir = fmt.Sprintf("%s/.config", envHome)
-	} else {
-		config.Files.ConfigDir = envHome
+	if envHome != "" {
+		config.Path.Home = envHome
+		return
 	}
 
-	return filepath.Join(config.Files.ConfigDir, config.App.Name)
+	if config.Path.Home != "" {
+		return
+	}
+
+	config.Path.Home = filepath.Join(xdg.ConfigHome, config.App.Name)
+	log.Println("AppHome:", config.Path.Home)
 }
 
-func GetDBPath() string {
-	appPath := GetAppHome()
-	s := filepath.Join(appPath, config.DB.Name)
-	log.Print("GetDBPath: ", s)
+// Loads the path to the database
+func LoadDBPath() {
+	LoadAppPaths()
 
-	return s
+	config.DB.Path = filepath.Join(config.Path.Home, config.DB.Name)
+	log.Print("DB.Path: ", config.DB.Path)
 }
 
 // Checks and creates the application's home directory.
 // Returns the path to the application's home directory and any error encountered during the process.
-func SetupHomeProject() (string, error) {
+func SetupProjectPaths() error {
 	const directoryPermissions = 0o755
 
-	appHome := GetAppHome()
+	LoadAppPaths()
 
-	if !fileExists(appHome) {
-		log.Println("Creating AppHome:", appHome)
-		err := os.Mkdir(appHome, directoryPermissions)
+	h := config.Path.Home
+
+	if !fileExists(h) {
+		log.Println("Creating AppHome:", h)
+		err := os.Mkdir(h, directoryPermissions)
 		if err != nil {
-			return "", fmt.Errorf("error creating AppHome: %w", err)
+			return fmt.Errorf("error creating AppHome: %w", err)
 		}
 	}
 
-	log.Println("AppHome already exists:", appHome)
-	return appHome, nil
+	log.Println("AppHome already exists:", h)
+
+	return nil
 }
 
 func IsSelectedTextInItems(s string, items []string) bool {

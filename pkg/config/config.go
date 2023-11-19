@@ -9,17 +9,20 @@ type ConfigApp struct {
 }
 
 type Database struct {
-	Name         string `json:"name"`
-	MainTable    string `json:"main_table"`
-	TempTable    string `json:"temp_table"`
-	DeletedTable string `json:"deleted_table"`
-	Path         string `json:"db_path"`
+	Name  string   `json:"name"`
+	Table DBTables `json:"tables"`
+	Path  string   `json:"db_path"`
+}
+
+type DBTables struct {
+	Main    string `json:"main"`
+	Temp    string `json:"temp"`
+	Deleted string `json:"deleted"`
 }
 
 type FilePath struct {
-	ConfigDir string `json:"config_dir"`
-	DataDir   string `json:"data_dir"`
-	LogDir    string `json:"log_dir"`
+	Home   string `json:"config_dir"`
+	Backup string `json:"backup_dir"`
 }
 
 type Info struct {
@@ -51,17 +54,18 @@ var App = ConfigApp{
 }
 
 var DB = Database{
-	Name:         "bookmarks.db",
-	MainTable:    "bookmarks",
-	TempTable:    "temp_bookmarks",
-	DeletedTable: "deleted_bookmarks",
-	Path:         "",
+	Name: "bookmarks.db",
+	Table: DBTables{
+		Main:    "bookmarks",
+		Temp:    "temp_bookmarks",
+		Deleted: "deleted_bookmarks",
+	},
+	Path: "",
 }
 
-var Files = FilePath{
-	ConfigDir: "",
-	DataDir:   "",
-	LogDir:    "",
+var Path = FilePath{
+	Home:   "",
+	Backup: "",
 }
 
 var BulletPoint string = "\u2022"
