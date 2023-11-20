@@ -6,11 +6,13 @@ import (
 	"strconv"
 
 	"gomarks/pkg/bookmark"
+	"gomarks/pkg/color"
 	"gomarks/pkg/config"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/menu"
+	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -159,4 +161,57 @@ func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Sl
 		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
 	}
 	return bs, nil
+}
+
+func handleTitle(url string) string {
+	maxLen := 80
+	title, err := scrape.GetTitle(url)
+	if err != nil {
+		return ""
+	}
+
+	titlePrompt := color.ColorizeBold("+ Title\t:", color.Green)
+	titleColor := color.ColorizeBold(format.SplitAndAlignString(title, maxLen), color.White)
+	fmt.Println(titlePrompt, titleColor)
+	return title
+}
+
+func handleDesc(url string) string {
+	maxLen := 80
+	desc, err := scrape.GetDescription(url)
+	if err != nil {
+		return ""
+	}
+
+	descPrompt := color.ColorizeBold("+ Desc\t:", color.Yellow)
+	descColor := color.ColorizeBold(format.SplitAndAlignString(desc, maxLen), color.White)
+	fmt.Println(descPrompt, descColor)
+	return desc
+}
+
+func handleURL(args *[]string) string {
+	urlPrompt := color.ColorizeBold("+ URL\t:", color.Blue)
+
+	if len(*args) > 0 {
+		url := (*args)[0]
+		*args = (*args)[1:]
+		fmt.Println(urlPrompt, url)
+		return url
+	}
+
+	return util.GetInput(urlPrompt)
+}
+
+func handleTags(args *[]string) string {
+	tagsPrompt := color.ColorizeBold("+ Tags\t:", color.Purple)
+
+	if len(*args) > 0 {
+		tags := (*args)[0]
+		*args = (*args)[1:]
+		fmt.Println(tagsPrompt, tags)
+		return tags
+	}
+
+	c := color.Colorize(" (comma separated)", color.Gray)
+	return util.GetInput(tagsPrompt + c)
 }

@@ -15,8 +15,6 @@ import (
 	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
-	"gomarks/pkg/scrape"
-	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
@@ -103,82 +101,6 @@ func validateBookmark(b *bookmark.Bookmark) error {
 		return fmt.Errorf("%w", errs.ErrBookmarkInvalid)
 	}
 	return nil
-}
-
-func handleURL(args *[]string) string {
-	var url string
-	var urlPrompt string
-
-	if len(*args) > 0 {
-		url = (*args)[0]
-		urlPrompt = fmt.Sprintf(
-			"%s%s+ URL\t: %s%s%s",
-			color.Bold,
-			color.Blue,
-			color.White,
-			url,
-			color.Reset,
-		)
-		*args = (*args)[1:]
-		fmt.Println(urlPrompt)
-	} else {
-		urlPrompt = fmt.Sprintf("%s%s+ URL:%s", color.Bold, color.Blue, color.Reset)
-		url = util.GetInput(urlPrompt)
-	}
-	return url
-}
-
-func handleTags(args *[]string) string {
-	var tags string
-
-	if len(*args) > 0 {
-		tags = (*args)[0]
-		tagsPrompt := fmt.Sprintf(
-			"%s%s+ Tags\t: %s%s%s",
-			color.Bold,
-			color.Purple,
-			color.White,
-			tags,
-			color.Reset)
-		fmt.Println(tagsPrompt)
-	} else {
-		tagsPrompt := fmt.Sprintf(
-			"%s%s+ Tags\t:%s %s(comma separated)%s",
-			color.Bold,
-			color.Purple,
-			color.Reset,
-			color.Gray,
-			color.Reset,
-		)
-		tags = util.GetInput(tagsPrompt)
-	}
-	return tags
-}
-
-func handleTitle(url string) string {
-	maxLen := 80
-	title, err := scrape.GetTitle(url)
-	if err != nil {
-		return ""
-	}
-
-	titlePrompt := color.ColorizeBold("+ Title\t:", color.Green)
-	titleColor := color.ColorizeBold(format.SplitAndAlignString(title, maxLen), color.White)
-	fmt.Println(titlePrompt, titleColor)
-	return title
-}
-
-func handleDesc(url string) string {
-	maxLen := 80
-	desc, err := scrape.GetDescription(url)
-	if err != nil {
-		return ""
-	}
-
-	descPrompt := color.ColorizeBold("+ Desc\t:", color.Yellow)
-	descColor := color.ColorizeBold(format.SplitAndAlignString(desc, maxLen), color.White)
-	fmt.Println(descPrompt, descColor)
-	return desc
 }
 
 func ConfirmOrEdit(question string) string {

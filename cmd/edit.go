@@ -20,8 +20,6 @@ var editCmd = &cobra.Command{
 	Short:   "edit selected bookmark",
 	Example: exampleUsage([]string{"edit <id>\n", "edit <query>"}),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		format.CmdTitle("edition mode.")
-
 		r, err := getDB()
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -31,6 +29,8 @@ var editCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
+		format.CmdTitle("edition mode.")
 
 		if bs.Len() > 1 {
 			bFound := fmt.Sprintf("[%d] bookmarks found\n", bs.Len())
@@ -68,7 +68,7 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := handleFormat(cmd, &bookmark.Slice{*b}); err != nil {
+		if err := handleFormat(cmd, bookmark.NewSlice(b)); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

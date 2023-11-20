@@ -94,7 +94,7 @@ func PickBookmarkWithMenu(bs *bookmark.Slice, s string) error {
 		return fmt.Errorf("picking bookmark with menu: %w", err)
 	}
 
-	*bs = bookmark.Slice{*b}
+	*bs = *bookmark.NewSlice(b)
 
 	return nil
 }

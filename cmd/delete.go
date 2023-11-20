@@ -30,7 +30,7 @@ var deleteCmd = &cobra.Command{
 
 		bs, err := handleGetRecords(r, args)
 		if err != nil {
-			return fmt.Errorf("fetching records: %w", err)
+			return fmt.Errorf("%w", err)
 		}
 
 		format.CmdTitle("delete mode")
@@ -39,7 +39,7 @@ var deleteCmd = &cobra.Command{
 		bf := color.Colorize(bFound, color.Red)
 		fmt.Println(bf)
 
-		toDel, err := parseSliceDel(*bs)
+		toDel, err := parseSliceDel(bs)
 		if err != nil {
 			return fmt.Errorf("parsing slice: %w", err)
 		}
@@ -85,27 +85,22 @@ func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error
  * @param bs A slice of bookmarks from which to select.
  * @return A slice of the selected bookmarks for deletion, or an error if no bookmarks were selected.
  */
-func parseSliceDel(bs bookmark.Slice) (bookmark.Slice, error) {
+func parseSliceDel(bs *bookmark.Slice) (bookmark.Slice, error) {
 	if bs.Len() == 0 {
 		return nil, fmt.Errorf("%w", errs.ErrBookmarkNotSelected)
 	}
 
 	var toDel bookmark.Slice
 
-	for i, b := range bs {
+	for i, b := range *bs {
 		fmt.Println(b.String())
 
 		// Prompt the user to confirm deletion for each bookmark.
-		deletePrompt := fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len())
-		confirm := util.Confirm(deletePrompt)
-
-		if confirm {
+		if confirm := util.Confirm(fmt.Sprintf("Delete bookmark [%d/%d]?", i+1, bs.Len())); confirm {
 			toDel = append(toDel, b)
-		}
-
-		// If there are multiple bookmarks and the user confirmed deletion, provide a confirmation message.
-		if bs.Len() > 1 && confirm {
-			fmt.Println(color.Colorize("Added to delete queue", color.Red))
+			if bs.Len() > 1 {
+				fmt.Println(color.Colorize("Added to delete queue", color.Red))
+			}
 		}
 		fmt.Println()
 	}
@@ -115,16 +110,18 @@ func parseSliceDel(bs bookmark.Slice) (bookmark.Slice, error) {
 		return nil, fmt.Errorf("slice to delete: %w", errs.ErrBookmarkNotSelected)
 	}
 
-	// If multiple bookmarks were selected, summarize the deletion and prompt for final confirmation.
-	if toDel.Len() > 1 {
-		d := fmt.Sprintf("Bookmarks to delete [%d]", toDel.Len())
-		fmt.Println(color.ColorizeBold(d, color.Red))
-		printSliceSummary(&toDel)
-
-		if confirm := util.Confirm("Are you sure?"); !confirm {
-			return nil, fmt.Errorf("%w", errs.ErrActionAborted)
-		}
+	// If multiple bookmarks were selected, summarize the deletion and
+	// prompt for final confirmation.
+	if toDel.Len() > 1 && !confirmDeletion(&toDel) {
+		return nil, fmt.Errorf("%w", errs.ErrActionAborted)
 	}
 
 	return toDel, nil
+}
+
+func confirmDeletion(toDel *bookmark.Slice) bool {
+	d := fmt.Sprintf("Bookmarks to delete [%d]", toDel.Len())
+	fmt.Println(color.ColorizeBold(d, color.Red))
+	printSliceSummary(toDel)
+	return util.Confirm("Do you want to continue?")
 }

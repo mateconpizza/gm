@@ -43,7 +43,8 @@ func (bf *BookmarkFormatter) Pretty() string {
 func checkInitDB(_ *cobra.Command, _ []string) error {
 	if _, err := getDB(); err != nil {
 		if errors.Is(err, errs.ErrDBNotFound) {
-			return fmt.Errorf("%w: use 'init' to initialize a new database", errs.ErrDBNotFound)
+			init := color.ColorizeBold("init", color.Yellow)
+			return fmt.Errorf("%w: use %s to initialize a new database", errs.ErrDBNotFound, init)
 		}
 		return fmt.Errorf("%w", err)
 	}

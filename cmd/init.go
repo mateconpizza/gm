@@ -56,7 +56,7 @@ func printSummary() {
 	fmt.Printf("%s v%s:\n", config.App.Name, config.App.Info.Version)
 	fmt.Printf("  + app home created at: %s\n", color.Colorize(config.Path.Home, color.Yellow))
 	fmt.Printf("  + database '%s' initialized\n", color.Colorize(config.DB.Name, color.Green))
-	fmt.Printf("  + creating %s bookmark\n\n", color.Colorize("initial", color.Purple))
+	fmt.Printf("  + %s bookmark created\n\n", color.Colorize("initial", color.Purple))
 }
 
 func init() {

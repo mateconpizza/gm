@@ -306,7 +306,6 @@ func TestInsertRecordsBulk(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	// Crear una lista de marcadores de posición de prueba
 	bookmarks := bookmark.Slice{
 		{
 			URL:       "url1",
