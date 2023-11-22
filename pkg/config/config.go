@@ -68,4 +68,6 @@ var Path = FilePath{
 	Backup: "",
 }
 
+var Editors = []string{"vim", "nvim", "nano", "emacs", "helix"}
+
 var BulletPoint string = "\u2022"
