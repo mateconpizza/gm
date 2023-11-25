@@ -28,8 +28,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("initializing database: %w", err)
 		}
 
-		err = util.SetupProjectPaths()
-		if err != nil {
+		if err = util.SetupProjectPaths(); err != nil {
 			return fmt.Errorf("creating home: %w", err)
 		}
 

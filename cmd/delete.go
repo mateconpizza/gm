@@ -65,6 +65,7 @@ func init() {
  *
  * @param r The SQLite repository to use for accessing the database.
  * @param toDel A pointer to a `bookmark.Slice` containing the bookmarks to be deleted.
+ *
  * @return An error if any occurred during deletion or reordering.
  */
 func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error {
@@ -83,6 +84,7 @@ func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error
  * Interactively prompts the user to select bookmarks for deletion and constructs a slice of the selected bookmarks.
  *
  * @param bs A slice of bookmarks from which to select.
+ *
  * @return A slice of the selected bookmarks for deletion, or an error if no bookmarks were selected.
  */
 func parseSliceDel(bs *bookmark.Slice) (bookmark.Slice, error) {

@@ -6,7 +6,7 @@ import (
 
 func TestFolderExists(t *testing.T) {
 	testFolder := "/tmp/testfolder"
-	exists := fileExists(testFolder)
+	exists := FileExists(testFolder)
 
 	if exists {
 		t.Errorf("Expected folder not to exist, but it does.")

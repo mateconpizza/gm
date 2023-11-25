@@ -1,6 +1,8 @@
 /*
 Copyright © 2023 haaag <git.haaag@gmail.com>
-*/package config
+*/
+
+package config
 
 type ConfigApp struct {
 	Name string      `json:"name"`

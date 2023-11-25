@@ -4,7 +4,6 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -24,13 +23,14 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func fileExists(s string) bool {
+func FileExists(s string) bool {
 	_, err := os.Stat(s)
 	return !os.IsNotExist(err)
 }
 
 // Loads the path to the application's home directory.
 func LoadAppPaths() {
+	// FIX: This is called twice, check why...
 	envHome := os.Getenv(config.App.Env.Home)
 
 	if envHome != "" {
@@ -46,26 +46,18 @@ func LoadAppPaths() {
 	log.Println("AppHome:", config.Path.Home)
 }
 
-// Loads the path to the database
-func LoadDBPath() {
-	LoadAppPaths()
-
-	config.DB.Path = filepath.Join(config.Path.Home, config.DB.Name)
-	log.Print("DB.Path: ", config.DB.Path)
-}
-
 // Checks and creates the application's home directory.
 // Returns the path to the application's home directory and any error encountered during the process.
 func SetupProjectPaths() error {
-	const directoryPermissions = 0o755
+	const dirPermissions = 0o755
 
 	LoadAppPaths()
 
 	h := config.Path.Home
 
-	if !fileExists(h) {
+	if !FileExists(h) {
 		log.Println("Creating AppHome:", h)
-		err := os.Mkdir(h, directoryPermissions)
+		err := os.Mkdir(h, dirPermissions)
 		if err != nil {
 			return fmt.Errorf("error creating AppHome: %w", err)
 		}
@@ -124,24 +116,6 @@ func BinaryExists(binaryName string) bool {
 	return err == nil
 }
 
-func ReadContentFile(file *os.File) ([]byte, error) {
-	tempFileName := file.Name()
-	content, err := os.ReadFile(tempFileName)
-	if err != nil {
-		return nil, fmt.Errorf("error reading file: %w", err)
-	}
-
-	return content, nil
-}
-
-func IsSameContentBytes(a, b []byte) bool {
-	return bytes.Equal(a, b)
-}
-
-func IsEmptyLine(line string) bool {
-	return strings.TrimSpace(line) == ""
-}
-
 func GetInput(prompt string) string {
 	var s string
 
@@ -157,6 +131,7 @@ func GetInput(prompt string) string {
 }
 
 func HandleInterrupt() <-chan struct{} {
+	// FIX: make it local or delete it
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 

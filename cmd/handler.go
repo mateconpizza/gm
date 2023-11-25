@@ -84,6 +84,7 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 		case "tags":
 			fmt.Println(b.Tags)
 		case "menu":
+			// FIX: Delete `menu` option
 			i := fmt.Sprintf(
 				"%-4d %-80s %-10s",
 				b.ID,
@@ -137,6 +138,7 @@ func handleNoConfirmation(cmd *cobra.Command) bool {
  *
  * @param r The SQLite repository to use for accessing the database.
  * @param args An array of strings containing either an ID or a query string.
+ *
  * @return A pointer to a `bookmark.Slice` containing the retrieved records, or an error if any occurred.
  */
 func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Slice, error) {

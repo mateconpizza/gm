@@ -1,6 +1,8 @@
 /*
 Copyright © 2023 haaag <git.haaag@gmail.com>
-*/package cmd
+*/
+
+package cmd
 
 import (
 	"fmt"

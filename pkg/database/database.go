@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -38,8 +39,20 @@ func newSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	}
 }
 
+// Loads the path to the database
+func loadDBPath() {
+	util.LoadAppPaths()
+
+	config.DB.Path = filepath.Join(config.Path.Home, config.DB.Name)
+	log.Print("DB.Path: ", config.DB.Path)
+}
+
 func GetDB() (*SQLiteRepository, error) {
-	util.LoadDBPath()
+	loadDBPath()
+
+	if !util.FileExists(config.DB.Path) {
+		return nil, fmt.Errorf("%w", errs.ErrDBNotFound)
+	}
 
 	db, err := sql.Open("sqlite3", config.DB.Path)
 	if err != nil {
@@ -48,7 +61,7 @@ func GetDB() (*SQLiteRepository, error) {
 
 	r := newSQLiteRepository(db)
 	if exists, _ := r.tableExists(config.DB.Table.Main); !exists {
-		return r, fmt.Errorf("%w", errs.ErrDBNotFound)
+		return nil, fmt.Errorf("%w", errs.ErrDBNotFound)
 	}
 
 	return r, nil
@@ -329,6 +342,7 @@ func (r *SQLiteRepository) GetRecordByURL(tableName, u string) (*bookmark.Bookma
 	return &b, nil
 }
 
+// Retrieves bookmarks from the SQLite database based on the provided SQL query.
 func (r *SQLiteRepository) getRecordsBySQL(q string, args ...interface{}) (*bookmark.Slice, error) {
 	rows, err := r.DB.Query(q, args...)
 	if err != nil {
@@ -508,6 +522,7 @@ func (r *SQLiteRepository) RecordExists(tableName, url string) bool {
 	return recordCount > 0
 }
 
+// Retrieves the maximum ID from the specified table in the SQLite database.
 func (r *SQLiteRepository) getMaxID(tableName string) int {
 	var lastIndex int
 

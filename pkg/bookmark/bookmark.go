@@ -87,7 +87,7 @@ func (b *Bookmark) IsValid() bool {
 	return true
 }
 
-func (b *Bookmark) Buffer() []byte {
+func (b *Bookmark) buffer() []byte {
 	data := []byte(fmt.Sprintf(`## editing [%d] %s
 ## url:
 %s

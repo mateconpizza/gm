@@ -5,6 +5,7 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 package bookmark
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +18,11 @@ import (
 	"gomarks/pkg/util"
 )
 
+type editorInfo struct {
+	Name string
+	Args []string
+}
+
 type tempBookmark struct {
 	url   string
 	title string
@@ -24,9 +30,7 @@ type tempBookmark struct {
 	desc  string
 }
 
-/**
- * Fetches the title and description of the bookmark's URL, if they are not already set.
- */
+// Fetches the title and/or description of the bookmark's URL, if they are not already set.
 func (t *tempBookmark) fetchTitleAndDescription() {
 	if t.title == scrape.TitleDefault || t.title == "" {
 		title, err := scrape.GetTitle(t.url)
@@ -79,7 +83,7 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 		return b, fmt.Errorf("%w", err)
 	}
 
-	data := b.Buffer()
+	data := b.buffer()
 	tf, err = saveDataToTempFile(tf, data)
 	if err != nil {
 		return b, fmt.Errorf("%w", err)
@@ -96,26 +100,27 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 		return b, fmt.Errorf("%w", err)
 	}
 
-	err = editFile(editor, tf)
+	if err = editFile(editor, tf); err != nil {
+		return b, fmt.Errorf("%w", err)
+	}
+
+	editedContent, err := readContentFile(tf)
 	if err != nil {
 		return b, fmt.Errorf("%w", err)
 	}
 
-	editedContent, err := util.ReadContentFile(tf)
-	if err != nil {
-		return b, fmt.Errorf("%w", err)
-	}
 	tempContent := strings.Split(string(editedContent), "\n")
-
 	if err := validateContent(tempContent); err != nil {
 		return b, err
 	}
 
-	if err := cleanupTempFile(tf.Name()); err != nil {
-		return b, fmt.Errorf("%w", err)
-	}
+	defer func() {
+		if err = cleanupTempFile(tf.Name()); err != nil {
+			log.Printf("%v", err)
+		}
+	}()
 
-	if util.IsSameContentBytes(data, editedContent) {
+	if isSameContentBytes(data, editedContent) {
 		return b, fmt.Errorf("%w", errs.ErrBookmarkUnchaged)
 	}
 
@@ -126,6 +131,11 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	return b, nil
 }
 
+// Checks if the buffer is unchanged
+func isSameContentBytes(a, b []byte) bool {
+	return bytes.Equal(a, b)
+}
+
 /**
  * Writes the provided data to a temporary file and returns the file handle.
  *
@@ -134,15 +144,15 @@ func Edit(b *Bookmark) (*Bookmark, error) {
  *
  * @return The file handle of the temporary file, or an error if the data could not be written to the file.
  */
-func saveDataToTempFile(file *os.File, data []byte) (*os.File, error) {
+func saveDataToTempFile(f *os.File, data []byte) (*os.File, error) {
 	const filePermission = 0o600
 
-	err := os.WriteFile(file.Name(), data, filePermission)
+	err := os.WriteFile(f.Name(), data, filePermission)
 	if err != nil {
 		return nil, fmt.Errorf("error writing to temp file: %w", err)
 	}
 
-	return file, nil
+	return f, nil
 }
 
 func createTempFile() (*os.File, error) {
@@ -168,9 +178,11 @@ func validateContent(content []string) error {
 	url := extractBlock(content, "## url:", "## title:")
 	tags := extractBlock(content, "## tags:", "## description:")
 
-	if util.IsEmptyLine(url) {
+	if isEmptyLine(url) {
 		return errs.ErrURLEmpty
-	} else if util.IsEmptyLine(tags) {
+	}
+
+	if isEmptyLine(tags) {
 		return errs.ErrTagsEmpty
 	}
 
@@ -234,11 +246,6 @@ func extractBlock(content []string, startMarker, endMarker string) string {
 	return strings.Join(cleanedBlock, "\n")
 }
 
-type editorInfo struct {
-	Name string
-	Args []string
-}
-
 /**
  * Opens the specified file for editing using the provided editor.
  *
@@ -247,12 +254,11 @@ type editorInfo struct {
  *
  * @return An error if an error occurs while opening or editing the file.
  */
-func editFile(editor *editorInfo, file *os.File) error {
-	// Create a temporary copy of the file to prevent accidental changes to the original file.
-	tempFileName := file.Name()
+func editFile(e *editorInfo, f *os.File) error {
+	tempFileName := f.Name()
 
 	// Construct the editor command with the temporary file path and editor arguments.
-	cmd := exec.Command(editor.Name, append(editor.Args, tempFileName)...)
+	cmd := exec.Command(e.Name, append(e.Args, tempFileName)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -272,16 +278,14 @@ func editFile(editor *editorInfo, file *os.File) error {
  * arguments, or an error if no editor could be found.
  */
 func getEditor() (*editorInfo, error) {
-	appEditor := strings.Fields(os.Getenv(config.App.Env.Editor))
-	if len(appEditor) > 0 {
-		log.Printf("$%s set to %s", config.App.Env.Editor, appEditor)
-		return &editorInfo{Name: appEditor[0], Args: appEditor[1:]}, nil
+	if appEditor, exists := getAppEditor(); exists {
+		return appEditor, nil
 	}
 
 	editor := strings.Fields(os.Getenv("EDITOR"))
 	if len(editor) > 0 {
 		log.Printf("$EDITOR set to %s", editor)
-		return &editorInfo{Name: appEditor[0], Args: appEditor[1:]}, nil
+		return &editorInfo{Name: editor[0], Args: editor[1:]}, nil
 	}
 
 	log.Printf("$EDITOR not set.")
@@ -293,4 +297,33 @@ func getEditor() (*editorInfo, error) {
 	}
 
 	return nil, errs.ErrEditorNotFound
+}
+
+func getAppEditor() (*editorInfo, bool) {
+	appEditor := strings.Fields(os.Getenv(config.App.Env.Editor))
+	if len(appEditor) == 0 {
+		return nil, false
+	}
+
+	if !util.BinaryExists(appEditor[0]) {
+		log.Printf("'%s' executable file not found in $PATH", appEditor[0])
+		return nil, false
+	}
+
+	log.Printf("$%s set to %s", config.App.Env.Editor, appEditor)
+	return &editorInfo{Name: appEditor[0], Args: appEditor[1:]}, true
+}
+
+func readContentFile(file *os.File) ([]byte, error) {
+	tempFileName := file.Name()
+	content, err := os.ReadFile(tempFileName)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+
+	return content, nil
+}
+
+func isEmptyLine(line string) bool {
+	return strings.TrimSpace(line) == ""
 }
