@@ -18,7 +18,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func handleMenu() (*menu.Menu, error) {
+func HandleMenu() (*menu.Menu, error) {
+	// FIX: make it local or delete it
 	menuName, err := rootCmd.Flags().GetString("menu")
 	if err != nil {
 		fmt.Println("err on getting menu:", err)
@@ -86,8 +87,9 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 		case "menu":
 			// FIX: Delete `menu` option
 			i := fmt.Sprintf(
-				"%-4d %-80s %-10s",
+				"%-4d %-*s %-10s",
 				b.ID,
+				maxLen,
 				format.ShortenString(b.URL, maxLen),
 				b.Tags,
 			)

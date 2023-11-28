@@ -6,22 +6,21 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
-	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
 	"gomarks/pkg/display"
-	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
 
+// TODO:
+// [ ] - make `maxLen` global and flag
+
 const maxLen = 80
 
 var (
-	Menu          *menu.Menu
 	formatFlag    string
 	headFlag      int
 	noConfirmFlag bool
@@ -49,13 +48,8 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if Menu != nil {
-			var b *bookmark.Bookmark
-			b, err = display.SelectBookmark(Menu, bs)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			bs = bookmark.NewSlice(b)
+		if bs, err = display.Select(cmd, bs); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		if err := handleHeadAndTail(cmd, bs); err != nil {
@@ -101,19 +95,13 @@ func init() {
 		StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
 
 	rootCmd.PersistentFlags().
-		IntVarP(&headFlag, "head", "H", 0, "the <int> first part of bookmarks")
+		IntVar(&headFlag, "head", 0, "the <int> first part of bookmarks")
 	rootCmd.PersistentFlags().
-		IntVarP(&tailFlag, "tail", "T", 0, "the <int> last part of bookmarks")
+		IntVar(&tailFlag, "tail", 0, "the <int> last part of bookmarks")
 
 	rootCmd.SilenceErrors = true
 }
 
 func initConfig() {
 	util.SetLogLevel(&verboseFlag)
-
-	var err error
-	Menu, err = handleMenu()
-	if err != nil {
-		log.Fatal(err)
-	}
 }
