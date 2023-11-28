@@ -13,18 +13,15 @@ full: fmt vet lint test build
 
 build: vet test
 	@echo '>> Building $(NAME)'
-	go build -ldflags "-s -w" -o $(BIN) $(SRC)
-	@echo
+	@go build -ldflags "-s -w" -o $(BIN) $(SRC)
 
 beta: vet test
 	@echo '>> Building $(NAME)'
-	go build -o $(BIN)-beta $(SRC)
-	@echo
+	@go build -o $(BIN)-beta $(SRC)
 
 debug: vet test
 	@echo '>> Building $(NAME) with debugger'
-	go build -gcflags="all=-N -l" -o $(BIN)-debug $(SRC)
-	@echo
+	@go build -gcflags="all=-N -l" -o $(BIN)-debug $(SRC)
 
 run: build
 	@echo '>> Running $(NAME)'
@@ -32,40 +29,34 @@ run: build
 
 test: vet
 	@echo '>> Testing $(NAME)'
-	go test ./...
+	@go test ./...
 	@echo
 
 test-verbose: vet
 	@echo '>> Testing $(NAME) (verbose)'
-	go test -v ./...
-	@echo
+	@go test -v ./...
 
 vet:
 	@echo '>> Checking code with go vet'
-	go vet ./...
-	@echo
+	@go vet ./...
 
 clean:
 	@echo '>> Cleaning up'
 	rm -f $(BIN)
 	go clean -cache
-	@echo
 
 .PHONY: fmt
 fmt:
 	@echo '>> Formatting code'
-	gofumpt -l -w .
-	@echo
+	@gofumpt -l -w .
 
 .PHONY: lint
 lint: vet
 	@echo '>> Linting code'
-	golangci-lint run ./...
-	codespell .
-	@echo
+	@golangci-lint run ./...
+	@codespell .
 
 .PHONY: check
 check:
 	@echo '>> Linting everything'
-	golangci-lint run -p bugs -p error
-	@echo
+	@golangci-lint run -p bugs -p error
