@@ -23,6 +23,7 @@ const maxLen = 80
 var (
 	formatFlag    string
 	headFlag      int
+	infoFlag      bool
 	noConfirmFlag bool
 	pickerFlag    string
 	tailFlag      int
@@ -31,8 +32,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:          config.App.Name,
-	Short:        "Gomarks is a bookmark manager for your terminal",
-	Long:         "Gomarks is a bookmark manager for your terminal",
+	Short:        config.App.Desc,
+	Long:         config.App.Desc,
 	SilenceUsage: true,
 	Args:         cobra.MinimumNArgs(0),
 	PreRunE:      checkInitDB,
@@ -41,6 +42,10 @@ var rootCmd = &cobra.Command{
 
 		if len(args) == 0 {
 			args = []string{""}
+		}
+
+		if err := handleInfoFlag(cmd, r); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		bs, err := handleGetRecords(r, args)
@@ -87,17 +92,14 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVar(&noConfirmFlag, "no-confirm", false, "no confirm mode")
+	rootCmd.PersistentFlags().BoolVarP(&infoFlag, "info", "i", false, "show app info")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
-	rootCmd.PersistentFlags().
-		StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")
-	rootCmd.PersistentFlags().
-		StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
+	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")
+	rootCmd.PersistentFlags().StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
 
-	rootCmd.PersistentFlags().
-		IntVar(&headFlag, "head", 0, "the <int> first part of bookmarks")
-	rootCmd.PersistentFlags().
-		IntVar(&tailFlag, "tail", 0, "the <int> last part of bookmarks")
+	rootCmd.PersistentFlags().IntVar(&headFlag, "head", 0, "the <int> first part of bookmarks")
+	rootCmd.PersistentFlags().IntVar(&tailFlag, "tail", 0, "the <int> last part of bookmarks")
 
 	rootCmd.SilenceErrors = true
 }

@@ -52,10 +52,10 @@ func (b *Bookmark) prettyString() string {
 	title := format.SplitAndAlignString(b.Title, maxLen)
 	desc := format.SplitAndAlignString(b.Desc, maxLen)
 
-	s := format.FormatTitleLine(b.ID, title, color.Purple)
-	s += format.FormatLine("\t+ ", url, color.Blue)
-	s += format.FormatLine("\t+ ", b.Tags, color.Gray)
-	s += format.FormatLine("\t+ ", desc, color.White)
+	s := format.TitleLine(b.ID, title, color.Purple)
+	s += format.Line("\t+ ", url, color.Blue)
+	s += format.Line("\t+ ", b.Tags, color.Gray)
+	s += format.Line("\t+ ", desc, color.White)
 
 	return s
 }

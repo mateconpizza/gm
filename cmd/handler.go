@@ -11,7 +11,7 @@ import (
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
-	"gomarks/pkg/menu"
+	"gomarks/pkg/info"
 	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
 
@@ -218,4 +218,25 @@ func handleTags(args *[]string) string {
 
 	c := color.Colorize(" (comma separated)", color.Gray)
 	return util.GetInput(tagsPrompt + c)
+}
+
+func handleInfoFlag(cmd *cobra.Command, r *database.SQLiteRepository) error {
+	if infoFlag, err := cmd.Flags().GetBool("info"); err != nil {
+		return fmt.Errorf("getting info flag: %w", err)
+	} else if infoFlag {
+		records, err := r.GetRecordsLength(config.DB.Table.Main)
+		if err != nil {
+			return fmt.Errorf("getting records length: %w", err)
+		}
+
+		deleted, err := r.GetRecordsLength(config.DB.Table.Deleted)
+		if err != nil {
+			return fmt.Errorf("getting deleted records length: %w", err)
+		}
+
+		fmt.Println(info.Show(records, deleted))
+		os.Exit(0)
+	}
+
+	return nil
 }

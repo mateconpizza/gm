@@ -9,6 +9,24 @@ import (
 	"gomarks/pkg/config"
 )
 
+func BulletLine(label, value string) string {
+	padding := 15
+	return fmt.Sprintf("    %s %-*s: %s\n", config.BulletPoint, padding, label, value)
+}
+
+func Title(title string, items []string) string {
+	var s string
+
+	t := fmt.Sprintf("> %s:\n", title)
+	s += t
+
+	for _, item := range items {
+		s += item
+	}
+
+	return s
+}
+
 func ShortenString(s string, maxLength int) string {
 	if len(s) > maxLength {
 		return s[:maxLength-3] + "..."
@@ -17,7 +35,7 @@ func ShortenString(s string, maxLength int) string {
 	return s
 }
 
-func FormatLine(prefix, v, c string) string {
+func Line(prefix, v, c string) string {
 	if c == "" {
 		return fmt.Sprintf("%s%s\n", prefix, v)
 	}
@@ -59,7 +77,8 @@ func CmdTitle(s string) {
 	fmt.Println(p, t, q)
 }
 
-func FormatTitleLine(n int, title, c string) string {
+func TitleLine(n int, title, c string) string {
+	// FIX: change Naming. Another function is called `Title`
 	if title == "" {
 		title = "Untitled"
 	}
@@ -101,6 +120,7 @@ func ParseUniqueStrings(input []string, sep string) []string {
 }
 
 func ExtractMaxLen(l []string, target string) int {
+	// FIX: delete this
 	hasMaxLen := 2
 	for _, s := range l {
 		if strings.Contains(s, target) {
@@ -115,4 +135,20 @@ func ExtractMaxLen(l []string, target string) int {
 	}
 
 	return 0
+}
+
+func Warning(s string) string {
+	return color.ColorizeBold(s, color.Yellow)
+}
+
+func Error(s string) string {
+	return color.ColorizeBold(s, color.Red)
+}
+
+func Success(s ...string) string {
+	return color.ColorizeBold(strings.Join(s, " "), color.Green)
+}
+
+func Info(s string) string {
+	return color.ColorizeBold(s, color.Blue)
 }

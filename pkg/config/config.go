@@ -6,6 +6,7 @@ package config
 
 type ConfigApp struct {
 	Name string      `json:"name"`
+	Desc string      `json:"desc"`
 	Info Info        `json:"data"`
 	Env  Environment `json:"environment"`
 }
@@ -42,6 +43,7 @@ type Environment struct {
 
 var App = ConfigApp{
 	Name: "gomarks",
+	Desc: "Simple yet powerful bookmark manager for your terminal",
 	Info: Info{
 		URL:     "https://github.com/haaag/GoMarks#readme",
 		Title:   "Gomarks",
