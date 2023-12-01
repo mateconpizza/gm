@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/color"
@@ -15,29 +18,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type Formatter interface {
-	Format() string
-	Pretty()
-}
+func promptWithOptions(question string, options []string) string {
+	p := format.Prompt(question, fmt.Sprintf("[%s]: ", strings.Join(options, "/")))
+	reader := bufio.NewReader(os.Stdin)
 
-type BookmarkFormatter struct {
-	Bookmark *bookmark.Bookmark
-	MaxLen   int
-}
+	for {
+		fmt.Print(p)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input:", err)
+			return ""
+		}
 
-func (bf *BookmarkFormatter) Format() string {
-	s := fmt.Sprintf(
-		"%-4d %-*s %-10s",
-		bf.Bookmark.ID,
-		bf.MaxLen,
-		format.ShortenString(bf.Bookmark.Title, bf.MaxLen),
-		bf.Bookmark.Tags,
-	)
-	return s
-}
+		input = strings.TrimSpace(input)
+		input = strings.ToLower(input)
 
-func (bf *BookmarkFormatter) Pretty() string {
-	return bf.Bookmark.String()
+		for _, opt := range options {
+			if strings.EqualFold(input, opt) || strings.EqualFold(input, opt[:1]) {
+				return input
+			}
+		}
+
+		fmt.Printf("Invalid response. Please enter one of: %s\n", strings.Join(options, ", "))
+	}
 }
 
 func checkInitDB(_ *cobra.Command, _ []string) error {

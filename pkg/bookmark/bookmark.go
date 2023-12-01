@@ -71,22 +71,6 @@ func (b *Bookmark) Update(url, title, tags, desc string) {
 	b.Desc = desc
 }
 
-func (b *Bookmark) IsValid() bool {
-	if b.URL == "" {
-		log.Print("bookmark is invalid. URL is empty")
-		return false
-	}
-
-	if b.Tags == "," || b.Tags == "" {
-		log.Print("bookmark is invalid. Tags are empty")
-		return false
-	}
-
-	log.Print("bookmark is valid")
-
-	return true
-}
-
 func (b *Bookmark) buffer() []byte {
 	data := []byte(fmt.Sprintf(`## editing [%d] %s
 ## url:
@@ -135,8 +119,6 @@ func Format(f string, bs *Slice) error {
 		for _, b := range *bs {
 			fmt.Println(b.String())
 		}
-		total := color.Colorize(fmt.Sprintf("total [%d]", bs.Len()), color.Gray)
-		fmt.Println(total)
 	default:
 		return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, f)
 	}
@@ -153,4 +135,20 @@ func ToJSON(data interface{}) string {
 	jsonString := string(jsonData)
 
 	return jsonString
+}
+
+func Validate(b *Bookmark) error {
+	if b.URL == "" {
+		log.Print("bookmark is invalid. URL is empty")
+		return errs.ErrURLEmpty
+	}
+
+	if b.Tags == "," || b.Tags == "" {
+		log.Print("bookmark is invalid. Tags are empty")
+		return errs.ErrTagsEmpty
+	}
+
+	log.Print("bookmark is valid")
+
+	return nil
 }

@@ -373,7 +373,7 @@ func TestBookmarkIsValid(t *testing.T) {
 		Tags:  "tag1,tag2",
 	}
 
-	if !validBookmark.IsValid() {
+	if err := bookmark.Validate(&validBookmark); err != nil {
 		t.Errorf("TestBookmarkIsValid: expected valid bookmark to be valid")
 	}
 
@@ -382,7 +382,7 @@ func TestBookmarkIsValid(t *testing.T) {
 		URL:   "",
 	}
 
-	if invalidBookmark.IsValid() {
+	if err := bookmark.Validate(&invalidBookmark); err == nil {
 		t.Errorf("TestBookmarkIsValid: expected invalid bookmark to be invalid")
 	}
 }

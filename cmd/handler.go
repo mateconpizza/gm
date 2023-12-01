@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 
 	"gomarks/pkg/bookmark"
@@ -17,25 +18,6 @@ import (
 
 	"github.com/spf13/cobra"
 )
-
-func HandleMenu() (*menu.Menu, error) {
-	// FIX: make it local or delete it
-	menuName, err := rootCmd.Flags().GetString("menu")
-	if err != nil {
-		fmt.Println("err on getting menu:", err)
-	}
-
-	if menuName == "" {
-		return nil, nil
-	}
-
-	m, err := menu.New(menuName)
-	if err != nil {
-		return nil, fmt.Errorf("error creating menu: %w", err)
-	}
-
-	return m, nil
-}
 
 func handleQuery(args []string) (string, error) {
 	if len(args) == 0 {
@@ -125,14 +107,6 @@ func handleHeadAndTail(cmd *cobra.Command, bs *bookmark.Slice) error {
 	}
 
 	return nil
-}
-
-func handleNoConfirmation(cmd *cobra.Command) bool {
-	noConfirm, err := cmd.Flags().GetBool("no-confirm")
-	if err != nil {
-		return false
-	}
-	return noConfirm
 }
 
 /**

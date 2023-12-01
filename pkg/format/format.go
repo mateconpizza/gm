@@ -137,18 +137,24 @@ func ExtractMaxLen(l []string, target string) int {
 	return 0
 }
 
-func Warning(s string) string {
-	return color.ColorizeBold(s, color.Yellow)
+func Prompt(question, options string) string {
+	q := color.ColorizeBold(question, color.White)
+	o := color.Colorize(options, color.Gray)
+	return fmt.Sprintf("\n%s %s: ", q, o)
 }
 
-func Error(s string) string {
-	return color.ColorizeBold(s, color.Red)
+func Warning(s ...string) string {
+	return color.ColorizeBold(strings.Join(s, " "), color.Yellow)
+}
+
+func Error(s ...string) string {
+	return color.ColorizeBold(strings.Join(s, " "), color.Red)
 }
 
 func Success(s ...string) string {
 	return color.ColorizeBold(strings.Join(s, " "), color.Green)
 }
 
-func Info(s string) string {
-	return color.ColorizeBold(s, color.Blue)
+func Info(s ...string) string {
+	return color.ColorizeBold(strings.Join(s, " "), color.Blue)
 }

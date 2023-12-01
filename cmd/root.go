@@ -21,13 +21,12 @@ import (
 const maxLen = 80
 
 var (
-	formatFlag    string
-	headFlag      int
-	infoFlag      bool
-	noConfirmFlag bool
-	pickerFlag    string
-	tailFlag      int
-	verboseFlag   bool
+	formatFlag  string
+	headFlag    int
+	infoFlag    bool
+	pickerFlag  string
+	tailFlag    int
+	verboseFlag bool
 )
 
 var rootCmd = &cobra.Command{
@@ -91,7 +90,6 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "verbose mode")
-	rootCmd.PersistentFlags().BoolVar(&noConfirmFlag, "no-confirm", false, "no confirm mode")
 	rootCmd.PersistentFlags().BoolVarP(&infoFlag, "info", "i", false, "show app info")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")

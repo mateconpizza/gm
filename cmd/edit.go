@@ -60,7 +60,7 @@ var editCmd = &cobra.Command{
 		}
 
 		b, err = bookmark.Edit(b)
-		if err != nil {
+		if !errors.Is(err, errs.ErrBookmarkUnchaged) && err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

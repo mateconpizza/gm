@@ -95,6 +95,12 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 		}
 	}()
 
+	defer func() {
+		if err = cleanupTempFile(tf.Name()); err != nil {
+			log.Printf("%v", err)
+		}
+	}()
+
 	editor, err := getEditor()
 	if err != nil {
 		return b, fmt.Errorf("%w", err)
@@ -113,12 +119,6 @@ func Edit(b *Bookmark) (*Bookmark, error) {
 	if err := validateContent(tempContent); err != nil {
 		return b, err
 	}
-
-	defer func() {
-		if err = cleanupTempFile(tf.Name()); err != nil {
-			log.Printf("%v", err)
-		}
-	}()
 
 	if isSameContentBytes(data, editedContent) {
 		return b, fmt.Errorf("%w", errs.ErrBookmarkUnchaged)

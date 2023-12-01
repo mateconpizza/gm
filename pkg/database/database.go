@@ -107,8 +107,8 @@ func (r *SQLiteRepository) InsertRecord(
 	tableName string,
 	b *bookmark.Bookmark,
 ) (*bookmark.Bookmark, error) {
-	if !b.IsValid() {
-		return nil, fmt.Errorf("%w: '%s'", errs.ErrBookmarkInvalid, b.URL)
+	if err := bookmark.Validate(b); err != nil {
+		return nil, fmt.Errorf("abort: %w", err)
 	}
 
 	if r.RecordExists(tableName, b.URL) {
