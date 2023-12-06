@@ -33,6 +33,10 @@ func (bs *Slice) IDs() []int {
 	return ids
 }
 
+func (bs *Slice) Add(b *Bookmark) {
+	*bs = append(*bs, *b)
+}
+
 func NewSlice(b *Bookmark) *Slice {
 	return &Slice{*b}
 }

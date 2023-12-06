@@ -4,22 +4,29 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/color"
 	"gomarks/pkg/config"
+	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
 
+// TODO:
+// - [ ] On `edition` create some kind of break statement in buffer
+
+const tooManyRecords = 5
+const maxRecords = 20
+
 var editCmd = &cobra.Command{
 	Use:     "edit",
 	Short:   "edit selected bookmark",
-	Example: exampleUsage([]string{"edit <id>\n", "edit <query>"}),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Example: exampleUsage([]string{"edit <id>\n", "edit <id id id>\n", "edit <query>"}),
+	RunE: func(_ *cobra.Command, args []string) error {
 		r, err := getDB()
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -27,53 +34,55 @@ var editCmd = &cobra.Command{
 
 		bs, err := handleGetRecords(r, args)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("error getting records: %w", err)
 		}
 
-		format.CmdTitle("edition mode.")
-
-		if bs.Len() > 1 {
-			bFound := fmt.Sprintf("[%d] bookmarks found\n", bs.Len())
-			bf := color.Colorize(bFound, color.Blue)
-			fmt.Println(bf)
-
-			for i, b := range *bs {
-				tempB := b
-				fmt.Println()
-				fmt.Println(b.String())
-
-				editPrompt := fmt.Sprintf("Edit bookmark [%d/%d]?", i+1, bs.Len())
-				if confirm := util.Confirm(editPrompt); confirm {
-					_, err = bookmark.Edit(&tempB)
-					if err != nil {
-						return fmt.Errorf("%w", err)
-					}
-				}
-			}
+		if len(*bs) > maxRecords {
+			return fmt.Errorf("%w for edition: %d", errs.ErrTooManyRecords, len(*bs))
 		}
 
-		id := (*bs)[0].ID
-
-		b, err := r.GetRecordByID(config.DB.Table.Main, id)
+		bsToUpdate, err := editAndDisplayBookmarks(bs)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("error during editing: %w", err)
 		}
 
-		b, err = bookmark.Edit(b)
-		if !errors.Is(err, errs.ErrBookmarkUnchaged) && err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		if _, err := r.UpdateRecord(config.DB.Table.Main, b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		if err := handleFormat(cmd, bookmark.NewSlice(b)); err != nil {
-			return fmt.Errorf("%w", err)
+		if err := r.UpdateRecordsBulk(config.DB.Table.Main, bsToUpdate); err != nil {
+			return fmt.Errorf("error updating records: %w", err)
 		}
 
 		return nil
 	},
+}
+
+func editAndDisplayBookmarks(bs *bookmark.Slice) (*bookmark.Slice, error) {
+	bookmarksToUpdate := bookmark.Slice{}
+
+	for i, b := range *bs {
+		// BUG: I dont know how i feel about this...
+		if i+1 > tooManyRecords {
+			if !util.Confirm(fmt.Sprintf("Continue editing [%d/%d] ?", i+1, len(*bs))) {
+				return nil, fmt.Errorf("%w", errs.ErrActionAborted)
+			}
+		}
+
+		tempB := b
+
+		fmt.Printf("%s: bookmark [%d]: ", config.App.Name, tempB.ID)
+
+		bookmarkEdited, err := bookmark.Edit(&tempB)
+		if err != nil {
+			if errors.Is(err, errs.ErrBookmarkUnchanged) {
+				fmt.Printf("%s\n", format.Warning("unchanged"))
+				continue
+			}
+			return nil, fmt.Errorf("error editing bookmark: %w", err)
+		}
+
+		fmt.Printf("%s\n", format.Info("updated"))
+		bookmarksToUpdate.Add(bookmarkEdited)
+	}
+
+	return &bookmarksToUpdate, nil
 }
 
 func init() {

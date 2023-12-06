@@ -222,6 +222,58 @@ func (r *SQLiteRepository) UpdateRecord(
 	return b, nil
 }
 
+func (r *SQLiteRepository) UpdateRecordsBulk(tableName string, bs *bookmark.Slice) error {
+	if len(*bs) == 0 {
+		return errs.ErrBookmarkNotSelected
+	}
+
+	for _, b := range *bs {
+		if !r.RecordExists(tableName, b.URL) {
+			return fmt.Errorf("%w: in updating '%s'", errs.ErrRecordNotExists, b.URL)
+		}
+	}
+
+	sqlQuery := fmt.Sprintf(
+		"UPDATE %s SET url = ?, title = ?, tags = ?, desc = ?, created_at = ? WHERE id = ?",
+		tableName,
+	)
+
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting transaction: %w", err)
+	}
+	defer func() {
+		if err = tx.Rollback(); err != nil {
+			log.Printf("error rolling back transaction: %v", err)
+		}
+	}()
+
+	stmt, err := tx.Prepare(sqlQuery)
+	if err != nil {
+		return fmt.Errorf("error preparing SQL statement: %w", err)
+	}
+	defer func() {
+		if cerr := stmt.Close(); cerr != nil {
+			log.Printf("error closing statement: %v", cerr)
+		}
+	}()
+
+	for _, b := range *bs {
+		_, err := stmt.Exec(b.URL, b.Title, b.Tags, b.Desc, b.CreatedAt, b.ID)
+		if err != nil {
+			return fmt.Errorf("error updating bookmark %s: %w", b.URL, err)
+		}
+
+		log.Printf("Updated bookmark %s (table: %s)\n", b.URL, tableName)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("error committing transaction: %w", err)
+	}
+
+	return nil
+}
+
 func (r *SQLiteRepository) DeleteRecord(tableName string, b *bookmark.Bookmark) error {
 	log.Printf("Deleting bookmark %s (table: %s)\n", b.URL, tableName)
 
