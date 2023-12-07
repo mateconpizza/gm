@@ -5,13 +5,14 @@ import (
 	"strconv"
 	"strings"
 
-	"gomarks/pkg/color"
 	"gomarks/pkg/config"
 )
 
-func BulletLine(label, value string) string {
+var bulletPoint string = "\u2022"
+
+func WithBullet(label, value string) string {
 	padding := 15
-	return fmt.Sprintf("    %s %-*s: %s\n", config.BulletPoint, padding, label, value)
+	return fmt.Sprintf("    %s %-*s: %s\n", bulletPoint, padding, label, value)
 }
 
 func Title(title string, items []string) string {
@@ -35,12 +36,8 @@ func ShortenString(s string, maxLength int) string {
 	return s
 }
 
-func Line(prefix, v, c string) string {
-	if c == "" {
-		return fmt.Sprintf("%s%s\n", prefix, v)
-	}
-
-	return fmt.Sprintf("%s%s%s%s\n", c, prefix, v, color.Reset)
+func TitleLine(id int, title string) string {
+	return fmt.Sprintf("%-4d\t%s %s\n", id, Text(bulletPoint).Purple().Bold(), title)
 }
 
 func SplitAndAlignString(s string, lineLength int) string {
@@ -68,34 +65,13 @@ func SplitAndAlignString(s string, lineLength int) string {
 }
 
 func CmdTitle(s string) {
+	// FIX: Delete me
 	program := fmt.Sprintf("%s:", config.App.Name)
-	p := color.ColorizeBold(program, color.White)
-	t := color.Colorize(s, color.Blue)
-	quit := color.ColorizeBold("ctrl+c", color.Red)
-	q := fmt.Sprintf("use %s for quit\n", quit)
+	p := Text(program).White().Bold()
+	t := Text(s).Blue()
+	q := fmt.Sprintf("use %s for quit\n", Text("ctrl+c").Red().Bold())
 
 	fmt.Println(p, t, q)
-}
-
-func TitleLine(n int, title, c string) string {
-	// FIX: change Naming. Another function is called `Title`
-	if title == "" {
-		title = "Untitled"
-	}
-
-	if c == "" {
-		return fmt.Sprintf("%-4d\t%s %s\n", n, config.BulletPoint, title)
-	}
-
-	return fmt.Sprintf(
-		"%s%-4d\t%s%s %s%s\n",
-		color.Bold,
-		n,
-		config.BulletPoint,
-		c,
-		title,
-		color.Reset,
-	)
 }
 
 func ParseUniqueStrings(input []string, sep string) []string {
@@ -138,23 +114,7 @@ func ExtractMaxLen(l []string, target string) int {
 }
 
 func Prompt(question, options string) string {
-	q := color.ColorizeBold(question, color.White)
-	o := color.Colorize(options, color.Gray)
+	q := Text(question).White().Bold()
+	o := Text(options).Gray()
 	return fmt.Sprintf("\n%s %s: ", q, o)
-}
-
-func Warning(s ...string) string {
-	return color.ColorizeBold(strings.Join(s, " "), color.Yellow)
-}
-
-func Error(s ...string) string {
-	return color.ColorizeBold(strings.Join(s, " "), color.Red)
-}
-
-func Success(s ...string) string {
-	return color.ColorizeBold(strings.Join(s, " "), color.Green)
-}
-
-func Info(s ...string) string {
-	return color.ColorizeBold(strings.Join(s, " "), color.Blue)
 }
