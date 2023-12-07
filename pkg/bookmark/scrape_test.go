@@ -1,4 +1,4 @@
-package scrape
+package bookmark
 
 import (
 	"fmt"
@@ -55,19 +55,19 @@ func TestGetTitle(t *testing.T) {
 			name:     "NoTitleTag",
 			url:      "http://example.com",
 			server:   createTestServer(`<h1>Test Heading</h1>`),
-			expected: TitleDefault,
+			expected: DefaultTitle,
 			wantErr:  false,
 		},
 		{
 			name:     "HTTPError",
 			url:      "http://invalid-url",
 			server:   nil,
-			expected: TitleDefault,
+			expected: DefaultTitle,
 			wantErr:  true,
 		},
 	}
 
-	testScrapeFunction(t, GetTitle, tests)
+	testScrapeFunction(t, FetchTitle, tests)
 }
 
 func TestGetDescription(t *testing.T) {
@@ -89,19 +89,19 @@ func TestGetDescription(t *testing.T) {
 			name:     "NoDescriptionMetaTag",
 			url:      "http://example.com",
 			server:   createTestServer(`<h1>Test Heading</h1>`),
-			expected: DescDefault,
+			expected: DefaultDesc,
 			wantErr:  false,
 		},
 		{
 			name:     "HTTPError",
 			url:      "http://invalid-url",
 			server:   nil,
-			expected: DescDefault,
+			expected: DefaultDesc,
 			wantErr:  true,
 		},
 	}
 
-	testScrapeFunction(t, GetDescription, tests)
+	testScrapeFunction(t, FetchDescription, tests)
 }
 
 func createTestServer(responseBody string) *httptest.Server {

@@ -1,4 +1,4 @@
-package scrape
+package bookmark
 
 import (
 	"fmt"
@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	TitleDefault string = "Untitled"
-	DescDefault  string = "No description available"
+	DefaultTitle string = "Untitled"
+	DefaultDesc  string = "No description available"
 )
 
-func GetTitle(url string) (string, error) {
+func FetchTitle(url string) (string, error) {
 	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
 	titleSelectors := []string{
@@ -38,17 +38,17 @@ func GetTitle(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return TitleDefault, fmt.Errorf("%w: visiting and scraping URL", err)
+		return DefaultTitle, fmt.Errorf("%w: visiting and scraping URL", err)
 	}
 
 	if title == "" {
-		return TitleDefault, nil
+		return DefaultTitle, nil
 	}
 
 	return title, nil
 }
 
-func GetDescription(url string) (string, error) {
+func FetchDescription(url string) (string, error) {
 	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
 	descSelectors := []string{
@@ -77,14 +77,14 @@ func GetDescription(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return DescDefault, fmt.Errorf(
+		return DefaultDesc, fmt.Errorf(
 			"%w: visiting and scraping URL",
 			err,
 		)
 	}
 
 	if description == "" {
-		return DescDefault, nil
+		return DefaultDesc, nil
 	}
 
 	return description, nil

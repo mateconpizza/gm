@@ -14,7 +14,6 @@ import (
 
 	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
-	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
 )
 
@@ -32,16 +31,16 @@ type tempBookmark struct {
 
 // Fetches the title and/or description of the bookmark's URL, if they are not already set.
 func (t *tempBookmark) fetchTitleAndDescription() {
-	if t.title == scrape.TitleDefault || t.title == "" {
-		title, err := scrape.GetTitle(t.url)
+	if t.title == DefaultTitle || t.title == "" {
+		title, err := FetchTitle(t.url)
 		if err != nil {
 			log.Printf("Error on %s: %s\n", t.url, err)
 		}
 		t.title = title
 	}
 
-	if t.desc == scrape.DescDefault || t.desc == "" {
-		description, err := scrape.GetDescription(t.url)
+	if t.desc == DefaultDesc || t.desc == "" {
+		description, err := FetchDescription(t.url)
 		if err != nil {
 			log.Printf("Error on %s: %s\n", t.url, err)
 		}
@@ -49,13 +48,7 @@ func (t *tempBookmark) fetchTitleAndDescription() {
 	}
 }
 
-/**
- * Parses the provided bookmark content into a temporary bookmark struct.
- *
- * @param content The bookmark content to parse.
- *
- * @return A pointer to a temporary bookmark struct containing the parsed bookmark information.
- */
+// parseTempBookmark Parses the provided bookmark content into a temporary bookmark struct.
 func parseTempBookmark(content []string) *tempBookmark {
 	url := extractBlock(content, "## url", "## title")
 	title := extractBlock(content, "## title", "## tags")
@@ -205,15 +198,8 @@ func cleanupTempFile(fileName string) error {
 	return nil
 }
 
-/**
- * Extracts a block of text from a string, delimited by the specified start and end markers.
- *
- * @param content The string to extract the block from.
- * @param startMarker The start marker of the block.
- * @param endMarker The end marker of the block.
- *
- * @return The extracted block of text, or an empty string if the block could not be found.
- */
+// extractBlock Extracts a block of text from a string, delimited by the
+// specified start and end markers.
 func extractBlock(content []string, startMarker, endMarker string) string {
 	startIndex := -1
 	endIndex := -1
