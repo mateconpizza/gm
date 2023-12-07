@@ -8,7 +8,6 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
-	"gomarks/pkg/menu"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -24,7 +23,7 @@ func Select(cmd *cobra.Command, bs *bookmark.Slice) (*bookmark.Slice, error) {
 		return bs, nil
 	}
 
-	m, err := menu.New(menuName)
+	m, err := NewMenu(menuName)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -32,7 +31,7 @@ func Select(cmd *cobra.Command, bs *bookmark.Slice) (*bookmark.Slice, error) {
 	return SelectBookmark(m, bs)
 }
 
-func SelectBookmark(m *menu.Menu, bs *bookmark.Slice) (*bookmark.Slice, error) {
+func SelectBookmark(m *Menu, bs *bookmark.Slice) (*bookmark.Slice, error) {
 	maxLen := 80
 	itemsText := make([]string, 0, len(*bs))
 

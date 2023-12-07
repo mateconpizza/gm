@@ -1,4 +1,4 @@
-package menu
+package display
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"gomarks/pkg/util"
 )
 
-func New(s string) (*Menu, error) {
+func NewMenu(s string) (*Menu, error) {
 	mc := make(menuCollection)
 	mc.load()
 	menu, err := mc.get(s)
@@ -20,14 +20,6 @@ func New(s string) (*Menu, error) {
 	}
 
 	return &menu, nil
-}
-
-type option struct {
-	Label string
-}
-
-func (o option) String() string {
-	return o.Label
 }
 
 type menuCollection map[string]Menu
@@ -60,34 +52,6 @@ type Menu struct {
 
 func (m *Menu) UpdateMessage(message string) {
 	util.ReplaceArg(m.Arguments, "-mesg", message)
-}
-
-func (m *Menu) UpdatePrompt(prompt string) {
-	util.ReplaceArg(m.Arguments, "-p", prompt)
-}
-
-func (m *Menu) Confirm(msg, prompt string) bool {
-	m.UpdateMessage(msg)
-	m.UpdatePrompt(prompt)
-
-	options := []fmt.Stringer{
-		option{"No"},
-		option{"Yes"},
-	}
-	idx, err := m.Select(options)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return idx == 0
-}
-
-func (m *Menu) Prompt(msg, prompt string) (string, error) {
-	m.UpdateMessage(msg)
-	m.UpdatePrompt(prompt)
-	input, err := m.Run("")
-
-	return strings.TrimRight(input, "\n"), err
 }
 
 func (m *Menu) Select(items []fmt.Stringer) (int, error) {
@@ -153,7 +117,6 @@ var rofiMenu = Menu{
 		"-l", "10",
 		"-p", "GoMarks",
 		"-mesg", "Welcome to GoMarks",
-		"-theme", "tokyonight-storm",
 		"-theme-str", "window {width: 75%; height: 55%;}",
 		"-theme-str", "textbox {markup: false;}",
 	},
