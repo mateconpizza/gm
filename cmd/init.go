@@ -6,8 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"gomarks/pkg/color"
-	"gomarks/pkg/config"
+	"gomarks/pkg/app"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/util"
@@ -38,7 +37,7 @@ var initCmd = &cobra.Command{
 
 		printSummary()
 
-		bs, err := r.GetRecordsAll(config.DB.Table.Main)
+		bs, err := r.GetRecordsAll(app.DB.Table.Main)
 		if err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
@@ -52,10 +51,10 @@ var initCmd = &cobra.Command{
 }
 
 func printSummary() {
-	fmt.Printf("%s v%s:\n", config.App.Name, config.App.Info.Version)
-	fmt.Printf("  + app home created at: %s\n", color.Colorize(config.Path.Home, color.Yellow))
-	fmt.Printf("  + database '%s' initialized\n", color.Colorize(config.DB.Name, color.Green))
-	fmt.Printf("  + %s bookmark created\n\n", color.Colorize("initial", color.Purple))
+	fmt.Printf("%s v%s:\n", app.Config.Name, app.Config.Version)
+	fmt.Printf("  + app home created at: %s\n", format.Text(app.Path.Home).Yellow().Bold())
+	fmt.Printf("  + database '%s' initialized\n", format.Text(app.DB.Name).Green())
+	fmt.Printf("  + %s bookmark created\n\n", format.Text("initial").Purple())
 }
 
 func init() {

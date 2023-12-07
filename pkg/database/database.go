@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
@@ -43,47 +43,43 @@ func newSQLiteRepository(db *sql.DB) *SQLiteRepository {
 func loadDBPath() {
 	util.LoadAppPaths()
 
-	config.DB.Path = filepath.Join(config.Path.Home, config.DB.Name)
-	log.Print("DB.Path: ", config.DB.Path)
+	app.DB.Path = filepath.Join(app.Path.Home, app.DB.Name)
+	log.Print("DB.Path: ", app.DB.Path)
 }
 
 func GetDB() (*SQLiteRepository, error) {
 	loadDBPath()
 
-	if !util.FileExists(config.DB.Path) {
-		return nil, fmt.Errorf("%w", errs.ErrDBNotFound)
-	}
-
-	db, err := sql.Open("sqlite3", config.DB.Path)
+	db, err := sql.Open("sqlite3", app.DB.Path)
 	if err != nil {
 		log.Fatal("Error opening database:", err)
 	}
 
 	r := newSQLiteRepository(db)
-	if exists, _ := r.tableExists(config.DB.Table.Main); !exists {
-		return nil, fmt.Errorf("%w", errs.ErrDBNotFound)
+	if exists, _ := r.tableExists(app.DB.Table.Main); !exists {
+		return r, fmt.Errorf("%w", errs.ErrDBNotFound)
 	}
 
 	return r, nil
 }
 
-func (r *SQLiteRepository) InitDB() error {
-	if err := r.createTable(config.DB.Table.Main); err != nil {
+func (r *SQLiteRepository) Init() error {
+	if err := r.createTable(app.DB.Table.Main); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.createTable(config.DB.Table.Deleted); err != nil {
+	if err := r.createTable(app.DB.Table.Deleted); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	initialBookmark := bookmark.New(
-		config.App.Info.URL,
-		config.App.Info.Title,
-		config.App.Info.Tags,
-		config.App.Info.Desc,
+	initialBookmark := bookmark.NewBookmark(
+		app.Info.URL,
+		app.Info.Title,
+		app.Info.Tags,
+		app.Info.Desc,
 	)
 
-	if _, err := r.InsertRecord(config.DB.Table.Main, initialBookmark); err != nil {
+	if _, err := r.InsertRecord(app.DB.Table.Main, initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

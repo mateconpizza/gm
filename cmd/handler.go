@@ -6,9 +6,8 @@ import (
 	"os"
 	"strconv"
 
+	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/color"
-	"gomarks/pkg/config"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
@@ -127,14 +126,14 @@ func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Sl
 	var b *bookmark.Bookmark
 
 	if id, err = strconv.Atoi(queryOrID); err == nil {
-		b, err = r.GetRecordByID(config.DB.Table.Main, id)
+		b, err = r.GetRecordByID(app.DB.Table.Main, id)
 		if err != nil {
 			return nil, fmt.Errorf("getting record by id '%d': %w", id, err)
 		}
 		return bookmark.NewSlice(b), nil
 	}
 
-	bs, err := r.GetRecordsByQuery(config.DB.Table.Main, queryOrID)
+	bs, err := r.GetRecordsByQuery(app.DB.Table.Main, queryOrID)
 	if err != nil {
 		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
 	}
@@ -198,12 +197,12 @@ func handleInfoFlag(cmd *cobra.Command, r *database.SQLiteRepository) error {
 	if infoFlag, err := cmd.Flags().GetBool("info"); err != nil {
 		return fmt.Errorf("getting info flag: %w", err)
 	} else if infoFlag {
-		records, err := r.GetRecordsLength(config.DB.Table.Main)
+		records, err := r.GetRecordsLength(app.DB.Table.Main)
 		if err != nil {
 			return fmt.Errorf("getting records length: %w", err)
 		}
 
-		deleted, err := r.GetRecordsLength(config.DB.Table.Deleted)
+		deleted, err := r.GetRecordsLength(app.DB.Table.Deleted)
 		if err != nil {
 			return fmt.Errorf("getting deleted records length: %w", err)
 		}

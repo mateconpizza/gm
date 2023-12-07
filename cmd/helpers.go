@@ -58,7 +58,7 @@ func checkInitDB(_ *cobra.Command, _ []string) error {
 func exampleUsage(l []string) string {
 	var s string
 	for _, line := range l {
-		s += fmt.Sprintf("  %s %s", config.App.Name, line)
+		s += fmt.Sprintf("  %s %s", app.Config.Name, line)
 	}
 
 	return s

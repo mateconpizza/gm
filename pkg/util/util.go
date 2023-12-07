@@ -14,8 +14,7 @@ import (
 	"strings"
 	"syscall"
 
-	"gomarks/pkg/color"
-	"gomarks/pkg/config"
+	"gomarks/pkg/app"
 	"gomarks/pkg/errs"
 
 	"github.com/adrg/xdg"
@@ -42,8 +41,12 @@ func LoadAppPaths() {
 		return
 	}
 
-	config.Path.Home = filepath.Join(xdg.ConfigHome, config.App.Name)
-	log.Println("AppHome:", config.Path.Home)
+// Loads the path to the application's home directory.
+func LoadAppPaths() {
+	// FIX: This is called twice, check why...
+	envHome := GetEnv(app.Env.Home, xdg.ConfigHome)
+	app.Path.Home = filepath.Join(envHome, app.Config.Name)
+	log.Println("AppHome:", app.Path.Home)
 }
 
 // Checks and creates the application's home directory.
@@ -53,7 +56,7 @@ func SetupProjectPaths() error {
 
 	LoadAppPaths()
 
-	h := config.Path.Home
+	h := app.Path.Home
 
 	if !FileExists(h) {
 		log.Println("Creating AppHome:", h)

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"gomarks/pkg/config"
+	"gomarks/pkg/app"
 	"gomarks/pkg/display"
 	"gomarks/pkg/util"
 
@@ -30,9 +30,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          config.App.Name,
-	Short:        config.App.Desc,
-	Long:         config.App.Desc,
+	Use:          app.Config.Cmd,
+	Short:        app.Info.Desc,
+	Long:         app.Info.Desc,
 	SilenceUsage: true,
 	Args:         cobra.MinimumNArgs(0),
 	PreRunE:      checkInitDB,
@@ -79,7 +79,7 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		fmt.Printf("%s: %s\n", config.App.Name, err)
+		fmt.Printf("%s: %s\n", app.Config.Name, err)
 		os.Exit(1)
 	}
 }

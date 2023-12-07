@@ -5,9 +5,8 @@ Copyright © 2023 haaag <git.haaag@gmail.com>
 import (
 	"fmt"
 
+	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/color"
-	"gomarks/pkg/config"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
@@ -69,11 +68,11 @@ func init() {
  * @return An error if any occurred during deletion or reordering.
  */
 func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error {
-	if err := r.DeleteRecordsBulk(config.DB.Table.Main, toDel.IDs()); err != nil {
+	if err := r.DeleteRecordsBulk(app.DB.Table.Main, toDel.IDs()); err != nil {
 		return fmt.Errorf("deleting records in bulk: %w", err)
 	}
 
-	if err := r.ReorderIDs(config.DB.Table.Main); err != nil {
+	if err := r.ReorderIDs(app.DB.Table.Main); err != nil {
 		return fmt.Errorf("reordering ids: %w", err)
 	}
 

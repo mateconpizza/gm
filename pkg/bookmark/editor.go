@@ -1,7 +1,4 @@
-/*
-Copyright © 2023 haaag <git.haaag@gmail.com>
-*/
-
+// Copyright © 2023 haaag <git.haaag@gmail.com>
 package bookmark
 
 import (
@@ -12,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"gomarks/pkg/config"
+	"gomarks/pkg/app"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/util"
 )
@@ -150,7 +147,7 @@ func saveDataToTempFile(f *os.File, data []byte) (*os.File, error) {
 
 func createTempFile() (*os.File, error) {
 	tempDir := "/tmp/"
-	prefix := fmt.Sprintf("%s-", config.App.Name)
+	prefix := fmt.Sprintf("%s-", app.Config.Name)
 
 	tempFile, err := os.CreateTemp(tempDir, prefix)
 	if err != nil {
@@ -276,7 +273,7 @@ func getEditor() (*editorInfo, error) {
 
 	log.Printf("$EDITOR not set.")
 
-	for _, e := range config.Editors {
+	for _, e := range app.Editors {
 		if util.BinaryExists(e) {
 			return &editorInfo{Name: e}, nil
 		}
@@ -286,7 +283,7 @@ func getEditor() (*editorInfo, error) {
 }
 
 func getAppEditor() (*editorInfo, bool) {
-	appEditor := strings.Fields(os.Getenv(config.App.Env.Editor))
+	appEditor := strings.Fields(os.Getenv(app.Env.Editor))
 	if len(appEditor) == 0 {
 		return nil, false
 	}
@@ -296,7 +293,7 @@ func getAppEditor() (*editorInfo, bool) {
 		return nil, false
 	}
 
-	log.Printf("$%s set to %s", config.App.Env.Editor, appEditor)
+	log.Printf("$%s set to %s", app.Env.Editor, appEditor)
 	return &editorInfo{Name: appEditor[0], Args: appEditor[1:]}, true
 }
 

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 
@@ -30,8 +30,8 @@ var newCmd = &cobra.Command{
 
 		url := handleURL(&args)
 
-		if r.RecordExists(config.DB.Table.Main, url) {
-			if b, _ := r.GetRecordByURL(config.DB.Table.Main, url); b != nil {
+		if r.RecordExists(app.DB.Table.Main, url) {
+			if b, _ := r.GetRecordByURL(app.DB.Table.Main, url); b != nil {
 				return fmt.Errorf("%w with id: %d", errs.ErrBookmarkDuplicate, b.ID)
 			}
 		}
@@ -46,7 +46,7 @@ var newCmd = &cobra.Command{
 			return fmt.Errorf("handle confirmation and validation: %w", err)
 		}
 
-		b, err = r.InsertRecord(config.DB.Table.Main, b)
+		b, err = r.InsertRecord(app.DB.Table.Main, b)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

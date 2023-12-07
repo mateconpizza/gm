@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
+	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/config"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
@@ -46,7 +46,7 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("error during editing: %w", err)
 		}
 
-		if err := r.UpdateRecordsBulk(config.DB.Table.Main, bsToUpdate); err != nil {
+		if err := r.UpdateRecordsBulk(app.DB.Table.Main, bsToUpdate); err != nil {
 			return fmt.Errorf("error updating records: %w", err)
 		}
 
@@ -67,7 +67,7 @@ func editAndDisplayBookmarks(bs *bookmark.Slice) (*bookmark.Slice, error) {
 
 		tempB := b
 
-		fmt.Printf("%s: bookmark [%d]: ", config.App.Name, tempB.ID)
+		fmt.Printf("%s: bookmark [%d]: ", app.Config.Name, tempB.ID)
 
 		bookmarkEdited, err := bookmark.Edit(&tempB)
 		if err != nil {

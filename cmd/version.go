@@ -1,12 +1,10 @@
-/*
-Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-*/
+// Copyright © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
 	"fmt"
 
-	"gomarks/pkg/config"
+	"gomarks/pkg/app"
 
 	"github.com/spf13/cobra"
 )
@@ -16,7 +14,7 @@ var versionCmd = &cobra.Command{
 	Short: "show version",
 	Args:  cobra.NoArgs,
 	Run: func(_ *cobra.Command, _ []string) {
-		fmt.Printf("%s v%s\n", config.App.Name, config.App.Info.Version)
+		fmt.Printf("%s v%s\n", app.Config.Name, app.Config.Version)
 	},
 }
 
