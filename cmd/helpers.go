@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/color"
-	"gomarks/pkg/config"
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
@@ -19,7 +18,7 @@ import (
 )
 
 func promptWithOptions(question string, options []string) string {
-	p := format.Prompt(question, fmt.Sprintf("[%s]: ", strings.Join(options, "/")))
+	p := format.Prompt(question, fmt.Sprintf("[%s]:", strings.Join(options, "/")))
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -45,17 +44,13 @@ func promptWithOptions(question string, options []string) string {
 
 func checkInitDB(_ *cobra.Command, _ []string) error {
 	if _, err := getDB(); err != nil {
-		if errors.Is(err, errs.ErrDBNotFound) {
-			init := color.ColorizeBold("init", color.Yellow)
-			return fmt.Errorf("%w: use %s to initialize a new database", errs.ErrDBNotFound, init)
-		}
 		return fmt.Errorf("%w", err)
 	}
 
 	return nil
 }
 
-func exampleUsage(l []string) string {
+func exampleUsage(l ...string) string {
 	var s string
 	for _, line := range l {
 		s += fmt.Sprintf("  %s %s", app.Config.Name, line)
@@ -72,13 +67,56 @@ func getDB() (*database.SQLiteRepository, error) {
 	return r, nil
 }
 
-func printSliceSummary(bs *bookmark.Slice) {
+func printSliceSummary(bs *bookmark.Slice, msg string) {
+	fmt.Println(msg)
 	for _, b := range *bs {
 		idStr := fmt.Sprintf("[%s]", strconv.Itoa(b.ID))
 		fmt.Printf(
-			"\t+ %s %s\n",
-			color.Colorize(idStr, color.Gray),
-			format.ShortenString(b.URL, maxLen),
+			"  + %s %s\n",
+			format.Text(idStr).Gray(),
+			format.Text(format.ShortenString(b.Title, app.Term.Min)).Gray(),
 		)
+		fmt.Printf("    %s\n\n", format.ShortenString(b.URL, app.Term.Min))
 	}
+}
+
+func extractIDs(args []string) ([]int, error) {
+	ids := make([]int, 0)
+
+	for _, arg := range strings.Fields(strings.Join(args, " ")) {
+		id, err := strconv.Atoi(arg)
+		if err != nil {
+			if errors.Is(err, strconv.ErrSyntax) {
+				return nil, fmt.Errorf("%w: '%s'", errs.ErrIDInvalid, arg)
+			}
+			return nil, fmt.Errorf("%w", err)
+		}
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
+
+// confirmProceed prompts the user to confirm or edit the given bookmark slice.
+// If the user confirms, the buffer is returned as-is.
+// If the user edits the buffer, the edited buffer is returned.
+// If the user aborts the action, an error is returned.
+func confirmProceed(bs *bookmark.Slice, editFn bookmark.EditFn) (bool, error) {
+	options := []string{"Yes", "No", "Edit"}
+	s := fmt.Sprintf("Delete %d bookmarks?", len(*bs))
+	option := promptWithOptions(s, options)
+
+	switch option {
+	case "y", "yes":
+		return true, nil
+	case "n", "no":
+		return false, fmt.Errorf("%w", errs.ErrActionAborted)
+	case "e", "edit":
+		if err := editFn(bs); err != nil {
+			return false, fmt.Errorf("%w", err)
+		}
+		return false, nil
+	}
+
+	return false, fmt.Errorf("%w", errs.ErrActionAborted)
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -11,8 +12,6 @@ import (
 	"gomarks/pkg/database"
 	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
-	"gomarks/pkg/info"
-	"gomarks/pkg/scrape"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -20,7 +19,7 @@ import (
 
 func handleQuery(args []string) (string, error) {
 	if len(args) == 0 {
-		return "", fmt.Errorf("%w", errs.ErrNoIDorQueryPrivided)
+		return "", fmt.Errorf("%w", errs.ErrNoIDorQueryProvided)
 	}
 
 	queryOrID, err := util.NewGetInput(args)
@@ -53,7 +52,9 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 		return nil
 	}
 
-	maxLen := 80
+	maxIDLen := 5
+	maxTagsLen := 10
+	maxURLLen := app.Term.Max - (maxIDLen + maxTagsLen)
 
 	for _, b := range *bs {
 		switch picker {
@@ -66,15 +67,15 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 		case "tags":
 			fmt.Println(b.Tags)
 		case "menu":
-			// FIX: Delete `menu` option
-			i := fmt.Sprintf(
-				"%-4d %-*s %-10s",
+			fmt.Printf(
+				"%-*d %-*s %-*s\n",
+				maxIDLen,
 				b.ID,
-				maxLen,
-				format.ShortenString(b.URL, maxLen),
+				maxURLLen,
+				format.ShortenString(b.URL, maxURLLen),
+				maxTagsLen,
 				b.Tags,
 			)
-			fmt.Println(i)
 		default:
 			return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, picker)
 		}
@@ -108,15 +109,27 @@ func handleHeadAndTail(cmd *cobra.Command, bs *bookmark.Slice) error {
 	return nil
 }
 
-/**
- * Retrieves records from the database based on either an ID or a query string.
- *
- * @param r The SQLite repository to use for accessing the database.
- * @param args An array of strings containing either an ID or a query string.
- *
- * @return A pointer to a `bookmark.Slice` containing the retrieved records, or an error if any occurred.
- */
+// handleGetRecords retrieves records from the database based on either an ID or a query string.
 func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Slice, error) {
+	ids, err := extractIDs(args)
+	if !errors.Is(err, errs.ErrIDInvalid) && err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	if len(ids) > 0 {
+		bookmarks := make(bookmark.Slice, 0, len(ids))
+
+		for _, id := range ids {
+			b, err := r.GetRecordByID(app.DB.Table.Main, id)
+			if err != nil {
+				return nil, fmt.Errorf("getting record by ID '%d': %w", id, err)
+			}
+			bookmarks = append(bookmarks, *b)
+		}
+
+		return &bookmarks, nil
+	}
+
 	queryOrID, err := handleQuery(args)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -141,33 +154,31 @@ func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Sl
 }
 
 func handleTitle(url string) string {
-	maxLen := 80
-	title, err := scrape.GetTitle(url)
+	title, err := bookmark.FetchTitle(url)
 	if err != nil {
 		return ""
 	}
 
-	titlePrompt := color.ColorizeBold("+ Title\t:", color.Green)
-	titleColor := color.ColorizeBold(format.SplitAndAlignString(title, maxLen), color.White)
+	titlePrompt := format.Text("+ Title\t:").Green().Bold()
+	titleColor := format.SplitAndAlignString(title, app.Term.Min)
 	fmt.Println(titlePrompt, titleColor)
 	return title
 }
 
 func handleDesc(url string) string {
-	maxLen := 80
-	desc, err := scrape.GetDescription(url)
+	desc, err := bookmark.FetchDescription(url)
 	if err != nil {
 		return ""
 	}
 
-	descPrompt := color.ColorizeBold("+ Desc\t:", color.Yellow)
-	descColor := color.ColorizeBold(format.SplitAndAlignString(desc, maxLen), color.White)
+	descPrompt := format.Text("+ Desc\t:").Yellow()
+	descColor := format.SplitAndAlignString(desc, app.Term.Min)
 	fmt.Println(descPrompt, descColor)
 	return desc
 }
 
 func handleURL(args *[]string) string {
-	urlPrompt := color.ColorizeBold("+ URL\t:", color.Blue)
+	urlPrompt := format.Text("+ URL\t:").Blue().Bold()
 
 	if len(*args) > 0 {
 		url := (*args)[0]
@@ -176,11 +187,11 @@ func handleURL(args *[]string) string {
 		return url
 	}
 
-	return util.GetInput(urlPrompt)
+	return util.GetInput(urlPrompt.String())
 }
 
 func handleTags(args *[]string) string {
-	tagsPrompt := color.ColorizeBold("+ Tags\t:", color.Purple)
+	tagsPrompt := format.Text("+ Tags\t:").Purple().Bold().String()
 
 	if len(*args) > 0 {
 		tags := (*args)[0]
@@ -189,27 +200,53 @@ func handleTags(args *[]string) string {
 		return tags
 	}
 
-	c := color.Colorize(" (comma separated)", color.Gray)
+	c := format.Text(" (comma-separated)").Gray().String()
 	return util.GetInput(tagsPrompt + c)
 }
 
-func handleInfoFlag(cmd *cobra.Command, r *database.SQLiteRepository) error {
-	if infoFlag, err := cmd.Flags().GetBool("info"); err != nil {
-		return fmt.Errorf("getting info flag: %w", err)
-	} else if infoFlag {
-		records, err := r.GetRecordsLength(app.DB.Table.Main)
-		if err != nil {
-			return fmt.Errorf("getting records length: %w", err)
-		}
+func handleInfoFlag(r *database.SQLiteRepository) {
+	lastMainID := r.GetMaxID(app.DB.Table.Main)
+	lastDeletedID := r.GetMaxID(app.DB.Table.Deleted)
 
-		deleted, err := r.GetRecordsLength(app.DB.Table.Deleted)
-		if err != nil {
-			return fmt.Errorf("getting deleted records length: %w", err)
-		}
+	fmt.Println(app.ShowInfo(lastMainID, lastDeletedID))
+}
 
-		fmt.Println(info.Show(records, deleted))
-		os.Exit(0)
+func handleMaxTermLen() error {
+	w, h, err := util.GetConsoleSize()
+	if err != nil && !errors.Is(err, errs.ErrNotTTY) {
+		return fmt.Errorf("getting console size: %w", err)
+	}
+
+	app.Term.Width = w
+	app.Term.Height = h
+
+	if w < app.Term.Max && w > app.Term.Min {
+		safeReduction := 2
+		app.Term.Max = w - (app.Term.Min / safeReduction)
 	}
 
 	return nil
+}
+
+func parseArgsAndExit(cmd *cobra.Command, r *database.SQLiteRepository) {
+	version, _ := cmd.Flags().GetBool("version")
+	infoFlag, _ := cmd.Flags().GetBool("info")
+
+	if version {
+		name := format.Text(app.Info.Title).Blue().Bold()
+		fmt.Printf("%s v%s\n", name, app.Config.Version)
+		os.Exit(0)
+	}
+
+	if infoFlag {
+		handleInfoFlag(r)
+		os.Exit(0)
+	}
+}
+
+func logErrAndExit(err error) {
+	if err != nil {
+		fmt.Printf("%s: %s\n", app.Config.Name, err)
+		os.Exit(1)
+	}
 }
