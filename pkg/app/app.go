@@ -1,6 +1,16 @@
 // Copyright © 2023 haaag <git.haaag@gmail.com>
 package app
 
+import "errors"
+
+var (
+	ErrNotTTY              = errors.New("not a terminal")
+	ErrGetTermSize         = errors.New("getting terminal size")
+	ErrTermWidthTooSmall   = errors.New("terminal width too small")
+	ErrTermHeightTooSmall  = errors.New("terminal height too small")
+	ErrUnsupportedPlatform = errors.New("unsupported platform")
+)
+
 type App struct {
 	Name    string `json:"name"`
 	Cmd     string `json:"cmd_name"`
@@ -34,6 +44,13 @@ type Data struct {
 type Environment struct {
 	Home   string `json:"var_home"`
 	Editor string `json:"var_editor"`
+}
+
+type TermData struct {
+	MaxWidth  int
+	MinWidth  int
+	MinHeight int
+	Color     bool
 }
 
 var Config = App{
@@ -70,3 +87,10 @@ var Path = FilePath{
 }
 
 var Editors = []string{"vim", "nvim", "nano", "emacs", "helix"}
+
+var Term = TermData{
+	MaxWidth:  100,
+	MinWidth:  80,
+	MinHeight: 24,
+	Color:     true,
+}

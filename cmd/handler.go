@@ -54,7 +54,7 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 
 	maxIDLen := 5
 	maxTagsLen := 10
-	maxURLLen := app.Term.Max - (maxIDLen + maxTagsLen)
+	maxURLLen := app.Term.MaxWidth - (maxIDLen + maxTagsLen)
 
 	for _, b := range *bs {
 		switch picker {
@@ -211,18 +211,26 @@ func handleInfoFlag(r *database.SQLiteRepository) {
 	fmt.Println(app.ShowInfo(lastMainID, lastDeletedID))
 }
 
-func handleMaxTermLen() error {
+func handleTermOptions() error {
+	if util.IsOutputRedirected() {
+		app.Term.Color = false
+	}
+
 	w, h, err := util.GetConsoleSize()
-	if err != nil && !errors.Is(err, errs.ErrNotTTY) {
+	if err != nil && !errors.Is(err, app.ErrNotTTY) {
 		return fmt.Errorf("getting console size: %w", err)
 	}
 
-	app.Term.Width = w
-	app.Term.Height = h
+	if w < app.Term.MinWidth {
+		return fmt.Errorf("%w: %d. Min: %d", app.ErrTermWidthTooSmall, w, app.Term.MinWidth)
+	}
 
-	if w < app.Term.Max && w > app.Term.Min {
-		safeReduction := 2
-		app.Term.Max = w - (app.Term.Min / safeReduction)
+	if h < app.Term.MinHeight {
+		return fmt.Errorf("%w: %d. Min: %d", app.ErrTermHeightTooSmall, h, app.Term.MinHeight)
+	}
+
+	if app.Term.MaxWidth > w {
+		app.Term.MaxWidth = w
 	}
 
 	return nil
