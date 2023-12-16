@@ -74,9 +74,11 @@ func printSliceSummary(bs *bookmark.Slice, msg string) {
 		fmt.Printf(
 			"  + %s %s\n",
 			format.Text(idStr).Gray(),
-			format.Text(format.ShortenString(b.Title, app.Term.Min)).Gray(),
+			format.Text(format.ShortenString(b.Title, app.Term.Min)).Purple(),
 		)
-		fmt.Printf("    %s\n\n", format.ShortenString(b.URL, app.Term.Min))
+		fmt.Printf("    %s", format.Text("url: ").Gray())
+		fmt.Printf("%s\n", format.ShortenString(b.URL, app.Term.Min))
+		fmt.Printf("    %s\n\n", format.Text("tags:", b.Tags).Gray())
 	}
 }
 

@@ -27,6 +27,7 @@ var (
 	pickerFlag  string
 	tailFlag    int
 	verboseFlag bool
+	versionFlag bool
 )
 
 var rootCmd = &cobra.Command{
@@ -39,13 +40,7 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, _ := getDB()
 
-		if len(args) == 0 {
-			args = []string{""}
-		}
-
-		if err := handleInfoFlag(cmd, r); err != nil {
-			return fmt.Errorf("%w", err)
-		}
+		parseArgsAndExit(cmd, r)
 
 		bs, err := handleGetRecords(r, args)
 		if err != nil {
