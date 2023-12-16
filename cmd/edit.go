@@ -6,10 +6,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
@@ -57,13 +57,9 @@ var editCmd = &cobra.Command{
 func editAndDisplayBookmarks(bs *bookmark.Slice) (*bookmark.Slice, error) {
 	bookmarksToUpdate := bookmark.Slice{}
 
-	for i, b := range *bs {
-		// BUG: I dont know how i feel about this...
-		if i+1 > tooManyRecords {
-			if !util.Confirm(fmt.Sprintf("Continue editing [%d/%d] ?", i+1, len(*bs))) {
-				return nil, fmt.Errorf("%w", errs.ErrActionAborted)
-			}
-		}
+	if len(*bs) > tooManyRecords {
+		return fmt.Errorf("%w: %d", bookmark.ErrTooManyRecords, len(*bs))
+	}
 
 		tempB := b
 

@@ -8,7 +8,6 @@ import (
 	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/database"
-	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
@@ -50,7 +49,7 @@ var deleteCmd = &cobra.Command{
 		}
 
 		if len(*bs) == 0 {
-			return fmt.Errorf("%w", errs.ErrActionAborted)
+			return fmt.Errorf("%w", database.ErrActionAborted)
 		}
 
 		if err = deleteAndReorder(r, bs); err != nil {

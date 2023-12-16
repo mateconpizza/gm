@@ -1,24 +1,19 @@
-/*
-Copyright © 2023 haaag <git.haaag@gmail.com>
-*/
-
+// Copyrighs © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"gomarks/pkg/app"
+	"gomarks/pkg/database"
 	"gomarks/pkg/display"
+	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
-
-// TODO:
-// [ ] - make `maxLen` global and flag
-
-const maxLen = 80
 
 var (
 	formatFlag  string
@@ -73,6 +68,11 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	err := rootCmd.Execute()
+
+	if errors.Is(err, database.ErrDBNotFound) {
+		err = fmt.Errorf("%w: use %s to initialize a new database", err, format.Text("init").Yellow().Bold())
+	}
+
 	if err != nil {
 		fmt.Printf("%s: %s\n", app.Config.Name, err)
 		os.Exit(1)

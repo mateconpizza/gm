@@ -3,80 +3,145 @@ package bookmark
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"gomarks/pkg/app"
-	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 )
+
+var (
+	ErrBufferUnchanged = errors.New("buffer unchanged")
+	ErrEditorNotFound  = errors.New("editor not found")
+	ErrTooManyRecords  = errors.New("too many records")
+)
+
+type EditFn func(*Slice) error
 
 type editorInfo struct {
 	Name string
 	Args []string
 }
 
-type tempBookmark struct {
-	url   string
-	title string
-	tags  string
-	desc  string
-}
-
-// Fetches the title and/or description of the bookmark's URL, if they are not already set.
-func (t *tempBookmark) fetchTitleAndDescription() {
-	if t.title == DefaultTitle || t.title == "" {
-		title, err := FetchTitle(t.url)
-		if err != nil {
-			log.Printf("Error on %s: %s\n", t.url, err)
-		}
-		t.title = title
-	}
-
-	if t.desc == DefaultDesc || t.desc == "" {
-		description, err := FetchDescription(t.url)
-		if err != nil {
-			log.Printf("Error on %s: %s\n", t.url, err)
-		}
-		t.desc = description
-	}
-}
-
-// parseTempBookmark Parses the provided bookmark content into a temporary bookmark struct.
-func parseTempBookmark(content []string) *tempBookmark {
+// ParseTempBookmark Parses the provided bookmark content into a temporary bookmark struct.
+func ParseTempBookmark(content []string) *Bookmark {
 	url := extractBlock(content, "## url", "## title")
 	title := extractBlock(content, "## title", "## tags")
 	tags := extractBlock(content, "## tags", "## description")
 	desc := extractBlock(content, "## description", "## end")
 
-	return &tempBookmark{
-		url:   url,
-		title: title,
-		tags:  tags,
-		desc:  desc,
+	return &Bookmark{
+		URL:   url,
+		Title: title,
+		Tags:  tags,
+		Desc:  desc,
 	}
 }
 
-/**
- * Edits the provided bookmark using the specified editor.
- *
- * @param b The bookmark to edit.
- *
- * @return The updated bookmark, or an error if an error occurred during editing.
- */
-func Edit(b *Bookmark) (*Bookmark, error) {
-	tf, err := createTempFile()
+func EditBuffer(data []byte) ([]byte, error) {
+	dataEdited, err := Edit(data)
 	if err != nil {
-		return b, fmt.Errorf("%w", err)
+		return dataEdited, err
+	}
+	return dataEdited, nil
+}
+
+func OldEditBuffer(data []byte) ([]byte, error) {
+	dataEdited, err := Edit(data)
+	if err != nil {
+		if errors.Is(err, ErrBufferUnchanged) {
+			fmt.Printf("%s\n", format.Text("unchanged").Yellow().Bold())
+			return dataEdited, nil
+		}
+		return nil, fmt.Errorf("%w", err)
+	}
+	return dataEdited, nil
+}
+
+func extractIDFromLine(line string) string {
+	startIndex := strings.Index(line, "[")
+	endIndex := strings.Index(line, "]")
+
+	if startIndex == -1 || endIndex == -1 {
+		return ""
 	}
 
-	data := b.buffer()
+	return line[startIndex+1 : endIndex]
+}
+
+func strconvLineID(line string) (int, error) {
+	id, err := strconv.Atoi(strings.TrimSpace(line))
+
+	if err != nil {
+		if errors.Is(err, strconv.ErrSyntax) {
+			return -1, fmt.Errorf("%w: '%s'", ErrInvalidRecordID, line)
+		}
+		return -1, fmt.Errorf("%w", err)
+	}
+
+	return id, nil
+}
+
+func extractIDsFromBuffer(data []byte) ([]int, error) {
+	ids := make([]int, 0)
+	lines := strings.Split(string(data), "\n")
+
+	for _, l := range lines {
+		s := extractIDFromLine(l)
+		if s == "" {
+			continue
+		}
+
+		id, err := strconvLineID(s)
+		if err != nil {
+			return nil, err
+		}
+
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
+
+func EditionSlice(bs *Slice) error {
+	bsContent := bs.Buffer()
+	data, err := Edit(bsContent)
+	if err != nil {
+		return err
+	}
+
+	if !isSameContentBytes(bsContent, data) {
+		ids, err := extractIDsFromBuffer(data)
+		if err != nil {
+			return err
+		}
+
+		if len(ids) == 0 {
+			return fmt.Errorf("%w", ErrBookmarkNotSelected)
+		}
+
+		FilterSliceByIDs(bs, ids...)
+	}
+
+	return nil
+}
+
+// Edit Edits the provided bookmark using the specified editor.
+func Edit(data []byte) ([]byte, error) {
+	tf, err := createTempFile()
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
 	tf, err = saveDataToTempFile(tf, data)
 	if err != nil {
-		return b, fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	defer func() {

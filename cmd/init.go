@@ -8,7 +8,7 @@ import (
 
 	"gomarks/pkg/app"
 	"gomarks/pkg/database"
-	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -16,14 +16,14 @@ import (
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "initialize a new bookmarks database and table",
+	Short: "initialize a new bookmarks database",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		r, err := database.GetDB()
 		if err == nil {
-			return fmt.Errorf("%w", errs.ErrDBAlreadyInitialized)
+			return fmt.Errorf("%w", database.ErrDBAlreadyInitialized)
 		}
 
-		if !errors.Is(err, errs.ErrDBNotFound) {
+		if !errors.Is(err, database.ErrDBNotFound) {
 			return fmt.Errorf("initializing database: %w", err)
 		}
 
@@ -31,7 +31,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("creating home: %w", err)
 		}
 
-		if err = r.InitDB(); err != nil {
+		if err = r.Init(); err != nil {
 			return fmt.Errorf("initializing database: %w", err)
 		}
 

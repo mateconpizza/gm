@@ -1,15 +1,20 @@
 package format
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
 
-var bulletPoint string = "\u2022"
+var (
+	BulletPoint      string = "\u2022"
+	Space            string = "    "
+	ErrInvalidOption        = errors.New("invalid option")
+)
 
 func BulletLine(label, value string) string {
 	padding := 15
-	return fmt.Sprintf("    %s %-*s: %s\n", bulletPoint, padding, label, value)
+	return fmt.Sprintf("%s%s %-*s: %s\n", Space, BulletPoint, padding, label, value)
 }
 
 func Title(title string, items []string) string {

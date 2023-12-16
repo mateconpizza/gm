@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/errs"
+	"gomarks/pkg/database"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
@@ -67,5 +67,5 @@ func SelectBookmark(m *Menu, bs *bookmark.Slice) (*bookmark.Slice, error) {
 		return bookmark.NewSlice(&b), nil
 	}
 
-	return nil, fmt.Errorf("%w: '%s'", errs.ErrItemNotFound, selectedStr)
+	return nil, fmt.Errorf("%w: '%s'", database.ErrRecordNotFound, selectedStr)
 }

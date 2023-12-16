@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 )
 
@@ -32,7 +32,7 @@ func (mc menuCollection) register(m Menu) {
 func (mc menuCollection) get(s string) (Menu, error) {
 	menu, ok := mc[s]
 	if !ok {
-		return Menu{}, fmt.Errorf("%w: '%s'", errs.ErrOptionInvalid, s)
+		return Menu{}, fmt.Errorf("%w: '%s'", format.ErrInvalidOption, s)
 	}
 
 	log.Println("Got menu:", menu.Command)
@@ -69,7 +69,7 @@ func (m *Menu) Select(items []fmt.Stringer) (int, error) {
 	selectedStr := strings.TrimSpace(output)
 
 	if !util.IsSelectedTextInItems(selectedStr, itemsText) {
-		return -1, fmt.Errorf("%w: '%s'", errs.ErrOptionInvalid, selectedStr)
+		return -1, fmt.Errorf("%w: '%s'", format.ErrInvalidOption, selectedStr)
 	}
 
 	return util.FindSelectedIndex(selectedStr, itemsText), nil

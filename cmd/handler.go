@@ -10,7 +10,6 @@ import (
 	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/database"
-	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
@@ -19,7 +18,7 @@ import (
 
 func handleQuery(args []string) (string, error) {
 	if len(args) == 0 {
-		return "", fmt.Errorf("%w", errs.ErrNoIDorQueryProvided)
+		return "", fmt.Errorf("%w", database.ErrNoIDorQueryProvided)
 	}
 
 	queryOrID, err := util.NewGetInput(args)
@@ -77,7 +76,7 @@ func handlePicker(cmd *cobra.Command, bs *bookmark.Slice) error {
 				b.Tags,
 			)
 		default:
-			return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, picker)
+			return fmt.Errorf("%w: %s", format.ErrInvalidOption, picker)
 		}
 	}
 
@@ -89,11 +88,11 @@ func handleHeadAndTail(cmd *cobra.Command, bs *bookmark.Slice) error {
 	tail, _ := cmd.Flags().GetInt("tail")
 
 	if head < 0 {
-		return fmt.Errorf("%w: %d %d", errs.ErrOptionInvalid, head, tail)
+		return fmt.Errorf("%w: %d %d", format.ErrInvalidOption, head, tail)
 	}
 
 	if tail < 0 {
-		return fmt.Errorf("%w: %d %d", errs.ErrOptionInvalid, head, tail)
+		return fmt.Errorf("%w: %d %d", format.ErrInvalidOption, head, tail)
 	}
 
 	if head > 0 {
@@ -111,8 +110,9 @@ func handleHeadAndTail(cmd *cobra.Command, bs *bookmark.Slice) error {
 
 // handleGetRecords retrieves records from the database based on either an ID or a query string.
 func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Slice, error) {
+	// FIX: split into more functions
 	ids, err := extractIDs(args)
-	if !errors.Is(err, errs.ErrIDInvalid) && err != nil {
+	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
@@ -151,57 +151,6 @@ func handleGetRecords(r *database.SQLiteRepository, args []string) (*bookmark.Sl
 		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
 	}
 	return bs, nil
-}
-
-func handleTitle(url string) string {
-	title, err := bookmark.FetchTitle(url)
-	if err != nil {
-		return ""
-	}
-
-	titlePrompt := format.Text("+ Title\t:").Green().Bold()
-	titleColor := format.SplitAndAlignString(title, app.Term.Min)
-	fmt.Println(titlePrompt, titleColor)
-	return title
-}
-
-func handleDesc(url string) string {
-	desc, err := bookmark.FetchDescription(url)
-	if err != nil {
-		return ""
-	}
-
-	descPrompt := format.Text("+ Desc\t:").Yellow()
-	descColor := format.SplitAndAlignString(desc, app.Term.Min)
-	fmt.Println(descPrompt, descColor)
-	return desc
-}
-
-func handleURL(args *[]string) string {
-	urlPrompt := format.Text("+ URL\t:").Blue().Bold()
-
-	if len(*args) > 0 {
-		url := (*args)[0]
-		*args = (*args)[1:]
-		fmt.Println(urlPrompt, url)
-		return url
-	}
-
-	return util.GetInput(urlPrompt.String())
-}
-
-func handleTags(args *[]string) string {
-	tagsPrompt := format.Text("+ Tags\t:").Purple().Bold().String()
-
-	if len(*args) > 0 {
-		tags := (*args)[0]
-		*args = (*args)[1:]
-		fmt.Println(tagsPrompt, tags)
-		return tags
-	}
-
-	c := format.Text(" (comma-separated)").Gray().String()
-	return util.GetInput(tagsPrompt + c)
 }
 
 func handleInfoFlag(r *database.SQLiteRepository) {

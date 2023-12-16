@@ -1,15 +1,15 @@
-/*
-Copyright © 2023 haaag <git.haaag@gmail.com>
-*/package cmd
+// Copyright © 2023 haaag <git.haaag@gmail.com>
+package cmd
 
 import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/errs"
+	"gomarks/pkg/database"
 	"gomarks/pkg/format"
 
 	"github.com/spf13/cobra"

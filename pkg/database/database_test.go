@@ -6,8 +6,6 @@ import (
 	"log"
 	"testing"
 
-	"gomarks/pkg/errs"
-
 	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
 )
@@ -183,7 +181,7 @@ func TestIsRecordExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exists := r.RecordExists(tempTableName, b.URL)
+	exists := r.RecordExists(tempTableName, "url", b.URL)
 	if !exists {
 		t.Errorf("isRecordExists returned false for an existing record")
 	}
@@ -192,7 +190,7 @@ func TestIsRecordExists(t *testing.T) {
 		URL: "https://non_existent.com",
 	}
 
-	exists = r.RecordExists(tempTableName, nonExistentBookmark.URL)
+	exists = r.RecordExists(tempTableName, "url", nonExistentBookmark.URL)
 	if exists {
 		t.Errorf("isRecordExists returned true for a non-existent record")
 	}
@@ -234,7 +232,7 @@ func TestUpdateRecordSuccess(t *testing.T) {
 	}
 
 	if b.ID != validB.ID {
-		t.Errorf("Error updating bookmark: %v", errs.ErrRecordUpdate)
+		t.Errorf("Error updating bookmark: %v", ErrRecordUpdate)
 	}
 }
 
@@ -330,7 +328,7 @@ func TestInsertRecordsBulk(t *testing.T) {
 		},
 	}
 
-	err := r.insertRecordsBulk(tempTableName, &bookmarks)
+	err := r.InsertRecordsBulk(tempTableName, &bookmarks)
 	if err != nil {
 		t.Fatal(err)
 	}

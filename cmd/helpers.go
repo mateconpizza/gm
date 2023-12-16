@@ -11,7 +11,6 @@ import (
 	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/database"
-	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 
 	"github.com/spf13/cobra"
@@ -88,7 +87,7 @@ func extractIDs(args []string) ([]int, error) {
 		id, err := strconv.Atoi(arg)
 		if err != nil {
 			if errors.Is(err, strconv.ErrSyntax) {
-				return nil, fmt.Errorf("%w: '%s'", errs.ErrIDInvalid, arg)
+				return nil, fmt.Errorf("%w: '%s'", bookmark.ErrInvalidRecordID, arg)
 			}
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -111,7 +110,7 @@ func confirmProceed(bs *bookmark.Slice, editFn bookmark.EditFn) (bool, error) {
 	case "y", "yes":
 		return true, nil
 	case "n", "no":
-		return false, fmt.Errorf("%w", errs.ErrActionAborted)
+		return false, fmt.Errorf("%w", database.ErrActionAborted)
 	case "e", "edit":
 		if err := editFn(bs); err != nil {
 			return false, fmt.Errorf("%w", err)
@@ -119,5 +118,5 @@ func confirmProceed(bs *bookmark.Slice, editFn bookmark.EditFn) (bool, error) {
 		return false, nil
 	}
 
-	return false, fmt.Errorf("%w", errs.ErrActionAborted)
+	return false, fmt.Errorf("%w", database.ErrActionAborted)
 }

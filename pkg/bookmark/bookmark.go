@@ -3,43 +3,24 @@ package bookmark
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 
-	"gomarks/pkg/color"
-	"gomarks/pkg/errs"
+	"gomarks/pkg/app"
 	"gomarks/pkg/format"
+	"gomarks/pkg/util"
 )
 
-type Slice []Bookmark
-
-func (bs *Slice) Len() int {
-	return len(*bs)
-}
-
-func (bs *Slice) Get(index int) *Bookmark {
-	if index >= 0 && index < bs.Len() {
-		return &(*bs)[index]
-	}
-	return nil
-}
-
-func (bs *Slice) IDs() []int {
-	ids := make([]int, 0, bs.Len())
-	for _, b := range *bs {
-		ids = append(ids, b.ID)
-	}
-	return ids
-}
-
-func (bs *Slice) Add(b *Bookmark) {
-	*bs = append(*bs, *b)
-}
-
-func NewSlice(b *Bookmark) *Slice {
-	return &Slice{*b}
-}
+var (
+	ErrBookmarkURLEmpty    = errors.New("URL cannot be empty")
+	ErrBookmarkTagsEmpty   = errors.New("tags cannot be empty")
+	ErrBookmarkDuplicate   = errors.New("bookmark already exists")
+	ErrBookmarkInvalid     = errors.New("bookmark invalid")
+	ErrBookmarkNotSelected = errors.New("no bookmarks selected")
+	ErrInvalidRecordID     = errors.New("invalid id")
+)
 
 type Bookmark struct {
 	CreatedAt string `json:"created_at" db:"created_at"`
@@ -124,7 +105,7 @@ func Format(f string, bs *Slice) error {
 			fmt.Println(b.String())
 		}
 	default:
-		return fmt.Errorf("%w: %s", errs.ErrOptionInvalid, f)
+		return fmt.Errorf("%w: %s", format.ErrInvalidOption, f)
 	}
 
 	return nil
@@ -144,12 +125,12 @@ func ToJSON(data interface{}) string {
 func Validate(b *Bookmark) error {
 	if b.URL == "" {
 		log.Print("bookmark is invalid. URL is empty")
-		return errs.ErrURLEmpty
+		return ErrBookmarkURLEmpty
 	}
 
 	if b.Tags == "," || b.Tags == "" {
 		log.Print("bookmark is invalid. Tags are empty")
-		return errs.ErrTagsEmpty
+		return ErrBookmarkTagsEmpty
 	}
 
 	log.Print("bookmark is valid")

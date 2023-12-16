@@ -1,9 +1,9 @@
-/*
-Copyright © 2023 haaag <git.haaag@gmail.com>
-*/package util
+// Copyright © 2023 haaag <git.haaag@gmail.com>
+package util
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,13 +15,14 @@ import (
 	"syscall"
 
 	"gomarks/pkg/app"
-	"gomarks/pkg/errs"
 	"gomarks/pkg/format"
 
 	"github.com/atotto/clipboard"
 	"golang.org/x/exp/slices"
 	"golang.org/x/term"
 )
+
+var ErrInvalidInput = errors.New("no id or query provided")
 
 func FileExists(s string) bool {
 	_, err := os.Stat(s)
