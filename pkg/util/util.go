@@ -16,10 +16,11 @@ import (
 
 	"gomarks/pkg/app"
 	"gomarks/pkg/errs"
+	"gomarks/pkg/format"
 
-	"github.com/adrg/xdg"
 	"github.com/atotto/clipboard"
 	"golang.org/x/exp/slices"
+	"golang.org/x/term"
 )
 
 func FileExists(s string) bool {
@@ -27,24 +28,21 @@ func FileExists(s string) bool {
 	return !os.IsNotExist(err)
 }
 
-// Loads the path to the application's home directory.
-func LoadAppPaths() {
-	// FIX: This is called twice, check why...
-	envHome := os.Getenv(config.App.Env.Home)
-
-	if envHome != "" {
-		config.Path.Home = envHome
-		return
+func GetEnv(key, def string) string {
+	if v, ok := os.LookupEnv(key); ok {
+		return v
 	}
 
-	if config.Path.Home != "" {
-		return
-	}
+	return def
+}
 
 // Loads the path to the application's home directory.
 func LoadAppPaths() {
-	// FIX: This is called twice, check why...
-	envHome := GetEnv(app.Env.Home, xdg.ConfigHome)
+	envConfigHome, err := os.UserConfigDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	envHome := GetEnv(app.Env.Home, envConfigHome)
 	app.Path.Home = filepath.Join(envHome, app.Config.Name)
 	log.Println("AppHome:", app.Path.Home)
 }
