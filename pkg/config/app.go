@@ -1,5 +1,5 @@
 // Copyright © 2023 haaag <git.haaag@gmail.com>
-package app
+package config
 
 import "errors"
 
@@ -11,7 +11,7 @@ var (
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
 )
 
-type App struct {
+type Config struct {
 	Name    string `json:"name"`
 	Cmd     string `json:"cmd_name"`
 	Version string `json:"version"`
@@ -53,10 +53,10 @@ type TermData struct {
 	Color     bool
 }
 
-var Config = App{
+var App = Config{
 	Name:    "gomarks",
 	Cmd:     "gm",
-	Version: "0.0.2",
+	Version: "0.0.3",
 }
 
 var Info = Data{

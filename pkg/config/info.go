@@ -1,4 +1,4 @@
-package app
+package config
 
 import (
 	"fmt"
@@ -21,29 +21,29 @@ func getDBInfo(records, deleted int) string {
 func getAppInfo() string {
 	i := format.Text("info").Blue().Bold().String()
 	s := format.Title(i, []string{
-		format.BulletLine("name", Config.Name),
+		format.BulletLine("name", App.Name),
 		format.BulletLine("home", Path.Home),
-		format.BulletLine("version", Config.Version),
+		format.BulletLine("version", App.Version),
 	})
 
 	return s
 }
 
 func getBackupInfo() string {
+	notImplementedYet := format.Text("not implemented yet").Red().Bold().String()
 	b := format.Text("backup").Cyan().Bold().String()
 	s := format.Title(b, []string{
-		format.BulletLine("status", format.Text("not implemented yet").Red().String()),
+		format.BulletLine("status", notImplementedYet),
 	})
 
 	return s
 }
 
 func ShowInfo(records, deleted int) string {
-	name := format.Text(Config.Name).Green().Bold()
-	s := fmt.Sprintf("%s:\n\t%s\n\n", name, Info.Desc)
+	name := format.Text(Info.Title).Green().Bold()
+	s := fmt.Sprintf("%s v%s:\n%s\n", name, App.Version, format.BulletLine(Info.Desc, ""))
 	s += getAppInfo()
 	s += getDBInfo(records, deleted)
 	s += getBackupInfo()
-
 	return s
 }
