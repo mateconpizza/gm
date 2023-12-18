@@ -185,6 +185,13 @@ func handleTermOptions() error {
 	return nil
 }
 
+func parseBookmarksAndExit(cmd *cobra.Command, bs *bookmark.Slice) {
+	if status, _ := cmd.Flags().GetBool("status"); status {
+		logErrAndExit(handleCheckStatus(cmd, bs))
+		os.Exit(0)
+	}
+}
+
 func parseArgsAndExit(cmd *cobra.Command, r *database.SQLiteRepository) {
 	version, _ := cmd.Flags().GetBool("version")
 	infoFlag, _ := cmd.Flags().GetBool("info")
@@ -206,4 +213,21 @@ func logErrAndExit(err error) {
 		fmt.Printf("%s: %s\n", app.Config.Name, err)
 		os.Exit(1)
 	}
+}
+
+func handleCheckStatus(cmd *cobra.Command, bs *bookmark.Slice) error {
+	if len(*bs) == 0 {
+		return bookmark.ErrBookmarkNotSelected
+	}
+
+	status, _ := cmd.Flags().GetBool("status")
+	if !status {
+		return nil
+	}
+
+	if err := bookmark.CheckBookmarkStatus(bs); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }

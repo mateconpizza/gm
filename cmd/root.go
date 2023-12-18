@@ -20,6 +20,7 @@ var (
 	headFlag    int
 	infoFlag    bool
 	pickerFlag  string
+	statusFlag  bool
 	tailFlag    int
 	verboseFlag bool
 	versionFlag bool
@@ -49,6 +50,8 @@ var rootCmd = &cobra.Command{
 		if err := handleHeadAndTail(cmd, bs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
+		parseBookmarksAndExit(cmd, bs)
 
 		if err := handlePicker(cmd, bs); err != nil {
 			return fmt.Errorf("%w", err)
@@ -86,6 +89,9 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&infoFlag, "info", "i", false, "show app info")
+
+	// Experimental
+	rootCmd.Flags().BoolVarP(&statusFlag, "status", "s", false, "check bookmarks status")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
 	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")

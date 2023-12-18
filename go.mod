@@ -9,6 +9,7 @@ require (
 	github.com/gocolly/colly v1.2.0
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.org/x/term v0.13.0
 )
 

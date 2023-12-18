@@ -67,7 +67,7 @@ func TestGetTitle(t *testing.T) {
 		},
 	}
 
-	testScrapeFunction(t, FetchTitle, tests)
+	testScrapeFunction(t, fetchTitle, tests)
 }
 
 func TestGetDescription(t *testing.T) {
@@ -101,7 +101,7 @@ func TestGetDescription(t *testing.T) {
 		},
 	}
 
-	testScrapeFunction(t, FetchDescription, tests)
+	testScrapeFunction(t, fetchDescription, tests)
 }
 
 func createTestServer(responseBody string) *httptest.Server {
