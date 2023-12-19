@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gomarks/pkg/app"
+	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 )
@@ -22,7 +22,7 @@ var (
 	ErrTooManyRecords  = errors.New("too many records")
 )
 
-type EditFn func(*Slice) error
+type EditFn func(*[]Bookmark) error
 
 type editorInfo struct {
 	Name string
@@ -109,8 +109,8 @@ func extractIDsFromBuffer(data []byte) ([]int, error) {
 	return ids, nil
 }
 
-func EditionSlice(bs *Slice) error {
-	bsContent := bs.Buffer()
+func EditionSlice(bs *[]Bookmark) error {
+	bsContent := Buffer(bs)
 	data, err := Edit(bsContent)
 	if err != nil {
 		return err
@@ -131,6 +131,47 @@ func EditionSlice(bs *Slice) error {
 
 	return nil
 }
+
+func Buffer(bs *[]Bookmark) []byte {
+	var s string
+
+	for _, b := range *bs {
+		id := fmt.Sprintf("[%d]", b.ID)
+		s += fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL)
+	}
+
+	data := []byte(fmt.Sprintf(`## %s: v%s
+## To keep a bookmark, remove the entire line starting with '#'
+
+## Showing %d bookmarks.
+
+%s`, config.Info.Title, config.App.Version, len(*bs), s))
+
+	return bytes.TrimSpace(data)
+}
+
+/* func OldEditionSlice(bs *Slice) error {
+	bsContent := bs.Buffer()
+	data, err := Edit(bsContent)
+	if err != nil {
+		return err
+	}
+
+	if !isSameContentBytes(bsContent, data) {
+		ids, err := extractIDsFromBuffer(data)
+		if err != nil {
+			return err
+		}
+
+		if len(ids) == 0 {
+			return fmt.Errorf("%w", ErrBookmarkNotSelected)
+		}
+
+		FilterSliceByIDs(bs, ids...)
+	}
+
+	return nil
+} */
 
 // Edit Edits the provided bookmark using the specified editor.
 func Edit(data []byte) ([]byte, error) {
@@ -158,32 +199,23 @@ func Edit(data []byte) ([]byte, error) {
 
 	editor, err := getEditor()
 	if err != nil {
-		return b, fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	if err = editFile(editor, tf); err != nil {
-		return b, fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	editedContent, err := readContentFile(tf)
 	if err != nil {
-		return b, fmt.Errorf("%w", err)
-	}
-
-	tempContent := strings.Split(string(editedContent), "\n")
-	if err := validateContent(tempContent); err != nil {
-		return b, err
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	if isSameContentBytes(data, editedContent) {
-		return b, fmt.Errorf("%w", errs.ErrBookmarkUnchaged)
+		return editedContent, fmt.Errorf("%w", ErrBufferUnchanged)
 	}
 
-	tb := parseTempBookmark(tempContent)
-	tb.fetchTitleAndDescription()
-
-	b.Update(tb.url, tb.title, tb.tags, tb.desc)
-	return b, nil
+	return editedContent, nil
 }
 
 // Checks if the buffer is unchanged
@@ -191,14 +223,7 @@ func isSameContentBytes(a, b []byte) bool {
 	return bytes.Equal(a, b)
 }
 
-/**
- * Writes the provided data to a temporary file and returns the file handle.
- *
- * @param file The temporary file to write to.
- * @param data The data to write to the file.
- *
- * @return The file handle of the temporary file, or an error if the data could not be written to the file.
- */
+// saveDataToTempFile Writes the provided data to a temporary file and returns the file handle.
 func saveDataToTempFile(f *os.File, data []byte) (*os.File, error) {
 	const filePermission = 0o600
 
@@ -212,7 +237,7 @@ func saveDataToTempFile(f *os.File, data []byte) (*os.File, error) {
 
 func createTempFile() (*os.File, error) {
 	tempDir := "/tmp/"
-	prefix := fmt.Sprintf("%s-", app.Config.Name)
+	prefix := fmt.Sprintf("%s-", config.App.Name)
 
 	tempFile, err := os.CreateTemp(tempDir, prefix)
 	if err != nil {
@@ -222,35 +247,23 @@ func createTempFile() (*os.File, error) {
 	return tempFile, nil
 }
 
-/**
- * Validates the content of a bookmark file by ensuring that it contains both a URL and tags.
- *
- * @param content The content of the bookmark file.
- *
- * @return An error if the content is invalid.
- */
-func validateContent(content []string) error {
+// ValidateBookmarkBuffer Validates the content of a bookmark file by ensuring that it contains both a URL and tags.
+func ValidateBookmarkBuffer(content []string) error {
 	url := extractBlock(content, "## url:", "## title:")
 	tags := extractBlock(content, "## tags:", "## description:")
 
 	if isEmptyLine(url) {
-		return errs.ErrURLEmpty
+		return ErrBookmarkURLEmpty
 	}
 
 	if isEmptyLine(tags) {
-		return errs.ErrTagsEmpty
+		return ErrBookmarkTagsEmpty
 	}
 
 	return nil
 }
 
-/**
- * Removes the specified temporary file.
- *
- * @param fileName The name of the temporary file to remove.
- *
- * @return An error if the temporary file could not be removed.
- */
+// cleanupTempFile Removes the specified temporary file.
 func cleanupTempFile(fileName string) error {
 	err := os.Remove(fileName)
 	if err != nil {
@@ -294,14 +307,7 @@ func extractBlock(content []string, startMarker, endMarker string) string {
 	return strings.Join(cleanedBlock, "\n")
 }
 
-/**
- * Opens the specified file for editing using the provided editor.
- *
- * @param editor The editor information struct containing the editor name and arguments.
- * @param file The file to open for editing.
- *
- * @return An error if an error occurs while opening or editing the file.
- */
+// editFile Opens the specified file for editing using the provided editor.
 func editFile(e *editorInfo, f *os.File) error {
 	tempFileName := f.Name()
 
@@ -319,12 +325,7 @@ func editFile(e *editorInfo, f *os.File) error {
 	return nil
 }
 
-/**
- * Retrieves the preferred editor to use for editing bookmarks.
- *
- * @return A pointer to an editorInfo struct containing the editor name and
- * arguments, or an error if no editor could be found.
- */
+// getEditor Retrieves the preferred editor to use for editing bookmarks.
 func getEditor() (*editorInfo, error) {
 	if appEditor, exists := getAppEditor(); exists {
 		return appEditor, nil
@@ -338,17 +339,17 @@ func getEditor() (*editorInfo, error) {
 
 	log.Printf("$EDITOR not set.")
 
-	for _, e := range app.Editors {
+	for _, e := range config.Editors {
 		if util.BinaryExists(e) {
 			return &editorInfo{Name: e}, nil
 		}
 	}
 
-	return nil, errs.ErrEditorNotFound
+	return nil, ErrEditorNotFound
 }
 
 func getAppEditor() (*editorInfo, bool) {
-	appEditor := strings.Fields(os.Getenv(app.Env.Editor))
+	appEditor := strings.Fields(os.Getenv(config.Env.Editor))
 	if len(appEditor) == 0 {
 		return nil, false
 	}
@@ -358,7 +359,7 @@ func getAppEditor() (*editorInfo, bool) {
 		return nil, false
 	}
 
-	log.Printf("$%s set to %s", app.Env.Editor, appEditor)
+	log.Printf("$%s set to %s", config.Env.Editor, appEditor)
 	return &editorInfo{Name: appEditor[0], Args: appEditor[1:]}, true
 }
 
@@ -374,4 +375,31 @@ func readContentFile(file *os.File) ([]byte, error) {
 
 func isEmptyLine(line string) bool {
 	return strings.TrimSpace(line) == ""
+}
+
+func ExtractBlockFromBuff(input string) (string, error) {
+	// FIX: delete me
+	startPattern := "## ["
+	endPattern := "## end"
+
+	// Find the starting position
+	startIndex := strings.Index(input, startPattern)
+	if startIndex == -1 {
+		return "", fmt.Errorf("start of the block not found")
+	}
+
+	// Find the ending position
+	endIndex := strings.Index(input[startIndex:], endPattern)
+	if endIndex == -1 {
+		return "", fmt.Errorf("end of the block not found")
+	}
+
+	// Adjust positions to extract the complete block
+	startIndex += len(startPattern)
+	endIndex += startIndex
+
+	// Extract the text block
+	block := input[startIndex:endIndex]
+
+	return block, nil
 }

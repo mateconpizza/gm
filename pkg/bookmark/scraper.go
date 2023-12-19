@@ -3,13 +3,14 @@ package bookmark
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"gomarks/pkg/app"
+	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 
 	"github.com/gocolly/colly"
@@ -21,8 +22,8 @@ import (
 // - [ ] Remove global `URLNotFound` `URLWithError`
 
 const (
-	DefaultTitle string = "Untitled (Unfiled)"
-	DefaultDesc  string = "No description available (Unfiled)"
+	BookmarkDefaultTitle string = "Untitled (Unfiled)"
+	BookmarkDefaultDesc  string = "No description available (Unfiled)"
 )
 
 var URLNotFound []Response
@@ -36,7 +37,7 @@ type Response struct {
 }
 
 func (r *Response) String() string {
-	if app.Term.Color {
+	if config.Term.Color {
 		return prettyPrintURLStatus(r.StatusCode, r.ID, r.URL)
 	}
 
@@ -89,24 +90,25 @@ func prettyPrintURLStatus(statusCode, bID int, url string) string {
 	return fmt.Sprintf("%s%s%s%s", id, code, status, u)
 }
 
-func prettyPrintStatus(bs *Slice, duration time.Duration) {
+func prettyPrintStatus(bs *[]Bookmark, duration time.Duration) {
 	var final string
 	took := fmt.Sprintf("%.2fs\n", duration.Seconds())
 
-	n := strconv.Itoa(len(*bs))
+	final += fmt.Sprintf("\n> %d urls were checked\n", len(*bs))
+	n := strconv.Itoa(len(*bs) - len(URLWithError) - len(URLNotFound))
 	s := format.Text(n).Blue().Bold().String()
 	t := format.Text(took).Blue().Bold().String()
 
 	withErrorColor := format.Text(strconv.Itoa(len(URLWithError))).Yellow().Bold()
 	withNoErrorCode := format.Text("200").Green().Bold()
 
-	final += fmt.Sprintf("\n> %s urls return %s code", s, withNoErrorCode)
+	final += fmt.Sprintf("  + %s urls return %s code", s, withNoErrorCode)
 
 	notFoundColor := format.Text(strconv.Itoa(len(URLNotFound))).Bold().Red()
 	notFoundCode := format.Text("404").Bold().Red()
 
 	if len(URLWithError) > 0 {
-		final += fmt.Sprintf("\n> %s urls did not return a %s code", withErrorColor, withNoErrorCode)
+		final += fmt.Sprintf("\n  + %s urls did not return a %s code", withErrorColor, withNoErrorCode)
 		fmt.Printf("\n%s warns detail:\n", withErrorColor)
 		for _, r := range URLWithError {
 			fmt.Println(r.String())
@@ -114,22 +116,18 @@ func prettyPrintStatus(bs *Slice, duration time.Duration) {
 	}
 
 	if len(URLNotFound) > 0 {
-		final += fmt.Sprintf("\n> %s urls return %s code", notFoundColor, notFoundCode)
+		final += fmt.Sprintf("\n  + %s urls return %s code", notFoundColor, notFoundCode)
 		fmt.Printf("\n%s err detail:\n", notFoundColor)
 		for _, r := range URLNotFound {
 			fmt.Println(r.String())
 		}
 	}
 
-	final += fmt.Sprintf("\n> it took %s\n", t)
+	final += fmt.Sprintf("\n  + it took %s\n", t)
 	fmt.Print(final)
 }
 
-func CheckBookmarkStatus(bs *Slice) error {
-	if len(*bs) == 0 {
-		return ErrBookmarkNotSelected
-	}
-
+func CheckStatus(bs *[]Bookmark) error {
 	maxConRequests := 50
 	sem := semaphore.NewWeighted(int64(maxConRequests))
 
@@ -161,7 +159,7 @@ func CheckBookmarkStatus(bs *Slice) error {
 func makeRequest(b *Bookmark, sem *semaphore.Weighted) {
 	defer sem.Release(1)
 
-	timeout := 15 * time.Second
+	timeout := 5 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -201,7 +199,7 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) {
 	fmt.Println(result.String())
 }
 
-func fetchTitle(url string) (string, error) {
+func Title(url string) (string, error) {
 	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
 	titleSelectors := []string{
@@ -227,17 +225,17 @@ func fetchTitle(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return DefaultTitle, fmt.Errorf("%w: visiting and scraping URL", err)
+		return BookmarkDefaultTitle, fmt.Errorf("%w: visiting and scraping URL", err)
 	}
 
 	if title == "" {
-		return DefaultTitle, nil
+		return BookmarkDefaultTitle, nil
 	}
 
 	return title, nil
 }
 
-func fetchDescription(url string) (string, error) {
+func Description(url string) (string, error) {
 	url = strings.ReplaceAll(url, "www.reddit.com", "old.reddit.com")
 
 	descSelectors := []string{
@@ -266,15 +264,35 @@ func fetchDescription(url string) (string, error) {
 
 	err := c.Visit(url)
 	if err != nil {
-		return DefaultDesc, fmt.Errorf(
+		return BookmarkDefaultDesc, fmt.Errorf(
 			"%w: visiting and scraping URL",
 			err,
 		)
 	}
 
 	if description == "" {
-		return DefaultDesc, nil
+		return BookmarkDefaultDesc, nil
 	}
 
 	return description, nil
+}
+
+// FetchTitleAndDescription Fetches the title and/or description of the
+// bookmark's URL, if they are not already set.
+func FetchTitleAndDescription(b *Bookmark) {
+	if b.Title == BookmarkDefaultTitle || b.Title == "" {
+		title, err := Title(b.URL)
+		if err != nil {
+			log.Printf("Error on %s: %s\n", b.URL, err)
+		}
+		b.Title = title
+	}
+
+	if b.Desc == BookmarkDefaultDesc || b.Desc == "" {
+		description, err := Description(b.URL)
+		if err != nil {
+			log.Printf("Error on %s: %s\n", b.URL, err)
+		}
+		b.Desc = description
+	}
 }

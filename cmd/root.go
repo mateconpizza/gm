@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"gomarks/pkg/app"
-	"gomarks/pkg/database"
+	"gomarks/pkg/bookmark"
+	"gomarks/pkg/config"
 	"gomarks/pkg/display"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
@@ -16,6 +16,8 @@ import (
 )
 
 var (
+	allFlag     bool
+	editionFlag bool
 	formatFlag  string
 	headFlag    int
 	infoFlag    bool
@@ -37,6 +39,8 @@ var rootCmd = &cobra.Command{
 		r, _ := getDB()
 
 		parseArgsAndExit(cmd, r)
+
+		args = handleAllFlag(cmd, args)
 
 		bs, err := handleGetRecords(r, args)
 		if err != nil {
@@ -61,7 +65,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if bs.Len() == 1 {
+		if len(*bs) == 1 {
 			util.CopyToClipboard((*bs)[0].URL)
 		}
 
@@ -72,13 +76,12 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	err := rootCmd.Execute()
 
-	if errors.Is(err, database.ErrDBNotFound) {
+	if errors.Is(err, bookmark.ErrDBNotFound) {
 		err = fmt.Errorf("%w: use %s to initialize a new database", err, format.Text("init").Yellow().Bold())
 	}
 
 	if err != nil {
-		fmt.Printf("%s: %s\n", app.Config.Name, err)
-		os.Exit(1)
+		logErrAndExit(err)
 	}
 }
 
@@ -89,8 +92,10 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&infoFlag, "info", "i", false, "show app info")
+	rootCmd.Flags().BoolVar(&versionFlag, "version", false, "print version info")
 
 	// Experimental
+	rootCmd.Flags().BoolVarP(&allFlag, "all", "a", false, "all bookmarks")
 	rootCmd.Flags().BoolVarP(&statusFlag, "status", "s", false, "check bookmarks status")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
@@ -105,4 +110,9 @@ func init() {
 
 func initConfig() {
 	util.SetLogLevel(&verboseFlag)
+
+	if err := handleTermOptions(); err != nil {
+		fmt.Printf("%s: %s\n", config.App.Name, err)
+		os.Exit(1)
+	}
 }

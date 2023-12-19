@@ -1,4 +1,4 @@
-package database
+package bookmark
 
 import (
 	"database/sql"
@@ -10,16 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"gomarks/pkg/app"
-	"gomarks/pkg/bookmark"
-	"gomarks/pkg/format"
+	"gomarks/pkg/config"
 	"gomarks/pkg/util"
 
 	_ "github.com/mattn/go-sqlite3"
 )
-
-// FIX:
-// Decople database pkg from bookmark pkg
 
 var (
 	// db
@@ -41,21 +36,15 @@ var (
 	ErrNoIDorQueryProvided = errors.New("no id or query provided")
 )
 
-// TODO:
-// [ ] add `last_used` column
-// [ ] add `last_checked` column
-/* var TableMainSchema = `
-   CREATE TABLE IF NOT EXISTS %s (
-       id           INTEGER PRIMARY KEY AUTOINCREMENT,
-       url          TEXT    NOT NULL UNIQUE,
-       title        TEXT    DEFAULT "",
-       tags         TEXT    DEFAULT ",",
-       desc         TEXT    DEFAULT "",
-       created_at   TIMESTAMP,
-       last_used    TIMESTAMP,
-       last_checked TIMESTAMP
-   )
- ` */
+type SQLiteRepository struct {
+	DB *sql.DB
+}
+
+func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
+	return &SQLiteRepository{
+		DB: db,
+	}
+}
 
 var TableMainSchema = `
     CREATE TABLE IF NOT EXISTS %s (
@@ -68,34 +57,24 @@ var TableMainSchema = `
     )
   `
 
-type SQLiteRepository struct {
-	DB *sql.DB
-}
-
-func newSQLiteRepository(db *sql.DB) *SQLiteRepository {
-	return &SQLiteRepository{
-		DB: db,
-	}
-}
-
-// Loads the path to the database
+// loadDBPath Loads the path to the database
 func loadDBPath() {
 	util.LoadAppPaths()
 
-	app.DB.Path = filepath.Join(app.Path.Home, app.DB.Name)
-	log.Print("DB.Path: ", app.DB.Path)
+	config.DB.Path = filepath.Join(config.Path.Home, config.DB.Name)
+	log.Print("DB.Path: ", config.DB.Path)
 }
 
-func GetDB() (*SQLiteRepository, error) {
+func GetRepository() (*SQLiteRepository, error) {
 	loadDBPath()
 
-	db, err := sql.Open("sqlite3", app.DB.Path)
+	db, err := sql.Open("sqlite3", config.DB.Path)
 	if err != nil {
 		log.Fatal("Error opening database:", err)
 	}
 
-	r := newSQLiteRepository(db)
-	if exists, _ := r.tableExists(app.DB.Table.Main); !exists {
+	r := NewSQLiteRepository(db)
+	if exists, _ := r.tableExists(config.DB.Table.Main); !exists {
 		return r, fmt.Errorf("%w", ErrDBNotFound)
 	}
 
@@ -103,22 +82,22 @@ func GetDB() (*SQLiteRepository, error) {
 }
 
 func (r *SQLiteRepository) Init() error {
-	if err := r.createTable(app.DB.Table.Main, TableMainSchema); err != nil {
+	if err := r.tableCreate(config.DB.Table.Main, TableMainSchema); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.createTable(app.DB.Table.Deleted, TableMainSchema); err != nil {
+	if err := r.tableCreate(config.DB.Table.Deleted, TableMainSchema); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	initialBookmark := bookmark.NewBookmark(
-		app.Info.URL,
-		app.Info.Title,
-		app.Info.Tags,
-		app.Info.Desc,
+	initialBookmark := NewBookmark(
+		config.Info.URL,
+		config.Info.Title,
+		config.Info.Tags,
+		config.Info.Desc,
 	)
 
-	if _, err := r.InsertRecord(app.DB.Table.Main, initialBookmark); err != nil {
+	if _, err := r.Create(config.DB.Table.Main, initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -138,8 +117,8 @@ func (r *SQLiteRepository) dropTable(t string) error {
 	return nil
 }
 
-func (r *SQLiteRepository) InsertRecord(tableName string, b *bookmark.Bookmark) (*bookmark.Bookmark, error) {
-	if err := bookmark.Validate(b); err != nil {
+func (r *SQLiteRepository) Create(tableName string, b *Bookmark) (*Bookmark, error) {
+	if err := Validate(b); err != nil {
 		return nil, fmt.Errorf("abort: %w", err)
 	}
 
@@ -181,8 +160,8 @@ func (r *SQLiteRepository) InsertRecord(tableName string, b *bookmark.Bookmark) 
 	return b, nil
 }
 
-func (r *SQLiteRepository) InsertRecordsBulk(tableName string, bs *bookmark.Slice) error {
-	log.Printf("Inserting %d bookmarks into table: %s", bs.Len(), tableName)
+func (r *SQLiteRepository) CreateBulk(tableName string, bs *[]Bookmark) error {
+	log.Printf("Inserting %d bookmarks into table: %s", len(*bs), tableName)
 
 	tx, err := r.DB.Begin()
 	if err != nil {
@@ -223,12 +202,12 @@ func (r *SQLiteRepository) InsertRecordsBulk(tableName string, bs *bookmark.Slic
 		return fmt.Errorf("%w: committing in insert bulk", err)
 	}
 
-	log.Printf("Inserted %d bookmarks into table: %s", bs.Len(), tableName)
+	log.Printf("Inserted %d bookmarks into table: %s", len(*bs), tableName)
 
 	return nil
 }
 
-func (r *SQLiteRepository) UpdateRecord(tableName string, b *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (r *SQLiteRepository) Update(tableName string, b *Bookmark) (*Bookmark, error) {
 	if !r.RecordExists(tableName, "id", strconv.Itoa(b.ID)) {
 		return b, fmt.Errorf("%w: in updating '%s'", ErrRecordNotExists, b.URL)
 	}
@@ -248,13 +227,13 @@ func (r *SQLiteRepository) UpdateRecord(tableName string, b *bookmark.Bookmark) 
 	return b, nil
 }
 
-func (r *SQLiteRepository) UpdateRecordsBulk(tableName string, bs *bookmark.Slice) error {
+func (r *SQLiteRepository) updateBulk(tableName string, bs *[]Bookmark) error {
 	if len(*bs) == 0 {
 		return nil
 	}
 
 	for _, b := range *bs {
-		if _, err := r.GetRecordByID(tableName, b.ID); err != nil {
+		if _, err := r.GetByID(tableName, b.ID); err != nil {
 			return fmt.Errorf("%w: in updating '%d'", ErrRecordNotExists, b.ID)
 		}
 	}
@@ -300,7 +279,7 @@ func (r *SQLiteRepository) UpdateRecordsBulk(tableName string, bs *bookmark.Slic
 	return nil
 }
 
-func (r *SQLiteRepository) DeleteRecord(tableName string, b *bookmark.Bookmark) error {
+func (r *SQLiteRepository) Delete(tableName string, b *Bookmark) error {
 	log.Printf("Deleting bookmark %s (table: %s)\n", b.URL, tableName)
 
 	if !r.RecordExists(tableName, "url", b.URL) {
@@ -324,9 +303,9 @@ func (r *SQLiteRepository) DeleteRecord(tableName string, b *bookmark.Bookmark) 
 	return nil
 }
 
-func (r *SQLiteRepository) DeleteRecordsBulk(tableName string, bIDs []int) error {
+func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 	if len(bIDs) == 0 {
-		return bookmark.ErrBookmarkNotSelected
+		return ErrBookmarkNotSelected
 	}
 
 	log.Printf("Deleting %d bookmarks from table: %s", len(bIDs), tableName)
@@ -388,11 +367,11 @@ func (r *SQLiteRepository) DeleteRecordsBulk(tableName string, bIDs []int) error
 	return nil
 }
 
-func (r *SQLiteRepository) GetRecordByID(tableName string, n int) (*bookmark.Bookmark, error) {
+func (r *SQLiteRepository) GetByID(tableName string, n int) (*Bookmark, error) {
 	log.Printf("Getting bookmark by ID %d (table: %s)\n", n, tableName)
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tableName), n)
 
-	var b bookmark.Bookmark
+	var b Bookmark
 
 	err := row.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.CreatedAt)
 	if err != nil {
@@ -408,14 +387,14 @@ func (r *SQLiteRepository) GetRecordByID(tableName string, n int) (*bookmark.Boo
 	return &b, nil
 }
 
-func (r *SQLiteRepository) GetRecordsByIDList(tableName string, ids []int) (*bookmark.Slice, error) {
+func (r *SQLiteRepository) getByIDList(tableName string, ids []int) (*[]Bookmark, error) {
 	if len(ids) == 0 {
 		return nil, ErrNoRecordIdProvided
 	}
 
-	bookmarks := bookmark.Slice{}
+	bookmarks := []Bookmark{}
 	for _, id := range ids {
-		b, err := r.GetRecordByID(tableName, id)
+		b, err := r.GetByID(tableName, id)
 		if err != nil {
 			return nil, fmt.Errorf("error getting bookmark with ID %d: %w", id, err)
 		}
@@ -426,8 +405,8 @@ func (r *SQLiteRepository) GetRecordsByIDList(tableName string, ids []int) (*boo
 	return &bookmarks, nil
 }
 
-func (r *SQLiteRepository) GetRecordByURL(tableName, u string) (*bookmark.Bookmark, error) {
-	var b bookmark.Bookmark
+func (r *SQLiteRepository) getByURL(tableName, u string) (*Bookmark, error) {
+	var b Bookmark
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE url = ?", tableName), u)
 
 	err := row.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.CreatedAt)
@@ -443,7 +422,7 @@ func (r *SQLiteRepository) GetRecordByURL(tableName, u string) (*bookmark.Bookma
 }
 
 // Retrieves bookmarks from the SQLite database based on the provided SQL query.
-func (r *SQLiteRepository) getRecordsBySQL(q string, args ...interface{}) (*bookmark.Slice, error) {
+func (r *SQLiteRepository) getBySQL(q string, args ...interface{}) (*[]Bookmark, error) {
 	rows, err := r.DB.Query(q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("%w: on getting records by query", err)
@@ -455,10 +434,10 @@ func (r *SQLiteRepository) getRecordsBySQL(q string, args ...interface{}) (*book
 		}
 	}()
 
-	var all bookmark.Slice
+	var all []Bookmark
 
 	for rows.Next() {
-		var b bookmark.Bookmark
+		var b Bookmark
 		if err := rows.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.CreatedAt); err != nil {
 			return nil, fmt.Errorf("%w: '%w'", ErrRecordScan, err)
 		}
@@ -473,27 +452,27 @@ func (r *SQLiteRepository) getRecordsBySQL(q string, args ...interface{}) (*book
 }
 
 // Get all records from the tableName
-func (r *SQLiteRepository) GetRecordsAll(tableName string) (*bookmark.Slice, error) {
+func (r *SQLiteRepository) GetAll(tableName string) (*[]Bookmark, error) {
 	log.Printf("Getting all records from table: '%s'", tableName)
 	sqlQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", tableName)
 
-	bs, err := r.getRecordsBySQL(sqlQuery)
+	bs, err := r.getBySQL(sqlQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	if bs.Len() == 0 {
+	if len(*bs) == 0 {
 		log.Printf("No records found in table: '%s'", tableName)
 
 		return nil, ErrRecordNotFound
 	}
 
-	log.Printf("Got %d records from table: '%s'", bs.Len(), tableName)
+	log.Printf("Got %d records from table: '%s'", len(*bs), tableName)
 
 	return bs, nil
 }
 
-func (r *SQLiteRepository) GetRecordsByQuery(tableName, q string) (*bookmark.Slice, error) {
+func (r *SQLiteRepository) GetByQuery(tableName, q string) (*[]Bookmark, error) {
 	log.Printf("Getting records by query: %s", q)
 
 	sqlQuery := fmt.Sprintf(`
@@ -506,108 +485,18 @@ func (r *SQLiteRepository) GetRecordsByQuery(tableName, q string) (*bookmark.Sli
     `, tableName)
 
 	queryValue := "%" + q + "%"
-	bs, err := r.getRecordsBySQL(sqlQuery, queryValue)
+	bs, err := r.getBySQL(sqlQuery, queryValue)
 	if err != nil {
 		return nil, fmt.Errorf("%w: by query '%s'", err, q)
 	}
 
-	if bs.Len() == 0 {
+	if len(*bs) == 0 {
 		return nil, fmt.Errorf("%w: by query '%s'", ErrRecordNotFound, q)
 	}
 
-	log.Printf("Got %d records by query: '%s'", bs.Len(), q)
+	log.Printf("Got %d records by query: '%s'", len(*bs), q)
 
 	return bs, err
-}
-
-func (r *SQLiteRepository) GetRecordsByTag(tableName, tag string) (*bookmark.Slice, error) {
-	// FIX: make it local or delete it
-	bs, err := r.getRecordsBySQL(
-		fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", tableName),
-		fmt.Sprintf("%%%s%%", tag),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if bs.Len() == 0 {
-		return nil, ErrRecordNotFound
-	}
-
-	return bs, nil
-}
-
-func (r *SQLiteRepository) GetRecordsLength(tableName string) (int, error) {
-	var length int
-
-	row := r.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName))
-
-	err := row.Scan(&length)
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to get length", err)
-	}
-
-	return length, nil
-}
-
-func (r *SQLiteRepository) GetRecordsWithoutTitleOrDesc(tableName string) (*bookmark.Slice, error) {
-	query := fmt.Sprintf("SELECT * from %s WHERE title IS NULL or desc IS NULL", tableName)
-
-	bs, err := r.getRecordsBySQL(query)
-	if err != nil {
-		return nil, err
-	}
-
-	return bs, nil
-}
-
-func (r *SQLiteRepository) GetUniqueTags(tableName string) ([]string, error) {
-	var s []string
-
-	query := fmt.Sprintf("SELECT tags from %s", tableName)
-	rows, err := r.DB.Query(query, tableName)
-	if err != nil {
-		return []string{}, fmt.Errorf("%w: getting unique tags", err)
-	}
-
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("Error closing rows: %v", err)
-		}
-	}()
-
-	for rows.Next() {
-		var tags string
-
-		err := rows.Scan(&tags)
-		if err != nil {
-			return []string{}, fmt.Errorf("%w: getting unique tags", err)
-		}
-
-		s = append(s, tags)
-	}
-
-	if err := rows.Err(); err != nil {
-		return []string{}, fmt.Errorf("%w: getting unique tags", err)
-	}
-
-	return format.ParseUniqueStrings(s, ","), nil
-}
-
-func (r *SQLiteRepository) UniqueTagsWithCount(tableName string) (util.Counter, error) {
-	// FIX: make it local or delete it
-	tagCounter := make(util.Counter)
-
-	bs, err := r.GetRecordsAll(tableName)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, bookmark := range *bs {
-		tagCounter.Add(bookmark.Tags, ",")
-	}
-
-	return tagCounter, nil
 }
 
 func (r *SQLiteRepository) RecordExists(tableName, column, target string) bool {
@@ -654,7 +543,7 @@ func (r *SQLiteRepository) tableExists(t string) (bool, error) {
 }
 
 // Renames the temporary table to the specified main table name.
-func (r *SQLiteRepository) renameTable(tempTable, mainTable string) error {
+func (r *SQLiteRepository) tableRename(tempTable, mainTable string) error {
 	log.Printf("Renaming table %s to %s", tempTable, mainTable)
 
 	_, err := r.DB.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", tempTable, mainTable))
@@ -668,7 +557,7 @@ func (r *SQLiteRepository) renameTable(tempTable, mainTable string) error {
 }
 
 // Creates a new table with the specified name in the SQLite database.
-func (r *SQLiteRepository) createTable(name, schema string) error {
+func (r *SQLiteRepository) tableCreate(name, schema string) error {
 	log.Printf("Creating table: %s", name)
 	tableSchema := fmt.Sprintf(schema, name)
 
@@ -693,23 +582,23 @@ func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
 
 // Reorders the IDs of all records in the specified table.
 func (r *SQLiteRepository) ReorderIDs(tableName string) error {
-	bs, err := r.GetRecordsAll(tableName)
+	bs, err := r.GetAll(tableName)
 	if err != nil {
 		return err
 	}
 
-	if bs.Len() == 0 {
+	if len(*bs) == 0 {
 		return nil
 	}
 
 	log.Printf("Reordering IDs in table: %s", tableName)
 
 	tempTable := fmt.Sprintf("temp_%s", tableName)
-	if err := r.createTable(tempTable, TableMainSchema); err != nil {
+	if err := r.tableCreate(tempTable, TableMainSchema); err != nil {
 		return err
 	}
 
-	if err := r.InsertRecordsBulk(tempTable, bs); err != nil {
+	if err := r.CreateBulk(tempTable, bs); err != nil {
 		return err
 	}
 
@@ -717,5 +606,5 @@ func (r *SQLiteRepository) ReorderIDs(tableName string) error {
 		return err
 	}
 
-	return r.renameTable(tempTable, tableName)
+	return r.tableRename(tempTable, tableName)
 }

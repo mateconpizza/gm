@@ -55,19 +55,19 @@ func TestGetTitle(t *testing.T) {
 			name:     "NoTitleTag",
 			url:      "http://example.com",
 			server:   createTestServer(`<h1>Test Heading</h1>`),
-			expected: DefaultTitle,
+			expected: BookmarkDefaultTitle,
 			wantErr:  false,
 		},
 		{
 			name:     "HTTPError",
 			url:      "http://invalid-url",
 			server:   nil,
-			expected: DefaultTitle,
+			expected: BookmarkDefaultTitle,
 			wantErr:  true,
 		},
 	}
 
-	testScrapeFunction(t, fetchTitle, tests)
+	testScrapeFunction(t, Title, tests)
 }
 
 func TestGetDescription(t *testing.T) {
@@ -89,19 +89,19 @@ func TestGetDescription(t *testing.T) {
 			name:     "NoDescriptionMetaTag",
 			url:      "http://example.com",
 			server:   createTestServer(`<h1>Test Heading</h1>`),
-			expected: DefaultDesc,
+			expected: BookmarkDefaultDesc,
 			wantErr:  false,
 		},
 		{
 			name:     "HTTPError",
 			url:      "http://invalid-url",
 			server:   nil,
-			expected: DefaultDesc,
+			expected: BookmarkDefaultDesc,
 			wantErr:  true,
 		},
 	}
 
-	testScrapeFunction(t, fetchDescription, tests)
+	testScrapeFunction(t, Description, tests)
 }
 
 func createTestServer(responseBody string) *httptest.Server {
