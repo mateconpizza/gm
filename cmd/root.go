@@ -38,9 +38,11 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, _ := getDB()
 
-		parseArgsAndExit(cmd, r)
+		parseArgsAndExit(r)
 
-		args = handleAllFlag(cmd, args)
+		if allFlag {
+			args = append(args, "")
+		}
 
 		bs, err := handleGetRecords(r, args)
 		if err != nil {
@@ -51,22 +53,23 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := handleHeadAndTail(cmd, bs); err != nil {
+		filteredBs, err := handleHeadAndTail(bs)
+		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		parseBookmarksAndExit(cmd, bs)
+		parseBookmarksAndExit(&filteredBs)
 
-		if err := handlePicker(cmd, bs); err != nil {
+		if err := handlePicker(&filteredBs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := handleFormat(cmd, bs); err != nil {
+		if err := handleFormat(&filteredBs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		if len(*bs) == 1 {
-			util.CopyToClipboard((*bs)[0].URL)
+		if len(filteredBs) == 1 {
+			util.CopyToClipboard((filteredBs)[0].URL)
 		}
 
 		return nil
@@ -96,6 +99,7 @@ func init() {
 
 	// Experimental
 	rootCmd.Flags().BoolVarP(&allFlag, "all", "a", false, "all bookmarks")
+	rootCmd.Flags().BoolVarP(&editionFlag, "edition", "e", false, "edition mode")
 	rootCmd.Flags().BoolVarP(&statusFlag, "status", "s", false, "check bookmarks status")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")

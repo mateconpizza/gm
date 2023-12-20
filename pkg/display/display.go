@@ -6,14 +6,13 @@ import (
 	"strings"
 
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/database"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
 
-func Select(cmd *cobra.Command, bs *bookmark.Slice) (*bookmark.Slice, error) {
+func Select(cmd *cobra.Command, bs *[]bookmark.Bookmark) (*[]bookmark.Bookmark, error) {
 	menuName, err := cmd.Flags().GetString("menu")
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -31,7 +30,7 @@ func Select(cmd *cobra.Command, bs *bookmark.Slice) (*bookmark.Slice, error) {
 	return SelectBookmark(m, bs)
 }
 
-func SelectBookmark(m *Menu, bs *bookmark.Slice) (*bookmark.Slice, error) {
+func SelectBookmark(m *Menu, bs *[]bookmark.Bookmark) (*[]bookmark.Bookmark, error) {
 	maxLen := 80
 	itemsText := make([]string, 0, len(*bs))
 
@@ -64,8 +63,8 @@ func SelectBookmark(m *Menu, bs *bookmark.Slice) (*bookmark.Slice, error) {
 		b := (*bs)[index]
 		log.Printf("Selected bookmark:\n%+v", b)
 
-		return bookmark.NewSlice(&b), nil
+		return &[]bookmark.Bookmark{b}, nil
 	}
 
-	return nil, fmt.Errorf("%w: '%s'", database.ErrRecordNotFound, selectedStr)
+	return nil, fmt.Errorf("%w: '%s'", bookmark.ErrRecordNotFound, selectedStr)
 }

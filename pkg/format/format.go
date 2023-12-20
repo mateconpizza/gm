@@ -1,8 +1,10 @@
 package format
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -39,7 +41,7 @@ func ShortenString(s string, maxLength int) string {
 }
 
 func TitleLine(id int, title string) string {
-	return fmt.Sprintf("%-4d\t%s %s\n", id, Text(bulletPoint).Purple().Bold(), title)
+	return fmt.Sprintf("%-4d%s%s %s\n", id, Space, BulletPoint, title)
 }
 
 func SplitAndAlignString(s string, lineLength int) string {
@@ -90,5 +92,30 @@ func ParseUniqueStrings(input []string, sep string) []string {
 func Prompt(question, options string) string {
 	q := Text(question).White().Bold()
 	o := Text(options).Gray()
-	return fmt.Sprintf("\n%s %s: ", q, o)
+	return fmt.Sprintf("\n%s %s ", q, o)
+}
+
+// convert: "tag1, tag2, tag3 tag"
+// to: "tag1,tag2,tag3,tag,"
+func ParseTags(tags string) string {
+	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	}), ",")
+
+	if strings.HasSuffix(tags, ",") {
+		return tags
+	}
+
+	return tags + ","
+}
+
+func ToJSON(data interface{}) string {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		log.Fatal("Error marshaling to JSON:", err)
+	}
+
+	jsonString := string(jsonData)
+
+	return jsonString
 }

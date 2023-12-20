@@ -17,16 +17,17 @@ import (
 )
 
 var (
-	ErrBufferUnchanged = errors.New("buffer unchanged")
-	ErrEditorNotFound  = errors.New("editor not found")
-	ErrTooManyRecords  = errors.New("too many records")
+	ErrBufferUnchanged  = errors.New("buffer unchanged")
+	ErrEditorNotFound   = errors.New("editor not found")
+	ErrTooManyRecords   = errors.New("too many records")
+	ErrBufferEndOfBlock = errors.New("end of the block not found")
 )
 
 type EditFn func(*[]Bookmark) error
 
 type editorInfo struct {
-	Name string
-	Args []string
+	name string
+	args []string
 }
 
 // ParseTempBookmark Parses the provided bookmark content into a temporary bookmark struct.
@@ -145,33 +146,10 @@ func Buffer(bs *[]Bookmark) []byte {
 
 ## Showing %d bookmarks.
 
-%s`, config.Info.Title, config.App.Version, len(*bs), s))
+%s`, config.App.Data.Title, config.App.Version, len(*bs), s))
 
 	return bytes.TrimSpace(data)
 }
-
-/* func OldEditionSlice(bs *Slice) error {
-	bsContent := bs.Buffer()
-	data, err := Edit(bsContent)
-	if err != nil {
-		return err
-	}
-
-	if !isSameContentBytes(bsContent, data) {
-		ids, err := extractIDsFromBuffer(data)
-		if err != nil {
-			return err
-		}
-
-		if len(ids) == 0 {
-			return fmt.Errorf("%w", ErrBookmarkNotSelected)
-		}
-
-		FilterSliceByIDs(bs, ids...)
-	}
-
-	return nil
-} */
 
 // Edit Edits the provided bookmark using the specified editor.
 func Edit(data []byte) ([]byte, error) {
@@ -312,7 +290,7 @@ func editFile(e *editorInfo, f *os.File) error {
 	tempFileName := f.Name()
 
 	// Construct the editor command with the temporary file path and editor arguments.
-	cmd := exec.Command(e.Name, append(e.Args, tempFileName)...)
+	cmd := exec.Command(e.name, append(e.args, tempFileName)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -334,14 +312,14 @@ func getEditor() (*editorInfo, error) {
 	editor := strings.Fields(os.Getenv("EDITOR"))
 	if len(editor) > 0 {
 		log.Printf("$EDITOR set to %s", editor)
-		return &editorInfo{Name: editor[0], Args: editor[1:]}, nil
+		return &editorInfo{name: editor[0], args: editor[1:]}, nil
 	}
 
 	log.Printf("$EDITOR not set.")
 
 	for _, e := range config.Editors {
 		if util.BinaryExists(e) {
-			return &editorInfo{Name: e}, nil
+			return &editorInfo{name: e}, nil
 		}
 	}
 
@@ -349,7 +327,7 @@ func getEditor() (*editorInfo, error) {
 }
 
 func getAppEditor() (*editorInfo, bool) {
-	appEditor := strings.Fields(os.Getenv(config.Env.Editor))
+	appEditor := strings.Fields(os.Getenv(config.App.Env.Editor))
 	if len(appEditor) == 0 {
 		return nil, false
 	}
@@ -359,8 +337,8 @@ func getAppEditor() (*editorInfo, bool) {
 		return nil, false
 	}
 
-	log.Printf("$%s set to %s", config.Env.Editor, appEditor)
-	return &editorInfo{Name: appEditor[0], Args: appEditor[1:]}, true
+	log.Printf("$%s set to %s", config.App.Env.Editor, appEditor)
+	return &editorInfo{name: appEditor[0], args: appEditor[1:]}, true
 }
 
 func readContentFile(file *os.File) ([]byte, error) {
@@ -385,13 +363,13 @@ func ExtractBlockFromBuff(input string) (string, error) {
 	// Find the starting position
 	startIndex := strings.Index(input, startPattern)
 	if startIndex == -1 {
-		return "", fmt.Errorf("start of the block not found")
+		return "", ErrBufferEndOfBlock
 	}
 
 	// Find the ending position
 	endIndex := strings.Index(input[startIndex:], endPattern)
 	if endIndex == -1 {
-		return "", fmt.Errorf("end of the block not found")
+		return "", ErrBufferEndOfBlock
 	}
 
 	// Adjust positions to extract the complete block

@@ -1,8 +1,6 @@
 package format
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestShortenString(t *testing.T) {
 	input := "This is a long string"

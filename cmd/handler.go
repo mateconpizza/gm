@@ -11,8 +11,6 @@ import (
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
-
-	"github.com/spf13/cobra"
 )
 
 func handleQuery(args []string) (string, error) {
@@ -20,7 +18,7 @@ func handleQuery(args []string) (string, error) {
 		return "", fmt.Errorf("%w", bookmark.ErrNoIDorQueryProvided)
 	}
 
-	queryOrID, err := util.NewGetInput(args)
+	queryOrID, err := util.GetInputFromArgs(args)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -28,34 +26,25 @@ func handleQuery(args []string) (string, error) {
 	return queryOrID, nil
 }
 
-func handleFormat(cmd *cobra.Command, bs *[]bookmark.Bookmark) error {
-	formatFlag, _ := cmd.Flags().GetString("format")
-	picker, _ := cmd.Flags().GetString("pick")
-
-	if picker != "" {
+func handleFormat(bs *[]bookmark.Bookmark) error {
+	if pickerFlag != "" {
 		return nil
 	}
 
-	if err := bookmark.Format(formatFlag, bs); err != nil {
+	if err := bookmark.Format(formatFlag, *bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	return nil
 }
 
-func handlePicker(cmd *cobra.Command, bs *[]bookmark.Bookmark) error {
-	picker, _ := cmd.Flags().GetString("pick")
-
-	if picker == "" {
+func handlePicker(bs *[]bookmark.Bookmark) error {
+	if pickerFlag == "" {
 		return nil
 	}
 
-	maxIDLen := 5
-	maxTagsLen := 10
-	maxURLLen := config.Term.MaxWidth - (maxIDLen + maxTagsLen)
-
 	for _, b := range *bs {
-		switch picker {
+		switch pickerFlag {
 		case "id":
 			fmt.Println(b.ID)
 		case "url":
@@ -64,57 +53,32 @@ func handlePicker(cmd *cobra.Command, bs *[]bookmark.Bookmark) error {
 			fmt.Println(b.Title)
 		case "tags":
 			fmt.Println(b.Tags)
-		case "menu":
-			fmt.Printf(
-				"%-*d %-*s %-*s\n",
-				maxIDLen,
-				b.ID,
-				maxURLLen,
-				format.ShortenString(b.URL, maxURLLen),
-				maxTagsLen,
-				b.Tags,
-			)
 		default:
-			return fmt.Errorf("%w: %s", format.ErrInvalidOption, picker)
+			return fmt.Errorf("%w: %s", format.ErrInvalidOption, pickerFlag)
 		}
 	}
 
 	return nil
 }
 
-func handleAllFlag(cmd *cobra.Command, args []string) []string {
-	all, _ := cmd.Flags().GetBool("all")
+func handleHeadAndTail(bs *[]bookmark.Bookmark) ([]bookmark.Bookmark, error) {
+	newBs := *bs
 
-	if all {
-		args = append(args, "")
+	if headFlag < 0 || tailFlag < 0 {
+		return nil, fmt.Errorf("%w: %d %d", format.ErrInvalidOption, headFlag, tailFlag)
 	}
 
-	return args
-}
-
-func handleHeadAndTail(cmd *cobra.Command, bs *[]bookmark.Bookmark) error {
-	head, _ := cmd.Flags().GetInt("head")
-	tail, _ := cmd.Flags().GetInt("tail")
-
-	if head < 0 {
-		return fmt.Errorf("%w: %d %d", format.ErrInvalidOption, head, tail)
+	if headFlag > 0 {
+		headFlag = int(math.Min(float64(headFlag), float64(len(newBs))))
+		newBs = newBs[:headFlag]
 	}
 
-	if tail < 0 {
-		return fmt.Errorf("%w: %d %d", format.ErrInvalidOption, head, tail)
+	if tailFlag > 0 {
+		tailFlag = int(math.Min(float64(tailFlag), float64(len(newBs))))
+		newBs = newBs[len(newBs)-tailFlag:]
 	}
 
-	if head > 0 {
-		head = int(math.Min(float64(head), float64(len(*bs))))
-		*bs = (*bs)[:head]
-	}
-
-	if tail > 0 {
-		tail = int(math.Min(float64(tail), float64(len(*bs))))
-		*bs = (*bs)[len(*bs)-tail:]
-	}
-
-	return nil
+	return newBs, nil
 }
 
 // handleGetRecords retrieves records from the database based on either an ID or a query string.
@@ -203,14 +167,14 @@ func handleTermOptions() error {
 	return nil
 }
 
-func parseBookmarksAndExit(cmd *cobra.Command, bs *[]bookmark.Bookmark) {
-	if status, _ := cmd.Flags().GetBool("status"); status {
-		logErrAndExit(handleCheckStatus(cmd, bs))
+func parseBookmarksAndExit(bs *[]bookmark.Bookmark) {
+	if statusFlag {
+		logErrAndExit(handleCheckStatus(bs))
 		os.Exit(0)
 	}
 
-	if edition, _ := cmd.Flags().GetBool("edition"); edition {
-		logErrAndExit(handleEdition(cmd, bs))
+	if editionFlag {
+		logErrAndExit(handleEdition(bs))
 		os.Exit(0)
 	}
 }
@@ -223,7 +187,7 @@ func parseArgsAndExit(r *bookmark.SQLiteRepository) {
 	}
 
 	if infoFlag {
-		handleInfoFlag(r, formatFlag)
+		handleInfoFlag(r)
 		os.Exit(0)
 	}
 }
@@ -235,14 +199,9 @@ func logErrAndExit(err error) {
 	}
 }
 
-func handleCheckStatus(cmd *cobra.Command, bs *[]bookmark.Bookmark) error {
+func handleCheckStatus(bs *[]bookmark.Bookmark) error {
 	if len(*bs) == 0 {
 		return bookmark.ErrBookmarkNotSelected
-	}
-
-	status, _ := cmd.Flags().GetBool("status")
-	if !status {
-		return nil
 	}
 
 	if err := bookmark.CheckStatus(bs); err != nil {
@@ -252,10 +211,9 @@ func handleCheckStatus(cmd *cobra.Command, bs *[]bookmark.Bookmark) error {
 	return nil
 }
 
-func handleEdition(cmd *cobra.Command, bs *[]bookmark.Bookmark) error {
-	edition, _ := cmd.Flags().GetBool("edition")
-	if !edition {
-		return nil
+func handleEdition(bs *[]bookmark.Bookmark) error {
+	if len(*bs) == 0 {
+		return bookmark.ErrBookmarkNotSelected
 	}
 
 	if err := editAndDisplayBookmarks(bs); err != nil {

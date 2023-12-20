@@ -7,9 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/database"
+	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 
 	"github.com/spf13/cobra"
@@ -19,70 +18,66 @@ var newCmd = &cobra.Command{
 	Use:     "new",
 	Short:   "add a new bookmark",
 	Long:    "add a new bookmark and fetch title and description",
-	Example: exampleUsage([]string{"new\n", "new <url>\n", "new <url> <tags>"}),
+	Example: exampleUsage("new\n", "new <url>\n", "new <url> <tags>"),
 	RunE: func(_ *cobra.Command, args []string) error {
 		r, err := getDB()
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		format.CmdTitle("adding a new bookmark")
-
-		url := handleURL(&args)
-
-		if r.RecordExists(app.DB.Table.Main, url) {
-			if b, _ := r.GetRecordByURL(app.DB.Table.Main, url); b != nil {
-				return fmt.Errorf("%w with id: %d", errs.ErrBookmarkDuplicate, b.ID)
-			}
+		url := bookmark.HandleURL(&args)
+		if r.RecordExists(config.DB.Table.Main, "url", url) {
+			return fmt.Errorf("%w", bookmark.ErrBookmarkDuplicate)
 		}
 
-		tags := handleTags(&args)
-		title := handleTitle(url)
-		desc := handleDesc(url)
+		tags := bookmark.HandleTags(&args)
+		title := bookmark.HandleTitle(url)
+		desc := bookmark.HandleDesc(url)
 
-		b := bookmark.New(url, title, tags, desc)
+		b := bookmark.NewBookmark(url, title, tags, desc)
 
 		if err = handleConfirmAndValidation(b); err != nil {
 			return fmt.Errorf("handle confirmation and validation: %w", err)
 		}
 
-		b, err = r.InsertRecord(app.DB.Table.Main, b)
+		b, err = r.Create(config.DB.Table.Main, b)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		fmt.Println(format.Success("\nNew bookmark added successfully with id:", strconv.Itoa(b.ID)))
+		fmt.Print("\nNew bookmark added successfully with id: ")
+		fmt.Println(format.Text(strconv.Itoa(b.ID)).Green().Bold())
 
 		return nil
 	},
 }
 
 func init() {
-	var url string
-	var tags string
-	newCmd.Flags().StringVarP(&url, "url", "u", "", "url for new bookmark")
-	newCmd.Flags().StringVarP(&tags, "tags", "t", "", "tags for new bookmark")
 	rootCmd.AddCommand(newCmd)
 }
 
 func handleConfirmAndValidation(b *bookmark.Bookmark) error {
 	options := []string{"Yes", "No", "Edit"}
-	o := promptWithOptions("Save bookmark?", options)
-	switch o {
+	option := promptWithOptions("Save bookmark?", options)
+
+	switch option {
 	case "n":
-		return fmt.Errorf("%w", errs.ErrActionAborted)
+		return fmt.Errorf("%w", bookmark.ErrActionAborted)
 	case "e":
-		editedBookmark, err := bookmark.Edit(b)
+		editedContent, err := bookmark.Edit(b.Buffer())
 
-		if errors.Is(err, errs.ErrBookmarkUnchaged) {
+		if errors.Is(err, bookmark.ErrBufferUnchanged) {
 			return nil
-		}
-
-		if err != nil {
+		} else if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := bookmark.Validate(editedBookmark); err != nil {
+		editedBookmark := bookmark.ParseTempBookmark(strings.Split(string(editedContent), "\n"))
+		bookmark.FetchTitleAndDescription(editedBookmark)
+
+		b.Update(editedBookmark.URL, editedBookmark.Title, editedBookmark.Tags, editedBookmark.Desc)
+
+		if err := bookmark.Validate(b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}

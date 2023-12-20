@@ -46,6 +46,25 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	}
 }
 
+// TODO:
+// [ ] add `last_used` column
+// [ ] add `last_checked` column
+// [ ] add `status` column (404 or 200) - (0, 1)
+//
+/* var TableMainSchema = `
+   CREATE TABLE IF NOT EXISTS %s (
+       id           INTEGER PRIMARY KEY AUTOINCREMENT,
+       url          TEXT    NOT NULL UNIQUE,
+       title        TEXT    DEFAULT "",
+       tags         TEXT    DEFAULT ",",
+       desc         TEXT    DEFAULT "",
+       created_at   TIMESTAMP,
+       last_used    TIMESTAMP,
+       last_checked TIMESTAMP,
+       status       BOOL
+   )
+` */
+
 var TableMainSchema = `
     CREATE TABLE IF NOT EXISTS %s (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +80,7 @@ var TableMainSchema = `
 func loadDBPath() {
 	util.LoadAppPaths()
 
-	config.DB.Path = filepath.Join(config.Path.Home, config.DB.Name)
+	config.DB.Path = filepath.Join(config.App.Path.Home, config.DB.Name)
 	log.Print("DB.Path: ", config.DB.Path)
 }
 
@@ -91,10 +110,10 @@ func (r *SQLiteRepository) Init() error {
 	}
 
 	initialBookmark := NewBookmark(
-		config.Info.URL,
-		config.Info.Title,
-		config.Info.Tags,
-		config.Info.Desc,
+		config.App.Data.URL,
+		config.App.Data.Title,
+		config.App.Data.Tags,
+		config.App.Data.Desc,
 	)
 
 	if _, err := r.Create(config.DB.Table.Main, initialBookmark); err != nil {

@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
-	"gomarks/pkg/database"
+	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
@@ -18,7 +17,7 @@ var deleteCmd = &cobra.Command{
 	Use:     "del",
 	Short:   "delete a bookmark by query",
 	Long:    "delete a bookmark by query or id",
-	Example: exampleUsage("delete <id>\n", "delete <query>\n", "delete <id id id>"),
+	Example: exampleUsage("del <id>\n", "del <query>\n", "del <id id id>"),
 	RunE: func(_ *cobra.Command, args []string) error {
 		var proceed bool
 
@@ -34,11 +33,11 @@ var deleteCmd = &cobra.Command{
 
 		for {
 			util.CleanTerm()
-			s := format.Text(fmt.Sprintf("Bookmarks to delete [%d]:", len(*bs))).Red().Bold()
+			s := format.Text(fmt.Sprintf("Bookmarks to delete [%d]:", len(*bs))).Red()
 			printSliceSummary(bs, s.String())
 
-			proceed, err = confirmProceed(bs, bookmark.EditionSlice)
-
+			confirmMsg := format.Text("Confirm?").Red().String()
+			proceed, err = confirmDeletion(bs, bookmark.EditionSlice, confirmMsg)
 			if !errors.Is(err, bookmark.ErrBufferUnchanged) && err != nil {
 				return err
 			}
@@ -49,7 +48,7 @@ var deleteCmd = &cobra.Command{
 		}
 
 		if len(*bs) == 0 {
-			return fmt.Errorf("%w", database.ErrActionAborted)
+			return fmt.Errorf("%w", bookmark.ErrActionAborted)
 		}
 
 		if err = deleteAndReorder(r, bs); err != nil {
@@ -66,16 +65,16 @@ var deleteCmd = &cobra.Command{
 
 // deleteAndReorder deletes the specified bookmarks from the database and
 // reorders the remaining IDs.
-func deleteAndReorder(r *database.SQLiteRepository, toDel *bookmark.Slice) error {
-	if err := r.DeleteRecordsBulk(app.DB.Table.Main, toDel.IDs()); err != nil {
+func deleteAndReorder(r *bookmark.SQLiteRepository, toDel *[]bookmark.Bookmark) error {
+	if err := r.DeleteBulk(config.DB.Table.Main, bookmark.ExtractIDs(toDel)); err != nil {
 		return fmt.Errorf("deleting records in bulk: %w", err)
 	}
 
-	if err := r.ReorderIDs(app.DB.Table.Main); err != nil {
+	if err := r.ReorderIDs(config.DB.Table.Main); err != nil {
 		return fmt.Errorf("reordering ids: %w", err)
 	}
 
-	if err := r.InsertRecordsBulk(app.DB.Table.Deleted, toDel); err != nil {
+	if err := r.CreateBulk(config.DB.Table.Deleted, toDel); err != nil {
 		return fmt.Errorf("inserting records in bulk after deletion: %w", err)
 	}
 

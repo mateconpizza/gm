@@ -1,13 +1,12 @@
-/*
-Copyright © 2023 haaag <git.haaag@gmail.com>
-*/package cmd
+// Copyright © 2023 haaag <git.haaag@gmail.com>
+package cmd
 
 import (
 	"errors"
 	"fmt"
 
-	"gomarks/pkg/app"
-	"gomarks/pkg/database"
+	"gomarks/pkg/bookmark"
+	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
@@ -17,13 +16,14 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize a new bookmarks database",
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		r, err := database.GetDB()
+	RunE: func(_ *cobra.Command, _ []string) error {
+		// FIX: replace `SetupProjectPaths` and `Init` with `bookmark.NewRepository()`
+		r, err := bookmark.GetRepository()
 		if err == nil {
-			return fmt.Errorf("%w", database.ErrDBAlreadyInitialized)
+			return fmt.Errorf("%w", bookmark.ErrDBAlreadyInitialized)
 		}
 
-		if !errors.Is(err, database.ErrDBNotFound) {
+		if !errors.Is(err, bookmark.ErrDBNotFound) {
 			return fmt.Errorf("initializing database: %w", err)
 		}
 
@@ -42,7 +42,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("getting records: %w", err)
 		}
 
-		if err := handleFormat(cmd, bs); err != nil {
+		if err := handleFormat(bs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

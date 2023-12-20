@@ -34,7 +34,7 @@ func HandleURL(args *[]string) string {
 		return url
 	}
 
-	return util.GetInput(urlPrompt.String())
+	return util.GetInputFromPrompt(urlPrompt.String())
 }
 
 func HandleTags(args *[]string) string {
@@ -48,7 +48,7 @@ func HandleTags(args *[]string) string {
 	}
 
 	c := format.Text(" (comma-separated)").Gray().String()
-	return util.GetInput(tagsPrompt + c)
+	return util.GetInputFromPrompt(tagsPrompt + c)
 }
 
 func HandleDesc(url string) string {
@@ -75,14 +75,34 @@ func HandleTitle(url string) string {
 	return title
 }
 
-func Format(f string, bs *[]Bookmark) error {
+func Format(f string, bs []Bookmark) error {
 	switch f {
 	case "json":
 		j := format.ToJSON(bs)
 		fmt.Println(j)
 	case "pretty":
-		for _, b := range *bs {
+		for _, b := range bs {
 			fmt.Println(b.String())
+		}
+	case "menu":
+		maxIDLen := 5
+		maxTagsLen := 18
+		maxLine := config.Term.MaxWidth - maxIDLen
+		tagsPercentage := 30
+		template := "%-*d%-*s%-*s\n"
+
+		for _, b := range bs {
+			lenTags := maxLine * tagsPercentage / 100
+			lenUrls := maxLine - lenTags
+			fmt.Printf(
+				template,
+				maxIDLen,
+				b.ID,
+				maxLine-lenTags,
+				format.ShortenString(b.URL, lenUrls),
+				maxTagsLen,
+				format.ShortenString(b.Tags, lenTags),
+			)
 		}
 	default:
 		return fmt.Errorf("%w: %s", format.ErrInvalidOption, f)

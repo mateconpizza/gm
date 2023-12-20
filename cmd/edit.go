@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"gomarks/pkg/app"
 	"gomarks/pkg/bookmark"
+	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 
@@ -17,16 +17,20 @@ import (
 )
 
 // TODO:
-// - [ ] On `edition` create some kind of break statement in buffer
+// - [ ] On `edition mode` create some kind of break statement in buffer
+// OR
+// - [ ] Find a way to display all records in a buffer and diff changes (like `delete`)
+// reference: https://github.com/sergi/go-diff
 
-const tooManyRecords = 5
-const maxRecords = 20
+const tooManyRecords = 8
 
 var editCmd = &cobra.Command{
 	Use:     "edit",
 	Short:   "edit selected bookmark",
-	Example: exampleUsage([]string{"edit <id>\n", "edit <id id id>\n", "edit <query>"}),
+	Example: exampleUsage("edit <id>\n", "edit <id id id>\n", "edit <query>"),
 	RunE: func(_ *cobra.Command, args []string) error {
+		util.ReadInputFromPipe(&args)
+
 		r, err := getDB()
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -37,48 +41,64 @@ var editCmd = &cobra.Command{
 			return fmt.Errorf("error getting records: %w", err)
 		}
 
-		if len(*bs) > maxRecords {
-			return fmt.Errorf("%w for edition: %d", errs.ErrTooManyRecords, len(*bs))
+		filteredBs, err := handleHeadAndTail(bs)
+		if err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
-		bsToUpdate, err := editAndDisplayBookmarks(bs)
-		if err != nil {
+		if err := editAndDisplayBookmarks(&filteredBs); err != nil {
 			return fmt.Errorf("error during editing: %w", err)
 		}
 
-		if err := r.UpdateRecordsBulk(app.DB.Table.Main, bsToUpdate); err != nil {
-			return fmt.Errorf("error updating records: %w", err)
+		for _, b := range filteredBs {
+			tempB := b
+			if _, err := r.Update(config.DB.Table.Main, &tempB); err != nil {
+				return fmt.Errorf("error updating records: %w", err)
+			}
 		}
 
 		return nil
 	},
 }
 
-func editAndDisplayBookmarks(bs *bookmark.Slice) (*bookmark.Slice, error) {
-	bookmarksToUpdate := bookmark.Slice{}
+func editAndDisplayBookmarks(bs *[]bookmark.Bookmark) error {
+	// FIX: split into more functions
+	bookmarksToUpdate := []bookmark.Bookmark{}
 
 	if len(*bs) > tooManyRecords {
-		return fmt.Errorf("%w: %d", bookmark.ErrTooManyRecords, len(*bs))
+		return fmt.Errorf("%w: %d. Max: %d", bookmark.ErrTooManyRecords, len(*bs), tooManyRecords)
 	}
 
+	for _, b := range *bs {
 		tempB := b
 
-		fmt.Printf("%s: bookmark [%d]: ", app.Config.Name, tempB.ID)
+		fmt.Printf("%s: bookmark [%d]: ", config.App.Name, tempB.ID)
 
-		bookmarkEdited, err := bookmark.Edit(&tempB)
-		if err != nil {
-			if errors.Is(err, errs.ErrBookmarkUnchanged) {
-				fmt.Printf("%s\n", format.Warning("unchanged"))
-				continue
-			}
-			return nil, fmt.Errorf("error editing bookmark: %w", err)
+		editedContent, err := bookmark.EditBuffer(tempB.Buffer())
+		if errors.Is(err, bookmark.ErrBufferUnchanged) {
+			fmt.Printf("%s\n", format.Text("unchanged").Yellow().Bold())
+			bookmark.RemoveItemByID(bs, b.ID)
+			continue
+		} else if err != nil {
+			return fmt.Errorf("error editing bookmark: %w", err)
 		}
 
-		fmt.Printf("%s\n", format.Info("updated"))
-		bookmarksToUpdate.Add(bookmarkEdited)
+		tempContent := strings.Split(string(editedContent), "\n")
+		if err := bookmark.ValidateBookmarkBuffer(tempContent); err != nil {
+			return fmt.Errorf("error validating bookmark buffer: %w", err)
+		}
+
+		tb := bookmark.ParseTempBookmark(tempContent)
+		bookmark.FetchTitleAndDescription(tb)
+
+		fmt.Printf("%s\n", format.Text("updated").Blue().Bold())
+
+		b.Update(tb.URL, tb.Title, tb.Tags, tb.Desc)
+		bookmarksToUpdate = append(bookmarksToUpdate, b)
+		*bs = bookmarksToUpdate
 	}
 
-	return &bookmarksToUpdate, nil
+	return nil
 }
 
 func init() {

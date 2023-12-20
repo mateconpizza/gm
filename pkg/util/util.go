@@ -9,10 +9,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
@@ -23,6 +21,12 @@ import (
 )
 
 var ErrInvalidInput = errors.New("no id or query provided")
+
+func CleanTerm() {
+	fmt.Print("\033[H\033[2J")
+	name := format.Text(config.App.Data.Title).Blue().Bold()
+	fmt.Printf("%s: v%s\n\n", name, config.App.Version)
+}
 
 func FileExists(s string) bool {
 	_, err := os.Stat(s)
@@ -39,6 +43,7 @@ func GetEnv(key, def string) string {
 
 // Loads the path to the application's home directory.
 func LoadAppPaths() {
+	// FIX: move to `config` pkg
 	envConfigHome, err := os.UserConfigDir()
 	if err != nil {
 		log.Fatal(err)
@@ -52,6 +57,7 @@ func LoadAppPaths() {
 // Checks and creates the application's home directory.
 // Returns the path to the application's home directory and any error encountered during the process.
 func SetupProjectPaths() error {
+	// FIX: move to `config` pkg
 	const dirPermissions = 0o755
 
 	LoadAppPaths()
@@ -119,7 +125,28 @@ func BinaryExists(binaryName string) bool {
 	return err == nil
 }
 
-func GetInput(prompt string) string {
+func GetInputFromArgs(args []string) (string, error) {
+	if len(args) > 0 {
+		return strings.Join(args, " "), nil
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	text := scanner.Text()
+
+	if text == "" {
+		return "", ErrInvalidInput
+	}
+
+	return text, nil
+}
+
+func GetInputFromPrompt(prompt string) string {
 	var s string
 
 	fmt.Printf("%s\n  > ", prompt)
@@ -133,26 +160,10 @@ func GetInput(prompt string) string {
 	return strings.Trim(s, "\n")
 }
 
-func HandleInterrupt() <-chan struct{} {
-	// FIX: make it local or delete it
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-		<-interrupt
-		fmt.Println("\nReceived interrupt. Quitting...")
-		os.Exit(1)
-	}()
-
-	return done
-}
-
 func Confirm(question string) bool {
-	q := color.ColorizeBold(question, color.White)
-	c := color.Colorize("[y/N]", color.Gray)
+	// FIX: Remove `colors`
+	q := question
+	c := format.Text("[y/N]").Gray()
 	prompt := fmt.Sprintf("\n%s %s: ", q, c)
 
 	reader := bufio.NewReader(os.Stdin)
@@ -190,23 +201,56 @@ func CopyToClipboard(s string) {
 	log.Print("Text copied to clipboard:", s)
 }
 
-func NewGetInput(args []string) (string, error) {
-	if len(args) > 0 {
-		return strings.Join(args, " "), nil
+// GetConsoleSize returns the visible dimensions of the given terminal.
+func GetConsoleSize() (width, height int, err error) {
+	fileDescriptor := int(os.Stdout.Fd())
+
+	if !term.IsTerminal(fileDescriptor) {
+		return 0, 0, config.ErrNotTTY
 	}
 
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
+	width, height, err = term.GetSize(fileDescriptor)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%w: %w", config.ErrGetTermSize, err)
+	}
 
+	return width, height, nil
+}
+
+func IsOutputRedirected() bool {
+	fileInfo, err := os.Stdout.Stat()
+	if err != nil {
+		log.Println("Error getting stdout file info:", err)
+		return false
+	}
+
+	return (fileInfo.Mode() & os.ModeCharDevice) == 0
+}
+
+func isInputFromPipe() bool {
+	fileInfo, _ := os.Stdin.Stat()
+	return fileInfo.Mode()&os.ModeCharDevice == 0
+}
+
+func getQueryFromPipe(r io.Reader) string {
+	var result string
+	scanner := bufio.NewScanner(bufio.NewReader(r))
+	for scanner.Scan() {
+		line := scanner.Text()
+		result += line
+	}
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("%w", err)
+		fmt.Fprintln(os.Stderr, "Error reading from pipe:", err)
+		return ""
+	}
+	return result
+}
+
+func ReadInputFromPipe(args *[]string) {
+	if !isInputFromPipe() {
+		return
 	}
 
-	text := scanner.Text()
-
-	if text == "" {
-		return "", errs.ErrNoIDorQueryPrivided
-	}
-
-	return text, nil
+	s := getQueryFromPipe(os.Stdin)
+	*args = append(*args, s)
 }

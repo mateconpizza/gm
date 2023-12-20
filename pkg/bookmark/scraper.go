@@ -26,22 +26,20 @@ const (
 	BookmarkDefaultDesc  string = "No description available (Unfiled)"
 )
 
-var URLNotFound []Response
-var URLWithError []Response
-
 type Response struct {
 	URL        string
 	ID         int
-	StatusCode int
-	Exists     bool
+	statusCode int
+	exists     bool
+	hasError   bool
 }
 
 func (r *Response) String() string {
 	if config.Term.Color {
-		return prettyPrintURLStatus(r.StatusCode, r.ID, r.URL)
+		return prettyPrintURLStatus(r.statusCode, r.ID, r.URL)
 	}
 
-	return simplePrintURLStatus(r.StatusCode, r.ID, r.URL)
+	return simplePrintURLStatus(r.statusCode, r.ID, r.URL)
 }
 
 func simplePrintURLStatus(statusCode, bID int, url string) string {
@@ -90,40 +88,73 @@ func prettyPrintURLStatus(statusCode, bID int, url string) string {
 	return fmt.Sprintf("%s%s%s%s", id, code, status, u)
 }
 
-func prettyPrintStatus(bs *[]Bookmark, duration time.Duration) {
-	var final string
-	took := fmt.Sprintf("%.2fs\n", duration.Seconds())
+func prettifyNotFound(res *[]Response) (resLen int, msg string) {
+	var notFound []Response
 
-	final += fmt.Sprintf("\n> %d urls were checked\n", len(*bs))
-	n := strconv.Itoa(len(*bs) - len(URLWithError) - len(URLNotFound))
-	s := format.Text(n).Blue().Bold().String()
-	t := format.Text(took).Blue().Bold().String()
+	for _, r := range *res {
+		if r.statusCode == http.StatusNotFound {
+			notFound = append(notFound, r)
+		}
+	}
 
-	withErrorColor := format.Text(strconv.Itoa(len(URLWithError))).Yellow().Bold()
-	withNoErrorCode := format.Text("200").Green().Bold()
+	if len(notFound) == 0 {
+		return 0, ""
+	}
 
-	final += fmt.Sprintf("  + %s urls return %s code", s, withNoErrorCode)
-
-	notFoundColor := format.Text(strconv.Itoa(len(URLNotFound))).Bold().Red()
+	notFoundLenStr := format.Text(strconv.Itoa(len(notFound))).Bold().Red()
 	notFoundCode := format.Text("404").Bold().Red()
 
-	if len(URLWithError) > 0 {
-		final += fmt.Sprintf("\n  + %s urls did not return a %s code", withErrorColor, withNoErrorCode)
-		fmt.Printf("\n%s warns detail:\n", withErrorColor)
-		for _, r := range URLWithError {
-			fmt.Println(r.String())
+	fmt.Printf("\n%s err detail:\n", notFoundLenStr)
+	for _, r := range notFound {
+		fmt.Println(r.String())
+	}
+
+	return len(notFound), fmt.Sprintf("\n  + %s urls return %s code", notFoundLenStr, notFoundCode)
+}
+
+func prettifyWithError(res *[]Response) (resLen int, msg string) {
+	var withError []Response
+
+	for _, r := range *res {
+		if r.hasError && r.statusCode != http.StatusNotFound {
+			withError = append(withError, r)
 		}
 	}
 
-	if len(URLNotFound) > 0 {
-		final += fmt.Sprintf("\n  + %s urls return %s code", notFoundColor, notFoundCode)
-		fmt.Printf("\n%s err detail:\n", notFoundColor)
-		for _, r := range URLNotFound {
-			fmt.Println(r.String())
-		}
+	if len(withError) == 0 {
+		return 0, ""
 	}
 
-	final += fmt.Sprintf("\n  + it took %s\n", t)
+	withErrorLen := format.Text(strconv.Itoa(len(withError))).Yellow().Bold()
+	withNoErrorCode := format.Text("200").Green().Bold()
+
+	fmt.Printf("\n%s warns detail:\n", withErrorLen)
+	for _, r := range withError {
+		fmt.Println(r.String())
+	}
+
+	return len(withError), fmt.Sprintf("\n  + %s urls did not return a %s code", withErrorLen, withNoErrorCode)
+}
+
+func prettyPrintStatus(res []Response, duration time.Duration) {
+	final := fmt.Sprintf("\n> %d urls were checked\n", len(res))
+
+	took := fmt.Sprintf("%.2fs\n", duration.Seconds())
+
+	withErrLen, withErrStr := prettifyWithError(&res)
+	notFoundLen, notFoundStr := prettifyNotFound(&res)
+
+	withNoError := strconv.Itoa(len(res) - notFoundLen - withErrLen)
+	final += fmt.Sprintf(
+		"  + %s urls return %s code",
+		format.Text(withNoError).Blue().Bold().String(),
+		format.Text("200").Green().Bold(),
+	)
+
+	final += withErrStr
+	final += notFoundStr
+
+	final += fmt.Sprintf("\n  + it took %s\n", format.Text(took).Blue().Bold().String())
 	fmt.Print(final)
 }
 
@@ -131,6 +162,7 @@ func CheckStatus(bs *[]Bookmark) error {
 	maxConRequests := 50
 	sem := semaphore.NewWeighted(int64(maxConRequests))
 
+	var responses []Response
 	var wg sync.WaitGroup
 	start := time.Now()
 
@@ -144,36 +176,49 @@ func CheckStatus(bs *[]Bookmark) error {
 
 		go func(b *Bookmark) {
 			defer wg.Done()
-			makeRequest(b, sem)
+			res := makeRequest(b, sem)
+			responses = append(responses, res)
 		}(&tempB)
 	}
 
 	wg.Wait()
 
 	duration := time.Since(start)
-	prettyPrintStatus(bs, duration)
+	prettyPrintStatus(responses, duration)
 
 	return nil
 }
 
-func makeRequest(b *Bookmark, sem *semaphore.Weighted) {
+func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 	defer sem.Release(1)
 
-	timeout := 5 * time.Second
+	timeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
 	if err != nil {
 		fmt.Printf("Error creating request for %s: %v\n", b.URL, err)
-		return
+		return Response{
+			URL:        b.URL,
+			ID:         b.ID,
+			statusCode: 404,
+			exists:     false,
+			hasError:   true,
+		}
 	}
 
 	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("Error making request to %s: %v\n", b.URL, err)
-		return
+		return Response{
+			URL:        b.URL,
+			ID:         b.ID,
+			statusCode: 404,
+			exists:     false,
+			hasError:   true,
+		}
 	}
 
 	defer func() {
@@ -183,20 +228,16 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) {
 		}
 	}()
 
-	if resp.StatusCode == http.StatusNotFound {
-		URLNotFound = append(URLNotFound, Response{URL: b.URL, ID: b.ID, Exists: false, StatusCode: resp.StatusCode})
-	} else if resp.StatusCode != http.StatusOK {
-		URLWithError = append(URLWithError, Response{URL: b.URL, ID: b.ID, Exists: false, StatusCode: resp.StatusCode})
-	}
-
 	result := Response{
 		URL:        b.URL,
 		ID:         b.ID,
-		StatusCode: resp.StatusCode,
-		Exists:     true,
+		statusCode: resp.StatusCode,
+		exists:     true,
+		hasError:   resp.StatusCode != http.StatusOK,
 	}
 
 	fmt.Println(result.String())
+	return result
 }
 
 func Title(url string) (string, error) {
