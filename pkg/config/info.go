@@ -22,7 +22,7 @@ func getAppInfo() string {
 	i := format.Text("info").Blue().Bold().String()
 	s := format.Title(i, []string{
 		format.BulletLine("name", App.Name),
-		format.BulletLine("home", Path.Home),
+		format.BulletLine("home", App.Path.Home),
 		format.BulletLine("version", App.Version),
 	})
 
@@ -40,8 +40,8 @@ func getBackupInfo() string {
 }
 
 func ShowInfo(records, deleted int) string {
-	name := format.Text(Info.Title).Green().Bold()
-	s := fmt.Sprintf("%s v%s:\n%s\n", name, App.Version, format.BulletLine(Info.Desc, ""))
+	name := format.Text(App.Data.Title).Green().Bold()
+	s := fmt.Sprintf("%s v%s:\n%s\n", name, App.Version, format.BulletLine(App.Data.Desc, ""))
 	s += getAppInfo()
 	s += getDBInfo(records, deleted)
 	s += getBackupInfo()

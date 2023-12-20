@@ -37,7 +37,7 @@ var initCmd = &cobra.Command{
 
 		printSummary()
 
-		bs, err := r.GetRecordsAll(app.DB.Table.Main)
+		bs, err := r.GetAll(config.DB.Table.Main)
 		if err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
@@ -51,9 +51,9 @@ var initCmd = &cobra.Command{
 }
 
 func printSummary() {
-	fmt.Printf("%s v%s:\n", app.Config.Name, app.Config.Version)
-	fmt.Printf("  + app home created at: %s\n", format.Text(app.Path.Home).Yellow().Bold())
-	fmt.Printf("  + database '%s' initialized\n", format.Text(app.DB.Name).Green())
+	fmt.Printf("%s v%s:\n", config.App.Name, config.App.Version)
+	fmt.Printf("  + app home created at: %s\n", format.Text(config.App.Path.Home).Yellow().Bold())
+	fmt.Printf("  + database '%s' initialized\n", format.Text(config.DB.Name).Green())
 	fmt.Printf("  + %s bookmark created\n\n", format.Text("initial").Purple())
 }
 

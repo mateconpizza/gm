@@ -29,9 +29,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          app.Config.Cmd,
-	Short:        app.Info.Desc,
-	Long:         app.Info.Desc,
+	Use:          config.App.Cmd,
+	Short:        config.App.Data.Desc,
+	Long:         config.App.Data.Desc,
 	SilenceUsage: true,
 	Args:         cobra.MinimumNArgs(0),
 	PreRunE:      checkInitDB,

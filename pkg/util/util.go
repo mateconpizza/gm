@@ -14,7 +14,7 @@ import (
 	"strings"
 	"syscall"
 
-	"gomarks/pkg/app"
+	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 
 	"github.com/atotto/clipboard"
@@ -43,9 +43,10 @@ func LoadAppPaths() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	envHome := GetEnv(app.Env.Home, envConfigHome)
-	app.Path.Home = filepath.Join(envHome, app.Config.Name)
-	log.Println("AppHome:", app.Path.Home)
+	envHome := GetEnv(config.App.Env.Home, envConfigHome)
+	config.App.Path.Home = filepath.Join(envHome, config.App.Name)
+	config.App.Path.Backup = filepath.Join(config.App.Path.Home, "backup")
+	log.Println("AppHome:", config.App.Path.Home)
 }
 
 // Checks and creates the application's home directory.
@@ -55,7 +56,7 @@ func SetupProjectPaths() error {
 
 	LoadAppPaths()
 
-	h := app.Path.Home
+	h := config.App.Path.Home
 
 	if !FileExists(h) {
 		log.Println("Creating AppHome:", h)
