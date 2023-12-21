@@ -61,11 +61,10 @@ type ConfEnvironment struct {
 	Editor string `json:"var_editor"`
 }
 
-type TermData struct {
+type Terminal struct {
 	MaxWidth  int
 	MinWidth  int
 	MinHeight int
-	Color     bool
 }
 
 var AppConf = Conf{
@@ -106,9 +105,8 @@ var DB = ConfDB{
 
 var Editors = []string{"vim", "nvim", "nano", "emacs", "helix"}
 
-var Term = TermData{
+var Term = Terminal{
 	MaxWidth:  120,
 	MinWidth:  80,
 	MinHeight: 20,
-	Color:     true,
 }

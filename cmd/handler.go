@@ -140,8 +140,8 @@ func handleInfoFlag(r *bookmark.SQLiteRepository) {
 }
 
 func handleTermOptions() error {
-	if util.IsOutputRedirected() {
-		config.Term.Color = false
+	if util.IsOutputRedirected() || colorFlag == "never" {
+		format.WithColor = false
 	}
 
 	width, height, err := util.GetConsoleSize()

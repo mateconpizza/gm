@@ -174,6 +174,7 @@ func CheckStatus(bs *[]Bookmark) error {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
 
+		time.Sleep(50 * time.Millisecond)
 		go func(b *Bookmark) {
 			defer wg.Done()
 			res := makeRequest(b, sem)

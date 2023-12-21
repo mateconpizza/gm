@@ -17,6 +17,7 @@ import (
 
 var (
 	allFlag     bool
+	colorFlag   string
 	editionFlag bool
 	formatFlag  string
 	headFlag    int
@@ -101,6 +102,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&allFlag, "all", "a", false, "all bookmarks")
 	rootCmd.Flags().BoolVarP(&editionFlag, "edition", "e", false, "edition mode")
 	rootCmd.Flags().BoolVarP(&statusFlag, "status", "s", false, "check bookmarks status")
+	rootCmd.Flags().StringVar(&colorFlag, "color", "always", "print with colors [always|never]")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
 	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")

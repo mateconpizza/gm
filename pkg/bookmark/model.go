@@ -28,22 +28,6 @@ type Bookmark struct {
 	ID        int    `json:"id"         db:"id"`
 }
 
-func (b *Bookmark) prettyString(space, title, url, desc string) string {
-	s := format.TitleLine(b.ID, format.Text(title).Purple().Bold().String())
-	s += fmt.Sprintln(format.Text(space, url).Blue())
-	s += fmt.Sprintln(format.Text(space, b.Tags).Gray().Bold())
-	s += fmt.Sprintln(space, desc)
-	return s
-}
-
-func (b *Bookmark) simpleString(space, title, url, desc string) string {
-	s := format.TitleLine(b.ID, title)
-	s += fmt.Sprintln(space, url)
-	s += fmt.Sprintln(space, b.Tags)
-	s += fmt.Sprintln(space, desc)
-	return s
-}
-
 func (b *Bookmark) String() string {
 	space := format.Space + format.Space + "+"
 	maxLen := config.Term.MaxWidth - len(space) - len("\n")
@@ -51,11 +35,11 @@ func (b *Bookmark) String() string {
 	url := format.ShortenString(b.URL, maxLen)
 	desc := format.SplitAndAlignString(b.Desc, maxLen)
 
-	if config.Term.Color {
-		return b.prettyString(space, title, url, desc)
-	}
-
-	return b.simpleString(space, title, url, desc)
+	s := format.TitleLine(b.ID, format.Text(title).Purple().Bold().String())
+	s += fmt.Sprintln(format.Text(space, url).Blue())
+	s += fmt.Sprintln(format.Text(space, b.Tags).Gray().Bold())
+	s += fmt.Sprintln(space, desc)
+	return s
 }
 
 func (b *Bookmark) Update(url, title, tags, desc string) {

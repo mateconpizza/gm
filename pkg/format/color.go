@@ -5,7 +5,9 @@ import (
 	"strings"
 )
 
-const Reset = "\x1b[0m"
+var WithColor bool = true
+
+const reset = "\x1b[0m"
 
 type ColoredText struct {
 	text   string
@@ -24,7 +26,10 @@ func Text(s ...string) *ColoredText {
 
 func (c *ColoredText) String() string {
 	styles := strings.Join(c.styles, "")
-	return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, Reset)
+	if WithColor {
+		return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, reset)
+	}
+	return c.text
 }
 
 // styles
