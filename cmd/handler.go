@@ -204,8 +204,9 @@ func handleCheckStatus(bs *[]bookmark.Bookmark) error {
 		return bookmark.ErrBookmarkNotSelected
 	}
 
-	if err := bookmark.CheckStatus(bs); err != nil {
-		return fmt.Errorf("%w", err)
+func handleEdition(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
+	if err := bookmark.EditAndRenderBookmarks(r, bs, forceFlag); err != nil {
+		return fmt.Errorf("error during editing: %w", err)
 	}
 
 	return nil

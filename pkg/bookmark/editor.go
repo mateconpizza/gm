@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	"gomarks/pkg/config"
-	"gomarks/pkg/format"
-	"gomarks/pkg/util"
 )
 
 var (
@@ -30,7 +28,8 @@ type editorInfo struct {
 	args []string
 }
 
-// ParseTempBookmark Parses the provided bookmark content into a temporary bookmark struct.
+// ParseTempBookmark Parses the provided bookmark content into a temporary bookmark
+// struct.
 func ParseTempBookmark(content []string) *Bookmark {
 	url := extractBlock(content, "## url", "## title")
 	title := extractBlock(content, "## title", "## tags")
@@ -43,26 +42,6 @@ func ParseTempBookmark(content []string) *Bookmark {
 		Tags:  tags,
 		Desc:  desc,
 	}
-}
-
-func EditBuffer(data []byte) ([]byte, error) {
-	dataEdited, err := Edit(data)
-	if err != nil {
-		return dataEdited, err
-	}
-	return dataEdited, nil
-}
-
-func OldEditBuffer(data []byte) ([]byte, error) {
-	dataEdited, err := Edit(data)
-	if err != nil {
-		if errors.Is(err, ErrBufferUnchanged) {
-			fmt.Printf("%s\n", format.Text("unchanged").Yellow().Bold())
-			return dataEdited, nil
-		}
-		return nil, fmt.Errorf("%w", err)
-	}
-	return dataEdited, nil
 }
 
 func extractIDFromLine(line string) string {
@@ -151,7 +130,7 @@ func Buffer(bs *[]Bookmark) []byte {
 	return bytes.TrimSpace(data)
 }
 
-// Edit Edits the provided bookmark using the specified editor.
+// Edit edits the provided bookmark using the specified editor.
 func Edit(data []byte) ([]byte, error) {
 	tf, err := createTempFile()
 	if err != nil {
@@ -225,7 +204,8 @@ func createTempFile() (*os.File, error) {
 	return tempFile, nil
 }
 
-// ValidateBookmarkBuffer Validates the content of a bookmark file by ensuring that it contains both a URL and tags.
+// ValidateBookmarkBuffer validates the content of a bookmark file by ensuring that
+// it contains both a URL and tags.
 func ValidateBookmarkBuffer(content []string) error {
 	url := extractBlock(content, "## url:", "## title:")
 	tags := extractBlock(content, "## tags:", "## description:")
@@ -317,8 +297,8 @@ func getEditor() (*editorInfo, error) {
 
 	log.Printf("$EDITOR not set.")
 
-	for _, e := range config.Editors {
-		if util.BinaryExists(e) {
+	for _, e := range config.TextEditors {
+		if binaryExists(e) {
 			return &editorInfo{name: e}, nil
 		}
 	}
@@ -332,7 +312,7 @@ func getAppEditor() (*editorInfo, bool) {
 		return nil, false
 	}
 
-	if !util.BinaryExists(appEditor[0]) {
+	if !binaryExists(appEditor[0]) {
 		log.Printf("'%s' executable file not found in $PATH", appEditor[0])
 		return nil, false
 	}
@@ -355,29 +335,17 @@ func isEmptyLine(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
 
-func ExtractBlockFromBuff(input string) (string, error) {
-	// FIX: delete me
-	startPattern := "## ["
-	endPattern := "## end"
-
-	// Find the starting position
-	startIndex := strings.Index(input, startPattern)
-	if startIndex == -1 {
-		return "", ErrBufferEndOfBlock
+func EditAndRenderBookmarks(r *SQLiteRepository, bs *[]Bookmark, force bool) error {
+	const tooManyRecords = 8
+	if len(*bs) > tooManyRecords && !force {
+		return fmt.Errorf("%w: %d. Max: %d", ErrTooManyRecords, len(*bs), tooManyRecords)
 	}
 
-	// Find the ending position
-	endIndex := strings.Index(input[startIndex:], endPattern)
-	if endIndex == -1 {
-		return "", ErrBufferEndOfBlock
+	for i := range *bs {
+		if err := (*bs)[i].Edit(r); err != nil {
+			return fmt.Errorf("error editing bookmark: %w", err)
+		}
 	}
 
-	// Adjust positions to extract the complete block
-	startIndex += len(startPattern)
-	endIndex += startIndex
-
-	// Extract the text block
-	block := input[startIndex:endIndex]
-
-	return block, nil
+	return nil
 }

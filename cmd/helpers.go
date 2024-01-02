@@ -139,3 +139,14 @@ func confirmDeletion(bs *[]bookmark.Bookmark, editFn bookmark.EditFn, question s
 
 	return false, fmt.Errorf("%w", bookmark.ErrActionAborted)
 }
+
+func parseBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) {
+	actions := map[bool]func(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error{
+		editionFlag: handleEdition,
+	}
+
+	if action, ok := actions[true]; ok {
+		logErrAndExit(action(r, bs))
+		os.Exit(0)
+	}
+}
