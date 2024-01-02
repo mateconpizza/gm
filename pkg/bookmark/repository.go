@@ -84,8 +84,8 @@ func loadDBPath() {
 	log.Print("DB.Path: ", config.DB.Path)
 }
 
-func GetRepository() (*SQLiteRepository, error) {
-	loadDBPath()
+func NewRepository() (*SQLiteRepository, error) {
+	config.LoadRepoPath()
 
 	db, err := sql.Open("sqlite3", config.DB.Path)
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
-	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
@@ -17,8 +16,7 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize a new bookmarks database",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		// FIX: replace `SetupProjectPaths` and `Init` with `bookmark.NewRepository()`
-		r, err := bookmark.GetRepository()
+		r, err := bookmark.NewRepository()
 		if err == nil {
 			return fmt.Errorf("%w", bookmark.ErrDBAlreadyInitialized)
 		}
@@ -27,7 +25,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("initializing database: %w", err)
 		}
 
-		if err = util.SetupProjectPaths(); err != nil {
+		if err = config.SetupProjectPaths(); err != nil {
 			return fmt.Errorf("creating home: %w", err)
 		}
 

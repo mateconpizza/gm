@@ -8,8 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"gomarks/pkg/config"
@@ -26,55 +24,6 @@ func CleanTerm() {
 	fmt.Print("\033[H\033[2J")
 	name := format.Text(config.App.Data.Title).Blue().Bold()
 	fmt.Printf("%s: v%s\n\n", name, config.App.Version)
-}
-
-func FileExists(s string) bool {
-	_, err := os.Stat(s)
-	return !os.IsNotExist(err)
-}
-
-func GetEnv(key, def string) string {
-	if v, ok := os.LookupEnv(key); ok {
-		return v
-	}
-
-	return def
-}
-
-// Loads the path to the application's home directory.
-func LoadAppPaths() {
-	// FIX: move to `config` pkg
-	envConfigHome, err := os.UserConfigDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	envHome := GetEnv(config.App.Env.Home, envConfigHome)
-	config.App.Path.Home = filepath.Join(envHome, config.App.Name)
-	config.App.Path.Backup = filepath.Join(config.App.Path.Home, "backup")
-	log.Println("AppHome:", config.App.Path.Home)
-}
-
-// Checks and creates the application's home directory.
-// Returns the path to the application's home directory and any error encountered during the process.
-func SetupProjectPaths() error {
-	// FIX: move to `config` pkg
-	const dirPermissions = 0o755
-
-	LoadAppPaths()
-
-	h := config.App.Path.Home
-
-	if !FileExists(h) {
-		log.Println("Creating AppHome:", h)
-		err := os.Mkdir(h, dirPermissions)
-		if err != nil {
-			return fmt.Errorf("error creating AppHome: %w", err)
-		}
-	}
-
-	log.Println("AppHome already exists:", h)
-
-	return nil
 }
 
 func IsSelectedTextInItems(s string, items []string) bool {
