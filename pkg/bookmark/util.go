@@ -6,6 +6,9 @@ import (
 	"gomarks/pkg/format"
 	"gomarks/pkg/util"
 	"log"
+	"os/exec"
+	"runtime"
+	"strings"
 )
 
 func Validate(b *Bookmark) error {
@@ -30,6 +33,7 @@ func HandleURL(args *[]string) string {
 	if len(*args) > 0 {
 		url := (*args)[0]
 		*args = (*args)[1:]
+		url = strings.TrimRight(url, "\n")
 		fmt.Println(urlPrompt, url)
 		return url
 	}
@@ -43,6 +47,7 @@ func HandleTags(args *[]string) string {
 	if len(*args) > 0 {
 		tags := (*args)[0]
 		*args = (*args)[1:]
+		tags = strings.TrimRight(tags, "\n")
 		fmt.Println(tagsPrompt, tags)
 		return tags
 	}
@@ -145,4 +150,42 @@ func RemoveItemByID(bs *[]Bookmark, idToRemove int) {
 	}
 
 	*bs = updatedBookmarks
+}
+
+func logItemsNotFound(items *[]Bookmark, ids []int) {
+	itemsFound := make(map[int]bool)
+	for _, b := range *items {
+		itemsFound[b.ID] = true
+	}
+
+	for _, item := range ids {
+		if !itemsFound[item] {
+			log.Printf("item with ID '%d' not found.\n", item)
+		}
+	}
+}
+
+func binaryExists(binaryName string) bool {
+	cmd := exec.Command("which", binaryName)
+	err := cmd.Run()
+
+	return err == nil
+}
+
+func Open(url string) {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = config.ErrUnsupportedPlatform
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
 }

@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"gomarks/pkg/config"
-	"gomarks/pkg/util"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -24,16 +22,16 @@ var (
 	ErrSQLQuery             = errors.New("executing query")
 
 	// records
-	ErrRecordDelete        = errors.New("error delete record")
-	ErrRecordDuplicate     = errors.New("record already exists")
-	ErrRecordInsert        = errors.New("inserting record")
-	ErrRecordNotExists     = errors.New("row not exists")
-	ErrRecordScan          = errors.New("scan record")
-	ErrRecordUpdate        = errors.New("update failed")
-	ErrRecordNotFound      = errors.New("no bookmarks found")
-	ErrNoRecordIdProvided  = errors.New("no id provided")
-	ErrActionAborted       = errors.New("action aborted")
-	ErrNoIDorQueryProvided = errors.New("no id or query provided")
+	ErrRecordDelete       = errors.New("error delete record")
+	ErrRecordDuplicate    = errors.New("record already exists")
+	ErrRecordInsert       = errors.New("inserting record")
+	ErrRecordNotExists    = errors.New("row not exists")
+	ErrRecordScan         = errors.New("scan record")
+	ErrRecordUpdate       = errors.New("update failed")
+	ErrRecordNotFound     = errors.New("no bookmarks found")
+	ErrNoRecordIdProvided = errors.New("no id provided")
+	ErrActionAborted      = errors.New("action aborted")
+	ErrNoQueryProvided    = errors.New("no id or query provided")
 )
 
 type SQLiteRepository struct {
@@ -65,24 +63,16 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
    )
 ` */
 
-var TableMainSchema = `
-    CREATE TABLE IF NOT EXISTS %s (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        url         TEXT    NOT NULL UNIQUE,
-        title       TEXT    DEFAULT "",
-        tags        TEXT    DEFAULT ",",
-        desc        TEXT    DEFAULT "",
-        created_at  TIMESTAMP
-    )
-  `
-
-// loadDBPath Loads the path to the database
-func loadDBPath() {
-	util.LoadAppPaths()
-
-	config.DB.Path = filepath.Join(config.App.Path.Home, config.DB.Name)
-	log.Print("DB.Path: ", config.DB.Path)
-}
+var tableMainSchema = `
+  CREATE TABLE IF NOT EXISTS %s (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      url         TEXT    NOT NULL UNIQUE,
+      title       TEXT    DEFAULT "",
+      tags        TEXT    DEFAULT ",",
+      desc        TEXT    DEFAULT "",
+      created_at  TIMESTAMP
+  )
+`
 
 func NewRepository() (*SQLiteRepository, error) {
 	config.LoadRepoPath()
@@ -101,11 +91,11 @@ func NewRepository() (*SQLiteRepository, error) {
 }
 
 func (r *SQLiteRepository) Init() error {
-	if err := r.tableCreate(config.DB.Table.Main, TableMainSchema); err != nil {
+	if err := r.tableCreate(config.DB.Table.Main, tableMainSchema); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.tableCreate(config.DB.Table.Deleted, TableMainSchema); err != nil {
+	if err := r.tableCreate(config.DB.Table.Deleted, tableMainSchema); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -119,19 +109,6 @@ func (r *SQLiteRepository) Init() error {
 	if _, err := r.Create(config.DB.Table.Main, initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
-	return nil
-}
-
-func (r *SQLiteRepository) dropTable(t string) error {
-	log.Printf("Dropping table: %s", t)
-
-	_, err := r.DB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
-	if err != nil {
-		return fmt.Errorf("%w: dropping table '%s'", err, t)
-	}
-
-	log.Printf("Dropped table: %s\n", t)
 
 	return nil
 }
@@ -335,6 +312,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 		return fmt.Errorf("%w: begin starts a transaction in bulk delete", err)
 	}
 
+	// query := fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", tableName, strings.Repeat("?,", len(bIDs)-1)+"?")
 	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id IN (", tableName)
 	placeholders := make([]string, len(bIDs))
 	for i := 0; i < len(bIDs); i++ {
@@ -406,22 +384,35 @@ func (r *SQLiteRepository) GetByID(tableName string, n int) (*Bookmark, error) {
 	return &b, nil
 }
 
-func (r *SQLiteRepository) getByIDList(tableName string, ids []int) (*[]Bookmark, error) {
+func (r *SQLiteRepository) GetByIDList(tableName string, ids []int) (*[]Bookmark, error) {
 	if len(ids) == 0 {
 		return nil, ErrNoRecordIdProvided
 	}
 
-	bookmarks := []Bookmark{}
-	for _, id := range ids {
-		b, err := r.GetByID(tableName, id)
-		if err != nil {
-			return nil, fmt.Errorf("error getting bookmark with ID %d: %w", id, err)
-		}
-
-		bookmarks = append(bookmarks, *b)
+	placeholders := make([]string, len(ids))
+	for i := 0; i < len(ids); i++ {
+		placeholders[i] = "?"
 	}
 
-	return &bookmarks, nil
+	query := fmt.Sprintf(
+		"SELECT * FROM %s WHERE ID IN (%s);", tableName, strings.Repeat("?,", len(ids)-1)+"?",
+	)
+
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	bookmarks, err := r.getBySQL(query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(*bookmarks) != len(ids) {
+		logItemsNotFound(bookmarks, ids)
+	}
+
+	return bookmarks, nil
 }
 
 func (r *SQLiteRepository) getByURL(tableName, u string) (*Bookmark, error) {
@@ -506,11 +497,11 @@ func (r *SQLiteRepository) GetByQuery(tableName, q string) (*[]Bookmark, error) 
 	queryValue := "%" + q + "%"
 	bs, err := r.getBySQL(sqlQuery, queryValue)
 	if err != nil {
-		return nil, fmt.Errorf("%w: by query '%s'", err, q)
+		return nil, err
 	}
 
 	if len(*bs) == 0 {
-		return nil, fmt.Errorf("%w: by query '%s'", ErrRecordNotFound, q)
+		return nil, ErrRecordNotFound
 	}
 
 	log.Printf("Got %d records by query: '%s'", len(*bs), q)
@@ -561,7 +552,7 @@ func (r *SQLiteRepository) tableExists(t string) (bool, error) {
 	return count > 0, nil
 }
 
-// Renames the temporary table to the specified main table name.
+// tableRename renames the temporary table to the specified main table name.
 func (r *SQLiteRepository) tableRename(tempTable, mainTable string) error {
 	log.Printf("Renaming table %s to %s", tempTable, mainTable)
 
@@ -575,7 +566,7 @@ func (r *SQLiteRepository) tableRename(tempTable, mainTable string) error {
 	return nil
 }
 
-// Creates a new table with the specified name in the SQLite database.
+// tableCreate creates a new table with the specified name in the SQLite database.
 func (r *SQLiteRepository) tableCreate(name, schema string) error {
 	log.Printf("Creating table: %s", name)
 	tableSchema := fmt.Sprintf(schema, name)
@@ -590,7 +581,20 @@ func (r *SQLiteRepository) tableCreate(name, schema string) error {
 	return nil
 }
 
-// Resets the SQLite sequence for the given table.
+func (r *SQLiteRepository) tableDrop(t string) error {
+	log.Printf("Dropping table: %s", t)
+
+	_, err := r.DB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
+	if err != nil {
+		return fmt.Errorf("%w: dropping table '%s'", err, t)
+	}
+
+	log.Printf("Dropped table: %s\n", t)
+
+	return nil
+}
+
+// resetSQLiteSequence resets the SQLite sequence for the given table.
 func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
 	if _, err := r.DB.Exec("DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
 		return fmt.Errorf("resetting sqlite sequence: %w", err)
@@ -613,7 +617,7 @@ func (r *SQLiteRepository) ReorderIDs(tableName string) error {
 	log.Printf("Reordering IDs in table: %s", tableName)
 
 	tempTable := fmt.Sprintf("temp_%s", tableName)
-	if err := r.tableCreate(tempTable, TableMainSchema); err != nil {
+	if err := r.tableCreate(tempTable, tableMainSchema); err != nil {
 		return err
 	}
 
@@ -621,9 +625,34 @@ func (r *SQLiteRepository) ReorderIDs(tableName string) error {
 		return err
 	}
 
-	if err := r.dropTable(tableName); err != nil {
+	if err := r.tableDrop(tableName); err != nil {
 		return err
 	}
 
 	return r.tableRename(tempTable, tableName)
+}
+
+// deleteAndReorder deletes the specified bookmarks from the database and
+// reorders the remaining IDs.
+func (r *SQLiteRepository) DeleteAndReorder(bs *[]Bookmark) error {
+	if err := r.DeleteBulk(config.DB.Table.Main, ExtractIDs(bs)); err != nil {
+		return fmt.Errorf("deleting records in bulk: %w", err)
+	}
+
+	// add records to deleted table
+	if err := r.CreateBulk(config.DB.Table.Deleted, bs); err != nil {
+		return fmt.Errorf("inserting records in bulk after deletion: %w", err)
+	}
+
+	// if the last record is deleted, we don't need to reorder
+	maxID := r.GetMaxID(config.DB.Table.Main)
+	if maxID == 0 {
+		return nil
+	}
+
+	if err := r.ReorderIDs(config.DB.Table.Main); err != nil {
+		return fmt.Errorf("reordering ids: %w", err)
+	}
+
+	return nil
 }

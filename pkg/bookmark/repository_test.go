@@ -57,7 +57,7 @@ func TestDropTable(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	err := r.dropTable(tempTableName)
+	err := r.tableDrop(tempTableName)
 	if err != nil {
 		t.Errorf("Error dropping table: %v", err)
 	}
@@ -70,6 +70,25 @@ func TestDropTable(t *testing.T) {
 	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", config.DB.Table.Deleted))
 	if err == nil {
 		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")
+	}
+}
+
+func TestTableCreate(t *testing.T) {
+	db, r := setupTestDB(t)
+	defer teardownTestDB(db)
+
+	tableName := "new_table"
+
+	if err := r.tableCreate(tableName, tableMainSchema); err != nil {
+		t.Errorf("Error creating table: %v", err)
+	}
+
+	exists, err := r.tableExists(tableName)
+	if !exists {
+		t.Errorf("Table %s does not exist", tableName)
+	}
+	if err != nil {
+		t.Errorf("Error checking if table exists: %v", err)
 	}
 }
 
@@ -101,7 +120,7 @@ func TestTableDoesNotExists(t *testing.T) {
 	}
 }
 
-func TestInsertRecord(t *testing.T) {
+func TestCreateRecord(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
@@ -114,12 +133,12 @@ func TestInsertRecord(t *testing.T) {
 		CreatedAt: "2023-01-01 12:00:00",
 	}
 
-	inserted, err := r.Create(tempTableName, b)
+	created, err := r.Create(tempTableName, b)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if inserted.ID == 0 {
+	if created.ID == 0 {
 		t.Error("InsertRecord did not return a valid ID")
 	}
 

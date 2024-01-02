@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
@@ -16,7 +17,9 @@ var (
 	ErrBookmarkDuplicate   = errors.New("bookmark already exists")
 	ErrBookmarkInvalid     = errors.New("bookmark invalid")
 	ErrBookmarkNotSelected = errors.New("no bookmarks selected")
+	ErrBookmarkNotFound    = errors.New("no bookmarks found")
 	ErrInvalidRecordID     = errors.New("invalid id")
+	ErrInvalidInput        = errors.New("invalid input")
 )
 
 type Bookmark struct {
@@ -63,6 +66,33 @@ func (b *Bookmark) Buffer() []byte {
 `, b.ID, b.Title, b.URL, b.Title, b.Tags, b.Desc))
 
 	return bytes.TrimRight(data, " ")
+}
+
+func (b *Bookmark) Edit(r *SQLiteRepository) error {
+	editedContent, err := Edit(b.Buffer())
+	if err != nil {
+		if errors.Is(err, ErrBufferUnchanged) {
+			fmt.Printf("%s: bookmark [%d]: %s\n", config.App.Name, b.ID, format.Text("unchanged").Yellow().Bold())
+			return nil
+		}
+		return fmt.Errorf("error editing bookmark: %w", err)
+	}
+
+	tempContent := strings.Split(string(editedContent), "\n")
+	if err := ValidateBookmarkBuffer(tempContent); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	tb := ParseTempBookmark(tempContent)
+	FetchTitleAndDescription(tb)
+	b.Update(tb.URL, tb.Title, tb.Tags, tb.Desc)
+
+	if _, err := r.Update(config.DB.Table.Main, b); err != nil {
+		return fmt.Errorf("error updating record: %w", err)
+	}
+
+	fmt.Printf("%s: bookmark [%d]: %s\n", config.App.Name, b.ID, format.Text("updated").Blue().Bold())
+	return nil
 }
 
 func NewBookmark(url, title, tags, desc string) *Bookmark {
