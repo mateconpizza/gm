@@ -19,10 +19,12 @@ var (
 	allFlag     bool
 	colorFlag   string
 	editionFlag bool
+	forceFlag   bool
 	formatFlag  string
 	headFlag    int
 	infoFlag    bool
 	pickerFlag  string
+	removeFlag  bool
 	statusFlag  bool
 	tailFlag    int
 	verboseFlag bool
@@ -59,7 +61,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		parseBookmarksAndExit(&filteredBs)
+		parseBookmarksAndExit(r, &filteredBs)
 
 		if err := handlePicker(&filteredBs); err != nil {
 			return fmt.Errorf("%w", err)
@@ -102,7 +104,10 @@ func init() {
 	rootCmd.Flags().BoolVarP(&allFlag, "all", "a", false, "all bookmarks")
 	rootCmd.Flags().BoolVarP(&editionFlag, "edition", "e", false, "edition mode")
 	rootCmd.Flags().BoolVarP(&statusFlag, "status", "s", false, "check bookmarks status")
-	rootCmd.Flags().StringVar(&colorFlag, "color", "always", "print with colors [always|never]")
+	rootCmd.Flags().StringVar(&colorFlag, "color", "always", "print with pretty colors [always|never]")
+	// More experimental
+	rootCmd.Flags().BoolVarP(&removeFlag, "remove", "r", false, "remove a bookmarks by query or id")
+	rootCmd.Flags().BoolVar(&forceFlag, "force", false, "force action")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
 	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")

@@ -119,9 +119,16 @@ func extractIDsFromArgs(r *bookmark.SQLiteRepository, args []string) (*[]bookmar
 	return nil, fmt.Errorf("%w", bookmark.ErrInvalidRecordID)
 }
 
-// confirmDeletion prompts the user to confirm or edit the given bookmark slice.
-func confirmDeletion(bs *[]bookmark.Bookmark, editFn bookmark.EditFn, question string) (bool, error) {
+// confirmRemove prompts the user to confirm or edit the given bookmark slice.
+func confirmRemove(bs *[]bookmark.Bookmark, editFn bookmark.EditFn, question string) (bool, error) {
 	// TODO: use this in bookmark single edition
+	if isPiped {
+		return false, fmt.Errorf(
+			"%w: input from pipe is not supported yet. use with --force",
+			bookmark.ErrActionAborted,
+		)
+	}
+
 	options := []string{"Yes", "No", "Edit"}
 	option := promptWithOptions(question, options)
 
@@ -143,6 +150,7 @@ func confirmDeletion(bs *[]bookmark.Bookmark, editFn bookmark.EditFn, question s
 func parseBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) {
 	actions := map[bool]func(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error{
 		editionFlag: handleEdition,
+		removeFlag:  handleRemove,
 	}
 
 	if action, ok := actions[true]; ok {

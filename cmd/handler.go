@@ -212,18 +212,38 @@ func handleEdition(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error 
 	return nil
 }
 
-func handleEdition(bs *[]bookmark.Bookmark) error {
+func handleRemove(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
+	for {
+		util.CleanTerm()
+		s := format.Text(fmt.Sprintf("Bookmarks to remove [%d]:\n", len(*bs))).Red()
+		printSliceSummary(bs, s.String())
+
+		if forceFlag {
+			break
+		}
+
+		confirmMsg := format.Text("Confirm?").Red().String()
+		proceed, err := confirmRemove(bs, bookmark.EditionSlice, confirmMsg)
+		if !errors.Is(err, bookmark.ErrBufferUnchanged) && err != nil {
+			return err
+		}
+
+		if proceed {
+			break
+		}
+	}
+
 	if len(*bs) == 0 {
-		return bookmark.ErrBookmarkNotSelected
+		return fmt.Errorf("%w", bookmark.ErrActionAborted)
 	}
 
-	if err := editAndDisplayBookmarks(bs); err != nil {
-		return fmt.Errorf("error during editing: %w", err)
+	if err := r.DeleteAndReorder(bs); err != nil {
+		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 
-	s := format.Text("\nexperimental:").Red().Bold()
-	m := format.Text("nothing was updated").Blue()
-	fmt.Println(s, m)
+	total := fmt.Sprintf("\n[%d] bookmarks deleted\n", len(*bs))
+	deleting := format.Text(total).Red()
+	fmt.Println(deleting)
 
 	return nil
 }
