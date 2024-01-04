@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	allFlag     bool
+	addFlag     bool
 	colorFlag   string
 	editionFlag bool
 	forceFlag   bool
@@ -114,7 +114,8 @@ func init() {
 	rootCmd.Flags().StringVar(&colorFlag, "color", "always", "print with pretty colors [always|never]")
 	// More experimental
 	rootCmd.Flags().BoolVarP(&removeFlag, "remove", "r", false, "remove a bookmarks by query or id")
-	rootCmd.Flags().BoolVar(&forceFlag, "force", false, "force action")
+	rootCmd.PersistentFlags().BoolVar(&forceFlag, "force", false, "force action")
+	rootCmd.Flags().BoolVarP(&addFlag, "add", "a", false, "add a new bookmark")
 
 	rootCmd.PersistentFlags().StringVarP(&menuFlag, "menu", "m", "", "menu mode [dmenu|rofi]")
 	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")

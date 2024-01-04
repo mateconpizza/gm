@@ -167,42 +167,40 @@ func handleTerminalSettings() error {
 	return nil
 }
 
-func parseBookmarksAndExit(bs *[]bookmark.Bookmark) {
-	if statusFlag {
-		logErrAndExit(handleCheckStatus(bs))
-		os.Exit(0)
+// handleAdd adds a new bookmark
+func handleAdd(r *bookmark.SQLiteRepository, args []string) error {
+	if !addFlag {
+		return nil
 	}
 
-	if editionFlag {
-		logErrAndExit(handleEdition(bs))
-		os.Exit(0)
-	}
-}
-
-func parseArgsAndExit(r *bookmark.SQLiteRepository) {
-	if versionFlag {
-		name := format.Text(config.App.Data.Title).Blue().Bold()
-		fmt.Printf("%s v%s\n", name, config.App.Version)
-		os.Exit(0)
+	if isPiped && len(args) < 2 {
+		return fmt.Errorf("%w: URL or tags cannot be empty", bookmark.ErrInvalidInput)
 	}
 
-	if infoFlag {
-		handleInfoFlag(r)
-		os.Exit(0)
+	url := bookmark.HandleURL(&args)
+	if r.RecordExists(config.DB.Table.Main, "url", url) {
+		return fmt.Errorf("%w", bookmark.ErrBookmarkDuplicate)
 	}
-}
+	tags := bookmark.HandleTags(&args)
+	title := bookmark.HandleTitle(url)
+	desc := bookmark.HandleDesc(url)
+	b := bookmark.NewBookmark(url, title, tags, desc)
 
-func logErrAndExit(err error) {
+	if !isPiped {
+		if err := handleConfirmAndValidation(b); err != nil {
+			return fmt.Errorf("handle confirmation and validation: %w", err)
+		}
+	}
+
+	b, err := r.Create(config.DB.Table.Main, b)
 	if err != nil {
-		fmt.Printf("%s: %s\n", config.App.Name, err)
-		os.Exit(1)
+		return fmt.Errorf("%w", err)
 	}
-}
 
-func handleCheckStatus(bs *[]bookmark.Bookmark) error {
-	if len(*bs) == 0 {
-		return bookmark.ErrBookmarkNotSelected
-	}
+	fmt.Print("\nNew bookmark added successfully with id: ")
+	fmt.Println(format.Text(strconv.Itoa(b.ID)).Green().Bold())
+	return nil
+}
 
 func handleEdition(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
 	if err := bookmark.EditAndRenderBookmarks(r, bs, forceFlag); err != nil {
