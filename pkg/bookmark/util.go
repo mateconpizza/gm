@@ -2,8 +2,8 @@ package bookmark
 
 import (
 	"fmt"
-	"gomarks/pkg/config"
 	"gomarks/pkg/format"
+	"gomarks/pkg/terminal"
 	"gomarks/pkg/util"
 	"log"
 	"os/exec"
@@ -63,7 +63,7 @@ func HandleDesc(url string) string {
 	}
 
 	descPrompt := format.Text("+ Desc\t:").Yellow()
-	descColor := format.SplitAndAlignString(desc, config.Term.MinWidth)
+	descColor := format.SplitAndAlignString(desc, terminal.Defaults.MinWidth)
 	fmt.Println(descPrompt, descColor)
 	return desc
 }
@@ -75,7 +75,7 @@ func HandleTitle(url string) string {
 	}
 
 	titlePrompt := format.Text("+ Title\t:").Green().Bold()
-	titleColor := format.SplitAndAlignString(title, config.Term.MinWidth)
+	titleColor := format.SplitAndAlignString(title, terminal.Defaults.MinWidth)
 	fmt.Println(titlePrompt, titleColor)
 	return title
 }
@@ -92,7 +92,7 @@ func Format(f string, bs []Bookmark) error {
 	case "menu":
 		maxIDLen := 5
 		maxTagsLen := 18
-		maxLine := config.Term.MaxWidth - maxIDLen
+		maxLine := terminal.Defaults.MaxWidth - maxIDLen
 		tagsPercentage := 30
 		template := "%-*d%-*s%-*s\n"
 
@@ -183,7 +183,7 @@ func Open(url string) {
 	case "darwin":
 		err = exec.Command("open", url).Start()
 	default:
-		err = config.ErrUnsupportedPlatform
+		err = terminal.ErrUnsupportedPlatform
 	}
 	if err != nil {
 		log.Fatal(err)

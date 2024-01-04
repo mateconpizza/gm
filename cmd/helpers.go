@@ -11,8 +11,7 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
-
-	"github.com/spf13/cobra"
+	"gomarks/pkg/terminal"
 )
 
 func promptWithOptions(question string, options []string) string {
@@ -72,10 +71,10 @@ func printSliceSummary(bs *[]bookmark.Bookmark, msg string) {
 		fmt.Printf(
 			"  + %s %s\n",
 			format.Text(idStr).Gray(),
-			format.Text(format.ShortenString(b.Title, config.Term.MinWidth)).Purple(),
+			format.Text(format.ShortenString(b.Title, terminal.Defaults.MinWidth)).Purple(),
 		)
 		fmt.Printf("    %s\n", format.Text("tags:", b.Tags).Gray())
-		fmt.Printf("    %s\n\n", format.ShortenString(b.URL, config.Term.MinWidth))
+		fmt.Printf("    %s\n\n", format.ShortenString(b.URL, terminal.Defaults.MinWidth))
 	}
 }
 

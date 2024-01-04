@@ -139,29 +139,29 @@ func handleInfoFlag(r *bookmark.SQLiteRepository) {
 	}
 }
 
-func handleTermOptions() error {
-	if util.IsOutputRedirected() || colorFlag == "never" {
-		format.WithColor = false
+func handleTerminalSettings() error {
+	if terminal.IsRedirected() || colorFlag == "never" {
+		terminal.Defaults.Color = false
 	}
 
-	width, height, err := util.GetConsoleSize()
-	if errors.Is(err, config.ErrNotTTY) {
-		return nil
-	}
+	width, height, err := terminal.Size()
 	if err != nil {
+		if errors.Is(err, terminal.ErrNotTTY) {
+			return nil
+		}
 		return fmt.Errorf("getting console size: %w", err)
 	}
 
-	if width < config.Term.MinWidth {
-		return fmt.Errorf("%w: %d. Min: %d", config.ErrTermWidthTooSmall, width, config.Term.MinWidth)
+	if width < terminal.Defaults.MinWidth {
+		return fmt.Errorf("%w: %d. Min: %d", terminal.ErrTermWidthTooSmall, width, terminal.Defaults.MinWidth)
 	}
 
-	if height < config.Term.MinHeight {
-		return fmt.Errorf("%w: %d. Min: %d", config.ErrTermHeightTooSmall, height, config.Term.MinHeight)
+	if height < terminal.Defaults.MinHeight {
+		return fmt.Errorf("%w: %d. Min: %d", terminal.ErrTermHeightTooSmall, height, terminal.Defaults.MinHeight)
 	}
 
-	if width < config.Term.MaxWidth {
-		config.Term.MaxWidth = width
+	if width < terminal.Defaults.MaxWidth {
+		terminal.Defaults.MaxWidth = width
 	}
 
 	return nil

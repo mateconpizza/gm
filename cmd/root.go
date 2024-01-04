@@ -10,6 +10,7 @@ import (
 	"gomarks/pkg/config"
 	"gomarks/pkg/display"
 	"gomarks/pkg/format"
+	"gomarks/pkg/terminal"
 	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
@@ -47,7 +48,13 @@ var rootCmd = &cobra.Command{
 			args = append(args, "")
 		}
 
-		bs, err := handleGetRecords(r, args)
+		terminal.ReadInputFromPipe(&args)
+
+		if addFlag {
+			return handleAdd(r, args)
+		}
+
+		bs, err := handleFetchRecords(r, args)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -122,8 +129,10 @@ func init() {
 func initConfig() {
 	util.SetLogLevel(&verboseFlag)
 
-	if err := handleTermOptions(); err != nil {
+	if err := terminal.LoadDefaults(colorFlag); err != nil {
 		fmt.Printf("%s: %s\n", config.App.Name, err)
 		os.Exit(1)
 	}
+
+	isPiped = terminal.IsPiped()
 }

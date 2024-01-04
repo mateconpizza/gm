@@ -8,6 +8,7 @@ import (
 
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
+	"gomarks/pkg/terminal"
 )
 
 var (
@@ -33,7 +34,7 @@ type Bookmark struct {
 
 func (b *Bookmark) String() string {
 	space := format.Space + format.Space + "+"
-	maxLen := config.Term.MaxWidth - len(space) - len("\n")
+	maxLen := terminal.Defaults.MaxWidth - len(space) - len("\n")
 	title := format.SplitAndAlignString(b.Title, maxLen)
 	url := format.ShortenString(b.URL, maxLen)
 	desc := format.SplitAndAlignString(b.Desc, maxLen)

@@ -1,16 +1,6 @@
 // Copyright © 2023 haaag <git.haaag@gmail.com>
 package config
 
-import "errors"
-
-var (
-	ErrNotTTY              = errors.New("not a terminal")
-	ErrGetTermSize         = errors.New("getting terminal size")
-	ErrTermWidthTooSmall   = errors.New("terminal width too small")
-	ErrTermHeightTooSmall  = errors.New("terminal height too small")
-	ErrUnsupportedPlatform = errors.New("unsupported platform")
-)
-
 type Conf struct {
 	App *ConfApp `json:"app"`
 	DB  *ConfDB  `json:"database"`
@@ -61,12 +51,6 @@ type ConfEnvironment struct {
 	Editor string `json:"var_editor"`
 }
 
-type Terminal struct {
-	MaxWidth  int
-	MinWidth  int
-	MinHeight int
-}
-
 var AppConf = Conf{
 	App: &App,
 	DB:  &DB,
@@ -103,10 +87,4 @@ var DB = ConfDB{
 	Path: "",
 }
 
-var Editors = []string{"vim", "nvim", "nano", "emacs", "helix"}
-
-var Term = Terminal{
-	MaxWidth:  120,
-	MinWidth:  80,
-	MinHeight: 20,
-}
+var TextEditors = []string{"vim", "nvim", "nano", "emacs", "helix"}

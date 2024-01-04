@@ -3,9 +3,9 @@ package format
 import (
 	"fmt"
 	"strings"
-)
 
-var WithColor bool = true
+	"gomarks/pkg/terminal"
+)
 
 const reset = "\x1b[0m"
 
@@ -26,7 +26,7 @@ func Text(s ...string) *ColoredText {
 
 func (c *ColoredText) String() string {
 	styles := strings.Join(c.styles, "")
-	if WithColor {
+	if terminal.Defaults.Color {
 		return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, reset)
 	}
 	return c.text

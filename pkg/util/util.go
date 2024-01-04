@@ -14,36 +14,15 @@ import (
 	"gomarks/pkg/format"
 
 	"github.com/atotto/clipboard"
-	"golang.org/x/exp/slices"
-	"golang.org/x/term"
 )
 
 var ErrInvalidInput = errors.New("no id or query provided")
 
 func CleanTerm() {
+	// FIX: `console.go`
 	fmt.Print("\033[H\033[2J")
-	name := format.Text(config.App.Data.Title).Blue().Bold()
+	name := format.Text(config.App.Name).Blue().Bold()
 	fmt.Printf("%s: v%s\n\n", name, config.App.Version)
-}
-
-func IsSelectedTextInItems(s string, items []string) bool {
-	for _, item := range items {
-		if strings.Contains(item, s) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func FindSelectedIndex(s string, items []string) int {
-	log.Printf("Finding selected in %d items", len(items))
-	idx := slices.IndexFunc(items, func(item string) bool {
-		return strings.Contains(item, s)
-	})
-	log.Println("FindSelectedIndex:", idx)
-
-	return idx
 }
 
 func SetLogLevel(verboseFlag *bool) {
