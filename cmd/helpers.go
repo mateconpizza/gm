@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -39,14 +41,6 @@ func promptWithOptions(question string, options []string) string {
 	}
 }
 
-func checkInitDB(_ *cobra.Command, _ []string) error {
-	if _, err := getDB(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
-
 func exampleUsage(l ...string) string {
 	var s string
 	for _, line := range l {
@@ -57,7 +51,7 @@ func exampleUsage(l ...string) string {
 }
 
 func getDB() (*bookmark.SQLiteRepository, error) {
-	r, err := bookmark.GetRepository()
+	r, err := bookmark.NewRepository()
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -67,7 +61,7 @@ func getDB() (*bookmark.SQLiteRepository, error) {
 func printSliceSummary(bs *[]bookmark.Bookmark, msg string) {
 	fmt.Println(msg)
 	for _, b := range *bs {
-		idStr := fmt.Sprintf("[%s]", strconv.Itoa(b.ID))
+		idStr := fmt.Sprintf("[%d]", b.ID)
 		fmt.Printf(
 			"  + %s %s\n",
 			format.Text(idStr).Gray(),
@@ -78,7 +72,7 @@ func printSliceSummary(bs *[]bookmark.Bookmark, msg string) {
 	}
 }
 
-func extractIDs(args []string) ([]int, error) {
+func extractIDsFromStr(args []string) ([]int, error) {
 	ids := make([]int, 0)
 
 	for _, arg := range strings.Fields(strings.Join(args, " ")) {
@@ -95,27 +89,22 @@ func extractIDs(args []string) ([]int, error) {
 	return ids, nil
 }
 
-func extractIDsFromArgs(r *bookmark.SQLiteRepository, args []string) (*[]bookmark.Bookmark, error) {
-	ids, err := extractIDs(args)
+func getBookmarksFromArgs(r *bookmark.SQLiteRepository, args []string) (*[]bookmark.Bookmark, error) {
+	ids, err := extractIDsFromStr(args)
 	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	if len(ids) > 0 {
-		bookmarks := make([]bookmark.Bookmark, 0, len(ids))
-
-		for _, id := range ids {
-			b, err := r.GetByID(config.DB.Table.Main, id)
-			if err != nil {
-				return nil, fmt.Errorf("getting record by ID '%d': %w", id, err)
-			}
-			bookmarks = append(bookmarks, *b)
-		}
-
-		return &bookmarks, nil
+	if len(ids) == 0 {
+		return nil, nil
 	}
 
-	return nil, fmt.Errorf("%w", bookmark.ErrInvalidRecordID)
+	bookmarks, err := r.GetByIDList(config.DB.Table.Main, ids)
+	if err != nil {
+		return nil, fmt.Errorf("records from args: %w", err)
+	}
+
+	return bookmarks, nil
 }
 
 // confirmRemove prompts the user to confirm or edit the given bookmark slice.
@@ -148,6 +137,7 @@ func confirmRemove(bs *[]bookmark.Bookmark, editFn bookmark.EditFn, question str
 
 func parseBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) {
 	actions := map[bool]func(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error{
+		statusFlag:  handleStatus,
 		editionFlag: handleEdition,
 		removeFlag:  handleRemove,
 	}
@@ -156,4 +146,35 @@ func parseBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark
 		logErrAndExit(action(r, bs))
 		os.Exit(0)
 	}
+}
+
+func parseArgsAndExit(r *bookmark.SQLiteRepository) {
+	if versionFlag {
+		config.Version()
+		os.Exit(0)
+	}
+
+	if infoFlag {
+		handleAppInfo(r)
+		os.Exit(0)
+	}
+}
+
+func logErrAndExit(err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
+		os.Exit(1)
+	}
+}
+
+func setLoggingLevel(verboseFlag *bool) {
+	if *verboseFlag {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+		log.Println("Verbose mode")
+
+		return
+	}
+
+	silentLogger := log.New(io.Discard, "", 0)
+	log.SetOutput(silentLogger.Writer())
 }

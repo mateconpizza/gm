@@ -1,13 +1,15 @@
+// Copyright © 2023 haaag <git.haaag@gmail.com>
 package config
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 
 	"gomarks/pkg/format"
 )
 
-func getDBInfo(records, deleted int) string {
+func dbInfo(records, deleted int) string {
 	d := format.Text("database").Yellow().Bold()
 	s := format.Title(d.String(), []string{
 		format.BulletLine("path", DB.Path),
@@ -18,7 +20,7 @@ func getDBInfo(records, deleted int) string {
 	return s
 }
 
-func getAppInfo() string {
+func appInfo() string {
 	i := format.Text("info").Blue().Bold().String()
 	s := format.Title(i, []string{
 		format.BulletLine("name", App.Name),
@@ -29,7 +31,7 @@ func getAppInfo() string {
 	return s
 }
 
-func getBackupInfo() string {
+func backupInfo() string {
 	notImplementedYet := format.Text("not implemented yet").Red().Bold().String()
 	b := format.Text("backup").Cyan().Bold().String()
 	s := format.Title(b, []string{
@@ -39,11 +41,16 @@ func getBackupInfo() string {
 	return s
 }
 
-func ShowInfo(records, deleted int) string {
-	name := format.Text(App.Data.Title).Green().Bold()
+func Info(records, deleted int) string {
+	name := format.Text(App.Name).Green().Bold()
 	s := fmt.Sprintf("%s v%s:\n%s\n", name, App.Version, format.BulletLine(App.Data.Desc, ""))
-	s += getAppInfo()
-	s += getDBInfo(records, deleted)
-	s += getBackupInfo()
+	s += appInfo()
+	s += dbInfo(records, deleted)
+	s += backupInfo()
 	return s
+}
+
+func Version() {
+	name := format.Text(App.Name).Blue().Bold()
+	fmt.Printf("%s v%s %s/%s\n", name, App.Version, runtime.GOOS, runtime.GOARCH)
 }

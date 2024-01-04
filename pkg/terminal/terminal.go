@@ -102,8 +102,8 @@ func getQueryFromPipe(r io.Reader) string {
 	return result
 }
 
-// inputFromPrompt prompts the user for input
-func inputFromPrompt(prompt string) string {
+// InputFromUserPrompt prompts the user for input
+func InputFromUserPrompt(prompt string) string {
 	var s string
 
 	fmt.Printf("%s\n  > ", prompt)

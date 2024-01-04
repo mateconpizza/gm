@@ -4,28 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"strconv"
+	"strings"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
-	"gomarks/pkg/util"
+	"gomarks/pkg/terminal"
 )
 
-func handleQuery(args []string) (string, error) {
-	if len(args) == 0 {
-		return "", fmt.Errorf("%w", bookmark.ErrNoIDorQueryProvided)
-	}
-
-	queryOrID, err := util.GetInputFromArgs(args)
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	return queryOrID, nil
-}
-
+// handleFormat formats the bookmarks
 func handleFormat(bs *[]bookmark.Bookmark) error {
 	if pickerFlag != "" {
 		return nil
@@ -38,6 +26,7 @@ func handleFormat(bs *[]bookmark.Bookmark) error {
 	return nil
 }
 
+// handlePicker prints the selected field
 func handlePicker(bs *[]bookmark.Bookmark) error {
 	if pickerFlag == "" {
 		return nil
@@ -53,6 +42,8 @@ func handlePicker(bs *[]bookmark.Bookmark) error {
 			fmt.Println(b.Title)
 		case "tags":
 			fmt.Println(b.Tags)
+		case "desc":
+			fmt.Println(b.Desc)
 		default:
 			return fmt.Errorf("%w: %s", format.ErrInvalidOption, pickerFlag)
 		}
@@ -61,6 +52,7 @@ func handlePicker(bs *[]bookmark.Bookmark) error {
 	return nil
 }
 
+// handleHeadAndTail returns a slice of bookmarks with limited elements
 func handleHeadAndTail(bs *[]bookmark.Bookmark) ([]bookmark.Bookmark, error) {
 	newBs := *bs
 
@@ -68,11 +60,11 @@ func handleHeadAndTail(bs *[]bookmark.Bookmark) ([]bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("%w: %d %d", format.ErrInvalidOption, headFlag, tailFlag)
 	}
 
+	// Adjust the slice size based on the provided options
 	if headFlag > 0 {
 		headFlag = int(math.Min(float64(headFlag), float64(len(newBs))))
 		newBs = newBs[:headFlag]
 	}
-
 	if tailFlag > 0 {
 		tailFlag = int(math.Min(float64(tailFlag), float64(len(newBs))))
 		newBs = newBs[len(newBs)-tailFlag:]
@@ -81,52 +73,37 @@ func handleHeadAndTail(bs *[]bookmark.Bookmark) ([]bookmark.Bookmark, error) {
 	return newBs, nil
 }
 
-// handleGetRecords retrieves records from the database based on either an ID or a query string.
-func handleGetRecords(r *bookmark.SQLiteRepository, args []string) (*[]bookmark.Bookmark, error) {
-	// FIX: split into more functions
-	ids, err := extractIDs(args)
-	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
-		return nil, fmt.Errorf("%w", err)
+// handleFetchRecords retrieves records from the database based on either an ID or a query string.
+func handleFetchRecords(r *bookmark.SQLiteRepository, args []string) (*[]bookmark.Bookmark, error) {
+	if len(args) == 0 {
+		return nil, bookmark.ErrNoQueryProvided
 	}
 
-	if len(ids) > 0 {
-		bookmarks := make([]bookmark.Bookmark, 0, len(ids))
-
-		for _, id := range ids {
-			b, err := r.GetByID(config.DB.Table.Main, id)
-			if err != nil {
-				return nil, fmt.Errorf("getting record by ID '%d': %w", id, err)
-			}
-			bookmarks = append(bookmarks, *b)
-		}
-
-		return &bookmarks, nil
-	}
-
-	queryOrID, err := handleQuery(args)
+	bs, err := getBookmarksFromArgs(r, args)
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return nil, err
 	}
 
-	var id int
-	var b *bookmark.Bookmark
-
-	if id, err = strconv.Atoi(queryOrID); err == nil {
-		b, err = r.GetByID(config.DB.Table.Main, id)
-		if err != nil {
-			return nil, fmt.Errorf("getting record by id '%d': %w", id, err)
-		}
-		return &[]bookmark.Bookmark{*b}, nil
+	if bs != nil {
+		return bs, nil
 	}
 
-	bs, err := r.GetByQuery(config.DB.Table.Main, queryOrID)
+	query := strings.Join(args, "%")
+	bs, err = r.GetByQuery(config.DB.Table.Main, query)
+
+	if bs == nil {
+		return nil, fmt.Errorf("%w: %s", bookmark.ErrRecordNotFound, strings.Join(args, " "))
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("getting records by query '%s': %w", queryOrID, err)
+		return nil, fmt.Errorf("getting records by query '%s': %w", strings.Join(args, " "), err)
 	}
+
 	return bs, nil
 }
 
-func handleInfoFlag(r *bookmark.SQLiteRepository) {
+// handleAppInfo prints the app and database info
+func handleAppInfo(r *bookmark.SQLiteRepository) {
 	lastMainID := r.GetMaxID(config.DB.Table.Main)
 	lastDeletedID := r.GetMaxID(config.DB.Table.Deleted)
 
@@ -134,37 +111,10 @@ func handleInfoFlag(r *bookmark.SQLiteRepository) {
 		config.DB.Records.Main = lastMainID
 		config.DB.Records.Deleted = lastDeletedID
 		fmt.Println(format.ToJSON(config.AppConf))
-	} else {
-		fmt.Println(config.ShowInfo(lastMainID, lastDeletedID))
-	}
-}
-
-func handleTerminalSettings() error {
-	if terminal.IsRedirected() || colorFlag == "never" {
-		terminal.Defaults.Color = false
+		return
 	}
 
-	width, height, err := terminal.Size()
-	if err != nil {
-		if errors.Is(err, terminal.ErrNotTTY) {
-			return nil
-		}
-		return fmt.Errorf("getting console size: %w", err)
-	}
-
-	if width < terminal.Defaults.MinWidth {
-		return fmt.Errorf("%w: %d. Min: %d", terminal.ErrTermWidthTooSmall, width, terminal.Defaults.MinWidth)
-	}
-
-	if height < terminal.Defaults.MinHeight {
-		return fmt.Errorf("%w: %d. Min: %d", terminal.ErrTermHeightTooSmall, height, terminal.Defaults.MinHeight)
-	}
-
-	if width < terminal.Defaults.MaxWidth {
-		terminal.Defaults.MaxWidth = width
-	}
-
-	return nil
+	fmt.Println(config.Info(lastMainID, lastDeletedID))
 }
 
 // handleAdd adds a new bookmark
@@ -202,6 +152,7 @@ func handleAdd(r *bookmark.SQLiteRepository, args []string) error {
 	return nil
 }
 
+// handleEdition renders the edition interface
 func handleEdition(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
 	if err := bookmark.EditAndRenderBookmarks(r, bs, forceFlag); err != nil {
 		return fmt.Errorf("error during editing: %w", err)
@@ -210,9 +161,10 @@ func handleEdition(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error 
 	return nil
 }
 
+// handleRemove removes bookmarks
 func handleRemove(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
 	for {
-		util.CleanTerm()
+		terminal.Clean("")
 		s := format.Text(fmt.Sprintf("Bookmarks to remove [%d]:\n", len(*bs))).Red()
 		printSliceSummary(bs, s.String())
 
@@ -242,6 +194,46 @@ func handleRemove(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
 	total := fmt.Sprintf("\n[%d] bookmarks deleted\n", len(*bs))
 	deleting := format.Text(total).Red()
 	fmt.Println(deleting)
+
+	return nil
+}
+
+// handleStatus prints the status code of the bookmark URL
+func handleStatus(_ *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
+	if err := bookmark.CheckStatus(bs); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+// handleConfirmAndValidation confirms if the user wants to save the bookmark
+func handleConfirmAndValidation(b *bookmark.Bookmark) error {
+	// FIX: Split me
+	options := []string{"Yes", "No", "Edit"}
+	option := promptWithOptions("Save bookmark?", options)
+
+	switch option {
+	case "n":
+		return fmt.Errorf("%w", bookmark.ErrActionAborted)
+	case "e":
+		editedContent, err := bookmark.Edit(b.Buffer())
+		if err != nil {
+			if errors.Is(err, bookmark.ErrBufferUnchanged) {
+				return nil
+			}
+			return fmt.Errorf("%w", err)
+		}
+
+		editedBookmark := bookmark.ParseTempBookmark(strings.Split(string(editedContent), "\n"))
+		bookmark.FetchTitleAndDescription(editedBookmark)
+
+		b.Update(editedBookmark.URL, editedBookmark.Title, editedBookmark.Tags, editedBookmark.Desc)
+
+		if err := bookmark.Validate(b); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
 
 	return nil
 }

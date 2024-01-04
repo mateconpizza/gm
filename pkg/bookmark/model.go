@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
 	"gomarks/pkg/terminal"
+
+	"github.com/atotto/clipboard"
 )
 
 var (
@@ -21,7 +26,31 @@ var (
 	ErrBookmarkNotFound    = errors.New("no bookmarks found")
 	ErrInvalidRecordID     = errors.New("invalid id")
 	ErrInvalidInput        = errors.New("invalid input")
+	ErrCopyToClipboard     = errors.New("copy to clipboard")
 )
+
+type Slice []Bookmark
+
+func (s Slice) Remove(idx int) Slice {
+	return append(s[:idx], s[idx+1:]...)
+}
+
+func (s *Slice) Append(b *Bookmark) {
+	*s = append(*s, *b)
+}
+
+func (s *Slice) Index(id int) int {
+	for i, b := range *s {
+		if b.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+func NewSlice() Slice {
+	return make([]Bookmark, 0)
+}
 
 type Bookmark struct {
 	CreatedAt string `json:"created_at" db:"created_at"`
@@ -93,6 +122,36 @@ func (b *Bookmark) Edit(r *SQLiteRepository) error {
 	}
 
 	fmt.Printf("%s: bookmark [%d]: %s\n", config.App.Name, b.ID, format.Text("updated").Blue().Bold())
+	return nil
+}
+
+func (b *Bookmark) Copy() error {
+	err := clipboard.WriteAll(b.URL)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCopyToClipboard, err)
+	}
+
+	log.Print("Text copied to clipboard:", b.URL)
+	return nil
+}
+
+func (b *Bookmark) Open() error {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", b.URL).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", b.URL).Start()
+	case "darwin":
+		err = exec.Command("open", b.URL).Start()
+	default:
+		err = terminal.ErrUnsupportedPlatform
+	}
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

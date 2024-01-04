@@ -1,7 +1,7 @@
 # gomarks - simple bookmark manager
 # See LICENSE file for copyright and license details.
 
-NAME = gomarks
+NAME = gm
 SRC = ./main.go
 BIN = ./bin/$(NAME)
 
@@ -9,11 +9,20 @@ BIN = ./bin/$(NAME)
 
 all: full
 
-full: fmt vet lint test build
+full: vet lint test build
 
-build: vet test
+help:	## This help dialog.
+	@grep -F -h "##" $(MAKEFILE_LIST) | grep -F -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
+
+build: vet test	## Generate bin
 	@echo '>> Building $(NAME)'
 	@go build -ldflags "-s -w" -o $(BIN) $(SRC)
+
+build-all: vet test	## Generate bin and bin with debugger
+	@echo '>> Building $(NAME)'
+	@echo '>> Building $(NAME) with debugger'
+	@go build -ldflags "-s -w" -o $(BIN) $(SRC)
+	@go build -gcflags="all=-N -l" -o $(BIN)-debug $(SRC)
 
 beta: vet test
 	@echo '>> Building $(NAME)'

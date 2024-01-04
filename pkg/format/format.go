@@ -11,7 +11,7 @@ import (
 var (
 	BulletPoint      string = "\u2022"
 	Space            string = "    "
-	ErrInvalidOption        = errors.New("invalid option")
+	ErrInvalidOption error  = errors.New("invalid option")
 )
 
 func BulletLine(label, value string) string {

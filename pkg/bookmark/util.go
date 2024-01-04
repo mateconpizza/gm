@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"gomarks/pkg/format"
 	"gomarks/pkg/terminal"
-	"gomarks/pkg/util"
 	"log"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
@@ -38,7 +36,7 @@ func HandleURL(args *[]string) string {
 		return url
 	}
 
-	return util.GetInputFromPrompt(urlPrompt.String())
+	return terminal.InputFromUserPrompt(urlPrompt.String())
 }
 
 func HandleTags(args *[]string) string {
@@ -53,13 +51,14 @@ func HandleTags(args *[]string) string {
 	}
 
 	c := format.Text(" (comma-separated)").Gray().String()
-	return util.GetInputFromPrompt(tagsPrompt + c)
+	return terminal.InputFromUserPrompt(tagsPrompt + c)
 }
 
 func HandleDesc(url string) string {
-	desc, err := Description(url)
+	sc := NewScraper(url)
+	desc, err := sc.Description()
 	if err != nil {
-		return BookmarkDefaultDesc
+		return DefaultDesc
 	}
 
 	descPrompt := format.Text("+ Desc\t:").Yellow()
@@ -69,9 +68,10 @@ func HandleDesc(url string) string {
 }
 
 func HandleTitle(url string) string {
-	title, err := Title(url)
+	sc := NewScraper(url)
+	title, err := sc.Title()
 	if err != nil {
-		return BookmarkDefaultTitle
+		return DefaultTitle
 	}
 
 	titlePrompt := format.Text("+ Title\t:").Green().Bold()
@@ -170,22 +170,4 @@ func binaryExists(binaryName string) bool {
 	err := cmd.Run()
 
 	return err == nil
-}
-
-func Open(url string) {
-	var err error
-
-	switch runtime.GOOS {
-	case "linux":
-		err = exec.Command("xdg-open", url).Start()
-	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	case "darwin":
-		err = exec.Command("open", url).Start()
-	default:
-		err = terminal.ErrUnsupportedPlatform
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
 }

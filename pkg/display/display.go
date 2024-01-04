@@ -7,19 +7,18 @@ import (
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/format"
-	"gomarks/pkg/util"
 
 	"github.com/spf13/cobra"
 )
 
-func Select(cmd *cobra.Command, bs *[]bookmark.Bookmark) (*[]bookmark.Bookmark, error) {
+func Select(cmd *cobra.Command, bs *[]bookmark.Bookmark) ([]bookmark.Bookmark, error) {
 	menuName, err := cmd.Flags().GetString("menu")
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
 	if menuName == "" {
-		return bs, nil
+		return *bs, nil
 	}
 
 	m, err := NewMenu(menuName)
@@ -30,7 +29,7 @@ func Select(cmd *cobra.Command, bs *[]bookmark.Bookmark) (*[]bookmark.Bookmark, 
 	return SelectBookmark(m, bs)
 }
 
-func SelectBookmark(m *Menu, bs *[]bookmark.Bookmark) (*[]bookmark.Bookmark, error) {
+func SelectBookmark(m *Menu, bs *[]bookmark.Bookmark) ([]bookmark.Bookmark, error) {
 	maxLen := 80
 	itemsText := make([]string, 0, len(*bs))
 
@@ -57,13 +56,13 @@ func SelectBookmark(m *Menu, bs *[]bookmark.Bookmark) (*[]bookmark.Bookmark, err
 	}
 
 	selectedStr := strings.Trim(output, "\n")
-	index := util.FindSelectedIndex(selectedStr, itemsText)
+	index := findSelectedIndex(selectedStr, itemsText)
 
 	if index != -1 {
 		b := (*bs)[index]
 		log.Printf("Selected bookmark:\n%+v", b)
 
-		return &[]bookmark.Bookmark{b}, nil
+		return []bookmark.Bookmark{b}, nil
 	}
 
 	return nil, fmt.Errorf("%w: '%s'", bookmark.ErrRecordNotFound, selectedStr)

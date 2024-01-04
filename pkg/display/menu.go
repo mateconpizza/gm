@@ -5,10 +5,10 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"gomarks/pkg/format"
-	"gomarks/pkg/util"
 )
 
 func NewMenu(s string) (*Menu, error) {
@@ -51,7 +51,7 @@ type Menu struct {
 }
 
 func (m *Menu) UpdateMessage(message string) {
-	util.ReplaceArg(m.Arguments, "-mesg", message)
+	replaceArg(m.Arguments, "-mesg", message)
 }
 
 func (m *Menu) Select(items []fmt.Stringer) (int, error) {
@@ -68,11 +68,11 @@ func (m *Menu) Select(items []fmt.Stringer) (int, error) {
 
 	selectedStr := strings.TrimSpace(output)
 
-	if !util.IsSelectedTextInItems(selectedStr, itemsText) {
+	if !isSelectedTextInItems(selectedStr, itemsText) {
 		return -1, fmt.Errorf("%w: '%s'", format.ErrInvalidOption, selectedStr)
 	}
 
-	return util.FindSelectedIndex(selectedStr, itemsText), nil
+	return findSelectedIndex(selectedStr, itemsText), nil
 }
 
 func (m *Menu) Run(s string) (string, error) {
@@ -127,6 +127,35 @@ var dmenuMenu = Menu{
 	Arguments: []string{
 		"-i",
 		"-p", "GoMarks>",
-		"-l", "10",
+		"-l", "15",
 	},
+}
+
+func isSelectedTextInItems(s string, items []string) bool {
+	for _, item := range items {
+		if strings.Contains(item, s) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func findSelectedIndex(s string, items []string) int {
+	log.Printf("Finding selected in %d items", len(items))
+	idx := slices.IndexFunc(items, func(item string) bool {
+		return strings.Contains(item, s)
+	})
+	log.Println("FindSelectedIndex:", idx)
+
+	return idx
+}
+
+func replaceArg(args []string, argName, newValue string) {
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == argName {
+			args[i+1] = newValue
+			break
+		}
+	}
 }

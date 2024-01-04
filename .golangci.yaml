@@ -19,7 +19,7 @@ linters:
     - gocritic
     - goerr113
     - goimports
-    - gomnd
+    # - gomnd
     - gosec
     - gosimple
     - ineffassign
