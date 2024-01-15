@@ -20,22 +20,23 @@ var (
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
 )
 
-type Terminal struct {
+type TermDefaultSettings struct {
 	MaxWidth  int
 	MinWidth  int
 	MinHeight int
 	Color     bool
 }
 
-var Defaults = Terminal{
+// Settings represents the terminal settings
+var Settings = TermDefaultSettings{
 	MaxWidth:  120,
 	MinWidth:  80,
 	MinHeight: 15,
 	Color:     true,
 }
 
-// Size returns the terminal size
-func Size() (width, height int, err error) {
+// dimensions returns the terminal dimensions
+func dimensions() (width, height int, err error) {
 	fileDescriptor := int(os.Stdout.Fd())
 
 	if !term.IsTerminal(fileDescriptor) {
@@ -56,8 +57,8 @@ func Clean(msg string) {
 	fmt.Println(msg)
 }
 
-// IsRedirected returns true if the output is redirected
-func IsRedirected() bool {
+// isRedirected returns true if the output is redirected
+func isRedirected() bool {
 	fileInfo, err := os.Stdout.Stat()
 	if err != nil {
 		log.Println("Error getting stdout file info:", err)
@@ -67,6 +68,7 @@ func IsRedirected() bool {
 	return (fileInfo.Mode() & os.ModeCharDevice) == 0
 }
 
+// IsPiped returns true if the input is piped
 func IsPiped() bool {
 	fileInfo, _ := os.Stdin.Stat()
 	return fileInfo.Mode()&os.ModeCharDevice == 0
@@ -89,17 +91,21 @@ func ReadInputFromPipe(args *[]string) {
 
 // getQueryFromPipe returns the query from the pipe
 func getQueryFromPipe(r io.Reader) string {
-	var result string
+	var result strings.Builder
 	scanner := bufio.NewScanner(bufio.NewReader(r))
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		result += line + "\n"
+		result.WriteString(line)
+		result.WriteString("\n")
 	}
+
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading from pipe:", err)
+		fmt.Fprintln(os.Stderr, "error reading from pipe:", err)
 		return ""
 	}
-	return result
+
+	return result.String()
 }
 
 // InputFromUserPrompt prompts the user for input
@@ -117,13 +123,13 @@ func InputFromUserPrompt(prompt string) string {
 	return strings.Trim(s, "\n")
 }
 
-// handleTerminalSettings sets the terminal settings
+// LoadDefaults sets the terminal settings
 func LoadDefaults(colorFlag string) error {
-	if IsRedirected() || colorFlag == "never" {
-		Defaults.Color = false
+	if isRedirected() || colorFlag == "never" {
+		Settings.Color = false
 	}
 
-	width, height, err := Size()
+	width, height, err := dimensions()
 	if err != nil {
 		if errors.Is(err, ErrNotTTY) {
 			return nil
@@ -131,16 +137,16 @@ func LoadDefaults(colorFlag string) error {
 		return fmt.Errorf("getting console size: %w", err)
 	}
 
-	if width < Defaults.MinWidth {
-		return fmt.Errorf("%w: %d. Min: %d", ErrTermWidthTooSmall, width, Defaults.MinWidth)
+	if width < Settings.MinWidth {
+		return fmt.Errorf("%w: %d. Min: %d", ErrTermWidthTooSmall, width, Settings.MinWidth)
 	}
 
-	if height < Defaults.MinHeight {
-		return fmt.Errorf("%w: %d. Min: %d", ErrTermHeightTooSmall, height, Defaults.MinHeight)
+	if height < Settings.MinHeight {
+		return fmt.Errorf("%w: %d. Min: %d", ErrTermHeightTooSmall, height, Settings.MinHeight)
 	}
 
-	if width < Defaults.MaxWidth {
-		Defaults.MaxWidth = width
+	if width < Settings.MaxWidth {
+		Settings.MaxWidth = width
 	}
 
 	return nil

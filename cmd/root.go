@@ -4,6 +4,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"gomarks/pkg/bookmark"
@@ -46,9 +47,15 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
+		defer func() {
+			if err := r.DB.Close(); err != nil {
+				log.Printf("closing database: %v", err)
+			}
+		}()
+
 		parseArgsAndExit(r)
 
-		if listFlag {
+		if len(args) == 0 && !addFlag {
 			args = append(args, "")
 		}
 
@@ -72,7 +79,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		parseBookmarksAndExit(r, &filteredBs)
+		handleBookmarksAndExit(r, &filteredBs)
 
 		if err := handlePicker(&filteredBs); err != nil {
 			return fmt.Errorf("%w", err)

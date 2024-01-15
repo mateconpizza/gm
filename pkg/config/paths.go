@@ -30,7 +30,7 @@ func loadAppPaths() {
 	envHome := getEnv(App.Env.Home, envConfigHome)
 	App.Path.Home = filepath.Join(envHome, App.Name)
 	App.Path.Backup = filepath.Join(App.Path.Home, "backup")
-	log.Println("AppHome:", App.Path.Home)
+	log.Println("appHome:", App.Path.Home)
 }
 
 // LoadRepoPath loads the path to the database
@@ -38,7 +38,7 @@ func LoadRepoPath() {
 	loadAppPaths()
 
 	DB.Path = filepath.Join(App.Path.Home, DB.Name)
-	log.Print("DB.Path: ", DB.Path)
+	log.Print("db path: ", DB.Path)
 }
 
 // SetupProjectPaths checks and creates the application's home directory.
@@ -50,14 +50,14 @@ func SetupProjectPaths() error {
 	h := App.Path.Home
 
 	if !fileExists(h) {
-		log.Println("Creating AppHome:", h)
+		log.Println("creating apphome:", h)
 		err := os.Mkdir(h, dirPermissions)
 		if err != nil {
-			return fmt.Errorf("error creating AppHome: %w", err)
+			return fmt.Errorf("error creating apphome: %w", err)
 		}
 	}
 
-	log.Println("AppHome already exists:", h)
+	log.Println("appHome already exists:", h)
 
 	return nil
 }

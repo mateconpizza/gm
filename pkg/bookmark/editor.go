@@ -113,11 +113,11 @@ func EditionSlice(bs *[]Bookmark) error {
 }
 
 func Buffer(bs *[]Bookmark) []byte {
-	var s string
+	var result strings.Builder
 
 	for _, b := range *bs {
 		id := fmt.Sprintf("[%d]", b.ID)
-		s += fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL)
+		result.WriteString(fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL))
 	}
 
 	data := []byte(fmt.Sprintf(`## %s: v%s
@@ -125,7 +125,7 @@ func Buffer(bs *[]Bookmark) []byte {
 
 ## Showing %d bookmarks.
 
-%s`, config.App.Data.Title, config.App.Version, len(*bs), s))
+%s`, config.App.Data.Title, config.App.Version, len(*bs), result.String()))
 
 	return bytes.TrimSpace(data)
 }

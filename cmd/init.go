@@ -4,6 +4,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
@@ -20,6 +21,12 @@ var initCmd = &cobra.Command{
 		if err == nil {
 			return fmt.Errorf("%w", bookmark.ErrDBAlreadyInitialized)
 		}
+
+		defer func() {
+			if err := r.DB.Close(); err != nil {
+				log.Printf("closing database: %v", err)
+			}
+		}()
 
 		if !errors.Is(err, bookmark.ErrDBNotFound) {
 			return fmt.Errorf("initializing database: %w", err)

@@ -62,17 +62,19 @@ type Bookmark struct {
 }
 
 func (b *Bookmark) String() string {
-	space := format.Space + format.Space + "+"
-	maxLen := terminal.Defaults.MaxWidth - len(space) - len("\n")
+	sep := strings.Repeat(format.Separator, 6) + "+"
+	maxLen := terminal.Settings.MaxWidth - len(sep) - len("\n")
 	title := format.SplitAndAlignString(b.Title, maxLen)
 	url := format.ShortenString(b.URL, maxLen)
 	desc := format.SplitAndAlignString(b.Desc, maxLen)
 
-	s := format.TitleLine(b.ID, format.Text(title).Purple().Bold().String())
-	s += fmt.Sprintln(format.Text(space, url).Blue())
-	s += fmt.Sprintln(format.Text(space, b.Tags).Gray().Bold())
-	s += fmt.Sprintln(space, desc)
-	return s
+	sb := strings.Builder{}
+
+	sb.WriteString(format.HeaderLine(b.ID, format.Text(title).Purple().Bold().String()))
+	sb.WriteString(format.Text(sep, url, "\n").Blue().String())
+	sb.WriteString(format.Text(sep, b.Tags, "\n").Gray().Bold().String())
+	sb.WriteString(format.Text(sep, desc, "\n").String())
+	return sb.String()
 }
 
 func (b *Bookmark) Update(url, title, tags, desc string) {
@@ -131,7 +133,7 @@ func (b *Bookmark) Copy() error {
 		return fmt.Errorf("%w: %w", ErrCopyToClipboard, err)
 	}
 
-	log.Print("Text copied to clipboard:", b.URL)
+	log.Print("text copied to clipboard:", b.URL)
 	return nil
 }
 

@@ -47,7 +47,6 @@ func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 // TODO:
 // [ ] add `last_used` column
 // [ ] add `last_checked` column
-// [ ] add `status` column (404 or 200) - (0, 1)
 //
 /* var TableMainSchema = `
    CREATE TABLE IF NOT EXISTS %s (
@@ -74,6 +73,7 @@ var tableMainSchema = `
   )
 `
 
+// NewRepository returns a new SQLiteRepository
 func NewRepository() (*SQLiteRepository, error) {
 	config.LoadRepoPath()
 
@@ -90,6 +90,7 @@ func NewRepository() (*SQLiteRepository, error) {
 	return r, nil
 }
 
+// Init initializes the database
 func (r *SQLiteRepository) Init() error {
 	if err := r.tableCreate(config.DB.Table.Main, tableMainSchema); err != nil {
 		return fmt.Errorf("%w", err)
@@ -113,6 +114,7 @@ func (r *SQLiteRepository) Init() error {
 	return nil
 }
 
+// Create creates a new bookmark
 func (r *SQLiteRepository) Create(tableName string, b *Bookmark) (*Bookmark, error) {
 	if err := Validate(b); err != nil {
 		return nil, fmt.Errorf("abort: %w", err)
@@ -156,6 +158,7 @@ func (r *SQLiteRepository) Create(tableName string, b *Bookmark) (*Bookmark, err
 	return b, nil
 }
 
+// CreateBulk creates multiple bookmarks
 func (r *SQLiteRepository) CreateBulk(tableName string, bs *[]Bookmark) error {
 	log.Printf("Inserting %d bookmarks into table: %s", len(*bs), tableName)
 
@@ -203,6 +206,7 @@ func (r *SQLiteRepository) CreateBulk(tableName string, bs *[]Bookmark) error {
 	return nil
 }
 
+// Update updates an existing bookmark
 func (r *SQLiteRepository) Update(tableName string, b *Bookmark) (*Bookmark, error) {
 	if !r.RecordExists(tableName, "id", strconv.Itoa(b.ID)) {
 		return b, fmt.Errorf("%w: in updating '%s'", ErrRecordNotExists, b.URL)
@@ -223,6 +227,7 @@ func (r *SQLiteRepository) Update(tableName string, b *Bookmark) (*Bookmark, err
 	return b, nil
 }
 
+// UpdateBulk updates multiple bookmarks
 func (r *SQLiteRepository) updateBulk(tableName string, bs *[]Bookmark) error {
 	if len(*bs) == 0 {
 		return nil
@@ -312,6 +317,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 		return fmt.Errorf("%w: begin starts a transaction in bulk delete", err)
 	}
 
+	// TODO: replace placeholders loop with strings.Repeat
 	// query := fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", tableName, strings.Repeat("?,", len(bIDs)-1)+"?")
 	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id IN (", tableName)
 	placeholders := make([]string, len(bIDs))
@@ -415,6 +421,7 @@ func (r *SQLiteRepository) GetByIDList(tableName string, ids []int) (*[]Bookmark
 	return bookmarks, nil
 }
 
+// getByURL returns a bookmark by its URL
 func (r *SQLiteRepository) getByURL(tableName, u string) (*Bookmark, error) {
 	var b Bookmark
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE url = ?", tableName), u)
@@ -431,7 +438,7 @@ func (r *SQLiteRepository) getByURL(tableName, u string) (*Bookmark, error) {
 	return &b, nil
 }
 
-// Retrieves bookmarks from the SQLite database based on the provided SQL query.
+// getBySQL retrieves bookmarks from the SQLite database based on the provided SQL query.
 func (r *SQLiteRepository) getBySQL(q string, args ...interface{}) (*[]Bookmark, error) {
 	rows, err := r.DB.Query(q, args...)
 	if err != nil {
@@ -461,7 +468,7 @@ func (r *SQLiteRepository) getBySQL(q string, args ...interface{}) (*[]Bookmark,
 	return &all, nil
 }
 
-// Get all records from the tableName
+// GetAll returns all bookmarks
 func (r *SQLiteRepository) GetAll(tableName string) (*[]Bookmark, error) {
 	log.Printf("Getting all records from table: '%s'", tableName)
 	sqlQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", tableName)
@@ -482,6 +489,7 @@ func (r *SQLiteRepository) GetAll(tableName string) (*[]Bookmark, error) {
 	return bs, nil
 }
 
+// GetByQuery returns bookmarks by query
 func (r *SQLiteRepository) GetByQuery(tableName, q string) (*[]Bookmark, error) {
 	log.Printf("Getting records by query: %s", q)
 
@@ -509,6 +517,7 @@ func (r *SQLiteRepository) GetByQuery(tableName, q string) (*[]Bookmark, error) 
 	return bs, err
 }
 
+// RecordExists checks whether the specified record exists in the SQLite database.
 func (r *SQLiteRepository) RecordExists(tableName, column, target string) bool {
 	var recordCount int
 
@@ -521,7 +530,7 @@ func (r *SQLiteRepository) RecordExists(tableName, column, target string) bool {
 	return recordCount > 0
 }
 
-// Retrieves the maximum ID from the specified table in the SQLite database.
+// GetMaxID retrieves the maximum ID from the specified table in the SQLite database.
 func (r *SQLiteRepository) GetMaxID(tableName string) int {
 	var lastIndex int
 
@@ -536,18 +545,17 @@ func (r *SQLiteRepository) GetMaxID(tableName string) int {
 	return lastIndex
 }
 
-// Checks whether a table with the specified name exists in the SQLite database.
+// tableExists checks whether a table with the specified name exists in the SQLite database.
 func (r *SQLiteRepository) tableExists(t string) (bool, error) {
-	log.Printf("Checking if table '%s' exists", t)
-
 	query := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
 
 	var count int
 	if err := r.DB.QueryRow(query, t).Scan(&count); err != nil {
+		log.Printf("table %s does not exist", t)
 		return false, fmt.Errorf("%w: checking if table exists", err)
 	}
 
-	log.Printf("Table '%s' exists: %v", t, count > 0)
+	log.Printf("table '%s' exists: %v", t, count > 0)
 
 	return count > 0, nil
 }
@@ -581,6 +589,7 @@ func (r *SQLiteRepository) tableCreate(name, schema string) error {
 	return nil
 }
 
+// tableDrop drops the specified table from the SQLite database.
 func (r *SQLiteRepository) tableDrop(t string) error {
 	log.Printf("Dropping table: %s", t)
 
@@ -603,7 +612,7 @@ func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
 	return nil
 }
 
-// Reorders the IDs of all records in the specified table.
+// ReorderIDs reorders the IDs in the specified table.
 func (r *SQLiteRepository) ReorderIDs(tableName string) error {
 	bs, err := r.GetAll(tableName)
 	if err != nil {

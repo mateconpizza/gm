@@ -62,7 +62,7 @@ func HandleDesc(url string) string {
 	}
 
 	descPrompt := format.Text("+ Desc\t:").Yellow()
-	descColor := format.SplitAndAlignString(desc, terminal.Defaults.MinWidth)
+	descColor := format.SplitAndAlignString(desc, terminal.Settings.MinWidth)
 	fmt.Println(descPrompt, descColor)
 	return desc
 }
@@ -75,7 +75,7 @@ func HandleTitle(url string) string {
 	}
 
 	titlePrompt := format.Text("+ Title\t:").Green().Bold()
-	titleColor := format.SplitAndAlignString(title, terminal.Defaults.MinWidth)
+	titleColor := format.SplitAndAlignString(title, terminal.Settings.MinWidth)
 	fmt.Println(titlePrompt, titleColor)
 	return title
 }
@@ -92,7 +92,7 @@ func Format(f string, bs []Bookmark) error {
 	case "menu":
 		maxIDLen := 5
 		maxTagsLen := 18
-		maxLine := terminal.Defaults.MaxWidth - maxIDLen
+		maxLine := terminal.Settings.MaxWidth - maxIDLen
 		tagsPercentage := 30
 		template := "%-*d%-*s%-*s\n"
 

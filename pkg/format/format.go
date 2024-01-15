@@ -9,27 +9,28 @@ import (
 )
 
 var (
-	BulletPoint      string = "\u2022"
-	Space            string = "    "
-	ErrInvalidOption error  = errors.New("invalid option")
+	BulletPoint      = "\u2022"
+	Separator        = "\u0020"
+	ErrInvalidOption = errors.New("invalid option")
 )
 
 func BulletLine(label, value string) string {
 	padding := 15
-	return fmt.Sprintf("%s%s %-*s: %s\n", Space, BulletPoint, padding, label, value)
+	return fmt.Sprintf("%s%s %-*s: %s\n", Separator, BulletPoint, padding, label, value)
 }
 
-func Title(title string, items []string) string {
-	var s string
+// HeaderWithSection returns a formatted string with a title and a list of items
+func HeaderWithSection(title string, items []string) string {
+	var result strings.Builder
 
 	t := fmt.Sprintf("> %s:\n", title)
-	s += t
+	result.WriteString(t)
 
 	for _, item := range items {
-		s += item
+		result.WriteString(item)
 	}
 
-	return s
+	return result.String()
 }
 
 func ShortenString(s string, maxLength int) string {
@@ -40,32 +41,36 @@ func ShortenString(s string, maxLength int) string {
 	return s
 }
 
-func TitleLine(id int, title string) string {
-	return fmt.Sprintf("%-4d%s%s %s\n", id, Space, BulletPoint, title)
+// HeaderLine returns a formatted string with a title
+func HeaderLine(id int, title string) string {
+	padding := 6
+	return fmt.Sprintf("%-*d%s %s\n", padding, id, BulletPoint, title)
 }
 
 func SplitAndAlignString(s string, lineLength int) string {
-	var result string
+	var sep = strings.Repeat(Separator, 8)
 
-	words := strings.Fields(s)
-	currentLine := ""
+	var result strings.Builder
+	var currentLine strings.Builder
 
-	for _, word := range words {
-		if len(currentLine)+len(word)+1 > lineLength {
-			result += currentLine + "\n"
-			currentLine = word
-			currentLine = fmt.Sprintf("\t  %s", currentLine)
+	for _, word := range strings.Fields(s) {
+		if currentLine.Len()+len(word)+1 > lineLength {
+			result.WriteString(currentLine.String())
+			result.WriteString("\n")
+			currentLine.Reset()
+			currentLine.WriteString(sep)
+			currentLine.WriteString(word)
 		} else {
-			if currentLine != "" {
-				currentLine += " "
+			if currentLine.Len() != 0 {
+				currentLine.WriteString(" ")
 			}
-			currentLine += word
+			currentLine.WriteString(word)
 		}
 	}
 
-	result += currentLine
+	result.WriteString(currentLine.String())
 
-	return result
+	return result.String()
 }
 
 func ParseUniqueStrings(input []string, sep string) []string {

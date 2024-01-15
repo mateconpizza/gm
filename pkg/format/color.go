@@ -26,7 +26,7 @@ func Text(s ...string) *ColoredText {
 
 func (c *ColoredText) String() string {
 	styles := strings.Join(c.styles, "")
-	if terminal.Defaults.Color {
+	if terminal.Settings.Color {
 		return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, reset)
 	}
 	return c.text

@@ -16,6 +16,7 @@ import (
 	"gomarks/pkg/terminal"
 )
 
+// promptWithOptions prompts the user to enter one of the given options
 func promptWithOptions(question string, options []string) string {
 	p := format.Prompt(question, fmt.Sprintf("[%s]:", strings.Join(options, "/")))
 	reader := bufio.NewReader(os.Stdin)
@@ -37,27 +38,11 @@ func promptWithOptions(question string, options []string) string {
 			}
 		}
 
-		fmt.Printf("Invalid response. Please enter one of: %s\n", strings.Join(options, ", "))
+		fmt.Printf("invalid response. please enter one of: %s\n", strings.Join(options, ", "))
 	}
 }
 
-func exampleUsage(l ...string) string {
-	var s string
-	for _, line := range l {
-		s += fmt.Sprintf("  %s %s", config.App.Name, line)
-	}
-
-	return s
-}
-
-func getDB() (*bookmark.SQLiteRepository, error) {
-	r, err := bookmark.NewRepository()
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	return r, nil
-}
-
+// printSliceSummary pretty prints a slice of bookmarks
 func printSliceSummary(bs *[]bookmark.Bookmark, msg string) {
 	fmt.Println(msg)
 	for _, b := range *bs {
@@ -65,13 +50,14 @@ func printSliceSummary(bs *[]bookmark.Bookmark, msg string) {
 		fmt.Printf(
 			"  + %s %s\n",
 			format.Text(idStr).Gray(),
-			format.Text(format.ShortenString(b.Title, terminal.Defaults.MinWidth)).Purple(),
+			format.Text(format.ShortenString(b.Title, terminal.Settings.MinWidth)).Purple(),
 		)
 		fmt.Printf("    %s\n", format.Text("tags:", b.Tags).Gray())
-		fmt.Printf("    %s\n\n", format.ShortenString(b.URL, terminal.Defaults.MinWidth))
+		fmt.Printf("    %s\n\n", format.ShortenString(b.URL, terminal.Settings.MinWidth))
 	}
 }
 
+// extractIDsFromStr extracts IDs from a string
 func extractIDsFromStr(args []string) ([]int, error) {
 	ids := make([]int, 0)
 
@@ -89,6 +75,7 @@ func extractIDsFromStr(args []string) ([]int, error) {
 	return ids, nil
 }
 
+// getBookmarksFromArgs retrieves records from the database based on either an ID or a query string.
 func getBookmarksFromArgs(r *bookmark.SQLiteRepository, args []string) (*[]bookmark.Bookmark, error) {
 	ids, err := extractIDsFromStr(args)
 	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
@@ -135,7 +122,8 @@ func confirmRemove(bs *[]bookmark.Bookmark, editFn bookmark.EditFn, question str
 	return false, fmt.Errorf("%w", bookmark.ErrActionAborted)
 }
 
-func parseBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) {
+// handleBookmarksAndExit parses the bookmark slice and exits the program.
+func handleBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) {
 	actions := map[bool]func(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error{
 		statusFlag:  handleStatus,
 		editionFlag: handleEdition,
@@ -148,6 +136,7 @@ func parseBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark
 	}
 }
 
+// parseArgsAndExit parses the command line arguments and exits the program.
 func parseArgsAndExit(r *bookmark.SQLiteRepository) {
 	if versionFlag {
 		config.Version()
@@ -160,6 +149,7 @@ func parseArgsAndExit(r *bookmark.SQLiteRepository) {
 	}
 }
 
+// logErrAndExit logs the error and exits the program.
 func logErrAndExit(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
@@ -167,10 +157,11 @@ func logErrAndExit(err error) {
 	}
 }
 
+// setLoggingLevel sets the logging level based on the verbose flag.
 func setLoggingLevel(verboseFlag *bool) {
 	if *verboseFlag {
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
-		log.Println("Verbose mode")
+		log.Println("verbose mode: on")
 
 		return
 	}
