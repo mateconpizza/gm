@@ -70,6 +70,8 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
+		sortByBookmarkID(*bs)
+
 		if len(*bs) == 0 {
 			return bookmark.ErrBookmarkNotFound
 		}
@@ -124,7 +126,7 @@ func init() {
 
 	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "verbose mode")
 	rootCmd.Flags().BoolVar(&infoFlag, "info", false, "show app info")
-	rootCmd.Flags().BoolVar(&versionFlag, "version", false, "print version info")
+	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "print version info")
 
 	// Actions
 	rootCmd.Flags().BoolVar(&copyFlag, "copy", true, "copy bookmark to clipboard")

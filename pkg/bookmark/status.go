@@ -2,15 +2,22 @@ package bookmark
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"gomarks/pkg/format"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"gomarks/pkg/format"
+	"gomarks/pkg/terminal"
+
 	"golang.org/x/sync/semaphore"
 )
+
+var ErrNetworkUnreachable = errors.New("network is unreachable")
 
 type Response struct {
 	URL        string
@@ -101,7 +108,7 @@ func prettyPrintURLStatus(statusCode, bID int, url string) string {
 	status += fmt.Sprintf("[%s]", colorStatus)
 
 	u := format.Text(":URL:").Gray().String()
-	u += format.ShortenString(url, 80)
+	u += format.ShortenString(url, terminal.Settings.MinWidth)
 
 	return fmt.Sprintf("%s%s%s%s", id, code, status, u)
 }
@@ -132,7 +139,7 @@ func prettyPrintStatus(res []Response, duration time.Duration) {
 }
 
 func CheckStatus(bs *[]Bookmark) error {
-	maxConRequests := 50
+	const maxConRequests = 50
 	sem := semaphore.NewWeighted(int64(maxConRequests))
 
 	var responses []Response
@@ -184,6 +191,10 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
+		if strings.Contains(err.Error(), "connect: network is unreachable") {
+			log.Println(err)
+		}
+
 		fmt.Printf("Error making request to %s: %v\n", b.URL, err)
 		return Response{
 			URL:        b.URL,

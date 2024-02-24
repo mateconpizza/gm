@@ -371,7 +371,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 }
 
 func (r *SQLiteRepository) GetByID(tableName string, n int) (*Bookmark, error) {
-	log.Printf("Getting bookmark by ID %d (table: %s)\n", n, tableName)
+	log.Printf("getting bookmark by ID %d (table: %s)\n", n, tableName)
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tableName), n)
 
 	var b Bookmark
@@ -470,7 +470,7 @@ func (r *SQLiteRepository) getBySQL(q string, args ...interface{}) (*[]Bookmark,
 
 // GetAll returns all bookmarks
 func (r *SQLiteRepository) GetAll(tableName string) (*[]Bookmark, error) {
-	log.Printf("Getting all records from table: '%s'", tableName)
+	log.Printf("getting all records from table: '%s'", tableName)
 	sqlQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", tableName)
 
 	bs, err := r.getBySQL(sqlQuery)
@@ -489,9 +489,17 @@ func (r *SQLiteRepository) GetAll(tableName string) (*[]Bookmark, error) {
 	return bs, nil
 }
 
+// GetByTags returns bookmarks by tag
+func (r *SQLiteRepository) GetByTags(tableName, tag string) (*[]Bookmark, error) {
+	log.Printf("getting records by tag: %s", tag)
+	query := "SELECT * FROM bookmarks WHERE Tags LIKE ?"
+	tag = "%" + tag + "%"
+	return r.getBySQL(query, tag)
+}
+
 // GetByQuery returns bookmarks by query
 func (r *SQLiteRepository) GetByQuery(tableName, q string) (*[]Bookmark, error) {
-	log.Printf("Getting records by query: %s", q)
+	log.Printf("getting records by query: %s", q)
 
 	sqlQuery := fmt.Sprintf(`
       SELECT 

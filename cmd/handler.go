@@ -78,6 +78,14 @@ func handleFetchRecords(r *bookmark.SQLiteRepository, args []string) (*[]bookmar
 		return nil, bookmark.ErrNoQueryProvided
 	}
 
+	if tagFlag != "" {
+		bs, err := handleByTags(r)
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+		return bs, nil
+	}
+
 	bs, err := getBookmarksFromArgs(r, args)
 	if err != nil {
 		return nil, err
@@ -114,6 +122,40 @@ func handleAppInfo(r *bookmark.SQLiteRepository) {
 	}
 
 	fmt.Println(config.Info(lastMainID, lastDeletedID))
+}
+
+// handleByTags returns a slice of bookmarks based on the provided tags
+func handleByTags(r *bookmark.SQLiteRepository) (*[]bookmark.Bookmark, error) {
+	if tagFlag == "" {
+		return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidInput, tagFlag)
+	}
+
+	tags := strings.Split(tagFlag, " ")
+	uniqueMap := make(map[int]bookmark.Bookmark)
+
+	for _, tag := range tags {
+		bs, err := r.GetByTags(config.DB.Table.Main, tag)
+		if err != nil {
+			return nil, fmt.Errorf("getting records by tag '%s': %w", tag, err)
+		}
+
+		for _, b := range *bs {
+			if _, ok := uniqueMap[b.ID]; ok {
+				continue
+			}
+			uniqueMap[b.ID] = b
+		}
+	}
+
+	return mapToSlice(uniqueMap), nil
+}
+
+func mapToSlice(m map[int]bookmark.Bookmark) *[]bookmark.Bookmark {
+	bs := make([]bookmark.Bookmark, 0, len(m))
+	for _, b := range m {
+		bs = append(bs, b)
+	}
+	return &bs
 }
 
 // handleAdd fetch metadata and adds a new bookmark
@@ -159,15 +201,16 @@ func handleEdition(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error 
 // handleRemove removes bookmarks
 func handleRemove(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmark) error {
 	for {
-		terminal.Clean("")
-		s := format.Text(fmt.Sprintf("Bookmarks to remove [%d]:\n", len(*bs))).Red()
-		printSliceSummary(bs, s.String())
+		for _, b := range *bs {
+			fmt.Println(b.DeleteString())
+		}
 
 		if forceFlag {
 			break
 		}
 
-		confirmMsg := format.Text("Confirm?").Red().String()
+		msg := fmt.Sprintf("remove %d bookmark/s?", len(*bs))
+		confirmMsg := format.Text(msg).Red().String()
 		proceed, err := confirmRemove(bs, bookmark.EditionSlice, confirmMsg)
 		if !errors.Is(err, bookmark.ErrBufferUnchanged) && err != nil {
 			return err

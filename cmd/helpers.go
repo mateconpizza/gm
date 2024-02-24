@@ -7,13 +7,13 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
-	"gomarks/pkg/terminal"
 )
 
 // promptWithOptions prompts the user to enter one of the given options
@@ -46,14 +46,7 @@ func promptWithOptions(question string, options []string) string {
 func printSliceSummary(bs *[]bookmark.Bookmark, msg string) {
 	fmt.Println(msg)
 	for _, b := range *bs {
-		idStr := fmt.Sprintf("[%d]", b.ID)
-		fmt.Printf(
-			"  + %s %s\n",
-			format.Text(idStr).Gray(),
-			format.Text(format.ShortenString(b.Title, terminal.Settings.MinWidth)).Purple(),
-		)
-		fmt.Printf("    %s\n", format.Text("tags:", b.Tags).Gray())
-		fmt.Printf("    %s\n\n", format.ShortenString(b.URL, terminal.Settings.MinWidth))
+		fmt.Println(b.DeleteString())
 	}
 }
 
@@ -134,6 +127,13 @@ func handleBookmarksAndExit(r *bookmark.SQLiteRepository, bs *[]bookmark.Bookmar
 		logErrAndExit(action(r, bs))
 		os.Exit(0)
 	}
+}
+
+// sortByBookmarkID sorts the bookmarks by ID
+func sortByBookmarkID(bookmarks []bookmark.Bookmark) {
+	sort.Slice(bookmarks, func(i, j int) bool {
+		return bookmarks[i].ID < bookmarks[j].ID
+	})
 }
 
 // parseArgsAndExit parses the command line arguments and exits the program.
