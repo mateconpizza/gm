@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
@@ -19,7 +18,6 @@ var (
 	addFlag     bool
 	colorFlag   string
 	copyFlag    bool
-	openFlag    bool
 	editionFlag bool
 	forceFlag   bool
 	formatFlag  string
@@ -27,9 +25,11 @@ var (
 	infoFlag    bool
 	isPiped     bool
 	listFlag    bool
+	openFlag    bool
 	pickerFlag  string
 	removeFlag  bool
 	statusFlag  bool
+	tagFlag     string
 	tailFlag    int
 	verboseFlag bool
 	versionFlag bool
@@ -55,7 +55,7 @@ var rootCmd = &cobra.Command{
 
 		parseArgsAndExit(r)
 
-		if len(args) == 0 && !addFlag {
+		if len(args) == 0 && !addFlag && !isPiped {
 			args = append(args, "")
 		}
 
@@ -122,7 +122,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.Flags().BoolVarP(&verboseFlag, "verbose", "v", false, "verbose mode")
+	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "verbose mode")
 	rootCmd.Flags().BoolVar(&infoFlag, "info", false, "show app info")
 	rootCmd.Flags().BoolVar(&versionFlag, "version", false, "print version info")
 
@@ -130,6 +130,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&copyFlag, "copy", true, "copy bookmark to clipboard")
 	rootCmd.Flags().BoolVar(&openFlag, "open", false, "open bookmark in default browser")
 	rootCmd.PersistentFlags().BoolVar(&forceFlag, "force", false, "force action")
+	rootCmd.Flags().StringVarP(&tagFlag, "tag", "t", "", "filter bookmarks by tag")
 
 	// Experimental
 	rootCmd.Flags().BoolVarP(&listFlag, "list", "l", false, "list bookmarks")
@@ -141,7 +142,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&removeFlag, "remove", "r", false, "remove a bookmarks by query or id")
 	rootCmd.Flags().BoolVarP(&addFlag, "add", "a", false, "add a new bookmark")
 
-	rootCmd.Flags().StringVarP(&formatFlag, "format", "f", "pretty", "output format [json|pretty]")
+	rootCmd.Flags().StringVarP(&formatFlag, "format", "f", "beta", "output format [json|pretty]")
 	rootCmd.Flags().StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
 
 	// Modifiers
@@ -155,8 +156,7 @@ func initConfig() {
 	setLoggingLevel(&verboseFlag)
 
 	if err := terminal.LoadDefaults(colorFlag); err != nil {
-		fmt.Printf("%s: %s\n", config.App.Name, err)
-		os.Exit(1)
+		logErrAndExit(err)
 	}
 
 	isPiped = terminal.IsPiped()

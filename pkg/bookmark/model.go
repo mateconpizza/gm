@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -62,23 +63,63 @@ type Bookmark struct {
 }
 
 func (b *Bookmark) String() string {
-	sep := strings.Repeat(format.Separator, 6) + "+"
+	space := 6
+	indentation := 8
+	sep := strings.Repeat(format.Space, space) + "+"
 	maxLen := terminal.Settings.MaxWidth - len(sep) - len("\n")
-	title := format.SplitAndAlignString(b.Title, maxLen)
-	url := format.ShortenString(b.URL, maxLen)
-	desc := format.SplitAndAlignString(b.Desc, maxLen)
+	title := format.SplitAndAlignString(b.Title, maxLen, indentation)
+	bURL := format.ShortenString(b.URL, maxLen)
+	desc := format.SplitAndAlignString(b.Desc, maxLen, indentation)
 
 	sb := strings.Builder{}
-
 	sb.WriteString(format.HeaderLine(b.ID, format.Text(title).Purple().Bold().String()))
-	sb.WriteString(format.Text(sep, url, "\n").Blue().String())
+	sb.WriteString(format.Text(sep, bURL, "\n").Blue().String())
 	sb.WriteString(format.Text(sep, b.Tags, "\n").Gray().Bold().String())
 	sb.WriteString(format.Text(sep, desc, "\n").String())
 	return sb.String()
 }
 
-func (b *Bookmark) Update(url, title, tags, desc string) {
-	b.URL = url
+func (b *Bookmark) BetaString() string {
+	space := 6
+	indentation := 8
+	sep := strings.Repeat(format.Space, space) + "+"
+	maxLen := terminal.Settings.MaxWidth - len(sep) - len("\n")
+	title := format.SplitAndAlignString(b.Title, maxLen, indentation)
+	prettyURL := PrettifyURL(b.URL)
+	bURL := format.ShortenString(prettyURL, maxLen)
+	desc := format.SplitAndAlignString(b.Desc, maxLen, indentation)
+
+	sb := strings.Builder{}
+	sb.WriteString(format.HeaderLine(b.ID, format.Text(bURL).Purple().String()))
+	sb.WriteString(format.Text(sep, title, "\n").Blue().String())
+	sb.WriteString(format.Text(sep, prettifyTags(b.Tags), "\n").Gray().Bold().String())
+	sb.WriteString(format.Text(sep, desc, "\n").String())
+	return sb.String()
+}
+
+func (b *Bookmark) DeleteString() string {
+	space := 6
+	indentation := 8
+	sep := strings.Repeat(format.Space, space) + "+"
+	maxLen := terminal.Settings.MaxWidth - len(sep) - len("\n")
+	title := format.SplitAndAlignString(b.Title, maxLen, indentation)
+	prettyURL := PrettifyURL(b.URL)
+	bURL := format.ShortenString(prettyURL, maxLen)
+
+	sb := strings.Builder{}
+	sb.WriteString(format.HeaderLine(b.ID, format.Text(bURL).Red().Bold().String()))
+	sb.WriteString(format.Text(sep, title, "\n").Blue().String())
+	sb.WriteString(format.Text(sep, prettifyTags(b.Tags), "\n").Gray().Bold().String())
+	return sb.String()
+}
+
+func prettifyTags(s string) string {
+	t := strings.ReplaceAll(s, ",", format.BulletPoint)
+	return strings.TrimRight(t, format.BulletPoint)
+}
+
+func (b *Bookmark) Update(bURL, title, tags, desc string) {
+	b.URL = bURL
 	b.Title = title
 	b.Tags = format.ParseTags(tags)
 	b.Desc = desc
@@ -104,7 +145,8 @@ func (b *Bookmark) Edit(r *SQLiteRepository) error {
 	editedContent, err := Edit(b.Buffer())
 	if err != nil {
 		if errors.Is(err, ErrBufferUnchanged) {
-			fmt.Printf("%s: bookmark [%d]: %s\n", config.App.Name, b.ID, format.Text("unchanged").Yellow().Bold())
+			unchanged := format.Text("unchanged").Yellow().Bold()
+			fmt.Printf("%s: bookmark [%d]: %s\n", config.App.Name, b.ID, unchanged)
 			return nil
 		}
 		return fmt.Errorf("error editing bookmark: %w", err)
@@ -157,11 +199,32 @@ func (b *Bookmark) Open() error {
 	return nil
 }
 
-func NewBookmark(url, title, tags, desc string) *Bookmark {
+func NewBookmark(bURL, title, tags, desc string) *Bookmark {
 	return &Bookmark{
-		URL:   url,
+		URL:   bURL,
 		Title: title,
 		Tags:  format.ParseTags(tags),
 		Desc:  desc,
 	}
+}
+
+func PrettifyURL(bURL string) string {
+	u, err := url.Parse(bURL)
+	if err != nil {
+		return ""
+	}
+
+	if u.Host == "" || u.Path == "" {
+		return format.Text(bURL).Bold().String()
+	}
+
+	host := format.Text(u.Host).Bold().String()
+	pathSegments := strings.FieldsFunc(strings.TrimLeft(u.Path, "/"), func(r rune) bool { return r == '/' })
+
+	if len(pathSegments) == 0 {
+		return host
+	}
+
+	pathSeg := format.Text(format.BulletPoint, strings.Join(pathSegments, fmt.Sprintf(" %s ", format.BulletPoint))).Gray()
+	return fmt.Sprintf("%s %s", host, pathSeg)
 }

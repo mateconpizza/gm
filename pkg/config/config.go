@@ -62,7 +62,7 @@ var App = ConfApp{
 	Version: "0.0.3",
 	Data: ConfData{
 		URL:   "https://github.com/haaag/GoMarks#readme",
-		Title: "Gomarks",
+		Title: "Gomarks: A bookmark manager",
 		Tags:  "golang,awesome,bookmarks",
 		Desc:  "Simple yet powerful bookmark manager for your terminal",
 	},

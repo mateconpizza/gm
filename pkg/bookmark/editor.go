@@ -125,7 +125,7 @@ func Buffer(bs *[]Bookmark) []byte {
 
 ## Showing %d bookmarks.
 
-%s`, config.App.Data.Title, config.App.Version, len(*bs), result.String()))
+%s`, config.App.Name, config.App.Version, len(*bs), result.String()))
 
 	return bytes.TrimSpace(data)
 }

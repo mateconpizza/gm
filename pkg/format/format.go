@@ -10,13 +10,14 @@ import (
 
 var (
 	BulletPoint      = "\u2022"
-	Separator        = "\u0020"
+	Space            = "\u0020"
 	ErrInvalidOption = errors.New("invalid option")
 )
 
+// BulletLine returns a formatted string with a label and a value
 func BulletLine(label, value string) string {
 	padding := 15
-	return fmt.Sprintf("%s%s %-*s: %s\n", Separator, BulletPoint, padding, label, value)
+	return fmt.Sprintf("%s%s %-*s: %s\n", Space, BulletPoint, padding, label, value)
 }
 
 // HeaderWithSection returns a formatted string with a title and a list of items
@@ -33,6 +34,7 @@ func HeaderWithSection(title string, items []string) string {
 	return result.String()
 }
 
+// ShortenString shortens a string to a maximum length
 func ShortenString(s string, maxLength int) string {
 	if len(s) > maxLength {
 		return s[:maxLength-3] + "..."
@@ -42,13 +44,14 @@ func ShortenString(s string, maxLength int) string {
 }
 
 // HeaderLine returns a formatted string with a title
-func HeaderLine(id int, title string) string {
+func HeaderLine(id int, titles ...string) string {
 	padding := 6
-	return fmt.Sprintf("%-*d%s %s\n", padding, id, BulletPoint, title)
+	return fmt.Sprintf("%-*d%s %s\n", padding, id, BulletPoint, strings.Join(titles, " "))
 }
 
-func SplitAndAlignString(s string, lineLength int) string {
-	var sep = strings.Repeat(Separator, 8)
+// SplitAndAlignString splits a string into multiple lines and aligns the words
+func SplitAndAlignString(s string, lineLength, indentation int) string {
+	var sep = strings.Repeat(Space, indentation)
 
 	var result strings.Builder
 	var currentLine strings.Builder
@@ -73,6 +76,7 @@ func SplitAndAlignString(s string, lineLength int) string {
 	return result.String()
 }
 
+// ParseUniqueStrings returns a slice of unique strings
 func ParseUniqueStrings(input []string, sep string) []string {
 	uniqueTags := make([]string, 0)
 	uniqueMap := make(map[string]struct{})
@@ -94,13 +98,16 @@ func ParseUniqueStrings(input []string, sep string) []string {
 	return uniqueTags
 }
 
+// Prompt returns a formatted string with a question and options
 func Prompt(question, options string) string {
 	q := Text(question).White().Bold()
 	o := Text(options).Gray()
 	return fmt.Sprintf("\n%s %s ", q, o)
 }
 
-// convert: "tag1, tag2, tag3 tag"
+// ParseTags normalizes a string of tags by separating them by commas and ensuring that the final string ends with a comma.
+//
+// from: "tag1, tag2, tag3 tag"
 // to: "tag1,tag2,tag3,tag,"
 func ParseTags(tags string) string {
 	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
@@ -114,13 +121,23 @@ func ParseTags(tags string) string {
 	return tags + ","
 }
 
-func ToJSON(data interface{}) string {
+// ToJSON converts an interface to JSON
+func ToJSON(data interface{}) []byte {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		log.Fatal("Error marshaling to JSON:", err)
+		log.Fatalf("error converting to JSON: %s", err)
 	}
 
-	jsonString := string(jsonData)
+	return jsonData
+}
 
-	return jsonString
+// filterEmptyStrings removes empty strings from a slice
+func filterEmptyStrings(s []string) []string {
+	var result []string
+	for _, str := range s {
+		if str != "" {
+			result = append(result, str)
+		}
+	}
+	return result
 }

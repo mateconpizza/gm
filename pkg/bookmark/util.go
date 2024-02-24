@@ -2,11 +2,12 @@ package bookmark
 
 import (
 	"fmt"
-	"gomarks/pkg/format"
-	"gomarks/pkg/terminal"
 	"log"
 	"os/exec"
 	"strings"
+
+	"gomarks/pkg/format"
+	"gomarks/pkg/terminal"
 )
 
 func Validate(b *Bookmark) error {
@@ -46,6 +47,8 @@ func HandleTags(args *[]string) string {
 		tags := (*args)[0]
 		*args = (*args)[1:]
 		tags = strings.TrimRight(tags, "\n")
+		t := strings.Fields(tags)
+		tags = strings.Join(t, ",")
 		fmt.Println(tagsPrompt, tags)
 		return tags
 	}
@@ -55,49 +58,46 @@ func HandleTags(args *[]string) string {
 }
 
 func HandleDesc(url string) string {
+	indentation := 10
+	fmt.Print(format.Text("+ Desc\t: ").Yellow())
 	sc := NewScraper(url)
-	desc, err := sc.Description()
-	if err != nil {
-		return DefaultDesc
-	}
-
-	descPrompt := format.Text("+ Desc\t:").Yellow()
-	descColor := format.SplitAndAlignString(desc, terminal.Settings.MinWidth)
-	fmt.Println(descPrompt, descColor)
+	desc, _ := sc.Description()
+	fmt.Println(format.SplitAndAlignString(desc, terminal.Settings.MinWidth, indentation))
 	return desc
 }
 
 func HandleTitle(url string) string {
+	indentation := 10
+	fmt.Print(format.Text("+ Title\t: ").Green().Bold())
 	sc := NewScraper(url)
-	title, err := sc.Title()
-	if err != nil {
-		return DefaultTitle
-	}
-
-	titlePrompt := format.Text("+ Title\t:").Green().Bold()
-	titleColor := format.SplitAndAlignString(title, terminal.Settings.MinWidth)
-	fmt.Println(titlePrompt, titleColor)
+	title, _ := sc.Title()
+	fmt.Println(format.SplitAndAlignString(title, terminal.Settings.MinWidth, indentation))
 	return title
 }
 
 func Format(f string, bs []Bookmark) error {
 	switch f {
 	case "json":
-		j := format.ToJSON(bs)
+		j := string(format.ToJSON(bs))
 		fmt.Println(j)
 	case "pretty":
 		for _, b := range bs {
 			fmt.Println(b.String())
 		}
+	case "beta":
+		for _, b := range bs {
+			fmt.Println(b.BetaString())
+		}
 	case "menu":
-		maxIDLen := 5
-		maxTagsLen := 18
+		const maxIDLen = 5
+		const maxTagsLen = 18
+		const tagsPercentage = 30
+		const totalPercentage = 100
 		maxLine := terminal.Settings.MaxWidth - maxIDLen
-		tagsPercentage := 30
 		template := "%-*d%-*s%-*s\n"
 
 		for _, b := range bs {
-			lenTags := maxLine * tagsPercentage / 100
+			lenTags := maxLine * tagsPercentage / totalPercentage
 			lenUrls := maxLine - lenTags
 			fmt.Printf(
 				template,

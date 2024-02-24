@@ -8,21 +8,21 @@ import (
 
 type Counter map[string]int
 
-func (c Counter) Add(tags, sep string) {
+func (c *Counter) Add(tags, sep string) {
 	for _, tag := range strings.Split(tags, sep) {
 		tag = strings.TrimSpace(tag)
 		if tag != "" {
-			c[tag]++
+			(*c)[tag]++
 		}
 	}
 }
 
-func (c Counter) GetCount(item string) int {
-	return c[item]
+func (c *Counter) GetCount(item string) int {
+	return (*c)[item]
 }
 
-func (c Counter) Remove(item string) {
-	delete(c, item)
+func (c *Counter) Remove(item string) {
+	delete(*c, item)
 }
 
 func (c Counter) ToStringSlice() []string {
@@ -35,4 +35,8 @@ func (c Counter) ToStringSlice() []string {
 	sort.Strings(results)
 
 	return results
+}
+
+func NewCounter() Counter {
+	return make(Counter)
 }

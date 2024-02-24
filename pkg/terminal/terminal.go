@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
@@ -53,19 +52,10 @@ func dimensions() (width, height int, err error) {
 
 // Clean cleans the terminal
 func Clean(msg string) {
+	// FIX: add multi-platform support
+	// or delete
 	fmt.Print("\033[H\033[2J")
 	fmt.Println(msg)
-}
-
-// isRedirected returns true if the output is redirected
-func isRedirected() bool {
-	fileInfo, err := os.Stdout.Stat()
-	if err != nil {
-		log.Println("Error getting stdout file info:", err)
-		return false
-	}
-
-	return (fileInfo.Mode() & os.ModeCharDevice) == 0
 }
 
 // IsPiped returns true if the input is piped
@@ -89,7 +79,7 @@ func ReadInputFromPipe(args *[]string) {
 	*args = append(*args, split...)
 }
 
-// getQueryFromPipe returns the query from the pipe
+// getQueryFromPipe reads the input from the pipe
 func getQueryFromPipe(r io.Reader) string {
 	var result strings.Builder
 	scanner := bufio.NewScanner(bufio.NewReader(r))
@@ -125,7 +115,7 @@ func InputFromUserPrompt(prompt string) string {
 
 // LoadDefaults sets the terminal settings
 func LoadDefaults(colorFlag string) error {
-	if isRedirected() || colorFlag == "never" {
+	if IsPiped() || colorFlag == "never" {
 		Settings.Color = false
 	}
 

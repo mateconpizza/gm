@@ -10,7 +10,6 @@ import (
 	"gomarks/pkg/bookmark"
 	"gomarks/pkg/config"
 	"gomarks/pkg/format"
-	"gomarks/pkg/terminal"
 )
 
 // handleFormat formats the bookmarks
@@ -110,19 +109,15 @@ func handleAppInfo(r *bookmark.SQLiteRepository) {
 	if formatFlag == "json" {
 		config.DB.Records.Main = lastMainID
 		config.DB.Records.Deleted = lastDeletedID
-		fmt.Println(format.ToJSON(config.AppConf))
+		fmt.Println(string(format.ToJSON(config.AppConf)))
 		return
 	}
 
 	fmt.Println(config.Info(lastMainID, lastDeletedID))
 }
 
-// handleAdd adds a new bookmark
+// handleAdd fetch metadata and adds a new bookmark
 func handleAdd(r *bookmark.SQLiteRepository, args []string) error {
-	if !addFlag {
-		return nil
-	}
-
 	if isPiped && len(args) < 2 {
 		return fmt.Errorf("%w: URL or tags cannot be empty", bookmark.ErrInvalidInput)
 	}

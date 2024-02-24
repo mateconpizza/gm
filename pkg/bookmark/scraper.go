@@ -67,10 +67,7 @@ func (s *Scraper) Description() (desc string, err error) {
 
 	err = s.collector.Visit(s.url)
 	if err != nil {
-		return DefaultDesc, fmt.Errorf(
-			"%w: visiting and scraping URL",
-			err,
-		)
+		return DefaultDesc, fmt.Errorf("%w: visiting and scraping URL", err)
 	}
 
 	if desc == "" {

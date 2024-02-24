@@ -77,7 +77,7 @@ func (c *ColoredText) Purple() *ColoredText {
 }
 
 func (c *ColoredText) White() *ColoredText {
-	c.color = ""
+	c.color = "\x1b[97m"
 	return c
 }
 
