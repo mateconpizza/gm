@@ -15,12 +15,17 @@ import (
 )
 
 var (
-	// db
+	// database
+	ErrDBAlreadyExists      = errors.New("database already exists")
 	ErrDBAlreadyInitialized = errors.New("database already initialized")
+	ErrDBNotInitialized     = errors.New("database not initialized")
 	ErrDBNotFound           = errors.New("database not found")
+	ErrDBsNotFound          = errors.New("no database/s found")
 	ErrDBResetSequence      = errors.New("resetting sqlite_sequence")
+	ErrDBSpecify            = errors.New("specify a database name")
+	ErrDBDrop               = errors.New("dropping database")
 	ErrSQLQuery             = errors.New("executing query")
-
+	ErrDBEmpty              = errors.New("database is empty")
 	// records
 	ErrRecordDelete       = errors.New("error delete record")
 	ErrRecordDuplicate    = errors.New("record already exists")
@@ -29,15 +34,17 @@ var (
 	ErrRecordScan         = errors.New("scan record")
 	ErrRecordUpdate       = errors.New("update failed")
 	ErrRecordNotFound     = errors.New("no bookmarks found")
-	ErrNoRecordIdProvided = errors.New("no id provided")
+	ErrNoRecordIDProvided = errors.New("no id provided")
 	ErrActionAborted      = errors.New("action aborted")
 	ErrNoQueryProvided    = errors.New("no id or query provided")
 )
 
+// SQLiteRepository implements the Repository interface
 type SQLiteRepository struct {
 	DB *sql.DB
 }
 
+// NewSQLiteRepository returns a new SQLiteRepository
 func NewSQLiteRepository(db *sql.DB) *SQLiteRepository {
 	return &SQLiteRepository{
 		DB: db,
@@ -74,17 +81,24 @@ var tableMainSchema = `
 `
 
 // NewRepository returns a new SQLiteRepository
-func NewRepository() (*SQLiteRepository, error) {
-	config.LoadRepoPath()
+func NewRepository(name string) (*SQLiteRepository, error) {
+	config.LoadRepoPath(name)
 
 	db, err := sql.Open("sqlite3", config.DB.Path)
 	if err != nil {
 		log.Fatal("Error opening database:", err)
 	}
 
+	// FIX: find better way to update DB.Name
+	// SELECT * FROM pragma_database_list; maybe?
+	config.DB.Name = name
 	r := NewSQLiteRepository(db)
 	if exists, _ := r.tableExists(config.DB.Table.Main); !exists {
 		return r, fmt.Errorf("%w", ErrDBNotFound)
+	}
+
+	if _, err := r.size(); err != nil {
+		return r, fmt.Errorf("%w", err)
 	}
 
 	return r, nil
@@ -107,15 +121,15 @@ func (r *SQLiteRepository) Init() error {
 		config.App.Data.Desc,
 	)
 
-	if _, err := r.Create(config.DB.Table.Main, initialBookmark); err != nil {
+	if _, err := r.Insert(config.DB.Table.Main, initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	return nil
 }
 
-// Create creates a new bookmark
-func (r *SQLiteRepository) Create(tableName string, b *Bookmark) (*Bookmark, error) {
+// Insert creates a new bookmark
+func (r *SQLiteRepository) Insert(tableName string, b *Bookmark) (*Bookmark, error) {
 	if err := Validate(b); err != nil {
 		return nil, fmt.Errorf("abort: %w", err)
 	}
@@ -158,8 +172,8 @@ func (r *SQLiteRepository) Create(tableName string, b *Bookmark) (*Bookmark, err
 	return b, nil
 }
 
-// CreateBulk creates multiple bookmarks
-func (r *SQLiteRepository) CreateBulk(tableName string, bs *[]Bookmark) error {
+// InsertBulk creates multiple bookmarks
+func (r *SQLiteRepository) InsertBulk(tableName string, bs *[]Bookmark) error {
 	log.Printf("Inserting %d bookmarks into table: %s", len(*bs), tableName)
 
 	tx, err := r.DB.Begin()
@@ -280,6 +294,7 @@ func (r *SQLiteRepository) updateBulk(tableName string, bs *[]Bookmark) error {
 	return nil
 }
 
+// Delete deletes a bookmark
 func (r *SQLiteRepository) Delete(tableName string, b *Bookmark) error {
 	log.Printf("Deleting bookmark %s (table: %s)\n", b.URL, tableName)
 
@@ -295,7 +310,7 @@ func (r *SQLiteRepository) Delete(tableName string, b *Bookmark) error {
 	log.Printf("Deleted bookmark %s (table: %s)\n", b.URL, tableName)
 
 	if r.GetMaxID(tableName) == 1 {
-		err := r.resetSQLiteSequence(tableName)
+		err := r.ResetSQLiteSequence(tableName)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -304,6 +319,18 @@ func (r *SQLiteRepository) Delete(tableName string, b *Bookmark) error {
 	return nil
 }
 
+// DeleteAll deletes all bookmarks
+func (r *SQLiteRepository) DeleteAll(tableName string) error {
+	log.Printf("Deleting all bookmarks from table: %s", tableName)
+	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s", tableName))
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrDBDrop, err)
+	}
+
+	return nil
+}
+
+// DeleteBulk deletes multiple bookmarks
 func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 	if len(bIDs) == 0 {
 		return ErrBookmarkNotSelected
@@ -361,7 +388,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 	log.Printf("Deleted %d bookmarks from table: %s", len(bIDs), tableName)
 
 	if maxID == 1 {
-		err := r.resetSQLiteSequence(tableName)
+		err := r.ResetSQLiteSequence(tableName)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -370,6 +397,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 	return nil
 }
 
+// GetByID returns a bookmark by its ID
 func (r *SQLiteRepository) GetByID(tableName string, n int) (*Bookmark, error) {
 	log.Printf("getting bookmark by ID %d (table: %s)\n", n, tableName)
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tableName), n)
@@ -385,14 +413,14 @@ func (r *SQLiteRepository) GetByID(tableName string, n int) (*Bookmark, error) {
 		return nil, fmt.Errorf("%w: %w", ErrRecordScan, err)
 	}
 
-	log.Printf("Got bookmark by ID %d (table: %s)\n", n, tableName)
-
+	log.Printf("got bookmark by ID %d (table: %s)\n", n, tableName)
 	return &b, nil
 }
 
+// GetByIDList returns a list of bookmarks by their IDs
 func (r *SQLiteRepository) GetByIDList(tableName string, ids []int) (*[]Bookmark, error) {
 	if len(ids) == 0 {
-		return nil, ErrNoRecordIdProvided
+		return nil, ErrNoRecordIDProvided
 	}
 
 	placeholders := make([]string, len(ids))
@@ -421,8 +449,8 @@ func (r *SQLiteRepository) GetByIDList(tableName string, ids []int) (*[]Bookmark
 	return bookmarks, nil
 }
 
-// getByURL returns a bookmark by its URL
-func (r *SQLiteRepository) getByURL(tableName, u string) (*Bookmark, error) {
+// GetByURL returns a bookmark by its URL
+func (r *SQLiteRepository) GetByURL(tableName, u string) (*Bookmark, error) {
 	var b Bookmark
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE url = ?", tableName), u)
 
@@ -484,15 +512,14 @@ func (r *SQLiteRepository) GetAll(tableName string) (*[]Bookmark, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	log.Printf("Got %d records from table: '%s'", len(*bs), tableName)
-
+	log.Printf("got %d records from table: '%s'", len(*bs), tableName)
 	return bs, nil
 }
 
 // GetByTags returns bookmarks by tag
 func (r *SQLiteRepository) GetByTags(tableName, tag string) (*[]Bookmark, error) {
 	log.Printf("getting records by tag: %s", tag)
-	query := "SELECT * FROM bookmarks WHERE Tags LIKE ?"
+	query := fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", tableName)
 	tag = "%" + tag + "%"
 	return r.getBySQL(query, tag)
 }
@@ -520,8 +547,7 @@ func (r *SQLiteRepository) GetByQuery(tableName, q string) (*[]Bookmark, error) 
 		return nil, ErrRecordNotFound
 	}
 
-	log.Printf("Got %d records by query: '%s'", len(*bs), q)
-
+	log.Printf("got %d records by query: '%s'", len(*bs), q)
 	return bs, err
 }
 
@@ -611,8 +637,8 @@ func (r *SQLiteRepository) tableDrop(t string) error {
 	return nil
 }
 
-// resetSQLiteSequence resets the SQLite sequence for the given table.
-func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
+// ResetSQLiteSequence resets the SQLite sequence for the given table.
+func (r *SQLiteRepository) ResetSQLiteSequence(t string) error {
 	if _, err := r.DB.Exec("DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
 		return fmt.Errorf("resetting sqlite sequence: %w", err)
 	}
@@ -622,6 +648,9 @@ func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
 
 // ReorderIDs reorders the IDs in the specified table.
 func (r *SQLiteRepository) ReorderIDs(tableName string) error {
+	// FIX: Everytime we re-order IDs, the db's size gets bigger
+	// It's a bad implementation? (but it works)
+	// Maybe use 'VACUUM' command?
 	bs, err := r.GetAll(tableName)
 	if err != nil {
 		return err
@@ -638,7 +667,7 @@ func (r *SQLiteRepository) ReorderIDs(tableName string) error {
 		return err
 	}
 
-	if err := r.CreateBulk(tempTable, bs); err != nil {
+	if err := r.InsertBulk(tempTable, bs); err != nil {
 		return err
 	}
 
@@ -649,7 +678,7 @@ func (r *SQLiteRepository) ReorderIDs(tableName string) error {
 	return r.tableRename(tempTable, tableName)
 }
 
-// deleteAndReorder deletes the specified bookmarks from the database and
+// DeleteAndReorder deletes the specified bookmarks from the database and
 // reorders the remaining IDs.
 func (r *SQLiteRepository) DeleteAndReorder(bs *[]Bookmark) error {
 	if err := r.DeleteBulk(config.DB.Table.Main, ExtractIDs(bs)); err != nil {
@@ -657,7 +686,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *[]Bookmark) error {
 	}
 
 	// add records to deleted table
-	if err := r.CreateBulk(config.DB.Table.Deleted, bs); err != nil {
+	if err := r.InsertBulk(config.DB.Table.Deleted, bs); err != nil {
 		return fmt.Errorf("inserting records in bulk after deletion: %w", err)
 	}
 
@@ -671,5 +700,43 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *[]Bookmark) error {
 		return fmt.Errorf("reordering ids: %w", err)
 	}
 
+	size, err := r.size()
+	if err != nil {
+		return fmt.Errorf("size: %w", err)
+	}
+
+	if size > config.DB.MaxSizeBytes {
+		return r.Vacuum()
+	}
+
 	return nil
+}
+
+// Vacuum rebuilds the database file, repacking it into a minimal amount of disk space.
+func (r *SQLiteRepository) Vacuum() error {
+	_, err := r.DB.Exec("VACUUM")
+	if err != nil {
+		return fmt.Errorf("vacuum: %w", err)
+	}
+	return nil
+}
+
+// size returns the size of the database.
+func (r *SQLiteRepository) size() (int64, error) {
+	var size int64
+	err := r.DB.QueryRow("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()").Scan(&size)
+	if err != nil {
+		return 0, fmt.Errorf("size: %w", err)
+	}
+
+	log.Printf("size of the database: %d bytes\n", size)
+	return size, nil
+}
+
+// IsEmpty returns true if the database is empty.
+func (r *SQLiteRepository) IsEmpty() bool {
+	if r.GetMaxID(config.DB.Table.Main) > 0 || r.GetMaxID(config.DB.Table.Deleted) > 0 {
+		return false
+	}
+	return true
 }
