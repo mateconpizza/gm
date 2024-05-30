@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gomarks/pkg/bookmark"
@@ -16,8 +17,10 @@ import (
 
 var (
 	dbCreate string
+	dbInfo   bool
 	dbInit   bool
 	dbList   bool
+	dbDrop   bool
 	dbRemove string
 )
 
@@ -62,19 +65,94 @@ func removeSecure(name string) error {
 	return nil
 }
 
+// getDBInfo prints information about a database
+func getDBInfo(r *bookmark.SQLiteRepository) string {
+	lastMainID := r.GetMaxID(config.DB.Table.Main)
+	lastDeletedID := r.GetMaxID(config.DB.Table.Deleted)
+
+	if jsonFlag {
+		bookmark.LoadEditor()
+		config.DB.Records.Main = lastMainID
+		config.DB.Records.Deleted = lastDeletedID
+		return string(format.ToJSON(config.AppConf))
+	}
+
+	config.Version()
+	t := format.Text("\ndatabase").Yellow().Bold().String()
+	return format.HeaderWithSection(t, []string{
+		format.BulletLine("name:", strings.TrimSuffix(config.DB.Name, ".db")),
+		format.BulletLine("records:", strconv.Itoa(lastMainID)),
+		format.BulletLine("deleted:", strconv.Itoa(lastDeletedID)),
+		format.BulletLine("path:", config.DB.Path),
+	})
+}
+
+// dropSecure removes all records database
+func dropSecure(r *bookmark.SQLiteRepository) error {
+	if err := r.DeleteAll(config.DB.Table.Main); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	if err := r.DeleteAll(config.DB.Table.Deleted); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	if err := r.ResetSQLiteSequence(config.DB.Table.Main); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	if err := r.ResetSQLiteSequence(config.DB.Table.Deleted); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	if err := r.Vacuum(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	return nil
+}
+
+// dropDB clears the database
+func dropDB(args []string) error {
+	name := getDBName(args)
+	if !dbExists(name) {
+		return fmt.Errorf("%w: '%s'", bookmark.ErrDBNotFound, name)
+	}
+
+	r, err := bookmark.NewRepository(name)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if r.IsEmpty() {
+		return fmt.Errorf("%w: '%s'", bookmark.ErrDBEmpty, name)
+	}
+
+	getDBInfo(r)
+	q := fmt.Sprintf("remove %s bookmarks?", format.Text("all").Red().Bold())
+	o := promptWithOptions(q, []string{"y", "n"})
+	o = strings.ToLower(o)
+	if o != "y" {
+		return nil
+	}
+
+	err = dropSecure(r)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	fmt.Println(format.Text("database cleared successfully.").Green())
+	return nil
+}
+
 // removeDB removes a database
 func removeDB(name string) error {
 	q := fmt.Sprintf("Remove %s database?", format.Text(name).Red().Bold())
-	option := promptWithOptions(q, []string{"Yes", "No"})
-	switch option {
-	case "n", "no", "No":
+	o := promptWithOptions(q, []string{"y", "n"})
+	o = strings.ToLower(o)
+	if o != "y" {
 		return nil
-	case "y", "yes", "Yes":
-		if err := removeSecure(name); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		fmt.Println(format.Text("Database removed successfully.").Green())
 	}
+
+	err := removeSecure(name)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	fmt.Println(format.Text("Database removed successfully.").Green())
 	return nil
 }
 
@@ -159,7 +237,6 @@ func handleRemoveDB(s string) error {
 // handleDBInfo prints information about a database
 func handleDBInfo(args []string) error {
 	name := getDBName(args)
-
 	if err := checkDBState(name); err != nil {
 		return err
 	}
@@ -168,7 +245,7 @@ func handleDBInfo(args []string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	handleAppInfo(r)
+	fmt.Println(getDBInfo(r))
 	return nil
 }
 
@@ -181,6 +258,7 @@ func dbUsage() string {
 Flags:
   -l, --list            list available databases
   -c, --create <name>   create a new database
+  -I, --info   <name>   show database info
   -i, --init   <name>   initialize a new database
   -r, --remove <name>   remove a database
 
@@ -194,11 +272,15 @@ Global Flags:
 
 var dbCmd = &cobra.Command{
 	Use:   "db",
-	Short: fmt.Sprintf("%s\n\n%s", config.AppBanner, "bookmarks database management"),
+	Short: "bookmarks database management",
 	PreRun: func(cmd *cobra.Command, args []string) {
 		config.LoadAppPaths()
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
+		if !dbExists(config.DefaultDB) && !dbInit {
+			init := format.Text("--init").Yellow().Bold()
+			return fmt.Errorf("%w: use %s", bookmark.ErrDBNotFound, init)
+		}
 		if dbList {
 			return handleListDB()
 		}
@@ -211,13 +293,22 @@ var dbCmd = &cobra.Command{
 		if dbInit {
 			return handleDBInit(args)
 		}
-		return handleDBInfo(args)
+		if dbInfo {
+			return handleDBInfo(args)
+		}
+		if dbDrop {
+			return dropDB(args)
+		}
+		fmt.Print(dbUsage())
+		return nil
 	},
 }
 
 func init() {
 	dbCmd.Flags().BoolVarP(&dbList, "list", "l", false, "list available databases")
 	dbCmd.Flags().BoolVarP(&dbInit, "init", "i", false, "initialize a new database")
+	dbCmd.Flags().BoolVarP(&dbInfo, "info", "I", false, "show database info")
+	dbCmd.Flags().BoolVar(&dbDrop, "drop", false, "drop a database")
 	dbCmd.Flags().StringVarP(&dbCreate, "create", "c", "", "create a new database")
 	dbCmd.Flags().StringVarP(&dbRemove, "remove", "r", "", "remove a database")
 	dbCmd.SetUsageTemplate(dbUsage())

@@ -14,8 +14,8 @@ import (
 )
 
 func printSummary() {
-	fmt.Printf("%s v%s:\n\n", config.App.Name, config.App.Version)
-	fmt.Printf("+ app home created at: %s\n", format.Text(config.App.Path.Home).Yellow().Bold())
+	config.Version()
+	fmt.Printf("\n+ app home created at: %s\n", format.Text(config.App.Path.Home).Yellow().Bold())
 	fmt.Printf("+ database '%s' initialized\n", format.Text(dbName).Green())
 	fmt.Printf("+ %s bookmark created\n\n", format.Text("initial").Purple())
 }
@@ -26,7 +26,7 @@ var initCmd = &cobra.Command{
 	RunE: func(_ *cobra.Command, _ []string) error {
 		r, err := bookmark.NewRepository(dbName)
 		if err == nil {
-			return fmt.Errorf("%w", bookmark.ErrDBAlreadyInitialized)
+			return fmt.Errorf("%w: '%s'", bookmark.ErrDBAlreadyInitialized, dbName)
 		}
 
 		defer func() {
