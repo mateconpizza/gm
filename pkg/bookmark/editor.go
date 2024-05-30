@@ -21,8 +21,10 @@ var (
 	ErrBufferEndOfBlock = errors.New("end of the block not found")
 )
 
+// EditFn is a function that edits a list of bookmarks.
 type EditFn func(*[]Bookmark) error
 
+// editorInfo stores the name and arguments of the preferred editor.
 type editorInfo struct {
 	name string
 	args []string
@@ -44,6 +46,7 @@ func ParseTempBookmark(content []string) *Bookmark {
 	}
 }
 
+// extractIDFromLine extracts the ID from a string
 func extractIDFromLine(line string) string {
 	startIndex := strings.Index(line, "[")
 	endIndex := strings.Index(line, "]")
@@ -55,6 +58,7 @@ func extractIDFromLine(line string) string {
 	return line[startIndex+1 : endIndex]
 }
 
+// strconvLineID converts a string to an int
 func strconvLineID(line string) (int, error) {
 	id, err := strconv.Atoi(strings.TrimSpace(line))
 
@@ -68,6 +72,7 @@ func strconvLineID(line string) (int, error) {
 	return id, nil
 }
 
+// extractIDsFromBuffer extracts IDs from a buffer
 func extractIDsFromBuffer(data []byte) ([]int, error) {
 	ids := make([]int, 0)
 	lines := strings.Split(string(data), "\n")
@@ -89,6 +94,7 @@ func extractIDsFromBuffer(data []byte) ([]int, error) {
 	return ids, nil
 }
 
+// EditionSlice edits the provided slice of bookmarks
 func EditionSlice(bs *[]Bookmark) error {
 	bsContent := Buffer(bs)
 	data, err := Edit(bsContent)
@@ -112,6 +118,7 @@ func EditionSlice(bs *[]Bookmark) error {
 	return nil
 }
 
+// Buffer returns a buffer with the provided slice of bookmarks
 func Buffer(bs *[]Bookmark) []byte {
 	var result strings.Builder
 
@@ -284,6 +291,10 @@ func editFile(e *editorInfo, f *os.File) error {
 }
 
 // getEditor Retrieves the preferred editor to use for editing bookmarks.
+// If environment variable GOMARKS_EDITOR is not set, it uses EDITOR
+// If environment variable EDITOR is not set, uses the first available `TextEditors`
+//
+// # TextEditors: `"vim", "nvim", "nano", "emacs", "helix"`
 func getEditor() (*editorInfo, error) {
 	if appEditor, exists := getAppEditor(); exists {
 		return appEditor, nil
@@ -306,6 +317,7 @@ func getEditor() (*editorInfo, error) {
 	return nil, ErrEditorNotFound
 }
 
+// getAppEditor Retrieves the preferred editor to use for editing bookmarks.
 func getAppEditor() (*editorInfo, bool) {
 	appEditor := strings.Fields(os.Getenv(config.App.Env.Editor))
 	if len(appEditor) == 0 {
@@ -331,10 +343,12 @@ func readContentFile(file *os.File) ([]byte, error) {
 	return content, nil
 }
 
+// isEmptyLine checks if a line is empty
 func isEmptyLine(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
 
+// EditAndRenderBookmarks Edits and renders the bookmarks
 func EditAndRenderBookmarks(r *SQLiteRepository, bs *[]Bookmark, force bool) error {
 	const tooManyRecords = 8
 	if len(*bs) > tooManyRecords && !force {
