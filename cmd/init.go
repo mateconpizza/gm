@@ -13,11 +13,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func printSummary() {
+	fmt.Printf("%s v%s:\n\n", config.App.Name, config.App.Version)
+	fmt.Printf("+ app home created at: %s\n", format.Text(config.App.Path.Home).Yellow().Bold())
+	fmt.Printf("+ database '%s' initialized\n", format.Text(dbName).Green())
+	fmt.Printf("+ %s bookmark created\n\n", format.Text("initial").Purple())
+}
+
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize a new bookmarks database",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		r, err := bookmark.NewRepository()
+		r, err := bookmark.NewRepository(dbName)
 		if err == nil {
 			return fmt.Errorf("%w", bookmark.ErrDBAlreadyInitialized)
 		}
@@ -55,13 +62,7 @@ var initCmd = &cobra.Command{
 	},
 }
 
-func printSummary() {
-	fmt.Printf("%s v%s:\n", config.App.Name, config.App.Version)
-	fmt.Printf("  + app home created at: %s\n", format.Text(config.App.Path.Home).Yellow().Bold())
-	fmt.Printf("  + database '%s' initialized\n", format.Text(config.DB.Name).Green())
-	fmt.Printf("  + %s bookmark created\n\n", format.Text("initial").Purple())
-}
-
-func init() {
-	rootCmd.AddCommand(initCmd)
-}
+//
+// func init() {
+// 	rootCmd.AddCommand(initCmd)
+// }
