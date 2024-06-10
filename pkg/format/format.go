@@ -1,3 +1,4 @@
+// Package format provides utilities for formatting strings
 package format
 
 import (
@@ -5,79 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 )
 
 var (
 	BulletPoint      = "\u2022"
-	Space            = "\u0020"
 	ErrInvalidOption = errors.New("invalid option")
 )
 
-// BulletLine returns a formatted string with a label and a value
-func BulletLine(label, value string) string {
-	padding := 15
-	return fmt.Sprintf("%s%s %-*s: %s\n", Space, BulletPoint, padding, label, value)
-}
-
-// HeaderWithSection returns a formatted string with a title and a list of items
-func HeaderWithSection(title string, items []string) string {
-	var result strings.Builder
-
-	t := fmt.Sprintf("> %s:\n", title)
-	result.WriteString(t)
-
-	for _, item := range items {
-		result.WriteString(item)
-	}
-
-	return result.String()
-}
-
-// ShortenString shortens a string to a maximum length
-func ShortenString(s string, maxLength int) string {
-	if len(s) > maxLength {
-		return s[:maxLength-3] + "..."
-	}
-
-	return s
-}
-
-// HeaderLine returns a formatted string with a title
-func HeaderLine(id int, titles ...string) string {
-	padding := 6
-	return fmt.Sprintf("%-*d%s %s\n", padding, id, BulletPoint, strings.Join(titles, " "))
-}
-
-// SplitAndAlignString splits a string into multiple lines and aligns the words
-func SplitAndAlignString(s string, lineLength, indentation int) string {
-	var sep = strings.Repeat(Space, indentation)
-
-	var result strings.Builder
-	var currentLine strings.Builder
-
-	for _, word := range strings.Fields(s) {
-		if currentLine.Len()+len(word)+1 > lineLength {
-			result.WriteString(currentLine.String())
-			result.WriteString("\n")
-			currentLine.Reset()
-			currentLine.WriteString(sep)
-			currentLine.WriteString(word)
-		} else {
-			if currentLine.Len() != 0 {
-				currentLine.WriteString(" ")
-			}
-			currentLine.WriteString(word)
-		}
-	}
-
-	result.WriteString(currentLine.String())
-
-	return result.String()
-}
-
 // ParseUniqueStrings returns a slice of unique strings
-func ParseUniqueStrings(input []string, sep string) []string {
+func parseUniqueStrings(input []string, sep string) []string {
 	uniqueTags := make([]string, 0)
 	uniqueMap := make(map[string]struct{})
 
@@ -98,11 +37,91 @@ func ParseUniqueStrings(input []string, sep string) []string {
 	return uniqueTags
 }
 
-// Prompt returns a formatted string with a question and options
-func Prompt(question, options string) string {
-	q := Text(question).White().Bold()
-	o := Text(options).Gray()
-	return fmt.Sprintf("\n%s %s ", q, o)
+// urlPath returns a prettified URL
+func urlPath(bURL string) string {
+	u, err := url.Parse(bURL)
+	if err != nil {
+		return ""
+	}
+
+	if u.Host == "" || u.Path == "" {
+		return Color(bURL).Bold().String()
+	}
+
+	host := Color(u.Host).Bold().String()
+	pathSegments := strings.FieldsFunc(strings.TrimLeft(u.Path, "/"), func(r rune) bool { return r == '/' })
+
+	if len(pathSegments) == 0 {
+		return host
+	}
+
+	pathSeg := Color(BulletPoint, strings.Join(pathSegments, fmt.Sprintf(" %s ", BulletPoint))).Gray()
+	return fmt.Sprintf("%s %s", host, pathSeg)
+}
+
+// BulletLine returns a formatted string with a label and a value
+func BulletLine(label, value string) string {
+	padding := 15
+	return fmt.Sprintf("+ %-*s %s\n", padding, label, value)
+}
+
+// HeaderWithSection returns a formatted string with a title and a list of items
+func HeaderWithSection(title string, items []string) string {
+	var result strings.Builder
+
+	t := fmt.Sprintf("%s:\n", title)
+	result.WriteString(t)
+
+	for _, item := range items {
+		result.WriteString(item)
+	}
+
+	return result.String()
+}
+
+// HeaderLine returns a formatted string with a title
+func HeaderLine(id int, titles ...string) string {
+	padding := 6
+	return fmt.Sprintf("%-*d%s %s\n", padding, id, BulletPoint, strings.Join(titles, " "))
+}
+
+// Header returns a formatted string with a title
+func Header(s string) string {
+	return fmt.Sprintf("%s:\n\n", s)
+}
+
+// ShortenString shortens a string to a maximum length
+func ShortenString(s string, maxLength int) string {
+	if len(s) > maxLength {
+		return s[:maxLength-3] + "..."
+	}
+
+	return s
+}
+
+// SplitAndAlignString splits a string into multiple lines and aligns the words
+func SplitAndAlignString(s string, lineLength, indentation int) string {
+	var separator = strings.Repeat(" ", indentation)
+	var result strings.Builder
+	var currentLine strings.Builder
+
+	for _, word := range strings.Fields(s) {
+		if currentLine.Len()+len(word)+1 > lineLength {
+			result.WriteString(currentLine.String())
+			result.WriteString("\n")
+			currentLine.Reset()
+			currentLine.WriteString(separator)
+			currentLine.WriteString(word)
+		} else {
+			if currentLine.Len() != 0 {
+				currentLine.WriteString(" ")
+			}
+			currentLine.WriteString(word)
+		}
+	}
+
+	result.WriteString(currentLine.String())
+	return result.String()
 }
 
 // ParseTags normalizes a string of tags by separating them by commas and ensuring that the final string ends with a comma.
@@ -110,6 +129,9 @@ func Prompt(question, options string) string {
 // from: "tag1, tag2, tag3 tag"
 // to: "tag1,tag2,tag3,tag,"
 func ParseTags(tags string) string {
+	if tags == "" {
+		return "notag"
+	}
 	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
 		return r == ',' || r == ' '
 	}), ",")
@@ -122,7 +144,7 @@ func ParseTags(tags string) string {
 }
 
 // ToJSON converts an interface to JSON
-func ToJSON(data interface{}) []byte {
+func ToJSON(data any) []byte {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		log.Fatalf("error converting to JSON: %s", err)
@@ -131,13 +153,30 @@ func ToJSON(data interface{}) []byte {
 	return jsonData
 }
 
-// filterEmptyStrings removes empty strings from a slice
-func filterEmptyStrings(s []string) []string {
-	var result []string
-	for _, str := range s {
-		if str != "" {
-			result = append(result, str)
-		}
+// prettifyURL returns a prettified URL
+func prettifyURL(bURL string) string {
+	u, err := url.Parse(bURL)
+	if err != nil {
+		return ""
 	}
-	return result
+
+	if u.Host == "" || u.Path == "" {
+		return Color(bURL).Bold().String()
+	}
+
+	host := Color(u.Host).Bold().String()
+	pathSegments := strings.FieldsFunc(strings.TrimLeft(u.Path, "/"), func(r rune) bool { return r == '/' })
+
+	if len(pathSegments) == 0 {
+		return host
+	}
+
+	pathSeg := Color(BulletPoint, strings.Join(pathSegments, fmt.Sprintf(" %s ", BulletPoint))).Gray()
+	return fmt.Sprintf("%s %s", host, pathSeg)
+}
+
+// prettifyTags returns a prettified tags
+func prettifyTags(s string) string {
+	t := strings.ReplaceAll(s, ",", BulletPoint)
+	return strings.TrimRight(t, BulletPoint)
 }

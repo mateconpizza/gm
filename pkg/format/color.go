@@ -20,13 +20,13 @@ func (c *ColoredText) Style(styles ...string) *ColoredText {
 	return c
 }
 
-func Text(s ...string) *ColoredText {
+func Color(s ...string) *ColoredText {
 	return &ColoredText{text: strings.Join(s, " ")}
 }
 
 func (c *ColoredText) String() string {
-	styles := strings.Join(c.styles, "")
-	if terminal.Settings.Color {
+	if terminal.Color {
+		styles := strings.Join(c.styles, "")
 		return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, reset)
 	}
 	return c.text
@@ -43,6 +43,10 @@ func (c *ColoredText) Dim() *ColoredText {
 
 func (c *ColoredText) Underline() *ColoredText {
 	return c.Style("\x1b[4m")
+}
+
+func (c *ColoredText) Italic() *ColoredText {
+	return c.Style("\x1b[3m")
 }
 
 // colors
@@ -73,6 +77,11 @@ func (c *ColoredText) Red() *ColoredText {
 
 func (c *ColoredText) Purple() *ColoredText {
 	c.color = "\x1b[35m"
+	return c
+}
+
+func (c *ColoredText) Orange() *ColoredText {
+	c.color = "\x1b[38;5;208m"
 	return c
 }
 
