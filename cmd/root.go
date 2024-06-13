@@ -1,165 +1,169 @@
-// Copyrighs © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"log"
-
-	"gomarks/pkg/bookmark"
-	"gomarks/pkg/config"
-	"gomarks/pkg/format"
-	"gomarks/pkg/terminal"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
+
+	"github.com/haaag/gm/pkg/app"
+	"github.com/haaag/gm/pkg/bookmark"
+	"github.com/haaag/gm/pkg/editor"
+	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/pkg/terminal"
+)
+
+// TODO)):
+// - [ ] use io.Reader for read in chunks
+//  - [ ] modify functions with []byte or json.Marshal
+// - [ ] remove verbose settings, better use a library for logging
+// ## Editor
+// - [X] create a pkg named editor
+// ## Terminal
+// - [X] create a pkg named terminal
+
+type (
+	Bookmark   = bookmark.Bookmark
+	BSlice     = []bookmark.Bookmark
+	Repository = repo.SQLiteRepository
 )
 
 var (
-	addFlag     bool
-	colorFlag   string
-	copyFlag    bool
-	editionFlag bool
-	forceFlag   bool
-	formatFlag  string
-	headFlag    int
-	infoFlag    bool
-	isPiped     bool
-	listFlag    bool
-	openFlag    bool
-	pickerFlag  string
-	removeFlag  bool
-	statusFlag  bool
-	tagFlag     string
-	tailFlag    int
-	verboseFlag bool
-	versionFlag bool
+	// FIX: Remove this Global Exit
+	Exit bool
+
+	// Main database name
+	DBName string
+
+	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set
+	textEditors = []string{"vim", "nvim", "nano", "emacs", "helix"}
+
+	// App is the configuration and info for the application
+	App = app.New()
+
+	// SQLiteCfg holds the configuration for the database and backups
+	Cfg *repo.SQLiteConfig
 )
 
+func initConfig() {
+	// Set logging level
+	setLoggingLevel(&Verbose)
+
+	// Set terminal defaults and color output
+	terminal.SetIsPiped(terminal.IsPiped())
+	terminal.SetColor(WithColor != "never" && !Json && !terminal.Piped)
+	terminal.LoadMaxWidth()
+
+	// Load editor
+	if err := editor.Load(&App.Env.Editor, &textEditors); err != nil {
+		logErrAndExit(err)
+	}
+
+	// Load env vars to determinate the home app
+	if err := app.LoadHome(App); err != nil {
+		logErrAndExit(err)
+	}
+
+	// Load database settings
+	Cfg = repo.NewSQLiteCfg()
+	Cfg.SetName(ensureDbSuffix(DBName))
+	Cfg.SetHome(filepath.Join(App.GetHome(), ensureDbSuffix(DBName)))
+	Cfg.Backup.EnsureMax(App.Env.BackupMax)
+
+	// Create dirs for the app
+	if err := app.CreateHome(App, Cfg.Backup.GetHome()); err != nil {
+		logErrAndExit(err)
+	}
+}
+
 var rootCmd = &cobra.Command{
-	Use:          config.App.Cmd,
-	Short:        config.App.Data.Desc,
-	Long:         config.App.Data.Desc,
-	SilenceUsage: true,
+	Use:          App.Cmd,
+	Short:        App.Info.Title,
+	Long:         App.Info.Desc,
 	Args:         cobra.MinimumNArgs(0),
+	SilenceUsage: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// fmt.Printf("DBName: %v\n", DBName)
+		if !dbExistsAndInit(Cfg.GetHome(), DBName) && !DBInit {
+			init := format.Color("--init").Yellow().Bold()
+			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
+		}
+		return nil
+	},
 	RunE: func(_ *cobra.Command, args []string) error {
-		r, err := bookmark.NewRepository()
+		if DBInit {
+			return handleDBInit()
+		}
+
+		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+		defer r.Close()
 
-		defer func() {
-			if err := r.DB.Close(); err != nil {
-				log.Printf("closing database: %v", err)
-			}
-		}()
-
-		parseArgsAndExit(r)
-
-		if len(args) == 0 && !addFlag && !isPiped {
-			args = append(args, "")
-		}
-
-		terminal.ReadInputFromPipe(&args)
-
-		if addFlag {
+		if Add {
 			return handleAdd(r, args)
 		}
 
-		bs, err := handleFetchRecords(r, args)
-		if err != nil {
-			return fmt.Errorf("%w", err)
+		bs := bookmark.NewSlice()
+		if err := handleListAndEdit(r, bs, args); err != nil {
+			return err
 		}
 
-		sortByBookmarkID(*bs)
-
-		if len(*bs) == 0 {
-			return bookmark.ErrBookmarkNotFound
-		}
-
-		filteredBs, err := handleHeadAndTail(bs)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		handleBookmarksAndExit(r, &filteredBs)
-
-		if err := handlePicker(&filteredBs); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		if err := handleFormat(&filteredBs); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		bookmarkSelected := filteredBs[0]
-		if copyFlag {
-			if err := bookmarkSelected.Copy(); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-		}
-
-		if openFlag {
-			if err := bookmarkSelected.Open(); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-		}
-
-		return nil
+		return handleOutput(bs)
 	},
 }
 
+func handleListAndEdit(r *Repository, bs *BSlice, args []string) error {
+	if err := handleListAll(r, bs); err != nil {
+		return err
+	}
+	if err := handleRemove(r, bs); err != nil {
+		return err
+	}
+	if err := handleByTags(r, bs); err != nil {
+		return err
+	}
+	if err := handleIDsFromArgs(r, bs, args); err != nil {
+		return err
+	}
+	if err := handleByQuery(r, bs, args); err != nil {
+		return err
+	}
+	if err := handleHeadAndTail(bs); err != nil {
+		return err
+	}
+	if err := handleCheckStatus(bs); err != nil {
+		return err
+	}
+	return handleEdition(r, bs)
+}
+
+func handleOutput(bs *BSlice) error {
+	if err := handleOneline(bs); err != nil {
+		return err
+	}
+	if err := handleJsonFormat(bs); err != nil {
+		return err
+	}
+	if err := handleByField(bs); err != nil {
+		return err
+	}
+
+	if len(*bs) == 0 {
+		return repo.ErrRecordNotFound
+	}
+
+	if err := handleCopyOpen(bs); err != nil {
+		return err
+	}
+
+	return handleFormat(bs)
+}
+
 func Execute() {
-	err := rootCmd.Execute()
-
-	if errors.Is(err, bookmark.ErrDBNotFound) {
-		init := format.Text("init").Yellow().Bold()
-		err = fmt.Errorf("%w: use %s to initialize a new database", err, init)
-	}
-
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		logErrAndExit(err)
 	}
-}
-
-func init() {
-	cobra.OnInitialize(initConfig)
-
-	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "verbose mode")
-	rootCmd.Flags().BoolVar(&infoFlag, "info", false, "show app info")
-	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "print version info")
-
-	// Actions
-	rootCmd.Flags().BoolVar(&copyFlag, "copy", true, "copy bookmark to clipboard")
-	rootCmd.Flags().BoolVar(&openFlag, "open", false, "open bookmark in default browser")
-	rootCmd.PersistentFlags().BoolVar(&forceFlag, "force", false, "force action")
-	rootCmd.Flags().StringVarP(&tagFlag, "tag", "t", "", "filter bookmarks by tag")
-
-	// Experimental
-	rootCmd.Flags().BoolVarP(&listFlag, "list", "l", false, "list bookmarks")
-	rootCmd.Flags().BoolVarP(&editionFlag, "edition", "e", false, "edition mode")
-	rootCmd.Flags().BoolVarP(&statusFlag, "status", "s", false, "check bookmarks status")
-	rootCmd.Flags().StringVar(&colorFlag, "color", "always", "print with pretty colors [always|never]")
-
-	// More experimental
-	rootCmd.Flags().BoolVarP(&removeFlag, "remove", "r", false, "remove a bookmarks by query or id")
-	rootCmd.Flags().BoolVarP(&addFlag, "add", "a", false, "add a new bookmark")
-
-	rootCmd.Flags().StringVarP(&formatFlag, "format", "f", "beta", "output format [json|pretty]")
-	rootCmd.Flags().StringVarP(&pickerFlag, "pick", "p", "", "pick oneline data [id|url|title|tags]")
-
-	// Modifiers
-	rootCmd.Flags().IntVar(&headFlag, "head", 0, "the <int> first part of bookmarks")
-	rootCmd.Flags().IntVar(&tailFlag, "tail", 0, "the <int> last part of bookmarks")
-
-	rootCmd.SilenceErrors = true
-}
-
-func initConfig() {
-	setLoggingLevel(&verboseFlag)
-
-	if err := terminal.LoadDefaults(colorFlag); err != nil {
-		logErrAndExit(err)
-	}
-
-	isPiped = terminal.IsPiped()
 }

@@ -1,4 +1,4 @@
-module gomarks
+module github.com/haaag/gm
 
 go 1.20
 

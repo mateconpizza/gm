@@ -1,7 +1,6 @@
-// Copyright © 2023 haaag <git.haaag@gmail.com>
 package main
 
-import "gomarks/cmd"
+import "github.com/haaag/gm/cmd"
 
 func main() {
 	cmd.Execute()
