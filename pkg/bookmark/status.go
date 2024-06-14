@@ -11,13 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"gomarks/pkg/format"
-	"gomarks/pkg/terminal"
+	"github.com/haaag/gm/pkg/format"
 
 	"golang.org/x/sync/semaphore"
 )
 
-var ErrNetworkUnreachable = errors.New("network is unreachable")
+var (
+	C                     = format.Color
+	ErrNetworkUnreachable = errors.New("network is unreachable")
+)
 
 type Response struct {
 	URL        string
@@ -30,147 +32,161 @@ func (r *Response) String() string {
 	return prettyPrintURLStatus(r.statusCode, r.id, r.URL)
 }
 
-func filterResponse(res *[]Response, filterFn func(Response) bool) (ret []Response) {
-	for _, s := range *res {
-		if filterFn(s) {
-			ret = append(ret, s)
+// CheckStatus checks the status of a slice of bookmarks
+func CheckStatus(bs *Slice[Bookmark]) error {
+	// FIX: Split???
+	const maxConRequests = 25
+	var (
+		responses = NewSlice[Response]()
+		sem       *semaphore.Weighted
+		start     time.Time
+		wg        sync.WaitGroup
+	)
+
+	sem = semaphore.NewWeighted(int64(maxConRequests))
+	start = time.Now()
+	ctx := context.Background()
+	if err := bs.ForEachErr(func(b Bookmark) error {
+		wg.Add(1)
+		if err := sem.Acquire(ctx, 1); err != nil {
+			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
+
+		time.Sleep(50 * time.Millisecond)
+
+		go func(b *Bookmark) {
+			defer wg.Done()
+			res := makeRequest(b, sem)
+			responses.Add(&res)
+		}(&b)
+
+		return nil
+	}); err != nil {
+		return err
 	}
-	return ret
+
+	wg.Wait()
+
+	duration := time.Since(start)
+	prettyPrintStatus(*responses, duration)
+
+	return nil
 }
 
-func prettifyNotFound(res *[]Response) (resLen int, msg string) {
-	filterNotFoundFn := func(r Response) bool { return r.statusCode == http.StatusNotFound }
-	withNotFoundErr := filterResponse(res, filterNotFoundFn)
+func prettifyNotFound(res *Slice[Response]) (resLen int, msg string) {
+	res.Filter(func(r Response) bool {
+		return r.statusCode == http.StatusNotFound
+	})
 
-	if len(withNotFoundErr) == 0 {
+	n := res.Len()
+	if n == 0 {
 		return 0, ""
 	}
 
-	notFoundLenStr := format.Text(strconv.Itoa(len(withNotFoundErr))).Bold().Red()
-	notFoundCode := format.Text("404").Bold().Red()
+	notFoundLenStr := C(strconv.Itoa(n)).Bold().Red()
+	notFoundCode := C(strconv.Itoa(http.StatusNotFound)).Bold().Red()
 
 	fmt.Printf("\n%s err detail:\n", notFoundLenStr)
-	for _, r := range withNotFoundErr {
+	res.ForEach(func(r Response) {
 		fmt.Println(r.String())
-	}
+	})
 
-	return len(withNotFoundErr), fmt.Sprintf("  + %s urls return %s code\n", notFoundLenStr, notFoundCode)
+	return n, fmt.Sprintf("  + %s urls return %s code\n", notFoundLenStr, notFoundCode)
 }
 
-func prettifyWithError(res *[]Response) (resLen int, msg string) {
-	filterErrResFn := func(r Response) bool { return r.hasError && r.statusCode != http.StatusNotFound }
-	withErr := filterResponse(res, filterErrResFn)
-
-	if len(withErr) == 0 {
+func prettifyWithError(res *Slice[Response]) (resLen int, msg string) {
+	res.Filter(func(r Response) bool {
+		return r.hasError && r.statusCode != http.StatusNotFound
+	})
+	n := res.Len()
+	if n == 0 {
 		return 0, ""
 	}
 
-	withErrorLenStr := format.Text(strconv.Itoa(len(withErr))).Yellow().Bold()
-	withNoErrorCode := format.Text("200").Green().Bold()
+	withErrorLenStr := C(strconv.Itoa(n)).Yellow().Bold()
+	withNoErrorCode := C("200").Green().Bold()
 
-	if len(withErr) > 0 {
+	if n > 0 {
 		fmt.Printf("\n%s warn detail:\n", withErrorLenStr)
-		for _, r := range withErr {
+		res.ForEach(func(r Response) {
 			fmt.Println(r.String())
-		}
+		})
 	}
 
-	return len(withErr), fmt.Sprintf("  + %s urls did not return a %s code\n", withErrorLenStr, withNoErrorCode)
+	return n, fmt.Sprintf("  + %s urls did not return a %s code\n", withErrorLenStr, withNoErrorCode)
 }
 
 func prettifyURLStatus(code int) (status, statusCode string) {
 	switch code {
 	case http.StatusNotFound:
-		status = format.Text("ER").Red().Bold().String()
-		statusCode = format.Text(strconv.Itoa(code)).Red().Bold().String()
+		status = C("ER").Red().Bold().String()
+		statusCode = C(strconv.Itoa(code)).Red().Bold().String()
 	case http.StatusOK:
-		status = format.Text("OK").Green().Bold().String()
-		statusCode = format.Text(strconv.Itoa(code)).Green().Bold().String()
+		status = C("OK").Green().Bold().String()
+		statusCode = C(strconv.Itoa(code)).Green().Bold().String()
 	default:
-		status = format.Text("WA").Yellow().Bold().String()
-		statusCode = format.Text(strconv.Itoa(code)).Yellow().Bold().String()
+		status = C("WA").Yellow().Bold().String()
+		statusCode = C(strconv.Itoa(code)).Yellow().Bold().String()
 	}
 	return status, statusCode
 }
 
-func prettyPrintURLStatus(statusCode, bID int, url string) string {
-	colorStatus, colorCode := prettifyURLStatus(statusCode)
+func prettyPrintURLStatus(statusCode, bID int, bURL string) string {
+	var (
+		c        = format.Color
+		minWidth = 80
+	)
 
-	idStr := format.Text(fmt.Sprintf("%-3d", bID)).Purple().Bold()
-	id := format.Text(":ID:").Gray().String()
+	colorStatus, colorCode := prettifyURLStatus(statusCode)
+	idStr := c(fmt.Sprintf("%-3d", bID)).Purple().Bold()
+	id := c(":id:").Gray().String()
 	id += fmt.Sprintf("[%s]", idStr)
 
-	code := format.Text(":Code:").Gray().String()
+	code := c(":code:").Gray().String()
 	code += fmt.Sprintf("[%s]", colorCode)
 
-	status := format.Text(":Status:").Gray().String()
+	status := c(":status:").Gray().String()
 	status += fmt.Sprintf("[%s]", colorStatus)
 
-	u := format.Text(":URL:").Gray().String()
-	u += format.ShortenString(url, terminal.Settings.MinWidth)
+	url := c(":url:").Gray().String()
+	url += format.ShortenString(bURL, minWidth)
 
-	return fmt.Sprintf("%s%s%s%s", id, code, status, u)
+	return fmt.Sprintf("%s%s%s%s", id, code, status, url)
 }
 
-func prettyPrintStatus(res []Response, duration time.Duration) {
-	final := fmt.Sprintf("\n> %d urls were checked\n", len(res))
-
+// prettyPrintStatus prints a summary of the results of checking a slice of
+// URLs.
+func prettyPrintStatus(res Slice[Response], duration time.Duration) {
+	final := fmt.Sprintf("\n> %d urls were checked\n", res.Len())
 	took := fmt.Sprintf("%.2fs\n", duration.Seconds())
 
 	withErrLen, withErrMsg := prettifyWithError(&res)
 	withNotFoundErr, withNoFoundErrMsg := prettifyNotFound(&res)
 
-	withNoErrLen := len(res) - withNotFoundErr - withErrLen
+	withNoErrLen := res.Len() - withNotFoundErr - withErrLen
 	if withNoErrLen > 0 {
 		withNoErrorStr := strconv.Itoa(withNoErrLen)
 		final += fmt.Sprintf(
 			"  + %s urls return %s code\n",
-			format.Text(withNoErrorStr).Blue().Bold().String(),
-			format.Text("200").Green().Bold(),
+			format.Color(withNoErrorStr).Blue().Bold().String(),
+			format.Color("200").Green().Bold(),
 		)
 	}
 
 	final += withErrMsg
 	final += withNoFoundErrMsg
 
-	final += fmt.Sprintf("  + it took %s\n", format.Text(took).Blue().Bold().String())
+	final += fmt.Sprintf("  + it took %s\n", format.Color(took).Blue().Bold().String())
 	fmt.Print(final)
 }
 
-func CheckStatus(bs *[]Bookmark) error {
-	const maxConRequests = 50
-	sem := semaphore.NewWeighted(int64(maxConRequests))
-
-	var responses []Response
-	var wg sync.WaitGroup
-	start := time.Now()
-
-	for _, b := range *bs {
-		tempB := b
-		wg.Add(1)
-
-		if err := sem.Acquire(context.Background(), 1); err != nil {
-			return fmt.Errorf("error acquiring semaphore: %w", err)
-		}
-
-		time.Sleep(50 * time.Millisecond)
-		go func(b *Bookmark) {
-			defer wg.Done()
-			res := makeRequest(b, sem)
-			responses = append(responses, res)
-		}(&tempB)
-	}
-
-	wg.Wait()
-
-	duration := time.Since(start)
-	prettyPrintStatus(responses, duration)
-
-	return nil
-}
-
+// makeRequest sends an HTTP GET request to the URL of the given bookmark and
+// returns a response.
+//
+// The function uses a weighted semaphore to limit the number of concurrent
+// requests.
 func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
+	// FIX: Split???
 	defer sem.Release(1)
 
 	timeout := 10 * time.Second
@@ -179,11 +195,11 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
 	if err != nil {
-		fmt.Printf("Error creating request for %s: %v\n", b.URL, err)
+		fmt.Printf("error creating request for %s: %v\n", b.URL, err)
 		return Response{
 			URL:        b.URL,
 			id:         b.ID,
-			statusCode: 404,
+			statusCode: http.StatusNotFound,
 			hasError:   true,
 		}
 	}
@@ -195,11 +211,12 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 			log.Println(err)
 		}
 
-		fmt.Printf("Error making request to %s: %v\n", b.URL, err)
+		s := C("error making request to").Yellow()
+		fmt.Printf("%s %s: %v\n", s.String(), b.URL, err)
 		return Response{
 			URL:        b.URL,
 			id:         b.ID,
-			statusCode: 404,
+			statusCode: http.StatusNotFound,
 			hasError:   true,
 		}
 	}
@@ -207,7 +224,7 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			fmt.Println("Error closing response body:", err)
+			fmt.Println("error closing response body:", err)
 		}
 	}()
 
