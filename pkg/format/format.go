@@ -11,31 +11,9 @@ import (
 )
 
 var (
-	BulletPoint      = "\u2022"
+	_bulletPoint     = "\u2022"
 	ErrInvalidOption = errors.New("invalid option")
 )
-
-// ParseUniqueStrings returns a slice of unique strings
-func parseUniqueStrings(input []string, sep string) []string {
-	uniqueTags := make([]string, 0)
-	uniqueMap := make(map[string]struct{})
-
-	for _, tags := range input {
-		tagList := strings.Split(tags, sep)
-		for _, tag := range tagList {
-			tag = strings.TrimSpace(tag)
-			if tag != "" {
-				uniqueMap[tag] = struct{}{}
-			}
-		}
-	}
-
-	for tag := range uniqueMap {
-		uniqueTags = append(uniqueTags, tag)
-	}
-
-	return uniqueTags
-}
 
 // urlPath returns a prettified URL
 func urlPath(bURL string) string {
@@ -55,7 +33,7 @@ func urlPath(bURL string) string {
 		return host
 	}
 
-	pathSeg := Color(BulletPoint, strings.Join(pathSegments, fmt.Sprintf(" %s ", BulletPoint))).Gray()
+	pathSeg := Color(_bulletPoint, strings.Join(pathSegments, fmt.Sprintf(" %s ", _bulletPoint))).Gray()
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }
 
@@ -67,22 +45,20 @@ func BulletLine(label, value string) string {
 
 // HeaderWithSection returns a formatted string with a title and a list of items
 func HeaderWithSection(title string, items []string) string {
-	var result strings.Builder
-
+	var r strings.Builder
 	t := fmt.Sprintf("%s:\n", title)
-	result.WriteString(t)
 
+	r.WriteString(t)
 	for _, item := range items {
-		result.WriteString(item)
+		r.WriteString(item)
 	}
-
-	return result.String()
+	return r.String()
 }
 
-// HeaderLine returns a formatted string with a title
-func HeaderLine(id int, titles ...string) string {
+// headerIDLine returns a formatted string with a title
+func headerIDLine(id int, titles ...string) string {
 	padding := 6
-	return fmt.Sprintf("%-*d%s %s\n", padding, id, BulletPoint, strings.Join(titles, " "))
+	return fmt.Sprintf("%-*d%s %s\n", padding, id, _bulletPoint, strings.Join(titles, " "))
 }
 
 // Header returns a formatted string with a title
@@ -171,12 +147,15 @@ func prettifyURL(bURL string) string {
 		return host
 	}
 
-	pathSeg := Color(BulletPoint, strings.Join(pathSegments, fmt.Sprintf(" %s ", BulletPoint))).Gray()
+	pathSeg := Color(_bulletPoint, strings.Join(pathSegments, fmt.Sprintf(" %s ", _bulletPoint))).Gray()
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }
 
 // prettifyTags returns a prettified tags
 func prettifyTags(s string) string {
-	t := strings.ReplaceAll(s, ",", BulletPoint)
-	return strings.TrimRight(t, BulletPoint)
+	t := strings.ReplaceAll(s, ",", _bulletPoint)
+	return strings.TrimRight(t, _bulletPoint)
+}
+
+func Printer(s ...string) {
 }

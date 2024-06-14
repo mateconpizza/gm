@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"gomarks/pkg/terminal"
+	"github.com/haaag/gm/pkg/terminal"
 )
 
-const reset = "\x1b[0m"
+const _reset = "\x1b[0m"
 
 type ColoredText struct {
 	text   string
@@ -27,7 +27,7 @@ func Color(s ...string) *ColoredText {
 func (c *ColoredText) String() string {
 	if terminal.Color {
 		styles := strings.Join(c.styles, "")
-		return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, reset)
+		return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, _reset)
 	}
 	return c.text
 }
