@@ -1,203 +1,205 @@
-// Copyright © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"gomarks/pkg/bookmark"
-	"gomarks/pkg/config"
-	"gomarks/pkg/format"
-
 	"github.com/spf13/cobra"
+
+	"github.com/haaag/gm/pkg/app"
+	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/pkg/terminal"
+	"github.com/haaag/gm/pkg/util"
 )
 
 var (
-	dbCreate string
-	dbInfo   bool
-	dbInit   bool
-	dbList   bool
 	dbDrop   bool
-	dbRemove string
+	dbInfo   bool
+	dbList   bool
+	dbRemove bool
 )
 
-// addSuffix adds .db to the database name
-func addSuffix(name string) string {
-	if !strings.HasSuffix(name, ".db") {
-		name = fmt.Sprintf("%s.db", name)
+var ErrEmptyString = errors.New("empty string")
+
+// dbExistsAndInit checks if the default database exists and is initialized
+func dbExistsAndInit(path, name string) bool {
+	f := filepath.Join(path, ensureDbSuffix(name))
+	return dbExists(f) && isInitialized(f)
+}
+
+// ensureDbSuffix adds .db to the database name
+func ensureDbSuffix(name string) string {
+	suffix := ".db"
+	if !strings.HasSuffix(name, suffix) {
+		name = fmt.Sprintf("%s%s", name, suffix)
 	}
 	return name
 }
 
 // isInitialized checks if the database is initialized
-func isInitialized(name string) bool {
-	f := config.App.Path.Home + "/" + name
-	size := config.Filesize(f)
-	return size > 0
+func isInitialized(f string) bool {
+	return util.Filesize(f) > 0
 }
 
 // dbExists checks if a database exists
-func dbExists(name string) bool {
-	file := config.App.Path.Home + "/" + name
-	return config.FileExists(file)
+func dbExists(f string) bool {
+	return util.FileExists(f)
 }
 
-// getDBName determines the database name from the arguments
-func getDBName(args []string) string {
+// getDBNameFromArgs determines the database name from the arguments
+func getDBNameFromArgs(args []string) string {
+  // FIX: delete me...
 	if len(args) == 0 {
-		return config.DefaultDB
+		return app.DefaultDBName
 	}
-	return addSuffix(strings.ToLower(args[0]))
+	return ensureDbSuffix(strings.ToLower(args[0]))
 }
 
-// removeSecure removes a database
-func removeSecure(name string) error {
-	if !dbExists(name) {
-		return fmt.Errorf("%w: '%s'", bookmark.ErrDBNotFound, name)
+// getDBs returns the list of databases
+func getDBs(path string) ([]string, error) {
+	var files []string
+	if err := util.FilesWithSuffix(path, "db", &files); err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
-	f := config.App.Path.Home + "/" + name
-	if err := os.Remove(f); err != nil {
-		return fmt.Errorf("removing database: %w", err)
-	}
-	return nil
+	return files, nil
 }
 
-// getDBInfo prints information about a database
-func getDBInfo(r *bookmark.SQLiteRepository) string {
-	lastMainID := r.GetMaxID(config.DB.Table.Main)
-	lastDeletedID := r.GetMaxID(config.DB.Table.Deleted)
-
-	if jsonFlag {
-		bookmark.LoadEditor()
-		config.DB.Records.Main = lastMainID
-		config.DB.Records.Deleted = lastDeletedID
-		return string(format.ToJSON(config.AppConf))
+// getDBsBasename returns the basename
+func getDBsBasename(f []string) []string {
+	b := make([]string, 0, len(f))
+	for _, v := range f {
+		b = append(b, format.BulletLine(filepath.Base(v), ""))
 	}
+	return b
+}
 
-	config.Version()
-	t := format.Text("\ndatabase").Yellow().Bold().String()
+// repoInfo prints information about a database
+func repoInfo(r *repo.SQLiteRepository) string {
+	main := r.GetMaxID(r.Cfg.GetTableMain())
+	deleted := r.GetMaxID(r.Cfg.GetTableDeleted())
+	t := format.Color(r.Cfg.GetName()).Yellow().Bold().String()
 	return format.HeaderWithSection(t, []string{
-		format.BulletLine("name:", strings.TrimSuffix(config.DB.Name, ".db")),
-		format.BulletLine("records:", strconv.Itoa(lastMainID)),
-		format.BulletLine("deleted:", strconv.Itoa(lastDeletedID)),
-		format.BulletLine("path:", config.DB.Path),
+		format.BulletLine("records:", strconv.Itoa(main)),
+		format.BulletLine("deleted:", strconv.Itoa(deleted)),
+		format.BulletLine("backup status:", getBkStateColored(r.Cfg.Backup.GetMax())),
+		format.BulletLine("path:", r.Cfg.GetHome()),
 	})
 }
 
-// dropSecure removes all records database
-func dropSecure(r *bookmark.SQLiteRepository) error {
-	if err := r.DeleteAll(config.DB.Table.Main); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	if err := r.DeleteAll(config.DB.Table.Deleted); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	if err := r.ResetSQLiteSequence(config.DB.Table.Main); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	if err := r.ResetSQLiteSequence(config.DB.Table.Deleted); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	if err := r.Vacuum(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	return nil
-}
-
-// dropDB clears the database
-func dropDB(args []string) error {
-	name := getDBName(args)
-	if !dbExists(name) {
-		return fmt.Errorf("%w: '%s'", bookmark.ErrDBNotFound, name)
+// handleDBDrop clears the database
+func handleDBDrop(r *Repository) error {
+	if !r.IsInitialized(r.Cfg.GetTableMain()) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.GetName())
 	}
 
-	r, err := bookmark.NewRepository(name)
-	if err != nil {
+	if r.IsEmpty(r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.GetName())
+	}
+
+	fmt.Println(repoInfo(r))
+
+	q := fmt.Sprintf("remove %s bookmarks?", format.Color("all").Red().Bold())
+	if !terminal.Confirm(q, "n") {
+		return ErrActionAborted
+	}
+
+	if err := r.DropSecure(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if r.IsEmpty() {
-		return fmt.Errorf("%w: '%s'", bookmark.ErrDBEmpty, name)
-	}
-
-	getDBInfo(r)
-	q := fmt.Sprintf("remove %s bookmarks?", format.Text("all").Red().Bold())
-	o := promptWithOptions(q, []string{"y", "n"})
-	o = strings.ToLower(o)
-	if o != "y" {
-		return nil
-	}
-
-	err = dropSecure(r)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	fmt.Println(format.Text("database cleared successfully.").Green())
+	fmt.Println(format.Color("database cleared successfully").Green())
 	return nil
 }
 
 // removeDB removes a database
-func removeDB(name string) error {
-	q := fmt.Sprintf("Remove %s database?", format.Text(name).Red().Bold())
-	o := promptWithOptions(q, []string{"y", "n"})
-	o = strings.ToLower(o)
-	if o != "y" {
-		return nil
+func removeDB(r *Repository) error {
+	var (
+		n        = len(r.Cfg.Backup.List())
+		info     = repoInfo(r)
+		color    = format.Color
+		question = fmt.Sprintf("remove %s?", color(r.Cfg.GetName()).Red().Bold())
+	)
+
+	if n > 0 {
+		info += "\n" + backupInfo(r)
+	}
+	fmt.Println(info)
+
+	if !terminal.Confirm(question, "n") {
+		return ErrActionAborted
 	}
 
-	err := removeSecure(name)
-	if err != nil {
+	if err := util.RmFile(r.Cfg.Fullpath()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	fmt.Println(format.Text("Database removed successfully.").Green())
+
+	if n > 0 {
+		for _, s := range r.Cfg.Backup.List() {
+			f := filepath.Base(s)
+			q := fmt.Sprintf("remove %s?", color(f).Red().Bold())
+			if terminal.Confirm(q, "n") {
+				if err := util.RmFile(s); err != nil {
+					return fmt.Errorf("%w", err)
+				}
+			}
+		}
+	}
+	fmt.Println(color("database and/or backups removed successfully").Green())
 	return nil
 }
 
 // checkDBState verifies database existence and initialization
-func checkDBState(name string) error {
-	if !dbExists(name) {
-		return fmt.Errorf("%w: '%s'", bookmark.ErrDBNotFound, name)
+func checkDBState(f string) error {
+	if !dbExists(f) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, f)
 	}
 
-	if !isInitialized(name) {
-		return fmt.Errorf("%w", bookmark.ErrDBNotInitialized)
+	if !isInitialized(f) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, f)
 	}
 
 	return nil
 }
 
 // handleListDB lists the available databases
-func handleListDB() error {
-	databases := make([]string, 0)
-
-	files, err := filepath.Glob(config.App.Path.Home + "/*.db")
+func handleListDB(r *Repository) error {
+	var sb strings.Builder
+	files, err := getDBs(r.Cfg.GetHome())
 	if err != nil {
-		return fmt.Errorf("listing databases: %w", err)
+		return err
 	}
 
-	if len(files) == 0 {
-		return fmt.Errorf("%w", bookmark.ErrDBsNotFound)
+	var n = len(files)
+	if n == 0 {
+		return fmt.Errorf("%w", repo.ErrDBsNotFound)
 	}
 
-	for _, f := range files {
-		file := filepath.Base(f)
-		databases = append(databases, format.BulletLine(file, ""))
+	if n > 1 {
+		m := fmt.Sprintf("listing %d database/s found", n)
+		sb.WriteString(format.Header(m))
 	}
 
-	config.Version()
-	t := format.Text("\ndatabase/s found").Yellow().String()
-	s := format.HeaderWithSection(t, databases)
-	fmt.Print(s)
+	// TODO: format in a better way
+	for i, db := range files {
+		name := filepath.Base(db)
+		Cfg.SetName(name)
+		rep, _ := repo.New(Cfg)
+		sb.WriteString(repoInfo(rep))
+		if i != n-1 {
+			sb.WriteString("\n")
+		}
+	}
+
+	fmt.Print(sb.String())
 	return nil
 }
 
 // handleDBInit initializes the database
-func handleDBInit(args []string) error {
-	name := getDBName(args)
-	dbName = name
+func handleDBInit() error {
 	if err := initCmd.RunE(nil, []string{}); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -205,112 +207,70 @@ func handleDBInit(args []string) error {
 }
 
 // handleNewDB creates and initializes a new database
-func handleNewDB(s string) error {
-	s = addSuffix(s)
-	if dbExists(s) {
-		return fmt.Errorf("%w: %s", bookmark.ErrDBAlreadyExists, s)
+func handleNewDB(r *Repository) error {
+	if dbExists(r.Cfg.Fullpath()) && r.IsInitialized(r.Cfg.GetTableMain()) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyExists, r.Cfg.GetName())
 	}
 
-	if !dbInit {
-		init := format.Text("--init").Yellow().Bold()
-		return fmt.Errorf("%w: use %s", bookmark.ErrDBNotInitialized, init)
+	if !DBInit {
+		init := format.Color("--init").Yellow().Bold()
+		return fmt.Errorf("%w: use %s", repo.ErrDBNotInitialized, init)
 	}
 
-	if err := handleDBInit([]string{s}); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	return nil
+	return handleDBInit()
 }
 
 // handleRemoveDB removes a database
-func handleRemoveDB(s string) error {
-	s = addSuffix(s)
-	if !dbExists(s) {
-		return fmt.Errorf("%w: '%s'", bookmark.ErrDBNotFound, s)
+func handleRemoveDB(r *Repository) error {
+	if !dbExists(r.Cfg.Fullpath()) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, r.Cfg.GetName())
 	}
-	if err := removeDB(s); err != nil {
-		return fmt.Errorf("removing database: %w", err)
-	}
-	return nil
+	return removeDB(r)
 }
 
 // handleDBInfo prints information about a database
-func handleDBInfo(args []string) error {
-	name := getDBName(args)
-	if err := checkDBState(name); err != nil {
-		return err
+func handleDBInfo(r *Repository) error {
+	if Json {
+		fmt.Println(string(format.ToJSON(r)))
+		return nil
 	}
 
-	r, err := bookmark.NewRepository(name)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	fmt.Println(getDBInfo(r))
+	s := repoInfo(r) + "\n"
+	s += backupInfo(r)
+	fmt.Println(s)
 	return nil
-}
-
-// dbUsage returns the usage of the db command
-func dbUsage() string {
-	s := `Usage:
-  %s db <name> [flags]
-  %s db --list
-
-Flags:
-  -l, --list            list available databases
-  -c, --create <name>   create a new database
-  -I, --info   <name>   show database info
-  -i, --init   <name>   initialize a new database
-  -r, --remove <name>   remove a database
-
-Global Flags:
-  --color string        print with pretty colors [always|never]
-  --json                print data in JSON format`
-	s += "\n"
-	c := config.App.Cmd
-	return fmt.Sprintf(s, c, c)
 }
 
 var dbCmd = &cobra.Command{
 	Use:   "db",
 	Short: "bookmarks database management",
-	PreRun: func(cmd *cobra.Command, args []string) {
-		config.LoadAppPaths()
-	},
-	RunE: func(_ *cobra.Command, args []string) error {
-		if !dbExists(config.DefaultDB) && !dbInit {
-			init := format.Text("--init").Yellow().Bold()
-			return fmt.Errorf("%w: use %s", bookmark.ErrDBNotFound, init)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		r, err := repo.New(Cfg)
+		if err != nil {
+			return fmt.Errorf("database: %w", err)
 		}
-		if dbList {
-			return handleListDB()
+		if err := loadBackups(r); err != nil {
+			return err
 		}
-		if dbCreate != "" {
-			return handleNewDB(dbCreate)
+
+		flags := map[bool]func(r *Repository) error{
+			dbDrop:   handleDBDrop,
+			dbInfo:   handleDBInfo,
+			dbList:   handleListDB,
+			dbRemove: handleRemoveDB,
+			DBInit:   handleNewDB,
 		}
-		if dbRemove != "" {
-			return handleRemoveDB(dbRemove)
+		if handler, ok := flags[true]; ok {
+			return handler(r)
 		}
-		if dbInit {
-			return handleDBInit(args)
-		}
-		if dbInfo {
-			return handleDBInfo(args)
-		}
-		if dbDrop {
-			return dropDB(args)
-		}
-		fmt.Print(dbUsage())
-		return nil
+		return handleDBInfo(r)
 	},
 }
 
 func init() {
-	dbCmd.Flags().BoolVarP(&dbList, "list", "l", false, "list available databases")
-	dbCmd.Flags().BoolVarP(&dbInit, "init", "i", false, "initialize a new database")
+	dbCmd.Flags().BoolVarP(&dbDrop, "drop", "d", false, "drop a database")
 	dbCmd.Flags().BoolVarP(&dbInfo, "info", "I", false, "show database info")
-	dbCmd.Flags().BoolVar(&dbDrop, "drop", false, "drop a database")
-	dbCmd.Flags().StringVarP(&dbCreate, "create", "c", "", "create a new database")
-	dbCmd.Flags().StringVarP(&dbRemove, "remove", "r", "", "remove a database")
-	dbCmd.SetUsageTemplate(dbUsage())
+	dbCmd.Flags().BoolVarP(&dbList, "list", "l", false, "list available databases")
+	dbCmd.Flags().BoolVarP(&dbRemove, "remove", "r", false, "remove a database")
 	rootCmd.AddCommand(dbCmd)
 }
