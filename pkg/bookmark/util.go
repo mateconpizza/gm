@@ -2,32 +2,23 @@ package bookmark
 
 import (
 	"fmt"
-	"log"
-	"os/exec"
 	"strings"
 
-	"gomarks/pkg/format"
-	"gomarks/pkg/terminal"
+	"github.com/haaag/gm/pkg/editor"
+	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/scraper"
+	"github.com/haaag/gm/pkg/terminal"
 )
 
-func Validate(b *Bookmark) error {
-	if b.URL == "" {
-		log.Print("bookmark is invalid. URL is empty")
-		return ErrBookmarkURLEmpty
-	}
+const (
+	_indentation = 10
+)
 
-	if b.Tags == "," || b.Tags == "" {
-		log.Print("bookmark is invalid. Tags are empty")
-		return ErrBookmarkTagsEmpty
-	}
+var c = format.Color
 
-	log.Print("bookmark is valid")
-
-	return nil
-}
-
+// HandleURL handles the URL
 func HandleURL(args *[]string) string {
-	urlPrompt := format.Text("+ URL\t:").Blue().Bold()
+	urlPrompt := c("+ URL\t:").Blue().Bold().String()
 
 	if len(*args) > 0 {
 		url := (*args)[0]
@@ -37,86 +28,43 @@ func HandleURL(args *[]string) string {
 		return url
 	}
 
-	return terminal.InputFromUserPrompt(urlPrompt.String())
+	urlPrompt += c("\n > ").Orange().Bold().String()
+	return terminal.ReadInput(urlPrompt)
 }
 
+// HandleTags handles the tags
 func HandleTags(args *[]string) string {
-	tagsPrompt := format.Text("+ Tags\t:").Purple().Bold().String()
+	tagsPrompt := c("+ Tags\t:").Purple().Bold().String()
 
 	if len(*args) > 0 {
 		tags := (*args)[0]
 		*args = (*args)[1:]
 		tags = strings.TrimRight(tags, "\n")
-		t := strings.Fields(tags)
-		tags = strings.Join(t, ",")
+		tags = strings.Join(strings.Fields(tags), ",")
 		fmt.Println(tagsPrompt, tags)
 		return tags
 	}
 
-	c := format.Text(" (comma-separated)").Gray().String()
-	return terminal.InputFromUserPrompt(tagsPrompt + c)
+	tagsPrompt += c(" (comma-separated)").Italic().Gray().String()
+	tagsPrompt += c("\n > ").Orange().Bold().String()
+	return terminal.ReadInput(tagsPrompt)
 }
 
-func HandleDesc(url string) string {
-	indentation := 10
-	fmt.Print(format.Text("+ Desc\t: ").Yellow())
-	sc := NewScraper(url)
-	desc, _ := sc.Description()
-	fmt.Println(format.SplitAndAlignString(desc, terminal.Settings.MinWidth, indentation))
-	return desc
+// HandleTitleAndDesc fetch and display title and description
+func HandleTitleAndDesc(url string, minWidth int) (title, desc string) {
+	var r strings.Builder
+	sc := scraper.New(url)
+	_ = sc.Scrape()
+	r.WriteString(c("+ Title\t: ").Green().Bold().String())
+	r.WriteString(format.SplitAndAlignString(sc.Title, minWidth, _indentation))
+	r.WriteString(c("\n+ Desc\t: ").Yellow().Bold().String())
+	r.WriteString(format.SplitAndAlignString(sc.Desc, minWidth, _indentation))
+	fmt.Println(r.String())
+	return sc.Title, sc.Desc
 }
 
-func HandleTitle(url string) string {
-	indentation := 10
-	fmt.Print(format.Text("+ Title\t: ").Green().Bold())
-	sc := NewScraper(url)
-	title, _ := sc.Title()
-	fmt.Println(format.SplitAndAlignString(title, terminal.Settings.MinWidth, indentation))
-	return title
-}
-
-func Format(f string, bs []Bookmark) error {
-	switch f {
-	case "json":
-		j := string(format.ToJSON(bs))
-		fmt.Println(j)
-	case "pretty":
-		for _, b := range bs {
-			fmt.Println(b.String())
-		}
-	case "beta":
-		for _, b := range bs {
-			fmt.Println(b.BetaString())
-		}
-	case "menu":
-		const maxIDLen = 5
-		const maxTagsLen = 18
-		const tagsPercentage = 30
-		const totalPercentage = 100
-		maxLine := terminal.Settings.MaxWidth - maxIDLen
-		template := "%-*d%-*s%-*s\n"
-
-		for _, b := range bs {
-			lenTags := maxLine * tagsPercentage / totalPercentage
-			lenUrls := maxLine - lenTags
-			fmt.Printf(
-				template,
-				maxIDLen,
-				b.ID,
-				maxLine-lenTags,
-				format.ShortenString(b.URL, lenUrls),
-				maxTagsLen,
-				format.ShortenString(b.Tags, lenTags),
-			)
-		}
-	default:
-		return fmt.Errorf("%w: %s", format.ErrInvalidOption, f)
-	}
-
-	return nil
-}
-
-func ExtractIDs(bs *[]Bookmark) []int {
+// ExtractIDsFromSlice extracts the IDs from a slice of bookmarks
+func ExtractIDsFromSlice(bs *[]Bookmark) []int {
 	ids := make([]int, 0, len(*bs))
 	for _, b := range *bs {
 		ids = append(ids, b.ID)
@@ -124,50 +72,13 @@ func ExtractIDs(bs *[]Bookmark) []int {
 	return ids
 }
 
-func FilterSliceByIDs(bs *[]Bookmark, ids ...int) {
-	keepMap := make(map[int]bool)
-	for _, id := range ids {
-		keepMap[id] = true
-	}
-
-	filteredSlice := make([]Bookmark, 0, len(*bs))
-	for _, b := range *bs {
-		if keepMap[b.ID] {
-			filteredSlice = append(filteredSlice, b)
-		}
-	}
-
-	*bs = filteredSlice
-}
-
-func RemoveItemByID(bs *[]Bookmark, idToRemove int) {
-	var updatedBookmarks []Bookmark
-
-	for _, bookmark := range *bs {
-		if bookmark.ID != idToRemove {
-			updatedBookmarks = append(updatedBookmarks, bookmark)
-		}
-	}
-
-	*bs = updatedBookmarks
-}
-
-func logItemsNotFound(items *[]Bookmark, ids []int) {
-	itemsFound := make(map[int]bool)
-	for _, b := range *items {
-		itemsFound[b.ID] = true
-	}
-
-	for _, item := range ids {
-		if !itemsFound[item] {
-			log.Printf("item with ID '%d' not found.\n", item)
-		}
-	}
-}
-
-func binaryExists(binaryName string) bool {
-	cmd := exec.Command("which", binaryName)
-	err := cmd.Run()
-
-	return err == nil
+// ParseContent parses the provided content into a bookmark struct.
+func ParseContent(content *[]string) *Bookmark {
+	url := editor.ExtractBlock(content, "# URL:", "# Title:")
+	title := editor.ExtractBlock(content, "# Title:", "# Tags:")
+	tags := editor.ExtractBlock(content, "# Tags:", "# Description:")
+	desc := editor.ExtractBlock(content, "# Description:", "# end")
+	b := &Bookmark{URL: url, Title: title, Tags: format.ParseTags(tags), Desc: desc}
+	checkTitleAndDesc(b)
+	return b
 }
