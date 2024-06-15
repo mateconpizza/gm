@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -25,7 +24,7 @@ import (
 
 type (
 	Bookmark   = bookmark.Bookmark
-	BSlice     = []bookmark.Bookmark
+	Slice      = bookmark.Slice[Bookmark]
 	Repository = repo.SQLiteRepository
 )
 
@@ -46,37 +45,6 @@ var (
 	Cfg *repo.SQLiteConfig
 )
 
-func initConfig() {
-	// Set logging level
-	setLoggingLevel(&Verbose)
-
-	// Set terminal defaults and color output
-	terminal.SetIsPiped(terminal.IsPiped())
-	terminal.SetColor(WithColor != "never" && !Json && !terminal.Piped)
-	terminal.LoadMaxWidth()
-
-	// Load editor
-	if err := editor.Load(&App.Env.Editor, &textEditors); err != nil {
-		logErrAndExit(err)
-	}
-
-	// Load env vars to determinate the home app
-	if err := app.LoadHome(App); err != nil {
-		logErrAndExit(err)
-	}
-
-	// Load database settings
-	Cfg = repo.NewSQLiteCfg()
-	Cfg.SetName(ensureDbSuffix(DBName))
-	Cfg.SetHome(filepath.Join(App.GetHome(), ensureDbSuffix(DBName)))
-	Cfg.Backup.EnsureMax(App.Env.BackupMax)
-
-	// Create dirs for the app
-	if err := app.CreateHome(App, Cfg.Backup.GetHome()); err != nil {
-		logErrAndExit(err)
-	}
-}
-
 var rootCmd = &cobra.Command{
 	Use:          App.Cmd,
 	Short:        App.Info.Title,
@@ -84,7 +52,6 @@ var rootCmd = &cobra.Command{
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// fmt.Printf("DBName: %v\n", DBName)
 		if !dbExistsAndInit(Cfg.GetHome(), DBName) && !DBInit {
 			init := format.Color("--init").Yellow().Bold()
 			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
@@ -106,7 +73,7 @@ var rootCmd = &cobra.Command{
 			return handleAdd(r, args)
 		}
 
-		bs := bookmark.NewSlice()
+		bs := bookmark.NewSlice[Bookmark]()
 		if err := handleListAndEdit(r, bs, args); err != nil {
 			return err
 		}
@@ -115,11 +82,39 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func handleListAndEdit(r *Repository, bs *BSlice, args []string) error {
-	if err := handleListAll(r, bs); err != nil {
-		return err
+func initConfig() {
+	// Set logging level
+	setLoggingLevel(&Verbose)
+
+	// Set terminal defaults and color output
+	terminal.SetIsPiped(terminal.IsPiped())
+	terminal.SetColor(WithColor != "never" && !Json && !terminal.Piped)
+	terminal.LoadMaxWidth()
+
+	// Load editor
+	if err := editor.Load(&App.Env.Editor, &textEditors); err != nil {
+		logErrAndExit(err)
 	}
-	if err := handleRemove(r, bs); err != nil {
+
+	// Load App home path
+	if err := app.LoadHome(App); err != nil {
+		logErrAndExit(err)
+	}
+
+	// Set database settings
+	Cfg = repo.NewSQLiteCfg()
+	Cfg.SetName(ensureDbSuffix(DBName))
+	Cfg.SetHome(App.GetHome())
+	Cfg.Backup.SetMax(App.Env.BackupMax)
+
+	// Create dirs for the app
+	if err := app.CreateHome(App, Cfg.Backup.GetHome()); err != nil {
+		logErrAndExit(err)
+	}
+}
+
+func handleListAndEdit(r *Repository, bs *Slice, args []string) error {
+	if err := handleListAll(r, bs); err != nil {
 		return err
 	}
 	if err := handleByTags(r, bs); err != nil {
@@ -137,10 +132,13 @@ func handleListAndEdit(r *Repository, bs *BSlice, args []string) error {
 	if err := handleCheckStatus(bs); err != nil {
 		return err
 	}
+	if err := handleRemove(r, bs); err != nil {
+		return err
+	}
 	return handleEdition(r, bs)
 }
 
-func handleOutput(bs *BSlice) error {
+func handleOutput(bs *Slice) error {
 	if err := handleOneline(bs); err != nil {
 		return err
 	}
@@ -151,7 +149,7 @@ func handleOutput(bs *BSlice) error {
 		return err
 	}
 
-	if len(*bs) == 0 {
+	if bs.Len() == 0 {
 		return repo.ErrRecordNotFound
 	}
 
