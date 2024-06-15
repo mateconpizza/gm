@@ -1,4 +1,3 @@
-// Copyright © 2023 haaag <git.haaag@gmail.com>
 package cmd
 
 import (
@@ -6,13 +5,19 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
-	"gomarks/pkg/config"
-	"gomarks/pkg/format"
-
 	"github.com/spf13/cobra"
+
+	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/pkg/terminal"
+	"github.com/haaag/gm/pkg/util"
 )
+
+// TODO)):
+// - [ ] implement the `slice` struct
 
 var (
 	bkCreate  bool
@@ -22,33 +27,157 @@ var (
 )
 
 var (
-	ErrBkDisabled      = errors.New("backups are disabled")
-	ErrBkNotFound      = errors.New("no backup found")
-	ErrBkNoPurge       = errors.New("no backup to purge")
-	ErrBkAlreadyExists = errors.New("backup already exists")
-
-	ErrBkCreate  = errors.New("could not create backup")
-	ErrBkRemove  = errors.New("could not remove backup")
-	ErrBkRestore = errors.New("could not restore backup")
-	ErrBkStatus  = errors.New("could not get backup status")
+	ErrBackupDisabled      = errors.New("backups are disabled")
+	ErrBackupNotFound      = errors.New("no backup found")
+	ErrBackupNoPurge       = errors.New("no backup to purge")
+	ErrBackupAlreadyExists = errors.New("backup already exists")
+	ErrBackupCreate        = errors.New("could not create backup")
+	ErrBackupRemove        = errors.New("could not remove backup")
+	ErrBackupRestore       = errors.New("could not restore backup")
+	ErrBackupStatus        = errors.New("could not get backup status")
 )
 
-// getBkStateColored returns a colored string with the backups status
-func getBkStateColored() string {
-	if config.App.BackupMax <= 0 {
-		return format.Text("disabled").Red().String()
-	}
-	return format.Text("enabled").Green().String()
+var backupCmd = &cobra.Command{
+	Use:   "bk",
+	Short: "backup management",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		r, err := repo.New(Cfg)
+		if err != nil {
+			return fmt.Errorf("backup: %w", err)
+		}
+		if err := loadBackups(r); err != nil {
+			return err
+		}
+
+		flags := map[bool]func(r *Repository) error{
+			bkCreate:  handleBackupCreate,
+			bkPurge:   handleBackupPurge,
+			bkList:    printsBackupInfo,
+			bkRestore: handleBackupRestore,
+		}
+
+		if handler, run := flags[true]; run {
+			return handler(r)
+		}
+
+		return printsBackupInfo(r)
+	},
 }
 
-// getBackups returns a list of backups
-func getBackups(name string) ([]string, error) {
-	q := config.App.Path.Backup + "/*" + name
-	f, err := filepath.Glob(q)
-	if err != nil {
-		return nil, fmt.Errorf("%w: getting with: %s", err, q)
+func init() {
+	backupCmd.Flags().BoolVarP(&bkCreate, "create", "c", false, "create backup")
+	backupCmd.Flags().BoolVarP(&bkList, "list", "l", false, "list backups")
+	backupCmd.Flags().BoolVarP(&bkPurge, "purge", "P", false, "remove backup")
+	backupCmd.Flags().BoolVarP(&bkRestore, "restore", "R", false, "restore backup")
+	rootCmd.AddCommand(backupCmd)
+}
+
+// handleBackupCreate creates a backup
+func handleBackupCreate(r *Repository) error {
+	var (
+		srcName, srcPath   string
+		destName, destPath string
+	)
+
+	srcName = r.Cfg.GetName()
+	srcPath = filepath.Join(r.Cfg.GetHome(), r.Cfg.GetName())
+	if err := checkDBState(srcPath); err != nil {
+		return err
 	}
-	return f, nil
+
+	destName = generateBackupName(srcName)
+	destPath = filepath.Join(r.Cfg.Backup.GetHome(), destName)
+	if util.FileExists(destPath) && !Force {
+		return fmt.Errorf("%w: %s", ErrBackupAlreadyExists, destPath)
+	}
+
+	if err := printsBackupInfo(r); err != nil {
+		return err
+	}
+	if err := checkBackupEnabled(r.Cfg.Backup.GetMax()); err != nil {
+		return err
+	}
+
+	if !Force && !terminal.Confirm("create backup?", "y") {
+		return ErrActionAborted
+	}
+
+	if err := util.CopyFile(srcPath, destPath); err != nil {
+		return fmt.Errorf("copying file: %w", err)
+	}
+
+	fmt.Println(format.Color("backup created successfully:").Green(), destName)
+	return nil
+}
+
+// handleBackupPurge
+func handleBackupPurge(r *Repository) error {
+	var (
+		backupList []string
+		maxBackups int
+		nPurge     int
+		nPurgeStr  string
+		purgeList  []string
+		status     string
+		toPurge    []string
+	)
+
+	maxBackups = r.Cfg.Backup.GetMax()
+	backupList = r.Cfg.Backup.List()
+	toPurge = getBackupsToPurge(backupList, maxBackups)
+	nPurge = len(toPurge)
+	if nPurge == 0 {
+		return ErrBackupNoPurge
+	}
+
+	purgeList = getDBsBasename(toPurge)
+	status = backupDetail(r)
+	nPurgeStr = format.Color(strconv.Itoa(nPurge)).Red().Bold().String()
+	if nPurge > 0 {
+		status += format.BulletLine("purge:", fmt.Sprintf("%s backups to delete", nPurgeStr))
+		status += format.HeaderWithSection(format.Color("\nbackup/s to purge:").Red().Bold().String(), purgeList)
+	}
+
+	fmt.Println(status)
+	if !Force && !terminal.Confirm(fmt.Sprintf("purge %s backups?", nPurgeStr), "n") {
+		return ErrActionAborted
+	}
+
+	for _, s := range toPurge {
+		if err := util.RmFile(s); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	fmt.Println(format.Color("backups purged successfully").Green())
+	return nil
+}
+
+// handleBackupRestore
+func handleBackupRestore(_ *Repository) error {
+	fmt.Println("Backup restore...")
+	return nil
+}
+
+// backupInfo
+func backupInfo(r *Repository) string {
+	t := format.Color("backup/s").Purple().Bold().String()
+	if len(r.Cfg.Backup.List()) == 0 {
+		return format.HeaderWithSection(t, []string{format.BulletLine("no backups found", "")})
+	}
+
+	bs := getDBsBasename(r.Cfg.Backup.List())
+	return format.HeaderWithSection(t, bs)
+}
+
+// loadBackups returns a list of backups
+func loadBackups(r *Repository) error {
+	f, err := util.Files(r.Cfg.Backup.GetHome(), r.Cfg.GetName())
+	if err != nil {
+		return fmt.Errorf("loading backups: %w", err)
+	}
+	r.Cfg.Backup.Load(f)
+	return nil
 }
 
 // getBackupsToPurge returns a list of backups filtered by n
@@ -60,175 +189,59 @@ func getBackupsToPurge(files []string, n int) []string {
 	return filtered
 }
 
-// genBackupName generates a backup name
-func genBackupName(s string) string {
+// generateBackupName generates a backup name
+func generateBackupName(s string) string {
 	now := time.Now().Format("2006-01-02_15-04")
 	return fmt.Sprintf("%s_%s", now, s)
 }
 
 // checkBackupEnabled checks if backups are enabled
-func checkBackupEnabled() error {
-	if config.App.BackupMax <= 0 {
-		return fmt.Errorf("%w", ErrBkDisabled)
+func checkBackupEnabled(n int) error {
+	if n <= 0 {
+		return ErrBackupDisabled
 	}
 	return nil
 }
 
-// handleBackupCreate creates a backup
-func handleBackupCreate(args []string) error {
-	srcName := getDBNameFromArgs(args)
-	srcPath := filepath.Join(config.App.Path.Databases, srcName)
-	if err := checkDBState(srcPath); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	destName := genBackupName(srcName)
-	destPath := filepath.Join(config.App.Path.Backup, destName)
-	if fileExists(destPath) {
-		return fmt.Errorf("%w: %s", ErrBkAlreadyExists, destPath)
-	}
-
-	s := backupDetail(srcName)
-	s += "\n" + backupList(srcName)
-	fmt.Println(s)
-
-	if err := checkBackupEnabled(); err != nil {
-		return err
-	}
-
-	if !confirm("create backup?", "Y") {
-		return nil
-	}
-
-	if err := fileCopy(srcPath, destPath); err != nil {
-		return err
-	}
-
-	fmt.Println(format.Text("backup created successfully:").Green(), destName)
+// printsBackupInfo prints repository's backup info
+func printsBackupInfo(r *Repository) error {
+	// FIX: why return a error? remove it
+	var sb strings.Builder
+	sb.WriteString(backupDetail(r) + "\n")
+	sb.WriteString(backupInfo(r))
+	fmt.Println(sb.String())
 	return nil
 }
 
-func backupList(s string) string {
-	files, err := getBackups(s)
-	if err != nil || len(files) == 0 {
-		return ""
+// getBkStateColored returns a colored string with the backups status
+func getBkStateColored(n int) string {
+	if n <= 0 {
+		return format.Color("disabled").Red().String()
 	}
-
-	bks := make([]string, 0, len(files))
-	for _, f := range files {
-		f := filepath.Base(f)
-		bks = append(bks, format.BulletLine(f, ""))
-	}
-
-	t := format.Text("backup/s").Purple().Bold().String()
-	return format.HeaderWithSection(t, bks)
+	return format.Color("enabled").Green().String()
 }
 
-func backupDetail(s string) string {
-	n := config.App.BackupMax
-	files, err := getBackups(s)
-	if err != nil {
-		return ""
+// backupDetail returns a detailed list of backups
+func backupDetail(r *Repository) string {
+	var (
+		n          int
+		found      int
+		foundColor string
+	)
+
+	n = r.Cfg.Backup.GetMax()
+	found = len(r.Cfg.Backup.List())
+	if found > n {
+		foundColor = format.Color(strconv.Itoa(found)).Red().String()
+	} else {
+		foundColor = format.Color(strconv.Itoa(found)).Green().String()
 	}
 
-	f := format.Text(strconv.Itoa(len(files))).Green().String()
-	if len(files) > n {
-		f = format.Text(strconv.Itoa(len(files))).Red().String()
-	}
-
-	a := format.Text(strconv.Itoa(n)).Green().String()
-	return format.HeaderWithSection(format.Text("database").Yellow().Bold().String(), []string{
-		format.BulletLine("name:", format.Text(s).Blue().String()),
-		format.BulletLine("status: ", getBkStateColored()),
+	a := format.Color(strconv.Itoa(n)).Green().String()
+	return format.HeaderWithSection(format.Color("database").Yellow().Bold().String(), []string{
+		format.BulletLine("name:", format.Color(r.Cfg.GetName()).Blue().String()),
+		format.BulletLine("status: ", getBkStateColored(n)),
 		format.BulletLine("max:", fmt.Sprintf("%s backups allowed", a)),
-		format.BulletLine("backup/s:", fmt.Sprintf("%s backups found", f)),
+		format.BulletLine("backup/s:", fmt.Sprintf("%s backups found", foundColor)),
 	})
-}
-
-func backupPurge(args []string) error {
-	name := getDBNameFromArgs(args)
-	bks, err := getBackups(name)
-	if err != nil {
-		return err
-	}
-
-	files := getBackupsToPurge(bks, config.App.BackupMax)
-	p := make([]string, 0, len(files))
-	for _, f := range files {
-		p = append(p, format.BulletLine(filepath.Base(f), ""))
-	}
-
-	del := format.Text(strconv.Itoa(len(files))).Red().Bold().String()
-	s := backupDetail(name)
-	s += format.BulletLine("purge:", fmt.Sprintf("%s backups to delete", del))
-	if len(p) > 0 {
-		s += format.HeaderWithSection(format.Text("\nbackup/s to purge:").Red().Bold().String(), p)
-	}
-	fmt.Println(s)
-
-	if len(files) == 0 {
-		return fmt.Errorf("%w", ErrBkNoPurge)
-	}
-
-	if !forceFlag && !confirm(fmt.Sprintf("purge %s backups?", del), "N") {
-		return nil
-	}
-
-	for _, s := range files {
-		if err := rmFile(s); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-	fmt.Println(format.Text("backups purged successfully").Green())
-	return nil
-}
-
-func backupRestore(args []string) error {
-	s := getDBNameFromArgs(args)
-	b, err := getBackups(s)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < len(b); i++ {
-		f := filepath.Base(b[i])
-		fmt.Println(i, format.Text(f).Yellow())
-	}
-
-	return nil
-}
-
-var backupCmd = &cobra.Command{
-	Use:   "bk",
-	Short: "backup management",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		maxBackups, err := strconv.Atoi(config.GetEnv(config.App.Env.BackupMax, "3"))
-		if err != nil {
-			return fmt.Errorf("loading maxBackups: %w", err)
-		}
-		config.App.SetBackupMax(maxBackups)
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		flags := map[bool]func(args []string) error{
-			bkCreate:  handleBackupCreate,
-			bkList:    handleDBInfo,
-			bkPurge:   backupPurge,
-			bkRestore: backupRestore,
-		}
-		if handler, ok := flags[true]; ok {
-			if err := handler(args); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-		}
-		return nil
-	},
-}
-
-func init() {
-	backupCmd.Flags().BoolVarP(&bkCreate, "create", "c", false, "create backup")
-	backupCmd.Flags().BoolVarP(&bkList, "list", "l", false, "list backups")
-	backupCmd.Flags().BoolVarP(&bkPurge, "purge", "p", false, "remove backup")
-	backupCmd.Flags().BoolVarP(&bkRestore, "restore", "R", false, "restore backup")
-	rootCmd.AddCommand(backupCmd)
 }
