@@ -93,17 +93,6 @@ func (s *Slice[T]) GetAll() *[]T {
 	return s.items
 }
 
-// IDs returns all items IDs
-func (s *Slice[T]) IDs() []int {
-	ids := make([]int, 0, len(*s.items))
-	for _, item := range *s.items {
-		if b, ok := any(item).(Bookmark); ok {
-			ids = append(ids, b.ID)
-		}
-	}
-	return ids
-}
-
 // NewSlice creates a new slice of bookmarks
 func NewSlice[T any]() *Slice[T] {
 	items := make([]T, 0)

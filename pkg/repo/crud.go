@@ -312,7 +312,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 //
 // Inserts the deleted bookmarks into the deleted table.
 func (r *SQLiteRepository) DeleteAndReorder(bs *[]Record, main, deleted string) error {
-	ids := bookmark.ExtractIDsFromSlice(bs)
+	ids := bookmark.ExtractIDs(bs)
 
 	if len(ids) == 0 {
 		return ErrRecordIDNotProvided

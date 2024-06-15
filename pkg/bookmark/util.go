@@ -63,8 +63,8 @@ func HandleTitleAndDesc(url string, minWidth int) (title, desc string) {
 	return sc.Title, sc.Desc
 }
 
-// ExtractIDsFromSlice extracts the IDs from a slice of bookmarks
-func ExtractIDsFromSlice(bs *[]Bookmark) []int {
+// ExtractIDs extracts the IDs from a slice of bookmarks
+func ExtractIDs(bs *[]Bookmark) []int {
 	ids := make([]int, 0, len(*bs))
 	for _, b := range *bs {
 		ids = append(ids, b.ID)

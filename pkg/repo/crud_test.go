@@ -356,15 +356,15 @@ func TestInsertRecordsBulk(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var n = len(bookmarks)
 	var count int
-
 	err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tempTableName)).Scan(&count)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if count != len(bookmarks) {
-		t.Errorf("Expected %d records, got %d", len(bookmarks), count)
+	if count != n {
+		t.Errorf("Expected %d records, got %d", n, count)
 	}
 }
 
