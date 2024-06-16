@@ -25,7 +25,7 @@ func FilesWithSuffix(path, suffix string, files *[]string) error {
 	var err error
 	*files, err = filepath.Glob(path + "/*." + suffix)
 	if err != nil {
-    return fmt.Errorf("getting files: %w with suffix: '%s'", err, suffix)
+		return fmt.Errorf("getting files: %w with suffix: '%s'", err, suffix)
 	}
 
 	return nil

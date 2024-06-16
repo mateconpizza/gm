@@ -8,18 +8,17 @@ issues:
 linters:
   disable-all: true
   enable:
+    # - gomnd
     - dupl
     - errcheck
     - errname
     - errorlint
-    - execinquery
     - exportloopref
     - forcetypeassert
     - goconst
     - gocritic
-    - goerr113
+    - err113
     - goimports
-    # - gomnd
     - gosec
     - gosimple
     - ineffassign
@@ -46,7 +45,7 @@ run:
   tests: true
   issues-exit-code: 1
 output:
-  format: colored-line-number
+  formats: colored-line-number
   print-issued-lines: true
   print-linter-name: true
   uniq-by-line: true
@@ -68,8 +67,6 @@ linters-settings:
       - opinionated
       - performance
       - style
-  govet:
-    check-shadowing: true
     enable:
       - fieldalignment
   nolintlint:

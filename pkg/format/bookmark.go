@@ -28,7 +28,7 @@ func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 	var (
 		sb         strings.Builder
 		withColor  = 12
-		maxTagsLen = 18
+		maxTagsLen = 24
 	)
 
 	maxIDLen := func() int {

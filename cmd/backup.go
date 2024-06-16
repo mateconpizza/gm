@@ -37,6 +37,7 @@ var (
 	ErrBackupStatus        = errors.New("could not get backup status")
 )
 
+// backupCmd backup management
 var backupCmd = &cobra.Command{
 	Use:   "bk",
 	Short: "backup management",
@@ -49,7 +50,7 @@ var backupCmd = &cobra.Command{
 			return err
 		}
 
-		flags := map[bool]func(r *Repository) error{
+		flags := map[bool]func(r *Repo) error{
 			bkCreate:  handleBackupCreate,
 			bkPurge:   handleBackupPurge,
 			bkList:    printsBackupInfo,
@@ -73,7 +74,7 @@ func init() {
 }
 
 // handleBackupCreate creates a backup
-func handleBackupCreate(r *Repository) error {
+func handleBackupCreate(r *Repo) error {
 	var (
 		srcName, srcPath   string
 		destName, destPath string
@@ -106,12 +107,12 @@ func handleBackupCreate(r *Repository) error {
 		return fmt.Errorf("copying file: %w", err)
 	}
 
-	fmt.Println(format.Color("backup created successfully:").Green(), destName)
+	fmt.Println(C("backup created successfully:").Green(), destName)
 	return nil
 }
 
 // handleBackupPurge
-func handleBackupPurge(r *Repository) error {
+func handleBackupPurge(r *Repo) error {
 	var (
 		backupList []string
 		maxBackups int
@@ -132,10 +133,10 @@ func handleBackupPurge(r *Repository) error {
 
 	purgeList = getDBsBasename(toPurge)
 	status = backupDetail(r)
-	nPurgeStr = format.Color(strconv.Itoa(nPurge)).Red().Bold().String()
+	nPurgeStr = C(strconv.Itoa(nPurge)).Red().Bold().String()
 	if nPurge > 0 {
 		status += format.BulletLine("purge:", fmt.Sprintf("%s backups to delete", nPurgeStr))
-		status += format.HeaderWithSection(format.Color("\nbackup/s to purge:").Red().Bold().String(), purgeList)
+		status += format.HeaderWithSection(C("\nbackup/s to purge:").Red().Bold().String(), purgeList)
 	}
 
 	fmt.Println(status)
@@ -149,19 +150,19 @@ func handleBackupPurge(r *Repository) error {
 		}
 	}
 
-	fmt.Println(format.Color("backups purged successfully").Green())
+	fmt.Println(C("backups purged successfully").Green())
 	return nil
 }
 
 // handleBackupRestore
-func handleBackupRestore(_ *Repository) error {
+func handleBackupRestore(_ *Repo) error {
 	fmt.Println("Backup restore...")
 	return nil
 }
 
 // backupInfo
-func backupInfo(r *Repository) string {
-	t := format.Color("backup/s").Purple().Bold().String()
+func backupInfo(r *Repo) string {
+	t := C("backup/s").Purple().Bold().String()
 	if len(r.Cfg.Backup.List()) == 0 {
 		return format.HeaderWithSection(t, []string{format.BulletLine("no backups found", "")})
 	}
@@ -171,7 +172,7 @@ func backupInfo(r *Repository) string {
 }
 
 // loadBackups returns a list of backups
-func loadBackups(r *Repository) error {
+func loadBackups(r *Repo) error {
 	f, err := util.Files(r.Cfg.Backup.GetHome(), r.Cfg.GetName())
 	if err != nil {
 		return fmt.Errorf("loading backups: %w", err)
@@ -204,7 +205,7 @@ func checkBackupEnabled(n int) error {
 }
 
 // printsBackupInfo prints repository's backup info
-func printsBackupInfo(r *Repository) error {
+func printsBackupInfo(r *Repo) error {
 	// FIX: why return a error? remove it
 	var sb strings.Builder
 	sb.WriteString(backupDetail(r) + "\n")
@@ -216,13 +217,13 @@ func printsBackupInfo(r *Repository) error {
 // getBkStateColored returns a colored string with the backups status
 func getBkStateColored(n int) string {
 	if n <= 0 {
-		return format.Color("disabled").Red().String()
+		return C("disabled").Red().String()
 	}
-	return format.Color("enabled").Green().String()
+	return C("enabled").Green().String()
 }
 
 // backupDetail returns a detailed list of backups
-func backupDetail(r *Repository) string {
+func backupDetail(r *Repo) string {
 	var (
 		n          int
 		found      int
@@ -232,14 +233,14 @@ func backupDetail(r *Repository) string {
 	n = r.Cfg.Backup.GetMax()
 	found = len(r.Cfg.Backup.List())
 	if found > n {
-		foundColor = format.Color(strconv.Itoa(found)).Red().String()
+		foundColor = C(strconv.Itoa(found)).Red().String()
 	} else {
-		foundColor = format.Color(strconv.Itoa(found)).Green().String()
+		foundColor = C(strconv.Itoa(found)).Green().String()
 	}
 
-	a := format.Color(strconv.Itoa(n)).Green().String()
-	return format.HeaderWithSection(format.Color("database").Yellow().Bold().String(), []string{
-		format.BulletLine("name:", format.Color(r.Cfg.GetName()).Blue().String()),
+	a := C(strconv.Itoa(n)).Green().String()
+	return format.HeaderWithSection(C("database").Yellow().Bold().String(), []string{
+		format.BulletLine("name:", C(r.Cfg.GetName()).Blue().String()),
 		format.BulletLine("status: ", getBkStateColored(n)),
 		format.BulletLine("max:", fmt.Sprintf("%s backups allowed", a)),
 		format.BulletLine("backup/s:", fmt.Sprintf("%s backups found", foundColor)),

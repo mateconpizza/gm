@@ -49,7 +49,7 @@ func handleByField(bs *Slice) error {
 	if err := bs.ForEachErr(printer); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
+	Prettify = false
 	return nil
 }
 
@@ -96,43 +96,36 @@ func handleHeadAndTail(bs *Slice) error {
 
 // handleListAll retrieves records from the database based on either an ID or a
 // query string.
-func handleListAll(r *Repository, bs *Slice) error {
+func handleListAll(r *Repo, bs *Slice) error {
 	if !List {
 		return nil
 	}
-	b, err := r.GetAll(r.Cfg.GetTableMain())
-	if err != nil {
+	if err := r.GetAll(r.Cfg.GetTableMain(), bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	bs.Set(b)
 	return nil
 }
 
 // handleByQuery
-func handleByQuery(r *Repository, bs *Slice, args []string) error {
+func handleByQuery(r *Repo, bs *Slice, args []string) error {
 	if bs.Len() != 0 || len(args) == 0 {
 		return nil
 	}
 	query := strings.Join(args, "%")
-	b, err := r.GetByQuery(r.Cfg.GetTableMain(), query)
-	if err != nil {
-		return fmt.Errorf("%w by query: '%s'", err, strings.Join(args, " "))
+	if err := r.GetByQuery(r.Cfg.GetTableMain(), query, bs); err != nil {
+		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
 	}
-
-	bs.Set(b)
 	return nil
 }
 
 // handleByTags returns a slice of bookmarks based on the provided tags
-func handleByTags(r *Repository, bs *Slice) error {
+func handleByTags(r *Repo, bs *Slice) error {
 	if Tags == "" {
 		return nil
 	}
-	b, err := r.GetByTags(r.Cfg.GetTableMain(), Tags)
-	if err != nil {
+	if err := r.GetByTags(r.Cfg.GetTableMain(), Tags, bs); err != nil {
 		return fmt.Errorf("byTags :%w", err)
 	}
-	bs.Set(b)
 	if bs.Len() == 0 {
 		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNotFound, Tags)
 	}
@@ -140,7 +133,7 @@ func handleByTags(r *Repository, bs *Slice) error {
 }
 
 // handleAdd fetch metadata and adds a new bookmark
-func handleAdd(r *Repository, args []string) error {
+func handleAdd(r *Repo, args []string) error {
 	if !Add {
 		return nil
 	}
@@ -180,7 +173,7 @@ func handleAdd(r *Repository, args []string) error {
 }
 
 // handleEdition renders the edition interface
-func handleEdition(r *Repository, bs *Slice) error {
+func handleEdition(r *Repo, bs *Slice) error {
 	if !Edit {
 		return nil
 	}
@@ -230,7 +223,7 @@ func handleEdition(r *Repository, bs *Slice) error {
 }
 
 // handleRemove prompts the user the records to remove
-func handleRemove(r *Repository, bs *Slice) error {
+func handleRemove(r *Repo, bs *Slice) error {
 	if !Remove {
 		return nil
 	}
@@ -279,7 +272,7 @@ func handleRemove(r *Repository, bs *Slice) error {
 
 	done := make(chan bool)
 	go util.Spinner(done, C("removing record/s...").Gray().String())
-	if err := r.DeleteAndReorder(bs.GetAll(), r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
+	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 	time.Sleep(time.Second * 1)
@@ -330,7 +323,7 @@ func handleCopyOpen(bs *Slice) error {
 
 // handleBookmarksFromArgs retrieves records from the database based on either an
 // ID or a query string.
-func handleIDsFromArgs(r *Repository, bs *Slice, args []string) error {
+func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 	ids, err := extractIDsFromStr(args)
 	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
 		return fmt.Errorf("%w", err)
@@ -340,17 +333,15 @@ func handleIDsFromArgs(r *Repository, bs *Slice, args []string) error {
 		return nil
 	}
 
-	b, err := r.GetByIDList(r.Cfg.GetTableMain(), ids)
-	if err != nil {
+	if err := r.GetByIDList(r.Cfg.GetTableMain(), ids, bs); err != nil {
 		return fmt.Errorf("records from args: %w", err)
 	}
 
-	if len(*b) == 0 {
+	if bs.Len() == 0 {
 		a := strings.TrimRight(strings.Join(args, " "), "\n")
 		return fmt.Errorf("%w by id/s: %s", repo.ErrRecordNotFound, a)
 	}
 
-	bs.Set(b)
 	return nil
 }
 

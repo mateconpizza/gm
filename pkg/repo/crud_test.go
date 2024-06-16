@@ -302,24 +302,26 @@ func TestGetRecordsByQuery(t *testing.T) {
 	_, _ = r.Insert(tempTableName, &b)
 	b.URL = "https://www.another.com"
 
-	records, err := r.GetByQuery(tempTableName, "example")
-	if err != nil {
+	var bs = bookmark.NewSlice[Record]()
+	if err := r.GetByQuery(tempTableName, "example", bs); err != nil {
 		t.Errorf("Error getting bookmarks by query: %v", err)
 	}
 
-	if len(*records) != expectedRecords {
-		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", len(*records), 2)
+	var n = bs.Len()
+
+	if n != expectedRecords {
+		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", n, 2)
 	}
 
 	var count int
-	err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tempTableName)).Scan(&count)
+	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tempTableName)).Scan(&count)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if count != len(*records) {
-		t.Errorf("Expected %d records, got %d", len(*records), count)
+	if count != n {
+		t.Errorf("Expected %d records, got %d", n, count)
 	}
 }
 
@@ -351,7 +353,9 @@ func TestInsertRecordsBulk(t *testing.T) {
 		},
 	}
 
-	err := r.insertBulk(tempTableName, &bookmarks)
+	var bs = bookmark.NewSlice[Record]()
+	bs.Set(&bookmarks)
+	err := r.insertBulk(tempTableName, bs)
 	if err != nil {
 		t.Fatal(err)
 	}

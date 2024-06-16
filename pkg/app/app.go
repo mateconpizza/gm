@@ -51,6 +51,7 @@ type Info struct {
 	Desc  string `json:"desc"`
 }
 
+// New creates a new instance of the App struct with default values.
 func New() *App {
 	return &App{
 		Name:    "gomarks",

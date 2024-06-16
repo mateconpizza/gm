@@ -1,18 +1,15 @@
 # gomarks - simple bookmark manager
 # See LICENSE file for copyright and license details.
 
-NAME = gm
-SRC = ./main.go
-BIN = ./bin/$(NAME)
+NAME = gm## name
+SRC = ./main.go## source
+BIN = ./bin/$(NAME)## binary
 
-.PHONY: all build run test vet clean
+.PHONY: all build run test vet clean full
 
 all: full
 
 full: vet lint test build
-
-help:	## This help dialog.
-	@grep -F -h "##" $(MAKEFILE_LIST) | grep -F -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
 
 build: vet test	## Generate bin
 	@echo '>> Building $(NAME)'
@@ -28,44 +25,44 @@ beta: vet test
 	@echo '>> Building $(NAME)'
 	@go build -o $(BIN)-beta $(SRC)
 
-debug: vet test
+debug: vet test ## Generate bin with debugger
 	@echo '>> Building $(NAME) with debugger'
 	@go build -gcflags="all=-N -l" -o $(BIN)-debug $(SRC)
 
-run: build
+run: build ## Run
 	@echo '>> Running $(NAME)'
 	$(BIN)
 
-test: vet
+test: vet ## Test
 	@echo '>> Testing $(NAME)'
 	@go test ./...
 	@echo
 
-test-verbose: vet
+test-verbose: vet ## Test with verbose
 	@echo '>> Testing $(NAME) (verbose)'
 	@go test -v ./...
 
-vet:
+vet: ## Check code
 	@echo '>> Checking code with go vet'
 	@go vet ./...
 
-clean:
+clean: ## Clean cache
 	@echo '>> Cleaning up'
 	rm -f $(BIN)
 	go clean -cache
 
 .PHONY: fmt
-fmt:
+fmt: ## Format code with 'gofumpt'
 	@echo '>> Formatting code'
 	@gofumpt -l -w .
 
 .PHONY: lint
-lint: vet
+lint: vet ## Lint code with 'golangci-lint'
 	@echo '>> Linting code'
 	@golangci-lint run ./...
 	@codespell .
 
 .PHONY: check
-check:
+check: ## Lint code with 'golangci-lint' and 'codespell'
 	@echo '>> Linting everything'
 	@golangci-lint run -p bugs -p error

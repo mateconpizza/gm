@@ -25,13 +25,11 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		bookmarks, err := r.GetAll(Cfg.GetTableMain())
-		if err != nil {
+		var bs = bookmark.NewSlice[Bookmark]()
+		if err := r.GetAll(Cfg.GetTableMain(), bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
 
-		var bs = bookmark.NewSlice[Bookmark]()
-		bs.Set(bookmarks)
 		Prettify = true
 		return handleFormat(bs)
 	},
@@ -41,7 +39,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-func initDB(r *Repository) error {
+func initDB(r *Repo) error {
 	if r.IsInitialized(r.Cfg.GetTableMain()) && !Force {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyInitialized, DBName)
 	}
@@ -66,10 +64,9 @@ func initDB(r *Repository) error {
 }
 
 func printSummary() {
-	var c = format.Color
 	fmt.Println(app.PrettyVersion(Prettify))
-	fmt.Printf("+ app folder at: %s\n", c(App.Home).Yellow())
-	fmt.Printf("+ %s folder at: %s\n", c("databases").Blue(), format.Color(Cfg.GetHome()).Cyan())
-	fmt.Printf("+ database '%s' initialized\n", c(DBName).Green())
-	fmt.Printf("+ %s bookmark created\n\n", c("initial").Purple())
+	fmt.Printf("+ app folder at: %s\n", C(App.Home).Yellow())
+	fmt.Printf("+ %s folder at: %s\n", C("databases").Blue(), C(Cfg.GetHome()).Cyan())
+	fmt.Printf("+ database '%s' initialized\n", C(DBName).Green())
+	fmt.Printf("+ %s bookmark created\n\n", C("initial").Purple())
 }

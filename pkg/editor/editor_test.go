@@ -73,15 +73,16 @@ func TestExtractBlock(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for _, tt := range tests {
+		test := tt
 		result := ExtractBlock(&test.content, test.startMarker, test.endMarker)
-		if result != test.expected {
+		if result != tt.expected {
 			t.Errorf(
 				"Failed for content: %v, startMarker: %s, endMarker: %s\nExpected: %s\nGot: %s\n",
-				test.content,
-				test.startMarker,
-				test.endMarker,
-				test.expected,
+				tt.content,
+				tt.startMarker,
+				tt.endMarker,
+				tt.expected,
 				result,
 			)
 		}

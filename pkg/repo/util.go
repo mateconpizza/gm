@@ -7,20 +7,21 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/format"
 )
 
 // reorderIDs reorders the IDs in the specified table.
 func (r *SQLiteRepository) reorderIDs(tableName string) error {
-	// FIX: Everytime we re-order IDs, the db's size gets bigger
+	// FIX: Every time we re-order IDs, the db's size gets bigger
 	// It's a bad implementation? (but it works)
 	// Maybe use 'VACUUM' command? it is safe?
-	bs, err := r.GetAll(tableName)
-	if err != nil {
+	bs := bookmark.NewSlice[Record]()
+	if err := r.GetAll(tableName, bs); err != nil {
 		return err
 	}
 
-	if len(*bs) == 0 {
+	if bs.Len() == 0 {
 		return nil
 	}
 
@@ -39,19 +40,6 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 	}
 
 	return r.tableRename(tempTable, tableName)
-}
-
-// configure configures the repository
-func (r *SQLiteRepository) configure(c *SQLiteConfig) error {
-	// FIX: when creating a new db, this gets in the way
-	// Use this function after checking that the DB is initialized
-	/* if exists, _ := r.tableExists(c.GetTableMain()); !exists {
-		return fmt.Errorf("%w: '%s'", ErrDBNotInitialized, c.GetName())
-	} */
-	if err := r.checkSize(c.GetMaxSizeBytes()); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	return nil
 }
 
 // maintenance

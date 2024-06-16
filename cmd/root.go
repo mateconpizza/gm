@@ -8,24 +8,22 @@ import (
 	"github.com/haaag/gm/pkg/app"
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
-	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 )
 
 // TODO)):
-// - [ ] use io.Reader for read in chunks
-//  - [ ] modify functions with []byte or json.Marshal
-// - [ ] remove verbose settings, better use a library for logging
+// ## Logging
+// - [ ] remove verbose settings, use a library for logging?
 // ## Editor
 // - [X] create a pkg named editor
 // ## Terminal
 // - [X] create a pkg named terminal
 
 type (
-	Bookmark   = bookmark.Bookmark
-	Slice      = bookmark.Slice[Bookmark]
-	Repository = repo.SQLiteRepository
+	Bookmark = bookmark.Bookmark
+	Slice    = bookmark.Slice[Bookmark]
+	Repo     = repo.SQLiteRepository
 )
 
 var (
@@ -38,13 +36,14 @@ var (
 	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set
 	textEditors = []string{"vim", "nvim", "nano", "emacs", "helix"}
 
-	// App is the configuration and info for the application
+	// App is the config with default values for the app
 	App = app.New()
 
 	// SQLiteCfg holds the configuration for the database and backups
 	Cfg *repo.SQLiteConfig
 )
 
+// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:          App.Cmd,
 	Short:        App.Info.Title,
@@ -52,8 +51,9 @@ var rootCmd = &cobra.Command{
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// TODO: make it more robust?
 		if !dbExistsAndInit(Cfg.GetHome(), DBName) && !DBInit {
-			init := format.Color("--init").Yellow().Bold()
+			init := C("--init").Yellow().Bold()
 			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
 		}
 		return nil
@@ -115,7 +115,7 @@ func initConfig() {
 	}
 }
 
-func handleListAndEdit(r *Repository, bs *Slice, args []string) error {
+func handleListAndEdit(r *Repo, bs *Slice, args []string) error {
 	if err := handleListAll(r, bs); err != nil {
 		return err
 	}
