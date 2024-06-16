@@ -14,11 +14,9 @@ const (
 	_indentation = 10
 )
 
-var c = format.Color
-
 // HandleURL handles the URL
 func HandleURL(args *[]string) string {
-	urlPrompt := c("+ URL\t:").Blue().Bold().String()
+	urlPrompt := C("+ URL\t:").Blue().Bold().String()
 
 	if len(*args) > 0 {
 		url := (*args)[0]
@@ -28,13 +26,13 @@ func HandleURL(args *[]string) string {
 		return url
 	}
 
-	urlPrompt += c("\n > ").Orange().Bold().String()
+	urlPrompt += C("\n > ").Orange().Bold().String()
 	return terminal.ReadInput(urlPrompt)
 }
 
 // HandleTags handles the tags
 func HandleTags(args *[]string) string {
-	tagsPrompt := c("+ Tags\t:").Purple().Bold().String()
+	tagsPrompt := C("+ Tags\t:").Purple().Bold().String()
 
 	if len(*args) > 0 {
 		tags := (*args)[0]
@@ -45,8 +43,8 @@ func HandleTags(args *[]string) string {
 		return tags
 	}
 
-	tagsPrompt += c(" (comma-separated)").Italic().Gray().String()
-	tagsPrompt += c("\n > ").Orange().Bold().String()
+	tagsPrompt += C(" (comma-separated)").Italic().Gray().String()
+	tagsPrompt += C("\n > ").Orange().Bold().String()
 	return terminal.ReadInput(tagsPrompt)
 }
 
@@ -55,9 +53,9 @@ func HandleTitleAndDesc(url string, minWidth int) (title, desc string) {
 	var r strings.Builder
 	sc := scraper.New(url)
 	_ = sc.Scrape()
-	r.WriteString(c("+ Title\t: ").Green().Bold().String())
+	r.WriteString(C("+ Title\t: ").Green().Bold().String())
 	r.WriteString(format.SplitAndAlignString(sc.Title, minWidth, _indentation))
-	r.WriteString(c("\n+ Desc\t: ").Yellow().Bold().String())
+	r.WriteString(C("\n+ Desc\t: ").Yellow().Bold().String())
 	r.WriteString(format.SplitAndAlignString(sc.Desc, minWidth, _indentation))
 	fmt.Println(r.String())
 	return sc.Title, sc.Desc

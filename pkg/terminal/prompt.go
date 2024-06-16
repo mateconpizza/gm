@@ -74,8 +74,8 @@ func promptWithOptsAndDef(options []string, def string) []string {
 	return options
 }
 
-// ReadPipeInput reads the input from a pipe
-func ReadPipeInput(args *[]string) {
+// ReadPipedInput reads the input from a pipe
+func ReadPipedInput(args *[]string) {
 	if !IsPiped() {
 		return
 	}

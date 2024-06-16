@@ -27,7 +27,8 @@ func handleByField(bs *Slice) error {
 	if Field == "" {
 		return nil
 	}
-	err := bs.ForEachErr(func(b Bookmark) error {
+
+	var printer = func(b Bookmark) error {
 		switch Field {
 		case "id":
 			fmt.Println(b.GetID())
@@ -43,9 +44,9 @@ func handleByField(bs *Slice) error {
 			return fmt.Errorf("%w: '%s'", ErrUnknownField, Field)
 		}
 		return nil
-	})
+	}
 
-	if err != nil {
+	if err := bs.ForEachErr(printer); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -131,10 +132,10 @@ func handleByTags(r *Repository, bs *Slice) error {
 	if err != nil {
 		return fmt.Errorf("byTags :%w", err)
 	}
-	if len(*b) == 0 {
+	bs.Set(b)
+	if bs.Len() == 0 {
 		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNotFound, Tags)
 	}
-	bs.Set(b)
 	return nil
 }
 
@@ -153,6 +154,7 @@ func handleAdd(r *Repository, args []string) error {
 	if url == "" {
 		return ErrURLNotProvided
 	}
+	url = strings.TrimRight(url, "/")
 	if r.RecordExists(r.Cfg.GetTableMain(), "url", url) {
 		item, _ := r.GetByURL(r.Cfg.GetTableMain(), url)
 		return fmt.Errorf("%w with id: %d", bookmark.ErrBookmarkDuplicate, item.ID)
@@ -188,8 +190,8 @@ func handleEdition(r *Repository, bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
-	err := bs.ForEachIdx(func(i int, b Bookmark) error {
-		buf := b.Buffer()
+	var edition = func(i int, b Bookmark) error {
+		var buf = b.Buffer()
 		editor.AppendBuffer(fmt.Sprintf("## Editing [%d/%d] bookmark/s:\n\n", i+1, n), &buf)
 		editor.AppendVersionBuffer(App.Name, App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
@@ -218,9 +220,9 @@ func handleEdition(r *Repository, bs *Slice) error {
 
 		fmt.Printf("%s: id: [%d] %s\n", App.GetName(), b.ID, C("updated").Blue())
 		return nil
-	})
+	}
 
-	if err != nil {
+	if err := bs.ForEachIdx(edition); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -247,7 +249,6 @@ func handleRemove(r *Repository, bs *Slice) error {
 	for !Force {
 		var prompt string
 		n := bs.Len()
-
 		if n == 0 {
 			return repo.ErrRecordNotFound
 		}
@@ -345,7 +346,8 @@ func handleIDsFromArgs(r *Repository, bs *Slice, args []string) error {
 	}
 
 	if len(*b) == 0 {
-		return fmt.Errorf("%w by id/s: %s", repo.ErrRecordNotFound, strings.Join(args, " "))
+		a := strings.TrimRight(strings.Join(args, " "), "\n")
+		return fmt.Errorf("%w by id/s: %s", repo.ErrRecordNotFound, a)
 	}
 
 	bs.Set(b)

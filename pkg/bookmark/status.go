@@ -46,7 +46,8 @@ func CheckStatus(bs *Slice[Bookmark]) error {
 	sem = semaphore.NewWeighted(int64(maxConRequests))
 	start = time.Now()
 	ctx := context.Background()
-	if err := bs.ForEachErr(func(b Bookmark) error {
+
+	var schedule = func(b Bookmark) error {
 		wg.Add(1)
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
@@ -61,7 +62,9 @@ func CheckStatus(bs *Slice[Bookmark]) error {
 		}(&b)
 
 		return nil
-	}); err != nil {
+	}
+
+	if err := bs.ForEachErr(schedule); err != nil {
 		return err
 	}
 

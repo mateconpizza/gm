@@ -98,30 +98,16 @@ func filterBookmarkSelection(bs *Slice) error {
 	}
 
 	c := editor.Content(&buf)
-	lines := editor.ExtractContentLine(&c)
-	if len(lines) == 0 {
+	urls := editor.ExtractContentLine(&c)
+	if len(urls) == 0 {
 		return ErrActionAborted
 	}
 
-	// var remove []Bookmark
-	// var newRemove = bookmark.NewSlice[Bookmark]()
-
 	bs.Filter(func(b Bookmark) bool {
-		for _, l := range lines {
-			return l == b.URL
-		}
-		return false
+		_, exists := urls[b.URL]
+		return exists
 	})
 
-	/* for i := 0; i < bs.Len(); i++ {
-		for _, l := range lines {
-			if l == (*bs)[i].URL {
-				remove = append(remove, (*bs)[i])
-				break
-			}
-		}
-	}
-	*bs = remove */
 	return nil
 }
 

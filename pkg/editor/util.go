@@ -42,15 +42,15 @@ func IsSameContentBytes(a, b *[]byte) bool {
 }
 
 // ExtractContentLine extracts URLs from the a slice of strings
-func ExtractContentLine(c *[]string) []string {
-	var r []string
+func ExtractContentLine(c *[]string) map[string]bool {
+	var m = make(map[string]bool)
 	for _, l := range *c {
 		l = strings.TrimSpace(l)
 		if !strings.HasPrefix(l, "#") && !strings.EqualFold(l, "") {
-			r = append(r, l)
+			m[l] = true
 		}
 	}
-	return r
+	return m
 }
 
 // saveDataToTempFile Writes the provided data to a temporary file and returns the file handle.

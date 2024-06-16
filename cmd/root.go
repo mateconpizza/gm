@@ -69,6 +69,8 @@ var rootCmd = &cobra.Command{
 		}
 		defer r.Close()
 
+		terminal.ReadPipedInput(&args)
+
 		if Add {
 			return handleAdd(r, args)
 		}
