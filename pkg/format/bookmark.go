@@ -26,9 +26,9 @@ type Bookmarker interface {
 // Oneline prints a bookmark in a single line
 func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 	var (
+		maxTagsLen = 18
 		sb         strings.Builder
-		withColor  = 12
-		maxTagsLen = 24
+		withColor  = 14
 	)
 
 	maxIDLen := func() int {
@@ -39,16 +39,17 @@ func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 	}()
 
 	// calculate maximum length for url and tags based on total width
-	maxURLLen := maxWidth - maxIDLen
+	maxURLLen := maxWidth - maxIDLen - maxTagsLen
 
 	// define template with formatted placeholders
 	template := "%-*s %-*s %-*s\n"
 
 	coloredID := Color(strconv.Itoa(b.GetID())).Yellow().String()
-	shortenedURL := ShortenString(Color(b.GetURL()).Gray().String(), maxURLLen)
-	shortenedTags := ShortenString(b.GetTags(), maxTagsLen)
-	formattedTags := Color(shortenedTags).Cyan().String()
-	sb.WriteString(fmt.Sprintf(template, maxIDLen, coloredID, maxURLLen, shortenedURL, maxTagsLen, formattedTags))
+	shortenedURL := ShortenString(b.GetURL(), maxURLLen)
+	colorURL := Color(shortenedURL).Gray().String()
+	maxURLLen += len(colorURL) - len(shortenedURL)
+	formattedTags := Color(b.GetTags()).Cyan().String()
+	sb.WriteString(fmt.Sprintf(template, maxIDLen, coloredID, maxURLLen, colorURL, maxTagsLen, formattedTags))
 	return sb.String()
 }
 
