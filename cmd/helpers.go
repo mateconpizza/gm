@@ -73,26 +73,27 @@ func copyToClipboard(s string) error {
 }
 
 // Open opens a URL in the default browser
-func openInBrowser(s string) error {
-	var err error
+func openBrowser(url string) error {
+	var args []string
 	switch runtime.GOOS {
-	case "linux":
-		err = exec.Command("xdg-open", s).Start()
-	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", s).Start()
 	case "darwin":
-		err = exec.Command("open", s).Start()
+		args = []string{"open"}
+	case "windows":
+		args = []string{"cmd", "/c", "start"}
 	default:
-		err = terminal.ErrUnsupportedPlatform
+		args = []string{"xdg-open"}
 	}
-	return err
+
+	cmd := exec.Command(args[0], append(args[1:], url)...)
+	err := cmd.Run()
+	return fmt.Errorf("%w: opening in browser", err)
 }
 
 // filterBookmarkSelection select which item to remove from a slice using the
 // text editor
 func filterBookmarkSelection(bs *Slice) error {
 	buf := bookmark.GetBufferSlice(bs)
-	editor.AppendVersionBuffer(App.Name, App.Version, &buf)
+	editor.AppendVersion(App.Name, App.Version, &buf)
 	if err := editor.Edit(&buf); err != nil {
 		return fmt.Errorf("on editing slice buffer: %w", err)
 	}

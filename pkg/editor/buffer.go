@@ -5,16 +5,16 @@ import (
 	"strings"
 )
 
-// AppendBuffer inserts a header string at the beginning of a byte
+// Append inserts a header string at the beginning of a byte
 // buffer
-func AppendBuffer(s string, buf *[]byte) {
+func Append(s string, buf *[]byte) {
 	*buf = append([]byte(s), *buf...)
 }
 
-// AppendVersionBuffer inserts a header string at the beginning of a byte
+// AppendVersion inserts a header string at the beginning of a byte
 // buffer
-func AppendVersionBuffer(name, version string, buf *[]byte) {
-	AppendBuffer(fmt.Sprintf("## %s: v%s\n", name, version), buf)
+func AppendVersion(name, version string, buf *[]byte) {
+	Append(fmt.Sprintf("## %s: v%s\n", name, version), buf)
 }
 
 // isEmptyLine checks if a line is empty
@@ -24,19 +24,14 @@ func isEmptyLine(line string) bool {
 
 // Validate checks if the URL and Tags are in the content
 func Validate(content *[]string) error {
-	url := ExtractBlock(content, "# URL:", "# Title:")
-	if isEmptyLine(url) {
-		return fmt.Errorf("%w: URL", ErrLineNotFound)
+	if err := validateURLBuffer(content); err != nil {
+		return err
 	}
-	tags := ExtractBlock(content, "# Tags:", "# Description:")
-	if isEmptyLine(tags) {
-		return fmt.Errorf("%w: Tags", ErrLineNotFound)
-	}
-	return nil
+	return validateTagsBuffer(content)
 }
 
-// ValidateURLBuffer validates url in the buffer
-func ValidateURLBuffer(content *[]string) error {
+// validateURLBuffer validates url in the buffer
+func validateURLBuffer(content *[]string) error {
 	url := ExtractBlock(content, "# URL:", "# Title:")
 	if isEmptyLine(url) {
 		return fmt.Errorf("%w: URL", ErrLineNotFound)
@@ -44,8 +39,8 @@ func ValidateURLBuffer(content *[]string) error {
 	return nil
 }
 
-// ValidateTagsBuffer validates tags in the buffer
-func ValidateTagsBuffer(content *[]string) error {
+// validateTagsBuffer validates tags in the buffer
+func validateTagsBuffer(content *[]string) error {
 	tags := ExtractBlock(content, "# Tags:", "# Description:")
 	if isEmptyLine(tags) {
 		return fmt.Errorf("%w: Tags", ErrLineNotFound)

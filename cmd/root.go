@@ -80,6 +80,10 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		if bs.Len() == 0 {
+			return repo.ErrRecordNoMatch
+		}
+
 		return handleOutput(bs)
 	},
 }
@@ -149,10 +153,6 @@ func handleOutput(bs *Slice) error {
 	}
 	if err := handleByField(bs); err != nil {
 		return err
-	}
-
-	if bs.Len() == 0 {
-		return repo.ErrRecordNotFound
 	}
 
 	if err := handleCopyOpen(bs); err != nil {

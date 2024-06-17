@@ -15,6 +15,7 @@ const (
 	_maxBytesSize int64  = 300000
 	_mainTable    string = "bookmarks"
 	_deletedTable string = "deleted_bookmarks"
+	_dateFormat   string = "2006-01-02 15:04:05"
 )
 
 // SQLiteRepository implements the Repository interface

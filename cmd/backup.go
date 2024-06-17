@@ -19,6 +19,8 @@ import (
 // TODO)):
 // - [ ] implement the `slice` struct
 
+const backupDateFormat = "2006-01-02_15-04"
+
 var (
 	bkCreate  bool
 	bkList    bool
@@ -192,7 +194,7 @@ func getBackupsToPurge(files []string, n int) []string {
 
 // generateBackupName generates a backup name
 func generateBackupName(s string) string {
-	now := time.Now().Format("2006-01-02_15-04")
+	now := time.Now().Format(backupDateFormat)
 	return fmt.Sprintf("%s_%s", now, s)
 }
 

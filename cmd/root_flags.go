@@ -35,13 +35,14 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Global
-	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "verbose mode")
+	rootCmd.PersistentFlags().BoolVar(&DBInit, "init", false, "initialize a database")
 	rootCmd.PersistentFlags().StringVarP(&DBName, "name", "n", app.DefaultDBName, "database name")
 	rootCmd.PersistentFlags().BoolVar(&Force, "force", false, "force action | don't ask confirmation")
-	rootCmd.PersistentFlags().StringVar(&WithColor, "color", "always", "print with pretty colors [always|never]")
+	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&Json, "json", "j", false, "print data in JSON format")
 	rootCmd.PersistentFlags().BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format")
-	rootCmd.PersistentFlags().BoolVar(&DBInit, "init", false, "initialize a database")
+	rootCmd.PersistentFlags().StringVar(&WithColor, "color", "always", "print with pretty colors [always|never]")
+	rootCmd.MarkFlagsMutuallyExclusive("json", "pretty")
 
 	// Actions
 	rootCmd.Flags().BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")

@@ -42,8 +42,8 @@ func getHeaders() http.Header {
 }
 
 func (s *Scraper) Scrape() error {
-	done := make(chan bool)
-	go util.Spinner(done, format.Color("scraping title and desc...").Gray().String())
+	chDone := make(chan bool)
+	go util.Spinner(chDone, format.Color("scraping title and desc...").Gray().String())
 
 	s.collector.OnRequest(func(r *colly.Request) {
 		headers := getHeaders()
@@ -81,6 +81,6 @@ func (s *Scraper) Scrape() error {
 		fmt.Println(format.Color("failed to visit URL:", err.Error()).Dim().String())
 	}
 
-	done <- true
+	chDone <- true
 	return nil
 }

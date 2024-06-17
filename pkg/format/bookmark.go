@@ -46,9 +46,9 @@ func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 
 	coloredID := Color(strconv.Itoa(b.GetID())).Yellow().String()
 	shortenedURL := ShortenString(b.GetURL(), maxURLLen)
-	colorURL := Color(shortenedURL).Gray().String()
+	colorURL := Color(shortenedURL).String()
 	maxURLLen += len(colorURL) - len(shortenedURL)
-	formattedTags := Color(b.GetTags()).Cyan().String()
+	formattedTags := Color(b.GetTags()).Cyan().Italic().String()
 	sb.WriteString(fmt.Sprintf(template, maxIDLen, coloredID, maxURLLen, colorURL, maxTagsLen, formattedTags))
 	return sb.String()
 }

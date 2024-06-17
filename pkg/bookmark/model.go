@@ -4,10 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
-	"strings"
-
-	"github.com/haaag/gm/pkg/scraper"
 )
 
 var (
@@ -55,30 +51,9 @@ func (b *Bookmark) GetCreatedAt() string {
 	return b.CreatedAt
 }
 
-func (b *Bookmark) SetID(i int) {
-	b.ID = i
-}
-
-func (b *Bookmark) SetURL(s string) {
-	b.URL = s
-}
-
-func (b *Bookmark) SetTitle(s string) {
-	b.Title = s
-}
-
-func (b *Bookmark) SetTags(s string) {
-	b.Tags = s
-}
-
-func (b *Bookmark) SetDesc(s string) {
-	b.Desc = s
-}
-
 // Buffer returns a complete buf
 func (b *Bookmark) Buffer() []byte {
 	buf := bytes.NewBuffer([]byte{})
-	fmt.Fprintf(buf, "# ID: [%d] (%s)\n", b.ID, b.GetCreatedAt())
 	fmt.Fprintf(buf, `# URL:
 %s
 # Title: (leave an empty line for web fetch)
@@ -91,7 +66,7 @@ func (b *Bookmark) Buffer() []byte {
 	return buf.Bytes()
 }
 
-// BufSimple returns s simple buf
+// BufSimple returns a simple buf with ID, title, tags and URL
 func (b *Bookmark) BufSimple() []byte {
 	id := fmt.Sprintf("[%d]", b.ID)
 	return []byte(fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL))
@@ -104,47 +79,5 @@ func New(bURL, title, tags, desc string) *Bookmark {
 		Title: title,
 		Tags:  tags,
 		Desc:  desc,
-	}
-}
-
-// GetBufferSlice returns a buffer with the provided slice of bookmarks
-func GetBufferSlice(bs *Slice[Bookmark]) []byte {
-	buf := bytes.NewBuffer([]byte{})
-	buf.WriteString("## To keep a bookmark, remove the <URL> line\n")
-	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())
-	bs.ForEach(func(b Bookmark) {
-		buf.Write(b.BufSimple())
-	})
-	return bytes.TrimSpace(buf.Bytes())
-}
-
-// Validate validates the bookmark
-func Validate(b *Bookmark) error {
-	if b.URL == "" {
-		log.Print("bookmark is invalid. URL is empty")
-		return ErrBookmarkURLEmpty
-	}
-
-	if b.Tags == "," || b.Tags == "" {
-		log.Print("bookmark is invalid. Tags are empty")
-		return ErrBookmarkTagsEmpty
-	}
-
-	log.Print("bookmark is valid")
-	return nil
-}
-
-func checkTitleAndDesc(b *Bookmark) {
-	sc := scraper.New(b.URL)
-	update := b.Title == "" || b.Desc == ""
-
-	if update {
-		_ = sc.Scrape()
-		if b.Title == "" {
-			b.Title = strings.TrimSpace(sc.Title)
-		}
-		if b.Desc == "" {
-			b.Desc = strings.TrimSpace(sc.Desc)
-		}
 	}
 }

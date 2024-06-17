@@ -1,7 +1,9 @@
 package bookmark
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/haaag/gm/pkg/editor"
@@ -77,6 +79,57 @@ func ParseContent(content *[]string) *Bookmark {
 	tags := editor.ExtractBlock(content, "# Tags:", "# Description:")
 	desc := editor.ExtractBlock(content, "# Description:", "# end")
 	b := &Bookmark{URL: url, Title: title, Tags: format.ParseTags(tags), Desc: desc}
-	checkTitleAndDesc(b)
+
+	if b.Title == "" || b.Desc == "" {
+		sc := scraper.New(b.URL)
+		_ = sc.Scrape()
+		b.Title = ValidateAttr(b.Title, sc.Title)
+		b.Desc = ValidateAttr(b.Desc, sc.Desc)
+	}
 	return b
+}
+
+// normalizeSpace
+func normalizeSpace(s string) string {
+	s = strings.TrimSpace(s)
+	return strings.Join(strings.Fields(s), " ")
+}
+
+// ValidateAttr validates bookmark attribute
+func ValidateAttr(s, fallback string) string {
+	s = normalizeSpace(s)
+	s = strings.TrimSpace(s)
+
+	if s == "" {
+		return strings.TrimSpace(fallback)
+	}
+
+	return s
+}
+
+// Validate validates the bookmark
+func Validate(b *Bookmark) error {
+	if b.URL == "" {
+		log.Print("bookmark is invalid. URL is empty")
+		return ErrBookmarkURLEmpty
+	}
+
+	if b.Tags == "," || b.Tags == "" {
+		log.Print("bookmark is invalid. Tags are empty")
+		return ErrBookmarkTagsEmpty
+	}
+
+	log.Print("bookmark is valid")
+	return nil
+}
+
+// GetBufferSlice returns a buffer with the provided slice of bookmarks
+func GetBufferSlice(bs *Slice[Bookmark]) []byte {
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString("## To keep a bookmark, remove the <URL> line\n")
+	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())
+	bs.ForEach(func(b Bookmark) {
+		buf.Write(b.BufSimple())
+	})
+	return bytes.TrimSpace(buf.Bytes())
 }

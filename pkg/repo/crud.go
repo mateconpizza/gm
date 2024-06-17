@@ -70,7 +70,7 @@ func (r *SQLiteRepository) Insert(tableName string, b *Record) (*Record, error) 
 		b.Title,
 		b.Tags,
 		b.Desc,
-		currentTime.Format("2006-01-02 15:04:05"),
+		currentTime.Format(_dateFormat),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)
@@ -436,7 +436,7 @@ func (r *SQLiteRepository) GetByQuery(tableName, q string, bs *Slice) error {
 
 	var n = bs.Len()
 	if n == 0 {
-		return ErrNoMatch
+		return ErrRecordNoMatch
 	}
 
 	log.Printf("got %d records by query: '%s'", n, q)

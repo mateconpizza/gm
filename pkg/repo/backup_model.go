@@ -31,6 +31,10 @@ func (b *Backup) List() []string {
 	return b.Files
 }
 
+func (b *Backup) Len() int {
+	return len(b.Files)
+}
+
 func (b *Backup) GetHome() string {
 	return b.Home
 }

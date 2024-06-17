@@ -391,7 +391,7 @@ func TestRenameTable(t *testing.T) {
 	}
 }
 
-func TestBookmarkIsValid(t *testing.T) {
+func TestRecordIsValid(t *testing.T) {
 	validBookmark := Record{
 		Title: "Example",
 		URL:   "https://www.example.com",

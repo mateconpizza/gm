@@ -19,13 +19,13 @@ var (
 
 var (
 	// records
-	ErrNoMatch                = errors.New("no match found")
 	ErrRecordActionAborted    = errors.New("action aborted")
 	ErrRecordDelete           = errors.New("error delete record")
 	ErrRecordDuplicate        = errors.New("record already exists")
+	ErrRecordIDInvalid        = errors.New("invalid id")
 	ErrRecordIDNotProvided    = errors.New("no id provided")
 	ErrRecordInsert           = errors.New("inserting record")
-	ErrRecordInvalidID        = errors.New("invalid id")
+	ErrRecordNoMatch          = errors.New("no match found")
 	ErrRecordNotExists        = errors.New("row not exists")
 	ErrRecordNotFound         = errors.New("no record found")
 	ErrRecordQueryNotProvided = errors.New("no id or query provided")

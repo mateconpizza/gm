@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
+
+	"github.com/spf13/cobra"
 )
 
 var (
