@@ -27,11 +27,11 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 
 	log.Printf("reordering IDs in table: %s", tableName)
 	tempTable := fmt.Sprintf("temp_%s", tableName)
-	if err := r.TableCreate(tempTable, TableMainSchema); err != nil {
+	if err := r.TableCreate(tempTable, tableMainSchema); err != nil {
 		return err
 	}
 
-	if err := r.insertBulk(tempTable, bs); err != nil {
+	if err := r.insertRecordBulk(tempTable, bs); err != nil {
 		return err
 	}
 
@@ -43,8 +43,8 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 }
 
 // maintenance
-func (r *SQLiteRepository) maintenance(c *SQLiteConfig) error {
-	if err := r.checkSize(c.GetMaxSizeBytes()); err != nil {
+func (r *SQLiteRepository) maintenance(_ *SQLiteConfig) error {
+	if err := r.checkSize(_defMaxBytesSize); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	return nil
@@ -71,7 +71,7 @@ func (r *SQLiteRepository) IsInitialized(tableName string) bool {
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
 func (r *SQLiteRepository) tableExists(t string) (bool, error) {
-	query := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
+	var query = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
 
 	var count int
 	if err := r.DB.QueryRow(query, t).Scan(&count); err != nil {
@@ -200,10 +200,10 @@ func (r *SQLiteRepository) Info() string {
 	var main, deleted, header string
 	main = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableMain()))
 	deleted = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableDeleted()))
-	header = format.Color(r.Cfg.GetName()).Yellow().Bold().String()
+	header = format.Color(r.Cfg.Name).Yellow().Bold().String()
 	return format.HeaderWithSection(header, []string{
 		format.BulletLine("records:", main),
 		format.BulletLine("deleted:", deleted),
-		format.BulletLine("path:", r.Cfg.GetHome()),
+		format.BulletLine("path:", r.Cfg.Path),
 	})
 }

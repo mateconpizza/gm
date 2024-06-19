@@ -1,60 +1,34 @@
 package repo
 
 import (
-	"log"
+	"fmt"
 	"path/filepath"
-	"strconv"
-
-	"github.com/haaag/gm/pkg/util"
+	"time"
 )
 
-const _defaultMaxBackups int = 3
+const DefBackupMax int = 3
 
 type Backup struct {
-	Home  string   `json:"path"`
-	Files []string `json:"files"`
-	Max   int      `json:"max"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Src  string `json:"source"`
 }
 
-func (b *Backup) Load(files []string) {
-	b.Files = files
+func (b *Backup) Fullpath() string {
+	return filepath.Join(b.Path, b.Name)
 }
 
-func (b *Backup) Last() string {
-	if len(b.Files) == 0 {
-		return ""
-	}
-	return b.Files[len(b.Files)-1]
-}
-
-func (b *Backup) List() []string {
-	return b.Files
-}
-
-func (b *Backup) Len() int {
-	return len(b.Files)
-}
-
-func (b *Backup) GetHome() string {
-	return b.Home
-}
-
-func (b *Backup) GetMax() int {
-	return b.Max
-}
-
-func (b *Backup) SetMax(env string) {
-	defaultMax := strconv.Itoa(_defaultMaxBackups)
-	maxBackups, err := strconv.Atoi(util.GetEnv(env, defaultMax))
-	if err != nil {
-		log.Fatal(err)
-	}
-	b.Max = maxBackups
-}
-
-func newBackup(path string) *Backup {
+func NewBackup(src string) *Backup {
+	var name = addDatePrefix(filepath.Base(src))
 	return &Backup{
-		Home: filepath.Join(path, "backup"),
-		Max:  _defaultMaxBackups,
+		Src:  src,
+		Name: name,
+		Path: filepath.Join(filepath.Dir(src), "backup"),
 	}
+}
+
+// addDatePrefix add time.Now() as prefix to a filename
+func addDatePrefix(s string) string {
+	now := time.Now().Format(_defBackupDateName)
+	return fmt.Sprintf("%s_%s", now, s)
 }

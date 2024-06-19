@@ -11,24 +11,24 @@ import (
 	"github.com/haaag/gm/pkg/util"
 )
 
-// loadAppPaths loads the path to the application's home directory.
+// LoadPath loads the path to the application's home directory.
 //
 // If environment variable GOMARKS_HOME is not set, it uses XDG_CONFIG_HOME
-func LoadHome(a *App) error {
+func LoadPath(a *App) error {
 	envConfigHome, err := os.UserConfigDir()
 	if err != nil {
 		return fmt.Errorf("loading paths: %w", err)
 	}
 
 	envHome := util.GetEnv(a.Env.Home, envConfigHome)
-	a.Home = filepath.Join(envHome, a.Name)
-	log.Printf("setting app home: '%s'", a.Home)
+	a.Path = filepath.Join(envHome, a.Name)
+	log.Printf("setting app home: '%s'", a.Path)
 	return nil
 }
 
-// SetupAppPaths creates the project paths
-func CreateHome(a *App, bkHome string) error {
-	var paths = []string{a.Home, bkHome}
+// CreatePaths creates the project paths
+func CreatePaths(a *App, bkHome string) error {
+	var paths = []string{a.Path, bkHome}
 	for _, path := range paths {
 		if err := util.Mkdir(path); err != nil {
 			return fmt.Errorf("setting up paths: %w", err)

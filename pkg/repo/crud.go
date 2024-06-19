@@ -17,35 +17,24 @@ type (
 	Slice  = bookmark.Slice[Record]
 )
 
-var TableMainSchema = `
-  CREATE TABLE IF NOT EXISTS %s (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      url         TEXT    NOT NULL UNIQUE,
-      title       TEXT    DEFAULT "",
-      tags        TEXT    DEFAULT ",",
-      desc        TEXT    DEFAULT "",
-      created_at  TIMESTAMP
-  )
-`
-
 // Init initialize database
 func (r *SQLiteRepository) Init() error {
 	var main, deleted string
 
 	main = r.Cfg.GetTableMain()
-	if err := r.TableCreate(main, TableMainSchema); err != nil {
+	if err := r.TableCreate(main, tableMainSchema); err != nil {
 		return fmt.Errorf("creating '%s' table: %w", main, err)
 	}
 
 	deleted = r.Cfg.GetTableDeleted()
-	if err := r.TableCreate(deleted, TableMainSchema); err != nil {
+	if err := r.TableCreate(deleted, tableMainSchema); err != nil {
 		return fmt.Errorf("creating '%s' table: %w", deleted, err)
 	}
 	return nil
 }
 
-// Insert creates a new record
-func (r *SQLiteRepository) Insert(tableName string, b *Record) (*Record, error) {
+// InsertRecord creates a new record
+func (r *SQLiteRepository) InsertRecord(tableName string, b *Record) (*Record, error) {
 	if err := bookmark.Validate(b); err != nil {
 		return nil, fmt.Errorf("abort: %w", err)
 	}
@@ -70,7 +59,7 @@ func (r *SQLiteRepository) Insert(tableName string, b *Record) (*Record, error) 
 		b.Title,
 		b.Tags,
 		b.Desc,
-		currentTime.Format(_dateFormat),
+		currentTime.Format(_defDateFormat),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)
@@ -88,8 +77,8 @@ func (r *SQLiteRepository) Insert(tableName string, b *Record) (*Record, error) 
 	return b, nil
 }
 
-// insertBulk creates multiple records
-func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
+// insertRecordBulk creates multiple records
+func (r *SQLiteRepository) insertRecordBulk(tableName string, bs *Slice) error {
 	log.Printf("inserting %d records into table: %s", bs.Len(), tableName)
 
 	tx, err := r.DB.Begin()
@@ -109,7 +98,7 @@ func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 	}
 
 	err = bs.ForEachErr(func(b Record) error {
-		_, err = stmt.Exec(b.GetURL(), b.GetTitle(), b.GetTags(), b.GetDesc(), b.GetCreatedAt())
+		_, err = stmt.Exec(b.URL, b.Title, b.Tags, b.Desc, b.CreatedAt)
 		if err != nil {
 			return fmt.Errorf("%w: getting the result in insert bulk", err)
 		}
@@ -135,8 +124,8 @@ func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 
 // Update updates an existing record
 func (r *SQLiteRepository) Update(tableName string, b *Record) (*Record, error) {
-	if !r.RecordExists(tableName, "id", strconv.Itoa(b.GetID())) {
-		return b, fmt.Errorf("%w: in updating '%s'", ErrRecordNotExists, b.GetURL())
+	if !r.RecordExists(tableName, "id", strconv.Itoa(b.ID)) {
+		return b, fmt.Errorf("%w: in updating '%s'", ErrRecordNotExists, b.URL)
 	}
 
 	sqlQuery := fmt.Sprintf(
@@ -144,30 +133,30 @@ func (r *SQLiteRepository) Update(tableName string, b *Record) (*Record, error) 
 		tableName,
 	)
 
-	_, err := r.DB.Exec(sqlQuery, b.GetURL(), b.GetTitle(), b.GetTags(), b.GetDesc(), b.GetCreatedAt(), b.GetID())
+	_, err := r.DB.Exec(sqlQuery, b.URL, b.Title, b.Tags, b.Desc, b.CreatedAt, b.ID)
 	if err != nil {
 		return b, fmt.Errorf("%w: %w", ErrRecordUpdate, err)
 	}
 
-	log.Printf("updated record %s (table: %s)\n", b.GetURL(), tableName)
+	log.Printf("updated record %s (table: %s)\n", b.URL, tableName)
 
 	return b, nil
 }
 
 // delete deletes a record
 func (r *SQLiteRepository) delete(tableName string, b *Record) error {
-	log.Printf("deleting record %s (table: %s)\n", b.GetURL(), tableName)
+	log.Printf("deleting record %s (table: %s)\n", b.URL, tableName)
 
-	if !r.RecordExists(tableName, "url", b.GetURL()) {
-		return fmt.Errorf("error removing record %w: %s", ErrRecordNotExists, b.GetURL())
+	if !r.RecordExists(tableName, "url", b.URL) {
+		return fmt.Errorf("error removing record %w: %s", ErrRecordNotExists, b.URL)
 	}
 
-	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), b.GetID())
+	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), b.ID)
 	if err != nil {
 		return fmt.Errorf("error removing record %w: %w", ErrRecordDelete, err)
 	}
 
-	log.Printf("deleted record %s (table: %s)\n", b.GetURL(), tableName)
+	log.Printf("deleted record %s (table: %s)\n", b.URL, tableName)
 
 	if r.GetMaxID(tableName) == 1 {
 		err := r.resetSQLiteSequence(tableName)
@@ -275,7 +264,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 	}
 
 	// add records to deleted table
-	if err := r.insertBulk(deleted, bs); err != nil {
+	if err := r.insertRecordBulk(deleted, bs); err != nil {
 		return fmt.Errorf("inserting records in bulk after deletion: %w", err)
 	}
 

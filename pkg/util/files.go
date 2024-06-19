@@ -79,7 +79,7 @@ func RmFile(f string) error {
 	return nil
 }
 
-// FileCopy copies a file
+// CopyFile copies a file
 func CopyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {

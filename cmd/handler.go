@@ -31,15 +31,15 @@ func handleByField(bs *Slice) error {
 	var printer = func(b Bookmark) error {
 		switch Field {
 		case "id":
-			fmt.Println(b.GetID())
+			fmt.Println(b.ID)
 		case "url":
-			fmt.Println(b.GetURL())
+			fmt.Println(b.URL)
 		case "title":
-			fmt.Println(b.GetTitle())
+			fmt.Println(b.Title)
 		case "tags":
-			fmt.Println(b.GetTags())
+			fmt.Println(b.Tags)
 		case "desc":
-			fmt.Println(b.GetDesc())
+			fmt.Println(b.Desc)
 		default:
 			return fmt.Errorf("%w: '%s'", ErrUnknownField, Field)
 		}
@@ -80,7 +80,7 @@ func handleJsonFormat(bs *Slice) error {
 	if !Json {
 		return nil
 	}
-	fmt.Println(string(format.ToJSON(bs)))
+	fmt.Println(string(format.ToJSON(bs.GetAll())))
 	return nil
 }
 
@@ -147,7 +147,10 @@ func handleAdd(r *Repo, args []string) error {
 	if url == "" {
 		return ErrURLNotProvided
 	}
+
+	// WARN: do we need this trim? why?
 	url = strings.TrimRight(url, "/")
+
 	if r.RecordExists(r.Cfg.GetTableMain(), "url", url) {
 		item, _ := r.GetByURL(r.Cfg.GetTableMain(), url)
 		return fmt.Errorf("%w with id: %d", bookmark.ErrBookmarkDuplicate, item.ID)
@@ -163,7 +166,7 @@ func handleAdd(r *Repo, args []string) error {
 		}
 	}
 
-	if _, err := r.Insert(r.Cfg.GetTableMain(), b); err != nil {
+	if _, err := r.InsertRecord(r.Cfg.GetTableMain(), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -183,10 +186,12 @@ func handleEdition(r *Repo, bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
+	var header = "## [%d] %s\n## (%d/%d) bookmarks/s:\n\n"
 	var edition = func(i int, b Bookmark) error {
 		var buf = b.Buffer()
-		editor.AppendBuffer(fmt.Sprintf("## Editing [%d/%d] bookmark/s:\n\n", i+1, n), &buf)
-		editor.AppendVersionBuffer(App.Name, App.Version, &buf)
+		var shortTitle = format.ShortenString(b.Title, terminal.MinWidth)
+		editor.Append(fmt.Sprintf(header, b.ID, shortTitle, i+1, n), &buf)
+		editor.AppendVersion(App.Name, App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
 		copy(bufCopy, buf)
 
@@ -204,7 +209,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 		}
 
 		editedB := bookmark.ParseContent(&content)
-		editedB.SetID(b.ID)
+		editedB.ID = b.ID
 		b = *editedB
 
 		if _, err := r.Update(r.Cfg.GetTableMain(), &b); err != nil {
@@ -270,13 +275,13 @@ func handleRemove(r *Repo, bs *Slice) error {
 		return repo.ErrRecordNotFound
 	}
 
-	done := make(chan bool)
-	go util.Spinner(done, C("removing record/s...").Gray().String())
+	chDone := make(chan bool)
+	go util.Spinner(chDone, C("removing record/s...").Gray().String())
 	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 	time.Sleep(time.Second * 1)
-	done <- true
+	chDone <- true
 
 	fmt.Println(C("bookmark/s removed successfully").Green())
 	return nil
@@ -313,7 +318,7 @@ func handleCopyOpen(bs *Slice) error {
 	}
 
 	if Open {
-		if err := openInBrowser(b.URL); err != nil {
+		if err := openBrowser(b.URL); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}

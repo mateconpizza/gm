@@ -84,3 +84,52 @@ func (s *Scraper) Scrape() error {
 	chDone <- true
 	return nil
 }
+
+func (s *Scraper) OldTitle() (title string, err error) {
+	for _, selector := range []string{
+		"title",
+		"meta[name=title]",
+		"meta[property=title]",
+		"meta[name=og:title]",
+		"meta[property=og:title]",
+	} {
+		s.collector.OnHTML(selector, func(e *colly.HTMLElement) {
+			title = strings.TrimSpace(e.Text)
+		})
+	}
+
+	err = s.collector.Visit(s.URL)
+	if err != nil {
+		return DefaultTitle, fmt.Errorf("%w: visiting and scraping URL", err)
+	}
+
+	if title == "" {
+		return DefaultTitle, nil
+	}
+
+	return title, nil
+}
+
+func (s *Scraper) OldDesc() (desc string, err error) {
+	for _, selector := range []string{
+		"meta[name=description]",
+		"meta[property=description]",
+		"meta[name=og:description]",
+		"meta[property=og:description]",
+	} {
+		s.collector.OnHTML(selector, func(e *colly.HTMLElement) {
+			desc = e.Attr("content")
+		})
+	}
+
+	err = s.collector.Visit(s.URL)
+	if err != nil {
+		return DefaultDesc, fmt.Errorf("%w: visiting and scraping URL", err)
+	}
+
+	if desc == "" {
+		return DefaultDesc, nil
+	}
+
+	return desc, nil
+}

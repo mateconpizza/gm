@@ -13,7 +13,6 @@ import (
 
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
-	"github.com/haaag/gm/pkg/terminal"
 
 	"github.com/atotto/clipboard"
 )
@@ -127,7 +126,7 @@ func bookmarkEdition(b *Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	tempB.SetID(b.ID)
+	tempB.ID = b.ID
 	*b = *tempB
 
 	return nil

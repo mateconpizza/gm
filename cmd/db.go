@@ -26,17 +26,8 @@ var ErrEmptyString = errors.New("empty string")
 
 // dbExistsAndInit checks if the default database exists and is initialized
 func dbExistsAndInit(path, name string) bool {
-	f := filepath.Join(path, ensureDbSuffix(name))
+	f := filepath.Join(path, util.EnsureDBSuffix(name))
 	return dbExists(f) && isInitialized(f)
-}
-
-// ensureDbSuffix adds .db to the database name
-func ensureDbSuffix(name string) string {
-	suffix := ".db"
-	if !strings.HasSuffix(name, suffix) {
-		name = fmt.Sprintf("%s%s", name, suffix)
-	}
-	return name
 }
 
 // isInitialized checks if the database is initialized
@@ -71,23 +62,23 @@ func getDBsBasename(f []string) []string {
 func repoInfo(r *repo.SQLiteRepository) string {
 	main := r.GetMaxID(r.Cfg.GetTableMain())
 	deleted := r.GetMaxID(r.Cfg.GetTableDeleted())
-	t := format.Color(r.Cfg.GetName()).Yellow().Bold().String()
+	t := format.Color(r.Cfg.Name).Yellow().Bold().String()
 	return format.HeaderWithSection(t, []string{
 		format.BulletLine("records:", strconv.Itoa(main)),
 		format.BulletLine("deleted:", strconv.Itoa(deleted)),
-		format.BulletLine("backup status:", getBkStateColored(r.Cfg.Backup.GetMax())),
-		format.BulletLine("path:", r.Cfg.GetHome()),
+		format.BulletLine("backup status:", getBkStateColored(r.Cfg.MaxBackups)),
+		format.BulletLine("path:", r.Cfg.Path),
 	})
 }
 
 // handleDBDrop clears the database
 func handleDBDrop(r *Repo) error {
 	if !r.IsInitialized(r.Cfg.GetTableMain()) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.GetName())
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 	}
 
 	if r.IsEmpty(r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.GetName())
+		return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.Name)
 	}
 
 	fmt.Println(repoInfo(r))
@@ -108,11 +99,14 @@ func handleDBDrop(r *Repo) error {
 // removeDB removes a database
 func removeDB(r *Repo) error {
 	var (
-		n        = len(r.Cfg.Backup.List())
+		n        int
+		bks      []string
 		info     = repoInfo(r)
-		color    = format.Color
-		question = fmt.Sprintf("remove %s?", color(r.Cfg.GetName()).Red().Bold())
+		question = fmt.Sprintf("remove %s?", C(r.Cfg.Name).Red().Bold())
 	)
+
+	bks, _ = getBackups(r.Cfg.BackupPath, r.Cfg.Name)
+	n = len(bks)
 
 	if n > 0 {
 		info += "\n" + backupInfo(r)
@@ -128,9 +122,9 @@ func removeDB(r *Repo) error {
 	}
 
 	if n > 0 {
-		for _, s := range r.Cfg.Backup.List() {
+		for _, s := range bks {
 			f := filepath.Base(s)
-			q := fmt.Sprintf("remove %s?", color(f).Red().Bold())
+			q := fmt.Sprintf("remove %s?", C(f).Red().Bold())
 			if terminal.Confirm(q, "n") {
 				if err := util.RmFile(s); err != nil {
 					return fmt.Errorf("%w", err)
@@ -138,7 +132,7 @@ func removeDB(r *Repo) error {
 			}
 		}
 	}
-	fmt.Println(color("database and/or backups removed successfully").Green())
+	fmt.Println(C("database and/or backups removed successfully").Green())
 	return nil
 }
 
@@ -156,7 +150,7 @@ func checkDBState(f string) error {
 // handleListDB lists the available databases
 func handleListDB(r *Repo) error {
 	var sb strings.Builder
-	files, err := getDBs(r.Cfg.GetHome())
+	files, err := getDBs(r.Cfg.Path)
 	if err != nil {
 		return err
 	}
@@ -197,7 +191,7 @@ func handleDBInit() error {
 // handleNewDB creates and initializes a new database
 func handleNewDB(r *Repo) error {
 	if dbExists(r.Cfg.Fullpath()) && r.IsInitialized(r.Cfg.GetTableMain()) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyExists, r.Cfg.GetName())
+		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyExists, r.Cfg.Name)
 	}
 
 	if !DBInit {
@@ -211,7 +205,7 @@ func handleNewDB(r *Repo) error {
 // handleRemoveDB removes a database
 func handleRemoveDB(r *Repo) error {
 	if !dbExists(r.Cfg.Fullpath()) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, r.Cfg.GetName())
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, r.Cfg.Name)
 	}
 	return removeDB(r)
 }
@@ -236,9 +230,6 @@ var dbCmd = &cobra.Command{
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("database: %w", err)
-		}
-		if err := loadBackups(r); err != nil {
-			return err
 		}
 
 		flags := map[bool]func(r *Repo) error{

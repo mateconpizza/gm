@@ -93,3 +93,22 @@ func ParseUniqueStrings(input *[]string, sep string) *[]string {
 
 	return &uniqueItems
 }
+
+// TrimElements returns a slice of the first len(elements) - n
+// elements in the input slice.
+func TrimElements[T any](elements []T, n int) []T {
+	var filtered []T
+	if len(elements) > n {
+		filtered = elements[:len(elements)-n]
+	}
+	return filtered
+}
+
+// EnsureDBSuffix adds .db to the database name
+func EnsureDBSuffix(name string) string {
+	suffix := ".db"
+	if !strings.HasSuffix(name, suffix) {
+		name = fmt.Sprintf("%s%s", name, suffix)
+	}
+	return name
+}

@@ -1,0 +1,11 @@
+package repo
+
+var tableMainSchema = `
+CREATE TABLE IF NOT EXISTS %s (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    url         TEXT    NOT NULL UNIQUE,
+    title       TEXT    DEFAULT "",
+    tags        TEXT    DEFAULT ",",
+    desc        TEXT    DEFAULT "",
+    created_at  TIMESTAMP
+);`

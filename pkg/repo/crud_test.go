@@ -82,7 +82,7 @@ func TestTableCreate(t *testing.T) {
 
 	tableName := "new_table"
 
-	if err := r.TableCreate(tableName, TableMainSchema); err != nil {
+	if err := r.TableCreate(tableName, tableMainSchema); err != nil {
 		t.Errorf("Error creating table: %v", err)
 	}
 
@@ -136,7 +136,7 @@ func TestCreateRecord(t *testing.T) {
 		CreatedAt: "2023-01-01 12:00:00",
 	}
 
-	created, err := r.Insert(tempTableName, b)
+	created, err := r.InsertRecord(tempTableName, b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestCreateRecord(t *testing.T) {
 		URL: "https://example.com",
 	}
 
-	_, err = r.Insert(tempTableName, duplicate)
+	_, err = r.InsertRecord(tempTableName, duplicate)
 	if err == nil {
 		t.Error("InsertRecord did not return an error for a duplicate record")
 	}
@@ -158,7 +158,7 @@ func TestCreateRecord(t *testing.T) {
 	// Insert an invalid record
 	invalidBookmark := &Record{}
 
-	_, err = r.Insert(tempTableName, invalidBookmark)
+	_, err = r.InsertRecord(tempTableName, invalidBookmark)
 	if err == nil {
 		t.Error("InsertRecord did not return an error for an invalid record")
 	}
@@ -171,7 +171,7 @@ func TestDeleteRecord(t *testing.T) {
 	// Insert a valid record
 	b := getValidBookmark()
 
-	_, err := r.Insert(tempTableName, &b)
+	_, err := r.InsertRecord(tempTableName, &b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +275,7 @@ func TestGetRecordByID(t *testing.T) {
 
 	b := getValidBookmark()
 
-	inserted, err := r.Insert(tempTableName, &b)
+	inserted, err := r.InsertRecord(tempTableName, &b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,9 +297,9 @@ func TestGetRecordsByQuery(t *testing.T) {
 	defer teardownTestDB(db)
 
 	b := getValidBookmark()
-	_, _ = r.Insert(tempTableName, &b)
+	_, _ = r.InsertRecord(tempTableName, &b)
 	b.URL = "https://www.example2.com"
-	_, _ = r.Insert(tempTableName, &b)
+	_, _ = r.InsertRecord(tempTableName, &b)
 	b.URL = "https://www.another.com"
 
 	var bs = bookmark.NewSlice[Record]()
@@ -355,7 +355,7 @@ func TestInsertRecordsBulk(t *testing.T) {
 
 	var bs = bookmark.NewSlice[Record]()
 	bs.Set(&bookmarks)
-	err := r.insertBulk(tempTableName, bs)
+	err := r.insertRecordBulk(tempTableName, bs)
 	if err != nil {
 		t.Fatal(err)
 	}

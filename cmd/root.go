@@ -52,7 +52,7 @@ var rootCmd = &cobra.Command{
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: make it more robust?
-		if !dbExistsAndInit(Cfg.GetHome(), DBName) && !DBInit {
+		if !dbExistsAndInit(Cfg.Path, DBName) && !DBInit {
 			init := C("--init").Yellow().Bold()
 			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
 		}
@@ -103,18 +103,16 @@ func initConfig() {
 	}
 
 	// Load App home path
-	if err := app.LoadHome(App); err != nil {
+	if err := app.LoadPath(App); err != nil {
 		logErrAndExit(err)
 	}
 
 	// Set database settings
 	Cfg = repo.NewSQLiteCfg()
-	Cfg.SetName(ensureDbSuffix(DBName))
-	Cfg.SetHome(App.GetHome())
-	Cfg.Backup.SetMax(App.Env.BackupMax)
+	Cfg.SetDefaults(App.Path, DBName, App.Env.BackupMax)
 
 	// Create dirs for the app
-	if err := app.CreateHome(App, Cfg.Backup.GetHome()); err != nil {
+	if err := app.CreatePaths(App, Cfg.BackupPath); err != nil {
 		logErrAndExit(err)
 	}
 }

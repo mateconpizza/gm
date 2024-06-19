@@ -14,16 +14,12 @@ var Banner = `┏━╸┏━┓┏┳┓┏━┓┏━┓╻┏ ┏━┓
 type App struct {
 	Info    Info   `json:"data"`
 	Env     Env    `json:"env"`
-	Home    string `json:"home"`
+	Path    string `json:"path"`
 	Name    string `json:"name"`
 	Banner  string `json:"-"`
 	Cmd     string `json:"cmd"`
 	Version string `json:"version"`
 	Editor  string `json:"editor"`
-}
-
-func (a *App) GetHome() string {
-	return a.Home
 }
 
 func (a *App) GetName() string {

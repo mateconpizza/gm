@@ -56,7 +56,7 @@ func initDB(r *Repo) error {
 
 	printSummary()
 
-	if _, err := r.Insert(r.Cfg.GetTableMain(), initialBookmark); err != nil {
+	if _, err := r.InsertRecord(r.Cfg.GetTableMain(), initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -65,8 +65,8 @@ func initDB(r *Repo) error {
 
 func printSummary() {
 	fmt.Println(app.PrettyVersion(Prettify))
-	fmt.Printf("+ app folder at: %s\n", C(App.Home).Yellow())
-	fmt.Printf("+ %s folder at: %s\n", C("databases").Blue(), C(Cfg.GetHome()).Cyan())
+	fmt.Printf("+ app folder at: %s\n", C(App.Path).Yellow())
+	fmt.Printf("+ %s folder at: %s\n", C("databases").Blue(), C(Cfg.Path).Cyan())
 	fmt.Printf("+ database '%s' initialized\n", C(DBName).Green())
 	fmt.Printf("+ %s bookmark created\n\n", C("initial").Purple())
 }
