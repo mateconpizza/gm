@@ -57,7 +57,7 @@ func initDB(r *Repo) error {
 
 	printSummary()
 
-	if _, err := r.InsertRecord(r.Cfg.GetTableMain(), initialBookmark); err != nil {
+	if _, err := r.Insert(r.Cfg.GetTableMain(), initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

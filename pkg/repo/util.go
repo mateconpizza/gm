@@ -16,7 +16,7 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 	// FIX: Every time we re-order IDs, the db's size gets bigger
 	// It's a bad implementation? (but it works)
 	// Maybe use 'VACUUM' command? it is safe?
-	bs := slice.New[Record]()
+	bs := slice.New[Row]()
 	if err := r.GetAll(tableName, bs); err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 		return err
 	}
 
-	if err := r.insertRecordBulk(tempTable, bs); err != nil {
+	if err := r.insertBulk(tempTable, bs); err != nil {
 		return err
 	}
 

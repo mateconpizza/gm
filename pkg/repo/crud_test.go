@@ -15,7 +15,7 @@ import (
 
 const tempTableName = "test_table"
 
-var DB = NewSQLiteCfg()
+var DBCfg = NewSQLiteCfg()
 
 func setupTestDB(t *testing.T) (*sql.DB, *SQLiteRepository) {
 	t.Helper()
@@ -36,8 +36,8 @@ func setupTestDB(t *testing.T) (*sql.DB, *SQLiteRepository) {
 		t.Fatal(err)
 	}
 
-	DB.SetName(app.DefaultDBName)
-	r := newSQLiteRepository(db, DB)
+	DBCfg.SetName(app.DefaultDBName)
+	r := newSQLiteRepository(db, DBCfg)
 	return db, r
 }
 
@@ -47,14 +47,25 @@ func teardownTestDB(db *sql.DB) {
 	}
 }
 
-func getValidBookmark() Record {
-	return Record{
+func getValidBookmark() Row {
+	return Row{
 		URL:       "https://www.example.com",
 		Title:     "Title",
 		Tags:      "test,testme,go",
 		Desc:      "Description",
 		CreatedAt: "2023-01-01 12:00:00",
 	}
+}
+
+func getValidBookmarks() *Slice {
+	s := slice.New[Row]()
+
+	for i := 0; i < 10; i++ {
+		b := getValidBookmark()
+		b.Title = fmt.Sprintf("Title %d", i)
+		s.Add(&b)
+	}
+	return s
 }
 
 func TestDropTable(t *testing.T) {
@@ -66,12 +77,12 @@ func TestDropTable(t *testing.T) {
 		t.Errorf("Error dropping table: %v", err)
 	}
 
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DB.GetTableMain()))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.GetTableMain()))
 	if err == nil {
 		t.Errorf("DBMainTable still exists after calling HandleDropDB")
 	}
 
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DB.GetTableDeleted()))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.GetTableDeleted()))
 	if err == nil {
 		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")
 	}
@@ -129,7 +140,7 @@ func TestCreateRecord(t *testing.T) {
 	defer teardownTestDB(db)
 
 	// Insert a valid record
-	b := &Record{
+	b := &Row{
 		URL:       "https://example.com",
 		Title:     "Title",
 		Tags:      "test",
@@ -137,7 +148,7 @@ func TestCreateRecord(t *testing.T) {
 		CreatedAt: "2023-01-01 12:00:00",
 	}
 
-	created, err := r.InsertRecord(tempTableName, b)
+	created, err := r.Insert(tempTableName, b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,19 +158,19 @@ func TestCreateRecord(t *testing.T) {
 	}
 
 	// Insert a duplicate record
-	duplicate := &Record{
+	duplicate := &Row{
 		URL: "https://example.com",
 	}
 
-	_, err = r.InsertRecord(tempTableName, duplicate)
+	_, err = r.Insert(tempTableName, duplicate)
 	if err == nil {
 		t.Error("InsertRecord did not return an error for a duplicate record")
 	}
 
 	// Insert an invalid record
-	invalidBookmark := &Record{}
+	invalidBookmark := &Row{}
 
-	_, err = r.InsertRecord(tempTableName, invalidBookmark)
+	_, err = r.Insert(tempTableName, invalidBookmark)
 	if err == nil {
 		t.Error("InsertRecord did not return an error for an invalid record")
 	}
@@ -172,7 +183,7 @@ func TestDeleteRecord(t *testing.T) {
 	// Insert a valid record
 	b := getValidBookmark()
 
-	_, err := r.InsertRecord(tempTableName, &b)
+	_, err := r.Insert(tempTableName, &b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,11 +201,55 @@ func TestDeleteRecord(t *testing.T) {
 	}
 }
 
+func TestDeleteRecordBulk(t *testing.T) {
+	db, r := setupTestDB(t)
+	defer teardownTestDB(db)
+
+	// Insert valid records
+	bs := getValidBookmarks()
+	if err := r.insertBulk(tempTableName, bs); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify that the record was inserted successfully
+	newRows := slice.New[Row]()
+	if err := r.GetAll(tempTableName, newRows); err != nil {
+		t.Fatal(err)
+	}
+
+	if newRows.Len() != bs.Len() {
+		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", newRows.Len(), 2)
+	}
+
+	// Delete the record and verify that it was deleted successfully
+	var ids = slice.New[int]()
+	newRows.ForEach(func(r Row) {
+		ids.Add(&r.ID)
+	})
+
+	if ids.Len() != newRows.Len() {
+		t.Errorf("Unexpected number of IDs retrieved: got %d, expected %d", ids.Len(), newRows.Len())
+	}
+
+	// Test the deletion of a valid record
+	err := r.DeleteBulk(tempTableName, ids)
+	if err != nil {
+		t.Errorf("DeleteRecordBulk returned an error: %v", err)
+	}
+
+	emptyRows := slice.New[Row]()
+	_ = r.GetAll(tempTableName, emptyRows)
+
+	if emptyRows.Len() != 0 {
+		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", emptyRows.Len(), 0)
+	}
+}
+
 func TestIsRecordExists(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	b := &Record{
+	b := &Row{
 		URL: "https://example.com",
 	}
 
@@ -210,7 +265,7 @@ func TestIsRecordExists(t *testing.T) {
 		t.Errorf("isRecordExists returned false for an existing record")
 	}
 
-	nonExistentBookmark := &Record{
+	nonExistentBookmark := &Row{
 		URL: "https://non_existent.com",
 	}
 
@@ -248,7 +303,7 @@ func TestUpdateRecordSuccess(t *testing.T) {
 	q = fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tempTableName)
 	row := db.QueryRow(q, validB.ID)
 
-	var b Record
+	var b Row
 
 	err = row.Scan(&b.ID, &b.URL, &b.Title, &b.Tags, &b.Desc, &b.CreatedAt)
 	if err != nil {
@@ -264,7 +319,7 @@ func TestUpdateRecordError(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	_, err := r.Update(tempTableName, &Record{})
+	_, err := r.Update(tempTableName, &Row{})
 	if err == nil {
 		t.Error("UpdateRecord did not return an error for an invalid record")
 	}
@@ -276,7 +331,7 @@ func TestGetRecordByID(t *testing.T) {
 
 	b := getValidBookmark()
 
-	inserted, err := r.InsertRecord(tempTableName, &b)
+	inserted, err := r.Insert(tempTableName, &b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,12 +353,12 @@ func TestGetRecordsByQuery(t *testing.T) {
 	defer teardownTestDB(db)
 
 	b := getValidBookmark()
-	_, _ = r.InsertRecord(tempTableName, &b)
+	_, _ = r.Insert(tempTableName, &b)
 	b.URL = "https://www.example2.com"
-	_, _ = r.InsertRecord(tempTableName, &b)
+	_, _ = r.Insert(tempTableName, &b)
 	b.URL = "https://www.another.com"
 
-	var bs = slice.New[Record]()
+	var bs = slice.New[Row]()
 	if err := r.GetByQuery(tempTableName, "example", bs); err != nil {
 		t.Errorf("Error getting bookmarks by query: %v", err)
 	}
@@ -330,7 +385,7 @@ func TestInsertRecordsBulk(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	bookmarks := []Record{
+	bookmarks := []Row{
 		{
 			URL:       "url1",
 			Title:     "title1",
@@ -354,9 +409,9 @@ func TestInsertRecordsBulk(t *testing.T) {
 		},
 	}
 
-	var bs = slice.New[Record]()
+	var bs = slice.New[Row]()
 	bs.Set(&bookmarks)
-	err := r.insertRecordBulk(tempTableName, bs)
+	err := r.insertBulk(tempTableName, bs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,23 +432,23 @@ func TestRenameTable(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	err := r.tableRename(tempTableName, DB.GetTableDeleted())
+	err := r.tableRename(tempTableName, DBCfg.GetTableDeleted())
 	if err != nil {
 		t.Errorf("Error renaming table: %v", err)
 	}
 
-	exists, err := r.tableExists(DB.GetTableDeleted())
+	exists, err := r.tableExists(DBCfg.GetTableDeleted())
 	if err != nil {
 		t.Errorf("Error checking if table exists: %v", err)
 	}
 
 	if !exists {
-		t.Errorf("Table %s does not exist", DB.GetTableDeleted())
+		t.Errorf("Table %s does not exist", DBCfg.GetTableDeleted())
 	}
 }
 
 func TestRecordIsValid(t *testing.T) {
-	validBookmark := Record{
+	validBookmark := Row{
 		Title: "Example",
 		URL:   "https://www.example.com",
 		Tags:  "tag1,tag2",
@@ -403,7 +458,7 @@ func TestRecordIsValid(t *testing.T) {
 		t.Errorf("TestBookmarkIsValid: expected valid bookmark to be valid")
 	}
 
-	invalidBookmark := Record{
+	invalidBookmark := Row{
 		Title: "",
 		URL:   "",
 	}

@@ -166,7 +166,7 @@ func handleAdd(r *Repo, args []string) error {
 		}
 	}
 
-	if _, err := r.InsertRecord(r.Cfg.GetTableMain(), b); err != nil {
+	if _, err := r.Insert(r.Cfg.GetTableMain(), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

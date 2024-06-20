@@ -14,8 +14,9 @@ import (
 )
 
 type (
-	Record = bookmark.Bookmark
-	Slice  = slice.Slice[Record]
+	IDs   = slice.Slice[int]
+	Row   = bookmark.Bookmark
+	Slice = slice.Slice[Row]
 )
 
 // Init initialize database
@@ -34,8 +35,8 @@ func (r *SQLiteRepository) Init() error {
 	return nil
 }
 
-// InsertRecord creates a new record
-func (r *SQLiteRepository) InsertRecord(tableName string, b *Record) (*Record, error) {
+// Insert creates a new record
+func (r *SQLiteRepository) Insert(tableName string, b *Row) (*Row, error) {
 	if err := bookmark.Validate(b); err != nil {
 		return nil, fmt.Errorf("abort: %w", err)
 	}
@@ -78,8 +79,8 @@ func (r *SQLiteRepository) InsertRecord(tableName string, b *Record) (*Record, e
 	return b, nil
 }
 
-// insertRecordBulk creates multiple records
-func (r *SQLiteRepository) insertRecordBulk(tableName string, bs *Slice) error {
+// insertBulk creates multiple records
+func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 	log.Printf("inserting %d records into table: %s", bs.Len(), tableName)
 
 	tx, err := r.DB.Begin()
@@ -98,7 +99,7 @@ func (r *SQLiteRepository) insertRecordBulk(tableName string, bs *Slice) error {
 		return fmt.Errorf("%w: prepared statement for use within a transaction in bulk insert", err)
 	}
 
-	err = bs.ForEachErr(func(b Record) error {
+	err = bs.ForEachErr(func(b Row) error {
 		_, err = stmt.Exec(b.URL, b.Title, b.Tags, b.Desc, b.CreatedAt)
 		if err != nil {
 			return fmt.Errorf("%w: getting the result in insert bulk", err)
@@ -124,7 +125,7 @@ func (r *SQLiteRepository) insertRecordBulk(tableName string, bs *Slice) error {
 }
 
 // Update updates an existing record
-func (r *SQLiteRepository) Update(tableName string, b *Record) (*Record, error) {
+func (r *SQLiteRepository) Update(tableName string, b *Row) (*Row, error) {
 	if !r.RecordExists(tableName, "id", strconv.Itoa(b.ID)) {
 		return b, fmt.Errorf("%w: in updating '%s'", ErrRecordNotExists, b.URL)
 	}
@@ -145,7 +146,7 @@ func (r *SQLiteRepository) Update(tableName string, b *Record) (*Record, error) 
 }
 
 // delete deletes a record
-func (r *SQLiteRepository) delete(tableName string, b *Record) error {
+func (r *SQLiteRepository) delete(tableName string, b *Row) error {
 	log.Printf("deleting record %s (table: %s)\n", b.URL, tableName)
 
 	if !r.RecordExists(tableName, "url", b.URL) {
@@ -181,12 +182,13 @@ func (r *SQLiteRepository) deleteAll(tableName string) error {
 }
 
 // DeleteBulk deletes multiple records
-func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
-	if len(bIDs) == 0 {
+func (r *SQLiteRepository) DeleteBulk(tableName string, ids *IDs) error {
+	var n = ids.Len()
+	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
 
-	log.Printf("deleting %d records from table: %s", len(bIDs), tableName)
+	log.Printf("deleting %d records from table: %s", n, tableName)
 	maxID := r.GetMaxID(tableName)
 
 	tx, err := r.DB.Begin()
@@ -195,13 +197,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 	}
 
 	// TODO: replace placeholders loop with strings.Repeat
-	// query := fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", tableName, strings.Repeat("?,", len(bIDs)-1)+"?")
-	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id IN (", tableName)
-	placeholders := make([]string, len(bIDs))
-	for i := 0; i < len(bIDs); i++ {
-		placeholders[i] = "?"
-	}
-	sqlQuery += strings.Join(placeholders, ",") + ")"
+	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", tableName, strings.Repeat("?,", n-1)+"?")
 
 	stmt, err := tx.Prepare(sqlQuery)
 	if err != nil {
@@ -209,8 +205,8 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 		return fmt.Errorf("%w: prepared statement for use within a transaction in bulk delete", err)
 	}
 
-	args := make([]interface{}, len(bIDs))
-	for i, id := range bIDs {
+	args := make([]interface{}, n)
+	for i, id := range *ids.GetAll() {
 		args[i] = id
 	}
 
@@ -235,7 +231,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, bIDs []int) error {
 		return fmt.Errorf("%w: committing in delete bulk", err)
 	}
 
-	log.Printf("deleted %d records from table: %s", len(bIDs), tableName)
+	log.Printf("deleted %d records from table: %s", n, tableName)
 	if maxID == 0 {
 		err := r.resetSQLiteSequence(tableName)
 		if err != nil {
@@ -255,8 +251,12 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 		return ErrRecordIDNotProvided
 	}
 
-	ids := bookmark.ExtractIDs(bs.GetAll())
-	if len(ids) == 0 {
+	var ids = slice.New[int]()
+	bs.ForEach(func(r Row) {
+		ids.Add(&r.ID)
+	})
+
+	if ids.Len() == 0 {
 		return ErrRecordIDNotProvided
 	}
 
@@ -265,7 +265,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 	}
 
 	// add records to deleted table
-	if err := r.insertRecordBulk(deleted, bs); err != nil {
+	if err := r.insertBulk(deleted, bs); err != nil {
 		return fmt.Errorf("inserting records in bulk after deletion: %w", err)
 	}
 
@@ -305,11 +305,11 @@ func (r *SQLiteRepository) GetAll(tableName string, bs *Slice) error {
 }
 
 // GetByID returns a record by its ID
-func (r *SQLiteRepository) GetByID(tableName string, n int) (*Record, error) {
+func (r *SQLiteRepository) GetByID(tableName string, n int) (*Row, error) {
 	if n > r.GetMaxID(tableName) {
 		return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, n)
 	}
-	var d Record
+	var d Row
 	log.Printf("getting record by ID %d (table: %s)\n", n, tableName)
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tableName), n)
 
@@ -350,8 +350,8 @@ func (r *SQLiteRepository) GetByIDList(tableName string, ids []int, bs *Slice) e
 }
 
 // GetByURL returns a record by its URL
-func (r *SQLiteRepository) GetByURL(tableName, u string) (*Record, error) {
-	var d Record
+func (r *SQLiteRepository) GetByURL(tableName, u string) (*Row, error) {
+	var d Row
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE url = ?", tableName), u)
 
 	err := row.Scan(&d.ID, &d.URL, &d.Title, &d.Tags, &d.Desc, &d.CreatedAt)
@@ -380,9 +380,9 @@ func (r *SQLiteRepository) getBySQL(bs *Slice, q string, args ...interface{}) er
 		}
 	}()
 
-	var all []Record
+	var all []Row
 	for rows.Next() {
-		var d Record
+		var d Row
 		if err := rows.Scan(&d.ID, &d.URL, &d.Title, &d.Tags, &d.Desc, &d.CreatedAt); err != nil {
 			return fmt.Errorf("%w: '%w'", ErrRecordScan, err)
 		}
