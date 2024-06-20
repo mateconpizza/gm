@@ -1,4 +1,4 @@
-package bookmark
+package slice
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 var errExpected = errors.New("error: element is 3")
 
 func TestForEach(t *testing.T) {
-	s := NewSlice[int]()
+	s := New[int]()
 	s.Add(&[]int{1, 2, 3, 4, 5}[0])
 	s.Add(&[]int{1, 2, 3, 4, 5}[1])
 	s.Add(&[]int{1, 2, 3, 4, 5}[2])
@@ -29,7 +29,7 @@ func TestForEach(t *testing.T) {
 
 func TestForEachErr(t *testing.T) {
 	// Create a new slice of integers
-	s := NewSlice[int]()
+	s := New[int]()
 	s.Add(&[]int{1, 2, 3, 4, 5}[0])
 	s.Add(&[]int{1, 2, 3, 4, 5}[1])
 	s.Add(&[]int{1, 2, 3, 4, 5}[2])
@@ -83,7 +83,7 @@ func TestFilterInt(t *testing.T) {
 	for _, test := range tests {
 		testT := test // Implicit memory aliasing in for loop.
 		t.Run(test.name, func(t *testing.T) {
-			var s = NewSlice[int]()
+			var s = New[int]()
 			s.Set(&testT.input)
 			s.Filter(testT.fn)
 			if !reflect.DeepEqual(*s.items, testT.expected) {
@@ -117,7 +117,7 @@ func TestFilterStrings(t *testing.T) {
 	for _, test := range testWithInt {
 		testT := test // Implicit memory aliasing in for loop.
 		t.Run(test.name, func(t *testing.T) {
-			var s = NewSlice[string]()
+			var s = New[string]()
 			s.Set(&testT.input)
 			s.Filter(testT.fn)
 			if !reflect.DeepEqual(*s.items, testT.expected) {

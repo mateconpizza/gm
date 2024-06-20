@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/scraper"
+	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/pkg/terminal"
 )
 
@@ -124,7 +125,7 @@ func Validate(b *Bookmark) error {
 }
 
 // GetBufferSlice returns a buffer with the provided slice of bookmarks
-func GetBufferSlice(bs *Slice[Bookmark]) []byte {
+func GetBufferSlice(bs *slice.Slice[Bookmark]) []byte {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteString("## To keep a bookmark, remove the <URL> line\n")
 	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())

@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/pkg/slice"
 )
 
 var initCmd = &cobra.Command{
@@ -25,7 +26,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		var bs = bookmark.NewSlice[Bookmark]()
+		var bs = slice.New[Bookmark]()
 		if err := r.GetAll(Cfg.GetTableMain(), bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}

@@ -7,8 +7,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/slice"
 )
 
 // reorderIDs reorders the IDs in the specified table.
@@ -16,7 +16,7 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 	// FIX: Every time we re-order IDs, the db's size gets bigger
 	// It's a bad implementation? (but it works)
 	// Maybe use 'VACUUM' command? it is safe?
-	bs := bookmark.NewSlice[Record]()
+	bs := slice.New[Record]()
 	if err := r.GetAll(tableName, bs); err != nil {
 		return err
 	}

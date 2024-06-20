@@ -1,4 +1,4 @@
-package bookmark
+package slice
 
 type Slice[T any] struct {
 	items *[]T
@@ -33,7 +33,7 @@ func (s *Slice[T]) ForEachIdx(fn func(int, T) error) error {
 
 // Filter
 func (s *Slice[T]) Filter(fn func(T) bool) {
-	var slice = NewSlice[T]()
+	var slice = New[T]()
 	for _, b := range *s.items {
 		t := b
 		if fn(t) {
@@ -93,8 +93,8 @@ func (s *Slice[T]) GetAll() *[]T {
 	return s.items
 }
 
-// NewSlice creates a new slice of bookmarks
-func NewSlice[T any]() *Slice[T] {
+// New creates a new slice of bookmarks
+func New[T any]() *Slice[T] {
 	items := make([]T, 0)
 	return &Slice[T]{items: &items}
 }

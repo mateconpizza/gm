@@ -8,6 +8,7 @@ import (
 
 	"github.com/haaag/gm/pkg/app"
 	"github.com/haaag/gm/pkg/bookmark"
+	"github.com/haaag/gm/pkg/slice"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -302,7 +303,7 @@ func TestGetRecordsByQuery(t *testing.T) {
 	_, _ = r.InsertRecord(tempTableName, &b)
 	b.URL = "https://www.another.com"
 
-	var bs = bookmark.NewSlice[Record]()
+	var bs = slice.New[Record]()
 	if err := r.GetByQuery(tempTableName, "example", bs); err != nil {
 		t.Errorf("Error getting bookmarks by query: %v", err)
 	}
@@ -353,7 +354,7 @@ func TestInsertRecordsBulk(t *testing.T) {
 		},
 	}
 
-	var bs = bookmark.NewSlice[Record]()
+	var bs = slice.New[Record]()
 	bs.Set(&bookmarks)
 	err := r.insertRecordBulk(tempTableName, bs)
 	if err != nil {

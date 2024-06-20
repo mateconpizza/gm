@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/slice"
 
 	"golang.org/x/sync/semaphore"
 )
@@ -33,11 +34,11 @@ func (r *Response) String() string {
 }
 
 // CheckStatus checks the status of a slice of bookmarks
-func CheckStatus(bs *Slice[Bookmark]) error {
+func CheckStatus(bs *slice.Slice[Bookmark]) error {
 	// FIX: Split???
 	const maxConRequests = 25
 	var (
-		responses = NewSlice[Response]()
+		responses = slice.New[Response]()
 		sem       *semaphore.Weighted
 		start     time.Time
 		wg        sync.WaitGroup
@@ -76,7 +77,7 @@ func CheckStatus(bs *Slice[Bookmark]) error {
 	return nil
 }
 
-func prettifyNotFound(res *Slice[Response]) (resLen int, msg string) {
+func prettifyNotFound(res *slice.Slice[Response]) (resLen int, msg string) {
 	res.Filter(func(r Response) bool {
 		return r.statusCode == http.StatusNotFound
 	})
@@ -97,7 +98,7 @@ func prettifyNotFound(res *Slice[Response]) (resLen int, msg string) {
 	return n, fmt.Sprintf("  + %s urls return %s code\n", notFoundLenStr, notFoundCode)
 }
 
-func prettifyWithError(res *Slice[Response]) (resLen int, msg string) {
+func prettifyWithError(res *slice.Slice[Response]) (resLen int, msg string) {
 	res.Filter(func(r Response) bool {
 		return r.hasError && r.statusCode != http.StatusNotFound
 	})
@@ -159,7 +160,7 @@ func prettyPrintURLStatus(statusCode, bID int, bURL string) string {
 
 // prettyPrintStatus prints a summary of the results of checking a slice of
 // URLs.
-func prettyPrintStatus(res Slice[Response], duration time.Duration) {
+func prettyPrintStatus(res slice.Slice[Response], duration time.Duration) {
 	final := fmt.Sprintf("\n> %d urls were checked\n", res.Len())
 	took := fmt.Sprintf("%.2fs\n", duration.Seconds())
 

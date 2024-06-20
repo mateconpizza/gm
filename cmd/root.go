@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/pkg/terminal"
 )
 
@@ -22,7 +23,7 @@ import (
 
 type (
 	Bookmark = bookmark.Bookmark
-	Slice    = bookmark.Slice[Bookmark]
+	Slice    = slice.Slice[Bookmark]
 	Repo     = repo.SQLiteRepository
 )
 
@@ -75,7 +76,7 @@ var rootCmd = &cobra.Command{
 			return handleAdd(r, args)
 		}
 
-		bs := bookmark.NewSlice[Bookmark]()
+		bs := slice.New[Bookmark]()
 		if err := handleListAndEdit(r, bs, args); err != nil {
 			return err
 		}

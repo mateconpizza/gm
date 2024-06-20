@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/haaag/gm/pkg/bookmark"
+	"github.com/haaag/gm/pkg/slice"
 )
 
 type (
 	Record = bookmark.Bookmark
-	Slice  = bookmark.Slice[Record]
+	Slice  = slice.Slice[Record]
 )
 
 // Init initialize database
