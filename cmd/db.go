@@ -225,7 +225,7 @@ func handleDBInfo(r *Repo) error {
 
 var dbCmd = &cobra.Command{
 	Use:   "db",
-	Short: "bookmarks database management",
+	Short: "database management",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

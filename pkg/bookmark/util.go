@@ -127,7 +127,7 @@ func Validate(b *Bookmark) error {
 // GetBufferSlice returns a buffer with the provided slice of bookmarks
 func GetBufferSlice(bs *slice.Slice[Bookmark]) []byte {
 	buf := bytes.NewBuffer([]byte{})
-	buf.WriteString("## To keep a bookmark, remove the <URL> line\n")
+	buf.WriteString("## Remove the <URL> line to ignore\n")
 	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())
 	bs.ForEach(func(b Bookmark) {
 		buf.Write(b.BufSimple())

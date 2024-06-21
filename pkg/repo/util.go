@@ -207,3 +207,8 @@ func (r *SQLiteRepository) Info() string {
 		format.BulletLine("path:", r.Cfg.Path),
 	})
 }
+
+// Restore restores record/s from deleted tabled
+func (r *SQLiteRepository) Restore(bs *Slice) error {
+	return r.insertBulk(_defMainTable, bs)
+}

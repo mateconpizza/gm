@@ -64,6 +64,10 @@ var rootCmd = &cobra.Command{
 			return handleDBInit()
 		}
 
+		// FIX: better way
+		if Deleted {
+			Cfg.TableMain = Cfg.TableDeleted
+		}
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -140,6 +144,9 @@ func handleListAndEdit(r *Repo, bs *Slice, args []string) error {
 	if err := handleRemove(r, bs); err != nil {
 		return err
 	}
+	if err := handleRestore(r, bs); err != nil {
+		return err
+	}
 	return handleEdition(r, bs)
 }
 
@@ -153,11 +160,9 @@ func handleOutput(bs *Slice) error {
 	if err := handleByField(bs); err != nil {
 		return err
 	}
-
 	if err := handleCopyOpen(bs); err != nil {
 		return err
 	}
-
 	return handleFormat(bs)
 }
 

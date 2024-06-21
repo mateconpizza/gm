@@ -366,3 +366,53 @@ func confirmEditOrSave(b *Bookmark) error {
 
 	return nil
 }
+
+// handleRestore restores record/s from the deleted table
+func handleRestore(r *Repo, bs *Slice) error {
+	// TODO: extract logic, DRY in `handleRemove` too
+	if !Restore {
+		return nil
+	}
+
+	if !Deleted {
+		err := repo.ErrRecordRestoreTable
+		return fmt.Errorf("%w: use %s", err, C("--deleted").Bold().Red().String())
+	}
+
+	for !Force {
+		var prompt string
+		n := bs.Len()
+		if n == 0 {
+			return repo.ErrRecordNotFound
+		}
+
+		bs.ForEach(func(b Bookmark) {
+			prompt += format.Other(&b, terminal.MaxWidth) + "\n"
+		})
+
+		prompt += C("restore").Bold().Yellow().String() + fmt.Sprintf(" %d bookmark/s?", n)
+		opt := terminal.ConfirmOrEdit(prompt, []string{"yes", "no", "edit"}, "n")
+
+		switch opt {
+		case "n", "no":
+			return ErrActionAborted
+		case "y", "yes":
+			Force = true
+		case "e", "edit":
+			if err := filterBookmarkSelection(bs); err != nil {
+				return err
+			}
+			terminal.Clear()
+		}
+	}
+
+	chDone := make(chan bool)
+	go util.Spinner(chDone, C("restoring record/s...").Yellow().String())
+	if err := r.Restore(bs); err != nil {
+		return fmt.Errorf("%w: restoring bookmark", err)
+	}
+	time.Sleep(time.Second * 1)
+	chDone <- true
+	fmt.Println(C("bookmark/s restored successfully").Green())
+	return nil
+}
