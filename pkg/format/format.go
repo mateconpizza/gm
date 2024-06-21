@@ -12,6 +12,7 @@ import (
 
 var (
 	_bulletPoint     = "\u2022"
+	_delimeter       = "\u00b7"
 	ErrInvalidOption = errors.New("invalid option")
 )
 

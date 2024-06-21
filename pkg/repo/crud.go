@@ -17,6 +17,7 @@ type (
 	IDs   = slice.Slice[int]
 	Row   = bookmark.Bookmark
 	Slice = slice.Slice[Row]
+	Data  = slice.Slice[string]
 )
 
 // Init initialize database
@@ -380,20 +381,18 @@ func (r *SQLiteRepository) getBySQL(bs *Slice, q string, args ...interface{}) er
 		}
 	}()
 
-	var all []Row
 	for rows.Next() {
 		var d Row
 		if err := rows.Scan(&d.ID, &d.URL, &d.Title, &d.Tags, &d.Desc, &d.CreatedAt); err != nil {
 			return fmt.Errorf("%w: '%w'", ErrRecordScan, err)
 		}
-		all = append(all, d)
+		bs.Add(&d)
 	}
 
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("%w: closing rows on getting records by query", err)
 	}
 
-	bs.Set(&all)
 	return nil
 }
 
@@ -434,7 +433,7 @@ func (r *SQLiteRepository) GetByQuery(tableName, q string, bs *Slice) error {
 }
 
 // GetByColumn returns the data found from the given column name
-func (r *SQLiteRepository) GetByColumn(tableName, column string) (*[]string, error) {
+func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) {
 	log.Printf("getting all records from table: '%s' and column: '%s'", tableName, column)
 	sqlQuery := fmt.Sprintf("SELECT %s FROM %s ORDER BY id ASC", column, tableName)
 	rows, err := r.DB.Query(sqlQuery)
@@ -448,27 +447,27 @@ func (r *SQLiteRepository) GetByColumn(tableName, column string) (*[]string, err
 		}
 	}()
 
-	var allTags []string
-
+	var data = slice.New[string]()
 	for rows.Next() {
 		var tag string
 		if err := rows.Scan(&tag); err != nil {
 			return nil, fmt.Errorf("%w: '%w'", ErrRecordScan, err)
 		}
-		allTags = append(allTags, tag)
+		data.Add(&tag)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("%w: closing rows on getting records by query", err)
 	}
 
-	if len(allTags) == 0 {
+	var n = data.Len()
+	if n == 0 {
 		log.Printf("no tags found in table: '%s' and column: '%s'", tableName, column)
 		return nil, fmt.Errorf("%w by table: '%s' and column: '%s'", ErrRecordNotFound, tableName, column)
 	}
 
-	log.Printf("tags found: %d by column: '%s'", len(allTags), column)
-	return &allTags, nil
+	log.Printf("tags found: %d by column: '%s'", n, column)
+	return data, nil
 }
 
 // GetMaxID retrieves the maximum ID from the specified table in the SQLite database.

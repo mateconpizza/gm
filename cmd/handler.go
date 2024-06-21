@@ -127,8 +127,16 @@ func handleByTags(r *Repo, bs *Slice) error {
 		return fmt.Errorf("byTags :%w", err)
 	}
 	if bs.Len() == 0 {
-		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNotFound, Tags)
+		return fmt.Errorf("%w tag: '%s'", repo.ErrRecordNoMatch, Tags)
 	}
+	bs.Filter(func(b Bookmark) bool {
+		for _, s := range strings.Split(b.Tags, ",") {
+			if strings.TrimSpace(s) == Tags {
+				return true
+			}
+		}
+		return false
+	})
 	return nil
 }
 
