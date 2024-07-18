@@ -66,7 +66,7 @@ func CheckStatus(bs *slice.Slice[Bookmark]) error {
 	}
 
 	if err := bs.ForEachErr(schedule); err != nil {
-		return err
+		return fmt.Errorf("%w", err)
 	}
 
 	wg.Wait()

@@ -14,7 +14,7 @@ func Append(s string, buf *[]byte) {
 // AppendVersion inserts a header string at the beginning of a byte
 // buffer
 func AppendVersion(name, version string, buf *[]byte) {
-	Append(fmt.Sprintf("## %s: v%s\n#\n", name, version), buf)
+	Append(fmt.Sprintf("# %s: v%s\n", name, version), buf)
 }
 
 // isEmptyLine checks if a line is empty

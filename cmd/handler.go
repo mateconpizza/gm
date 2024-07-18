@@ -86,6 +86,9 @@ func handleJsonFormat(bs *Slice) error {
 
 // handleHeadAndTail returns a slice of bookmarks with limited elements
 func handleHeadAndTail(bs *Slice) error {
+	if Head == 0 && Tail == 0 {
+		return nil
+	}
 	if Head < 0 || Tail < 0 {
 		return fmt.Errorf("%w: head=%d tail=%d", format.ErrInvalidOption, Head, Tail)
 	}
@@ -194,11 +197,11 @@ func handleEdition(r *Repo, bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
-	var header = "## [%d] %s\n## (%d/%d) bookmarks/s:\n\n"
+	var header = "# [%d/%d] %d | %s\n\n"
 	var edition = func(i int, b Bookmark) error {
 		var buf = b.Buffer()
-		var shortTitle = format.ShortenString(b.Title, terminal.MinWidth)
-		editor.Append(fmt.Sprintf(header, b.ID, shortTitle, i+1, n), &buf)
+		var shortTitle = format.ShortenString(b.Title, terminal.MinWidth-10)
+		editor.Append(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
 		editor.AppendVersion(App.Name, App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
 		copy(bufCopy, buf)
@@ -272,7 +275,7 @@ func handleRemove(r *Repo, bs *Slice) error {
 		case "y", "yes":
 			Force = true
 		case "e", "edit":
-			if err := filterBookmarkSelection(bs); err != nil {
+			if err := filterSlice(bs); err != nil {
 				return err
 			}
 			terminal.Clear()
@@ -338,12 +341,11 @@ func handleCopyOpen(bs *Slice) error {
 // ID or a query string.
 func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 	ids, err := extractIDsFromStr(args)
-	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
 	if len(ids) == 0 {
 		return nil
+	}
+	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	if err := r.GetByIDList(r.Cfg.GetTableMain(), ids, bs); err != nil {
@@ -407,7 +409,7 @@ func handleRestore(r *Repo, bs *Slice) error {
 		case "y", "yes":
 			Force = true
 		case "e", "edit":
-			if err := filterBookmarkSelection(bs); err != nil {
+			if err := filterSlice(bs); err != nil {
 				return err
 			}
 			terminal.Clear()

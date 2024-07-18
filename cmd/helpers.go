@@ -24,6 +24,9 @@ var (
 // extractIDsFromStr extracts IDs from a string
 func extractIDsFromStr(args []string) ([]int, error) {
 	ids := make([]int, 0)
+	if len(args) == 0 {
+		return ids, nil
+	}
 
 	// FIX: what is this!?
 	for _, arg := range strings.Fields(strings.Join(args, " ")) {
@@ -88,9 +91,9 @@ func openBrowser(url string) error {
 	return fmt.Errorf("%w: opening in browser", err)
 }
 
-// filterBookmarkSelection select which item to remove from a slice using the
+// filterSlice select which item to remove from a slice using the
 // text editor
-func filterBookmarkSelection(bs *Slice) error {
+func filterSlice(bs *Slice) error {
 	buf := bookmark.GetBufferSlice(bs)
 	editor.AppendVersion(App.Name, App.Version, &buf)
 	if err := editor.Edit(&buf); err != nil {
