@@ -26,7 +26,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		var bs = slice.New[Bookmark]()
+		bs := slice.New[Bookmark]()
 		if err := r.GetAll(Cfg.GetTableMain(), bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}

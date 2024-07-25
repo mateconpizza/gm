@@ -11,6 +11,7 @@ var (
 	List bool
 	Open bool
 	Tags string
+	QR   bool
 
 	Add     bool
 	Deleted bool
@@ -39,11 +40,14 @@ func init() {
 	// Global
 	rootCmd.PersistentFlags().BoolVar(&DBInit, "init", false, "initialize a database")
 	rootCmd.PersistentFlags().StringVarP(&DBName, "name", "n", app.DefaultDBName, "database name")
-	rootCmd.PersistentFlags().BoolVar(&Force, "force", false, "force action | don't ask confirmation")
+	rootCmd.PersistentFlags().
+		BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&Json, "json", "j", false, "print data in JSON format")
-	rootCmd.PersistentFlags().BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format")
-	rootCmd.PersistentFlags().StringVar(&WithColor, "color", "always", "print with pretty colors [always|never]")
+	rootCmd.PersistentFlags().
+		BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format")
+	rootCmd.PersistentFlags().
+		StringVar(&WithColor, "color", "always", "print with pretty colors [always|never]")
 	rootCmd.MarkFlagsMutuallyExclusive("json", "pretty")
 
 	// Actions
@@ -52,6 +56,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
 	rootCmd.Flags().StringVarP(&Tags, "tag", "t", "", "filter bookmarks by tag")
 	rootCmd.Flags().BoolVarP(&Add, "add", "a", false, "add a new bookmark")
+	rootCmd.Flags().BoolVar(&QR, "qr", false, "generate qr-code")
 
 	// Experimental
 	rootCmd.Flags().BoolVarP(&Edit, "edit", "e", false, "edit mode")

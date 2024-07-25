@@ -160,6 +160,9 @@ func handleOutput(bs *Slice) error {
 	if err := handleByField(bs); err != nil {
 		return err
 	}
+	if err := handleQR(bs); err != nil {
+		return err
+	}
 	if err := handleCopyOpen(bs); err != nil {
 		return err
 	}

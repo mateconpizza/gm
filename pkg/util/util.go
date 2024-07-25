@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -14,7 +15,6 @@ import (
 func FilterEntries(name, path string) ([]fs.DirEntry, error) {
 	var filtered []fs.DirEntry
 	files, err := os.ReadDir(path)
-
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -111,4 +111,28 @@ func EnsureDBSuffix(name string) string {
 		name = fmt.Sprintf("%s%s", name, suffix)
 	}
 	return name
+}
+
+// ExecuteCmd executes a command
+func ExecuteCmd(args ...string) error {
+	cmd := exec.Command(args[0], args[1:]...)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("running command: %w", err)
+	}
+
+	return nil
+}
+
+// GetOSArgsCmd returns the correct arguments for the OS
+func GetOSArgsCmd() []string {
+	var args []string
+	switch runtime.GOOS {
+	case "darwin":
+		args = []string{"open"}
+	case "windows":
+		args = []string{"cmd", "/c", "start"}
+	default:
+		args = []string{"xdg-open"}
+	}
+	return args
 }

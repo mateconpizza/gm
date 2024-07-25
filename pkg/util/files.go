@@ -123,3 +123,22 @@ func SortFilesByMod(f []fs.DirEntry) {
 		return fileI.ModTime().Before(fileJ.ModTime())
 	})
 }
+
+// CleanupTempFile Removes the specified temporary file.
+func CleanupTempFile(fileName string) error {
+	err := os.Remove(fileName)
+	if err != nil {
+		return fmt.Errorf("could not cleanup temp file: %w", err)
+	}
+	return nil
+}
+
+// CreateTempFile Creates a temporary file with the provided prefix.
+func CreateTempFile(prefix string) (*os.File, error) {
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-", prefix))
+	if err != nil {
+		return nil, fmt.Errorf("error creating temp file: %w", err)
+	}
+
+	return tempFile, nil
+}

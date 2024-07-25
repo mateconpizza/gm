@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/qr"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
@@ -28,7 +29,7 @@ func handleByField(bs *Slice) error {
 		return nil
 	}
 
-	var printer = func(b Bookmark) error {
+	printer := func(b Bookmark) error {
 		switch Field {
 		case "id":
 			fmt.Println(b.ID)
@@ -192,15 +193,15 @@ func handleEdition(r *Repo, bs *Slice) error {
 		return nil
 	}
 
-	var n = bs.Len()
+	n := bs.Len()
 	if n == 0 {
 		return repo.ErrRecordQueryNotProvided
 	}
 
-	var header = "# [%d/%d] %d | %s\n\n"
-	var edition = func(i int, b Bookmark) error {
-		var buf = b.Buffer()
-		var shortTitle = format.ShortenString(b.Title, terminal.MinWidth-10)
+	header := "# [%d/%d] %d | %s\n\n"
+	edition := func(i int, b Bookmark) error {
+		buf := b.Buffer()
+		shortTitle := format.ShortenString(b.Title, terminal.MinWidth-10)
 		editor.Append(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
 		editor.AppendVersion(App.Name, App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
@@ -321,6 +322,9 @@ func handleCheckStatus(bs *Slice) error {
 
 // handleCopyOpen performs an action on the bookmark
 func handleCopyOpen(bs *Slice) error {
+	if Exit {
+		return nil
+	}
 	b := bs.Get(0)
 	if Copy {
 		if err := copyToClipboard(b.URL); err != nil {
@@ -425,4 +429,26 @@ func handleRestore(r *Repo, bs *Slice) error {
 	chDone <- true
 	fmt.Println(C("bookmark/s restored successfully").Green())
 	return nil
+}
+
+// handleQR handles creation, rendering or opening of QR codes
+func handleQR(bs *Slice) error {
+	if !QR {
+		return nil
+	}
+
+	Exit = true
+	b := bs.Get(0)
+	qrcode, err := qr.Generate(b.URL)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if Open {
+		//nolint:wrapcheck // no need for wrap
+		return qr.Open(qrcode, App.Name)
+	}
+
+	//nolint:wrapcheck // no need for wrap
+	return qr.Render(qrcode)
 }

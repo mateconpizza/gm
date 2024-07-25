@@ -6,20 +6,17 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 
+	"github.com/atotto/clipboard"
+
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
-
-	"github.com/atotto/clipboard"
+	"github.com/haaag/gm/pkg/util"
 )
 
-var (
-	ErrCopyToClipboard = errors.New("copy to clipboard")
-)
+var ErrCopyToClipboard = errors.New("copy to clipboard")
 
 // extractIDsFromStr extracts IDs from a string
 func extractIDsFromStr(args []string) ([]int, error) {
@@ -76,19 +73,12 @@ func copyToClipboard(s string) error {
 
 // Open opens a URL in the default browser
 func openBrowser(url string) error {
-	var args []string
-	switch runtime.GOOS {
-	case "darwin":
-		args = []string{"open"}
-	case "windows":
-		args = []string{"cmd", "/c", "start"}
-	default:
-		args = []string{"xdg-open"}
+	args := util.GetOSArgsCmd()
+	args = append(args, url)
+	if err := util.ExecuteCmd(args...); err != nil {
+		return fmt.Errorf("%w: opening in browser", err)
 	}
-
-	cmd := exec.Command(args[0], append(args[1:], url)...)
-	err := cmd.Run()
-	return fmt.Errorf("%w: opening in browser", err)
+	return nil
 }
 
 // filterSlice select which item to remove from a slice using the
