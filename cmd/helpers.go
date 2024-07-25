@@ -18,7 +18,7 @@ import (
 
 var ErrCopyToClipboard = errors.New("copy to clipboard")
 
-// extractIDsFromStr extracts IDs from a string
+// extractIDsFromStr extracts IDs from a string.
 func extractIDsFromStr(args []string) ([]int, error) {
 	ids := make([]int, 0)
 	if len(args) == 0 {
@@ -32,6 +32,7 @@ func extractIDsFromStr(args []string) ([]int, error) {
 			if errors.Is(err, strconv.ErrSyntax) {
 				continue
 			}
+
 			return nil, fmt.Errorf("%w", err)
 		}
 		ids = append(ids, id)
@@ -60,7 +61,7 @@ func setLoggingLevel(verboseFlag *bool) {
 	log.SetOutput(silentLogger.Writer())
 }
 
-// copyToClipboard copies a string to the clipboard
+// copyToClipboard copies a string to the clipboard.
 func copyToClipboard(s string) error {
 	err := clipboard.WriteAll(s)
 	if err != nil {
@@ -68,21 +69,23 @@ func copyToClipboard(s string) error {
 	}
 
 	log.Print("text copied to clipboard:", s)
+
 	return nil
 }
 
-// Open opens a URL in the default browser
+// Open opens a URL in the default browser.
 func openBrowser(url string) error {
 	args := util.GetOSArgsCmd()
 	args = append(args, url)
 	if err := util.ExecuteCmd(args...); err != nil {
 		return fmt.Errorf("%w: opening in browser", err)
 	}
+
 	return nil
 }
 
 // filterSlice select which item to remove from a slice using the
-// text editor
+// text editor.
 func filterSlice(bs *Slice) error {
 	buf := bookmark.GetBufferSlice(bs)
 	editor.AppendVersion(App.Name, App.Version, &buf)
@@ -104,13 +107,14 @@ func filterSlice(bs *Slice) error {
 	return nil
 }
 
-// bookmarkEdition edits a bookmark with a text editor
+// bookmarkEdition edits a bookmark with a text editor.
 func bookmarkEdition(b *Bookmark) error {
 	buf := b.Buffer()
 	if err := editor.Edit(&buf); err != nil {
 		if errors.Is(err, editor.ErrBufferUnchanged) {
 			return nil
 		}
+
 		return fmt.Errorf("%w", err)
 	}
 	content := editor.Content(&buf)

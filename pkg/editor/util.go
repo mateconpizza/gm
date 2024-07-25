@@ -31,25 +31,26 @@ func cleanup(tf *os.File) {
 	}
 }
 
-// Content returns the content of a []byte in []string
+// Content returns the content of a []byte in []string.
 func Content(data *[]byte) []string {
 	return strings.Split(string(*data), "\n")
 }
 
-// Checks if the buffer is unchanged
+// IsSameContentBytes Checks if the buffer is unchanged.
 func IsSameContentBytes(a, b *[]byte) bool {
 	return bytes.Equal(*a, *b)
 }
 
-// ExtractContentLine extracts URLs from the a slice of strings
+// ExtractContentLine extracts URLs from the a slice of strings.
 func ExtractContentLine(c *[]string) map[string]bool {
-	var m = make(map[string]bool)
+	m := make(map[string]bool)
 	for _, l := range *c {
 		l = strings.TrimSpace(l)
 		if !strings.HasPrefix(l, "#") && !strings.EqualFold(l, "") {
 			m[l] = true
 		}
 	}
+
 	return m
 }
 
@@ -68,9 +69,7 @@ func saveDataToTempFile(f *os.File, data []byte) error {
 // createTempFile Creates a temporary file with the provided prefix.
 func createTempFile() (*os.File, error) {
 	tempDir := "/tmp/"
-	prefix := fmt.Sprintf("%s-", "bookmark")
-
-	tempFile, err := os.CreateTemp(tempDir, prefix)
+	tempFile, err := os.CreateTemp(tempDir, "-bookmark")
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}
@@ -84,6 +83,7 @@ func cleanupTempFile(fileName string) error {
 	if err != nil {
 		return fmt.Errorf("could not cleanup temp file: %w", err)
 	}
+
 	return nil
 }
 
@@ -106,6 +106,7 @@ func ExtractBlock(content *[]string, startMarker, endMarker string) string {
 
 		if strings.HasPrefix(line, endMarker) && isInBlock {
 			endIndex = i
+
 			break // Found end marker line
 		}
 
@@ -117,6 +118,7 @@ func ExtractBlock(content *[]string, startMarker, endMarker string) string {
 	if startIndex == -1 || endIndex == -1 {
 		return ""
 	}
+
 	return strings.Join(cleanedBlock, "\n")
 }
 
@@ -141,7 +143,7 @@ func editFile(f *os.File, command string, args []string) error {
 	return nil
 }
 
-// readFileContent reads the content of a file
+// readFileContent reads the content of a file.
 func readFileContent(file *os.File, c *[]byte) error {
 	var err error
 	s := file.Name()
@@ -150,5 +152,6 @@ func readFileContent(file *os.File, c *[]byte) error {
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
 	}
+
 	return nil
 }

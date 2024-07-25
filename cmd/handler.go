@@ -23,7 +23,7 @@ var (
 
 var C = format.Color
 
-// handleByField prints the selected field
+// handleByField prints the selected field.
 func handleByField(bs *Slice) error {
 	if Field == "" {
 		return nil
@@ -44,6 +44,7 @@ func handleByField(bs *Slice) error {
 		default:
 			return fmt.Errorf("%w: '%s'", ErrUnknownField, Field)
 		}
+
 		return nil
 	}
 
@@ -51,10 +52,11 @@ func handleByField(bs *Slice) error {
 		return fmt.Errorf("%w", err)
 	}
 	Prettify = false
+
 	return nil
 }
 
-// handleFormat prints the bookmarks in different formats
+// handleFormat prints the bookmarks in different formats.
 func handleFormat(bs *Slice) error {
 	if !Prettify || Exit {
 		return nil
@@ -62,10 +64,11 @@ func handleFormat(bs *Slice) error {
 	bs.ForEach(func(b Bookmark) {
 		fmt.Println(format.PrettyWithURLPath(&b, terminal.MaxWidth))
 	})
+
 	return nil
 }
 
-// handleOneline formats the bookmarks in oneline
+// handleOneline formats the bookmarks in oneline.
 func handleOneline(bs *Slice) error {
 	if !Oneline {
 		return nil
@@ -73,19 +76,21 @@ func handleOneline(bs *Slice) error {
 	bs.ForEach(func(b Bookmark) {
 		fmt.Print(format.Oneline(&b, terminal.Color, terminal.MaxWidth))
 	})
+
 	return nil
 }
 
-// handleJsonFormat formats the bookmarks in JSON
-func handleJsonFormat(bs *Slice) error {
-	if !Json {
+// handleJSONFormat formats the bookmarks in JSON.
+func handleJSONFormat(bs *Slice) error {
+	if !JSON {
 		return nil
 	}
 	fmt.Println(string(format.ToJSON(bs.GetAll())))
+
 	return nil
 }
 
-// handleHeadAndTail returns a slice of bookmarks with limited elements
+// handleHeadAndTail returns a slice of bookmarks with limited elements.
 func handleHeadAndTail(bs *Slice) error {
 	if Head == 0 && Tail == 0 {
 		return nil
@@ -95,6 +100,7 @@ func handleHeadAndTail(bs *Slice) error {
 	}
 	bs.Head(Head)
 	bs.Tail(Tail)
+
 	return nil
 }
 
@@ -107,10 +113,12 @@ func handleListAll(r *Repo, bs *Slice) error {
 	if err := r.GetAll(r.Cfg.GetTableMain(), bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	return nil
 }
 
-// handleByQuery
+// handleByQuery executes a search query on the given repository based on
+// provided arguments.
 func handleByQuery(r *Repo, bs *Slice, args []string) error {
 	if bs.Len() != 0 || len(args) == 0 {
 		return nil
@@ -119,10 +127,11 @@ func handleByQuery(r *Repo, bs *Slice, args []string) error {
 	if err := r.GetByQuery(r.Cfg.GetTableMain(), query, bs); err != nil {
 		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
 	}
+
 	return nil
 }
 
-// handleByTags returns a slice of bookmarks based on the provided tags
+// handleByTags returns a slice of bookmarks based on the provided tags.
 func handleByTags(r *Repo, bs *Slice) error {
 	if Tags == "" {
 		return nil
@@ -139,12 +148,14 @@ func handleByTags(r *Repo, bs *Slice) error {
 				return true
 			}
 		}
+
 		return false
 	})
+
 	return nil
 }
 
-// handleAdd fetch metadata and adds a new bookmark
+// handleAdd fetch metadata and adds a new bookmark.
 func handleAdd(r *Repo, args []string) error {
 	if !Add {
 		return nil
@@ -184,10 +195,11 @@ func handleAdd(r *Repo, args []string) error {
 
 	fmt.Println(C("new bookmark added successfully").Green())
 	Exit = true
+
 	return nil
 }
 
-// handleEdition renders the edition interface
+// handleEdition renders the edition interface.
 func handleEdition(r *Repo, bs *Slice) error {
 	if !Edit {
 		return nil
@@ -229,6 +241,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 		}
 
 		fmt.Printf("%s: id: [%d] %s\n", App.GetName(), b.ID, C("updated").Blue())
+
 		return nil
 	}
 
@@ -239,7 +252,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 	return nil
 }
 
-// handleRemove prompts the user the records to remove
+// handleRemove prompts the user the records to remove.
 func handleRemove(r *Repo, bs *Slice) error {
 	if !Remove {
 		return nil
@@ -296,10 +309,11 @@ func handleRemove(r *Repo, bs *Slice) error {
 	chDone <- true
 
 	fmt.Println(C("bookmark/s removed successfully").Green())
+
 	return nil
 }
 
-// handleCheckStatus prints the status code of the bookmark URL
+// handleCheckStatus prints the status code of the bookmark URL.
 func handleCheckStatus(bs *Slice) error {
 	if !Status {
 		return nil
@@ -320,7 +334,7 @@ func handleCheckStatus(bs *Slice) error {
 	return nil
 }
 
-// handleCopyOpen performs an action on the bookmark
+// handleCopyOpen performs an action on the bookmark.
 func handleCopyOpen(bs *Slice) error {
 	if Exit {
 		return nil
@@ -364,7 +378,7 @@ func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 	return nil
 }
 
-// confirmEditOrSave confirms if the user wants to save the bookmark
+// confirmEditOrSave confirms if the user wants to save the bookmark.
 func confirmEditOrSave(b *Bookmark) error {
 	save := C("\nsave").Green().Bold().String() + " bookmark?"
 	opt := terminal.ConfirmOrEdit(save, []string{"yes", "no", "edit"}, "y")
@@ -381,7 +395,7 @@ func confirmEditOrSave(b *Bookmark) error {
 	return nil
 }
 
-// handleRestore restores record/s from the deleted table
+// handleRestore restores record/s from the deleted table.
 func handleRestore(r *Repo, bs *Slice) error {
 	// TODO: extract logic, DRY in `handleRemove` too
 	if !Restore {
@@ -428,10 +442,11 @@ func handleRestore(r *Repo, bs *Slice) error {
 	time.Sleep(time.Second * 1)
 	chDone <- true
 	fmt.Println(C("bookmark/s restored successfully").Green())
+
 	return nil
 }
 
-// handleQR handles creation, rendering or opening of QR codes
+// handleQR handles creation, rendering or opening of QR codes.
 func handleQR(bs *Slice) error {
 	if !QR {
 		return nil
@@ -445,10 +460,16 @@ func handleQR(bs *Slice) error {
 	}
 
 	if Open {
-		//nolint:wrapcheck // no need for wrap
-		return qr.Open(qrcode, App.Name)
+		if err := qr.Open(qrcode, App.Name); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	}
 
-	//nolint:wrapcheck // no need for wrap
-	return qr.Render(qrcode)
+	if err := qr.Render(qrcode); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }

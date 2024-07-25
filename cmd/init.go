@@ -32,6 +32,7 @@ var initCmd = &cobra.Command{
 		}
 
 		Prettify = true
+
 		return handleFormat(bs)
 	},
 }

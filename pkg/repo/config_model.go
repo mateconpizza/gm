@@ -7,7 +7,7 @@ import (
 	"github.com/haaag/gm/pkg/util"
 )
 
-// SQLIteConfig is the configuration for the SQLite database
+// SQLiteConfig represents the configuration for a SQLite database.
 type SQLiteConfig struct {
 	Name         string `json:"name"`
 	Path         string `json:"path"`
@@ -40,7 +40,7 @@ func (c *SQLiteConfig) SetName(name string) {
 }
 
 // SetDefaults sets path/name to the repository
-// and loads the max backup allowed (default: 3)
+// and loads the max backup allowed (default: 3).
 func (c *SQLiteConfig) SetDefaults(path, name, bkMaxEnv string) {
 	c.SetPath(path)
 	c.SetName(name)
@@ -49,7 +49,7 @@ func (c *SQLiteConfig) SetDefaults(path, name, bkMaxEnv string) {
 }
 
 // setBackupMax loads the max backups allowed from a env var
-// defaults to 3
+// defaults to 3.
 func (c *SQLiteConfig) setBackupMax(env string, fallback int) {
 	defaultMax := strconv.Itoa(fallback)
 	maxBackups, err := strconv.Atoi(util.GetEnv(env, defaultMax))
@@ -59,7 +59,7 @@ func (c *SQLiteConfig) setBackupMax(env string, fallback int) {
 	c.MaxBackups = maxBackups
 }
 
-// NewSQLiteCfg returns the default settings for the database
+// NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg() *SQLiteConfig {
 	return &SQLiteConfig{
 		TableMain:    _defMainTable,

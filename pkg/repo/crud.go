@@ -20,7 +20,7 @@ type (
 	Data  = slice.Slice[string]
 )
 
-// Init initialize database
+// Init initialize database.
 func (r *SQLiteRepository) Init() error {
 	var main, deleted string
 
@@ -33,10 +33,11 @@ func (r *SQLiteRepository) Init() error {
 	if err := r.TableCreate(deleted, tableMainSchema); err != nil {
 		return fmt.Errorf("creating '%s' table: %w", deleted, err)
 	}
+
 	return nil
 }
 
-// Insert creates a new record
+// Insert creates a new record.
 func (r *SQLiteRepository) Insert(tableName string, b *Row) (*Row, error) {
 	if err := bookmark.Validate(b); err != nil {
 		return nil, fmt.Errorf("abort: %w", err)
@@ -80,7 +81,7 @@ func (r *SQLiteRepository) Insert(tableName string, b *Row) (*Row, error) {
 	return b, nil
 }
 
-// insertBulk creates multiple records
+// insertBulk creates multiple records.
 func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 	log.Printf("inserting %d records into table: %s", bs.Len(), tableName)
 
@@ -97,6 +98,7 @@ func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 	stmt, err := tx.Prepare(sqlQuery)
 	if err != nil {
 		err = tx.Rollback()
+
 		return fmt.Errorf("%w: prepared statement for use within a transaction in bulk insert", err)
 	}
 
@@ -105,9 +107,9 @@ func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 		if err != nil {
 			return fmt.Errorf("%w: getting the result in insert bulk", err)
 		}
+
 		return nil
 	})
-
 	if err != nil {
 		err = tx.Rollback()
 		return fmt.Errorf("%w: rollback on insert bulk", err)
@@ -125,7 +127,7 @@ func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 	return nil
 }
 
-// Update updates an existing record
+// Update updates an existing record.
 func (r *SQLiteRepository) Update(tableName string, b *Row) (*Row, error) {
 	if !r.RecordExists(tableName, "id", strconv.Itoa(b.ID)) {
 		return b, fmt.Errorf("%w: in updating '%s'", ErrRecordNotExists, b.URL)
@@ -146,7 +148,7 @@ func (r *SQLiteRepository) Update(tableName string, b *Row) (*Row, error) {
 	return b, nil
 }
 
-// delete deletes a record
+// delete deletes a record.
 func (r *SQLiteRepository) delete(tableName string, b *Row) error {
 	log.Printf("deleting record %s (table: %s)\n", b.URL, tableName)
 
@@ -171,9 +173,10 @@ func (r *SQLiteRepository) delete(tableName string, b *Row) error {
 	return nil
 }
 
-// deleteAll deletes all records
+// deleteAll deletes all records.
 func (r *SQLiteRepository) deleteAll(tableName string) error {
 	log.Printf("deleting all records from table: %s", tableName)
+	//nolint:perfsprint //gosec conflict
 	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s", tableName))
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDBDrop, err)
@@ -182,9 +185,9 @@ func (r *SQLiteRepository) deleteAll(tableName string) error {
 	return nil
 }
 
-// DeleteBulk deletes multiple records
+// DeleteBulk deletes multiple records.
 func (r *SQLiteRepository) DeleteBulk(tableName string, ids *IDs) error {
-	var n = ids.Len()
+	n := ids.Len()
 	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
@@ -197,8 +200,11 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, ids *IDs) error {
 		return fmt.Errorf("%w: begin starts a transaction in bulk delete", err)
 	}
 
-	// TODO: replace placeholders loop with strings.Repeat
-	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", tableName, strings.Repeat("?,", n-1)+"?")
+	sqlQuery := fmt.Sprintf(
+		"DELETE FROM %s WHERE id IN (%s)",
+		tableName,
+		strings.Repeat("?,", n-1)+"?",
+	)
 
 	stmt, err := tx.Prepare(sqlQuery)
 	if err != nil {
@@ -252,7 +258,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 		return ErrRecordIDNotProvided
 	}
 
-	var ids = slice.New[int]()
+	ids := slice.New[int]()
 	bs.ForEach(func(r Row) {
 		ids.Add(&r.ID)
 	})
@@ -277,6 +283,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		return nil
 	}
 
@@ -287,7 +294,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 	return nil
 }
 
-// GetAll returns all records
+// GetAll returns all records.
 func (r *SQLiteRepository) GetAll(tableName string, bs *Slice) error {
 	log.Printf("getting all records from table: '%s'", tableName)
 	sqlQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", tableName)
@@ -302,10 +309,11 @@ func (r *SQLiteRepository) GetAll(tableName string, bs *Slice) error {
 	}
 
 	log.Printf("got %d records from table: '%s'", bs.Len(), tableName)
+
 	return nil
 }
 
-// GetByID returns a record by its ID
+// GetByID returns a record by its ID.
 func (r *SQLiteRepository) GetByID(tableName string, n int) (*Row, error) {
 	if n > r.GetMaxID(tableName) {
 		return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, n)
@@ -324,10 +332,11 @@ func (r *SQLiteRepository) GetByID(tableName string, n int) (*Row, error) {
 	}
 
 	log.Printf("got record by ID %d (table: %s)\n", n, tableName)
+
 	return &d, nil
 }
 
-// GetByIDList returns a list of records by their IDs
+// GetByIDList returns a list of records by their IDs.
 func (r *SQLiteRepository) GetByIDList(tableName string, ids []int, bs *Slice) error {
 	if len(ids) == 0 {
 		return ErrRecordIDNotProvided
@@ -350,7 +359,7 @@ func (r *SQLiteRepository) GetByIDList(tableName string, ids []int, bs *Slice) e
 	return r.getBySQL(bs, query, args...)
 }
 
-// GetByURL returns a record by its URL
+// GetByURL returns a record by its URL.
 func (r *SQLiteRepository) GetByURL(tableName, u string) (*Row, error) {
 	var d Row
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE url = ?", tableName), u)
@@ -396,7 +405,7 @@ func (r *SQLiteRepository) getBySQL(bs *Slice, q string, args ...interface{}) er
 	return nil
 }
 
-// GetByTags returns records by tag
+// GetByTags returns records by tag.
 func (r *SQLiteRepository) GetByTags(tableName, tag string, bs *Slice) error {
 	log.Printf("getting records by tag: %s", tag)
 	query := fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", tableName)
@@ -405,7 +414,7 @@ func (r *SQLiteRepository) GetByTags(tableName, tag string, bs *Slice) error {
 	return r.getBySQL(bs, query, tag)
 }
 
-// GetByQuery returns records by query
+// GetByQuery returns records by query.
 func (r *SQLiteRepository) GetByQuery(tableName, q string, bs *Slice) error {
 	log.Printf("getting records by query: %s", q)
 
@@ -423,16 +432,17 @@ func (r *SQLiteRepository) GetByQuery(tableName, q string, bs *Slice) error {
 		return err
 	}
 
-	var n = bs.Len()
+	n := bs.Len()
 	if n == 0 {
 		return ErrRecordNoMatch
 	}
 
 	log.Printf("got %d records by query: '%s'", n, q)
+
 	return nil
 }
 
-// GetByColumn returns the data found from the given column name
+// GetByColumn returns the data found from the given column name.
 func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) {
 	log.Printf("getting all records from table: '%s' and column: '%s'", tableName, column)
 	sqlQuery := fmt.Sprintf("SELECT %s FROM %s ORDER BY id ASC", column, tableName)
@@ -447,7 +457,7 @@ func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) 
 		}
 	}()
 
-	var data = slice.New[string]()
+	data := slice.New[string]()
 	for rows.Next() {
 		var tag string
 		if err := rows.Scan(&tag); err != nil {
@@ -460,13 +470,19 @@ func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) 
 		return nil, fmt.Errorf("%w: closing rows on getting records by query", err)
 	}
 
-	var n = data.Len()
+	n := data.Len()
 	if n == 0 {
 		log.Printf("no tags found in table: '%s' and column: '%s'", tableName, column)
-		return nil, fmt.Errorf("%w by table: '%s' and column: '%s'", ErrRecordNotFound, tableName, column)
+		return nil, fmt.Errorf(
+			"%w by table: '%s' and column: '%s'",
+			ErrRecordNotFound,
+			tableName,
+			column,
+		)
 	}
 
 	log.Printf("tags found: %d by column: '%s'", n, column)
+
 	return data, nil
 }
 
@@ -474,6 +490,7 @@ func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) 
 func (r *SQLiteRepository) GetMaxID(tableName string) int {
 	var lastIndex int
 
+	//nolint:perfsprint //gosec conflict
 	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", tableName)
 
 	if err := r.DB.QueryRow(sqlQuery).Scan(&lastIndex); err != nil {

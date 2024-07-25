@@ -6,11 +6,11 @@ import (
 	"log"
 	"testing"
 
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/haaag/gm/pkg/app"
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/slice"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 const tempTableName = "test_table"
@@ -31,13 +31,13 @@ func setupTestDB(t *testing.T) (*sql.DB, *SQLiteRepository) {
 		tempTableName,
 	)
 	_, err = db.Exec(sqlQuery)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	DBCfg.SetName(app.DefaultDBName)
 	r := newSQLiteRepository(db, DBCfg)
+
 	return db, r
 }
 
@@ -65,6 +65,7 @@ func getValidBookmarks() *Slice {
 		b.Title = fmt.Sprintf("Title %d", i)
 		s.Add(&b)
 	}
+
 	return s
 }
 
@@ -77,11 +78,13 @@ func TestDropTable(t *testing.T) {
 		t.Errorf("Error dropping table: %v", err)
 	}
 
+	//nolint:perfsprint //gosec conflict
 	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.GetTableMain()))
 	if err == nil {
 		t.Errorf("DBMainTable still exists after calling HandleDropDB")
 	}
 
+	//nolint:perfsprint //gosec conflict
 	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.GetTableDeleted()))
 	if err == nil {
 		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")
@@ -222,13 +225,17 @@ func TestDeleteRecordBulk(t *testing.T) {
 	}
 
 	// Delete the record and verify that it was deleted successfully
-	var ids = slice.New[int]()
+	ids := slice.New[int]()
 	newRows.ForEach(func(r Row) {
 		ids.Add(&r.ID)
 	})
 
 	if ids.Len() != newRows.Len() {
-		t.Errorf("Unexpected number of IDs retrieved: got %d, expected %d", ids.Len(), newRows.Len())
+		t.Errorf(
+			"Unexpected number of IDs retrieved: got %d, expected %d",
+			ids.Len(),
+			newRows.Len(),
+		)
 	}
 
 	// Test the deletion of a valid record
@@ -241,7 +248,11 @@ func TestDeleteRecordBulk(t *testing.T) {
 	_ = r.GetAll(tempTableName, emptyRows)
 
 	if emptyRows.Len() != 0 {
-		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", emptyRows.Len(), 0)
+		t.Errorf(
+			"Unexpected number of bookmarks retrieved: got %d, expected %d",
+			emptyRows.Len(),
+			0,
+		)
 	}
 }
 
@@ -358,20 +369,20 @@ func TestGetRecordsByQuery(t *testing.T) {
 	_, _ = r.Insert(tempTableName, &b)
 	b.URL = "https://www.another.com"
 
-	var bs = slice.New[Row]()
+	bs := slice.New[Row]()
 	if err := r.GetByQuery(tempTableName, "example", bs); err != nil {
 		t.Errorf("Error getting bookmarks by query: %v", err)
 	}
 
-	var n = bs.Len()
+	n := bs.Len()
 
 	if n != expectedRecords {
 		t.Errorf("Unexpected number of bookmarks retrieved: got %d, expected %d", n, 2)
 	}
 
 	var count int
+	//nolint:perfsprint //gosec conflict
 	err := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tempTableName)).Scan(&count)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -409,15 +420,16 @@ func TestInsertRecordsBulk(t *testing.T) {
 		},
 	}
 
-	var bs = slice.New[Row]()
+	bs := slice.New[Row]()
 	bs.Set(&bookmarks)
 	err := r.insertBulk(tempTableName, bs)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var n = len(bookmarks)
+	n := len(bookmarks)
 	var count int
+	//nolint:perfsprint //gosec conflict
 	err = db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", tempTableName)).Scan(&count)
 	if err != nil {
 		t.Fatal(err)

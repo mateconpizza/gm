@@ -43,18 +43,18 @@ func LoadMaxWidth() {
 	}
 }
 
-// Clear clears the terminal
+// Clear clears the terminal.
 func Clear() {
 	fmt.Print("\033[H\033[2J")
 }
 
-// IsPiped returns true if the input is piped
+// IsPiped returns true if the input is piped.
 func IsPiped() bool {
 	fileInfo, _ := os.Stdin.Stat()
 	return (fileInfo.Mode() & os.ModeCharDevice) == 0
 }
 
-// getWidth returns the terminal's width
+// getWidth returns the terminal's width.
 func getWidth() (int, error) {
 	fd := int(os.Stdout.Fd())
 	if !term.IsTerminal(fd) {

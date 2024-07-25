@@ -10,16 +10,17 @@ import (
 	"github.com/haaag/gm/pkg/util"
 )
 
-// Generate generates a QR-Code from a given URL
+// Generate generates a QR-Code from a given URL.
 func Generate(url string) (*qrcode.QRCode, error) {
 	qr, err := qrcode.New(url, qrcode.High)
 	if err != nil {
 		return nil, fmt.Errorf("generating qr-code: %w", err)
 	}
+
 	return qr, nil
 }
 
-// generatePNG generates a PNG from a given QR-Code
+// generatePNG generates a PNG from a given QR-Code.
 func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	qrfile, err := util.CreateTempFile(prefix)
 	if err != nil {
@@ -32,7 +33,7 @@ func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	return qrfile, nil
 }
 
-// Open opens a QR-Code image in the system default image viewer
+// Open opens a QR-Code image in the system default image viewer.
 func Open(qr *qrcode.QRCode, prefix string) error {
 	qrfile, err := generatePNG(qr, prefix)
 	if err != nil {
@@ -54,10 +55,11 @@ func Open(qr *qrcode.QRCode, prefix string) error {
 	return nil
 }
 
-// Render renders a QR-Code to the standard output
+// Render renders a QR-Code to the standard output.
 func Render(qr *qrcode.QRCode) error {
 	if _, err := fmt.Println(qr.ToSmallString(false)); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	return nil
 }

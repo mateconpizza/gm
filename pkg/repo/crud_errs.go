@@ -3,7 +3,7 @@ package repo
 import "errors"
 
 var (
-	// database
+	// database errs.
 	ErrDBAlreadyExists      = errors.New("database already exists")
 	ErrDBAlreadyInitialized = errors.New("database already initialized")
 	ErrDBDefault            = errors.New("default database not found")
@@ -18,7 +18,7 @@ var (
 )
 
 var (
-	// records
+	// records errs.
 	ErrRecordActionAborted    = errors.New("action aborted")
 	ErrRecordDelete           = errors.New("error delete record")
 	ErrRecordDuplicate        = errors.New("record already exists")
@@ -35,7 +35,7 @@ var (
 )
 
 var (
-	// backups
+	// backups errs.
 	ErrBackupDisabled      = errors.New("backups are disabled")
 	ErrBackupNotFound      = errors.New("no backup found")
 	ErrBackupNoPurge       = errors.New("no backup to purge")

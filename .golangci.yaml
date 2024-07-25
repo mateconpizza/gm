@@ -8,36 +8,51 @@ issues:
 linters:
   disable-all: true
   enable:
-    # - gomnd
+    # - cyclop
     - dupl
+    - err113
     - errcheck
     - errname
     - errorlint
     - exportloopref
     - forcetypeassert
+    - funlen
     - goconst
     - gocritic
-    - err113
+    - godot
+    - gofumpt
     - goimports
     - gosec
     - gosimple
     - ineffassign
+    - interfacebloat
+    - lll
     - makezero
     - misspell
+    # - mnd
+    - musttag
     - nakedret
     - nestif
     - nilerr
+    - nilnil
+    - nlreturn
     - noctx
     - nolintlint
+    - perfsprint
     - prealloc
     - predeclared
+    - reassign
     - revive
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
+    # - stylecheck
+    - tagalign
+    # - testpackage
     - unconvert
     - unparam
     - unused
+    - usestdlibvars
     - wastedassign
     - whitespace
     - wrapcheck
@@ -57,6 +72,8 @@ linters-settings:
     check-blank: false
     exclude: ""
     exclude-functions: []
+  nlreturn:
+    block-size: 2
   goconst:
     min-len: 2
     min-occurrences: 3

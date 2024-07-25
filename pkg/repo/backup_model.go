@@ -19,7 +19,8 @@ func (b *Backup) Fullpath() string {
 }
 
 func NewBackup(src string) *Backup {
-	var name = addDatePrefix(filepath.Base(src))
+	name := addDatePrefix(filepath.Base(src))
+
 	return &Backup{
 		Src:  src,
 		Name: name,
@@ -27,8 +28,9 @@ func NewBackup(src string) *Backup {
 	}
 }
 
-// addDatePrefix add time.Now() as prefix to a filename
+// addDatePrefix add time.Now() as prefix to a filename.
 func addDatePrefix(s string) string {
 	now := time.Now().Format(_defBackupDateName)
+
 	return fmt.Sprintf("%s_%s", now, s)
 }

@@ -23,7 +23,7 @@ var (
 	bkRestore bool
 )
 
-// backupCmd backup management
+// backupCmd backup management.
 var backupCmd = &cobra.Command{
 	Use:   "bk",
 	Short: "backup management",
@@ -57,12 +57,12 @@ func init() {
 }
 
 func handleBackupCreate(r *Repo) error {
-	var srcPath = r.Cfg.Fullpath()
+	srcPath := r.Cfg.Fullpath()
 	if err := checkDBState(srcPath); err != nil {
 		return err
 	}
 
-	var backup = repo.NewBackup(srcPath)
+	backup := repo.NewBackup(srcPath)
 	if util.FileExists(backup.Fullpath()) && !Force {
 		return fmt.Errorf("%w: %s", repo.ErrBackupAlreadyExists, backup.Name)
 	}
@@ -79,10 +79,11 @@ func handleBackupCreate(r *Repo) error {
 		return fmt.Errorf("copying file: %w", err)
 	}
 	fmt.Println(C("backup created successfully:").Green(), backup.Name)
+
 	return nil
 }
 
-// handleBackupPurge purges the excedent backup
+// handleBackupPurge purges the excedent backup.
 func handleBackupPurge(r *Repo) error {
 	var (
 		backupList []string
@@ -94,7 +95,7 @@ func handleBackupPurge(r *Repo) error {
 
 	backupList, _ = getBackups(r.Cfg.BackupPath, r.Cfg.Name)
 	toPurge = util.TrimElements(backupList, r.Cfg.MaxBackups)
-	var n = len(toPurge)
+	n := len(toPurge)
 	if n == 0 {
 		return repo.ErrBackupNoPurge
 	}
@@ -103,8 +104,11 @@ func handleBackupPurge(r *Repo) error {
 	status = backupDetail(r)
 	nPurgeStr = C(strconv.Itoa(n)).Red().Bold().String()
 	if n > 0 {
-		status += format.BulletLine("purge:", fmt.Sprintf("%s backups to delete", nPurgeStr))
-		status += format.HeaderWithSection(C("\nbackup/s to purge:").Red().Bold().String(), purgeList)
+		status += format.BulletLine("purge:", nPurgeStr+" backups to delete")
+		status += format.HeaderWithSection(
+			C("\nbackup/s to purge:").Red().Bold().String(),
+			purgeList,
+		)
 	}
 
 	fmt.Println(status)
@@ -119,16 +123,17 @@ func handleBackupPurge(r *Repo) error {
 	}
 
 	fmt.Println(C("backups purged successfully").Green())
+
 	return nil
 }
 
-// handleBackupRestore
+// handleBackupRestore.
 func handleBackupRestore(_ *Repo) error {
 	fmt.Println("Backup restore...")
 	return nil
 }
 
-// backupInfo
+// backupInfo.
 func backupInfo(r *Repo) string {
 	t := C("backup/s").Purple().Bold().String()
 	bks, _ := getBackups(r.Cfg.BackupPath, r.Cfg.Name)
@@ -137,6 +142,7 @@ func backupInfo(r *Repo) string {
 	}
 
 	bs := getDBsBasename(bks)
+
 	return format.HeaderWithSection(t, bs)
 }
 
@@ -145,35 +151,39 @@ func getBackups(path, name string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: getting files from '%s'", err, path)
 	}
+
 	return f, nil
 }
 
-// checkBackupEnabled checks if backups are enabled
+// checkBackupEnabled checks if backups are enabled.
 func checkBackupEnabled(n int) error {
 	if n <= 0 {
 		return repo.ErrBackupDisabled
 	}
+
 	return nil
 }
 
-// printsBackupInfo prints repository's backup info
+// printsBackupInfo prints repository's backup info.
 func printsBackupInfo(r *Repo) error {
 	var sb strings.Builder
 	sb.WriteString(backupDetail(r) + "\n")
 	sb.WriteString(backupInfo(r))
 	fmt.Println(sb.String())
+
 	return nil
 }
 
-// getBkStateColored returns a colored string with the backups status
+// getBkStateColored returns a colored string with the backups status.
 func getBkStateColored(n int) string {
 	if n <= 0 {
 		return C("disabled").Red().String()
 	}
+
 	return C("enabled").Green().String()
 }
 
-// backupDetail returns a detailed list of backups
+// backupDetail returns a detailed list of backups.
 func backupDetail(r *Repo) string {
 	var (
 		bks, _     = getBackups(r.Cfg.BackupPath, r.Cfg.Name)
@@ -189,10 +199,11 @@ func backupDetail(r *Repo) string {
 	}
 
 	a := C(strconv.Itoa(n)).Green().String()
+
 	return format.HeaderWithSection(C("database").Yellow().Bold().String(), []string{
 		format.BulletLine("name:", C(r.Cfg.Name).Blue().String()),
 		format.BulletLine("status: ", getBkStateColored(n)),
-		format.BulletLine("max:", fmt.Sprintf("%s backups allowed", a)),
-		format.BulletLine("backup/s:", fmt.Sprintf("%s backups found", foundColor)),
+		format.BulletLine("max:", a+" backups allowed"),
+		format.BulletLine("backup/s:", foundColor+" backups found"),
 	})
 }

@@ -16,7 +16,7 @@ var (
 	ErrPathNotFound = errors.New("path not found")
 )
 
-// FilesWithSuffix
+// FilesWithSuffix finds all files with a specific suffix within a directory.
 func FilesWithSuffix(path, suffix string, files *[]string) error {
 	if !FileExists(path) {
 		return ErrPathNotFound
@@ -31,28 +31,30 @@ func FilesWithSuffix(path, suffix string, files *[]string) error {
 	return nil
 }
 
-// FileExists checks if a file exists
+// FileExists checks if a file exists.
 func FileExists(s string) bool {
 	_, err := os.Stat(s)
 	return !os.IsNotExist(err)
 }
 
-// Filesize returns the size of a file
+// Filesize returns the size of a file.
 func Filesize(f string) int64 {
 	fi, err := os.Stat(f)
 	if err != nil {
 		return 0
 	}
+
 	return fi.Size()
 }
 
-// Files returns files found in a given path
+// Files returns files found in a given path.
 func Files(path, name string) ([]string, error) {
 	query := path + "/*" + name
 	files, err := filepath.Glob(query)
 	if err != nil {
 		return nil, fmt.Errorf("%w: getting files query: '%s'", err, query)
 	}
+
 	return files, nil
 }
 
@@ -66,6 +68,7 @@ func Mkdir(path string) error {
 	if err := os.MkdirAll(path, dirPermissions); err != nil {
 		return fmt.Errorf("creating %s: %w", path, err)
 	}
+
 	return nil
 }
 
@@ -76,10 +79,11 @@ func RmFile(f string) error {
 	if err := os.Remove(f); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}
+
 	return nil
 }
 
-// CopyFile copies a file
+// CopyFile copies a file.
 func CopyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
@@ -106,10 +110,11 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("error copying file: %w", err)
 	}
+
 	return nil
 }
 
-// SortFilesByMod sorts files by modification time
+// SortFilesByMod sorts files by modification time.
 func SortFilesByMod(f []fs.DirEntry) {
 	sort.Slice(f, func(i, j int) bool {
 		fileI, err := f[i].Info()
@@ -120,6 +125,7 @@ func SortFilesByMod(f []fs.DirEntry) {
 		if err != nil {
 			return false
 		}
+
 		return fileI.ModTime().Before(fileJ.ModTime())
 	})
 }
@@ -130,12 +136,13 @@ func CleanupTempFile(fileName string) error {
 	if err != nil {
 		return fmt.Errorf("could not cleanup temp file: %w", err)
 	}
+
 	return nil
 }
 
 // CreateTempFile Creates a temporary file with the provided prefix.
 func CreateTempFile(prefix string) (*os.File, error) {
-	tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-", prefix))
+	tempFile, err := os.CreateTemp("", "-"+prefix)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}

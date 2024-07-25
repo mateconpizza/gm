@@ -25,6 +25,7 @@ type Scraper struct {
 
 func New(url string) *Scraper {
 	collector := colly.NewCollector()
+
 	return &Scraper{
 		URL:       url,
 		collector: collector,
@@ -33,7 +34,9 @@ func New(url string) *Scraper {
 
 func getHeaders() http.Header {
 	return http.Header{
-		"User-Agent":      {"Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0"},
+		"User-Agent": {
+			"Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0",
+		},
 		"Accept":          {"*/*"},
 		"Accept-Encoding": {"gzip, deflate"},
 		"Cookie":          {""},
@@ -82,6 +85,7 @@ func (s *Scraper) Scrape() error {
 	}
 
 	chDone <- true
+
 	return nil
 }
 

@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/semaphore"
+
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/slice"
-
-	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -33,7 +33,7 @@ func (r *Response) String() string {
 	return prettyPrintURLStatus(r.statusCode, r.id, r.URL)
 }
 
-// CheckStatus checks the status of a slice of bookmarks
+// CheckStatus checks the status of a slice of bookmarks.
 func CheckStatus(bs *slice.Slice[Bookmark]) error {
 	// FIX: Split???
 	const maxConRequests = 25
@@ -48,7 +48,7 @@ func CheckStatus(bs *slice.Slice[Bookmark]) error {
 	start = time.Now()
 	ctx := context.Background()
 
-	var schedule = func(b Bookmark) error {
+	schedule := func(b Bookmark) error {
 		wg.Add(1)
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
@@ -117,7 +117,11 @@ func prettifyWithError(res *slice.Slice[Response]) (resLen int, msg string) {
 		})
 	}
 
-	return n, fmt.Sprintf("  + %s urls did not return a %s code\n", withErrorLenStr, withNoErrorCode)
+	return n, fmt.Sprintf(
+		"  + %s urls did not return a %s code\n",
+		withErrorLenStr,
+		withNoErrorCode,
+	)
 }
 
 func prettifyURLStatus(code int) (status, statusCode string) {
@@ -132,6 +136,7 @@ func prettifyURLStatus(code int) (status, statusCode string) {
 		status = C("WA").Yellow().Bold().String()
 		statusCode = C(strconv.Itoa(code)).Yellow().Bold().String()
 	}
+
 	return status, statusCode
 }
 
@@ -217,6 +222,7 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 
 		s := C("error making request to").Yellow()
 		fmt.Printf("%s %s: %v\n", s.String(), b.URL, err)
+
 		return Response{
 			URL:        b.URL,
 			id:         b.ID,
@@ -240,5 +246,6 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 	}
 
 	fmt.Println(result.String())
+
 	return result
 }

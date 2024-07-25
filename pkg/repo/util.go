@@ -26,7 +26,7 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 	}
 
 	log.Printf("reordering IDs in table: %s", tableName)
-	tempTable := fmt.Sprintf("temp_%s", tableName)
+	tempTable := "temp_" + tableName
 	if err := r.TableCreate(tempTable, tableMainSchema); err != nil {
 		return err
 	}
@@ -42,11 +42,12 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 	return r.tableRename(tempTable, tableName)
 }
 
-// maintenance
+// maintenance.
 func (r *SQLiteRepository) maintenance(_ *SQLiteConfig) error {
 	if err := r.checkSize(_defMaxBytesSize); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	return nil
 }
 
@@ -71,7 +72,7 @@ func (r *SQLiteRepository) IsInitialized(tableName string) bool {
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
 func (r *SQLiteRepository) tableExists(t string) (bool, error) {
-	var query = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
+	query := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
 
 	var count int
 	if err := r.DB.QueryRow(query, t).Scan(&count); err != nil {
@@ -115,6 +116,7 @@ func (r *SQLiteRepository) TableCreate(name, schema string) error {
 func (r *SQLiteRepository) tableDrop(t string) error {
 	log.Printf("dropping table: %s", t)
 
+	//nolint:perfsprint //gosec conflict
 	_, err := r.DB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
 	if err != nil {
 		return fmt.Errorf("%w: dropping table '%s'", err, t)
@@ -141,18 +143,21 @@ func (r *SQLiteRepository) vacuum() error {
 	if err != nil {
 		return fmt.Errorf("vacuum: %w", err)
 	}
+
 	return nil
 }
 
 // size returns the size of the database.
 func (r *SQLiteRepository) size() (int64, error) {
 	var size int64
-	err := r.DB.QueryRow("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()").Scan(&size)
+	err := r.DB.QueryRow("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()").
+		Scan(&size)
 	if err != nil {
 		return 0, fmt.Errorf("size: %w", err)
 	}
 
 	log.Printf("size of the database: %d bytes\n", size)
+
 	return size, nil
 }
 
@@ -175,7 +180,7 @@ func (r *SQLiteRepository) checkSize(n int64) error {
 	return nil
 }
 
-// DropSecure removes all records database
+// DropSecure removes all records database.
 func (r *SQLiteRepository) DropSecure() error {
 	if err := r.deleteAll(r.Cfg.GetTableMain()); err != nil {
 		return fmt.Errorf("%w", err)
@@ -192,15 +197,17 @@ func (r *SQLiteRepository) DropSecure() error {
 	if err := r.vacuum(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	return nil
 }
 
-// Info returns the repository info
+// Info returns the repository info.
 func (r *SQLiteRepository) Info() string {
 	var main, deleted, header string
 	main = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableMain()))
 	deleted = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableDeleted()))
 	header = format.Color(r.Cfg.Name).Yellow().Bold().String()
+
 	return format.HeaderWithSection(header, []string{
 		format.BulletLine("records:", main),
 		format.BulletLine("deleted:", deleted),
@@ -208,7 +215,7 @@ func (r *SQLiteRepository) Info() string {
 	})
 }
 
-// Restore restores record/s from deleted tabled
+// Restore restores record/s from deleted tabled.
 func (r *SQLiteRepository) Restore(bs *Slice) error {
 	return r.insertBulk(_defMainTable, bs)
 }

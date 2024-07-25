@@ -22,7 +22,7 @@ var (
 	Tail    int
 
 	Field     string
-	Json      bool
+	JSON      bool
 	Oneline   bool
 	Prettify  bool
 	WithColor string
@@ -43,7 +43,7 @@ func init() {
 	rootCmd.PersistentFlags().
 		BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "verbose mode")
-	rootCmd.PersistentFlags().BoolVarP(&Json, "json", "j", false, "print data in JSON format")
+	rootCmd.PersistentFlags().BoolVarP(&JSON, "json", "j", false, "print data in JSON format")
 	rootCmd.PersistentFlags().
 		BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format")
 	rootCmd.PersistentFlags().

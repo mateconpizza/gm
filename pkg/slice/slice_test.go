@@ -41,6 +41,7 @@ func TestForEachErr(t *testing.T) {
 		if i == 3 {
 			return errExpected
 		}
+
 		return nil
 	}
 
@@ -83,7 +84,7 @@ func TestFilterInt(t *testing.T) {
 	for _, test := range tests {
 		testT := test // Implicit memory aliasing in for loop.
 		t.Run(test.name, func(t *testing.T) {
-			var s = New[int]()
+			s := New[int]()
 			s.Set(&testT.input)
 			s.Filter(testT.fn)
 			if !reflect.DeepEqual(*s.items, testT.expected) {
@@ -117,7 +118,7 @@ func TestFilterStrings(t *testing.T) {
 	for _, test := range testWithInt {
 		testT := test // Implicit memory aliasing in for loop.
 		t.Run(test.name, func(t *testing.T) {
-			var s = New[string]()
+			s := New[string]()
 			s.Set(&testT.input)
 			s.Filter(testT.fn)
 			if !reflect.DeepEqual(*s.items, testT.expected) {

@@ -4,36 +4,38 @@ type Slice[T any] struct {
 	items *[]T
 }
 
-// ForEach loops all items
+// ForEach loops all items.
 func (s *Slice[T]) ForEach(fn func(T)) {
 	for _, ele := range *s.items {
 		fn(ele)
 	}
 }
 
-// ForEachErr loops all items and returns a err
+// ForEachErr loops all items and returns a err.
 func (s *Slice[T]) ForEachErr(fn func(T) error) error {
 	for _, ele := range *s.items {
 		if err := fn(ele); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
-// ForEachIdx loop items all items with index
+// ForEachIdx loop items all items with index.
 func (s *Slice[T]) ForEachIdx(fn func(int, T) error) error {
 	for i, ele := range *s.items {
 		if err := fn(i, ele); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
-// Filter
+// Filter filters the items with a callback.
 func (s *Slice[T]) Filter(fn func(T) bool) {
-	var slice = New[T]()
+	slice := New[T]()
 	for _, b := range *s.items {
 		t := b
 		if fn(t) {
@@ -49,6 +51,7 @@ func (s *Slice[T]) Has(fn func(T) bool) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -73,28 +76,29 @@ func (s *Slice[T]) Len() int {
 	return len(*s.items)
 }
 
-// Add adds a single item to the items
+// Add adds a single item to the items.
 func (s *Slice[T]) Add(b *T) {
 	*s.items = append(*s.items, *b)
 }
 
-// Set sets the items
+// Set sets the items.
 func (s *Slice[T]) Set(items *[]T) {
 	*s.items = *items
 }
 
-// Get returns a single item by index
+// Get returns a single item by index.
 func (s *Slice[T]) Get(i int) T {
 	return (*s.items)[i]
 }
 
-// GetAll returns all items in the slice
+// GetAll returns all items in the slice.
 func (s *Slice[T]) GetAll() *[]T {
 	return s.items
 }
 
-// New creates a new slice of bookmarks
+// New creates a new slice of bookmarks.
 func New[T any]() *Slice[T] {
 	items := make([]T, 0)
+
 	return &Slice[T]{items: &items}
 }

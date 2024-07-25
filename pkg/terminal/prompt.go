@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// getQueryFromPipe reads the input from the pipe
+// getQueryFromPipe reads the input from the pipe.
 func getQueryFromPipe(r io.Reader) string {
 	var result strings.Builder
 	scanner := bufio.NewScanner(bufio.NewReader(r))
@@ -21,13 +21,14 @@ func getQueryFromPipe(r io.Reader) string {
 
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "error reading from pipe:", err)
+
 		return ""
 	}
 
 	return result.String()
 }
 
-// promptWithOptions prompts the user to enter one of the given options
+// promptWithOptions prompts the user to enter one of the given options.
 func promptWithOptions(question string, options []string, defaultValue string) string {
 	p := Prompt(question, fmt.Sprintf("[%s]:", strings.Join(options, "/")))
 	r := bufio.NewReader(os.Stdin)
@@ -37,6 +38,7 @@ func promptWithOptions(question string, options []string, defaultValue string) s
 		s, err := r.ReadString('\n')
 		if err != nil {
 			fmt.Println("Error reading input:", err)
+
 			return ""
 		}
 
@@ -58,7 +60,7 @@ func promptWithOptions(question string, options []string, defaultValue string) s
 }
 
 // promptWithOptsAndDef capitalizes the default option and appends to the end of
-// the slice
+// the slice.
 func promptWithOptsAndDef(options []string, def string) []string {
 	for i := 0; i < len(options); i++ {
 		if strings.HasPrefix(options[i], def) {
@@ -74,7 +76,7 @@ func promptWithOptsAndDef(options []string, def string) []string {
 	return options
 }
 
-// ReadPipedInput reads the input from a pipe
+// ReadPipedInput reads the input from a pipe.
 func ReadPipedInput(args *[]string) {
 	if !IsPiped() {
 		return
@@ -89,7 +91,7 @@ func ReadPipedInput(args *[]string) {
 	*args = append(*args, split...)
 }
 
-// ReadInput prompts the user for input
+// ReadInput prompts the user for input.
 func ReadInput(prompt string) string {
 	var s string
 	fmt.Print(prompt)
@@ -98,30 +100,34 @@ func ReadInput(prompt string) string {
 	if err != nil {
 		return ""
 	}
+
 	return strings.Trim(s, "\n")
 }
 
-// Confirm prompts the user to enter yes or no
+// Confirm prompts the user to enter yes or no.
 func Confirm(question, def string) bool {
 	options := promptWithOptsAndDef([]string{"y", "n"}, def)
 	chosen := promptWithOptions(question, options, def)
+
 	return strings.EqualFold(chosen, "y")
 }
 
-// ConfirmOrEdit prompts the user to enter one of the given options
+// ConfirmOrEdit prompts the user to enter one of the given options.
 func ConfirmOrEdit(question string, options []string, def string) string {
 	for i := 0; i < len(options); i++ {
 		options[i] = strings.ToLower(options[i])
 	}
 	options = promptWithOptsAndDef(options, def)
+
 	return promptWithOptions(question, options, def)
 }
 
-// Prompt returns a formatted string with a question and options
+// Prompt returns a formatted string with a question and options.
 func Prompt(question, options string) string {
 	const (
 		gray  = "\x1b[38;5;242m"
 		reset = "\x1b[0m"
 	)
+
 	return fmt.Sprintf("%s %s ", question, fmt.Sprintf("%s%s%s", gray, options, reset))
 }

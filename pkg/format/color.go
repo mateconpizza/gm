@@ -29,10 +29,10 @@ func (c *ColoredText) String() string {
 		styles := strings.Join(c.styles, "")
 		return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, _reset)
 	}
+
 	return c.text
 }
 
-// styles
 func (c *ColoredText) Bold() *ColoredText {
 	return c.Style("\x1b[1m")
 }
@@ -49,7 +49,6 @@ func (c *ColoredText) Italic() *ColoredText {
 	return c.Style("\x1b[3m")
 }
 
-// colors
 func (c *ColoredText) Blue() *ColoredText {
 	c.color = "\x1b[34m"
 	return c

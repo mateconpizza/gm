@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// FilterEntries returns a list of backups
+// FilterEntries returns a list of backups.
 func FilterEntries(name, path string) ([]fs.DirEntry, error) {
 	var filtered []fs.DirEntry
 	files, err := os.ReadDir(path)
@@ -27,10 +27,11 @@ func FilterEntries(name, path string) ([]fs.DirEntry, error) {
 			filtered = append(filtered, entry)
 		}
 	}
+
 	return filtered, nil
 }
 
-// GetEnv retrieves an environment variable
+// GetEnv retrieves an environment variable.
 func GetEnv(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok {
 		return v
@@ -39,7 +40,7 @@ func GetEnv(key, def string) string {
 	return def
 }
 
-// binPath returns the path of the binary
+// BinPath returns the path of the binary.
 func BinPath(binaryName string) string {
 	cmd := exec.Command("which", binaryName)
 	out, err := cmd.Output()
@@ -48,16 +49,20 @@ func BinPath(binaryName string) string {
 	}
 	c := strings.TrimRight(string(out), "\n")
 	log.Printf("which %s = %s", binaryName, c)
+
 	return c
 }
 
-// binExists checks if the binary exists in $PATH
+// BinExists checks if the binary exists in $PATH.
 func BinExists(binaryName string) bool {
 	cmd := exec.Command("which", binaryName)
 	err := cmd.Run()
+
 	return err == nil
 }
 
+// Spinner displays a spinning cursor animation while waiting for a signal on a
+// channel.
 func Spinner(done chan bool, mesg string) {
 	spinner := []string{" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇"}
 	for i := 0; ; i++ {
@@ -72,7 +77,7 @@ func Spinner(done chan bool, mesg string) {
 	}
 }
 
-// ParseUniqueStrings returns a slice of unique strings
+// ParseUniqueStrings returns a slice of unique strings.
 func ParseUniqueStrings(input *[]string, sep string) *[]string {
 	uniqueItems := make([]string, 0)
 	uniqueMap := make(map[string]struct{})
@@ -101,19 +106,21 @@ func TrimElements[T any](elements []T, n int) []T {
 	if len(elements) > n {
 		filtered = elements[:len(elements)-n]
 	}
+
 	return filtered
 }
 
-// EnsureDBSuffix adds .db to the database name
+// EnsureDBSuffix adds .db to the database name.
 func EnsureDBSuffix(name string) string {
 	suffix := ".db"
 	if !strings.HasSuffix(name, suffix) {
 		name = fmt.Sprintf("%s%s", name, suffix)
 	}
+
 	return name
 }
 
-// ExecuteCmd executes a command
+// ExecuteCmd executes a command.
 func ExecuteCmd(args ...string) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	if err := cmd.Run(); err != nil {
@@ -123,7 +130,7 @@ func ExecuteCmd(args ...string) error {
 	return nil
 }
 
-// GetOSArgsCmd returns the correct arguments for the OS
+// GetOSArgsCmd returns the correct arguments for the OS.
 func GetOSArgsCmd() []string {
 	var args []string
 	switch runtime.GOOS {
@@ -134,5 +141,6 @@ func GetOSArgsCmd() []string {
 	default:
 		args = []string{"xdg-open"}
 	}
+
 	return args
 }

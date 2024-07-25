@@ -7,11 +7,12 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/haaag/gm/pkg/util"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/haaag/gm/pkg/util"
 )
 
-// SQLiteRepository implements the Repository interface
+// SQLiteRepository implements the Repository interface.
 type SQLiteRepository struct {
 	DB  *sql.DB       `json:"-"`
 	Cfg *SQLiteConfig `json:"db"`
@@ -23,7 +24,7 @@ func (r *SQLiteRepository) Close() {
 	}
 }
 
-// newSQLiteRepository returns a new SQLiteRepository
+// newSQLiteRepository returns a new SQLiteRepository.
 func newSQLiteRepository(db *sql.DB, cfg *SQLiteConfig) *SQLiteRepository {
 	return &SQLiteRepository{
 		DB:  db,
@@ -31,7 +32,7 @@ func newSQLiteRepository(db *sql.DB, cfg *SQLiteConfig) *SQLiteRepository {
 	}
 }
 
-// New returns a new SQLiteRepository
+// New returns a new SQLiteRepository.
 func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 	c.Name = util.EnsureDBSuffix(c.Name)
 	db, err := MustOpenDatabase(filepath.Join(c.Path, c.Name))
@@ -43,10 +44,11 @@ func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 	if err := r.maintenance(c); err != nil {
 		return nil, err
 	}
+
 	return r, nil
 }
 
-// MustOpenDatabase opens a database
+// MustOpenDatabase opens a database.
 func MustOpenDatabase(path string) (*sql.DB, error) {
 	log.Printf("opening database: '%s'", path)
 	db, err := sql.Open("sqlite3", path)

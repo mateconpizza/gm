@@ -6,45 +6,48 @@ import (
 )
 
 // Append inserts a header string at the beginning of a byte
-// buffer
+// buffer.
 func Append(s string, buf *[]byte) {
 	*buf = append([]byte(s), *buf...)
 }
 
 // AppendVersion inserts a header string at the beginning of a byte
-// buffer
+// buffer.
 func AppendVersion(name, version string, buf *[]byte) {
 	Append(fmt.Sprintf("# %s: v%s\n", name, version), buf)
 }
 
-// isEmptyLine checks if a line is empty
+// isEmptyLine checks if a line is empty.
 func isEmptyLine(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
 
-// Validate checks if the URL and Tags are in the content
+// Validate checks if the URL and Tags are in the content.
 func Validate(content *[]string) error {
 	if err := validateURLBuffer(content); err != nil {
 		return err
 	}
+
 	return validateTagsBuffer(content)
 }
 
-// validateURLBuffer validates url in the buffer
+// validateURLBuffer validates url in the buffer.
 func validateURLBuffer(content *[]string) error {
 	url := ExtractBlock(content, "# URL:", "# Title:")
 	if isEmptyLine(url) {
 		return fmt.Errorf("%w: URL", ErrLineNotFound)
 	}
+
 	return nil
 }
 
-// validateTagsBuffer validates tags in the buffer
+// validateTagsBuffer validates tags in the buffer.
 func validateTagsBuffer(content *[]string) error {
 	tags := ExtractBlock(content, "# Tags:", "# Description:")
 	if isEmptyLine(tags) {
 		return fmt.Errorf("%w: Tags", ErrLineNotFound)
 	}
+
 	return nil
 }
 

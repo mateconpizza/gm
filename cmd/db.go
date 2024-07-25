@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
-
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -24,45 +24,48 @@ var (
 
 var ErrEmptyString = errors.New("empty string")
 
-// dbExistsAndInit checks if the default database exists and is initialized
+// dbExistsAndInit checks if the default database exists and is initialized.
 func dbExistsAndInit(path, name string) bool {
 	f := filepath.Join(path, util.EnsureDBSuffix(name))
 	return dbExists(f) && isInitialized(f)
 }
 
-// isInitialized checks if the database is initialized
+// isInitialized checks if the database is initialized.
 func isInitialized(f string) bool {
 	return util.Filesize(f) > 0
 }
 
-// dbExists checks if a database exists
+// dbExists checks if a database exists.
 func dbExists(f string) bool {
 	return util.FileExists(f)
 }
 
-// getDBs returns the list of databases from the given path
+// getDBs returns the list of databases from the given path.
 func getDBs(path string) ([]string, error) {
 	var files []string
 	if err := util.FilesWithSuffix(path, "db", &files); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	return files, nil
 }
 
-// getDBsBasename returns the basename
+// getDBsBasename returns the basename.
 func getDBsBasename(f []string) []string {
 	b := make([]string, 0, len(f))
 	for _, v := range f {
 		b = append(b, format.BulletLine(filepath.Base(v), ""))
 	}
+
 	return b
 }
 
-// repoInfo prints information about a database
+// repoInfo prints information about a database.
 func repoInfo(r *repo.SQLiteRepository) string {
 	main := r.GetMaxID(r.Cfg.GetTableMain())
 	deleted := r.GetMaxID(r.Cfg.GetTableDeleted())
 	t := format.Color(r.Cfg.Name).Yellow().Bold().String()
+
 	return format.HeaderWithSection(t, []string{
 		format.BulletLine("records:", strconv.Itoa(main)),
 		format.BulletLine("deleted:", strconv.Itoa(deleted)),
@@ -71,7 +74,7 @@ func repoInfo(r *repo.SQLiteRepository) string {
 	})
 }
 
-// handleDBDrop clears the database
+// handleDBDrop clears the database.
 func handleDBDrop(r *Repo) error {
 	if !r.IsInitialized(r.Cfg.GetTableMain()) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
@@ -93,10 +96,11 @@ func handleDBDrop(r *Repo) error {
 	}
 
 	fmt.Println(format.Color("database cleared successfully").Green())
+
 	return nil
 }
 
-// removeDB removes a database
+// removeDB removes a database.
 func removeDB(r *Repo) error {
 	var (
 		n        int
@@ -133,10 +137,11 @@ func removeDB(r *Repo) error {
 		}
 	}
 	fmt.Println(C("database and/or backups removed successfully").Green())
+
 	return nil
 }
 
-// checkDBState verifies database existence and initialization
+// checkDBState verifies database existence and initialization.
 func checkDBState(f string) error {
 	if !dbExists(f) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, f)
@@ -144,10 +149,11 @@ func checkDBState(f string) error {
 	if !isInitialized(f) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, f)
 	}
+
 	return nil
 }
 
-// handleListDB lists the available databases
+// handleListDB lists the available databases.
 func handleListDB(r *Repo) error {
 	var sb strings.Builder
 	files, err := getDBs(r.Cfg.Path)
@@ -155,7 +161,7 @@ func handleListDB(r *Repo) error {
 		return err
 	}
 
-	var n = len(files)
+	n := len(files)
 	if n == 0 {
 		return fmt.Errorf("%w", repo.ErrDBsNotFound)
 	}
@@ -177,18 +183,20 @@ func handleListDB(r *Repo) error {
 	}
 
 	fmt.Print(sb.String())
+
 	return nil
 }
 
-// handleDBInit initializes the database
+// handleDBInit initializes the database.
 func handleDBInit() error {
 	if err := initCmd.RunE(nil, []string{}); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	return nil
 }
 
-// handleNewDB creates and initializes a new database
+// handleNewDB creates and initializes a new database.
 func handleNewDB(r *Repo) error {
 	if dbExists(r.Cfg.Fullpath()) && r.IsInitialized(r.Cfg.GetTableMain()) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyExists, r.Cfg.Name)
@@ -202,17 +210,18 @@ func handleNewDB(r *Repo) error {
 	return handleDBInit()
 }
 
-// handleRemoveDB removes a database
+// handleRemoveDB removes a database.
 func handleRemoveDB(r *Repo) error {
 	if !dbExists(r.Cfg.Fullpath()) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, r.Cfg.Name)
 	}
+
 	return removeDB(r)
 }
 
-// handleDBInfo prints information about a database
+// handleDBInfo prints information about a database.
 func handleDBInfo(r *Repo) error {
-	if Json {
+	if JSON {
 		fmt.Println(string(format.ToJSON(r)))
 		return nil
 	}
@@ -220,6 +229,7 @@ func handleDBInfo(r *Repo) error {
 	s := repoInfo(r) + "\n"
 	s += backupInfo(r)
 	fmt.Println(s)
+
 	return nil
 }
 
@@ -242,6 +252,7 @@ var dbCmd = &cobra.Command{
 		if handler, ok := flags[true]; ok {
 			return handler(r)
 		}
+
 		return handleDBInfo(r)
 	},
 }

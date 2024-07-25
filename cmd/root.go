@@ -28,23 +28,23 @@ type (
 )
 
 var (
-	// FIX: Remove this Global Exit
+	// FIX: Remove this Global Exit.
 	Exit bool
 
-	// Main database name
+	// Main database name.
 	DBName string
 
-	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set
+	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
 	textEditors = []string{"vim", "nvim", "nano", "emacs", "helix"}
 
-	// App is the config with default values for the app
+	// App is the config with default values for the app.
 	App = app.New()
 
-	// SQLiteCfg holds the configuration for the database and backups
+	// SQLiteCfg holds the configuration for the database and backups.
 	Cfg *repo.SQLiteConfig
 )
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
 	Use:          App.Cmd,
 	Short:        App.Info.Title,
@@ -57,6 +57,7 @@ var rootCmd = &cobra.Command{
 			init := C("--init").Yellow().Bold()
 			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
 		}
+
 		return nil
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
@@ -99,7 +100,7 @@ func initConfig() {
 
 	// Set terminal defaults and color output
 	terminal.SetIsPiped(terminal.IsPiped())
-	terminal.SetColor(WithColor != "never" && !Json && !terminal.Piped)
+	terminal.SetColor(WithColor != "never" && !JSON && !terminal.Piped)
 	terminal.LoadMaxWidth()
 
 	// Load editor
@@ -147,6 +148,7 @@ func handleListAndEdit(r *Repo, bs *Slice, args []string) error {
 	if err := handleRestore(r, bs); err != nil {
 		return err
 	}
+
 	return handleEdition(r, bs)
 }
 
@@ -154,7 +156,7 @@ func handleOutput(bs *Slice) error {
 	if err := handleOneline(bs); err != nil {
 		return err
 	}
-	if err := handleJsonFormat(bs); err != nil {
+	if err := handleJSONFormat(bs); err != nil {
 		return err
 	}
 	if err := handleByField(bs); err != nil {
@@ -166,6 +168,7 @@ func handleOutput(bs *Slice) error {
 	if err := handleCopyOpen(bs); err != nil {
 		return err
 	}
+
 	return handleFormat(bs)
 }
 

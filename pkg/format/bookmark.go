@@ -23,7 +23,7 @@ type Bookmarker interface {
 	GetCreatedAt() string
 }
 
-// Oneline prints a bookmark in a single line
+// Oneline prints a bookmark in a single line.
 func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 	var (
 		maxTagsLen = 18
@@ -35,6 +35,7 @@ func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 		if hasColor {
 			return withColor
 		}
+
 		return 5
 	}()
 
@@ -49,11 +50,14 @@ func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 	colorURL := Color(shortenedURL).White().String()
 	maxURLLen += len(colorURL) - len(shortenedURL)
 	formattedTags := Color(b.GetTags()).Cyan().Italic().String()
-	sb.WriteString(fmt.Sprintf(template, maxIDLen, coloredID, maxURLLen, colorURL, maxTagsLen, formattedTags))
+	sb.WriteString(
+		fmt.Sprintf(template, maxIDLen, coloredID, maxURLLen, colorURL, maxTagsLen, formattedTags),
+	)
+
 	return sb.String()
 }
 
-// Pretty formats a slice of bookmarks with colors
+// Pretty formats a slice of bookmarks with colors.
 func Pretty(b Bookmarker, maxWidth int) string {
 	var (
 		sb      strings.Builder
@@ -64,19 +68,22 @@ func Pretty(b Bookmarker, maxWidth int) string {
 		id      = Color(strconv.Itoa(b.GetID())).White().Bold().String()
 	)
 
-	var idSpace = 6
-	var n = len(fmt.Sprintf("%d", b.GetID()))
-	var _sep = strings.Repeat(" ", idSpace-n)
-	sb.WriteString(fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, Color(bURL).Orange().String()))
+	idSpace := 6
+	n := len(strconv.Itoa(b.GetID()))
+	_sep := strings.Repeat(" ", idSpace-n)
+	sb.WriteString(
+		fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, Color(bURL).Orange().String()),
+	)
 	sb.WriteString(Color(_separator, title, "\n").Cyan().String())
 	sb.WriteString(Color(_separator, b.GetTags(), "\n").Gray().String())
 	sb.WriteString(Color(_separator, desc, "\n").String())
+
 	return sb.String()
 }
 
 // PrettyWithURLPath formats a bookmark with a URL formatted as a path
 //
-// Example: www.example.org • search • query
+// Example: www.example.org • search • query.
 func PrettyWithURLPath(b Bookmarker, maxWidth int) string {
 	var (
 		sb        strings.Builder
@@ -88,13 +95,16 @@ func PrettyWithURLPath(b Bookmarker, maxWidth int) string {
 		id        = Color(strconv.Itoa(b.GetID())).White().String()
 	)
 
-	var idSpace = 6
-	var n = len(fmt.Sprintf("%d", b.GetID()))
-	var _sep = strings.Repeat(" ", idSpace-n)
-	sb.WriteString(fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, Color(bURL).Purple().String()))
+	idSpace := 6
+	n := len(strconv.Itoa(b.GetID()))
+	_sep := strings.Repeat(" ", idSpace-n)
+	sb.WriteString(
+		fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, Color(bURL).Purple().String()),
+	)
 	sb.WriteString(Color(_separator, title, "\n").Cyan().String())
 	sb.WriteString(Color(_separator, prettifyTags(b.GetTags()), "\n").Gray().Italic().String())
 	sb.WriteString(Color(_separator, desc, "\n").String())
+
 	return sb.String()
 }
 
@@ -112,10 +122,11 @@ func Delete(b Bookmarker, maxWidth int) string {
 	sb.WriteString(headerIDLine(b.GetID(), Color(bURL).Red().Bold().String()))
 	sb.WriteString(Color(_separator, title, "\n").Blue().String())
 	sb.WriteString(Color(_separator, prettifyTags(b.GetTags()), "\n").Gray().String())
+
 	return sb.String()
 }
 
-// Other formats a bookmark
+// Other formats a bookmark.
 func Other(b Bookmarker, maxWidth int) string {
 	var (
 		sb      strings.Builder
@@ -127,5 +138,6 @@ func Other(b Bookmarker, maxWidth int) string {
 	sb.WriteString(headerIDLine(b.GetID(), Color(bURL).Yellow().Bold().String()))
 	sb.WriteString(Color(_separator, title, "\n").Cyan().String())
 	sb.WriteString(Color(_separator, prettifyTags(b.GetTags()), "\n").Gray().String())
+
 	return sb.String()
 }
