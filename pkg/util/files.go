@@ -142,7 +142,7 @@ func CleanupTempFile(fileName string) error {
 
 // CreateTempFile Creates a temporary file with the provided prefix.
 func CreateTempFile(prefix string) (*os.File, error) {
-	tempFile, err := os.CreateTemp("", "-"+prefix)
+	tempFile, err := os.CreateTemp("", prefix+"-")
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}

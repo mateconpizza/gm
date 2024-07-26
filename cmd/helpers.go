@@ -75,8 +75,7 @@ func copyToClipboard(s string) error {
 
 // Open opens a URL in the default browser.
 func openBrowser(url string) error {
-	args := util.GetOSArgsCmd()
-	args = append(args, url)
+	args := append(util.GetOSArgsCmd(), url)
 	if err := util.ExecuteCmd(args...); err != nil {
 		return fmt.Errorf("%w: opening in browser", err)
 	}

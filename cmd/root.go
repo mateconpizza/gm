@@ -61,6 +61,11 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
+		if Version {
+			fmt.Print(app.PrettyVersion(Prettify))
+			return nil
+		}
+
 		if DBInit {
 			return handleDBInit()
 		}
@@ -69,6 +74,7 @@ var rootCmd = &cobra.Command{
 		if Deleted {
 			Cfg.TableMain = Cfg.TableDeleted
 		}
+
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)

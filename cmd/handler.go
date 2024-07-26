@@ -454,22 +454,24 @@ func handleQR(bs *Slice) error {
 
 	Exit = true
 	b := bs.Get(0)
-	qrcode, err := qr.Generate(b.URL)
+	qrcode, err := qr.Generate(b.GetURL())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
+	const maxLabelLen = 55
+	title := format.ShortenString(b.GetTitle(), maxLabelLen)
+	url := format.ShortenString(b.GetURL(), maxLabelLen)
+
 	if Open {
-		if err := qr.Open(qrcode, App.Name); err != nil {
+		if err := qr.Open(qrcode, App.Name, title, url); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
 		return nil
 	}
 
-	if err := qr.Render(qrcode); err != nil {
-		return fmt.Errorf("%w", err)
-	}
+	qr.Render(qrcode, title, url)
 
 	return nil
 }

@@ -2,8 +2,8 @@ package qr
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"strings"
 
 	"github.com/skip2/go-qrcode"
 
@@ -22,44 +22,25 @@ func Generate(url string) (*qrcode.QRCode, error) {
 
 // generatePNG generates a PNG from a given QR-Code.
 func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
+	const imgSize = 512
+
 	qrfile, err := util.CreateTempFile(prefix)
 	if err != nil {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}
-	if err := qr.WriteFile(512, qrfile.Name()); err != nil {
+
+	if err := qr.WriteFile(imgSize, qrfile.Name()); err != nil {
 		return nil, fmt.Errorf("writing qr-code: %w", err)
 	}
 
 	return qrfile, nil
 }
 
-// Open opens a QR-Code image in the system default image viewer.
-func Open(qr *qrcode.QRCode, prefix string) error {
-	qrfile, err := generatePNG(qr, prefix)
-	if err != nil {
-		return err
-	}
-
-	args := util.GetOSArgsCmd()
-	args = append(args, qrfile.Name())
-	if err := util.ExecuteCmd(args...); err != nil {
-		return fmt.Errorf("%w: opening QR", err)
-	}
-
-	defer func() {
-		if err := util.CleanupTempFile(qrfile.Name()); err != nil {
-			log.Printf("error cleaning up temp file %v", err)
-		}
-	}()
-
-	return nil
-}
-
 // Render renders a QR-Code to the standard output.
-func Render(qr *qrcode.QRCode) error {
-	if _, err := fmt.Println(qr.ToSmallString(false)); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
+func Render(qr *qrcode.QRCode, title, url string) {
+	var sb strings.Builder
+	sb.WriteString(title + "\n")
+	sb.WriteString(qr.ToSmallString(false))
+	sb.WriteString(url + "\n")
+	fmt.Print(sb.String())
 }

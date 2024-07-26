@@ -73,7 +73,7 @@ linters-settings:
     exclude: ""
     exclude-functions: []
   nlreturn:
-    block-size: 2
+    block-size: 3
   goconst:
     min-len: 2
     min-occurrences: 3
