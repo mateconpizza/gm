@@ -10,7 +10,7 @@ var (
 	Copy bool
 	List bool
 	Open bool
-	Tags string
+	Tags []string
 	QR   bool
 
 	Add     bool
@@ -54,7 +54,8 @@ func init() {
 	rootCmd.Flags().BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
 	rootCmd.Flags().BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
 	rootCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
-	rootCmd.Flags().StringVarP(&Tags, "tag", "t", "", "filter bookmarks by tag")
+	rootCmd.Flags().
+		StringSliceVarP(&Tags, "tags", "t", nil, "filter bookmarks by tag")
 	rootCmd.Flags().BoolVarP(&Add, "add", "a", false, "add a new bookmark")
 	rootCmd.Flags().BoolVar(&QR, "qr", false, "generate qr-code")
 

@@ -133,23 +133,28 @@ func handleByQuery(r *Repo, bs *Slice, args []string) error {
 
 // handleByTags returns a slice of bookmarks based on the provided tags.
 func handleByTags(r *Repo, bs *Slice) error {
-	if Tags == "" {
+	if Tags == nil {
 		return nil
 	}
-	if err := r.GetByTags(r.Cfg.GetTableMain(), Tags, bs); err != nil {
-		return fmt.Errorf("byTags :%w", err)
+
+	for _, tag := range Tags {
+		if err := r.GetByTags(r.Cfg.GetTableMain(), tag, bs); err != nil {
+			return fmt.Errorf("byTags :%w", err)
+		}
 	}
+
 	if bs.Len() == 0 {
-		return fmt.Errorf("%w tag: '%s'", repo.ErrRecordNoMatch, Tags)
+		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNoMatch, strings.Join(Tags, ", "))
 	}
+
 	bs.Filter(func(b Bookmark) bool {
-		for _, s := range strings.Split(b.Tags, ",") {
-			if strings.TrimSpace(s) == Tags {
-				return true
+		for _, tag := range Tags {
+			if !strings.Contains(b.Tags, tag) {
+				return false
 			}
 		}
 
-		return false
+		return true
 	})
 
 	return nil
