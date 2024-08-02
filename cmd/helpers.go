@@ -45,6 +45,7 @@ func extractIDsFromStr(args []string) ([]int, error) {
 func logErrAndExit(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", App.Name, err)
+		os.Exit(1)
 	}
 }
 

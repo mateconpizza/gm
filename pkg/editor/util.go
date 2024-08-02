@@ -7,12 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/haaag/gm/pkg/util"
 )
 
+// FIX: remove `tempExt`, it is being used for syntax highlight.
+const tempExt = "conf"
+
 func createAndSave(d *[]byte) (*os.File, error) {
-	tf, err := createTempFile()
+	tf, err := util.CreateTempFile("bookmark", tempExt)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}
 
 	if err := saveDataToTempFile(tf, *d); err != nil {
@@ -64,17 +69,6 @@ func saveDataToTempFile(f *os.File, data []byte) error {
 	}
 
 	return nil
-}
-
-// createTempFile Creates a temporary file with the provided prefix.
-func createTempFile() (*os.File, error) {
-	tempDir := "/tmp/"
-	tempFile, err := os.CreateTemp(tempDir, "-bookmark")
-	if err != nil {
-		return nil, fmt.Errorf("error creating temp file: %w", err)
-	}
-
-	return tempFile, nil
 }
 
 // cleanupTempFile Removes the specified temporary file.

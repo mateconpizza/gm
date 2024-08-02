@@ -20,6 +20,7 @@ import (
 // - [X] create a pkg named editor
 // ## Terminal
 // - [X] create a pkg named terminal
+// - [ ] https://no-color.org/
 
 type (
 	Bookmark = bookmark.Bookmark

@@ -141,8 +141,9 @@ func CleanupTempFile(fileName string) error {
 }
 
 // CreateTempFile Creates a temporary file with the provided prefix.
-func CreateTempFile(prefix string) (*os.File, error) {
-	tempFile, err := os.CreateTemp("", prefix+"-")
+func CreateTempFile(prefix, ext string) (*os.File, error) {
+	filename := fmt.Sprintf("%s-*.%s", prefix, ext)
+	tempFile, err := os.CreateTemp("", filename)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}

@@ -24,7 +24,7 @@ func Generate(url string) (*qrcode.QRCode, error) {
 func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	const imgSize = 512
 
-	qrfile, err := util.CreateTempFile(prefix)
+	qrfile, err := util.CreateTempFile(prefix, "png")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}
