@@ -6,7 +6,12 @@ import (
 	"os"
 
 	"golang.org/x/term"
+
+	"github.com/haaag/gm/pkg/util"
 )
+
+// https://no-color.org
+const noColorEnv = "NO_COLOR"
 
 var (
 	Color     bool = true
@@ -25,6 +30,11 @@ var (
 )
 
 func SetColor(b bool) {
+	if c := util.GetEnv(noColorEnv, ""); c != "" {
+		Color = false
+		return
+	}
+
 	Color = b
 }
 
