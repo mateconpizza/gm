@@ -12,7 +12,7 @@ import (
 )
 
 // FIX: remove `tempExt`, it is being used for syntax highlight.
-const tempExt = "conf"
+const tempExt = "bookmark"
 
 func createAndSave(d *[]byte) (*os.File, error) {
 	tf, err := util.CreateTempFile("bookmark", tempExt)
