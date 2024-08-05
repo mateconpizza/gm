@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
@@ -78,7 +79,7 @@ func handleBackupCreate(r *Repo) error {
 	if err := util.CopyFile(backup.Src, backup.Fullpath()); err != nil {
 		return fmt.Errorf("copying file: %w", err)
 	}
-	fmt.Println(C("backup created successfully:").Green(), backup.Name)
+	fmt.Println(color.Green("backup created successfully:"), backup.Name)
 
 	return nil
 }
@@ -102,11 +103,11 @@ func handleBackupPurge(r *Repo) error {
 
 	purgeList = getDBsBasename(toPurge)
 	status = backupDetail(r)
-	nPurgeStr = C(strconv.Itoa(n)).Red().Bold().String()
+	nPurgeStr = color.Red(strconv.Itoa(n)).Bold().String()
 	if n > 0 {
 		status += format.BulletLine("purge:", nPurgeStr+" backups to delete")
 		status += format.HeaderWithSection(
-			C("\nbackup/s to purge:").Red().Bold().String(),
+			color.Red("\nbackup/s to purge:").Bold().String(),
 			purgeList,
 		)
 	}
@@ -122,7 +123,7 @@ func handleBackupPurge(r *Repo) error {
 		}
 	}
 
-	fmt.Println(C("backups purged successfully").Green())
+	fmt.Println(color.Green("backups purged successfully"))
 
 	return nil
 }
@@ -135,7 +136,7 @@ func handleBackupRestore(_ *Repo) error {
 
 // backupInfo.
 func backupInfo(r *Repo) string {
-	t := C("backup/s").Purple().Bold().String()
+	t := color.Purple("backup/s").Bold().String()
 	bks, _ := getBackups(r.Cfg.BackupPath, r.Cfg.Name)
 	if len(bks) == 0 {
 		return format.HeaderWithSection(t, []string{format.BulletLine("no backups found", "")})
@@ -177,10 +178,10 @@ func printsBackupInfo(r *Repo) error {
 // getBkStateColored returns a colored string with the backups status.
 func getBkStateColored(n int) string {
 	if n <= 0 {
-		return C("disabled").Red().String()
+		return color.Red("disabled").String()
 	}
 
-	return C("enabled").Green().String()
+	return color.Green("enabled").String()
 }
 
 // backupDetail returns a detailed list of backups.
@@ -193,17 +194,18 @@ func backupDetail(r *Repo) string {
 	)
 
 	if found > n {
-		foundColor = C(strconv.Itoa(found)).Red().String()
+		foundColor = color.Red(strconv.Itoa(found)).Bold().String()
 	} else {
-		foundColor = C(strconv.Itoa(found)).Green().String()
+		foundColor = color.Green(strconv.Itoa(found)).Bold().String()
 	}
 
-	a := C(strconv.Itoa(n)).Green().String()
+	allowed := color.Green(strconv.Itoa(n)).String()
+	header := color.Yellow("database").Bold().String()
 
-	return format.HeaderWithSection(C("database").Yellow().Bold().String(), []string{
-		format.BulletLine("name:", C(r.Cfg.Name).Blue().String()),
+	return format.HeaderWithSection(header, []string{
+		format.BulletLine("name:", color.Blue(r.Cfg.Name).String()),
 		format.BulletLine("status: ", getBkStateColored(n)),
-		format.BulletLine("max:", a+" backups allowed"),
+		format.BulletLine("max:", allowed+" backups allowed"),
 		format.BulletLine("backup/s:", foundColor+" backups found"),
 	})
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gocolly/colly"
 
-	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/util"
 )
 
@@ -46,7 +46,7 @@ func getHeaders() http.Header {
 
 func (s *Scraper) Scrape() error {
 	chDone := make(chan bool)
-	go util.Spinner(chDone, format.Color("scraping title and desc...").Gray().String())
+	go util.Spinner(chDone, color.Gray("scraping title and desc...").String())
 
 	s.collector.OnRequest(func(r *colly.Request) {
 		headers := getHeaders()
@@ -81,7 +81,7 @@ func (s *Scraper) Scrape() error {
 	}
 
 	if err := s.collector.Visit(s.URL); err != nil {
-		fmt.Println(format.Color("failed to visit URL:", err.Error()).Dim().String())
+		fmt.Println(color.Text("failed to visit URL:", err.Error()).Dim())
 	}
 
 	chDone <- true

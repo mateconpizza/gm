@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/url"
 	"strings"
+
+	"github.com/haaag/gm/pkg/format/color"
 )
 
 var (
@@ -23,10 +25,10 @@ func urlPath(bURL string) string {
 	}
 
 	if u.Host == "" || u.Path == "" {
-		return Color(bURL).Bold().String()
+		return color.Text(bURL).Bold().String()
 	}
 
-	host := Color(u.Host).Bold().String()
+	host := color.Text(u.Host).Bold().String()
 	pathSegments := strings.FieldsFunc(
 		strings.TrimLeft(u.Path, "/"),
 		func(r rune) bool { return r == '/' },
@@ -36,10 +38,10 @@ func urlPath(bURL string) string {
 		return host
 	}
 
-	pathSeg := Color(
+	pathSeg := color.Gray(
 		_bulletPoint,
 		strings.Join(pathSegments, fmt.Sprintf(" %s ", _bulletPoint)),
-	).Gray()
+	)
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }
@@ -146,10 +148,10 @@ func prettifyURL(bURL string) string {
 	}
 
 	if u.Host == "" || u.Path == "" {
-		return Color(bURL).Bold().String()
+		return color.Text(bURL).Bold().String()
 	}
 
-	host := Color(u.Host).Bold().String()
+	host := color.Text(u.Host).Bold().String()
 	pathSegments := strings.FieldsFunc(
 		strings.TrimLeft(u.Path, "/"),
 		func(r rune) bool { return r == '/' },
@@ -159,10 +161,10 @@ func prettifyURL(bURL string) string {
 		return host
 	}
 
-	pathSeg := Color(
+	pathSeg := color.Gray(
 		_bulletPoint,
 		strings.Join(pathSegments, fmt.Sprintf(" %s ", _bulletPoint)),
-	).Gray()
+	)
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }

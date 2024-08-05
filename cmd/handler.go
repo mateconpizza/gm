@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/qr"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
@@ -20,8 +21,6 @@ var (
 	ErrURLNotProvided = errors.New("URL not provided")
 	ErrUnknownField   = errors.New("field unknown")
 )
-
-var C = format.Color
 
 // handleByField prints the selected field.
 func handleByField(bs *Slice) error {
@@ -179,7 +178,7 @@ func handleAdd(r *Repo, args []string) error {
 		return fmt.Errorf("%w: URL or tags cannot be empty", bookmark.ErrInvalidInput)
 	}
 
-	fmt.Println(C("New bookmark\n").Yellow().Bold().String())
+	fmt.Println(color.Yellow("New bookmark\n").Bold().String())
 	url := bookmark.HandleURL(&args)
 	if url == "" {
 		return ErrURLNotProvided
@@ -207,7 +206,7 @@ func handleAdd(r *Repo, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println(C("new bookmark added successfully").Green())
+	fmt.Println(color.Green("new bookmark added successfully"))
 	Exit = true
 
 	return nil
@@ -254,7 +253,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 			return fmt.Errorf("handle edition: %w", err)
 		}
 
-		fmt.Printf("%s: id: [%d] %s\n", App.GetName(), b.ID, C("updated").Blue())
+		fmt.Printf("%s: id: [%d] %s\n", App.GetName(), b.ID, color.Blue("updated"))
 
 		return nil
 	}
@@ -276,8 +275,8 @@ func handleRemove(r *Repo, bs *Slice) error {
 		return err
 	}
 
-	prompt := C("remove").Bold().Red().String()
-	if err := confirmAction(bs, prompt); err != nil {
+	prompt := color.Red("remove").Bold().String()
+	if err := confirmAction(bs, prompt, color.Red); err != nil {
 		return err
 	}
 
@@ -296,7 +295,7 @@ func handleCheckStatus(bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
-	status := C("status").Green().Bold().String()
+	status := color.Green("status").Bold().String()
 	if n > 15 && !terminal.Confirm(fmt.Sprintf("checking %s of %d, continue?", status, n), "y") {
 		return ErrActionAborted
 	}
@@ -362,23 +361,23 @@ func handleRestore(r *Repo, bs *Slice) error {
 
 	if !Deleted {
 		err := repo.ErrRecordRestoreTable
-		del := C("--deleted").Bold().Red().String()
+		del := color.Red("--deleted").Bold().String()
 		return fmt.Errorf("%w: use %s to read from deleted records", err, del)
 	}
 
-	prompt := C("restore").Bold().Yellow().String()
-	if err := confirmAction(bs, prompt); err != nil {
+	prompt := color.Yellow("restore").Bold().String()
+	if err := confirmAction(bs, prompt, color.Yellow); err != nil {
 		return err
 	}
 
 	chDone := make(chan bool)
-	go util.Spinner(chDone, C("restoring record/s...").Yellow().String())
+	go util.Spinner(chDone, color.Yellow("restoring record/s...").String())
 	if err := r.Restore(bs); err != nil {
 		return fmt.Errorf("%w: restoring bookmark", err)
 	}
 	time.Sleep(time.Second * 1)
 	chDone <- true
-	fmt.Println(C("bookmark/s restored successfully").Green())
+	fmt.Println(color.Green("bookmark/s restored successfully"))
 
 	return nil
 }

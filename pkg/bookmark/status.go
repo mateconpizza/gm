@@ -14,13 +14,11 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/slice"
 )
 
-var (
-	C                     = format.Color
-	ErrNetworkUnreachable = errors.New("network is unreachable")
-)
+var ErrNetworkUnreachable = errors.New("network is unreachable")
 
 type Response struct {
 	URL        string
@@ -87,8 +85,8 @@ func prettifyNotFound(res *slice.Slice[Response]) (resLen int, msg string) {
 		return 0, ""
 	}
 
-	notFoundLenStr := C(strconv.Itoa(n)).Bold().Red()
-	notFoundCode := C(strconv.Itoa(http.StatusNotFound)).Bold().Red()
+	notFoundLenStr := color.Red(strconv.Itoa(n)).Bold()
+	notFoundCode := color.Red(strconv.Itoa(http.StatusNotFound)).Bold()
 
 	fmt.Printf("\n%s err detail:\n", notFoundLenStr)
 	res.ForEach(func(r Response) {
@@ -107,8 +105,8 @@ func prettifyWithError(res *slice.Slice[Response]) (resLen int, msg string) {
 		return 0, ""
 	}
 
-	withErrorLenStr := C(strconv.Itoa(n)).Yellow().Bold()
-	withNoErrorCode := C("200").Green().Bold()
+	withErrorLenStr := color.Yellow(strconv.Itoa(n)).Bold()
+	withNoErrorCode := color.Green("200").Bold()
 
 	if n > 0 {
 		fmt.Printf("\n%s warn detail:\n", withErrorLenStr)
@@ -127,37 +125,34 @@ func prettifyWithError(res *slice.Slice[Response]) (resLen int, msg string) {
 func prettifyURLStatus(code int) (status, statusCode string) {
 	switch code {
 	case http.StatusNotFound:
-		status = C("ER").Red().Bold().String()
-		statusCode = C(strconv.Itoa(code)).Red().Bold().String()
+		status = color.Red("ER").Bold().String()
+		statusCode = color.Red(strconv.Itoa(code)).Bold().String()
 	case http.StatusOK:
-		status = C("OK").Green().Bold().String()
-		statusCode = C(strconv.Itoa(code)).Green().Bold().String()
+		status = color.Green("OK").Bold().String()
+		statusCode = color.Green(strconv.Itoa(code)).Bold().String()
 	default:
-		status = C("WA").Yellow().Bold().String()
-		statusCode = C(strconv.Itoa(code)).Yellow().Bold().String()
+		status = color.Yellow("WA").Bold().String()
+		statusCode = color.Yellow(strconv.Itoa(code)).Bold().String()
 	}
 
 	return status, statusCode
 }
 
 func prettyPrintURLStatus(statusCode, bID int, bURL string) string {
-	var (
-		c        = format.Color
-		minWidth = 80
-	)
+	minWidth := 80
 
 	colorStatus, colorCode := prettifyURLStatus(statusCode)
-	idStr := c(fmt.Sprintf("%-3d", bID)).Purple().Bold()
-	id := c(":id:").Gray().String()
+	idStr := color.Purple(fmt.Sprintf("%-3d", bID)).Bold()
+	id := color.Gray(":id:").String()
 	id += fmt.Sprintf("[%s]", idStr)
 
-	code := c(":code:").Gray().String()
+	code := color.Gray(":code:").String()
 	code += fmt.Sprintf("[%s]", colorCode)
 
-	status := c(":status:").Gray().String()
+	status := color.Gray(":status:").String()
 	status += fmt.Sprintf("[%s]", colorStatus)
 
-	url := c(":url:").Gray().String()
+	url := color.Gray(":url:").String()
 	url += format.ShortenString(bURL, minWidth)
 
 	return fmt.Sprintf("%s%s%s%s", id, code, status, url)
@@ -177,15 +172,15 @@ func prettyPrintStatus(res slice.Slice[Response], duration time.Duration) {
 		withNoErrorStr := strconv.Itoa(withNoErrLen)
 		final += fmt.Sprintf(
 			"  + %s urls return %s code\n",
-			format.Color(withNoErrorStr).Blue().Bold().String(),
-			format.Color("200").Green().Bold(),
+			color.Blue(withNoErrorStr).Bold().String(),
+			color.Green("200").Bold(),
 		)
 	}
 
 	final += withErrMsg
 	final += withNoFoundErrMsg
 
-	final += fmt.Sprintf("  + it took %s\n", format.Color(took).Blue().Bold().String())
+	final += fmt.Sprintf("  + it took %s\n", color.Blue(took).Bold().String())
 	fmt.Print(final)
 }
 
@@ -220,7 +215,7 @@ func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
 			log.Println(err)
 		}
 
-		s := C("error making request to").Yellow()
+		s := color.Yellow("error making request to")
 		fmt.Printf("%s %s: %v\n", s.String(), b.URL, err)
 
 		return Response{

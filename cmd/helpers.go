@@ -15,6 +15,7 @@ import (
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/qr"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
@@ -22,6 +23,8 @@ import (
 )
 
 var ErrCopyToClipboard = errors.New("copy to clipboard")
+
+type colorFn func(...string) *color.Color
 
 // extractIDsFromStr extracts IDs from a string.
 func extractIDsFromStr(args []string) ([]int, error) {
@@ -165,7 +168,7 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 // confirmEditOrSave confirms if the user wants to save the
 // bookmark.
 func confirmEditOrSave(b *Bookmark) error {
-	save := C("\nsave").Green().Bold().String() + " bookmark?"
+	save := color.Green("\nsave").Bold().String() + " bookmark?"
 	opt := terminal.ConfirmOrEdit(save, []string{"yes", "no", "edit"}, "y")
 
 	switch opt {
@@ -181,7 +184,7 @@ func confirmEditOrSave(b *Bookmark) error {
 }
 
 // confirmAction prompts the user to confirm the action.
-func confirmAction(bs *Slice, prompt string) error {
+func confirmAction(bs *Slice, prompt string, colors colorFn) error {
 	for !Force {
 		var summary string
 
@@ -191,7 +194,7 @@ func confirmAction(bs *Slice, prompt string) error {
 		}
 
 		bs.ForEach(func(b Bookmark) {
-			summary += format.Delete(&b, terminal.MaxWidth) + "\n"
+			summary += format.ColorWithURLPath(&b, terminal.MaxWidth, colors) + "\n"
 		})
 
 		summary += prompt + fmt.Sprintf(" %d bookmark/s?", n)
@@ -236,14 +239,14 @@ func validateRemove(bs *Slice) error {
 // removeRecords removes the records from the database.
 func removeRecords(r *Repo, bs *Slice) error {
 	chDone := make(chan bool)
-	go util.Spinner(chDone, C("removing record/s...").Gray().String())
+	go util.Spinner(chDone, color.Gray("removing record/s...").String())
 	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 	time.Sleep(time.Second * 1)
 	chDone <- true
 
-	fmt.Println(C("bookmark/s removed successfully").Green())
+	fmt.Println(color.Green("bookmark/s removed successfully"))
 
 	return nil
 }

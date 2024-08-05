@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/util"
 )
 
@@ -41,7 +41,7 @@ func CreatePaths(a *App, bkHome string) error {
 
 // PrettyVersion formats version in a pretty way.
 func PrettyVersion(morePretty bool) string {
-	name := format.Color(name).Blue().Bold().String()
+	name := color.Blue(name).Bold().String()
 	if morePretty {
 		name = Banner
 	}

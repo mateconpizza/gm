@@ -8,6 +8,7 @@ import (
 	"github.com/haaag/gm/pkg/app"
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/slice"
 )
@@ -67,8 +68,8 @@ func initDB(r *Repo) error {
 
 func printSummary() {
 	fmt.Println(app.PrettyVersion(Prettify))
-	fmt.Printf("+ app folder at: %s\n", C(App.Path).Yellow())
-	fmt.Printf("+ %s folder at: %s\n", C("databases").Blue(), C(Cfg.Path).Cyan())
-	fmt.Printf("+ database '%s' initialized\n", C(DBName).Green())
-	fmt.Printf("+ %s bookmark created\n\n", C("initial").Purple())
+	fmt.Printf("+ app folder at: %s\n", color.Yellow(App.Path))
+	fmt.Printf("+ %s folder at: %s\n", color.Blue("databases"), color.Cyan(Cfg.Path))
+	fmt.Printf("+ database '%s' initialized\n", color.Green(DBName))
+	fmt.Printf("+ %s bookmark created\n\n", color.Purple("initial"))
 }

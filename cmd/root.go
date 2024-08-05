@@ -8,6 +8,7 @@ import (
 	"github.com/haaag/gm/pkg/app"
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/pkg/terminal"
@@ -55,7 +56,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: make it more robust?
 		if !dbExistsAndInit(Cfg.Path, DBName) && !DBInit {
-			init := C("--init").Yellow().Bold()
+			init := color.Yellow("--init").Bold()
 			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
 		}
 
@@ -109,6 +110,7 @@ func initConfig() {
 	terminal.SetIsPiped(terminal.IsPiped())
 	terminal.SetColor(WithColor != "never" && !JSON && !terminal.Piped)
 	terminal.LoadMaxWidth()
+	color.Enable(&terminal.Color)
 
 	// Load editor
 	if err := editor.Load(&App.Env.Editor, &textEditors); err != nil {

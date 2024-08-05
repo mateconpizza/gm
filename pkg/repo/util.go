@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/slice"
 )
 
@@ -206,7 +207,7 @@ func (r *SQLiteRepository) Info() string {
 	var main, deleted, header string
 	main = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableMain()))
 	deleted = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableDeleted()))
-	header = format.Color(r.Cfg.Name).Yellow().Bold().String()
+	header = color.Yellow(r.Cfg.Name).Bold().String()
 
 	return format.HeaderWithSection(header, []string{
 		format.BulletLine("records:", main),

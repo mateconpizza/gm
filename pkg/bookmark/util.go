@@ -8,6 +8,7 @@ import (
 
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/scraper"
 	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/pkg/terminal"
@@ -19,7 +20,7 @@ const (
 
 // HandleURL handles the URL.
 func HandleURL(args *[]string) string {
-	urlPrompt := C("+ URL\t:").Blue().Bold().String()
+	urlPrompt := color.Blue("+ URL\t:").Bold().String()
 
 	if len(*args) > 0 {
 		url := (*args)[0]
@@ -30,14 +31,14 @@ func HandleURL(args *[]string) string {
 		return url
 	}
 
-	urlPrompt += C("\n > ").Orange().Bold().String()
+	urlPrompt += color.Orange("\n > ").Bold().String()
 
 	return terminal.ReadInput(urlPrompt)
 }
 
 // HandleTags handles the tags.
 func HandleTags(args *[]string) string {
-	tagsPrompt := C("+ Tags\t:").Purple().Bold().String()
+	tagsPrompt := color.Purple("+ Tags\t:").Bold().String()
 
 	if len(*args) > 0 {
 		tags := (*args)[0]
@@ -49,8 +50,8 @@ func HandleTags(args *[]string) string {
 		return tags
 	}
 
-	tagsPrompt += C(" (comma-separated)").Italic().Gray().String()
-	tagsPrompt += C("\n > ").Orange().Bold().String()
+	tagsPrompt += color.Gray(" (comma-separated)").Italic().String()
+	tagsPrompt += color.Orange("\n > ").Bold().String()
 
 	return terminal.ReadInput(tagsPrompt)
 }
@@ -60,9 +61,9 @@ func HandleTitleAndDesc(url string, minWidth int) (title, desc string) {
 	var r strings.Builder
 	sc := scraper.New(url)
 	_ = sc.Scrape()
-	r.WriteString(C("+ Title\t: ").Green().Bold().String())
+	r.WriteString(color.Green("+ Title\t: ").Bold().String())
 	r.WriteString(format.SplitAndAlignString(sc.Title, minWidth, _indentation))
-	r.WriteString(C("\n+ Desc\t: ").Yellow().Bold().String())
+	r.WriteString(color.Yellow("\n+ Desc\t: ").Bold().String())
 	r.WriteString(format.SplitAndAlignString(sc.Desc, minWidth, _indentation))
 	fmt.Println(r.String())
 

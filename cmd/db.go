@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
@@ -64,7 +65,7 @@ func getDBsBasename(f []string) []string {
 func repoInfo(r *repo.SQLiteRepository) string {
 	main := r.GetMaxID(r.Cfg.GetTableMain())
 	deleted := r.GetMaxID(r.Cfg.GetTableDeleted())
-	t := format.Color(r.Cfg.Name).Yellow().Bold().String()
+	t := color.Yellow(r.Cfg.Name).Bold().String()
 
 	return format.HeaderWithSection(t, []string{
 		format.BulletLine("records:", strconv.Itoa(main)),
@@ -86,7 +87,7 @@ func handleDBDrop(r *Repo) error {
 
 	fmt.Println(repoInfo(r))
 
-	q := fmt.Sprintf("remove %s bookmarks?", format.Color("all").Red().Bold())
+	q := fmt.Sprintf("remove %s bookmarks?", color.Red("all").Bold())
 	if !terminal.Confirm(q, "n") {
 		return ErrActionAborted
 	}
@@ -95,7 +96,7 @@ func handleDBDrop(r *Repo) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println(format.Color("database cleared successfully").Green())
+	fmt.Println(color.Green("database cleared successfully"))
 
 	return nil
 }
@@ -106,7 +107,7 @@ func removeDB(r *Repo) error {
 		n        int
 		bks      []string
 		info     = repoInfo(r)
-		question = fmt.Sprintf("remove %s?", C(r.Cfg.Name).Red().Bold())
+		question = fmt.Sprintf("remove %s?", color.Red(r.Cfg.Name).Bold())
 	)
 
 	bks, _ = getBackups(r.Cfg.BackupPath, r.Cfg.Name)
@@ -128,7 +129,7 @@ func removeDB(r *Repo) error {
 	if n > 0 {
 		for _, s := range bks {
 			f := filepath.Base(s)
-			q := fmt.Sprintf("remove %s?", C(f).Red().Bold())
+			q := fmt.Sprintf("remove %s?", color.Red(f).Bold())
 			if terminal.Confirm(q, "n") {
 				if err := util.RmFile(s); err != nil {
 					return fmt.Errorf("%w", err)
@@ -136,7 +137,8 @@ func removeDB(r *Repo) error {
 			}
 		}
 	}
-	fmt.Println(C("database and/or backups removed successfully").Green())
+
+	fmt.Println(color.Green("database and/or backups removed successfully"))
 
 	return nil
 }
@@ -203,7 +205,7 @@ func handleNewDB(r *Repo) error {
 	}
 
 	if !DBInit {
-		init := format.Color("--init").Yellow().Bold()
+		init := color.Yellow("--init").Bold()
 		return fmt.Errorf("%w: use %s", repo.ErrDBNotInitialized, init)
 	}
 

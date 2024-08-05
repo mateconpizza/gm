@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/haaag/gm/pkg/format/color"
 )
 
 const (
@@ -45,11 +47,11 @@ func Oneline(b Bookmarker, hasColor bool, maxWidth int) string {
 	// define template with formatted placeholders
 	template := "%-*s %-*s %-*s\n"
 
-	coloredID := Color(strconv.Itoa(b.GetID())).Yellow().String()
+	coloredID := color.BrightYellow(strconv.Itoa(b.GetID())).String()
 	shortenedURL := ShortenString(b.GetURL(), maxURLLen)
-	colorURL := Color(shortenedURL).White().String()
+	colorURL := color.BrightWhite(shortenedURL).String()
 	maxURLLen += len(colorURL) - len(shortenedURL)
-	formattedTags := Color(b.GetTags()).Cyan().Italic().String()
+	formattedTags := color.BrightCyan(b.GetTags()).Italic().String()
 	sb.WriteString(
 		fmt.Sprintf(template, maxIDLen, coloredID, maxURLLen, colorURL, maxTagsLen, formattedTags),
 	)
@@ -65,18 +67,18 @@ func Pretty(b Bookmarker, maxWidth int) string {
 		title   = SplitAndAlignString(b.GetTitle(), maxLine, _indentation)
 		bURL    = ShortenString(b.GetURL(), maxLine)
 		desc    = SplitAndAlignString(b.GetDesc(), maxLine, _indentation)
-		id      = Color(strconv.Itoa(b.GetID())).White().Bold().String()
+		id      = color.BrightWhite(strconv.Itoa(b.GetID())).Bold().String()
 	)
 
 	idSpace := 6
 	n := len(strconv.Itoa(b.GetID()))
 	_sep := strings.Repeat(" ", idSpace-n)
 	sb.WriteString(
-		fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, Color(bURL).Orange().String()),
+		fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, color.Orange(bURL).String()),
 	)
-	sb.WriteString(Color(_separator, title, "\n").Cyan().String())
-	sb.WriteString(Color(_separator, b.GetTags(), "\n").Gray().String())
-	sb.WriteString(Color(_separator, desc, "\n").String())
+	sb.WriteString(color.Cyan(_separator, title, "\n").String())
+	sb.WriteString(color.Gray(_separator, b.GetTags(), "\n").String())
+	sb.WriteString(color.BrightWhite(_separator, desc, "\n").String())
 
 	return sb.String()
 }
@@ -92,25 +94,24 @@ func PrettyWithURLPath(b Bookmarker, maxWidth int) string {
 		prettyURL = urlPath(b.GetURL())
 		bURL      = ShortenString(prettyURL, maxLine)
 		desc      = SplitAndAlignString(b.GetDesc(), maxLine, _indentation)
-		id        = Color(strconv.Itoa(b.GetID())).White().String()
+		id        = color.BrightWhite(strconv.Itoa(b.GetID())).String()
 	)
 
 	idSpace := 6
 	n := len(strconv.Itoa(b.GetID()))
 	_sep := strings.Repeat(" ", idSpace-n)
 	sb.WriteString(
-		fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, Color(bURL).Purple().String()),
+		fmt.Sprintf("%s%s%s %s\n", id, _sep, _bulletPoint, color.Purple(bURL).String()),
 	)
-	sb.WriteString(Color(_separator, title, "\n").Cyan().String())
-	sb.WriteString(Color(_separator, prettifyTags(b.GetTags()), "\n").Gray().Italic().String())
-	sb.WriteString(Color(_separator, desc).String())
+	sb.WriteString(color.Cyan(_separator, title, "\n").String())
+	sb.WriteString(color.Gray(_separator, prettifyTags(b.GetTags()), "\n").Italic().String())
+	sb.WriteString(color.BrightWhite(_separator, desc).String())
 
 	return sb.String()
 }
 
-// Delete formats a bookmark for deletion, with the URL displayed
-// in red and bold.
-func Delete(b Bookmarker, maxWidth int) string {
+// ColorWithURLPath formats a bookmark with a given color.
+func ColorWithURLPath(b Bookmarker, maxWidth int, colors func(...string) *color.Color) string {
 	var (
 		sb        strings.Builder
 		maxLine   = maxWidth - len(_separator) - _newLine
@@ -119,25 +120,9 @@ func Delete(b Bookmarker, maxWidth int) string {
 		bURL      = ShortenString(prettyURL, maxLine)
 	)
 
-	sb.WriteString(headerIDLine(b.GetID(), Color(bURL).Red().Bold().String()))
-	sb.WriteString(Color(_separator, title, "\n").Blue().String())
-	sb.WriteString(Color(_separator, prettifyTags(b.GetTags()), "\n").Gray().String())
-
-	return sb.String()
-}
-
-// Other formats a bookmark.
-func Other(b Bookmarker, maxWidth int) string {
-	var (
-		sb      strings.Builder
-		maxLine = maxWidth - len(_separator) - _newLine
-		title   = SplitAndAlignString(b.GetTitle(), maxLine, _indentation)
-		bURL    = ShortenString(b.GetURL(), maxLine)
-	)
-
-	sb.WriteString(headerIDLine(b.GetID(), Color(bURL).Yellow().Bold().String()))
-	sb.WriteString(Color(_separator, title, "\n").Cyan().String())
-	sb.WriteString(Color(_separator, prettifyTags(b.GetTags()), "\n").Gray().String())
+	sb.WriteString(headerIDLine(b.GetID(), colors(bURL).Bold().String()))
+	sb.WriteString(color.Blue(_separator, title, "\n").String())
+	sb.WriteString(color.Gray(_separator, prettifyTags(b.GetTags()), "\n").String())
 
 	return sb.String()
 }
