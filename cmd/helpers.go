@@ -13,6 +13,8 @@ import (
 
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
+	"github.com/haaag/gm/pkg/format"
+	"github.com/haaag/gm/pkg/qr"
 	"github.com/haaag/gm/pkg/util"
 )
 
@@ -125,6 +127,34 @@ func bookmarkEdition(b *Bookmark) error {
 
 	tempB.ID = b.ID
 	*b = *tempB
+
+	return nil
+}
+
+// openQR opens a QR-Code image in the system default image
+// viewer.
+func openQR(qrcode *qr.QRCode, b *Bookmark) error {
+	const maxLabelLen = 55
+	var title string
+	var url string
+
+	if err := qrcode.GenImg(App.GetName()); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	title = format.ShortenString(b.GetTitle(), maxLabelLen)
+	if err := qrcode.Label(title, "top"); err != nil {
+		return fmt.Errorf("%w: adding top label", err)
+	}
+
+	url = format.ShortenString(b.GetURL(), maxLabelLen)
+	if err := qrcode.Label(url, "bottom"); err != nil {
+		return fmt.Errorf("%w: adding bottom label", err)
+	}
+
+	if err := qrcode.Open(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
 
 	return nil
 }

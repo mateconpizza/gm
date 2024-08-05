@@ -18,42 +18,17 @@ import (
 	"github.com/haaag/gm/pkg/util"
 )
 
-type Position struct {
+// Pos is a position on an image.
+type Pos struct {
 	x, y int
 }
 
-type calculateFn func(rgba *image.RGBA, d *font.Drawer, label string) Position
+// calcPosFn is a function that calculates a position on an
+// image.
+type calcPosFn func(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.Face) Pos
 
-// Open opens a QR-Code image in the system default image viewer.
-func Open(qr *qrcode.QRCode, prefix, topLabel, bottomLabel string) error {
-	qrfile, err := generatePNG(qr, prefix)
-	if err != nil {
-		return err
-	}
-
-	if err := addLabel(qrfile.Name(), topLabel, "top"); err != nil {
-		return fmt.Errorf("%w: adding top label", err)
-	}
-
-	if err := addLabel(qrfile.Name(), bottomLabel, "bottom"); err != nil {
-		return fmt.Errorf("%w: adding bottom label", err)
-	}
-
-	args := append(util.GetOSArgsCmd(), qrfile.Name())
-	if err := util.ExecuteCmd(args...); err != nil {
-		return fmt.Errorf("%w: opening QR", err)
-	}
-
-	defer func() {
-		if err := util.CleanupTempFile(qrfile.Name()); err != nil {
-			log.Printf("error cleaning up temp file %v", err)
-		}
-	}()
-
-	return nil
-}
-
-// loadImage opens an image file and decodes it as an `image.Image`.
+// loadImage opens an image file and decodes it as an
+// `image.Image`.
 func loadImage(filename string) (image.Image, error) {
 	f, err := os.Open(filename)
 	if err != nil {
@@ -73,12 +48,13 @@ func loadImage(filename string) (image.Image, error) {
 	return img, nil
 }
 
-// createFontDrawer creates a font drawer with the given label.
+// createFontDrawer creates a font drawer with the given
+// label.
 func createFontDrawer(
 	rgba *image.RGBA,
 	fontFace *basicfont.Face,
 	label string,
-	fn calculateFn,
+	calcPosition calcPosFn,
 ) *font.Drawer {
 	d := &font.Drawer{
 		Dst:  rgba,
@@ -86,7 +62,7 @@ func createFontDrawer(
 		Face: fontFace,
 	}
 
-	pos := fn(rgba, d, label)
+	pos := calcPosition(rgba, d, label, fontFace)
 
 	// Set the position for the drawer
 	d.Dot = fixed.Point26_6{X: fixed.I(pos.x), Y: fixed.I(pos.y)}
@@ -139,26 +115,22 @@ func addLabel(filename, label, position string) error {
 }
 
 // calcBottomPos calculates the position for the bottom label.
-func calcBottomPos(rgba *image.RGBA, d *font.Drawer, label string) Position {
-	fontFace := inconsolata.Regular8x16
-
+func calcBottomPos(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.Face) Pos {
 	// Measure the label size
-	labelWidth := d.MeasureString(label).Ceil()
+	labelWidth := d.MeasureString(s).Ceil()
 	labelHeight := fontFace.Metrics().Height.Ceil()
 
 	// Calculate the position to center the label
 	x := (rgba.Bounds().Dx() - labelWidth) / 2
 	y := rgba.Bounds().Dy() - labelHeight
 
-	return Position{x, y}
+	return Pos{x, y}
 }
 
 // calcTopPos calculates the position for the top label.
-func calcTopPos(rgba *image.RGBA, d *font.Drawer, label string) Position {
-	fontFace := inconsolata.Bold8x16
-
+func calcTopPos(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.Face) Pos {
 	// Measure the label size
-	labelWidth := d.MeasureString(label).Ceil()
+	labelWidth := d.MeasureString(s).Ceil()
 	labelHeight := fontFace.Metrics().Height.Ceil()
 
 	// Calculate the position to center the label
@@ -168,5 +140,21 @@ func calcTopPos(rgba *image.RGBA, d *font.Drawer, label string) Position {
 	// Add one line of text height to y to move it one line down
 	y += fontFace.Metrics().Height.Ceil()
 
-	return Position{x, y}
+	return Pos{x, y}
+}
+
+// generatePNG generates a PNG from a given QR-Code.
+func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
+	const imgSize = 512
+
+	qrfile, err := util.CreateTempFile(prefix, "png")
+	if err != nil {
+		return nil, fmt.Errorf("creating temp file: %w", err)
+	}
+
+	if err := qr.WriteFile(imgSize, qrfile.Name()); err != nil {
+		return nil, fmt.Errorf("writing qr-code: %w", err)
+	}
+
+	return qrfile, nil
 }
