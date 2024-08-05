@@ -31,7 +31,7 @@ var (
 	ErrRecordQueryNotProvided = errors.New("no id or query provided")
 	ErrRecordScan             = errors.New("scan record")
 	ErrRecordUpdate           = errors.New("update failed")
-	ErrRecordRestoreTable     = errors.New("restoring from main table")
+	ErrRecordRestoreTable     = errors.New("restoring from table")
 )
 
 var (

@@ -103,13 +103,13 @@ func PrettyWithURLPath(b Bookmarker, maxWidth int) string {
 	)
 	sb.WriteString(Color(_separator, title, "\n").Cyan().String())
 	sb.WriteString(Color(_separator, prettifyTags(b.GetTags()), "\n").Gray().Italic().String())
-	sb.WriteString(Color(_separator, desc, "\n").String())
+	sb.WriteString(Color(_separator, desc).String())
 
 	return sb.String()
 }
 
-// Delete formats a bookmark for deletion, with the URL displayed in red and
-// bold.
+// Delete formats a bookmark for deletion, with the URL displayed
+// in red and bold.
 func Delete(b Bookmarker, maxWidth int) string {
 	var (
 		sb        strings.Builder

@@ -63,7 +63,7 @@ func handleFormat(bs *Slice) error {
 	}
 
 	bs.ForEach(func(b Bookmark) {
-		fmt.Println(format.PrettyWithURLPath(&b, terminal.MaxWidth))
+		fmt.Println(format.PrettyWithURLPath(&b, terminal.MaxWidth) + "\n")
 	})
 
 	return nil
@@ -259,7 +259,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 		return nil
 	}
 
-	if err := bs.ForEachIdx(edition); err != nil {
+	if err := bs.ForEachErrIdx(edition); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -268,64 +268,20 @@ func handleEdition(r *Repo, bs *Slice) error {
 
 // handleRemove prompts the user the records to remove.
 func handleRemove(r *Repo, bs *Slice) error {
-	// FIX: Split me!
 	if !Remove {
 		return nil
 	}
 
-	if bs.Len() == 0 {
-		return repo.ErrRecordNotFound
+	if err := validateRemove(bs); err != nil {
+		return err
 	}
 
-	if terminal.Piped && !Force {
-		return fmt.Errorf(
-			"%w: input from pipe is not supported yet. use --force",
-			ErrActionAborted,
-		)
+	prompt := C("remove").Bold().Red().String()
+	if err := confirmAction(bs, prompt); err != nil {
+		return err
 	}
 
-	for !Force {
-		var prompt string
-		n := bs.Len()
-		if n == 0 {
-			return repo.ErrRecordNotFound
-		}
-
-		bs.ForEach(func(b Bookmark) {
-			prompt += format.Delete(&b, terminal.MaxWidth) + "\n"
-		})
-
-		prompt += C("remove").Bold().Red().String() + fmt.Sprintf(" %d bookmark/s?", n)
-		opt := terminal.ConfirmOrEdit(prompt, []string{"yes", "no", "edit"}, "n")
-
-		switch opt {
-		case "n", "no":
-			return ErrActionAborted
-		case "y", "yes":
-			Force = true
-		case "e", "edit":
-			if err := filterSlice(bs); err != nil {
-				return err
-			}
-			terminal.Clear()
-		}
-	}
-
-	if bs.Len() == 0 {
-		return repo.ErrRecordNotFound
-	}
-
-	chDone := make(chan bool)
-	go util.Spinner(chDone, C("removing record/s...").Gray().String())
-	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
-		return fmt.Errorf("deleting and reordering records: %w", err)
-	}
-	time.Sleep(time.Second * 1)
-	chDone <- true
-
-	fmt.Println(C("bookmark/s removed successfully").Green())
-
-	return nil
+	return removeRecords(r, bs)
 }
 
 // handleCheckStatus prints the status code of the bookmark
@@ -396,24 +352,6 @@ func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 	return nil
 }
 
-// confirmEditOrSave confirms if the user wants to save the
-// bookmark.
-func confirmEditOrSave(b *Bookmark) error {
-	save := C("\nsave").Green().Bold().String() + " bookmark?"
-	opt := terminal.ConfirmOrEdit(save, []string{"yes", "no", "edit"}, "y")
-
-	switch opt {
-	case "n":
-		return fmt.Errorf("%w", ErrActionAborted)
-	case "e":
-		if err := bookmarkEdition(b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-
-	return nil
-}
-
 // handleRestore restores record/s from the deleted table.
 func handleRestore(r *Repo, bs *Slice) error {
 	// TODO: extract logic, DRY in `handleRemove` too
@@ -424,34 +362,13 @@ func handleRestore(r *Repo, bs *Slice) error {
 
 	if !Deleted {
 		err := repo.ErrRecordRestoreTable
-		return fmt.Errorf("%w: use %s", err, C("--deleted").Bold().Red().String())
+		del := C("--deleted").Bold().Red().String()
+		return fmt.Errorf("%w: use %s to read from deleted records", err, del)
 	}
 
-	for !Force {
-		var prompt string
-		n := bs.Len()
-		if n == 0 {
-			return repo.ErrRecordNotFound
-		}
-
-		bs.ForEach(func(b Bookmark) {
-			prompt += format.Other(&b, terminal.MaxWidth) + "\n"
-		})
-
-		prompt += C("restore").Bold().Yellow().String() + fmt.Sprintf(" %d bookmark/s?", n)
-		opt := terminal.ConfirmOrEdit(prompt, []string{"yes", "no", "edit"}, "n")
-
-		switch opt {
-		case "n", "no":
-			return ErrActionAborted
-		case "y", "yes":
-			Force = true
-		case "e", "edit":
-			if err := filterSlice(bs); err != nil {
-				return err
-			}
-			terminal.Clear()
-		}
+	prompt := C("restore").Bold().Yellow().String()
+	if err := confirmAction(bs, prompt); err != nil {
+		return err
 	}
 
 	chDone := make(chan bool)

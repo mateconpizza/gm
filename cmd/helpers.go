@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/atotto/clipboard"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/qr"
+	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
 )
 
@@ -155,6 +158,92 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	if err := qrcode.Open(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	return nil
+}
+
+// confirmEditOrSave confirms if the user wants to save the
+// bookmark.
+func confirmEditOrSave(b *Bookmark) error {
+	save := C("\nsave").Green().Bold().String() + " bookmark?"
+	opt := terminal.ConfirmOrEdit(save, []string{"yes", "no", "edit"}, "y")
+
+	switch opt {
+	case "n":
+		return fmt.Errorf("%w", ErrActionAborted)
+	case "e":
+		if err := bookmarkEdition(b); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	return nil
+}
+
+// confirmAction prompts the user to confirm the action.
+func confirmAction(bs *Slice, prompt string) error {
+	for !Force {
+		var summary string
+
+		n := bs.Len()
+		if n == 0 {
+			return repo.ErrRecordNotFound
+		}
+
+		bs.ForEach(func(b Bookmark) {
+			summary += format.Delete(&b, terminal.MaxWidth) + "\n"
+		})
+
+		summary += prompt + fmt.Sprintf(" %d bookmark/s?", n)
+		opt := terminal.ConfirmOrEdit(summary, []string{"yes", "no", "edit"}, "n")
+
+		switch opt {
+		case "n", "no":
+			return ErrActionAborted
+		case "y", "yes":
+			Force = true
+		case "e", "edit":
+			if err := filterSlice(bs); err != nil {
+				return err
+			}
+			terminal.Clear()
+		}
+	}
+
+	if bs.Len() == 0 {
+		return repo.ErrRecordNotFound
+	}
+
+	return nil
+}
+
+// validateRemove checks if the remove operation is valid.
+func validateRemove(bs *Slice) error {
+	if bs.Len() == 0 {
+		return repo.ErrRecordNotFound
+	}
+
+	if terminal.Piped && !Force {
+		return fmt.Errorf(
+			"%w: input from pipe is not supported yet. use --force",
+			ErrActionAborted,
+		)
+	}
+
+	return nil
+}
+
+// removeRecords removes the records from the database.
+func removeRecords(r *Repo, bs *Slice) error {
+	chDone := make(chan bool)
+	go util.Spinner(chDone, C("removing record/s...").Gray().String())
+	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
+		return fmt.Errorf("deleting and reordering records: %w", err)
+	}
+	time.Sleep(time.Second * 1)
+	chDone <- true
+
+	fmt.Println(C("bookmark/s removed successfully").Green())
 
 	return nil
 }
