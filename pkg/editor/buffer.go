@@ -3,6 +3,8 @@ package editor
 import (
 	"fmt"
 	"strings"
+
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 // Append inserts a header string at the beginning of a byte
@@ -59,7 +61,7 @@ func Edit(buf *[]byte) error {
 	if err != nil {
 		return err
 	}
-	defer cleanup(tf)
+	defer files.Cleanup(tf)
 
 	if err := editFile(tf, Editor.cmd, Editor.args); err != nil {
 		return err

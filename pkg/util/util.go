@@ -110,17 +110,8 @@ func TrimElements[T any](elements []T, n int) []T {
 	return filtered
 }
 
-// EnsureDBSuffix adds .db to the database name.
-func EnsureDBSuffix(name string) string {
-	suffix := ".db"
-	if !strings.HasSuffix(name, suffix) {
-		name = fmt.Sprintf("%s%s", name, suffix)
-	}
-
-	return name
-}
-
-// ExecuteCmd executes a command.
+// ExecuteCmd runs a command with the given arguments and returns an error if
+// the command fails.
 func ExecuteCmd(args ...string) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	if err := cmd.Run(); err != nil {

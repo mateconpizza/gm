@@ -9,6 +9,7 @@ import (
 
 	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 // LoadPath loads the path to the application's home directory.
@@ -31,7 +32,7 @@ func LoadPath(a *App) error {
 func CreatePaths(a *App, bkHome string) error {
 	paths := []string{a.Path, bkHome}
 	for _, path := range paths {
-		if err := util.Mkdir(path); err != nil {
+		if err := files.Mkdir(path); err != nil {
 			return fmt.Errorf("setting up paths: %w", err)
 		}
 	}

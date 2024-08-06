@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 // SQLiteConfig represents the configuration for a SQLite database.
@@ -36,7 +37,7 @@ func (c *SQLiteConfig) SetPath(path string) {
 }
 
 func (c *SQLiteConfig) SetName(name string) {
-	c.Name = util.EnsureDBSuffix(name)
+	c.Name = files.EnsureExtension(name, ".db")
 }
 
 // SetDefaults sets path/name to the repository

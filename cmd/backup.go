@@ -12,6 +12,7 @@ import (
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 // TODO)):
@@ -64,7 +65,7 @@ func handleBackupCreate(r *Repo) error {
 	}
 
 	backup := repo.NewBackup(srcPath)
-	if util.FileExists(backup.Fullpath()) && !Force {
+	if files.Exists(backup.Fullpath()) && !Force {
 		return fmt.Errorf("%w: %s", repo.ErrBackupAlreadyExists, backup.Name)
 	}
 	if err := printsBackupInfo(r); err != nil {
@@ -76,7 +77,7 @@ func handleBackupCreate(r *Repo) error {
 	if !Force && !terminal.Confirm("create backup?", "y") {
 		return ErrActionAborted
 	}
-	if err := util.CopyFile(backup.Src, backup.Fullpath()); err != nil {
+	if err := files.Copy(backup.Src, backup.Fullpath()); err != nil {
 		return fmt.Errorf("copying file: %w", err)
 	}
 	fmt.Println(color.Green("backup created successfully:"), backup.Name)
@@ -118,7 +119,7 @@ func handleBackupPurge(r *Repo) error {
 	}
 
 	for _, s := range toPurge {
-		if err := util.RmFile(s); err != nil {
+		if err := files.Remove(s); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -147,8 +148,10 @@ func backupInfo(r *Repo) string {
 	return format.HeaderWithSection(t, bs)
 }
 
+// getBackups retrieves a list of backup files matching the given name in the
+// specified directory.
 func getBackups(path, name string) ([]string, error) {
-	f, err := util.Files(path, name)
+	f, err := files.List(path, name)
 	if err != nil {
 		return nil, fmt.Errorf("%w: getting files from '%s'", err, path)
 	}

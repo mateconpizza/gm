@@ -13,7 +13,7 @@ import (
 	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 var (
@@ -27,28 +27,28 @@ var ErrEmptyString = errors.New("empty string")
 
 // dbExistsAndInit checks if the default database exists and is initialized.
 func dbExistsAndInit(path, name string) bool {
-	f := filepath.Join(path, util.EnsureDBSuffix(name))
+	f := filepath.Join(path, files.EnsureExtension(name, ".db"))
 	return dbExists(f) && isInitialized(f)
 }
 
 // isInitialized checks if the database is initialized.
 func isInitialized(f string) bool {
-	return util.Filesize(f) > 0
+	return files.Size(f) > 0
 }
 
 // dbExists checks if a database exists.
 func dbExists(f string) bool {
-	return util.FileExists(f)
+	return files.Exists(f)
 }
 
 // getDBs returns the list of databases from the given path.
 func getDBs(path string) ([]string, error) {
-	var files []string
-	if err := util.FilesWithSuffix(path, "db", &files); err != nil {
+	f, err := files.FindByExtension(path, "db")
+	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	return files, nil
+	return f, nil
 }
 
 // getDBsBasename returns the basename.
@@ -122,7 +122,7 @@ func removeDB(r *Repo) error {
 		return ErrActionAborted
 	}
 
-	if err := util.RmFile(r.Cfg.Fullpath()); err != nil {
+	if err := files.Remove(r.Cfg.Fullpath()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -131,7 +131,7 @@ func removeDB(r *Repo) error {
 			f := filepath.Base(s)
 			q := fmt.Sprintf("remove %s?", color.Red(f).Bold())
 			if terminal.Confirm(q, "n") {
-				if err := util.RmFile(s); err != nil {
+				if err := files.Remove(s); err != nil {
 					return fmt.Errorf("%w", err)
 				}
 			}
@@ -158,12 +158,12 @@ func checkDBState(f string) error {
 // handleListDB lists the available databases.
 func handleListDB(r *Repo) error {
 	var sb strings.Builder
-	files, err := getDBs(r.Cfg.Path)
+	f, err := getDBs(r.Cfg.Path)
 	if err != nil {
 		return err
 	}
 
-	n := len(files)
+	n := len(f)
 	if n == 0 {
 		return fmt.Errorf("%w", repo.ErrDBsNotFound)
 	}
@@ -174,7 +174,7 @@ func handleListDB(r *Repo) error {
 	}
 
 	// TODO: format in a better way
-	for i, db := range files {
+	for i, db := range f {
 		name := filepath.Base(db)
 		Cfg.SetName(name)
 		rep, _ := repo.New(Cfg)

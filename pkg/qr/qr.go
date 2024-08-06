@@ -3,12 +3,12 @@ package qr
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/skip2/go-qrcode"
 
 	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 var (

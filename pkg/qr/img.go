@@ -15,7 +15,7 @@ import (
 	"golang.org/x/image/font/inconsolata"
 	"golang.org/x/image/math/fixed"
 
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 // Pos is a position on an image.
@@ -147,7 +147,7 @@ func calcTopPos(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.
 func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	const imgSize = 512
 
-	qrfile, err := util.CreateTempFile(prefix, "png")
+	qrfile, err := files.CreateTemp(prefix, "png")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}

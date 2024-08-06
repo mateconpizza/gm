@@ -9,7 +9,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 // SQLiteRepository implements the Repository interface.
@@ -34,7 +34,7 @@ func newSQLiteRepository(db *sql.DB, cfg *SQLiteConfig) *SQLiteRepository {
 
 // New returns a new SQLiteRepository.
 func New(c *SQLiteConfig) (*SQLiteRepository, error) {
-	c.Name = util.EnsureDBSuffix(c.Name)
+	c.Name = files.EnsureExtension(c.Name, ".db")
 	db, err := MustOpenDatabase(filepath.Join(c.Path, c.Name))
 	if err != nil {
 		log.Fatal("Error opening database:", err)

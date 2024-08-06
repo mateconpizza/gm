@@ -8,14 +8,14 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 // FIX: remove `tempExt`, it is being used for syntax highlight.
 const tempExt = "bookmark"
 
 func createAndSave(d *[]byte) (*os.File, error) {
-	tf, err := util.CreateTempFile("bookmark", tempExt)
+	tf, err := files.CreateTemp("bookmark", tempExt)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}
@@ -25,15 +25,6 @@ func createAndSave(d *[]byte) (*os.File, error) {
 	}
 
 	return tf, nil
-}
-
-func cleanup(tf *os.File) {
-	if err := tf.Close(); err != nil {
-		log.Printf("Error closing temp file: %v", err)
-	}
-	if err := cleanupTempFile(tf.Name()); err != nil {
-		log.Printf("%v", err)
-	}
 }
 
 // Content returns the content of a []byte in []string.
@@ -66,16 +57,6 @@ func saveDataToTempFile(f *os.File, data []byte) error {
 	err := os.WriteFile(f.Name(), data, filePermission)
 	if err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
-	}
-
-	return nil
-}
-
-// cleanupTempFile Removes the specified temporary file.
-func cleanupTempFile(fileName string) error {
-	err := os.Remove(fileName)
-	if err != nil {
-		return fmt.Errorf("could not cleanup temp file: %w", err)
 	}
 
 	return nil
