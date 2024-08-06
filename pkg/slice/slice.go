@@ -1,6 +1,10 @@
 package slice
 
-type Slice[T any] struct {
+import (
+	"golang.org/x/exp/slices"
+)
+
+type Slice[T comparable] struct {
 	items *[]T
 }
 
@@ -23,7 +27,14 @@ func (s *Slice[T]) ForEachErr(fn func(T) error) error {
 }
 
 // ForEachIdx loop items all items with index.
-func (s *Slice[T]) ForEachIdx(fn func(int, T) error) error {
+func (s *Slice[T]) ForEachIdx(fn func(int, T)) {
+	for i, ele := range *s.items {
+		fn(i, ele)
+	}
+}
+
+// ForEachErrIdx loop items all items with index and returns a err.
+func (s *Slice[T]) ForEachErrIdx(fn func(int, T) error) error {
 	for i, ele := range *s.items {
 		if err := fn(i, ele); err != nil {
 			return err
@@ -36,8 +47,8 @@ func (s *Slice[T]) ForEachIdx(fn func(int, T) error) error {
 // Filter filters the items with a callback.
 func (s *Slice[T]) Filter(fn func(T) bool) {
 	slice := New[T]()
-	for _, b := range *s.items {
-		t := b
+	for _, ele := range *s.items {
+		t := ele
 		if fn(t) {
 			slice.Add(&t)
 		}
@@ -45,6 +56,7 @@ func (s *Slice[T]) Filter(fn func(T) bool) {
 	*s.items = *slice.items
 }
 
+// Has checks if the item is in the slice.
 func (s *Slice[T]) Has(fn func(T) bool) bool {
 	for _, ele := range *s.items {
 		if fn(ele) {
@@ -55,6 +67,7 @@ func (s *Slice[T]) Has(fn func(T) bool) bool {
 	return false
 }
 
+// Head returns the first n items.
 func (s *Slice[T]) Head(n int) {
 	l := s.Len()
 	if n <= 0 || n > l || l == 0 {
@@ -63,6 +76,7 @@ func (s *Slice[T]) Head(n int) {
 	*s.items = (*s.items)[:n]
 }
 
+// Tail returns the last n items.
 func (s *Slice[T]) Tail(n int) {
 	l := s.Len()
 	if n <= 0 || n > l || l == 0 {
@@ -72,13 +86,18 @@ func (s *Slice[T]) Tail(n int) {
 	*s.items = (*s.items)[tail:]
 }
 
+// Len returns the length of the items.
 func (s *Slice[T]) Len() int {
 	return len(*s.items)
 }
 
 // Add adds a single item to the items.
-func (s *Slice[T]) Add(b *T) {
-	*s.items = append(*s.items, *b)
+func (s *Slice[T]) Add(ele *T) {
+	if slices.Contains(*s.items, *ele) {
+		return
+	}
+
+	*s.items = append(*s.items, *ele)
 }
 
 // Set sets the items.
@@ -96,8 +115,21 @@ func (s *Slice[T]) GetAll() *[]T {
 	return s.items
 }
 
+// Index returns the index of the item.
+func (s *Slice[T]) Index(item T) int {
+	return slices.Index(*s.items, item)
+}
+
+// Del removes an items from the slice.
+func (s *Slice[T]) Del(item T) {
+	idx := s.Index(item)
+	if idx != -1 {
+		*s.items = slices.Delete(*s.items, idx, idx+1)
+	}
+}
+
 // New creates a new slice of bookmarks.
-func New[T any]() *Slice[T] {
+func New[T comparable]() *Slice[T] {
 	items := make([]T, 0)
 
 	return &Slice[T]{items: &items}

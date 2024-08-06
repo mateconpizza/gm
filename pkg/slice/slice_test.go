@@ -6,15 +6,19 @@ import (
 	"testing"
 )
 
-var errExpected = errors.New("error: element is 3")
+var (
+	intItems    = []int{1, 2, 3, 4, 5}
+	strItems    = []string{"foo", "bar", "baz"}
+	errExpected = errors.New("error: element is 3")
+)
 
 func TestForEach(t *testing.T) {
 	s := New[int]()
-	s.Add(&[]int{1, 2, 3, 4, 5}[0])
-	s.Add(&[]int{1, 2, 3, 4, 5}[1])
-	s.Add(&[]int{1, 2, 3, 4, 5}[2])
-	s.Add(&[]int{1, 2, 3, 4, 5}[3])
-	s.Add(&[]int{1, 2, 3, 4, 5}[4])
+	s.Add(&intItems[0])
+	s.Add(&intItems[1])
+	s.Add(&intItems[2])
+	s.Add(&intItems[3])
+	s.Add(&intItems[4])
 
 	var sum int
 	fn := func(i int) {
@@ -28,13 +32,12 @@ func TestForEach(t *testing.T) {
 }
 
 func TestForEachErr(t *testing.T) {
-	// Create a new slice of integers
 	s := New[int]()
-	s.Add(&[]int{1, 2, 3, 4, 5}[0])
-	s.Add(&[]int{1, 2, 3, 4, 5}[1])
-	s.Add(&[]int{1, 2, 3, 4, 5}[2])
-	s.Add(&[]int{1, 2, 3, 4, 5}[3])
-	s.Add(&[]int{1, 2, 3, 4, 5}[4])
+	s.Add(&intItems[0])
+	s.Add(&intItems[1])
+	s.Add(&intItems[2])
+	s.Add(&intItems[3])
+	s.Add(&intItems[4])
 
 	// Define a function that will be called for each element in the slice
 	fn := func(i int) error {
@@ -63,19 +66,19 @@ func TestFilterInt(t *testing.T) {
 	}{
 		{
 			name:     "even numbers",
-			input:    []int{1, 2, 3, 4, 5},
+			input:    intItems,
 			expected: []int{2, 4},
 			fn:       func(i int) bool { return i%2 == 0 },
 		},
 		{
 			name:     "odd numbers",
-			input:    []int{1, 2, 3, 4, 5},
+			input:    intItems,
 			expected: []int{1, 3, 5},
 			fn:       func(i int) bool { return i%2 == 1 },
 		},
 		{
 			name:     "all numbers",
-			input:    []int{1, 2, 3, 4, 5},
+			input:    intItems,
 			expected: []int{1, 2, 3, 4, 5},
 			fn:       func(i int) bool { return true },
 		},
@@ -103,13 +106,13 @@ func TestFilterStrings(t *testing.T) {
 	}{
 		{
 			name:     "bar",
-			input:    []string{"foo", "bar", "baz"},
+			input:    strItems,
 			expected: []string{"bar"},
 			fn:       func(s string) bool { return s == "bar" },
 		},
 		{
 			name:     "all strings",
-			input:    []string{"foo", "bar", "baz"},
+			input:    strItems,
 			expected: []string{"foo", "bar", "baz"},
 			fn:       func(s string) bool { return len(s) == 3 },
 		},
@@ -125,5 +128,107 @@ func TestFilterStrings(t *testing.T) {
 				t.Errorf("expected %v, got %v", testT.expected, *s.items)
 			}
 		})
+	}
+}
+
+func TestIndexString(t *testing.T) {
+	testIdx := []struct {
+		name     string
+		input    []string
+		expected int
+	}{
+		{
+			name:     "foo",
+			input:    strItems,
+			expected: 0,
+		},
+		{
+			name:     "bar",
+			input:    strItems,
+			expected: 1,
+		},
+		{
+			name:     "baz",
+			input:    strItems,
+			expected: 2,
+		},
+	}
+
+	for _, test := range testIdx {
+		t.Run(test.name, func(t *testing.T) {
+			s := New[string]()
+			s.Set(&test.input)
+			idx := s.Index(test.name)
+			if test.expected != idx {
+				t.Errorf("expected %v, got %v", test.expected, idx)
+			}
+		})
+	}
+}
+
+func TestDelete(t *testing.T) {
+	testDeleteStr := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			name:     "bar",
+			input:    []string{"foo", "bar", "baz"},
+			expected: []string{"foo", "baz"},
+		},
+		{
+			name:     "foo",
+			input:    []string{"foo", "bar", "baz"},
+			expected: []string{"bar", "baz"},
+		},
+		{
+			name:     "baz",
+			input:    []string{"foo", "bar", "baz"},
+			expected: []string{"foo", "bar"},
+		},
+	}
+
+	for _, test := range testDeleteStr {
+		s := New[string]()
+		s.Set(&test.input)
+		s.Del(test.name)
+
+		if !reflect.DeepEqual(*s.items, test.expected) {
+			t.Errorf("expected %v, got %v", test.expected, *s.items)
+		}
+	}
+}
+
+func TestAdd(t *testing.T) {
+	testAddStr := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			name:     "foo",
+			input:    []string{"foo"},
+			expected: []string{"foo"},
+		},
+		{
+			name:     "bar",
+			input:    []string{"foo", "baz"},
+			expected: []string{"foo", "baz", "bar"},
+		},
+		{
+			name:     "baz",
+			input:    []string{},
+			expected: []string{"baz"},
+		},
+	}
+
+	for _, test := range testAddStr {
+		s := New[string]()
+		s.Set(&test.input)
+		s.Add(&test.name)
+		if !reflect.DeepEqual(*s.items, test.expected) {
+			t.Errorf("expected %v, got %v", test.expected, *s.items)
+		}
 	}
 }
