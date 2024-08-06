@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/haaag/gm/pkg/format/color"
 )
 
 // getQueryFromPipe reads the input from the pipe.
@@ -124,10 +126,5 @@ func ConfirmOrEdit(question string, options []string, def string) string {
 
 // Prompt returns a formatted string with a question and options.
 func Prompt(question, options string) string {
-	const (
-		gray  = "\x1b[38;5;242m"
-		reset = "\x1b[0m"
-	)
-
-	return fmt.Sprintf("%s %s ", question, fmt.Sprintf("%s%s%s", gray, options, reset))
+	return fmt.Sprintf("%s %s ", question, color.Gray(options))
 }

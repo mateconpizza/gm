@@ -3,12 +3,9 @@ package repo
 import (
 	"fmt"
 	"log"
-	"strconv"
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/slice"
 )
 
@@ -43,7 +40,7 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 	return r.tableRename(tempTable, tableName)
 }
 
-// maintenance.
+// maintenance performs maintenance tasks on the SQLite repository.
 func (r *SQLiteRepository) maintenance(_ *SQLiteConfig) error {
 	if err := r.checkSize(_defMaxBytesSize); err != nil {
 		return fmt.Errorf("%w", err)
@@ -52,8 +49,8 @@ func (r *SQLiteRepository) maintenance(_ *SQLiteConfig) error {
 	return nil
 }
 
-// RecordExists checks whether the specified record exists in the SQLite database.
-func (r *SQLiteRepository) RecordExists(tableName, column, target string) bool {
+// HasRecord checks whether the specified record exists in the SQLite database.
+func (r *SQLiteRepository) HasRecord(tableName, column, target string) bool {
 	var recordCount int
 
 	sqlQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s=?", tableName, column)
@@ -137,7 +134,8 @@ func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
 	return nil
 }
 
-// vacuum rebuilds the database file, repacking it into a minimal amount of disk space.
+// vacuum rebuilds the database file, repacking it into a minimal amount of
+// disk space.
 func (r *SQLiteRepository) vacuum() error {
 	log.Println("vacuuming database")
 	_, err := r.DB.Exec("VACUUM")
@@ -200,20 +198,6 @@ func (r *SQLiteRepository) DropSecure() error {
 	}
 
 	return nil
-}
-
-// Info returns the repository info.
-func (r *SQLiteRepository) Info() string {
-	var main, deleted, header string
-	main = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableMain()))
-	deleted = strconv.Itoa(r.GetMaxID(r.Cfg.GetTableDeleted()))
-	header = color.Yellow(r.Cfg.Name).Bold().String()
-
-	return format.HeaderWithSection(header, []string{
-		format.BulletLine("records:", main),
-		format.BulletLine("deleted:", deleted),
-		format.BulletLine("path:", r.Cfg.Path),
-	})
 }
 
 // Restore restores record/s from deleted tabled.

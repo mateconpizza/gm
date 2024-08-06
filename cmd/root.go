@@ -14,15 +14,6 @@ import (
 	"github.com/haaag/gm/pkg/terminal"
 )
 
-// TODO)):
-// ## Logging
-// - [ ] remove verbose settings, use a library for logging?
-// ## Editor
-// - [X] create a pkg named editor
-// ## Terminal
-// - [X] create a pkg named terminal
-// - [ ] https://no-color.org/
-
 type (
 	Bookmark = bookmark.Bookmark
 	Slice    = slice.Slice[Bookmark]
@@ -54,9 +45,8 @@ var rootCmd = &cobra.Command{
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: make it more robust?
 		if !dbExistsAndInit(Cfg.Path, DBName) && !DBInit {
-			init := color.Yellow("--init").Bold()
+			init := color.Yellow("--init").Bold().Italic()
 			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
 		}
 
@@ -72,7 +62,7 @@ var rootCmd = &cobra.Command{
 			return handleDBInit()
 		}
 
-		// FIX: better way
+		// FIX: find better way
 		if Deleted {
 			Cfg.TableMain = Cfg.TableDeleted
 		}

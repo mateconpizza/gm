@@ -1,3 +1,4 @@
+// Package qr provides utilities for generate, render and working with QR-Codes
 package qr
 
 import (
@@ -25,34 +26,32 @@ type QRCode struct {
 
 // Generate generates a QR-Code from a given string.
 func (q *QRCode) Generate() error {
-	qr, err := qrcode.New(q.From, qrcode.High)
+	var err error
+
+	q.QR, err = qrcode.New(q.From, qrcode.High)
 	if err != nil {
 		return fmt.Errorf("generating qr-code: %w", err)
 	}
-
-	q.QR = qr
 
 	return nil
 }
 
 // GenImg generates the PNG from the QR-Code.
-func (q *QRCode) GenImg(filename string) error {
+func (q *QRCode) GenImg(fileName string) error {
 	if q.QR == nil {
 		return ErrQRNotGenerated
 	}
 
-	qrfile, err := generatePNG(q.QR, filename)
+	var err error
+	q.file, err = generatePNG(q.QR, fileName)
 	if err != nil {
 		return fmt.Errorf("creating temp file: %w", err)
 	}
 
-	q.file = qrfile
-
 	return nil
 }
 
-// Open opens a QR-Code image in the system default image
-// viewer.
+// Open opens a QR-Code image in the system default image viewer.
 func (q *QRCode) Open() error {
 	if q.file == nil {
 		return ErrQRFileNotFound
@@ -63,17 +62,12 @@ func (q *QRCode) Open() error {
 		return fmt.Errorf("%w: opening QR", err)
 	}
 
-	defer func() {
-		if err := util.CleanupTempFile(q.file.Name()); err != nil {
-			log.Printf("error cleaning up temp file %v", err)
-		}
-	}()
+	defer files.Cleanup(q.file)
 
 	return nil
 }
 
-// Label adds a label to an image, with the given position
-// (top or bottom).
+// Label adds a label to an image, with the given position (top or bottom).
 func (q *QRCode) Label(s, position string) error {
 	if q.file == nil {
 		return ErrQRFileNotFound

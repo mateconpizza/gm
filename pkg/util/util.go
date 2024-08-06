@@ -99,8 +99,8 @@ func ParseUniqueStrings(input *[]string, sep string) *[]string {
 	return &uniqueItems
 }
 
-// TrimElements returns a slice of the first len(elements) - n
-// elements in the input slice.
+// TrimElements returns a slice of the first len(elements) - n elements in the
+// input slice.
 func TrimElements[T any](elements []T, n int) []T {
 	var filtered []T
 	if len(elements) > n {

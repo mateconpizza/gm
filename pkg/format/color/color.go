@@ -1,3 +1,5 @@
+// Package color provides utilities for formatting and coloring text
+// output in the terminal
 package color
 
 import (
@@ -9,10 +11,12 @@ const _reset = "\x1b[0m"
 
 var enableColorOutput *bool
 
+// Enable allows to enable/disable color output.
 func Enable(b *bool) {
 	enableColorOutput = b
 }
 
+// Color represents styled text with a specific color and formatting styles.
 type Color struct {
 	text   string
 	color  string
@@ -32,7 +36,6 @@ func (c *Color) String() string {
 	if !*enableColorOutput {
 		return c.text
 	}
-
 	// add styles and colors
 	styles := strings.Join(c.styles, "")
 

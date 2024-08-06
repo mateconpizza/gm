@@ -58,6 +58,8 @@ func init() {
 	rootCmd.AddCommand(backupCmd)
 }
 
+// handleBackupCreate creates a backup of the specified repository if
+// conditions are met, including confirmation and backup limits.
 func handleBackupCreate(r *Repo) error {
 	srcPath := r.Cfg.Fullpath()
 	if err := checkDBState(srcPath); err != nil {
@@ -135,7 +137,8 @@ func handleBackupRestore(_ *Repo) error {
 	return nil
 }
 
-// backupInfo.
+// backupInfo returns a formatted string with information about backups for a
+// given repository, including a message if no backups are found.
 func backupInfo(r *Repo) string {
 	t := color.Purple("backup/s").Bold().String()
 	bks, _ := getBackups(r.Cfg.BackupPath, r.Cfg.Name)

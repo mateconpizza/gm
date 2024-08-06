@@ -18,6 +18,7 @@ type SQLiteRepository struct {
 	Cfg *SQLiteConfig `json:"db"`
 }
 
+// Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLiteRepository) Close() {
 	if err := r.DB.Close(); err != nil {
 		log.Printf("closing database: %v", err)
@@ -32,7 +33,8 @@ func newSQLiteRepository(db *sql.DB, cfg *SQLiteConfig) *SQLiteRepository {
 	}
 }
 
-// New returns a new SQLiteRepository.
+// New creates a new `SQLiteRepository` using the provided configuration and
+// opens the database, returning the repository or an error.
 func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 	c.Name = files.EnsureExtension(c.Name, ".db")
 	db, err := MustOpenDatabase(filepath.Join(c.Path, c.Name))
@@ -48,7 +50,8 @@ func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 	return r, nil
 }
 
-// MustOpenDatabase opens a database.
+// MustOpenDatabase opens a SQLite database at the specified path and verifies
+// the connection, returning the database handle or an error.
 func MustOpenDatabase(path string) (*sql.DB, error) {
 	log.Printf("opening database: '%s'", path)
 	db, err := sql.Open("sqlite3", path)

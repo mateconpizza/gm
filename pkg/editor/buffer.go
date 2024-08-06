@@ -7,14 +7,12 @@ import (
 	"github.com/haaag/gm/pkg/util/files"
 )
 
-// Append inserts a header string at the beginning of a byte
-// buffer.
+// Append inserts a header string at the beginning of a byte buffer.
 func Append(s string, buf *[]byte) {
 	*buf = append([]byte(s), *buf...)
 }
 
-// AppendVersion inserts a header string at the beginning of a byte
-// buffer.
+// AppendVersion inserts a header string at the beginning of a byte buffer.
 func AppendVersion(name, version string, buf *[]byte) {
 	Append(fmt.Sprintf("# %s: v%s\n", name, version), buf)
 }

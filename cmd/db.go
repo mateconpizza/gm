@@ -61,13 +61,13 @@ func getDBsBasename(f []string) []string {
 	return b
 }
 
-// repoInfo prints information about a database.
+// repoInfo returns the repository info.
 func repoInfo(r *repo.SQLiteRepository) string {
 	main := r.GetMaxID(r.Cfg.GetTableMain())
 	deleted := r.GetMaxID(r.Cfg.GetTableDeleted())
-	t := color.Yellow(r.Cfg.Name).Bold().String()
+	header := color.Yellow(r.Cfg.Name).Bold().String()
 
-	return format.HeaderWithSection(t, []string{
+	return format.HeaderWithSection(header, []string{
 		format.BulletLine("records:", strconv.Itoa(main)),
 		format.BulletLine("deleted:", strconv.Itoa(deleted)),
 		format.BulletLine("backup status:", getBkStateColored(r.Cfg.MaxBackups)),
@@ -205,7 +205,7 @@ func handleNewDB(r *Repo) error {
 	}
 
 	if !DBInit {
-		init := color.Yellow("--init").Bold()
+		init := color.Yellow("--init").Bold().Italic()
 		return fmt.Errorf("%w: use %s", repo.ErrDBNotInitialized, init)
 	}
 

@@ -14,10 +14,10 @@ import (
 )
 
 type (
+	Data  = slice.Slice[string]
 	IDs   = slice.Slice[int]
 	Row   = bookmark.Bookmark
 	Slice = slice.Slice[Row]
-	Data  = slice.Slice[string]
 )
 
 // Init initialize database.
@@ -43,7 +43,7 @@ func (r *SQLiteRepository) Insert(tableName string, b *Row) (*Row, error) {
 		return nil, fmt.Errorf("abort: %w", err)
 	}
 
-	if r.RecordExists(tableName, "url", b.URL) {
+	if r.HasRecord(tableName, "url", b.URL) {
 		return nil, fmt.Errorf(
 			"%w: '%s' in table '%s'",
 			ErrRecordDuplicate,
@@ -129,7 +129,7 @@ func (r *SQLiteRepository) insertBulk(tableName string, bs *Slice) error {
 
 // Update updates an existing record.
 func (r *SQLiteRepository) Update(tableName string, b *Row) (*Row, error) {
-	if !r.RecordExists(tableName, "id", strconv.Itoa(b.ID)) {
+	if !r.HasRecord(tableName, "id", strconv.Itoa(b.ID)) {
 		return b, fmt.Errorf("%w: in updating '%s'", ErrRecordNotExists, b.URL)
 	}
 
@@ -152,7 +152,7 @@ func (r *SQLiteRepository) Update(tableName string, b *Row) (*Row, error) {
 func (r *SQLiteRepository) delete(tableName string, b *Row) error {
 	log.Printf("deleting record %s (table: %s)\n", b.URL, tableName)
 
-	if !r.RecordExists(tableName, "url", b.URL) {
+	if !r.HasRecord(tableName, "url", b.URL) {
 		return fmt.Errorf("error removing record %w: %s", ErrRecordNotExists, b.URL)
 	}
 
@@ -318,6 +318,7 @@ func (r *SQLiteRepository) GetByID(tableName string, n int) (*Row, error) {
 	if n > r.GetMaxID(tableName) {
 		return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, n)
 	}
+
 	var d Row
 	log.Printf("getting record by ID %d (table: %s)\n", n, tableName)
 	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", tableName), n)

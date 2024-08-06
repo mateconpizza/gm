@@ -1,3 +1,4 @@
+// Package repo provides the model of the configuration for a database.
 package repo
 
 import (
@@ -40,8 +41,8 @@ func (c *SQLiteConfig) SetName(name string) {
 	c.Name = files.EnsureExtension(name, ".db")
 }
 
-// SetDefaults sets path/name to the repository
-// and loads the max backup allowed (default: 3).
+// SetDefaults sets path/name to the repository and loads the max backup
+// allowed (default: 3).
 func (c *SQLiteConfig) SetDefaults(path, name, bkMaxEnv string) {
 	c.SetPath(path)
 	c.SetName(name)
@@ -49,8 +50,7 @@ func (c *SQLiteConfig) SetDefaults(path, name, bkMaxEnv string) {
 	c.setBackupMax(bkMaxEnv, DefBackupMax)
 }
 
-// setBackupMax loads the max backups allowed from a env var
-// defaults to 3.
+// setBackupMax loads the max backups allowed from a env var defaults to 3.
 func (c *SQLiteConfig) setBackupMax(env string, fallback int) {
 	defaultMax := strconv.Itoa(fallback)
 	maxBackups, err := strconv.Atoi(util.GetEnv(env, defaultMax))

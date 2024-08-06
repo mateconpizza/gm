@@ -1,3 +1,5 @@
+// Package app provides functionality for managing application-level
+// configurations and settings
 package app
 
 const (

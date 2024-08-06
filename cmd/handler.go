@@ -179,6 +179,7 @@ func handleAdd(r *Repo, args []string) error {
 	}
 
 	fmt.Println(color.Yellow("New bookmark\n").Bold().String())
+
 	url := bookmark.HandleURL(&args)
 	if url == "" {
 		return ErrURLNotProvided
@@ -187,7 +188,7 @@ func handleAdd(r *Repo, args []string) error {
 	// WARN: do we need this trim? why?
 	url = strings.TrimRight(url, "/")
 
-	if r.RecordExists(r.Cfg.GetTableMain(), "url", url) {
+	if r.HasRecord(r.Cfg.GetTableMain(), "url", url) {
 		item, _ := r.GetByURL(r.Cfg.GetTableMain(), url)
 		return fmt.Errorf("%w with id: %d", bookmark.ErrBookmarkDuplicate, item.ID)
 	}
@@ -223,7 +224,9 @@ func handleEdition(r *Repo, bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
-	header := "# [%d/%d] %d | %s\n\n"
+	header := "# [%d/%d] | %d | %s\n\n"
+
+	// edition edits the bookmark with a text editor.
 	edition := func(i int, b Bookmark) error {
 		buf := b.Buffer()
 		shortTitle := format.ShortenString(b.Title, terminal.MinWidth-10)
@@ -253,7 +256,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 			return fmt.Errorf("handle edition: %w", err)
 		}
 
-		fmt.Printf("%s: id: [%d] %s\n", App.GetName(), b.ID, color.Blue("updated"))
+		fmt.Printf("%s: id: [%d] %s\n", App.GetName(), b.ID, color.Blue("updated").Bold())
 
 		return nil
 	}
@@ -312,6 +315,7 @@ func handleCopyOpen(bs *Slice) error {
 	if Exit {
 		return nil
 	}
+
 	b := bs.Get(0)
 	if Copy {
 		if err := copyToClipboard(b.URL); err != nil {
@@ -335,6 +339,7 @@ func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 	if len(ids) == 0 {
 		return nil
 	}
+
 	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -353,8 +358,6 @@ func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 
 // handleRestore restores record/s from the deleted table.
 func handleRestore(r *Repo, bs *Slice) error {
-	// TODO: extract logic, DRY in `handleRemove` too
-	// FIX: Split me!
 	if !Restore {
 		return nil
 	}

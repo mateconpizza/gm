@@ -271,7 +271,7 @@ func TestIsRecordExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exists := r.RecordExists(tempTableName, "url", b.URL)
+	exists := r.HasRecord(tempTableName, "url", b.URL)
 	if !exists {
 		t.Errorf("isRecordExists returned false for an existing record")
 	}
@@ -280,7 +280,7 @@ func TestIsRecordExists(t *testing.T) {
 		URL: "https://non_existent.com",
 	}
 
-	exists = r.RecordExists(tempTableName, "url", nonExistentBookmark.URL)
+	exists = r.HasRecord(tempTableName, "url", nonExistentBookmark.URL)
 	if exists {
 		t.Errorf("isRecordExists returned true for a non-existent record")
 	}

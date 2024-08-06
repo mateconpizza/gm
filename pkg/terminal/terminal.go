@@ -29,6 +29,8 @@ var (
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
 )
 
+// SetColor enables or disables color output based on the provided boolean and
+// environment variable.
 func SetColor(b bool) {
 	if c := util.GetEnv(noColorEnv, ""); c != "" {
 		Color = false
@@ -38,10 +40,13 @@ func SetColor(b bool) {
 	Color = b
 }
 
+// SetIsPiped sets the global `Piped` flag to indicate if the output is piped.
 func SetIsPiped(b bool) {
 	Piped = b
 }
 
+// LoadMaxWidth updates `MaxWidth` to the current width if it is smaller than
+// the existing `MaxWidth`.
 func LoadMaxWidth() {
 	w, _ := getWidth()
 	if w == 0 {

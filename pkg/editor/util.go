@@ -11,7 +11,7 @@ import (
 	"github.com/haaag/gm/pkg/util/files"
 )
 
-// FIX: remove `tempExt`, it is being used for syntax highlight.
+// FIX: remove `tempExt`, it is being used for syntax highlight on edition.
 const tempExt = "bookmark"
 
 func createAndSave(d *[]byte) (*os.File, error) {
@@ -50,7 +50,8 @@ func ExtractContentLine(c *[]string) map[string]bool {
 	return m
 }
 
-// saveDataToTempFile Writes the provided data to a temporary file and returns the file handle.
+// saveDataToTempFile Writes the provided data to a temporary file and returns
+// the file handle.
 func saveDataToTempFile(f *os.File, data []byte) error {
 	const filePermission = 0o600
 
@@ -97,6 +98,8 @@ func ExtractBlock(content *[]string, startMarker, endMarker string) string {
 	return strings.Join(cleanedBlock, "\n")
 }
 
+// editFile executes a command to edit the specified file, logging errors if
+// the command fails.
 func editFile(f *os.File, command string, args []string) error {
 	t := f.Name()
 	if command == "" {

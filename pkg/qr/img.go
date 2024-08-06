@@ -23,14 +23,12 @@ type Pos struct {
 	x, y int
 }
 
-// calcPosFn is a function that calculates a position on an
-// image.
+// calcPosFn is a function that calculates a position on an image.
 type calcPosFn func(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.Face) Pos
 
-// loadImage opens an image file and decodes it as an
-// `image.Image`.
-func loadImage(filename string) (image.Image, error) {
-	f, err := os.Open(filename)
+// loadImage opens an image file and decodes it as an `image.Image`.
+func loadImage(fileName string) (image.Image, error) {
+	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("opening image: %w", err)
 	}
@@ -48,8 +46,7 @@ func loadImage(filename string) (image.Image, error) {
 	return img, nil
 }
 
-// createFontDrawer creates a font drawer with the given
-// label.
+// createFontDrawer creates a font drawer with the given label.
 func createFontDrawer(
 	rgba *image.RGBA,
 	fontFace *basicfont.Face,
@@ -71,8 +68,8 @@ func createFontDrawer(
 }
 
 // addLabel adds a label to an image, with the given position.
-func addLabel(filename, label, position string) error {
-	img, err := loadImage(filename)
+func addLabel(fileName, label, position string) error {
+	img, err := loadImage(fileName)
 	if err != nil {
 		return err
 	}
@@ -95,10 +92,11 @@ func addLabel(filename, label, position string) error {
 	d.DrawString(label)
 
 	// Save the image with the label
-	outFile, err := os.Create(filename)
+	outFile, err := os.Create(fileName)
 	if err != nil {
 		return fmt.Errorf("creating output file: %w", err)
 	}
+
 	defer func() {
 		if err := outFile.Close(); err != nil {
 			log.Printf("error closing source file: %v", err)

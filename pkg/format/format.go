@@ -85,7 +85,8 @@ func ShortenString(s string, maxLength int) string {
 	return s
 }
 
-// SplitAndAlignString splits a string into multiple lines and aligns the words.
+// SplitAndAlignString splits a string into multiple lines and aligns the
+// words.
 func SplitAndAlignString(s string, lineLength, indentation int) string {
 	separator := strings.Repeat(" ", indentation)
 	var result strings.Builder

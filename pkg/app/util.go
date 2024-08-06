@@ -44,7 +44,7 @@ func CreatePaths(a *App, bkHome string) error {
 func PrettyVersion(morePretty bool) string {
 	name := color.Blue(name).Bold().String()
 	if morePretty {
-		name = Banner
+		name = color.Blue(Banner).String()
 	}
 
 	return fmt.Sprintf("%s v%s %s/%s\n", name, Version, runtime.GOOS, runtime.GOARCH)
