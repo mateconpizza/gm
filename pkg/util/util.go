@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"time"
 )
 
 // FilterEntries returns a list of backups.
@@ -59,22 +58,6 @@ func BinExists(binaryName string) bool {
 	err := cmd.Run()
 
 	return err == nil
-}
-
-// Spinner displays a spinning cursor animation while waiting for a signal on a
-// channel.
-func Spinner(done chan bool, mesg string) {
-	spinner := []string{" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇"}
-	for i := 0; ; i++ {
-		select {
-		case <-done:
-			fmt.Printf("\r%-*s\r", len(mesg)+2, " ")
-			return
-		default:
-			fmt.Printf("\r%s %s", spinner[i%len(spinner)], mesg)
-			time.Sleep(110 * time.Millisecond)
-		}
-	}
 }
 
 // ParseUniqueStrings returns a slice of unique strings.

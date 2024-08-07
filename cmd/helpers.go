@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/atotto/clipboard"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/spinner"
 )
 
 var ErrCopyToClipboard = errors.New("copy to clipboard")
@@ -238,15 +238,17 @@ func validateRemove(bs *Slice) error {
 
 // removeRecords removes the records from the database.
 func removeRecords(r *Repo, bs *Slice) error {
-	chDone := make(chan bool)
-	go util.Spinner(chDone, color.Gray("removing record/s...").String())
+	s := spinner.New()
+	s.Mesg = color.Gray("removing record/s...").String()
+	s.Start()
+
 	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
-	time.Sleep(time.Second * 1)
-	chDone <- true
 
-	fmt.Println(color.Green("bookmark/s removed successfully"))
+	s.Stop()
+
+	fmt.Println("bookmark/s removed", color.Green("successfully").Bold())
 
 	return nil
 }

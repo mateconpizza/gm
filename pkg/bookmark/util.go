@@ -12,6 +12,7 @@ import (
 	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util/scraper"
+	"github.com/haaag/gm/pkg/util/spinner"
 )
 
 const (
@@ -58,13 +59,19 @@ func HandleTags(args *[]string) string {
 
 // HandleTitleAndDesc fetch and display title and description.
 func HandleTitleAndDesc(url string, minWidth int) (title, desc string) {
-	var r strings.Builder
+	s := spinner.New()
+	s.Mesg = color.Yellow("Scraping webpage...").String()
+	s.Start()
+
 	sc := scraper.New(url)
 	_ = sc.Scrape()
 
 	title = sc.GetTitle()
 	desc = sc.GetDesc()
 
+	s.Stop()
+
+	var r strings.Builder
 	r.WriteString(color.Green("+ Title\t: ").Bold().String())
 	r.WriteString(format.SplitAndAlignString(title, minWidth, _indentation))
 	r.WriteString(color.Yellow("\n+ Desc\t: ").Bold().String())
@@ -93,8 +100,15 @@ func ParseContent(content *[]string) *Bookmark {
 	b := New(url, title, format.ParseTags(tags), desc)
 
 	if b.Title == "" || b.Desc == "" {
+		s := spinner.New()
+		s.Mesg = "Scraping webpage..."
+		s.Start()
+
 		sc := scraper.New(b.URL)
 		_ = sc.Scrape()
+
+		s.Stop()
+
 		b.Title = ValidateAttr(b.Title, sc.GetTitle())
 		b.Desc = ValidateAttr(b.Desc, sc.GetDesc())
 	}

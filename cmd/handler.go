@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
@@ -13,7 +12,7 @@ import (
 	"github.com/haaag/gm/pkg/qr"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/spinner"
 )
 
 var (
@@ -207,7 +206,7 @@ func handleAdd(r *Repo, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println(color.Green("new bookmark added successfully"))
+	fmt.Println("new bookmark added", color.Green("successfully").Bold())
 	Exit = true
 
 	return nil
@@ -373,14 +372,16 @@ func handleRestore(r *Repo, bs *Slice) error {
 		return err
 	}
 
-	chDone := make(chan bool)
-	go util.Spinner(chDone, color.Yellow("restoring record/s...").String())
+	s := spinner.New()
+	s.Mesg = color.Yellow("restoring record/s...").String()
+	s.Start()
+
 	if err := r.Restore(bs); err != nil {
 		return fmt.Errorf("%w: restoring bookmark", err)
 	}
-	time.Sleep(time.Second * 1)
-	chDone <- true
-	fmt.Println(color.Green("bookmark/s restored successfully"))
+
+	s.Stop()
+	fmt.Println("bookmark/s restored", color.Yellow("successfully").Bold())
 
 	return nil
 }
