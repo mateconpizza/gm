@@ -9,9 +9,9 @@ import (
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/scraper"
 	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/pkg/terminal"
+	"github.com/haaag/gm/pkg/util/scraper"
 )
 
 const (
@@ -61,13 +61,17 @@ func HandleTitleAndDesc(url string, minWidth int) (title, desc string) {
 	var r strings.Builder
 	sc := scraper.New(url)
 	_ = sc.Scrape()
+
+	title = sc.GetTitle()
+	desc = sc.GetDesc()
+
 	r.WriteString(color.Green("+ Title\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlignString(sc.Title, minWidth, _indentation))
+	r.WriteString(format.SplitAndAlignString(title, minWidth, _indentation))
 	r.WriteString(color.Yellow("\n+ Desc\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlignString(sc.Desc, minWidth, _indentation))
+	r.WriteString(format.SplitAndAlignString(desc, minWidth, _indentation))
 	fmt.Println(r.String())
 
-	return sc.Title, sc.Desc
+	return title, desc
 }
 
 // ExtractIDs extracts the IDs from a slice of bookmarks.
@@ -86,13 +90,13 @@ func ParseContent(content *[]string) *Bookmark {
 	title := editor.ExtractBlock(content, "# Title:", "# Tags:")
 	tags := editor.ExtractBlock(content, "# Tags:", "# Description:")
 	desc := editor.ExtractBlock(content, "# Description:", "# end")
-	b := &Bookmark{URL: url, Title: title, Tags: format.ParseTags(tags), Desc: desc}
+	b := New(url, title, format.ParseTags(tags), desc)
 
 	if b.Title == "" || b.Desc == "" {
 		sc := scraper.New(b.URL)
 		_ = sc.Scrape()
-		b.Title = ValidateAttr(b.Title, sc.Title)
-		b.Desc = ValidateAttr(b.Desc, sc.Desc)
+		b.Title = ValidateAttr(b.Title, sc.GetTitle())
+		b.Desc = ValidateAttr(b.Desc, sc.GetDesc())
 	}
 
 	return b
