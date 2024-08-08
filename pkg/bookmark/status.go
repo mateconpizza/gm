@@ -56,7 +56,7 @@ func CheckStatus(bs *slice.Slice[Bookmark]) error {
 
 		go func(b *Bookmark) {
 			defer wg.Done()
-			res := makeRequest(b, sem)
+			res := makeRequest(b, ctx, sem)
 			responses.Add(&res)
 		}(&b)
 
@@ -189,12 +189,12 @@ func prettyPrintStatus(res slice.Slice[Response], duration time.Duration) {
 //
 // The function uses a weighted semaphore to limit the number of concurrent
 // requests.
-func makeRequest(b *Bookmark, sem *semaphore.Weighted) Response {
+func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Response {
 	// FIX: Split???
 	defer sem.Release(1)
 
 	timeout := 10 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)

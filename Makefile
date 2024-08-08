@@ -1,68 +1,64 @@
 # gomarks - simple bookmark manager
 # See LICENSE file for copyright and license details.
 
-NAME = gm## name
-SRC = ./main.go## source
-BIN = ./bin/$(NAME)## binary
-
-.PHONY: all build run test vet clean full
+PROJECT_NAME	:= gomarks
+BINARY_NAME 	:= gm
+GOBIN_PATH		:= ./bin
+BINARY				:= $(GOBIN_PATH)/$(BINARY_NAME)
+SRC 					:= ./main.go
+INSTALL_DIR		:= /usr/local/bin
 
 all: full
 
-full: vet lint test build
+full: deps build
 
-build: vet test	## Generate bin
-	@echo '>> Building $(NAME)'
-	@go build -ldflags "-s -w" -o $(BIN) $(SRC)
+deps:
+	@go mod tidy
 
-build-all: vet test	## Generate bin and bin with debugger
-	@echo '>> Building $(NAME)'
-	@echo '>> Building $(NAME) with debugger'
-	@go build -ldflags "-s -w" -o $(BIN) $(SRC)
-	@go build -gcflags="all=-N -l" -o $(BIN)-debug $(SRC)
+build: ## Generate bin
+	@echo '>> Building $(PROJECT_NAME)'
+	@CGO_ENABLED=1 go build -ldflags='-s -w' -o $(BINARY) $(SRC)
 
-beta: vet test
-	@echo '>> Building $(NAME)'
-	@go build -o $(BIN)-beta $(SRC)
+debug: test ## Generate bin with debugger
+	@echo '>> Building $(BINARY_NAME) with debugger'
+	@go build -gcflags='all=-N -l' -o $(BINARY)-debug $(SRC)
 
-debug: vet test ## Generate bin with debugger
-	@echo '>> Building $(NAME) with debugger'
-	@go build -gcflags="all=-N -l" -o $(BIN)-debug $(SRC)
-
-run: build ## Run
-	@echo '>> Running $(NAME)'
-	$(BIN)
-
-test: vet ## Test
-	@echo '>> Testing $(NAME)'
+test: check ## Test
+	@echo '>> Testing $(BINARY_NAME)'
 	@go test ./...
 	@echo
 
-test-verbose: vet ## Test with verbose
-	@echo '>> Testing $(NAME) (verbose)'
+vtest: ## Test with verbose
+	@echo '>> Testing $(BINARY_NAME) (verbose)'
 	@go test -v ./...
 
-vet: ## Check code
-	@echo '>> Checking code with go vet'
+lint: ## Lint code with 'golangci-lint'
+	@echo '>> Linting code'
 	@go vet ./...
+	golangci-lint run ./...
+
+check: ## Lint code with 'golangci-lint' and 'codespell'
+	@echo '>> Checking code with linters'
+	golangci-lint run -p bugs -p error
+	codespell .
 
 clean: ## Clean cache
-	@echo '>> Cleaning up'
-	rm -f $(BIN)
+	@echo '>> Cleaning bin'
+	rm -rf $(GOBIN_PATH)
+
+cleanall: clean ## clean cache
+	@echo '>> Cleaning cache'
 	go clean -cache
 
-.PHONY: fmt
-fmt: ## Format code with 'gofumpt'
-	@echo '>> Formatting code'
-	@gofumpt -l -w .
+install: ## Install on system
+	mkdir -p $(INSTALL_DIR)
+	cp $(BINARY) $(INSTALL_DIR)/$(BINARY_NAME)
+	chmod 755 $(INSTALL_DIR)/$(BINARY_NAME)
+	@echo '>> $(BINARY_NAME) has been installed on your device'
 
-.PHONY: lint
-lint: vet ## Lint code with 'golangci-lint'
-	@echo '>> Linting code'
-	@golangci-lint run ./...
-	@codespell .
+uninstall: ## Uninstall from system
+	rm -rf $(GOBIN_PATH)
+	rm -rf $(INSTALL_DIR)/$(BINARY_NAME)
+	@echo '>> $(BINARY_NAME) has been removed from your device'
 
-.PHONY: check
-check: ## Lint code with 'golangci-lint' and 'codespell'
-	@echo '>> Linting everything'
-	@golangci-lint run -p bugs -p error
+.PHONY: all build debug test clean full check lint

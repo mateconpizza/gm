@@ -28,6 +28,7 @@ var (
 	DBName string
 
 	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
+	// FIX: Remove this fallback.
 	textEditors = []string{"vim", "nvim", "nano", "emacs", "helix"}
 
 	// App is the config with default values for the app.

@@ -6,8 +6,9 @@ const (
 	name              = "gomarks"
 	DefaultDBName     = "bookmarks.db"
 	DefaultMaxBackups = 3
-	Version           = "0.0.5"
 )
+
+var Version = "0.0.6"
 
 var Banner = `┏━╸┏━┓┏┳┓┏━┓┏━┓╻┏ ┏━┓
 ┃╺┓┃ ┃┃┃┃┣━┫┣┳┛┣┻┓┗━┓
