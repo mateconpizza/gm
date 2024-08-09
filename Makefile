@@ -7,6 +7,7 @@ GOBIN_PATH		:= ./bin
 BINARY				:= $(GOBIN_PATH)/$(BINARY_NAME)
 SRC 					:= ./main.go
 INSTALL_DIR		:= /usr/local/bin
+LDFLAGS				:= "-s -w"
 
 all: full
 

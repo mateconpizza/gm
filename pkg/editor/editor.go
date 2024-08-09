@@ -30,22 +30,25 @@ func New() *TextEditor {
 
 // Load retrieves the preferred editor to use for editing
 //
-// If env variable `EDITOR` is not set, uses the GOMARKS_EDITOR.
-// If env variable `GOMARKS_EDITOR` is not set, uses the first available
+// If env variable `GOMARKS_EDITOR` is not set, uses the `EDITOR`.
+// If env variable `EDITOR` is not set, uses the first available
 // `TextEditors`
 //
 // # fallbackEditors: `"vim", "nvim", "nano", "emacs", "helix"`.
 func Load(env *string, fallbackEditors *[]string) error {
+	envs := []string{*env, "EDITOR"}
+
 	Editor = New()
+	for _, e := range envs {
+		s := strings.Fields(util.GetEnv(e, ""))
+		if len(s) != 0 {
+			Editor.name = s[0]
+			Editor.args = s[1:]
+			Editor.cmd = util.BinPath(s[0])
+			log.Printf("$EDITOR set: '%v'", Editor)
 
-	s := strings.Fields(util.GetEnv("EDITOR", *env))
-	if len(s) != 0 {
-		Editor.name = s[0]
-		Editor.args = s[1:]
-		Editor.cmd = util.BinPath(s[0])
-		log.Printf("$EDITOR set: '%v'", Editor)
-
-		return nil
+			return nil
+		}
 	}
 
 	log.Printf(
