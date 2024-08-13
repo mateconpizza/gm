@@ -9,7 +9,6 @@ import (
 	"github.com/skip2/go-qrcode"
 
 	"github.com/haaag/gm/pkg/util"
-	"github.com/haaag/gm/pkg/util/files"
 )
 
 var (
@@ -61,8 +60,6 @@ func (q *QRCode) Open() error {
 	if err := util.ExecuteCmd(args...); err != nil {
 		return fmt.Errorf("%w: opening QR", err)
 	}
-
-	defer files.Cleanup(q.file)
 
 	return nil
 }
