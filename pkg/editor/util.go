@@ -100,15 +100,14 @@ func ExtractBlock(content *[]string, startMarker, endMarker string) string {
 
 // editFile executes a command to edit the specified file, logging errors if
 // the command fails.
-func editFile(f *os.File, command string, args []string) error {
-	t := f.Name()
+func editFile(fileName *os.File, command string, args []string) error {
 	if command == "" {
 		return ErrEditorNotFound
 	}
 
-	log.Printf("editing file: '%s'", f.Name())
+	log.Printf("editing file: '%s'", fileName.Name())
 	log.Printf("executing args: cmd='%s' args='%v'", command, args)
-	cmd := exec.Command(command, append(args, t)...)
+	cmd := exec.Command(command, append(args, fileName.Name())...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -121,12 +120,13 @@ func editFile(f *os.File, command string, args []string) error {
 	return nil
 }
 
-// readFileContent reads the content of a file.
-func readFileContent(file *os.File, c *[]byte) error {
+// readFileContent reads the content of the specified file into the given byte
+// slice and returns any error encountered.
+func readFileContent(fileName *os.File, c *[]byte) error {
+	log.Printf("reading file: '%s'", fileName.Name())
+
 	var err error
-	s := file.Name()
-	log.Printf("reading file: '%s'", s)
-	*c, err = os.ReadFile(s)
+	*c, err = os.ReadFile(fileName.Name())
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
 	}

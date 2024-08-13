@@ -3,62 +3,70 @@
 
 PROJECT_NAME	:= gomarks
 BINARY_NAME 	:= gm
-GOBIN_PATH		:= ./bin
-BINARY				:= $(GOBIN_PATH)/$(BINARY_NAME)
-SRC 					:= ./main.go
+BIN_DIR				:= $(CURDIR)/bin
+BIN_PATH			:= $(BIN_DIR)/$(BINARY_NAME)
+MAIN_SRC			:= $(CURDIR)/main.go
 INSTALL_DIR		:= /usr/local/bin
-LDFLAGS				:= "-s -w"
+LDFLAGS				:= -s -w
 
-all: full
+full: build
 
-full: deps build
+# Target to build everything
+all: lint check test build
 
-deps:
-	@go mod tidy
-
-build: ## Generate bin
+# Build the binary
+build:
 	@echo '>> Building $(PROJECT_NAME)'
-	@CGO_ENABLED=1 go build -ldflags='-s -w' -o $(BINARY) $(SRC)
+	@CGO_ENABLED=1 go build -ldflags='$(LDFLAGS)' -o $(BIN_PATH) $(MAIN_SRC)
 
-debug: test ## Generate bin with debugger
+# Build the binary with debugger
+debug: test
 	@echo '>> Building $(BINARY_NAME) with debugger'
-	@go build -gcflags='all=-N -l' -o $(BINARY)-debug $(SRC)
+	@CGO_ENABLED=1 go build -gcflags='all=-N -l' -o $(BIN_PATH)-debug $(MAIN_SRC)
 
-test: check ## Test
+# Run tests
+test: check
 	@echo '>> Testing $(BINARY_NAME)'
 	@go test ./...
 	@echo
 
-vtest: ## Test with verbose
+# Run tests with verbose mode on
+vtest:
 	@echo '>> Testing $(BINARY_NAME) (verbose)'
 	@go test -v ./...
 
-lint: ## Lint code with 'golangci-lint'
+# Lint code with 'golangci-lint'
+lint:
 	@echo '>> Linting code'
 	@go vet ./...
 	golangci-lint run ./...
 
-check: ## Lint code with 'golangci-lint' and 'codespell'
+# Lint code with 'golangci-lint' and 'codespell'
+check:
 	@echo '>> Checking code with linters'
 	golangci-lint run -p bugs -p error
 	codespell .
 
-clean: ## Clean cache
+# Clean binary directories
+clean:
 	@echo '>> Cleaning bin'
-	rm -rf $(GOBIN_PATH)
+	rm -rf $(BIN_DIR)
 
-cleanall: clean ## clean cache
+# Clean caches
+cleanall: clean
 	@echo '>> Cleaning cache'
 	go clean -cache
 
-install: ## Install on system
+# Install the binary to the system
+install:
 	mkdir -p $(INSTALL_DIR)
-	cp $(BINARY) $(INSTALL_DIR)/$(BINARY_NAME)
+	cp $(BIN_PATH) $(INSTALL_DIR)/$(BINARY_NAME)
 	chmod 755 $(INSTALL_DIR)/$(BINARY_NAME)
 	@echo '>> $(BINARY_NAME) has been installed on your device'
 
-uninstall: ## Uninstall from system
-	rm -rf $(GOBIN_PATH)
+# Uninstall the binary from the system
+uninstall:
+	rm -rf $(BIN_DIR)
 	rm -rf $(INSTALL_DIR)/$(BINARY_NAME)
 	@echo '>> $(BINARY_NAME) has been removed from your device'
 

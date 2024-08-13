@@ -14,6 +14,7 @@ import (
 
 var (
 	_bulletPoint     = "\u2022"
+	_pathSegSep      = ">"
 	ErrInvalidOption = errors.New("invalid option")
 )
 
@@ -39,8 +40,8 @@ func urlPath(bURL string) string {
 	}
 
 	pathSeg := color.Gray(
-		_bulletPoint,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", _bulletPoint)),
+		_pathSegSep,
+		strings.Join(pathSegments, fmt.Sprintf(" %s ", _pathSegSep)),
 	)
 
 	return fmt.Sprintf("%s %s", host, pathSeg)

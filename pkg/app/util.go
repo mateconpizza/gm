@@ -28,7 +28,7 @@ func LoadPath(a *App) error {
 	return nil
 }
 
-// CreatePaths creates the project paths.
+// CreatePaths creates the required paths for the application.
 func CreatePaths(a *App, bkHome string) error {
 	paths := []string{a.Path, bkHome}
 	for _, path := range paths {
