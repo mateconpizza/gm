@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/haaag/gm/pkg/format/color"
+	"github.com/haaag/gm/pkg/util/frame"
 )
 
 const (
@@ -125,4 +126,32 @@ func ColorWithURLPath(b Bookmarker, maxWidth int, colors func(...string) *color.
 	sb.WriteString(color.Gray(_separator, prettifyTags(b.GetTags()), "\n").String())
 
 	return sb.String()
+}
+
+func WithFrame(b Bookmarker, maxWidth int) {
+	n := maxWidth
+	f := frame.New(
+		frame.WithColorBorder(color.Gray),
+		frame.WithMaxWidth(n),
+	)
+
+	n -= len(f.Border.Row)
+
+	// Split
+	descSplit := SplitIntoLines(b.GetDesc(), n)
+	titleSplit := SplitIntoLines(b.GetTitle(), n)
+
+	// Add color and style
+	id := color.BrightYellow(b.GetID()).Bold().String()
+	url := color.BrightMagenta(ShortenString(PrettifyURL(b.GetURL()), n)).
+		String()
+	title := ApplyColor(color.Cyan, titleSplit)
+	desc := ApplyColor(color.BrightWhite, descSplit)
+	tags := color.Gray(PrettifyTags(b.GetTags())).Italic().String()
+
+	f.Header(fmt.Sprintf("%s %s", id, url)).
+		Mid(title...).
+		Mid(desc...).
+		Footer(tags).
+		Render()
 }

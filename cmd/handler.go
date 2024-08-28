@@ -411,3 +411,20 @@ func handleQR(bs *Slice) error {
 
 	return nil
 }
+
+// handleFrame prints the bookmarks in a frame.
+func handleFrame(bs *Slice) error {
+	if !Frame {
+		return nil
+	}
+
+	bs.ForEachIdx(func(i int, b Bookmark) {
+		format.WithFrame(&b, terminal.MinWidth)
+		if i != bs.Len()-1 {
+			// do not print the last line
+			fmt.Println()
+		}
+	})
+
+	return nil
+}

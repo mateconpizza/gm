@@ -169,6 +169,10 @@ func handleOutput(bs *Slice) error {
 		return err
 	}
 
+	if err := handleFrame(bs); err != nil {
+		return err
+	}
+
 	return handleFormat(bs)
 }
 

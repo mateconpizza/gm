@@ -1,5 +1,25 @@
 package frame
 
+var defaultBorders = &FrameBorders{
+	Header: "+ ",
+	Row:    "| ",
+	Mid:    "+ ",
+	Footer: "+ ",
+}
+
+func SetDefaultBorders(b *FrameBorders) {
+	defaultBorders = b
+}
+
+func NewBorders(header, row, mid, footer string) *FrameBorders {
+	return &FrameBorders{
+		Header: header,
+		Row:    row,
+		Mid:    mid,
+		Footer: footer,
+	}
+}
+
 func WithBordersRoundedCorner() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -173,6 +193,23 @@ func WithBordersSolidDiamond() OptFn {
 			Mid:    "├ ",
 			Footer: "╰ ",
 		}
+	}
+}
+
+func WithBordersPlusSign() OptFn {
+	return func(o *Options) {
+		o.Border = &FrameBorders{
+			Header: "+ ",
+			Row:    "| ",
+			Mid:    "+ ",
+			Footer: "+ ",
+		}
+	}
+}
+
+func WithDefaultBorders() OptFn {
+	return func(o *Options) {
+		o.Border = defaultBorders
 	}
 }
 

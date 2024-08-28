@@ -25,6 +25,7 @@ var (
 	JSON      bool
 	Oneline   bool
 	Prettify  bool
+	Frame     bool
 	WithColor string
 
 	DBInit  bool
@@ -46,6 +47,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&JSON, "json", "j", false, "print data in JSON format")
 	rootCmd.PersistentFlags().
 		BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format")
+	rootCmd.PersistentFlags().BoolVarP(&Frame, "frame", "f", false, "print data in framed format")
 	rootCmd.PersistentFlags().
 		StringVar(&WithColor, "color", "always", "print with pretty colors [always|never]")
 	rootCmd.MarkFlagsMutuallyExclusive("json", "pretty")
