@@ -9,8 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/atotto/clipboard"
-
+	"github.com/haaag/gm/internal/presenter"
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
@@ -193,9 +192,13 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 			return repo.ErrRecordNotFound
 		}
 
-		bs.ForEach(func(b Bookmark) {
-			summary += format.ColorWithURLPath(&b, terminal.MaxWidth, colors) + "\n"
+		f := frame.New(frame.WithColorBorder(color.Gray))
+
+		bs.ForEachIdx(func(i int, b Bookmark) {
+			presenter.WithFrameAndURLColor(f, &b, terminal.MinWidth, colors)
 		})
+
+		f.Render()
 
 		summary += prompt + fmt.Sprintf(" %d bookmark/s?", n)
 		opt := terminal.ConfirmOrEdit(summary, []string{"yes", "no", "edit"}, "n")

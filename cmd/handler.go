@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/haaag/gm/internal/presenter"
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/editor"
 	"github.com/haaag/gm/pkg/format"
@@ -54,14 +55,31 @@ func handleByField(bs *Slice) error {
 	return nil
 }
 
-// handleFormat prints the bookmarks in different formats.
-func handleFormat(bs *Slice) error {
-	if !Prettify || Exit {
+// handlePrintOut prints the bookmarks in different formats.
+func handlePrintOut(bs *Slice) error {
+	if Exit {
 		return nil
 	}
 
-	bs.ForEach(func(b Bookmark) {
-		fmt.Println(format.PrettyWithURLPath(&b, terminal.MaxWidth) + "\n")
+	n := terminal.MinWidth
+	lastIdx := bs.Len() - 1
+
+	bs.ForEachIdx(func(i int, b Bookmark) {
+		var output string
+		if Prettify {
+			output = presenter.PrettyWithURLPath(&b, n) + "\n"
+		}
+
+		if Frame {
+			output = presenter.WithFrame(&b, n)
+		}
+
+		if output != "" {
+			fmt.Print(output)
+			if i != lastIdx {
+				fmt.Println()
+			}
+		}
 	})
 
 	return nil
@@ -74,8 +92,10 @@ func handleOneline(bs *Slice) error {
 	}
 
 	bs.ForEach(func(b Bookmark) {
-		fmt.Print(format.Oneline(&b, terminal.Color, terminal.MaxWidth))
+		fmt.Print(presenter.Oneline(&b, terminal.MaxWidth))
 	})
+
+	Exit = true
 
 	return nil
 }
@@ -332,23 +352,6 @@ func handleQR(bs *Slice) error {
 	fmt.Println(b.GetTitle())
 	qrcode.Render()
 	fmt.Println(b.GetURL())
-
-	return nil
-}
-
-// handleFrame prints the bookmarks in a frame.
-func handleFrame(bs *Slice) error {
-	if !Frame {
-		return nil
-	}
-
-	bs.ForEachIdx(func(i int, b Bookmark) {
-		format.WithFrame(&b, terminal.MinWidth)
-		if i != bs.Len()-1 {
-			// do not print the last line
-			fmt.Println()
-		}
-	})
 
 	return nil
 }
