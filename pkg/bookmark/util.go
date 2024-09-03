@@ -10,76 +10,9 @@ import (
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/slice"
-	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util/scraper"
 	"github.com/haaag/gm/pkg/util/spinner"
 )
-
-const (
-	_indentation = 10
-)
-
-// HandleURL handles the URL.
-func HandleURL(args *[]string) string {
-	urlPrompt := color.Blue("+ URL\t:").Bold().String()
-
-	if len(*args) > 0 {
-		url := (*args)[0]
-		*args = (*args)[1:]
-		url = strings.TrimRight(url, "\n")
-		fmt.Println(urlPrompt, url)
-
-		return url
-	}
-
-	urlPrompt += color.Orange("\n > ").Bold().String()
-
-	return terminal.ReadInput(urlPrompt)
-}
-
-// HandleTags handles the tags.
-func HandleTags(args *[]string) string {
-	tagsPrompt := color.Purple("+ Tags\t:").Bold().String()
-
-	if len(*args) > 0 {
-		tags := (*args)[0]
-		*args = (*args)[1:]
-		tags = strings.TrimRight(tags, "\n")
-		tags = strings.Join(strings.Fields(tags), ",")
-		fmt.Println(tagsPrompt, tags)
-
-		return tags
-	}
-
-	tagsPrompt += color.Gray(" (comma-separated)").Italic().String()
-	tagsPrompt += color.Orange("\n > ").Bold().String()
-
-	return terminal.ReadInput(tagsPrompt)
-}
-
-// HandleTitleAndDesc fetch and display title and description.
-func HandleTitleAndDesc(url string, minWidth int) (title, desc string) {
-	s := spinner.New()
-	s.Mesg = color.Yellow("Scraping webpage...").String()
-	s.Start()
-
-	sc := scraper.New(url)
-	_ = sc.Scrape()
-
-	title = sc.GetTitle()
-	desc = sc.GetDesc()
-
-	s.Stop()
-
-	var r strings.Builder
-	r.WriteString(color.Green("+ Title\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlignString(title, minWidth, _indentation))
-	r.WriteString(color.Yellow("\n+ Desc\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlignString(desc, minWidth, _indentation))
-	fmt.Println(r.String())
-
-	return title, desc
-}
 
 // ExtractIDs extracts the IDs from a slice of bookmarks.
 func ExtractIDs(bs *[]Bookmark) []int {

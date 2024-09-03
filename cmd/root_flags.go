@@ -13,7 +13,6 @@ var (
 	Tags []string
 	QR   bool
 
-	Add     bool
 	Deleted bool
 	Edit    bool
 	Head    int
@@ -58,7 +57,6 @@ func init() {
 	rootCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
 	rootCmd.Flags().
 		StringSliceVarP(&Tags, "tags", "t", nil, "filter bookmarks by tag")
-	rootCmd.Flags().BoolVarP(&Add, "add", "a", false, "add a new bookmark")
 	rootCmd.Flags().BoolVar(&QR, "qr", false, "generate qr-code")
 
 	// Experimental

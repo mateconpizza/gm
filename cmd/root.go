@@ -76,10 +76,6 @@ var rootCmd = &cobra.Command{
 
 		terminal.ReadPipedInput(&args)
 
-		if Add {
-			return handleAdd(r, args)
-		}
-
 		bs := slice.New[Bookmark]()
 		if err := handleListAndEdit(r, bs, args); err != nil {
 			return err

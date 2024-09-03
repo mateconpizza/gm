@@ -167,51 +167,6 @@ func handleByTags(r *Repo, bs *Slice) error {
 	return nil
 }
 
-// handleAdd fetch metadata and adds a new bookmark.
-func handleAdd(r *Repo, args []string) error {
-	if !Add {
-		return nil
-	}
-
-	if terminal.Piped && len(args) < 2 {
-		return fmt.Errorf("%w: URL or tags cannot be empty", bookmark.ErrInvalidInput)
-	}
-
-	fmt.Println(color.Yellow("New bookmark\n").Bold().String())
-
-	url := bookmark.HandleURL(&args)
-	if url == "" {
-		return ErrURLNotProvided
-	}
-
-	// WARN: do we need this trim? why?
-	url = strings.TrimRight(url, "/")
-
-	if r.HasRecord(r.Cfg.GetTableMain(), "url", url) {
-		item, _ := r.GetByURL(r.Cfg.GetTableMain(), url)
-		return fmt.Errorf("%w with id: %d", bookmark.ErrBookmarkDuplicate, item.ID)
-	}
-
-	tags := bookmark.HandleTags(&args)
-	title, desc := bookmark.HandleTitleAndDesc(url, terminal.MinWidth)
-	b := bookmark.New(url, title, format.ParseTags(tags), desc)
-
-	if !terminal.Piped {
-		if err := confirmEditOrSave(b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-
-	if _, err := r.Insert(r.Cfg.GetTableMain(), b); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Println("new bookmark added", color.Green("successfully").Bold())
-	Exit = true
-
-	return nil
-}
-
 // handleEdition renders the edition interface.
 func handleEdition(r *Repo, bs *Slice) error {
 	if !Edit {
