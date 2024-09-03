@@ -29,7 +29,6 @@ var (
 	Force   bool
 	Status  bool
 	Verbose bool
-	Version bool
 )
 
 func init() {
@@ -69,7 +68,6 @@ func init() {
 	rootCmd.Flags().IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 
 	// Others
-	rootCmd.Flags().BoolVarP(&Version, "version", "v", false, "print version info")
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.SilenceErrors = true
 }
