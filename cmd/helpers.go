@@ -184,7 +184,7 @@ func confirmEditOrSave(b *Bookmark) error {
 }
 
 // confirmAction prompts the user to confirm the action.
-func confirmAction(bs *Slice, prompt string, colors colorFn) error {
+func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 	for !Force {
 		var summary string
 

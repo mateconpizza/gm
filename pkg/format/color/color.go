@@ -4,15 +4,62 @@ package color
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
-const _reset = "\x1b[0m"
-
 var enableColorOutput *bool
 
-// Enable allows to enable/disable color output.
-func Enable(b *bool) {
+type ColorFn func(arg ...any) *Color
+
+const (
+	// normal colors.
+	black   = "\x1b[30m"
+	blue    = "\x1b[34m"
+	cyan    = "\x1b[36m"
+	gray    = "\x1b[90m"
+	green   = "\x1b[32m"
+	magenta = "\x1b[95m"
+	orange  = "\x1b[33m"
+	purple  = "\x1b[35m"
+	red     = "\x1b[31m"
+	white   = "\x1b[37m"
+	yellow  = "\x1b[93m"
+
+	// bright colors.
+	brightBlack   = "\x1b[90m"
+	brightBlue    = "\x1b[94m"
+	brightCyan    = "\x1b[96m"
+	brightGray    = "\x1b[37m"
+	brightGreen   = "\x1b[92m"
+	brightMagenta = "\x1b[95m"
+	brightOrange  = "\x1b[33m"
+	brightPurple  = "\x1b[35m"
+	brightRed     = "\x1b[91m"
+	brightWhite   = "\x1b[97m"
+	brightYellow  = "\x1b[93m"
+
+	// styles.
+	bold          = "\x1b[1m"
+	dim           = "\x1b[2m"
+	inverse       = "\x1b[7m"
+	italic        = "\x1b[3m"
+	strikethrough = "\x1b[9m"
+	underline     = "\x1b[4m"
+
+	// reset colors.
+	reset = "\x1b[0m"
+)
+
+// GetANSI returns the ANSI code from a Color function.
+func GetANSI(f ColorFn) string {
+	c := f()
+	v := reflect.ValueOf(c).Elem().FieldByName("color")
+	return v.String()
+}
+
+// EnableANSI allows to enable/disable color output.
+func EnableANSI(b *bool) {
 	enableColorOutput = b
 }
 
@@ -27,113 +74,152 @@ func Text(s ...string) *Color {
 	return &Color{text: strings.Join(s, " ")}
 }
 
-func (c *Color) Style(styles ...string) *Color {
+func (c *Color) applyStyle(styles ...string) *Color {
 	c.styles = append(c.styles, styles...)
 	return c
 }
 
-func (c *Color) String() string {
-	if !*enableColorOutput {
-		return c.text
-	}
-	// add styles and colors
-	styles := strings.Join(c.styles, "")
-
-	return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, _reset)
-}
-
 func (c *Color) Bold() *Color {
-	return c.Style("\x1b[1m")
+	return c.applyStyle(bold)
 }
 
 func (c *Color) Dim() *Color {
-	return c.Style("\x1b[2m")
+	return c.applyStyle(dim)
 }
 
-func (c *Color) Underline() *Color {
-	return c.Style("\x1b[4m")
+func (c *Color) Inverse() *Color {
+	return c.applyStyle(inverse)
 }
 
 func (c *Color) Italic() *Color {
-	return c.Style("\x1b[3m")
+	return c.applyStyle(italic)
 }
 
-func Black(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[30m"}
+func (c *Color) Strikethrough() *Color {
+	return c.applyStyle(strikethrough)
 }
 
-func Blue(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[34m"}
+func (c *Color) Underline() *Color {
+	return c.applyStyle(underline)
 }
 
-func Cyan(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[36m"}
+func (c *Color) String() string {
+	if enableColorOutput == nil || !*enableColorOutput {
+		return c.text
+	}
+	// apply styles
+	styles := strings.Join(c.styles, "")
+
+	return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, reset)
 }
 
-func Gray(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[90m"}
+func Reset() string {
+	return reset
 }
 
-func Green(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[32m"}
+func Black(arg ...any) *Color {
+	return &Color{text: join(arg...), color: black}
 }
 
-func Orange(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[33m"}
+func Blue(arg ...any) *Color {
+	return &Color{text: join(arg...), color: blue}
 }
 
-func Purple(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[35m"}
+func Cyan(arg ...any) *Color {
+	return &Color{text: join(arg...), color: cyan}
 }
 
-func Red(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[31m"}
+func Gray(arg ...any) *Color {
+	return &Color{text: join(arg...), color: gray}
 }
 
-func White(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[37m"}
+func Green(arg ...any) *Color {
+	return &Color{text: join(arg...), color: green}
 }
 
-func Yellow(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[33m"}
+func Magenta(arg ...any) *Color {
+	return &Color{text: join(arg...), color: magenta}
 }
 
-func Magenta(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[35m"}
+func Orange(arg ...any) *Color {
+	return &Color{text: join(arg...), color: orange}
 }
 
-func BrightBlack(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[90m"}
+func Purple(arg ...any) *Color {
+	return &Color{text: join(arg...), color: purple}
 }
 
-func BrightBlue(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[94m"}
+func Red(arg ...any) *Color {
+	return &Color{text: join(arg...), color: red}
 }
 
-func BrightCyan(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[96m"}
+func White(arg ...any) *Color {
+	return &Color{text: join(arg...), color: white}
 }
 
-func BrightGray(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[37m"}
+func Yellow(arg ...any) *Color {
+	return &Color{text: join(arg...), color: yellow}
 }
 
-func BrightGreen(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[92m"}
+func BrightBlack(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightBlack}
 }
 
-func BrightMagenta(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[95m"}
+func BrightBlue(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightBlue}
 }
 
-func BrightRed(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[91m"}
+func BrightCyan(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightCyan}
 }
 
-func BrightWhite(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[97m"}
+func BrightGray(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightGray}
 }
 
-func BrightYellow(text ...string) *Color {
-	return &Color{text: strings.Join(text, " "), color: "\x1b[93m"}
+func BrightGreen(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightGreen}
+}
+
+func BrightMagenta(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightMagenta}
+}
+
+func BrightOrange(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightOrange}
+}
+
+func BrightPurple(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightPurple}
+}
+
+func BrightRed(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightRed}
+}
+
+func BrightWhite(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightWhite}
+}
+
+func BrightYellow(arg ...any) *Color {
+	return &Color{text: join(arg...), color: brightYellow}
+}
+
+func join(text ...any) string {
+	str := make([]string, 0, len(text))
+	for _, t := range text {
+		str = append(str, fmt.Sprint(t))
+	}
+
+	return strings.Join(str, " ")
+}
+
+// ApplyMany applies a color to a slice of strings returning new slice of
+// strings.
+func ApplyMany(s []string, c ColorFn) []string {
+	for i := 0; i < len(s); i++ {
+		s[i] = c(s[i]).String()
+	}
+
+	return s
 }

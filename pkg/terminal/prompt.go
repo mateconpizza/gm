@@ -103,6 +103,8 @@ func ReadInput(prompt string) string {
 		return ""
 	}
 
+	fmt.Print(color.Reset())
+
 	return strings.Trim(s, "\n")
 }
 

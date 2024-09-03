@@ -108,7 +108,7 @@ func prettifyURLStatus(code int) (status, statusCode string) {
 }
 
 // fmtSummary formats the summary of the status codes.
-func fmtSummary(n, statusCode int, c ColorFn) string {
+func fmtSummary(n, statusCode int, c color.ColorFn) string {
 	total := fmt.Sprintf(c("%-3d").Bold().String(), n)
 	code := c(statusCode).Bold().String()
 	statusText := color.Text(http.StatusText(statusCode)).Italic().String()
