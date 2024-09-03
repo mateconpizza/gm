@@ -13,12 +13,10 @@ var (
 	Tags []string
 	QR   bool
 
-	Deleted bool
-	Edit    bool
-	Head    int
-	Remove  bool
-	Restore bool
-	Tail    int
+	Edit   bool
+	Head   int
+	Remove bool
+	Tail   int
 
 	Field     string
 	JSON      bool
@@ -65,10 +63,6 @@ func init() {
 	rootCmd.Flags().BoolVar(&Oneline, "oneline", false, "output formatted oneline data")
 	rootCmd.Flags().BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
 	rootCmd.Flags().StringVarP(&Field, "field", "F", "", "prints by field [id|url|title|tags]")
-	rootCmd.Flags().BoolVarP(&Restore, "restore", "R", false, "restore bookmark/s")
-	rootCmd.Flags().BoolVarP(&Deleted, "deleted", "d", false, "read deleted bookmarks")
-	// FIX: better naming for 'deleted'
-	// rootCmd.MarkFlagsRequiredTogether("restore", "deleted")
 
 	// Modifiers
 	rootCmd.Flags().IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")

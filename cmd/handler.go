@@ -310,37 +310,6 @@ func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 	return nil
 }
 
-// handleRestore restores record/s from the deleted table.
-func handleRestore(r *Repo, bs *Slice) error {
-	if !Restore {
-		return nil
-	}
-
-	if !Deleted {
-		err := repo.ErrRecordRestoreTable
-		del := color.Red("--deleted").Bold().String()
-		return fmt.Errorf("%w: use %s to read from deleted records", err, del)
-	}
-
-	prompt := color.Yellow("restore").Bold().String()
-	if err := confirmAction(bs, prompt, color.Yellow); err != nil {
-		return err
-	}
-
-	s := spinner.New()
-	s.Mesg = color.Yellow("restoring record/s...").String()
-	s.Start()
-
-	if err := r.Restore(bs); err != nil {
-		return fmt.Errorf("%w: restoring bookmark", err)
-	}
-
-	s.Stop()
-	fmt.Println("bookmark/s restored", color.Yellow("successfully").Bold())
-
-	return nil
-}
-
 // handleQR handles creation, rendering or opening of
 // QR-Codes.
 func handleQR(bs *Slice) error {
