@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -66,4 +67,14 @@ func Edit(buf *[]byte) error {
 	}
 
 	return readFileContent(tf, buf)
+}
+
+// CopyBuffer copies the contents of a byte slice into a new byte slice.
+func CopyBuffer(buf *[]byte) []byte {
+	return append([]byte(nil), *buf...)
+}
+
+// IsSameContentBytes Checks if the buffer is unchanged.
+func IsSameContentBytes(a, b *[]byte) bool {
+	return bytes.Equal(*a, *b)
 }

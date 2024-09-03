@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -27,14 +28,9 @@ func createAndSave(d *[]byte) (*os.File, error) {
 	return tf, nil
 }
 
-// Content returns the content of a []byte in []string.
+// Content returns the content of a []byte as a slice of strings.
 func Content(data *[]byte) []string {
 	return strings.Split(string(*data), "\n")
-}
-
-// IsSameContentBytes Checks if the buffer is unchanged.
-func IsSameContentBytes(a, b *[]byte) bool {
-	return bytes.Equal(*a, *b)
 }
 
 // ExtractContentLine extracts URLs from the a slice of strings.
@@ -102,12 +98,12 @@ func ExtractBlock(content *[]string, startMarker, endMarker string) string {
 // the command fails.
 func editFile(fileName *os.File, command string, args []string) error {
 	if command == "" {
-		return ErrEditorNotFound
+		return ErrTextEditorNotFound
 	}
 
 	log.Printf("editing file: '%s'", fileName.Name())
 	log.Printf("executing args: cmd='%s' args='%v'", command, args)
-	cmd := exec.Command(command, append(args, fileName.Name())...)
+	cmd := exec.CommandContext(context.Background(), command, append(args, fileName.Name())...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -122,11 +118,11 @@ func editFile(fileName *os.File, command string, args []string) error {
 
 // readFileContent reads the content of the specified file into the given byte
 // slice and returns any error encountered.
-func readFileContent(fileName *os.File, c *[]byte) error {
+func readFileContent(fileName *os.File, data *[]byte) error {
+	// BUG: When reading the tempFile, the []byte returned always differs from
+	// the original []byte (without modification)
 	log.Printf("reading file: '%s'", fileName.Name())
-
-	var err error
-	*c, err = os.ReadFile(fileName.Name())
+	tempData, err := os.ReadFile(fileName.Name())
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
 	}

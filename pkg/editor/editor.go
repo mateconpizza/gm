@@ -11,11 +11,11 @@ import (
 var Editor *TextEditor
 
 var (
-	ErrBufferEndOfBlock = errors.New("end of the block not found")
-	ErrBufferUnchanged  = errors.New("buffer unchanged")
-	ErrEditorNotFound   = errors.New("editor not found")
-	ErrLineNotFound     = errors.New("not found")
-	ErrTooManyRecords   = errors.New("too many records")
+	ErrBufferEndOfBlock   = errors.New("end of the block not found")
+	ErrBufferUnchanged    = errors.New("buffer unchanged")
+	ErrTextEditorNotFound = errors.New("text editor not found")
+	ErrLineNotFound       = errors.New("not found")
+	ErrTooManyRecords     = errors.New("too many records")
 )
 
 type TextEditor struct {
@@ -66,5 +66,5 @@ func Load(env *string, fallbackEditors *[]string) error {
 		}
 	}
 
-	return ErrEditorNotFound
+	return ErrTextEditorNotFound
 }

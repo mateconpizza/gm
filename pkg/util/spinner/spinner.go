@@ -79,6 +79,13 @@ func WithUnicode(unicode []string) OptFn {
 	}
 }
 
+// WithMesg returns an option function that sets the spinner message.
+func WithMesg(mesg string) OptFn {
+	return func(o *Options) {
+		o.Mesg = mesg
+	}
+}
+
 // New returns a new spinner.
 func New(opts ...OptFn) *Spinner {
 	o := defaultOpts()

@@ -3,6 +3,7 @@ package terminal
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"golang.org/x/term"
@@ -29,10 +30,11 @@ var (
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
 )
 
-// SetColor enables or disables color output based on the provided boolean and
-// environment variable.
+// SetColor enables or disables color output based on the `NO_COLOR` environment
+// variable or a given boolean flag.
 func SetColor(b bool) {
 	if c := util.GetEnv(noColorEnv, ""); c != "" {
+		log.Println("NO_COLOR found, disabling color output.")
 		Color = false
 		return
 	}
@@ -55,6 +57,7 @@ func LoadMaxWidth() {
 
 	if w < MaxWidth {
 		MaxWidth = w
+		MinWidth = w
 	}
 }
 

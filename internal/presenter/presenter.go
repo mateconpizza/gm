@@ -34,7 +34,7 @@ func getBkStateColored(n int) string {
 }
 
 func paddingWithColor(label *color.Color, value any) string {
-	const withColor = 24
+	const withColor = 32
 	return fmt.Sprintf("%-*s %v", colorPadding(15, withColor), label, value)
 }
 
@@ -46,59 +46,75 @@ func padding(label string, value any) string {
 
 // RepoSummary returns a summary of the repository.
 func RepoSummary(r *repo.SQLiteRepository) string {
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	path := padding("path:", r.Cfg.Path)
 	records := padding("records:", r.GetMaxID(r.Cfg.GetTableMain()))
 	deleted := padding("deleted:", r.GetMaxID(r.Cfg.GetTableDeleted()))
-	path := padding("path:", r.Cfg.Path)
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Header(color.Yellow(r.Cfg.Name).Bold().Italic().String()).
-		Mid(records).
-		Mid(deleted).
-		Mid(path)
-
-	return f.String()
+	return f.Header(color.Yellow(r.Cfg.Name).Bold().Italic().String()).
+		Row(records).
+		Row(deleted).
+		Row(path).String()
 }
 
 // BackupsSummary returns a summary of the backups.
 func BackupsSummary(r *repo.SQLiteRepository) string {
+	// FIX: paddingWithColor wont work when adding colors to var `backupsColor`
 	var (
-		f           = frame.New(frame.WithColorBorder(color.Gray))
-		bks, _      = files.List(r.Cfg.BackupPath, r.Cfg.Name)
-		backupsInfo = padding("backups:", "no backups found")
-		lastBackup  = "n/a"
+		f            = frame.New(frame.WithColorBorder(color.Gray))
+		backups, _   = files.List(r.Cfg.BackupPath, r.Cfg.Name)
+		backupsColor = color.BrightMagenta("backups:").Bold().Italic()
+		backupsInfo  = paddingWithColor(backupsColor, "no backups found")
+		lastBackup   = "n/a"
 	)
 
-	if len(bks) > 0 {
-		backupsCount := color.BrightWhite(len(bks)).String()
-		backupsInfo = padding("backups:", backupsCount+" found")
-		lastBackup = filepath.Base(bks[len(bks)-1])
+	if len(backups) > 0 {
+		backupsCount := color.BrightWhite(len(backups)).String()
+		backupsInfo = paddingWithColor(backupsColor, backupsCount+" backups found")
+		lastBackup = RepoRecordSummary(r, backups[len(backups)-1])
 	}
 
 	status := padding("status:", getBkStateColored(r.Cfg.MaxBackups))
-	keep := padding("keep:", strconv.Itoa(r.Cfg.MaxBackups))
+	keep := padding("max:", strconv.Itoa(r.Cfg.MaxBackups)+" backups allowed")
 	path := padding("path:", r.Cfg.BackupPath)
 	last := padding("last:", lastBackup)
 
 	return f.Mid(backupsInfo).
-		Mid(status).
-		Mid(keep).
-		Mid(last).
-		Mid(path).String()
+		Row(status).
+		Row(keep).
+		Row(last).
+		Row(path).String()
+}
+
+func RepoRecordSummary(r *repo.SQLiteRepository, backup string) string {
+	name := filepath.Base(backup)
+	cfgCopy := *r.Cfg
+	r.Cfg.SetName(name)
+	r.Cfg.SetPath(filepath.Dir(backup))
+	rep, _ := repo.New(r.Cfg)
+
+	mainRecords := fmt.Sprintf("(main: %d, ", rep.GetMaxID(rep.Cfg.GetTableMain()))
+	delRecords := fmt.Sprintf("deleted: %d)", rep.GetMaxID(rep.Cfg.GetTableDeleted()))
+	records := color.Gray(mainRecords + delRecords).Italic()
+	r.Cfg = &cfgCopy
+
+	return name + " " + records.String()
 }
 
 // BackupDetail returns the details of a backup.
 func BackupDetail(r *repo.SQLiteRepository) string {
-	bks, _ := files.List(r.Cfg.BackupPath, r.Cfg.Name)
-	n := len(bks)
+	backups, _ := files.List(r.Cfg.BackupPath, r.Cfg.Name)
+
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f.Header(color.BrightCyan("backup detail:").Bold().Italic().String())
+
+	n := len(backups)
 	if n == 0 {
-		return ""
+		return f.Row(padding("found:", "n/a")).String()
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Header("details:")
-
-	for _, bk := range bks {
-		f.Mid(filepath.Base(bk))
+	for _, bk := range backups {
+		f.Row(RepoRecordSummary(r, bk))
 	}
 
 	return f.String()
@@ -197,7 +213,12 @@ func PrettyWithURLPath(b *bookmark.Bookmark, maxWidth int) string {
 }
 
 // WithFrameAndURLColor formats a bookmark with a given color.
-func WithFrameAndURLColor(f *frame.Frame, b *bookmark.Bookmark, n int, c func(arg ...any) *color.Color) {
+func WithFrameAndURLColor(
+	f *frame.Frame,
+	b *bookmark.Bookmark,
+	n int,
+	c func(arg ...any) *color.Color,
+) {
 	const _midBulletPoint = "\u00b7"
 	n -= len(f.Border.Row)
 

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -8,7 +9,11 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/atotto/clipboard"
 )
+
+var ErrCopyToClipboard = errors.New("copy to clipboard")
 
 // FilterEntries returns a list of backups.
 func FilterEntries(name, path string) ([]fs.DirEntry, error) {
@@ -117,4 +122,26 @@ func GetOSArgsCmd() []string {
 	}
 
 	return args
+}
+
+// OpenInBrowser opens a URL in the default browser.
+func OpenInBrowser(url string) error {
+	args := append(GetOSArgsCmd(), url)
+	if err := ExecuteCmd(args...); err != nil {
+		return fmt.Errorf("%w: opening in browser", err)
+	}
+
+	return nil
+}
+
+// CopyClipboard copies a string to the clipboard.
+func CopyClipboard(s string) error {
+	err := clipboard.WriteAll(s)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCopyToClipboard, err)
+	}
+
+	log.Print("text copied to clipboard:", s)
+
+	return nil
 }

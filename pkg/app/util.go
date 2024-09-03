@@ -42,10 +42,10 @@ func CreatePaths(a *App, bkHome string) error {
 
 // PrettyVersion formats version in a pretty way.
 func PrettyVersion(morePretty bool) string {
-	name := color.Blue(name).Bold().String()
+	name := color.BrightBlue(name).Bold().String()
 	if morePretty {
-		name = color.Blue(Banner).String()
+		name = color.BrightBlue(Banner).String()
 	}
 
-	return fmt.Sprintf("%s v%s %s/%s\n", name, Version, runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf("%s v%s %s/%s", name, Version, runtime.GOOS, runtime.GOARCH)
 }

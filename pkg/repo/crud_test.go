@@ -63,7 +63,7 @@ func getValidBookmarks() *Slice {
 	for i := 0; i < 10; i++ {
 		b := getValidBookmark()
 		b.Title = fmt.Sprintf("Title %d", i)
-		s.Add(&b)
+		s.Append(&b)
 	}
 
 	return s
@@ -227,7 +227,7 @@ func TestDeleteRecordBulk(t *testing.T) {
 	// Delete the record and verify that it was deleted successfully
 	ids := slice.New[int]()
 	newRows.ForEach(func(r Row) {
-		ids.Add(&r.ID)
+		ids.Append(&r.ID)
 	})
 
 	if ids.Len() != newRows.Len() {

@@ -9,12 +9,12 @@ linters:
   disable-all: true
   enable:
     # - cyclop
+    - copyloopvar
     - dupl
     - err113
     - errcheck
     - errname
     - errorlint
-    - exportloopref
     - forcetypeassert
     - funlen
     - goconst
@@ -60,7 +60,6 @@ run:
   tests: true
   issues-exit-code: 1
 output:
-  formats: colored-line-number
   print-issued-lines: true
   print-linter-name: true
   uniq-by-line: true
@@ -70,7 +69,6 @@ linters-settings:
   errcheck:
     check-type-assertions: true
     check-blank: false
-    exclude: ""
     exclude-functions: []
   nlreturn:
     block-size: 3
@@ -84,13 +82,12 @@ linters-settings:
       - opinionated
       - performance
       - style
-    enable:
-      - fieldalignment
   nolintlint:
     require-explanation: false
     require-specific: true
   gosec:
     excludes:
+      - G115
       - G201
       - G204
   errorlint:

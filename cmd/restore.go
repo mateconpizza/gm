@@ -42,6 +42,8 @@ var restoreCmd = &cobra.Command{
 
 func init() {
 	restoreCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
+	restoreCmd.Flags().IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
+	restoreCmd.Flags().IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 	restoreCmd.Flags().
 		StringSliceVarP(&Tags, "tags", "t", nil, "filter bookmarks by tag")
 	rootCmd.AddCommand(restoreCmd)
@@ -64,8 +66,8 @@ func restore(r *Repo, bs *Slice) error {
 	}
 
 	s.Stop()
-	success := color.Green("successfully").Italic().Bold()
-	fmt.Println("bookmark/s restored", success.String())
+	success := color.BrightGreen("successfully").Italic().Bold()
+	fmt.Println("bookmark/s restored", success)
 
 	return nil
 }

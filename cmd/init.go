@@ -5,10 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/presenter"
 	"github.com/haaag/gm/pkg/app"
 	"github.com/haaag/gm/pkg/bookmark"
 	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/slice"
 )
@@ -23,6 +23,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("init database: %w", err)
 		}
 		defer r.Close()
+
 		if err := initDB(r); err != nil {
 			return err
 		}
@@ -32,9 +33,12 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("getting records: %w", err)
 		}
 
-		Prettify = true
+		// get initial bookmark
+		List = true
+		// prints bookmark
+		Frame = true
 
-		return handleFormat(bs)
+		return nil
 	},
 }
 
@@ -57,19 +61,14 @@ func initDB(r *Repo) error {
 		App.Info.Desc,
 	)
 
-	printSummary()
-
 	if _, err := r.Insert(r.Cfg.GetTableMain(), initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	return nil
-}
+	s := format.Header(app.PrettyVersion(Prettify))
+	s += presenter.RepoSummary(r)
 
-func printSummary() {
-	fmt.Println(app.PrettyVersion(Prettify))
-	fmt.Printf("+ app folder at: %s\n", color.Yellow(App.Path))
-	fmt.Printf("+ %s folder at: %s\n", color.Blue("databases"), color.Cyan(Cfg.Path))
-	fmt.Printf("+ database '%s' initialized\n", color.Green(DBName))
-	fmt.Printf("+ %s bookmark created\n\n", color.Purple("initial"))
+	fmt.Println(s)
+
+	return nil
 }

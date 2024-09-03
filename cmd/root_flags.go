@@ -45,15 +45,14 @@ func init() {
 		BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format")
 	rootCmd.PersistentFlags().BoolVarP(&Frame, "frame", "f", false, "print data in framed format")
 	rootCmd.PersistentFlags().
-		StringVar(&WithColor, "color", "always", "print with pretty colors [always|never]")
-	rootCmd.MarkFlagsMutuallyExclusive("json", "pretty")
+		StringVar(&WithColor, "color", "never", "print data in pretty colors [always|never]")
+	rootCmd.MarkFlagsMutuallyExclusive("json", "pretty", "frame")
 
 	// Actions
 	rootCmd.Flags().BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
 	rootCmd.Flags().BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
 	rootCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
-	rootCmd.Flags().
-		StringSliceVarP(&Tags, "tags", "t", nil, "filter bookmarks by tag")
+	rootCmd.Flags().StringSliceVarP(&Tags, "tags", "t", nil, "bookmarks by tag")
 	rootCmd.Flags().BoolVar(&QR, "qr", false, "generate qr-code")
 
 	// Experimental
@@ -70,4 +69,6 @@ func init() {
 	// Others
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.SilenceErrors = true
+	rootCmd.DisableSuggestions = true
+	rootCmd.SuggestionsMinimumDistance = 1
 }

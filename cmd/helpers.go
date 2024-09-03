@@ -17,13 +17,11 @@ import (
 	"github.com/haaag/gm/pkg/qr"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/pkg/util/frame"
 	"github.com/haaag/gm/pkg/util/spinner"
 )
 
 var ErrCopyToClipboard = errors.New("copy to clipboard")
-
-type colorFn func(...string) *color.Color
 
 // extractIDsFromStr extracts IDs from a string.
 func extractIDsFromStr(args []string) ([]int, error) {
@@ -67,28 +65,6 @@ func setLoggingLevel(verboseFlag *bool) {
 
 	silentLogger := log.New(io.Discard, "", 0)
 	log.SetOutput(silentLogger.Writer())
-}
-
-// copyToClipboard copies a string to the clipboard.
-func copyToClipboard(s string) error {
-	err := clipboard.WriteAll(s)
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrCopyToClipboard, err)
-	}
-
-	log.Print("text copied to clipboard:", s)
-
-	return nil
-}
-
-// Open opens a URL in the default browser.
-func openBrowser(url string) error {
-	args := append(util.GetOSArgsCmd(), url)
-	if err := util.ExecuteCmd(args...); err != nil {
-		return fmt.Errorf("%w: opening in browser", err)
-	}
-
-	return nil
 }
 
 // filterSlice select which item to remove from a slice using the
@@ -167,7 +143,7 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 // confirmEditOrSave confirms if the user wants to save the
 // bookmark.
 func confirmEditOrSave(b *Bookmark) error {
-	save := color.Green("\nsave").Bold().String() + " bookmark?"
+	save := color.BrightGreen("\nsave").Bold().String() + " bookmark?"
 	opt := terminal.ConfirmOrEdit(save, []string{"yes", "no", "edit"}, "y")
 
 	switch opt {
@@ -241,8 +217,8 @@ func validateRemove(bs *Slice) error {
 
 // removeRecords removes the records from the database.
 func removeRecords(r *Repo, bs *Slice) error {
-	s := spinner.New()
-	s.Mesg = color.Gray("removing record/s...").String()
+	mesg := color.Gray("removing record/s...").String()
+	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()
 
 	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
@@ -251,7 +227,8 @@ func removeRecords(r *Repo, bs *Slice) error {
 
 	s.Stop()
 
-	fmt.Println("bookmark/s removed", color.Green("successfully").Bold())
+	success := color.BrightGreen("successfully").Italic().Bold()
+	fmt.Println("bookmark/s removed", success)
 
 	return nil
 }

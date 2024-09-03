@@ -33,8 +33,8 @@ func ParseContent(content *[]string) *Bookmark {
 	b := New(url, title, format.ParseTags(tags), desc)
 
 	if b.Title == "" || b.Desc == "" {
-		s := spinner.New()
-		s.Mesg = "Scraping webpage..."
+		mesg := color.Yellow("Scraping webpage...").String()
+		s := spinner.New(spinner.WithMesg(mesg))
 		s.Start()
 
 		sc := scraper.New(b.URL)
@@ -88,7 +88,7 @@ func Validate(b *Bookmark) error {
 // GetBufferSlice returns a buffer with the provided slice of bookmarks.
 func GetBufferSlice(bs *slice.Slice[Bookmark]) []byte {
 	buf := bytes.NewBuffer([]byte{})
-	buf.WriteString("## Remove the <URL> line to ignore\n")
+	buf.WriteString("## Remove the <URL> line to ignore bookmark\n")
 	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())
 	bs.ForEach(func(b Bookmark) {
 		buf.Write(b.BufSimple())

@@ -63,6 +63,11 @@ func EnableANSI(b *bool) {
 	enableColorOutput = b
 }
 
+// Toggle toggles color output.
+func Toggle() {
+	*enableColorOutput = !*enableColorOutput
+}
+
 // Color represents styled text with a specific color and formatting styles.
 type Color struct {
 	text   string

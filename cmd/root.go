@@ -12,6 +12,7 @@ import (
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/pkg/terminal"
+	"github.com/haaag/gm/pkg/util/files"
 )
 
 type (
@@ -19,6 +20,13 @@ type (
 	Slice    = slice.Slice[Bookmark]
 	Repo     = repo.SQLiteRepository
 )
+
+// TODO)):
+// - [x] Extract `restore|deleted` logic to subcommand `restore`.
+// - [ ] Extract `init` logic to subcommand `init`.
+// - [ ] Add a `Query` flag.
+// WARN:
+// - [ ] Simplify `root.go`
 
 var (
 	// FIX: Remove this Global Exit.
@@ -46,28 +54,16 @@ var rootCmd = &cobra.Command{
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Checks if current `DBName` is initialized.
+		s := color.Text(files.EnsureExtension(DBName, ".db")).Italic().Bold()
 		if !dbExistsAndInit(Cfg.Path, DBName) && !DBInit {
 			init := color.Yellow("--init").Bold().Italic()
-			return fmt.Errorf("%w: use %s", repo.ErrDBNotFound, init)
+			return fmt.Errorf("%w: use %s to initialize '%s'", repo.ErrDBNotFound, init, s)
 		}
 
-		return nil
+		return handleDBInit()
 	},
-	RunE: func(_ *cobra.Command, args []string) error {
-		if Version {
-			fmt.Print(app.PrettyVersion(Prettify))
-			return nil
-		}
-
-		if DBInit {
-			return handleDBInit()
-		}
-
-		// FIX: find better way
-		if Deleted {
-			Cfg.TableMain = Cfg.TableDeleted
-		}
-
+	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -93,11 +89,13 @@ func initConfig() {
 	// Set logging level
 	setLoggingLevel(&Verbose)
 
-	// Set terminal defaults and color output
+	// Set terminal defaults
 	terminal.SetIsPiped(terminal.IsPiped())
 	terminal.SetColor(WithColor != "never" && !JSON && !terminal.Piped)
 	terminal.LoadMaxWidth()
-	color.Enable(&terminal.Color)
+
+	// Enable color output
+	color.EnableANSI(&terminal.Color)
 
 	// Load editor
 	if err := editor.Load(&App.Env.Editor, &textEditors); err != nil {
@@ -141,9 +139,6 @@ func handleListAndEdit(r *Repo, bs *Slice, args []string) error {
 	if err := handleRemove(r, bs); err != nil {
 		return err
 	}
-	if err := handleRestore(r, bs); err != nil {
-		return err
-	}
 
 	return handleEdition(r, bs)
 }
@@ -165,11 +160,7 @@ func handleOutput(bs *Slice) error {
 		return err
 	}
 
-	if err := handleFrame(bs); err != nil {
-		return err
-	}
-
-	return handleFormat(bs)
+	return handlePrintOut(bs)
 }
 
 func Execute() {

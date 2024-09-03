@@ -25,7 +25,7 @@ debug: test
 	@CGO_ENABLED=1 go build -gcflags='all=-N -l' -o $(BIN_PATH)-debug $(MAIN_SRC)
 
 # Run tests
-test: check
+test:
 	@echo '>> Testing $(BINARY_NAME)'
 	@go test ./...
 	@echo

@@ -14,11 +14,11 @@ var (
 
 func TestForEach(t *testing.T) {
 	s := New[int]()
-	s.Add(&intItems[0])
-	s.Add(&intItems[1])
-	s.Add(&intItems[2])
-	s.Add(&intItems[3])
-	s.Add(&intItems[4])
+	s.Append(&intItems[0])
+	s.Append(&intItems[1])
+	s.Append(&intItems[2])
+	s.Append(&intItems[3])
+	s.Append(&intItems[4])
 
 	var sum int
 	fn := func(i int) {
@@ -33,11 +33,11 @@ func TestForEach(t *testing.T) {
 
 func TestForEachErr(t *testing.T) {
 	s := New[int]()
-	s.Add(&intItems[0])
-	s.Add(&intItems[1])
-	s.Add(&intItems[2])
-	s.Add(&intItems[3])
-	s.Add(&intItems[4])
+	s.Append(&intItems[0])
+	s.Append(&intItems[1])
+	s.Append(&intItems[2])
+	s.Append(&intItems[3])
+	s.Append(&intItems[4])
 
 	// Define a function that will be called for each element in the slice
 	fn := func(i int) error {
@@ -226,7 +226,7 @@ func TestAdd(t *testing.T) {
 	for _, test := range testAddStr {
 		s := New[string]()
 		s.Set(&test.input)
-		s.Add(&test.name)
+		s.Append(&test.name)
 		if !reflect.DeepEqual(*s.items, test.expected) {
 			t.Errorf("expected %v, got %v", test.expected, *s.items)
 		}

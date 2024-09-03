@@ -34,9 +34,19 @@ func Size(f string) int64 {
 	return fi.Size()
 }
 
+// GetLastFile returns the last file found in a given path.
+func GetLastFile(path, name string) (string, error) {
+	files, err := List(path, name)
+	if err != nil {
+		return "", fmt.Errorf("%w: getting files from '%s'", err, path)
+	}
+
+	return files[len(files)-1], nil
+}
+
 // List returns files found in a given path.
-func List(path, name string) ([]string, error) {
-	query := path + "/*" + name
+func List(path, target string) ([]string, error) {
+	query := path + "/*" + target
 	files, err := filepath.Glob(query)
 	if err != nil {
 		return nil, fmt.Errorf("%w: getting files query: '%s'", err, query)
@@ -114,9 +124,9 @@ func Copy(src, dst string) error {
 	return nil
 }
 
-// SortMyMod sorts a slice of `fs.DirEntry` by the modification time of the
+// SortByMod sorts a slice of `fs.DirEntry` by the modification time of the
 // files in ascending order.
-func SortMyMod(f []fs.DirEntry) {
+func SortByMod(f []fs.DirEntry) {
 	sort.Slice(f, func(i, j int) bool {
 		fileI, err := f[i].Info()
 		if err != nil {

@@ -50,7 +50,7 @@ func (s *Slice[T]) Filter(fn func(T) bool) {
 	for _, ele := range *s.items {
 		t := ele
 		if fn(t) {
-			slice.Add(&t)
+			slice.Append(&t)
 		}
 	}
 	*s.items = *slice.items
@@ -91,8 +91,8 @@ func (s *Slice[T]) Len() int {
 	return len(*s.items)
 }
 
-// Add adds a single item to the items.
-func (s *Slice[T]) Add(ele *T) {
+// Append adds a single item to the items.
+func (s *Slice[T]) Append(ele *T) {
 	if slices.Contains(*s.items, *ele) {
 		return
 	}
@@ -126,6 +126,17 @@ func (s *Slice[T]) Del(item T) {
 	if idx != -1 {
 		*s.items = slices.Delete(*s.items, idx, idx+1)
 	}
+}
+
+// TrimElements returns a new Slice object with the first len(elements) - n
+// elements of the original slice.
+func (s *Slice[T]) TrimElements(n int) *Slice[T] {
+	var filtered []T
+	if len(*s.items) > n {
+		filtered = (*s.items)[:len(*s.items)-n]
+	}
+
+	return &Slice[T]{items: &filtered}
 }
 
 // New creates a new slice of bookmarks.

@@ -19,8 +19,6 @@ import (
 	"github.com/haaag/gm/pkg/util/frame"
 )
 
-type ColorFn func(arg ...interface{}) *color.Color
-
 var ErrNetworkUnreachable = errors.New("network is unreachable")
 
 type Response struct {
@@ -72,7 +70,7 @@ func CheckStatus(bs *slice.Slice[Bookmark]) error {
 		go func(b *Bookmark) {
 			defer wg.Done()
 			res := makeRequest(b, ctx, sem)
-			responses.Add(&res)
+			responses.Append(&res)
 		}(&b)
 
 		return nil

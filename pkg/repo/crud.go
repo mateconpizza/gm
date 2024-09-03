@@ -260,7 +260,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 
 	ids := slice.New[int]()
 	bs.ForEach(func(r Row) {
-		ids.Add(&r.ID)
+		ids.Append(&r.ID)
 	})
 
 	if ids.Len() == 0 {
@@ -396,7 +396,7 @@ func (r *SQLiteRepository) getBySQL(bs *Slice, q string, args ...interface{}) er
 		if err := rows.Scan(&d.ID, &d.URL, &d.Title, &d.Tags, &d.Desc, &d.CreatedAt); err != nil {
 			return fmt.Errorf("%w: '%w'", ErrRecordScan, err)
 		}
-		bs.Add(&d)
+		bs.Append(&d)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -464,7 +464,7 @@ func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) 
 		if err := rows.Scan(&tag); err != nil {
 			return nil, fmt.Errorf("%w: '%w'", ErrRecordScan, err)
 		}
-		data.Add(&tag)
+		data.Append(&tag)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -495,7 +495,7 @@ func (r *SQLiteRepository) GetMaxID(tableName string) int {
 	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", tableName)
 
 	if err := r.DB.QueryRow(sqlQuery).Scan(&lastIndex); err != nil {
-		log.Fatalf("getting maxID from table='%s', err='%v'", tableName, err)
+		log.Fatalf("getting maxID from table='%s' in database='%s', err='%v'", tableName, r.Cfg.Name, err)
 	}
 
 	log.Printf("maxID: %d", lastIndex)

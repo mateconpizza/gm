@@ -13,7 +13,7 @@ import (
 	"github.com/haaag/gm/pkg/qr"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/spinner"
+	"github.com/haaag/gm/pkg/util"
 )
 
 var (
@@ -252,8 +252,8 @@ func handleRemove(r *Repo, bs *Slice) error {
 		return err
 	}
 
-	prompt := color.Red("remove").Bold().String()
-	if err := confirmAction(bs, prompt, color.Red); err != nil {
+	prompt := color.BrightRed("remove").Bold().String()
+	if err := confirmAction(bs, prompt, color.BrightRed); err != nil {
 		return err
 	}
 
@@ -272,7 +272,7 @@ func handleCheckStatus(bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
-	status := color.Green("status").Bold().String()
+	status := color.BrightGreen("status").Bold().String()
 	if n > 15 && !terminal.Confirm(fmt.Sprintf("checking %s of %d, continue?", status, n), "y") {
 		return ErrActionAborted
 	}
@@ -292,13 +292,13 @@ func handleCopyOpen(bs *Slice) error {
 
 	b := bs.Get(0)
 	if Copy {
-		if err := copyToClipboard(b.URL); err != nil {
+		if err := util.CopyClipboard(b.URL); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
 
 	if Open {
-		if err := openBrowser(b.URL); err != nil {
+		if err := util.OpenInBrowser(b.URL); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
