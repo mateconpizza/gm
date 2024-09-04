@@ -119,13 +119,15 @@ func editFile(fileName *os.File, command string, args []string) error {
 // readFileContent reads the content of the specified file into the given byte
 // slice and returns any error encountered.
 func readFileContent(fileName *os.File, data *[]byte) error {
-	// BUG: When reading the tempFile, the []byte returned always differs from
-	// the original []byte (without modification)
 	log.Printf("reading file: '%s'", fileName.Name())
 	tempData, err := os.ReadFile(fileName.Name())
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
 	}
+
+	// When reading the temporary file, the last line is always empty. This
+	// causes the length of the []byte to differ. Let's trim the last line.
+	*data = bytes.TrimSuffix(tempData, []byte{'\n'})
 
 	return nil
 }
