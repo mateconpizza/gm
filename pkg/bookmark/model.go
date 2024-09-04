@@ -1,7 +1,6 @@
 package bookmark
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 )
@@ -53,8 +52,7 @@ func (b *Bookmark) GetCreatedAt() string {
 
 // Buffer returns a complete buf.
 func (b *Bookmark) Buffer() []byte {
-	buf := bytes.NewBuffer([]byte{})
-	fmt.Fprintf(buf, `# URL:
+	return []byte(fmt.Sprintf(`# URL:
 %s
 # Title: (leave an empty line for web fetch)
 %s
@@ -62,9 +60,8 @@ func (b *Bookmark) Buffer() []byte {
 %s
 # Description: (leave an empty line for web fetch)
 %s
-# end`, b.URL, b.Title, b.Tags, b.Desc)
-
-	return buf.Bytes()
+# end
+`, b.GetURL(), b.GetTitle(), b.GetTags(), b.GetDesc()))
 }
 
 // BufSimple returns a simple buf with ID, title, tags and URL.

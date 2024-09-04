@@ -1,7 +1,6 @@
 package editor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -120,14 +119,11 @@ func editFile(fileName *os.File, command string, args []string) error {
 // slice and returns any error encountered.
 func readFileContent(fileName *os.File, data *[]byte) error {
 	log.Printf("reading file: '%s'", fileName.Name())
-	tempData, err := os.ReadFile(fileName.Name())
+	var err error
+	*data, err = os.ReadFile(fileName.Name())
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
 	}
-
-	// When reading the temporary file, the last line is always empty. This
-	// causes the length of the []byte to differ. Let's trim the last line.
-	*data = bytes.TrimSuffix(tempData, []byte{'\n'})
 
 	return nil
 }
