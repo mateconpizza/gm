@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/presenter"
 	"github.com/haaag/gm/pkg/format"
 	"github.com/haaag/gm/pkg/format/color"
 	"github.com/haaag/gm/pkg/repo"
 	"github.com/haaag/gm/pkg/terminal"
 	"github.com/haaag/gm/pkg/util/files"
+	"github.com/haaag/gm/pkg/util/frame"
 )
 
 var (
@@ -51,28 +52,19 @@ func getDBs(path string) ([]string, error) {
 	return f, nil
 }
 
-// getDBsBasename returns the basename.
-func getDBsBasename(f []string) []string {
-	b := make([]string, 0, len(f))
-	for _, v := range f {
-		b = append(b, format.BulletLine(filepath.Base(v), ""))
-	}
-
-	return b
-}
-
 // repoInfo returns the repository info.
 func repoInfo(r *repo.SQLiteRepository) string {
 	main := r.GetMaxID(r.Cfg.GetTableMain())
 	deleted := r.GetMaxID(r.Cfg.GetTableDeleted())
-	header := color.Yellow(r.Cfg.Name).Bold().String()
+	header := color.Yellow(r.Cfg.Name).Bold().Italic().String()
 
-	return format.HeaderWithSection(header, []string{
-		format.BulletLine("records:", strconv.Itoa(main)),
-		format.BulletLine("deleted:", strconv.Itoa(deleted)),
-		format.BulletLine("backup status:", getBkStateColored(r.Cfg.MaxBackups)),
-		format.BulletLine("path:", r.Cfg.Path),
-	})
+	f := frame.New(frame.WithColorBorder(color.Yellow)).Header(header)
+	f.Row(format.BulletLine("records:", strconv.Itoa(main))).
+		Row(format.BulletLine("deleted:", strconv.Itoa(deleted))).
+		Row(format.BulletLine("backup status:", getBackupStatus(r.Cfg.MaxBackups))).
+		Footer(format.BulletLine("path:", r.Cfg.Path))
+
+	return f.String()
 }
 
 // handleDBDrop clears the database.
@@ -96,25 +88,27 @@ func handleDBDrop(r *Repo) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println(color.Green("database cleared successfully"))
+	success := color.BrightGreen("successfully").Italic().Bold()
+	fmt.Println("database cleared", success.String())
 
 	return nil
 }
 
 // removeDB removes a database.
 func removeDB(r *Repo) error {
+	// FIX: redo this function.
 	var (
 		n        int
 		bks      []string
-		info     = repoInfo(r)
+		info     = presenter.RepoSummary(r)
 		question = fmt.Sprintf("remove %s?", color.Red(r.Cfg.Name).Bold())
 	)
 
-	bks, _ = getBackups(r.Cfg.BackupPath, r.Cfg.Name)
+	bks, _ = getBackupList(r.Cfg.BackupPath, r.Cfg.Name)
 	n = len(bks)
 
 	if n > 0 {
-		info += "\n" + backupInfo(r)
+		info += presenter.BackupsSummary(r)
 	}
 	fmt.Println(info)
 
@@ -157,40 +151,46 @@ func checkDBState(f string) error {
 
 // handleListDB lists the available databases.
 func handleListDB(r *Repo) error {
-	var sb strings.Builder
-	f, err := getDBs(r.Cfg.Path)
+	databases, err := getDBs(r.Cfg.Path)
 	if err != nil {
 		return err
 	}
 
-	n := len(f)
+	n := len(databases)
 	if n == 0 {
 		return fmt.Errorf("%w", repo.ErrDBsNotFound)
 	}
 
+	f := frame.New(frame.WithColorBorder(color.Gray))
+
+	// add header
 	if n > 1 {
-		m := fmt.Sprintf("listing %d database/s found", n)
-		sb.WriteString(format.Header(m))
+		nColor := color.BrightCyan(n).Bold().String()
+		f.Header(nColor + " database/s found").Newline()
 	}
 
-	// TODO: format in a better way
-	for i, db := range f {
+	lastIdx := len(databases) - 1
+	for i, db := range databases {
 		name := filepath.Base(db)
 		Cfg.SetName(name)
 		rep, _ := repo.New(Cfg)
-		sb.WriteString(repoInfo(rep))
-		if i != n-1 {
-			sb.WriteString("\n")
+		f.Text(presenter.RepoSummary(rep))
+		if i != lastIdx {
+			f.Newline()
 		}
 	}
 
-	fmt.Print(sb.String())
+	f.Render()
 
 	return nil
 }
 
 // handleDBInit initializes the database.
 func handleDBInit() error {
+	if !DBInit {
+		return nil
+	}
+
 	if err := initCmd.RunE(nil, []string{}); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -228,9 +228,9 @@ func handleDBInfo(r *Repo) error {
 		return nil
 	}
 
-	s := repoInfo(r) + "\n"
-	s += backupInfo(r)
-	fmt.Println(s)
+	s := presenter.RepoSummary(r)
+	s += presenter.BackupDetail(r)
+	fmt.Print(s)
 
 	return nil
 }
@@ -261,7 +261,7 @@ var dbCmd = &cobra.Command{
 
 func init() {
 	dbCmd.Flags().BoolVarP(&dbDrop, "drop", "d", false, "drop a database")
-	dbCmd.Flags().BoolVarP(&dbInfo, "info", "I", false, "show database info")
+	dbCmd.Flags().BoolVarP(&dbInfo, "info", "I", false, "show database info (default)")
 	dbCmd.Flags().BoolVarP(&dbList, "list", "l", false, "list available databases")
 	dbCmd.Flags().BoolVarP(&dbRemove, "remove", "r", false, "remove a database")
 	rootCmd.AddCommand(dbCmd)
