@@ -95,8 +95,8 @@ func prettifyURLStatus(code int) (status, statusCode string) {
 		status = color.Red("ER").Bold().String()
 		statusCode = color.Red("404").Bold().String()
 	case http.StatusOK:
-		status = color.Green("OK").Bold().String()
-		statusCode = color.Green("200").Bold().String()
+		status = color.BrightGreen("OK").Bold().String()
+		statusCode = color.BrightGreen("200").Bold().String()
 	default:
 		status = color.Yellow("WA").Bold().String()
 		statusCode = color.Yellow(code).Bold().String()
@@ -122,7 +122,7 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 		codes = make(map[int][]Response)
 	)
 
-	f.Header(color.Green("Summary URLs status:").Bold().String())
+	f.Header(color.BrightGreen("Summary URLs status:").Bold().String())
 
 	r.ForEach(func(r Response) {
 		codes[r.statusCode] = append(codes[r.statusCode], r)
@@ -137,24 +137,25 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 		case http.StatusForbidden, http.StatusTooManyRequests:
 			f.Mid(fmtSummary(n, statusCode, color.Orange))
 		case http.StatusOK:
-			f.Mid(fmtSummary(n, statusCode, color.Green))
+			f.Mid(fmtSummary(n, statusCode, color.BrightGreen))
 		default:
 			f.Mid(fmtSummary(n, statusCode, color.Yellow))
 		}
 
 		// adds URLs detail
 		for _, r := range res {
-			if r.statusCode != http.StatusOK {
-				bid := fmt.Sprintf(color.Gray("%-3d").Bold().String(), r.bID)
-				url := color.Gray(format.ShortenString(r.URL, terminal.MinWidth)).Italic().String()
-				f.Row(" ", bid, url)
+			if r.statusCode == http.StatusOK {
+				continue
 			}
+			bid := fmt.Sprintf(color.Gray("%-3d").Bold().String(), r.bID)
+			url := color.Gray(format.ShortenString(r.URL, terminal.MinWidth)).Italic().String()
+			f.Row(fmt.Sprintf(" %s %s", bid, url))
 		}
 	}
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
 	total := fmt.Sprintf("Total %s checked,", color.Blue(r.Len()).Bold())
-	f.Row().Footer(total, "took "+color.Blue(took).Bold().String())
+	f.Row().Footer(total + " took " + color.Blue(took).Bold().String())
 
 	f.Newline().Render()
 }

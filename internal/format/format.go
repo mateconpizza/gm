@@ -3,51 +3,10 @@ package format
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"strings"
-
-	"github.com/haaag/gm/pkg/format/color"
 )
-
-const (
-	_bulletPoint    = "\u2022" // •
-	_midBulletPoint = "\u00b7" // ·
-	_pathSegSep     = "\u25B8" // ▸
-)
-
-var ErrInvalidOption = errors.New("invalid option")
-
-// URLPath returns a prettified URL.
-func URLPath(bURL string) string {
-	u, err := url.Parse(bURL)
-	if err != nil {
-		return ""
-	}
-
-	if u.Host == "" || u.Path == "" {
-		return color.Text(bURL).Bold().String()
-	}
-
-	host := color.Text(u.Host).Bold().String()
-	pathSegments := strings.FieldsFunc(
-		strings.TrimLeft(u.Path, "/"),
-		func(r rune) bool { return r == '/' },
-	)
-
-	if len(pathSegments) == 0 {
-		return host
-	}
-
-	pathSeg := color.Gray(
-		_pathSegSep,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", _pathSegSep)),
-	)
-
-	return fmt.Sprintf("%s %s", host, pathSeg)
-}
 
 // BulletLine returns a formatted string with a label and a value.
 func BulletLine(label, value string) string {
@@ -66,12 +25,6 @@ func HeaderWithSection(title string, items []string) string {
 	}
 
 	return r.String()
-}
-
-// headerIDLine returns a formatted string with a title.
-func headerIDLine(id int, titles ...string) string {
-	padding := 6
-	return fmt.Sprintf("%-*d%s %s\n", padding, id, _bulletPoint, strings.Join(titles, " "))
 }
 
 // Header returns a formatted string with a title.
@@ -114,26 +67,6 @@ func SplitAndAlignLines(s string, lineLength, indentation int) string {
 	return result.String()
 }
 
-// ParseTags normalizes a string of tags by separating them by commas and
-// ensuring that the final string ends with a comma.
-//
-// from: "tag1, tag2, tag3 tag"
-// to: "tag1,tag2,tag3,tag,"
-func ParseTags(tags string) string {
-	if tags == "" {
-		return "notag"
-	}
-	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
-		return r == ',' || r == ' '
-	}), ",")
-
-	if strings.HasSuffix(tags, ",") {
-		return tags
-	}
-
-	return tags + ","
-}
-
 // ToJSON converts an interface to JSON.
 func ToJSON(data any) []byte {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
@@ -142,44 +75,6 @@ func ToJSON(data any) []byte {
 	}
 
 	return jsonData
-}
-
-// PrettifyURL returns a prettified URL.
-func PrettifyURL(bURL string) string {
-	u, err := url.Parse(bURL)
-	if err != nil {
-		return ""
-	}
-
-	if u.Host == "" || u.Path == "" {
-		return color.Text(bURL).Bold().String()
-	}
-
-	host := color.Text(u.Host).Bold().String()
-	pathSegments := strings.FieldsFunc(
-		strings.TrimLeft(u.Path, "/"),
-		func(r rune) bool { return r == '/' },
-	)
-
-	if len(pathSegments) == 0 {
-		return host
-	}
-
-	pathSeg := color.Gray(
-		_pathSegSep,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", _pathSegSep)),
-	)
-
-	return fmt.Sprintf("%s %s", host, pathSeg)
-}
-
-// PrettifyTags returns a prettified tags.
-func PrettifyTags(s string) string {
-	t := strings.ReplaceAll(s, ",", _midBulletPoint)
-	return strings.TrimRight(t, _midBulletPoint)
-}
-
-func Printer(s ...string) {
 }
 
 // SplitIntoLines splits string into chunks of a given length.
@@ -221,4 +116,11 @@ func AlignLines(lines []string, indentation int) []string {
 	}
 
 	return alignedLines
+}
+
+// NormalizeSpace removes extra whitespace from a string, leaving only single
+// spaces between words.
+func NormalizeSpace(s string) string {
+	s = strings.TrimSpace(s)
+	return strings.Join(strings.Fields(s), " ")
 }
