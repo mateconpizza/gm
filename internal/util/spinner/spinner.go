@@ -39,9 +39,11 @@ func (s *Spinner) Start() {
 		for i := 0; ; i++ {
 			select {
 			case <-s.done:
+				// Clear the spinner and message
 				fmt.Printf("\r%s\r", strings.Repeat(" ", len(s.Mesg)+4))
 				return
 			default:
+				// Print the spinner animation
 				fmt.Printf("\r%s %s", s.unicode[i%len(s.unicode)], s.Mesg)
 				time.Sleep(110 * time.Millisecond)
 			}
@@ -57,6 +59,10 @@ func (s *Spinner) Stop() {
 	}
 
 	s.done <- true
+
+	// This is to ensure the message is deleted completely.
+	time.Sleep(100 * time.Millisecond)
+
 	log.Print("spinner stopped")
 }
 
