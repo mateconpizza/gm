@@ -5,7 +5,11 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/haaag/gm/internal/config"
 )
+
+var Command = config.App.Cmd
 
 func appendKeyDescToHeader(opts []string, key, desc string) []string {
 	return append(opts, fmt.Sprintf("<%s>: %s", key, desc))
@@ -78,4 +82,10 @@ func loadKeybind(keybind []string, args *[]string) {
 
 	keys := strings.Join(keybind, ",")
 	*args = append(*args, "--bind", keys)
+}
+
+// withCommand formats string with the name of the Command, the same name
+// used when building the binary.
+func withCommand(s string) string {
+	return fmt.Sprintf(s, Command)
 }

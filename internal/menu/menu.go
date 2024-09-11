@@ -3,7 +3,6 @@ package menu
 import (
 	"errors"
 	"fmt"
-	"sync"
 
 	fzf "github.com/junegunn/fzf/src"
 )
@@ -38,7 +37,6 @@ type Options struct {
 }
 
 type Menu[T comparable] struct {
-	Items []T
 	Options
 }
 
@@ -69,7 +67,7 @@ func WithDefaultSettings() OptFn {
 func WithKeybindEdit() OptFn {
 	return func(o *Options) {
 		o.header = appendKeyDescToHeader(o.header, "ctrl-e", "edit")
-		o.keybind = append(o.keybind, "ctrl-e:execute(gm -e {1})")
+		o.keybind = append(o.keybind, withCommand("ctrl-e:execute(%s -e {1})"))
 	}
 }
 
@@ -78,7 +76,7 @@ func WithKeybindEdit() OptFn {
 func WithKeybindOpen() OptFn {
 	return func(o *Options) {
 		o.header = appendKeyDescToHeader(o.header, "ctrl-o", "open")
-		o.keybind = append(o.keybind, "ctrl-o:execute(gm -o {1})")
+		o.keybind = append(o.keybind, withCommand("ctrl-o:execute(%s -o {1})"))
 	}
 }
 
@@ -88,7 +86,7 @@ func WithKeybindOpen() OptFn {
 func WithDefaultKeybinds() OptFn {
 	return func(o *Options) {
 		o.header = appendKeyDescToHeader(o.header, "ctrl-y", "copy")
-		o.keybind = append(o.keybind, "ctrl-y:execute(gm -c {1})")
+		o.keybind = append(o.keybind, withCommand("ctrl-y:execute(%s -c {1})"))
 	}
 }
 
@@ -122,8 +120,18 @@ func WithMultiSelection() OptFn {
 func WithPreview() OptFn {
 	opts := []string{
 		"--preview-window=~4,+{2}+4/3,<80(up)",
-		"--preview=gm {1} --color=always --frame",
+		withCommand("--preview=%s {1} --color=always --frame"),
 	}
+
+	return func(o *Options) {
+		o.args = append(o.args, opts...)
+		o.header = appendKeyDescToHeader(o.header, "ctrl-/", "toggle-preview")
+		o.keybind = append(o.keybind, "ctrl-/:toggle-preview")
+	}
+}
+
+func WithPreviewCustomCmd(cmd string) OptFn {
+	opts := []string{"--preview=" + cmd}
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
@@ -153,7 +161,7 @@ func New[T comparable](opts ...OptFn) *Menu[T] {
 
 	return &Menu[T]{
 		Options: o,
-		Items:   make([]T, 0),
+		// Items:   make([]T, 0),
 	}
 }
 
@@ -161,11 +169,7 @@ func (m *Menu[T]) GetArgs() []string {
 	return m.args
 }
 
-func (m *Menu[T]) Set(items *[]T) {
-	m.Items = *items
-}
-
-func (m *Menu[T]) BetaSelect(preprocessor func(T) string) ([]string, error) {
+/* func (m *Menu[T]) BetaSelect(preprocessor func(T) string) ([]string, error) {
 	// FIX: this is experimental.
 	if len(m.Items) == 0 {
 		return nil, ErrFzfNoRecords
@@ -214,9 +218,9 @@ func (m *Menu[T]) BetaSelect(preprocessor func(T) string) ([]string, error) {
 	}
 
 	return result, nil
-}
+} */
 
-func (m *Menu[T]) GoodSelect(preprocessor func(T) string) ([]T, error) {
+/* func (m *Menu[T]) GoodSelect(preprocessor func(T) string) ([]T, error) {
 	if len(m.Items) == 0 {
 		return nil, ErrFzfNoRecords
 	}
@@ -278,15 +282,15 @@ func (m *Menu[T]) GoodSelect(preprocessor func(T) string) ([]T, error) {
 	}
 
 	return result, nil
-}
+} */
 
 func (m *Menu[T]) setup() {
 	loadHeader(m.header, &m.args)
 	loadKeybind(m.keybind, &m.args)
 }
 
-func (m *Menu[T]) Choose(preprocessor func(T) string) ([]T, error) {
-	if len(m.Items) == 0 {
+func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
+	if len(*items) == 0 {
 		return nil, ErrFzfNoRecords
 	}
 
@@ -296,11 +300,11 @@ func (m *Menu[T]) Choose(preprocessor func(T) string) ([]T, error) {
 		preprocessor = formatterToStr
 	}
 
-	inputChan := formatItems(m.Items, preprocessor)
+	inputChan := formatItems(*items, preprocessor)
 	outputChan := make(chan string)
 	resultChan := make(chan []T)
 
-	go processOutput(m.Items, preprocessor, outputChan, resultChan)
+	go processOutput(*items, preprocessor, outputChan, resultChan)
 
 	// Build fzf.Options
 	options, err := fzf.ParseOptions(m.defaults, m.args)
