@@ -1,4 +1,4 @@
-// Package format provides utilities for formatting strings
+// Package `format` provides utilities for formatting and manipulating strings
 package format
 
 import (
@@ -6,25 +6,31 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/haaag/gm/internal/terminal"
 )
 
-// BulletLine returns a formatted string with a label and a value.
-func BulletLine(label, value string) string {
-	padding := 15
-	return fmt.Sprintf("%-*s %s", padding, label, value)
+// Unicodes.
+const (
+	BulletPoint      = "\u2022" /* • */
+	MidBulletPoint   = "\u00b7" /* · */
+	PathBigSegment   = "\u25B6" /* ▶ */
+	PathSmallSegment = "\u25B8" /* ▸ */
+)
+
+// PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.
+func PaddedLine(label, value any) string {
+	const pad = 15
+	return fmt.Sprintf("%-*s %v", pad, label, value)
 }
 
-// HeaderWithSection returns a formatted string with a title and a list of items.
-func HeaderWithSection(title string, items []string) string {
-	var r strings.Builder
-	t := title + "\n"
-
-	r.WriteString(t)
-	for _, item := range items {
-		r.WriteString(item)
+// PaddingConditional returns the padding for the colorized output.
+func PaddingConditional(minVal, maxVal int) int {
+	if terminal.Color {
+		return maxVal
 	}
 
-	return r.String()
+	return minVal
 }
 
 // Header returns a formatted string with a title.

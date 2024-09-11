@@ -8,11 +8,11 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/internal/util"
 )
 
 // https://no-color.org
-const noColorEnv = "NO_COLOR"
+const NoColorEnv string = "NO_COLOR"
 
 var (
 	Color     bool = true
@@ -33,7 +33,7 @@ var (
 // SetColor enables or disables color output based on the `NO_COLOR` environment
 // variable or a given boolean flag.
 func SetColor(b bool) {
-	if c := util.GetEnv(noColorEnv, ""); c != "" {
+	if c := util.GetEnv(NoColorEnv, ""); c != "" {
 		log.Println("NO_COLOR found, disabling color output.")
 		Color = false
 		return

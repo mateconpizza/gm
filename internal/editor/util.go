@@ -8,7 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/haaag/gm/pkg/util/files"
+	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/util/files"
 )
 
 // FIX: remove `tempExt`, it is being used for syntax highlight on edition.
@@ -27,8 +28,9 @@ func createAndSave(d *[]byte) (*os.File, error) {
 	return tf, nil
 }
 
-// Content returns the content of a []byte as a slice of strings.
-func Content(data *[]byte) []string {
+// ByteSliceToLines returns the content of a []byte as a slice of strings,
+// splitting on newline characters.
+func ByteSliceToLines(data *[]byte) []string {
 	return strings.Split(string(*data), "\n")
 }
 
@@ -48,9 +50,7 @@ func ExtractContentLine(c *[]string) map[string]bool {
 // saveDataToTempFile Writes the provided data to a temporary file and returns
 // the file handle.
 func saveDataToTempFile(f *os.File, data []byte) error {
-	const filePermission = 0o600
-
-	err := os.WriteFile(f.Name(), data, filePermission)
+	err := os.WriteFile(f.Name(), data, config.Files.FilePermissions)
 	if err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
 	}

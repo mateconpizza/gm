@@ -15,7 +15,7 @@ import (
 	"golang.org/x/image/font/inconsolata"
 	"golang.org/x/image/math/fixed"
 
-	"github.com/haaag/gm/pkg/util/files"
+	"github.com/haaag/gm/internal/util/files"
 )
 
 // Pos is a position on an image.

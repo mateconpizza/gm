@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/haaag/gm/pkg/format/color"
+	"github.com/haaag/gm/internal/format/color"
 )
 
 // getQueryFromPipe reads the input from the pipe.
@@ -57,7 +57,7 @@ func promptWithOptions(question string, options []string, defaultValue string) s
 			}
 		}
 
-		fmt.Printf("invalid response. please enter one of: %s\n", strings.Join(options, ", "))
+		fmt.Printf("invalid response. valid: %s\n", strings.Join(options, ", "))
 	}
 }
 

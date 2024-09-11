@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/internal/util"
 )
 
 var Editor *TextEditor

@@ -5,6 +5,7 @@ package color
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -227,4 +228,10 @@ func ApplyMany(s []string, c ColorFn) []string {
 	}
 
 	return s
+}
+
+// RemoveANSICodes removes ANSI codes from a given string.
+func RemoveANSICodes(s string) string {
+	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return re.ReplaceAllString(s, "")
 }
