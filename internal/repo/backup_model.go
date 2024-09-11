@@ -1,74 +1,61 @@
 package repo
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 
-	"github.com/haaag/gm/pkg/util/files"
+	"github.com/haaag/gm/internal/util/files"
+	"github.com/haaag/gm/pkg/slice"
 )
 
-const DefBackupMax int = 3
+var (
+	ErrBackupAlreadyExists = errors.New("backup already exists")
+	ErrBackupCreate        = errors.New("could not create backup")
+	ErrBackupDisabled      = errors.New("backups are disabled")
+	ErrBackupNoPurge       = errors.New("no backup to purge")
+	ErrBackupNotFound      = errors.New("no backup found")
+	ErrBackupRemove        = errors.New("could not remove backup")
+	ErrBackupStatus        = errors.New("could not get backup status")
+	ErrBackupPathNotSet    = errors.New("backup path not set")
+)
 
-type SQLiteBackup struct {
-	Dest string
-	Name string // repository basename
-	Path string // backup path
-	Src  string // repository fullpath
-}
+// CreateBackup creates a new backup.
+func CreateBackup(src, destName string, force bool) error {
+	log.Printf("CreateBackup: src: %s, dest: %s", src, destName)
+	path := filepath.Dir(src)
+	if !Exists(path) {
+		return fmt.Errorf("%w: %s", ErrBackupPathNotSet, path)
+	}
 
-// newBackup creates a new backup on the system.
-func (b *SQLiteBackup) Create(force bool) error {
-	if b.Dest == "" {
-		return fmt.Errorf("%w: %s", ErrBackupPathNotSet, b.Name)
+	destPath := filepath.Join(path, "backup", destName)
+	if Exists(destPath) && !force {
+		return fmt.Errorf("%w: %s", ErrBackupAlreadyExists, destName)
 	}
-	if b.Exists() && !force {
-		return fmt.Errorf("%w: %s", ErrBackupAlreadyExists, b.Name)
-	}
-	if err := files.Copy(b.Src, b.Dest); err != nil {
+
+	if err := files.Copy(src, destPath); err != nil {
 		return fmt.Errorf("copying file: %w", err)
 	}
 
 	return nil
 }
 
-// Remove removes the backup from the system.
-func (b *SQLiteBackup) Remove() error {
-	fmt.Println("Removing backup: ", b.FullPath())
-	/* if err := files.Remove(b.Dest); err != nil {
-		return fmt.Errorf("removing file: %w", err)
-	} */
+func GetBackups(r *SQLiteRepository) (*slice.Slice[string], error) {
+	s := filepath.Base(r.Cfg.Fullpath())
+	backups, err := GetDatabasePaths(r.Cfg.BackupPath)
+	backups.Filter(func(b string) bool {
+		return strings.Contains(b, s)
+	})
 
-	log.Printf("removed backup: '%s'", b.Name)
-
-	return nil
-}
-
-// Exists checks if the backup Exists.
-func (b *SQLiteBackup) Exists() bool {
-	return files.Exists(b.Dest)
-}
-
-// SetDestination sets the backup destination.
-func (b *SQLiteBackup) SetDestination(s string) {
-	b.Dest = s
-}
-
-// AddCurrentDate adds a date prefix to the backup name.
-func (b *SQLiteBackup) AddCurrentDate() {
-	b.Name = files.AddDatePrefix(filepath.Base(b.Src))
-}
-
-// FullPath returns the fullpath of the backup.
-func (b *SQLiteBackup) FullPath() string {
-	return filepath.Join(b.Path, b.Name)
-}
-
-// NewBackup creates a new backup.
-func NewBackup(src, path string) *SQLiteBackup {
-	return &SQLiteBackup{
-		Src:  src,
-		Path: path,
-		Name: filepath.Base(src),
+	if err != nil {
+		return backups, err
 	}
+
+	if backups.Len() == 0 {
+		return backups, fmt.Errorf("%w: '%s'", ErrBackupNotFound, s)
+	}
+
+	return backups, nil
 }

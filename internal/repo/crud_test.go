@@ -8,14 +8,13 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/haaag/gm/pkg/app"
-	"github.com/haaag/gm/pkg/bookmark"
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/pkg/slice"
 )
 
 const tempTableName = "test_table"
 
-var DBCfg = NewSQLiteCfg()
+var DBCfg = NewSQLiteCfg("")
 
 func setupTestDB(t *testing.T) (*sql.DB, *SQLiteRepository) {
 	t.Helper()
@@ -35,7 +34,7 @@ func setupTestDB(t *testing.T) (*sql.DB, *SQLiteRepository) {
 		t.Fatal(err)
 	}
 
-	DBCfg.SetName(app.DefaultDBName)
+	DBCfg.SetName(DefaultDBName)
 	r := newSQLiteRepository(db, DBCfg)
 
 	return db, r

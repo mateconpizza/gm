@@ -3,10 +3,8 @@ package repo
 
 import (
 	"path/filepath"
-	"strconv"
 
-	"github.com/haaag/gm/pkg/util"
-	"github.com/haaag/gm/pkg/util/files"
+	"github.com/haaag/gm/internal/util/files"
 )
 
 // SQLiteConfig represents the configuration for a SQLite database.
@@ -33,39 +31,25 @@ func (c *SQLiteConfig) GetTableDeleted() string {
 	return c.TableDeleted
 }
 
-func (c *SQLiteConfig) SetPath(path string) {
+func (c *SQLiteConfig) SetPath(path string) *SQLiteConfig {
 	c.Path = path
+	return c
 }
 
-func (c *SQLiteConfig) SetName(name string) {
+func (c *SQLiteConfig) SetName(name string) *SQLiteConfig {
 	c.Name = files.EnsureExtension(name, ".db")
-}
-
-// SetDefaults sets path/name to the repository and loads the max backup
-// allowed (default: 3).
-func (c *SQLiteConfig) SetDefaults(path, name, bkMaxEnv string) {
-	c.SetPath(path)
-	c.SetName(name)
-	c.BackupPath = filepath.Join(path, "backup")
-	c.setBackupMax(bkMaxEnv, DefBackupMax)
-}
-
-// setBackupMax loads the max backups allowed from a env var defaults to 3.
-func (c *SQLiteConfig) setBackupMax(env string, fallback int) {
-	defaultMax := strconv.Itoa(fallback)
-	maxBackups, err := strconv.Atoi(util.GetEnv(env, defaultMax))
-	if err != nil {
-		c.MaxBackups = fallback
-	}
-	c.MaxBackups = maxBackups
+	return c
 }
 
 // NewSQLiteCfg returns the default settings for the database.
-func NewSQLiteCfg() *SQLiteConfig {
+func NewSQLiteCfg(p string) *SQLiteConfig {
+	// FIX: too complicated to setup a SQLiteConfig.
 	return &SQLiteConfig{
-		TableMain:    _defMainTable,
-		TableDeleted: _defDeletedTable,
+		TableMain:    DatabaseMainTable,
+		TableDeleted: DatabaseDeletedTable,
 		Type:         "sqlite",
-		MaxBytesSize: _defMaxBytesSize,
+		MaxBytesSize: MaxBytesSize,
+		Path:         p,
+		BackupPath:   filepath.Join(p, "backup"),
 	}
 }

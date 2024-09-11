@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/haaag/gm/pkg/bookmark"
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/pkg/slice"
 )
 
@@ -63,7 +63,7 @@ func (r *SQLiteRepository) Insert(tableName string, b *Row) (*Row, error) {
 		b.Title,
 		b.Tags,
 		b.Desc,
-		currentTime.Format(_defDateFormat),
+		currentTime.Format(DatabaseDateFormat),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)
@@ -163,7 +163,7 @@ func (r *SQLiteRepository) delete(tableName string, b *Row) error {
 
 	log.Printf("deleted record %s (table: %s)\n", b.URL, tableName)
 
-	if r.GetMaxID(tableName) == 1 {
+	if r.getMaxID(tableName) == 1 {
 		err := r.resetSQLiteSequence(tableName)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -193,7 +193,7 @@ func (r *SQLiteRepository) DeleteBulk(tableName string, ids *IDs) error {
 	}
 
 	log.Printf("deleting %d records from table: %s", n, tableName)
-	maxID := r.GetMaxID(tableName)
+	maxID := r.getMaxID(tableName)
 
 	tx, err := r.DB.Begin()
 	if err != nil {
@@ -278,7 +278,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted string) err
 
 	// if the last record is deleted, we don't need to reorder
 	// reset the SQLite sequence
-	if r.GetMaxID(main) == 0 {
+	if r.getMaxID(main) == 0 {
 		err := r.resetSQLiteSequence(main)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -315,7 +315,7 @@ func (r *SQLiteRepository) GetAll(tableName string, bs *Slice) error {
 
 // GetByID returns a record by its ID.
 func (r *SQLiteRepository) GetByID(tableName string, n int) (*Row, error) {
-	if n > r.GetMaxID(tableName) {
+	if n > r.getMaxID(tableName) {
 		return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, n)
 	}
 
@@ -408,6 +408,7 @@ func (r *SQLiteRepository) getBySQL(bs *Slice, q string, args ...interface{}) er
 
 // GetByTags returns records by tag.
 func (r *SQLiteRepository) GetByTags(tableName, tag string, bs *Slice) error {
+	// FIX: make it case insensitive
 	log.Printf("getting records by tag: %s", tag)
 	query := fmt.Sprintf("SELECT * FROM %s WHERE tags LIKE ?", tableName)
 	tag = "%" + tag + "%"
@@ -487,15 +488,20 @@ func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) 
 	return data, nil
 }
 
-// GetMaxID retrieves the maximum ID from the specified table in the SQLite database.
-func (r *SQLiteRepository) GetMaxID(tableName string) int {
+// getMaxID retrieves the maximum ID from the specified table in the SQLite database.
+func (r *SQLiteRepository) getMaxID(tableName string) int {
 	var lastIndex int
 
 	//nolint:perfsprint //gosec conflict
 	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", tableName)
 
 	if err := r.DB.QueryRow(sqlQuery).Scan(&lastIndex); err != nil {
-		log.Fatalf("getting maxID from table='%s' in database='%s', err='%v'", tableName, r.Cfg.Name, err)
+		log.Fatalf(
+			"getting maxID from table='%s' in database='%s', err='%v'",
+			tableName,
+			r.Cfg.Name,
+			err,
+		)
 	}
 
 	log.Printf("maxID: %d", lastIndex)

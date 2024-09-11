@@ -5,18 +5,17 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/files"
-	"github.com/haaag/gm/pkg/util/frame"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/util/frame"
 )
 
 // Summary returns a summary of the repository.
 func Summary(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	path := padding("path:", r.Cfg.Path)
-	records := padding("records:", r.GetMaxID(r.Cfg.GetTableMain()))
-	deleted := padding("deleted:", r.GetMaxID(r.Cfg.GetTableDeleted()))
+	path := format.PaddedLine("path:", r.Cfg.Path)
+	records := format.PaddedLine("records:", GetRecordCount(r, r.Cfg.GetTableMain()))
+	deleted := format.PaddedLine("deleted:", GetRecordCount(r, r.Cfg.GetTableDeleted()))
 
 	return f.Header(color.Yellow(r.Cfg.Name).Bold().Italic().String()).
 		Row(records).
@@ -27,86 +26,69 @@ func Summary(r *SQLiteRepository) string {
 // SummaryRecords generates a summary of record counts for a given SQLite
 // repository and bookmark.
 func SummaryRecords(r *SQLiteRepository, bk string) string {
-	c := *r.Cfg
-	name := filepath.Base(bk)
+	// FIX: redo
+  path := filepath.Dir(bk)
+  c := NewSQLiteCfg(path)
+	c.SetName(filepath.Base(bk))
+	rep, _ := New(c)
 
-	c.SetName(name)
-	c.SetPath(filepath.Dir(bk))
-	rep, _ := New(&c)
+	main := fmt.Sprintf("(main: %d, ", GetRecordCount(rep, rep.Cfg.GetTableMain()))
+	deleted := fmt.Sprintf("deleted: %d)", GetRecordCount(rep, rep.Cfg.GetTableDeleted()))
+	records := color.Gray(main + deleted).Italic()
 
-	mainRecords := fmt.Sprintf("(main: %d, ", rep.GetMaxID(rep.Cfg.GetTableMain()))
-	delRecords := fmt.Sprintf("deleted: %d)", rep.GetMaxID(rep.Cfg.GetTableDeleted()))
-	records := color.Gray(mainRecords + delRecords).Italic()
+	date := GetModTime(c.Fullpath())
 
-	return name + " " + records.String()
+	return date + " " + records.String()
 }
 
 // BackupDetail returns the details of a backup.
 func BackupDetail(r *SQLiteRepository) string {
-	backups, _ := files.List(r.Cfg.BackupPath, r.Cfg.Name)
+	backups, _ := GetBackups(r)
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Header(color.BrightCyan("backup detail:").Bold().Italic().String())
 
-	n := len(backups)
+	n := backups.Len()
 	if n == 0 {
-		return f.Row(padding("found:", "n/a")).String()
+		return f.Row(format.PaddedLine("found:", "n/a")).String()
 	}
 
-	for _, bk := range backups {
+	backups.ForEach(func(bk string) {
 		f.Row(SummaryRecords(r, bk))
-	}
+	})
 
 	return f.String()
 }
 
 // BackupsSummary returns a summary of the backups.
 func BackupsSummary(r *SQLiteRepository) string {
-	// FIX: paddingWithColor wont work when adding colors to var `backupsColor`
 	var (
 		f            = frame.New(frame.WithColorBorder(color.Gray))
-		backups, _   = files.List(r.Cfg.BackupPath, r.Cfg.Name)
-		backupsColor = color.BrightMagenta("backups:").Bold().Italic()
-		backupsInfo  = paddingWithColor(backupsColor, "no backups found")
-		lastBackup   = "n/a"
+		empty        = "n/a"
+		backups, _   = GetBackups(r)
+		backupsColor = color.BrightMagenta("backups").Bold().Italic()
+		backupsInfo  = format.PaddedLine("found:", empty)
+		lastBackup   = empty
 	)
 
-	if len(backups) > 0 {
-		backupsCount := color.BrightWhite(len(backups)).String()
-		backupsInfo = paddingWithColor(backupsColor, backupsCount+" backups found")
-		lastBackup = SummaryRecords(r, backups[len(backups)-1])
+	n := backups.Len()
+
+	if n > 0 {
+		backupsInfo = format.PaddedLine("found:", strconv.Itoa(n)+" backups found")
+		lastBackup = SummaryRecords(r, backups.Get(n-1))
 	}
 
-	status := padding("status:", getBkStateColored(r.Cfg.MaxBackups))
-	keep := padding("max:", strconv.Itoa(r.Cfg.MaxBackups)+" backups allowed")
-	path := padding("path:", r.Cfg.BackupPath)
-	last := padding("last:", lastBackup)
+	status := format.PaddedLine("status:", getBkStateColored(r.Cfg.MaxBackups))
+	keep := format.PaddedLine("max:", strconv.Itoa(r.Cfg.MaxBackups)+" backups allowed")
+	path := format.PaddedLine("path:", r.Cfg.BackupPath)
+	last := format.PaddedLine("last:", lastBackup)
 
-	return f.Mid(backupsInfo).
-		Row(status).
+	return f.Header(backupsColor.String()).
 		Row(keep).
+		Row(backupsInfo).
 		Row(last).
-		Row(path).String()
-}
-
-// padding formats a label with right-aligned padding and appends a value.
-func padding(label string, value any) string {
-	const pad = 15
-	return fmt.Sprintf("%-*s %v", pad, label, value)
-}
-
-func paddingWithColor(label *color.Color, value any) string {
-	const withColor = 32
-	return fmt.Sprintf("%-*s %v", colorPadding(15, withColor), label, value)
-}
-
-// colorPadding returns the padding for the colorized output.
-func colorPadding(minVal, maxVal int) int {
-	if terminal.Color {
-		return maxVal
-	}
-
-	return minVal
+		Row(path).
+		Row(status).String()
 }
 
 // getBkStateColored returns a colored string with the backups status.
