@@ -139,6 +139,16 @@ func (s *Slice[T]) TrimElements(n int) *Slice[T] {
 	return &Slice[T]{items: &filtered}
 }
 
+// Clean removes all items from the slice.
+func (s *Slice[T]) Clean() {
+	*s.items = make([]T, 0)
+}
+
+// From creates a new slice from the given items.
+func From[T comparable](items []T) *Slice[T] {
+	return &Slice[T]{items: &items}
+}
+
 // New creates a new slice of bookmarks.
 func New[T comparable]() *Slice[T] {
 	items := make([]T, 0)
