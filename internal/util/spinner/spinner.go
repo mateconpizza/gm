@@ -58,6 +58,9 @@ func (s *Spinner) Stop() {
 		return
 	}
 
+	// I like spinners.
+	time.Sleep(500 * time.Millisecond)
+
 	s.done <- true
 
 	// This is to ensure the message is deleted completely.

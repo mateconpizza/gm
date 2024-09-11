@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/haaag/gm/pkg/format/color"
+	"github.com/haaag/gm/internal/format/color"
 )
 
 // OptFn is an option function for the frame.
@@ -15,10 +15,9 @@ type FrameBorders struct {
 }
 
 type Options struct {
-	Border   *FrameBorders
-	color    color.ColorFn
-	text     []string
-	maxWidth int
+	Border *FrameBorders
+	color  color.ColorFn
+	text   []string
 }
 
 type Frame struct {
@@ -28,22 +27,15 @@ type Frame struct {
 // defaultOpts returns the default frame options.
 func defaultOpts() Options {
 	return Options{
-		Border:   defaultBorders,
-		color:    nil,
-		text:     make([]string, 0),
-		maxWidth: 80,
+		Border: defaultBorders,
+		color:  nil,
+		text:   make([]string, 0),
 	}
 }
 
 func WithColorBorder(c color.ColorFn) OptFn {
 	return func(o *Options) {
 		o.color = c
-	}
-}
-
-func WithMaxWidth(n int) OptFn {
-	return func(o *Options) {
-		o.maxWidth = n
 	}
 }
 

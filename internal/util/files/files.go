@@ -1,4 +1,4 @@
-// Package files provides utilities for working with files
+// Package files provides utilities for working with files/directories.
 package files
 
 import (
@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/haaag/gm/internal/config"
 )
 
 var (
@@ -34,16 +36,6 @@ func Size(f string) int64 {
 	return fi.Size()
 }
 
-// GetLastFile returns the last file found in a given path.
-func GetLastFile(path, name string) (string, error) {
-	files, err := List(path, name)
-	if err != nil {
-		return "", fmt.Errorf("%w: getting files from '%s'", err, path)
-	}
-
-	return files[len(files)-1], nil
-}
-
 // List returns files found in a given path.
 func List(path, target string) ([]string, error) {
 	query := path + "/*" + target
@@ -64,10 +56,20 @@ func Mkdir(path string) error {
 		return nil
 	}
 
-	const dirPermissions = 0o755
 	log.Printf("creating path: '%s'", path)
-	if err := os.MkdirAll(path, dirPermissions); err != nil {
+	if err := os.MkdirAll(path, config.Files.DirPermissions); err != nil {
 		return fmt.Errorf("creating %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// MkdirAll creates all the given paths if they do not already exist.
+func MkdirAll(p ...string) error {
+	for _, path := range p {
+		if err := Mkdir(path); err != nil {
+			return fmt.Errorf("setting up paths: %w", err)
+		}
 	}
 
 	return nil
@@ -127,6 +129,7 @@ func Copy(src, dst string) error {
 // SortByMod sorts a slice of `fs.DirEntry` by the modification time of the
 // files in ascending order.
 func SortByMod(f []fs.DirEntry) {
+	// FIX: Delete me
 	sort.Slice(f, func(i, j int) bool {
 		fileI, err := f[i].Info()
 		if err != nil {
@@ -180,6 +183,7 @@ func CreateTemp(prefix, ext string) (*os.File, error) {
 // glob operation fails.
 func FindByExtension(path, ext string) ([]string, error) {
 	if !Exists(path) {
+		log.Printf("FindByExtension: path does not exist: '%s'", path)
 		return nil, ErrPathNotFound
 	}
 

@@ -3,39 +3,25 @@ package util
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/atotto/clipboard"
 )
 
-var ErrCopyToClipboard = errors.New("copy to clipboard")
-
-// FilterEntries returns a list of backups.
-func FilterEntries(name, path string) ([]fs.DirEntry, error) {
-	var filtered []fs.DirEntry
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	for _, entry := range files {
-		if entry.IsDir() {
-			continue
-		}
-		if strings.Contains(entry.Name(), name) {
-			filtered = append(filtered, entry)
-		}
-	}
-
-	return filtered, nil
-}
+var (
+	ErrCopyToClipboard   = errors.New("copy to clipboard")
+	ErrNotImplementedYet = errors.New("not implemented yet")
+)
 
 // GetEnv retrieves an environment variable.
+//
+// If the environment variable is not set, returns the default value.
 func GetEnv(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok {
 		return v
@@ -66,36 +52,22 @@ func BinExists(binaryName string) bool {
 }
 
 // ParseUniqueStrings returns a slice of unique strings.
-func ParseUniqueStrings(input *[]string, sep string) *[]string {
-	uniqueItems := make([]string, 0)
+func ParseUniqueStrings(input, sep string) []string {
 	uniqueMap := make(map[string]struct{})
+	uniqueItems := make([]string, 0)
 
-	for _, tags := range *input {
-		tagList := strings.Split(tags, sep)
-		for _, tag := range tagList {
-			tag = strings.TrimSpace(tag)
-			if tag != "" {
+	tagList := strings.Split(input, sep)
+	for _, tag := range tagList {
+		tag = strings.TrimSpace(tag)
+		if tag != "" {
+			if _, exists := uniqueMap[tag]; !exists {
 				uniqueMap[tag] = struct{}{}
+				uniqueItems = append(uniqueItems, tag)
 			}
 		}
 	}
 
-	for tag := range uniqueMap {
-		uniqueItems = append(uniqueItems, tag)
-	}
-
-	return &uniqueItems
-}
-
-// TrimElements returns a slice of the first len(elements) - n elements in the
-// input slice.
-func TrimElements[T any](elements []T, n int) []T {
-	var filtered []T
-	if len(elements) > n {
-		filtered = elements[:len(elements)-n]
-	}
-
-	return filtered
+	return uniqueItems
 }
 
 // ExecuteCmd runs a command with the given arguments and returns an error if
@@ -116,7 +88,7 @@ func GetOSArgsCmd() []string {
 	case "darwin":
 		args = []string{"open"}
 	case "windows":
-		args = []string{"cmd", "/c", "start"}
+		args = []string{"cmd", "/C", "start"}
 	default:
 		args = []string{"xdg-open"}
 	}
@@ -144,4 +116,30 @@ func CopyClipboard(s string) error {
 	log.Print("text copied to clipboard:", s)
 
 	return nil
+}
+
+// ExtractID extracts the ID from a string.
+func ExtractID(s string) int {
+	re := regexp.MustCompile(`^\d+`)
+	match := re.FindString(s)
+
+	if match == "" {
+		log.Printf("could not extract ID from: %s\n", s)
+		return -1
+	}
+
+	id := StrToInt(match)
+	log.Printf("extracted ID: %d\n", id)
+
+	return id
+}
+
+// StrToInt converts a string to an int.
+func StrToInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return -1
+	}
+
+	return i
 }
