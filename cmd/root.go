@@ -5,60 +5,52 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/pkg/app"
-	"github.com/haaag/gm/pkg/bookmark"
-	"github.com/haaag/gm/pkg/editor"
-	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/terminal"
 	"github.com/haaag/gm/pkg/slice"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/files"
 )
 
 type (
 	Bookmark = bookmark.Bookmark
 	Slice    = slice.Slice[Bookmark]
-	Repo     = repo.SQLiteRepository
 )
 
 // TODO)):
 // - [x] Extract `restore|deleted` logic to subcommand `restore`.
 // - [ ] Extract `init` logic to subcommand `init`.
-// - [ ] Add a `Query` flag.
 // WARN:
 // - [ ] Simplify `root.go`
 
 var (
-	// FIX: Remove this Global Exit.
-	Exit bool
+	// SQLiteCfg holds the configuration for the database and backups.
+	Cfg *repo.SQLiteConfig
 
 	// Main database name.
 	DBName string
 
+	// FIX: Remove this Global Exit.
+	Exit bool
+
 	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
 	// FIX: Remove this fallback.
 	textEditors = []string{"vim", "nvim", "nano", "emacs", "helix"}
-
-	// App is the config with default values for the app.
-	App = app.New()
-
-	// SQLiteCfg holds the configuration for the database and backups.
-	Cfg *repo.SQLiteConfig
 )
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
-	Use:          App.Cmd,
-	Short:        App.Info.Title,
-	Long:         App.Info.Desc,
+	Use:          config.App.Cmd,
+	Short:        config.App.Info.Title,
+	Long:         config.App.Info.Desc,
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Checks if current `DBName` is initialized.
-		s := color.Text(files.EnsureExtension(DBName, ".db")).Italic().Bold()
 		if !dbExistsAndInit(Cfg.Path, DBName) && !DBInit {
-			init := color.Yellow("--init").Bold().Italic()
-			return fmt.Errorf("%w: use %s to initialize '%s'", repo.ErrDBNotFound, init, s)
+			init := color.BrightYellow("--init").Bold().Italic()
+			return fmt.Errorf("%w: use %s to initialize '%s'", repo.ErrDBNotFound, init, DBName)
 		}
 
 		return handleDBInit()
@@ -85,39 +77,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func initConfig() {
-	// Set logging level
-	setLoggingLevel(&Verbose)
-
-	// Set terminal defaults
-	terminal.SetIsPiped(terminal.IsPiped())
-	terminal.SetColor(WithColor != "never" && !JSON && !terminal.Piped)
-	terminal.LoadMaxWidth()
-
-	// Enable color output
-	color.EnableANSI(&terminal.Color)
-
-	// Load editor
-	if err := editor.Load(&App.Env.Editor, &textEditors); err != nil {
-		logErrAndExit(err)
-	}
-
-	// Load App home path
-	if err := app.LoadPath(App); err != nil {
-		logErrAndExit(err)
-	}
-
-	// Set database settings
-	Cfg = repo.NewSQLiteCfg()
-	Cfg.SetDefaults(App.Path, DBName, App.Env.BackupMax)
-
-	// Create dirs for the app
-	if err := app.CreatePaths(App, Cfg.BackupPath); err != nil {
-		logErrAndExit(err)
-	}
-}
-
-func handleListAndEdit(r *Repo, bs *Slice, args []string) error {
+func handleListAndEdit(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	if err := handleListAll(r, bs); err != nil {
 		return err
 	}
@@ -128,6 +88,9 @@ func handleListAndEdit(r *Repo, bs *Slice, args []string) error {
 		return err
 	}
 	if err := handleByQuery(r, bs, args); err != nil {
+		return err
+	}
+	if err := handleMenu(bs); err != nil {
 		return err
 	}
 	if err := handleHeadAndTail(bs); err != nil {
@@ -144,9 +107,9 @@ func handleListAndEdit(r *Repo, bs *Slice, args []string) error {
 }
 
 func handleOutput(bs *Slice) error {
-	if err := handleOneline(bs); err != nil {
+	/* if err := handleOneline(bs); err != nil {
 		return err
-	}
+	} */
 	if err := handleJSONFormat(bs); err != nil {
 		return err
 	}

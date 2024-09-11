@@ -6,14 +6,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/pkg/bookmark"
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/repo"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/frame"
-	"github.com/haaag/gm/pkg/util/scraper"
-	"github.com/haaag/gm/pkg/util/spinner"
+	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/util/frame"
+	"github.com/haaag/gm/internal/util/scraper"
+	"github.com/haaag/gm/internal/util/spinner"
 )
 
 // addCmd represents the add command.
@@ -32,7 +32,7 @@ var addCmd = &cobra.Command{
 }
 
 // handleURL retrieves a URL from args or prompts the user for input.
-func handleURL(f *frame.Frame, args *[]string) string {
+func handleURL(border string, args *[]string) string {
 	urlPrompt := color.Blue("+ URL\t:").Bold().String()
 
 	// This checks if URL is provided and returns it
@@ -46,14 +46,14 @@ func handleURL(f *frame.Frame, args *[]string) string {
 	}
 
 	// Prompt user for URL
-	urlPrompt += color.BrightWhite("\n " + f.Border.Mid).String()
+	urlPrompt += color.BrightRed("\n " + border).String()
 	urlPrompt += color.GetANSI(color.BrightGray)
 
 	return terminal.ReadInput(urlPrompt)
 }
 
 // handleTags retrieves tags from args or prompts the user for input.
-func handleTags(f *frame.Frame, args *[]string) string {
+func handleTags(border string, args *[]string) string {
 	tagsPrompt := color.Purple("+ Tags\t:").Bold().String()
 
 	// This checks if tags are provided and returns them
@@ -69,7 +69,7 @@ func handleTags(f *frame.Frame, args *[]string) string {
 
 	// Prompt user for tags
 	tagsPrompt += color.Gray(" (comma-separated)").Italic().String()
-	tagsPrompt += color.BrightWhite("\n " + f.Border.Mid).String()
+	tagsPrompt += color.BrightRed("\n " + border).String()
 	tagsPrompt += color.GetANSI(color.BrightGray)
 
 	return terminal.ReadInput(tagsPrompt)
@@ -102,22 +102,22 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 }
 
 // handleAdd fetch metadata and adds a new bookmark.
-func handleAdd(r *Repo, args []string) error {
+func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	if terminal.Piped && len(args) < 2 {
-		return fmt.Errorf("%w: URL or tags cannot be empty", bookmark.ErrInvalidInput)
+		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithDefaultBorders())
+	f := frame.New(frame.WithColorBorder(color.Gray))
 
 	header := color.Yellow("Add Bookmark").Bold().String()
-	exit := color.Gray(" (ctrl+c to exit)").Italic().String()
-	f.Header(header + exit)
+	quit := color.Gray(" (ctrl+c to exit)").Italic().String()
+	f.Header(header + quit)
 	f.Newline().Render()
 
 	// Retrieve URL
-	url := handleURL(f, &args)
+	url := handleURL(f.Border.Mid, &args)
 	if url == "" {
-		return ErrURLNotProvided
+		return bookmark.ErrURLEmpty
 	}
 
 	// WARN: do we need this trim? why?
@@ -125,17 +125,17 @@ func handleAdd(r *Repo, args []string) error {
 
 	if r.HasRecord(r.Cfg.GetTableMain(), "url", url) {
 		item, _ := r.GetByURL(r.Cfg.GetTableMain(), url)
-		return fmt.Errorf("%w with id: %d", bookmark.ErrBookmarkDuplicate, item.ID)
+		return fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
 	}
 
 	// Retrieve tags
-	tags := handleTags(f, &args)
+	tags := handleTags(f.Border.Mid, &args)
 
 	// Fetch title and description
 	title, desc := fetchTitleAndDesc(url, terminal.MinWidth)
 
 	// Create a new bookmark
-	b := bookmark.New(url, title, format.ParseTags(tags), desc)
+	b := bookmark.New(url, title, bookmark.ParseTags(tags), desc)
 
 	if !terminal.Piped {
 		if err := confirmEditOrSave(b); err != nil {
@@ -148,7 +148,7 @@ func handleAdd(r *Repo, args []string) error {
 	}
 
 	success := color.Green("successfully").Italic().Bold()
-	fmt.Println("bookmark added", success)
+	fmt.Println("\nbookmark added", success)
 
 	return nil
 }

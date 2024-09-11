@@ -2,14 +2,15 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/presenter"
-	"github.com/haaag/gm/pkg/app"
-	"github.com/haaag/gm/pkg/bookmark"
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/util"
 	"github.com/haaag/gm/pkg/slice"
 )
 
@@ -35,7 +36,7 @@ var initCmd = &cobra.Command{
 
 		// get initial bookmark
 		List = true
-		// prints bookmark
+		// prints bookmark with frame
 		Frame = true
 
 		return nil
@@ -46,29 +47,47 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-func initDB(r *Repo) error {
-	if r.IsInitialized(r.Cfg.GetTableMain()) && !Force {
+func initDB(r *repo.SQLiteRepository) error {
+	if r.IsDatabaseInitialized(r.Cfg.GetTableMain()) && !Force {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyInitialized, DBName)
 	}
+
 	if err := r.Init(); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
 	initialBookmark := bookmark.New(
-		App.Info.URL,
-		App.Info.Title,
-		format.ParseTags(App.Info.Tags),
-		App.Info.Desc,
+		config.App.Info.URL,
+		config.App.Info.Title,
+		bookmark.ParseTags(config.App.Info.Tags),
+		config.App.Info.Desc,
 	)
 
 	if _, err := r.Insert(r.Cfg.GetTableMain(), initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	s := format.Header(app.PrettyVersion(Prettify))
-	s += presenter.RepoSummary(r)
-
-	fmt.Println(s)
+	fmt.Print(format.Header(prettyVersion(Prettify)))
 
 	return nil
+}
+
+// loadDataPath loads the path to the application's home directory.
+//
+// If environment variable GOMARKS_HOME is not set, uses the data user
+// directory.
+func loadDataPath() (string, error) {
+	envDataHome := util.GetEnv(config.App.Env.Home, "")
+	if envDataHome != "" {
+		log.Printf("loadPath: envDataHome: %v\n", envDataHome)
+
+		return config.PathJoin(envDataHome), nil
+	}
+
+	dataHome, err := config.DataPath()
+	if err != nil {
+		return "", fmt.Errorf("loading paths: %w", err)
+	}
+
+	return dataHome, nil
 }

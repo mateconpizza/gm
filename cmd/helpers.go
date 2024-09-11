@@ -9,16 +9,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/haaag/gm/internal/presenter"
-	"github.com/haaag/gm/pkg/bookmark"
-	"github.com/haaag/gm/pkg/editor"
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/qr"
-	"github.com/haaag/gm/pkg/repo"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/frame"
-	"github.com/haaag/gm/pkg/util/spinner"
+	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/editor"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/qr"
+	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/util/frame"
+	"github.com/haaag/gm/internal/util/spinner"
 )
 
 var ErrCopyToClipboard = errors.New("copy to clipboard")
@@ -49,7 +49,7 @@ func extractIDsFromStr(args []string) ([]int, error) {
 // logErrAndExit logs the error and exits the program.
 func logErrAndExit(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", App.Name, err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
 		os.Exit(1)
 	}
 }
@@ -71,12 +71,12 @@ func setLoggingLevel(verboseFlag *bool) {
 // text editor.
 func filterSlice(bs *Slice) error {
 	buf := bookmark.GetBufferSlice(bs)
-	editor.AppendVersion(App.Name, App.Version, &buf)
+	editor.AppendVersion(config.App.Name, config.App.Version, &buf)
 	if err := editor.Edit(&buf); err != nil {
 		return fmt.Errorf("on editing slice buffer: %w", err)
 	}
 
-	c := editor.Content(&buf)
+	c := editor.ByteSliceToLines(&buf)
 	urls := editor.ExtractContentLine(&c)
 	if len(urls) == 0 {
 		return ErrActionAborted
@@ -92,7 +92,7 @@ func filterSlice(bs *Slice) error {
 
 // bookmarkEdition edits a bookmark with a text editor.
 func bookmarkEdition(b *Bookmark) error {
-	buf := b.Buffer()
+	buf := bookmark.FormatBuffer(b)
 	if err := editor.Edit(&buf); err != nil {
 		if errors.Is(err, editor.ErrBufferUnchanged) {
 			return nil
@@ -100,13 +100,15 @@ func bookmarkEdition(b *Bookmark) error {
 
 		return fmt.Errorf("%w", err)
 	}
-	content := editor.Content(&buf)
+
+	content := editor.ByteSliceToLines(&buf)
 	tempB := bookmark.ParseContent(&content)
-	if err := editor.Validate(&content); err != nil {
+	tempB = bookmark.ScrapeAndUpdate(tempB)
+	if err := bookmark.BufferValidate(&content); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	tempB.ID = b.ID
+	tempB.ID = b.GetID()
 	*b = *tempB
 
 	return nil
@@ -119,7 +121,7 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	var title string
 	var url string
 
-	if err := qrcode.GenImg(App.GetName()); err != nil {
+	if err := qrcode.GenImg(config.App.Name); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -171,7 +173,7 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 		f := frame.New(frame.WithColorBorder(color.Gray))
 
 		bs.ForEachIdx(func(i int, b Bookmark) {
-			presenter.WithFrameAndURLColor(f, &b, terminal.MinWidth, colors)
+			bookmark.WithFrameAndURLColor(f, &b, terminal.MinWidth, colors)
 		})
 
 		f.Render()
@@ -216,7 +218,7 @@ func validateRemove(bs *Slice) error {
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(r *Repo, bs *Slice) error {
+func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	mesg := color.Gray("removing record/s...").String()
 	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()

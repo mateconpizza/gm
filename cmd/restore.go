@@ -5,11 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/repo"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/util/spinner"
 	"github.com/haaag/gm/pkg/slice"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/spinner"
 )
 
 var restoreCmd = &cobra.Command{
@@ -50,7 +50,7 @@ func init() {
 }
 
 // handleRestore restores record/s from the deleted table.
-func restore(r *Repo, bs *Slice) error {
+func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	// FIX: remove restored records from deleted table.
 	prompt := color.BrightYellow("restore").Bold().String()
 	if err := confirmAction(bs, prompt, color.BrightYellow); err != nil {

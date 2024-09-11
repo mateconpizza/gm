@@ -5,21 +5,21 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/haaag/gm/internal/presenter"
-	"github.com/haaag/gm/pkg/bookmark"
-	"github.com/haaag/gm/pkg/editor"
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/qr"
-	"github.com/haaag/gm/pkg/repo"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util"
+	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/editor"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/menu"
+	"github.com/haaag/gm/internal/qr"
+	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/util"
 )
 
 var (
-	ErrActionAborted  = errors.New("action aborted")
-	ErrURLNotProvided = errors.New("URL not provided")
-	ErrUnknownField   = errors.New("field unknown")
+	ErrActionAborted = errors.New("action aborted")
+	ErrInvalidOption = errors.New("invalid option")
 )
 
 // handleByField prints the selected field.
@@ -41,7 +41,7 @@ func handleByField(bs *Slice) error {
 		case "desc":
 			fmt.Println(b.Desc)
 		default:
-			return fmt.Errorf("%w: '%s'", ErrUnknownField, Field)
+			return fmt.Errorf("%w: '%s'", bookmark.ErrUnknownField, Field)
 		}
 
 		return nil
@@ -67,11 +67,11 @@ func handlePrintOut(bs *Slice) error {
 	bs.ForEachIdx(func(i int, b Bookmark) {
 		var output string
 		if Prettify {
-			output = presenter.PrettyWithURLPath(&b, n) + "\n"
+			output = bookmark.PrettyWithURLPath(&b, n) + "\n"
 		}
 
 		if Frame {
-			output = presenter.WithFrame(&b, n)
+			output = bookmark.FormatWithFrame(&b, n)
 		}
 
 		if output != "" {
@@ -92,10 +92,8 @@ func handleOneline(bs *Slice) error {
 	}
 
 	bs.ForEach(func(b Bookmark) {
-		fmt.Print(presenter.Oneline(&b, terminal.MaxWidth))
+		fmt.Print(bookmark.FormatOneline(&b, terminal.MaxWidth))
 	})
-
-	Exit = true
 
 	return nil
 }
@@ -111,15 +109,14 @@ func handleJSONFormat(bs *Slice) error {
 	return nil
 }
 
-// handleHeadAndTail returns a slice of bookmarks with limited
-// elements.
+// handleHeadAndTail returns a slice of bookmarks with limited elements.
 func handleHeadAndTail(bs *Slice) error {
 	if Head == 0 && Tail == 0 {
 		return nil
 	}
 
 	if Head < 0 || Tail < 0 {
-		return fmt.Errorf("%w: head=%d tail=%d", format.ErrInvalidOption, Head, Tail)
+		return fmt.Errorf("%w: head=%d tail=%d", ErrInvalidOption, Head, Tail)
 	}
 
 	bs.Head(Head)
@@ -130,7 +127,7 @@ func handleHeadAndTail(bs *Slice) error {
 
 // handleListAll retrieves records from the database based on either an ID or a
 // query string.
-func handleListAll(r *Repo, bs *Slice) error {
+func handleListAll(r *repo.SQLiteRepository, bs *Slice) error {
 	if !List {
 		return nil
 	}
@@ -144,7 +141,7 @@ func handleListAll(r *Repo, bs *Slice) error {
 
 // handleByQuery executes a search query on the given repository based on
 // provided arguments.
-func handleByQuery(r *Repo, bs *Slice, args []string) error {
+func handleByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	if bs.Len() != 0 || len(args) == 0 {
 		return nil
 	}
@@ -157,9 +154,8 @@ func handleByQuery(r *Repo, bs *Slice, args []string) error {
 	return nil
 }
 
-// handleByTags returns a slice of bookmarks based on the
-// provided tags.
-func handleByTags(r *Repo, bs *Slice) error {
+// handleByTags returns a slice of bookmarks based on the provided tags.
+func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 	if Tags == nil {
 		return nil
 	}
@@ -188,7 +184,7 @@ func handleByTags(r *Repo, bs *Slice) error {
 }
 
 // handleEdition renders the edition interface.
-func handleEdition(r *Repo, bs *Slice) error {
+func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 	if !Edit {
 		return nil
 	}
@@ -202,10 +198,10 @@ func handleEdition(r *Repo, bs *Slice) error {
 
 	// edition edits the bookmark with a text editor.
 	edition := func(i int, b Bookmark) error {
-		buf := b.Buffer()
+		buf := bookmark.FormatBuffer(&b)
 		shortTitle := format.ShortenString(b.Title, terminal.MinWidth-10)
-		editor.Append(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
-		editor.AppendVersion(App.Name, App.Version, &buf)
+		editor.AppendBuffer(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
+		editor.AppendVersion(config.App.Name, config.App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
 		copy(bufCopy, buf)
 
@@ -217,12 +213,13 @@ func handleEdition(r *Repo, bs *Slice) error {
 			return nil
 		}
 
-		content := editor.Content(&buf)
-		if err := editor.Validate(&content); err != nil {
+		content := editor.ByteSliceToLines(&buf)
+		if err := bookmark.BufferValidate(&content); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
 		editedB := bookmark.ParseContent(&content)
+		editedB = bookmark.ScrapeAndUpdate(editedB)
 		editedB.ID = b.ID
 		b = *editedB
 
@@ -230,7 +227,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 			return fmt.Errorf("handle edition: %w", err)
 		}
 
-		fmt.Printf("%s: id: [%d] %s\n", App.GetName(), b.ID, color.Blue("updated").Bold())
+		fmt.Printf("%s: id: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
 
 		return nil
 	}
@@ -243,7 +240,7 @@ func handleEdition(r *Repo, bs *Slice) error {
 }
 
 // handleRemove prompts the user the records to remove.
-func handleRemove(r *Repo, bs *Slice) error {
+func handleRemove(r *repo.SQLiteRepository, bs *Slice) error {
 	if !Remove {
 		return nil
 	}
@@ -260,8 +257,7 @@ func handleRemove(r *Repo, bs *Slice) error {
 	return removeRecords(r, bs)
 }
 
-// handleCheckStatus prints the status code of the bookmark
-// URL.
+// handleCheckStatus prints the status code of the bookmark URL.
 func handleCheckStatus(bs *Slice) error {
 	if !Status {
 		return nil
@@ -306,15 +302,15 @@ func handleCopyOpen(bs *Slice) error {
 	return nil
 }
 
-// handleBookmarksFromArgs retrieves records from the database
-// based on either an ID or a query string.
-func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
+// handleBookmarksFromArgs retrieves records from the database based on either
+// an ID or a query string.
+func handleIDsFromArgs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	ids, err := extractIDsFromStr(args)
 	if len(ids) == 0 {
 		return nil
 	}
 
-	if !errors.Is(err, bookmark.ErrInvalidRecordID) && err != nil {
+	if !errors.Is(err, bookmark.ErrInvalidID) && err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -330,28 +326,80 @@ func handleIDsFromArgs(r *Repo, bs *Slice, args []string) error {
 	return nil
 }
 
-// handleQR handles creation, rendering or opening of
-// QR-Codes.
+// handleQR handles creation, rendering or opening of QR-Codes.
 func handleQR(bs *Slice) error {
 	if !QR {
 		return nil
 	}
 
 	Exit = true
-	b := bs.Get(0)
 
-	qrcode := qr.New(b.GetURL())
-	if err := qrcode.Generate(); err != nil {
+	qrFn := func(b Bookmark) error {
+		qrcode := qr.New(b.GetURL())
+		if err := qrcode.Generate(); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		if Open {
+			return openQR(qrcode, &b)
+		}
+
+		fmt.Println(b.GetTitle())
+		qrcode.Render()
+		fmt.Println(b.GetURL())
+
+		return nil
+	}
+
+	if err := bs.ForEachErr(qrFn); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if Open {
-		return openQR(qrcode, &b)
+	return nil
+}
+
+// handleMenu allows the user to select multiple records.
+func handleMenu(bs *Slice) error {
+	if !Menu {
+		return nil
+	}
+	if bs.Len() == 0 {
+		return repo.ErrRecordNoMatch
+	}
+	// menu options
+	options := []menu.OptFn{
+		menu.WithDefaultKeybinds(),
+		menu.WithKeybindEdit(),
+		menu.WithKeybindOpen(),
+		menu.WithPreview(),
+		menu.WithMultiSelection(),
 	}
 
-	fmt.Println(b.GetTitle())
-	qrcode.Render()
-	fmt.Println(b.GetURL())
+	if Multiline {
+		options = append(options, menu.WithMultilineView())
+	}
+
+	formatter := func(b Bookmark) string {
+		if Multiline {
+			return bookmark.Multiline(&b, terminal.MaxWidth)
+		}
+
+		return bookmark.FormatOneline(&b, terminal.MaxWidth)
+	}
+
+	m := menu.New[Bookmark](options...)
+
+	result, err := m.Select(bs.GetAll(), formatter)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	n := len(result)
+	if n == 0 {
+		return nil
+	}
+
+	bs.Set(&result)
 
 	return nil
 }
