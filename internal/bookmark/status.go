@@ -12,11 +12,11 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/pkg/slice"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/frame"
+	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/util/frame"
 )
 
 var ErrNetworkUnreachable = errors.New("network is unreachable")

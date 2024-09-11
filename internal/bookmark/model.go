@@ -1,5 +1,19 @@
 package bookmark
 
+import "errors"
+
+var (
+	ErrDuplicate    = errors.New("bookmark already exists")
+	ErrInvalid      = errors.New("bookmark invalid")
+	ErrInvalidID    = errors.New("invalid bookmark id")
+	ErrInvalidInput = errors.New("invalid input")
+	ErrNotFound     = errors.New("no bookmark found")
+	ErrNotSelected  = errors.New("no bookmark selected")
+	ErrTagsEmpty    = errors.New("TAGS cannot be empty")
+	ErrURLEmpty     = errors.New("URL cannot be empty")
+	ErrUnknownField = errors.New("bookmark field unknown")
+)
+
 // Bookmark represents a bookmark.
 type Bookmark struct {
 	CreatedAt string `db:"created_at" json:"created_at"`

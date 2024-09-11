@@ -7,18 +7,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/haaag/gm/pkg/editor"
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
+	"github.com/haaag/gm/internal/editor"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/util/scraper"
+	"github.com/haaag/gm/internal/util/spinner"
 	"github.com/haaag/gm/pkg/slice"
-	"github.com/haaag/gm/pkg/util/scraper"
-	"github.com/haaag/gm/pkg/util/spinner"
-)
-
-const (
-	bulletPoint    = "\u2022" /* • */
-	midBulletPoint = "\u00b7" /* · */
-	pathSegmentSep = "\u25B8" /* ▸ */
 )
 
 // ExtractIDs extracts the IDs from a slice of bookmarks.
@@ -106,12 +100,12 @@ func validateAttr(s, fallback string) string {
 func Validate(b *Bookmark) error {
 	if b.URL == "" {
 		log.Print("bookmark is invalid. URL is empty")
-		return ErrBookmarkURLEmpty
+		return ErrURLEmpty
 	}
 
 	if b.Tags == "," || b.Tags == "" {
 		log.Print("bookmark is invalid. Tags are empty")
-		return ErrBookmarkTagsEmpty
+		return ErrTagsEmpty
 	}
 
 	log.Print("bookmark is valid")
@@ -153,8 +147,8 @@ func ParseTags(tags string) string {
 
 // PrettifyTags returns a prettified tags.
 func PrettifyTags(s string) string {
-	t := strings.ReplaceAll(s, ",", midBulletPoint)
-	return strings.TrimRight(t, midBulletPoint)
+	t := strings.ReplaceAll(s, ",", format.MidBulletPoint)
+	return strings.TrimRight(t, format.MidBulletPoint)
 }
 
 // PrettifyURLPath returns a prettified URL.
@@ -179,8 +173,8 @@ func PrettifyURLPath(bURL string) string {
 	}
 
 	pathSeg := color.Gray(
-		pathSegmentSep,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", pathSegmentSep)),
+		format.PathSmallSegment,
+		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
 	)
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
@@ -208,8 +202,8 @@ func PrettifyURL(bURL string) string {
 	}
 
 	pathSeg := color.Gray(
-		pathSegmentSep,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", pathSegmentSep)),
+		format.PathSmallSegment,
+		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
 	).Italic()
 
 	return fmt.Sprintf("%s %s", host, pathSeg)

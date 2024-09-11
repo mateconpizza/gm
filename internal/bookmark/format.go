@@ -5,20 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/haaag/gm/pkg/format"
-	"github.com/haaag/gm/pkg/format/color"
-	"github.com/haaag/gm/pkg/terminal"
-	"github.com/haaag/gm/pkg/util/frame"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/util/frame"
 )
-
-// colorPadding returns the padding for the colorized output.
-func colorPadding(minVal, maxVal int) int {
-	if terminal.Color {
-		return maxVal
-	}
-
-	return minVal
-}
 
 // Oneline formats a bookmark in a single line.
 func FormatOneline(b *Bookmark, maxWidth int) string {
@@ -29,8 +19,8 @@ func FormatOneline(b *Bookmark, maxWidth int) string {
 		defaultTagsLen = 24
 	)
 
-	idLen := colorPadding(5, idWithColor)
-	tagsLen := colorPadding(minTagsLen, defaultTagsLen)
+	idLen := format.PaddingConditional(5, idWithColor)
+	tagsLen := format.PaddingConditional(minTagsLen, defaultTagsLen)
 
 	// calculate maximum length for url and tags based on total width
 	urlLen := maxWidth - idLen - tagsLen
@@ -47,7 +37,7 @@ func FormatOneline(b *Bookmark, maxWidth int) string {
 		template,
 		idLen,
 		coloredID,
-		midBulletPoint,
+		format.MidBulletPoint,
 		urlLen,
 		colorURL,
 		tagsLen,
@@ -69,7 +59,9 @@ func Multiline(b *Bookmark, maxWidth int) string {
 	title := format.ShortenString(b.GetTitle(), n)
 	tags := color.Gray(PrettifyTags(b.GetTags())).Italic().String()
 
-	sb.WriteString(fmt.Sprintf("%s %s %s\n%s\n%s", id, midBulletPoint, url, title, tags))
+	sb.WriteString(
+		fmt.Sprintf("%s %s %s\n%s\n%s", id, format.MidBulletPoint, url, title, tags),
+	)
 
 	return sb.String()
 }
@@ -116,7 +108,6 @@ func WithFrameAndURLColor(
 	n int,
 	c func(arg ...any) *color.Color,
 ) {
-	const _midBulletPoint = "\u00b7"
 	n -= len(f.Border.Row)
 
 	titleSplit := format.SplitIntoLines(b.GetTitle(), n)
@@ -126,17 +117,14 @@ func WithFrameAndURLColor(
 	title := color.ApplyMany(titleSplit, color.Cyan)
 	tags := color.Gray(PrettifyTags(b.GetTags())).Italic().String()
 
-	f.Mid(fmt.Sprintf("%s %s %s", idStr, _midBulletPoint, url))
+	f.Mid(fmt.Sprintf("%s %s %s", idStr, format.MidBulletPoint, url))
 	f.Mid(title...).Mid(tags).Newline()
 }
 
 // FormatWithFrame formats a bookmark in a frame.
 func FormatWithFrame(b *Bookmark, maxWidth int) string {
 	n := maxWidth
-	f := frame.New(
-		frame.WithColorBorder(color.Gray),
-		frame.WithMaxWidth(n),
-	)
+	f := frame.New(frame.WithColorBorder(color.Gray))
 
 	// Indentation
 	n -= len(f.Border.Row)
