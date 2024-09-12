@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/util/files"
 	"github.com/haaag/gm/pkg/slice"
 )
@@ -64,7 +65,7 @@ func GetDatabases(c *SQLiteConfig) (*slice.Slice[*SQLiteRepository], error) {
 
 // AddPrefixDate adds the current date and time to the specified name.
 func AddPrefixDate(name string) string {
-	now := time.Now().Format(DatabaseBackcupDateFormat)
+	now := time.Now().Format(config.DB.BackupDateFormat)
 	return fmt.Sprintf("%s_%s", now, name)
 }
 
@@ -98,5 +99,5 @@ func GetModTime(s string) string {
 		return ""
 	}
 
-	return file.ModTime().Format(DatabaseBackcupDateFormat)
+	return file.ModTime().Format(config.DB.BackupDateFormat)
 }

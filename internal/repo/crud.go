@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/pkg/slice"
 )
 
@@ -63,7 +64,7 @@ func (r *SQLiteRepository) Insert(tableName string, b *Row) (*Row, error) {
 		b.Title,
 		b.Tags,
 		b.Desc,
-		currentTime.Format(DatabaseDateFormat),
+		currentTime.Format(config.DB.DateFormat),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)

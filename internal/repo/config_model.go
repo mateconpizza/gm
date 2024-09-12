@@ -4,6 +4,7 @@ package repo
 import (
 	"path/filepath"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/util/files"
 )
 
@@ -74,10 +75,10 @@ func (c *SQLiteConfig) Exists() error {
 func NewSQLiteCfg(p string) *SQLiteConfig {
 	// FIX: too complicated to setup a SQLiteConfig.
 	return &SQLiteConfig{
-		TableMain:    DatabaseMainTable,
-		TableDeleted: DatabaseDeletedTable,
+		TableMain:    config.DB.MainTable,
+		TableDeleted: config.DB.DeletedTable,
 		Type:         "sqlite",
-		MaxBytesSize: MaxBytesSize,
+		MaxBytesSize: config.DB.MaxBytesSize,
 		Path:         p,
 		Backup:       *newSQLiteBackup(p),
 	}

@@ -10,13 +10,13 @@ const (
 var Version string = "0.0.7"
 
 type database struct {
-	Name             string
-	MainTable        string
-	DeletedTable     string
-	DateFormat       string
-	BackupDateFormat string
-	MaxBytes         int64
-	BackupMaxBackups int
+	Name             string // Default name of the SQLite database.
+	MainTable        string // Name of the main bookmarks table.
+	DeletedTable     string // Name of the deleted bookmarks table.
+	DateFormat       string // Database date format
+	BackupDateFormat string // Database backup date format
+	MaxBytesSize     int64  // Maximum size in bytes of the SQLite database before vacuum.
+	BackupMaxBackups int    // Maximum number of backups allowed.
 }
 
 type app struct {
@@ -61,7 +61,7 @@ var DB = database{
 	DeletedTable:     "deleted_bookmarks",
 	DateFormat:       "2006-01-02 15:04:05",
 	BackupDateFormat: "2006-01-02_15-04",
-	MaxBytes:         1000000,
+	MaxBytesSize:     1000000,
 	BackupMaxBackups: 3,
 }
 

@@ -9,6 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/pkg/slice"
 )
 
@@ -34,7 +35,7 @@ func setupTestDB(t *testing.T) (*sql.DB, *SQLiteRepository) {
 		t.Fatal(err)
 	}
 
-	DBCfg.SetName(DefaultDBName)
+	DBCfg.SetName(config.DB.Name)
 	r := newSQLiteRepository(db, DBCfg)
 
 	return db, r

@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/pkg/slice"
 )
 
@@ -42,7 +43,7 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 
 // maintenance performs maintenance tasks on the SQLite repository.
 func (r *SQLiteRepository) maintenance(_ *SQLiteConfig) error {
-	if err := r.checkSize(MaxBytesSize); err != nil {
+	if err := r.checkSize(config.DB.MaxBytesSize); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -201,5 +202,5 @@ func (r *SQLiteRepository) DropSecure() error {
 
 // Restore restores record/s from deleted tabled.
 func (r *SQLiteRepository) Restore(bs *Slice) error {
-	return r.insertBulk(DatabaseMainTable, bs)
+	return r.insertBulk(config.DB.MainTable, bs)
 }
