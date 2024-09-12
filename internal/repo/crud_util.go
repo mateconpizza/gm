@@ -167,7 +167,6 @@ func (r *SQLiteRepository) IsEmpty(main, deleted string) bool {
 
 // checkSize checks the size of the database.
 func (r *SQLiteRepository) checkSize(n int64) error {
-	log.Println("checking database size")
 	size, err := r.size()
 	if err != nil {
 		return fmt.Errorf("size: %w", err)

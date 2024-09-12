@@ -89,5 +89,7 @@ func loadDataPath() (string, error) {
 		return "", fmt.Errorf("loading paths: %w", err)
 	}
 
+	log.Printf("loadPath: dataHome: %v\n", dataHome)
+
 	return dataHome, nil
 }

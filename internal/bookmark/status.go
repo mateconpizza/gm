@@ -14,9 +14,9 @@ import (
 
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/pkg/slice"
 	"github.com/haaag/gm/internal/terminal"
 	"github.com/haaag/gm/internal/util/frame"
+	"github.com/haaag/gm/pkg/slice"
 )
 
 var ErrNetworkUnreachable = errors.New("network is unreachable")

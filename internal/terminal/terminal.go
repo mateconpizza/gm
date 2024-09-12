@@ -39,12 +39,8 @@ func SetColor(b bool) {
 		return
 	}
 
+	log.Println("Setting color output:", b)
 	Color = b
-}
-
-// SetIsPiped sets the global `Piped` flag to indicate if the output is piped.
-func SetIsPiped(b bool) {
-	Piped = b
 }
 
 // LoadMaxWidth updates `MaxWidth` to the current width if it is smaller than

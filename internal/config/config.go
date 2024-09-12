@@ -25,14 +25,13 @@ type database struct {
 }
 
 type app struct {
+	Name    string      `json:"name"`
+	Cmd     string      `json:"cmd"`
+	Banner  string      `json:"-"`
+	Version string      `json:"version"`
 	Info    information `json:"data"`
 	Env     environment `json:"env"`
 	Path    path        `json:"path"`
-	Name    string      `json:"name"`
-	Banner  string      `json:"-"`
-	Cmd     string      `json:"cmd"`
-	Version string      `json:"version"`
-	Editor  string      `json:"editor"`
 }
 
 // path represents the application path.

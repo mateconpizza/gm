@@ -7,7 +7,6 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/editor"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/menu"
@@ -15,6 +14,7 @@ import (
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/terminal"
 	"github.com/haaag/gm/internal/util"
+	"github.com/haaag/gm/internal/util/files"
 )
 
 var (
@@ -167,7 +167,8 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	if bs.Len() == 0 {
-		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNoMatch, strings.Join(Tags, ", "))
+		t := strings.Join(Tags, ", ")
+		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNoMatch, t)
 	}
 
 	bs.Filter(func(b Bookmark) bool {
@@ -195,25 +196,29 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	header := "# [%d/%d] | %d | %s\n\n"
+	editor, err := files.GetEditor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
 
 	// edition edits the bookmark with a text editor.
 	edition := func(i int, b Bookmark) error {
 		buf := bookmark.FormatBuffer(&b)
 		shortTitle := format.ShortenString(b.Title, terminal.MinWidth-10)
-		editor.AppendBuffer(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
-		editor.AppendVersion(config.App.Name, config.App.Version, &buf)
+		format.BufferAppend(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
+		format.BufferApendVersion(config.App.Name, config.App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
 		copy(bufCopy, buf)
 
-		if err := editor.Edit(&buf); err != nil {
+		if err := files.Edit(editor, &buf); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		if editor.IsSameContentBytes(&buf, &bufCopy) {
+		if format.IsSameContentBytes(&buf, &bufCopy) {
 			return nil
 		}
 
-		content := editor.ByteSliceToLines(&buf)
+		content := format.ByteSliceToLines(&buf)
 		if err := bookmark.BufferValidate(&content); err != nil {
 			return fmt.Errorf("%w", err)
 		}

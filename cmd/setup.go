@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/editor"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/terminal"
@@ -45,18 +44,11 @@ func initConfig() {
 	setLoggingLevel(&Verbose)
 
 	// Set terminal defaults
-	// FIX: remove SetIsPiped. Use terminal.IsPiped()
-	terminal.SetIsPiped(terminal.IsPiped())
-	terminal.SetColor(WithColor != "never" && !JSON && !terminal.Piped)
+	terminal.SetColor(WithColor != "never" && !terminal.IsPiped())
 	terminal.LoadMaxWidth()
 
 	// Enable color output
 	color.EnableANSI(&terminal.Color)
-
-	// Load editor
-	if err := editor.Load(&config.App.Env.Editor, &textEditors); err != nil {
-		logErrAndExit(err)
-	}
 
 	// Load data home path for the app.
 	dataHomePath, err := loadDataPath()
@@ -69,7 +61,7 @@ func initConfig() {
 	// Set database settings/paths
 	Cfg = repo.NewSQLiteCfg(dataHomePath)
 	Cfg.SetName(DBName)
-	Cfg.MaxBackups = getMaxBackup()
+	Cfg.Backup.SetLimit(getMaxBackup())
 
 	// Create paths for the application.
 	if err := files.MkdirAll(config.App.Path.Backup); err != nil {

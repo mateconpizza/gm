@@ -103,7 +103,7 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 
 // handleAdd fetch metadata and adds a new bookmark.
 func handleAdd(r *repo.SQLiteRepository, args []string) error {
-	if terminal.Piped && len(args) < 2 {
+	if terminal.IsPiped() && len(args) < 2 {
 		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
 	}
 
@@ -137,7 +137,7 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	// Create a new bookmark
 	b := bookmark.New(url, title, bookmark.ParseTags(tags), desc)
 
-	if !terminal.Piped {
+	if !terminal.IsPiped() {
 		if err := confirmEditOrSave(b); err != nil {
 			return fmt.Errorf("%w", err)
 		}

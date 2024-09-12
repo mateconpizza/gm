@@ -11,12 +11,12 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/editor"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/qr"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/util/files"
 	"github.com/haaag/gm/internal/util/frame"
 	"github.com/haaag/gm/internal/util/spinner"
 )
@@ -71,13 +71,19 @@ func setLoggingLevel(verboseFlag *bool) {
 // text editor.
 func filterSlice(bs *Slice) error {
 	buf := bookmark.GetBufferSlice(bs)
-	editor.AppendVersion(config.App.Name, config.App.Version, &buf)
-	if err := editor.Edit(&buf); err != nil {
+	format.BufferApendVersion(config.App.Name, config.App.Version, &buf)
+
+	editor, err := files.GetEditor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := files.Edit(editor, &buf); err != nil {
 		return fmt.Errorf("on editing slice buffer: %w", err)
 	}
 
-	c := editor.ByteSliceToLines(&buf)
-	urls := editor.ExtractContentLine(&c)
+	c := format.ByteSliceToLines(&buf)
+	urls := bookmark.ExtractContentLine(&c)
 	if len(urls) == 0 {
 		return ErrActionAborted
 	}
@@ -93,15 +99,20 @@ func filterSlice(bs *Slice) error {
 // bookmarkEdition edits a bookmark with a text editor.
 func bookmarkEdition(b *Bookmark) error {
 	buf := bookmark.FormatBuffer(b)
-	if err := editor.Edit(&buf); err != nil {
-		if errors.Is(err, editor.ErrBufferUnchanged) {
+	editor, err := files.GetEditor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := files.Edit(editor, &buf); err != nil {
+		if errors.Is(err, files.ErrBufferUnchanged) {
 			return nil
 		}
 
 		return fmt.Errorf("%w", err)
 	}
 
-	content := editor.ByteSliceToLines(&buf)
+	content := format.ByteSliceToLines(&buf)
 	tempB := bookmark.ParseContent(&content)
 	tempB = bookmark.ScrapeAndUpdate(tempB)
 	if err := bookmark.BufferValidate(&content); err != nil {
@@ -207,7 +218,7 @@ func validateRemove(bs *Slice) error {
 		return repo.ErrRecordNotFound
 	}
 
-	if terminal.Piped && !Force {
+	if terminal.IsPiped() && !Force {
 		return fmt.Errorf(
 			"%w: input from pipe is not supported yet. use --force",
 			ErrActionAborted,

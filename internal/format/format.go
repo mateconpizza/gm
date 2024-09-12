@@ -2,6 +2,7 @@
 package format
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -129,4 +130,35 @@ func AlignLines(lines []string, indentation int) []string {
 func NormalizeSpace(s string) string {
 	s = strings.TrimSpace(s)
 	return strings.Join(strings.Fields(s), " ")
+}
+
+// ByteSliceToLines returns the content of a []byte as a slice of strings,
+// splitting on newline characters.
+func ByteSliceToLines(data *[]byte) []string {
+	return strings.Split(string(*data), "\n")
+}
+
+// BufferCopy copies the contents of a byte slice into a new byte slice.
+func BufferCopy(buf *[]byte) []byte {
+	return append([]byte(nil), *buf...)
+}
+
+// BufferAppend inserts a header string at the beginning of a byte buffer.
+func BufferAppend(s string, buf *[]byte) {
+	*buf = append([]byte(s), *buf...)
+}
+
+// BufferApendVersion inserts a header string at the beginning of a byte buffer.
+func BufferApendVersion(name, version string, buf *[]byte) {
+	BufferAppend(fmt.Sprintf("# %s: v%s\n", name, version), buf)
+}
+
+// IsSameContentBytes Checks if the buffer is unchanged.
+func IsSameContentBytes(a, b *[]byte) bool {
+	return bytes.Equal(*a, *b)
+}
+
+// IsEmptyLine checks if a line is empty.
+func IsEmptyLine(line string) bool {
+	return strings.TrimSpace(line) == ""
 }

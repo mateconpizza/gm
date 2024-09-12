@@ -152,7 +152,3 @@ func getMaxBackup() int {
 
 	return maxBackups
 }
-
-func isBackupEnabled() bool {
-	return getMaxBackup() > 0
-}

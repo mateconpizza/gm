@@ -36,7 +36,7 @@ var (
 
 	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
 	// FIX: Remove this fallback.
-	textEditors = []string{"vim", "nvim", "nano", "emacs", "helix"}
+	textEditors = []string{"vim", "nvim", "nano", "emacs"}
 )
 
 // rootCmd represents the base command when called without any subcommands.

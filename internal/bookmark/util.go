@@ -2,18 +2,55 @@ package bookmark
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
 	"strings"
 
-	"github.com/haaag/gm/internal/editor"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/util/scraper"
 	"github.com/haaag/gm/internal/util/spinner"
 	"github.com/haaag/gm/pkg/slice"
 )
+
+var ErrLineNotFound = errors.New("line not found")
+
+// extractTextBlock extracts a block of text from a string, delimited by the
+// specified start and end markers.
+func extractTextBlock(content *[]string, startMarker, endMarker string) string {
+	startIndex := -1
+	endIndex := -1
+	isInBlock := false
+
+	var cleanedBlock []string
+
+	for i, line := range *content {
+		if strings.HasPrefix(line, startMarker) {
+			startIndex = i
+			isInBlock = true
+
+			continue
+		}
+
+		if strings.HasPrefix(line, endMarker) && isInBlock {
+			endIndex = i
+
+			break // Found end marker line
+		}
+
+		if isInBlock {
+			cleanedBlock = append(cleanedBlock, line)
+		}
+	}
+
+	if startIndex == -1 || endIndex == -1 {
+		return ""
+	}
+
+	return strings.Join(cleanedBlock, "\n")
+}
 
 // ExtractIDs extracts the IDs from a slice of bookmarks.
 func ExtractIDs(bs *[]Bookmark) []int {
@@ -27,10 +64,10 @@ func ExtractIDs(bs *[]Bookmark) []int {
 
 // ParseContent parses the provided content into a bookmark struct.
 func ParseContent(content *[]string) *Bookmark {
-	urlStr := editor.ExtractBlock(content, "# URL:", "# Title:")
-	title := editor.ExtractBlock(content, "# Title:", "# Tags:")
-	tags := editor.ExtractBlock(content, "# Tags:", "# Description:")
-	desc := editor.ExtractBlock(content, "# Description:", "# end")
+	urlStr := extractTextBlock(content, "# URL:", "# Title:")
+	title := extractTextBlock(content, "# Title:", "# Tags:")
+	tags := extractTextBlock(content, "# Tags:", "# Description:")
+	desc := extractTextBlock(content, "# Description:", "# end")
 
 	return New(urlStr, title, ParseTags(tags), desc)
 }
@@ -66,9 +103,9 @@ func BufferValidate(b *[]string) error {
 
 // validateURLBuffer validates url in the buffer.
 func validateURLBuffer(content *[]string) error {
-	u := editor.ExtractBlock(content, "# URL:", "# Title:")
-	if editor.IsEmptyLine(u) {
-		return fmt.Errorf("%w: URL", editor.ErrLineNotFound)
+	u := extractTextBlock(content, "# URL:", "# Title:")
+	if format.IsEmptyLine(u) {
+		return fmt.Errorf("%w: URL", ErrLineNotFound)
 	}
 
 	return nil
@@ -76,9 +113,9 @@ func validateURLBuffer(content *[]string) error {
 
 // validateTagsBuffer validates tags in the buffer.
 func validateTagsBuffer(content *[]string) error {
-	t := editor.ExtractBlock(content, "# Tags:", "# Description:")
-	if editor.IsEmptyLine(t) {
-		return fmt.Errorf("%w: Tags", editor.ErrLineNotFound)
+	t := extractTextBlock(content, "# Tags:", "# Description:")
+	if format.IsEmptyLine(t) {
+		return fmt.Errorf("%w: Tags", ErrLineNotFound)
 	}
 
 	return nil
@@ -207,4 +244,17 @@ func PrettifyURL(bURL string) string {
 	).Italic()
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
+}
+
+// ExtractContentLine extracts URLs from the a slice of strings.
+func ExtractContentLine(c *[]string) map[string]bool {
+	m := make(map[string]bool)
+	for _, l := range *c {
+		l = strings.TrimSpace(l)
+		if !strings.HasPrefix(l, "#") && !strings.EqualFold(l, "") {
+			m[l] = true
+		}
+	}
+
+	return m
 }

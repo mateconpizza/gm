@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -32,7 +33,7 @@ func GetEnv(key, def string) string {
 
 // BinPath returns the path of the binary.
 func BinPath(binaryName string) string {
-	cmd := exec.Command("which", binaryName)
+	cmd := exec.CommandContext(context.Background(), "which", binaryName)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -45,10 +46,7 @@ func BinPath(binaryName string) string {
 
 // BinExists checks if the binary exists in $PATH.
 func BinExists(binaryName string) bool {
-	cmd := exec.Command("which", binaryName)
-	err := cmd.Run()
-
-	return err == nil
+	return ExecuteCmd("which", binaryName) == nil
 }
 
 // ParseUniqueStrings returns a slice of unique strings.
@@ -73,8 +71,23 @@ func ParseUniqueStrings(input, sep string) []string {
 // ExecuteCmd runs a command with the given arguments and returns an error if
 // the command fails.
 func ExecuteCmd(args ...string) error {
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
 	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("running command: %w", err)
+	}
+
+	return nil
+}
+
+// RunCmd returns an *exec.Cmd with the given arguments.
+func RunCmd(name string, args ...string) error {
+	cmd := exec.CommandContext(context.Background(), name, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+	if err != nil {
 		return fmt.Errorf("running command: %w", err)
 	}
 
