@@ -7,12 +7,7 @@ const (
 	Command string = "gm"
 )
 
-var (
-	Version string = "0.0.7"
-	Banner  string = `┏━╸┏━┓┏┳┓┏━┓┏━┓╻┏ ┏━┓
-┃╺┓┃ ┃┃┃┃┣━┫┣┳┛┣┻┓┗━┓
-┗━┛┗━┛╹ ╹╹ ╹╹┗╸╹ ╹┗━┛`
-)
+var Version string = "0.0.7"
 
 type database struct {
 	Name             string
@@ -27,7 +22,6 @@ type database struct {
 type app struct {
 	Name    string      `json:"name"`
 	Cmd     string      `json:"cmd"`
-	Banner  string      `json:"-"`
 	Version string      `json:"version"`
 	Info    information `json:"data"`
 	Env     environment `json:"env"`
@@ -82,7 +76,6 @@ var App = app{
 	Name:    AppName,
 	Cmd:     Command,
 	Version: Version,
-	Banner:  Banner,
 	Info: information{
 		URL:   "https://github.com/haaag/gomarks#readme",
 		Title: "Gomarks: A bookmark manager",

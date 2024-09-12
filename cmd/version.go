@@ -11,12 +11,8 @@ import (
 )
 
 // prettyVersion formats version in a pretty way.
-func prettyVersion(morePretty bool) string {
+func prettyVersion() string {
 	name := color.BrightBlue(config.App.Name).Bold().String()
-	if morePretty {
-		name = color.BrightBlue(config.App.Banner).String()
-	}
-
 	return fmt.Sprintf("%s v%s %s/%s", name, config.App.Version, runtime.GOOS, runtime.GOARCH)
 }
 
@@ -25,12 +21,10 @@ var versionCmd = &cobra.Command{
 	Short:  "print version information",
 	Hidden: false,
 	Run: func(_ *cobra.Command, args []string) {
-		fmt.Println(prettyVersion(Prettify))
+		fmt.Println(prettyVersion())
 	},
 }
 
 func init() {
-	h := "print data in pretty format"
-	versionCmd.PersistentFlags().BoolVarP(&Prettify, "pretty", "p", false, h)
 	rootCmd.AddCommand(versionCmd)
 }

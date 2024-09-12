@@ -67,7 +67,7 @@ func initDB(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(format.Header(prettyVersion(Prettify)))
+	fmt.Print(format.Header(prettyVersion()))
 
 	return nil
 }

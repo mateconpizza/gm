@@ -30,7 +30,6 @@ var (
 	JSON      bool
 	Oneline   bool
 	Multiline bool
-	Prettify  bool
 	Frame     bool
 	WithColor string
 
@@ -79,12 +78,12 @@ func init() {
 		BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "verbose mode")
 	rootCmd.PersistentFlags().BoolVarP(&JSON, "json", "j", false, "print data in JSON format")
-	rootCmd.PersistentFlags().
-		BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format")
+	/* rootCmd.PersistentFlags().
+		BoolVarP(&Prettify, "pretty", "p", false, "print data in pretty format") */
 	rootCmd.PersistentFlags().BoolVarP(&Frame, "frame", "f", false, "print data in framed format")
 	rootCmd.PersistentFlags().
 		StringVar(&WithColor, "color", "never", "print data in pretty colors [always|never]")
-	rootCmd.MarkFlagsMutuallyExclusive("json", "pretty", "frame")
+	rootCmd.MarkFlagsMutuallyExclusive("json", "frame")
 
 	// Actions
 	rootCmd.Flags().BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
