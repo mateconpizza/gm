@@ -12,7 +12,7 @@ import (
 var Command = config.App.Cmd
 
 func appendKeyDescToHeader(opts []string, key, desc string) []string {
-	return append(opts, fmt.Sprintf("<%s>: %s", key, desc))
+	return append(opts, fmt.Sprintf("%s: %s", key, desc))
 }
 
 func formatterToStr[T any](s T) string {

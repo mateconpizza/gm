@@ -374,6 +374,7 @@ func handleMenu(bs *Slice) error {
 		menu.WithDefaultKeybinds(),
 		menu.WithKeybindEdit(),
 		menu.WithKeybindOpen(),
+		menu.WithKeybindQR(),
 		menu.WithPreview(),
 		menu.WithMultiSelection(),
 	}

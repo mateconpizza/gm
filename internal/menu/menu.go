@@ -80,6 +80,13 @@ func WithKeybindOpen() OptFn {
 	}
 }
 
+func WithKeybindQR() OptFn {
+	return func(o *Options) {
+		o.header = appendKeyDescToHeader(o.header, "ctrl-k", "QRcode")
+		o.keybind = append(o.keybind, withCommand("ctrl-k:execute(%s --qr --open {1})"))
+	}
+}
+
 // WithDefaultKeybinds adds default keybinds to Fzf.
 //
 // ctrl-y:copy-to-clipboard.
@@ -96,6 +103,8 @@ func WithDefaultKeybinds() OptFn {
 // <key>:<action>
 //
 // e.g: "ctrl-o:execute(echo {})".
+//
+// e.g: "<key>:<action>".
 func WithKeybindNew(key, action, desc string) OptFn {
 	return func(o *Options) {
 		o.header = appendKeyDescToHeader(o.header, key, desc)
@@ -107,7 +116,7 @@ func WithKeybindNew(key, action, desc string) OptFn {
 func WithMultiSelection() OptFn {
 	opts := []string{"--highlight-line", "--multi"}
 	h := appendKeyDescToHeader(make([]string, 0), "ctrl-a", "toggle-all")
-	h = appendKeyDescToHeader(h, "tab", "select")
+	// h = appendKeyDescToHeader(h, "tab", "select")
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
@@ -130,6 +139,7 @@ func WithPreview() OptFn {
 	}
 }
 
+// WithPreviewCustomCmd adds preview with a custom command.
 func WithPreviewCustomCmd(cmd string) OptFn {
 	opts := []string{"--preview=" + cmd}
 
@@ -161,7 +171,6 @@ func New[T comparable](opts ...OptFn) *Menu[T] {
 
 	return &Menu[T]{
 		Options: o,
-		// Items:   make([]T, 0),
 	}
 }
 
@@ -169,126 +178,13 @@ func (m *Menu[T]) GetArgs() []string {
 	return m.args
 }
 
-/* func (m *Menu[T]) BetaSelect(preprocessor func(T) string) ([]string, error) {
-	// FIX: this is experimental.
-	if len(m.Items) == 0 {
-		return nil, ErrFzfNoRecords
-	}
-	var result []string
-
-	m.setup()
-
-	inputChan := make(chan string)
-	go func() {
-		for _, s := range m.Items {
-			inputChan <- preprocessor(s)
-		}
-		close(inputChan)
-	}()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	outputChan := make(chan string)
-	go func() {
-		defer wg.Done()
-		for s := range outputChan {
-			result = append(result, s)
-		}
-	}()
-
-	// Build fzf.Options
-	options, err := fzf.ParseOptions(m.defaults, m.args)
-	if err != nil {
-		return nil, fmt.Errorf("fzf: %w", err)
-	}
-	// Set up input and output channels
-	options.Input = inputChan
-	options.Output = outputChan
-	// Run fzf
-	code, err := fzf.Run(options)
-	if code != 0 {
-		exitWithErrCode(code, err)
-	}
-
-	close(outputChan)
-	wg.Wait()
-
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return result, nil
-} */
-
-/* func (m *Menu[T]) GoodSelect(preprocessor func(T) string) ([]T, error) {
-	if len(m.Items) == 0 {
-		return nil, ErrFzfNoRecords
-	}
-
-	loadHeader(m.header, &m.args)
-	loadKeybind(m.keybind, &m.args)
-
-	if preprocessor == nil {
-		preprocessor = formatterToStr
-	}
-
-	var (
-		result    []T
-		inputChan = make(chan string)
-		ogItem    = make(map[string]T)
-	)
-
-	go func() {
-		for _, item := range m.Items {
-			formatted := preprocessor(item)
-			inputChan <- formatted
-			ogItem[removeANSICodes(formatted)] = item
-		}
-		close(inputChan)
-	}()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	outputChan := make(chan string)
-	go func() {
-		defer wg.Done()
-		for s := range outputChan {
-			if item, exists := ogItem[s]; exists {
-				result = append(result, item)
-			}
-		}
-	}()
-
-	// Build fzf.Options
-	options, err := fzf.ParseOptions(m.defaults, m.args)
-	if err != nil {
-		return nil, fmt.Errorf("fzf: %w", err)
-	}
-
-	// Set up input and output channels
-	options.Input = inputChan
-	options.Output = outputChan
-	// Run fzf
-	code, err := fzf.Run(options)
-	if code != 0 {
-		exitWithErrCode(code, err)
-	}
-
-	close(outputChan)
-	wg.Wait()
-
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return result, nil
-} */
-
+// setup loads header, keybind and args from Options.
 func (m *Menu[T]) setup() {
 	loadHeader(m.header, &m.args)
 	loadKeybind(m.keybind, &m.args)
 }
 
+// Select runs fzf with the given items and returns the selected items.
 func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 	if len(*items) == 0 {
 		return nil, ErrFzfNoRecords
