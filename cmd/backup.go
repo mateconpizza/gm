@@ -23,6 +23,9 @@ var backupCmd = &cobra.Command{
 	Use:     "bk",
 	Aliases: []string{"backup"},
 	Short:   "backup management",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return verifyDatabase(Cfg)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

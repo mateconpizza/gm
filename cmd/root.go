@@ -20,7 +20,7 @@ type (
 
 // TODO)):
 // - [x] Extract `restore|deleted` logic to subcommand `restore`.
-// - [ ] Extract `init` logic to subcommand `init`.
+// - [x] Extract `init` logic to subcommand `init`.
 // WARN:
 // - [ ] Simplify `root.go`
 
@@ -46,14 +46,8 @@ var rootCmd = &cobra.Command{
 	Long:         config.App.Info.Desc,
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Checks if current `DBName` is initialized.
-		if !dbExistsAndInit(Cfg.Path, DBName) && !DBInit {
-			init := color.BrightYellow("--init").Bold().Italic()
-			return fmt.Errorf("%w: use %s to initialize '%s'", repo.ErrDBNotFound, init, DBName)
-		}
-
-		return handleDBInit()
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return verifyDatabase(Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)

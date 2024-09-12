@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -33,7 +34,6 @@ var (
 	Frame     bool
 	WithColor string
 
-	DBInit  bool
 	Force   bool
 	Status  bool
 	Verbose bool
@@ -106,11 +106,21 @@ func init() {
 	rootCmd.Flags().IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	rootCmd.Flags().IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 
-	rootCmd.Flags().BoolVar(&DBInit, "init", false, "initialize a database")
-
 	// Others
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.SilenceErrors = true
 	rootCmd.DisableSuggestions = true
 	rootCmd.SuggestionsMinimumDistance = 1
+}
+
+// verifyDatabase verifies if the database exists.
+func verifyDatabase(c *repo.SQLiteConfig) error {
+	db := files.EnsureExtension(DBName, ".db")
+	i := color.BrightYellow(config.App.Cmd, "init").Bold().Italic()
+
+	if err := c.Exists(); err != nil {
+		return fmt.Errorf("%w: %s to initialize '%s'", repo.ErrDBNotFound, i, db)
+	}
+
+	return nil
 }

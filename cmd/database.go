@@ -122,33 +122,6 @@ func handleListDB(r *repo.SQLiteRepository) error {
 	return nil
 }
 
-// handleDBInit initializes the database.
-func handleDBInit() error {
-	if !DBInit {
-		return nil
-	}
-
-	if err := initCmd.RunE(nil, []string{}); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
-
-// handleNewDB creates and initializes a new database.
-func handleNewDB(r *repo.SQLiteRepository) error {
-	if repo.Exists(r.Cfg.Fullpath()) && r.IsDatabaseInitialized(r.Cfg.GetTableMain()) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyExists, r.Cfg.Name)
-	}
-
-	if !DBInit {
-		init := color.Yellow("--init").Bold().Italic()
-		return fmt.Errorf("%w: use %s", repo.ErrDBNotInitialized, init)
-	}
-
-	return handleDBInit()
-}
-
 // handleRemoveDB removes a database.
 func handleRemoveDB(r *repo.SQLiteRepository) error {
 	if !repo.Exists(r.Cfg.Fullpath()) {
@@ -170,15 +143,12 @@ func handleDBInfo(r *repo.SQLiteRepository) error {
 	return nil
 }
 
-func handleCreateDB(_ *repo.SQLiteRepository) error {
-	DBInit = true
-
-	return handleDBInit()
-}
-
 var dbCmd = &cobra.Command{
 	Use:   "db",
 	Short: "database management",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return verifyDatabase(Cfg)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
@@ -190,8 +160,6 @@ var dbCmd = &cobra.Command{
 			dbInfo:   handleDBInfo,
 			dbList:   handleListDB,
 			dbRemove: handleRemoveDB,
-			dbCreate: handleCreateDB,
-			DBInit:   handleNewDB,
 		}
 		if handler, ok := flags[true]; ok {
 			return handler(r)
@@ -207,5 +175,6 @@ func init() {
 	dbCmd.Flags().BoolVarP(&dbInfo, "info", "I", false, "show database info (default)")
 	dbCmd.Flags().BoolVarP(&dbList, "list", "l", false, "list available databases")
 	dbCmd.Flags().BoolVarP(&dbRemove, "remove", "r", false, "remove a database")
+	dbCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(dbCmd)
 }

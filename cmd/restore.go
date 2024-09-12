@@ -16,6 +16,9 @@ var restoreCmd = &cobra.Command{
 	Use:    "restore",
 	Short:  "restore bookmarks deleted",
 	Hidden: true,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		return verifyDatabase(Cfg)
+	},
 	RunE: func(_ *cobra.Command, args []string) error {
 		// Read from deleted table
 		Cfg.TableMain = Cfg.GetTableDeleted()

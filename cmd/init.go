@@ -39,7 +39,7 @@ var initCmd = &cobra.Command{
 		// prints bookmark with frame
 		Frame = true
 
-		return nil
+		return handlePrintOut(bs)
 	},
 }
 
