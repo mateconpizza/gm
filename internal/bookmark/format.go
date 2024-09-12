@@ -165,3 +165,23 @@ func formatBufferSimple(b *Bookmark) []byte {
 	id := fmt.Sprintf("[%d]", b.ID)
 	return []byte(fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL))
 }
+
+func GetField(b *Bookmark, f string) (string, error) {
+	var s string
+	switch f {
+	case "id":
+		s = strconv.Itoa(b.GetID())
+	case "url":
+		s = b.GetURL()
+	case "title":
+		s = b.GetTitle()
+	case "tags":
+		s = b.GetTags()
+	case "desc":
+		s = b.GetDesc()
+	default:
+		return "", fmt.Errorf("%w: '%s'", ErrUnknownField, f)
+	}
+
+	return s, nil
+}

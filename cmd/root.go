@@ -7,7 +7,6 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/terminal"
 	"github.com/haaag/gm/pkg/slice"
@@ -33,10 +32,6 @@ var (
 
 	// FIX: Remove this Global Exit.
 	Exit bool
-
-	// Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
-	// FIX: Remove this fallback.
-	textEditors = []string{"vim", "nvim", "nano", "emacs"}
 )
 
 // rootCmd represents the base command when called without any subcommands.
@@ -63,7 +58,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		if bs.Len() == 0 {
+		if bs.Len() == 0 && !JSON {
 			return repo.ErrRecordNoMatch
 		}
 

@@ -14,12 +14,13 @@ import (
 // https://no-color.org
 const NoColorEnv string = "NO_COLOR"
 
+// Default terminal settings.
 var (
 	Color     bool = true
-	Piped     bool = false
 	MaxWidth  int  = 120
-	MinWidth  int  = 80
 	MinHeight int  = 15
+	MinWidth  int  = 80
+	Piped     bool = false
 )
 
 var (

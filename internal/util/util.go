@@ -131,6 +131,17 @@ func CopyClipboard(s string) error {
 	return nil
 }
 
+// ReadClipboard reads the contents of the clipboard.
+func ReadClipboard() string {
+	s, err := clipboard.ReadAll()
+	if err != nil {
+		log.Printf("could not read clipboard: %s\n", err)
+		return ""
+	}
+
+	return s
+}
+
 // ExtractID extracts the ID from a string.
 func ExtractID(s string) int {
 	re := regexp.MustCompile(`^\d+`)

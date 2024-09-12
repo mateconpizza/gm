@@ -29,20 +29,12 @@ func handleByField(bs *Slice) error {
 	}
 
 	printer := func(b Bookmark) error {
-		switch Field {
-		case "id":
-			fmt.Println(b.ID)
-		case "url":
-			fmt.Println(b.URL)
-		case "title":
-			fmt.Println(b.Title)
-		case "tags":
-			fmt.Println(b.Tags)
-		case "desc":
-			fmt.Println(b.Desc)
-		default:
-			return fmt.Errorf("%w: '%s'", bookmark.ErrUnknownField, Field)
+		f, err := b.Field(Field)
+		if err != nil {
+			return fmt.Errorf("%w", err)
 		}
+
+		fmt.Println(f)
 
 		return nil
 	}
@@ -50,7 +42,7 @@ func handleByField(bs *Slice) error {
 	if err := bs.ForEachErr(printer); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	Prettify = false
+	Exit = true
 
 	return nil
 }
@@ -101,6 +93,12 @@ func handleOneline(bs *Slice) error {
 // handleJSONFormat formats the bookmarks in JSON.
 func handleJSONFormat(bs *Slice) error {
 	if !JSON {
+		return nil
+	}
+
+	if bs.Len() == 0 {
+		fmt.Println(string(format.ToJSON(config.App)))
+		Exit = true
 		return nil
 	}
 

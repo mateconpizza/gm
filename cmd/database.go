@@ -134,7 +134,10 @@ func handleRemoveDB(r *repo.SQLiteRepository) error {
 // handleDBInfo prints information about a database.
 func handleDBInfo(r *repo.SQLiteRepository) error {
 	if JSON {
+		backups, _ := repo.GetBackups(r)
+		r.Cfg.Backup.Files = *backups.GetAll()
 		fmt.Println(string(format.ToJSON(r)))
+
 		return nil
 	}
 

@@ -1,6 +1,10 @@
 package bookmark
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strconv"
+)
 
 var (
 	ErrDuplicate    = errors.New("bookmark already exists")
@@ -46,6 +50,26 @@ func (b *Bookmark) GetDesc() string {
 
 func (b *Bookmark) GetCreatedAt() string {
 	return b.CreatedAt
+}
+
+func (b *Bookmark) Field(f string) (string, error) {
+	var s string
+	switch f {
+	case "id", "1":
+		s = strconv.Itoa(b.GetID())
+	case "url", "2":
+		s = b.GetURL()
+	case "title", "3":
+		s = b.GetTitle()
+	case "tags", "4":
+		s = b.GetTags()
+	case "desc", "5":
+		s = b.GetDesc()
+	default:
+		return "", fmt.Errorf("%w: '%s'", ErrUnknownField, f)
+	}
+
+	return s, nil
 }
 
 // New creates a new bookmark.

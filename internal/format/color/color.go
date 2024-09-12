@@ -4,6 +4,7 @@ package color
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -61,6 +62,7 @@ func GetANSI(f ColorFn) string {
 
 // EnableANSI allows to enable/disable color output.
 func EnableANSI(b *bool) {
+	log.Println("EnableANSI:", b)
 	enableColorOutput = b
 }
 

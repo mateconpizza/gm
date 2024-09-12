@@ -6,7 +6,6 @@
 
 <a href="https://github.com/haaag/gm"><img alt="GitHub Repo" src="https://img.shields.io/badge/GoMarks-blue.svg"></a>
 [![MadeWithGo](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](https://go.dev/)
-[![GoMarks](https://img.shields.io/badge/GoMark-blue.svg)]()
 
 </div>
 

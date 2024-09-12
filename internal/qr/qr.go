@@ -56,7 +56,15 @@ func (q *QRCode) Open() error {
 		return ErrQRFileNotFound
 	}
 
-	args := append(util.GetOSArgsCmd(), q.file.Name())
+	args := make([]string, 0)
+
+	// FIX: remove display, keep `GetOSArgsCmd`
+	if util.BinExists("display") {
+		args = append(args, "display", q.file.Name())
+	} else {
+		args = append(util.GetOSArgsCmd(), q.file.Name())
+	}
+
 	if err := util.ExecuteCmd(args...); err != nil {
 		return fmt.Errorf("%w: opening QR", err)
 	}
