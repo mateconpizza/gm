@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -37,7 +36,7 @@ func newSQLiteRepository(db *sql.DB, cfg *SQLiteConfig) *SQLiteRepository {
 // opens the database, returning the repository or an error.
 func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 	c.Name = files.EnsureExtension(c.Name, ".db")
-	db, err := MustOpenDatabase(filepath.Join(c.Path, c.Name))
+	db, err := MustOpenDatabase(c.Fullpath())
 	if err != nil {
 		log.Fatal("Error opening database:", err)
 	}

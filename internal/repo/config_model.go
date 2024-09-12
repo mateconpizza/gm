@@ -9,14 +9,35 @@ import (
 
 // SQLiteConfig represents the configuration for a SQLite database.
 type SQLiteConfig struct {
-	Name         string `json:"name"`
-	Path         string `json:"path"`
-	Type         string `json:"type"`
-	TableMain    string `json:"table_main"`
-	TableDeleted string `json:"table_deleted"`
-	BackupPath   string `json:"backup_path"`
-	MaxBytesSize int64  `json:"max_bytes_size"`
-	MaxBackups   int    `json:"max_backups_allowed"`
+	Name         string       `json:"name"`
+	Path         string       `json:"path"`
+	Type         string       `json:"type"`
+	TableMain    string       `json:"table_main"`
+	TableDeleted string       `json:"table_deleted"`
+	Backup       SQLiteBackup `json:"backup"`
+	MaxBytesSize int64        `json:"max_bytes_size"`
+	MaxBackups   int          `json:"max_backups_allowed"`
+}
+
+type SQLiteBackup struct {
+	Path    string   `json:"path"`
+	Files   []string `json:"files"`
+	Limit   int      `json:"limit"`
+	Enabled bool     `json:"enabled"`
+}
+
+func (b *SQLiteBackup) SetLimit(n int) {
+	b.Limit = n
+	b.Enabled = n > 0
+}
+
+func newSQLiteBackup(p string) *SQLiteBackup {
+	return &SQLiteBackup{
+		Path:    filepath.Join(p, "backup"),
+		Files:   []string{},
+		Enabled: false,
+		Limit:   0,
+	}
 }
 
 func (c *SQLiteConfig) Fullpath() string {
@@ -41,6 +62,14 @@ func (c *SQLiteConfig) SetName(name string) *SQLiteConfig {
 	return c
 }
 
+func (c *SQLiteConfig) Exists() error {
+	if !Exists(c.Fullpath()) {
+		return ErrDBNotFound
+	}
+
+	return nil
+}
+
 // NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg(p string) *SQLiteConfig {
 	// FIX: too complicated to setup a SQLiteConfig.
@@ -50,6 +79,6 @@ func NewSQLiteCfg(p string) *SQLiteConfig {
 		Type:         "sqlite",
 		MaxBytesSize: MaxBytesSize,
 		Path:         p,
-		BackupPath:   filepath.Join(p, "backup"),
+		Backup:       *newSQLiteBackup(p),
 	}
 }

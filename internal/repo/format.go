@@ -27,8 +27,8 @@ func Summary(r *SQLiteRepository) string {
 // repository and bookmark.
 func SummaryRecords(r *SQLiteRepository, bk string) string {
 	// FIX: redo
-  path := filepath.Dir(bk)
-  c := NewSQLiteCfg(path)
+	path := filepath.Dir(bk)
+	c := NewSQLiteCfg(path)
 	c.SetName(filepath.Base(bk))
 	rep, _ := New(c)
 
@@ -78,9 +78,9 @@ func BackupsSummary(r *SQLiteRepository) string {
 		lastBackup = SummaryRecords(r, backups.Get(n-1))
 	}
 
-	status := format.PaddedLine("status:", getBkStateColored(r.Cfg.MaxBackups))
-	keep := format.PaddedLine("max:", strconv.Itoa(r.Cfg.MaxBackups)+" backups allowed")
-	path := format.PaddedLine("path:", r.Cfg.BackupPath)
+	status := format.PaddedLine("status:", getBkStateColored(r.Cfg.Backup.Limit))
+	keep := format.PaddedLine("max:", strconv.Itoa(r.Cfg.Backup.Limit)+" backups allowed")
+	path := format.PaddedLine("path:", r.Cfg.Backup.Path)
 	last := format.PaddedLine("last:", lastBackup)
 
 	return f.Header(backupsColor.String()).

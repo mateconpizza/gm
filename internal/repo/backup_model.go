@@ -44,7 +44,7 @@ func CreateBackup(src, destName string, force bool) error {
 
 func GetBackups(r *SQLiteRepository) (*slice.Slice[string], error) {
 	s := filepath.Base(r.Cfg.Fullpath())
-	backups, err := GetDatabasePaths(r.Cfg.BackupPath)
+	backups, err := GetDatabasePaths(r.Cfg.Backup.Path)
 	backups.Filter(func(b string) bool {
 		return strings.Contains(b, s)
 	})

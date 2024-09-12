@@ -57,7 +57,7 @@ func init() {
 // backupCreate creates a backup of the specified repository if
 // conditions are met, including confirmation and backup limits.
 func backupCreate(r *repo.SQLiteRepository) error {
-	if !Force && !isBackupEnabled() {
+	if !Force && !r.Cfg.Backup.Enabled {
 		return repo.ErrBackupDisabled
 	}
 
@@ -93,7 +93,7 @@ func backupPurge(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	backups = backups.TrimElements(r.Cfg.MaxBackups)
+	backups = backups.TrimElements(r.Cfg.Backup.Limit)
 	n := backups.Len()
 	if n == 0 {
 		return repo.ErrBackupNoPurge
@@ -118,13 +118,7 @@ func backupPurge(r *repo.SQLiteRepository) error {
 		return ErrActionAborted
 	}
 
-	formatter := func(s string) error {
-		fmt.Println(s)
-
-		return nil
-	}
-
-	if err := backups.ForEachErr(formatter); err != nil {
+	if err := backups.ForEachErr(repo.Remove); err != nil {
 		return fmt.Errorf("removing backup: %w", err)
 	}
 
