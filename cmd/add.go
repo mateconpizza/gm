@@ -89,8 +89,8 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 	sc := scraper.New(url)
 	_ = sc.Scrape()
 
-	title = sc.GetTitle()
-	desc = sc.GetDesc()
+	title = sc.Title()
+	desc = sc.Desc()
 
 	s.Stop()
 
@@ -126,8 +126,8 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	// WARN: do we need this trim? why?
 	url = strings.TrimRight(url, "/")
 
-	if r.HasRecord(r.Cfg.GetTableMain(), "url", url) {
-		item, _ := r.GetByURL(r.Cfg.GetTableMain(), url)
+	if r.HasRecord(r.Cfg.TableMain, "url", url) {
+		item, _ := r.GetByURL(r.Cfg.TableMain, url)
 		return fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
 	}
 
@@ -146,12 +146,12 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 		}
 	}
 
-	if _, err := r.Insert(r.Cfg.GetTableMain(), b); err != nil {
+	if _, err := r.Insert(r.Cfg.TableMain, b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.Green("successfully").Italic().Bold()
-	fmt.Println("\nbookmark added", success)
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s bookmark created\n", success)
 
 	return nil
 }

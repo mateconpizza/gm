@@ -116,7 +116,7 @@ func WithKeybindNew(key, action, desc string) OptFn {
 func WithMultiSelection() OptFn {
 	opts := []string{"--highlight-line", "--multi"}
 	h := appendKeyDescToHeader(make([]string, 0), "ctrl-a", "toggle-all")
-	// h = appendKeyDescToHeader(h, "tab", "select")
+	h = appendKeyDescToHeader(h, "tab", "select")
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
@@ -193,7 +193,7 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 	m.setup()
 
 	if preprocessor == nil {
-		preprocessor = formatterToStr
+		preprocessor = toString
 	}
 
 	inputChan := formatItems(*items, preprocessor)

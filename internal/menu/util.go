@@ -3,34 +3,25 @@ package menu
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
 )
 
-var Command = config.App.Cmd
-
+// appendKeyDescToHeader appends a key:desc string to the header slice.
 func appendKeyDescToHeader(opts []string, key, desc string) []string {
-	return append(opts, fmt.Sprintf("%s: %s", key, desc))
+	return append(opts, fmt.Sprintf("%s:%s", key, desc))
 }
 
-func formatterToStr[T any](s T) string {
+// toString converts any item to a string.
+func toString[T any](s T) string {
 	return fmt.Sprint(s)
 }
 
-func removeANSICodes(s string) string {
-	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	return re.ReplaceAllString(s, "")
-}
-
-func exitWithErrCode(code int, err error) {
-	if err != nil {
-		fmt.Fprintln(os.Stderr, fmt.Errorf("fzf: %w", err))
-	}
-	os.Exit(code)
-}
-
+// formatItems formats each item in the slice using the preprocessor function
+// and returns a channel of formatted strings.
 func formatItems[T any](items []T, preprocessor func(T) string) chan string {
 	inputChan := make(chan string)
 	go func() {
@@ -44,6 +35,8 @@ func formatItems[T any](items []T, preprocessor func(T) string) chan string {
 	return inputChan
 }
 
+// processOutput formats items, maps them to their original values, and sends
+// the filtered results to resultChan.
 func processOutput[T any](
 	items []T,
 	preprocessor func(T) string,
@@ -54,7 +47,7 @@ func processOutput[T any](
 	ogItem := make(map[string]T)
 
 	for _, item := range items {
-		formatted := removeANSICodes(preprocessor(item))
+		formatted := color.RemoveANSICodes(preprocessor(item))
 		ogItem[formatted] = item
 	}
 
@@ -66,15 +59,17 @@ func processOutput[T any](
 	resultChan <- result
 }
 
+// loadHeader appends a formatted header string to args.
 func loadHeader(header []string, args *[]string) {
 	if len(header) == 0 {
 		return
 	}
 
-	h := strings.Join(header, " ╱ ")
+	h := strings.Join(header, " "+format.BulletPoint+" ")
 	*args = append(*args, "--header="+h)
 }
 
+// loadKeybind appends a comma-separated keybind string to args.
 func loadKeybind(keybind []string, args *[]string) {
 	if len(keybind) == 0 {
 		return
@@ -87,5 +82,13 @@ func loadKeybind(keybind []string, args *[]string) {
 // withCommand formats string with the name of the Command, the same name
 // used when building the binary.
 func withCommand(s string) string {
-	return fmt.Sprintf(s, Command)
+	return fmt.Sprintf(s, config.App.Cmd)
+}
+
+// exitWithErrCode exits with an error code.
+func exitWithErrCode(code int, err error) {
+	if err != nil {
+		fmt.Fprintln(os.Stderr, fmt.Errorf("fzf: %w", err))
+	}
+	os.Exit(code)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
@@ -13,9 +14,9 @@ import (
 // Summary returns a summary of the repository.
 func Summary(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	path := format.PaddedLine("path:", r.Cfg.Path)
-	records := format.PaddedLine("records:", GetRecordCount(r, r.Cfg.GetTableMain()))
-	deleted := format.PaddedLine("deleted:", GetRecordCount(r, r.Cfg.GetTableDeleted()))
+	path := format.PaddedLine("path:", r.Cfg.Fullpath())
+	records := format.PaddedLine("records:", GetRecordCount(r, r.Cfg.TableMain))
+	deleted := format.PaddedLine("deleted:", GetRecordCount(r, r.Cfg.TableDeleted))
 
 	return f.Header(color.Yellow(r.Cfg.Name).Bold().Italic().String()).
 		Row(records).
@@ -25,20 +26,38 @@ func Summary(r *SQLiteRepository) string {
 
 // SummaryRecords generates a summary of record counts for a given SQLite
 // repository and bookmark.
-func SummaryRecords(r *SQLiteRepository, bk string) string {
-	// FIX: redo
-	path := filepath.Dir(bk)
-	c := NewSQLiteCfg(path)
-	c.SetName(filepath.Base(bk))
-	rep, _ := New(c)
+func SummaryRecords(s string) string {
+	f := filepath.Base(s)
+	c := NewSQLiteCfg(filepath.Dir(s))
+	c.SetName(f)
+	r, _ := New(c)
 
-	main := fmt.Sprintf("(main: %d, ", GetRecordCount(rep, rep.Cfg.GetTableMain()))
-	deleted := fmt.Sprintf("deleted: %d)", GetRecordCount(rep, rep.Cfg.GetTableDeleted()))
+	main := fmt.Sprintf("(main: %d, ", GetRecordCount(r, r.Cfg.TableMain))
+	deleted := fmt.Sprintf("deleted: %d)", GetRecordCount(r, r.Cfg.TableDeleted))
 	records := color.Gray(main + deleted).Italic()
-
-	date := GetModTime(c.Fullpath())
+	date := formatBackupDate(f)
 
 	return date + " " + records.String()
+}
+
+func SummaryMultiline(s string) string {
+	g := color.BrightGray
+	f := filepath.Base(s)
+	c := NewSQLiteCfg(filepath.Dir(s))
+	c.SetName(f)
+	r, _ := New(c)
+
+	sep := color.BrightGray("", format.MidBulletPoint, "").Bold().String()
+	name := color.BrightYellow(strings.Split(s, "_")[2]).Italic().String()
+
+	mainRecords := color.BrightPurple(GetRecordCount(r, r.Cfg.TableMain))
+	delRecords := color.BrightPurple(GetRecordCount(r, r.Cfg.TableDeleted))
+	records := g("main: ").String() + mainRecords.String()
+	records += sep
+	records += g("deleted: ").String() + delRecords.String()
+	date := formatBackupDate(f)
+
+	return date + sep + name + sep + records
 }
 
 // BackupDetail returns the details of a backup.
@@ -54,7 +73,7 @@ func BackupDetail(r *SQLiteRepository) string {
 	}
 
 	backups.ForEach(func(bk string) {
-		f.Row(SummaryRecords(r, bk))
+		f.Row(SummaryRecords(bk))
 	})
 
 	return f.String()
@@ -75,7 +94,7 @@ func BackupsSummary(r *SQLiteRepository) string {
 
 	if n > 0 {
 		backupsInfo = format.PaddedLine("found:", strconv.Itoa(n)+" backups found")
-		lastBackup = SummaryRecords(r, backups.Get(n-1))
+		lastBackup = SummaryRecords(backups.Get(n - 1))
 	}
 
 	status := format.PaddedLine("status:", getBkStateColored(r.Cfg.Backup.Limit))
@@ -91,6 +110,15 @@ func BackupsSummary(r *SQLiteRepository) string {
 		Row(status).String()
 }
 
+// Info returns the repository info.
+func Info(r *SQLiteRepository) string {
+	s := Summary(r)
+	s += BackupsSummary(r)
+	s += BackupDetail(r)
+
+	return s
+}
+
 // getBkStateColored returns a colored string with the backups status.
 func getBkStateColored(n int) string {
 	if n <= 0 {
@@ -98,4 +126,15 @@ func getBkStateColored(n int) string {
 	}
 
 	return color.BrightGreen("enabled").String()
+}
+
+func formatBackupDate(s string) string {
+	parts := strings.Split(s, "_")
+	if len(parts) <= 2 {
+		return s
+	}
+
+	d, t := parts[0], parts[1]
+
+	return d + " " + t
 }

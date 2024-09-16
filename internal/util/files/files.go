@@ -68,7 +68,7 @@ func Mkdir(path string) error {
 func MkdirAll(p ...string) error {
 	for _, path := range p {
 		if err := Mkdir(path); err != nil {
-			return fmt.Errorf("setting up paths: %w", err)
+			return err
 		}
 	}
 
@@ -205,4 +205,20 @@ func EnsureExtension(name, ext string) string {
 	}
 
 	return name
+}
+
+// IsNonEmptyFile checks if the database is initialized.
+func IsNonEmptyFile(f string) bool {
+	return Size(f) > 0
+}
+
+// GetModTime returns the modification time of the specified file.
+func GetModTime(s, format string) string {
+	file, err := os.Stat(s)
+	if err != nil {
+		log.Printf("GetModTime: %v", err)
+		return ""
+	}
+
+	return file.ModTime().Format(format)
 }

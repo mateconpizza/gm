@@ -1,18 +1,15 @@
 package bookmark
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"strings"
 
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/util/scraper"
 	"github.com/haaag/gm/internal/util/spinner"
-	"github.com/haaag/gm/pkg/slice"
 )
 
 var ErrLineNotFound = errors.New("line not found")
@@ -52,16 +49,6 @@ func extractTextBlock(content *[]string, startMarker, endMarker string) string {
 	return strings.Join(cleanedBlock, "\n")
 }
 
-// ExtractIDs extracts the IDs from a slice of bookmarks.
-func ExtractIDs(bs *[]Bookmark) []int {
-	ids := make([]int, 0, len(*bs))
-	for _, b := range *bs {
-		ids = append(ids, b.ID)
-	}
-
-	return ids
-}
-
 // ParseContent parses the provided content into a bookmark struct.
 func ParseContent(content *[]string) *Bookmark {
 	urlStr := extractTextBlock(content, "# URL:", "# Title:")
@@ -85,8 +72,8 @@ func ScrapeAndUpdate(b *Bookmark) *Bookmark {
 
 		s.Stop()
 
-		b.Title = validateAttr(b.Title, sc.GetTitle())
-		b.Desc = validateAttr(b.Desc, sc.GetDesc())
+		b.Title = validateAttr(b.Title, sc.Title())
+		b.Desc = validateAttr(b.Desc, sc.Desc())
 	}
 
 	return b
@@ -150,18 +137,6 @@ func Validate(b *Bookmark) error {
 	return nil
 }
 
-// GetBufferSlice returns a buffer with the provided slice of bookmarks.
-func GetBufferSlice(bs *slice.Slice[Bookmark]) []byte {
-	buf := bytes.NewBuffer([]byte{})
-	buf.WriteString("## Remove the <URL> line to ignore bookmark\n")
-	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())
-	bs.ForEach(func(b Bookmark) {
-		buf.Write(formatBufferSimple(&b))
-	})
-
-	return bytes.TrimSpace(buf.Bytes())
-}
-
 // ParseTags normalizes a string of tags by separating them by commas and
 // ensuring that the final string ends with a comma.
 //
@@ -180,70 +155,6 @@ func ParseTags(tags string) string {
 	}
 
 	return tags + ","
-}
-
-// PrettifyTags returns a prettified tags.
-func PrettifyTags(s string) string {
-	t := strings.ReplaceAll(s, ",", format.MidBulletPoint)
-	return strings.TrimRight(t, format.MidBulletPoint)
-}
-
-// PrettifyURLPath returns a prettified URL.
-func PrettifyURLPath(bURL string) string {
-	u, err := url.Parse(bURL)
-	if err != nil {
-		return ""
-	}
-
-	if u.Host == "" || u.Path == "" {
-		return color.Text(bURL).Bold().String()
-	}
-
-	host := color.Text(u.Host).Bold().String()
-	pathSegments := strings.FieldsFunc(
-		strings.TrimLeft(u.Path, "/"),
-		func(r rune) bool { return r == '/' },
-	)
-
-	if len(pathSegments) == 0 {
-		return host
-	}
-
-	pathSeg := color.Gray(
-		format.PathSmallSegment,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
-	)
-
-	return fmt.Sprintf("%s %s", host, pathSeg)
-}
-
-// PrettifyURL returns a prettified URL.
-func PrettifyURL(bURL string) string {
-	u, err := url.Parse(bURL)
-	if err != nil {
-		return ""
-	}
-
-	if u.Host == "" || u.Path == "" {
-		return color.Text(bURL).Bold().String()
-	}
-
-	host := color.Text(u.Host).Bold().String()
-	pathSegments := strings.FieldsFunc(
-		strings.TrimLeft(u.Path, "/"),
-		func(r rune) bool { return r == '/' },
-	)
-
-	if len(pathSegments) == 0 {
-		return host
-	}
-
-	pathSeg := color.Gray(
-		format.PathSmallSegment,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
-	).Italic()
-
-	return fmt.Sprintf("%s %s", host, pathSeg)
 }
 
 // ExtractContentLine extracts URLs from the a slice of strings.

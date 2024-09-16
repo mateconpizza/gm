@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	_defaultTitle = "untitled (unfiled)"
-	_defaultDesc  = "no description available (unfiled)"
+	_defaultTitle string = "untitled (unfiled)"
+	_defaultDesc  string = "no description available (unfiled)"
 )
 
 type Scraper struct {
@@ -26,11 +26,11 @@ func (s *Scraper) Scrape() error {
 	return nil
 }
 
-// GetTitle retrieves the page title from the Scraper's Doc field, falling back
+// Title retrieves the page title from the Scraper's Doc field, falling back
 // to a default value if not found.
 //
 // default: `untitled (unfiled)`
-func (s *Scraper) GetTitle() string {
+func (s *Scraper) Title() string {
 	title := s.Doc.Find("title").Text()
 	if title == "" {
 		return _defaultTitle
@@ -39,11 +39,11 @@ func (s *Scraper) GetTitle() string {
 	return strings.TrimSpace(title)
 }
 
-// GetDesc retrieves the page description from the Scraper's Doc field,
+// Desc retrieves the page description from the Scraper's Doc field,
 // defaulting to a predefined value if not found.
 //
 // default: `no description available (unfiled)`
-func (s *Scraper) GetDesc() string {
+func (s *Scraper) Desc() string {
 	var desc string
 	for _, selector := range []string{
 		"meta[name=description]",

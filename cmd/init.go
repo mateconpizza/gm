@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -10,8 +11,9 @@ import (
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/util"
-	"github.com/haaag/gm/pkg/slice"
+	"github.com/haaag/gm/internal/util/files"
 )
 
 var initCmd = &cobra.Command{
@@ -19,6 +21,18 @@ var initCmd = &cobra.Command{
 	Short:  "initialize a new bookmarks database",
 	Hidden: true,
 	RunE: func(_ *cobra.Command, _ []string) error {
+		// Create paths for the application.
+		var builder strings.Builder
+		p := config.App.Path
+		if !files.Exists(p.Data) {
+			if err := files.MkdirAll(p.Backup); err != nil {
+				logErrAndExit(err)
+			}
+
+			builder.WriteString(fmt.Sprintf("\nSuccessfully created directory path '%s'.", p.Data))
+			builder.WriteString("\nSuccessfully created initial bookmark.")
+		}
+
 		r, err := repo.New(Cfg)
 		if r == nil {
 			return fmt.Errorf("init database: %w", err)
@@ -30,16 +44,24 @@ var initCmd = &cobra.Command{
 		}
 
 		bs := slice.New[Bookmark]()
-		if err := r.GetAll(Cfg.GetTableMain(), bs); err != nil {
+		if err := r.GetAll(Cfg.TableMain, bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
 
-		// get initial bookmark
+		// Get initial bookmark
 		List = true
-		// prints bookmark with frame
+		// Prints bookmark with frame
 		Frame = true
 
-		return handlePrintOut(bs)
+		if err := handlePrintOut(bs); err != nil {
+			return err
+		}
+
+		if builder.Len() > 0 {
+			fmt.Println(builder.String())
+		}
+
+		return nil
 	},
 }
 
@@ -48,7 +70,7 @@ func init() {
 }
 
 func initDB(r *repo.SQLiteRepository) error {
-	if r.IsDatabaseInitialized(r.Cfg.GetTableMain()) && !Force {
+	if r.IsDatabaseInitialized(r.Cfg.TableMain) && !Force {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyInitialized, DBName)
 	}
 
@@ -63,7 +85,7 @@ func initDB(r *repo.SQLiteRepository) error {
 		config.App.Info.Desc,
 	)
 
-	if _, err := r.Insert(r.Cfg.GetTableMain(), initialBookmark); err != nil {
+	if _, err := r.Insert(r.Cfg.TableMain, initialBookmark); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

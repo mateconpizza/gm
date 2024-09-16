@@ -49,7 +49,7 @@ func handleByField(bs *Slice) error {
 
 // handlePrintOut prints the bookmarks in different formats.
 func handlePrintOut(bs *Slice) error {
-	if Exit {
+	if Exit || !Frame {
 		return nil
 	}
 
@@ -57,20 +57,9 @@ func handlePrintOut(bs *Slice) error {
 	lastIdx := bs.Len() - 1
 
 	bs.ForEachIdx(func(i int, b Bookmark) {
-		var output string
-		if Prettify {
-			output = bookmark.PrettyWithURLPath(&b, n) + "\n"
-		}
-
-		if Frame {
-			output = bookmark.FormatWithFrame(&b, n)
-		}
-
-		if output != "" {
-			fmt.Print(output)
-			if i != lastIdx {
-				fmt.Println()
-			}
+		fmt.Print(bookmark.FormatWithFrame(&b, n))
+		if i != lastIdx {
+			fmt.Println()
 		}
 	})
 
@@ -96,9 +85,10 @@ func handleJSONFormat(bs *Slice) error {
 		return nil
 	}
 
+	Exit = true
+
 	if bs.Len() == 0 {
 		fmt.Println(string(format.ToJSON(config.App)))
-		Exit = true
 		return nil
 	}
 
@@ -130,7 +120,7 @@ func handleListAll(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
-	if err := r.GetAll(r.Cfg.GetTableMain(), bs); err != nil {
+	if err := r.GetAll(r.Cfg.TableMain, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -145,7 +135,7 @@ func handleByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 
 	query := strings.Join(args, "%")
-	if err := r.GetByQuery(r.Cfg.GetTableMain(), query, bs); err != nil {
+	if err := r.GetByQuery(r.Cfg.TableMain, query, bs); err != nil {
 		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
 	}
 
@@ -159,7 +149,7 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	for _, tag := range Tags {
-		if err := r.GetByTags(r.Cfg.GetTableMain(), tag, bs); err != nil {
+		if err := r.GetByTags(r.Cfg.TableMain, tag, bs); err != nil {
 			return fmt.Errorf("byTags :%w", err)
 		}
 	}
@@ -226,7 +216,7 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 		editedB.ID = b.ID
 		b = *editedB
 
-		if _, err := r.Update(r.Cfg.GetTableMain(), &b); err != nil {
+		if _, err := r.Update(r.Cfg.TableMain, &b); err != nil {
 			return fmt.Errorf("handle edition: %w", err)
 		}
 
@@ -317,7 +307,7 @@ func handleIDsFromArgs(r *repo.SQLiteRepository, bs *Slice, args []string) error
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.GetByIDList(r.Cfg.GetTableMain(), ids, bs); err != nil {
+	if err := r.GetByIDList(r.Cfg.TableMain, ids, bs); err != nil {
 		return fmt.Errorf("records from args: %w", err)
 	}
 
@@ -338,7 +328,7 @@ func handleQR(bs *Slice) error {
 	Exit = true
 
 	qrFn := func(b Bookmark) error {
-		qrcode := qr.New(b.GetURL())
+		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -347,9 +337,9 @@ func handleQR(bs *Slice) error {
 			return openQR(qrcode, &b)
 		}
 
-		fmt.Println(b.GetTitle())
+		fmt.Println(b.Title)
 		qrcode.Render()
-		fmt.Println(b.GetURL())
+		fmt.Println(b.URL)
 
 		return nil
 	}

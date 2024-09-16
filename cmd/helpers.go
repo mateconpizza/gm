@@ -119,7 +119,7 @@ func bookmarkEdition(b *Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	tempB.ID = b.GetID()
+	tempB.ID = b.ID
 	*b = *tempB
 
 	return nil
@@ -136,12 +136,12 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	title = format.ShortenString(b.GetTitle(), maxLabelLen)
+	title = format.ShortenString(b.Title, maxLabelLen)
 	if err := qrcode.Label(title, "top"); err != nil {
 		return fmt.Errorf("%w: adding top label", err)
 	}
 
-	url = format.ShortenString(b.GetURL(), maxLabelLen)
+	url = format.ShortenString(b.URL, maxLabelLen)
 	if err := qrcode.Label(url, "bottom"); err != nil {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
@@ -157,7 +157,7 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 // bookmark.
 func confirmEditOrSave(b *Bookmark) error {
 	save := color.BrightGreen("\nsave").Bold().String() + " bookmark?"
-	opt := terminal.ConfirmOrEdit(save, []string{"yes", "no", "edit"}, "y")
+	opt := terminal.ConfirmWithOpts(save, []string{"yes", "no", "edit"}, "y")
 
 	switch opt {
 	case "n":
@@ -190,7 +190,7 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 		f.Render()
 
 		summary += prompt + fmt.Sprintf(" %d bookmark/s?", n)
-		opt := terminal.ConfirmOrEdit(summary, []string{"yes", "no", "edit"}, "n")
+		opt := terminal.ConfirmWithOpts(summary, []string{"yes", "no", "edit"}, "n")
 
 		switch opt {
 		case "n", "no":
@@ -234,14 +234,14 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()
 
-	if err := r.DeleteAndReorder(bs, r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()); err != nil {
+	if err := r.DeleteAndReorder(bs, r.Cfg.TableMain, r.Cfg.TableDeleted); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 
 	s.Stop()
 
-	success := color.BrightGreen("successfully").Italic().Bold()
-	fmt.Println("bookmark/s removed", success)
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s bookmark/s removed\n", success)
 
 	return nil
 }

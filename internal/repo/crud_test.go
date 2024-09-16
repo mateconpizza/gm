@@ -10,7 +10,7 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/pkg/slice"
+	"github.com/haaag/gm/internal/slice"
 )
 
 const tempTableName = "test_table"
@@ -79,13 +79,13 @@ func TestDropTable(t *testing.T) {
 	}
 
 	//nolint:perfsprint //gosec conflict
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.GetTableMain()))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.TableMain))
 	if err == nil {
 		t.Errorf("DBMainTable still exists after calling HandleDropDB")
 	}
 
 	//nolint:perfsprint //gosec conflict
-	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.GetTableDeleted()))
+	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.TableDeleted))
 	if err == nil {
 		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")
 	}
@@ -444,18 +444,18 @@ func TestRenameTable(t *testing.T) {
 	db, r := setupTestDB(t)
 	defer teardownTestDB(db)
 
-	err := r.tableRename(tempTableName, DBCfg.GetTableDeleted())
+	err := r.tableRename(tempTableName, DBCfg.TableDeleted)
 	if err != nil {
 		t.Errorf("Error renaming table: %v", err)
 	}
 
-	exists, err := r.tableExists(DBCfg.GetTableDeleted())
+	exists, err := r.tableExists(DBCfg.TableDeleted)
 	if err != nil {
 		t.Errorf("Error checking if table exists: %v", err)
 	}
 
 	if !exists {
-		t.Errorf("Table %s does not exist", DBCfg.GetTableDeleted())
+		t.Errorf("Table %s does not exist", DBCfg.TableDeleted)
 	}
 }
 

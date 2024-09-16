@@ -1,12 +1,15 @@
 package bookmark
 
 import (
+	"bytes"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/util/frame"
 )
 
@@ -28,11 +31,11 @@ func FormatOneline(b *Bookmark, maxWidth int) string {
 	// define template with formatted placeholders
 	template := "%-*s %s %-*s %-*s\n"
 
-	coloredID := color.BrightYellow(b.GetID()).Bold().String()
-	shortURL := format.ShortenString(b.GetURL(), urlLen)
+	coloredID := color.BrightYellow(b.ID).Bold().String()
+	shortURL := format.ShortenString(b.URL, urlLen)
 	colorURL := color.BrightWhite(shortURL).String()
 	urlLen += len(colorURL) - len(shortURL)
-	tagsColor := color.BrightCyan(b.GetTags()).Italic().String()
+	tagsColor := color.BrightCyan(b.Tags).Italic().String()
 	result := fmt.Sprintf(
 		template,
 		idLen,
@@ -53,14 +56,14 @@ func Multiline(b *Bookmark, maxWidth int) string {
 	n := maxWidth
 	var sb strings.Builder
 
-	id := color.BrightYellow(b.GetID()).Bold().String()
-	url := color.BrightMagenta(format.ShortenString(PrettifyURL(b.GetURL()), n)).
+	id := color.BrightYellow(b.ID).Bold().String()
+	urlColor := color.BrightMagenta(format.ShortenString(PrettifyURL(b.URL), n)).
 		String()
-	title := format.ShortenString(b.GetTitle(), n)
-	tags := color.Gray(PrettifyTags(b.GetTags())).Italic().String()
+	title := format.ShortenString(b.Title, n)
+	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
 	sb.WriteString(
-		fmt.Sprintf("%s %s %s\n%s\n%s", id, format.MidBulletPoint, url, title, tags),
+		fmt.Sprintf("%s %s %s\n%s\n%s", id, format.MidBulletPoint, urlColor, title, tags),
 	)
 
 	return sb.String()
@@ -81,13 +84,13 @@ func PrettyWithURLPath(b *Bookmark, maxWidth int) string {
 		sb        strings.Builder
 		separator = strings.Repeat(" ", spaces) + "+"
 		maxLine   = maxWidth - len(separator) - newLine
-		title     = format.SplitAndAlignLines(b.GetTitle(), maxLine, indentation)
-		prettyURL = PrettifyURLPath(b.GetURL())
+		title     = format.SplitAndAlignLines(b.Title, maxLine, indentation)
+		prettyURL = PrettifyURLPath(b.URL)
 		shortURL  = format.ShortenString(prettyURL, maxLine)
-		desc      = format.SplitAndAlignLines(b.GetDesc(), maxLine, indentation)
-		id        = color.BrightWhite(b.GetID()).String()
+		desc      = format.SplitAndAlignLines(b.Desc, maxLine, indentation)
+		id        = color.BrightWhite(b.ID).String()
 		idSpace   = len(separator) - 1
-		idPadding = strings.Repeat(" ", idSpace-len(strconv.Itoa(b.GetID())))
+		idPadding = strings.Repeat(" ", idSpace-len(strconv.Itoa(b.ID)))
 	)
 
 	// Construct the formatted string
@@ -95,7 +98,7 @@ func PrettyWithURLPath(b *Bookmark, maxWidth int) string {
 		fmt.Sprintf("%s%s%s %s\n", id, idPadding, bulletPoint, color.Purple(shortURL).String()),
 	)
 	sb.WriteString(color.Cyan(separator, title, "\n").String())
-	sb.WriteString(color.Gray(separator, PrettifyTags(b.GetTags()), "\n").Italic().String())
+	sb.WriteString(color.Gray(separator, PrettifyTags(b.Tags), "\n").Italic().String())
 	sb.WriteString(color.BrightWhite(separator, desc).String())
 
 	return sb.String()
@@ -110,14 +113,14 @@ func WithFrameAndURLColor(
 ) {
 	n -= len(f.Border.Row)
 
-	titleSplit := format.SplitIntoLines(b.GetTitle(), n)
-	idStr := color.BrightWhite(b.GetID()).Bold().String()
+	titleSplit := format.SplitIntoLines(b.Title, n)
+	idStr := color.BrightWhite(b.ID).Bold().String()
 
-	url := c(format.ShortenString(PrettifyURL(b.GetURL()), n)).String()
+	urlColor := c(format.ShortenString(PrettifyURL(b.URL), n)).String()
 	title := color.ApplyMany(titleSplit, color.Cyan)
-	tags := color.Gray(PrettifyTags(b.GetTags())).Italic().String()
+	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
-	f.Mid(fmt.Sprintf("%s %s %s", idStr, format.MidBulletPoint, url))
+	f.Mid(fmt.Sprintf("%s %s %s", idStr, format.MidBulletPoint, urlColor))
 	f.Mid(title...).Mid(tags).Newline()
 }
 
@@ -130,18 +133,18 @@ func FormatWithFrame(b *Bookmark, maxWidth int) string {
 	n -= len(f.Border.Row)
 
 	// Split and add intendation
-	descSplit := format.SplitIntoLines(b.GetDesc(), n)
-	titleSplit := format.SplitIntoLines(b.GetTitle(), n)
+	descSplit := format.SplitIntoLines(b.Desc, n)
+	titleSplit := format.SplitIntoLines(b.Title, n)
 
 	// Add color and style
-	id := color.BrightYellow(b.GetID()).Bold().String()
-	url := color.BrightMagenta(format.ShortenString(PrettifyURL(b.GetURL()), n)).
+	id := color.BrightYellow(b.ID).Bold().String()
+	urlColor := color.BrightMagenta(format.ShortenString(PrettifyURL(b.URL), n)).
 		String()
 	title := color.ApplyMany(titleSplit, color.Cyan)
 	desc := color.ApplyMany(descSplit, color.BrightWhite)
-	tags := color.Gray(PrettifyTags(b.GetTags())).Italic().String()
+	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
-	return f.Header(fmt.Sprintf("%s %s", id, url)).
+	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).
 		Mid(title...).Mid(desc...).
 		Footer(tags).String()
 }
@@ -157,31 +160,88 @@ func FormatBuffer(b *Bookmark) []byte {
 # Description: (leave an empty line for web fetch)
 %s
 # end
-`, b.GetURL(), b.GetTitle(), b.GetTags(), b.GetDesc()))
+`, b.URL, b.Title, b.Tags, b.Desc))
+}
+
+// PrettifyTags returns a prettified tags.
+func PrettifyTags(s string) string {
+	t := strings.ReplaceAll(s, ",", format.MidBulletPoint)
+	return strings.TrimRight(t, format.MidBulletPoint)
+}
+
+// PrettifyURLPath returns a prettified URL.
+func PrettifyURLPath(bURL string) string {
+	u, err := url.Parse(bURL)
+	if err != nil {
+		return ""
+	}
+
+	if u.Host == "" || u.Path == "" {
+		return color.Text(bURL).Bold().String()
+	}
+
+	host := color.Text(u.Host).Bold().String()
+	pathSegments := strings.FieldsFunc(
+		strings.TrimLeft(u.Path, "/"),
+		func(r rune) bool { return r == '/' },
+	)
+
+	if len(pathSegments) == 0 {
+		return host
+	}
+
+	pathSeg := color.Gray(
+		format.PathSmallSegment,
+		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
+	)
+
+	return fmt.Sprintf("%s %s", host, pathSeg)
+}
+
+// PrettifyURL returns a prettified URL.
+func PrettifyURL(bURL string) string {
+	u, err := url.Parse(bURL)
+	if err != nil {
+		return ""
+	}
+
+	if u.Host == "" || u.Path == "" {
+		return color.Text(bURL).Bold().String()
+	}
+
+	host := color.Text(u.Host).Bold().String()
+	pathSegments := strings.FieldsFunc(
+		strings.TrimLeft(u.Path, "/"),
+		func(r rune) bool { return r == '/' },
+	)
+
+	if len(pathSegments) == 0 {
+		return host
+	}
+
+	pathSeg := color.Gray(
+		format.PathSmallSegment,
+		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
+	).Italic()
+
+	return fmt.Sprintf("%s %s", host, pathSeg)
+}
+
+// GetBufferSlice returns a buffer with the provided slice of bookmarks.
+func GetBufferSlice(bs *slice.Slice[Bookmark]) []byte {
+	// FIX: replace with menu
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString("## Remove the <URL> line to ignore bookmark\n")
+	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())
+	bs.ForEach(func(b Bookmark) {
+		buf.Write(formatBufferSimple(&b))
+	})
+
+	return bytes.TrimSpace(buf.Bytes())
 }
 
 // formatBufferSimple returns a simple buf with ID, title, tags and URL.
 func formatBufferSimple(b *Bookmark) []byte {
 	id := fmt.Sprintf("[%d]", b.ID)
 	return []byte(fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL))
-}
-
-func GetField(b *Bookmark, f string) (string, error) {
-	var s string
-	switch f {
-	case "id":
-		s = strconv.Itoa(b.GetID())
-	case "url":
-		s = b.GetURL()
-	case "title":
-		s = b.GetTitle()
-	case "tags":
-		s = b.GetTags()
-	case "desc":
-		s = b.GetDesc()
-	default:
-		return "", fmt.Errorf("%w: '%s'", ErrUnknownField, f)
-	}
-
-	return s, nil
 }

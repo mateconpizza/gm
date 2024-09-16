@@ -75,7 +75,7 @@ func TestGetTitle(t *testing.T) {
 		sc := New(url)
 		_ = sc.Scrape()
 
-		return sc.GetTitle(), nil
+		return sc.Title(), nil
 	}, tests)
 }
 
@@ -148,6 +148,6 @@ func TestGetDescription(t *testing.T) {
 		sc := New(url)
 		_ = sc.Scrape()
 
-		return sc.GetDesc(), nil
+		return sc.Desc(), nil
 	}, tests)
 }

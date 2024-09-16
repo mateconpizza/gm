@@ -28,43 +28,19 @@ type Bookmark struct {
 	ID        int    `db:"id"         json:"id"`
 }
 
-func (b *Bookmark) GetID() int {
-	return b.ID
-}
-
-func (b *Bookmark) GetURL() string {
-	return b.URL
-}
-
-func (b *Bookmark) GetTags() string {
-	return b.Tags
-}
-
-func (b *Bookmark) GetTitle() string {
-	return b.Title
-}
-
-func (b *Bookmark) GetDesc() string {
-	return b.Desc
-}
-
-func (b *Bookmark) GetCreatedAt() string {
-	return b.CreatedAt
-}
-
 func (b *Bookmark) Field(f string) (string, error) {
 	var s string
 	switch f {
 	case "id", "1":
-		s = strconv.Itoa(b.GetID())
+		s = strconv.Itoa(b.ID)
 	case "url", "2":
-		s = b.GetURL()
+		s = b.URL
 	case "title", "3":
-		s = b.GetTitle()
+		s = b.Title
 	case "tags", "4":
-		s = b.GetTags()
+		s = b.Tags
 	case "desc", "5":
-		s = b.GetDesc()
+		s = b.Desc
 	default:
 		return "", fmt.Errorf("%w: '%s'", ErrUnknownField, f)
 	}

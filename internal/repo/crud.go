@@ -11,28 +11,26 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/pkg/slice"
+	"github.com/haaag/gm/internal/slice"
 )
 
 type (
-	Data  = slice.Slice[string]
-	IDs   = slice.Slice[int]
 	Row   = bookmark.Bookmark
 	Slice = slice.Slice[Row]
 )
 
 // Init initialize database.
 func (r *SQLiteRepository) Init() error {
-	var main, deleted string
+	var m, d string
 
-	main = r.Cfg.GetTableMain()
-	if err := r.TableCreate(main, tableMainSchema); err != nil {
-		return fmt.Errorf("creating '%s' table: %w", main, err)
+	m = r.Cfg.TableMain
+	if err := r.TableCreate(m, tableMainSchema); err != nil {
+		return fmt.Errorf("creating '%s' table: %w", m, err)
 	}
 
-	deleted = r.Cfg.GetTableDeleted()
-	if err := r.TableCreate(deleted, tableMainSchema); err != nil {
-		return fmt.Errorf("creating '%s' table: %w", deleted, err)
+	d = r.Cfg.TableDeleted
+	if err := r.TableCreate(d, tableMainSchema); err != nil {
+		return fmt.Errorf("creating '%s' table: %w", d, err)
 	}
 
 	return nil
@@ -53,18 +51,19 @@ func (r *SQLiteRepository) Insert(tableName string, b *Row) (*Row, error) {
 		)
 	}
 
-	currentTime := time.Now()
-	sqlQuery := fmt.Sprintf(
+	ct := time.Now()
+	query := fmt.Sprintf(
 		`INSERT INTO %s(
       url, title, tags, desc, created_at)
       VALUES(?, ?, ?, ?, ?)`, tableName)
+
 	result, err := r.DB.Exec(
-		sqlQuery,
+		query,
 		b.URL,
 		b.Title,
 		b.Tags,
 		b.Desc,
-		currentTime.Format(config.DB.DateFormat),
+		ct.Format(config.DB.DateFormat),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)
@@ -187,7 +186,7 @@ func (r *SQLiteRepository) deleteAll(tableName string) error {
 }
 
 // DeleteBulk deletes multiple records.
-func (r *SQLiteRepository) DeleteBulk(tableName string, ids *IDs) error {
+func (r *SQLiteRepository) DeleteBulk(tableName string, ids *slice.Slice[int]) error {
 	n := ids.Len()
 	if n == 0 {
 		return ErrRecordIDNotProvided
@@ -446,7 +445,7 @@ func (r *SQLiteRepository) GetByQuery(tableName, q string, bs *Slice) error {
 }
 
 // GetByColumn returns the data found from the given column name.
-func (r *SQLiteRepository) GetByColumn(tableName, column string) (*Data, error) {
+func (r *SQLiteRepository) GetByColumn(tableName, column string) (*slice.Slice[string], error) {
 	log.Printf("getting all records from table: '%s' and column: '%s'", tableName, column)
 	sqlQuery := fmt.Sprintf("SELECT %s FROM %s ORDER BY id ASC", column, tableName)
 	rows, err := r.DB.Query(sqlQuery)

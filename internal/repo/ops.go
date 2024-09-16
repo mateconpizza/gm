@@ -3,24 +3,14 @@ package repo
 import (
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/util/files"
-	"github.com/haaag/gm/pkg/slice"
 )
-
-// IsNonEmptyFile checks if the database is initialized.
-func IsNonEmptyFile(f string) bool {
-	return files.Size(f) > 0
-}
-
-// Exists checks if a database exists.
-func Exists(f string) bool {
-	return files.Exists(f)
-}
 
 // GetRecordCount retrieves the maximum ID from the specified table in the
 // SQLite database.
@@ -30,9 +20,13 @@ func GetRecordCount(r *SQLiteRepository, tableName string) int {
 }
 
 // GetDatabasePaths returns the list of files from the given path.
-func GetDatabasePaths(path string) (*slice.Slice[string], error) {
-	log.Printf("GetDatabasePaths: path: '%s'", path)
-	f, err := files.FindByExtension(path, "db")
+func GetDatabasePaths(p string) (*slice.Slice[string], error) {
+	log.Printf("GetDatabasePaths: path: '%s'", p)
+	if !files.Exists(p) {
+		return nil, files.ErrPathNotFound
+	}
+
+	f, err := files.FindByExtension(p, "db")
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -63,6 +57,49 @@ func GetDatabases(c *SQLiteConfig) (*slice.Slice[*SQLiteRepository], error) {
 	return dbs, nil
 }
 
+// CreateBackup creates a new backup.
+func CreateBackup(src, destName string, force bool) error {
+	log.Printf("CreateBackup: src: %s, dest: %s", src, destName)
+	path := filepath.Dir(src)
+	if !files.Exists(path) {
+		return fmt.Errorf("%w: %s", ErrBackupPathNotSet, path)
+	}
+
+	backupPath := filepath.Join(path, "backup")
+	if err := files.MkdirAll(backupPath); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	destPath := filepath.Join(backupPath, destName)
+	if files.Exists(destPath) && !force {
+		return fmt.Errorf("%w: %s", ErrBackupAlreadyExists, destName)
+	}
+
+	if err := files.Copy(src, destPath); err != nil {
+		return fmt.Errorf("copying file: %w", err)
+	}
+
+	return nil
+}
+
+func GetBackups(r *SQLiteRepository) (*slice.Slice[string], error) {
+	s := filepath.Base(r.Cfg.Fullpath())
+	backups, err := GetDatabasePaths(r.Cfg.Backup.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	backups.Filter(func(b string) bool {
+		return strings.Contains(b, s)
+	})
+
+	if backups.Len() == 0 {
+		return backups, fmt.Errorf("%w: '%s'", ErrBackupNotFound, s)
+	}
+
+	return backups, nil
+}
+
 // AddPrefixDate adds the current date and time to the specified name.
 func AddPrefixDate(name string) string {
 	now := time.Now().Format(config.DB.BackupDateFormat)
@@ -80,24 +117,4 @@ func Remove(f string) error {
 	log.Printf("Remove: removed repository: '%s'", f)
 
 	return nil
-}
-
-// Info returns the repository info.
-func Info(r *SQLiteRepository) string {
-	s := Summary(r)
-	s += BackupsSummary(r)
-	s += BackupDetail(r)
-
-	return s
-}
-
-// GetModTime returns the modification time of the specified file.
-func GetModTime(s string) string {
-	file, err := os.Stat(s)
-	if err != nil {
-		log.Printf("GetModTime: %v", err)
-		return ""
-	}
-
-	return file.ModTime().Format(config.DB.BackupDateFormat)
 }

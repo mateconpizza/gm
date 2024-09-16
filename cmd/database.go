@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -22,19 +21,13 @@ var (
 	dbRemove bool
 )
 
-// dbExistsAndInit checks if the default database exists and is initialized.
-func dbExistsAndInit(path, name string) bool {
-	f := filepath.Join(path, files.EnsureExtension(name, ".db"))
-	return repo.Exists(f) && repo.IsNonEmptyFile(f)
-}
-
 // handleDBDrop clears the database.
 func handleDBDrop(r *repo.SQLiteRepository) error {
-	if !r.IsDatabaseInitialized(r.Cfg.GetTableMain()) {
+	if !r.IsDatabaseInitialized(r.Cfg.TableMain) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 	}
 
-	if r.IsEmpty(r.Cfg.GetTableMain(), r.Cfg.GetTableDeleted()) {
+	if r.IsEmpty(r.Cfg.TableMain, r.Cfg.TableDeleted) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.Name)
 	}
 
@@ -49,8 +42,8 @@ func handleDBDrop(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.BrightGreen("successfully").Italic().Bold()
-	fmt.Println("database cleared", success.String())
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s database cleared\n", success)
 
 	return nil
 }
@@ -67,27 +60,34 @@ func removeDB(r *repo.SQLiteRepository) error {
 	backups, _ := repo.GetBackups(r)
 	n := backups.Len()
 
-	q = fmt.Sprintf("remove %d %s?", n, color.Red("backup/s").Bold())
-	if !terminal.Confirm(q, "n") {
-		return ErrActionAborted
+	if n > 0 {
+		q = fmt.Sprintf("remove %d %s?", n, color.Red("backup/s").Bold())
+		if !terminal.Confirm(q, "n") {
+			return ErrActionAborted
+		}
+
+		if err := backups.ForEachErr(repo.Remove); err != nil {
+			return fmt.Errorf("removing backup: %w", err)
+		}
 	}
 
-	/* backups.ForEach(func(b string) {
-		fmt.Println(b)
-	}) */
+	// remove repo
+	if err := repo.Remove(r.Cfg.Fullpath()); err != nil {
+		return fmt.Errorf("%w", err)
+	}
 
-	success := color.BrightGreen("successfully").Italic().Bold()
-	fmt.Println("\ndatabase removed", success)
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s database removed\n", success)
 
 	return nil
 }
 
 // checkDBState verifies database existence and initialization.
 func checkDBState(f string) error {
-	if !repo.Exists(f) {
+	if !files.Exists(f) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, f)
 	}
-	if !repo.IsNonEmptyFile(f) {
+	if !files.IsNonEmptyFile(f) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, f)
 	}
 
@@ -124,8 +124,8 @@ func handleListDB(r *repo.SQLiteRepository) error {
 
 // handleRemoveDB removes a database.
 func handleRemoveDB(r *repo.SQLiteRepository) error {
-	if !repo.Exists(r.Cfg.Fullpath()) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, r.Cfg.Name)
+	if err := r.Cfg.Exists(); err != nil {
+		return fmt.Errorf("%w: '%s'", err, r.Cfg.Name)
 	}
 
 	return removeDB(r)
@@ -147,8 +147,9 @@ func handleDBInfo(r *repo.SQLiteRepository) error {
 }
 
 var dbCmd = &cobra.Command{
-	Use:   "db",
-	Short: "database management",
+	Use:     "db",
+	Aliases: []string{"database"},
+	Short:   "database management",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return verifyDatabase(Cfg)
 	},

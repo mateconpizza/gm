@@ -3,11 +3,41 @@ package config
 import "os"
 
 const (
-	AppName string = "gomarks"
-	Command string = "gm"
+	AppName string = "gomarks" // Default name of the application
+	Command string = "gm"      // Default name of the executable
 )
 
-var Version string = "0.0.7"
+var Version string = "0.0.8" // Version of the application
+
+type (
+	app struct {
+		Name    string      `json:"name"`    // Name of the application
+		Cmd     string      `json:"cmd"`     // Name of the executable
+		Version string      `json:"version"` // Version of the application
+		Info    information `json:"data"`    // Application information
+		Env     environment `json:"env"`     // Application environment variables
+		Path    path        `json:"path"`    // Application path
+	}
+
+	path struct {
+		Backup string `json:"backup"` // Path to store database backups
+		Config string `json:"home"`   // Path to store configuration (unused)
+		Data   string `json:"data"`   // Path to store database
+	}
+
+	information struct {
+		URL   string `json:"url"`   // URL of the application
+		Title string `json:"title"` // Title of the application
+		Tags  string `json:"tags"`  // Tags of the application
+		Desc  string `json:"desc"`  // Description of the application
+	}
+
+	environment struct {
+		Home      string `json:"home"`        // Environment variable for the home directory
+		Editor    string `json:"editor"`      // Environment variable for the preferred editor
+		BackupMax string `json:"max_backups"` // Environment variable for the maximum number of backups
+	}
+)
 
 type database struct {
 	Name             string // Default name of the SQLite database.
@@ -19,42 +49,12 @@ type database struct {
 	BackupMaxBackups int    // Maximum number of backups allowed.
 }
 
-type app struct {
-	Name    string      `json:"name"`
-	Cmd     string      `json:"cmd"`
-	Version string      `json:"version"`
-	Info    information `json:"data"`
-	Env     environment `json:"env"`
-	Path    path        `json:"path"`
-}
-
-// path represents the application path.
-type path struct {
-	Backup string `json:"backup"`
-	Config string `json:"home"`
-	Data   string `json:"data"`
-}
-
-// information represents the application information.
-type information struct {
-	URL   string `json:"url"`
-	Title string `json:"title"`
-	Tags  string `json:"tags"`
-	Desc  string `json:"desc"`
-}
-
-// environment represents the application environment.
-type environment struct {
-	Home      string `json:"home"`
-	Editor    string `json:"editor"`
-	BackupMax string `json:"max_backups"`
-}
-
 type files struct {
-	DirPermissions  os.FileMode
-	FilePermissions os.FileMode
+	DirPermissions  os.FileMode // Permissions for new directories.
+	FilePermissions os.FileMode // Permissions for new files.
 }
 
+// DB is the default database configuration.
 var DB = database{
 	Name:             "bookmarks.db",
 	MainTable:        "bookmarks",
@@ -65,13 +65,13 @@ var DB = database{
 	BackupMaxBackups: 3,
 }
 
+// Files is the default files permissions.
 var Files = files{
-	// DirPermissions the default permissions for new directories.
-	DirPermissions: 0o755,
-	// FilePermissions the default permissions for new files.
+	DirPermissions:  0o755,
 	FilePermissions: 0o644,
 }
 
+// App is the default application configuration.
 var App = app{
 	Name:    AppName,
 	Cmd:     Command,

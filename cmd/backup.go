@@ -80,8 +80,8 @@ func backupCreate(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.BrightGreen("successfully").Italic().Bold()
-	fmt.Printf("backup created %s: %s\n", success.String(), destName)
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s backup created: %s\n", success.String(), destName)
 
 	return nil
 }
@@ -106,7 +106,7 @@ func backupPurge(r *repo.SQLiteRepository) error {
 	if n > 0 {
 		f.Header(color.BrightRed(n, "backups to delete").Bold().Italic().String())
 		backups.ForEach(func(b string) {
-			f.Row(repo.SummaryRecords(r, b))
+			f.Row(repo.SummaryRecords(b))
 		})
 
 		status += f.String()
@@ -122,8 +122,8 @@ func backupPurge(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("removing backup: %w", err)
 	}
 
-	success := color.BrightGreen("successfully").Italic().Bold()
-	fmt.Println("backups purged", success.String())
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s backups purged\n", success)
 
 	return nil
 }

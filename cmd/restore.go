@@ -7,9 +7,9 @@ import (
 
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/terminal"
 	"github.com/haaag/gm/internal/util/spinner"
-	"github.com/haaag/gm/pkg/slice"
 )
 
 var restoreCmd = &cobra.Command{
@@ -21,7 +21,7 @@ var restoreCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
 		// Read from deleted table
-		Cfg.TableMain = Cfg.GetTableDeleted()
+		Cfg.TableMain = Cfg.TableDeleted
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -69,8 +69,8 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	s.Stop()
-	success := color.BrightGreen("successfully").Italic().Bold()
-	fmt.Println("bookmark/s restored", success)
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s bookmark/s restored\n", success)
 
 	return nil
 }

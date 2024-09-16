@@ -33,3 +33,12 @@ var (
 	ErrRecordUpdate           = errors.New("update failed")
 	ErrRecordRestoreTable     = errors.New("restoring from table")
 )
+
+var (
+	// backups errs.
+	ErrBackupAlreadyExists = errors.New("backup already exists")
+	ErrBackupDisabled      = errors.New("backups are disabled")
+	ErrBackupNoPurge       = errors.New("no backup to purge")
+	ErrBackupNotFound      = errors.New("no backup found")
+	ErrBackupPathNotSet    = errors.New("backup path not set")
+)

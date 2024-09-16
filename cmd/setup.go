@@ -32,6 +32,7 @@ var (
 	Multiline bool
 	Frame     bool
 	WithColor string
+	Print     string
 
 	Force   bool
 	Status  bool
@@ -61,11 +62,6 @@ func initConfig() {
 	Cfg = repo.NewSQLiteCfg(dataHomePath)
 	Cfg.SetName(DBName)
 	Cfg.Backup.SetLimit(getMaxBackup())
-
-	// Create paths for the application.
-	if err := files.MkdirAll(config.App.Path.Backup); err != nil {
-		logErrAndExit(err)
-	}
 }
 
 func init() {
@@ -77,27 +73,33 @@ func init() {
 	rootCmd.PersistentFlags().
 		BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "verbose mode")
-	rootCmd.PersistentFlags().BoolVarP(&JSON, "json", "j", false, "print data in JSON format")
+
+	// Prints
 	rootCmd.PersistentFlags().BoolVarP(&Frame, "frame", "f", false, "print data in framed format")
+	rootCmd.PersistentFlags().BoolVarP(&JSON, "json", "j", false, "print data in JSON format")
 	rootCmd.PersistentFlags().
-		StringVar(&WithColor, "color", "never", "print data in pretty colors [always|never]")
+		StringVarP(&WithColor, "color", "C", "never", "print data with pretty colors [always|never]")
 	rootCmd.MarkFlagsMutuallyExclusive("json", "frame")
+	rootCmd.Flags().
+		BoolVarP(&Oneline, "oneline", "O", false, "print data in formatted oneline (fzf)")
+	rootCmd.Flags().
+		BoolVarP(&Multiline, "multiline", "M", false, "print data in formatted multiline (fzf)")
+	rootCmd.Flags().StringVarP(&Field, "field", "F", "", "print data by field [id|url|title|tags]")
+	rootCmd.PersistentFlags().
+		StringVarP(&Print, "print", "p", "frame", "print data [oneline,multiline,frame,json]")
 
 	// Actions
 	rootCmd.Flags().BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
 	rootCmd.Flags().BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
 	rootCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
-	rootCmd.Flags().StringSliceVarP(&Tags, "tags", "t", nil, "bookmarks by tag")
-	rootCmd.Flags().BoolVar(&QR, "qr", false, "generate qr-code")
+	rootCmd.Flags().StringSliceVarP(&Tags, "tags", "t", nil, "list by tag")
+	rootCmd.Flags().BoolVarP(&QR, "qr", "Q", false, "generate qr-code")
 
 	// Experimental
 	rootCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
 	rootCmd.Flags().BoolVarP(&Edit, "edit", "e", false, "edit mode")
 	rootCmd.Flags().BoolVarP(&Status, "status", "s", false, "check bookmarks status")
-	rootCmd.Flags().BoolVar(&Oneline, "oneline", false, "output formatted oneline data")
-	rootCmd.Flags().BoolVar(&Multiline, "multiline", false, "output formatted multiline data")
 	rootCmd.Flags().BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
-	rootCmd.Flags().StringVarP(&Field, "field", "F", "", "prints by field [id|url|title|tags]")
 
 	// Modifiers
 	rootCmd.Flags().IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")

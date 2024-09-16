@@ -7,7 +7,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/pkg/slice"
+	"github.com/haaag/gm/internal/slice"
 )
 
 // reorderIDs reorders the IDs in the specified table.
@@ -181,16 +181,16 @@ func (r *SQLiteRepository) checkSize(n int64) error {
 
 // DropSecure removes all records database.
 func (r *SQLiteRepository) DropSecure() error {
-	if err := r.deleteAll(r.Cfg.GetTableMain()); err != nil {
+	if err := r.deleteAll(r.Cfg.TableMain); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	if err := r.deleteAll(r.Cfg.GetTableDeleted()); err != nil {
+	if err := r.deleteAll(r.Cfg.TableDeleted); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	if err := r.resetSQLiteSequence(r.Cfg.GetTableMain()); err != nil {
+	if err := r.resetSQLiteSequence(r.Cfg.TableMain); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	if err := r.resetSQLiteSequence(r.Cfg.GetTableDeleted()); err != nil {
+	if err := r.resetSQLiteSequence(r.Cfg.TableDeleted); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	if err := r.vacuum(); err != nil {

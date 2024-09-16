@@ -17,6 +17,7 @@ const (
 	MidBulletPoint   = "\u00b7" /* · */
 	PathBigSegment   = "\u25B6" /* ▶ */
 	PathSmallSegment = "\u25B8" /* ▸ */
+	LightDiagCross   = "\u2571" /* ╱ */
 )
 
 // PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.

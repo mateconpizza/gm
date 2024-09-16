@@ -8,8 +8,8 @@ import (
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/terminal"
-	"github.com/haaag/gm/pkg/slice"
 )
 
 type (
@@ -30,7 +30,7 @@ var (
 	// Main database name.
 	DBName string
 
-	// FIX: Remove this Global Exit.
+	// FIX: Find a better way to handle exit.
 	Exit bool
 )
 

@@ -12,7 +12,6 @@ import (
 type SQLiteConfig struct {
 	Name         string       `json:"name"`
 	Path         string       `json:"path"`
-	Type         string       `json:"type"`
 	TableMain    string       `json:"table_main"`
 	TableDeleted string       `json:"table_deleted"`
 	Backup       SQLiteBackup `json:"backup"`
@@ -45,14 +44,6 @@ func (c *SQLiteConfig) Fullpath() string {
 	return filepath.Join(c.Path, c.Name)
 }
 
-func (c *SQLiteConfig) GetTableMain() string {
-	return c.TableMain
-}
-
-func (c *SQLiteConfig) GetTableDeleted() string {
-	return c.TableDeleted
-}
-
 func (c *SQLiteConfig) SetPath(path string) *SQLiteConfig {
 	c.Path = path
 	return c
@@ -64,7 +55,7 @@ func (c *SQLiteConfig) SetName(name string) *SQLiteConfig {
 }
 
 func (c *SQLiteConfig) Exists() error {
-	if !Exists(c.Fullpath()) {
+	if !files.Exists(c.Fullpath()) {
 		return ErrDBNotFound
 	}
 
@@ -73,11 +64,9 @@ func (c *SQLiteConfig) Exists() error {
 
 // NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg(p string) *SQLiteConfig {
-	// FIX: too complicated to setup a SQLiteConfig.
 	return &SQLiteConfig{
 		TableMain:    config.DB.MainTable,
 		TableDeleted: config.DB.DeletedTable,
-		Type:         "sqlite",
 		MaxBytesSize: config.DB.MaxBytesSize,
 		Path:         p,
 		Backup:       *newSQLiteBackup(p),
