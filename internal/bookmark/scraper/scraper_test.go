@@ -44,7 +44,7 @@ func testScrapeFn(t *testing.T, getTitleOrDesc func(string) (string, error), tes
 	}
 }
 
-func TestGetTitle(t *testing.T) {
+func TestTitle(t *testing.T) {
 	tests := []struct {
 		name     string
 		url      string
@@ -61,13 +61,13 @@ func TestGetTitle(t *testing.T) {
 			name:     "NoTitleTag",
 			url:      "http://example.com",
 			server:   createTestServer(`<h1>Test Heading</h1>`),
-			expected: _defaultTitle,
+			expected: defaultTitle,
 		},
 		{
 			name:     "NoValidURL",
 			url:      "http://invalid-url",
 			server:   createTestServer(``),
-			expected: _defaultTitle,
+			expected: defaultTitle,
 		},
 	}
 
@@ -80,7 +80,7 @@ func TestGetTitle(t *testing.T) {
 }
 
 //nolint:funlen //test
-func TestGetDescription(t *testing.T) {
+func TestDesc(t *testing.T) {
 	tests := []struct {
 		name     string
 		url      string
@@ -101,7 +101,7 @@ func TestGetDescription(t *testing.T) {
 			server: createTestServer(
 				"<html><head><title>Test Title</title></head></html>",
 			),
-			expected: _defaultDesc,
+			expected: defaultDesc,
 		},
 		{
 			name: "ValidMetaDescription",
@@ -126,7 +126,7 @@ func TestGetDescription(t *testing.T) {
 			server: createTestServer(
 				"<html><head><meta name=\"description\" content=\"\"></head></html>",
 			),
-			expected: _defaultDesc,
+			expected: defaultDesc,
 		},
 		{
 			name: "DescriptionWithWhitespace",
@@ -140,7 +140,7 @@ func TestGetDescription(t *testing.T) {
 			name:     "InvalidDescription",
 			url:      "http://example.com",
 			server:   createTestServer(``),
-			expected: _defaultDesc,
+			expected: defaultDesc,
 		},
 	}
 

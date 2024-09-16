@@ -57,7 +57,7 @@ func removeDB(r *repo.SQLiteRepository) error {
 		return ErrActionAborted
 	}
 
-	backups, _ := repo.GetBackups(r)
+	backups, _ := repo.Backups(r)
 	n := backups.Len()
 
 	if n > 0 {
@@ -96,12 +96,12 @@ func checkDBState(f string) error {
 
 // handleListDB lists the available databases.
 func handleListDB(r *repo.SQLiteRepository) error {
-	databases, err := repo.GetDatabases(r.Cfg)
+	dbs, err := repo.Databases(r.Cfg)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	n := databases.Len()
+	n := dbs.Len()
 	if n == 0 {
 		return fmt.Errorf("%w", repo.ErrDBsNotFound)
 	}
@@ -113,7 +113,7 @@ func handleListDB(r *repo.SQLiteRepository) error {
 		f.Header(nColor + " database/s found").Newline()
 	}
 
-	databases.ForEachIdx(func(i int, r *repo.SQLiteRepository) {
+	dbs.ForEachIdx(func(i int, r *repo.SQLiteRepository) {
 		f.Text(repo.Summary(r))
 	})
 
@@ -134,8 +134,8 @@ func handleRemoveDB(r *repo.SQLiteRepository) error {
 // handleDBInfo prints information about a database.
 func handleDBInfo(r *repo.SQLiteRepository) error {
 	if JSON {
-		backups, _ := repo.GetBackups(r)
-		r.Cfg.Backup.Files = *backups.GetAll()
+		backups, _ := repo.Backups(r)
+		r.Cfg.Backup.Files = *backups.Items()
 		fmt.Println(string(format.ToJSON(r)))
 
 		return nil

@@ -11,31 +11,31 @@ import (
 )
 
 // Confirm prompts the user with a question and options.
-func Confirm(q, d string) bool {
-	options := PromptWithOptsAndDef([]string{"y", "n"}, d)
-	chosen := PromptWithOptions(q, options, d)
+func Confirm(q, def string) bool {
+	options := PromptWithOptsAndDef([]string{"y", "n"}, def)
+	chosen := PromptWithOptions(q, options, def)
 
 	return strings.EqualFold(chosen, "y")
 }
 
 // ConfirmWithOpts prompts the user to enter one of the given options.
-func ConfirmWithOpts(q string, o []string, d string) string {
-	for i := 0; i < len(o); i++ {
-		o[i] = strings.ToLower(o[i])
+func ConfirmWithOpts(q string, opts []string, def string) string {
+	for i := 0; i < len(opts); i++ {
+		opts[i] = strings.ToLower(opts[i])
 	}
-	o = PromptWithOptsAndDef(o, d)
+	opts = PromptWithOptsAndDef(opts, def)
 
-	return PromptWithOptions(q, o, d)
+	return PromptWithOptions(q, opts, def)
 }
 
 // Prompt returns a formatted string with a question and options.
-func Prompt(question, options string) string {
-	return fmt.Sprintf("%s %s ", question, color.Gray(options))
+func Prompt(q, opts string) string {
+	return fmt.Sprintf("%s %s ", q, color.Gray(opts))
 }
 
 // PromptWithOptions prompts the user to enter one of the given options.
-func PromptWithOptions(question string, options []string, defaultValue string) string {
-	p := Prompt(question, fmt.Sprintf("[%s]:", strings.Join(options, "/")))
+func PromptWithOptions(q string, opts []string, def string) string {
+	p := Prompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
 	r := bufio.NewReader(os.Stdin)
 
 	for {
@@ -50,35 +50,35 @@ func PromptWithOptions(question string, options []string, defaultValue string) s
 		s = strings.TrimSpace(s)
 		s = strings.ToLower(s)
 
-		if s == "" && defaultValue != "" {
-			return defaultValue
+		if s == "" && def != "" {
+			return def
 		}
 
-		for _, opt := range options {
+		for _, opt := range opts {
 			if strings.EqualFold(s, opt) || strings.EqualFold(s, opt[:1]) {
 				return s
 			}
 		}
 
-		fmt.Printf("invalid response. valid: %s\n", formatOpts(options))
+		fmt.Printf("invalid response. valid: %s\n", formatOpts(opts))
 	}
 }
 
 // PromptWithOptsAndDef capitalizes the default option and appends to the end of
 // the slice.
-func PromptWithOptsAndDef(options []string, def string) []string {
-	for i := 0; i < len(options); i++ {
-		if strings.HasPrefix(options[i], def) {
-			w := options[i]
+func PromptWithOptsAndDef(opts []string, def string) []string {
+	for i := 0; i < len(opts); i++ {
+		if strings.HasPrefix(opts[i], def) {
+			w := opts[i]
 
 			// append to the end of the slice
-			options[i] = options[len(options)-1]
-			options = options[:len(options)-1]
-			options = append(options, strings.ToUpper(w[:1])+w[1:])
+			opts[i] = opts[len(opts)-1]
+			opts = opts[:len(opts)-1]
+			opts = append(opts, strings.ToUpper(w[:1])+w[1:])
 		}
 	}
 
-	return options
+	return opts
 }
 
 // ReadPipedInput reads the input from a pipe.
@@ -131,15 +131,16 @@ func getQueryFromPipe(r io.Reader) string {
 	return result.String()
 }
 
-// formatOpts formats each option in the slice as "[x]option" where x is the first letter of the option.
-func formatOpts(o []string) string {
-	n := len(o)
+// formatOpts formats each option in the slice as "[x]option" where x is the
+// first letter of the option.
+func formatOpts(opts []string) string {
+	n := len(opts)
 	if n == 0 {
 		return ""
 	}
 
 	var s string
-	for _, option := range o {
+	for _, option := range opts {
 		s += fmt.Sprintf("[%s]%s ", strings.ToLower(option[:1]), option[1:])
 	}
 

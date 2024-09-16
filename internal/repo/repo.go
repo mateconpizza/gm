@@ -51,9 +51,9 @@ func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 
 // MustOpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
-func MustOpenDatabase(path string) (*sql.DB, error) {
-	log.Printf("opening database: '%s'", path)
-	db, err := sql.Open("sqlite3", path)
+func MustOpenDatabase(s string) (*sql.DB, error) {
+	log.Printf("opening database: '%s'", s)
+	db, err := sql.Open("sqlite3", s)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}

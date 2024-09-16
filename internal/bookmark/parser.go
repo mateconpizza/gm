@@ -14,6 +14,78 @@ import (
 
 var ErrLineNotFound = errors.New("line not found")
 
+// ParseTags normalizes a string of tags by separating them by commas and
+// ensuring that the final string ends with a comma.
+//
+// from: "tag1, tag2, tag3 tag"
+// to: "tag1,tag2,tag3,tag,"
+func ParseTags(tags string) string {
+	if tags == "" {
+		return "notag"
+	}
+	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	}), ",")
+
+	if strings.HasSuffix(tags, ",") {
+		return tags
+	}
+
+	return tags + ","
+}
+
+// ExtractContentLine extracts URLs from the a slice of strings.
+func ExtractContentLine(c *[]string) map[string]bool {
+	m := make(map[string]bool)
+	for _, l := range *c {
+		l = strings.TrimSpace(l)
+		if !strings.HasPrefix(l, "#") && !strings.EqualFold(l, "") {
+			m[l] = true
+		}
+	}
+
+	return m
+}
+
+// ParseContent parses the provided content into a bookmark struct.
+func ParseContent(c *[]string) *Bookmark {
+	urlStr := extractTextBlock(c, "# URL:", "# Title:")
+	title := extractTextBlock(c, "# Title:", "# Tags:")
+	tags := extractTextBlock(c, "# Tags:", "# Description:")
+	desc := extractTextBlock(c, "# Description:", "# end")
+
+	return New(urlStr, title, ParseTags(tags), desc)
+}
+
+// ScrapeAndUpdate updates a Bookmark's title and description by scraping the
+// webpage if they are missing.
+func ScrapeAndUpdate(b *Bookmark) *Bookmark {
+	if b.Title == "" || b.Desc == "" {
+		mesg := color.Yellow("Scraping webpage...").String()
+		s := spinner.New(spinner.WithMesg(mesg))
+		s.Start()
+
+		sc := scraper.New(b.URL)
+		_ = sc.Scrape()
+
+		s.Stop()
+
+		b.Title = validateAttr(b.Title, sc.Title())
+		b.Desc = validateAttr(b.Desc, sc.Desc())
+	}
+
+	return b
+}
+
+// BufferValidate checks if the URL and Tags are in the content.
+func BufferValidate(b *[]string) error {
+	if err := validateURLBuffer(b); err != nil {
+		return err
+	}
+
+	return validateTagsBuffer(b)
+}
+
 // extractTextBlock extracts a block of text from a string, delimited by the
 // specified start and end markers.
 func extractTextBlock(content *[]string, startMarker, endMarker string) string {
@@ -47,45 +119,6 @@ func extractTextBlock(content *[]string, startMarker, endMarker string) string {
 	}
 
 	return strings.Join(cleanedBlock, "\n")
-}
-
-// ParseContent parses the provided content into a bookmark struct.
-func ParseContent(content *[]string) *Bookmark {
-	urlStr := extractTextBlock(content, "# URL:", "# Title:")
-	title := extractTextBlock(content, "# Title:", "# Tags:")
-	tags := extractTextBlock(content, "# Tags:", "# Description:")
-	desc := extractTextBlock(content, "# Description:", "# end")
-
-	return New(urlStr, title, ParseTags(tags), desc)
-}
-
-// ScrapeAndUpdate updates a Bookmark's title and description by scraping the
-// webpage if they are missing.
-func ScrapeAndUpdate(b *Bookmark) *Bookmark {
-	if b.Title == "" || b.Desc == "" {
-		mesg := color.Yellow("Scraping webpage...").String()
-		s := spinner.New(spinner.WithMesg(mesg))
-		s.Start()
-
-		sc := scraper.New(b.URL)
-		_ = sc.Scrape()
-
-		s.Stop()
-
-		b.Title = validateAttr(b.Title, sc.Title())
-		b.Desc = validateAttr(b.Desc, sc.Desc())
-	}
-
-	return b
-}
-
-// BufferValidate checks if the URL and Tags are in the content.
-func BufferValidate(b *[]string) error {
-	if err := validateURLBuffer(b); err != nil {
-		return err
-	}
-
-	return validateTagsBuffer(b)
 }
 
 // validateURLBuffer validates url in the buffer.
@@ -135,37 +168,4 @@ func Validate(b *Bookmark) error {
 	log.Print("bookmark is valid")
 
 	return nil
-}
-
-// ParseTags normalizes a string of tags by separating them by commas and
-// ensuring that the final string ends with a comma.
-//
-// from: "tag1, tag2, tag3 tag"
-// to: "tag1,tag2,tag3,tag,"
-func ParseTags(tags string) string {
-	if tags == "" {
-		return "notag"
-	}
-	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
-		return r == ',' || r == ' '
-	}), ",")
-
-	if strings.HasSuffix(tags, ",") {
-		return tags
-	}
-
-	return tags + ","
-}
-
-// ExtractContentLine extracts URLs from the a slice of strings.
-func ExtractContentLine(c *[]string) map[string]bool {
-	m := make(map[string]bool)
-	for _, l := range *c {
-		l = strings.TrimSpace(l)
-		if !strings.HasPrefix(l, "#") && !strings.EqualFold(l, "") {
-			m[l] = true
-		}
-	}
-
-	return m
 }

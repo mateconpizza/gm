@@ -8,7 +8,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/haaag/gm/internal/config"
 )
 
 // Unicodes.
@@ -21,14 +21,14 @@ const (
 )
 
 // PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.
-func PaddedLine(label, value any) string {
+func PaddedLine(s, v any) string {
 	const pad = 15
-	return fmt.Sprintf("%-*s %v", pad, label, value)
+	return fmt.Sprintf("%-*s %v", pad, s, v)
 }
 
 // PaddingConditional returns the padding for the colorized output.
 func PaddingConditional(minVal, maxVal int) int {
-	if terminal.Color {
+	if config.App.Color {
 		return maxVal
 	}
 
@@ -40,8 +40,8 @@ func Header(s string) string {
 	return s + "\n\n"
 }
 
-// ShortenString shortens a string to a maximum length.
-func ShortenString(s string, maxLength int) string {
+// Shorten shortens a string to a maximum length.
+func Shorten(s string, maxLength int) string {
 	if len(s) > maxLength {
 		return s[:maxLength-3] + "..."
 	}
@@ -49,9 +49,9 @@ func ShortenString(s string, maxLength int) string {
 	return s
 }
 
-// SplitAndAlignLines splits a string into multiple lines and aligns the
+// SplitAndAlign splits a string into multiple lines and aligns the
 // words.
-func SplitAndAlignLines(s string, lineLength, indentation int) string {
+func SplitAndAlign(s string, lineLength, indentation int) string {
 	separator := strings.Repeat(" ", indentation)
 	var result strings.Builder
 	var currentLine strings.Builder
@@ -85,8 +85,8 @@ func ToJSON(data any) []byte {
 	return jsonData
 }
 
-// SplitIntoLines splits string into chunks of a given length.
-func SplitIntoLines(s string, strLen int) []string {
+// Split splits string into chunks of a given length.
+func Split(s string, strLen int) []string {
 	var lines []string
 	var currentLine strings.Builder
 

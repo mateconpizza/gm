@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/haaag/gm/internal/config"
@@ -27,8 +25,8 @@ func Exists(s string) bool {
 }
 
 // Size returns the size of a file.
-func Size(f string) int64 {
-	fi, err := os.Stat(f)
+func Size(s string) int64 {
+	fi, err := os.Stat(s)
 	if err != nil {
 		return 0
 	}
@@ -37,36 +35,36 @@ func Size(f string) int64 {
 }
 
 // List returns files found in a given path.
-func List(path, target string) ([]string, error) {
-	query := path + "/*" + target
+func List(root, pattern string) ([]string, error) {
+	query := root + "/*" + pattern
 	files, err := filepath.Glob(query)
 	if err != nil {
 		return nil, fmt.Errorf("%w: getting files query: '%s'", err, query)
 	}
 
-	log.Printf("found %d files in path: '%s'", len(files), path)
+	log.Printf("found %d files in path: '%s'", len(files), root)
 
 	return files, nil
 }
 
 // Mkdir creates a new directory at the specified path if it does not already
 // exist.
-func Mkdir(path string) error {
-	if Exists(path) {
+func Mkdir(s string) error {
+	if Exists(s) {
 		return nil
 	}
 
-	log.Printf("creating path: '%s'", path)
-	if err := os.MkdirAll(path, config.Files.DirPermissions); err != nil {
-		return fmt.Errorf("creating %s: %w", path, err)
+	log.Printf("creating path: '%s'", s)
+	if err := os.MkdirAll(s, config.Files.DirPermissions); err != nil {
+		return fmt.Errorf("creating %s: %w", s, err)
 	}
 
 	return nil
 }
 
 // MkdirAll creates all the given paths if they do not already exist.
-func MkdirAll(p ...string) error {
-	for _, path := range p {
+func MkdirAll(s ...string) error {
+	for _, path := range s {
 		if err := Mkdir(path); err != nil {
 			return err
 		}
@@ -77,14 +75,14 @@ func MkdirAll(p ...string) error {
 
 // Remove removes the specified file if it exists, returning an error if the
 // file does not exist or if removal fails.
-func Remove(f string) error {
-	if !Exists(f) {
-		return fmt.Errorf("%w: '%s'", ErrFileNotFound, f)
+func Remove(s string) error {
+	if !Exists(s) {
+		return fmt.Errorf("%w: '%s'", ErrFileNotFound, s)
 	}
 
-	log.Printf("removing file: '%s'", f)
+	log.Printf("removing file: '%s'", s)
 
-	if err := os.Remove(f); err != nil {
+	if err := os.Remove(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}
 
@@ -93,8 +91,8 @@ func Remove(f string) error {
 
 // Copy copies the contents of a source file to a destination file,
 // returning an error if any file operation fails.
-func Copy(src, dst string) error {
-	srcFile, err := os.Open(src)
+func Copy(from, to string) error {
+	srcFile, err := os.Open(from)
 	if err != nil {
 		return fmt.Errorf("error opening source file: %w", err)
 	}
@@ -105,12 +103,12 @@ func Copy(src, dst string) error {
 		}
 	}()
 
-	dstFile, err := os.Create(dst)
+	dstFile, err := os.Create(to)
 	if err != nil {
 		return fmt.Errorf("error creating destination file: %w", err)
 	}
 
-	log.Printf("copying '%s' to '%s'", filepath.Base(src), filepath.Base(dst))
+	log.Printf("copying '%s' to '%s'", filepath.Base(from), filepath.Base(to))
 
 	defer func() {
 		if err := dstFile.Close(); err != nil {
@@ -126,28 +124,10 @@ func Copy(src, dst string) error {
 	return nil
 }
 
-// SortByMod sorts a slice of `fs.DirEntry` by the modification time of the
-// files in ascending order.
-func SortByMod(f []fs.DirEntry) {
-	// FIX: Delete me
-	sort.Slice(f, func(i, j int) bool {
-		fileI, err := f[i].Info()
-		if err != nil {
-			return false
-		}
-		fileJ, err := f[j].Info()
-		if err != nil {
-			return false
-		}
-
-		return fileI.ModTime().Before(fileJ.ModTime())
-	})
-}
-
 // cleanupTemp Removes the specified temporary file.
-func cleanupTemp(fileName string) error {
-	log.Printf("removing temp file: '%s'", fileName)
-	err := os.Remove(fileName)
+func cleanupTemp(s string) error {
+	log.Printf("removing temp file: '%s'", s)
+	err := os.Remove(s)
 	if err != nil {
 		return fmt.Errorf("could not cleanup temp file: %w", err)
 	}
@@ -157,11 +137,11 @@ func cleanupTemp(fileName string) error {
 
 // Cleanup closes the provided file and deletes the associated temporary file,
 // logging any errors encountered.
-func Cleanup(tf *os.File) {
-	if err := tf.Close(); err != nil {
+func Cleanup(f *os.File) {
+	if err := f.Close(); err != nil {
 		log.Printf("Error closing temp file: %v", err)
 	}
-	if err := cleanupTemp(tf.Name()); err != nil {
+	if err := cleanupTemp(f.Name()); err != nil {
 		log.Printf("%v", err)
 	}
 }
@@ -181,39 +161,39 @@ func CreateTemp(prefix, ext string) (*os.File, error) {
 // FindByExtension returns a list of files with the specified extension in
 // the given directory, or an error if the directory does not exist or if the
 // glob operation fails.
-func FindByExtension(path, ext string) ([]string, error) {
-	if !Exists(path) {
-		log.Printf("FindByExtension: path does not exist: '%s'", path)
+func FindByExtension(root, ext string) ([]string, error) {
+	if !Exists(root) {
+		log.Printf("FindByExtension: path does not exist: '%s'", root)
 		return nil, ErrPathNotFound
 	}
 
-	files, err := filepath.Glob(path + "/*." + ext)
+	files, err := filepath.Glob(root + "/*." + ext)
 	if err != nil {
 		return nil, fmt.Errorf("getting files: %w with suffix: '%s'", err, ext)
 	}
 
-	log.Printf("found %d files in path: '%s'", len(files), path)
+	log.Printf("found %d files in path: '%s'", len(files), root)
 
 	return files, nil
 }
 
 // EnsureExtension appends the specified suffix to the filename if it does
 // not already have it.
-func EnsureExtension(name, ext string) string {
-	if !strings.HasSuffix(name, ext) {
-		name = fmt.Sprintf("%s%s", name, ext)
+func EnsureExtension(s, suffix string) string {
+	if !strings.HasSuffix(s, suffix) {
+		s = fmt.Sprintf("%s%s", s, suffix)
 	}
 
-	return name
+	return s
 }
 
 // IsNonEmptyFile checks if the database is initialized.
-func IsNonEmptyFile(f string) bool {
-	return Size(f) > 0
+func IsNonEmptyFile(s string) bool {
+	return Size(s) > 0
 }
 
-// GetModTime returns the modification time of the specified file.
-func GetModTime(s, format string) string {
+// ModTime returns the formatted modification time of the specified file.
+func ModTime(s, format string) string {
 	file, err := os.Stat(s)
 	if err != nil {
 		log.Printf("GetModTime: %v", err)

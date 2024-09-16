@@ -21,34 +21,26 @@ var (
 var textEditors = []string{"vim", "nvim", "nano", "emacs"}
 
 type TextEditor struct {
-	Name string
-	Cmd  string
-	Args []string
+	name string
+	cmd  string
+	args []string
 }
 
-func newTextEditor(c, n string, a []string) *TextEditor {
-	return &TextEditor{
-		Cmd:  c,
-		Name: n,
-		Args: a,
-	}
-}
-
-// GetEditor retrieves the preferred editor to use for editing
+// Editor retrieves the preferred editor to use for editing
 //
 // If env variable `GOMARKS_EDITOR` is not set, uses the `EDITOR`.
 // If env variable `EDITOR` is not set, uses the first available
 // `TextEditors`
 //
 // # fallbackEditors: `"vim", "nvim", "nano", "emacs"`.
-func GetEditor(env string) (*TextEditor, error) {
-	envs := []string{env, "EDITOR"}
+func Editor(s string) (*TextEditor, error) {
+	envs := []string{s, "EDITOR"}
 
 	// find $EDITOR and $GOMARKS_EDITOR
 	for _, e := range envs {
 		if editor, found := getEditorFromEnv(e); found {
-			if editor.Cmd == "" {
-				return nil, fmt.Errorf("%w: '%s'", ErrTextEditorNotFound, editor.Name)
+			if editor.cmd == "" {
+				return nil, fmt.Errorf("%w: '%s'", ErrTextEditorNotFound, editor.name)
 			}
 
 			return editor, nil
@@ -69,8 +61,8 @@ func GetEditor(env string) (*TextEditor, error) {
 }
 
 // getEditorFromEnv finds an editor in the environment.
-func getEditorFromEnv(env string) (*TextEditor, bool) {
-	s := strings.Fields(sys.GetEnv(env, ""))
+func getEditorFromEnv(e string) (*TextEditor, bool) {
+	s := strings.Fields(sys.Env(e, ""))
 	if len(s) != 0 {
 		editor := newTextEditor(sys.BinPath(s[0]), s[0], s[1:])
 		log.Printf("$EDITOR set: '%v'", editor)
@@ -94,8 +86,8 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 }
 
 // SaveBytesToFile Writes the provided data to a temporary file.
-func SaveBytesToFile(f *os.File, data []byte) error {
-	err := os.WriteFile(f.Name(), data, config.Files.FilePermissions)
+func SaveBytesToFile(f *os.File, d []byte) error {
+	err := os.WriteFile(f.Name(), d, config.Files.FilePermissions)
 	if err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
 	}
@@ -119,12 +111,12 @@ func CreateTempFileWithData(d *[]byte) (*os.File, error) {
 	return tf, nil
 }
 
-// ReadFileContent reads the content of the specified file into the given byte
+// readContent reads the content of the specified file into the given byte
 // slice and returns any error encountered.
-func ReadFileContent(fileName *os.File, data *[]byte) error {
-	log.Printf("reading file: '%s'", fileName.Name())
+func readContent(f *os.File, d *[]byte) error {
+	log.Printf("reading file: '%s'", f.Name())
 	var err error
-	*data, err = os.ReadFile(fileName.Name())
+	*d, err = os.ReadFile(f.Name())
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
 	}
@@ -134,14 +126,14 @@ func ReadFileContent(fileName *os.File, data *[]byte) error {
 
 // editFile executes a command to edit the specified file, logging errors if
 // the command fails.
-func editFile(fileName *os.File, command string, args []string) error {
-	if command == "" {
+func editFile(te *TextEditor, f *os.File) error {
+	if te.cmd == "" {
 		return ErrCommandNotFound
 	}
 
-	log.Printf("editing file: '%s'", fileName.Name())
-	log.Printf("executing args: cmd='%s' args='%v'", command, args)
-	if err := sys.RunCmd(command, append(args, fileName.Name())...); err != nil {
+	log.Printf("editing file: '%s'", f.Name())
+	log.Printf("executing args: cmd='%s' args='%v'", te.cmd, te.args)
+	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
 		return fmt.Errorf("error running editor: %w", err)
 	}
 
@@ -151,22 +143,30 @@ func editFile(fileName *os.File, command string, args []string) error {
 // Edit edits the contents of a byte slice by creating a temporary file,
 // editing it with an external editor, and then reading the modified contents
 // back into the byte slice.
-func Edit(editor *TextEditor, buf *[]byte) error {
-	tf, err := CreateTempFileWithData(buf)
+func Edit(te *TextEditor, b *[]byte) error {
+	f, err := CreateTempFileWithData(b)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer Cleanup(tf)
+	defer Cleanup(f)
 
-	log.Printf("editing file: '%s' with text editor: '%s'", tf.Name(), editor.Name)
+	log.Printf("editing file: '%s' with text editor: '%s'", f.Name(), te.name)
 
-	if err := editFile(tf, editor.Cmd, editor.Args); err != nil {
+	if err := editFile(te, f); err != nil {
 		return err
 	}
 
-	if err := ReadFileContent(tf, buf); err != nil {
+	if err := readContent(f, b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	return nil
+}
+
+func newTextEditor(c, n string, arg []string) *TextEditor {
+	return &TextEditor{
+		cmd:  c,
+		name: n,
+		args: arg,
+	}
 }

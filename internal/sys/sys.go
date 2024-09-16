@@ -18,11 +18,11 @@ var (
 	ErrNotImplementedYet = errors.New("not implemented yet")
 )
 
-// GetEnv retrieves an environment variable.
+// Env retrieves an environment variable.
 //
 // If the environment variable is not set, returns the default value.
-func GetEnv(key, def string) string {
-	if v, ok := os.LookupEnv(key); ok {
+func Env(s, def string) string {
+	if v, ok := os.LookupEnv(s); ok {
 		return v
 	}
 
@@ -30,27 +30,27 @@ func GetEnv(key, def string) string {
 }
 
 // BinPath returns the path of the binary.
-func BinPath(binaryName string) string {
-	cmd := exec.CommandContext(context.Background(), "which", binaryName)
+func BinPath(s string) string {
+	cmd := exec.CommandContext(context.Background(), "which", s)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
 	c := strings.TrimRight(string(out), "\n")
-	log.Printf("which %s = %s", binaryName, c)
+	log.Printf("which %s = %s", s, c)
 
 	return c
 }
 
 // BinExists checks if the binary exists in $PATH.
-func BinExists(binaryName string) bool {
-	return ExecuteCmd("which", binaryName) == nil
+func BinExists(s string) bool {
+	return ExecuteCmd("which", s) == nil
 }
 
 // ExecuteCmd runs a command with the given arguments and returns an error if
 // the command fails.
-func ExecuteCmd(args ...string) error {
-	cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
+func ExecuteCmd(arg ...string) error {
+	cmd := exec.CommandContext(context.Background(), arg[0], arg[1:]...)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("running command: %w", err)
 	}
@@ -59,8 +59,8 @@ func ExecuteCmd(args ...string) error {
 }
 
 // RunCmd returns an *exec.Cmd with the given arguments.
-func RunCmd(name string, args ...string) error {
-	cmd := exec.CommandContext(context.Background(), name, args...)
+func RunCmd(s string, arg ...string) error {
+	cmd := exec.CommandContext(context.Background(), s, arg...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -73,8 +73,8 @@ func RunCmd(name string, args ...string) error {
 	return nil
 }
 
-// GetOSArgsCmd returns the correct arguments for the OS.
-func GetOSArgsCmd() []string {
+// OSArgs returns the correct arguments for the OS.
+func OSArgs() []string {
 	var args []string
 	switch runtime.GOOS {
 	case "darwin":
@@ -89,8 +89,8 @@ func GetOSArgsCmd() []string {
 }
 
 // OpenInBrowser opens a URL in the default browser.
-func OpenInBrowser(url string) error {
-	args := append(GetOSArgsCmd(), url)
+func OpenInBrowser(s string) error {
+	args := append(OSArgs(), s)
 	if err := ExecuteCmd(args...); err != nil {
 		return fmt.Errorf("%w: opening in browser", err)
 	}

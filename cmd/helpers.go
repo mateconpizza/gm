@@ -70,10 +70,10 @@ func setLoggingLevel(verboseFlag *bool) {
 // filterSlice select which item to remove from a slice using the
 // text editor.
 func filterSlice(bs *Slice) error {
-	buf := bookmark.GetBufferSlice(bs)
+	buf := bookmark.BufferSlice(bs)
 	format.BufferApendVersion(config.App.Name, config.App.Version, &buf)
 
-	editor, err := files.GetEditor(config.App.Env.Editor)
+	editor, err := files.Editor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -98,8 +98,8 @@ func filterSlice(bs *Slice) error {
 
 // bookmarkEdition edits a bookmark with a text editor.
 func bookmarkEdition(b *Bookmark) error {
-	buf := bookmark.FormatBuffer(b)
-	editor, err := files.GetEditor(config.App.Env.Editor)
+	buf := bookmark.Buffer(b)
+	editor, err := files.Editor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -136,12 +136,12 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	title = format.ShortenString(b.Title, maxLabelLen)
+	title = format.Shorten(b.Title, maxLabelLen)
 	if err := qrcode.Label(title, "top"); err != nil {
 		return fmt.Errorf("%w: adding top label", err)
 	}
 
-	url = format.ShortenString(b.URL, maxLabelLen)
+	url = format.Shorten(b.URL, maxLabelLen)
 	if err := qrcode.Label(url, "bottom"); err != nil {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
@@ -184,7 +184,7 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 		f := frame.New(frame.WithColorBorder(color.Gray))
 
 		bs.ForEachIdx(func(i int, b Bookmark) {
-			bookmark.WithFrameAndURLColor(f, &b, terminal.MinWidth, colors)
+			bookmark.WithFrameAndColorRenameMe(f, &b, terminal.MinWidth, colors)
 		})
 
 		f.Render()

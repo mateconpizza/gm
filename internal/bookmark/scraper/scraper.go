@@ -11,18 +11,18 @@ import (
 )
 
 const (
-	_defaultTitle string = "untitled (unfiled)"
-	_defaultDesc  string = "no description available (unfiled)"
+	defaultTitle string = "untitled (unfiled)"
+	defaultDesc  string = "no description available (unfiled)"
 )
 
 type Scraper struct {
-	Doc *goquery.Document
-	URL string
+	doc *goquery.Document
+	uri string
 }
 
 // Scrape fetches and parses the URL content.
 func (s *Scraper) Scrape() error {
-	s.Doc = scrapeURL(s.URL)
+	s.doc = scrapeURL(s.uri)
 	return nil
 }
 
@@ -31,12 +31,12 @@ func (s *Scraper) Scrape() error {
 //
 // default: `untitled (unfiled)`
 func (s *Scraper) Title() string {
-	title := s.Doc.Find("title").Text()
-	if title == "" {
-		return _defaultTitle
+	t := s.doc.Find("title").Text()
+	if t == "" {
+		return defaultTitle
 	}
 
-	return strings.TrimSpace(title)
+	return strings.TrimSpace(t)
 }
 
 // Desc retrieves the page description from the Scraper's Doc field,
@@ -49,30 +49,30 @@ func (s *Scraper) Desc() string {
 		"meta[name=description]",
 		"meta[property=description]",
 	} {
-		desc = s.Doc.Find(selector).AttrOr("content", "")
+		desc = s.doc.Find(selector).AttrOr("content", "")
 		if desc != "" {
 			break
 		}
 	}
 
 	if desc == "" {
-		return _defaultDesc
+		return defaultDesc
 	}
 
 	return strings.TrimSpace(desc)
 }
 
 // New creates a new Scraper.
-func New(url string) *Scraper {
-	return &Scraper{URL: url}
+func New(s string) *Scraper {
+	return &Scraper{uri: s}
 }
 
 // scrapeURL fetches and parses the HTML content from a URL.
-func scrapeURL(url string) *goquery.Document {
+func scrapeURL(s string) *goquery.Document {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
 		log.Printf("error creating request: %v", err)
 		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))

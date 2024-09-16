@@ -53,16 +53,16 @@ const (
 	reset = "\x1b[0m"
 )
 
-// GetANSI returns the ANSI code from a Color function.
-func GetANSI(f ColorFn) string {
+// ANSICode returns the ANSI code from a Color function.
+func ANSICode(f ColorFn) string {
 	c := f()
 	v := reflect.ValueOf(c).Elem().FieldByName("color")
 	return v.String()
 }
 
-// EnableANSI allows to enable/disable color output.
-func EnableANSI(b *bool) {
-	log.Println("EnableANSI:", b)
+// Enable allows to enable/disable color output.
+func Enable(b *bool) {
+	log.Println("color enabled:", *b)
 	enableColorOutput = b
 }
 

@@ -43,12 +43,15 @@ func initConfig() {
 	// Set logging level
 	setLoggingLevel(&Verbose)
 
+	// Set color eanble
+	config.App.Color = WithColor != "never" && !terminal.IsPiped()
+
 	// Set terminal defaults
-	terminal.SetColor(WithColor != "never" && !terminal.IsPiped())
+	terminal.NoColor(&config.App.Color)
 	terminal.LoadMaxWidth()
 
 	// Enable color output
-	color.EnableANSI(&terminal.Color)
+	color.Enable(&config.App.Color)
 
 	// Load data home path for the app.
 	dataHomePath, err := loadDataPath()

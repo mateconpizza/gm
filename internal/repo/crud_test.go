@@ -13,7 +13,10 @@ import (
 	"github.com/haaag/gm/internal/slice"
 )
 
-const tempTableName = "test_table"
+const (
+	tempTableName       = "test_table"
+	newTable      Table = "new_table"
+)
 
 var DBCfg = NewSQLiteCfg("")
 
@@ -97,11 +100,11 @@ func TestTableCreate(t *testing.T) {
 
 	tableName := "new_table"
 
-	if err := r.TableCreate(tableName, tableMainSchema); err != nil {
+	if err := r.TableCreate(newTable, tableMainSchema); err != nil {
 		t.Errorf("Error creating table: %v", err)
 	}
 
-	exists, err := r.tableExists(tableName)
+	exists, err := r.tableExists(newTable)
 	if !exists {
 		t.Errorf("Table %s does not exist", tableName)
 	}
@@ -216,7 +219,7 @@ func TestDeleteRecordBulk(t *testing.T) {
 
 	// Verify that the record was inserted successfully
 	newRows := slice.New[Row]()
-	if err := r.GetAll(tempTableName, newRows); err != nil {
+	if err := r.Records(tempTableName, newRows); err != nil {
 		t.Fatal(err)
 	}
 
@@ -245,7 +248,7 @@ func TestDeleteRecordBulk(t *testing.T) {
 	}
 
 	emptyRows := slice.New[Row]()
-	_ = r.GetAll(tempTableName, emptyRows)
+	_ = r.Records(tempTableName, emptyRows)
 
 	if emptyRows.Len() != 0 {
 		t.Errorf(
@@ -347,7 +350,7 @@ func TestGetRecordByID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	record, err := r.GetByID(tempTableName, inserted.ID)
+	record, err := r.ByID(tempTableName, inserted.ID)
 	if err != nil {
 		t.Errorf("Error getting bookmark by ID: %v", err)
 	}
@@ -370,7 +373,7 @@ func TestGetRecordsByQuery(t *testing.T) {
 	b.URL = "https://www.another.com"
 
 	bs := slice.New[Row]()
-	if err := r.GetByQuery(tempTableName, "example", bs); err != nil {
+	if err := r.ByQuery(tempTableName, "example", bs); err != nil {
 		t.Errorf("Error getting bookmarks by query: %v", err)
 	}
 

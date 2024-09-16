@@ -44,7 +44,7 @@ var initCmd = &cobra.Command{
 		}
 
 		bs := slice.New[Bookmark]()
-		if err := r.GetAll(Cfg.TableMain, bs); err != nil {
+		if err := r.Records(Cfg.TableMain, bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
 
@@ -99,7 +99,7 @@ func initDB(r *repo.SQLiteRepository) error {
 // If environment variable GOMARKS_HOME is not set, uses the data user
 // directory.
 func loadDataPath() (string, error) {
-	envDataHome := sys.GetEnv(config.App.Env.Home, "")
+	envDataHome := sys.Env(config.App.Env.Home, "")
 	if envDataHome != "" {
 		log.Printf("loadPath: envDataHome: %v\n", envDataHome)
 

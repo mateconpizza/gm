@@ -105,13 +105,13 @@ func (s *Slice[T]) Set(items *[]T) {
 	*s.items = *items
 }
 
-// Get returns a single item by index.
-func (s *Slice[T]) Get(i int) T {
+// Item returns a single item by index.
+func (s *Slice[T]) Item(i int) T {
 	return (*s.items)[i]
 }
 
-// GetAll returns all items in the slice.
-func (s *Slice[T]) GetAll() *[]T {
+// Items returns all items in the slice.
+func (s *Slice[T]) Items() *[]T {
 	return s.items
 }
 

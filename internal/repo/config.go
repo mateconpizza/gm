@@ -12,8 +12,8 @@ import (
 type SQLiteConfig struct {
 	Name         string       `json:"name"`
 	Path         string       `json:"path"`
-	TableMain    string       `json:"table_main"`
-	TableDeleted string       `json:"table_deleted"`
+	TableMain    Table        `json:"table_main"`
+	TableDeleted Table        `json:"table_deleted"`
 	Backup       SQLiteBackup `json:"backup"`
 	MaxBytesSize int64        `json:"max_bytes_size"`
 	MaxBackups   int          `json:"max_backups_allowed"`
@@ -44,13 +44,13 @@ func (c *SQLiteConfig) Fullpath() string {
 	return filepath.Join(c.Path, c.Name)
 }
 
-func (c *SQLiteConfig) SetPath(path string) *SQLiteConfig {
-	c.Path = path
+func (c *SQLiteConfig) SetPath(p string) *SQLiteConfig {
+	c.Path = p
 	return c
 }
 
-func (c *SQLiteConfig) SetName(name string) *SQLiteConfig {
-	c.Name = files.EnsureExtension(name, ".db")
+func (c *SQLiteConfig) SetName(s string) *SQLiteConfig {
+	c.Name = files.EnsureExtension(s, ".db")
 	return c
 }
 
@@ -64,9 +64,10 @@ func (c *SQLiteConfig) Exists() error {
 
 // NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg(p string) *SQLiteConfig {
+  // WARN: do not like Table(*)
 	return &SQLiteConfig{
-		TableMain:    config.DB.MainTable,
-		TableDeleted: config.DB.DeletedTable,
+		TableMain:    Table(config.DB.MainTable),
+		TableDeleted: Table(config.DB.DeletedTable),
 		MaxBytesSize: config.DB.MaxBytesSize,
 		Path:         p,
 		Backup:       *newSQLiteBackup(p),

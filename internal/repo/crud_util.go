@@ -11,12 +11,12 @@ import (
 )
 
 // reorderIDs reorders the IDs in the specified table.
-func (r *SQLiteRepository) reorderIDs(tableName string) error {
+func (r *SQLiteRepository) reorderIDs(t Table) error {
 	// FIX: Every time we re-order IDs, the db's size gets bigger
 	// It's a bad implementation? (but it works)
 	// Maybe use 'VACUUM' command? it is safe?
 	bs := slice.New[Row]()
-	if err := r.GetAll(tableName, bs); err != nil {
+	if err := r.Records(t, bs); err != nil {
 		return err
 	}
 
@@ -24,8 +24,8 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 		return nil
 	}
 
-	log.Printf("reordering IDs in table: %s", tableName)
-	tempTable := "temp_" + tableName
+	log.Printf("reordering IDs in table: %s", t)
+	tempTable := "temp_" + t
 	if err := r.TableCreate(tempTable, tableMainSchema); err != nil {
 		return err
 	}
@@ -34,11 +34,11 @@ func (r *SQLiteRepository) reorderIDs(tableName string) error {
 		return err
 	}
 
-	if err := r.tableDrop(tableName); err != nil {
+	if err := r.tableDrop(t); err != nil {
 		return err
 	}
 
-	return r.tableRename(tempTable, tableName)
+	return r.tableRename(tempTable, t)
 }
 
 // maintenance performs maintenance tasks on the SQLite repository.
@@ -50,11 +50,11 @@ func (r *SQLiteRepository) maintenance(_ *SQLiteConfig) error {
 	return nil
 }
 
-// HasRecord checks whether the specified record exists in the SQLite database.
-func (r *SQLiteRepository) HasRecord(tableName, column, target string) bool {
+// HasRecord checks if a record exists in the specified table and column.
+func (r *SQLiteRepository) HasRecord(t Table, c, target string) bool {
 	var recordCount int
 
-	sqlQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s=?", tableName, column)
+	sqlQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s=?", t, c)
 
 	if err := r.DB.QueryRow(sqlQuery, target).Scan(&recordCount); err != nil {
 		log.Fatal(err)
@@ -64,13 +64,13 @@ func (r *SQLiteRepository) HasRecord(tableName, column, target string) bool {
 }
 
 // IsDatabaseInitialized returns true if the database is initialized.
-func (r *SQLiteRepository) IsDatabaseInitialized(tableName string) bool {
-	tExists, _ := r.tableExists(tableName)
+func (r *SQLiteRepository) IsDatabaseInitialized(t Table) bool {
+	tExists, _ := r.tableExists(t)
 	return tExists
 }
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
-func (r *SQLiteRepository) tableExists(t string) (bool, error) {
+func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
 	query := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
 
 	var count int
@@ -85,7 +85,7 @@ func (r *SQLiteRepository) tableExists(t string) (bool, error) {
 }
 
 // tableRename renames the temporary table to the specified main table name.
-func (r *SQLiteRepository) tableRename(tempTable, mainTable string) error {
+func (r *SQLiteRepository) tableRename(tempTable, mainTable Table) error {
 	log.Printf("renaming table %s to %s", tempTable, mainTable)
 
 	_, err := r.DB.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", tempTable, mainTable))
@@ -99,9 +99,9 @@ func (r *SQLiteRepository) tableRename(tempTable, mainTable string) error {
 }
 
 // TableCreate creates a new table with the specified name in the SQLite database.
-func (r *SQLiteRepository) TableCreate(name, schema string) error {
-	log.Printf("creating table: %s", name)
-	tableSchema := fmt.Sprintf(schema, name)
+func (r *SQLiteRepository) TableCreate(s Table, schema string) error {
+	log.Printf("creating table: %s", s)
+	tableSchema := fmt.Sprintf(schema, s)
 
 	_, err := r.DB.Exec(tableSchema)
 	if err != nil {
@@ -112,7 +112,7 @@ func (r *SQLiteRepository) TableCreate(name, schema string) error {
 }
 
 // tableDrop drops the specified table from the SQLite database.
-func (r *SQLiteRepository) tableDrop(t string) error {
+func (r *SQLiteRepository) tableDrop(t Table) error {
 	log.Printf("dropping table: %s", t)
 
 	//nolint:perfsprint //gosec conflict
@@ -127,7 +127,7 @@ func (r *SQLiteRepository) tableDrop(t string) error {
 }
 
 // resetSQLiteSequence resets the SQLite sequence for the given table.
-func (r *SQLiteRepository) resetSQLiteSequence(t string) error {
+func (r *SQLiteRepository) resetSQLiteSequence(t Table) error {
 	if _, err := r.DB.Exec("DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
 		return fmt.Errorf("resetting sqlite sequence: %w", err)
 	}
@@ -162,8 +162,8 @@ func (r *SQLiteRepository) size() (int64, error) {
 }
 
 // IsEmpty returns true if the database is empty.
-func (r *SQLiteRepository) IsEmpty(main, deleted string) bool {
-	return r.getMaxID(main) == 0 && r.getMaxID(deleted) == 0
+func (r *SQLiteRepository) IsEmpty(m, d Table) bool {
+	return r.maxID(m) == 0 && r.maxID(d) == 0
 }
 
 // checkSize checks the size of the database.
@@ -202,5 +202,5 @@ func (r *SQLiteRepository) DropSecure() error {
 
 // Restore restores record/s from deleted tabled.
 func (r *SQLiteRepository) Restore(bs *Slice) error {
-	return r.insertBulk(config.DB.MainTable, bs)
+	return r.insertBulk(Table(config.DB.MainTable), bs)
 }

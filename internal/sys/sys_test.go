@@ -36,7 +36,7 @@ func TestGetEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		_ = os.Setenv(tt.env, tt.value)
-		got := GetEnv(tt.env, tt.value)
+		got := Env(tt.env, tt.value)
 
 		// unset env after obtaining value
 		if err := os.Unsetenv(tt.env); err != nil {

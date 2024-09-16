@@ -17,6 +17,7 @@ type (
 		Info    information `json:"data"`    // Application information
 		Env     environment `json:"env"`     // Application environment variables
 		Path    path        `json:"path"`    // Application path
+		Color   bool        `json:"-"`       // Application color enable
 	}
 
 	path struct {

@@ -12,11 +12,10 @@ import (
 )
 
 // https://no-color.org
-const NoColorEnv string = "NO_COLOR"
+const noColorEnv string = "NO_COLOR"
 
 // Default terminal settings.
 var (
-	Color     bool = true
 	MaxWidth  int  = 120
 	MinHeight int  = 15
 	MinWidth  int  = 80
@@ -31,17 +30,12 @@ var (
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
 )
 
-// SetColor enables or disables color output based on the `NO_COLOR` environment
-// variable or a given boolean flag.
-func SetColor(b bool) {
-	if c := sys.GetEnv(NoColorEnv, ""); c != "" {
-		log.Println("NO_COLOR found, disabling color output.")
-		Color = false
-		return
+// NoColor disables color if the NO_COLOR environment variable is set.
+func NoColor(b *bool) {
+	if c := sys.Env(noColorEnv, ""); c != "" {
+		log.Println("NO_COLOR found.")
+		*b = false
 	}
-
-	log.Println("Setting color output:", b)
-	Color = b
 }
 
 // LoadMaxWidth updates `MaxWidth` to the current width if it is smaller than

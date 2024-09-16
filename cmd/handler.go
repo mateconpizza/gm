@@ -57,7 +57,7 @@ func handlePrintOut(bs *Slice) error {
 	lastIdx := bs.Len() - 1
 
 	bs.ForEachIdx(func(i int, b Bookmark) {
-		fmt.Print(bookmark.FormatWithFrame(&b, n))
+		fmt.Print(bookmark.Frame(&b, n))
 		if i != lastIdx {
 			fmt.Println()
 		}
@@ -73,7 +73,7 @@ func handleOneline(bs *Slice) error {
 	}
 
 	bs.ForEach(func(b Bookmark) {
-		fmt.Print(bookmark.FormatOneline(&b, terminal.MaxWidth))
+		fmt.Print(bookmark.Oneline(&b, terminal.MaxWidth))
 	})
 
 	return nil
@@ -92,7 +92,7 @@ func handleJSONFormat(bs *Slice) error {
 		return nil
 	}
 
-	fmt.Println(string(format.ToJSON(bs.GetAll())))
+	fmt.Println(string(format.ToJSON(bs.Items())))
 
 	return nil
 }
@@ -120,7 +120,7 @@ func handleListAll(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
-	if err := r.GetAll(r.Cfg.TableMain, bs); err != nil {
+	if err := r.Records(r.Cfg.TableMain, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -135,7 +135,7 @@ func handleByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 
 	query := strings.Join(args, "%")
-	if err := r.GetByQuery(r.Cfg.TableMain, query, bs); err != nil {
+	if err := r.ByQuery(r.Cfg.TableMain, query, bs); err != nil {
 		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
 	}
 
@@ -149,7 +149,7 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	for _, tag := range Tags {
-		if err := r.GetByTags(r.Cfg.TableMain, tag, bs); err != nil {
+		if err := r.ByTag(r.Cfg.TableMain, tag, bs); err != nil {
 			return fmt.Errorf("byTags :%w", err)
 		}
 	}
@@ -184,15 +184,15 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	header := "# [%d/%d] | %d | %s\n\n"
-	editor, err := files.GetEditor(config.App.Env.Editor)
+	editor, err := files.Editor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	// edition edits the bookmark with a text editor.
 	edition := func(i int, b Bookmark) error {
-		buf := bookmark.FormatBuffer(&b)
-		shortTitle := format.ShortenString(b.Title, terminal.MinWidth-10)
+		buf := bookmark.Buffer(&b)
+		shortTitle := format.Shorten(b.Title, terminal.MinWidth-10)
 		format.BufferAppend(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
 		format.BufferApendVersion(config.App.Name, config.App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
@@ -266,7 +266,7 @@ func handleCheckStatus(bs *Slice) error {
 		return ErrActionAborted
 	}
 
-	if err := bookmark.CheckStatus(bs); err != nil {
+	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -279,7 +279,7 @@ func handleCopyOpen(bs *Slice) error {
 		return nil
 	}
 
-	b := bs.Get(0)
+	b := bs.Item(0)
 	if Copy {
 		if err := sys.CopyClipboard(b.URL); err != nil {
 			return fmt.Errorf("%w", err)
@@ -307,7 +307,7 @@ func handleIDsFromArgs(r *repo.SQLiteRepository, bs *Slice, args []string) error
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.GetByIDList(r.Cfg.TableMain, ids, bs); err != nil {
+	if err := r.ByIDList(r.Cfg.TableMain, ids, bs); err != nil {
 		return fmt.Errorf("records from args: %w", err)
 	}
 
@@ -378,12 +378,12 @@ func handleMenu(bs *Slice) error {
 			return bookmark.Multiline(&b, terminal.MaxWidth)
 		}
 
-		return bookmark.FormatOneline(&b, terminal.MaxWidth)
+		return bookmark.Oneline(&b, terminal.MaxWidth)
 	}
 
 	m := menu.New[Bookmark](options...)
 
-	result, err := m.Select(bs.GetAll(), formatter)
+	result, err := m.Select(bs.Items(), formatter)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

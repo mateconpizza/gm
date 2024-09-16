@@ -50,7 +50,7 @@ func handleURL(border string, args *[]string) string {
 
 	// Prompt user for URL
 	urlPrompt += color.BrightRed("\n " + border).String()
-	urlPrompt += color.GetANSI(color.BrightGray)
+	urlPrompt += color.ANSICode(color.BrightGray)
 
 	return terminal.ReadInput(urlPrompt)
 }
@@ -73,7 +73,7 @@ func handleTags(border string, args *[]string) string {
 	// Prompt user for tags
 	tagsPrompt += color.Gray(" (comma-separated)").Italic().String()
 	tagsPrompt += color.BrightRed("\n " + border).String()
-	tagsPrompt += color.GetANSI(color.BrightGray)
+	tagsPrompt += color.ANSICode(color.BrightGray)
 
 	return terminal.ReadInput(tagsPrompt)
 }
@@ -83,7 +83,10 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 	const _indentation = 10
 
 	mesg := color.Yellow("Scraping webpage...").String()
-	s := spinner.New(spinner.WithMesg(mesg))
+	s := spinner.New(
+		spinner.WithMesg(mesg),
+		spinner.WithColor(color.BrightMagenta),
+	)
 	s.Start()
 
 	sc := scraper.New(url)
@@ -96,9 +99,9 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 
 	var r strings.Builder
 	r.WriteString(color.Green("+ Title\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlignLines(title, minWidth, _indentation))
+	r.WriteString(format.SplitAndAlign(title, minWidth, _indentation))
 	r.WriteString(color.Yellow("\n+ Desc\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlignLines(desc, minWidth, _indentation))
+	r.WriteString(format.SplitAndAlign(desc, minWidth, _indentation))
 	fmt.Println(r.String())
 
 	return title, desc
@@ -127,7 +130,7 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	url = strings.TrimRight(url, "/")
 
 	if r.HasRecord(r.Cfg.TableMain, "url", url) {
-		item, _ := r.GetByURL(r.Cfg.TableMain, url)
+		item, _ := r.ByURL(r.Cfg.TableMain, url)
 		return fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
 	}
 

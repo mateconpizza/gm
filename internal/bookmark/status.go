@@ -40,13 +40,13 @@ func (r *Response) String() string {
 	status += fmt.Sprintf("[%s]", colorStatus)
 
 	url := color.Gray(":url:").String()
-	url += format.ShortenString(r.URL, terminal.MinWidth)
+	url += format.Shorten(r.URL, terminal.MinWidth)
 
 	return fmt.Sprintf("%s%s%s%s", id, code, status, url)
 }
 
-// CheckStatus checks the status of a slice of bookmarks.
-func CheckStatus(bs *slice.Slice[Bookmark]) error {
+// Status checks the status of a slice of bookmarks.
+func Status(bs *slice.Slice[Bookmark]) error {
 	const maxConRequests = 25
 	var (
 		responses = slice.New[Response]()
@@ -148,7 +148,7 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 				continue
 			}
 			bid := fmt.Sprintf(color.Gray("%-3d").Bold().String(), r.bID)
-			url := color.Gray(format.ShortenString(r.URL, terminal.MinWidth)).Italic().String()
+			url := color.Gray(format.Shorten(r.URL, terminal.MinWidth)).Italic().String()
 			f.Row(fmt.Sprintf(" %s %s", bid, url))
 		}
 	}

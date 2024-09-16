@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/haaag/gm/internal/format/color"
 )
 
 // OptFn is an option function for the spinner.
@@ -17,6 +19,7 @@ type OptFn func(*Options)
 type Options struct {
 	mu      *sync.RWMutex
 	done    chan bool
+	color   color.ColorFn
 	Mesg    string
 	unicode []string
 	started bool
@@ -44,7 +47,7 @@ func (s *Spinner) Start() {
 				return
 			default:
 				// Print the spinner animation
-				fmt.Printf("\r%s %s", s.unicode[i%len(s.unicode)], s.Mesg)
+				fmt.Printf("\r%s %s", s.color(s.unicode[i%len(s.unicode)]).String(), s.Mesg)
 				time.Sleep(110 * time.Millisecond)
 			}
 		}
@@ -77,6 +80,7 @@ func defaultOpts() Options {
 		done:    make(chan bool),
 		mu:      &sync.RWMutex{},
 		started: false,
+		color:   color.BrightWhite,
 	}
 }
 
@@ -88,17 +92,55 @@ func WithUnicode(unicode []string) OptFn {
 	}
 }
 
-// WithMesg returns an option function that sets the spinner message.
-func WithMesg(mesg string) OptFn {
+// WithUnicode returns an option function that sets the spinner unicode
+// animation with blocks.
+func WithUnicodeBlock() OptFn {
 	return func(o *Options) {
-		o.Mesg = mesg
+		o.unicode = []string{"░", "▒", "▒", "░", "▓"}
+	}
+}
+
+// WithUnicodeDots returns an option function that sets the spinner unicode
+// animation with dots.
+func WithUnicodeDots() OptFn {
+	return func(o *Options) {
+		o.unicode = []string{
+			"  . . . .",
+			".   . . .",
+			". .   . .",
+			". . .   .",
+			". . . .  ",
+			". . . . .",
+		}
+	}
+}
+
+// WithUnicodeBar returns an option function that sets the spinner unicode
+// animation with bars.
+func WithUnicodeBar() OptFn {
+	return func(o *Options) {
+		o.unicode = []string{"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
+	}
+}
+
+// WithColor returns an option function.
+func WithColor(c color.ColorFn) OptFn {
+	return func(o *Options) {
+		o.color = c
+	}
+}
+
+// WithMesg returns an option function that sets the spinner message.
+func WithMesg(s string) OptFn {
+	return func(o *Options) {
+		o.Mesg = s
 	}
 }
 
 // New returns a new spinner.
-func New(opts ...OptFn) *Spinner {
+func New(opt ...OptFn) *Spinner {
 	o := defaultOpts()
-	for _, fn := range opts {
+	for _, fn := range opt {
 		fn(&o)
 	}
 

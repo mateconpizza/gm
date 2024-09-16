@@ -88,7 +88,7 @@ func backupCreate(r *repo.SQLiteRepository) error {
 
 // backupPurge removes old backups.
 func backupPurge(r *repo.SQLiteRepository) error {
-	backups, err := repo.GetBackups(r)
+	backups, err := repo.Backups(r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -142,7 +142,7 @@ func printsBackupInfo(r *repo.SQLiteRepository) error {
 func getMaxBackup() int {
 	n := config.DB.BackupMaxBackups
 	defaultMax := strconv.Itoa(n)
-	maxBackups, err := strconv.Atoi(sys.GetEnv(config.App.Env.BackupMax, defaultMax))
+	maxBackups, err := strconv.Atoi(sys.Env(config.App.Env.BackupMax, defaultMax))
 	if err != nil {
 		return n
 	}
