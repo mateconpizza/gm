@@ -12,8 +12,8 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/util"
-	"github.com/haaag/gm/internal/util/files"
+	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
 )
 
 var initCmd = &cobra.Command{
@@ -99,7 +99,7 @@ func initDB(r *repo.SQLiteRepository) error {
 // If environment variable GOMARKS_HOME is not set, uses the data user
 // directory.
 func loadDataPath() (string, error) {
-	envDataHome := util.GetEnv(config.App.Env.Home, "")
+	envDataHome := sys.GetEnv(config.App.Env.Home, "")
 	if envDataHome != "" {
 		log.Printf("loadPath: envDataHome: %v\n", envDataHome)
 

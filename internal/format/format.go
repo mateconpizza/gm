@@ -8,7 +8,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // Unicodes.

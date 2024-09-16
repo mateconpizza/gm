@@ -8,7 +8,7 @@ import (
 
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/util/frame"
+	"github.com/haaag/gm/internal/format/frame"
 )
 
 // Summary returns a summary of the repository.

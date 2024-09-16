@@ -8,8 +8,8 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/terminal"
-	"github.com/haaag/gm/internal/util/spinner"
+	"github.com/haaag/gm/internal/sys/spinner"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var restoreCmd = &cobra.Command{

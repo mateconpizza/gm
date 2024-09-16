@@ -9,8 +9,8 @@ import (
 
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/util/frame"
 )
 
 // Oneline formats a bookmark in a single line.

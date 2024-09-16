@@ -6,10 +6,10 @@ import (
 	"log"
 	"strings"
 
+	"github.com/haaag/gm/internal/bookmark/scraper"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/util/scraper"
-	"github.com/haaag/gm/internal/util/spinner"
+	"github.com/haaag/gm/internal/sys/spinner"
 )
 
 var ErrLineNotFound = errors.New("line not found")

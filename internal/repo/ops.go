@@ -9,7 +9,7 @@ import (
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/util/files"
+	"github.com/haaag/gm/internal/sys/files"
 )
 
 // GetRecordCount retrieves the maximum ID from the specified table in the

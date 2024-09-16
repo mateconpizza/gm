@@ -6,15 +6,15 @@ import (
 	"strings"
 
 	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/bookmark/qr"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/menu"
-	"github.com/haaag/gm/internal/qr"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/terminal"
-	"github.com/haaag/gm/internal/util"
-	"github.com/haaag/gm/internal/util/files"
+	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var (
@@ -281,13 +281,13 @@ func handleCopyOpen(bs *Slice) error {
 
 	b := bs.Get(0)
 	if Copy {
-		if err := util.CopyClipboard(b.URL); err != nil {
+		if err := sys.CopyClipboard(b.URL); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
 
 	if Open {
-		if err := util.OpenInBrowser(b.URL); err != nil {
+		if err := sys.OpenInBrowser(b.URL); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}

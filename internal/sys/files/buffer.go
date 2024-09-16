@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/util"
+	"github.com/haaag/gm/internal/sys"
 )
 
 var (
@@ -70,9 +70,9 @@ func GetEditor(env string) (*TextEditor, error) {
 
 // getEditorFromEnv finds an editor in the environment.
 func getEditorFromEnv(env string) (*TextEditor, bool) {
-	s := strings.Fields(util.GetEnv(env, ""))
+	s := strings.Fields(sys.GetEnv(env, ""))
 	if len(s) != 0 {
-		editor := newTextEditor(util.BinPath(s[0]), s[0], s[1:])
+		editor := newTextEditor(sys.BinPath(s[0]), s[0], s[1:])
 		log.Printf("$EDITOR set: '%v'", editor)
 		return editor, true
 	}
@@ -83,8 +83,8 @@ func getEditorFromEnv(env string) (*TextEditor, bool) {
 // getFallbackEditor finds a fallback editor.
 func getFallbackEditor(editors []string) (*TextEditor, bool) {
 	for _, e := range editors {
-		if util.BinExists(e) {
-			editor := newTextEditor(util.BinPath(e), e, []string{})
+		if sys.BinExists(e) {
+			editor := newTextEditor(sys.BinPath(e), e, []string{})
 			log.Printf("found fallback text editor: '%v'", editor)
 			return editor, true
 		}
@@ -141,7 +141,7 @@ func editFile(fileName *os.File, command string, args []string) error {
 
 	log.Printf("editing file: '%s'", fileName.Name())
 	log.Printf("executing args: cmd='%s' args='%v'", command, args)
-	if err := util.RunCmd(command, append(args, fileName.Name())...); err != nil {
+	if err := sys.RunCmd(command, append(args, fileName.Name())...); err != nil {
 		return fmt.Errorf("error running editor: %w", err)
 	}
 

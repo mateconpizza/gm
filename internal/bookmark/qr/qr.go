@@ -8,7 +8,7 @@ import (
 
 	"github.com/skip2/go-qrcode"
 
-	"github.com/haaag/gm/internal/util"
+	"github.com/haaag/gm/internal/sys"
 )
 
 var (
@@ -59,13 +59,13 @@ func (q *QRCode) Open() error {
 	args := make([]string, 0)
 
 	// FIX: remove display, keep `GetOSArgsCmd`
-	if util.BinExists("display") {
+	if sys.BinExists("display") {
 		args = append(args, "display", q.file.Name())
 	} else {
-		args = append(util.GetOSArgsCmd(), q.file.Name())
+		args = append(sys.GetOSArgsCmd(), q.file.Name())
 	}
 
-	if err := util.ExecuteCmd(args...); err != nil {
+	if err := sys.ExecuteCmd(args...); err != nil {
 		return fmt.Errorf("%w: opening QR", err)
 	}
 

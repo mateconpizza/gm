@@ -1,4 +1,4 @@
-package util
+package sys
 
 import (
 	"context"
@@ -7,9 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -47,25 +45,6 @@ func BinPath(binaryName string) string {
 // BinExists checks if the binary exists in $PATH.
 func BinExists(binaryName string) bool {
 	return ExecuteCmd("which", binaryName) == nil
-}
-
-// ParseUniqueStrings returns a slice of unique strings.
-func ParseUniqueStrings(input, sep string) []string {
-	uniqueMap := make(map[string]struct{})
-	uniqueItems := make([]string, 0)
-
-	tagList := strings.Split(input, sep)
-	for _, tag := range tagList {
-		tag = strings.TrimSpace(tag)
-		if tag != "" {
-			if _, exists := uniqueMap[tag]; !exists {
-				uniqueMap[tag] = struct{}{}
-				uniqueItems = append(uniqueItems, tag)
-			}
-		}
-	}
-
-	return uniqueItems
 }
 
 // ExecuteCmd runs a command with the given arguments and returns an error if
@@ -140,30 +119,4 @@ func ReadClipboard() string {
 	}
 
 	return s
-}
-
-// ExtractID extracts the ID from a string.
-func ExtractID(s string) int {
-	re := regexp.MustCompile(`^\d+`)
-	match := re.FindString(s)
-
-	if match == "" {
-		log.Printf("could not extract ID from: %s\n", s)
-		return -1
-	}
-
-	id := StrToInt(match)
-	log.Printf("extracted ID: %d\n", id)
-
-	return id
-}
-
-// StrToInt converts a string to an int.
-func StrToInt(s string) int {
-	i, err := strconv.Atoi(s)
-	if err != nil {
-		return -1
-	}
-
-	return i
 }

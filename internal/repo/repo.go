@@ -8,7 +8,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/haaag/gm/internal/util/files"
+	"github.com/haaag/gm/internal/sys/files"
 )
 
 // SQLiteRepository implements the Repository interface.

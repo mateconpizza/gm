@@ -10,15 +10,15 @@ import (
 	"strings"
 
 	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/bookmark/qr"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/qr"
+	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/terminal"
-	"github.com/haaag/gm/internal/util/files"
-	"github.com/haaag/gm/internal/util/frame"
-	"github.com/haaag/gm/internal/util/spinner"
+	"github.com/haaag/gm/internal/sys/files"
+	"github.com/haaag/gm/internal/sys/spinner"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var ErrCopyToClipboard = errors.New("copy to clipboard")

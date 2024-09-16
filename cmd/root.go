@@ -9,7 +9,7 @@ import (
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/terminal"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 type (
@@ -20,8 +20,6 @@ type (
 // TODO)):
 // - [x] Extract `restore|deleted` logic to subcommand `restore`.
 // - [x] Extract `init` logic to subcommand `init`.
-// WARN:
-// - [ ] Simplify `root.go`
 
 var (
 	// SQLiteCfg holds the configuration for the database and backups.

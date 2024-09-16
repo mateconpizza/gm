@@ -9,8 +9,8 @@ import (
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/terminal"
-	"github.com/haaag/gm/internal/util/files"
+	"github.com/haaag/gm/internal/sys/files"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var (

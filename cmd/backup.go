@@ -9,10 +9,10 @@ import (
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/terminal"
-	"github.com/haaag/gm/internal/util"
-	"github.com/haaag/gm/internal/util/frame"
+	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // Subcommand Flags.
@@ -142,7 +142,7 @@ func printsBackupInfo(r *repo.SQLiteRepository) error {
 func getMaxBackup() int {
 	n := config.DB.BackupMaxBackups
 	defaultMax := strconv.Itoa(n)
-	maxBackups, err := strconv.Atoi(util.GetEnv(config.App.Env.BackupMax, defaultMax))
+	maxBackups, err := strconv.Atoi(sys.GetEnv(config.App.Env.BackupMax, defaultMax))
 	if err != nil {
 		return n
 	}

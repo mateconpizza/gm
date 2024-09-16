@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/util/files"
+	"github.com/haaag/gm/internal/sys/files"
 )
 
 // SQLiteConfig represents the configuration for a SQLite database.
