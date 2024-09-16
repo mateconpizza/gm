@@ -36,13 +36,13 @@ func (q *QRCode) Generate() error {
 }
 
 // GenImg generates the PNG from the QR-Code.
-func (q *QRCode) GenImg(fileName string) error {
+func (q *QRCode) GenImg(s string) error {
 	if q.QR == nil {
 		return ErrQRNotGenerated
 	}
 
 	var err error
-	q.file, err = generatePNG(q.QR, fileName)
+	q.file, err = generatePNG(q.QR, s)
 	if err != nil {
 		return fmt.Errorf("creating temp file: %w", err)
 	}
@@ -58,11 +58,11 @@ func (q *QRCode) Open() error {
 
 	args := make([]string, 0)
 
-	// FIX: remove display, keep `GetOSArgsCmd`
+	// FIX: remove display, keep default system
 	if sys.BinExists("display") {
 		args = append(args, "display", q.file.Name())
 	} else {
-		args = append(sys.GetOSArgsCmd(), q.file.Name())
+		args = append(sys.OSArgs(), q.file.Name())
 	}
 
 	if err := sys.ExecuteCmd(args...); err != nil {
@@ -73,12 +73,12 @@ func (q *QRCode) Open() error {
 }
 
 // Label adds a label to an image, with the given position (top or bottom).
-func (q *QRCode) Label(s, position string) error {
+func (q *QRCode) Label(s, pos string) error {
 	if q.file == nil {
 		return ErrQRFileNotFound
 	}
 
-	return addLabel(q.file.Name(), s, position)
+	return addLabel(q.file.Name(), s, pos)
 }
 
 // Render renders a QR-Code to the standard output.

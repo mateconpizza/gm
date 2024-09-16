@@ -18,17 +18,22 @@ import (
 	"github.com/haaag/gm/internal/sys/files"
 )
 
-// Pos is a position on an image.
-type Pos struct {
+// position is a position on an image.
+type position struct {
 	x, y int
 }
 
-// calcPosFn is a function that calculates a position on an image.
-type calcPosFn func(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.Face) Pos
+// RenderOpts contains options for rendering, including image, font, and
+// position calculation function.
+type RenderOpts struct {
+	bitmap  *image.RGBA
+	face    *basicfont.Face
+	calcPos func(s string, fd *font.Drawer) position
+}
 
 // loadImage opens an image file and decodes it as an `image.Image`.
-func loadImage(fileName string) (image.Image, error) {
-	f, err := os.Open(fileName)
+func loadImage(s string) (image.Image, error) {
+	f, err := os.Open(s)
 	if err != nil {
 		return nil, fmt.Errorf("opening image: %w", err)
 	}
@@ -47,64 +52,64 @@ func loadImage(fileName string) (image.Image, error) {
 }
 
 // createFontDrawer creates a font drawer with the given label.
-func createFontDrawer(
-	rgba *image.RGBA,
-	fontFace *basicfont.Face,
-	label string,
-	calcPosition calcPosFn,
-) *font.Drawer {
-	d := &font.Drawer{
-		Dst:  rgba,
+func createFontDrawer(s string, ro RenderOpts) *font.Drawer {
+	fd := &font.Drawer{
+		Dst:  ro.bitmap,
 		Src:  image.NewUniform(color.RGBA{0, 0, 0, 255}), // black
-		Face: fontFace,
+		Face: ro.face,
 	}
 
-	pos := calcPosition(rgba, d, label, fontFace)
+	pos := ro.calcPos(s, fd)
 
 	// Set the position for the drawer
-	d.Dot = fixed.Point26_6{X: fixed.I(pos.x), Y: fixed.I(pos.y)}
+	fd.Dot = fixed.Point26_6{X: fixed.I(pos.x), Y: fixed.I(pos.y)}
 
-	return d
+	return fd
 }
 
 // addLabel adds a label to an image, with the given position.
-func addLabel(fileName, label, position string) error {
-	img, err := loadImage(fileName)
+func addLabel(path, text, pos string) error {
+	img, err := loadImage(path)
 	if err != nil {
 		return err
 	}
 
 	// Convert the image to RGBA
-	rgba := image.NewRGBA(img.Bounds())
-	draw.Draw(rgba, rgba.Bounds(), img, image.Point{}, draw.Src)
+	bitmap := image.NewRGBA(img.Bounds())
+	draw.Draw(bitmap, bitmap.Bounds(), img, image.Point{}, draw.Src)
 
-	var d *font.Drawer
-	switch position {
-	case "top":
-		d = createFontDrawer(rgba, inconsolata.Bold8x16, label, calcTopPos)
-	case "bottom":
-		d = createFontDrawer(rgba, inconsolata.Regular8x16, label, calcBottomPos)
-	default:
-		d = createFontDrawer(rgba, inconsolata.Regular8x16, label, calcBottomPos)
+	opts := RenderOpts{
+		bitmap: bitmap,
 	}
 
+	switch pos {
+	case "top":
+		opts.face = inconsolata.Bold8x16
+		opts.calcPos = calcTop
+	default:
+		opts.face = inconsolata.Regular8x16
+		opts.calcPos = calcBottom
+	}
+
+	fd := createFontDrawer(text, opts)
+
 	// Draw the label
-	d.DrawString(label)
+	fd.DrawString(text)
 
 	// Save the image with the label
-	outFile, err := os.Create(fileName)
+	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("creating output file: %w", err)
 	}
 
 	defer func() {
-		if err := outFile.Close(); err != nil {
+		if err := f.Close(); err != nil {
 			log.Printf("error closing source file: %v", err)
 		}
 	}()
 
 	// Write image
-	err = png.Encode(outFile, rgba)
+	err = png.Encode(f, bitmap)
 	if err != nil {
 		return fmt.Errorf("encoding image: %w", err)
 	}
@@ -112,33 +117,33 @@ func addLabel(fileName, label, position string) error {
 	return nil
 }
 
-// calcBottomPos calculates the position for the bottom label.
-func calcBottomPos(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.Face) Pos {
+// calcBottom calculates the position for the bottom label.
+func calcBottom(s string, fd *font.Drawer) position {
 	// Measure the label size
-	labelWidth := d.MeasureString(s).Ceil()
-	labelHeight := fontFace.Metrics().Height.Ceil()
+	labelWidth := fd.MeasureString(s).Ceil()
+	labelHeight := fd.Face.Metrics().Height.Ceil()
 
 	// Calculate the position to center the label
-	x := (rgba.Bounds().Dx() - labelWidth) / 2
-	y := rgba.Bounds().Dy() - labelHeight
+	x := (fd.Dst.Bounds().Dx() - labelWidth) / 2
+	y := fd.Dst.Bounds().Dy() - labelHeight
 
-	return Pos{x, y}
+	return position{x, y}
 }
 
-// calcTopPos calculates the position for the top label.
-func calcTopPos(rgba *image.RGBA, d *font.Drawer, s string, fontFace *basicfont.Face) Pos {
+// calcTop calculates the position for the top label.
+func calcTop(s string, fd *font.Drawer) position {
 	// Measure the label size
-	labelWidth := d.MeasureString(s).Ceil()
-	labelHeight := fontFace.Metrics().Height.Ceil()
+	labelWidth := fd.MeasureString(s).Ceil()
+	labelHeight := fd.Face.Metrics().Height.Ceil()
 
 	// Calculate the position to center the label
-	x := (rgba.Bounds().Dx() - labelWidth) / 2
+	x := (fd.Dst.Bounds().Dx() - labelWidth) / 2
 	y := labelHeight // Position from the top edge
 
 	// Add one line of text height to y to move it one line down
-	y += fontFace.Metrics().Height.Ceil()
+	y += fd.Face.Metrics().Height.Ceil()
 
-	return Pos{x, y}
+	return position{x, y}
 }
 
 // generatePNG generates a PNG from a given QR-Code.
