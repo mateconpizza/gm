@@ -11,6 +11,8 @@ import (
 	"github.com/haaag/gm/internal/sys"
 )
 
+var termState *term.State
+
 // https://no-color.org
 const noColorEnv string = "NO_COLOR"
 
@@ -28,6 +30,7 @@ var (
 	ErrTermWidthTooSmall   = errors.New("terminal width too small")
 	ErrTermHeightTooSmall  = errors.New("terminal height too small")
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
+	ErrNoStateToRestore    = errors.New("no term state to restore")
 )
 
 // NoColor disables color if the NO_COLOR environment variable is set.
@@ -36,6 +39,31 @@ func NoColor(b *bool) {
 		log.Println("NO_COLOR found.")
 		*b = false
 	}
+}
+
+// Save the current terminal state.
+func SaveState() error {
+	oldState, err := term.GetState(int(os.Stdin.Fd()))
+	if err != nil {
+		return fmt.Errorf("saving state: %w", err)
+	}
+	termState = oldState
+
+	return nil
+}
+
+// Restore the previously saved terminal state.
+func RestoreState() error {
+	if termState == nil {
+		return ErrNoStateToRestore
+	}
+
+	err := term.Restore(int(os.Stdin.Fd()), termState)
+	if err != nil {
+		return fmt.Errorf("restoring state: %w", err)
+	}
+
+	return nil
 }
 
 // LoadMaxWidth updates `MaxWidth` to the current width if it is smaller than

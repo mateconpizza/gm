@@ -75,7 +75,7 @@ func init() {
 		StringVarP(&DBName, "name", "n", config.DB.Name, "database name")
 	rootCmd.PersistentFlags().
 		BoolVar(&Force, "force", false, "force action | don't ask confirmation")
-	rootCmd.PersistentFlags().BoolVar(&Verbose, "verbose", false, "verbose mode")
+	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 
 	// Prints
 	rootCmd.PersistentFlags().BoolVarP(&Frame, "frame", "f", false, "print data in framed format")
@@ -117,7 +117,7 @@ func init() {
 
 // verifyDatabase verifies if the database exists.
 func verifyDatabase(c *repo.SQLiteConfig) error {
-	db := files.EnsureExtension(DBName, ".db")
+	db := files.AddExtension(DBName, ".db")
 	i := color.BrightYellow(config.App.Cmd, "init").Bold().Italic()
 
 	if err := c.Exists(); err != nil {

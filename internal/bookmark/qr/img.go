@@ -28,7 +28,7 @@ type position struct {
 type RenderOpts struct {
 	bitmap  *image.RGBA
 	face    *basicfont.Face
-	calcPos func(s string, fd *font.Drawer) position
+	calcPos func(string, *font.Drawer) position
 }
 
 // loadImage opens an image file and decodes it as an `image.Image`.

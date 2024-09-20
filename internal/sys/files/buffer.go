@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	ErrBufferUnchanged    = errors.New("buffer unchanged")
 	ErrCommandNotFound    = errors.New("command not found")
 	ErrTextEditorNotFound = errors.New("text editor not found")
 )
@@ -144,11 +143,12 @@ func editFile(te *TextEditor, f *os.File) error {
 // editing it with an external editor, and then reading the modified contents
 // back into the byte slice.
 func Edit(te *TextEditor, b *[]byte) error {
+	// FIX: im doing too much things or the doc-comm is too long?
 	f, err := CreateTempFileWithData(b)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer Cleanup(f)
+	defer closeAndClean(f)
 
 	log.Printf("editing file: '%s' with text editor: '%s'", f.Name(), te.name)
 

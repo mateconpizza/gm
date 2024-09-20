@@ -24,8 +24,8 @@ func Exists(s string) bool {
 	return !os.IsNotExist(err)
 }
 
-// Size returns the size of a file.
-func Size(s string) int64 {
+// size returns the size of a file.
+func size(s string) int64 {
 	fi, err := os.Stat(s)
 	if err != nil {
 		return 0
@@ -34,7 +34,7 @@ func Size(s string) int64 {
 	return fi.Size()
 }
 
-// List returns files found in a given path.
+// List returns all files found in a given path.
 func List(root, pattern string) ([]string, error) {
 	query := root + "/*" + pattern
 	files, err := filepath.Glob(query)
@@ -47,9 +47,8 @@ func List(root, pattern string) ([]string, error) {
 	return files, nil
 }
 
-// Mkdir creates a new directory at the specified path if it does not already
-// exist.
-func Mkdir(s string) error {
+// mkdir creates a new directory at the specified path.
+func mkdir(s string) error {
 	if Exists(s) {
 		return nil
 	}
@@ -62,10 +61,10 @@ func Mkdir(s string) error {
 	return nil
 }
 
-// MkdirAll creates all the given paths if they do not already exist.
+// MkdirAll creates all the given paths.
 func MkdirAll(s ...string) error {
 	for _, path := range s {
-		if err := Mkdir(path); err != nil {
+		if err := mkdir(path); err != nil {
 			return err
 		}
 	}
@@ -73,8 +72,7 @@ func MkdirAll(s ...string) error {
 	return nil
 }
 
-// Remove removes the specified file if it exists, returning an error if the
-// file does not exist or if removal fails.
+// Remove removes the specified file if it exists.
 func Remove(s string) error {
 	if !Exists(s) {
 		return fmt.Errorf("%w: '%s'", ErrFileNotFound, s)
@@ -89,8 +87,7 @@ func Remove(s string) error {
 	return nil
 }
 
-// Copy copies the contents of a source file to a destination file,
-// returning an error if any file operation fails.
+// Copy copies the contents of a source file to a destination file.
 func Copy(from, to string) error {
 	srcFile, err := os.Open(from)
 	if err != nil {
@@ -135,9 +132,8 @@ func cleanupTemp(s string) error {
 	return nil
 }
 
-// Cleanup closes the provided file and deletes the associated temporary file,
-// logging any errors encountered.
-func Cleanup(f *os.File) {
+// closeAndClean closes the provided file and deletes the associated temporary file.
+func closeAndClean(f *os.File) {
 	if err := f.Close(); err != nil {
 		log.Printf("Error closing temp file: %v", err)
 	}
@@ -158,9 +154,8 @@ func CreateTemp(prefix, ext string) (*os.File, error) {
 	return tempFile, nil
 }
 
-// FindByExtension returns a list of files with the specified extension in
-// the given directory, or an error if the directory does not exist or if the
-// glob operation fails.
+// FindByExtension returns a list of files with the specified extension in the
+// given directory.
 func FindByExtension(root, ext string) ([]string, error) {
 	if !Exists(root) {
 		log.Printf("FindByExtension: path does not exist: '%s'", root)
@@ -177,9 +172,8 @@ func FindByExtension(root, ext string) ([]string, error) {
 	return files, nil
 }
 
-// EnsureExtension appends the specified suffix to the filename if it does
-// not already have it.
-func EnsureExtension(s, suffix string) string {
+// AddExtension appends the specified suffix to the filename.
+func AddExtension(s, suffix string) string {
 	if !strings.HasSuffix(s, suffix) {
 		s = fmt.Sprintf("%s%s", s, suffix)
 	}
@@ -187,9 +181,9 @@ func EnsureExtension(s, suffix string) string {
 	return s
 }
 
-// IsNonEmptyFile checks if the database is initialized.
-func IsNonEmptyFile(s string) bool {
-	return Size(s) > 0
+// IsEmpty returns true if the file at path s has non-zero size.
+func IsEmpty(s string) bool {
+	return size(s) == 0
 }
 
 // ModTime returns the formatted modification time of the specified file.

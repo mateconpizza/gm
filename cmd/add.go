@@ -8,6 +8,7 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/scraper"
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
@@ -35,7 +36,7 @@ var addCmd = &cobra.Command{
 }
 
 // handleURL retrieves a URL from args or prompts the user for input.
-func handleURL(border string, args *[]string) string {
+func handleURL(args *[]string) string {
 	urlPrompt := color.Blue("+ URL\t:").Bold().String()
 
 	// This checks if URL is provided and returns it
@@ -49,14 +50,17 @@ func handleURL(border string, args *[]string) string {
 	}
 
 	// Prompt user for URL
-	urlPrompt += color.BrightRed("\n " + border).String()
-	urlPrompt += color.ANSICode(color.BrightGray)
+	urlPrompt += color.BrightYellow("\n >> ").String()
 
-	return terminal.ReadInput(urlPrompt)
+	if config.App.Color {
+		urlPrompt += color.ANSICode(color.BrightGray)
+	}
+
+	return terminal.Input(urlPrompt)
 }
 
 // handleTags retrieves tags from args or prompts the user for input.
-func handleTags(border string, args *[]string) string {
+func handleTags(args *[]string) string {
 	tagsPrompt := color.Purple("+ Tags\t:").Bold().String()
 
 	// This checks if tags are provided and returns them
@@ -72,10 +76,13 @@ func handleTags(border string, args *[]string) string {
 
 	// Prompt user for tags
 	tagsPrompt += color.Gray(" (comma-separated)").Italic().String()
-	tagsPrompt += color.BrightRed("\n " + border).String()
-	tagsPrompt += color.ANSICode(color.BrightGray)
+	tagsPrompt += color.BrightYellow("\n >> ").String()
 
-	return terminal.ReadInput(tagsPrompt)
+	if config.App.Color {
+		tagsPrompt += color.ANSICode(color.BrightGray)
+	}
+
+	return terminal.Input(tagsPrompt)
 }
 
 // fetchTitleAndDesc fetch and display title and description.
@@ -107,6 +114,24 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 	return title, desc
 }
 
+// parseURL parse URL from args.
+func parseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
+	url := handleURL(args)
+	if url == "" {
+		return "", bookmark.ErrURLEmpty
+	}
+
+	// WARN: do we need this trim? why?
+	url = strings.TrimRight(url, "/")
+
+	if r.HasRecord(r.Cfg.TableMain, "url", url) {
+		item, _ := r.ByURL(r.Cfg.TableMain, url)
+		return "", fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
+	}
+
+	return url, nil
+}
+
 // handleAdd fetch metadata and adds a new bookmark.
 func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	if terminal.IsPiped() && len(args) < 2 {
@@ -116,30 +141,19 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 
 	header := color.Yellow("Add Bookmark").Bold().String()
-	quit := color.Gray(" (ctrl+c to exit)").Italic().String()
+	quit := color.Gray(" (ctrl+d to exit)").Italic().String()
 	f.Header(header + quit)
 	f.Newline().Render()
 
 	// Retrieve URL
-	url := handleURL(f.Border.Mid, &args)
-	if url == "" {
-		return bookmark.ErrURLEmpty
+	url, err := parseURL(r, &args)
+	if err != nil {
+		return err
 	}
-
-	// WARN: do we need this trim? why?
-	url = strings.TrimRight(url, "/")
-
-	if r.HasRecord(r.Cfg.TableMain, "url", url) {
-		item, _ := r.ByURL(r.Cfg.TableMain, url)
-		return fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
-	}
-
 	// Retrieve tags
-	tags := handleTags(f.Border.Mid, &args)
-
+	tags := handleTags(&args)
 	// Fetch title and description
 	title, desc := fetchTitleAndDesc(url, terminal.MinWidth)
-
 	// Create a new bookmark
 	b := bookmark.New(url, title, bookmark.ParseTags(tags), desc)
 

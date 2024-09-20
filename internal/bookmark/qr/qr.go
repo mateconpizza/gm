@@ -86,6 +86,10 @@ func (q *QRCode) Render() {
 	fmt.Print(q.QR.ToSmallString(false))
 }
 
+func (q *QRCode) String() string {
+	return q.QR.ToSmallString(true)
+}
+
 // New creates a new QR-Code.
 func New(s string) *QRCode {
 	return &QRCode{

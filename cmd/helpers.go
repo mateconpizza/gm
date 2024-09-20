@@ -98,29 +98,14 @@ func filterSlice(bs *Slice) error {
 
 // bookmarkEdition edits a bookmark with a text editor.
 func bookmarkEdition(b *Bookmark) error {
-	buf := bookmark.Buffer(b)
-	editor, err := files.Editor(config.App.Env.Editor)
+	te, err := files.Editor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := files.Edit(editor, &buf); err != nil {
-		if errors.Is(err, files.ErrBufferUnchanged) {
-			return nil
-		}
-
+	if err := bookmark.Edit(te, bookmark.Buffer(b), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
-	content := format.ByteSliceToLines(&buf)
-	tempB := bookmark.ParseContent(&content)
-	tempB = bookmark.ScrapeAndUpdate(tempB)
-	if err := bookmark.BufferValidate(&content); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	tempB.ID = b.ID
-	*b = *tempB
 
 	return nil
 }

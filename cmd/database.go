@@ -87,7 +87,7 @@ func checkDBState(f string) error {
 	if !files.Exists(f) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, f)
 	}
-	if !files.IsNonEmptyFile(f) {
+	if files.IsEmpty(f) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, f)
 	}
 

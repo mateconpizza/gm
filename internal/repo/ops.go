@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/files"
 )
@@ -17,6 +19,23 @@ import (
 func RecordCount(r *SQLiteRepository, t Table) int {
 	log.Printf("RecordCount: r: '%s', tableName: '%s'", r.Cfg.Name, t)
 	return r.maxID(t)
+}
+
+// Tags retrieves and returns a sorted slice of unique tags.
+func Tags(r *SQLiteRepository) ([]string, error) {
+	t, err := r.ByColumn(r.Cfg.TableMain, "tags")
+	if err != nil {
+		return nil, err
+	}
+
+	var tags []string
+	t.ForEach(func(t string) {
+		tags = append(tags, strings.Split(t, ",")...)
+	})
+
+	slices.Sort(tags)
+
+	return format.Unique(tags), nil
 }
 
 // databasesFromPath returns the list of files from the given path.

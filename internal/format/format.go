@@ -163,3 +163,21 @@ func IsSameContentBytes(a, b *[]byte) bool {
 func IsEmptyLine(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
+
+// Unique returns a slice of unique, non-empty strings from the input slice.
+func Unique(t []string) []string {
+	seen := make(map[string]bool)
+	var tags []string
+
+	for _, tag := range t {
+		if tag == "" {
+			continue
+		}
+		if !seen[tag] {
+			seen[tag] = true
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags
+}

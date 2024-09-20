@@ -5,13 +5,18 @@ import (
 	"os"
 	"strings"
 
+	"github.com/junegunn/go-shellwords"
+
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 )
 
-// appendKeyDescToHeader appends a key:desc string to the header slice.
-func appendKeyDescToHeader(opts []string, key, desc string) []string {
+// TODO))
+// [ ] Use `shellwords`
+
+// appendToHeader appends a key:desc string to the header slice.
+func appendToHeader(opts []string, key, desc string) []string {
 	return append(opts, fmt.Sprintf("%s:%s", key, desc))
 }
 
@@ -70,13 +75,19 @@ func loadHeader(header []string, args *[]string) {
 }
 
 // loadKeybind appends a comma-separated keybind string to args.
-func loadKeybind(keybind []string, args *[]string) {
+func loadKeybind(keybind []string, args *[]string) error {
 	if len(keybind) == 0 {
-		return
+		return nil
 	}
 
 	keys := strings.Join(keybind, ",")
-	*args = append(*args, "--bind", keys)
+	a, err := shellwords.Parse(fmt.Sprintf("%s='%s'", "--bind", keys))
+	if err != nil {
+		return fmt.Errorf("parsing keybinds args: %w", err)
+	}
+	*args = append(*args, a...)
+
+	return nil
 }
 
 // withCommand formats string with the name of the Command, the same name

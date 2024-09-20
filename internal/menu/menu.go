@@ -66,8 +66,8 @@ func WithDefaultSettings() OptFn {
 // WithKeybindEdit adds a keybind to edit the selected record.
 func WithKeybindEdit() OptFn {
 	return func(o *Options) {
-		o.header = appendKeyDescToHeader(o.header, "ctrl-e", "edit")
-		o.keybind = append(o.keybind, withCommand("ctrl-e:execute(%s -e {1})"))
+		o.header = appendToHeader(o.header, "ctrl-e", "edit")
+		o.keybind = append(o.keybind, withCommand("ctrl-e:execute(%s --edit {1})"))
 	}
 }
 
@@ -75,15 +75,16 @@ func WithKeybindEdit() OptFn {
 // browser.
 func WithKeybindOpen() OptFn {
 	return func(o *Options) {
-		o.header = appendKeyDescToHeader(o.header, "ctrl-o", "open")
-		o.keybind = append(o.keybind, withCommand("ctrl-o:execute(%s -o {1})"))
+		o.header = appendToHeader(o.header, "ctrl-o", "open")
+		o.keybind = append(o.keybind, withCommand("ctrl-o:execute(%s --open {1})"))
 	}
 }
 
+// WithKeybindQR adds a keybinding to generate and open a QR code.
 func WithKeybindQR() OptFn {
 	return func(o *Options) {
-		o.header = appendKeyDescToHeader(o.header, "ctrl-k", "QRcode")
-		o.keybind = append(o.keybind, withCommand("ctrl-k:execute(%s --qr --open {1})"))
+		o.header = appendToHeader(o.header, "ctrl-k", "QRcode")
+		o.keybind = append(o.keybind, withCommand("ctrl-k:execute(%s --qr {1})"))
 	}
 }
 
@@ -92,8 +93,8 @@ func WithKeybindQR() OptFn {
 // ctrl-y:copy-to-clipboard.
 func WithDefaultKeybinds() OptFn {
 	return func(o *Options) {
-		o.header = appendKeyDescToHeader(o.header, "ctrl-y", "copy")
-		o.keybind = append(o.keybind, withCommand("ctrl-y:execute(%s -c {1})"))
+		o.header = appendToHeader(o.header, "ctrl-y", "copy")
+		o.keybind = append(o.keybind, withCommand("ctrl-y:execute(%s --copy {1})"))
 	}
 }
 
@@ -107,7 +108,7 @@ func WithDefaultKeybinds() OptFn {
 // e.g: "<key>:<action>".
 func WithKeybindNew(key, action, desc string) OptFn {
 	return func(o *Options) {
-		o.header = appendKeyDescToHeader(o.header, key, desc)
+		o.header = appendToHeader(o.header, key, desc)
 		o.keybind = append(o.keybind, fmt.Sprintf("%s:%s", key, action))
 	}
 }
@@ -115,8 +116,8 @@ func WithKeybindNew(key, action, desc string) OptFn {
 // WithMultiSelection adds a keybind to select multiple records.
 func WithMultiSelection() OptFn {
 	opts := []string{"--highlight-line", "--multi"}
-	h := appendKeyDescToHeader(make([]string, 0), "ctrl-a", "toggle-all")
-	h = appendKeyDescToHeader(h, "tab", "select")
+	h := appendToHeader(make([]string, 0), "ctrl-a", "toggle-all")
+	h = appendToHeader(h, "tab", "select")
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
@@ -134,7 +135,7 @@ func WithPreview() OptFn {
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
-		o.header = appendKeyDescToHeader(o.header, "ctrl-/", "toggle-preview")
+		o.header = appendToHeader(o.header, "ctrl-/", "toggle-preview")
 		o.keybind = append(o.keybind, "ctrl-/:toggle-preview")
 	}
 }
@@ -145,7 +146,7 @@ func WithPreviewCustomCmd(cmd string) OptFn {
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
-		o.header = appendKeyDescToHeader(o.header, "ctrl-/", "toggle-preview")
+		o.header = appendToHeader(o.header, "ctrl-/", "toggle-preview")
 		o.keybind = append(o.keybind, "ctrl-/:toggle-preview")
 	}
 }
@@ -179,9 +180,9 @@ func (m *Menu[T]) GetArgs() []string {
 }
 
 // setup loads header, keybind and args from Options.
-func (m *Menu[T]) setup() {
+func (m *Menu[T]) setup() error {
 	loadHeader(m.header, &m.args)
-	loadKeybind(m.keybind, &m.args)
+	return loadKeybind(m.keybind, &m.args)
 }
 
 // Select runs fzf with the given items and returns the selected items.
@@ -190,7 +191,9 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 		return nil, ErrFzfNoRecords
 	}
 
-	m.setup()
+	if err := m.setup(); err != nil {
+		return nil, err
+	}
 
 	if preprocessor == nil {
 		preprocessor = toString

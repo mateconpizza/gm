@@ -173,7 +173,6 @@ func (r *SQLiteRepository) delete(t Table, b *Row) error {
 // deleteAll deletes all records in the give table.
 func (r *SQLiteRepository) deleteAll(t Table) error {
 	log.Printf("deleting all records from table: %s", t)
-	//nolint:perfsprint //gosec conflict
 	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s", t))
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDBDrop, err)
@@ -441,7 +440,7 @@ func (r *SQLiteRepository) ByQuery(t Table, q string, bs *Slice) error {
 }
 
 // ByColumn returns the data found from the given column name.
-func (r *SQLiteRepository) ByColumn(t, c string) (*slice.Slice[string], error) {
+func (r *SQLiteRepository) ByColumn(t Table, c string) (*slice.Slice[string], error) {
 	log.Printf("getting all records from table: '%s' and column: '%s'", t, c)
 	sqlQuery := fmt.Sprintf("SELECT %s FROM %s ORDER BY id ASC", c, t)
 	rows, err := r.DB.Query(sqlQuery)
@@ -488,7 +487,6 @@ func (r *SQLiteRepository) ByColumn(t, c string) (*slice.Slice[string], error) {
 func (r *SQLiteRepository) maxID(t Table) int {
 	var lastIndex int
 
-	//nolint:perfsprint //gosec conflict
 	sqlQuery := fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %s", t)
 
 	if err := r.DB.QueryRow(sqlQuery).Scan(&lastIndex); err != nil {

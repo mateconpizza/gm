@@ -81,13 +81,11 @@ func TestDropTable(t *testing.T) {
 		t.Errorf("Error dropping table: %v", err)
 	}
 
-	//nolint:perfsprint //gosec conflict
 	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.TableMain))
 	if err == nil {
 		t.Errorf("DBMainTable still exists after calling HandleDropDB")
 	}
 
-	//nolint:perfsprint //gosec conflict
 	_, err = db.Exec(fmt.Sprintf("SELECT * FROM %s", DBCfg.TableDeleted))
 	if err == nil {
 		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestGetEnv(t *testing.T) {
+func TestEnv(t *testing.T) {
 	tests := []struct {
 		name  string
 		env   string

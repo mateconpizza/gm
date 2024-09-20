@@ -2,6 +2,7 @@ package bookmark
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -10,7 +11,49 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/slice"
+	"github.com/haaag/gm/internal/sys/files"
 )
+
+var ErrBufferUnchanged = errors.New("buffer unchanged")
+
+// Edit modifies the provided bookmark based on the given byte slice and text
+// editor, returning an error if any operation fails.
+func Edit(te *files.TextEditor, bf []byte, b *Bookmark) error {
+	if err := editBuffer(te, &bf); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	var tb *Bookmark
+	c := format.ByteSliceToLines(&bf)
+	if err := BufferValidate(&c); err != nil {
+		return err
+	}
+
+	tb = ParseContent(&c)
+	tb = ScrapeAndUpdate(tb)
+
+	tb.ID = b.ID
+	*b = *tb
+
+	return nil
+}
+
+// editBuffer modifies the byte slice in the text editor and returns an error
+// if the edit operation fails.
+func editBuffer(te *files.TextEditor, bf *[]byte) error {
+	cBf := make([]byte, len(*bf))
+	copy(cBf, *bf)
+
+	if err := files.Edit(te, bf); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if format.IsSameContentBytes(bf, &cBf) {
+		return ErrBufferUnchanged
+	}
+
+	return nil
+}
 
 // Buffer returns a formatted buffer with item attrs.
 func Buffer(b *Bookmark) []byte {
@@ -80,14 +123,11 @@ func Oneline(b *Bookmark, width int) string {
 // Multiline formats a bookmark for fzf.
 func Multiline(b *Bookmark, width int) string {
 	var sb strings.Builder
-
-	id := color.BrightYellow(b.ID).Bold().String()
-	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
-	title := format.Shorten(b.Title, width)
-	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
-	f := "%s %s %s\n%s\n%s"
-
-	sb.WriteString(fmt.Sprintf(f, id, format.MidBulletPoint, urlColor, title, tags))
+	sb.WriteString(color.BrightYellow(b.ID).Bold().String())
+	sb.WriteString(" " + format.MidBulletPoint + " ") // sep
+	sb.WriteString(format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width) + "\n")
+	sb.WriteString(color.Cyan(format.Shorten(b.Title, width)).String() + "\n")
+	sb.WriteString(color.BrightGray(PrettifyTags(b.Tags)).Italic().String())
 
 	return sb.String()
 }
@@ -162,7 +202,7 @@ func PrettifyURL(s string, c color.ColorFn) string {
 		return host
 	}
 
-	pathSeg := color.Gray(
+	pathSeg := color.Text(
 		format.PathSmallSegment,
 		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
 	).Italic()

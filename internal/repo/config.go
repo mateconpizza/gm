@@ -50,7 +50,7 @@ func (c *SQLiteConfig) SetPath(p string) *SQLiteConfig {
 }
 
 func (c *SQLiteConfig) SetName(s string) *SQLiteConfig {
-	c.Name = files.EnsureExtension(s, ".db")
+	c.Name = files.AddExtension(s, ".db")
 	return c
 }
 
@@ -64,7 +64,7 @@ func (c *SQLiteConfig) Exists() error {
 
 // NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg(p string) *SQLiteConfig {
-  // WARN: do not like Table(*)
+	// WARN: do not like Table(*)
 	return &SQLiteConfig{
 		TableMain:    Table(config.DB.MainTable),
 		TableDeleted: Table(config.DB.DeletedTable),

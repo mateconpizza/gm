@@ -184,43 +184,34 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	header := "# [%d/%d] | %d | %s\n\n"
-	editor, err := files.Editor(config.App.Env.Editor)
+	te, err := files.Editor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	// edition edits the bookmark with a text editor.
 	edition := func(i int, b Bookmark) error {
+		// prepare header and buffer
 		buf := bookmark.Buffer(&b)
-		shortTitle := format.Shorten(b.Title, terminal.MinWidth-10)
-		format.BufferAppend(fmt.Sprintf(header, i+1, n, b.ID, shortTitle), &buf)
+		tShort := format.Shorten(b.Title, terminal.MinWidth-10)
+		format.BufferAppend(fmt.Sprintf(header, i+1, n, b.ID, tShort), &buf)
 		format.BufferApendVersion(config.App.Name, config.App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
 		copy(bufCopy, buf)
 
-		if err := files.Edit(editor, &buf); err != nil {
+		if err := bookmark.Edit(te, buf, &b); err != nil {
+			if errors.Is(err, bookmark.ErrBufferUnchanged) {
+				return nil
+			}
+
 			return fmt.Errorf("%w", err)
 		}
-
-		if format.IsSameContentBytes(&buf, &bufCopy) {
-			return nil
-		}
-
-		content := format.ByteSliceToLines(&buf)
-		if err := bookmark.BufferValidate(&content); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		editedB := bookmark.ParseContent(&content)
-		editedB = bookmark.ScrapeAndUpdate(editedB)
-		editedB.ID = b.ID
-		b = *editedB
 
 		if _, err := r.Update(r.Cfg.TableMain, &b); err != nil {
 			return fmt.Errorf("handle edition: %w", err)
 		}
 
-		fmt.Printf("%s: id: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
+		fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
 
 		return nil
 	}
@@ -262,7 +253,8 @@ func handleCheckStatus(bs *Slice) error {
 	}
 
 	status := color.BrightGreen("status").Bold().String()
-	if n > 15 && !terminal.Confirm(fmt.Sprintf("checking %s of %d, continue?", status, n), "y") {
+	q := fmt.Sprintf("checking %s of %d, continue?", status, n)
+	if n > 15 && !terminal.Confirm(q, "y") {
 		return ErrActionAborted
 	}
 
@@ -337,9 +329,13 @@ func handleQR(bs *Slice) error {
 			return openQR(qrcode, &b)
 		}
 
-		fmt.Println(b.Title)
-		qrcode.Render()
-		fmt.Println(b.URL)
+		var sb strings.Builder
+		sb.WriteString(b.Title + "\n")
+		sb.WriteString(b.URL)
+		sb.WriteString(qrcode.String())
+		fmt.Print(sb.String())
+
+		terminal.WaitForEnter()
 
 		return nil
 	}

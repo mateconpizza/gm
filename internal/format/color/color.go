@@ -126,91 +126,95 @@ func Reset() string {
 }
 
 func Black(arg ...any) *Color {
-	return &Color{text: join(arg...), color: black}
+	return addColor(black, arg...)
 }
 
 func Blue(arg ...any) *Color {
-	return &Color{text: join(arg...), color: blue}
+	return addColor(blue, arg...)
 }
 
 func Cyan(arg ...any) *Color {
-	return &Color{text: join(arg...), color: cyan}
+	return addColor(cyan, arg...)
 }
 
 func Gray(arg ...any) *Color {
-	return &Color{text: join(arg...), color: gray}
+	return addColor(gray, arg...)
 }
 
 func Green(arg ...any) *Color {
-	return &Color{text: join(arg...), color: green}
+	return addColor(green, arg...)
 }
 
 func Magenta(arg ...any) *Color {
-	return &Color{text: join(arg...), color: magenta}
+	return addColor(magenta, arg...)
 }
 
 func Orange(arg ...any) *Color {
-	return &Color{text: join(arg...), color: orange}
+	return addColor(orange, arg...)
 }
 
 func Purple(arg ...any) *Color {
-	return &Color{text: join(arg...), color: purple}
+	return addColor(purple, arg...)
 }
 
 func Red(arg ...any) *Color {
-	return &Color{text: join(arg...), color: red}
+	return addColor(red, arg...)
 }
 
 func White(arg ...any) *Color {
-	return &Color{text: join(arg...), color: white}
+	return addColor(white, arg...)
 }
 
 func Yellow(arg ...any) *Color {
-	return &Color{text: join(arg...), color: yellow}
+	return addColor(yellow, arg...)
 }
 
 func BrightBlack(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightBlack}
+	return addColor(brightBlack, arg...)
 }
 
 func BrightBlue(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightBlue}
+	return addColor(brightBlue, arg...)
 }
 
 func BrightCyan(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightCyan}
+	return addColor(brightCyan, arg...)
 }
 
 func BrightGray(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightGray}
+	return addColor(brightGray, arg...)
 }
 
 func BrightGreen(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightGreen}
+	return addColor(brightGreen, arg...)
 }
 
 func BrightMagenta(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightMagenta}
+	return addColor(brightMagenta, arg...)
 }
 
 func BrightOrange(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightOrange}
+	return addColor(brightOrange, arg...)
 }
 
 func BrightPurple(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightPurple}
+	return addColor(brightPurple, arg...)
 }
 
 func BrightRed(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightRed}
+	return addColor(brightRed, arg...)
 }
 
 func BrightWhite(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightWhite}
+	return addColor(brightWhite, arg...)
 }
 
 func BrightYellow(arg ...any) *Color {
-	return &Color{text: join(arg...), color: brightYellow}
+  return addColor(brightYellow, arg...)
+}
+
+func addColor(c string, arg ...any) *Color {
+	return &Color{text: join(arg...), color: c}
 }
 
 func join(text ...any) string {

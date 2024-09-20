@@ -12,8 +12,8 @@ import (
 
 // Confirm prompts the user with a question and options.
 func Confirm(q, def string) bool {
-	options := PromptWithOptsAndDef([]string{"y", "n"}, def)
-	chosen := PromptWithOptions(q, options, def)
+	options := promptWithOptsAndDef([]string{"y", "n"}, def)
+	chosen := promptWithOptions(q, options, def)
 
 	return strings.EqualFold(chosen, "y")
 }
@@ -23,19 +23,51 @@ func ConfirmWithOpts(q string, opts []string, def string) string {
 	for i := 0; i < len(opts); i++ {
 		opts[i] = strings.ToLower(opts[i])
 	}
-	opts = PromptWithOptsAndDef(opts, def)
+	opts = promptWithOptsAndDef(opts, def)
 
-	return PromptWithOptions(q, opts, def)
+	return promptWithOptions(q, opts, def)
 }
 
-// Prompt returns a formatted string with a question and options.
-func Prompt(q, opts string) string {
-	return fmt.Sprintf("%s %s ", q, color.Gray(opts))
+// ReadPipedInput reads the input from a pipe.
+func ReadPipedInput(args *[]string) {
+	if !IsPiped() {
+		return
+	}
+
+	s := getQueryFromPipe(os.Stdin)
+	if s == "" {
+		return
+	}
+
+	split := strings.Split(s, " ")
+	*args = append(*args, split...)
 }
 
-// PromptWithOptions prompts the user to enter one of the given options.
-func PromptWithOptions(q string, opts []string, def string) string {
-	p := Prompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
+// Input prompts the user for input.
+func Input(prompt string) string {
+	var s string
+	fmt.Print(prompt)
+	reader := bufio.NewReader(os.Stdin)
+	s, err := reader.ReadString('\n')
+	if err != nil {
+		return ""
+	}
+
+	fmt.Print(color.Reset())
+
+	return strings.Trim(s, "\n")
+}
+
+// WaitForEnter displays a prompt and waits for the user to press ENTER.
+func WaitForEnter() {
+	fmt.Print("Press ENTER to continue...")
+	var input string
+	_, _ = fmt.Scanln(&input)
+}
+
+// promptWithOptions prompts the user to enter one of the given options.
+func promptWithOptions(q string, opts []string, def string) string {
+	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
 	r := bufio.NewReader(os.Stdin)
 
 	for {
@@ -64,9 +96,9 @@ func PromptWithOptions(q string, opts []string, def string) string {
 	}
 }
 
-// PromptWithOptsAndDef capitalizes the default option and appends to the end of
+// promptWithOptsAndDef capitalizes the default option and appends to the end of
 // the slice.
-func PromptWithOptsAndDef(opts []string, def string) []string {
+func promptWithOptsAndDef(opts []string, def string) []string {
 	for i := 0; i < len(opts); i++ {
 		if strings.HasPrefix(opts[i], def) {
 			w := opts[i]
@@ -81,34 +113,9 @@ func PromptWithOptsAndDef(opts []string, def string) []string {
 	return opts
 }
 
-// ReadPipedInput reads the input from a pipe.
-func ReadPipedInput(args *[]string) {
-	if !IsPiped() {
-		return
-	}
-
-	s := getQueryFromPipe(os.Stdin)
-	if s == "" {
-		return
-	}
-
-	split := strings.Split(s, " ")
-	*args = append(*args, split...)
-}
-
-// ReadInput prompts the user for input.
-func ReadInput(prompt string) string {
-	var s string
-	fmt.Print(prompt)
-	reader := bufio.NewReader(os.Stdin)
-	s, err := reader.ReadString('\n')
-	if err != nil {
-		return ""
-	}
-
-	fmt.Print(color.Reset())
-
-	return strings.Trim(s, "\n")
+// buildPrompt returns a formatted string with a question and options.
+func buildPrompt(q, opts string) string {
+	return fmt.Sprintf("%s %s ", q, color.Gray(opts))
 }
 
 // getQueryFromPipe reads the input from the pipe.

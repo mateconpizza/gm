@@ -115,7 +115,6 @@ func (r *SQLiteRepository) TableCreate(s Table, schema string) error {
 func (r *SQLiteRepository) tableDrop(t Table) error {
 	log.Printf("dropping table: %s", t)
 
-	//nolint:perfsprint //gosec conflict
 	_, err := r.DB.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
 	if err != nil {
 		return fmt.Errorf("%w: dropping table '%s'", err, t)
