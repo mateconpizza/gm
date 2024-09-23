@@ -25,12 +25,12 @@ func Edit(te *files.TextEditor, bf []byte, b *Bookmark) error {
 
 	var tb *Bookmark
 	c := format.ByteSliceToLines(&bf)
-	if err := BufferValidate(&c); err != nil {
+	if err := bufferValidate(&c); err != nil {
 		return err
 	}
 
-	tb = ParseContent(&c)
-	tb = ScrapeAndUpdate(tb)
+	tb = parseContent(&c)
+	tb = scrapeAndUpdate(tb)
 
 	tb.ID = b.ID
 	*b = *tb

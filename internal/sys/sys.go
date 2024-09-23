@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
+	"github.com/pkg/browser"
 )
 
 var (
@@ -90,8 +91,7 @@ func OSArgs() []string {
 
 // OpenInBrowser opens a URL in the default browser.
 func OpenInBrowser(s string) error {
-	args := append(OSArgs(), s)
-	if err := ExecuteCmd(args...); err != nil {
+	if err := browser.OpenURL(s); err != nil {
 		return fmt.Errorf("%w: opening in browser", err)
 	}
 

@@ -6,13 +6,29 @@ import (
 )
 
 func TestShortenString(t *testing.T) {
-	input := "This is a long string"
-	maxLength := 10
-	expected := "This is..."
-	result := Shorten(input, maxLength)
+	test := []struct {
+		input    string
+		expected string
+		length   int
+	}{
+		{
+			input:    "This is a long string",
+			length:   10,
+			expected: "This is...",
+		},
+		{
+			input:    "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit...",
+			length:   20,
+			expected: "Neque porro quisq...",
+		},
+	}
 
-	if result != expected {
-		t.Errorf("Expected %s, but got %s", expected, result)
+	for _, tt := range test {
+		r := Shorten(tt.input, tt.length)
+		n := len(r)
+		if n != tt.length && r != tt.expected {
+			t.Errorf("Expected %s, but got %s", tt.expected, r)
+		}
 	}
 }
 

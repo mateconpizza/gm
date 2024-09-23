@@ -94,9 +94,6 @@ func handleListAndEdit(r *repo.SQLiteRepository, bs *Slice, args []string) error
 }
 
 func handleOutput(bs *Slice) error {
-	/* if err := handleOneline(bs); err != nil {
-		return err
-	} */
 	if err := handleJSONFormat(bs); err != nil {
 		return err
 	}

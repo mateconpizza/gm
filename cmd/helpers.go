@@ -110,8 +110,7 @@ func bookmarkEdition(b *Bookmark) error {
 	return nil
 }
 
-// openQR opens a QR-Code image in the system default image
-// viewer.
+// openQR opens a QR-Code image in the system default image viewer.
 func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	const maxLabelLen = 55
 	var title string
@@ -138,11 +137,10 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	return nil
 }
 
-// confirmEditOrSave confirms if the user wants to save the
-// bookmark.
-func confirmEditOrSave(b *Bookmark) error {
+// confirmEditSave confirms if the user wants to save the bookmark.
+func confirmEditSave(b *Bookmark) error {
 	save := color.BrightGreen("\nsave").Bold().String() + " bookmark?"
-	opt := terminal.ConfirmWithOpts(save, []string{"yes", "no", "edit"}, "y")
+	opt := terminal.ConfirmWithChoices(save, []string{"yes", "no", "edit"}, "y")
 
 	switch opt {
 	case "n":
@@ -175,7 +173,7 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 		f.Render()
 
 		summary += prompt + fmt.Sprintf(" %d bookmark/s?", n)
-		opt := terminal.ConfirmWithOpts(summary, []string{"yes", "no", "edit"}, "n")
+		opt := terminal.ConfirmWithChoices(summary, []string{"yes", "no", "edit"}, "n")
 
 		switch opt {
 		case "n", "no":

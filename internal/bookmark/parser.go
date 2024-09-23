@@ -47,43 +47,41 @@ func ExtractContentLine(c *[]string) map[string]bool {
 	return m
 }
 
-// ParseContent parses the provided content into a bookmark struct.
-func ParseContent(c *[]string) *Bookmark {
-	urlStr := extractTextBlock(c, "# URL:", "# Title:")
-	title := extractTextBlock(c, "# Title:", "# Tags:")
-	tags := extractTextBlock(c, "# Tags:", "# Description:")
-	desc := extractTextBlock(c, "# Description:", "# end")
-
-	return New(urlStr, title, ParseTags(tags), desc)
-}
-
-// ScrapeAndUpdate updates a Bookmark's title and description by scraping the
-// webpage if they are missing.
-func ScrapeAndUpdate(b *Bookmark) *Bookmark {
-	if b.Title == "" || b.Desc == "" {
-		mesg := color.Yellow("Scraping webpage...").String()
-		s := spinner.New(spinner.WithMesg(mesg))
-		s.Start()
-
-		sc := scraper.New(b.URL)
-		_ = sc.Scrape()
-
-		s.Stop()
-
-		b.Title = validateAttr(b.Title, sc.Title())
-		b.Desc = validateAttr(b.Desc, sc.Desc())
+// Validate validates the bookmark.
+func Validate(b *Bookmark) error {
+	if b.URL == "" {
+		log.Print("bookmark is invalid. URL is empty")
+		return ErrURLEmpty
 	}
 
-	return b
+	if b.Tags == "," || b.Tags == "" {
+		log.Print("bookmark is invalid. Tags are empty")
+		return ErrTagsEmpty
+	}
+
+	log.Print("bookmark is valid")
+
+	return nil
 }
 
-// BufferValidate checks if the URL and Tags are in the content.
-func BufferValidate(b *[]string) error {
+// bufferValidate checks if the URL and Tags are in the content.
+func bufferValidate(b *[]string) error {
 	if err := validateURLBuffer(b); err != nil {
 		return err
 	}
 
 	return validateTagsBuffer(b)
+}
+
+// parseContent parses the provided content into a bookmark struct.
+func parseContent(c *[]string) *Bookmark {
+	b := New()
+	b.URL = extractTextBlock(c, "# URL:", "# Title:")
+	b.Title = extractTextBlock(c, "# Title:", "# Tags:")
+	b.Tags = ParseTags(extractTextBlock(c, "# Tags:", "# Description:"))
+	b.Desc = extractTextBlock(c, "# Description:", "# end")
+
+	return b
 }
 
 // extractTextBlock extracts a block of text from a string, delimited by the
@@ -153,19 +151,22 @@ func validateAttr(s, fallback string) string {
 	return s
 }
 
-// Validate validates the bookmark.
-func Validate(b *Bookmark) error {
-	if b.URL == "" {
-		log.Print("bookmark is invalid. URL is empty")
-		return ErrURLEmpty
+// scrapeAndUpdate updates a Bookmark's title and description by scraping the
+// webpage if they are missing.
+func scrapeAndUpdate(b *Bookmark) *Bookmark {
+	if b.Title == "" || b.Desc == "" {
+		mesg := color.Yellow("scraping webpage...").String()
+		s := spinner.New(spinner.WithMesg(mesg))
+		s.Start()
+
+		sc := scraper.New(b.URL)
+		_ = sc.Scrape()
+
+		s.Stop()
+
+		b.Title = validateAttr(b.Title, sc.Title())
+		b.Desc = validateAttr(b.Desc, sc.Desc())
 	}
 
-	if b.Tags == "," || b.Tags == "" {
-		log.Print("bookmark is invalid. Tags are empty")
-		return ErrTagsEmpty
-	}
-
-	log.Print("bookmark is valid")
-
-	return nil
+	return b
 }

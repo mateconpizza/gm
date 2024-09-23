@@ -2,30 +2,81 @@ package terminal
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
+	prompt "github.com/c-bata/go-prompt"
+
 	"github.com/haaag/gm/internal/format/color"
 )
 
+var ErrActionAborted = errors.New("action aborted")
+
+type PromptSuggester = func(in prompt.Document) []prompt.Suggest
+
+const promptPrefix = ">>> "
+
+// Input get the Input data from the user and return it.
+func Input(exitFn func(error)) string {
+	if err := saveState(); err != nil {
+		exitFn(err)
+	}
+	defer func() {
+		if err := restoreState(); err != nil {
+			exitFn(err)
+		}
+	}()
+
+	// opts
+	o := promptOptions(enabledColor)
+	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
+
+	// take input
+	s := prompt.Input(promptPrefix, dummyCompleter(), o...)
+
+	return s
+}
+
+// Input get the input data from the user with suggestions.
+func InputWithSuggestions[T any](items []T, exitFn func(error)) string {
+	if err := saveState(); err != nil {
+		exitFn(err)
+	}
+	defer func() {
+		if err := restoreState(); err != nil {
+			exitFn(err)
+		}
+	}()
+
+	// opts
+	o := promptOptions(enabledColor)
+	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
+
+	// take input
+	s := prompt.Input(promptPrefix, completer(items), o...)
+
+	return s
+}
+
 // Confirm prompts the user with a question and options.
 func Confirm(q, def string) bool {
-	options := promptWithOptsAndDef([]string{"y", "n"}, def)
-	chosen := promptWithOptions(q, options, def)
+	choices := promptWithDefChoice([]string{"y", "n"}, def)
+	chosen := promptWithChoices(q, choices, def)
 
 	return strings.EqualFold(chosen, "y")
 }
 
-// ConfirmWithOpts prompts the user to enter one of the given options.
-func ConfirmWithOpts(q string, opts []string, def string) string {
+// ConfirmWithChoices prompts the user to enter one of the given options.
+func ConfirmWithChoices(q string, opts []string, def string) string {
 	for i := 0; i < len(opts); i++ {
 		opts[i] = strings.ToLower(opts[i])
 	}
-	opts = promptWithOptsAndDef(opts, def)
+	opts = promptWithDefChoice(opts, def)
 
-	return promptWithOptions(q, opts, def)
+	return promptWithChoices(q, opts, def)
 }
 
 // ReadPipedInput reads the input from a pipe.
@@ -43,21 +94,6 @@ func ReadPipedInput(args *[]string) {
 	*args = append(*args, split...)
 }
 
-// Input prompts the user for input.
-func Input(prompt string) string {
-	var s string
-	fmt.Print(prompt)
-	reader := bufio.NewReader(os.Stdin)
-	s, err := reader.ReadString('\n')
-	if err != nil {
-		return ""
-	}
-
-	fmt.Print(color.Reset())
-
-	return strings.Trim(s, "\n")
-}
-
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
 func WaitForEnter() {
 	fmt.Print("Press ENTER to continue...")
@@ -65,8 +101,44 @@ func WaitForEnter() {
 	_, _ = fmt.Scanln(&input)
 }
 
-// promptWithOptions prompts the user to enter one of the given options.
-func promptWithOptions(q string, opts []string, def string) string {
+// promptOptions generates default options for prompt.
+func promptOptions(c *bool) (o []prompt.Option) {
+	o = append(o,
+		prompt.OptionPrefixTextColor(prompt.White),
+		prompt.OptionInputTextColor(prompt.DefaultColor),
+		prompt.OptionSuggestionBGColor(prompt.Black),
+		prompt.OptionSuggestionTextColor(prompt.White),
+		prompt.OptionSelectedSuggestionTextColor(prompt.Color(prompt.DisplayBold)),
+		prompt.OptionSelectedSuggestionBGColor(prompt.White),
+		prompt.OptionScrollbarBGColor(prompt.DarkGray),
+	)
+
+	// color
+	if *c {
+		o = append(o,
+			prompt.OptionPrefixTextColor(prompt.Yellow),
+			prompt.OptionPreviewSuggestionTextColor(prompt.Blue),
+			prompt.OptionInputTextColor(prompt.DarkGray),
+		)
+	}
+
+	return
+}
+
+// completer generates a list of suggestions from a given array of terms.
+func completer[T any](terms []T) PromptSuggester {
+	sg := make([]prompt.Suggest, 0)
+	for _, t := range terms {
+		sg = append(sg, prompt.Suggest{Text: fmt.Sprint(t)})
+	}
+
+	return func(in prompt.Document) []prompt.Suggest {
+		return prompt.FilterHasPrefix(sg, in.GetWordBeforeCursor(), true)
+	}
+}
+
+// promptWithChoices prompts the user to enter one of the given options.
+func promptWithChoices(q string, opts []string, def string) string {
 	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
 	r := bufio.NewReader(os.Stdin)
 
@@ -79,8 +151,7 @@ func promptWithOptions(q string, opts []string, def string) string {
 			return ""
 		}
 
-		s = strings.TrimSpace(s)
-		s = strings.ToLower(s)
+		s = strings.ToLower(strings.TrimSpace(s))
 
 		if s == "" && def != "" {
 			return def
@@ -96,9 +167,9 @@ func promptWithOptions(q string, opts []string, def string) string {
 	}
 }
 
-// promptWithOptsAndDef capitalizes the default option and appends to the end of
+// promptWithDefChoice capitalizes the default option and appends to the end of
 // the slice.
-func promptWithOptsAndDef(opts []string, def string) []string {
+func promptWithDefChoice(opts []string, def string) []string {
 	for i := 0; i < len(opts); i++ {
 		if strings.HasPrefix(opts[i], def) {
 			w := opts[i]
@@ -152,4 +223,29 @@ func formatOpts(opts []string) string {
 	}
 
 	return s
+}
+
+// dummyCompleter generates an empty list of suggestions.
+func dummyCompleter() PromptSuggester {
+	emptySg := []prompt.Suggest{}
+
+	return func(in prompt.Document) []prompt.Suggest {
+		return prompt.FilterHasPrefix(emptySg, in.GetWordBeforeCursor(), true)
+	}
+}
+
+// quitKeybind returns the quitKeybind for the completer.
+func quitKeybind(f func(err error)) prompt.KeyBind {
+	return prompt.KeyBind{
+		Key: prompt.ControlC,
+		Fn: func(*prompt.Buffer) {
+			if termState != nil {
+				if err := restoreState(); err != nil {
+					f(err)
+				}
+			}
+
+			f(ErrActionAborted)
+		},
+	}
 }

@@ -11,7 +11,10 @@ import (
 	"github.com/haaag/gm/internal/sys"
 )
 
-var termState *term.State
+var (
+	termState    *term.State
+	enabledColor *bool
+)
 
 // https://no-color.org
 const noColorEnv string = "NO_COLOR"
@@ -33,16 +36,18 @@ var (
 	ErrNoStateToRestore    = errors.New("no term state to restore")
 )
 
-// NoColor disables color if the NO_COLOR environment variable is set.
+// NoColor disables color output if the NO_COLOR environment variable is set.
 func NoColor(b *bool) {
 	if c := sys.Env(noColorEnv, ""); c != "" {
 		log.Println("NO_COLOR found.")
 		*b = false
 	}
+
+	enabledColor = b
 }
 
 // Save the current terminal state.
-func SaveState() error {
+func saveState() error {
 	oldState, err := term.GetState(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("saving state: %w", err)
@@ -53,7 +58,7 @@ func SaveState() error {
 }
 
 // Restore the previously saved terminal state.
-func RestoreState() error {
+func restoreState() error {
 	if termState == nil {
 		return ErrNoStateToRestore
 	}

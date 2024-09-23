@@ -49,11 +49,6 @@ func (b *Bookmark) Field(f string) (string, error) {
 }
 
 // New creates a new bookmark.
-func New(bURL, title, tags, desc string) *Bookmark {
-	return &Bookmark{
-		URL:   bURL,
-		Title: title,
-		Tags:  tags,
-		Desc:  desc,
-	}
+func New() *Bookmark {
+	return &Bookmark{}
 }

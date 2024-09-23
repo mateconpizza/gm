@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,7 +9,6 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/scraper"
-	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
@@ -35,63 +35,110 @@ var addCmd = &cobra.Command{
 	},
 }
 
+// handleAdd fetch metadata and adds a new bookmark.
+func handleAdd(r *repo.SQLiteRepository, args []string) error {
+	if terminal.IsPiped() && len(args) < 2 {
+		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
+	}
+
+	// header
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	header := color.Yellow("Add Bookmark").Bold().String()
+	q := color.Gray(" (ctrl+c to exit)").Italic().String()
+	f.Header(header + q)
+	f.Newline().Render()
+
+	b := bookmark.New()
+	if err := parseNewBookmark(r, b, args); err != nil {
+		return err
+	}
+
+	if err := confirmEditSave(b); err != nil {
+		if !errors.Is(err, bookmark.ErrBufferUnchanged) {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	// insert new bookmark
+	if _, err := r.Insert(r.Cfg.TableMain, b); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	fmt.Printf("\n%s bookmark created\n", success)
+
+	return nil
+}
+
 // handleURL retrieves a URL from args or prompts the user for input.
 func handleURL(args *[]string) string {
 	urlPrompt := color.Blue("+ URL\t:").Bold().String()
 
 	// This checks if URL is provided and returns it
 	if len(*args) > 0 {
-		url := (*args)[0]
-		*args = (*args)[1:]
-		url = strings.TrimRight(url, "\n")
+		url := strings.TrimRight((*args)[0], "\n")
 		fmt.Println(urlPrompt, url)
+		*args = (*args)[1:]
 
 		return url
 	}
 
-	// Prompt user for URL
-	urlPrompt += color.BrightYellow("\n >> ").String()
+	fmt.Println(urlPrompt)
 
-	if config.App.Color {
-		urlPrompt += color.ANSICode(color.BrightGray)
-	}
-
-	return terminal.Input(urlPrompt)
+	return terminal.Input(logErrAndExit)
 }
 
-// handleTags retrieves tags from args or prompts the user for input.
-func handleTags(args *[]string) string {
+// handleTags retrieves the Tags from args or prompts the user for input.
+func handleTags(r *repo.SQLiteRepository, args *[]string) string {
 	tagsPrompt := color.Purple("+ Tags\t:").Bold().String()
 
 	// This checks if tags are provided and returns them
 	if len(*args) > 0 {
-		tags := (*args)[0]
+		tag := strings.TrimRight((*args)[0], "\n")
+		tag = strings.Join(strings.Fields(tag), ",")
+		fmt.Println(tagsPrompt, tag)
+
 		*args = (*args)[1:]
-		tags = strings.TrimRight(tags, "\n")
-		tags = strings.Join(strings.Fields(tags), ",")
-		fmt.Println(tagsPrompt, tags)
 
-		return tags
+		return tag
 	}
 
-	// Prompt user for tags
-	tagsPrompt += color.Gray(" (comma-separated)").Italic().String()
-	tagsPrompt += color.BrightYellow("\n >> ").String()
+	tagsPrompt += color.Gray(" (spaces|comma separated)").Italic().String()
+	fmt.Println(tagsPrompt)
 
-	if config.App.Color {
-		tagsPrompt += color.ANSICode(color.BrightGray)
+	tags, _ := repo.Tags(r)
+
+	t := terminal.InputWithSuggestions(tags, logErrAndExit)
+
+	return t
+}
+
+// parseNewBookmark parses the new bookmark.
+func parseNewBookmark(r *repo.SQLiteRepository, b *Bookmark, args []string) error {
+	// retrieve url
+	url, err := parseURL(r, &args)
+	if err != nil {
+		return err
 	}
+	// retrieve tags
+	tags := handleTags(r, &args)
+	// fetch title and description
+	title, desc := fetchTitleAndDesc(url, terminal.MinWidth)
 
-	return terminal.Input(tagsPrompt)
+	b.URL = url
+	b.Title = title
+	b.Tags = bookmark.ParseTags(tags)
+	b.Desc = desc
+
+	return nil
 }
 
 // fetchTitleAndDesc fetch and display title and description.
 func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 	const _indentation = 10
 
-	mesg := color.Yellow("Scraping webpage...").String()
 	s := spinner.New(
-		spinner.WithMesg(mesg),
+		spinner.WithMesg(color.Yellow("scraping webpage...").String()),
 		spinner.WithColor(color.BrightMagenta),
 	)
 	s.Start()
@@ -118,7 +165,7 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 func parseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
 	url := handleURL(args)
 	if url == "" {
-		return "", bookmark.ErrURLEmpty
+		return url, bookmark.ErrURLEmpty
 	}
 
 	// WARN: do we need this trim? why?
@@ -130,47 +177,6 @@ func parseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
 	}
 
 	return url, nil
-}
-
-// handleAdd fetch metadata and adds a new bookmark.
-func handleAdd(r *repo.SQLiteRepository, args []string) error {
-	if terminal.IsPiped() && len(args) < 2 {
-		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
-	}
-
-	f := frame.New(frame.WithColorBorder(color.Gray))
-
-	header := color.Yellow("Add Bookmark").Bold().String()
-	quit := color.Gray(" (ctrl+d to exit)").Italic().String()
-	f.Header(header + quit)
-	f.Newline().Render()
-
-	// Retrieve URL
-	url, err := parseURL(r, &args)
-	if err != nil {
-		return err
-	}
-	// Retrieve tags
-	tags := handleTags(&args)
-	// Fetch title and description
-	title, desc := fetchTitleAndDesc(url, terminal.MinWidth)
-	// Create a new bookmark
-	b := bookmark.New(url, title, bookmark.ParseTags(tags), desc)
-
-	if !terminal.IsPiped() {
-		if err := confirmEditOrSave(b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-
-	if _, err := r.Insert(r.Cfg.TableMain, b); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("\n%s bookmark created\n", success)
-
-	return nil
 }
 
 func init() {

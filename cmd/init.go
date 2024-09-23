@@ -78,14 +78,14 @@ func initDB(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	initialBookmark := bookmark.New(
-		config.App.Info.URL,
-		config.App.Info.Title,
-		bookmark.ParseTags(config.App.Info.Tags),
-		config.App.Info.Desc,
-	)
+  // initial bookmark
+	ib := bookmark.New()
+	ib.URL = config.App.Info.URL
+	ib.Title = config.App.Info.Title
+	ib.Tags = bookmark.ParseTags(config.App.Info.Tags)
+	ib.Desc = config.App.Info.Desc
 
-	if _, err := r.Insert(r.Cfg.TableMain, initialBookmark); err != nil {
+	if _, err := r.Insert(r.Cfg.TableMain, ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
