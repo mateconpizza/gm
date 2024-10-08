@@ -17,6 +17,8 @@ var ErrActionAborted = errors.New("action aborted")
 
 type PromptSuggester = func(in prompt.Document) []prompt.Suggest
 
+type FilterFunc = func(completions []prompt.Suggest, sub string, ignoreCase bool) []prompt.Suggest
+
 const promptPrefix = ">>> "
 
 // Input get the Input data from the user and return it.
@@ -40,7 +42,8 @@ func Input(exitFn func(error)) string {
 	return s
 }
 
-// Input get the input data from the user with suggestions.
+// InputWithSuggestions prompts the user for input with suggestions based on
+// the provided items.
 func InputWithSuggestions[T any](items []T, exitFn func(error)) string {
 	if err := saveState(); err != nil {
 		exitFn(err)
@@ -56,7 +59,29 @@ func InputWithSuggestions[T any](items []T, exitFn func(error)) string {
 	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
 
 	// take input
-	s := prompt.Input(promptPrefix, completer(items), o...)
+	s := prompt.Input(promptPrefix, completerPrefix(items), o...)
+
+	return s
+}
+
+// InputWithFuzzySuggestions prompts the user for input with fuzzy suggestions
+// based on the provided items and exit function.
+func InputWithFuzzySuggestions[T any](items []T, exitFn func(error)) string {
+	if err := saveState(); err != nil {
+		exitFn(err)
+	}
+	defer func() {
+		if err := restoreState(); err != nil {
+			exitFn(err)
+		}
+	}()
+
+	// opts
+	o := promptOptions(enabledColor)
+	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
+
+	// take input
+	s := prompt.Input(promptPrefix, completerFuzzy(items), o...)
 
 	return s
 }
@@ -125,16 +150,28 @@ func promptOptions(c *bool) (o []prompt.Option) {
 	return
 }
 
-// completer generates a list of suggestions from a given array of terms.
-func completer[T any](terms []T) PromptSuggester {
+// makeCompleter creates a PromptSuggester that filters suggestions based on
+// the provided terms and filter function.
+func makeCompleter[T any](terms []T, filter FilterFunc) PromptSuggester {
 	sg := make([]prompt.Suggest, 0)
 	for _, t := range terms {
 		sg = append(sg, prompt.Suggest{Text: fmt.Sprint(t)})
 	}
 
 	return func(in prompt.Document) []prompt.Suggest {
-		return prompt.FilterHasPrefix(sg, in.GetWordBeforeCursor(), true)
+		return filter(sg, in.GetWordBeforeCursor(), true)
 	}
+}
+
+// completerPrefix generates a list of suggestions from a given array of terms
+// using prefix matching.
+func completerPrefix[T any](terms []T) PromptSuggester {
+	return makeCompleter(terms, prompt.FilterHasPrefix)
+}
+
+// completerFuzzy generates a list of suggestions from a given array of terms using fuzzy matching.
+func completerFuzzy[T any](terms []T) PromptSuggester {
+	return makeCompleter(terms, prompt.FilterFuzzy)
 }
 
 // promptWithChoices prompts the user to enter one of the given options.

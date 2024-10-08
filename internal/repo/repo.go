@@ -22,6 +22,8 @@ func (r *SQLiteRepository) Close() {
 	if err := r.DB.Close(); err != nil {
 		log.Printf("closing database: %v", err)
 	}
+
+	log.Printf("database closed.")
 }
 
 // newSQLiteRepository returns a new SQLiteRepository.

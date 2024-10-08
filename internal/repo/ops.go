@@ -38,6 +38,19 @@ func Tags(r *SQLiteRepository) ([]string, error) {
 	return format.Unique(tags), nil
 }
 
+// ULRs retrieves and returns a sorted slice of unique urls.
+func URLs(r *SQLiteRepository) ([]string, error) {
+	urls, err := r.ByColumn(r.Cfg.TableMain, "url")
+	if err != nil {
+		return nil, err
+	}
+
+	u := urls.Items()
+	slices.Sort(*u)
+
+	return *u, nil
+}
+
 // databasesFromPath returns the list of files from the given path.
 func databasesFromPath(p string) (*slice.Slice[string], error) {
 	log.Printf("databasesFromPath: path: '%s'", p)

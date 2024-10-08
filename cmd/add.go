@@ -35,7 +35,7 @@ var addCmd = &cobra.Command{
 	},
 }
 
-// handleAdd fetch metadata and adds a new bookmark.
+// handleAdd adds a new bookmark.
 func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	if terminal.IsPiped() && len(args) < 2 {
 		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
@@ -71,7 +71,7 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 }
 
 // handleURL retrieves a URL from args or prompts the user for input.
-func handleURL(args *[]string) string {
+func handleURL(r *repo.SQLiteRepository, args *[]string) string {
 	urlPrompt := color.Blue("+ URL\t:").Bold().String()
 
 	// This checks if URL is provided and returns it
@@ -85,7 +85,10 @@ func handleURL(args *[]string) string {
 
 	fmt.Println(urlPrompt)
 
-	return terminal.Input(logErrAndExit)
+	return terminal.Input(func(err error) {
+		r.Close()
+		logErrAndExit(err)
+	})
 }
 
 // handleTags retrieves the Tags from args or prompts the user for input.
@@ -108,12 +111,17 @@ func handleTags(r *repo.SQLiteRepository, args *[]string) string {
 
 	tags, _ := repo.Tags(r)
 
-	t := terminal.InputWithSuggestions(tags, logErrAndExit)
+	quit := func(err error) {
+		r.Close()
+		logErrAndExit(err)
+	}
+
+	t := terminal.InputWithSuggestions(tags, quit)
 
 	return t
 }
 
-// parseNewBookmark parses the new bookmark.
+// parseNewBookmark fetch metadata and parses the new bookmark.
 func parseNewBookmark(r *repo.SQLiteRepository, b *Bookmark, args []string) error {
 	// retrieve url
 	url, err := parseURL(r, &args)
@@ -163,7 +171,7 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 
 // parseURL parse URL from args.
 func parseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
-	url := handleURL(args)
+	url := handleURL(r, args)
 	if url == "" {
 		return url, bookmark.ErrURLEmpty
 	}
