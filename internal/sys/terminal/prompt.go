@@ -23,65 +23,29 @@ const promptPrefix = ">>> "
 
 // Input get the Input data from the user and return it.
 func Input(exitFn func(error)) string {
-	if err := saveState(); err != nil {
-		exitFn(err)
-	}
-	defer func() {
-		if err := restoreState(); err != nil {
-			exitFn(err)
-		}
-	}()
-
-	// opts
-	o := promptOptions(enabledColor)
-	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
-
-	// take input
-	s := prompt.Input(promptPrefix, dummyCompleter(), o...)
+	o, restore := prepareInputState(exitFn)
+	defer restore()
+	s := prompt.Input(promptPrefix, completerDummy(), o...)
 
 	return s
 }
 
 // InputWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
-func InputWithSuggestions[T any](items []T, exitFn func(error)) string {
-	if err := saveState(); err != nil {
-		exitFn(err)
-	}
-	defer func() {
-		if err := restoreState(); err != nil {
-			exitFn(err)
-		}
-	}()
-
-	// opts
-	o := promptOptions(enabledColor)
-	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
-
-	// take input
-	s := prompt.Input(promptPrefix, completerPrefix(items), o...)
+func InputWithSuggestions[T any](terms []T, exitFn func(error)) string {
+	o, restore := prepareInputState(exitFn)
+	defer restore()
+	s := prompt.Input(promptPrefix, completerPrefix(terms), o...)
 
 	return s
 }
 
 // InputWithFuzzySuggestions prompts the user for input with fuzzy suggestions
 // based on the provided items and exit function.
-func InputWithFuzzySuggestions[T any](items []T, exitFn func(error)) string {
-	if err := saveState(); err != nil {
-		exitFn(err)
-	}
-	defer func() {
-		if err := restoreState(); err != nil {
-			exitFn(err)
-		}
-	}()
-
-	// opts
-	o := promptOptions(enabledColor)
-	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
-
-	// take input
-	s := prompt.Input(promptPrefix, completerFuzzy(items), o...)
+func InputWithFuzzySuggestions[T any](terms []T, exitFn func(error)) string {
+	o, restore := prepareInputState(exitFn)
+	defer restore()
+	s := prompt.Input(promptPrefix, completerFuzzy(terms), o...)
 
 	return s
 }
@@ -126,16 +90,43 @@ func WaitForEnter() {
 	_, _ = fmt.Scanln(&input)
 }
 
+// prepareInputState prepares the input state and options, handling errors with exitFn.
+func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
+	// BUG: https://github.com/c-bata/go-prompt/issues/233#issuecomment-1076162632
+
+	if err := saveState(); err != nil {
+		exitFn(err)
+	}
+
+	// opts
+	o = promptOptions(enabledColor)
+	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
+
+	// restores term state
+	restore = func() {
+		if err := restoreState(); err != nil {
+			exitFn(err)
+		}
+	}
+
+	return o, restore
+}
+
 // promptOptions generates default options for prompt.
 func promptOptions(c *bool) (o []prompt.Option) {
 	o = append(o,
 		prompt.OptionPrefixTextColor(prompt.White),
 		prompt.OptionInputTextColor(prompt.DefaultColor),
 		prompt.OptionSuggestionBGColor(prompt.Black),
+		prompt.OptionDescriptionBGColor(prompt.Black),
 		prompt.OptionSuggestionTextColor(prompt.White),
+		prompt.OptionDescriptionTextColor(prompt.White),
 		prompt.OptionSelectedSuggestionTextColor(prompt.Color(prompt.DisplayBold)),
+		prompt.OptionSelectedDescriptionTextColor(prompt.Color(prompt.DisplayBold)),
 		prompt.OptionSelectedSuggestionBGColor(prompt.White),
-		prompt.OptionScrollbarBGColor(prompt.DarkGray),
+		prompt.OptionSelectedDescriptionBGColor(prompt.White),
+		prompt.OptionScrollbarBGColor(prompt.DefaultColor),
+		prompt.OptionScrollbarThumbColor(prompt.LightGray),
 	)
 
 	// color
@@ -150,9 +141,9 @@ func promptOptions(c *bool) (o []prompt.Option) {
 	return
 }
 
-// makeCompleter creates a PromptSuggester that filters suggestions based on
+// completerCreate creates a PromptSuggester that filters suggestions based on
 // the provided terms and filter function.
-func makeCompleter[T any](terms []T, filter FilterFunc) PromptSuggester {
+func completerCreate[T any](terms []T, filter FilterFunc) PromptSuggester {
 	sg := make([]prompt.Suggest, 0)
 	for _, t := range terms {
 		sg = append(sg, prompt.Suggest{Text: fmt.Sprint(t)})
@@ -166,12 +157,17 @@ func makeCompleter[T any](terms []T, filter FilterFunc) PromptSuggester {
 // completerPrefix generates a list of suggestions from a given array of terms
 // using prefix matching.
 func completerPrefix[T any](terms []T) PromptSuggester {
-	return makeCompleter(terms, prompt.FilterHasPrefix)
+	return completerCreate(terms, prompt.FilterHasPrefix)
 }
 
 // completerFuzzy generates a list of suggestions from a given array of terms using fuzzy matching.
 func completerFuzzy[T any](terms []T) PromptSuggester {
-	return makeCompleter(terms, prompt.FilterFuzzy)
+	return completerCreate(terms, prompt.FilterFuzzy)
+}
+
+// completerDummy generates an empty list of suggestions.
+func completerDummy() PromptSuggester {
+	return completerCreate([]prompt.Suggest{}, prompt.FilterHasPrefix)
 }
 
 // promptWithChoices prompts the user to enter one of the given options.
@@ -260,15 +256,6 @@ func formatOpts(opts []string) string {
 	}
 
 	return s
-}
-
-// dummyCompleter generates an empty list of suggestions.
-func dummyCompleter() PromptSuggester {
-	emptySg := []prompt.Suggest{}
-
-	return func(in prompt.Document) []prompt.Suggest {
-		return prompt.FilterHasPrefix(emptySg, in.GetWordBeforeCursor(), true)
-	}
 }
 
 // quitKeybind returns the quitKeybind for the completer.
