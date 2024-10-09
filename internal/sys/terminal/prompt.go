@@ -30,6 +30,16 @@ func Input(exitFn func(error)) string {
 	return s
 }
 
+// InputTags prompts the user for input with suggestions based on
+// the provided tags.
+func InputTags[T comparable, V any](terms map[T]V, exitFn func(error)) string {
+	o, restore := prepareInputState(exitFn)
+	defer restore()
+	s := prompt.Input(promptPrefix, completerTagsWithCount(terms, prompt.FilterHasPrefix), o...)
+
+	return s
+}
+
 // InputWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
 func InputWithSuggestions[T any](terms []T, exitFn func(error)) string {
@@ -168,6 +178,22 @@ func completerFuzzy[T any](terms []T) PromptSuggester {
 // completerDummy generates an empty list of suggestions.
 func completerDummy() PromptSuggester {
 	return completerCreate([]prompt.Suggest{}, prompt.FilterHasPrefix)
+}
+
+// completerTagsWithCount creates a prompt suggester with count as a
+// description.
+func completerTagsWithCount[T comparable, V any](m map[T]V, filter FilterFunc) PromptSuggester {
+	sg := make([]prompt.Suggest, 0)
+	for t, v := range m {
+		sg = append(sg, prompt.Suggest{
+			Text:        fmt.Sprint(t),
+			Description: fmt.Sprintf("(%v)", v),
+		})
+	}
+
+	return func(in prompt.Document) []prompt.Suggest {
+		return filter(sg, in.GetWordBeforeCursor(), true)
+	}
 }
 
 // promptWithChoices prompts the user to enter one of the given options.

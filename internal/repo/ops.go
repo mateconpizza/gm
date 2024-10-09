@@ -21,7 +21,7 @@ func RecordCount(r *SQLiteRepository, t Table) int {
 	return r.maxID(t)
 }
 
-// Tags retrieves and returns a sorted slice of unique tags.
+// Tags retrieves and returns a sorted slice of tags.
 func Tags(r *SQLiteRepository) ([]string, error) {
 	t, err := r.ByColumn(r.Cfg.TableMain, "tags")
 	if err != nil {
@@ -30,12 +30,36 @@ func Tags(r *SQLiteRepository) ([]string, error) {
 
 	var tags []string
 	t.ForEach(func(t string) {
-		tags = append(tags, strings.Split(t, ",")...)
+		for _, tag := range strings.Split(t, ",") {
+			if tag = strings.TrimSpace(tag); tag != "" {
+				tags = append(tags, tag)
+			}
+		}
 	})
 
 	slices.Sort(tags)
 
-	return format.Unique(tags), nil
+	return tags, nil
+}
+
+// TagsUnique retrieves and returns a sorted slice of unique tags.
+func TagsUnique(r *SQLiteRepository) ([]string, error) {
+	t, err := Tags(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return format.Unique(t), nil
+}
+
+// TagsCounter returns a map with tag as key and count as value.
+func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
+	t, err := Tags(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return format.Counter(t), nil
 }
 
 // ULRs retrieves and returns a sorted slice of unique urls.

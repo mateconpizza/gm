@@ -109,16 +109,14 @@ func handleTags(r *repo.SQLiteRepository, args *[]string) string {
 	tagsPrompt += color.Gray(" (spaces|comma separated)").Italic().String()
 	fmt.Println(tagsPrompt)
 
-	tags, _ := repo.Tags(r)
+	tags, _ := repo.TagsCounter(r)
 
 	quit := func(err error) {
 		r.Close()
 		logErrAndExit(err)
 	}
 
-	t := terminal.InputWithSuggestions(tags, quit)
-
-	return t
+	return terminal.InputTags(tags, quit)
 }
 
 // parseNewBookmark fetch metadata and parses the new bookmark.

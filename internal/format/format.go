@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/haaag/gm/internal/config"
@@ -180,4 +181,29 @@ func Unique(t []string) []string {
 	}
 
 	return tags
+}
+
+// Counter counts items in a slice.
+func Counter(terms []string) map[string]int {
+	r := make(map[string]int, len(terms))
+
+	for _, t := range terms {
+		r[t]++
+	}
+
+	keys := make([]string, 0, len(r))
+	for k := range r {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+
+	sortedR := make(map[string]int, len(r))
+	for _, k := range keys {
+		sortedR[k] = r[k]
+	}
+
+	return sortedR
 }

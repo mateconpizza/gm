@@ -23,10 +23,11 @@ func ParseTags(tags string) string {
 	if tags == "" {
 		return "notag"
 	}
-	tags = strings.Join(strings.FieldsFunc(tags, func(r rune) bool {
-		return r == ',' || r == ' '
-	}), ",")
 
+	splitted := strings.FieldsFunc(tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	})
+	tags = strings.Join(format.Unique(splitted), ",")
 	if strings.HasSuffix(tags, ",") {
 		return tags
 	}
