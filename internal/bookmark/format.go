@@ -203,8 +203,8 @@ func PrettifyURL(s string, c color.ColorFn) string {
 	}
 
 	pathSeg := color.Text(
-		format.PathSmallSegment,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.PathSmallSegment)),
+		format.SingleAngleMark,
+		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.SingleAngleMark)),
 	).Italic()
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
