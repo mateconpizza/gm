@@ -15,7 +15,7 @@ import (
 
 var (
 	Copy bool
-	List bool
+	List bool // FIX: Remove
 	Open bool
 	Tags []string
 	QR   bool
@@ -30,7 +30,7 @@ var (
 	JSON      bool
 	Oneline   bool
 	Multiline bool
-	Frame     bool
+	Frame     bool // FIX: Remove
 	WithColor string
 	Print     string
 

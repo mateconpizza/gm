@@ -28,6 +28,8 @@ func handleByField(bs *Slice) error {
 		return nil
 	}
 
+	Exit = Field != ""
+
 	printer := func(b Bookmark) error {
 		f, err := b.Field(Field)
 		if err != nil {
@@ -42,14 +44,13 @@ func handleByField(bs *Slice) error {
 	if err := bs.ForEachErr(printer); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	Exit = true
 
 	return nil
 }
 
 // handlePrintOut prints the bookmarks in different formats.
 func handlePrintOut(bs *Slice) error {
-	if Exit || !Frame {
+	if Exit {
 		return nil
 	}
 
@@ -116,6 +117,7 @@ func handleHeadAndTail(bs *Slice) error {
 // handleListAll retrieves records from the database based on either an ID or a
 // query string.
 func handleListAll(r *repo.SQLiteRepository, bs *Slice) error {
+	// FIX: remove this FN and List flag
 	if !List {
 		return nil
 	}
@@ -148,6 +150,17 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
+  // TODO)): if the slice contains bookmarks, filter by tag.
+	if bs.Len() != 0 {
+		for _, tag := range Tags {
+			bs.Filter(func(b Bookmark) bool {
+				return strings.Contains(b.Tags, tag)
+			})
+		}
+
+		return nil
+	}
+
 	for _, tag := range Tags {
 		if err := r.ByTag(r.Cfg.TableMain, tag, bs); err != nil {
 			return fmt.Errorf("byTags :%w", err)
@@ -177,6 +190,8 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 	if !Edit {
 		return nil
 	}
+
+	Exit = Edit
 
 	n := bs.Len()
 	if n == 0 {
@@ -229,6 +244,8 @@ func handleRemove(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
+	Exit = Remove
+
 	if err := validateRemove(bs); err != nil {
 		return err
 	}
@@ -246,6 +263,8 @@ func handleCheckStatus(bs *Slice) error {
 	if !Status {
 		return nil
 	}
+
+	Exit = Status
 
 	n := bs.Len()
 	if n == 0 {
@@ -271,6 +290,7 @@ func handleCopyOpen(bs *Slice) error {
 		return nil
 	}
 
+	// TODO: open all URLs in the slice?
 	b := bs.Item(0)
 	if Copy {
 		if err := sys.CopyClipboard(b.URL); err != nil {
@@ -283,6 +303,8 @@ func handleCopyOpen(bs *Slice) error {
 			return fmt.Errorf("%w", err)
 		}
 	}
+
+	Exit = Copy || Open
 
 	return nil
 }

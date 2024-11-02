@@ -30,8 +30,9 @@ var restoreCmd = &cobra.Command{
 
 		terminal.ReadPipedInput(&args)
 
+		// FIX: respect DRY (check out root.go)
 		bs := slice.New[Bookmark]()
-		if err := handleListAndEdit(r, bs, args); err != nil {
+		if err := handleRecords(r, bs, args); err != nil {
 			return err
 		}
 
@@ -54,7 +55,7 @@ func init() {
 
 // handleRestore restores record/s from the deleted table.
 func restore(r *repo.SQLiteRepository, bs *Slice) error {
-	// FIX: remove restored records from deleted table.
+	// TODO: remove restored records from deleted table.
 	prompt := color.BrightYellow("restore").Bold().String()
 	if err := confirmAction(bs, prompt, color.BrightYellow); err != nil {
 		return err
