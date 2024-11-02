@@ -52,23 +52,29 @@ var rootCmd = &cobra.Command{
 		terminal.ReadPipedInput(&args)
 
 		bs := slice.New[Bookmark]()
-		if err := handleListAndEdit(r, bs, args); err != nil {
+		if err := handleRecords(r, bs, args); err != nil {
 			return err
 		}
 
-		if bs.Len() == 0 && !JSON {
-			return repo.ErrRecordNoMatch
+		if bs.Len() == 0 && len(args) == 0 {
+			if err := r.Records(r.Cfg.TableMain, bs); err != nil {
+				return fmt.Errorf("getting records: %w", err)
+			}
+
+			Frame = true
+		}
+
+		if err := handleAction(r, bs); err != nil {
+			return err
 		}
 
 		return handleOutput(bs)
 	},
 }
 
-func handleListAndEdit(r *repo.SQLiteRepository, bs *Slice, args []string) error {
+// handleRecords retrieve records.
+func handleRecords(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	if err := handleListAll(r, bs); err != nil {
-		return err
-	}
-	if err := handleByTags(r, bs); err != nil {
 		return err
 	}
 	if err := handleIDsFromArgs(r, bs, args); err != nil {
@@ -77,9 +83,14 @@ func handleListAndEdit(r *repo.SQLiteRepository, bs *Slice, args []string) error
 	if err := handleByQuery(r, bs, args); err != nil {
 		return err
 	}
-	if err := handleMenu(bs); err != nil {
+	if err := handleByTags(r, bs); err != nil {
 		return err
 	}
+
+	return handleMenu(bs)
+}
+
+func handleAction(r *repo.SQLiteRepository, bs *Slice) error {
 	if err := handleHeadAndTail(bs); err != nil {
 		return err
 	}
