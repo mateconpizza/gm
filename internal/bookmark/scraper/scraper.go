@@ -46,8 +46,14 @@ func (s *Scraper) Title() string {
 func (s *Scraper) Desc() string {
 	var desc string
 	for _, selector := range []string{
-		"meta[name=description]",
-		"meta[property=description]",
+		"meta[name='description']",
+		"meta[name='Description']",
+		"meta[property='description']",
+		"meta[property='Description']",
+		"meta[property='og:description']",
+		"meta[property='og:Description']",
+		"meta[name='og:description']",
+		"meta[name='og:Description']",
 	} {
 		desc = s.doc.Find(selector).AttrOr("content", "")
 		if desc != "" {
