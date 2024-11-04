@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -227,4 +228,13 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	fmt.Printf("\n%s bookmark/s removed\n", success)
 
 	return nil
+}
+
+func validURL(s string) bool {
+	parsedUrl, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+
+	return parsedUrl.Scheme != "" && parsedUrl.Host != ""
 }

@@ -81,13 +81,23 @@ func LoadMaxWidth() {
 
 	if w < MaxWidth {
 		MaxWidth = w
-		MinWidth = w
+		// MinWidth = w
 	}
 }
 
 // Clear clears the terminal.
 func Clear() {
 	fmt.Print("\033[H\033[2J")
+}
+
+// ClearLine deletes n lines in the console.
+func ClearLine(n int) {
+	if n <= 0 || !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
+	for i := 0; i < n; i++ {
+		fmt.Print("\033[F\033[K")
+	}
 }
 
 // IsPiped returns true if the input is piped.

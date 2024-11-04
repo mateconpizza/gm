@@ -13,6 +13,7 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -72,18 +73,24 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 
 // handleURL retrieves a URL from args or prompts the user for input.
 func handleURL(r *repo.SQLiteRepository, args *[]string) string {
-	urlPrompt := color.Blue("+ URL\t:").Bold().String()
+	prompt := color.Blue("+ URL\t:").Bold().String()
 
-	// This checks if URL is provided and returns it
+	// Checks if URL is provided
 	if len(*args) > 0 {
 		url := strings.TrimRight((*args)[0], "\n")
-		fmt.Println(urlPrompt, url)
+		fmt.Println(prompt, color.Gray(url))
 		*args = (*args)[1:]
 
 		return url
 	}
 
-	fmt.Println(urlPrompt)
+	// Checks clipboard
+	c := parseClipboard(prompt)
+	if c != "" {
+		return c
+	}
+
+	fmt.Println(prompt)
 
 	return terminal.Input(func(err error) {
 		r.Close()
@@ -183,6 +190,28 @@ func parseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
 	}
 
 	return url, nil
+}
+
+// parseClipboard checks if there a valid URL in the clipboard.
+func parseClipboard(prompt string) string {
+	c := sys.ReadClipboard()
+	if !validURL(c) {
+		return ""
+	}
+
+	fmt.Println(color.BrightCyan("> found valid URL in clipboard"))
+	fmt.Println(prompt, color.Gray(c))
+
+	opt := terminal.ConfirmWithChoices("\n> continue?", []string{"yes", "no"}, "y")
+	switch opt {
+	case "n", "no":
+		terminal.ClearLine(4)
+		return ""
+	default:
+		terminal.ClearLine(4)
+		fmt.Println(prompt, color.Gray(c))
+		return c
+	}
 }
 
 func init() {
