@@ -33,6 +33,8 @@ https://github.com/user-attachments/assets/f531fdc9-067b-4747-9f31-4afd5252e3cb
 
 ### ☑️ Check status
 
+https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
+
 <details>
 <summary>TODO</summary>
 
