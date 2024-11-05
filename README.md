@@ -13,6 +13,16 @@
 > This repo is a work in progress!
 > Needing both cleaning up and documenting.
 
+### ✨ Features
+
+- [x] Support multiple `databases`
+- [x] Restore `deleted` bookmarks
+- [x] Fetch `title` and `description` from added URL
+- [ ] Migrate items from one database to another
+- [ ] ...
+
+### ➕ Add new bookmark
+
 <details>
 <summary>TODO</summary>
 
