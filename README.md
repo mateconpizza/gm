@@ -29,6 +29,8 @@ https://github.com/user-attachments/assets/e59ea080-2bbc-493d-9817-b527bc2ebe89
 
 ### 🔳 QR-Code
 
+https://github.com/user-attachments/assets/f531fdc9-067b-4747-9f31-4afd5252e3cb
+
 ### ☑️ Check status
 
 <details>
