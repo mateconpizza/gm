@@ -21,11 +21,15 @@
 - [ ] Migrate items from one database to another
 - [ ] ...
 
-### ➕ Add bookmark
-
+### ➕ Add a bookmark
 
 https://github.com/user-attachments/assets/e59ea080-2bbc-493d-9817-b527bc2ebe89
 
+### 📝 Edit a bookmark
+
+### 🔳 QR-Code
+
+### ☑️ Check status
 
 <details>
 <summary>TODO</summary>
