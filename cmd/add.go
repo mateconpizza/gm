@@ -91,11 +91,14 @@ func handleURL(r *repo.SQLiteRepository, args *[]string) string {
 	}
 
 	fmt.Println(prompt)
-
-	return terminal.Input(func(err error) {
+	url := terminal.Input(func(err error) {
 		r.Close()
 		logErrAndExit(err)
 	})
+
+	terminal.ReplaceLine(2, prompt+" "+color.Gray(url).String())
+
+	return url
 }
 
 // handleTags retrieves the Tags from args or prompts the user for input.
