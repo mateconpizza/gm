@@ -88,7 +88,7 @@ func init() {
 	// Actions
 	rootCmd.Flags().BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
 	rootCmd.Flags().BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
-	rootCmd.Flags().StringSliceVarP(&Tags, "tags", "t", nil, "list by tag")
+	rootCmd.Flags().StringSliceVarP(&Tags, "tag", "t", nil, "list by tag")
 	rootCmd.Flags().BoolVarP(&QR, "qr", "q", false, "generate qr-code")
 
 	// Experimental

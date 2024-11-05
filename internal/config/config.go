@@ -7,7 +7,7 @@ const (
 	Command string = "gm"      // Default name of the executable
 )
 
-var Version string = "0.0.8" // Version of the application
+var Version string = "0.0.9" // Version of the application
 
 type (
 	app struct {

@@ -257,7 +257,7 @@ func handleCheckStatus(bs *Slice) error {
 	}
 
 	status := color.BrightGreen("status").Bold().String()
-	q := fmt.Sprintf("checking %s of %d, continue?", status, n)
+	q := fmt.Sprintf("> checking %s of %d, continue?", status, n)
 	if n > 15 && !terminal.Confirm(q, "y") {
 		return ErrActionAborted
 	}
@@ -340,9 +340,12 @@ func handleQR(bs *Slice) error {
 		sb.WriteString(b.Title + "\n")
 		sb.WriteString(b.URL)
 		sb.WriteString(qrcode.String())
-		fmt.Print(sb.String())
+		t := sb.String()
+		fmt.Print(t)
 
+		lines := len(strings.Split(t, "\n"))
 		terminal.WaitForEnter()
+		terminal.ClearLine(lines)
 
 		return nil
 	}
