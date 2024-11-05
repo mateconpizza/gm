@@ -100,6 +100,15 @@ func ClearLine(n int) {
 	}
 }
 
+func ReplaceLine(n int, s string) {
+	if n <= 0 || !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
+
+	ClearLine(n)
+	fmt.Println(s)
+}
+
 // IsPiped returns true if the input is piped.
 func IsPiped() bool {
 	fileInfo, _ := os.Stdin.Stat()

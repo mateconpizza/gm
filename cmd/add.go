@@ -100,30 +100,31 @@ func handleURL(r *repo.SQLiteRepository, args *[]string) string {
 
 // handleTags retrieves the Tags from args or prompts the user for input.
 func handleTags(r *repo.SQLiteRepository, args *[]string) string {
-	tagsPrompt := color.Purple("+ Tags\t:").Bold().String()
+	prompt := color.Purple("+ Tags\t:").Bold().String()
 
 	// This checks if tags are provided and returns them
 	if len(*args) > 0 {
 		tag := strings.TrimRight((*args)[0], "\n")
 		tag = strings.Join(strings.Fields(tag), ",")
-		fmt.Println(tagsPrompt, tag)
+		fmt.Println(prompt, tag)
 
 		*args = (*args)[1:]
 
 		return tag
 	}
 
-	tagsPrompt += color.Gray(" (spaces|comma separated)").Italic().String()
-	fmt.Println(tagsPrompt)
+	fmt.Println(prompt + color.Gray(" (spaces|comma separated)").Italic().String())
 
-	tags, _ := repo.TagsCounter(r)
-
+	mTags, _ := repo.TagsCounter(r)
 	quit := func(err error) {
 		r.Close()
 		logErrAndExit(err)
 	}
 
-	return terminal.InputTags(tags, quit)
+	tags := terminal.InputTags(mTags, quit)
+	terminal.ReplaceLine(2, prompt+" "+color.Gray(tags).String())
+
+	return tags
 }
 
 // parseNewBookmark fetch metadata and parses the new bookmark.
