@@ -26,7 +26,7 @@
 
 #### XDG
 
-- [ ] Store `db` in `XDG_DATA_HOME`
+- [x] Store `db` in `XDG_DATA_HOME`
 
 ### 📦 Packages
 
@@ -47,6 +47,6 @@
 ### ♻️ Misc
 
 - [ ] Add a logging library
-- [ ] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
+- [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
 
 </details>

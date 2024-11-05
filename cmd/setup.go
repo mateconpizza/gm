@@ -15,7 +15,6 @@ import (
 
 var (
 	Copy bool
-	List bool // FIX: Remove
 	Open bool
 	Tags []string
 	QR   bool
@@ -32,7 +31,6 @@ var (
 	Multiline bool
 	Frame     bool // FIX: Remove
 	WithColor string
-	Print     string
 
 	Force   bool
 	Status  bool
@@ -78,25 +76,20 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 
 	// Prints
-	rootCmd.PersistentFlags().BoolVarP(&Frame, "frame", "f", false, "print data in framed format")
-	rootCmd.PersistentFlags().BoolVarP(&JSON, "json", "j", false, "print data in JSON format")
+	rootCmd.PersistentFlags().BoolVar(&JSON, "json", false, "output in JSON format")
 	rootCmd.PersistentFlags().
-		StringVarP(&WithColor, "color", "C", "never", "print data with pretty colors [always|never]")
-	rootCmd.MarkFlagsMutuallyExclusive("json", "frame")
+		StringVar(&WithColor, "color", "never", "output with pretty colors [always|never]")
 	rootCmd.Flags().
-		BoolVarP(&Oneline, "oneline", "O", false, "print data in formatted oneline (fzf)")
+		BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
 	rootCmd.Flags().
-		BoolVarP(&Multiline, "multiline", "M", false, "print data in formatted multiline (fzf)")
-	rootCmd.Flags().StringVarP(&Field, "field", "F", "", "print data by field [id|url|title|tags]")
-	rootCmd.PersistentFlags().
-		StringVarP(&Print, "print", "p", "frame", "print data [oneline,multiline,frame,json]")
+		BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
+	rootCmd.Flags().StringVarP(&Field, "field", "f", "", "output by field [id|url|title|tags]")
 
 	// Actions
 	rootCmd.Flags().BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
 	rootCmd.Flags().BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
-	rootCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
 	rootCmd.Flags().StringSliceVarP(&Tags, "tags", "t", nil, "list by tag")
-	rootCmd.Flags().BoolVarP(&QR, "qr", "Q", false, "generate qr-code")
+	rootCmd.Flags().BoolVarP(&QR, "qr", "q", false, "generate qr-code")
 
 	// Experimental
 	rootCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")

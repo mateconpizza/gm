@@ -136,5 +136,7 @@ func formatBackupDate(s string) string {
 
 	d, t := parts[0], parts[1]
 
+	t = strings.Replace(t, "-", ":", 1)
+
 	return d + " " + t
 }

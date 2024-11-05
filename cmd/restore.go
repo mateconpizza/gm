@@ -13,9 +13,8 @@ import (
 )
 
 var restoreCmd = &cobra.Command{
-	Use:    "restore",
-	Short:  "restore bookmarks deleted",
-	Hidden: true,
+	Use:   "restore",
+	Short: "restore deleted bookmarks",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return verifyDatabase(Cfg)
 	},
@@ -45,9 +44,11 @@ var restoreCmd = &cobra.Command{
 }
 
 func init() {
-	restoreCmd.Flags().BoolVarP(&List, "list", "l", false, "list all bookmarks")
 	restoreCmd.Flags().IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	restoreCmd.Flags().IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+	restoreCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
+	restoreCmd.Flags().
+		BoolVarP(&Multiline, "multiline", "M", false, "print data in formatted multiline (fzf)")
 	restoreCmd.Flags().
 		StringSliceVarP(&Tags, "tags", "t", nil, "filter bookmarks by tag")
 	rootCmd.AddCommand(restoreCmd)

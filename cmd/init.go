@@ -48,11 +48,6 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("getting records: %w", err)
 		}
 
-		// Get initial bookmark
-		List = true
-		// Prints bookmark with frame
-		Frame = true
-
 		if err := handlePrintOut(bs); err != nil {
 			return err
 		}
@@ -78,7 +73,7 @@ func initDB(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-  // initial bookmark
+	// initial bookmark
 	ib := bookmark.New()
 	ib.URL = config.App.Info.URL
 	ib.Title = config.App.Info.Title

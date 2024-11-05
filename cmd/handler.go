@@ -114,21 +114,6 @@ func handleHeadAndTail(bs *Slice) error {
 	return nil
 }
 
-// handleListAll retrieves records from the database based on either an ID or a
-// query string.
-func handleListAll(r *repo.SQLiteRepository, bs *Slice) error {
-	// FIX: remove this FN and List flag
-	if !List {
-		return nil
-	}
-
-	if err := r.Records(r.Cfg.TableMain, bs); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
-
 // handleByQuery executes a search query on the given repository based on
 // provided arguments.
 func handleByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
@@ -150,7 +135,7 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
-  // TODO)): if the slice contains bookmarks, filter by tag.
+	// TODO)): if the slice contains bookmarks, filter by tag.
 	if bs.Len() != 0 {
 		for _, tag := range Tags {
 			bs.Filter(func(b Bookmark) bool {

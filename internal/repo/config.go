@@ -16,7 +16,6 @@ type SQLiteConfig struct {
 	TableDeleted Table        `json:"table_deleted"`
 	Backup       SQLiteBackup `json:"backup"`
 	MaxBytesSize int64        `json:"max_bytes_size"`
-	MaxBackups   int          `json:"max_backups_allowed"`
 }
 
 type SQLiteBackup struct {

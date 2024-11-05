@@ -130,7 +130,7 @@ func WithMultiSelection() OptFn {
 func WithPreview() OptFn {
 	opts := []string{
 		"--preview-window=~4,+{2}+4/3,<80(up)",
-		withCommand("--preview=%s {1} --color=always --frame"),
+		withCommand("--preview=%s {1} --color=always"),
 	}
 
 	return func(o *Options) {

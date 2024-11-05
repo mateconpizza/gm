@@ -55,15 +55,6 @@ var rootCmd = &cobra.Command{
 		if err := handleRecords(r, bs, args); err != nil {
 			return err
 		}
-
-		if bs.Len() == 0 && len(args) == 0 {
-			if err := r.Records(r.Cfg.TableMain, bs); err != nil {
-				return fmt.Errorf("getting records: %w", err)
-			}
-
-			Frame = true
-		}
-
 		if err := handleAction(r, bs); err != nil {
 			return err
 		}
@@ -74,9 +65,6 @@ var rootCmd = &cobra.Command{
 
 // handleRecords retrieve records.
 func handleRecords(r *repo.SQLiteRepository, bs *Slice, args []string) error {
-	if err := handleListAll(r, bs); err != nil {
-		return err
-	}
 	if err := handleIDsFromArgs(r, bs, args); err != nil {
 		return err
 	}
@@ -85,6 +73,14 @@ func handleRecords(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 	if err := handleByTags(r, bs); err != nil {
 		return err
+	}
+
+	if bs.Len() == 0 && len(args) == 0 {
+		if err := r.Records(r.Cfg.TableMain, bs); err != nil {
+			return fmt.Errorf("getting records: %w", err)
+		}
+
+		Frame = true
 	}
 
 	return handleMenu(bs)
