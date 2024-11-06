@@ -81,7 +81,7 @@ func backupCreate(r *repo.SQLiteRepository) error {
 	}
 
 	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("\n%s backup created: %s\n", success.String(), destName)
+	fmt.Printf("%s backup created: %s\n", success.String(), destName)
 
 	return nil
 }
@@ -123,7 +123,7 @@ func backupPurge(r *repo.SQLiteRepository) error {
 	}
 
 	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("\n%s backups purged\n", success)
+	fmt.Printf("%s backups purged\n", success)
 
 	return nil
 }

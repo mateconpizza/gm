@@ -44,7 +44,7 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 
 	// header
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	header := color.Yellow("Add Bookmark").Bold().String()
+	header := color.BrightYellow("Add Bookmark").Bold().String()
 	q := color.Gray(" (ctrl+c to exit)").Italic().String()
 	f.Header(header + q)
 	f.Newline().Render()
@@ -66,14 +66,14 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	}
 
 	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("\n%s bookmark created\n", success)
+	fmt.Printf("%s bookmark created\n", success)
 
 	return nil
 }
 
 // handleURL retrieves a URL from args or prompts the user for input.
 func handleURL(r *repo.SQLiteRepository, args *[]string) string {
-	prompt := color.Blue("+ URL\t:").Bold().String()
+	prompt := color.BrightMagenta("+ URL\t:").Bold().String()
 
 	// Checks if URL is provided
 	if len(*args) > 0 {
@@ -103,7 +103,7 @@ func handleURL(r *repo.SQLiteRepository, args *[]string) string {
 
 // handleTags retrieves the Tags from args or prompts the user for input.
 func handleTags(r *repo.SQLiteRepository, args *[]string) string {
-	prompt := color.Purple("+ Tags\t:").Bold().String()
+	prompt := color.BrightBlue("+ Tags\t:").Bold().String()
 
 	// This checks if tags are provided and returns them
 	if len(*args) > 0 {
@@ -169,10 +169,10 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 	s.Stop()
 
 	var r strings.Builder
-	r.WriteString(color.Green("+ Title\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlign(title, minWidth, _indentation))
-	r.WriteString(color.Yellow("\n+ Desc\t: ").Bold().String())
-	r.WriteString(format.SplitAndAlign(desc, minWidth, _indentation))
+	r.WriteString(color.BrightCyan("+ Title\t: ").Bold().String())
+	r.WriteString(color.Gray(format.SplitAndAlign(title, minWidth, _indentation)).String())
+	r.WriteString(color.Text("\n+ Desc\t: ").Bold().String())
+	r.WriteString(color.Gray(format.SplitAndAlign(desc, minWidth, _indentation)).String())
 	fmt.Println(r.String())
 
 	return title, desc

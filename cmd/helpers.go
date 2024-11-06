@@ -225,7 +225,7 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	s.Stop()
 
 	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("\n%s bookmark/s removed\n", success)
+	fmt.Printf("%s bookmark/s removed\n", success)
 
 	return nil
 }

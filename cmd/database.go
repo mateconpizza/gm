@@ -43,7 +43,7 @@ func handleDBDrop(r *repo.SQLiteRepository) error {
 	}
 
 	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("\n%s database cleared\n", success)
+	fmt.Printf("%s database cleared\n", success)
 
 	return nil
 }
@@ -77,7 +77,7 @@ func removeDB(r *repo.SQLiteRepository) error {
 	}
 
 	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("\n%s database removed\n", success)
+	fmt.Printf("%s database removed\n", success)
 
 	return nil
 }
