@@ -23,35 +23,35 @@
 - [ ] ...
 
 <details>
-<summary>➕ Add a bookmark</summary>
+<summary><strong>➕ Add a bookmark</strong></summary>
 
 https://github.com/user-attachments/assets/e59ea080-2bbc-493d-9817-b527bc2ebe89
 
 </details>
 
 <details>
-<summary>📝 Edit a bookmark</summary>
+<summary><strong>📝 Edit a bookmark</strong></summary>
 
 https://github.com/user-attachments/assets/059dd578-2257-4db4-b7b1-1267d0375470
 
 </details>
 
 <details>
-<summary>🔳 Create QR-Code</summary>
+<summary><strong>🔳 Create QR-Code</strong></summary>
 
 https://github.com/user-attachments/assets/f531fdc9-067b-4747-9f31-4afd5252e3cb
 
 </details>
 
 <details>
-<summary>☑️ Check status</summary>
+<summary><strong>☑️ Check status</strong></summary>
 
 https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
 
 </details>
 
 <details>
-<summary>TODO</summary>
+<summary><strong>⏳ TODO</strong></summary>
 
 ## TODO
 
@@ -79,7 +79,7 @@ https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
 ### ⛓️ Import
 
 - [ ] From firefox
-- [ ] From chrome
+- [ ] From ~~chrome~~ chromium
 
 ### ♻️ Misc
 
