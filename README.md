@@ -25,7 +25,7 @@
 <details>
 <summary><strong>➕ Add a bookmark</strong></summary>
 
-https://github.com/user-attachments/assets/e59ea080-2bbc-493d-9817-b527bc2ebe89
+https://github.com/user-attachments/assets/436b7553-b130-4114-8638-2e8a9b3ea2ce
 
 </details>
 
