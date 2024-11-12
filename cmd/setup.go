@@ -93,7 +93,7 @@ func init() {
 
 	// Experimental
 	rootCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
-	rootCmd.Flags().BoolVarP(&Edit, "edit", "e", false, "edit with prefered text editor")
+	rootCmd.Flags().BoolVarP(&Edit, "edit", "e", false, "edit with preferred text editor")
 	rootCmd.Flags().BoolVarP(&Status, "status", "s", false, "check bookmarks status")
 	rootCmd.Flags().BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
 

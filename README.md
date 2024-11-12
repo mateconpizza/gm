@@ -46,6 +46,8 @@ https://github.com/user-attachments/assets/f531fdc9-067b-4747-9f31-4afd5252e3cb
 <details>
 <summary><strong>📜 Menu support</strong></summary>
 
+- Single/multiple selection for open, copy, edit, delete, check status.
+
 https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 
 </details>

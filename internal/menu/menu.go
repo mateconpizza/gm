@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	fzf "github.com/junegunn/fzf/src"
+
+	"github.com/haaag/gm/internal/config"
 )
 
 var (
@@ -128,9 +130,14 @@ func WithMultiSelection() OptFn {
 
 // WithPreview adds a preview window and a keybind to toggle it.
 func WithPreview() OptFn {
+	withColor := "never"
+	if config.App.Color {
+		withColor = "always"
+	}
+
 	opts := []string{
 		"--preview-window=~4,+{2}+4/3,<80(up)",
-		withCommand("--preview=%s {1} --color=always"),
+		withCommand("--preview=%s {1} --color=" + withColor),
 	}
 
 	return func(o *Options) {

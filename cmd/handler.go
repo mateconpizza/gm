@@ -368,6 +368,7 @@ func handleMenu(bs *Slice) error {
 	// menu options
 	options := []menu.OptFn{
 		menu.WithDefaultKeybinds(),
+		menu.WithDefaultSettings(),
 		menu.WithKeybindEdit(),
 		menu.WithKeybindOpen(),
 		menu.WithKeybindQR(),
