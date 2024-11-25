@@ -97,7 +97,7 @@ func addLabel(path, text, pos string) error {
 	fd.DrawString(text)
 
 	// Save the image with the label
-	f, err := os.Create(path)
+	f, err := files.Touch(path, true)
 	if err != nil {
 		return fmt.Errorf("creating output file: %w", err)
 	}

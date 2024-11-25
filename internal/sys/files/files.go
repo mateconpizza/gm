@@ -16,6 +16,7 @@ import (
 var (
 	ErrFileNotFound = errors.New("file not found")
 	ErrPathNotFound = errors.New("path not found")
+	ErrFileExists   = errors.New("file already exists")
 )
 
 // Exists checks if a file exists.
@@ -100,7 +101,7 @@ func Copy(from, to string) error {
 		}
 	}()
 
-	dstFile, err := os.Create(to)
+	dstFile, err := Touch(to, false)
 	if err != nil {
 		return fmt.Errorf("error creating destination file: %w", err)
 	}
@@ -195,4 +196,19 @@ func ModTime(s, format string) string {
 	}
 
 	return file.ModTime().Format(format)
+}
+
+// Touch creates a file at this given path.
+// If the file already exists, the function succeeds when exist_ok is true.
+func Touch(s string, exist_ok bool) (*os.File, error) {
+	if Exists(s) && !exist_ok {
+		return nil, fmt.Errorf("%w: '%s'", ErrFileExists, s)
+	}
+
+	f, err := os.Create(s)
+	if err != nil {
+		return nil, fmt.Errorf("error creating file: %w", err)
+	}
+
+	return f, nil
 }

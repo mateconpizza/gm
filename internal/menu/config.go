@@ -20,7 +20,7 @@ const (
 
 var ErrConfigFileExists = errors.New("config file already exists")
 
-var menuConfig MenuConfig
+var menuConfig menuConf
 
 type keymap struct {
 	Bind        string `yaml:"bind"`
@@ -29,7 +29,7 @@ type keymap struct {
 	Hidden      bool   `yaml:"hidden"`
 }
 
-type FzfKeymaps struct {
+type fzfKeymaps struct {
 	Edit      keymap `yaml:"edit"`
 	Open      keymap `yaml:"open"`
 	Preview   keymap `yaml:"preview"`
@@ -38,14 +38,14 @@ type FzfKeymaps struct {
 	Yank      keymap `yaml:"yank"`
 }
 
-type MenuConfig struct {
+type menuConf struct {
 	Prompt  string     `yaml:"prompt"`
-	Keymaps FzfKeymaps `yaml:"keymaps"`
+	Keymaps fzfKeymaps `yaml:"keymaps"`
 	Header  bool       `yaml:"header"`
 	Preview bool       `yaml:"preview"`
 }
 
-var defaultKeymaps = FzfKeymaps{
+var defaultKeymaps = fzfKeymaps{
 	Edit:      keymap{Bind: "ctrl-e", Description: "edit", Enabled: true, Hidden: false},
 	Open:      keymap{Bind: "ctrl-o", Description: "open", Enabled: true, Hidden: false},
 	Preview:   keymap{Bind: "ctrl-/", Description: "toggle-preview", Enabled: true, Hidden: false},
@@ -54,7 +54,7 @@ var defaultKeymaps = FzfKeymaps{
 	Yank:      keymap{Bind: "ctrl-y", Description: "yank", Enabled: true, Hidden: false},
 }
 
-var defaultMenuConfig = MenuConfig{
+var defaultMenuConfig = menuConf{
 	Prompt:  defaultPrompt,
 	Keymaps: defaultKeymaps,
 }
@@ -105,7 +105,7 @@ func LoadConfig() error {
 		return fmt.Errorf("error reading config file: %w", err)
 	}
 
-	var fileMenuConfig MenuConfig
+	var fileMenuConfig menuConf
 	err = yaml.Unmarshal(content, &fileMenuConfig)
 	if err != nil {
 		return fmt.Errorf("error unmarshalling YAML: %w", err)

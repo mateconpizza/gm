@@ -3,7 +3,7 @@ package config
 import "os"
 
 const (
-	AppName string = "gomarks" // Default name of the application
+	appName string = "gomarks" // Default name of the application
 	Command string = "gm"      // Default name of the executable
 )
 
@@ -74,7 +74,7 @@ var Files = files{
 
 // App is the default application configuration.
 var App = app{
-	Name:    AppName,
+	Name:    appName,
 	Cmd:     Command,
 	Version: Version,
 	Info: information{

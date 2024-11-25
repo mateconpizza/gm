@@ -83,7 +83,7 @@ func (q *QRCode) Label(s, pos string) error {
 
 // Render renders a QR-Code to the standard output.
 func (q *QRCode) Render() {
-	fmt.Print(q.QR.ToSmallString(false))
+	fmt.Print(q.QR.ToSmallString(true))
 }
 
 func (q *QRCode) String() string {

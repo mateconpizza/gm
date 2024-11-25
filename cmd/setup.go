@@ -56,8 +56,8 @@ func initConfig() {
 	if err != nil {
 		logErrAndExit(err)
 	}
-	config.App.Path.Data = dataHomePath
-	config.App.Path.Backup = filepath.Join(dataHomePath, "backup")
+	config.App.Path.Data = dataHomePath                            // Home
+	config.App.Path.Backup = filepath.Join(dataHomePath, "backup") // Backups
 
 	// Set database settings/paths
 	Cfg = repo.NewSQLiteCfg(dataHomePath)
