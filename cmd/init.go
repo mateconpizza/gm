@@ -10,17 +10,28 @@ import (
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 )
 
+var dumpConfig bool
+
 var initCmd = &cobra.Command{
 	Use:    "init",
 	Short:  "initialize a new bookmarks database",
 	Hidden: true,
 	RunE: func(_ *cobra.Command, _ []string) error {
+		if dumpConfig {
+			if err := menu.DumpConfig(); err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return nil
+		}
+
 		// Create paths for the application.
 		var builder strings.Builder
 		p := config.App.Path
@@ -61,6 +72,7 @@ var initCmd = &cobra.Command{
 }
 
 func init() {
+	initCmd.Flags().BoolVar(&dumpConfig, "dump-config", false, "dump config data")
 	rootCmd.AddCommand(initCmd)
 }
 

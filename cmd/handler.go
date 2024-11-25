@@ -365,6 +365,13 @@ func handleMenu(bs *Slice) error {
 	if bs.Len() == 0 {
 		return repo.ErrRecordNoMatch
 	}
+
+	if err := menu.LoadConfig(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	menu.WithColor(&config.App.Color)
+
 	// menu options
 	options := []menu.OptFn{
 		menu.WithDefaultKeybinds(),

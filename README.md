@@ -73,6 +73,7 @@ https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
 #### XDG
 
 - [x] Store `db` in `XDG_DATA_HOME`
+- [ ] Store `menu config` in `XDG_CONFIG_HOME` _(WIP: for now in `XDG_DATA_HOME`)_
 
 ### 📦 Packages
 
@@ -96,3 +97,7 @@ https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
 - [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
 
 </details>
+
+### ⚙️ Configuration
+
+- [x] `menu.toml`

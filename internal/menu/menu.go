@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	fzf "github.com/junegunn/fzf/src"
-
-	"github.com/haaag/gm/internal/config"
 )
+
+var addColor *bool
 
 var (
 	ErrFzfExitError       = errors.New("fzf exit error")
@@ -18,15 +18,15 @@ var (
 )
 
 var fzfDefaults = []string{
-	"--ansi",               // Enable processing of ANSI color codes
-	"--cycle",              // Enable cyclic scroll
-	"--reverse",            // A synonym for --layout=reverse
-	"--sync",               // Synchronous search for multi-staged filtering
-	"--info=inline-right",  // Determines the display style of the finder info.
-	"--tac",                // Reverse the order of the input
-	"--layout=default",     // Choose the layout (default: default)
-	"--prompt= Gomarks> ", // Input prompt
-	"--no-bold",            // Do not use bold text
+	"--ansi",              // Enable processing of ANSI color codes
+	"--cycle",             // Enable cyclic scroll
+	"--reverse",           // A synonym for --layout=reverse
+	"--sync",              // Synchronous search for multi-staged filtering
+	"--info=inline-right", // Determines the display style of the finder info.
+	"--tac",               // Reverse the order of the input
+	"--layout=default",    // Choose the layout (default: default)
+	"--color=header:italic",
+	// "--no-bold",           // Do not use bold text
 }
 
 type OptFn func(*Options)
@@ -44,7 +44,7 @@ type Menu[T comparable] struct {
 
 func defaultOpts() Options {
 	return Options{
-		args:     fzfDefaults,
+		args:     append(fzfDefaults, "--prompt="+menuConfig.Prompt),
 		defaults: false,
 		header:   make([]string, 0),
 	}
@@ -67,26 +67,47 @@ func WithDefaultSettings() OptFn {
 
 // WithKeybindEdit adds a keybind to edit the selected record.
 func WithKeybindEdit() OptFn {
+	edit := menuConfig.Keymaps.Edit
+	if !edit.Enabled {
+		return func(o *Options) {}
+	}
+
 	return func(o *Options) {
-		o.header = appendToHeader(o.header, "ctrl-e", "edit")
-		o.keybind = append(o.keybind, withCommand("ctrl-e:execute(%s --edit {1})"))
+		if !edit.Hidden {
+			o.header = appendToHeader(o.header, edit.Bind, edit.Description)
+		}
+		o.keybind = append(o.keybind, withCommand(edit.Bind+":execute(%s --edit {1})"))
 	}
 }
 
 // WithKeybindOpen adds a keybind to open the selected record in default
 // browser.
 func WithKeybindOpen() OptFn {
+	open := menuConfig.Keymaps.Open
+	if !open.Enabled {
+		return func(o *Options) {}
+	}
+
 	return func(o *Options) {
-		o.header = appendToHeader(o.header, "ctrl-o", "open")
-		o.keybind = append(o.keybind, withCommand("ctrl-o:execute(%s --open {1})"))
+		if !open.Hidden {
+			o.header = appendToHeader(o.header, open.Bind, open.Description)
+		}
+		o.keybind = append(o.keybind, withCommand(open.Bind+":execute(%s --open {1})"))
 	}
 }
 
 // WithKeybindQR adds a keybinding to generate and open a QR code.
 func WithKeybindQR() OptFn {
+	qr := menuConfig.Keymaps.QR
+	if !qr.Enabled {
+		return func(o *Options) {}
+	}
+
 	return func(o *Options) {
-		o.header = appendToHeader(o.header, "ctrl-k", "QRcode")
-		o.keybind = append(o.keybind, withCommand("ctrl-k:execute(%s --qr {1})"))
+		if !qr.Hidden {
+			o.header = appendToHeader(o.header, qr.Bind, qr.Description)
+		}
+		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr {1})"))
 	}
 }
 
@@ -94,9 +115,16 @@ func WithKeybindQR() OptFn {
 //
 // ctrl-y:copy-to-clipboard.
 func WithDefaultKeybinds() OptFn {
+	yank := menuConfig.Keymaps.Yank
+	if !yank.Enabled {
+		return func(o *Options) {}
+	}
+
 	return func(o *Options) {
-		o.header = appendToHeader(o.header, "ctrl-y", "copy")
-		o.keybind = append(o.keybind, withCommand("ctrl-y:execute(%s --copy {1})"))
+		if !yank.Hidden {
+			o.header = appendToHeader(o.header, yank.Bind, yank.Description)
+		}
+		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s --copy {1})"))
 	}
 }
 
@@ -118,20 +146,36 @@ func WithKeybindNew(key, action, desc string) OptFn {
 // WithMultiSelection adds a keybind to select multiple records.
 func WithMultiSelection() OptFn {
 	opts := []string{"--highlight-line", "--multi"}
+	if !menuConfig.Keymaps.ToggleAll.Enabled {
+		return func(o *Options) {
+			o.args = append(o.args, opts...)
+		}
+	}
+
 	h := appendToHeader(make([]string, 0), "ctrl-a", "toggle-all")
-	h = appendToHeader(h, "tab", "select")
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
-		o.header = append(o.header, h...)
+		if !menuConfig.Keymaps.ToggleAll.Hidden {
+			o.header = append(o.header, h...)
+		}
 		o.keybind = append(o.keybind, "ctrl-a:toggle-all")
 	}
 }
 
+func WithColor(b *bool) {
+	addColor = b
+}
+
 // WithPreview adds a preview window and a keybind to toggle it.
 func WithPreview() OptFn {
+	preview := menuConfig.Keymaps.Preview
+	if !preview.Enabled {
+		return func(o *Options) {}
+	}
+
 	withColor := "never"
-	if config.App.Color {
+	if *addColor {
 		withColor = "always"
 	}
 
@@ -142,19 +186,22 @@ func WithPreview() OptFn {
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
-		o.header = appendToHeader(o.header, "ctrl-/", "toggle-preview")
-		o.keybind = append(o.keybind, "ctrl-/:toggle-preview")
+		if !preview.Hidden {
+			o.header = appendToHeader(o.header, preview.Bind, "toggle-preview")
+		}
+		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
 	}
 }
 
 // WithPreviewCustomCmd adds preview with a custom command.
 func WithPreviewCustomCmd(cmd string) OptFn {
+	preview := menuConfig.Keymaps.Preview
 	opts := []string{"--preview=" + cmd}
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
-		o.header = appendToHeader(o.header, "ctrl-/", "toggle-preview")
-		o.keybind = append(o.keybind, "ctrl-/:toggle-preview")
+		o.header = appendToHeader(o.header, preview.Bind, "toggle-preview")
+		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
 	}
 }
 
@@ -192,7 +239,7 @@ func (m *Menu[T]) setup() error {
 	return loadKeybind(m.keybind, &m.args)
 }
 
-// Select runs fzf with the given items and returns the selected items.
+// Select runs fzf with the given items and returns the selected item/s.
 func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 	if len(*items) == 0 {
 		return nil, ErrFzfNoRecords

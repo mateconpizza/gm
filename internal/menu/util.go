@@ -12,9 +12,6 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 )
 
-// TODO))
-// [ ] Use `shellwords`
-
 // appendToHeader appends a key:desc string to the header slice.
 func appendToHeader(opts []string, key, desc string) []string {
 	return append(opts, fmt.Sprintf("%s:%s", key, desc))
