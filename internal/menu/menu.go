@@ -169,6 +169,10 @@ func WithColor(b *bool) {
 
 // WithPreview adds a preview window and a keybind to toggle it.
 func WithPreview() OptFn {
+	if !menuConfig.Preview {
+		return func(o *Options) {}
+	}
+
 	preview := menuConfig.Keymaps.Preview
 	if !preview.Enabled {
 		return func(o *Options) {}

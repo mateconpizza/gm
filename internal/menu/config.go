@@ -41,6 +41,8 @@ type FzfKeymaps struct {
 type MenuConfig struct {
 	Prompt  string     `yaml:"prompt"`
 	Keymaps FzfKeymaps `yaml:"keymaps"`
+	Header  bool       `yaml:"header"`
+	Preview bool       `yaml:"preview"`
 }
 
 var defaultKeymaps = FzfKeymaps{

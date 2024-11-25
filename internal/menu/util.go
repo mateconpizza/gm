@@ -14,6 +14,10 @@ import (
 
 // appendToHeader appends a key:desc string to the header slice.
 func appendToHeader(opts []string, key, desc string) []string {
+	if !menuConfig.Header {
+		return opts
+	}
+
 	return append(opts, fmt.Sprintf("%s:%s", key, desc))
 }
 
