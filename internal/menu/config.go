@@ -20,41 +20,42 @@ const (
 
 var ErrConfigFileExists = errors.New("config file already exists")
 
-var menuConfig menuConf
+var menuConfig Config
 
-type keymap struct {
+type Keymap struct {
 	Bind        string `yaml:"bind"`
 	Description string `yaml:"description"`
 	Enabled     bool   `yaml:"enabled"`
 	Hidden      bool   `yaml:"hidden"`
 }
 
-type fzfKeymaps struct {
-	Edit      keymap `yaml:"edit"`
-	Open      keymap `yaml:"open"`
-	Preview   keymap `yaml:"preview"`
-	QR        keymap `yaml:"qr"`
-	ToggleAll keymap `yaml:"toggle_all"`
-	Yank      keymap `yaml:"yank"`
+type FZFKeymaps struct {
+	Edit      Keymap `yaml:"edit"`
+	Open      Keymap `yaml:"open"`
+	Preview   Keymap `yaml:"preview"`
+	QR        Keymap `yaml:"qr"`
+	ToggleAll Keymap `yaml:"toggle_all"`
+	Yank      Keymap `yaml:"yank"`
 }
 
-type menuConf struct {
+type Config struct {
 	Prompt  string     `yaml:"prompt"`
-	Keymaps fzfKeymaps `yaml:"keymaps"`
+	Keymaps FZFKeymaps `yaml:"keymaps"`
 	Header  bool       `yaml:"header"`
 	Preview bool       `yaml:"preview"`
 }
 
-var defaultKeymaps = fzfKeymaps{
-	Edit:      keymap{Bind: "ctrl-e", Description: "edit", Enabled: true, Hidden: false},
-	Open:      keymap{Bind: "ctrl-o", Description: "open", Enabled: true, Hidden: false},
-	Preview:   keymap{Bind: "ctrl-/", Description: "toggle-preview", Enabled: true, Hidden: false},
-	QR:        keymap{Bind: "ctrl-k", Description: "QRcode", Enabled: true, Hidden: false},
-	ToggleAll: keymap{Bind: "ctrl-a", Description: "toggle-all", Enabled: true, Hidden: false},
-	Yank:      keymap{Bind: "ctrl-y", Description: "yank", Enabled: true, Hidden: false},
+var defaultKeymaps = FZFKeymaps{
+	// TODO)): Maybe move this to setup.go?
+	Edit:      Keymap{Bind: "ctrl-e", Description: "edit", Enabled: true, Hidden: false},
+	Open:      Keymap{Bind: "ctrl-o", Description: "open", Enabled: true, Hidden: false},
+	Preview:   Keymap{Bind: "ctrl-/", Description: "toggle-preview", Enabled: true, Hidden: false},
+	QR:        Keymap{Bind: "ctrl-k", Description: "QRcode", Enabled: true, Hidden: false},
+	ToggleAll: Keymap{Bind: "ctrl-a", Description: "toggle-all", Enabled: true, Hidden: false},
+	Yank:      Keymap{Bind: "ctrl-y", Description: "yank", Enabled: true, Hidden: false},
 }
 
-var defaultMenuConfig = menuConf{
+var defaultMenuConfig = Config{
 	Prompt:  defaultPrompt,
 	Keymaps: defaultKeymaps,
 }
@@ -105,7 +106,7 @@ func LoadConfig() error {
 		return fmt.Errorf("error reading config file: %w", err)
 	}
 
-	var fileMenuConfig menuConf
+	var fileMenuConfig Config
 	err = yaml.Unmarshal(content, &fileMenuConfig)
 	if err != nil {
 		return fmt.Errorf("error unmarshalling YAML: %w", err)
