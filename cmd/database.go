@@ -110,7 +110,7 @@ func handleListDB(r *repo.SQLiteRepository) error {
 	// add header
 	if n > 1 {
 		nColor := color.BrightCyan(n).Bold().String()
-		f.Header(nColor + " database/s found").Newline()
+		f.Header(nColor + " database/s found").Ln()
 	}
 
 	dbs.ForEachIdx(func(i int, r *repo.SQLiteRepository) {

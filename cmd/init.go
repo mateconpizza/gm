@@ -3,18 +3,20 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var dumpConfig bool
@@ -25,47 +27,43 @@ var initCmd = &cobra.Command{
 	Hidden: true,
 	RunE: func(_ *cobra.Command, _ []string) error {
 		if dumpConfig {
-			if err := menu.DumpConfig(); err != nil {
+			if err := menu.DumpConfig(Force); err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
 			return nil
 		}
 
-		// Create paths for the application.
-		var builder strings.Builder
+		// create paths for the application.
 		p := config.App.Path
-		if !files.Exists(p.Data) {
-			if err := files.MkdirAll(p.Backup); err != nil {
-				logErrAndExit(err)
-			}
-
-			builder.WriteString(fmt.Sprintf("\nSuccessfully created directory path '%s'.", p.Data))
-			builder.WriteString("\nSuccessfully created initial bookmark.")
+		if err := createPaths(p.Data); err != nil {
+			return err
 		}
 
+		// init database
 		r, err := repo.New(Cfg)
 		if r == nil {
 			return fmt.Errorf("init database: %w", err)
 		}
-		defer r.Close()
 
 		if err := initDB(r); err != nil {
 			return err
 		}
 
+		// print new record
 		bs := slice.New[Bookmark]()
 		if err := r.Records(Cfg.TableMain, bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
 
+		r.Close()
+
 		if err := handlePrintOut(bs); err != nil {
 			return err
 		}
 
-		if builder.Len() > 0 {
-			fmt.Println(builder.String())
-		}
+		s := color.BrightGray(Cfg.Name).Italic().String()
+		fmt.Println("\nSuccessfully initialized database " + s + ".")
 
 		return nil
 	},
@@ -76,6 +74,42 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
+func createPaths(path string) error {
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f.Header(prettyVersion()).Ln()
+	f.Row().Ln()
+
+	if files.Exists(path) {
+		return nil
+	}
+
+	f.Mid(format.PaddedLine("create path:", fmt.Sprintf("'%s'", path))).Ln()
+	f.Mid(format.PaddedLine("create db:", fmt.Sprintf("'%s'", Cfg.Fullpath()))).Ln()
+	f.Row().Ln().Footer("continue?").Render()
+
+	if !terminal.Confirm("", "n") {
+		return terminal.ErrActionAborted
+	}
+
+	// clean terminal keeping header+row
+	headerN := 2
+	lines := format.CountLines(f.String()) - headerN
+	terminal.ClearLine(lines)
+
+	if err := files.MkdirAll(path); err != nil {
+		logErrAndExit(err)
+	}
+
+	f.Clean()
+	f.Mid(fmt.Sprintf("Successfully created directory path '%s'.", path)).Ln()
+	f.Footer("Successfully created initial bookmark.").Ln()
+	f.Row().Ln()
+	f.Render()
+
+	return nil
+}
+
+// initDB creates a new database and populates it with the initial bookmark.
 func initDB(r *repo.SQLiteRepository) error {
 	if r.IsDatabaseInitialized(r.Cfg.TableMain) && !Force {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyInitialized, DBName)
@@ -95,8 +129,6 @@ func initDB(r *repo.SQLiteRepository) error {
 	if _, err := r.Insert(r.Cfg.TableMain, ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
-	fmt.Print(format.Header(prettyVersion()))
 
 	return nil
 }

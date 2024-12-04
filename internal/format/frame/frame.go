@@ -15,9 +15,10 @@ type FrameBorders struct {
 }
 
 type Options struct {
-	Border *FrameBorders
-	color  color.ColorFn
-	text   []string
+	Border  *FrameBorders
+	color   color.ColorFn
+	text    []string
+	newLine bool
 }
 
 type Frame struct {
@@ -27,9 +28,10 @@ type Frame struct {
 // defaultOpts returns the default frame options.
 func defaultOpts() Options {
 	return Options{
-		Border: defaultBorders,
-		color:  nil,
-		text:   make([]string, 0),
+		Border:  defaultBorders,
+		color:   nil,
+		text:    make([]string, 0),
+		newLine: true,
 	}
 }
 
@@ -39,12 +41,19 @@ func WithColorBorder(c color.ColorFn) OptFn {
 	}
 }
 
+func WithNoNewLine() OptFn {
+	return func(o *Options) {
+		o.newLine = false
+	}
+}
+
 func (f *Frame) Text(t ...string) *Frame {
 	f.text = append(f.text, t...)
 	return f
 }
 
-func (f *Frame) Newline() *Frame {
+// Ln adds a new line.
+func (f *Frame) Ln() *Frame {
 	return f.Text("\n")
 }
 
@@ -62,11 +71,20 @@ func (f *Frame) applyBorder(border string, s []string) *Frame {
 	n := len(s)
 
 	if n == 0 {
-		return f.Text(border, "", "\n")
+		if f.newLine {
+			return f.Text(border, "", "\n")
+		}
+
+		return f.Text(border, "")
 	}
 
 	// append first element
-	f.Text(border, s[0], "\n")
+	if f.newLine {
+		f.Text(border, s[0], "\n")
+	} else {
+		f.Text(border, s[0])
+	}
+
 	if n == 1 {
 		return f
 	}
@@ -103,6 +121,7 @@ func (f *Frame) Render() {
 	fmt.Print(strings.Join(f.text, ""))
 }
 
+// Clean clears the frame.
 func (f *Frame) Clean() {
 	f.text = make([]string, 0)
 }

@@ -208,3 +208,7 @@ func Counter(terms []string) map[string]int {
 
 	return sortedR
 }
+
+func CountLines(s string) int {
+	return len(strings.Split(s, "\n"))
+}

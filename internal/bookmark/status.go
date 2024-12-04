@@ -118,7 +118,7 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 // corresponding URLs.
 func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 	var (
-		f     = frame.New(frame.WithColorBorder(color.Gray)).Newline()
+		f     = frame.New(frame.WithColorBorder(color.Gray)).Ln()
 		codes = make(map[int][]Response)
 	)
 
@@ -157,7 +157,7 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 	total := fmt.Sprintf("Total %s checked,", color.Blue(r.Len()).Bold())
 	f.Row().Footer(total + " took " + color.Blue(took).Bold().String())
 
-	f.Newline().Render()
+	f.Ln().Render()
 }
 
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and

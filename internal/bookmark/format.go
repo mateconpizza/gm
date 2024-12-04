@@ -144,8 +144,9 @@ func WithFrameAndColorRenameMe(f *frame.Frame, b *Bookmark, n int, c color.Color
 	title := color.ApplyMany(titleSplit, color.Cyan)
 	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
-	f.Mid(fmt.Sprintf("%s %s %s", idStr, format.MidBulletPoint, urlColor))
-	f.Mid(title...).Mid(tags).Newline()
+	f.Mid(fmt.Sprintf("%s %s %s", idStr, format.MidBulletPoint, urlColor)).Ln()
+	f.Mid(title...).Ln()
+	f.Mid(tags).Ln()
 }
 
 // Frame formats a bookmark in a frame.

@@ -47,7 +47,7 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	header := color.BrightYellow("Add Bookmark").Bold().String()
 	q := color.Gray(" (ctrl+c to exit)").Italic().String()
 	f.Header(header + q)
-	f.Newline().Render()
+	f.Ln().Render()
 
 	b := bookmark.New()
 	if err := parseNewBookmark(r, b, args); err != nil {
