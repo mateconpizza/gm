@@ -158,24 +158,22 @@ func confirmEditSave(b *Bookmark) error {
 // confirmAction prompts the user to confirm the action.
 func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 	for !Force {
-		var summary string
-
 		n := bs.Len()
 		if n == 0 {
 			return repo.ErrRecordNotFound
 		}
 
-		f := frame.New(frame.WithColorBorder(color.Gray))
-
+		f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 		bs.ForEachIdx(func(i int, b Bookmark) {
 			bookmark.WithFrameAndColorRenameMe(f, &b, terminal.MinWidth, colors)
+			if n != i+1 {
+				f.Row().Ln()
+			}
 		})
 
-		f.Render()
-
-		summary += prompt + fmt.Sprintf(" %d bookmark/s?", n)
-		opt := terminal.ConfirmWithChoices(summary, []string{"yes", "no", "edit"}, "n")
-
+		// render frame
+		f.Row().Ln().Footer(prompt + fmt.Sprintf(" %d bookmark/s?", n)).Render()
+		opt := terminal.ConfirmWithChoices("", []string{"yes", "no", "edit"}, "n")
 		switch opt {
 		case "n", "no":
 			return ErrActionAborted

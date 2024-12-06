@@ -60,14 +60,14 @@ var defaultMenuConfig = Config{
 	Keymaps: defaultKeymaps,
 }
 
-func DumpConfig() error {
+func DumpConfig(force bool) error {
 	p := filepath.Join(config.App.Path.Data, keymapsConfigFile)
 
-	if files.Exists(p) {
-		return fmt.Errorf("%s %w", p, ErrConfigFileExists)
+	if files.Exists(p) && !force {
+		return fmt.Errorf("%s %w. use --force to overwrite", p, ErrConfigFileExists)
 	}
 
-	f, err := files.Touch(p, false)
+	f, err := files.Touch(p, force)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
@@ -88,6 +88,8 @@ func DumpConfig() error {
 	if err != nil {
 		return fmt.Errorf("error writing to file: %w", err)
 	}
+
+	fmt.Println(("menu configfile path: '" + p + "'"))
 
 	return nil
 }
@@ -112,7 +114,7 @@ func LoadConfig() error {
 		return fmt.Errorf("error unmarshalling YAML: %w", err)
 	}
 
-	log.Printf("loading configfile: %s", f)
+	log.Printf("loading menu configfile: %s", f)
 	menuConfig = fileMenuConfig
 
 	return nil

@@ -39,7 +39,7 @@ var (
 // NoColor disables color output if the NO_COLOR environment variable is set.
 func NoColor(b *bool) {
 	if c := sys.Env(noColorEnv, ""); c != "" {
-		log.Println("NO_COLOR found.")
+		log.Println("'NO_COLOR' environment variable found.")
 		*b = false
 	}
 

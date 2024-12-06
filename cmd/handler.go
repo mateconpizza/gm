@@ -28,7 +28,7 @@ func handleByField(bs *Slice) error {
 		return nil
 	}
 
-	Exit = Field != ""
+	Exit = true
 
 	printer := func(b Bookmark) error {
 		f, err := b.Field(Field)
@@ -72,6 +72,8 @@ func handleOneline(bs *Slice) error {
 	if !Oneline {
 		return nil
 	}
+
+	Exit = true
 
 	bs.ForEach(func(b Bookmark) {
 		fmt.Print(bookmark.Oneline(&b, terminal.MaxWidth))
@@ -176,7 +178,7 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
-	Exit = Edit
+	Exit = true
 
 	n := bs.Len()
 	if n == 0 {
@@ -229,7 +231,7 @@ func handleRemove(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
-	Exit = Remove
+	Exit = true
 
 	if err := validateRemove(bs); err != nil {
 		return err
@@ -249,7 +251,7 @@ func handleCheckStatus(bs *Slice) error {
 		return nil
 	}
 
-	Exit = Status
+	Exit = true
 
 	n := bs.Len()
 	if n == 0 {

@@ -78,7 +78,7 @@ func init() {
 	// Prints
 	rootCmd.PersistentFlags().BoolVar(&JSON, "json", false, "output in JSON format")
 	rootCmd.PersistentFlags().
-		StringVar(&WithColor, "color", "never", "output with pretty colors [always|never]")
+		StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
 	rootCmd.Flags().
 		BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
 	rootCmd.Flags().
@@ -114,7 +114,7 @@ func verifyDatabase(c *repo.SQLiteConfig) error {
 	i := color.BrightYellow(config.App.Cmd, "init").Bold().Italic()
 
 	if err := c.Exists(); err != nil {
-		return fmt.Errorf("%w: %s to initialize '%s'", repo.ErrDBNotFound, i, db)
+		return fmt.Errorf("%w: use '%s' to initialize '%s'", repo.ErrDBNotFound, i, db)
 	}
 
 	return nil

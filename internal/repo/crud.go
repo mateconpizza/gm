@@ -20,7 +20,7 @@ type (
 	Table string
 )
 
-// Init initialize database.
+// Init initializes a new database and creates the required tables.
 func (r *SQLiteRepository) Init() error {
 	if err := r.TableCreate(r.Cfg.TableMain, tableMainSchema); err != nil {
 		return fmt.Errorf("creating '%s' table: %w", r.Cfg.TableMain, err)
@@ -413,7 +413,7 @@ func (r *SQLiteRepository) ByTag(t Table, tag string, bs *Slice) error {
 
 // ByQuery returns records by query in the give table.
 func (r *SQLiteRepository) ByQuery(t Table, q string, bs *Slice) error {
-	log.Printf("getting records by query: %s", q)
+	log.Printf("getting records by query: '%s'", q)
 
 	sqlQuery := fmt.Sprintf(`
       SELECT 

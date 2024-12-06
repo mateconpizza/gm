@@ -47,7 +47,6 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		defer r.Close()
 
 		terminal.ReadPipedInput(&args)
 
@@ -58,6 +57,8 @@ var rootCmd = &cobra.Command{
 		if err := handleAction(r, bs); err != nil {
 			return err
 		}
+
+		r.Close()
 
 		return handleOutput(bs)
 	},
@@ -76,23 +77,24 @@ func handleRecords(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 
 	if bs.Len() == 0 && len(args) == 0 {
+		// get all records
 		if err := r.Records(r.Cfg.TableMain, bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
 
 		Frame = true
 	}
-
-	return handleMenu(bs)
-}
-
-func handleAction(r *repo.SQLiteRepository, bs *Slice) error {
 	if err := handleHeadAndTail(bs); err != nil {
 		return err
 	}
 	if err := handleCheckStatus(bs); err != nil {
 		return err
 	}
+
+	return handleMenu(bs)
+}
+
+func handleAction(r *repo.SQLiteRepository, bs *Slice) error {
 	if err := handleRemove(r, bs); err != nil {
 		return err
 	}
@@ -104,6 +106,9 @@ func handleOutput(bs *Slice) error {
 	if err := handleJSONFormat(bs); err != nil {
 		return err
 	}
+	if err := handleOneline(bs); err != nil {
+		return err
+	}
 	if err := handleByField(bs); err != nil {
 		return err
 	}
@@ -113,7 +118,6 @@ func handleOutput(bs *Slice) error {
 	if err := handleCopyOpen(bs); err != nil {
 		return err
 	}
-
 	return handlePrintOut(bs)
 }
 

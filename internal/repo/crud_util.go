@@ -203,3 +203,8 @@ func (r *SQLiteRepository) DropSecure() error {
 func (r *SQLiteRepository) Restore(bs *Slice) error {
 	return r.insertBulk(Table(config.DB.MainTable), bs)
 }
+
+// IsClosed checks if the database connection is closed.
+func (r *SQLiteRepository) IsClosed() bool {
+	return connClosed
+}

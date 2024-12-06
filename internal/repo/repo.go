@@ -11,6 +11,8 @@ import (
 	"github.com/haaag/gm/internal/sys/files"
 )
 
+var connClosed bool
+
 // SQLiteRepository implements the Repository interface.
 type SQLiteRepository struct {
 	DB  *sql.DB       `json:"-"`
@@ -23,6 +25,7 @@ func (r *SQLiteRepository) Close() {
 		log.Printf("closing database: %v", err)
 	}
 
+	connClosed = true
 	log.Printf("database closed.")
 }
 
