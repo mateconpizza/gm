@@ -10,11 +10,11 @@ import (
 var addColor *bool
 
 var (
-	ErrFzfExitError       = errors.New("fzf exit error")
-	ErrFzfInterrupted     = errors.New("returned exit code 130")
-	ErrFzfNoMathching     = errors.New("no matching record")
-	ErrFzfNoRecords       = errors.New("no records provided")
-	ErrFzfNothingSelected = errors.New("no records selected")
+	ErrFzfExitError       = errors.New("fzf: exit error")
+	ErrFzfInterrupted     = errors.New("fzf: returned exit code 130")
+	ErrFzfNoMathching     = errors.New("fzf: no matching record")
+	ErrFzfNoRecords       = errors.New("fzf: no records provided")
+	ErrFzfNothingSelected = errors.New("fzf: no records selected")
 )
 
 var fzfDefaults = []string{
@@ -257,6 +257,7 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 		preprocessor = toString
 	}
 
+	// channels
 	inputChan := formatItems(*items, preprocessor)
 	outputChan := make(chan string)
 	resultChan := make(chan []T)
