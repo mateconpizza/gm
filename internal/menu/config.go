@@ -46,7 +46,7 @@ type Config struct {
 }
 
 var defaultKeymaps = FZFKeymaps{
-	// TODO)): Maybe move this to setup.go?
+	// TODO: Maybe move this to setup.go?
 	Edit:      Keymap{Bind: "ctrl-e", Description: "edit", Enabled: true, Hidden: false},
 	Open:      Keymap{Bind: "ctrl-o", Description: "open", Enabled: true, Hidden: false},
 	Preview:   Keymap{Bind: "ctrl-/", Description: "toggle-preview", Enabled: true, Hidden: false},

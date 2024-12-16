@@ -31,15 +31,15 @@ type Bookmark struct {
 func (b *Bookmark) Field(f string) (string, error) {
 	var s string
 	switch f {
-	case "id", "1":
+	case "id", "i", "1":
 		s = strconv.Itoa(b.ID)
-	case "url", "2":
+	case "url", "u", "2":
 		s = b.URL
-	case "title", "3":
+	case "title", "t", "3":
 		s = b.Title
-	case "tags", "4":
+	case "tags", "T", "4":
 		s = b.Tags
-	case "desc", "5":
+	case "desc", "d", "5":
 		s = b.Desc
 	default:
 		return "", fmt.Errorf("%w: '%s'", ErrUnknownField, f)

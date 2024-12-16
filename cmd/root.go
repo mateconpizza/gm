@@ -17,7 +17,7 @@ type (
 	Slice    = slice.Slice[Bookmark]
 )
 
-// TODO)):
+// TODO:
 // - [x] Extract `restore|deleted` logic to subcommand `restore`.
 // - [x] Extract `init` logic to subcommand `init`.
 

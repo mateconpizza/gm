@@ -137,7 +137,7 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
-	// TODO)): if the slice contains bookmarks, filter by tag.
+	// TODO: if the slice contains bookmarks, filter by tag.
 	if bs.Len() != 0 {
 		for _, tag := range Tags {
 			bs.Filter(func(b Bookmark) bool {

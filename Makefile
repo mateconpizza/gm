@@ -18,6 +18,7 @@ all: lint check test build
 build:
 	@echo '>> Building $(PROJECT_NAME)'
 	@CGO_ENABLED=1 go build -ldflags='$(LDFLAGS)' -o $(BIN_PATH) $(MAIN_SRC)
+	@echo '>> Binary built at $(BIN_PATH)'
 
 # Build the binary with debugger
 debug: test
