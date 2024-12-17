@@ -165,7 +165,7 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 
 		f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 		bs.ForEachIdx(func(i int, b Bookmark) {
-			bookmark.WithFrameAndColorRenameMe(f, &b, terminal.MinWidth, colors)
+			bookmark.FmtWithFrame(f, &b, terminal.MinWidth, colors)
 			if n != i+1 {
 				f.Row().Ln()
 			}
