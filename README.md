@@ -1,6 +1,6 @@
 <div align="center">
     <h1><b>🔖 GoMarks</b></h1>
-    <span>🚧 WIP </span>
+    <span>Simple cli tool for manage your bookmarks <sub>🚧 WIP</sub> </span>
 <br>
 <br>
 
@@ -24,7 +24,7 @@
 - [x] Configurare `keybinds` in `menu` mode with `yaml` file.
 - [ ] Migrate items from one database to another
 - [ ] Encrypt database <sub><span style="color:red">_PRIORITY_</span></sub>
-- [ ] Add `docker|podman` support <sub><span style="color:red">__PRIORITY_</span></sub>
+- [ ] Add `docker|podman` support <sub><span style="color:red">_PRIORITY_</span></sub>
 - [ ] ...
 
 ### 📦 Installation
