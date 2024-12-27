@@ -61,6 +61,7 @@ Available Commands:
   bk          backup management
   db          database management
   help        Help about any command
+  import      import bookmarks from browser
   restore     restore deleted bookmarks
   version     print version information
 
