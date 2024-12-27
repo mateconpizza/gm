@@ -99,6 +99,15 @@ Use "gm [command] --help" for more information about a command.
 | `NO_COLOR`           | int  | Disable all colors        | <span style="color:green">**done**</span> |
 
 <details>
+<summary><strong>📜 Menu support</strong></summary>
+
+Single/multiple selection for open, copy, edit, delete, check status.
+
+https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
+
+</details>
+
+<details>
 <summary><strong>➕ Add a bookmark</strong></summary>
 
 https://github.com/user-attachments/assets/436b7553-b130-4114-8638-2e8a9b3ea2ce
@@ -116,15 +125,6 @@ https://github.com/user-attachments/assets/059dd578-2257-4db4-b7b1-1267d0375470
 <summary><strong>🔳 Create QR-Code</strong></summary>
 
 https://github.com/user-attachments/assets/f531fdc9-067b-4747-9f31-4afd5252e3cb
-
-</details>
-
-<details>
-<summary><strong>📜 Menu support</strong></summary>
-
-- Single/multiple selection for open, copy, edit, delete, check status.
-
-https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 
 </details>
 
