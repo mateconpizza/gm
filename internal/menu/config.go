@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/sys/files"
@@ -40,9 +40,9 @@ type FZFKeymaps struct {
 
 type Config struct {
 	Prompt  string     `yaml:"prompt"`
-	Keymaps FZFKeymaps `yaml:"keymaps"`
 	Header  bool       `yaml:"header"`
 	Preview bool       `yaml:"preview"`
+	Keymaps FZFKeymaps `yaml:"keymaps"`
 }
 
 var defaultKeymaps = FZFKeymaps{
@@ -57,6 +57,8 @@ var defaultKeymaps = FZFKeymaps{
 
 var defaultMenuConfig = Config{
 	Prompt:  defaultPrompt,
+	Header:  true,
+	Preview: true,
 	Keymaps: defaultKeymaps,
 }
 

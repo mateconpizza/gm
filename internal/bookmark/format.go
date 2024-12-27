@@ -59,7 +59,7 @@ func Oneline(b *Bookmark, width int) string {
 
 	coloredID := color.BrightYellow(b.ID).Bold().String()
 	shortURL := format.Shorten(b.URL, urlLen)
-	colorURL := color.BrightWhite(shortURL).String()
+	colorURL := color.Gray(shortURL).String()
 	urlLen += len(colorURL) - len(shortURL)
 	tagsColor := color.BrightCyan(b.Tags).Italic().String()
 	result := fmt.Sprintf(
@@ -120,7 +120,7 @@ func Frame(b *Bookmark, width int) string {
 	id := color.BrightYellow(b.ID).Bold().String()
 	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
 	title := color.ApplyMany(titleSplit, color.Cyan)
-	desc := color.ApplyMany(descSplit, color.BrightWhite)
+	desc := color.ApplyMany(descSplit, color.Gray)
 	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
 	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).

@@ -40,7 +40,7 @@ func newSQLiteRepository(db *sql.DB, cfg *SQLiteConfig) *SQLiteRepository {
 // New creates a new `SQLiteRepository` using the provided configuration and
 // opens the database, returning the repository or an error.
 func New(c *SQLiteConfig) (*SQLiteRepository, error) {
-	c.Name = files.AddExtension(c.Name, ".db")
+	c.Name = files.EnsureExt(c.Name, ".db")
 	db, err := MustOpenDatabase(c.Fullpath())
 	if err != nil {
 		log.Fatal("Error opening database:", err)

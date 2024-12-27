@@ -1,19 +1,25 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/semaphore"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/qr"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
+	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -185,6 +191,13 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
+	const maxItems = 10
+	e := color.BrightOrange("editing").Bold()
+	q := fmt.Sprintf("%s %d bookmarks, continue?", e, n)
+	if err := confirmUserLimit(n, maxItems, q); err != nil {
+		return err
+	}
+
 	header := "# [%d/%d] | %d | %s\n\n"
 	te, err := files.Editor(config.App.Env.Editor)
 	if err != nil {
@@ -258,12 +271,16 @@ func handleCheckStatus(bs *Slice) error {
 		return repo.ErrRecordQueryNotProvided
 	}
 
-	status := color.BrightGreen("status").Bold().String()
-	q := fmt.Sprintf("> checking %s of %d, continue?", status, n)
-	if n > 15 && !terminal.Confirm(q, "y") {
+	const maxGoroutines = 15
+	status := color.BrightGreen("status").Bold()
+	q := fmt.Sprintf("checking %s of %d, continue?", status, n)
+	if err := confirmUserLimit(n, maxGoroutines, q); err != nil {
 		return ErrActionAborted
 	}
 
+	f := frame.New(frame.WithColorBorder(color.BrightBlue))
+	f.Header(fmt.Sprintf("checking %s of %d bookmarks", status, n))
+	f.Render()
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -271,24 +288,89 @@ func handleCheckStatus(bs *Slice) error {
 	return nil
 }
 
-// handleCopyOpen performs an action on the bookmark.
+// copyBookmarks copies the URL of the first bookmark in the provided Slice to
+// the clipboard.
+func copyBookmarks(bs *Slice) error {
+	if !Copy {
+		return nil
+	}
+
+	if err := sys.CopyClipboard(bs.Item(0).URL); err != nil {
+		return fmt.Errorf("copy error: %w", err)
+	}
+
+	return nil
+}
+
+// openBookmarks opens the URLs in the browser for the bookmarks in the provided Slice.
+func openBookmarks(bs *Slice) error {
+	// FIX: keep it simple
+	if !Open {
+		return nil
+	}
+
+	const maxGoroutines = 15
+	// get user confirmation to procced
+	o := color.BrightGreen("opening").Bold()
+	s := fmt.Sprintf("%s %d bookmarks, continue?", o, bs.Len())
+	if err := confirmUserLimit(bs.Len(), maxGoroutines, s); err != nil {
+		return err
+	}
+
+	sp := spinner.New(spinner.WithMesg(color.BrightGreen("opening bookmarks...").String()))
+	defer sp.Stop()
+	sp.Start()
+
+	sem := semaphore.NewWeighted(maxGoroutines)
+	var wg sync.WaitGroup
+	errCh := make(chan error, bs.Len())
+	action := func(b Bookmark) error {
+		if err := sem.Acquire(context.Background(), 1); err != nil {
+			return fmt.Errorf("error acquiring semaphore: %w", err)
+		}
+		defer sem.Release(1)
+
+		wg.Add(1)
+		go func(b Bookmark) {
+			defer wg.Done()
+			if err := sys.OpenInBrowser(b.URL); err != nil {
+				errCh <- fmt.Errorf("open error: %w", err)
+			}
+		}(b)
+
+		return nil
+	}
+
+	if err := bs.ForEachErr(action); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		return err
+	}
+
+	return nil
+}
+
+// handleCopyOpen calls the copyBookmarks and openBookmarks functions, and handles the overall logic.
 func handleCopyOpen(bs *Slice) error {
 	if Exit {
 		return nil
 	}
 
-	// TODO: open all URLs in the slice?
-	b := bs.Item(0)
-	if Copy {
-		if err := sys.CopyClipboard(b.URL); err != nil {
-			return fmt.Errorf("%w", err)
-		}
+	if !Copy && !Open {
+		return nil
 	}
 
-	if Open {
-		if err := sys.OpenInBrowser(b.URL); err != nil {
-			return fmt.Errorf("%w", err)
-		}
+	if err := copyBookmarks(bs); err != nil {
+		return err
+	}
+
+	if err := openBookmarks(bs); err != nil {
+		return err
 	}
 
 	Exit = Copy || Open
@@ -374,8 +456,8 @@ func handleMenu(bs *Slice) error {
 
 	menu.WithColor(&config.App.Color)
 
-	// menu options
-	options := []menu.OptFn{
+	// menu opts
+	opts := []menu.OptFn{
 		menu.WithDefaultKeybinds(),
 		menu.WithDefaultSettings(),
 		menu.WithKeybindEdit(),
@@ -385,27 +467,24 @@ func handleMenu(bs *Slice) error {
 		menu.WithMultiSelection(),
 	}
 
+	var formatter func(*Bookmark, int) string
 	if Multiline {
-		options = append(options, menu.WithMultilineView())
+		opts = append(opts, menu.WithMultilineView())
+		formatter = bookmark.Multiline
+	} else {
+		formatter = bookmark.Oneline
 	}
 
-	formatter := func(b Bookmark) string {
-		if Multiline {
-			return bookmark.Multiline(&b, terminal.MaxWidth)
-		}
-
-		return bookmark.Oneline(&b, terminal.MaxWidth)
-	}
-
-	m := menu.New[Bookmark](options...)
-
-	result, err := m.Select(bs.Items(), formatter)
+	m := menu.New[Bookmark](opts...)
+	var result []Bookmark
+	result, err := m.Select(bs.Items(), func(b Bookmark) string {
+		return formatter(&b, terminal.MaxWidth)
+	})
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	n := len(result)
-	if n == 0 {
+	if len(result) == 0 {
 		return nil
 	}
 

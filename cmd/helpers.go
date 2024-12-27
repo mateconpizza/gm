@@ -115,7 +115,7 @@ func bookmarkEdition(b *Bookmark) error {
 func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	const maxLabelLen = 55
 	var title string
-	var url string
+	var burl string
 
 	if err := qrcode.GenImg(config.App.Name); err != nil {
 		return fmt.Errorf("%w", err)
@@ -126,8 +126,8 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 		return fmt.Errorf("%w: adding top label", err)
 	}
 
-	url = format.Shorten(b.URL, maxLabelLen)
-	if err := qrcode.Label(url, "bottom"); err != nil {
+	burl = format.Shorten(b.URL, maxLabelLen)
+	if err := qrcode.Label(burl, "bottom"); err != nil {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
 
@@ -235,4 +235,15 @@ func validURL(s string) bool {
 	}
 
 	return parsedUrl.Scheme != "" && parsedUrl.Host != ""
+}
+
+// confirmUserLimit prompts the user to confirm the exceeding limit.
+func confirmUserLimit(count, maxItems int, q string) error {
+	defer terminal.ClearLine(1)
+	f := frame.New(frame.WithColorBorder(color.BrightBlue), frame.WithNoNewLine()).Header(q)
+	if count > maxItems && !terminal.Confirm(f.String(), "n") {
+		return ErrActionAborted
+	}
+
+	return nil
 }

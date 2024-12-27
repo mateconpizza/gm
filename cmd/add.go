@@ -47,7 +47,7 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 	header := color.BrightYellow("Add Bookmark").Bold().String()
 	q := color.Gray(" (ctrl+c to exit)").Italic().String()
 	f.Header(header + q)
-	f.Ln().Render()
+	f.Row().Render()
 
 	b := bookmark.New()
 	if err := parseNewBookmark(r, b, args); err != nil {
@@ -91,7 +91,7 @@ func handleURL(r *repo.SQLiteRepository, args *[]string) string {
 	}
 
 	fmt.Println(prompt)
-	url := terminal.Input(func(err error) {
+	url := terminal.Input(">>> ", func(err error) {
 		r.Close()
 		logErrAndExit(err)
 	})
@@ -140,7 +140,7 @@ func parseNewBookmark(r *repo.SQLiteRepository, b *Bookmark, args []string) erro
 	// retrieve tags
 	tags := handleTags(r, &args)
 	// fetch title and description
-	title, desc := fetchTitleAndDesc(url, terminal.MinWidth)
+	title, desc := fetchTitleAndDesc(url, terminal.MinWidth, true)
 
 	b.URL = url
 	b.Title = title
@@ -151,7 +151,7 @@ func parseNewBookmark(r *repo.SQLiteRepository, b *Bookmark, args []string) erro
 }
 
 // fetchTitleAndDesc fetch and display title and description.
-func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
+func fetchTitleAndDesc(url string, minWidth int, verbose bool) (title, desc string) {
 	const _indentation = 10
 
 	s := spinner.New(
@@ -168,12 +168,14 @@ func fetchTitleAndDesc(url string, minWidth int) (title, desc string) {
 
 	s.Stop()
 
-	var r strings.Builder
-	r.WriteString(color.BrightCyan("+ Title\t: ").Bold().String())
-	r.WriteString(color.Gray(format.SplitAndAlign(title, minWidth, _indentation)).String())
-	r.WriteString(color.Text("\n+ Desc\t: ").Bold().String())
-	r.WriteString(color.Gray(format.SplitAndAlign(desc, minWidth, _indentation)).String())
-	fmt.Println(r.String())
+	if verbose {
+		var r strings.Builder
+		r.WriteString(color.BrightCyan("+ Title\t: ").Bold().String())
+		r.WriteString(color.Gray(format.SplitAndAlign(title, minWidth, _indentation)).String())
+		r.WriteString(color.Text("\n+ Desc\t: ").Bold().String())
+		r.WriteString(color.Gray(format.SplitAndAlign(desc, minWidth, _indentation)).String())
+		fmt.Println(r.String())
+	}
 
 	return title, desc
 }
@@ -203,16 +205,22 @@ func parseClipboard(prompt string) string {
 		return ""
 	}
 
-	fmt.Println(color.BrightCyan("> found valid URL in clipboard"))
+	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f.Mid(color.BrightCyan("found valid URL in clipboard").Italic().String()).Ln()
+	f.Render()
+	lines := format.CountLines(f.String())
+
 	fmt.Println(prompt, color.Gray(c))
 
-	opt := terminal.ConfirmWithChoices("\n> continue?", []string{"yes", "no"}, "y")
+	f.Clean().Row().Ln().Mid("continue?").Render()
+	lines += format.CountLines(f.String())
+	opt := terminal.ConfirmWithChoices("", []string{"yes", "no"}, "y")
 	switch opt {
 	case "n", "no":
-		terminal.ClearLine(4)
+		terminal.ClearLine(lines)
 		return ""
 	default:
-		terminal.ClearLine(4)
+		terminal.ClearLine(lines)
 		fmt.Println(prompt, color.Gray(c))
 		return c
 	}

@@ -40,12 +40,7 @@ func (r *SQLiteRepository) Insert(t Table, b *Row) (*Row, error) {
 	}
 
 	if r.HasRecord(t, "url", b.URL) {
-		return nil, fmt.Errorf(
-			"%w: '%s' in table '%s'",
-			ErrRecordDuplicate,
-			b.URL,
-			t,
-		)
+		return nil, ErrRecordDuplicate
 	}
 
 	ct := time.Now()
@@ -497,8 +492,6 @@ func (r *SQLiteRepository) maxID(t Table) int {
 			err,
 		)
 	}
-
-	log.Printf("maxID: %d", lastIndex)
 
 	return lastIndex
 }

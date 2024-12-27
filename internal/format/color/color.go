@@ -35,8 +35,8 @@ const (
 	brightGray    = "\x1b[37m"
 	brightGreen   = "\x1b[92m"
 	brightMagenta = "\x1b[95m"
-	brightOrange  = "\x1b[33m"
-	brightPurple  = "\x1b[35m"
+	brightOrange  = "\x1b[38;5;214m"
+	brightPurple  = "\x1b[38;5;135m"
 	brightRed     = "\x1b[91m"
 	brightWhite   = "\x1b[97m"
 	brightYellow  = "\x1b[93m"
@@ -210,7 +210,7 @@ func BrightWhite(arg ...any) *Color {
 }
 
 func BrightYellow(arg ...any) *Color {
-  return addColor(brightYellow, arg...)
+	return addColor(brightYellow, arg...)
 }
 
 func addColor(c string, arg ...any) *Color {

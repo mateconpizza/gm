@@ -87,15 +87,15 @@ func handleRecords(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	if err := handleHeadAndTail(bs); err != nil {
 		return err
 	}
-	if err := handleCheckStatus(bs); err != nil {
-		return err
-	}
 
 	return handleMenu(bs)
 }
 
 func handleAction(r *repo.SQLiteRepository, bs *Slice) error {
 	if err := handleRemove(r, bs); err != nil {
+		return err
+	}
+	if err := handleCheckStatus(bs); err != nil {
 		return err
 	}
 
@@ -118,6 +118,7 @@ func handleOutput(bs *Slice) error {
 	if err := handleCopyOpen(bs); err != nil {
 		return err
 	}
+
 	return handlePrintOut(bs)
 }
 

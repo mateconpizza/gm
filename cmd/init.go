@@ -87,7 +87,7 @@ func createPaths(path string) error {
 	f.Mid(format.PaddedLine("create db:", fmt.Sprintf("'%s'", Cfg.Fullpath()))).Ln()
 	f.Row().Ln().Footer("continue?").Render()
 
-	if !terminal.Confirm("", "n") {
+	if !terminal.Confirm("", "y") {
 		return terminal.ErrActionAborted
 	}
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -22,12 +23,21 @@ type FilterFunc = func(completions []prompt.Suggest, sub string, ignoreCase bool
 const promptPrefix = ">>> "
 
 // Input get the Input data from the user and return it.
-func Input(exitFn func(error)) string {
+func Input(p string, exitFn func(error)) string {
 	o, restore := prepareInputState(exitFn)
 	defer restore()
-	s := prompt.Input(promptPrefix, completerDummy(), o...)
+	s := prompt.Input(p, completerDummy(), o...)
 
 	return s
+}
+
+// Prompt get the input data from the user and return it.
+func Prompt(p string) string {
+	r := bufio.NewReader(os.Stdin)
+	fmt.Print(p)
+	s, _ := r.ReadString('\n')
+
+	return strings.TrimSpace(s)
 }
 
 // InputTags prompts the user for input with suggestions based on
@@ -205,13 +215,12 @@ func promptWithChoices(q string, opts []string, def string) string {
 		fmt.Print(p)
 		s, err := r.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error reading input:", err)
+			log.Println("Error reading input:", err)
 
 			return ""
 		}
 
 		s = strings.ToLower(strings.TrimSpace(s))
-
 		if s == "" && def != "" {
 			return def
 		}
@@ -222,7 +231,7 @@ func promptWithChoices(q string, opts []string, def string) string {
 			}
 		}
 
-		fmt.Printf("invalid response.\nuse: %s: ", formatOpts(opts))
+		fmt.Printf("invalid response. use: %s", formatOpts(opts))
 	}
 }
 
@@ -245,6 +254,14 @@ func promptWithDefChoice(opts []string, def string) []string {
 
 // buildPrompt returns a formatted string with a question and options.
 func buildPrompt(q, opts string) string {
+	if q == "" {
+		return fmt.Sprintf("%s %s ", q, color.Gray(opts))
+	}
+
+	if opts == "" {
+		return q + " "
+	}
+
 	return fmt.Sprintf("%s %s ", q, color.Gray(opts))
 }
 
@@ -271,6 +288,7 @@ func getQueryFromPipe(r io.Reader) string {
 // formatOpts formats each option in the slice as "[x]option" where x is the
 // first letter of the option.
 func formatOpts(opts []string) string {
+	// FIX: delete me
 	n := len(opts)
 	if n == 0 {
 		return ""

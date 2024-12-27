@@ -18,13 +18,15 @@
 
 - [x] Support multiple `databases`
 - [x] Restore `deleted` bookmarks
+- [x] Import `bookmarks` from <span style="color:orange">`firefox`</span> based browsers <sub><span style="color:red">_priority_</span></sub>
+- [x] Import `bookmarks` from <span style="color:blue">`chromium`</span> based browsers <sub><span style="color:red">_priority_</span></sub>
 - [x] Fetch `title` and `description` from added URL
 - [x] Check bookmark `status` _(http status)_
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configurare `keybinds` in `menu` mode with `yaml` file.
 - [ ] Migrate items from one database to another
-- [ ] Encrypt database <sub><span style="color:red">_PRIORITY_</span></sub>
-- [ ] Add `docker|podman` support <sub><span style="color:red">_PRIORITY_</span></sub>
+- [ ] Encrypt database <sub><span style="color:red">_priority_</span></sub>
+- [ ] Add `docker|podman` support <sub><span style="color:red">_priority_</span></sub>
 - [ ] ...
 
 ### 📦 Installation
@@ -133,45 +135,6 @@ https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
 </details>
 
 <details>
-<summary><strong>⏳ TODO</strong></summary>
-
-## TODO
-
-### ❗ Priority
-
-- [ ] Use a ORM
-  - [x] Add multiple databases option _(default.db, work.db, client.db)_
-- [ ] Add `Sync` to remote repo???
-
-#### XDG
-
-- [x] Store `db` in `XDG_DATA_HOME`
-- [ ] Store `menu config` in `XDG_CONFIG_HOME` _(WIP: for now in `XDG_DATA_HOME`)_
-
-### 📦 Packages
-
-- [x] `terminal` package
-- [x] `color` package
-- [x] `files` package
-
-### 🟨 Redo
-
-- [ ] Backups
-- [ ] Databases
-
-### ⛓️ Import
-
-- [ ] From firefox
-- [ ] From ~~chrome~~ chromium
-
-### ♻️ Misc
-
-- [ ] Add a logging library
-- [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
-
-</details>
-
-<details>
 <summary><strong>⚙️ Configuration</strong></summary>
 
 - [x] `$GOMARKS_HOME/menu.yml` file
@@ -214,5 +177,44 @@ keymaps:
     enabled: true
     hidden: false
 ```
+
+</details>
+
+<details>
+<summary><strong>⏳ TODO</strong></summary>
+
+## TODO
+
+### ❗ Priority
+
+- [ ] Use a ORM
+  - [x] Add multiple databases option _(default.db, work.db, client.db)_
+- [ ] Add `Sync` to remote repo???
+
+#### XDG
+
+- [x] Store `db` in `XDG_DATA_HOME`
+- [ ] Store `menu config` in `XDG_CONFIG_HOME` _(WIP: for now in `XDG_DATA_HOME`)_
+
+### 📦 Packages
+
+- [x] `terminal` package
+- [x] `color` package
+- [x] `files` package
+
+### 🟨 Redo
+
+- [ ] Backups
+- [ ] Databases
+
+### ⛓️ Import
+
+- [ ] From firefox
+- [ ] From ~~chrome~~ chromium
+
+### ♻️ Misc
+
+- [ ] Add a logging library
+- [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
 
 </details>

@@ -155,31 +155,52 @@ func CreateTemp(prefix, ext string) (*os.File, error) {
 	return tempFile, nil
 }
 
-// FindByExtension returns a list of files with the specified extension in the
+func FindByExtList(root string, ext ...string) ([]string, error) {
+	if !Exists(root) {
+		log.Printf("FindByExtList: path does not exist: '%s'", root)
+		return nil, ErrPathNotFound
+	}
+
+	var files []string
+	for _, e := range ext {
+		f, err := findByExt(root, e)
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+		files = append(files, f...)
+	}
+
+	return files, nil
+}
+
+// findByExt returns a list of files with the specified extension in the
 // given directory.
-func FindByExtension(root, ext string) ([]string, error) {
+func findByExt(root, ext string) ([]string, error) {
 	if !Exists(root) {
 		log.Printf("FindByExtension: path does not exist: '%s'", root)
 		return nil, ErrPathNotFound
 	}
 
-	files, err := filepath.Glob(root + "/*." + ext)
+	log.Printf("searching files in path: '%s' with suffix: '%s'", root, ext)
+
+	files, err := filepath.Glob(root + "/*" + ext)
 	if err != nil {
 		return nil, fmt.Errorf("getting files: %w with suffix: '%s'", err, ext)
 	}
 
-	log.Printf("found %d files in path: '%s'", len(files), root)
+	log.Printf("found %d files", len(files))
 
 	return files, nil
 }
 
-// AddExtension appends the specified suffix to the filename.
-func AddExtension(s, suffix string) string {
-	if !strings.HasSuffix(s, suffix) {
-		s = fmt.Sprintf("%s%s", s, suffix)
+// EnsureExt appends the specified suffix to the filename.
+func EnsureExt(s, suffix string) string {
+	e := filepath.Ext(s)
+	if e == suffix || e != "" {
+		return s
 	}
 
-	return s
+	return fmt.Sprintf("%s%s", s, suffix)
 }
 
 // IsEmpty returns true if the file at path s has non-zero size.
@@ -211,4 +232,13 @@ func Touch(s string, exist_ok bool) (*os.File, error) {
 	}
 
 	return f, nil
+}
+
+func ExpandHomeDir(s string) string {
+	if strings.HasPrefix(s, "~/") {
+		dirname, _ := os.UserHomeDir()
+		s = filepath.Join(dirname, s[2:])
+	}
+
+	return s
 }

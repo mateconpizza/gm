@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
 
@@ -14,11 +15,9 @@ import (
 )
 
 var (
-	dbCreate bool
-	dbDrop   bool
-	dbInfo   bool
-	dbList   bool
-	dbRemove bool
+	dbDrop bool
+	dbInfo bool
+	dbList bool
 )
 
 // handleDBDrop clears the database.
@@ -31,10 +30,16 @@ func handleDBDrop(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.Name)
 	}
 
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+
+	warn := color.BrightRed("dropping").String()
+	f.Header(warn + " all bookmarks database").Ln().Row().Ln().Render()
+
 	fmt.Print(repo.Info(r))
 
-	q := fmt.Sprintf("\nremove %s bookmarks?", color.Red("all").Bold())
-	if !terminal.Confirm(q, "n") {
+	f.Clean().Row().Ln().Footer("continue?").Render()
+
+	if !terminal.Confirm("", "n") {
 		return ErrActionAborted
 	}
 
@@ -57,8 +62,14 @@ func removeDB(r *repo.SQLiteRepository) error {
 		return ErrActionAborted
 	}
 
-	backups, _ := repo.Backups(r)
-	n := backups.Len()
+	var n int
+	backups, err := repo.Backups(r)
+	if err != nil {
+		log.Printf("removeDB: %s", err)
+		n = 0
+	} else {
+		n = backups.Len()
+	}
 
 	if n > 0 {
 		q = fmt.Sprintf("remove %d %s?", n, color.Red("backup/s").Bold())
@@ -124,8 +135,8 @@ func handleListDB(r *repo.SQLiteRepository) error {
 
 // handleRemoveDB removes a database.
 func handleRemoveDB(r *repo.SQLiteRepository) error {
-	if err := r.Cfg.Exists(); err != nil {
-		return fmt.Errorf("%w: '%s'", err, r.Cfg.Name)
+	if !r.Cfg.Exists() {
+		return repo.ErrDBNotFound
 	}
 
 	return removeDB(r)
@@ -134,8 +145,12 @@ func handleRemoveDB(r *repo.SQLiteRepository) error {
 // handleDBInfo prints information about a database.
 func handleDBInfo(r *repo.SQLiteRepository) error {
 	if JSON {
-		backups, _ := repo.Backups(r)
-		r.Cfg.Backup.Files = *backups.Items()
+		backups, err := repo.Backups(r)
+		if err != nil {
+			Cfg.Backup.Files = nil
+		} else {
+			Cfg.Backup.Files = *backups.Items()
+		}
 		fmt.Println(string(format.ToJSON(r)))
 
 		return nil
@@ -160,10 +175,10 @@ var dbCmd = &cobra.Command{
 		}
 
 		flags := map[bool]func(r *repo.SQLiteRepository) error{
-			dbDrop:   handleDBDrop,
-			dbInfo:   handleDBInfo,
-			dbList:   handleListDB,
-			dbRemove: handleRemoveDB,
+			dbDrop: handleDBDrop,
+			dbInfo: handleDBInfo,
+			dbList: handleListDB,
+			Remove: handleRemoveDB,
 		}
 		if handler, ok := flags[true]; ok {
 			return handler(r)
@@ -174,11 +189,11 @@ var dbCmd = &cobra.Command{
 }
 
 func init() {
-	dbCmd.Flags().BoolVarP(&dbCreate, "create", "c", false, "create a new database")
 	dbCmd.Flags().BoolVarP(&dbDrop, "drop", "d", false, "drop a database")
 	dbCmd.Flags().BoolVarP(&dbInfo, "info", "I", false, "show database info (default)")
 	dbCmd.Flags().BoolVarP(&dbList, "list", "l", false, "list available databases")
-	dbCmd.Flags().BoolVarP(&dbRemove, "remove", "r", false, "remove a database")
+	dbCmd.Flags().BoolVarP(&Remove, "remove", "r", false, "remove a database")
+	dbCmd.Flags().BoolVar(&JSON, "json", false, "output in JSON format")
 	dbCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(dbCmd)
 }

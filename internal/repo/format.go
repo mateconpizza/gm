@@ -13,7 +13,7 @@ import (
 
 // Summary returns a summary of the repository.
 func Summary(r *SQLiteRepository) string {
-	f := frame.New(frame.WithColorBorder(color.Gray))
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	path := format.PaddedLine("path:", r.Cfg.Fullpath())
 	records := format.PaddedLine("records:", RecordCount(r, r.Cfg.TableMain))
 	deleted := format.PaddedLine("deleted:", RecordCount(r, r.Cfg.TableDeleted))
@@ -62,13 +62,11 @@ func SummaryMultiline(s string) string {
 
 // BackupDetail returns the details of a backup.
 func BackupDetail(r *SQLiteRepository) string {
-	backups, _ := Backups(r)
-
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Header(color.BrightCyan("backup detail:").Bold().Italic().String())
 
-	n := backups.Len()
-	if n == 0 {
+	backups, err := Backups(r)
+	if err != nil {
 		return f.Row(format.PaddedLine("found:", "n/a")).String()
 	}
 
@@ -82,15 +80,20 @@ func BackupDetail(r *SQLiteRepository) string {
 // BackupsSummary returns a summary of the backups.
 func BackupsSummary(r *SQLiteRepository) string {
 	var (
-		f            = frame.New(frame.WithColorBorder(color.Gray))
+		f            = frame.New(frame.WithColorBorder(color.BrightGray))
 		empty        = "n/a"
-		backups, _   = Backups(r)
 		backupsColor = color.BrightMagenta("backups").Bold().Italic()
 		backupsInfo  = format.PaddedLine("found:", empty)
 		lastBackup   = empty
 	)
 
-	n := backups.Len()
+	var n int
+	backups, err := Backups(r)
+	if err != nil {
+		n = 0
+	} else {
+		n = backups.Len()
+	}
 
 	if n > 0 {
 		backupsInfo = format.PaddedLine("found:", strconv.Itoa(n)+" backups found")

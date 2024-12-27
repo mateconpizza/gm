@@ -90,6 +90,16 @@ func Clear() {
 	fmt.Print("\033[H\033[2J")
 }
 
+// ClearChars deletes n characters in the console.
+func ClearChars(n int) {
+	if n <= 0 || !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
+	for i := 0; i < n; i++ {
+		fmt.Print("\b \b")
+	}
+}
+
 // ClearLine deletes n lines in the console.
 func ClearLine(n int) {
 	if n <= 0 || !term.IsTerminal(int(os.Stdin.Fd())) {

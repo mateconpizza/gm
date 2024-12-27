@@ -122,8 +122,9 @@ func (f *Frame) Render() {
 }
 
 // Clean clears the frame.
-func (f *Frame) Clean() {
+func (f *Frame) Clean() *Frame {
 	f.text = make([]string, 0)
+	return f
 }
 
 func (f *Frame) String() string {

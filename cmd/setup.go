@@ -3,13 +3,13 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -76,7 +76,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 
 	// Prints
-	rootCmd.PersistentFlags().BoolVar(&JSON, "json", false, "output in JSON format")
+	rootCmd.Flags().BoolVar(&JSON, "json", false, "output in JSON format")
 	rootCmd.PersistentFlags().
 		StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
 	rootCmd.Flags().
@@ -110,12 +110,28 @@ func init() {
 
 // verifyDatabase verifies if the database exists.
 func verifyDatabase(c *repo.SQLiteConfig) error {
-	db := files.AddExtension(DBName, ".db")
-	i := color.BrightYellow(config.App.Cmd, "init").Bold().Italic()
-
-	if err := c.Exists(); err != nil {
-		return fmt.Errorf("%w: use '%s' to initialize '%s'", repo.ErrDBNotFound, i, db)
+	if c.Exists() {
+		return nil
 	}
 
-	return nil
+	s := color.BrightYellow(config.App.Cmd, "init").Italic()
+	init := fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBNotFound, s)
+	databases, err := repo.Databases(c)
+	if err != nil {
+		return init
+	}
+
+	// find with no|other extension
+	databases.ForEach(func(r *repo.SQLiteRepository) {
+		s := strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name))
+		if s == DBName {
+			c.Name = r.Cfg.Name
+		}
+	})
+
+	if c.Exists() {
+		return nil
+	}
+
+	return init
 }

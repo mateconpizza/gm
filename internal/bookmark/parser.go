@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/haaag/gm/internal/bookmark/scraper"
@@ -27,6 +28,7 @@ func ParseTags(tags string) string {
 	splitted := strings.FieldsFunc(tags, func(r rune) bool {
 		return r == ',' || r == ' '
 	})
+	sort.Strings(splitted)
 	tags = strings.Join(format.Unique(splitted), ",")
 	if strings.HasSuffix(tags, ",") {
 		return tags

@@ -48,7 +48,7 @@ func (s *Spinner) Start() {
 			default:
 				// Print the spinner animation
 				fmt.Printf("\r%s %s", s.color(s.unicode[i%len(s.unicode)]).String(), s.Mesg)
-				time.Sleep(110 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 			}
 		}
 	}()

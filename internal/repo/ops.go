@@ -14,10 +14,11 @@ import (
 	"github.com/haaag/gm/internal/sys/files"
 )
 
+const commonDBExts = ".sqlite3,.sqlite,.db"
+
 // RecordCount retrieves the maximum ID from the specified table in the
 // SQLite database.
 func RecordCount(r *SQLiteRepository, t Table) int {
-	log.Printf("RecordCount: r: '%s', tableName: '%s'", r.Cfg.Name, t)
 	return r.maxID(t)
 }
 
@@ -82,7 +83,7 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 		return nil, files.ErrPathNotFound
 	}
 
-	f, err := files.FindByExtension(p, "db")
+	f, err := files.FindByExtList(p, strings.Split(commonDBExts, ",")...)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}

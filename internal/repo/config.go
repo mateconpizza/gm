@@ -49,16 +49,12 @@ func (c *SQLiteConfig) SetPath(p string) *SQLiteConfig {
 }
 
 func (c *SQLiteConfig) SetName(s string) *SQLiteConfig {
-	c.Name = files.AddExtension(s, ".db")
+	c.Name = files.EnsureExt(s, ".sqlite")
 	return c
 }
 
-func (c *SQLiteConfig) Exists() error {
-	if !files.Exists(c.Fullpath()) {
-		return ErrDBNotFound
-	}
-
-	return nil
+func (c *SQLiteConfig) Exists() bool {
+	return files.Exists(c.Fullpath())
 }
 
 // NewSQLiteCfg returns the default settings for the database.
