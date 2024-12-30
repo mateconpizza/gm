@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	defaultPrompt     string = " Gomarks> " // Default input prompt
-	keymapsConfigFile string = "menu.yml"    // Default keymaps config file
+	defaultPrompt     string = " " + config.AppName + "> " // Default input prompt
+	keymapsConfigFile string = "menu.yml"                   // Default keymaps config file
 )
 
 var ErrConfigFileExists = errors.New("config file already exists")

@@ -239,6 +239,9 @@ func validURL(s string) bool {
 
 // confirmUserLimit prompts the user to confirm the exceeding limit.
 func confirmUserLimit(count, maxItems int, q string) error {
+	if Force {
+		return nil
+	}
 	defer terminal.ClearLine(1)
 	f := frame.New(frame.WithColorBorder(color.BrightBlue), frame.WithNoNewLine()).Header(q)
 	if count > maxItems && !terminal.Confirm(f.String(), "n") {

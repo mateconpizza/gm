@@ -47,6 +47,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+		defer r.Close()
 
 		terminal.ReadPipedInput(&args)
 
@@ -57,8 +58,9 @@ var rootCmd = &cobra.Command{
 		if err := handleAction(r, bs); err != nil {
 			return err
 		}
-
-		r.Close()
+		if err := handleCheckStatus(bs); err != nil {
+			return err
+		}
 
 		return handleOutput(bs)
 	},
@@ -95,9 +97,8 @@ func handleAction(r *repo.SQLiteRepository, bs *Slice) error {
 	if err := handleRemove(r, bs); err != nil {
 		return err
 	}
-	if err := handleCheckStatus(bs); err != nil {
-		return err
-	}
+
+	defer r.Close()
 
 	return handleEdition(r, bs)
 }

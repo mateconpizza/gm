@@ -21,6 +21,9 @@ type SQLiteRepository struct {
 
 // Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLiteRepository) Close() {
+	if r.IsClosed() {
+		return
+	}
 	if err := r.DB.Close(); err != nil {
 		log.Printf("closing database: %v", err)
 	}

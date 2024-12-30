@@ -62,7 +62,7 @@ func (s *Spinner) Stop() {
 	}
 
 	// I like spinners.
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 
 	s.done <- true
 

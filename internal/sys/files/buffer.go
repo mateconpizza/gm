@@ -88,7 +88,7 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 
 // SaveBytesToFile Writes the provided data to a temporary file.
 func SaveBytesToFile(f *os.File, d []byte) error {
-	err := os.WriteFile(f.Name(), d, config.Files.FilePermissions)
+	err := os.WriteFile(f.Name(), d, config.Permissions.File)
 	if err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
 	}

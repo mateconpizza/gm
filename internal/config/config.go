@@ -2,12 +2,12 @@ package config
 
 import "os"
 
+var Version string = "0.1.0" // Version of the application
+
 const (
-	appName string = "gomarks" // Default name of the application
+	AppName string = "gomarks" // Default name of the application
 	Command string = "gm"      // Default name of the executable
 )
-
-var Version string = "0.1.0" // Version of the application
 
 type (
 	app struct {
@@ -50,9 +50,9 @@ type database struct {
 	BackupMaxBackups int    // Maximum number of backups allowed.
 }
 
-type files struct {
-	DirPermissions  os.FileMode // Permissions for new directories.
-	FilePermissions os.FileMode // Permissions for new files.
+type permissions struct {
+	Dir  os.FileMode // Permissions for new directories.
+	File os.FileMode // Permissions for new files.
 }
 
 // DB is the default database configuration.
@@ -66,15 +66,15 @@ var DB = database{
 	BackupMaxBackups: 3,
 }
 
-// Files is the default files permissions.
-var Files = files{
-	DirPermissions:  0o755,
-	FilePermissions: 0o644,
+// Permissions is the default files permissions.
+var Permissions = permissions{
+	Dir:  0o755,
+	File: 0o644,
 }
 
 // App is the default application configuration.
 var App = app{
-	Name:    appName,
+	Name:    AppName,
 	Cmd:     Command,
 	Version: Version,
 	Info: information{

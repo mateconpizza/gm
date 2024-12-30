@@ -91,12 +91,12 @@ Use "gm [command] --help" for more information about a command.
 
 ### 🔑 Supported Env Vars
 
-| Name                 | type | Description               | Status                                    |
-| -------------------- | ---- | ------------------------- | ----------------------------------------- |
-| `GOMARKS_HOME`       | str  | Path to database/yaml     | <span style="color:green">**done**</span> |
-| `GOMARKS_EDITOR`     | str  | Preferred text editor     | <span style="color:green">**done**</span> |
-| `GOMARKS_BACKUP_MAX` | int  | Maximum number of backups | <span style="color:green">**done**</span> |
-| `NO_COLOR`           | int  | Disable all colors        | <span style="color:green">**done**</span> |
+| Name                 | type | Description                              | Status                                    |
+| -------------------- | ---- | ---------------------------------------- | ----------------------------------------- |
+| `GOMARKS_HOME`       | str  | Path to database/yaml                    | <span style="color:green">**done**</span> |
+| `GOMARKS_EDITOR`     | str  | Preferred text editor                    | <span style="color:green">**done**</span> |
+| `GOMARKS_BACKUP_MAX` | int  | Maximum number of backups _(def: __3__)_ | <span style="color:green">**done**</span> |
+| `NO_COLOR`           | int  | Disable all colors                       | <span style="color:green">**done**</span> |
 
 <details>
 <summary><strong>📜 Menu support</strong></summary>

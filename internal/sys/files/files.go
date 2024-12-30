@@ -55,7 +55,7 @@ func mkdir(s string) error {
 	}
 
 	log.Printf("creating path: '%s'", s)
-	if err := os.MkdirAll(s, config.Files.DirPermissions); err != nil {
+	if err := os.MkdirAll(s, config.Permissions.Dir); err != nil {
 		return fmt.Errorf("creating %s: %w", s, err)
 	}
 
