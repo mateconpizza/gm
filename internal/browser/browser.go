@@ -13,6 +13,5 @@ type Browser interface {
 	Short() string
 	LoadPaths() error
 	Color(string) string
-	Paths() ([]string, error)
 	Import() (*slice.Slice[bookmark.Bookmark], error)
 }

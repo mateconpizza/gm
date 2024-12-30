@@ -21,16 +21,14 @@ func generateChildren() []interface{} {
 			"url":  "https://www.passwordstore.org/",
 		},
 		map[string]interface{}{
-			"date_added":     "13379257074799501",
-			"date_last_used": "0",
-			"guid":           "1d5bff8a-426e-4982-b7d2-8110fe62e9ed",
-			"id":             "10",
+			"guid": "1d5bff8a-426e-4982-b7d2-8110fe62e9ed",
+			"id":   "10",
 			"meta_info": map[string]interface{}{
 				"power_bookmark_meta": "",
 			},
-			"name": "LandChad.net",
+			"name": "ExampleChad.net",
 			"type": "url",
-			"url":  "https://landchad.net/",
+			"url":  "https://examplechad.net/",
 		},
 		map[string]interface{}{
 			"children": []interface{}{
@@ -42,9 +40,9 @@ func generateChildren() []interface{} {
 					"meta_info": map[string]interface{}{
 						"power_bookmark_meta": "",
 					},
-					"name": "How to Check if a File or Directory Exists in Bash | Linuxize",
+					"name": "How to Check if a File or Directory Exists in Bash",
 					"type": "url",
-					"url":  "https://linuxize.com/post/bash-check-if-file-exists/",
+					"url":  "https://example.com/post/bash-check-if-file-exists/",
 				},
 			},
 			"date_added":     "13379257105479987",
@@ -54,6 +52,87 @@ func generateChildren() []interface{} {
 			"id":             "12",
 			"name":           "bash",
 			"type":           "folder",
+		},
+	}
+}
+
+var testBasicBookmarks = [][]string{
+	{
+		"Pass: The Standard Unix Password Manager",
+		"https://www.passwordstore.org/",
+		"testTag",
+		"root",
+	},
+	{"ExampleChad.net", "https://examplechad.net/", "testTag", "root"},
+	{
+		"How to Check if a File or Directory Exists in Bash",
+		"https://example.com/post/bash-check-if-file-exists/",
+		"testTag",
+		"bash",
+	},
+}
+
+var testNoParentFolderBookmarks = [][]string{
+	{
+		"Pass: The Standard Unix Password Manager",
+		"https://www.passwordstore.org/",
+		"testTag2",
+	},
+	{"ExampleChad.net", "https://examplechad.net/", "testTag2"},
+	{
+		"How to Check if a File or Directory Exists in Bash",
+		"https://example.com/post/bash-check-if-file-exists/",
+		"testTag2",
+	},
+}
+
+var testMissingFields = [][]string{
+	{
+		"",
+		"",
+		"testTag",
+		"root",
+	},
+}
+
+var testDuplicateNames = [][]string{
+	{
+		"Duplicate Name",
+		"https://duplicate.example.com/",
+		"testTag",
+		"root",
+	},
+	{
+		"Duplicate Name",
+		"https://another-duplicate.example.com/",
+		"testTag",
+		"root",
+	},
+}
+
+// generateMissingFields creates bookmarks with missing fields.
+func generateMissingFields() []interface{} {
+	return []interface{}{
+		map[string]interface{}{
+			"name": "",
+			"type": "url",
+			"url":  "",
+		},
+	}
+}
+
+// generateDuplicateNames creates bookmarks with duplicate names.
+func generateDuplicateNames() []interface{} {
+	return []interface{}{
+		map[string]interface{}{
+			"name": "Duplicate Name",
+			"type": "url",
+			"url":  "https://duplicate.example.com/",
+		},
+		map[string]interface{}{
+			"name": "Duplicate Name",
+			"type": "url",
+			"url":  "https://another-duplicate.example.com/",
 		},
 	}
 }
@@ -73,21 +152,7 @@ func TestTraverseBmFolder(t *testing.T) {
 			uniqueTag:            "testTag",
 			parentName:           "root",
 			addParentFolderAsTag: true,
-			expected: [][]string{
-				{
-					"Pass: The Standard Unix Password Manager",
-					"https://www.passwordstore.org/",
-					"testTag",
-					"root",
-				},
-				{"LandChad.net", "https://landchad.net/", "testTag", "root"},
-				{
-					"How to Check if a File or Directory Exists in Bash | Linuxize",
-					"https://linuxize.com/post/bash-check-if-file-exists/",
-					"testTag",
-					"bash",
-				},
-			},
+			expected:             testBasicBookmarks,
 		},
 		{
 			name:                 "No parent folder tag",
@@ -95,19 +160,23 @@ func TestTraverseBmFolder(t *testing.T) {
 			uniqueTag:            "testTag2",
 			parentName:           "root",
 			addParentFolderAsTag: false,
-			expected: [][]string{
-				{
-					"Pass: The Standard Unix Password Manager",
-					"https://www.passwordstore.org/",
-					"testTag2",
-				},
-				{"LandChad.net", "https://landchad.net/", "testTag2"},
-				{
-					"How to Check if a File or Directory Exists in Bash | Linuxize",
-					"https://linuxize.com/post/bash-check-if-file-exists/",
-					"testTag2",
-				},
-			},
+			expected:             testNoParentFolderBookmarks,
+		},
+		{
+			name:                 "Missing fields",
+			children:             generateMissingFields(),
+			uniqueTag:            "testTag",
+			parentName:           "root",
+			addParentFolderAsTag: true,
+			expected:             testMissingFields,
+		},
+		{
+			name:                 "Duplicate names",
+			children:             generateDuplicateNames(),
+			uniqueTag:            "testTag",
+			parentName:           "root",
+			addParentFolderAsTag: true,
+			expected:             testDuplicateNames,
 		},
 	}
 

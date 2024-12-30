@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -21,8 +22,9 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-var ErrBrowserUnsupported = errors.New("browser is unsupported")
+var ErrBrowserUnsupported = errors.New("browser unsupported")
 
+// supportedBrowser defines a supported browser.
 type supportedBrowser struct {
 	key     string
 	browser browser.Browser
@@ -101,6 +103,111 @@ func scrapeMissingData(bs *Slice) error {
 	return nil
 }
 
+// importSelectionMenu returns the name of the browser selected by the user.
+func importSelectionMenu() string {
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f.Header("Supported Browsers").Ln().Row().Ln()
+
+	for _, c := range registeredBrowser {
+		b := c.browser
+		f.Mid(b.Color(b.Short()) + " " + b.Name()).Ln()
+	}
+	f.Row().Ln().Footer("which browser do you use?").Render()
+
+	l := format.CountLines(f.String())
+	name := terminal.Prompt(" ")
+	terminal.ClearLine(l)
+
+	return name
+}
+
+// importSelectName returns the first letter of the browser name.
+func importSelectName(args *[]string) string {
+	if len(*args) == 0 {
+		return importSelectionMenu()
+	}
+	s := (*args)[0]
+
+	return strings.ToLower(string(s[0]))
+}
+
+// importLoadBrowser loads the browser paths for the import process.
+func importLoadBrowser(k string) (browser.Browser, error) {
+	b, ok := getBrowser(k)
+	if !ok {
+		return nil, fmt.Errorf("%w: '%s'", ErrBrowserUnsupported, k)
+	}
+	if err := b.LoadPaths(); err != nil {
+		return nil, fmt.Errorf("error loading browser paths: %w", err)
+	}
+
+	return b, nil
+}
+
+// importRemoveDuplicates removes duplicate bookmarks from the import process.
+func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) {
+	ogLen := bs.Len()
+	bs.Filter(func(b Bookmark) bool {
+		return !r.HasRecord(r.Cfg.TableMain, "url", b.URL)
+	})
+
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	if ogLen != bs.Len() {
+		skip := color.BrightYellow("skipping")
+		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, ogLen-bs.Len())
+		f.Row().Ln().Mid(s).Ln().Render()
+	}
+}
+
+// importProcessFound processes the bookmarks found from the import process.
+func importProcessFound(r *repo.SQLiteRepository, bs *Slice) error {
+	importRemoveDuplicates(r, bs)
+
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	if bs.Len() == 0 {
+		f.Row().Ln().Mid("no new bookmark found, skipping import").Ln().Render()
+		return nil
+	}
+
+	countStr := color.BrightBlue(bs.Len())
+	msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
+	f.Row().Ln().Mid(msg).Render()
+	if terminal.Confirm("", "n") {
+		if err := scrapeMissingData(bs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// importInsert inserts the bookmarks found from the import process.
+func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
+	if bs.Len() == 0 {
+		return nil
+	}
+
+	insert := func(b Bookmark) error {
+		_, err := r.Insert(r.Cfg.TableMain, &b)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
+	}
+
+	if err := bs.ForEachErr(insert); err != nil {
+		return fmt.Errorf("inserting found bookmark: %w", err)
+	}
+
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	success := color.BrightGreen("Successfully").Italic().Bold()
+	f.Row().Ln()
+	f.Footer(fmt.Sprintf("%s %d bookmarks imported.\n", success, bs.Len())).Render()
+
+	return nil
+}
+
 var importCmd = &cobra.Command{
 	Use:   "import",
 	Short: "import bookmarks from browser",
@@ -113,68 +220,23 @@ var importCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
-		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-		f.Header("Supported Browsers").Ln().Row().Ln()
 
-		for _, c := range registeredBrowser {
-			b := c.browser
-			f.Mid(b.Color(b.Short()) + " " + b.Name()).Ln()
+		var b browser.Browser
+		name := importSelectName(&args)
+		if b, err = importLoadBrowser(name); err != nil {
+			return err
 		}
-		f.Row().Ln().Footer("which browser do you use?").Render()
-
-		l := format.CountLines(f.String())
-		name := terminal.Prompt(" ")
-		terminal.ClearLine(l)
-
-		b, ok := getBrowser(name)
-		if !ok {
-			return fmt.Errorf("%w: '%s'", ErrBrowserUnsupported, name)
-		}
-
-		if err := b.LoadPaths(); err != nil {
-			return fmt.Errorf("error loading browser paths: %w", err)
-		}
-
+		// find bookmarks
 		bs, err := b.Import()
 		if err != nil {
 			return fmt.Errorf("importing from '%s': %w", b.Name(), err)
 		}
-
-		ogLen := bs.Len()
-		bs.Filter(func(b Bookmark) bool {
-			return !r.HasRecord(r.Cfg.TableMain, "url", b.URL)
-		})
-
-		f.Clean()
-		if ogLen != bs.Len() {
-			skip := color.BrightYellow("skipping")
-			s := fmt.Sprintf("%s %d duplicate bookmarks found", skip, ogLen-bs.Len())
-			f.Row().Ln().Mid(s).Ln()
+		// clean and process found bookmarks
+		if err := importProcessFound(r, bs); err != nil {
+			return err
 		}
 
-		if bs.Len() == 0 {
-			f.Row().Ln().Mid("no new bookmark found, skipping import").Ln().Render()
-			return nil
-		}
-
-		countStr := color.BrightBlue(bs.Len())
-		msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
-		f.Row().Ln().Mid(msg).Render()
-		if terminal.Confirm("", "n") {
-			if err := scrapeMissingData(bs); err != nil {
-				return err
-			}
-		}
-
-		bs.ForEach(func(b Bookmark) {
-			_, _ = r.Insert(r.Cfg.TableMain, &b)
-		})
-
-		success := color.BrightGreen("Successfully").Italic().Bold()
-		f.Clean().Row().Ln()
-		f.Footer(fmt.Sprintf("%s %d bookmarks imported.\n", success, bs.Len())).Render()
-
-		return nil
+		return importInsert(r, bs)
 	},
 }
 

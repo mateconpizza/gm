@@ -31,26 +31,31 @@ func getTodayFormatted() string {
 	return today.Format("2006Jan02")
 }
 
-var geckoBrowserPaths = map[string][]string{
+var geckoBrowserPaths = map[string]Paths{
 	"Firefox": {
-		browserpath.GeckoBookmarkPath(".mozilla/firefox"),
-		browserpath.GeckoProfilePath(".mozilla/firefox"),
+		profiles:  browserpath.GeckoProfilePath(".mozilla/firefox"),
+		bookmarks: browserpath.GeckoBookmarkPath(".mozilla/firefox"),
 	},
 	"Zen": {
-		browserpath.GeckoBookmarkPath(".zen"),
-		browserpath.GeckoProfilePath(".zen"),
+		profiles:  browserpath.GeckoProfilePath(".zen"),
+		bookmarks: browserpath.GeckoBookmarkPath(".zen"),
 	},
 	"Waterfox": {
-		browserpath.GeckoBookmarkPath(".waterfox"),
-		browserpath.GeckoProfilePath(".waterfox"),
+		profiles:  browserpath.GeckoProfilePath(".waterfox"),
+		bookmarks: browserpath.GeckoBookmarkPath(".waterfox"),
 	},
+}
+
+type Paths struct {
+	profiles  string
+	bookmarks string
 }
 
 type GeckoBrowser struct {
 	name  string
 	short string
 	color color.ColorFn
-	path  []string
+	paths Paths
 }
 
 func (b *GeckoBrowser) Name() string {
@@ -70,31 +75,21 @@ func (b *GeckoBrowser) LoadPaths() error {
 	if !ok {
 		return fmt.Errorf("%w: '%s'", ErrBrowserUnsupported, b.name)
 	}
-	b.path = p
+	b.paths = p
 
 	return nil
 }
 
-func (b *GeckoBrowser) Paths() ([]string, error) {
-	if len(b.path) == 0 {
+func (b *GeckoBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
+	p := b.paths
+	if p.profiles == "" || p.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
 	}
-
-	return b.path, nil
-}
-
-func (b *GeckoBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
-	paths, err := b.Paths()
-	if err != nil {
-		return nil, err
-	}
-	bookmarkFile := paths[0]
-	profilesFile := paths[1]
-	if !files.Exists(profilesFile) {
-		return nil, fmt.Errorf("%w: '%s'", files.ErrFileNotFound, profilesFile)
+	if !files.Exists(p.profiles) {
+		return nil, fmt.Errorf("%w: '%s'", files.ErrFileNotFound, p.profiles)
 	}
 
-	profiles, err := allProfiles(profilesFile)
+	profiles, err := allProfiles(p.profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +100,7 @@ func (b *GeckoBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
 
 	bs := slice.New[bookmark.Bookmark]()
 	for profile, v := range profiles {
-		p := fmt.Sprintf(bookmarkFile, v)
+		p := fmt.Sprintf(p.bookmarks, v)
 		processProfile(bs, profile, p)
 	}
 

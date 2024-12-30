@@ -23,34 +23,39 @@ var (
 	ErrBrowserUnsupported      = errors.New("browser is unsupported")
 )
 
-var blinkBrowserPaths = map[string][]string{
+var blinkBrowserPaths = map[string]Paths{
 	"Chromium": {
-		browserpath.BlinkBookmarksPath("chromium"),
-		browserpath.BlinkProfilePath("chromium"),
+		profiles:  browserpath.BlinkProfilePath("chromium"),
+		bookmarks: browserpath.BlinkBookmarksPath("chromium"),
 	},
-	"Chrome": {
-		browserpath.BlinkBookmarksPath("google-chrome"),
-		browserpath.BlinkProfilePath("google-chrome"),
+	"Google Chrome": {
+		profiles:  browserpath.BlinkProfilePath("google-chrome"),
+		bookmarks: browserpath.BlinkBookmarksPath("google-chrome"),
 	},
 	"Edge": {
-		browserpath.BlinkBookmarksPath("microsoft-edge"),
-		browserpath.BlinkProfilePath("microsoft-edge"),
+		profiles:  browserpath.BlinkProfilePath("microsoft-edge"),
+		bookmarks: browserpath.BlinkBookmarksPath("microsoft-edge"),
 	},
 	"Brave": {
-		browserpath.BlinkBookmarksPath("brave"),
-		browserpath.BlinkProfilePath("brave"),
+		profiles:  browserpath.BlinkProfilePath("brave"),
+		bookmarks: browserpath.BlinkBookmarksPath("brave"),
 	},
 	"Vivaldi": {
-		browserpath.BlinkBookmarksPath("vivaldi"),
-		browserpath.BlinkProfilePath("vivaldi"),
+		profiles:  browserpath.BlinkProfilePath("vivaldi"),
+		bookmarks: browserpath.BlinkBookmarksPath("vivaldi"),
 	},
+}
+
+type Paths struct {
+	profiles  string
+	bookmarks string
 }
 
 type BlinkBrowser struct {
 	name  string
 	short string
 	color color.ColorFn
-	path  []string
+	paths Paths
 }
 
 func (b *BlinkBrowser) Name() string {
@@ -70,32 +75,22 @@ func (b *BlinkBrowser) LoadPaths() error {
 	if !ok {
 		return fmt.Errorf("%w: '%s'", ErrBrowserUnsupported, b.name)
 	}
-	b.path = p
+	b.paths = p
 
 	return nil
 }
 
-func (b *BlinkBrowser) Paths() ([]string, error) {
-	if len(b.path) == 0 {
-		return nil, ErrBrowserConfigPathNotSet
-	}
-
-	return b.path, nil
-}
-
 // Import extracts profile system names and user names.
 func (b *BlinkBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
-	paths, err := b.Paths()
-	if err != nil {
-		return nil, err
+	p := b.paths
+	if p.bookmarks == "" || p.profiles == "" {
+		return nil, ErrBrowserConfigPathNotSet
 	}
-	bookmarkFile := paths[0]
-	profilesFile := paths[1]
-	if !files.Exists(profilesFile) {
-		return nil, fmt.Errorf("%w: '%s'", files.ErrFileNotFound, profilesFile)
+	if !files.Exists(p.profiles) {
+		return nil, fmt.Errorf("%w: '%s'", files.ErrFileNotFound, p.profiles)
 	}
 
-	jsonData, err := os.ReadFile(profilesFile)
+	jsonData, err := os.ReadFile(p.profiles)
 	if err != nil {
 		return nil, fmt.Errorf("error reading JSON file: %w", err)
 	}
@@ -111,7 +106,7 @@ func (b *BlinkBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
 
 	bs := slice.New[bookmark.Bookmark]()
 	for profile, v := range profiles {
-		p := fmt.Sprintf(bookmarkFile, profile)
+		p := fmt.Sprintf(p.bookmarks, profile)
 		processProfile(bs, v, files.ExpandHomeDir(p))
 	}
 
