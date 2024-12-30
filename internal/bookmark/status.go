@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -160,6 +161,36 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 	f.Ln().Render()
 }
 
+// buildResponse builds a Response from an HTTP response.
+func buildResponse(b *Bookmark, statusCode int, hasError bool) Response {
+	result := Response{
+		URL:        b.URL,
+		bID:        b.ID,
+		statusCode: statusCode,
+		hasError:   hasError,
+	}
+	fmt.Println(result.String())
+
+	return result
+}
+
+// handleRequestError handles errors from the HTTP request and determines the appropriate status code.
+func handleRequestError(b *Bookmark, err error) Response {
+	var statusCode int
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		statusCode = http.StatusGatewayTimeout
+	case isNetworkUnreachableError(err):
+		statusCode = http.StatusServiceUnavailable
+	case errors.Is(err, context.Canceled):
+		statusCode = http.StatusNotFound
+	default:
+		statusCode = http.StatusNotFound
+	}
+
+	return buildResponse(b, statusCode, true)
+}
+
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
 // returns a response.
 //
@@ -169,38 +200,20 @@ func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Resp
 	// FIX: Split this function
 	defer sem.Release(1)
 
-	timeout := 10 * time.Second
+	timeout := 5 * time.Second
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
 	if err != nil {
 		log.Printf("error creating request for %s: %v\n", b.URL, err)
-		return Response{
-			URL:        b.URL,
-			bID:        b.ID,
-			statusCode: http.StatusNotFound,
-			hasError:   true,
-		}
+		return buildResponse(b, http.StatusNotFound, true)
 	}
 
 	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
-		if strings.Contains(err.Error(), "connect: network is unreachable") {
-			log.Println(err)
-		}
-
-		result := Response{
-			URL:        b.URL,
-			bID:        b.ID,
-			statusCode: http.StatusNotFound,
-			hasError:   true,
-		}
-
-		fmt.Println(result.String())
-
-		return result
+		return handleRequestError(b, err)
 	}
 
 	defer func() {
@@ -210,14 +223,15 @@ func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Resp
 		}
 	}()
 
-	result := Response{
-		URL:        b.URL,
-		bID:        b.ID,
-		statusCode: resp.StatusCode,
-		hasError:   resp.StatusCode != http.StatusOK,
+	return buildResponse(b, resp.StatusCode, resp.StatusCode != http.StatusOK)
+}
+
+func isNetworkUnreachableError(err error) bool {
+	var netOpErr *net.OpError
+	if errors.As(err, &netOpErr) {
+		return netOpErr.Op == "connect" &&
+			strings.Contains(netOpErr.Err.Error(), "network is unreachable")
 	}
 
-	fmt.Println(result.String())
-
-	return result
+	return false
 }
