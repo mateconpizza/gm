@@ -154,7 +154,6 @@ func openSQLite(dbPath string) (*sql.DB, error) {
 // of ignored prefixes.
 func isNonGenericURL(url string) bool {
 	log.Println("isNonGenericURL checking url:", url)
-	// Define a slice of ignored prefixes
 	ignoredPrefixes := []string{
 		"about:",
 		"apt:",
@@ -176,7 +175,6 @@ func isNonGenericURL(url string) bool {
 
 // queryBookmarks queries the bookmarks table to retrieve some sample data.
 func queryBookmarks(db *sql.DB) ([]geckoBookmark, error) {
-	// Query the titles of all bookmarks (this is an example query, change as needed)
 	rows, err := db.Query(
 		"SELECT DISTINCT fk, parent, title FROM moz_bookmarks WHERE type=1 AND title IS NOT NULL",
 	)
@@ -253,21 +251,23 @@ func allProfiles(p string) (map[string]string, error) {
 
 func processProfile(bs *slice.Slice[bookmark.Bookmark], profileName, dbPath string) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	f.Row().Ln().Header(fmt.Sprintf("import bookmarks for '%s' profile?", profileName)).Render()
-	if !terminal.Confirm("", "n") {
+	f.Row().Ln().Render()
+	f.Clean().Header(fmt.Sprintf("import bookmarks from '%s' profile?", profileName))
+	if !terminal.Confirm(f.String(), "n") {
 		return
 	}
 
 	// original size
 	ogSize := bs.Len()
 
-	// WARNING: get path by OS
+	// FIX: get path by OS
 	dbPath = files.ExpandHomeDir(dbPath)
 	db, err := openSQLite(dbPath)
 	if err != nil {
 		log.Printf("err opening database for profile '%s': %v\n", profileName, err)
 		if errors.Is(err, ErrBrowserIsOpen) {
-			f.Clean().Mid("database is locked, maybe is firefox open?").Ln().Render()
+			l := color.BrightRed("locked").String()
+			f.Clean().Error("database is " + l + ", maybe firefox is open?").Ln().Render()
 			return
 		}
 		fmt.Printf("err opening database for profile '%s': %v\n", profileName, err)
@@ -304,7 +304,7 @@ func processProfile(bs *slice.Slice[bookmark.Bookmark], profileName, dbPath stri
 	}
 
 	found := color.BrightBlue("found")
-	f.Clean().Footer(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Render()
+	f.Clean().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Render()
 }
 
 func processTags(db *sql.DB, fk int) (string, error) {

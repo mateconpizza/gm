@@ -15,11 +15,11 @@ import (
 
 var ErrLineNotFound = errors.New("line not found")
 
-// ParseTags normalizes a string of tags by separating them by commas and
-// ensuring that the final string ends with a comma.
+// ParseTags normalizes a string of tags by separating them by commas, sorting
+// them and ensuring that the final string ends with a comma.
 //
 // from: "tag1, tag2, tag3 tag"
-// to: "tag1,tag2,tag3,tag,"
+// to: "tag,tag1,tag2,tag3,"
 func ParseTags(tags string) string {
 	if tags == "" {
 		return "notag"

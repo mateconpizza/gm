@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/skip2/go-qrcode"
+	qrcode "github.com/skip2/go-qrcode"
 
 	"github.com/haaag/gm/internal/sys"
 )

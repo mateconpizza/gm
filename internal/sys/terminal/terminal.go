@@ -48,6 +48,7 @@ func NoColor(b *bool) {
 
 // Save the current terminal state.
 func saveState() error {
+	log.Println("saving terminal state...")
 	oldState, err := term.GetState(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("saving state: %w", err)
@@ -59,6 +60,7 @@ func saveState() error {
 
 // Restore the previously saved terminal state.
 func restoreState() error {
+	log.Println("restoring terminal state...")
 	if termState == nil {
 		return ErrNoStateToRestore
 	}

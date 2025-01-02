@@ -233,8 +233,9 @@ func processProfile(bs *slice.Slice[bookmark.Bookmark], profile, path string) {
 		return
 	}
 
-	f.Row().Ln().Header(fmt.Sprintf("import bookmarks for '%s' profile?", profile)).Render()
-	if !terminal.Confirm("", "n") {
+	f.Row().Ln().Render().Clean()
+	f.Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
+	if !terminal.Confirm(f.String(), "n") {
 		f.Clean().Row("Skipping profile...'" + profile + "'").Ln().Render()
 		return
 	}
@@ -264,7 +265,7 @@ func processProfile(bs *slice.Slice[bookmark.Bookmark], profile, path string) {
 	}
 
 	found := color.BrightBlue("found")
-	f.Clean().Footer(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Render()
+	f.Clean().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Render()
 }
 
 // Define the main function to load the Chrome database.
