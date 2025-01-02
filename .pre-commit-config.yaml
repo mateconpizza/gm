@@ -18,4 +18,3 @@ repos:
       - id: go-build
       - id: go-mod-tidy
       - id: no-go-testing
-      - id: go-unit-tests

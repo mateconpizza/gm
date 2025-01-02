@@ -82,7 +82,7 @@ func handleRecords(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 		return err
 	}
 
-	if bs.Len() == 0 && len(args) == 0 {
+	if bs.Empty() && len(args) == 0 {
 		// get all records
 		if err := r.Records(r.Cfg.TableMain, bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)

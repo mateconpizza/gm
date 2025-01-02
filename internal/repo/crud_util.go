@@ -20,7 +20,7 @@ func (r *SQLiteRepository) reorderIDs(t Table) error {
 		return err
 	}
 
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		return nil
 	}
 

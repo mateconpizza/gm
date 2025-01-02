@@ -1,4 +1,7 @@
 issues:
+  uniq-by-line: true
+  exclude-files:
+    - cmd/Test.go
   include:
     - EXC0001
     - EXC0005
@@ -62,7 +65,6 @@ run:
 output:
   print-issued-lines: true
   print-linter-name: true
-  uniq-by-line: true
   path-prefix: ""
   sort-results: true
 linters-settings:

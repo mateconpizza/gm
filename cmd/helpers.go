@@ -188,7 +188,7 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 		}
 	}
 
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		return repo.ErrRecordNotFound
 	}
 
@@ -197,7 +197,7 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 
 // validateRemove checks if the remove operation is valid.
 func validateRemove(bs *Slice) error {
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		return repo.ErrRecordNotFound
 	}
 

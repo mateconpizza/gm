@@ -96,7 +96,7 @@ func handleJSONFormat(bs *Slice) error {
 
 	Exit = true
 
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		fmt.Println(string(format.ToJSON(config.App)))
 		return nil
 	}
@@ -143,8 +143,8 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 		return nil
 	}
 
-	// TODO: if the slice contains bookmarks, filter by tag.
-	if bs.Len() != 0 {
+	// if the slice contains bookmarks, filter by tag.
+	if !bs.Empty() {
 		for _, tag := range Tags {
 			bs.Filter(func(b Bookmark) bool {
 				return strings.Contains(b.Tags, tag)
@@ -160,7 +160,7 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 		}
 	}
 
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		t := strings.Join(Tags, ", ")
 		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNoMatch, t)
 	}
@@ -394,7 +394,7 @@ func handleIDsFromArgs(r *repo.SQLiteRepository, bs *Slice, args []string) error
 		return fmt.Errorf("records from args: %w", err)
 	}
 
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		a := strings.TrimRight(strings.Join(args, " "), "\n")
 		return fmt.Errorf("%w by id/s: %s", repo.ErrRecordNotFound, a)
 	}
@@ -446,7 +446,7 @@ func handleMenu(bs *Slice) error {
 	if !Menu {
 		return nil
 	}
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		return repo.ErrRecordNoMatch
 	}
 

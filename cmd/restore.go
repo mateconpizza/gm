@@ -34,8 +34,7 @@ var restoreCmd = &cobra.Command{
 		if err := handleRecords(r, bs, args); err != nil {
 			return err
 		}
-
-		if bs.Len() == 0 {
+		if bs.Empty() {
 			return repo.ErrRecordNoMatch
 		}
 

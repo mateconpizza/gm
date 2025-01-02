@@ -145,7 +145,7 @@ func importLoadBrowser(k string) (browser.Browser, error) {
 }
 
 // importRemoveDuplicates removes duplicate bookmarks from the import process.
-func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) {
+func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
 	ogLen := bs.Len()
 	bs.Filter(func(b Bookmark) bool {
 		return !r.HasRecord(r.Cfg.TableMain, "url", b.URL)
@@ -157,6 +157,12 @@ func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) {
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, ogLen-bs.Len())
 		f.Row().Ln().Mid(s).Ln().Render()
 	}
+
+	if bs.Empty() {
+		return slice.ErrSliceEmpty
+	}
+
+	return nil
 }
 
 // importProcessFound processes the bookmarks found from the import process.

@@ -245,7 +245,7 @@ func (r *SQLiteRepository) DeleteBulk(t Table, ids *slice.Slice[int]) error {
 //
 // Inserts the deleted bookmarks into the deleted table.
 func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted Table) error {
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		return ErrRecordIDNotProvided
 	}
 
@@ -294,7 +294,7 @@ func (r *SQLiteRepository) Records(t Table, bs *Slice) error {
 		return err
 	}
 
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		log.Printf("no records found in table: '%s'", t)
 		return ErrRecordNotFound
 	}
@@ -411,10 +411,10 @@ func (r *SQLiteRepository) ByQuery(t Table, q string, bs *Slice) error {
 	log.Printf("getting records by query: '%s'", q)
 
 	sqlQuery := fmt.Sprintf(`
-      SELECT 
+      SELECT
         id, url, title, tags, desc, created_at
-      FROM %s 
-      WHERE 
+      FROM %s
+      WHERE
         LOWER(id || title || url || tags || desc) LIKE LOWER(?)
       ORDER BY id ASC
     `, t)

@@ -1,8 +1,12 @@
 package slice
 
 import (
+	"errors"
+
 	"golang.org/x/exp/slices"
 )
+
+var ErrSliceEmpty = errors.New("slice is empty")
 
 type Slice[T comparable] struct {
 	items *[]T
@@ -142,6 +146,11 @@ func (s *Slice[T]) TrimElements(n int) *Slice[T] {
 // Clean removes all items from the slice.
 func (s *Slice[T]) Clean() {
 	*s.items = make([]T, 0)
+}
+
+// Empty returns true if the slice is empty.
+func (s *Slice[T]) Empty() bool {
+	return len(*s.items) == 0
 }
 
 // From creates a new slice from the given items.
