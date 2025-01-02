@@ -62,7 +62,7 @@ func initConfig() {
 	// Set database settings/paths
 	Cfg = repo.NewSQLiteCfg(dataHomePath)
 	Cfg.SetName(DBName)
-	Cfg.Backup.SetLimit(getMaxBackup())
+	Cfg.Backup.SetLimit(backupGetLimit())
 }
 
 func init() {

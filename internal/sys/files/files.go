@@ -203,8 +203,8 @@ func EnsureExt(s, suffix string) string {
 	return fmt.Sprintf("%s%s", s, suffix)
 }
 
-// IsEmpty returns true if the file at path s has non-zero size.
-func IsEmpty(s string) bool {
+// Empty returns true if the file at path s has non-zero size.
+func Empty(s string) bool {
 	return size(s) == 0
 }
 

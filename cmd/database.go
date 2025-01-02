@@ -10,18 +10,14 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-var (
-	dbDrop bool
-	dbInfo bool
-	dbList bool
-)
+// Subcommand Flags.
+var dbDrop, dbInfo, dbList bool
 
-// handleDBDrop clears the database.
-func handleDBDrop(r *repo.SQLiteRepository) error {
+// dbDropHandler clears the database.
+func dbDropHandler(r *repo.SQLiteRepository) error {
 	if !r.IsDatabaseInitialized(r.Cfg.TableMain) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 	}
@@ -37,9 +33,9 @@ func handleDBDrop(r *repo.SQLiteRepository) error {
 
 	fmt.Print(repo.Info(r))
 
-	f.Clean().Row().Ln().Footer("continue?").Render()
+	f.Clean().Row().Ln().Render().Clean()
 
-	if !terminal.Confirm("", "n") {
+	if !terminal.Confirm(f.Footer("continue?").String(), "n") {
 		return ErrActionAborted
 	}
 
@@ -47,18 +43,26 @@ func handleDBDrop(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("%s database cleared\n", success)
+	terminal.ClearLine(1)
+	success := color.BrightGreen("Successfully").Italic().String()
+	f.Clean().Success(success + " database dropped").Ln().Render()
 
 	return nil
 }
 
-// removeDB removes a database.
-func removeDB(r *repo.SQLiteRepository) error {
-	fmt.Print(repo.Info(r))
+// dbRemoveHandler removes a database.
+func dbRemoveHandler(r *repo.SQLiteRepository) error {
+	if !r.Cfg.Exists() {
+		return repo.ErrDBNotFound
+	}
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 
-	q := fmt.Sprintf("\nremove %s?", color.Red(r.Cfg.Name).Bold())
-	if !terminal.Confirm(q, "n") {
+	i := repo.Info(r)
+	i += f.Row().Ln().String()
+	fmt.Print(i)
+
+	f.Clean().Mid(fmt.Sprintf("remove %s?", color.Red(r.Cfg.Name)))
+	if !terminal.Confirm(f.String(), "n") {
 		return ErrActionAborted
 	}
 
@@ -71,9 +75,11 @@ func removeDB(r *repo.SQLiteRepository) error {
 		n = backups.Len()
 	}
 
+	linesToClear := 1
 	if n > 0 {
-		q = fmt.Sprintf("remove %d %s?", n, color.Red("backup/s").Bold())
-		if !terminal.Confirm(q, "n") {
+		linesToClear++
+		f.Clean().Mid(fmt.Sprintf("remove %d %s?", n, color.Red("backup/s")))
+		if !terminal.Confirm(f.String(), "n") {
 			return ErrActionAborted
 		}
 
@@ -87,26 +93,15 @@ func removeDB(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("%s database removed\n", success)
+	terminal.ClearLine(linesToClear)
+	success := color.BrightGreen("Successfully").Italic().String()
+	f.Clean().Success(success + " database removed").Ln().Render()
 
 	return nil
 }
 
-// checkDBState verifies database existence and initialization.
-func checkDBState(f string) error {
-	if !files.Exists(f) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, f)
-	}
-	if files.IsEmpty(f) {
-		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, f)
-	}
-
-	return nil
-}
-
-// handleListDB lists the available databases.
-func handleListDB(r *repo.SQLiteRepository) error {
+// dbListHandler lists the available databases.
+func dbListHandler(r *repo.SQLiteRepository) error {
 	dbs, err := repo.Databases(r.Cfg)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -133,17 +128,8 @@ func handleListDB(r *repo.SQLiteRepository) error {
 	return nil
 }
 
-// handleRemoveDB removes a database.
-func handleRemoveDB(r *repo.SQLiteRepository) error {
-	if !r.Cfg.Exists() {
-		return repo.ErrDBNotFound
-	}
-
-	return removeDB(r)
-}
-
-// handleDBInfo prints information about a database.
-func handleDBInfo(r *repo.SQLiteRepository) error {
+// dbInfoPrint prints information about a database.
+func dbInfoPrint(r *repo.SQLiteRepository) error {
 	if JSON {
 		backups, err := repo.Backups(r)
 		if err != nil {
@@ -175,16 +161,16 @@ var dbCmd = &cobra.Command{
 		}
 
 		flags := map[bool]func(r *repo.SQLiteRepository) error{
-			dbDrop: handleDBDrop,
-			dbInfo: handleDBInfo,
-			dbList: handleListDB,
-			Remove: handleRemoveDB,
+			dbDrop: dbDropHandler,
+			dbInfo: dbInfoPrint,
+			dbList: dbListHandler,
+			Remove: dbRemoveHandler,
 		}
 		if handler, ok := flags[true]; ok {
 			return handler(r)
 		}
 
-		return handleDBInfo(r)
+		return dbInfoPrint(r)
 	},
 }
 

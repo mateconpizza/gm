@@ -12,6 +12,7 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -35,14 +36,14 @@ var backupCmd = &cobra.Command{
 		flags := map[bool]func(r *repo.SQLiteRepository) error{
 			bkCreate: backupCreate,
 			bkPurge:  backupPurge,
-			bkList:   printsBackupInfo,
+			bkList:   backupInfoPrint,
 		}
 
 		if handler, run := flags[true]; run {
 			return handler(r)
 		}
 
-		return printsBackupInfo(r)
+		return backupInfoPrint(r)
 	},
 }
 
@@ -62,15 +63,20 @@ func backupCreate(r *repo.SQLiteRepository) error {
 	}
 
 	srcPath := r.Cfg.Fullpath()
-	if err := checkDBState(srcPath); err != nil {
-		return err
+	if !files.Exists(srcPath) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, srcPath)
 	}
-	if err := printsBackupInfo(r); err != nil {
+	if files.Empty(srcPath) {
+		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, srcPath)
+	}
+	if err := backupInfoPrint(r); err != nil {
 		return err
 	}
 
-	q := fmt.Sprintf("\ncreate %s?", color.BrightGreen("backup").Bold())
-	if !terminal.Confirm(q, "y") {
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	c := color.BrightGreen("backup").Bold().String()
+	f.Row().Ln().Render()
+	if !terminal.Confirm(f.Clean().Header("create "+c).String(), "y") {
 		return ErrActionAborted
 	}
 
@@ -80,8 +86,9 @@ func backupCreate(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("%s backup created: %s\n", success.String(), destName)
+	terminal.ClearLine(1)
+	success := color.BrightGreen("Successfully").Italic().String()
+	f.Clean().Success(success + " backup created: " + destName).Ln().Render()
 
 	return nil
 }
@@ -101,10 +108,10 @@ func backupPurge(r *repo.SQLiteRepository) error {
 
 	status := repo.Summary(r)
 	status += repo.BackupsSummary(r)
-	f := frame.New(frame.WithColorBorder(color.Gray))
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 
 	if n > 0 {
-		f.Header(color.BrightRed(n, "backups to delete").Bold().Italic().String())
+		f.Header(color.BrightRed("files to delete").Italic().String())
 		backups.ForEach(func(b string) {
 			f.Row(repo.SummaryRecords(b))
 		})
@@ -112,9 +119,14 @@ func backupPurge(r *repo.SQLiteRepository) error {
 		status += f.String()
 	}
 
-	fmt.Println(status)
-	nPurgeStr := color.BrightRed("purge").Bold().String()
-	if !Force && !terminal.Confirm(fmt.Sprintf("%s %d backup/s?", nPurgeStr, n), "n") {
+	fmt.Print(status)
+
+	f = frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	nPurgeStr := color.BrightRed("purge").String()
+	f.Row().Ln().Render().Clean()
+	q := f.Header(fmt.Sprintf("%s %d backup/s?", nPurgeStr, n)).String()
+
+	if !Force && !terminal.Confirm(q, "n") {
 		return ErrActionAborted
 	}
 
@@ -122,14 +134,15 @@ func backupPurge(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("removing backup: %w", err)
 	}
 
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("%s backups purged\n", success)
+	terminal.ClearLine(1)
+	success := color.BrightGreen("Successfully").Italic().String()
+	f.Clean().Success(success + " backups purged").Ln().Render()
 
 	return nil
 }
 
-// printsBackupInfo prints repository's backup info.
-func printsBackupInfo(r *repo.SQLiteRepository) error {
+// backupInfoPrint prints repository's backup info.
+func backupInfoPrint(r *repo.SQLiteRepository) error {
 	s := repo.Summary(r)
 	s += repo.BackupsSummary(r)
 	s += repo.BackupDetail(r)
@@ -138,8 +151,8 @@ func printsBackupInfo(r *repo.SQLiteRepository) error {
 	return nil
 }
 
-// getMaxBackup loads the max backups allowed from a env var defaults to 3.
-func getMaxBackup() int {
+// backupGetLimit loads the max backups allowed from a env var defaults to 3.
+func backupGetLimit() int {
 	n := config.DB.BackupMaxBackups
 	defaultMax := strconv.Itoa(n)
 	maxBackups, err := strconv.Atoi(sys.Env(config.App.Env.BackupMax, defaultMax))
