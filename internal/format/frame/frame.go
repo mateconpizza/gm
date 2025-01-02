@@ -112,13 +112,38 @@ func (f *Frame) Mid(s ...string) *Frame {
 	return f.applyBorder(mid, s)
 }
 
+func (f *Frame) Error(s ...string) *Frame {
+	e := color.BrightRed(f.Border.Mid).String()
+	mid := f.applyStyle(e)
+	return f.applyBorder(mid, s)
+}
+
+func (f *Frame) Warning(s ...string) *Frame {
+	e := color.BrightYellow(f.Border.Mid).String()
+	mid := f.applyStyle(e)
+	return f.applyBorder(mid, s)
+}
+
+func (f *Frame) Success(s ...string) *Frame {
+	e := color.BrightGreen(f.Border.Mid).String()
+	mid := f.applyStyle(e)
+	return f.applyBorder(mid, s)
+}
+
+func (f *Frame) Info(s ...string) *Frame {
+	e := color.BrightBlue(f.Border.Mid).String()
+	mid := f.applyStyle(e)
+	return f.applyBorder(mid, s)
+}
+
 func (f *Frame) Footer(s ...string) *Frame {
 	foo := f.applyStyle(f.Border.Footer)
 	return f.applyBorder(foo, s)
 }
 
-func (f *Frame) Render() {
+func (f *Frame) Render() *Frame {
 	fmt.Print(strings.Join(f.text, ""))
+	return f
 }
 
 // Clean clears the frame.
