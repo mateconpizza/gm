@@ -30,6 +30,10 @@ var (
 
 	// FIX: Find a better way to handle exit.
 	Exit bool
+
+	// subCommandCalled is used to check if the subcommand was called, to modify
+	// some aspects of the program flow, and menu options.
+	subCommandCalled bool
 )
 
 // rootCmd represents the base command when called without any subcommands.

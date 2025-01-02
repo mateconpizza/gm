@@ -10,11 +10,12 @@ import (
 var addColor *bool
 
 var (
-	ErrFzfExitError       = errors.New("fzf: exit error")
-	ErrFzfInterrupted     = errors.New("fzf: returned exit code 130")
-	ErrFzfNoMathching     = errors.New("fzf: no matching record")
-	ErrFzfNoRecords       = errors.New("fzf: no records provided")
-	ErrFzfNothingSelected = errors.New("fzf: no records selected")
+	ErrFzfExitError   = errors.New("fzf: exit error")
+	ErrFzfInterrupted = errors.New("fzf: returned exit code 130")
+	ErrFzfNoMathching = errors.New("fzf: no matching record")
+	ErrFzfNoRecords   = errors.New("fzf: no records provided")
+	ErrFzfReturnCode  = errors.New("fzf: returned a non-zero code")
+	ErrActionAborted  = errors.New("fzf: action aborted")
 )
 
 var fzfDefaults = []string{
@@ -273,10 +274,16 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 	// Set up input and output channels
 	options.Input = inputChan
 	options.Output = outputChan
+
 	// Run fzf
-	code, err := fzf.Run(options)
-	if code != 0 {
-		exitWithErrCode(code, err)
+	retcode, err := fzf.Run(options)
+	if retcode != 0 {
+		switch retcode {
+		case 130:
+			return nil, ErrActionAborted
+		default:
+			return nil, ErrFzfReturnCode
+		}
 	}
 
 	close(outputChan)

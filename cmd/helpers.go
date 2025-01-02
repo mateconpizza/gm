@@ -16,6 +16,7 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/spinner"
@@ -235,6 +236,27 @@ func validURL(s string) bool {
 	}
 
 	return parsedUrl.Scheme != "" && parsedUrl.Host != ""
+}
+
+// handleMenuOpts returns the options for the menu.
+func handleMenuOpts() []menu.OptFn {
+	// menu opts
+	opts := []menu.OptFn{
+		menu.WithDefaultKeybinds(),
+		menu.WithDefaultSettings(),
+		menu.WithMultiSelection(),
+	}
+
+	if !subCommandCalled {
+		opts = append(opts,
+			menu.WithPreview(),
+			menu.WithKeybindEdit(),
+			menu.WithKeybindOpen(),
+			menu.WithKeybindQR(),
+		)
+	}
+
+	return opts
 }
 
 // confirmUserLimit prompts the user to confirm the exceeding limit.

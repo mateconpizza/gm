@@ -457,15 +457,7 @@ func handleMenu(bs *Slice) error {
 	menu.WithColor(&config.App.Color)
 
 	// menu opts
-	opts := []menu.OptFn{
-		menu.WithDefaultKeybinds(),
-		menu.WithDefaultSettings(),
-		menu.WithKeybindEdit(),
-		menu.WithKeybindOpen(),
-		menu.WithKeybindQR(),
-		menu.WithPreview(),
-		menu.WithMultiSelection(),
-	}
+	opts := handleMenuOpts()
 
 	var formatter func(*Bookmark, int) string
 	if Multiline {
@@ -481,6 +473,11 @@ func handleMenu(bs *Slice) error {
 		return formatter(&b, terminal.MaxWidth)
 	})
 	if err != nil {
+		if errors.Is(err, menu.ErrActionAborted) {
+			Exit = true
+			return ErrActionAborted
+		}
+
 		return fmt.Errorf("%w", err)
 	}
 
