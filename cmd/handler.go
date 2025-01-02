@@ -1,13 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
-
-	"golang.org/x/sync/semaphore"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/qr"
@@ -17,9 +13,8 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -27,6 +22,17 @@ var (
 	ErrActionAborted = errors.New("action aborted")
 	ErrInvalidOption = errors.New("invalid option")
 )
+
+// handleDataSlice retrieves records from the database based on either
+// an ID or a query string.
+func handleDataSlice(r *repo.SQLiteRepository, args []string) (*Slice, error) {
+	bs := slice.New[Bookmark]()
+	if err := handleRecords(r, bs, args); err != nil {
+		return nil, err
+	}
+
+	return bs, nil
+}
 
 // handleByField prints the selected field.
 func handleByField(bs *Slice) error {
@@ -250,8 +256,13 @@ func handleRemove(r *repo.SQLiteRepository, bs *Slice) error {
 		return err
 	}
 
+	c := color.BrightRed
+	f := frame.New(frame.WithColorBorder(c), frame.WithNoNewLine())
+	header := c("Removing Bookmarks").String()
+	f.Header(header).Ln().Ln().Render().Clean()
+
 	prompt := color.BrightRed("remove").Bold().String()
-	if err := confirmAction(bs, prompt, color.BrightRed); err != nil {
+	if err := confirmAction(bs, prompt, c); err != nil {
 		return err
 	}
 
@@ -288,85 +299,18 @@ func handleCheckStatus(bs *Slice) error {
 	return nil
 }
 
-// copyBookmarks copies the URL of the first bookmark in the provided Slice to
-// the clipboard.
-func copyBookmarks(bs *Slice) error {
-	if !Copy {
-		return nil
-	}
-
-	if err := sys.CopyClipboard(bs.Item(0).URL); err != nil {
-		return fmt.Errorf("copy error: %w", err)
-	}
-
-	return nil
-}
-
-// openBookmarks opens the URLs in the browser for the bookmarks in the provided Slice.
-func openBookmarks(bs *Slice) error {
-	// FIX: keep it simple
-	if !Open {
-		return nil
-	}
-
-	const maxGoroutines = 15
-	// get user confirmation to procced
-	o := color.BrightGreen("opening").Bold()
-	s := fmt.Sprintf("%s %d bookmarks, continue?", o, bs.Len())
-	if err := confirmUserLimit(bs.Len(), maxGoroutines, s); err != nil {
-		return err
-	}
-
-	sp := spinner.New(spinner.WithMesg(color.BrightGreen("opening bookmarks...").String()))
-	defer sp.Stop()
-	sp.Start()
-
-	sem := semaphore.NewWeighted(maxGoroutines)
-	var wg sync.WaitGroup
-	errCh := make(chan error, bs.Len())
-	action := func(b Bookmark) error {
-		if err := sem.Acquire(context.Background(), 1); err != nil {
-			return fmt.Errorf("error acquiring semaphore: %w", err)
-		}
-		defer sem.Release(1)
-
-		wg.Add(1)
-		go func(b Bookmark) {
-			defer wg.Done()
-			if err := sys.OpenInBrowser(b.URL); err != nil {
-				errCh <- fmt.Errorf("open error: %w", err)
-			}
-		}(b)
-
-		return nil
-	}
-
-	if err := bs.ForEachErr(action); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
-		return err
-	}
-
-	return nil
-}
-
 // handleCopyOpen calls the copyBookmarks and openBookmarks functions, and handles the overall logic.
 func handleCopyOpen(bs *Slice) error {
-	if Exit {
-		return nil
-	}
-
 	if !Copy && !Open {
 		return nil
 	}
 
 	if err := copyBookmarks(bs); err != nil {
 		return err
+	}
+
+	if Exit {
+		return nil
 	}
 
 	if err := openBookmarks(bs); err != nil {
@@ -422,7 +366,7 @@ func handleQR(bs *Slice) error {
 
 		var sb strings.Builder
 		sb.WriteString(b.Title + "\n")
-		sb.WriteString(b.URL)
+		sb.WriteString(b.URL + "\n")
 		sb.WriteString(qrcode.String())
 		t := sb.String()
 		fmt.Print(t)

@@ -51,12 +51,11 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		defer r.Close()
 
 		terminal.ReadPipedInput(&args)
 
-		bs := slice.New[Bookmark]()
-		if err := handleRecords(r, bs, args); err != nil {
+		bs, err := handleDataSlice(r, args)
+		if err != nil {
 			return err
 		}
 		if err := handleAction(r, bs); err != nil {

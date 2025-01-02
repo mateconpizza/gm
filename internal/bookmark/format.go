@@ -89,6 +89,28 @@ func Multiline(b *Bookmark, width int) string {
 	return sb.String()
 }
 
+func FrameFormatted(b *Bookmark, width int, c color.ColorFn) string {
+	f := frame.New(frame.WithColorBorder(c))
+	width -= len(f.Border.Row)
+
+	// split and add intendation
+	descSplit := format.Split(b.Desc, width)
+	titleSplit := format.Split(b.Title, width)
+
+	// add color and style
+	id := color.BrightYellow(b.ID).Bold().String()
+	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
+	title := color.ApplyMany(titleSplit, color.Cyan)
+	desc := color.ApplyMany(descSplit, color.Gray)
+	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
+
+	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).
+		Mid(title...).
+		Mid(desc...).
+		Footer(tags).
+		String()
+}
+
 // FmtWithFrame formats and displays a bookmark with styling and frame layout.
 func FmtWithFrame(f *frame.Frame, b *Bookmark, n int, c color.ColorFn) {
 	n -= len(f.Border.Row)
@@ -109,23 +131,25 @@ func FmtWithFrame(f *frame.Frame, b *Bookmark, n int, c color.ColorFn) {
 func Frame(b *Bookmark, width int) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 
-	// Indentation
+	// indentation
 	width -= len(f.Border.Row)
 
-	// Split and add intendation
+	// split and add intendation
 	descSplit := format.Split(b.Desc, width)
 	titleSplit := format.Split(b.Title, width)
 
-	// Add color and style
+	// add color and style
 	id := color.BrightYellow(b.ID).Bold().String()
 	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
 	title := color.ApplyMany(titleSplit, color.Cyan)
 	desc := color.ApplyMany(descSplit, color.Gray)
-	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
+	tags := color.BrightGray(PrettifyTags(b.Tags)).Italic().String()
 
 	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).
-		Mid(title...).Mid(desc...).
-		Footer(tags).String()
+		Mid(title...).
+		Mid(desc...).
+		Footer(tags).
+		String()
 }
 
 // PrettifyTags returns a prettified tags.

@@ -22,8 +22,6 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-var ErrBrowserUnsupported = errors.New("browser unsupported")
-
 // supportedBrowser defines a supported browser.
 type supportedBrowser struct {
 	key     string
@@ -135,7 +133,7 @@ func importSelectName(args *[]string) string {
 func importLoadBrowser(k string) (browser.Browser, error) {
 	b, ok := getBrowser(k)
 	if !ok {
-		return nil, fmt.Errorf("%w: '%s'", ErrBrowserUnsupported, k)
+		return nil, fmt.Errorf("%w: '%s'", browser.ErrBrowserUnsupported, k)
 	}
 	if err := b.LoadPaths(); err != nil {
 		return nil, fmt.Errorf("error loading browser paths: %w", err)
@@ -155,7 +153,7 @@ func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
 	if ogLen != bs.Len() {
 		skip := color.BrightYellow("skipping")
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, ogLen-bs.Len())
-		f.Row().Ln().Mid(s).Ln().Render()
+		f.Row().Ln().Warning(s).Ln().Render()
 	}
 
 	if bs.Empty() {
@@ -167,18 +165,18 @@ func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
 
 // importProcessFound processes the bookmarks found from the import process.
 func importProcessFound(r *repo.SQLiteRepository, bs *Slice) error {
-	importRemoveDuplicates(r, bs)
-
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	if bs.Len() == 0 {
-		f.Row().Ln().Mid("no new bookmark found, skipping import").Ln().Render()
-		return nil
+	if err := importRemoveDuplicates(r, bs); err != nil {
+		if errors.Is(err, slice.ErrSliceEmpty) {
+			f.Row().Ln().Mid("no new bookmark found, skipping import").Ln().Render()
+			return nil
+		}
 	}
 
 	countStr := color.BrightBlue(bs.Len())
 	msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
-	f.Row().Ln().Mid(msg).Render()
-	if terminal.Confirm("", "n") {
+	f.Row().Ln().Render().Clean()
+	if terminal.Confirm(f.Mid(msg).String(), "n") {
 		if err := scrapeMissingData(bs); err != nil {
 			return err
 		}
@@ -189,7 +187,7 @@ func importProcessFound(r *repo.SQLiteRepository, bs *Slice) error {
 
 // importInsert inserts the bookmarks found from the import process.
 func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
-	if bs.Len() == 0 {
+	if bs.Empty() {
 		return nil
 	}
 
@@ -209,7 +207,7 @@ func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	success := color.BrightGreen("Successfully").Italic().Bold()
 	f.Row().Ln()
-	f.Footer(fmt.Sprintf("%s %d bookmarks imported.\n", success, bs.Len())).Render()
+	f.Success(fmt.Sprintf("%s %d bookmarks imported.\n", success, bs.Len())).Render()
 
 	return nil
 }

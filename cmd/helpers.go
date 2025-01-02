@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/semaphore"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/qr"
@@ -18,6 +22,7 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
@@ -139,23 +144,6 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	return nil
 }
 
-// confirmEditSave confirms if the user wants to save the bookmark.
-func confirmEditSave(b *Bookmark) error {
-	save := color.BrightGreen("\nsave").Bold().String() + " bookmark?"
-	opt := terminal.ConfirmWithChoices(save, []string{"yes", "no", "edit"}, "y")
-
-	switch opt {
-	case "n":
-		return fmt.Errorf("%w", ErrActionAborted)
-	case "e":
-		if err := bookmarkEdition(b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-
-	return nil
-}
-
 // confirmAction prompts the user to confirm the action.
 func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 	for !Force {
@@ -164,17 +152,15 @@ func confirmAction(bs *Slice, prompt string, colors color.ColorFn) error {
 			return repo.ErrRecordNotFound
 		}
 
-		f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 		bs.ForEachIdx(func(i int, b Bookmark) {
-			bookmark.FmtWithFrame(f, &b, terminal.MinWidth, colors)
-			if n != i+1 {
-				f.Row().Ln()
-			}
+			fmt.Println(bookmark.FrameFormatted(&b, terminal.MinWidth, colors))
 		})
 
 		// render frame
-		f.Row().Ln().Footer(prompt + fmt.Sprintf(" %d bookmark/s?", n)).Render()
-		opt := terminal.ConfirmWithChoices("", []string{"yes", "no", "edit"}, "n")
+		f := frame.New(frame.WithColorBorder(colors), frame.WithNoNewLine())
+		q := f.Footer(prompt + fmt.Sprintf(" %d bookmark/s?", n)).String()
+		opt := terminal.ConfirmWithChoices(q, []string{"yes", "no", "edit"}, "n")
+		opt = strings.ToLower(opt)
 		switch opt {
 		case "n", "no":
 			return ErrActionAborted
@@ -223,8 +209,10 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 
 	s.Stop()
 
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("%s bookmark/s removed\n", success)
+	terminal.ClearLine(1)
+	success := color.BrightGreen("Successfully").Italic().String()
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	f.Success(success + " bookmark/s removed").Render()
 
 	return nil
 }
@@ -268,6 +256,73 @@ func confirmUserLimit(count, maxItems int, q string) error {
 	f := frame.New(frame.WithColorBorder(color.BrightBlue), frame.WithNoNewLine()).Header(q)
 	if !terminal.Confirm(f.String(), "n") {
 		return ErrActionAborted
+	}
+
+	return nil
+}
+
+// copyBookmarks copies the URL of the first bookmark in the provided Slice to
+// the clipboard.
+func copyBookmarks(bs *Slice) error {
+	if !Copy {
+		return nil
+	}
+
+	if err := sys.CopyClipboard(bs.Item(0).URL); err != nil {
+		return fmt.Errorf("copy error: %w", err)
+	}
+
+	return nil
+}
+
+// openBookmarks opens the URLs in the browser for the bookmarks in the provided Slice.
+func openBookmarks(bs *Slice) error {
+	// FIX: keep it simple
+	if !Open {
+		return nil
+	}
+
+	const maxGoroutines = 15
+	// get user confirmation to procced
+	o := color.BrightGreen("opening").Bold()
+	s := fmt.Sprintf("%s %d bookmarks, continue?", o, bs.Len())
+	if err := confirmUserLimit(bs.Len(), maxGoroutines, s); err != nil {
+		return err
+	}
+
+	sp := spinner.New(spinner.WithMesg(color.BrightGreen("opening bookmarks...").String()))
+	defer sp.Stop()
+	sp.Start()
+
+	sem := semaphore.NewWeighted(maxGoroutines)
+	var wg sync.WaitGroup
+	errCh := make(chan error, bs.Len())
+	action := func(b Bookmark) error {
+		if err := sem.Acquire(context.Background(), 1); err != nil {
+			return fmt.Errorf("error acquiring semaphore: %w", err)
+		}
+		defer sem.Release(1)
+
+		wg.Add(1)
+		go func(b Bookmark) {
+			defer wg.Done()
+			if err := sys.OpenInBrowser(b.URL); err != nil {
+				errCh <- fmt.Errorf("open error: %w", err)
+			}
+		}(b)
+
+		return nil
+	}
+
+	if err := bs.ForEachErr(action); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		return err
 	}
 
 	return nil

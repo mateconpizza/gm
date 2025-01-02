@@ -1,9 +1,13 @@
 package browser
 
 import (
+	"errors"
+
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/slice"
 )
+
+var ErrBrowserUnsupported = errors.New("browser unsupported")
 
 // Browser defines the interface for interacting with various web browsers,
 // providing methods to retrieve browser information, load browser paths, and
