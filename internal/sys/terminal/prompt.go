@@ -231,7 +231,7 @@ func promptWithChoices(q string, opts []string, def string) string {
 			}
 		}
 
-		fmt.Printf("invalid response. use: %s", formatOpts(opts))
+		ClearLine(1)
 	}
 }
 
