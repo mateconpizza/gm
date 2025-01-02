@@ -32,29 +32,28 @@ var addCmd = &cobra.Command{
 		}
 		defer r.Close()
 
-		return handleAdd(r, args)
+		return add(r, args)
 	},
 }
 
-// handleAdd adds a new bookmark.
-func handleAdd(r *repo.SQLiteRepository, args []string) error {
+// add adds a new bookmark.
+func add(r *repo.SQLiteRepository, args []string) error {
 	if terminal.IsPiped() && len(args) < 2 {
 		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
 	}
 
 	// header
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	header := color.BrightYellow("Add Bookmark").Bold().String()
+	header := color.BrightYellow("Add Bookmark").String()
 	q := color.Gray(" (ctrl+c to exit)").Italic().String()
-	f.Header(header + q)
-	f.Row().Render()
+	f.Header(header + q).Ln().Render()
 
 	b := bookmark.New()
-	if err := parseNewBookmark(r, b, args); err != nil {
+	if err := addParseNewBookmark(r, b, args); err != nil {
 		return err
 	}
 
-	if err := confirmEditSave(b); err != nil {
+	if err := addHandleConfirmation(b); err != nil {
 		if !errors.Is(err, bookmark.ErrBufferUnchanged) {
 			return fmt.Errorf("%w", err)
 		}
@@ -65,58 +64,88 @@ func handleAdd(r *repo.SQLiteRepository, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("%s bookmark created\n", success)
+	terminal.ClearLine(1)
+	success := color.BrightGreen("Successfully").Italic().String()
+	f.Clean().Success(success + " bookmark created").Render()
 
 	return nil
 }
 
-// handleURL retrieves a URL from args or prompts the user for input.
-func handleURL(r *repo.SQLiteRepository, args *[]string) string {
-	prompt := color.BrightMagenta("+ URL\t:").Bold().String()
+// addHandleConfirmation confirms if the user wants to save the bookmark.
+func addHandleConfirmation(b *Bookmark) error {
+	fmt.Println()
+	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	save := color.BrightGreen("save").String()
+	s := f.Success(save).String() + " bookmark?"
+	opt := terminal.ConfirmWithChoices(s, []string{"yes", "no", "edit"}, "y")
+	opt = strings.ToLower(opt)
+
+	switch opt {
+	case "n", "no":
+		return fmt.Errorf("%w", ErrActionAborted)
+	case "e", "edit":
+		if err := bookmarkEdition(b); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	return nil
+}
+
+// addHandleURL retrieves a URL from args or prompts the user for input.
+func addHandleURL(r *repo.SQLiteRepository, args *[]string) string {
+	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f.Header(color.BrightMagenta("URL\t:").String())
 
 	// Checks if URL is provided
 	if len(*args) > 0 {
 		url := strings.TrimRight((*args)[0], "\n")
-		fmt.Println(prompt, color.Gray(url))
+		f.Text(" " + color.Gray(url).String()).Ln().Render()
 		*args = (*args)[1:]
 
 		return url
 	}
 
 	// Checks clipboard
-	c := parseClipboard(prompt)
+	c := addHandleClipboard()
 	if c != "" {
 		return c
 	}
 
-	fmt.Println(prompt)
+	f.Ln().Render()
 	url := terminal.Input(">>> ", func(err error) {
 		r.Close()
 		logErrAndExit(err)
 	})
 
-	terminal.ReplaceLine(2, prompt+" "+color.Gray(url).String())
+	f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
+		Text(" " + color.Gray(url).String()).Ln()
+
+	terminal.ClearLine(format.CountLines(f.String()))
+	f.Render()
 
 	return url
 }
 
-// handleTags retrieves the Tags from args or prompts the user for input.
-func handleTags(r *repo.SQLiteRepository, args *[]string) string {
-	prompt := color.BrightBlue("+ Tags\t:").Bold().String()
+// addHandleTags retrieves the Tags from args or prompts the user for input.
+func addHandleTags(r *repo.SQLiteRepository, args *[]string) string {
+	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f.Header(color.BrightBlue("Tags\t:").String())
 
-	// This checks if tags are provided and returns them
+	// this checks if tags are provided and returns them
 	if len(*args) > 0 {
-		tag := strings.TrimRight((*args)[0], "\n")
-		tag = strings.Join(strings.Fields(tag), ",")
-		fmt.Println(prompt, tag)
+		tags := strings.TrimRight((*args)[0], "\n")
+		tags = strings.Join(strings.Fields(tags), ",")
+		tags = bookmark.ParseTags(tags)
+
+		f.Text(" " + color.Gray(tags).String()).Ln().Render()
 
 		*args = (*args)[1:]
 
-		return tag
+		return tags
 	}
 
-	fmt.Println(prompt + color.Gray(" (spaces|comma separated)").Italic().String())
+	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Render()
 
 	mTags, _ := repo.TagsCounter(r)
 	quit := func(err error) {
@@ -125,35 +154,40 @@ func handleTags(r *repo.SQLiteRepository, args *[]string) string {
 	}
 
 	tags := terminal.InputTags(mTags, quit)
-	terminal.ReplaceLine(2, prompt+" "+color.Gray(tags).String())
+	tags = bookmark.ParseTags(tags)
+
+	f.Clean().Mid(color.BrightBlue("Tags\t:").String()).
+		Text(" " + color.Gray(tags).String()).Ln()
+
+	terminal.ClearLine(format.CountLines(f.String()))
+	f.Render()
 
 	return tags
 }
 
-// parseNewBookmark fetch metadata and parses the new bookmark.
-func parseNewBookmark(r *repo.SQLiteRepository, b *Bookmark, args []string) error {
+// addParseNewBookmark fetch metadata and parses the new bookmark.
+func addParseNewBookmark(r *repo.SQLiteRepository, b *Bookmark, args []string) error {
 	// retrieve url
-	url, err := parseURL(r, &args)
+	url, err := addParseURL(r, &args)
 	if err != nil {
 		return err
 	}
+
 	// retrieve tags
-	tags := handleTags(r, &args)
+	tags := addHandleTags(r, &args)
 	// fetch title and description
-	title, desc := fetchTitleAndDesc(url, terminal.MinWidth, true)
+	title, desc := addTitleAndDesc(url, true)
 
 	b.URL = url
 	b.Title = title
 	b.Tags = bookmark.ParseTags(tags)
-	b.Desc = desc
+	b.Desc = strings.Join(format.Split(desc, terminal.MinWidth), "\n")
 
 	return nil
 }
 
-// fetchTitleAndDesc fetch and display title and description.
-func fetchTitleAndDesc(url string, minWidth int, verbose bool) (title, desc string) {
-	const _indentation = 10
-
+// addTitleAndDesc fetch and display title and description.
+func addTitleAndDesc(url string, verbose bool) (title, desc string) {
 	s := spinner.New(
 		spinner.WithMesg(color.Yellow("scraping webpage...").String()),
 		spinner.WithColor(color.BrightMagenta),
@@ -169,20 +203,23 @@ func fetchTitleAndDesc(url string, minWidth int, verbose bool) (title, desc stri
 	s.Stop()
 
 	if verbose {
-		var r strings.Builder
-		r.WriteString(color.BrightCyan("+ Title\t: ").Bold().String())
-		r.WriteString(color.Gray(format.SplitAndAlign(title, minWidth, _indentation)).String())
-		r.WriteString(color.Text("\n+ Desc\t: ").Bold().String())
-		r.WriteString(color.Gray(format.SplitAndAlign(desc, minWidth, _indentation)).String())
-		fmt.Println(r.String())
+		const indentation int = 10
+		f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+		width := terminal.MinWidth - len(f.Border.Row)
+		titleColor := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
+		descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
+
+		f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln().
+			Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln().
+			Render()
 	}
 
 	return title, desc
 }
 
-// parseURL parse URL from args.
-func parseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
-	url := handleURL(r, args)
+// addParseURL parse URL from args.
+func addParseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
+	url := addHandleURL(r, args)
 	if url == "" {
 		return url, bookmark.ErrURLEmpty
 	}
@@ -198,8 +235,8 @@ func parseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
 	return url, nil
 }
 
-// parseClipboard checks if there a valid URL in the clipboard.
-func parseClipboard(prompt string) string {
+// addHandleClipboard checks if there a valid URL in the clipboard.
+func addHandleClipboard() string {
 	c := sys.ReadClipboard()
 	if !validURL(c) {
 		return ""
@@ -210,18 +247,21 @@ func parseClipboard(prompt string) string {
 	f.Render()
 	lines := format.CountLines(f.String())
 
-	fmt.Println(prompt, color.Gray(c))
+	bURL := f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
+		Text(" " + color.Gray(c).String()).String()
 
-	f.Clean().Row().Ln().Mid("continue?").Render()
-	lines += format.CountLines(f.String())
-	opt := terminal.ConfirmWithChoices("", []string{"yes", "no"}, "y")
+	fmt.Print(bURL)
+
+	f.Clean().Ln().Row().Ln().Render().Clean()
+	lines += format.CountLines(f.Mid("continue?").String())
+	opt := terminal.ConfirmWithChoices(f.String(), []string{"yes", "no"}, "y")
 	switch opt {
 	case "n", "no":
 		terminal.ClearLine(lines)
 		return ""
 	default:
 		terminal.ClearLine(lines)
-		fmt.Println(prompt, color.Gray(c))
+		fmt.Println(bURL)
 		return c
 	}
 }
