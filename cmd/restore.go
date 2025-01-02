@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -16,9 +16,10 @@ var restoreCmd = &cobra.Command{
 	Use:   "restore",
 	Short: "restore deleted bookmarks",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
+		subCommandCalled = true
 		return verifyDatabase(Cfg)
 	},
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read from deleted table
 		Cfg.TableMain = Cfg.TableDeleted
 		r, err := repo.New(Cfg)
@@ -29,9 +30,8 @@ var restoreCmd = &cobra.Command{
 
 		terminal.ReadPipedInput(&args)
 
-		// FIX: respect DRY (check out root.go)
-		bs := slice.New[Bookmark]()
-		if err := handleRecords(r, bs, args); err != nil {
+		bs, err := handleDataSlice(r, args)
+		if err != nil {
 			return err
 		}
 		if bs.Empty() {
@@ -55,9 +55,14 @@ func init() {
 
 // handleRestore restores record/s from the deleted table.
 func restore(r *repo.SQLiteRepository, bs *Slice) error {
-	// TODO: remove restored records from deleted table.
+	c := color.BrightYellow
+	f := frame.New(frame.WithColorBorder(c), frame.WithNoNewLine())
+	header := c("Restoring Bookmarks").String()
+	f.Header(header).Ln().Ln().Render().Clean()
+
+	// TODO?: remove restored records from deleted table.
 	prompt := color.BrightYellow("restore").Bold().String()
-	if err := confirmAction(bs, prompt, color.BrightYellow); err != nil {
+	if err := confirmAction(bs, prompt, c); err != nil {
 		return err
 	}
 
@@ -70,8 +75,11 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	s.Stop()
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	fmt.Printf("%s bookmark/s restored\n", success)
+
+	terminal.ClearLine(1)
+	f = frame.New(frame.WithColorBorder(color.Gray))
+	success := color.BrightGreen("Successfully").Italic().String()
+	f.Success(success + " bookmark/s restored").Render()
 
 	return nil
 }

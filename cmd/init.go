@@ -62,8 +62,9 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		s := color.BrightGray(Cfg.Name).Italic().String()
-		fmt.Println("\nSuccessfully initialized database " + s + ".")
+		f := frame.New(frame.WithColorBorder(color.Gray))
+		s := color.Gray(Cfg.Name).Italic().String()
+		f.Row().Success("Successfully initialized database " + s).Render()
 
 		return nil
 	},
@@ -75,7 +76,7 @@ func init() {
 }
 
 func createPaths(path string) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Header(prettyVersion()).Ln()
 	f.Row().Ln()
 
@@ -85,15 +86,18 @@ func createPaths(path string) error {
 
 	f.Mid(format.PaddedLine("create path:", fmt.Sprintf("'%s'", path))).Ln()
 	f.Mid(format.PaddedLine("create db:", fmt.Sprintf("'%s'", Cfg.Fullpath()))).Ln()
-	f.Row().Ln().Footer("continue?").Render()
+	f.Render()
 
-	if !terminal.Confirm("", "y") {
+	lines := format.CountLines(f.String())
+
+	q := f.Clean().Row().Ln().Footer("continue?").String()
+	if !terminal.Confirm(q, "y") {
 		return terminal.ErrActionAborted
 	}
 
 	// clean terminal keeping header+row
-	headerN := 2
-	lines := format.CountLines(f.String()) - headerN
+	headerN := 3
+	lines += format.CountLines(f.String()) - headerN
 	terminal.ClearLine(lines)
 
 	if err := files.MkdirAll(path); err != nil {
@@ -101,8 +105,8 @@ func createPaths(path string) error {
 	}
 
 	f.Clean()
-	f.Mid(fmt.Sprintf("Successfully created directory path '%s'.", path)).Ln()
-	f.Footer("Successfully created initial bookmark.").Ln()
+	f.Success(fmt.Sprintf("Successfully created directory path '%s'.", path)).Ln()
+	f.Success("Successfully created initial bookmark.").Ln()
 	f.Row().Ln()
 	f.Render()
 

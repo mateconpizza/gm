@@ -52,6 +52,8 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
+		defer r.Close()
+
 		terminal.ReadPipedInput(&args)
 
 		bs, err := handleDataSlice(r, args)
