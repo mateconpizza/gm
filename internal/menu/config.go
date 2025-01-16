@@ -10,6 +10,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/sys/files"
 )
 
@@ -34,6 +35,7 @@ type FZFKeymaps struct {
 	Open      Keymap `yaml:"open"`
 	Preview   Keymap `yaml:"preview"`
 	QR        Keymap `yaml:"qr"`
+	OpenQR    Keymap `yaml:"open_qr"`
 	ToggleAll Keymap `yaml:"toggle_all"`
 	Yank      Keymap `yaml:"yank"`
 }
@@ -46,11 +48,11 @@ type Config struct {
 }
 
 var defaultKeymaps = FZFKeymaps{
-	// TODO: Maybe move this to setup.go?
 	Edit:      Keymap{Bind: "ctrl-e", Description: "edit", Enabled: true, Hidden: false},
 	Open:      Keymap{Bind: "ctrl-o", Description: "open", Enabled: true, Hidden: false},
 	Preview:   Keymap{Bind: "ctrl-/", Description: "toggle-preview", Enabled: true, Hidden: false},
 	QR:        Keymap{Bind: "ctrl-k", Description: "QRcode", Enabled: true, Hidden: false},
+	OpenQR:    Keymap{Bind: "ctrl-l", Description: "openQR", Enabled: true, Hidden: false},
 	ToggleAll: Keymap{Bind: "ctrl-a", Description: "toggle-all", Enabled: true, Hidden: false},
 	Yank:      Keymap{Bind: "ctrl-y", Description: "yank", Enabled: true, Hidden: false},
 }
@@ -66,7 +68,8 @@ func DumpConfig(force bool) error {
 	p := filepath.Join(config.App.Path.Data, keymapsConfigFile)
 
 	if files.Exists(p) && !force {
-		return fmt.Errorf("%s %w. use --force to overwrite", p, ErrConfigFileExists)
+		f := color.BrightYellow("--force").Italic().String()
+		return fmt.Errorf("%s %w. use '%s' to overwrite", p, ErrConfigFileExists, f)
 	}
 
 	f, err := files.Touch(p, force)

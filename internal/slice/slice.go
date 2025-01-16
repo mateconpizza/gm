@@ -2,6 +2,7 @@ package slice
 
 import (
 	"errors"
+	"sort"
 
 	"golang.org/x/exp/slices"
 )
@@ -96,12 +97,12 @@ func (s *Slice[T]) Len() int {
 }
 
 // Append adds a single item to the items.
-func (s *Slice[T]) Append(ele *T) {
-	if slices.Contains(*s.items, *ele) {
-		return
+func (s *Slice[T]) Append(elements ...*T) {
+	for _, ele := range elements {
+		if ele != nil && !slices.Contains(*s.items, *ele) {
+			*s.items = append(*s.items, *ele)
+		}
 	}
-
-	*s.items = append(*s.items, *ele)
 }
 
 // Set sets the items.
@@ -156,6 +157,13 @@ func (s *Slice[T]) Empty() bool {
 // From creates a new slice from the given items.
 func From[T comparable](items []T) *Slice[T] {
 	return &Slice[T]{items: &items}
+}
+
+// Sort sorts the items in the slice based on the provided less function.
+func (s *Slice[T]) Sort(less func(a, b T) bool) {
+	sort.Slice(*s.items, func(i, j int) bool {
+		return less((*s.items)[i], (*s.items)[j])
+	})
 }
 
 // New creates a new slice of bookmarks.

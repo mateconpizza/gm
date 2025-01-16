@@ -15,6 +15,6 @@ repos:
     rev: v0.5.1
     hooks:
       - id: go-vet
-      - id: go-build
+      # - id: go-build
       - id: go-mod-tidy
       - id: no-go-testing

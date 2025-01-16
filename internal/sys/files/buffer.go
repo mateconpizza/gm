@@ -7,13 +7,17 @@ import (
 	"os"
 	"strings"
 
-	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/sys"
 )
 
 var (
 	ErrCommandNotFound    = errors.New("command not found")
 	ErrTextEditorNotFound = errors.New("text editor not found")
+)
+
+const (
+	dirPerm  = 0o755 // Permissions for new directories.
+	filePerm = 0o644 // Permissions for new files.
 )
 
 // Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
@@ -88,7 +92,7 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 
 // SaveBytesToFile Writes the provided data to a temporary file.
 func SaveBytesToFile(f *os.File, d []byte) error {
-	err := os.WriteFile(f.Name(), d, config.Permissions.File)
+	err := os.WriteFile(f.Name(), d, filePerm)
 	if err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
 	}

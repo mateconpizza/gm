@@ -9,6 +9,7 @@ import (
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -29,7 +30,6 @@ var (
 	JSON      bool
 	Oneline   bool
 	Multiline bool
-	Frame     bool // FIX: Remove
 	WithColor string
 
 	Force   bool
@@ -39,9 +39,12 @@ var (
 
 func initConfig() {
 	// Set logging level
-	setLoggingLevel(&Verbose)
+	handler.LoggingLevel(&Verbose)
 
-	// Set color eanble
+	// Set force
+	handler.Force(&Force)
+
+	// Enable color
 	config.App.Color = WithColor != "never" && !terminal.IsPiped()
 
 	// Set terminal defaults
@@ -54,7 +57,7 @@ func initConfig() {
 	// Load data home path for the app.
 	dataHomePath, err := loadDataPath()
 	if err != nil {
-		logErrAndExit(err)
+		handler.ErrAndExit(err)
 	}
 	config.App.Path.Data = dataHomePath                            // Home
 	config.App.Path.Backup = filepath.Join(dataHomePath, "backup") // Backups

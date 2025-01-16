@@ -146,7 +146,7 @@ func importLoadBrowser(k string) (browser.Browser, error) {
 func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
 	ogLen := bs.Len()
 	bs.Filter(func(b Bookmark) bool {
-		return !r.HasRecord(r.Cfg.TableMain, "url", b.URL)
+		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
 	})
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
@@ -192,7 +192,7 @@ func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	insert := func(b Bookmark) error {
-		_, err := r.Insert(r.Cfg.TableMain, &b)
+		err := r.InsertInto(r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, &b)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

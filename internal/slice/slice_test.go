@@ -200,7 +200,7 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestAdd(t *testing.T) {
+func TestAppendLoop(t *testing.T) {
 	testAddStr := []struct {
 		name     string
 		input    []string

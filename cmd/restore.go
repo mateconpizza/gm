@@ -7,6 +7,7 @@ import (
 
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
@@ -16,12 +17,12 @@ var restoreCmd = &cobra.Command{
 	Use:   "restore",
 	Short: "restore deleted bookmarks",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		subCommandCalled = true
+		handler.OnSubcommand()
 		return verifyDatabase(Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read from deleted table
-		Cfg.TableMain = Cfg.TableDeleted
+		Cfg.Tables.Main = Cfg.Tables.Deleted
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -30,7 +31,7 @@ var restoreCmd = &cobra.Command{
 
 		terminal.ReadPipedInput(&args)
 
-		bs, err := handleDataSlice(r, args)
+		bs, err := handleData(r, args)
 		if err != nil {
 			return err
 		}
@@ -62,15 +63,20 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 
 	// TODO?: remove restored records from deleted table.
 	prompt := color.BrightYellow("restore").Bold().String()
-	if err := confirmAction(bs, prompt, c); err != nil {
-		return err
+	if err := handler.Confirmation(bs, prompt, c); err != nil {
+		return fmt.Errorf("restore confirmation: %w", err)
 	}
 
 	mesg := color.Yellow("restoring record/s...").String()
 	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()
 
-	if err := r.Restore(bs); err != nil {
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("%w: begin starts a transaction", err)
+	}
+
+	if err := r.Restore(tx, bs); err != nil {
 		return fmt.Errorf("%w: restoring bookmark", err)
 	}
 

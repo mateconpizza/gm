@@ -1,15 +1,22 @@
 package menu
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/junegunn/go-shellwords"
+	shellwords "github.com/junegunn/go-shellwords"
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
+)
+
+var (
+	ErrFzfNoMatching          = errors.New("fzf: no matching record: code 1")
+	ErrFzf                    = errors.New("fzf: error: code 2")
+	ErrFzfPermissionDenied    = errors.New("fzf: permission denied from become action: code 127")
+	ErrFzfInvalidShellCommand = errors.New("fzf: invalid shell command for become action: code 126")
 )
 
 // appendToHeader appends a key:desc string to the header slice.
@@ -97,10 +104,28 @@ func withCommand(s string) string {
 	return fmt.Sprintf(s, config.App.Cmd)
 }
 
-// exitWithErrCode exits with an error code.
-func exitWithErrCode(code int, err error) {
-	if err != nil {
-		fmt.Fprintln(os.Stderr, fmt.Errorf("fzf: %w", err))
+// handleFzfErr returns an error based on the exit code of fzf.
+func handleFzfErr(retcode int) error {
+	/*
+	 * 0      Normal exit
+	 * 1      No match
+	 * 2      Error
+	 * 126    Permission denied error from become action
+	 * 127    Invalid shell command for become action
+	 * 130    Interrupted with CTRL-C or ESC
+	 */
+	switch retcode {
+	case 1:
+		return ErrFzfNoMatching
+	case 2:
+		return ErrFzf
+	case 126:
+		return ErrFzfInvalidShellCommand
+	case 127:
+		return ErrFzfPermissionDenied
+	case 130:
+		return ErrFzfActionAborted
 	}
-	os.Exit(code)
+
+	return nil
 }
