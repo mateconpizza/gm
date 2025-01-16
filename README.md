@@ -23,7 +23,7 @@
 - [x] Fetch `title` and `description` from added URL
 - [x] Check bookmark `status` _(http status)_
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
-- [x] Configurare `keybinds` in `menu` mode with `yaml` file.
+- [x] Configure `keybinds` in `menu` mode with `yaml` file.
 - [ ] Migrate items from one database to another
 - [ ] Encrypt database <sub><span style="color:red">_priority_</span></sub>
 - [ ] Add `docker|podman` support <sub><span style="color:red">_priority_</span></sub>
@@ -95,7 +95,7 @@ Use "gm [command] --help" for more information about a command.
 | -------------------- | ---- | ---------------------------------------- | ----------------------------------------- |
 | `GOMARKS_HOME`       | str  | Path to database/yaml                    | <span style="color:green">**done**</span> |
 | `GOMARKS_EDITOR`     | str  | Preferred text editor                    | <span style="color:green">**done**</span> |
-| `GOMARKS_BACKUP_MAX` | int  | Maximum number of backups _(def: __3__)_ | <span style="color:green">**done**</span> |
+| `GOMARKS_BACKUP_MAX` | int  | Maximum number of backups _(def: **3**)_ | <span style="color:green">**done**</span> |
 | `NO_COLOR`           | int  | Disable all colors                       | <span style="color:green">**done**</span> |
 
 <details>

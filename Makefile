@@ -3,11 +3,12 @@
 
 PROJECT_NAME	:= gomarks
 BINARY_NAME 	:= gm
-BIN_DIR				:= $(CURDIR)/bin
-BIN_PATH			:= $(BIN_DIR)/$(BINARY_NAME)
-MAIN_SRC			:= $(CURDIR)/main.go
-INSTALL_DIR		:= /usr/local/bin
-LDFLAGS				:= -s -w
+BIN_DIR		:= $(CURDIR)/bin
+BIN_PATH	:= $(BIN_DIR)/$(BINARY_NAME)
+MAIN_SRC	:= $(CURDIR)/main.go
+INSTALL_DIR	:= /usr/local/bin
+LDFLAGS		:= -s -w
+FN		?= .
 
 full: build
 
@@ -35,6 +36,12 @@ test:
 vtest:
 	@echo '>> Testing $(BINARY_NAME) (verbose)'
 	@go test -v ./...
+
+# Run tests for a specific function
+testfn:
+	@echo '>> Testing function $(FN)'
+	@go test -run $(FN) ./...
+
 
 # Lint code with 'golangci-lint'
 lint:
@@ -71,4 +78,4 @@ uninstall:
 	rm -rf $(INSTALL_DIR)/$(BINARY_NAME)
 	@echo '>> $(BINARY_NAME) has been removed from your device'
 
-.PHONY: all build debug test clean full check lint
+.PHONY: all build debug test clean full check lint testfn
