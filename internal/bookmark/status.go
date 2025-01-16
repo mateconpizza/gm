@@ -111,6 +111,9 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 	total := fmt.Sprintf(c("%-3d").Bold().String(), n)
 	code := c(statusCode).Bold().String()
 	statusText := color.Text(http.StatusText(statusCode)).Italic().String()
+	if statusText == "" {
+		statusText = color.Text("non-standard code").Italic().String()
+	}
 
 	return total + " urls returned '" + statusText + "' (" + code + ")"
 }
@@ -133,7 +136,10 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 		n := len(res)
 
 		switch statusCode {
-		case http.StatusNotFound:
+		case http.StatusNotFound,
+			http.StatusGone,
+			http.StatusInternalServerError,
+			http.StatusServiceUnavailable:
 			f.Mid(fmtSummary(n, statusCode, color.Red))
 		case http.StatusForbidden, http.StatusTooManyRequests:
 			f.Mid(fmtSummary(n, statusCode, color.Orange))

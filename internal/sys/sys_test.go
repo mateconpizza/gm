@@ -40,7 +40,7 @@ func TestEnv(t *testing.T) {
 
 		// unset env after obtaining value
 		if err := os.Unsetenv(tt.env); err != nil {
-			log.Printf("unseting env: %s", err.Error())
+			log.Printf("unsetting env: %s", err.Error())
 		}
 
 		if got != tt.value {

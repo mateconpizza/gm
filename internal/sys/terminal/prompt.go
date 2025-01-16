@@ -285,23 +285,6 @@ func getQueryFromPipe(r io.Reader) string {
 	return result.String()
 }
 
-// formatOpts formats each option in the slice as "[x]option" where x is the
-// first letter of the option.
-func formatOpts(opts []string) string {
-	// FIX: delete me
-	n := len(opts)
-	if n == 0 {
-		return ""
-	}
-
-	var s string
-	for _, option := range opts {
-		s += fmt.Sprintf("[%s]%s ", strings.ToLower(option[:1]), option[1:])
-	}
-
-	return s
-}
-
 // quitKeybind returns the quitKeybind for the completer.
 func quitKeybind(f func(err error)) prompt.KeyBind {
 	return prompt.KeyBind{

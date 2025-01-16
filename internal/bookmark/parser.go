@@ -25,11 +25,11 @@ func ParseTags(tags string) string {
 		return "notag"
 	}
 
-	splitted := strings.FieldsFunc(tags, func(r rune) bool {
+	split := strings.FieldsFunc(tags, func(r rune) bool {
 		return r == ',' || r == ' '
 	})
-	sort.Strings(splitted)
-	tags = strings.Join(format.Unique(splitted), ",")
+	sort.Strings(split)
+	tags = strings.Join(format.Unique(split), ",")
 	if strings.HasSuffix(tags, ",") {
 		return tags
 	}
