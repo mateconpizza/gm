@@ -151,8 +151,8 @@ func BufferAppend(s string, buf *[]byte) {
 	*buf = append([]byte(s), *buf...)
 }
 
-// BufferApendVersion inserts a header string at the beginning of a byte buffer.
-func BufferApendVersion(name, version string, buf *[]byte) {
+// BufferAppendVersion inserts a header string at the beginning of a byte buffer.
+func BufferAppendVersion(name, version string, buf *[]byte) {
 	BufferAppend(fmt.Sprintf("# %s: v%s\n", name, version), buf)
 }
 

@@ -21,7 +21,7 @@ var restoreCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read from deleted table
-		Cfg.TableMain = Cfg.TableDeleted
+		Cfg.Tables.Main = Cfg.Tables.Deleted
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -70,7 +70,12 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()
 
-	if err := r.Restore(bs); err != nil {
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("%w: begin starts a transaction", err)
+	}
+
+	if err := r.Restore(tx, bs); err != nil {
 		return fmt.Errorf("%w: restoring bookmark", err)
 	}
 

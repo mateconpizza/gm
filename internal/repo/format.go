@@ -15,12 +15,14 @@ import (
 func Summary(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	path := format.PaddedLine("path:", r.Cfg.Fullpath())
-	records := format.PaddedLine("records:", RecordCount(r, r.Cfg.TableMain))
-	deleted := format.PaddedLine("deleted:", RecordCount(r, r.Cfg.TableDeleted))
+	records := format.PaddedLine("records:", CountRecords(r, r.Cfg.Tables.Main))
+	deleted := format.PaddedLine("deleted:", CountRecords(r, r.Cfg.Tables.Deleted))
+	tags := format.PaddedLine("tags:", CountRecords(r, r.Cfg.Tables.Tags))
 
 	return f.Header(color.Yellow(r.Cfg.Name).Bold().Italic().String()).
 		Row(records).
 		Row(deleted).
+		Row(tags).
 		Row(path).String()
 }
 
@@ -32,8 +34,8 @@ func SummaryRecords(s string) string {
 	c.SetName(f)
 	r, _ := New(c)
 
-	main := fmt.Sprintf("(main: %d, ", RecordCount(r, r.Cfg.TableMain))
-	deleted := fmt.Sprintf("deleted: %d)", RecordCount(r, r.Cfg.TableDeleted))
+	main := fmt.Sprintf("(main: %d, ", CountRecords(r, r.Cfg.Tables.Main))
+	deleted := fmt.Sprintf("deleted: %d)", CountRecords(r, r.Cfg.Tables.Deleted))
 	records := color.Gray(main + deleted).Italic()
 	date := formatBackupDate(f)
 
@@ -50,8 +52,8 @@ func SummaryMultiline(s string) string {
 	sep := color.BrightGray("", format.MidBulletPoint, "").Bold().String()
 	name := color.BrightYellow(strings.Split(s, "_")[2]).Italic().String()
 
-	mainRecords := color.BrightPurple(RecordCount(r, r.Cfg.TableMain))
-	delRecords := color.BrightPurple(RecordCount(r, r.Cfg.TableDeleted))
+	mainRecords := color.BrightPurple(CountRecords(r, r.Cfg.Tables.Main))
+	delRecords := color.BrightPurple(CountRecords(r, r.Cfg.Tables.Deleted))
 	records := g("main: ").String() + mainRecords.String()
 	records += sep
 	records += g("deleted: ").String() + delRecords.String()

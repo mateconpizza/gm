@@ -1,13 +1,14 @@
 package config
 
-import "os"
-
-var Version string = "0.1.0" // Version of the application
+var Version string = "0.1.1" // Version of the application
 
 const (
-	AppName string = "gomarks" // Default name of the application
-	Command string = "gm"      // Default name of the executable
+	AppName string = "gomarks"      // Default name of the application
+	Command string = "gm"           // Default name of the executable
+	DBName  string = "bookmarks.db" // Default name of the database
 )
+
+type Table string
 
 type (
 	app struct {
@@ -42,34 +43,19 @@ type (
 
 type database struct {
 	Name             string // Default name of the SQLite database.
-	MainTable        string // Name of the main bookmarks table.
-	DeletedTable     string // Name of the deleted bookmarks table.
-	DateFormat       string // Database date format
-	BackupDateFormat string // Database backup date format
-	MaxBytesSize     int64  // Maximum size in bytes of the SQLite database before vacuum.
+	Tables           tables // Names of the tables in the SQLite database.
 	BackupMaxBackups int    // Maximum number of backups allowed.
 }
 
-type permissions struct {
-	Dir  os.FileMode // Permissions for new directories.
-	File os.FileMode // Permissions for new files.
+type tables struct {
+	Main Table
 }
 
 // DB is the default database configuration.
 var DB = database{
 	Name:             "bookmarks.db",
-	MainTable:        "bookmarks",
-	DeletedTable:     "deleted_bookmarks",
-	DateFormat:       "2006-01-02 15:04:05",
-	BackupDateFormat: "2006-01-02_15-04",
-	MaxBytesSize:     1000000,
+	Tables:           tables{Main: "bookmarks"},
 	BackupMaxBackups: 3,
-}
-
-// Permissions is the default files permissions.
-var Permissions = permissions{
-	Dir:  0o755,
-	File: 0o644,
 }
 
 // App is the default application configuration.

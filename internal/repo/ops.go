@@ -4,76 +4,26 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/files"
 )
 
 const commonDBExts = ".sqlite3,.sqlite,.db"
 
-// RecordCount retrieves the maximum ID from the specified table in the
+// CountRecords retrieves the maximum ID from the specified table in the
 // SQLite database.
-func RecordCount(r *SQLiteRepository, t Table) int {
-	return r.maxID(t)
-}
-
-// Tags retrieves and returns a sorted slice of tags.
-func Tags(r *SQLiteRepository) ([]string, error) {
-	t, err := r.ByColumn(r.Cfg.TableMain, "tags")
+func CountRecords(r *SQLiteRepository, t Table) int {
+	var n int
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", t)
+	err := r.DB.QueryRow(query).Scan(&n)
 	if err != nil {
-		return nil, err
+		return 0
 	}
 
-	var tags []string
-	t.ForEach(func(t string) {
-		for _, tag := range strings.Split(t, ",") {
-			if tag = strings.TrimSpace(tag); tag != "" {
-				tags = append(tags, tag)
-			}
-		}
-	})
-
-	slices.Sort(tags)
-
-	return tags, nil
-}
-
-// TagsUnique retrieves and returns a sorted slice of unique tags.
-func TagsUnique(r *SQLiteRepository) ([]string, error) {
-	t, err := Tags(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return format.Unique(t), nil
-}
-
-// TagsCounter returns a map with tag as key and count as value.
-func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
-	t, err := Tags(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return format.Counter(t), nil
-}
-
-// ULRs retrieves and returns a sorted slice of unique urls.
-func URLs(r *SQLiteRepository) ([]string, error) {
-	urls, err := r.ByColumn(r.Cfg.TableMain, "url")
-	if err != nil {
-		return nil, err
-	}
-
-	u := urls.Items()
-	slices.Sort(*u)
-
-	return *u, nil
+	return n
 }
 
 // databasesFromPath returns the list of files from the given path.
@@ -159,8 +109,8 @@ func Backups(r *SQLiteRepository) (*slice.Slice[string], error) {
 }
 
 // AddPrefixDate adds the current date and time to the specified name.
-func AddPrefixDate(s string) string {
-	now := time.Now().Format(config.DB.BackupDateFormat)
+func AddPrefixDate(s, f string) string {
+	now := time.Now().Format(f)
 	return fmt.Sprintf("%s_%s", now, s)
 }
 

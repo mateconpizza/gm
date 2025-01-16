@@ -50,7 +50,7 @@ func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 	}
 
 	r := newSQLiteRepository(db, c)
-	if err := r.maintenance(c); err != nil {
+	if err := r.maintenance(); err != nil {
 		return nil, err
 	}
 

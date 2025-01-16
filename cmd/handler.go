@@ -136,7 +136,7 @@ func handleByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 
 	query := strings.Join(args, "%")
-	if err := r.ByQuery(r.Cfg.TableMain, query, bs); err != nil {
+	if err := r.ByQuery(r.Cfg.Tables.Main, query, bs); err != nil {
 		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
 	}
 
@@ -161,7 +161,7 @@ func handleByTags(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	for _, tag := range Tags {
-		if err := r.ByTag(r.Cfg.TableMain, tag, bs); err != nil {
+		if err := r.ByTag(tag, bs); err != nil {
 			return fmt.Errorf("byTags :%w", err)
 		}
 	}
@@ -216,7 +216,7 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 		buf := bookmark.Buffer(&b)
 		tShort := format.Shorten(b.Title, terminal.MinWidth-10)
 		format.BufferAppend(fmt.Sprintf(header, i+1, n, b.ID, tShort), &buf)
-		format.BufferApendVersion(config.App.Name, config.App.Version, &buf)
+		format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
 		bufCopy := make([]byte, len(buf))
 		copy(bufCopy, buf)
 
@@ -228,7 +228,7 @@ func handleEdition(r *repo.SQLiteRepository, bs *Slice) error {
 			return fmt.Errorf("%w", err)
 		}
 
-		if _, err := r.Update(r.Cfg.TableMain, &b); err != nil {
+		if _, err := r.Update(r.Cfg.Tables.Main, &b); err != nil {
 			return fmt.Errorf("handle edition: %w", err)
 		}
 
@@ -334,7 +334,7 @@ func handleIDsFromArgs(r *repo.SQLiteRepository, bs *Slice, args []string) error
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.ByIDList(r.Cfg.TableMain, ids, bs); err != nil {
+	if err := r.ByIDList(r.Cfg.Tables.Main, ids, bs); err != nil {
 		return fmt.Errorf("records from args: %w", err)
 	}
 

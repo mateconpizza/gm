@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/haaag/gm/internal/config"
 )
 
 var (
@@ -55,7 +53,7 @@ func mkdir(s string) error {
 	}
 
 	log.Printf("creating path: '%s'", s)
-	if err := os.MkdirAll(s, config.Permissions.Dir); err != nil {
+	if err := os.MkdirAll(s, dirPerm); err != nil {
 		return fmt.Errorf("creating %s: %w", s, err)
 	}
 

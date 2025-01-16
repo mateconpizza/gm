@@ -18,11 +18,11 @@ var dbDrop, dbInfo, dbList bool
 
 // dbDropHandler clears the database.
 func dbDropHandler(r *repo.SQLiteRepository) error {
-	if !r.IsDatabaseInitialized(r.Cfg.TableMain) {
+	if !r.IsDatabaseInitialized(r.Cfg.Tables.Main) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 	}
 
-	if r.IsEmpty(r.Cfg.TableMain, r.Cfg.TableDeleted) {
+	if r.IsEmpty(r.Cfg.Tables.Main, r.Cfg.Tables.Deleted) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.Name)
 	}
 

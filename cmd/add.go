@@ -53,14 +53,16 @@ func add(r *repo.SQLiteRepository, args []string) error {
 		return err
 	}
 
-	if err := addHandleConfirmation(b); err != nil {
-		if !errors.Is(err, bookmark.ErrBufferUnchanged) {
-			return fmt.Errorf("%w", err)
+	if !Force {
+		if err := addHandleConfirmation(b); err != nil {
+			if !errors.Is(err, bookmark.ErrBufferUnchanged) {
+				return fmt.Errorf("%w", err)
+			}
 		}
 	}
 
 	// insert new bookmark
-	if _, err := r.Insert(r.Cfg.TableMain, b); err != nil {
+	if err := r.InsertInto(r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -227,8 +229,8 @@ func addParseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
 	// WARN: do we need this trim? why?
 	url = strings.TrimRight(url, "/")
 
-	if r.HasRecord(r.Cfg.TableMain, "url", url) {
-		item, _ := r.ByURL(r.Cfg.TableMain, url)
+	if r.HasRecord(r.Cfg.Tables.Main, "url", url) {
+		item, _ := r.ByURL(r.Cfg.Tables.Main, url)
 		return "", fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
 	}
 

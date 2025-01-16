@@ -81,7 +81,7 @@ func backupCreate(r *repo.SQLiteRepository) error {
 	}
 
 	srcName := filepath.Base(srcPath)
-	destName := repo.AddPrefixDate(srcName)
+	destName := repo.AddPrefixDate(srcName, r.Cfg.Backup.DateFormat)
 	if err := repo.CreateBackup(srcPath, destName, Force); err != nil {
 		return fmt.Errorf("%w", err)
 	}

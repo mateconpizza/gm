@@ -78,7 +78,7 @@ func setLoggingLevel(verboseFlag *bool) {
 // text editor.
 func filterSlice(bs *Slice) error {
 	buf := bookmark.BufferSlice(bs)
-	format.BufferApendVersion(config.App.Name, config.App.Version, &buf)
+	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
 
 	editor, err := files.Editor(config.App.Env.Editor)
 	if err != nil {
@@ -203,7 +203,7 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()
 
-	if err := r.DeleteAndReorder(bs, r.Cfg.TableMain, r.Cfg.TableDeleted); err != nil {
+	if err := r.DeleteAndReorder(bs, r.Cfg.Tables.Main, r.Cfg.Tables.Deleted); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 

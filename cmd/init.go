@@ -52,7 +52,7 @@ var initCmd = &cobra.Command{
 
 		// print new record
 		bs := slice.New[Bookmark]()
-		if err := r.Records(Cfg.TableMain, bs); err != nil {
+		if err := r.Records(Cfg.Tables.Main, bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
 
@@ -115,7 +115,7 @@ func createPaths(path string) error {
 
 // initDB creates a new database and populates it with the initial bookmark.
 func initDB(r *repo.SQLiteRepository) error {
-	if r.IsDatabaseInitialized(r.Cfg.TableMain) && !Force {
+	if r.IsDatabaseInitialized(r.Cfg.Tables.Main) && !Force {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyInitialized, DBName)
 	}
 
@@ -130,7 +130,7 @@ func initDB(r *repo.SQLiteRepository) error {
 	ib.Tags = bookmark.ParseTags(config.App.Info.Tags)
 	ib.Desc = config.App.Info.Desc
 
-	if _, err := r.Insert(r.Cfg.TableMain, ib); err != nil {
+	if err := r.InsertInto(r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
