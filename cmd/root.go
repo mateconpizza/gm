@@ -7,6 +7,7 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/terminal"
@@ -17,24 +18,38 @@ type (
 	Slice    = slice.Slice[Bookmark]
 )
 
-// TODO:
-// - [x] Extract `restore|deleted` logic to subcommand `restore`.
-// - [x] Extract `init` logic to subcommand `init`.
-
 var (
 	// SQLiteCfg holds the configuration for the database and backups.
 	Cfg *repo.SQLiteConfig
 
 	// Main database name.
 	DBName string
-
-	// FIX: Find a better way to handle exit.
-	Exit bool
-
-	// subCommandCalled is used to check if the subcommand was called, to modify
-	// some aspects of the program flow, and menu options.
-	subCommandCalled bool
 )
+
+// handleData processes records based on user input and filtering criteria.
+func handleData(r *repo.SQLiteRepository, args []string) (*Slice, error) {
+	bs := slice.New[Bookmark]()
+	if err := handler.Records(r, bs, args); err != nil {
+		return nil, fmt.Errorf("getting records: %w", err)
+	}
+
+	switch {
+	case len(Tags) > 0:
+		if err := handler.ByTags(r, Tags, bs); err != nil {
+			return nil, fmt.Errorf("records from tags: %w", err)
+		}
+	case Head > 0 || Tail > 0:
+		if err := handler.ByHeadAndTail(bs, Head, Tail); err != nil {
+			return nil, fmt.Errorf("records from head and tail: %w", err)
+		}
+	case Menu:
+		if err := handler.Menu(bs, Multiline); err != nil {
+			return nil, fmt.Errorf("records from menu: %w", err)
+		}
+	}
+
+	return bs, nil
+}
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
@@ -46,90 +61,51 @@ var rootCmd = &cobra.Command{
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return verifyDatabase(Cfg)
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-
 		defer r.Close()
 
 		terminal.ReadPipedInput(&args)
-
-		bs, err := handleDataSlice(r, args)
+		bs, err := handleData(r, args)
 		if err != nil {
 			return err
 		}
-		if err := handleAction(r, bs); err != nil {
-			return err
-		}
-		if err := handleCheckStatus(bs); err != nil {
-			return err
+
+		// actions
+		switch {
+		case Status:
+			return handler.CheckStatus(bs)
+		case Remove:
+			return handler.Remove(r, bs)
+		case Edit:
+			return handler.Edition(r, bs)
+		case Copy:
+			return handler.Copy(bs)
+		case Open && !QR:
+			return handler.Open(bs)
 		}
 
-		return handleOutput(bs)
+		// display
+		switch {
+		case JSON:
+			return handler.JSON(bs)
+		case Oneline:
+			return handler.Oneline(bs)
+		case Field != "":
+			return handler.ByField(bs, Field)
+		case QR:
+			return handler.QR(bs, Open)
+		default:
+			return handler.Print(bs)
+		}
 	},
-}
-
-// handleRecords retrieve records.
-func handleRecords(r *repo.SQLiteRepository, bs *Slice, args []string) error {
-	if err := handleIDsFromArgs(r, bs, args); err != nil {
-		return err
-	}
-	if err := handleByQuery(r, bs, args); err != nil {
-		return err
-	}
-	if err := handleByTags(r, bs); err != nil {
-		return err
-	}
-
-	if bs.Empty() && len(args) == 0 {
-		// get all records
-		if err := r.Records(r.Cfg.Tables.Main, bs); err != nil {
-			return fmt.Errorf("getting records: %w", err)
-		}
-
-		Frame = true
-	}
-	if err := handleHeadAndTail(bs); err != nil {
-		return err
-	}
-
-	return handleMenu(bs)
-}
-
-func handleAction(r *repo.SQLiteRepository, bs *Slice) error {
-	if err := handleRemove(r, bs); err != nil {
-		return err
-	}
-
-	defer r.Close()
-
-	return handleEdition(r, bs)
-}
-
-func handleOutput(bs *Slice) error {
-	if err := handleJSONFormat(bs); err != nil {
-		return err
-	}
-	if err := handleOneline(bs); err != nil {
-		return err
-	}
-	if err := handleByField(bs); err != nil {
-		return err
-	}
-	if err := handleQR(bs); err != nil {
-		return err
-	}
-	if err := handleCopyOpen(bs); err != nil {
-		return err
-	}
-
-	return handlePrintOut(bs)
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		logErrAndExit(err)
+		handler.ErrAndExit(err)
 	}
 }

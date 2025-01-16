@@ -10,12 +10,11 @@ import (
 var addColor *bool
 
 var (
-	ErrFzfExitError   = errors.New("fzf: exit error")
-	ErrFzfInterrupted = errors.New("fzf: returned exit code 130")
-	ErrFzfNoMathching = errors.New("fzf: no matching record")
-	ErrFzfNoRecords   = errors.New("fzf: no records provided")
-	ErrFzfReturnCode  = errors.New("fzf: returned a non-zero code")
-	ErrActionAborted  = errors.New("fzf: action aborted")
+	ErrFzfExitError     = errors.New("fzf: exit error")
+	ErrFzfInterrupted   = errors.New("fzf: returned exit code 130")
+	ErrFzfNoRecords     = errors.New("fzf: no records provided")
+	ErrFzfReturnCode    = errors.New("fzf: returned a non-zero code")
+	ErrFzfActionAborted = errors.New("fzf: action aborted: code 130")
 )
 
 var fzfDefaults = []string{
@@ -27,7 +26,6 @@ var fzfDefaults = []string{
 	"--tac",               // Reverse the order of the input
 	"--layout=default",    // Choose the layout (default: default)
 	"--color=header:italic",
-	// "--no-bold",           // Do not use bold text
 }
 
 type OptFn func(*Options)
@@ -97,7 +95,7 @@ func WithKeybindOpen() OptFn {
 	}
 }
 
-// WithKeybindQR adds a keybinding to generate and open a QR code.
+// WithKeybindQR adds a keybinding to generate a QR code.
 func WithKeybindQR() OptFn {
 	qr := menuConfig.Keymaps.QR
 	if !qr.Enabled {
@@ -109,6 +107,22 @@ func WithKeybindQR() OptFn {
 			o.header = appendToHeader(o.header, qr.Bind, qr.Description)
 		}
 		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr {1})"))
+	}
+}
+
+// WithKeybindOpenQR adds a keybinding to generate and open a QR code in the
+// default image viewer.
+func WithKeybindOpenQR() OptFn {
+	qr := menuConfig.Keymaps.OpenQR
+	if !qr.Enabled {
+		return func(o *Options) {}
+	}
+
+	return func(o *Options) {
+		if !qr.Hidden {
+			o.header = appendToHeader(o.header, qr.Bind, qr.Description)
+		}
+		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr --open {1})"))
 	}
 }
 
@@ -278,12 +292,7 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 	// Run fzf
 	retcode, err := fzf.Run(options)
 	if retcode != 0 {
-		switch retcode {
-		case 130:
-			return nil, ErrActionAborted
-		default:
-			return nil, ErrFzfReturnCode
-		}
+		return nil, handleFzfErr(retcode)
 	}
 
 	close(outputChan)

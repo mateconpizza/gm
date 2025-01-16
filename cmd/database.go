@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -36,7 +37,7 @@ func dbDropHandler(r *repo.SQLiteRepository) error {
 	f.Clean().Row().Ln().Render().Clean()
 
 	if !terminal.Confirm(f.Footer("continue?").String(), "n") {
-		return ErrActionAborted
+		return handler.ErrActionAborted
 	}
 
 	if err := r.DropSecure(); err != nil {
@@ -63,7 +64,7 @@ func dbRemoveHandler(r *repo.SQLiteRepository) error {
 
 	f.Clean().Mid(fmt.Sprintf("remove %s?", color.Red(r.Cfg.Name)))
 	if !terminal.Confirm(f.String(), "n") {
-		return ErrActionAborted
+		return handler.ErrActionAborted
 	}
 
 	var n int
@@ -80,7 +81,7 @@ func dbRemoveHandler(r *repo.SQLiteRepository) error {
 		linesToClear++
 		f.Clean().Mid(fmt.Sprintf("remove %d %s?", n, color.Red("backup/s")))
 		if !terminal.Confirm(f.String(), "n") {
-			return ErrActionAborted
+			return handler.ErrActionAborted
 		}
 
 		if err := backups.ForEachErr(repo.Remove); err != nil {

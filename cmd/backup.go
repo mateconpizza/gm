@@ -10,6 +10,7 @@ import (
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
@@ -77,7 +78,7 @@ func backupCreate(r *repo.SQLiteRepository) error {
 	c := color.BrightGreen("backup").Bold().String()
 	f.Row().Ln().Render()
 	if !terminal.Confirm(f.Clean().Header("create "+c).String(), "y") {
-		return ErrActionAborted
+		return handler.ErrActionAborted
 	}
 
 	srcName := filepath.Base(srcPath)
@@ -127,7 +128,7 @@ func backupPurge(r *repo.SQLiteRepository) error {
 	q := f.Header(fmt.Sprintf("%s %d backup/s?", nPurgeStr, n)).String()
 
 	if !Force && !terminal.Confirm(q, "n") {
-		return ErrActionAborted
+		return handler.ErrActionAborted
 	}
 
 	if err := backups.ForEachErr(repo.Remove); err != nil {

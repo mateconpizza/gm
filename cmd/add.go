@@ -9,11 +9,14 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/scraper"
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -84,7 +87,7 @@ func addHandleConfirmation(b *Bookmark) error {
 
 	switch opt {
 	case "n", "no":
-		return fmt.Errorf("%w", ErrActionAborted)
+		return fmt.Errorf("%w", handler.ErrActionAborted)
 	case "e", "edit":
 		if err := bookmarkEdition(b); err != nil {
 			return fmt.Errorf("%w", err)
@@ -117,7 +120,7 @@ func addHandleURL(r *repo.SQLiteRepository, args *[]string) string {
 	f.Ln().Render()
 	url := terminal.Input(">>> ", func(err error) {
 		r.Close()
-		logErrAndExit(err)
+		handler.ErrAndExit(err)
 	})
 
 	f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
@@ -152,7 +155,7 @@ func addHandleTags(r *repo.SQLiteRepository, args *[]string) string {
 	mTags, _ := repo.TagsCounter(r)
 	quit := func(err error) {
 		r.Close()
-		logErrAndExit(err)
+		handler.ErrAndExit(err)
 	}
 
 	tags := terminal.InputTags(mTags, quit)
@@ -240,16 +243,17 @@ func addParseURL(r *repo.SQLiteRepository, args *[]string) (string, error) {
 // addHandleClipboard checks if there a valid URL in the clipboard.
 func addHandleClipboard() string {
 	c := sys.ReadClipboard()
-	if !validURL(c) {
+	if !handler.URLValid(c) {
 		return ""
 	}
 
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Mid(color.BrightCyan("found valid URL in clipboard").Italic().String()).Ln()
 	f.Render()
-	lines := format.CountLines(f.String())
+	lines := format.CountLines(f.String()) + 1
 
-	bURL := f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
+	bURL := f.Clean().
+		Mid(color.BrightMagenta("URL\t:").String()).
 		Text(" " + color.Gray(c).String()).String()
 
 	fmt.Print(bURL)
@@ -266,6 +270,20 @@ func addHandleClipboard() string {
 		fmt.Println(bURL)
 		return c
 	}
+}
+
+// bookmarkEdition edits a bookmark with a text editor.
+func bookmarkEdition(b *Bookmark) error {
+	te, err := files.Editor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := bookmark.Edit(te, bookmark.Buffer(b), b); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }
 
 func init() {

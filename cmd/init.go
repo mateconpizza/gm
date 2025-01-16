@@ -11,6 +11,7 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
@@ -58,8 +59,8 @@ var initCmd = &cobra.Command{
 
 		r.Close()
 
-		if err := handlePrintOut(bs); err != nil {
-			return err
+		if err := handler.Print(bs); err != nil {
+			return fmt.Errorf("initCmd printer: %w", err)
 		}
 
 		f := frame.New(frame.WithColorBorder(color.Gray))
@@ -101,7 +102,7 @@ func createPaths(path string) error {
 	terminal.ClearLine(lines)
 
 	if err := files.MkdirAll(path); err != nil {
-		logErrAndExit(err)
+		handler.ErrAndExit(err)
 	}
 
 	f.Clean()
