@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -30,21 +31,21 @@ var (
 func handleData(r *repo.SQLiteRepository, args []string) (*Slice, error) {
 	bs := slice.New[Bookmark]()
 	if err := handler.Records(r, bs, args); err != nil {
-		return nil, fmt.Errorf("getting records: %w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	switch {
 	case len(Tags) > 0:
 		if err := handler.ByTags(r, Tags, bs); err != nil {
-			return nil, fmt.Errorf("records from tags: %w", err)
+			return nil, fmt.Errorf("%w", err)
 		}
 	case Head > 0 || Tail > 0:
 		if err := handler.ByHeadAndTail(bs, Head, Tail); err != nil {
-			return nil, fmt.Errorf("records from head and tail: %w", err)
+			return nil, fmt.Errorf("%w", err)
 		}
 	case Menu:
 		if err := handler.Menu(bs, Multiline); err != nil {
-			return nil, fmt.Errorf("records from menu: %w", err)
+			return nil, fmt.Errorf("%w", err)
 		}
 	}
 
@@ -71,6 +72,10 @@ var rootCmd = &cobra.Command{
 		terminal.ReadPipedInput(&args)
 		bs, err := handleData(r, args)
 		if err != nil {
+			if errors.Is(err, handler.ErrActionAborted) {
+				return nil
+			}
+
 			return err
 		}
 

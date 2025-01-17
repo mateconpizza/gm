@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -33,8 +34,13 @@ var restoreCmd = &cobra.Command{
 
 		bs, err := handleData(r, args)
 		if err != nil {
+			if errors.Is(err, handler.ErrActionAborted) {
+				return nil
+			}
+
 			return err
 		}
+
 		if bs.Empty() {
 			return repo.ErrRecordNoMatch
 		}

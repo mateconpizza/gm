@@ -24,10 +24,6 @@ type (
 
 // Records gets records based on user input and filtering criteria.
 func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
-	if len(args) > 0 {
-		subCommandCalled = true
-	}
-
 	if err := ByIDs(r, bs, args); err != nil {
 		return fmt.Errorf("handler: %w", err)
 	}
