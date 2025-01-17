@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
@@ -34,8 +33,6 @@ func JSON(bs *Slice) error {
 
 	fmt.Println(string(format.ToJSON(bs.Items())))
 
-	os.Exit(0)
-
 	return nil
 }
 
@@ -44,8 +41,6 @@ func Oneline(bs *Slice) error {
 	bs.ForEach(func(b Bookmark) {
 		fmt.Print(bookmark.Oneline(&b, terminal.MaxWidth))
 	})
-
-	os.Exit(0)
 
 	return nil
 }
@@ -66,8 +61,6 @@ func ByField(bs *Slice, f string) error {
 	if err := bs.ForEachErr(printer); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
-	os.Exit(0)
 
 	return nil
 }

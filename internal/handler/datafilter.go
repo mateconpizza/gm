@@ -49,8 +49,6 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 		return true
 	})
 
-	os.Exit(0)
-
 	return nil
 }
 

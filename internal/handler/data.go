@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
@@ -137,8 +136,6 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice, force bool) error {
 	success := color.BrightGreen("Successfully").Italic().String()
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Success(success + " bookmark/s removed").Render()
-
-	os.Exit(0)
 
 	return nil
 }

@@ -34,16 +34,20 @@ func handleData(r *repo.SQLiteRepository, args []string) (*Slice, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	switch {
-	case len(Tags) > 0:
+	// filter by Tag
+	if len(Tags) > 0 {
 		if err := handler.ByTags(r, Tags, bs); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
-	case Head > 0 || Tail > 0:
+	}
+	// filter by head and tail
+	if Head > 0 || Tail > 0 {
 		if err := handler.ByHeadAndTail(bs, Head, Tail); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
-	case Menu:
+	}
+	// select with fzf-menu
+	if Menu {
 		if err := handler.Menu(bs, Multiline); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}

@@ -80,8 +80,6 @@ func QR(bs *Slice, open bool) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	os.Exit(0)
-
 	return nil
 }
 
@@ -91,8 +89,6 @@ func Copy(bs *Slice) error {
 	if err := sys.CopyClipboard(bs.Item(0).URL); err != nil {
 		return fmt.Errorf("copy error: %w", err)
 	}
-
-	os.Exit(0)
 
 	return nil
 }
@@ -142,7 +138,6 @@ func Open(bs *Slice) error {
 	}
 
 	sp.Stop()
-	os.Exit(0)
 
 	return nil
 }
@@ -167,8 +162,6 @@ func CheckStatus(bs *Slice) error {
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
-	os.Exit(0)
 
 	return nil
 }
