@@ -158,7 +158,7 @@ func TestGetTag(t *testing.T) {
 	}
 
 	// existing tag
-	tagID, err := r.GetTag(tx, ttags, "tag1")
+	tagID, err := r.getTag(tx, ttags, "tag1")
 	if err != nil {
 		t.Fatalf("GetTag returned an error for an existing tag: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestGetTag(t *testing.T) {
 	}
 
 	// non-existent tag
-	tagID, err = r.GetTag(tx, ttags, "nonexistent")
+	tagID, err = r.getTag(tx, ttags, "nonexistent")
 	if err != nil {
 		t.Fatalf("GetTag returned an error for a non-existent tag: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestCreateTag(t *testing.T) {
 	ttags := r.Cfg.Tables.Tags
 
 	// Test creating a new tag
-	tagID, err := r.CreateTag(tx, ttags, "newtag")
+	tagID, err := r.createTag(tx, ttags, "newtag")
 	if err != nil {
 		t.Fatalf("CreateTag returned an error: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestCreateTag(t *testing.T) {
 	}
 
 	// Test creating a duplicate tag (assuming unique constraint on name)
-	_, err = r.CreateTag(tx, ttags, "newtag")
+	_, err = r.createTag(tx, ttags, "newtag")
 	if err == nil {
 		t.Error("CreateTag did not return an error for a duplicate tag")
 	}

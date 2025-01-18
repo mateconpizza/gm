@@ -52,6 +52,33 @@ func (r *SQLiteRepository) InsertInto(tmain, trecords, ttags Table, b *Row) erro
 	return nil
 }
 
+// InsertAtID inserts a new record at the given ID.
+func (r *SQLiteRepository) InsertAtID(tx *sql.Tx, b *Row) error {
+	// FIX: some duplicated code
+	if err := bookmark.Validate(b); err != nil {
+		return fmt.Errorf("abort: %w", err)
+	}
+
+	if r.HasRecord(r.Cfg.Tables.Main, "id", b.ID) {
+		return ErrRecordDuplicate
+	}
+
+	query := fmt.Sprintf(`
+    INSERT OR IGNORE INTO %s
+    (id, url, title, desc) VALUES (?, ?, ?, ?)`, r.Cfg.Tables.Main)
+
+	_, err := tx.Exec(query, b.ID, b.URL, b.Title, b.Desc)
+	if err != nil {
+		return fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)
+	}
+
+	if err := r.associateTags(tx, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, b); err != nil {
+		return fmt.Errorf("InsertWithID: %w", err)
+	}
+
+	return nil
+}
+
 // insertRecord inserts a new record into the table.
 func insertRecord(tx *sql.Tx, t Table, b *Row) error {
 	query := fmt.Sprintf(`
@@ -117,6 +144,85 @@ func (r *SQLiteRepository) Update(t Table, b *Row) (*Row, error) {
 	log.Printf("Update: updated record %s (table: %s)\n", b.URL, t)
 
 	return b, nil
+}
+
+// UpdateURL updates the URL of an existing record.
+func (r *SQLiteRepository) UpdateURL(t Table, newB, oldB *Row) (*Row, error) {
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("Update: %w: begin starts a transaction", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			if errors.Is(err, sql.ErrTxDone) {
+				return
+			}
+			log.Printf("UpdateURL: %v: rollback", err)
+		}
+	}()
+
+	// first remove the old record
+	if err := r.Delete(t, oldB); err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	// then insert the new record
+	if err := r.InsertAtID(tx, newB); err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrCommit, err)
+	}
+
+	return newB, nil
+}
+
+// Delete deletes an single record in the given table.
+func (r *SQLiteRepository) Delete(t Table, b *Row) error {
+	log.Printf("deleting record: %s (table: %s)\n", b.URL, t)
+
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("Delete: %w: begin starts a transaction", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			if errors.Is(err, sql.ErrTxDone) {
+				return
+			}
+			log.Printf("Delete: %v: rollback", err)
+		}
+	}()
+
+	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id = ?", r.Cfg.Tables.Main)
+	stmt, err := tx.Prepare(sqlQuery)
+	if err != nil {
+		return fmt.Errorf("Delete: %w: prepared statement", err)
+	}
+
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Printf("Delete: error closing statement: %v", err)
+		}
+	}()
+
+	_, err = stmt.Exec(b.ID)
+	if err != nil {
+		return fmt.Errorf("Delete: %w: executing statement", err)
+	}
+
+	if err := r.deleteTags(tx, b.URL); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("Delete: %w: committing", err)
+	}
+
+	log.Printf("deleted record with ID %d from table: %s", b.ID, t)
+
+	return nil
 }
 
 // deleteAll deletes all records in the give table.

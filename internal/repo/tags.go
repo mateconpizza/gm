@@ -19,14 +19,14 @@ func (r *SQLiteRepository) GetOrCreateTag(tx *sql.Tx, ttags Table, s string) (in
 	}
 
 	// try to get the tag within the transaction
-	tagID, err := r.GetTag(tx, ttags, s)
+	tagID, err := r.getTag(tx, ttags, s)
 	if err != nil {
 		return 0, fmt.Errorf("GetOrCreateTag: error retrieving tag: %w", err)
 	}
 
 	// if the tag doesn't exist, create it within the transaction
 	if tagID == 0 {
-		tagID, err = r.CreateTag(tx, ttags, s)
+		tagID, err = r.createTag(tx, ttags, s)
 		if err != nil {
 			return 0, fmt.Errorf("GetOrCreateTag: error creating tag: %w", err)
 		}
@@ -48,8 +48,7 @@ func (r *SQLiteRepository) RemoveUnusedTags() error {
         DISTINCT tag_id
       FROM
         %s
-    )
-    `,
+    )`,
 		r.Cfg.Tables.Tags,
 		r.Cfg.Tables.RecordsTags,
 	)
@@ -110,7 +109,7 @@ func (r *SQLiteRepository) associateTags(tx *sql.Tx, trecords, ttags Table, b *R
 	tags := strings.Split(b.Tags, ",")
 	log.Printf("associating tags: %v with URL: %s\n", tags, b.URL)
 	for _, tag := range tags {
-		if tag == "" {
+		if tag == "" || tag == " " {
 			continue
 		}
 		tagID, err := r.GetOrCreateTag(tx, ttags, tag)
@@ -136,14 +135,12 @@ func (r *SQLiteRepository) associateTags(tx *sql.Tx, trecords, ttags Table, b *R
 // updateTags updates the tags associated with the given record.
 func (r *SQLiteRepository) updateTags(tx *sql.Tx, b *Row) error {
 	// delete all tags asossiated with the URL
-	q := fmt.Sprintf("DELETE FROM %s WHERE bookmark_url = ?", r.Cfg.Tables.RecordsTags)
-	_, err := r.DB.Exec(q, b.URL)
-	if err != nil {
+	if err := r.deleteTags(tx, b.URL); err != nil {
 		return fmt.Errorf("updateTags: failed to delete tags: %w", err)
 	}
 
 	// add the new tags
-	err = r.associateTags(tx, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, b)
+	err := r.associateTags(tx, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, b)
 	if err != nil {
 		return fmt.Errorf("updateTags: failed to associate tags: %w", err)
 	}
@@ -213,8 +210,8 @@ func (r *SQLiteRepository) populateTags(bs *Slice) error {
 	return nil
 }
 
-// GetTag returns the tag ID.
-func (r *SQLiteRepository) GetTag(tx *sql.Tx, ttags Table, tag string) (int64, error) {
+// getTag returns the tag ID.
+func (r *SQLiteRepository) getTag(tx *sql.Tx, ttags Table, tag string) (int64, error) {
 	var tagID int64
 	query := fmt.Sprintf(`SELECT id FROM %s WHERE name = ?`, ttags)
 	err := tx.QueryRow(query, tag).Scan(&tagID)
@@ -228,8 +225,8 @@ func (r *SQLiteRepository) GetTag(tx *sql.Tx, ttags Table, tag string) (int64, e
 	return tagID, nil
 }
 
-// CreateTag creates a new tag.
-func (r *SQLiteRepository) CreateTag(tx *sql.Tx, ttags Table, tag string) (int64, error) {
+// createTag creates a new tag.
+func (r *SQLiteRepository) createTag(tx *sql.Tx, ttags Table, tag string) (int64, error) {
 	query := fmt.Sprintf(`INSERT INTO %s (name) VALUES (?)`, ttags)
 	res, err := tx.Exec(query, tag)
 	if err != nil {
@@ -241,4 +238,16 @@ func (r *SQLiteRepository) CreateTag(tx *sql.Tx, ttags Table, tag string) (int64
 	}
 
 	return tagID, nil
+}
+
+// deleteTags deletes a tag.
+func (r *SQLiteRepository) deleteTags(tx *sql.Tx, bURL string) error {
+	log.Printf("deleting tags for URL: %s\n", bURL)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE bookmark_url = ?`, r.Cfg.Tables.RecordsTags)
+	_, err := tx.Exec(query, bURL)
+	if err != nil {
+		return fmt.Errorf("deleteTags: error deleting tag: %w", err)
+	}
+
+	return nil
 }

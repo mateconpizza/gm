@@ -17,6 +17,7 @@ var ErrInvalidOption = errors.New("invalid option")
 
 // ByTags returns a slice of bookmarks based on the provided tags.
 func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
+	// FIX: redo, simplify
 	// if the slice contains bookmarks, filter by tag.
 	if !bs.Empty() {
 		for _, tag := range tags {
@@ -61,7 +62,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 	q := strings.Join(args, "%")
 	if err := r.ByQuery(r.Cfg.Tables.Main, q, bs); err != nil {
-		return fmt.Errorf("ByQuery: %w: '%s'", err, strings.Join(args, " "))
+		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
 	}
 
 	return nil

@@ -24,11 +24,11 @@ type (
 // Records gets records based on user input and filtering criteria.
 func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	if err := ByIDs(r, bs, args); err != nil {
-		return fmt.Errorf("handler: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	if err := ByQuery(r, bs, args); err != nil {
-		return fmt.Errorf("records from query: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	if bs.Empty() && len(args) == 0 {
@@ -63,6 +63,8 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 
 	// edition edits the bookmark with a text editor.
 	edition := func(i int, b Bookmark) error {
+		tempB := b
+
 		// prepare header and buffer
 		buf := bookmark.Buffer(&b)
 		tShort := format.Shorten(b.Title, terminal.MinWidth-10)
@@ -79,8 +81,15 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 			return fmt.Errorf("%w", err)
 		}
 
-		if _, err := r.Update(r.Cfg.Tables.Main, &b); err != nil {
-			return fmt.Errorf("handle edition: %w", err)
+		// FIX: find a better way to update URL
+		if tempB.URL != b.URL {
+			if _, err := r.UpdateURL(r.Cfg.Tables.Main, &b, &tempB); err != nil {
+				return fmt.Errorf("updating URL: %w", err)
+			}
+		} else {
+			if _, err := r.Update(r.Cfg.Tables.Main, &b); err != nil {
+				return fmt.Errorf("handle edition: %w", err)
+			}
 		}
 
 		fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
