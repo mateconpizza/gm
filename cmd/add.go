@@ -152,7 +152,7 @@ func addHandleTags(r *repo.SQLiteRepository, args *[]string) string {
 
 	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Render()
 
-	mTags, _ := repo.TagsCounter(r)
+	mTags, _ := repo.CounterTags(r)
 	quit := func(err error) {
 		r.Close()
 		handler.ErrAndExit(err)

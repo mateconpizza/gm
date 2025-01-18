@@ -79,7 +79,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 
 	// Prints
-	rootCmd.Flags().BoolVar(&JSON, "json", false, "output in JSON format")
+	rootCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	rootCmd.PersistentFlags().
 		StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
 	rootCmd.Flags().

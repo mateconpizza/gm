@@ -136,7 +136,6 @@ func editFile(te *TextEditor, f *os.File) error {
 		return ErrCommandNotFound
 	}
 
-	log.Printf("editing file: '%s'", f.Name())
 	log.Printf("executing args: cmd='%s' args='%v'", te.cmd, te.args)
 	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
 		return fmt.Errorf("error running editor: %w", err)

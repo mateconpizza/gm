@@ -115,7 +115,7 @@ func TestTagsCounter(t *testing.T) {
 	}
 
 	// run tagscounter
-	tagCounts, err := TagsCounter(r)
+	tagCounts, err := CounterTags(r)
 	if err != nil {
 		t.Fatalf("TagsCounter returned an error: %v", err)
 	}

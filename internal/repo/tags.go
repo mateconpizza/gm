@@ -68,42 +68,6 @@ func (r *SQLiteRepository) RemoveUnusedTags() error {
 	return nil
 }
 
-// TagsCounter returns a map with tag as key and count as value.
-func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
-	query := `
-    SELECT t.name, COUNT(bt.tag_id) AS tag_count
-    FROM tags t
-    LEFT JOIN bookmark_tags bt ON t.id = bt.tag_id
-    GROUP BY t.id, t.name;`
-
-	rows, err := r.DB.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("error querying tags count: %w", err)
-	}
-
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("error closing rows on TagCounter: %v", err)
-		}
-	}()
-
-	tagCounts := make(map[string]int)
-	for rows.Next() {
-		var tagName string
-		var count int
-		if err := rows.Scan(&tagName, &count); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-		tagCounts[tagName] = count
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	return tagCounts, nil
-}
-
 // associateTags associates tags to the given record.
 func (r *SQLiteRepository) associateTags(tx *sql.Tx, trecords, ttags Table, b *Row) error {
 	tags := strings.Split(b.Tags, ",")
@@ -250,4 +214,40 @@ func (r *SQLiteRepository) deleteTags(tx *sql.Tx, bURL string) error {
 	}
 
 	return nil
+}
+
+// CounterTags returns a map with tag as key and count as value.
+func CounterTags(r *SQLiteRepository) (map[string]int, error) {
+	query := `
+    SELECT t.name, COUNT(bt.tag_id) AS tag_count
+    FROM tags t
+    LEFT JOIN bookmark_tags bt ON t.id = bt.tag_id
+    GROUP BY t.id, t.name;`
+
+	rows, err := r.DB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("error querying tags count: %w", err)
+	}
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("error closing rows on TagCounter: %v", err)
+		}
+	}()
+
+	tagCounts := make(map[string]int)
+	for rows.Next() {
+		var tagName string
+		var count int
+		if err := rows.Scan(&tagName, &count); err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		tagCounts[tagName] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return tagCounts, nil
 }
