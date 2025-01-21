@@ -1,10 +1,13 @@
 package repo
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 	"testing"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/haaag/gm/internal/slice"
 )
@@ -14,26 +17,22 @@ func setupTestDB(t *testing.T) *SQLiteRepository {
 
 	c := NewSQLiteCfg("")
 	db, err := MustOpenDatabase(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "Failed to open database")
 
 	r := newSQLiteRepository(db, c)
-	if err := r.Init(); err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, r.Init(), "Failed to initialize repository")
 
 	return r
 }
 
 // teardownthewall closes the database connection.
-func teardownthewall(db *sql.DB) {
+func teardownthewall(db *sqlx.DB) {
 	if err := db.Close(); err != nil {
 		log.Printf("Error closing rows: %v", err)
 	}
 }
 
-func getBookmark() *Row {
+func testSingleBookmark() *Row {
 	return &Row{
 		URL:       "https://www.example.com",
 		Title:     "Title",
@@ -43,11 +42,11 @@ func getBookmark() *Row {
 	}
 }
 
-func getValidBookmarks() *Slice {
+func testSliceBookmarks() *Slice {
 	s := slice.New[Row]()
 
 	for i := 0; i < 10; i++ {
-		b := getBookmark()
+		b := testSingleBookmark()
 		b.Title = fmt.Sprintf("Title %d", i)
 		b.URL = fmt.Sprintf("https://www.example%d.com", i)
 		b.Tags = fmt.Sprintf("test,tag%d,go", i)
@@ -58,55 +57,47 @@ func getValidBookmarks() *Slice {
 	return s
 }
 
+func TestInit(t *testing.T) {
+	c := NewSQLiteCfg("")
+	db, err := MustOpenDatabase(":memory:")
+	assert.NoError(t, err, "failed to open database")
+
+	r := newSQLiteRepository(db, c)
+	err = r.Init()
+	assert.NoError(t, err, "failed to initialize repository")
+	defer teardownthewall(r.DB)
+	tables := []Table{
+		r.Cfg.Tables.Main,
+		r.Cfg.Tables.Deleted,
+		r.Cfg.Tables.Tags,
+		r.Cfg.Tables.RecordsTags,
+		r.Cfg.Tables.RecordsTagsDeleted,
+	}
+
+	for _, table := range tables {
+		_, err := r.DB.Exec(fmt.Sprintf("SELECT * FROM %s", table))
+		assert.NoError(t, err, "failed to query table %s", table)
+	}
+}
+
 func TestDropTable(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 
 	tDrop := r.Cfg.Tables.Main
+	_ = r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+		err := r.tableDrop(tx, tDrop)
+		assert.NoError(t, err, "failed to drop table %s", tDrop)
 
-	err := r.TableDrop(tDrop)
-	if err != nil {
-		t.Errorf("Error dropping table: %v", err)
-	}
+		return nil
+	})
 
-	_, err = r.DB.Exec(fmt.Sprintf("SELECT * FROM %s", tDrop))
-	if err == nil {
-		t.Errorf("DBMainTable still exists after calling HandleDropDB: %v", err)
-	}
+	_, err := r.DB.Exec(fmt.Sprintf("SELECT * FROM %s", tDrop))
+	assert.Error(t, err, "main table still exists after calling HandleDropDB")
 
-	_, err = r.DB.Exec(fmt.Sprintf("SELECT * FROM %s", tDrop))
-	if err == nil {
-		t.Errorf("DBDeletedTable still exists after calling HandleDropDB")
-	}
-}
-
-func TestTableExists(t *testing.T) {
-	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
-
-	var tt Table = "test_table"
-	err := r.TableCreate(tt, tableMainSchema)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	exists, err := r.tableExists(tt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !exists {
-		t.Error("TableExists returned false for an existing table")
-	}
-
-	exists, err = r.tableExists("non_existent_table")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if exists {
-		t.Error("TableExists returned true for a non-existent table")
-	}
+	exists, err := r.tableExists(tDrop)
+	assert.NoError(t, err)
+	assert.False(t, exists, "tableExists returned true for a non-existent table")
 }
 
 func TestTableCreate(t *testing.T) {
@@ -114,17 +105,29 @@ func TestTableCreate(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	var newTable Table = "new_table"
-	if err := r.TableCreate(newTable, tableMainSchema); err != nil {
-		t.Errorf("Error creating table: %v", err)
-	}
-
+	assert.NoError(t, r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+		return r.tableCreate(tx, newTable, tableMainSchema)
+	}), "failed to create table %s", newTable)
 	exists, err := r.tableExists(newTable)
-	if !exists {
-		t.Errorf("Table %s does not exist", newTable)
-	}
-	if err != nil {
-		t.Errorf("Error checking if table exists: %v", err)
-	}
+	assert.NoError(t, err)
+	assert.True(t, exists, "tableExists returned false for a non-existent table")
+}
+
+func TestTableExists(t *testing.T) {
+	r := setupTestDB(t)
+	defer teardownthewall(r.DB)
+	var tt Table = "test_table"
+
+	assert.NoError(t, r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+		return r.tableCreate(tx, tt, tableMainSchema)
+	}), "failed to create table %s", tt)
+
+	exists, err := r.tableExists(tt)
+	assert.NoError(t, err)
+	assert.True(t, exists, "tableExists returned false for an existing table")
+	exists, err = r.tableExists("non_existent_table")
+	assert.NoError(t, err)
+	assert.False(t, exists, "tableExists returned false for a non-existent table")
 }
 
 func TestRenameTable(t *testing.T) {
@@ -134,7 +137,14 @@ func TestRenameTable(t *testing.T) {
 	srcTable := r.Cfg.Tables.Main
 	destTable := "new_" + srcTable
 
-	err := r.tableRename(srcTable, destTable)
+	err := r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+		err := r.tableRename(tx, srcTable, destTable)
+		if err != nil {
+			t.Errorf("Error renaming table: %v", err)
+		}
+
+		return nil
+	})
 	if err != nil {
 		t.Errorf("Error renaming table: %v", err)
 	}
@@ -156,4 +166,22 @@ func TestRenameTable(t *testing.T) {
 	if !destExists {
 		t.Errorf("Table %s does not exist", r.Cfg.Tables.Deleted)
 	}
+}
+
+func TestSize(t *testing.T) {
+	r := setupTestDB(t)
+	defer teardownthewall(r.DB)
+	_, err := r.DB.Exec(
+		`INSERT INTO bookmarks (id, url, title, desc) VALUES (1, 'http://example.com', 'Example', 'Description')`,
+	)
+	assert.NoError(t, err, "failed to insert test data")
+
+	dbSize, err := r.size()
+	assert.NoError(t, err, "failed to get DB size")
+	assert.GreaterOrEqual(
+		t,
+		dbSize,
+		int64(1000),
+		"expected database size to be less than 1000 bytes",
+	)
 }

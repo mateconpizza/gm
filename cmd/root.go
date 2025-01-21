@@ -64,7 +64,7 @@ var rootCmd = &cobra.Command{
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return verifyDatabase(Cfg)
+		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)

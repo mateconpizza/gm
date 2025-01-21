@@ -83,11 +83,11 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 
 		// FIX: find a better way to update URL
 		if tempB.URL != b.URL {
-			if _, err := r.UpdateURL(r.Cfg.Tables.Main, &b, &tempB); err != nil {
+			if _, err := r.UpdateURL(&b, &tempB); err != nil {
 				return fmt.Errorf("updating URL: %w", err)
 			}
 		} else {
-			if _, err := r.Update(r.Cfg.Tables.Main, &b); err != nil {
+			if _, err := r.Update(&b); err != nil {
 				return fmt.Errorf("handle edition: %w", err)
 			}
 		}

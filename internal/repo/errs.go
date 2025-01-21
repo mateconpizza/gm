@@ -15,6 +15,7 @@ var (
 	ErrDBResetSequence      = errors.New("resetting sqlite_sequence")
 	ErrDBsNotFound          = errors.New("no database/s found")
 	ErrSQLQuery             = errors.New("executing query")
+	ErrDBBeginTx            = errors.New("begin transaction")
 )
 
 var (

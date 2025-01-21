@@ -8,11 +8,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/haaag/gm/internal/slice"
 )
 
 // GetOrCreateTag returns the tag ID.
-func (r *SQLiteRepository) GetOrCreateTag(tx *sql.Tx, ttags Table, s string) (int64, error) {
+func (r *SQLiteRepository) GetOrCreateTag(tx *sqlx.Tx, ttags Table, s string) (int64, error) {
 	if s == "" {
 		// No tag to process
 		return 0, nil
@@ -69,23 +71,20 @@ func (r *SQLiteRepository) RemoveUnusedTags() error {
 }
 
 // associateTags associates tags to the given record.
-func (r *SQLiteRepository) associateTags(tx *sql.Tx, trecords, ttags Table, b *Row) error {
+func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, trecords Table, b *Row) error {
 	tags := strings.Split(b.Tags, ",")
 	log.Printf("associating tags: %v with URL: %s\n", tags, b.URL)
 	for _, tag := range tags {
 		if tag == "" || tag == " " {
 			continue
 		}
-		tagID, err := r.GetOrCreateTag(tx, ttags, tag)
+		tagID, err := r.GetOrCreateTag(tx, r.Cfg.Tables.Tags, tag)
 		if err != nil {
 			return err
 		}
 
 		log.Printf("processing tag: '%s' with id: %d\n", tag, tagID)
-		q := fmt.Sprintf(
-			`INSERT OR IGNORE INTO %s (bookmark_url, tag_id) VALUES (?, ?)`,
-			trecords,
-		)
+		q := fmt.Sprintf("INSERT OR IGNORE INTO %s (bookmark_url, tag_id) VALUES (?, ?)", trecords)
 
 		_, err = tx.Exec(q, b.URL, tagID)
 		if err != nil {
@@ -97,14 +96,14 @@ func (r *SQLiteRepository) associateTags(tx *sql.Tx, trecords, ttags Table, b *R
 }
 
 // updateTags updates the tags associated with the given record.
-func (r *SQLiteRepository) updateTags(tx *sql.Tx, b *Row) error {
+func (r *SQLiteRepository) updateTags(tx *sqlx.Tx, b *Row) error {
 	// delete all tags asossiated with the URL
-	if err := r.deleteTags(tx, b.URL); err != nil {
+	if err := deleteTags(tx, r.Cfg.Tables.RecordsTags, b.URL); err != nil {
 		return fmt.Errorf("updateTags: failed to delete tags: %w", err)
 	}
 
 	// add the new tags
-	err := r.associateTags(tx, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, b)
+	err := r.associateTags(tx, r.Cfg.Tables.RecordsTags, b)
 	if err != nil {
 		return fmt.Errorf("updateTags: failed to associate tags: %w", err)
 	}
@@ -175,7 +174,7 @@ func (r *SQLiteRepository) populateTags(bs *Slice) error {
 }
 
 // getTag returns the tag ID.
-func (r *SQLiteRepository) getTag(tx *sql.Tx, ttags Table, tag string) (int64, error) {
+func (r *SQLiteRepository) getTag(tx *sqlx.Tx, ttags Table, tag string) (int64, error) {
 	var tagID int64
 	query := fmt.Sprintf(`SELECT id FROM %s WHERE name = ?`, ttags)
 	err := tx.QueryRow(query, tag).Scan(&tagID)
@@ -190,7 +189,7 @@ func (r *SQLiteRepository) getTag(tx *sql.Tx, ttags Table, tag string) (int64, e
 }
 
 // createTag creates a new tag.
-func (r *SQLiteRepository) createTag(tx *sql.Tx, ttags Table, tag string) (int64, error) {
+func (r *SQLiteRepository) createTag(tx *sqlx.Tx, ttags Table, tag string) (int64, error) {
 	query := fmt.Sprintf(`INSERT INTO %s (name) VALUES (?)`, ttags)
 	res, err := tx.Exec(query, tag)
 	if err != nil {
@@ -205,12 +204,12 @@ func (r *SQLiteRepository) createTag(tx *sql.Tx, ttags Table, tag string) (int64
 }
 
 // deleteTags deletes a tag.
-func (r *SQLiteRepository) deleteTags(tx *sql.Tx, bURL string) error {
+func deleteTags(tx *sqlx.Tx, t Table, bURL string) error {
 	log.Printf("deleting tags for URL: %s\n", bURL)
-	query := fmt.Sprintf(`DELETE FROM %s WHERE bookmark_url = ?`, r.Cfg.Tables.RecordsTags)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE bookmark_url = ?`, t)
 	_, err := tx.Exec(query, bURL)
 	if err != nil {
-		return fmt.Errorf("deleteTags: error deleting tag: %w", err)
+		return fmt.Errorf("deleteTags: %w", err)
 	}
 
 	return nil

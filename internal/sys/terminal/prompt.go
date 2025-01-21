@@ -73,7 +73,7 @@ func InputWithFuzzySuggestions[T any](terms []T, exitFn func(error)) string {
 // Confirm prompts the user with a question and options.
 func Confirm(q, def string) bool {
 	choices := promptWithDefChoice([]string{"y", "n"}, def)
-	chosen := promptWithChoices(q, choices, def)
+	chosen := promptWithChoices(os.Stdin, q, choices, def)
 
 	return strings.EqualFold(chosen, "y")
 }
@@ -85,7 +85,7 @@ func ConfirmWithChoices(q string, opts []string, def string) string {
 	}
 	opts = promptWithDefChoice(opts, def)
 
-	return promptWithChoices(q, opts, def)
+	return promptWithChoices(os.Stdin, q, opts, def)
 }
 
 // ReadPipedInput reads the input from a pipe.
@@ -207,9 +207,9 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter FilterFunc) P
 }
 
 // promptWithChoices prompts the user to enter one of the given options.
-func promptWithChoices(q string, opts []string, def string) string {
+func promptWithChoices(rd io.Reader, q string, opts []string, def string) string {
 	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
-	r := bufio.NewReader(os.Stdin)
+	r := bufio.NewReader(rd)
 
 	for {
 		fmt.Print(p)

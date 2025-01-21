@@ -42,6 +42,11 @@ testfn:
 	@echo '>> Testing function $(FN)'
 	@go test -run $(FN) ./...
 
+# Run tests for a specific function with verbose
+vtestfn:
+	@echo '>> Testing function $(FN)'
+	@go test -v -run $(FN) ./...
+
 
 # Lint code with 'golangci-lint'
 lint:

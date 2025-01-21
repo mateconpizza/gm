@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
@@ -19,7 +21,7 @@ var dbDrop, dbInfo, dbList bool
 
 // dbDropHandler clears the database.
 func dbDropHandler(r *repo.SQLiteRepository) error {
-	if !r.IsDatabaseInitialized(r.Cfg.Tables.Main) {
+	if !r.IsInitialized() {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 	}
 
@@ -36,15 +38,19 @@ func dbDropHandler(r *repo.SQLiteRepository) error {
 
 	f.Clean().Row().Ln().Render().Clean()
 
-	if !terminal.Confirm(f.Footer("continue?").String(), "n") {
-		return handler.ErrActionAborted
+	if !Force {
+		if !terminal.Confirm(f.Footer("continue?").String(), "n") {
+			return handler.ErrActionAborted
+		}
 	}
 
-	if err := r.DropSecure(); err != nil {
+	if err := r.DropSecure(context.Background()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	terminal.ClearLine(1)
+	if !Verbose {
+		terminal.ClearLine(1)
+	}
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Clean().Success(success + " database dropped").Ln().Render()
 
@@ -152,8 +158,8 @@ var dbCmd = &cobra.Command{
 	Use:     "db",
 	Aliases: []string{"database"},
 	Short:   "database management",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return verifyDatabase(Cfg)
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
@@ -176,11 +182,19 @@ var dbCmd = &cobra.Command{
 }
 
 func init() {
-	dbCmd.Flags().BoolVarP(&dbDrop, "drop", "d", false, "drop a database")
-	dbCmd.Flags().BoolVarP(&dbInfo, "info", "I", false, "show database info (default)")
-	dbCmd.Flags().BoolVarP(&dbList, "list", "l", false, "list available databases")
-	dbCmd.Flags().BoolVarP(&Remove, "remove", "r", false, "remove a database")
-	dbCmd.Flags().BoolVar(&JSON, "json", false, "output in JSON format")
+	f := dbCmd.Flags()
+	f.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
+	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
+	f.BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
+	f.StringVarP(&DBName, "name", "n", config.DB.Name, "database name")
+	f.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
+	// actions
+	f.BoolVarP(&dbDrop, "drop", "d", false, "drop a database")
+	f.BoolVarP(&dbInfo, "info", "i", false, "output database info")
+	f.BoolVarP(&dbList, "list", "l", false, "list available databases")
+	f.BoolVarP(&Remove, "remove", "r", false, "remove a database")
+
+	_ = dbCmd.Flags().MarkHidden("color")
 	dbCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(dbCmd)
 }

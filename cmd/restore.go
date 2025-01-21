@@ -18,12 +18,9 @@ var restoreCmd = &cobra.Command{
 	Use:   "restore",
 	Short: "restore deleted bookmarks",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		handler.OnSubcommand()
-		return verifyDatabase(Cfg)
+		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Read from deleted table
-		Cfg.Tables.Main = Cfg.Tables.Deleted
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -31,6 +28,11 @@ var restoreCmd = &cobra.Command{
 		defer r.Close()
 
 		terminal.ReadPipedInput(&args)
+
+		// Switch tables and read from deleted table
+		t := r.Cfg.Tables
+		r.SetMain(t.Deleted)
+		r.SetDeleted(t.Main)
 
 		bs, err := handleData(r, args)
 		if err != nil {
@@ -43,6 +45,10 @@ var restoreCmd = &cobra.Command{
 
 		if bs.Empty() {
 			return repo.ErrRecordNoMatch
+		}
+
+		if Remove {
+			return r.DeleteAndReorder(bs, t.Main, t.RecordsTagsDeleted)
 		}
 
 		return restore(r, bs)
@@ -67,23 +73,19 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	header := c("Restoring Bookmarks").String()
 	f.Header(header).Ln().Ln().Render().Clean()
 
-	// TODO?: remove restored records from deleted table.
 	prompt := color.BrightYellow("restore").Bold().String()
 	if err := handler.Confirmation(bs, prompt, c); err != nil {
-		return fmt.Errorf("restore confirmation: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	mesg := color.Yellow("restoring record/s...").String()
 	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()
 
-	tx, err := r.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("%w: begin starts a transaction", err)
-	}
-
-	if err := r.Restore(tx, bs); err != nil {
-		return fmt.Errorf("%w: restoring bookmark", err)
+	t := r.Cfg.Tables
+	if err := r.Restore(t.Main, t.Deleted, bs); err != nil {
+		terminal.ClearLine(1)
+		return fmt.Errorf("%w", err)
 	}
 
 	s.Stop()

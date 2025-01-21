@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
@@ -20,7 +23,7 @@ import (
 var ErrActionAborted = errors.New("action aborted")
 
 var (
-	// force is used to force the action.
+	// force is used to force the action, dont ask for confirmation.
 	force *bool
 
 	// subCommandCalled is used to check if the subcommand was called, to modify
@@ -95,7 +98,6 @@ func extractIDsFrom(args []string) ([]int, error) {
 		return ids, nil
 	}
 
-	// FIX: what is this!?
 	for _, arg := range strings.Fields(strings.Join(args, " ")) {
 		id, err := strconv.Atoi(arg)
 		if err != nil {
@@ -164,4 +166,37 @@ func URLValid(s string) bool {
 	}
 
 	return parsedUrl.Scheme != "" && parsedUrl.Host != ""
+}
+
+// ValidateDB verifies if the database exists.
+func ValidateDB(cmd *cobra.Command, c *repo.SQLiteConfig) error {
+	if c.Exists() {
+		return nil
+	}
+
+	s := color.BrightYellow(config.App.Cmd, "init").Italic()
+	init := fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBNotFound, s)
+	databases, err := repo.Databases(c)
+	if err != nil {
+		return init
+	}
+
+	dbName, err := cmd.Flags().GetString("name")
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	// find with no|other extension
+	databases.ForEach(func(r *repo.SQLiteRepository) {
+		s := strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name))
+		if s == dbName {
+			c.Name = r.Cfg.Name
+		}
+	})
+
+	if c.Exists() {
+		return nil
+	}
+
+	return init
 }

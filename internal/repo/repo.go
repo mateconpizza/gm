@@ -2,10 +2,10 @@ package repo
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/haaag/gm/internal/sys/files"
@@ -15,8 +15,13 @@ var connClosed bool
 
 // SQLiteRepository implements the Repository interface.
 type SQLiteRepository struct {
-	DB  *sql.DB       `json:"-"`
+	DB  *sqlx.DB      `json:"-"`
 	Cfg *SQLiteConfig `json:"db"`
+}
+
+// IsClosed checks if the database connection is closed.
+func (r *SQLiteRepository) IsClosed() bool {
+	return connClosed
 }
 
 // Close closes the SQLite database connection and logs any errors encountered.
@@ -32,8 +37,18 @@ func (r *SQLiteRepository) Close() {
 	log.Printf("database closed.")
 }
 
+func (r *SQLiteRepository) SetMain(t Table) {
+	log.Printf("main table set to: %s", t)
+	r.Cfg.Tables.Main = t
+}
+
+func (r *SQLiteRepository) SetDeleted(t Table) {
+	log.Printf("deleted table set to: %s", t)
+	r.Cfg.Tables.Deleted = t
+}
+
 // newSQLiteRepository returns a new SQLiteRepository.
-func newSQLiteRepository(db *sql.DB, cfg *SQLiteConfig) *SQLiteRepository {
+func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteConfig) *SQLiteRepository {
 	return &SQLiteRepository{
 		DB:  db,
 		Cfg: cfg,
@@ -59,14 +74,13 @@ func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 
 // MustOpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
-func MustOpenDatabase(s string) (*sql.DB, error) {
+func MustOpenDatabase(s string) (*sqlx.DB, error) {
 	log.Printf("opening database: '%s'", s)
-	db, err := sql.Open("sqlite3", s)
+	db, err := sqlx.Open("sqlite3", s)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
-	ctx := context.Background()
-	if err := db.PingContext(ctx); err != nil {
+	if err := db.PingContext(context.Background()); err != nil {
 		panic(fmt.Errorf("%w: on ping context", err))
 	}
 

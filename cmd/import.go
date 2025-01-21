@@ -16,6 +16,7 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/spinner"
@@ -192,7 +193,7 @@ func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	insert := func(b Bookmark) error {
-		err := r.InsertInto(r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, &b)
+		err := r.Insert(&b)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -216,7 +217,7 @@ var importCmd = &cobra.Command{
 	Use:   "import",
 	Short: "import bookmarks from browser",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return verifyDatabase(Cfg)
+		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)

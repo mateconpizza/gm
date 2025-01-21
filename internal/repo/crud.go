@@ -1,14 +1,16 @@
 package repo
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/slice"
 )
 
@@ -18,8 +20,15 @@ type (
 	Table string
 )
 
-// InsertInto creates a new record in the given tables.
-func (r *SQLiteRepository) InsertInto(tmain, trecords, ttags Table, b *Row) error {
+// Insert creates a new record in the main table.
+func (r *SQLiteRepository) Insert(b *Row) error {
+	t := r.Cfg.Tables
+	ctx := context.Background()
+	return r.insertInto(ctx, t.Main, t.RecordsTags, b)
+}
+
+// insertInto creates a new record in the given tables.
+func (r *SQLiteRepository) insertInto(ctx context.Context, tmain, trecords Table, b *Row) error {
 	if err := bookmark.Validate(b); err != nil {
 		return fmt.Errorf("abort: %w", err)
 	}
@@ -28,23 +37,20 @@ func (r *SQLiteRepository) InsertInto(tmain, trecords, ttags Table, b *Row) erro
 		return ErrRecordDuplicate
 	}
 
-	tx, err := r.DB.Begin()
+	// create record and associate tags
+	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		if err := insertRecord(tx, tmain, b); err != nil {
+			return err
+		}
+
+		if err := r.associateTags(tx, trecords, b); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		err = tx.Rollback()
-		return fmt.Errorf("begin starts a transaction: %w", err)
-	}
-
-	if err := insertRecord(tx, tmain, b); err != nil {
-		return err
-	}
-
-	if err := r.associateTags(tx, trecords, ttags, b); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrCommit, err)
+		return fmt.Errorf("%w: '%s'", err, b.URL)
 	}
 
 	log.Printf("inserted record: %s (table: %s)\n", b.URL, tmain)
@@ -52,13 +58,11 @@ func (r *SQLiteRepository) InsertInto(tmain, trecords, ttags Table, b *Row) erro
 	return nil
 }
 
-// InsertAtID inserts a new record at the given ID.
-func (r *SQLiteRepository) InsertAtID(tx *sql.Tx, b *Row) error {
-	// FIX: some duplicated code
+// insertAtID inserts a new record at the given ID.
+func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *Row) error {
 	if err := bookmark.Validate(b); err != nil {
 		return fmt.Errorf("abort: %w", err)
 	}
-
 	if r.HasRecord(r.Cfg.Tables.Main, "id", b.ID) {
 		return ErrRecordDuplicate
 	}
@@ -72,7 +76,7 @@ func (r *SQLiteRepository) InsertAtID(tx *sql.Tx, b *Row) error {
 		return fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)
 	}
 
-	if err := r.associateTags(tx, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, b); err != nil {
+	if err := r.associateTags(tx, r.Cfg.Tables.RecordsTags, b); err != nil {
 		return fmt.Errorf("InsertWithID: %w", err)
 	}
 
@@ -80,65 +84,61 @@ func (r *SQLiteRepository) InsertAtID(tx *sql.Tx, b *Row) error {
 }
 
 // insertRecord inserts a new record into the table.
-func insertRecord(tx *sql.Tx, t Table, b *Row) error {
-	query := fmt.Sprintf(`
-    INSERT OR IGNORE INTO %s
-    (url, title, desc) VALUES (?, ?, ?)`, t)
-
-	result, err := tx.Exec(query, b.URL, b.Title, b.Desc)
+func insertRecord(tx *sqlx.Tx, t Table, b *Row) error {
+	q := fmt.Sprintf("INSERT or IGNORE INTO %s (url, title, desc) VALUES (?, ?, ?)", t)
+	result, err := tx.Exec(q, b.URL, b.Title, b.Desc)
 	if err != nil {
-		return fmt.Errorf("%w: '%s'", ErrRecordInsert, b.URL)
+		return fmt.Errorf("%w", err)
 	}
 
-	id, err := result.LastInsertId()
+	bid, err := result.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrRecordInsert, err)
+		return fmt.Errorf("%w", err)
 	}
 
-	b.ID = int(id)
+	b.ID = int(bid)
 
 	return nil
 }
 
 // insertBulkNNew creates multiple records in the given tables.
-func (r *SQLiteRepository) insertBulk(tmain, trecords, ttags Table, bs *Slice) error {
+func (r *SQLiteRepository) insertBulk(ctx context.Context, tmain, trecords Table, bs *Slice) error {
 	log.Printf("inserting %d records into table: %s", bs.Len(), tmain)
 
 	inserter := func(b Row) error {
-		return r.InsertInto(tmain, trecords, ttags, &b)
+		return r.insertInto(ctx, tmain, trecords, &b)
 	}
 
 	if err := bs.ForEachErr(inserter); err != nil {
-		return fmt.Errorf("insertBulk %w: inserting in bulk", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	return nil
 }
 
 // Update updates an existing record in the given table.
-func (r *SQLiteRepository) Update(t Table, b *Row) (*Row, error) {
+func (r *SQLiteRepository) Update(b *Row) (*Row, error) {
+	t := r.Cfg.Tables.Main
 	if !r.HasRecord(t, "url", b.URL) || !r.HasRecord(t, "id", b.ID) {
 		return b, fmt.Errorf("Update: %w: in updating '%s'", ErrRecordNotExists, b.URL)
 	}
+	ctx := context.Background()
+	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		q := fmt.Sprintf("UPDATE %s SET url = ?, title = ?, desc = ? WHERE id = ?", t)
+		_, err := r.DB.Exec(q, b.URL, b.Title, b.Desc, b.ID)
+		if err != nil {
+			return fmt.Errorf("Update: %w: %w", ErrRecordUpdate, err)
+		}
 
-	tx, err := r.DB.Begin()
+		if err := r.updateTags(tx, b); err != nil {
+			errRollBack := tx.Rollback()
+			return fmt.Errorf("Update: %w: %w: rollback %w", ErrRecordUpdate, err, errRollBack)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("Update: %w: begin starts a transaction", err)
-	}
-
-	sqlQuery := fmt.Sprintf("UPDATE %s SET url = ?, title = ?, desc = ? WHERE id = ?", t)
-	_, err = r.DB.Exec(sqlQuery, b.URL, b.Title, b.Desc, b.ID)
-	if err != nil {
-		return b, fmt.Errorf("Update: %w: %w", ErrRecordUpdate, err)
-	}
-
-	if err := r.updateTags(tx, b); err != nil {
-		errRollBack := tx.Rollback()
-		return nil, fmt.Errorf("Update: %w: %w: rollback %w", ErrRecordUpdate, err, errRollBack)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("Update: %w: committing", err)
+		return nil, fmt.Errorf("Update: %w", err)
 	}
 
 	log.Printf("Update: updated record %s (table: %s)\n", b.URL, t)
@@ -147,77 +147,42 @@ func (r *SQLiteRepository) Update(t Table, b *Row) (*Row, error) {
 }
 
 // UpdateURL updates the URL of an existing record.
-func (r *SQLiteRepository) UpdateURL(t Table, newB, oldB *Row) (*Row, error) {
-	tx, err := r.DB.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("Update: %w: begin starts a transaction", err)
-	}
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			if errors.Is(err, sql.ErrTxDone) {
-				return
-			}
-			log.Printf("UpdateURL: %v: rollback", err)
-		}
-	}()
-
+func (r *SQLiteRepository) UpdateURL(newB, oldB *Row) (*Row, error) {
+	t := r.Cfg.Tables.Main
+	ctx := context.Background()
 	// first remove the old record
-	if err := r.Delete(t, oldB); err != nil {
+	if err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		return r.Delete(ctx, t, oldB)
+	}); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 	// then insert the new record
-	if err := r.InsertAtID(tx, newB); err != nil {
+	if err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		return r.insertAtID(tx, newB)
+	}); err != nil {
 		return nil, fmt.Errorf("%w", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrCommit, err)
 	}
 
 	return newB, nil
 }
 
 // Delete deletes an single record in the given table.
-func (r *SQLiteRepository) Delete(t Table, b *Row) error {
+func (r *SQLiteRepository) Delete(ctx context.Context, t Table, b *Row) error {
 	log.Printf("deleting record: %s (table: %s)\n", b.URL, t)
-
-	tx, err := r.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("Delete: %w: begin starts a transaction", err)
-	}
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			if errors.Is(err, sql.ErrTxDone) {
-				return
-			}
-			log.Printf("Delete: %v: rollback", err)
+	if err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		q := fmt.Sprintf("DELETE FROM %s WHERE id = ?", r.Cfg.Tables.Main)
+		_, err := tx.Exec(q, b.ID)
+		if err != nil {
+			return fmt.Errorf("%w", err)
 		}
-	}()
 
-	sqlQuery := fmt.Sprintf("DELETE FROM %s WHERE id = ?", r.Cfg.Tables.Main)
-	stmt, err := tx.Prepare(sqlQuery)
-	if err != nil {
-		return fmt.Errorf("Delete: %w: prepared statement", err)
-	}
-
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Printf("Delete: error closing statement: %v", err)
+		if err := deleteTags(tx, r.Cfg.Tables.RecordsTags, b.URL); err != nil {
+			return fmt.Errorf("%w", err)
 		}
-	}()
 
-	_, err = stmt.Exec(b.ID)
-	if err != nil {
-		return fmt.Errorf("Delete: %w: executing statement", err)
-	}
-
-	if err := r.deleteTags(tx, b.URL); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("Delete: %w: committing", err)
+		return nil
+	}); err != nil {
+		return fmt.Errorf("Delete: %w", err)
 	}
 
 	log.Printf("deleted record with ID %d from table: %s", b.ID, t)
@@ -226,76 +191,71 @@ func (r *SQLiteRepository) Delete(t Table, b *Row) error {
 }
 
 // deleteAll deletes all records in the give table.
-func (r *SQLiteRepository) deleteAll(t Table) error {
-	log.Printf("deleting all records from table: %s", t)
-	_, err := r.DB.Exec(fmt.Sprintf("DELETE FROM %s", t))
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrDBDrop, err)
+func (r *SQLiteRepository) deleteAll(ctx context.Context, ts ...Table) error {
+	if len(ts) == 0 {
+		log.Printf("no tables to delete")
+		return nil
 	}
+	log.Printf("deleting all records from %d tables", len(ts))
 
-	return nil
+	return r.execTx(ctx, func(tx *sqlx.Tx) error {
+		for _, t := range ts {
+			log.Printf("deleting records from table: %s", t)
+			_, err := tx.Exec(fmt.Sprintf("DELETE FROM %s", t))
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // deleteBulk deletes multiple records in the give table.
-func (r *SQLiteRepository) deleteBulk(t Table, ids *slice.Slice[int]) error {
+func (r *SQLiteRepository) deleteBulk(ctx context.Context, t Table, ids *slice.Slice[int]) error {
 	n := ids.Len()
 	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
 
 	log.Printf("deleting %d records from table: %s", n, t)
-	maxID := r.maxID(t)
-
-	tx, err := r.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("DeleteBulk: %w: begin starts a transaction", err)
-	}
-
-	sqlQuery := fmt.Sprintf(
-		"DELETE FROM %s WHERE id IN (%s)",
-		t,
-		strings.Repeat("?,", n-1)+"?",
-	)
-
-	stmt, err := tx.Prepare(sqlQuery)
-	if err != nil {
-		err = tx.Rollback()
-		return fmt.Errorf("DeleteBulk: %w: prepared statement", err)
-	}
-
-	args := make([]interface{}, n)
-	for i, id := range *ids.Items() {
-		args[i] = id
-	}
-
-	_, err = stmt.Exec(args...)
-	if err != nil {
-		err = tx.Rollback()
-		return fmt.Errorf("DeleteBulk: %w: getting the result", err)
-	}
-
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Printf("error closing statement: %v", err)
+	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		// args for query
+		args := make([]interface{}, n)
+		for i, id := range *ids.Items() {
+			args[i] = id
 		}
-	}()
+		ph := strings.Repeat("?,", n-1) + "?"
+		q := fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", t, ph)
 
-	if err := stmt.Close(); err != nil {
-		err = tx.Rollback()
-		return fmt.Errorf("DeleteBulk: %w: closing stmt", err)
-	}
+		// prepare statement
+		stmt, err := tx.Prepare(q)
+		if err != nil {
+			return fmt.Errorf("DeleteBulk: %w: prepared statement", err)
+		}
+		defer func() {
+			if err := stmt.Close(); err != nil {
+				log.Printf("DeleteBulk: %v: closing stmt", err)
+			}
+		}()
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("DeleteBulk: %w: committing", err)
+		// execute statement
+		_, err = stmt.ExecContext(ctx, args...)
+		if err != nil {
+			return fmt.Errorf("DeleteBulk: %w: getting the result", err)
+		}
+
+		if err := stmt.Close(); err != nil {
+			return fmt.Errorf("DeleteBulk: %w: closing stmt", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	log.Printf("deleted %d records from table: %s", n, t)
-	if maxID == 0 {
-		err := r.resetSQLiteSequence(t)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
 
 	return nil
 }
@@ -318,27 +278,32 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted Table) erro
 		return ErrRecordIDNotProvided
 	}
 
-	if err := r.deleteBulk(main, ids); err != nil {
+	ctx := context.Background()
+	if err := r.deleteBulk(ctx, main, ids); err != nil {
 		return fmt.Errorf("deleting records in bulk: %w", err)
 	}
 
 	// add records to deleted table
-	if err := r.insertBulk(deleted, r.Cfg.Tables.RecordsTagsDeleted, r.Cfg.Tables.Tags, bs); err != nil {
+	if err := r.insertBulk(ctx, deleted, r.Cfg.Tables.RecordsTagsDeleted, bs); err != nil {
 		return fmt.Errorf("inserting records in bulk after deletion: %w", err)
 	}
 
 	// if the last record is deleted, we don't need to reorder
 	// reset the SQLite sequence
 	if r.maxID(main) == 0 {
-		err := r.resetSQLiteSequence(main, deleted)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
+		err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+			err := r.resetSQLiteSequence(tx, main, deleted)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
 
-		return nil
+			return nil
+		})
+
+		return err
 	}
 
-	if err := r.reorderIDs(main); err != nil {
+	if err := r.reorderIDs(ctx, main); err != nil {
 		return fmt.Errorf("reordering ids: %w", err)
 	}
 
@@ -348,9 +313,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted Table) erro
 // Records returns all records in the give table.
 func (r *SQLiteRepository) Records(t Table, bs *Slice) error {
 	log.Printf("getting all records from table: '%s'", t)
-	sqlQuery := fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", t)
-
-	if err := r.bySQL(bs, sqlQuery); err != nil {
+	if err := r.bySQL(bs, fmt.Sprintf("SELECT * FROM %s ORDER BY id ASC", t)); err != nil {
 		return err
 	}
 
@@ -365,19 +328,18 @@ func (r *SQLiteRepository) Records(t Table, bs *Slice) error {
 }
 
 // ByID returns a record by its ID in the give table.
-func (r *SQLiteRepository) ByID(t Table, n int) (*Row, error) {
-	if n > r.maxID(t) {
-		return nil, fmt.Errorf("%w with id: %d, maxID: %d", ErrRecordNotFound, n, r.maxID(t))
+func (r *SQLiteRepository) ByID(t Table, bID int) (*Row, error) {
+	if bID > r.maxID(t) {
+		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, r.maxID(t))
 	}
 
+	log.Printf("getting record by ID=%d (table: %s)\n", bID, t)
 	var b Row
-	log.Printf("getting record by ID=%d (table: %s)\n", n, t)
-	row := r.DB.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = ?", t), n)
-
-	err := row.Scan(&b.ID, &b.URL, &b.Title, &b.Desc, &b.CreatedAt)
+	q := fmt.Sprintf("SELECT * FROM %s WHERE id = ?", t)
+	err := r.DB.Get(&b, q, bID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, n)
+			return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, bID)
 		}
 
 		return nil, fmt.Errorf("ByID: %w: %w", ErrRecordScan, err)
@@ -387,23 +349,22 @@ func (r *SQLiteRepository) ByID(t Table, n int) (*Row, error) {
 		return nil, err
 	}
 
-	log.Printf("got record by ID %d (table: %s)\n", n, t)
+	log.Printf("got record by ID %d (table: %s)\n", bID, t)
 
 	return &b, nil
 }
 
 // ByIDList returns a list of records by their IDs in the give table.
-func (r *SQLiteRepository) ByIDList(t Table, ids []int, bs *Slice) error {
-	if len(ids) == 0 {
+func (r *SQLiteRepository) ByIDList(t Table, bIDs []int, bs *Slice) error {
+	if len(bIDs) == 0 {
 		return ErrRecordIDNotProvided
 	}
 
-	query := fmt.Sprintf(
-		"SELECT * FROM %s WHERE ID IN (%s);", t, strings.Repeat("?,", len(ids)-1)+"?",
-	)
+	ph := strings.Repeat("?,", len(bIDs)-1) + "?"
+	query := fmt.Sprintf("SELECT * FROM %s WHERE ID IN (%s);", t, ph)
 
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
+	args := make([]interface{}, len(bIDs))
+	for i, id := range bIDs {
 		args[i] = id
 	}
 
@@ -431,32 +392,16 @@ func (r *SQLiteRepository) ByURL(t Table, bURL string) (*Row, error) {
 }
 
 // bySQL retrieves records from the SQLite database based on the provided SQL query.
-func (r *SQLiteRepository) bySQL(bs *Slice, q string, args ...interface{}) error {
-	rows, err := r.DB.Query(q, args...)
+func (r *SQLiteRepository) bySQL(bs *Slice, q string, args ...any) error {
+	var bb []bookmark.Bookmark
+	err := r.DB.Select(&bb, q, args...)
 	if err != nil {
-		return fmt.Errorf("%w: on getting records by query", err)
+		return fmt.Errorf("%w", err)
 	}
 
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("error closing rows on getting records by sql: %v", err)
-		}
-	}()
-
-	for rows.Next() {
-		var d Row
-		if err := rows.Scan(&d.ID, &d.URL, &d.Title, &d.Desc, &d.CreatedAt); err != nil {
-			return fmt.Errorf("bySQL: %w: '%w'", ErrRecordScan, err)
-		}
-		bs.Append(&d)
-	}
-
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("%w: closing rows on getting records by query", err)
-	}
-
+	bs.Set(&bb)
 	if err := r.populateTags(bs); err != nil {
-		return nil
+		return err
 	}
 
 	bs.Sort(func(a, b Row) bool {
@@ -513,40 +458,18 @@ func (r *SQLiteRepository) ByQuery(t Table, q string, bs *Slice) error {
 // ByColumn returns the data found from the given column name.
 func (r *SQLiteRepository) ByColumn(t Table, c string) (*slice.Slice[string], error) {
 	log.Printf("getting all records from table: '%s' and column: '%s'", t, c)
-	sqlQuery := fmt.Sprintf("SELECT %s FROM %s ORDER BY id ASC", c, t)
-	rows, err := r.DB.Query(sqlQuery)
-	if err != nil {
-		return nil, fmt.Errorf("getting records by column: %w", err)
+	items := make([]string, 0)
+	if err := r.DB.Select(&items, fmt.Sprintf("SELECT %s FROM %s ORDER BY id ASC", c, t)); err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
-
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("error closing rows on getting records by sql: %v", err)
-		}
-	}()
 
 	data := slice.New[string]()
-	for rows.Next() {
-		var tag string
-		if err := rows.Scan(&tag); err != nil {
-			return nil, fmt.Errorf("ByColumn: %w: '%w'", ErrRecordScan, err)
-		}
-		data.Append(&tag)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("%w: closing rows on getting records by query", err)
-	}
+	data.Set(&items)
 
 	n := data.Len()
 	if n == 0 {
 		log.Printf("no tags found in table: '%s' and column: '%s'", t, c)
-		return nil, fmt.Errorf(
-			"%w by table: '%s' and column: '%s'",
-			ErrRecordNotFound,
-			t,
-			c,
-		)
+		return nil, fmt.Errorf("%w by table: '%s' and column: '%s'", ErrRecordNotFound, t, c)
 	}
 
 	log.Printf("tags found: %d by column: '%s'", n, c)
@@ -581,10 +504,11 @@ func (r *SQLiteRepository) maxID(t Table) int {
 }
 
 // reorderIDs reorders the IDs in the specified table.
-func (r *SQLiteRepository) reorderIDs(t Table) error {
+func (r *SQLiteRepository) reorderIDs(ctx context.Context, t Table) error {
 	// FIX: Every time we re-order IDs, the db's size gets bigger
 	// It's a bad implementation? (but it works)
 	// Maybe use 'VACUUM' command? it is safe?
+	log.Printf("reordering IDs in table: %s", t)
 	bs := slice.New[Row]()
 	if err := r.Records(t, bs); err != nil {
 		return err
@@ -594,41 +518,74 @@ func (r *SQLiteRepository) reorderIDs(t Table) error {
 		return nil
 	}
 
-	log.Printf("reordering IDs in table: %s", t)
 	tempTable := "temp_" + t
-	if err := r.TableCreate(tempTable, tableMainSchema); err != nil {
+	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		return r.tableCreate(tx, tempTable, tableMainSchema)
+	})
+	if err != nil {
 		return err
 	}
 
-	if err := r.insertBulk(tempTable, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, bs); err != nil {
-		return err
-	}
+	return r.execTx(ctx, func(tx *sqlx.Tx) error {
+		if err := r.insertBulk(ctx, tempTable, r.Cfg.Tables.RecordsTags, bs); err != nil {
+			return err
+		}
+		if err := r.tableDrop(tx, t); err != nil {
+			return err
+		}
 
-	if err := r.TableDrop(t); err != nil {
-		return err
-	}
-
-	return r.tableRename(tempTable, t)
+		return r.tableRename(tx, tempTable, t)
+	})
 }
 
 // Restore restores record/s from deleted tabled.
-func (r *SQLiteRepository) Restore(tx *sql.Tx, bs *Slice) error {
-	// FIX: remove `config.DB.Tables.Main`
-	tmain := Table(config.DB.Tables.Main)
-	if err := r.insertBulk(tmain, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, bs); err != nil {
-		errRoll := tx.Rollback()
-		return fmt.Errorf("%w: restoring bookmark, rollback %w", err, errRoll)
-	}
+func (r *SQLiteRepository) Restore(from, to Table, bs *Slice) error {
+	ctx := context.Background()
+	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+		if err := r.insertBulk(ctx, to, r.Cfg.Tables.RecordsTags, bs); err != nil {
+			return fmt.Errorf("%w", err)
+		}
 
-	ids := slice.New[int]()
-	bs.ForEach(func(b Row) {
-		ids.Append(&b.ID)
+		ids := slice.New[int]()
+		bs.ForEach(func(b Row) {
+			ids.Append(&b.ID)
+		})
+
+		// delete records from deleted table
+		if err := r.deleteBulk(ctx, from, ids); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		// reset sqlite sequence
+		if err := r.resetSQLiteSequence(tx, from); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	})
 
-	if err := r.deleteBulk(r.Cfg.Tables.Main, ids); err != nil {
-		errRoll := tx.Rollback()
-		return fmt.Errorf("%w: restoring bookmark, rollback %w", err, errRoll)
+	return err
+}
+
+// execTx executes a function within a transaction.
+func (r *SQLiteRepository) execTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
+	tx, err := r.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("rollback: %v", err)
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		return err
 	}
 
-	return r.resetSQLiteSequence(r.Cfg.Tables.Deleted)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
 }

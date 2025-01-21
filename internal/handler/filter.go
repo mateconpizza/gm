@@ -177,7 +177,6 @@ func Menu(bs *Slice, multiline bool) error {
 func handleMenuOpts(multiline bool) []menu.OptFn {
 	// menu opts
 	opts := []menu.OptFn{
-		menu.WithPreview(),
 		menu.WithDefaultKeybinds(),
 		menu.WithDefaultSettings(),
 		menu.WithMultiSelection(),
@@ -185,6 +184,7 @@ func handleMenuOpts(multiline bool) []menu.OptFn {
 
 	if !subCommandCalled {
 		opts = append(opts,
+			menu.WithPreview(),
 			menu.WithKeybindEdit(),
 			menu.WithKeybindOpen(),
 			menu.WithKeybindQR(),

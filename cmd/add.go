@@ -26,7 +26,7 @@ var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "add a new bookmark",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return verifyDatabase(Cfg)
+		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
@@ -65,11 +65,13 @@ func add(r *repo.SQLiteRepository, args []string) error {
 	}
 
 	// insert new bookmark
-	if err := r.InsertInto(r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, b); err != nil {
+	if err := r.Insert(b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	terminal.ClearLine(1)
+	if !Force {
+		terminal.ClearLine(1)
+	}
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Clean().Success(success + " bookmark created").Render()
 

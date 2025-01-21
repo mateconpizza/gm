@@ -25,8 +25,8 @@ var backupCmd = &cobra.Command{
 	Use:     "bk",
 	Aliases: []string{"backup"},
 	Short:   "backup management",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return verifyDatabase(Cfg)
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
@@ -49,10 +49,19 @@ var backupCmd = &cobra.Command{
 }
 
 func init() {
-	backupCmd.Flags().BoolVarP(&bkCreate, "create", "c", false, "create backup")
-	backupCmd.Flags().BoolVarP(&bkList, "list", "l", false, "list backups (default)")
-	backupCmd.Flags().BoolVarP(&bkPurge, "purge", "P", false, "purge execedent backups")
-	backupCmd.Flags().BoolVarP(&bkDetail, "detail", "d", false, "show backup details")
+	f := backupCmd.Flags()
+	f.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
+	f.BoolVarP(&Remove, "remove", "r", false, "remove a backup")
+	f.BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
+	f.StringVarP(&DBName, "name", "n", config.DB.Name, "database name")
+	f.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
+	// actions
+	f.BoolVarP(&bkCreate, "create", "c", false, "create backup")
+	f.BoolVarP(&bkList, "list", "l", false, "list backups")
+	f.BoolVarP(&bkPurge, "purge", "P", false, "purge execedent backups")
+	f.BoolVarP(&bkDetail, "detail", "d", false, "show backup details")
+
+	_ = backupCmd.Flags().MarkHidden("color")
 	rootCmd.AddCommand(backupCmd)
 }
 

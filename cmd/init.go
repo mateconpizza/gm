@@ -116,7 +116,7 @@ func createPaths(path string) error {
 
 // initDB creates a new database and populates it with the initial bookmark.
 func initDB(r *repo.SQLiteRepository) error {
-	if r.IsDatabaseInitialized(r.Cfg.Tables.Main) && !Force {
+	if r.IsInitialized() && !Force {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyInitialized, DBName)
 	}
 
@@ -131,7 +131,7 @@ func initDB(r *repo.SQLiteRepository) error {
 	ib.Tags = bookmark.ParseTags(config.App.Info.Tags)
 	ib.Desc = config.App.Info.Desc
 
-	if err := r.InsertInto(r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, r.Cfg.Tables.Tags, ib); err != nil {
+	if err := r.Insert(ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
