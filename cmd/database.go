@@ -13,6 +13,8 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -20,7 +22,7 @@ import (
 var dbDrop, dbInfo, dbList bool
 
 // dbDropHandler clears the database.
-func dbDropHandler(r *repo.SQLiteRepository) error {
+func dbDropHandler(t *terminal.Term, r *repo.SQLiteRepository) error {
 	if !r.IsInitialized() {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 	}
@@ -39,7 +41,7 @@ func dbDropHandler(r *repo.SQLiteRepository) error {
 	f.Clean().Row().Ln().Render().Clean()
 
 	if !Force {
-		if !terminal.Confirm(f.Footer("continue?").String(), "n") {
+		if !t.Confirm(f.Footer("continue?").String(), "n") {
 			return handler.ErrActionAborted
 		}
 	}
@@ -49,7 +51,7 @@ func dbDropHandler(r *repo.SQLiteRepository) error {
 	}
 
 	if !Verbose {
-		terminal.ClearLine(1)
+		t.ClearLine(1)
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Clean().Success(success + " database dropped").Ln().Render()
@@ -58,7 +60,7 @@ func dbDropHandler(r *repo.SQLiteRepository) error {
 }
 
 // dbRemoveHandler removes a database.
-func dbRemoveHandler(r *repo.SQLiteRepository) error {
+func dbRemoveHandler(t *terminal.Term, r *repo.SQLiteRepository) error {
 	if !r.Cfg.Exists() {
 		return repo.ErrDBNotFound
 	}
@@ -69,14 +71,14 @@ func dbRemoveHandler(r *repo.SQLiteRepository) error {
 	fmt.Print(i)
 
 	f.Clean().Mid(fmt.Sprintf("remove %s?", color.Red(r.Cfg.Name)))
-	if !terminal.Confirm(f.String(), "n") {
+	if !t.Confirm(f.String(), "n") {
 		return handler.ErrActionAborted
 	}
 
 	var n int
 	backups, err := repo.Backups(r)
 	if err != nil {
-		log.Printf("removeDB: %s", err)
+		log.Printf("dbRemoveHandler: %s", err)
 		n = 0
 	} else {
 		n = backups.Len()
@@ -86,21 +88,21 @@ func dbRemoveHandler(r *repo.SQLiteRepository) error {
 	if n > 0 {
 		linesToClear++
 		f.Clean().Mid(fmt.Sprintf("remove %d %s?", n, color.Red("backup/s")))
-		if !terminal.Confirm(f.String(), "n") {
+		if !t.Confirm(f.String(), "n") {
 			return handler.ErrActionAborted
 		}
 
-		if err := backups.ForEachErr(repo.Remove); err != nil {
+		if err := backups.ForEachErr(files.Remove); err != nil {
 			return fmt.Errorf("removing backup: %w", err)
 		}
 	}
 
 	// remove repo
-	if err := repo.Remove(r.Cfg.Fullpath()); err != nil {
+	if err := files.Remove(r.Cfg.Fullpath()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	terminal.ClearLine(linesToClear)
+	t.ClearLine(linesToClear)
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Clean().Success(success + " database removed").Ln().Render()
 
@@ -108,7 +110,7 @@ func dbRemoveHandler(r *repo.SQLiteRepository) error {
 }
 
 // dbListHandler lists the available databases.
-func dbListHandler(r *repo.SQLiteRepository) error {
+func dbListHandler(_ *terminal.Term, r *repo.SQLiteRepository) error {
 	dbs, err := repo.Databases(r.Cfg)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -136,7 +138,9 @@ func dbListHandler(r *repo.SQLiteRepository) error {
 }
 
 // dbInfoPrint prints information about a database.
-func dbInfoPrint(r *repo.SQLiteRepository) error {
+//
+//nolint:unparam //ignore
+func dbInfoPrint(_ *terminal.Term, r *repo.SQLiteRepository) error {
 	if JSON {
 		backups, err := repo.Backups(r)
 		if err != nil {
@@ -166,18 +170,24 @@ var dbCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("database: %w", err)
 		}
+		defer r.Close()
 
-		flags := map[bool]func(r *repo.SQLiteRepository) error{
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))
+
+		flags := map[bool]func(t *terminal.Term, r *repo.SQLiteRepository) error{
 			dbDrop: dbDropHandler,
 			dbInfo: dbInfoPrint,
 			dbList: dbListHandler,
 			Remove: dbRemoveHandler,
 		}
 		if handler, ok := flags[true]; ok {
-			return handler(r)
+			return handler(t, r)
 		}
 
-		return dbInfoPrint(r)
+		return dbInfoPrint(t, r)
 	},
 }
 

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
+	"github.com/haaag/gm/internal/config"
 	"github.com/pkg/browser"
 )
 
@@ -119,4 +120,12 @@ func ReadClipboard() string {
 	}
 
 	return s
+}
+
+// ErrAndExit logs the error and exits the program.
+func ErrAndExit(err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
+		os.Exit(1)
+	}
 }

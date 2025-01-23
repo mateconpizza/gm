@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -19,8 +18,16 @@ import (
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
+)
+
+var (
+	importBrowserFlag bool
+
+	// importFromDBFlag is used to import bookmarks from another database.
+	importFromDBFlag bool
 )
 
 // supportedBrowser defines a supported browser.
@@ -103,7 +110,7 @@ func scrapeMissingData(bs *Slice) error {
 }
 
 // importSelectionMenu returns the name of the browser selected by the user.
-func importSelectionMenu() string {
+func importSelectionMenu(t *terminal.Term) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Header("Supported Browsers").Ln().Row().Ln()
 
@@ -114,20 +121,10 @@ func importSelectionMenu() string {
 	f.Row().Ln().Footer("which browser do you use?").Render()
 
 	l := format.CountLines(f.String())
-	name := terminal.Prompt(" ")
-	terminal.ClearLine(l)
+	name := t.Prompt(" ")
+	t.ClearLine(l)
 
 	return name
-}
-
-// importSelectName returns the first letter of the browser name.
-func importSelectName(args *[]string) string {
-	if len(*args) == 0 {
-		return importSelectionMenu()
-	}
-	s := (*args)[0]
-
-	return strings.ToLower(string(s[0]))
 }
 
 // importLoadBrowser loads the browser paths for the import process.
@@ -165,7 +162,7 @@ func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
 }
 
 // importProcessFound processes the bookmarks found from the import process.
-func importProcessFound(r *repo.SQLiteRepository, bs *Slice) error {
+func importProcessFound(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	if err := importRemoveDuplicates(r, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
@@ -177,7 +174,7 @@ func importProcessFound(r *repo.SQLiteRepository, bs *Slice) error {
 	countStr := color.BrightBlue(bs.Len())
 	msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
 	f.Row().Ln().Render().Clean()
-	if terminal.Confirm(f.Mid(msg).String(), "n") {
+	if t.Confirm(f.Mid(msg).String(), "n") {
 		if err := scrapeMissingData(bs); err != nil {
 			return err
 		}
@@ -213,6 +210,28 @@ func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
 	return nil
 }
 
+// importFromBrowser imports bookmarks from a browser.
+func importFromBrowser(t *terminal.Term, r *repo.SQLiteRepository) error {
+	var b browser.Browser
+	var err error
+	name := importSelectionMenu(t)
+	if b, err = importLoadBrowser(name); err != nil {
+		return err
+	}
+
+	// find bookmarks
+	bs, err := b.Import(t)
+	if err != nil {
+		return fmt.Errorf("importing from '%s': %w", b.Name(), err)
+	}
+	// clean and process found bookmarks
+	if err := importProcessFound(t, r, bs); err != nil {
+		return err
+	}
+
+	return importInsert(r, bs)
+}
+
 var importCmd = &cobra.Command{
 	Use:   "import",
 	Short: "import bookmarks from browser",
@@ -226,25 +245,24 @@ var importCmd = &cobra.Command{
 		}
 		defer r.Close()
 
-		var b browser.Browser
-		name := importSelectName(&args)
-		if b, err = importLoadBrowser(name); err != nil {
-			return err
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))
+
+		flags := map[bool]func(t *terminal.Term, r *repo.SQLiteRepository) error{
+			importBrowserFlag: importFromBrowser,
 		}
-		// find bookmarks
-		bs, err := b.Import()
-		if err != nil {
-			return fmt.Errorf("importing from '%s': %w", b.Name(), err)
-		}
-		// clean and process found bookmarks
-		if err := importProcessFound(r, bs); err != nil {
-			return err
+		if handler, ok := flags[true]; ok {
+			return handler(t, r)
 		}
 
-		return importInsert(r, bs)
+		return nil
 	},
 }
 
 func init() {
+	importCmd.Flags().BoolVar(&importBrowserFlag, "browser", true, "import from browser")
+	importCmd.Flags().BoolVarP(&importFromDBFlag, "from", "F", false, "import from database")
 	rootCmd.AddCommand(importCmd)
 }

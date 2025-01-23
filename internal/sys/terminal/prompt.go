@@ -12,80 +12,57 @@ import (
 	prompt "github.com/c-bata/go-prompt"
 
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/sys"
 )
 
 var ErrActionAborted = errors.New("action aborted")
 
+// PromptSuggester is a function that generates suggestions for a given prompt.
 type PromptSuggester = func(in prompt.Document) []prompt.Suggest
 
-type FilterFunc = func(completions []prompt.Suggest, sub string, ignoreCase bool) []prompt.Suggest
+// filterFn is a function that filters suggestions based on a given string.
+type filterFn = func(completions []prompt.Suggest, sub string, ignoreCase bool) []prompt.Suggest
 
-const promptPrefix = ">>> "
-
-// Input get the Input data from the user and return it.
-func Input(p string, exitFn func(error)) string {
-	o, restore := prepareInputState(exitFn)
-	defer restore()
-	s := prompt.Input(p, completerDummy(), o...)
-
-	return s
-}
-
-// Prompt get the input data from the user and return it.
-func Prompt(p string) string {
-	r := bufio.NewReader(os.Stdin)
-	fmt.Print(p)
-	s, _ := r.ReadString('\n')
-
-	return strings.TrimSpace(s)
-}
-
-// InputTags prompts the user for input with suggestions based on
+// inputWithTags prompts the user for input with suggestions based on
 // the provided tags.
-func InputTags[T comparable, V any](terms map[T]V, exitFn func(error)) string {
+func inputWithTags[T comparable, V any](p string, items map[T]V, exitFn func(error)) string {
 	o, restore := prepareInputState(exitFn)
 	defer restore()
-	s := prompt.Input(promptPrefix, completerTagsWithCount(terms, prompt.FilterHasPrefix), o...)
+	s := prompt.Input(p, completerTagsWithCount(items, prompt.FilterHasPrefix), o...)
 
 	return s
 }
 
-// InputWithSuggestions prompts the user for input with suggestions based on
+// inputWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
-func InputWithSuggestions[T any](terms []T, exitFn func(error)) string {
+func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string {
 	o, restore := prepareInputState(exitFn)
 	defer restore()
-	s := prompt.Input(promptPrefix, completerPrefix(terms), o...)
+	s := prompt.Input(p, completerPrefix(items), o...)
 
 	return s
 }
 
-// InputWithFuzzySuggestions prompts the user for input with fuzzy suggestions
+// inputWithFuzzySuggestions prompts the user for input with fuzzy suggestions
 // based on the provided items and exit function.
-func InputWithFuzzySuggestions[T any](terms []T, exitFn func(error)) string {
+func inputWithFuzzySuggestions[T any](p string, items []T, exitFn func(error)) string {
 	o, restore := prepareInputState(exitFn)
 	defer restore()
-	s := prompt.Input(promptPrefix, completerFuzzy(terms), o...)
+	s := prompt.Input(p, completerFuzzy(items), o...)
 
 	return s
 }
 
 // Confirm prompts the user with a question and options.
 func Confirm(q, def string) bool {
-	choices := promptWithDefChoice([]string{"y", "n"}, def)
-	chosen := promptWithChoices(os.Stdin, q, choices, def)
-
-	return strings.EqualFold(chosen, "y")
+	t := New(WithInterruptFn(sys.ErrAndExit))
+	return t.Confirm(q, def)
 }
 
-// ConfirmWithChoices prompts the user to enter one of the given options.
-func ConfirmWithChoices(q string, opts []string, def string) string {
-	for i := 0; i < len(opts); i++ {
-		opts[i] = strings.ToLower(opts[i])
-	}
-	opts = promptWithDefChoice(opts, def)
-
-	return promptWithChoices(os.Stdin, q, opts, def)
+// Choose prompts the user to enter one of the given options.
+func Choose(q string, opts []string, def string) string {
+	t := New(WithInterruptFn(sys.ErrAndExit))
+	return t.Choose(q, opts, def)
 }
 
 // ReadPipedInput reads the input from a pipe.
@@ -103,14 +80,8 @@ func ReadPipedInput(args *[]string) {
 	*args = append(*args, split...)
 }
 
-// WaitForEnter displays a prompt and waits for the user to press ENTER.
-func WaitForEnter() {
-	fmt.Print("Press ENTER to continue...")
-	var input string
-	_, _ = fmt.Scanln(&input)
-}
-
-// prepareInputState prepares the input state and options, handling errors with exitFn.
+// prepareInputState prepares the input state and options, handling errors with
+// exitFn.
 func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 	// BUG: https://github.com/c-bata/go-prompt/issues/233#issuecomment-1076162632
 
@@ -139,7 +110,7 @@ func promptOptions(c *bool) (o []prompt.Option) {
 		prompt.OptionInputTextColor(prompt.DefaultColor),
 		prompt.OptionSuggestionBGColor(prompt.Black),
 		prompt.OptionDescriptionBGColor(prompt.Black),
-		prompt.OptionSuggestionTextColor(prompt.White),
+		prompt.OptionSuggestionTextColor(prompt.DefaultColor),
 		prompt.OptionDescriptionTextColor(prompt.White),
 		prompt.OptionSelectedSuggestionTextColor(prompt.Color(prompt.DisplayBold)),
 		prompt.OptionSelectedDescriptionTextColor(prompt.Color(prompt.DisplayBold)),
@@ -152,7 +123,7 @@ func promptOptions(c *bool) (o []prompt.Option) {
 	// color
 	if *c {
 		o = append(o,
-			prompt.OptionPrefixTextColor(prompt.Yellow),
+			prompt.OptionPrefixTextColor(prompt.DefaultColor),
 			prompt.OptionPreviewSuggestionTextColor(prompt.Blue),
 			prompt.OptionInputTextColor(prompt.DarkGray),
 		)
@@ -161,11 +132,11 @@ func promptOptions(c *bool) (o []prompt.Option) {
 	return
 }
 
-// completerCreate creates a PromptSuggester that filters suggestions based on
-// the provided terms and filter function.
-func completerCreate[T any](terms []T, filter FilterFunc) PromptSuggester {
+// completerHelper creates a PromptSuggester that filters suggestions based on
+// the provided items and filter function.
+func completerHelper[T any](items []T, filter filterFn) PromptSuggester {
 	sg := make([]prompt.Suggest, 0)
-	for _, t := range terms {
+	for _, t := range items {
 		sg = append(sg, prompt.Suggest{Text: fmt.Sprint(t)})
 	}
 
@@ -174,25 +145,26 @@ func completerCreate[T any](terms []T, filter FilterFunc) PromptSuggester {
 	}
 }
 
-// completerPrefix generates a list of suggestions from a given array of terms
+// completerPrefix generates a list of suggestions from a given array of items
 // using prefix matching.
-func completerPrefix[T any](terms []T) PromptSuggester {
-	return completerCreate(terms, prompt.FilterHasPrefix)
+func completerPrefix[T any](items []T) PromptSuggester {
+	return completerHelper(items, prompt.FilterHasPrefix)
 }
 
-// completerFuzzy generates a list of suggestions from a given array of terms using fuzzy matching.
-func completerFuzzy[T any](terms []T) PromptSuggester {
-	return completerCreate(terms, prompt.FilterFuzzy)
+// completerFuzzy generates a list of suggestions from a given array of items
+// using fuzzy matching.
+func completerFuzzy[T any](items []T) PromptSuggester {
+	return completerHelper(items, prompt.FilterFuzzy)
 }
 
 // completerDummy generates an empty list of suggestions.
 func completerDummy() PromptSuggester {
-	return completerCreate([]prompt.Suggest{}, prompt.FilterHasPrefix)
+	return completerHelper([]prompt.Suggest{}, prompt.FilterHasPrefix)
 }
 
 // completerTagsWithCount creates a prompt suggester with count as a
 // description.
-func completerTagsWithCount[T comparable, V any](m map[T]V, filter FilterFunc) PromptSuggester {
+func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) PromptSuggester {
 	sg := make([]prompt.Suggest, 0)
 	for t, v := range m {
 		sg = append(sg, prompt.Suggest{
@@ -206,38 +178,38 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter FilterFunc) P
 	}
 }
 
-// promptWithChoices prompts the user to enter one of the given options.
-func promptWithChoices(rd io.Reader, q string, opts []string, def string) string {
-	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
+// getUserInput reads user input and validates against the options.
+func getUserInput(rd io.Reader, prompt string, opts []string, def string) string {
 	r := bufio.NewReader(rd)
 
 	for {
-		fmt.Print(p)
-		s, err := r.ReadString('\n')
+		fmt.Print(prompt)
+		input, err := r.ReadString('\n')
 		if err != nil {
-			log.Println("Error reading input:", err)
-
+			log.Print("Error reading input:", err)
 			return ""
 		}
 
-		s = strings.ToLower(strings.TrimSpace(s))
-		if s == "" && def != "" {
+		input = strings.ToLower(strings.TrimSpace(input))
+		if input == "" && def != "" {
 			return def
 		}
 
-		for _, opt := range opts {
-			if strings.EqualFold(s, opt) || strings.EqualFold(s, opt[:1]) {
-				return s
-			}
+		if isValidOption(input, opts) {
+			return input
 		}
 
 		ClearLine(1)
 	}
 }
 
-// promptWithDefChoice capitalizes the default option and appends to the end of
+// fmtChoicesWithDefault capitalizes the default option and appends to the end of
 // the slice.
-func promptWithDefChoice(opts []string, def string) []string {
+func fmtChoicesWithDefault(opts []string, def string) []string {
+	if def == "" {
+		return opts
+	}
+
 	for i := 0; i < len(opts); i++ {
 		if strings.HasPrefix(opts[i], def) {
 			w := opts[i]
@@ -250,19 +222,6 @@ func promptWithDefChoice(opts []string, def string) []string {
 	}
 
 	return opts
-}
-
-// buildPrompt returns a formatted string with a question and options.
-func buildPrompt(q, opts string) string {
-	if q == "" {
-		return fmt.Sprintf("%s %s ", q, color.Gray(opts))
-	}
-
-	if opts == "" {
-		return q + " "
-	}
-
-	return fmt.Sprintf("%s %s ", q, color.Gray(opts))
 }
 
 // getQueryFromPipe reads the input from the pipe.
@@ -299,4 +258,35 @@ func quitKeybind(f func(err error)) prompt.KeyBind {
 			f(ErrActionAborted)
 		},
 	}
+}
+
+// isValidOption checks if input is a valid choice.
+func isValidOption(input string, opts []string) bool {
+	for _, opt := range opts {
+		if strings.EqualFold(input, opt) || strings.EqualFold(input, opt[:1]) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// buildPrompt returns a formatted string with a question and options.
+func buildPrompt(q, opts string) string {
+	if q == "" {
+		return fmt.Sprintf("%s %s ", q, color.Gray(opts))
+	}
+
+	if opts == "" {
+		return q + " "
+	}
+
+	return fmt.Sprintf("%s %s ", q, color.Gray(opts))
+}
+
+// WaitForEnter displays a prompt and waits for the user to press ENTER.
+func WaitForEnter() {
+	fmt.Print("Press ENTER to continue...")
+	var input string
+	_, _ = fmt.Scanln(&input)
 }

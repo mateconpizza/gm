@@ -33,18 +33,24 @@ var backupCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
+		defer r.Close()
 
-		flags := map[bool]func(r *repo.SQLiteRepository) error{
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))
+
+		flags := map[bool]func(t *terminal.Term, r *repo.SQLiteRepository) error{
 			bkCreate: backupCreate,
 			bkPurge:  backupPurge,
 			bkList:   backupInfoPrint,
 		}
 
 		if handler, run := flags[true]; run {
-			return handler(r)
+			return handler(t, r)
 		}
 
-		return backupInfoPrint(r)
+		return backupInfoPrint(t, r)
 	},
 }
 
@@ -67,7 +73,7 @@ func init() {
 
 // backupCreate creates a backup of the specified repository if
 // conditions are met, including confirmation and backup limits.
-func backupCreate(r *repo.SQLiteRepository) error {
+func backupCreate(t *terminal.Term, r *repo.SQLiteRepository) error {
 	if !Force && !r.Cfg.Backup.Enabled {
 		return repo.ErrBackupDisabled
 	}
@@ -79,14 +85,14 @@ func backupCreate(r *repo.SQLiteRepository) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, srcPath)
 	}
-	if err := backupInfoPrint(r); err != nil {
+	if err := backupInfoPrint(t, r); err != nil {
 		return err
 	}
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	c := color.BrightGreen("backup").Bold().String()
 	f.Row().Ln().Render()
-	if !terminal.Confirm(f.Clean().Header("create "+c).String(), "y") {
+	if !t.Confirm(f.Clean().Header("create "+c).String(), "y") {
 		return handler.ErrActionAborted
 	}
 
@@ -96,7 +102,7 @@ func backupCreate(r *repo.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	terminal.ClearLine(1)
+	t.ClearLine(1)
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Clean().Success(success + " backup created: " + destName).Ln().Render()
 
@@ -104,7 +110,7 @@ func backupCreate(r *repo.SQLiteRepository) error {
 }
 
 // backupPurge removes old backups.
-func backupPurge(r *repo.SQLiteRepository) error {
+func backupPurge(t *terminal.Term, r *repo.SQLiteRepository) error {
 	backups, err := repo.Backups(r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -136,15 +142,15 @@ func backupPurge(r *repo.SQLiteRepository) error {
 	f.Row().Ln().Render().Clean()
 	q := f.Header(fmt.Sprintf("%s %d backup/s?", nPurgeStr, n)).String()
 
-	if !Force && !terminal.Confirm(q, "n") {
+	if !Force && !t.Confirm(q, "n") {
 		return handler.ErrActionAborted
 	}
 
-	if err := backups.ForEachErr(repo.Remove); err != nil {
+	if err := backups.ForEachErr(files.Remove); err != nil {
 		return fmt.Errorf("removing backup: %w", err)
 	}
 
-	terminal.ClearLine(1)
+	t.ClearLine(1)
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Clean().Success(success + " backups purged").Ln().Render()
 
@@ -152,7 +158,7 @@ func backupPurge(r *repo.SQLiteRepository) error {
 }
 
 // backupInfoPrint prints repository's backup info.
-func backupInfoPrint(r *repo.SQLiteRepository) error {
+func backupInfoPrint(_ *terminal.Term, r *repo.SQLiteRepository) error {
 	s := repo.Summary(r)
 	s += repo.BackupsSummary(r)
 	s += repo.BackupDetail(r)

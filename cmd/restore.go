@@ -10,6 +10,7 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -73,8 +74,13 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	header := c("Restoring Bookmarks").String()
 	f.Header(header).Ln().Ln().Render().Clean()
 
+	t := terminal.New(terminal.WithInterruptFn(func(err error) {
+		r.Close()
+		sys.ErrAndExit(err)
+	}))
+
 	prompt := color.BrightYellow("restore").Bold().String()
-	if err := handler.Confirmation(bs, prompt, c); err != nil {
+	if err := handler.Confirmation(t, bs, prompt, c); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -82,15 +88,15 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	s := spinner.New(spinner.WithMesg(mesg))
 	s.Start()
 
-	t := r.Cfg.Tables
-	if err := r.Restore(t.Main, t.Deleted, bs); err != nil {
-		terminal.ClearLine(1)
+	ts := r.Cfg.Tables
+	if err := r.Restore(ts.Main, ts.Deleted, bs); err != nil {
+		t.ClearLine(1)
 		return fmt.Errorf("%w", err)
 	}
 
 	s.Stop()
 
-	terminal.ClearLine(1)
+	t.ClearLine(1)
 	f = frame.New(frame.WithColorBorder(color.Gray))
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Success(success + " bookmark/s restored").Render()

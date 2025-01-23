@@ -34,6 +34,7 @@ var (
 	ErrTermHeightTooSmall  = errors.New("terminal height too small")
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
 	ErrNoStateToRestore    = errors.New("no term state to restore")
+	ErrNotInteractive      = errors.New("not an interactive terminal")
 )
 
 // NoColor disables color output if the NO_COLOR environment variable is set.
@@ -48,7 +49,7 @@ func NoColor(b *bool) {
 
 // Save the current terminal state.
 func saveState() error {
-	log.Println("saving terminal state...")
+	log.Print("saving terminal state...")
 	oldState, err := term.GetState(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("saving state: %w", err)
@@ -60,7 +61,7 @@ func saveState() error {
 
 // Restore the previously saved terminal state.
 func restoreState() error {
-	log.Println("restoring terminal state...")
+	log.Print("restoring terminal state...")
 	if termState == nil {
 		return ErrNoStateToRestore
 	}
@@ -94,9 +95,6 @@ func Clear() {
 
 // ClearChars deletes n characters in the console.
 func ClearChars(n int) {
-	if n <= 0 || !term.IsTerminal(int(os.Stdin.Fd())) {
-		return
-	}
 	for i := 0; i < n; i++ {
 		fmt.Print("\b \b")
 	}
@@ -104,19 +102,13 @@ func ClearChars(n int) {
 
 // ClearLine deletes n lines in the console.
 func ClearLine(n int) {
-	if n <= 0 || !term.IsTerminal(int(os.Stdin.Fd())) {
-		return
-	}
 	for i := 0; i < n; i++ {
 		fmt.Print("\033[F\033[K")
 	}
 }
 
+// ReplaceLine replaces a line in the console.
 func ReplaceLine(n int, s string) {
-	if n <= 0 || !term.IsTerminal(int(os.Stdin.Fd())) {
-		return
-	}
-
 	ClearLine(n)
 	fmt.Println(s)
 }

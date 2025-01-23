@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -55,7 +56,7 @@ func initConfig() {
 	// Load data home path for the app.
 	dataHomePath, err := loadDataPath()
 	if err != nil {
-		handler.ErrAndExit(err)
+		sys.ErrAndExit(err)
 	}
 	config.App.Path.Data = dataHomePath                            // Home
 	config.App.Path.Backup = filepath.Join(dataHomePath, "backup") // Backups

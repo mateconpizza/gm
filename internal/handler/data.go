@@ -11,6 +11,7 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
@@ -118,8 +119,13 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 		header := c("Removing Bookmarks").String()
 		f.Header(header).Ln().Ln().Render().Clean()
 
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))
+
 		prompt := color.BrightRed("remove").Bold().String()
-		if err := Confirmation(bs, prompt, c); err != nil {
+		if err := Confirmation(t, bs, prompt, c); err != nil {
 			return err
 		}
 	}

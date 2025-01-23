@@ -18,6 +18,8 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
+type Record = bookmark.Bookmark
+
 var (
 	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
 	ErrBrowserUnsupported      = errors.New("browser is unsupported")
@@ -81,7 +83,7 @@ func (b *BlinkBrowser) LoadPaths() error {
 }
 
 // Import extracts profile system names and user names.
-func (b *BlinkBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
+func (b *BlinkBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark], error) {
 	p := b.paths
 	if p.bookmarks == "" || p.profiles == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -104,10 +106,10 @@ func (b *BlinkBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
 	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
 	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Render()
 
-	bs := slice.New[bookmark.Bookmark]()
+	bs := slice.New[Record]()
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, profile)
-		processProfile(bs, v, files.ExpandHomeDir(p))
+		processProfile(t, bs, v, files.ExpandHomeDir(p))
 	}
 
 	return bs, nil
@@ -224,7 +226,7 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 }
 
 // processProfile extracts profile system names and user names.
-func processProfile(bs *slice.Slice[bookmark.Bookmark], profile, path string) {
+func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path string) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 
 	if !files.Exists(path) {
@@ -235,7 +237,8 @@ func processProfile(bs *slice.Slice[bookmark.Bookmark], profile, path string) {
 
 	f.Row().Ln().Render().Clean()
 	f.Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
-	if !terminal.Confirm(f.String(), "n") {
+	if !t.Confirm(f.String(), "n") {
+		t.ClearLine(1)
 		f.Clean().Row("Skipping profile...'" + profile + "'").Ln().Render()
 		return
 	}

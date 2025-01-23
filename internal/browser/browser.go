@@ -5,6 +5,7 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/slice"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var ErrBrowserUnsupported = errors.New("browser unsupported")
@@ -17,5 +18,5 @@ type Browser interface {
 	Short() string
 	LoadPaths() error
 	Color(string) string
-	Import() (*slice.Slice[bookmark.Bookmark], error)
+	Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark], error)
 }

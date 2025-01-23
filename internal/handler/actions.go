@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"sync"
 
@@ -109,7 +108,7 @@ func Open(bs *Slice) error {
 	sem := semaphore.NewWeighted(maxGoroutines)
 	var wg sync.WaitGroup
 	errCh := make(chan error, bs.Len())
-	action := func(b Bookmark) error {
+	actionFn := func(b Bookmark) error {
 		if err := sem.Acquire(context.Background(), 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
@@ -126,7 +125,7 @@ func Open(bs *Slice) error {
 		return nil
 	}
 
-	if err := bs.ForEachErr(action); err != nil {
+	if err := bs.ForEachErr(actionFn); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -177,12 +176,4 @@ func LoggingLevel(v *bool) {
 
 	silentLogger := log.New(io.Discard, "", 0)
 	log.SetOutput(silentLogger.Writer())
-}
-
-// ErrAndExit logs the error and exits the program.
-func ErrAndExit(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
-		os.Exit(1)
-	}
 }

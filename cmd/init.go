@@ -46,6 +46,7 @@ var initCmd = &cobra.Command{
 		if r == nil {
 			return fmt.Errorf("init database: %w", err)
 		}
+		defer r.Close()
 
 		if err := initDB(r); err != nil {
 			return err
@@ -56,8 +57,6 @@ var initCmd = &cobra.Command{
 		if err := r.Records(Cfg.Tables.Main, bs); err != nil {
 			return fmt.Errorf("getting records: %w", err)
 		}
-
-		r.Close()
 
 		if err := handler.Print(bs); err != nil {
 			return fmt.Errorf("initCmd printer: %w", err)
@@ -76,6 +75,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
+// createPaths creates the paths for the application.
 func createPaths(path string) error {
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Header(prettyVersion()).Ln()
@@ -102,7 +102,7 @@ func createPaths(path string) error {
 	terminal.ClearLine(lines)
 
 	if err := files.MkdirAll(path); err != nil {
-		handler.ErrAndExit(err)
+		sys.ErrAndExit(err)
 	}
 
 	f.Clean()

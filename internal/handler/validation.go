@@ -41,7 +41,7 @@ func OnSubcommand() {
 }
 
 // Confirmation prompts the user to confirm the action.
-func Confirmation(bs *Slice, prompt string, colors color.ColorFn) error {
+func Confirmation(t *terminal.Term, bs *Slice, prompt string, colors color.ColorFn) error {
 	for !*force {
 		n := bs.Len()
 		if n == 0 {
@@ -55,7 +55,7 @@ func Confirmation(bs *Slice, prompt string, colors color.ColorFn) error {
 		// render frame
 		f := frame.New(frame.WithColorBorder(colors), frame.WithNoNewLine())
 		q := f.Footer(prompt + fmt.Sprintf(" %d bookmark/s?", n)).String()
-		opt := terminal.ConfirmWithChoices(q, []string{"yes", "no", "edit"}, "n")
+		opt := t.Choose(q, []string{"yes", "no", "edit"}, "n")
 		opt = strings.ToLower(opt)
 		switch opt {
 		case "n", "no":
@@ -66,7 +66,7 @@ func Confirmation(bs *Slice, prompt string, colors color.ColorFn) error {
 			if err := filterSlice(bs); err != nil {
 				return err
 			}
-			terminal.Clear()
+			fmt.Println()
 		}
 	}
 

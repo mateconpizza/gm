@@ -80,7 +80,7 @@ func (b *GeckoBrowser) LoadPaths() error {
 	return nil
 }
 
-func (b *GeckoBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
+func (b *GeckoBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark], error) {
 	p := b.paths
 	if p.profiles == "" || p.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -101,7 +101,7 @@ func (b *GeckoBrowser) Import() (*slice.Slice[bookmark.Bookmark], error) {
 	bs := slice.New[bookmark.Bookmark]()
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, v)
-		processProfile(bs, profile, p)
+		processProfile(t, bs, profile, p)
 	}
 
 	return bs, nil
@@ -153,7 +153,7 @@ func openSQLite(dbPath string) (*sql.DB, error) {
 // isNonGenericURL checks if the given URL is a non-generic URL based on a set
 // of ignored prefixes.
 func isNonGenericURL(url string) bool {
-	log.Println("isNonGenericURL checking url:", url)
+	log.Print("isNonGenericURL checking url:", url)
 	ignoredPrefixes := []string{
 		"about:",
 		"apt:",
@@ -249,11 +249,17 @@ func allProfiles(p string) (map[string]string, error) {
 	return result, nil
 }
 
-func processProfile(bs *slice.Slice[bookmark.Bookmark], profileName, dbPath string) {
+func processProfile(
+	t *terminal.Term,
+	bs *slice.Slice[bookmark.Bookmark],
+	profileName, dbPath string,
+) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Row().Ln().Render()
 	f.Clean().Header(fmt.Sprintf("import bookmarks from '%s' profile?", profileName))
-	if !terminal.Confirm(f.String(), "n") {
+	if !t.Confirm(f.String(), "n") {
+		t.ClearLine(1)
+		f.Clean().Row("Skipping profile...'" + profileName + "'").Ln().Render()
 		return
 	}
 

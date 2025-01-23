@@ -11,6 +11,7 @@ import (
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -115,6 +116,6 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		handler.ErrAndExit(err)
+		sys.ErrAndExit(err)
 	}
 }
