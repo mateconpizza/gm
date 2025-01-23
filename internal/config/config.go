@@ -10,6 +10,10 @@ const (
 
 type Table string
 
+func (t Table) String() string {
+	return string(t)
+}
+
 type (
 	app struct {
 		Name    string      `json:"name"`    // Name of the application

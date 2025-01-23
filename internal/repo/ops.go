@@ -51,6 +51,7 @@ func Databases(c *SQLiteConfig) (*slice.Slice[*SQLiteRepository], error) {
 
 	dbs := slice.New[*SQLiteRepository]()
 	paths.ForEach(func(p string) {
+		// FIX: find a simpler way
 		name := filepath.Base(p)
 		path := filepath.Dir(p)
 
@@ -112,17 +113,4 @@ func Backups(r *SQLiteRepository) (*slice.Slice[string], error) {
 func AddPrefixDate(s, f string) string {
 	now := time.Now().Format(f)
 	return fmt.Sprintf("%s_%s", now, s)
-}
-
-// Remove removes a repository from the system.
-func Remove(f string) error {
-	name := filepath.Base(f)
-	log.Printf("Remove: repository: '%s'", name)
-	if err := files.Remove(f); err != nil {
-		return fmt.Errorf("removing file: %w", err)
-	}
-
-	log.Printf("Remove: removed repository: '%s'", f)
-
-	return nil
 }

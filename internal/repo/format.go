@@ -72,8 +72,13 @@ func BackupDetail(r *SQLiteRepository) string {
 		return f.Row(format.PaddedLine("found:", "n/a")).String()
 	}
 
-	backups.ForEach(func(bk string) {
-		f.Row(SummaryRecords(bk))
+	n := backups.Len()
+	backups.ForEachIdx(func(i int, bk string) {
+		if n == i+1 {
+			f.Footer(SummaryRecords(bk))
+		} else {
+			f.Row(SummaryRecords(bk))
+		}
 	})
 
 	return f.String()

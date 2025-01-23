@@ -213,6 +213,10 @@ func BrightYellow(arg ...any) *Color {
 	return addColor(brightYellow, arg...)
 }
 
+func Default(arg ...any) *Color {
+	return addColor(brightWhite, arg...)
+}
+
 func addColor(c string, arg ...any) *Color {
 	return &Color{text: join(arg...), color: c}
 }

@@ -7,8 +7,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/haaag/gm/internal/sys/files"
 )
 
 var connClosed bool
@@ -27,6 +25,7 @@ func (r *SQLiteRepository) IsClosed() bool {
 // Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLiteRepository) Close() {
 	if r.IsClosed() {
+		log.Print("database already closed.")
 		return
 	}
 	if err := r.DB.Close(); err != nil {
@@ -34,7 +33,7 @@ func (r *SQLiteRepository) Close() {
 	}
 
 	connClosed = true
-	log.Printf("database closed.")
+	log.Printf("database '%s' closed.\n", r.Cfg.Name)
 }
 
 func (r *SQLiteRepository) SetMain(t Table) {
@@ -58,7 +57,6 @@ func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteConfig) *SQLiteRepository {
 // New creates a new `SQLiteRepository` using the provided configuration and
 // opens the database, returning the repository or an error.
 func New(c *SQLiteConfig) (*SQLiteRepository, error) {
-	c.Name = files.EnsureExt(c.Name, ".db")
 	db, err := MustOpenDatabase(c.Fullpath())
 	if err != nil {
 		log.Fatal("Error opening database:", err)
