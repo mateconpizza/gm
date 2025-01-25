@@ -67,6 +67,19 @@ func (t *Term) SetReader(r io.Reader) {
 	t.reader = r
 }
 
+// SetInterruptFn sets the interrupt function for the terminal.
+func (t *Term) SetInterruptFn(fn func(error)) {
+	log.Print("setting interrupt function")
+	if t.InterruptFn != nil {
+		t.CancelInterruptHandler()
+	}
+	t.InterruptFn = fn
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.cancelFn = cancel
+	setupInterruptHandler(ctx, t.InterruptFn)
+}
+
 // Input get the Input data from the user and return it.
 func (t *Term) Input(p string) string {
 	o, restore := prepareInputState(t.InterruptFn)
@@ -91,6 +104,7 @@ func (t *Term) PromptWithSuggestions(p string, items []string) string {
 	return inputWithSuggestions(p, items, t.InterruptFn)
 }
 
+// PromptWithFuzzySuggestions prompts the user for input with fuzzy suggestions.
 func (t *Term) PromptWithFuzzySuggestions(p string, items []string) string {
 	return inputWithFuzzySuggestions(p, items, t.InterruptFn)
 }
@@ -216,20 +230,23 @@ func New(opts ...TermOptFn) *Term {
 	return t
 }
 
-// setupInterruptHandler handles Ctrl+C interruptions.
+// setupInterruptHandler handles interruptions.
 func setupInterruptHandler(ctx context.Context, onInterrupt func(error)) {
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(sigChan,
+		os.Interrupt,    // Ctrl+C (SIGINT)
+		syscall.SIGTERM, // Process termination
+		syscall.SIGHUP,  // Terminal closed
+	)
 
 	go func() {
 		select {
-		case <-sigChan:
+		case sig := <-sigChan:
 			fmt.Println()
-			log.Print("interrupted, cleaning up...")
+			log.Printf("received signal: '%v', cleaning up...", sig)
 			onInterrupt(ErrActionAborted)
 			os.Exit(1)
 		case <-ctx.Done():
-			fmt.Println()
 			log.Print("interrupt handler cancelled")
 			return
 		}

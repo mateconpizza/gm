@@ -8,6 +8,7 @@ import (
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/handler"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/terminal"
@@ -45,6 +46,7 @@ func initConfig() {
 
 	// Enable color
 	config.App.Color = WithColor != "never" && !terminal.IsPiped()
+	menu.WithColor(&config.App.Color)
 
 	// Set terminal defaults
 	terminal.NoColor(&config.App.Color)

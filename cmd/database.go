@@ -111,7 +111,7 @@ func dbRemoveHandler(t *terminal.Term, r *repo.SQLiteRepository) error {
 
 // dbListHandler lists the available databases.
 func dbListHandler(_ *terminal.Term, r *repo.SQLiteRepository) error {
-	dbs, err := repo.Databases(r.Cfg)
+	dbs, err := repo.Databases(r.Cfg.Path)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -128,8 +128,8 @@ func dbListHandler(_ *terminal.Term, r *repo.SQLiteRepository) error {
 		f.Header(nColor + " database/s found").Ln()
 	}
 
-	dbs.ForEachIdx(func(i int, r *repo.SQLiteRepository) {
-		f.Text(repo.Summary(r))
+	dbs.ForEachIdx(func(i int, r repo.SQLiteRepository) {
+		f.Text(repo.Summary(&r))
 	})
 
 	f.Render()

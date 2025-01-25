@@ -21,8 +21,10 @@ const (
 
 var ErrConfigFileExists = errors.New("config file already exists")
 
+// menuConfig holds the menu configuration.
 var menuConfig Config
 
+// Keymap holds the keymap configuration.
 type Keymap struct {
 	Bind        string `yaml:"bind"`
 	Description string `yaml:"description"`
@@ -30,6 +32,17 @@ type Keymap struct {
 	Hidden      bool   `yaml:"hidden"`
 }
 
+// NewKeymap creates a new keymap.
+func NewKeymap(bind, description string, enabled, hidden bool) *Keymap {
+	return &Keymap{
+		Bind:        bind,
+		Description: description,
+		Enabled:     enabled,
+		Hidden:      hidden,
+	}
+}
+
+// FZFKeymaps holds the keymaps for FZF.
 type FZFKeymaps struct {
 	Edit      Keymap `yaml:"edit"`
 	Open      Keymap `yaml:"open"`
@@ -40,6 +53,7 @@ type FZFKeymaps struct {
 	Yank      Keymap `yaml:"yank"`
 }
 
+// Config holds the menu configuration.
 type Config struct {
 	Prompt  string     `yaml:"prompt"`
 	Header  bool       `yaml:"header"`
@@ -47,6 +61,7 @@ type Config struct {
 	Keymaps FZFKeymaps `yaml:"keymaps"`
 }
 
+// DefaultKeymaps holds the default keymaps.
 var defaultKeymaps = FZFKeymaps{
 	Edit:      Keymap{Bind: "ctrl-e", Description: "edit", Enabled: true, Hidden: false},
 	Open:      Keymap{Bind: "ctrl-o", Description: "open", Enabled: true, Hidden: false},
@@ -57,6 +72,7 @@ var defaultKeymaps = FZFKeymaps{
 	Yank:      Keymap{Bind: "ctrl-y", Description: "yank", Enabled: true, Hidden: false},
 }
 
+// defaultMenuConfig holds the default menu configuration.
 var defaultMenuConfig = Config{
 	Prompt:  defaultPrompt,
 	Header:  true,
@@ -64,6 +80,7 @@ var defaultMenuConfig = Config{
 	Keymaps: defaultKeymaps,
 }
 
+// DumpConfig dumps the menu configuration to a YAML file.
 func DumpConfig(force bool) error {
 	p := filepath.Join(config.App.Path.Data, keymapsConfigFile)
 

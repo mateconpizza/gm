@@ -101,6 +101,11 @@ func insertRecord(tx *sqlx.Tx, t Table, b *Row) error {
 	return nil
 }
 
+// InsertMultiple creates multiple records.
+func (r *SQLiteRepository) InsertMultiple(bs *Slice) error {
+	return r.insertBulk(context.Background(), r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, bs)
+}
+
 // insertBulkNNew creates multiple records in the given tables.
 func (r *SQLiteRepository) insertBulk(ctx context.Context, tmain, trecords Table, bs *Slice) error {
 	log.Printf("inserting %d records into table: %s", bs.Len(), tmain)

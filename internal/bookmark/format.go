@@ -10,6 +10,7 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/slice"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // Buffer returns a formatted buffer with item attrs.
@@ -40,13 +41,15 @@ func BufferSlice(bs *slice.Slice[Bookmark]) []byte {
 }
 
 // Oneline formats a bookmark in a single line.
-func Oneline(b *Bookmark, width int) string {
+func Oneline(b *Bookmark) string {
 	var sb strings.Builder
 	const (
 		idWithColor    = 16
 		minTagsLen     = 34
 		defaultTagsLen = 24
 	)
+
+	width := terminal.MaxWidth
 
 	idLen := format.PaddingConditional(5, idWithColor)
 	tagsLen := format.PaddingConditional(minTagsLen, defaultTagsLen)
@@ -78,7 +81,8 @@ func Oneline(b *Bookmark, width int) string {
 }
 
 // Multiline formats a bookmark for fzf.
-func Multiline(b *Bookmark, width int) string {
+func Multiline(b *Bookmark) string {
+	width := terminal.MaxWidth
 	var sb strings.Builder
 	sb.WriteString(color.BrightYellow(b.ID).Bold().String())
 	sb.WriteString(" " + format.MidBulletPoint + " ") // sep

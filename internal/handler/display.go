@@ -39,7 +39,7 @@ func JSON(bs *Slice) error {
 // Oneline formats the bookmarks in oneline.
 func Oneline(bs *Slice) error {
 	bs.ForEach(func(b Bookmark) {
-		fmt.Print(bookmark.Oneline(&b, terminal.MaxWidth))
+		fmt.Print(bookmark.Oneline(&b))
 	})
 
 	return nil

@@ -10,10 +10,12 @@ import (
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-var ErrInvalidOption = errors.New("invalid option")
+var (
+	ErrInvalidOption = errors.New("invalid option")
+	ErrNoItems       = errors.New("no items")
+)
 
 // ByTags returns a slice of bookmarks based on the provided tags.
 func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
@@ -129,52 +131,30 @@ func ByHeadAndTail(bs *Slice, h, t int) error {
 	return nil
 }
 
-// Menu allows the user to select multiple records in a menu interface.
-func Menu(bs *Slice, multiline bool) error {
-	if bs.Empty() {
-		return repo.ErrRecordNoMatch
+// Selection allows the user to select multiple records in a menu
+// interface.
+func Selection[T comparable](m *menu.Menu[T], items *[]T, fmtFn func(*T) string) ([]T, error) {
+	if len(*items) == 0 {
+		return nil, repo.ErrRecordNoMatch
 	}
 
-	if err := menu.LoadConfig(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	menu.WithColor(&config.App.Color)
-
-	// menu opts
-	opts := handleMenuOpts(multiline)
-
-	var formatter func(*Bookmark, int) string
-	if multiline {
-		formatter = bookmark.Multiline
-	} else {
-		formatter = bookmark.Oneline
-	}
-
-	m := menu.New[Bookmark](opts...)
-	var result []Bookmark
-	result, err := m.Select(bs.Items(), func(b Bookmark) string {
-		return formatter(&b, terminal.MaxWidth)
+	var result []T
+	result, err := m.Select(items, func(item T) string {
+		return fmtFn(&item)
 	})
 	if err != nil {
-		if errors.Is(err, menu.ErrFzfActionAborted) {
-			return ErrActionAborted
-		}
-
-		return fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	if len(result) == 0 {
-		return nil
+		return nil, ErrNoItems
 	}
 
-	bs.Set(&result)
-
-	return nil
+	return result, nil
 }
 
-// handleMenuOpts returns the options for the menu.
-func handleMenuOpts(multiline bool) []menu.OptFn {
+// MenuDefaults returns the options for the menu.
+func MenuDefaults(multiline bool) []menu.OptFn {
 	// menu opts
 	opts := []menu.OptFn{
 		menu.WithDefaultKeybinds(),
@@ -197,4 +177,41 @@ func handleMenuOpts(multiline bool) []menu.OptFn {
 	}
 
 	return opts
+}
+
+// ChooseDB prompts the user to select a database to import from.
+func ChooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
+	dbs, err := repo.Databases(r.Cfg.Path)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	dbs.Filter(func(db repo.SQLiteRepository) bool {
+		return db.Cfg.Name != r.Cfg.Name
+	})
+
+	if dbs.Len() == 1 {
+		db := dbs.Item(0)
+		return &db, nil
+	}
+
+	fmtter := func(r *repo.SQLiteRepository) string {
+		return r.String()
+	}
+
+	m := menu.New[repo.SQLiteRepository](
+		menu.WithDefaultSettings(),
+		menu.WithPreview(),
+		menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} -i"),
+		menu.WithPrompt("choose database> "),
+	)
+	items, err := Selection(m, dbs.Items(), fmtter)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	dbs.Set(&items)
+
+	db := dbs.Item(0)
+
+	return &db, nil
 }

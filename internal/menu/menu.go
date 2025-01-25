@@ -3,6 +3,7 @@ package menu
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	fzf "github.com/junegunn/fzf/src"
 )
@@ -41,6 +42,14 @@ type Menu[T comparable] struct {
 	Options
 }
 
+// AddOpts adds options to the menu.
+func (m *Menu[T]) AddOpts(opts ...OptFn) {
+	for _, fn := range opts {
+		fn(&m.Options)
+	}
+}
+
+// defaultOpts returns the default options.
 func defaultOpts() Options {
 	return Options{
 		args:     append(fzfDefaults, "--prompt="+menuConfig.Prompt),
@@ -184,6 +193,8 @@ func WithColor(b *bool) {
 
 // WithPreview adds a preview window and a keybind to toggle it.
 func WithPreview() OptFn {
+	// TODO: sometimes is better to show the preview window, e.g: selecting
+	// databases
 	if !menuConfig.Preview {
 		return func(o *Options) {}
 	}
@@ -214,13 +225,10 @@ func WithPreview() OptFn {
 
 // WithPreviewCustomCmd adds preview with a custom command.
 func WithPreviewCustomCmd(cmd string) OptFn {
-	preview := menuConfig.Keymaps.Preview
 	opts := []string{"--preview=" + cmd}
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
-		o.header = appendToHeader(o.header, preview.Bind, "toggle-preview")
-		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
 	}
 }
 
@@ -234,6 +242,20 @@ func WithMultilineView() OptFn {
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
+	}
+}
+
+// WithHeader adds a header to FZF.
+func WithHeader(header string) OptFn {
+	return func(o *Options) {
+		o.header = []string{header}
+	}
+}
+
+// WithPrompt adds a prompt to FZF.
+func WithPrompt(prompt string) OptFn {
+	return func(o *Options) {
+		o.args = append(o.args, "--prompt="+prompt)
 	}
 }
 
@@ -269,8 +291,11 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 	}
 
 	if preprocessor == nil {
+		log.Print("preprocessor is nil")
 		preprocessor = toString
 	}
+
+	log.Printf("menu args: %v", m.args)
 
 	// channels
 	inputChan := formatItems(*items, preprocessor)

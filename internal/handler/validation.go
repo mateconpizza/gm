@@ -176,7 +176,7 @@ func ValidateDB(cmd *cobra.Command, c *repo.SQLiteConfig) error {
 
 	s := color.BrightYellow(config.App.Cmd, "init").Italic()
 	init := fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBNotFound, s)
-	databases, err := repo.Databases(c)
+	databases, err := repo.Databases(c.Path)
 	if err != nil {
 		return init
 	}
@@ -187,7 +187,7 @@ func ValidateDB(cmd *cobra.Command, c *repo.SQLiteConfig) error {
 	}
 
 	// find with no|other extension
-	databases.ForEach(func(r *repo.SQLiteRepository) {
+	databases.ForEach(func(r repo.SQLiteRepository) {
 		s := strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name))
 		if s == dbName {
 			c.Name = r.Cfg.Name

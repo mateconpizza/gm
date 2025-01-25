@@ -24,7 +24,7 @@
 - [x] Check bookmark `status` _(http status)_
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure `keybinds` in `menu` mode with `yaml` file.
-- [ ] Migrate items from one database to another
+- [x] Migrate items from one database to another
 - [ ] Encrypt database <sub><span style="color:red">_priority_</span></sub>
 - [ ] Add `docker|podman` support <sub><span style="color:red">_priority_</span></sub>
 - [ ] ...

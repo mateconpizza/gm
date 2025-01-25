@@ -41,17 +41,36 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 	return slice.From(f), nil
 }
 
-// Databases returns the list of databases.
-func Databases(c *SQLiteConfig) (*slice.Slice[*SQLiteRepository], error) {
-	p := c.Path
-	paths, err := databasesFromPath(p)
+// Find finds a database by name in the given path.
+func Find(name, path string) (*SQLiteRepository, error) {
+	var found SQLiteRepository
+	dbs, err := Databases(path)
 	if err != nil {
 		return nil, err
 	}
 
-	dbs := slice.New[*SQLiteRepository]()
+	dbs.Filter(func(db SQLiteRepository) bool {
+		return db.Cfg.Name == files.EnsureExt(name, ".db")
+	})
+	if dbs.Len() == 0 {
+		return nil, fmt.Errorf("'%s' %w", name, ErrDBNotFound)
+	}
+
+	found = dbs.Item(0)
+
+	return &found, nil
+}
+
+// Databases returns the list of databases.
+func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
+	// FIX: redo this
+	paths, err := databasesFromPath(path)
+	if err != nil {
+		return nil, fmt.Errorf("'%s' %w", path, err)
+	}
+
+	dbs := slice.New[SQLiteRepository]()
 	paths.ForEach(func(p string) {
-		// FIX: find a simpler way
 		name := filepath.Base(p)
 		path := filepath.Dir(p)
 
@@ -59,8 +78,12 @@ func Databases(c *SQLiteConfig) (*slice.Slice[*SQLiteRepository], error) {
 		c.SetName(name)
 
 		rep, _ := New(c)
-		dbs.Append(&rep)
+		dbs.Append(rep)
 	})
+
+	if dbs.Len() == 0 {
+		return nil, fmt.Errorf("%w: %s", ErrDBNotFound, path)
+	}
 
 	return dbs, nil
 }

@@ -3,12 +3,14 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/handler"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
@@ -48,10 +50,20 @@ func handleData(r *repo.SQLiteRepository, args []string) (*Slice, error) {
 		}
 	}
 	// select with fzf-menu
+	// FIX: fix this
 	if Menu {
-		if err := handler.Menu(bs, Multiline); err != nil {
+		var fmtter func(*Bookmark) string
+		if Multiline {
+			fmtter = bookmark.Multiline
+		} else {
+			fmtter = bookmark.Oneline
+		}
+		m := menu.New[Bookmark](handler.MenuDefaults(Multiline)...)
+		items, err := handler.Selection(m, bs.Items(), fmtter)
+		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
+		bs.Set(&items)
 	}
 
 	return bs, nil
@@ -64,6 +76,15 @@ var rootCmd = &cobra.Command{
 	Long:         config.App.Info.Desc,
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// FIX: load only on `Menu` called
+		if err := menu.LoadConfig(); err != nil {
+			log.Println("error loading config:", err)
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
+	},
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return handler.ValidateDB(cmd, Cfg)
 	},
