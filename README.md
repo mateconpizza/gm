@@ -49,7 +49,6 @@ _This must be simplified a bit._
 
 ```sh
 $ gm --help
-
 Simple yet powerful bookmark manager for your terminal
 
 Usage:
@@ -61,7 +60,7 @@ Available Commands:
   bk          backup management
   db          database management
   help        Help about any command
-  import      import bookmarks from browser
+  import      import bookmarks from browser/database
   restore     restore deleted bookmarks
   version     print version information
 
@@ -73,7 +72,7 @@ Flags:
       --force          force action | don't ask confirmation
   -H, --head int       the <int> first part of bookmarks
   -h, --help           help for gm
-      --json           output in JSON format
+  -j, --json           output in JSON format
   -m, --menu           menu mode (fzf)
   -M, --multiline      output in formatted multiline (fzf)
   -n, --name string    database name (default "bookmarks.db")
@@ -85,8 +84,6 @@ Flags:
   -t, --tag strings    list by tag
   -T, --tail int       the <int> last part of bookmarks
   -v, --verbose        verbose mode
-
-Use "gm [command] --help" for more information about a command.
 ```
 
 ### 🔑 Supported Env Vars
