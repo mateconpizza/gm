@@ -23,7 +23,7 @@
 - [x] Fetch `title` and `description` from added URL
 - [x] Check bookmark `status` _(http status)_
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
-- [x] Configure `keybinds` in `menu` mode with `yaml` file.
+- [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
 - [x] Migrate items from one database to another
 - [ ] Encrypt database <sub><span style="color:red">_priority_</span></sub>
 - [ ] Add `docker|podman` support <sub><span style="color:red">_priority_</span></sub>
@@ -50,10 +50,6 @@ _This must be simplified a bit._
 ```sh
 $ gm --help
 Simple yet powerful bookmark manager for your terminal
-
-Usage:
-  gm [flags]
-  gm [command]
 
 Available Commands:
   add         add a new bookmark
