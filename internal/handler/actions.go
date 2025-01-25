@@ -104,6 +104,7 @@ func Open(bs *Slice) error {
 
 	sp := spinner.New(spinner.WithMesg(color.BrightGreen("opening bookmarks...").String()))
 	sp.Start()
+	defer sp.Stop()
 
 	sem := semaphore.NewWeighted(maxGoroutines)
 	var wg sync.WaitGroup
@@ -135,8 +136,6 @@ func Open(bs *Slice) error {
 	for err := range errCh {
 		return err
 	}
-
-	sp.Stop()
 
 	return nil
 }

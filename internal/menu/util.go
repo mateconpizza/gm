@@ -30,7 +30,7 @@ func appendToHeader(opts []string, key, desc string) []string {
 
 // toString converts any item to a string.
 func toString[T any](s T) string {
-	return fmt.Sprint(s)
+	return fmt.Sprintf("%+v", s)
 }
 
 // formatItems formats each item in the slice using the preprocessor function

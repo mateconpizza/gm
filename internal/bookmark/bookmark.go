@@ -28,6 +28,7 @@ type Bookmark struct {
 	ID        int    `db:"id"         json:"id"`
 }
 
+// Field returns the value of a field.
 func (b *Bookmark) Field(f string) (string, error) {
 	var s string
 	switch f {

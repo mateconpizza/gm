@@ -85,16 +85,15 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	mesg := color.Yellow("restoring record/s...").String()
-	s := spinner.New(spinner.WithMesg(mesg))
-	s.Start()
+	sp := spinner.New(spinner.WithMesg(mesg))
+	sp.Start()
+	defer sp.Stop()
 
 	ts := r.Cfg.Tables
 	if err := r.Restore(ts.Main, ts.Deleted, bs); err != nil {
 		t.ClearLine(1)
 		return fmt.Errorf("%w", err)
 	}
-
-	s.Stop()
 
 	t.ClearLine(1)
 	f = frame.New(frame.WithColorBorder(color.Gray))

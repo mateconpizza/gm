@@ -5,11 +5,11 @@ package spinner
 import (
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // OptFn is an option function for the spinner.
@@ -43,7 +43,7 @@ func (s *Spinner) Start() {
 			select {
 			case <-s.done:
 				// Clear the spinner and message
-				fmt.Printf("\r%s\r", strings.Repeat(" ", len(s.Mesg)+4))
+				terminal.ClearChars(len(s.Mesg) + 4)
 				return
 			default:
 				// Print the spinner animation
@@ -61,13 +61,7 @@ func (s *Spinner) Stop() {
 		return
 	}
 
-	// I like spinners.
-	time.Sleep(150 * time.Millisecond)
-
 	s.done <- true
-
-	// This is to ensure the message is deleted completely.
-	time.Sleep(100 * time.Millisecond)
 
 	log.Print("spinner stopped")
 }

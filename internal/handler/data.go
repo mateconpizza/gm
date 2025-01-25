@@ -136,14 +136,14 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 // removeRecords removes the records from the database.
 func removeRecords(r *repo.SQLiteRepository, bs *Slice, force bool) error {
 	mesg := color.Gray("removing record/s...").String()
-	s := spinner.New(spinner.WithMesg(mesg))
-	s.Start()
+	sp := spinner.New(spinner.WithMesg(mesg))
+	sp.Start()
 
 	if err := r.DeleteAndReorder(bs, r.Cfg.Tables.Main, r.Cfg.Tables.Deleted); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 
-	s.Stop()
+	sp.Stop()
 
 	if !force {
 		terminal.ClearLine(1)

@@ -198,11 +198,11 @@ func addParseNewBookmark(
 
 // addTitleAndDesc fetch and display title and description.
 func addTitleAndDesc(url string, verbose bool) (title, desc string) {
-	s := spinner.New(
+	sp := spinner.New(
 		spinner.WithMesg(color.Yellow("scraping webpage...").String()),
 		spinner.WithColor(color.BrightMagenta),
 	)
-	s.Start()
+	sp.Start()
 
 	sc := scraper.New(url)
 	_ = sc.Scrape()
@@ -210,7 +210,7 @@ func addTitleAndDesc(url string, verbose bool) (title, desc string) {
 	title = sc.Title()
 	desc = sc.Desc()
 
-	s.Stop()
+	sp.Stop()
 
 	if verbose {
 		const indentation int = 10

@@ -62,8 +62,6 @@ func Validate(b *Bookmark) error {
 		return ErrTagsEmpty
 	}
 
-	log.Print("bookmark is valid")
-
 	return nil
 }
 
@@ -159,13 +157,12 @@ func validateAttr(s, fallback string) string {
 func scrapeAndUpdate(b *Bookmark) *Bookmark {
 	if b.Title == "" || b.Desc == "" {
 		mesg := color.Yellow("scraping webpage...").String()
-		s := spinner.New(spinner.WithMesg(mesg))
-		s.Start()
+		sp := spinner.New(spinner.WithMesg(mesg))
+		sp.Start()
+		defer sp.Stop()
 
 		sc := scraper.New(b.URL)
 		_ = sc.Scrape()
-
-		s.Stop()
 
 		b.Title = validateAttr(b.Title, sc.Title())
 		b.Desc = validateAttr(b.Desc, sc.Desc())
