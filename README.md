@@ -18,15 +18,15 @@
 
 - [x] Support multiple `databases`
 - [x] Restore `deleted` bookmarks
-- [x] Import `bookmarks` from <span style="color:orange">`firefox`</span> based browsers <sub><span style="color:red">_priority_</span></sub>
-- [x] Import `bookmarks` from <span style="color:blue">`chromium`</span> based browsers <sub><span style="color:red">_priority_</span></sub>
+- [x] Import `bookmarks` from `firefox` based browsers
+- [x] Import `bookmarks` from `chromium` based browsers
 - [x] Fetch `title` and `description` from added URL
 - [x] Check bookmark `status` _(http status)_
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
 - [x] Migrate items from one database to another
-- [ ] Encrypt database <sub><span style="color:red">_priority_</span></sub>
-- [ ] Add `docker|podman` support <sub><span style="color:red">_priority_</span></sub>
+- [ ] Encrypt database <sub>_priority_</sub>
+- [ ] Add `docker|podman` support <sub>_priority_</sub>
 - [ ] ...
 
 ### 📦 Installation
