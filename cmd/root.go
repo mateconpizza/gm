@@ -101,6 +101,10 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		if bs.Empty() {
+			return repo.ErrRecordNotFound
+		}
+
 		// actions
 		switch {
 		case Status:

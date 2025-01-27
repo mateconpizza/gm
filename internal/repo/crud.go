@@ -290,6 +290,10 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted Table) erro
 
 	// add records to deleted table
 	if err := r.insertBulk(ctx, deleted, r.Cfg.Tables.RecordsTagsDeleted, bs); err != nil {
+		if errors.Is(err, ErrRecordDuplicate) {
+			return nil
+		}
+
 		return fmt.Errorf("inserting records in bulk after deletion: %w", err)
 	}
 

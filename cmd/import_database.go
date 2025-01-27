@@ -39,18 +39,55 @@ var importDatabaseCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+		defer fromDB.Close()
 
 		return importFromDB(t, r, fromDB)
 	},
 }
 
-// importSelectDatabase prompts the user to select a database.
-func importSelectDatabase(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
-	db, err := handler.ChooseDB(r)
+// importChooseDB prompts the user to select a database to import from.
+func importChooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
+	dbs, err := repo.Databases(r.Cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
-	defer db.Close()
+
+	dbs.Filter(func(db repo.SQLiteRepository) bool {
+		return db.Cfg.Name != r.Cfg.Name
+	})
+
+	if dbs.Len() == 1 {
+		db := dbs.Item(0)
+		return &db, nil
+	}
+
+	fmtter := func(r *repo.SQLiteRepository) string {
+		return r.String()
+	}
+
+	m := menu.New[repo.SQLiteRepository](
+		menu.WithDefaultSettings(),
+		menu.WithPreview(),
+		menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} -i"),
+		menu.WithHeader("choose a database", false),
+	)
+	items, err := handler.Selection(m, dbs.Items(), fmtter)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	dbs.Set(&items)
+
+	db := dbs.Item(0)
+
+	return &db, nil
+}
+
+// importSelectDatabase prompts the user to select a database.
+func importSelectDatabase(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
+	db, err := importChooseDB(r)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
 
 	return db, nil
 }

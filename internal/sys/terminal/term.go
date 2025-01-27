@@ -180,6 +180,7 @@ func (t *Term) Clear() {
 // CancelInterruptHandler cancels the interrupt handler.
 func (t *Term) CancelInterruptHandler() {
 	if t.cancelFn != nil {
+		log.Print("cancelling interrupt handler")
 		t.cancelFn()
 	}
 }

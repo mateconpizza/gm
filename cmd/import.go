@@ -31,7 +31,7 @@ type importSource struct {
 var registeredImportSources = []importSource{
 	{"a", "database", color.BrightBlue, importDatabaseCmd},
 	{"s", "browser", color.BrightGreen, importBrowserCmd},
-	{"d", "restore", color.BrightMagenta, importRestoreCmd},
+	{"d", "restore", color.BrightRed, importRestoreCmd},
 	{"w", "backup", color.BrightOrange, importBackupCmd},
 }
 

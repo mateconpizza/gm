@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 )
@@ -179,41 +178,4 @@ func MenuDefaults(multiline bool) []menu.OptFn {
 	}
 
 	return opts
-}
-
-// ChooseDB prompts the user to select a database to import from.
-func ChooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
-	dbs, err := repo.Databases(r.Cfg.Path)
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	dbs.Filter(func(db repo.SQLiteRepository) bool {
-		return db.Cfg.Name != r.Cfg.Name
-	})
-
-	if dbs.Len() == 1 {
-		db := dbs.Item(0)
-		return &db, nil
-	}
-
-	fmtter := func(r *repo.SQLiteRepository) string {
-		return r.String()
-	}
-
-	m := menu.New[repo.SQLiteRepository](
-		menu.WithDefaultSettings(),
-		menu.WithPreview(),
-		menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} -i"),
-		menu.WithHeader("choose a database", false),
-	)
-	items, err := Selection(m, dbs.Items(), fmtter)
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	dbs.Set(&items)
-
-	db := dbs.Item(0)
-
-	return &db, nil
 }

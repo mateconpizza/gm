@@ -1,6 +1,6 @@
 package config
 
-var Version string = "0.1.5" // Version of the application
+var Version string = "0.1.6" // Version of the application
 
 const (
 	AppName string = "gomarks"      // Default name of the application

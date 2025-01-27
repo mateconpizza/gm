@@ -142,6 +142,8 @@ func (f *Frame) Footer(s ...string) *Frame {
 }
 
 func (f *Frame) Render() *Frame {
+	// TODO: maybe Clean should be called here, after the frame is
+	// rendered
 	fmt.Print(strings.Join(f.text, ""))
 	return f
 }
