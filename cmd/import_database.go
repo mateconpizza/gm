@@ -58,12 +58,14 @@ func importSelectDatabase(r *repo.SQLiteRepository) (*repo.SQLiteRepository, err
 // importFromDB imports bookmarks from the given database.
 func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 	// set interrupt handler
-	t.SetInterruptFn(func(err error) {
+	interruptFn := func(err error) {
 		toDB.Close()
 		fromDB.Close()
 		log.Println("importFromDB interrupted")
 		sys.ErrAndExit(err)
-	})
+	}
+
+	t.SetInterruptFn(interruptFn)
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Header("Import from Database").Ln().
@@ -83,6 +85,7 @@ func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import", false),
 		menu.WithPreviewCustomCmd(config.App.Cmd+" -n "+fromDB.Cfg.Name+" {1}"),
+		menu.WithInterruptFn(interruptFn),
 	)
 	records, err := handleData(m, fromDB, []string{})
 	if err != nil {

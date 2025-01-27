@@ -32,10 +32,11 @@ var fzfDefaults = []string{
 type OptFn func(*Options)
 
 type Options struct {
-	keybind  []string
-	header   []string
-	args     []string
-	defaults bool
+	keybind     []string
+	header      []string
+	args        []string
+	defaults    bool
+	interruptFn func(error)
 }
 
 type Menu[T comparable] struct {
@@ -55,6 +56,23 @@ func defaultOpts() Options {
 		args:     append(fzfDefaults, "--prompt="+menuConfig.Prompt),
 		defaults: false,
 		header:   make([]string, 0),
+	}
+}
+
+// callInterruptFn calls the interrupt function.
+func (m *Menu[T]) callInterruptFn(err error) {
+	if m.interruptFn != nil {
+		log.Printf("calling interruptFn with err: '%v'", err)
+		m.interruptFn(err)
+	}
+
+	log.Printf("interruptFn is nil")
+}
+
+// WithInterruptFn sets the interrupt function for the menu.
+func WithInterruptFn(fn func(error)) OptFn {
+	return func(o *Options) {
+		o.interruptFn = fn
 	}
 }
 
@@ -323,7 +341,11 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(*T) string) ([]T, error) 
 	// Run Fzf
 	retcode, err := fzf.Run(options)
 	if retcode != 0 {
-		return nil, handleFzfErr(retcode)
+		// regardless of what kind of error, always call `callinterruptfn`
+		err = handleFzfErr(retcode)
+		m.callInterruptFn(err)
+
+		return nil, err
 	}
 
 	close(outputChan)
