@@ -107,3 +107,18 @@ func init() {
 	rootCmd.DisableSuggestions = true
 	rootCmd.SuggestionsMinimumDistance = 1
 }
+
+// isSubCmdCalled returns true if the subcommand was called.
+func isSubCmdCalled(cmd *cobra.Command, cmdName string) bool {
+	p := cmd.Parent()
+	if p == nil {
+		return false
+	}
+	for _, subCmd := range p.Commands() {
+		if subCmd.CalledAs() == cmdName {
+			return true
+		}
+	}
+
+	return false
+}

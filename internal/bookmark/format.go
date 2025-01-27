@@ -201,3 +201,12 @@ func formatBufferSimple(b *Bookmark) []byte {
 	id := fmt.Sprintf("[%d]", b.ID)
 	return []byte(fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL))
 }
+
+// FzfFormatter returns a function to format a bookmark for the FZF menu.
+func FzfFormatter(m bool) func(b *Bookmark) string {
+	if m {
+		return Multiline
+	}
+
+	return Oneline
+}

@@ -139,10 +139,12 @@ func Selection[T comparable](m *menu.Menu[T], items *[]T, fmtFn func(*T) string)
 	}
 
 	var result []T
-	result, err := m.Select(items, func(item T) string {
-		return fmtFn(&item)
-	})
+	result, err := m.Select(items, fmtFn)
 	if err != nil {
+		if errors.Is(err, menu.ErrFzfActionAborted) {
+			return nil, ErrActionAborted
+		}
+
 		return nil, fmt.Errorf("%w", err)
 	}
 
@@ -203,7 +205,7 @@ func ChooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 		menu.WithDefaultSettings(),
 		menu.WithPreview(),
 		menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} -i"),
-		menu.WithPrompt("choose database> "),
+		menu.WithHeader("choose a database", false),
 	)
 	items, err := Selection(m, dbs.Items(), fmtter)
 	if err != nil {

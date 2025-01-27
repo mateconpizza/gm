@@ -44,7 +44,7 @@ func (b *SQLiteBackup) SetLimit(n int) {
 // newSQLiteBackup returns a new SQLiteBackup.
 func newSQLiteBackup(p string) *SQLiteBackup {
 	return &SQLiteBackup{
-		Path:       filepath.Join(p, "backup"),
+		Path:       p,
 		Files:      []string{},
 		Enabled:    false,
 		DateFormat: "2006-01-02_15-04",
@@ -76,6 +76,7 @@ func (c *SQLiteConfig) Exists() bool {
 
 // NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg(p string) *SQLiteConfig {
+	backupPath := filepath.Join(p, "backup")
 	return &SQLiteConfig{
 		Tables: tables{
 			Main:               "bookmarks",
@@ -85,7 +86,7 @@ func NewSQLiteCfg(p string) *SQLiteConfig {
 			RecordsTagsDeleted: "deleted_records_tags",
 		},
 		Path:         p,
-		Backup:       *newSQLiteBackup(p),
+		Backup:       *newSQLiteBackup(backupPath),
 		MaxBytesSize: maxBytesSize,
 	}
 }

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"log"
 
@@ -31,7 +30,7 @@ var (
 )
 
 // handleData processes records based on user input and filtering criteria.
-func handleData(r *repo.SQLiteRepository, args []string) (*Slice, error) {
+func handleData(m *menu.Menu[Bookmark], r *repo.SQLiteRepository, args []string) (*Slice, error) {
 	bs := slice.New[Bookmark]()
 	if err := handler.Records(r, bs, args); err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -50,16 +49,9 @@ func handleData(r *repo.SQLiteRepository, args []string) (*Slice, error) {
 		}
 	}
 	// select with fzf-menu
-	// FIX: fix this
 	if Menu {
-		var fmtter func(*Bookmark) string
-		if Multiline {
-			fmtter = bookmark.Multiline
-		} else {
-			fmtter = bookmark.Oneline
-		}
-		m := menu.New[Bookmark](handler.MenuDefaults(Multiline)...)
-		items, err := handler.Selection(m, bs.Items(), fmtter)
+		f := bookmark.FzfFormatter(Multiline)
+		items, err := handler.Selection(m, bs.Items(), f)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -76,16 +68,23 @@ var rootCmd = &cobra.Command{
 	Long:         config.App.Info.Desc,
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// FIX: load only on `Menu` called
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		// ignore if subcommand `init` was called.
+		if isSubCmdCalled(cmd, "init") {
+			return nil
+		}
+
+		// ignore if subcommand `version` was called.
+		if isSubCmdCalled(cmd, "version") {
+			return nil
+		}
+
+		// load menu config
 		if err := menu.LoadConfig(); err != nil {
 			log.Println("error loading config:", err)
 			return fmt.Errorf("%w", err)
 		}
 
-		return nil
-	},
-	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(_ *cobra.Command, args []string) error {
@@ -96,12 +95,9 @@ var rootCmd = &cobra.Command{
 		defer r.Close()
 
 		terminal.ReadPipedInput(&args)
-		bs, err := handleData(r, args)
+		m := menu.New[Bookmark](handler.MenuDefaults(Multiline)...)
+		bs, err := handleData(m, r, args)
 		if err != nil {
-			if errors.Is(err, handler.ErrActionAborted) {
-				return nil
-			}
-
 			return err
 		}
 

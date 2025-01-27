@@ -4,14 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/bookmark/scraper"
-	"github.com/haaag/gm/internal/browser"
-	"github.com/haaag/gm/internal/browser/blink"
-	"github.com/haaag/gm/internal/browser/gecko"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
@@ -23,134 +18,46 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-var (
-	importBrowserFlag bool
+var ErrImportSourceNotFound = errors.New("import source not found")
 
-	// importFromDBFlag is used to import bookmarks from another database.
-	importFromDBFlag bool
-)
-
-// supportedBrowser defines a supported browser.
-type supportedBrowser struct {
-	key     string
-	browser browser.Browser
+// importSource defines a bookmark import source.
+type importSource struct {
+	key   string
+	name  string
+	color color.ColorFn
+	cmd   *cobra.Command
 }
 
-// registeredBrowser the list of supported browsers.
-var registeredBrowser = []supportedBrowser{
-	{"f", gecko.New("Firefox", color.BrightOrange)},
-	{"z", gecko.New("Zen", color.BrightBlack)},
-	{"w", gecko.New("Waterfox", color.BrightBlue)},
-	{"c", blink.New("Chromium", color.BrightBlue)},
-	{"g", blink.New("Google Chrome", color.BrightYellow)},
-	{"b", blink.New("Brave", color.BrightOrange)},
-	{"v", blink.New("Vivaldi", color.BrightRed)},
-	{"e", blink.New("Edge", color.BrightCyan)},
+var registeredImportSources = []importSource{
+	{"a", "database", color.BrightBlue, importDatabaseCmd},
+	{"s", "browser", color.BrightGreen, importBrowserCmd},
+	{"d", "restore", color.BrightMagenta, importRestoreCmd},
+	{"w", "backup", color.BrightOrange, importBackupCmd},
 }
 
-// getBrowser returns a browser by its short key.
-//
-// key: the first letter of the browser name.
-//   - Firefox -> f
-//   - Waterfox -> w
-//   - Chromium -> c
-func getBrowser(key string) (browser.Browser, bool) {
-	for _, pair := range registeredBrowser {
-		if pair.key == key {
-			return pair.browser, true
+// getSource returns the import source for the given key.
+func getSource(key string) (*importSource, bool) {
+	for _, s := range registeredImportSources {
+		if s.key == key {
+			return &s, true
 		}
 	}
+	log.Printf("import source not found: '%s'", key)
 
 	return nil, false
 }
 
-// scrapeMissingData scrapes missing data from bookmarks found from the import
-// process.
-func scrapeMissingData(bs *Slice) error {
-	n := bs.Len()
-	if n == 0 {
-		return nil
-	}
-
-	msg := color.BrightGreen("scraping missing data...").Italic().String()
-	sp := spinner.New(spinner.WithColor(color.Gray), spinner.WithMesg(msg))
-	sp.Start()
-	defer sp.Stop()
-
-	var (
-		r  = slice.New[Bookmark]()
-		mu sync.Mutex
-		wg sync.WaitGroup
-	)
-
-	bs.ForEach(func(b Bookmark) {
-		wg.Add(1)
-		go func(b Bookmark) {
-			defer wg.Done()
-
-			sc := scraper.New(b.URL)
-			err := sc.Scrape()
-			if err != nil {
-				log.Printf("scraping error: %v", err)
-			}
-
-			b.Desc = sc.Desc()
-
-			mu.Lock()
-			r.Append(&b)
-			mu.Unlock()
-		}(b)
-	})
-
-	wg.Wait()
-
-	*bs = *r
-
-	return nil
-}
-
-// importSelectionMenu returns the name of the browser selected by the user.
-func importSelectionMenu(t *terminal.Term) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	f.Header("Supported Browsers").Ln().Row().Ln()
-
-	for _, c := range registeredBrowser {
-		b := c.browser
-		f.Mid(b.Color(b.Short()) + " " + b.Name()).Ln()
-	}
-	f.Row().Ln().Footer("which browser do you use?").Render()
-
-	l := format.CountLines(f.String())
-	name := t.Prompt(" ")
-	t.ClearLine(l)
-
-	return name
-}
-
-// importLoadBrowser loads the browser paths for the import process.
-func importLoadBrowser(k string) (browser.Browser, error) {
-	b, ok := getBrowser(k)
-	if !ok {
-		return nil, fmt.Errorf("%w: '%s'", browser.ErrBrowserUnsupported, k)
-	}
-	if err := b.LoadPaths(); err != nil {
-		return nil, fmt.Errorf("error loading browser paths: %w", err)
-	}
-
-	return b, nil
-}
-
-// importRemoveDuplicates removes duplicate bookmarks from the import process.
-func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
-	ogLen := bs.Len()
+// cleanDuplicateRecords removes duplicate bookmarks from the import process.
+func cleanDuplicateRecords(r *repo.SQLiteRepository, bs *Slice) error {
+	originalLen := bs.Len()
 	bs.Filter(func(b Bookmark) bool {
 		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
 	})
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	if ogLen != bs.Len() {
+	if originalLen != bs.Len() {
 		skip := color.BrightYellow("skipping")
-		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, ogLen-bs.Len())
+		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-bs.Len())
 		f.Row().Ln().Warning(s).Ln().Render()
 	}
 
@@ -161,30 +68,9 @@ func importRemoveDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
 	return nil
 }
 
-// importProcessFound processes the bookmarks found from the import process.
-func importProcessFound(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	if err := importRemoveDuplicates(r, bs); err != nil {
-		if errors.Is(err, slice.ErrSliceEmpty) {
-			f.Row().Ln().Mid("no new bookmark found, skipping import").Ln().Render()
-			return nil
-		}
-	}
-
-	countStr := color.BrightBlue(bs.Len())
-	msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
-	f.Row().Ln().Render().Clean()
-	if t.Confirm(f.Mid(msg).String(), "n") {
-		if err := scrapeMissingData(bs); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // importInsert inserts the bookmarks found from the import process.
 func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
+	// FIX: merge with importInsertRecords
 	bs.Filter(func(b Bookmark) bool {
 		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
 	})
@@ -204,63 +90,12 @@ func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
 	return nil
 }
 
-// importFromBrowser imports bookmarks from a browser.
-func importFromBrowser(t *terminal.Term, r *repo.SQLiteRepository) error {
-	var b browser.Browser
-	var err error
-	name := importSelectionMenu(t)
-	if b, err = importLoadBrowser(name); err != nil {
-		return err
-	}
-
-	// find bookmarks
-	bs, err := b.Import(t)
-	if err != nil {
-		return fmt.Errorf("browser '%s': %w", b.Name(), err)
-	}
-	// clean and process found bookmarks
-	if err := importProcessFound(t, r, bs); err != nil {
-		return err
-	}
-
-	return importInsert(r, bs)
-}
-
-// importFromDB imports bookmarks from the given database.
-func importFromDB(t *terminal.Term, r *repo.SQLiteRepository) error {
-	db, err := handler.ChooseDB(r)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	defer db.Close()
-
-	t.SetInterruptFn(func(err error) {
-		r.Close()
-		db.Close()
-		log.Println("importFromDB interrupted")
-		sys.ErrAndExit(err)
-	})
-
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	f.Header("Import from Database").Ln().Row().Ln().
-		Text(repo.Summary(db)).Row().Ln().Render()
-
-	f.Clean().Warning("continue?")
-
-	if !t.Confirm(f.String(), "y") {
-		return handler.ErrActionAborted
-	}
-	t.ClearLine(1)
-
-	Menu = true
-	records, err := handleData(db, []string{})
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
+// importInsertRecords inserts records into the database.
+func importInsertRecords(t *terminal.Term, r *repo.SQLiteRepository, records *Slice) error {
+	// FIX: merge with importInsert
 	report := fmt.Sprintf("import %d records?", records.Len())
-	f.Clean().Header(report)
-	if !t.Confirm(f.String(), "y") {
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	if !t.Confirm(f.Row().Ln().Header(report).String(), "y") {
 		return handler.ErrActionAborted
 	}
 
@@ -268,56 +103,58 @@ func importFromDB(t *terminal.Term, r *repo.SQLiteRepository) error {
 	sp.Start()
 	defer sp.Stop()
 
-	records.Filter(func(b Bookmark) bool {
-		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
-	})
-
 	if err := r.InsertMultiple(records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	terminal.ClearLine(1)
-	f = frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	s := fmt.Sprintf("imported %d record/s", records.Len())
-	f.Success(fmt.Sprintf("%s %s.\n", success, s)).Render()
-
 	return nil
 }
 
+// importSelectSource prompts the user to select an import source.
+func importSelectSource() (*importSource, error) {
+	t := terminal.New(terminal.WithInterruptFn(func(err error) {
+		sys.ErrAndExit(err)
+	}))
+
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f.Header("Supported Sources").Ln().Row().Ln()
+
+	for _, src := range registeredImportSources {
+		s := src.color(src.key).Bold().String() + " " + src.cmd.Short
+		f.Mid(s).Ln()
+	}
+
+	lines := format.CountLines(f.String())
+	f.Render().Clean()
+	f.Row().Ln().Footer("import from which source?").Render()
+	name := t.Prompt(" ")
+
+	t.ClearLine(lines + 1)
+	source, found := getSource(name)
+	if !found {
+		return nil, fmt.Errorf("%w: '%s'", ErrImportSourceNotFound, name)
+	}
+
+	log.Printf("source: '%s' called", source.name)
+
+	return source, nil
+}
+
+// importCmd imports bookmarks from various sources.
 var importCmd = &cobra.Command{
 	Use:   "import",
-	Short: "import bookmarks from browser/database",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return handler.ValidateDB(cmd, Cfg)
-	},
+	Short: "import bookmarks from various sources",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
+		Menu = true
+		source, err := importSelectSource()
 		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		defer r.Close()
-
-		t := terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))
-
-		flags := map[bool]func(t *terminal.Term, r *repo.SQLiteRepository) error{
-			importBrowserFlag: importFromBrowser,
-			importFromDBFlag:  importFromDB,
-		}
-		if handler, ok := flags[true]; ok {
-			return handler(t, r)
+			return err
 		}
 
-		return nil
+		return source.cmd.RunE(cmd, args)
 	},
 }
 
 func init() {
-	f := importCmd.Flags()
-	f.BoolVar(&importBrowserFlag, "browser", true, "import from browser")
-	f.BoolVarP(&importFromDBFlag, "from", "f", false, "import from database")
 	rootCmd.AddCommand(importCmd)
 }

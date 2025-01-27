@@ -19,14 +19,14 @@ var (
 )
 
 var fzfDefaults = []string{
-	"--ansi",              // Enable processing of ANSI color codes
-	"--cycle",             // Enable cyclic scroll
-	"--reverse",           // A synonym for --layout=reverse
-	"--sync",              // Synchronous search for multi-staged filtering
-	"--info=inline-right", // Determines the display style of the finder info.
-	"--tac",               // Reverse the order of the input
-	"--layout=default",    // Choose the layout (default: default)
-	"--color=header:italic",
+	"--ansi",                // Enable processing of ANSI color codes
+	"--cycle",               // Enable cyclic scroll
+	"--reverse",             // A synonym for --layout=reverse
+	"--sync",                // Synchronous search for multi-staged filtering
+	"--info=inline-right",   // Determines the display style of the finder info.
+	"--tac",                 // Reverse the order of the input
+	"--layout=default",      // Choose the layout (default: default)
+	"--color=header:italic", // Header style
 }
 
 type OptFn func(*Options)
@@ -82,7 +82,7 @@ func WithKeybindEdit() OptFn {
 
 	return func(o *Options) {
 		if !edit.Hidden {
-			o.header = appendToHeader(o.header, edit.Bind, edit.Description)
+			o.header = appendKeytoHeader(o.header, edit.Bind, edit.Description)
 		}
 		o.keybind = append(o.keybind, withCommand(edit.Bind+":execute(%s --edit {1})"))
 	}
@@ -98,7 +98,7 @@ func WithKeybindOpen() OptFn {
 
 	return func(o *Options) {
 		if !open.Hidden {
-			o.header = appendToHeader(o.header, open.Bind, open.Description)
+			o.header = appendKeytoHeader(o.header, open.Bind, open.Description)
 		}
 		o.keybind = append(o.keybind, withCommand(open.Bind+":execute(%s --open {1})"))
 	}
@@ -113,7 +113,7 @@ func WithKeybindQR() OptFn {
 
 	return func(o *Options) {
 		if !qr.Hidden {
-			o.header = appendToHeader(o.header, qr.Bind, qr.Description)
+			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
 		}
 		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr {1})"))
 	}
@@ -129,7 +129,7 @@ func WithKeybindOpenQR() OptFn {
 
 	return func(o *Options) {
 		if !qr.Hidden {
-			o.header = appendToHeader(o.header, qr.Bind, qr.Description)
+			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
 		}
 		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr --open {1})"))
 	}
@@ -146,7 +146,7 @@ func WithDefaultKeybinds() OptFn {
 
 	return func(o *Options) {
 		if !yank.Hidden {
-			o.header = appendToHeader(o.header, yank.Bind, yank.Description)
+			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Description)
 		}
 		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s --copy {1})"))
 	}
@@ -162,7 +162,7 @@ func WithDefaultKeybinds() OptFn {
 // e.g: "<key>:<action>".
 func WithKeybindNew(key, action, desc string) OptFn {
 	return func(o *Options) {
-		o.header = appendToHeader(o.header, key, desc)
+		o.header = appendKeytoHeader(o.header, key, desc)
 		o.keybind = append(o.keybind, fmt.Sprintf("%s:%s", key, action))
 	}
 }
@@ -176,7 +176,7 @@ func WithMultiSelection() OptFn {
 		}
 	}
 
-	h := appendToHeader(make([]string, 0), "ctrl-a", "toggle-all")
+	h := appendKeytoHeader(make([]string, 0), "ctrl-a", "toggle-all")
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
@@ -217,7 +217,7 @@ func WithPreview() OptFn {
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
 		if !preview.Hidden {
-			o.header = appendToHeader(o.header, preview.Bind, "toggle-preview")
+			o.header = appendKeytoHeader(o.header, preview.Bind, "toggle-preview")
 		}
 		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
 	}
@@ -233,7 +233,7 @@ func WithPreviewCustomCmd(cmd string) OptFn {
 }
 
 // WithMultilineView adds multiline view and highlights the entire current line
-// in fzf.
+// in Fzf.
 func WithMultilineView() OptFn {
 	opts := []string{
 		"--highlight-line", // Highlight the whole current line
@@ -245,20 +245,26 @@ func WithMultilineView() OptFn {
 	}
 }
 
-// WithHeader adds a header to FZF.
-func WithHeader(header string) OptFn {
+// WithHeader adds a header to Fzf.
+func WithHeader(header string, replace bool) OptFn {
 	return func(o *Options) {
-		o.header = []string{header}
+		if replace {
+			o.header = []string{header}
+			return
+		}
+
+		o.header = append([]string{header}, o.header...)
 	}
 }
 
-// WithPrompt adds a prompt to FZF.
+// WithPrompt adds a prompt to Fzf.
 func WithPrompt(prompt string) OptFn {
 	return func(o *Options) {
 		o.args = append(o.args, "--prompt="+prompt)
 	}
 }
 
+// New returns a new Menu.
 func New[T comparable](opts ...OptFn) *Menu[T] {
 	o := defaultOpts()
 	for _, fn := range opts {
@@ -280,8 +286,8 @@ func (m *Menu[T]) setup() error {
 	return loadKeybind(m.keybind, &m.args)
 }
 
-// Select runs fzf with the given items and returns the selected item/s.
-func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
+// Select runs Fzf with the given items and returns the selected item/s.
+func (m *Menu[T]) Select(items *[]T, preprocessor func(*T) string) ([]T, error) {
 	if len(*items) == 0 {
 		return nil, ErrFzfNoRecords
 	}
@@ -304,7 +310,7 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 
 	go processOutput(*items, preprocessor, outputChan, resultChan)
 
-	// Build fzf.Options
+	// Build Fzf.Options
 	options, err := fzf.ParseOptions(m.defaults, m.args)
 	if err != nil {
 		return nil, fmt.Errorf("fzf: %w", err)
@@ -314,7 +320,7 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(T) string) ([]T, error) {
 	options.Input = inputChan
 	options.Output = outputChan
 
-	// Run fzf
+	// Run Fzf
 	retcode, err := fzf.Run(options)
 	if retcode != 0 {
 		return nil, handleFzfErr(retcode)

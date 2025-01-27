@@ -162,9 +162,6 @@ var dbCmd = &cobra.Command{
 	Use:     "db",
 	Aliases: []string{"database"},
 	Short:   "database management",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return handler.ValidateDB(cmd, Cfg)
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

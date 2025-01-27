@@ -25,9 +25,6 @@ import (
 var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "add a new bookmark",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		return handler.ValidateDB(cmd, Cfg)
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

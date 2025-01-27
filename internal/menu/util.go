@@ -19,8 +19,8 @@ var (
 	ErrFzfInvalidShellCommand = errors.New("fzf: invalid shell command for become action: code 126")
 )
 
-// appendToHeader appends a key:desc string to the header slice.
-func appendToHeader(opts []string, key, desc string) []string {
+// appendKeytoHeader appends a key:desc string to the header slice.
+func appendKeytoHeader(opts []string, key, desc string) []string {
 	if !menuConfig.Header {
 		return opts
 	}
@@ -35,11 +35,11 @@ func toString[T any](s T) string {
 
 // formatItems formats each item in the slice using the preprocessor function
 // and returns a channel of formatted strings.
-func formatItems[T any](items []T, preprocessor func(T) string) chan string {
+func formatItems[T any](items []T, preprocessor func(*T) string) chan string {
 	inputChan := make(chan string)
 	go func() {
 		for _, item := range items {
-			formatted := preprocessor(item)
+			formatted := preprocessor(&item)
 			inputChan <- formatted
 		}
 		close(inputChan)
@@ -52,7 +52,7 @@ func formatItems[T any](items []T, preprocessor func(T) string) chan string {
 // the filtered results to resultChan.
 func processOutput[T any](
 	items []T,
-	preprocessor func(T) string,
+	preprocessor func(*T) string,
 	outputChan <-chan string,
 	resultChan chan<- []T,
 ) {
@@ -60,7 +60,7 @@ func processOutput[T any](
 	ogItem := make(map[string]T)
 
 	for _, item := range items {
-		formatted := color.RemoveANSICodes(preprocessor(item))
+		formatted := color.RemoveANSICodes(preprocessor(&item))
 		ogItem[formatted] = item
 	}
 
