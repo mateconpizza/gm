@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -102,7 +103,8 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	defer sp.Stop()
 
 	ts := r.Cfg.Tables
-	if err := r.Restore(ts.Main, ts.Deleted, bs); err != nil {
+	ctx := context.Background()
+	if err := r.Restore(ctx, ts.Main, ts.Deleted, bs); err != nil {
 		t.ClearLine(1)
 		return fmt.Errorf("%w", err)
 	}

@@ -53,12 +53,12 @@ func (r *SQLiteRepository) IsInitialized() bool {
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
 func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
-	query := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
-
+	q := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
 	var count int
-	if err := r.DB.QueryRow(query, t).Scan(&count); err != nil {
-		log.Printf("table %s does not exist", t)
-		return false, fmt.Errorf("%w: checking if table exists", err)
+	err := r.DB.Get(&count, q, t)
+	if err != nil {
+		log.Printf("error checking if table %s exists: %v", t, err)
+		return false, fmt.Errorf("tableExists: %w", err)
 	}
 
 	log.Printf("table '%s' exists: %v", t, count > 0)
@@ -114,7 +114,7 @@ func (r *SQLiteRepository) maintenance() error {
 	}
 
 	if r.IsInitialized() {
-		if err := r.RemoveUnusedTags(); err != nil {
+		if err := removeUnusedTags(r); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}

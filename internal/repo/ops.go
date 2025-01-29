@@ -18,7 +18,7 @@ const commonDBExts = ".sqlite3,.sqlite,.db"
 func CountRecords(r *SQLiteRepository, t Table) int {
 	var n int
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", t)
-	err := r.DB.QueryRow(query).Scan(&n)
+	err := r.DB.QueryRowx(query).Scan(&n)
 	if err != nil {
 		return 0
 	}

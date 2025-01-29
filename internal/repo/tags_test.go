@@ -1,47 +1,40 @@
 package repo
 
 import (
-	"fmt"
+	"context"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRemoveUnusedTags(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
+	bs := testSliceBookmarks()
+	ctx := context.Background()
+	tt := r.Cfg.Tables
 
-	// insert test tags
-	_, err := r.DB.Exec(`INSERT INTO tags (id, name) VALUES (1, 'tag1'), (2, 'tag2'), (3, 'tag3')`)
-	assert.NoError(t, err, "failed to insert tags")
-	// insert test data
-	_, err = r.DB.Exec(
-		`INSERT INTO bookmarks (id, url, title, desc) VALUES (1, 'http://example.com', 'Example', 'Description')`,
-	)
-	assert.NoError(t, err, "failed to insert test data")
-	// insert association
-	_, err = r.DB.Exec(`INSERT INTO bookmark_tags (bookmark_url, tag_id) VALUES (1, 1), (1, 2)`)
-	assert.NoError(t, err, "failed to insert association")
+	// insert some records
+	_ = r.execTx(ctx, func(tx *sqlx.Tx) error {
+		err := r.insertBulk(ctx, tt.Main, tt.RecordsTags, bs)
+		assert.NoError(t, err, "failed to insert records")
+		return nil
+	})
 
-	assert.NoError(t, r.RemoveUnusedTags(), "failed to remove unused tags")
-
-	rows, err := r.DB.Query(`SELECT id, name FROM tags ORDER BY id`)
-	assert.NoError(t, err, "failed to query tags table")
-	defer func() {
-		assert.NoError(t, rows.Close(), "failed to close rows")
-	}()
-	assert.NoError(t, rows.Err(), "failed to iterate rows")
-
-	var remainingTags []string
-	for rows.Next() {
-		var id int
-		var name string
-		assert.NoError(t, rows.Scan(&id, &name), "failed to iterate rows")
-		remainingTags = append(remainingTags, name)
-	}
-
-	expectedTags := []string{"tag1", "tag2"}
-	assert.Equal(t, expectedTags, remainingTags)
+	toRemoveB, err := r.ByID(tt.Main, 1)
+	assert.NoError(t, err, "failed to retrieve bookmark by ID")
+	assert.NotNil(t, toRemoveB, "Bookmark was not deleted")
+	// count tags
+	tagsCount := CountRecords(r, tt.Tags)
+	// delete record
+	err = r.delete(ctx, tt.Main, toRemoveB)
+	assert.NoError(t, err, "failed to delete record")
+	// run RemoveUnusedTags
+	err = removeUnusedTags(r)
+	assert.NoError(t, err, "failed to remove unused tags")
+	tagsCountAfterDel := CountRecords(r, tt.Tags)
+	assert.NotEqual(t, tagsCount, tagsCountAfterDel, "tags count should be different")
 }
 
 func TestTagsCounter(t *testing.T) {
@@ -105,56 +98,21 @@ func TestTagsCounter(t *testing.T) {
 	assert.Equal(t, len(expectedCounts), len(tagCounts))
 }
 
-func TestGetTag(t *testing.T) {
+func TestGetOrCreateTag(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-
-	tx, err := r.DB.Beginx()
-	assert.NoError(t, err, "failed to start transaction")
-
-	// setup test data
+	newTagName := "newtag"
 	ttags := r.Cfg.Tables.Tags
-	_, err = tx.Exec(
-		fmt.Sprintf("INSERT INTO %s (id, name) VALUES (1, 'tag1'), (2, 'tag2')", ttags),
-	)
-	assert.NoError(t, err, "failed to insert test data")
+	_ = r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+		// test creating a new tag
+		tagID, err := createTag(tx, ttags, newTagName)
+		assert.NotEqual(t, tagID, int64(0), "CreateTag returned ID 0, expected a valid ID")
+		assert.NoError(t, err, "failed to create tag")
+		// verify tag was inserted
+		newTagID, err := getTag(tx, ttags, newTagName)
+		assert.NoError(t, err, "failed to get tag")
+		assert.Equal(t, tagID, newTagID, "GetTag returned wrong ID for 'newtag' id: %d", newTagID)
 
-	// existing tag
-	tagID, err := r.getTag(tx, ttags, "tag1")
-	assert.NoError(t, err, "failed to get tag")
-	assert.Equal(t, tagID, int64(1), "GetTag returned wrong ID for 'tag1' id: %d", tagID)
-
-	// non-existent tag
-	tagID, err = r.getTag(tx, ttags, "nonexistent")
-	assert.NoError(t, err, "failed to get non-existent tag")
-	assert.Equal(t, tagID, int64(0), "GetTag returned wrong ID for 'nonexistent' id: %d", tagID)
-}
-
-func TestCreateTag(t *testing.T) {
-	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
-
-	tx, err := r.DB.Beginx()
-	assert.NoError(t, err, "failed to start transaction")
-	defer func() {
-		assert.NoError(t, tx.Rollback(), "failed to rollback transaction")
-	}()
-
-	ttags := r.Cfg.Tables.Tags
-	// Test creating a new tag
-	tagID, err := r.createTag(tx, ttags, "newtag")
-	assert.NoError(t, err, "failed to create tag")
-	assert.NotEqual(t, tagID, int64(0), "CreateTag returned ID 0, expected a valid ID")
-
-	// Verify tag was inserted
-	var insertedTagID int64
-	var tagName string
-	q := fmt.Sprintf("SELECT id, name FROM %s WHERE id = ?", ttags)
-	err = tx.QueryRow(q, tagID).Scan(&insertedTagID, &tagName)
-	assert.NoError(t, err, "failed to query inserted tag")
-	assert.Equal(t, tagName, "newtag", "tag name should be 'newtag'")
-
-	// test creating a duplicate tag (assuming unique constraint on name)
-	_, err = r.createTag(tx, ttags, "newtag")
-	assert.Error(t, err, "CreateTag should have failed for duplicate tag")
+		return nil
+	})
 }

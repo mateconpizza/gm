@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -9,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/haaag/gm/internal/slice"
 )
 
 // GetOrCreateTag returns the tag ID.
@@ -21,14 +20,14 @@ func (r *SQLiteRepository) GetOrCreateTag(tx *sqlx.Tx, ttags Table, s string) (i
 	}
 
 	// try to get the tag within the transaction
-	tagID, err := r.getTag(tx, ttags, s)
+	tagID, err := getTag(tx, ttags, s)
 	if err != nil {
 		return 0, fmt.Errorf("GetOrCreateTag: error retrieving tag: %w", err)
 	}
 
 	// if the tag doesn't exist, create it within the transaction
 	if tagID == 0 {
-		tagID, err = r.createTag(tx, ttags, s)
+		tagID, err = createTag(tx, ttags, s)
 		if err != nil {
 			return 0, fmt.Errorf("GetOrCreateTag: error creating tag: %w", err)
 		}
@@ -37,37 +36,33 @@ func (r *SQLiteRepository) GetOrCreateTag(tx *sqlx.Tx, ttags Table, s string) (i
 	return tagID, nil
 }
 
-// RemoveUnusedTags removes unused tags from the database.
-func (r *SQLiteRepository) RemoveUnusedTags() error {
-	log.Println("removing unused tags from the database")
+// removeUnusedTags removes unused tags from the database.
+func removeUnusedTags(r *SQLiteRepository) error {
+	tTags := r.Cfg.Tables.Tags
+	tJoin := r.Cfg.Tables.RecordsTags
 
-	q := fmt.Sprintf(`
-  DELETE FROM
-    %s
-  WHERE
-    id NOT IN (
-      SELECT
-        DISTINCT tag_id
-      FROM
-        %s
-    )`,
-		r.Cfg.Tables.Tags,
-		r.Cfg.Tables.RecordsTags,
-	)
+	return r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+		log.Println("starting unused tags cleanup")
+		q := fmt.Sprintf(`
+    DELETE FROM %s
+    WHERE id NOT IN (
+        SELECT DISTINCT
+            tag_id
+        FROM %s)`, tTags, tJoin)
+		result, err := tx.Exec(q)
+		if err != nil {
+			return fmt.Errorf("delete query failed: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			log.Printf("warning: could not get affected rows: %v", err)
+			return nil // Non-fatal error
+		}
 
-	result, err := r.DB.Exec(q)
-	if err != nil {
-		return fmt.Errorf("failed to remove unused tags: %w", err)
-	}
+		log.Printf("successfully removed %d unused tags", affected)
 
-	ra, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get affected rows: %w", err)
-	}
-
-	log.Printf("removed %d unused tags from the database\n", ra)
-
-	return nil
+		return nil
+	})
 }
 
 // associateTags associates tags to the given record.
@@ -82,14 +77,9 @@ func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, trecords Table, b *Row) er
 		if err != nil {
 			return err
 		}
-
 		log.Printf("processing tag: '%s' with id: %d\n", tag, tagID)
 		q := fmt.Sprintf("INSERT OR IGNORE INTO %s (bookmark_url, tag_id) VALUES (?, ?)", trecords)
-
-		_, err = tx.Exec(q, b.URL, tagID)
-		if err != nil {
-			return fmt.Errorf("AssociateTags: %w", err)
-		}
+		_ = tx.MustExec(q, b.URL, tagID)
 	}
 
 	return nil
@@ -97,11 +87,10 @@ func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, trecords Table, b *Row) er
 
 // updateTags updates the tags associated with the given record.
 func (r *SQLiteRepository) updateTags(tx *sqlx.Tx, b *Row) error {
-	// delete all tags asossiated with the URL
+	// delete all tags asossiated with the unique URL
 	if err := deleteTags(tx, r.Cfg.Tables.RecordsTags, b.URL); err != nil {
 		return fmt.Errorf("updateTags: failed to delete tags: %w", err)
 	}
-
 	// add the new tags
 	err := r.associateTags(tx, r.Cfg.Tables.RecordsTags, b)
 	if err != nil {
@@ -114,38 +103,16 @@ func (r *SQLiteRepository) updateTags(tx *sqlx.Tx, b *Row) error {
 // loadRecordTags returns the tags associated with the given record.
 func (r *SQLiteRepository) loadRecordTags(b *Row) error {
 	query := `
-			SELECT t.name
-			FROM tags t
-			JOIN bookmark_tags bt ON t.id = bt.tag_id
-			WHERE bt.bookmark_url = ?
-		`
-	rows, err := r.DB.Query(query, b.URL)
+		SELECT t.name
+		FROM tags t
+		JOIN bookmark_tags bt ON t.id = bt.tag_id
+		WHERE bt.bookmark_url = ?`
+	var tags []string
+	err := r.DB.Select(&tags, query, b.URL)
 	if err != nil {
 		return fmt.Errorf("loadRecordTags: %w: '%w'", ErrRecordScan, err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("loadRecordTags: error closing rows on getting record ByID: %v", err)
-		}
-	}()
-
-	var tags []string
-	for rows.Next() {
-		var tagName string
-		if err := rows.Scan(&tagName); err != nil {
-			return fmt.Errorf("loadRecordTags: %w: '%w'", ErrRecordScan, err)
-		}
-		tags = append(tags, tagName)
-	}
-
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("loadRecordTags: %w: '%w'", ErrRecordScan, err)
-	}
-
-	sort.Slice(tags, func(i, j int) bool {
-		return tags[i] < tags[j]
-	})
-
+	sort.Strings(tags)
 	b.Tags = strings.Join(tags, ",")
 
 	return nil
@@ -153,49 +120,41 @@ func (r *SQLiteRepository) loadRecordTags(b *Row) error {
 
 // populateTags populates the tags associated with the given records.
 func (r *SQLiteRepository) populateTags(bs *Slice) error {
-	bt := slice.New[Row]()
-	getter := func(b Row) error {
+	var bb []Row
+	err := bs.ForEachErr(func(b Row) error {
 		if err := r.loadRecordTags(&b); err != nil {
 			return err
 		}
-
-		bt.Append(&b)
+		bb = append(bb, b)
 
 		return nil
-	}
-
-	if err := bs.ForEachErr(getter); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("populateTags: %w", err)
 	}
-
-	*bs = *bt
+	bs.Set(&bb)
 
 	return nil
 }
 
 // getTag returns the tag ID.
-func (r *SQLiteRepository) getTag(tx *sqlx.Tx, ttags Table, tag string) (int64, error) {
+func getTag(tx *sqlx.Tx, ttags Table, tag string) (int64, error) {
 	var tagID int64
-	query := fmt.Sprintf(`SELECT id FROM %s WHERE name = ?`, ttags)
-	err := tx.QueryRow(query, tag).Scan(&tagID)
+	err := tx.QueryRowx(fmt.Sprintf(`SELECT id FROM %s WHERE name = ?`, ttags), tag).Scan(&tagID)
 	if errors.Is(err, sql.ErrNoRows) {
-		// Tag not found
+		// tag not found
 		return 0, nil
 	} else if err != nil {
-		return 0, fmt.Errorf("GetTag: error querying tag: %w", err)
+		return 0, fmt.Errorf("getTag: error querying tag: %w", err)
 	}
 
 	return tagID, nil
 }
 
 // createTag creates a new tag.
-func (r *SQLiteRepository) createTag(tx *sqlx.Tx, ttags Table, tag string) (int64, error) {
-	query := fmt.Sprintf(`INSERT INTO %s (name) VALUES (?)`, ttags)
-	res, err := tx.Exec(query, tag)
-	if err != nil {
-		return 0, fmt.Errorf("CreateTag: error inserting tag: %w", err)
-	}
-	tagID, err := res.LastInsertId()
+func createTag(tx *sqlx.Tx, ttags Table, tag string) (int64, error) {
+	result := tx.MustExec(fmt.Sprintf(`INSERT INTO %s (name) VALUES (?)`, ttags), tag)
+	tagID, err := result.LastInsertId()
 	if err != nil {
 		return 0, fmt.Errorf("CreateTag: error getting last insert ID: %w", err)
 	}
@@ -203,7 +162,7 @@ func (r *SQLiteRepository) createTag(tx *sqlx.Tx, ttags Table, tag string) (int6
 	return tagID, nil
 }
 
-// deleteTags deletes a tag.
+// deleteTags deletes a tag from the given table.
 func deleteTags(tx *sqlx.Tx, t Table, bURL string) error {
 	log.Printf("deleting tags for URL: %s\n", bURL)
 	query := fmt.Sprintf(`DELETE FROM %s WHERE bookmark_url = ?`, t)
@@ -218,34 +177,21 @@ func deleteTags(tx *sqlx.Tx, t Table, bURL string) error {
 // CounterTags returns a map with tag as key and count as value.
 func CounterTags(r *SQLiteRepository) (map[string]int, error) {
 	query := `
-    SELECT t.name, COUNT(bt.tag_id) AS tag_count
-    FROM tags t
-    LEFT JOIN bookmark_tags bt ON t.id = bt.tag_id
-    GROUP BY t.id, t.name;`
-
-	rows, err := r.DB.Query(query)
+		SELECT t.name, COUNT(bt.tag_id) AS tag_count
+		FROM tags t
+		LEFT JOIN bookmark_tags bt ON t.id = bt.tag_id
+		GROUP BY t.id, t.name;`
+	var results []struct {
+		Name  string `db:"name"`
+		Count int    `db:"tag_count"`
+	}
+	err := r.DB.Select(&results, query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying tags count: %w", err)
 	}
-
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("error closing rows on TagCounter: %v", err)
-		}
-	}()
-
-	tagCounts := make(map[string]int)
-	for rows.Next() {
-		var tagName string
-		var count int
-		if err := rows.Scan(&tagName, &count); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-		tagCounts[tagName] = count
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
+	tagCounts := make(map[string]int, len(results))
+	for _, row := range results {
+		tagCounts[row.Name] = row.Count
 	}
 
 	return tagCounts, nil
