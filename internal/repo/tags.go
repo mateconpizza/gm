@@ -56,10 +56,11 @@ func removeUnusedTags(r *SQLiteRepository) error {
 		affected, err := result.RowsAffected()
 		if err != nil {
 			log.Printf("warning: could not get affected rows: %v", err)
-			return nil // Non-fatal error
+			return nil
 		}
-
-		log.Printf("successfully removed %d unused tags", affected)
+		if affected > 0 {
+			log.Printf("successfully removed %d unused tags", affected)
+		}
 
 		return nil
 	})

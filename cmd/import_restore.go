@@ -19,9 +19,9 @@ import (
 // importRestoreCmd imports/restore bookmarks from deleted table.
 var importRestoreCmd = &cobra.Command{
 	Use:     "restore",
-	Aliases: []string{"deleted"},
+	Aliases: []string{"deleted", "r"},
 	Short:   "import/restore bookmarks from deleted table",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -53,7 +53,7 @@ var importRestoreCmd = &cobra.Command{
 		}
 
 		if Remove {
-			return r.DeleteAndReorder(bs, t.Main, t.RecordsTagsDeleted)
+			return r.DeleteAndReorder(bs, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTagsDeleted)
 		}
 
 		return restore(r, bs)

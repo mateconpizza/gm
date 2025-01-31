@@ -164,7 +164,7 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 	total := fmt.Sprintf("Total %s checked,", color.Blue(r.Len()).Bold())
 	f.Row().Footer(total + " took " + color.Blue(took).Bold().String())
 
-	f.Ln().Render()
+	f.Render()
 }
 
 // buildResponse builds a Response from an HTTP response.
@@ -180,7 +180,8 @@ func buildResponse(b *Bookmark, statusCode int, hasError bool) Response {
 	return result
 }
 
-// handleRequestError handles errors from the HTTP request and determines the appropriate status code.
+// handleRequestError handles errors from the HTTP request and determines the
+// appropriate status code.
 func handleRequestError(b *Bookmark, err error) Response {
 	var statusCode int
 	switch {

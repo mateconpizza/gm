@@ -11,6 +11,8 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 )
 
+// FIX: rethink/redo SQLiteRepository|SQLiteConfig
+
 // SQLiteRepository implements the Repository interface.
 type SQLiteRepository struct {
 	DB     *sqlx.DB      `json:"-"`

@@ -23,57 +23,53 @@ import (
 
 // addCmd represents the add command.
 var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "add a new bookmark",
+	Use:    "add",
+	Short:  "add a new bookmark",
+	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
+		// setup terminal and interrupt func handler (ctrl+c,esc handler)
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))
+		defer t.CancelInterruptHandler()
+		t.PipedInput(&args)
 
-		return add(r, args)
+		return add(t, r, args)
 	},
 }
 
 // add adds a new bookmark.
-func add(r *repo.SQLiteRepository, args []string) error {
-	// setup terminal and interrupt func handler (ctrl+c handler)
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	}))
-
-	if terminal.IsPiped() && len(args) < 2 {
+func add(t *terminal.Term, r *repo.SQLiteRepository, args []string) error {
+	if t.IsPiped() && len(args) < 2 {
 		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
 	}
-
 	// header
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	header := color.BrightYellow("Add Bookmark").String()
-	q := color.Gray(" (ctrl+c to exit)").Italic().String()
-	f.Header(header + q).Ln().Render()
-
+	h := color.BrightYellow("Add Bookmark").String()
+	f.Warning(h + color.Gray(" (ctrl+c to exit)").Italic().String()).Ln().Render()
 	b := bookmark.New()
 	if err := addParseNewBookmark(t, r, b, args); err != nil {
 		return err
 	}
-
-	if !Force {
+	// ask confirmation
+	fmt.Println()
+	if !Force && !t.IsPiped() {
 		if err := addHandleConfirmation(t, b); err != nil {
 			if !errors.Is(err, bookmark.ErrBufferUnchanged) {
 				return fmt.Errorf("%w", err)
 			}
 		}
+		t.ClearLine(1)
 	}
-
 	// insert new bookmark
 	if err := r.Insert(b); err != nil {
 		return fmt.Errorf("%w", err)
-	}
-
-	if !Force {
-		t.ClearLine(1)
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Clean().Success(success + " bookmark created").Render()
@@ -83,14 +79,10 @@ func add(r *repo.SQLiteRepository, args []string) error {
 
 // addHandleConfirmation confirms if the user wants to save the bookmark.
 func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
-	fmt.Println()
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	save := color.BrightGreen("save").String()
-	s := f.Success(save).String() + " bookmark?"
-	opt := t.Choose(s, []string{"yes", "no", "edit"}, "y")
-	opt = strings.ToLower(opt)
-
-	switch opt {
+	opt := t.Choose(f.Success(save).String()+" bookmark?", []string{"yes", "no", "edit"}, "y")
+	switch strings.ToLower(opt) {
 	case "n", "no":
 		return fmt.Errorf("%w", handler.ErrActionAborted)
 	case "e", "edit":
@@ -106,8 +98,7 @@ func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
 func addHandleURL(t *terminal.Term, args *[]string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Header(color.BrightMagenta("URL\t:").String())
-
-	// Checks if URL is provided
+	// checks if url is provided
 	if len(*args) > 0 {
 		url := strings.TrimRight((*args)[0], "\n")
 		f.Text(" " + color.Gray(url).String()).Ln().Render()
@@ -115,8 +106,7 @@ func addHandleURL(t *terminal.Term, args *[]string) string {
 
 		return url
 	}
-
-	// Checks clipboard
+	// checks clipboard
 	c := addHandleClipboard(t)
 	if c != "" {
 		return c
@@ -124,10 +114,9 @@ func addHandleURL(t *terminal.Term, args *[]string) string {
 
 	f.Ln().Render()
 	url := t.Input(f.Border.Mid)
-
 	f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
 		Text(" " + color.Gray(url).String()).Ln()
-
+	// clean 'frame' lines
 	t.ClearLine(format.CountLines(f.String()))
 	f.Render()
 
@@ -138,25 +127,20 @@ func addHandleURL(t *terminal.Term, args *[]string) string {
 func addHandleTags(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Header(color.BrightBlue("Tags\t:").String())
-
-	// this checks if tags are provided and returns them
+	// this checks if tags are provided, parses them and return them
 	if len(*args) > 0 {
 		tags := strings.TrimRight((*args)[0], "\n")
 		tags = strings.Join(strings.Fields(tags), ",")
 		tags = bookmark.ParseTags(tags)
-
 		f.Text(" " + color.Gray(tags).String()).Ln().Render()
-
 		*args = (*args)[1:]
 
 		return tags
 	}
-
+	// prompt for tags
 	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Render()
-
 	mTags, _ := repo.CounterTags(r)
-	tags := t.ChooseTags(f.Border.Mid, mTags)
-	tags = bookmark.ParseTags(tags)
+	tags := bookmark.ParseTags(t.ChooseTags(f.Border.Mid, mTags))
 
 	f.Clean().Mid(color.BrightBlue("Tags\t:").String()).
 		Text(" " + color.Gray(tags).String()).Ln()
@@ -179,12 +163,10 @@ func addParseNewBookmark(
 	if err != nil {
 		return err
 	}
-
 	// retrieve tags
 	tags := addHandleTags(t, r, &args)
 	// fetch title and description
 	title, desc := addTitleAndDesc(url, true)
-
 	b.URL = url
 	b.Title = title
 	b.Tags = bookmark.ParseTags(tags)
@@ -200,13 +182,11 @@ func addTitleAndDesc(url string, verbose bool) (title, desc string) {
 		spinner.WithColor(color.BrightMagenta),
 	)
 	sp.Start()
-
+	// scrape data
 	sc := scraper.New(url)
 	_ = sc.Scrape()
-
 	title = sc.Title()
 	desc = sc.Desc()
-
 	sp.Stop()
 
 	if verbose {
@@ -215,7 +195,6 @@ func addTitleAndDesc(url string, verbose bool) (title, desc string) {
 		width := terminal.MinWidth - len(f.Border.Row)
 		titleColor := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
 		descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
-
 		f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln().
 			Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln().
 			Render()
@@ -230,10 +209,8 @@ func addParseURL(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) (st
 	if url == "" {
 		return url, bookmark.ErrURLEmpty
 	}
-
 	// WARN: do we need this trim? why?
 	url = strings.TrimRight(url, "/")
-
 	if r.HasRecord(r.Cfg.Tables.Main, "url", url) {
 		item, _ := r.ByURL(r.Cfg.Tables.Main, url)
 		return "", fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
@@ -248,16 +225,13 @@ func addHandleClipboard(t *terminal.Term) string {
 	if !handler.URLValid(c) {
 		return ""
 	}
-
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Mid(color.BrightCyan("found valid URL in clipboard").Italic().String()).Ln()
 	f.Render()
 	lines := format.CountLines(f.String()) + 1
 
-	bURL := f.Clean().
-		Mid(color.BrightMagenta("URL\t:").String()).
+	bURL := f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
 		Text(" " + color.Gray(c).String()).String()
-
 	fmt.Print(bURL)
 
 	f.Clean().Ln().Row().Ln().Render().Clean()
@@ -280,7 +254,6 @@ func bookmarkEdition(b *Bookmark) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
 	if err := bookmark.Edit(te, bookmark.Buffer(b), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}

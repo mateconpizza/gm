@@ -179,8 +179,9 @@ func importParseRecordsFound(t *terminal.Term, r *repo.SQLiteRepository, bs *Sli
 
 // importBrowserCmd imports bookmarks from a browser.
 var importBrowserCmd = &cobra.Command{
-	Use:   "browser",
-	Short: "import bookmarks from browser",
+	Use:     "browser",
+	Aliases: []string{"b"},
+	Short:   "import bookmarks from browser",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

@@ -21,8 +21,8 @@ import (
 // importDatabaseCmd imports bookmarks from a database.
 var importDatabaseCmd = &cobra.Command{
 	Use:     "database",
+	Aliases: []string{"d", "db"},
 	Short:   "import bookmarks from database",
-	Aliases: []string{"db"},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
@@ -34,7 +34,6 @@ var importDatabaseCmd = &cobra.Command{
 			r.Close()
 			sys.ErrAndExit(err)
 		}))
-
 		fromDB, err := importSelectDatabase(r)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -58,6 +57,7 @@ func importChooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 
 	if dbs.Len() == 1 {
 		db := dbs.Item(0)
+		log.Printf("only one database found: '%s'", db.Cfg.Name)
 		return &db, nil
 	}
 
@@ -101,8 +101,8 @@ func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 		log.Println("importFromDB interrupted")
 		sys.ErrAndExit(err)
 	}
-
 	t.SetInterruptFn(interruptFn)
+	defer t.CancelInterruptHandler()
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Header("Import from Database").Ln().

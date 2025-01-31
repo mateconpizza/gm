@@ -86,8 +86,8 @@ func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 
 	if bs.Empty() {
-		a := strings.TrimRight(strings.Join(args, " "), "\n")
-		return fmt.Errorf("%w by id/s: %s", repo.ErrRecordNotFound, a)
+		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
+		return fmt.Errorf("%w by id/s: %s", repo.ErrRecordNotFound, bids)
 	}
 
 	return nil

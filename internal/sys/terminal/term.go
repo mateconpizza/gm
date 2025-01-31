@@ -210,6 +210,19 @@ func (t *Term) isInteractiveTerminal(n int) bool {
 	return ok && term.IsTerminal(int(file.Fd()))
 }
 
+func (t *Term) PipedInput(input *[]string) {
+	if !t.IsPiped() {
+		return
+	}
+	s := getQueryFromPipe(os.Stdin)
+	if s == "" {
+		return
+	}
+
+	split := strings.Split(s, " ")
+	*input = append(*input, split...)
+}
+
 // New returns a new terminal.
 func New(opts ...TermOptFn) *Term {
 	t := &Term{

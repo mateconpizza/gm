@@ -57,8 +57,9 @@ func importSelectBackup(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error
 
 // importBackupCmd imports bookmarks from a backup file.
 var importBackupCmd = &cobra.Command{
-	Use:   "backup",
-	Short: "import bookmarks from backup",
+	Use:     "backup",
+	Aliases: []string{"bk", "backups", "backup"},
+	Short:   "import bookmarks from backup",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

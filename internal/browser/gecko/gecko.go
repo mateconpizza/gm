@@ -1,13 +1,13 @@
 package gecko
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	ini "gopkg.in/ini.v1"
 
 	"github.com/haaag/gm/internal/bookmark"
@@ -124,8 +124,8 @@ type geckoBookmark struct {
 }
 
 // openSQLite opens the SQLite database and returns a *sql.DB object.
-func openSQLite(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", dbPath)
+func openSQLite(dbPath string) (*sqlx.DB, error) {
+	db, err := sqlx.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -174,7 +174,7 @@ func isNonGenericURL(url string) bool {
 }
 
 // queryBookmarks queries the bookmarks table to retrieve some sample data.
-func queryBookmarks(db *sql.DB) ([]geckoBookmark, error) {
+func queryBookmarks(db *sqlx.DB) ([]geckoBookmark, error) {
 	rows, err := db.Query(
 		"SELECT DISTINCT fk, parent, title FROM moz_bookmarks WHERE type=1 AND title IS NOT NULL",
 	)
@@ -262,13 +262,16 @@ func processProfile(
 		f.Clean().Row("Skipping profile...'" + profileName + "'").Ln().Render()
 		return
 	}
-
-	// original size
 	ogSize := bs.Len()
-
 	// FIX: get path by OS
 	dbPath = files.ExpandHomeDir(dbPath)
 	db, err := openSQLite(dbPath)
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("err closing database for profile '%s': %v\n", profileName, err)
+		}
+		log.Printf("database for profile '%s' closed.\n", profileName)
+	}()
 	if err != nil {
 		log.Printf("err opening database for profile '%s': %v\n", profileName, err)
 		if errors.Is(err, ErrBrowserIsOpen) {
@@ -313,7 +316,7 @@ func processProfile(
 	f.Clean().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Render()
 }
 
-func processTags(db *sql.DB, fk int) (string, error) {
+func processTags(db *sqlx.DB, fk int) (string, error) {
 	var tags []string
 	rows, err := db.Query("SELECT parent FROM moz_bookmarks WHERE fk=? AND title IS NULL", fk)
 	if err != nil {
@@ -353,7 +356,7 @@ func processTags(db *sql.DB, fk int) (string, error) {
 	return strings.Join(tags, ","), nil
 }
 
-func processURLs(db *sql.DB, fk int) (string, error) {
+func processURLs(db *sqlx.DB, fk int) (string, error) {
 	var url string
 	rows, err := db.Query("SELECT url FROM moz_places where id=?", fk)
 	if err != nil {

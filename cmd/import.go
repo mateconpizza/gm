@@ -115,6 +115,7 @@ func importSelectSource() (*importSource, error) {
 	t := terminal.New(terminal.WithInterruptFn(func(err error) {
 		sys.ErrAndExit(err)
 	}))
+	defer t.CancelInterruptHandler()
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Header("Supported Sources").Ln().Row().Ln()
@@ -142,16 +143,18 @@ func importSelectSource() (*importSource, error) {
 
 // importCmd imports bookmarks from various sources.
 var importCmd = &cobra.Command{
-	Use:   "import",
-	Short: "import bookmarks from various sources",
+	Use:     "import",
+	Aliases: []string{"i"},
+	Short:   "import bookmarks from various sources",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// enable menu
 		Menu = true
-		source, err := importSelectSource()
+		src, err := importSelectSource()
 		if err != nil {
 			return err
 		}
 
-		return source.cmd.RunE(cmd, args)
+		return src.cmd.RunE(cmd, args)
 	},
 }
 
