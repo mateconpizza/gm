@@ -1,11 +1,13 @@
 package bookmark
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/haaag/gm/internal/bookmark/scraper"
 	"github.com/haaag/gm/internal/format"
@@ -65,8 +67,8 @@ func Validate(b *Bookmark) error {
 	return nil
 }
 
-// bufferValidate checks if the URL and Tags are in the content.
-func bufferValidate(b *[]string) error {
+// validateBookmarkFormat checks if the URL and Tags are in the content.
+func validateBookmarkFormat(b []string) error {
 	if err := validateURLBuffer(b); err != nil {
 		return err
 	}
@@ -74,27 +76,27 @@ func bufferValidate(b *[]string) error {
 	return validateTagsBuffer(b)
 }
 
-// parseContent parses the provided content into a bookmark struct.
-func parseContent(c *[]string) *Bookmark {
+// parseBookmarkContent parses the provided content into a bookmark struct.
+func parseBookmarkContent(lines []string) *Bookmark {
 	b := New()
-	b.URL = extractTextBlock(c, "# URL:", "# Title:")
-	b.Title = extractTextBlock(c, "# Title:", "# Tags:")
-	b.Tags = ParseTags(extractTextBlock(c, "# Tags:", "# Description:"))
-	b.Desc = extractTextBlock(c, "# Description:", "# end")
+	b.URL = extractTextBlock(lines, "# URL:", "# Title:")
+	b.Title = extractTextBlock(lines, "# Title:", "# Tags:")
+	b.Tags = ParseTags(extractTextBlock(lines, "# Tags:", "# Description:"))
+	b.Desc = extractTextBlock(lines, "# Description:", "# end")
 
 	return b
 }
 
 // extractTextBlock extracts a block of text from a string, delimited by the
 // specified start and end markers.
-func extractTextBlock(content *[]string, startMarker, endMarker string) string {
+func extractTextBlock(content []string, startMarker, endMarker string) string {
 	startIndex := -1
 	endIndex := -1
 	isInBlock := false
 
 	var cleanedBlock []string
 
-	for i, line := range *content {
+	for i, line := range content {
 		if strings.HasPrefix(line, startMarker) {
 			startIndex = i
 			isInBlock = true
@@ -121,7 +123,7 @@ func extractTextBlock(content *[]string, startMarker, endMarker string) string {
 }
 
 // validateURLBuffer validates url in the buffer.
-func validateURLBuffer(content *[]string) error {
+func validateURLBuffer(content []string) error {
 	u := extractTextBlock(content, "# URL:", "# Title:")
 	if format.IsEmptyLine(u) {
 		return fmt.Errorf("%w: URL", ErrLineNotFound)
@@ -131,7 +133,7 @@ func validateURLBuffer(content *[]string) error {
 }
 
 // validateTagsBuffer validates tags in the buffer.
-func validateTagsBuffer(content *[]string) error {
+func validateTagsBuffer(content []string) error {
 	t := extractTextBlock(content, "# Tags:", "# Description:")
 	if format.IsEmptyLine(t) {
 		return fmt.Errorf("%w: Tags", ErrLineNotFound)
@@ -152,17 +154,21 @@ func validateAttr(s, fallback string) string {
 	return s
 }
 
-// scrapeAndUpdate updates a Bookmark's title and description by scraping the
+// scrapeBookmark updates a Bookmark's title and description by scraping the
 // webpage if they are missing.
-func scrapeAndUpdate(b *Bookmark) *Bookmark {
+func scrapeBookmark(b *Bookmark) *Bookmark {
 	if b.Title == "" || b.Desc == "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		mesg := color.Yellow("scraping webpage...").String()
 		sp := spinner.New(spinner.WithMesg(mesg))
 		sp.Start()
 		defer sp.Stop()
 
-		sc := scraper.New(b.URL)
-		_ = sc.Scrape()
+		sc := scraper.New(b.URL, scraper.WithContext(ctx))
+		if err := sc.Scrape(); err != nil {
+			log.Printf("scraping error: %s", err)
+		}
 
 		b.Title = validateAttr(b.Title, sc.Title())
 		b.Desc = validateAttr(b.Desc, sc.Desc())

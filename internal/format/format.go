@@ -2,11 +2,9 @@
 package format
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
-	"sort"
 	"strings"
 
 	"github.com/haaag/gm/internal/config"
@@ -137,8 +135,8 @@ func NormalizeSpace(s string) string {
 
 // ByteSliceToLines returns the content of a []byte as a slice of strings,
 // splitting on newline characters.
-func ByteSliceToLines(data *[]byte) []string {
-	return strings.Split(string(*data), "\n")
+func ByteSliceToLines(data []byte) []string {
+	return strings.Split(string(data), "\n")
 }
 
 // BufferCopy copies the contents of a byte slice into a new byte slice.
@@ -151,14 +149,13 @@ func BufferAppend(s string, buf *[]byte) {
 	*buf = append([]byte(s), *buf...)
 }
 
+func BufferAppendEnd(s string, buf *[]byte) {
+	*buf = append(*buf, []byte(s)...)
+}
+
 // BufferAppendVersion inserts a header string at the beginning of a byte buffer.
 func BufferAppendVersion(name, version string, buf *[]byte) {
 	BufferAppend(fmt.Sprintf("# %s: v%s\n", name, version), buf)
-}
-
-// IsSameContentBytes Checks if the buffer is unchanged.
-func IsSameContentBytes(a, b *[]byte) bool {
-	return bytes.Equal(*a, *b)
 }
 
 // IsEmptyLine checks if a line is empty.
@@ -182,31 +179,6 @@ func Unique(t []string) []string {
 	}
 
 	return tags
-}
-
-// Counter counts items in a slice.
-func Counter(terms []string) map[string]int {
-	r := make(map[string]int, len(terms))
-
-	for _, t := range terms {
-		r[t]++
-	}
-
-	keys := make([]string, 0, len(r))
-	for k := range r {
-		keys = append(keys, k)
-	}
-
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
-
-	sortedR := make(map[string]int, len(r))
-	for _, k := range keys {
-		sortedR[k] = r[k]
-	}
-
-	return sortedR
 }
 
 // CountLines counts the number of lines in a string.

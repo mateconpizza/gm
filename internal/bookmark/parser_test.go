@@ -37,7 +37,7 @@ func TestExtractBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		test := tt
-		result := extractTextBlock(&test.content, test.startMarker, test.endMarker)
+		result := extractTextBlock(test.content, test.startMarker, test.endMarker)
 		if result != tt.expected {
 			t.Errorf(
 				"Failed for content: %v, startMarker: %s, endMarker: %s\nExpected: %s\nGot: %s\n",

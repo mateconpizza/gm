@@ -29,7 +29,30 @@ type TextEditor struct {
 	args []string
 }
 
-// Editor retrieves the preferred editor to use for editing
+func (te *TextEditor) Edit(content []byte) ([]byte, error) {
+	if te.cmd == "" {
+		return nil, ErrCommandNotFound
+	}
+	f, err := createTEmpFileWithData(content)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	defer closeAndClean(f)
+
+	log.Printf("editing file: '%s' with text editor: '%s'", f.Name(), te.name)
+	log.Printf("executing args: cmd='%s' args='%v'", te.cmd, te.args)
+	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
+		return nil, fmt.Errorf("error running editor: %w", err)
+	}
+	data, err := os.ReadFile(f.Name())
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+
+	return data, nil
+}
+
+// GetEditor retrieves the preferred editor to use for editing
 //
 // If env variable `GOMARKS_EDITOR` is not set, uses the `EDITOR`.
 // If env variable `EDITOR` is not set, uses the first available
@@ -89,8 +112,8 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 	return nil, false
 }
 
-// SaveBytesToFile Writes the provided data to a temporary file.
-func SaveBytesToFile(f *os.File, d []byte) error {
+// saveBytestToFile Writes the provided data to a temporary file.
+func saveBytestToFile(f *os.File, d []byte) error {
 	err := os.WriteFile(f.Name(), d, filePerm)
 	if err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
@@ -99,16 +122,16 @@ func SaveBytesToFile(f *os.File, d []byte) error {
 	return nil
 }
 
-// CreateTempFileWithData creates a temporary file and writes the provided data
+// createTEmpFileWithData creates a temporary file and writes the provided data
 // to it.
-func CreateTempFileWithData(d *[]byte) (*os.File, error) {
+func createTEmpFileWithData(d []byte) (*os.File, error) {
 	const tempExt = "bookmark"
 	tf, err := CreateTemp("edit", tempExt)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}
 
-	if err := SaveBytesToFile(tf, *d); err != nil {
+	if err := saveBytestToFile(tf, d); err != nil {
 		return nil, err
 	}
 
@@ -146,21 +169,17 @@ func editFile(te *TextEditor, f *os.File) error {
 // Edit edits the contents of a byte slice by creating a temporary file,
 // editing it with an external editor, and then reading the modified contents
 // back into the byte slice.
-func Edit(te *TextEditor, b *[]byte) error {
-	// FIX: im doing too much things or the doc-comm is too long?
-	f, err := CreateTempFileWithData(b)
+func Edit(te *TextEditor, b []byte) error {
+	f, err := createTEmpFileWithData(b)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer closeAndClean(f)
-
 	log.Printf("editing file: '%s' with text editor: '%s'", f.Name(), te.name)
-
 	if err := editFile(te, f); err != nil {
 		return err
 	}
-
-	if err := readContent(f, b); err != nil {
+	if err := readContent(f, &b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
