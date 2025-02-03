@@ -56,8 +56,8 @@ func getBrowser(key string) (browser.Browser, bool) {
 	return nil, false
 }
 
-// importLoadBrowser loads the browser paths for the import process.
-func importLoadBrowser(k string) (browser.Browser, error) {
+// loadBrowser loads the browser paths for the import process.
+func loadBrowser(k string) (browser.Browser, error) {
 	b, ok := getBrowser(k)
 	if !ok {
 		return nil, fmt.Errorf("%w: '%s'", browser.ErrBrowserUnsupported, k)
@@ -72,8 +72,7 @@ func importLoadBrowser(k string) (browser.Browser, error) {
 // scrapeMissingData scrapes missing data from bookmarks found from the import
 // process.
 func scrapeMissingData(bs *Slice) error {
-	n := bs.Len()
-	if n == 0 {
+	if bs.Len() == 0 {
 		return nil
 	}
 
@@ -94,8 +93,7 @@ func scrapeMissingData(bs *Slice) error {
 			defer wg.Done()
 
 			sc := scraper.New(b.URL)
-			err := sc.Scrape()
-			if err != nil {
+			if err := sc.Scrape(); err != nil {
 				log.Printf("scraping error: %v", err)
 			}
 
@@ -116,28 +114,29 @@ func scrapeMissingData(bs *Slice) error {
 
 // importFromBrowser imports bookmarks from a browser.
 func importFromBrowser(t *terminal.Term, r *repo.SQLiteRepository) error {
-	var b browser.Browser
-	var err error
-	name := importSelectBrowser(t)
-	if b, err = importLoadBrowser(name); err != nil {
+	name := selectBrowser(t)
+	br, err := loadBrowser(name)
+	if err != nil {
 		return err
 	}
-
 	// find bookmarks
-	bs, err := b.Import(t)
+	bs, err := br.Import(t)
 	if err != nil {
-		return fmt.Errorf("browser '%s': %w", b.Name(), err)
+		return fmt.Errorf("browser '%s': %w", br.Name(), err)
 	}
 	// clean and process found bookmarks
-	if err := importParseRecordsFound(t, r, bs); err != nil {
+	if err := parseRecordsFound(t, r, bs); err != nil {
 		return err
 	}
+	if bs.Len() == 0 {
+		return nil
+	}
 
-	return importInsert(r, bs)
+	return insertRecordsFromSource(t, r, bs)
 }
 
-// importSelectBrowser returns the name of the browser selected by the user.
-func importSelectBrowser(t *terminal.Term) string {
+// selectBrowser returns the name of the browser selected by the user.
+func selectBrowser(t *terminal.Term) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Header("Supported Browsers").Ln().Row().Ln()
 
@@ -147,16 +146,15 @@ func importSelectBrowser(t *terminal.Term) string {
 	}
 	f.Row().Ln().Footer("which browser do you use?").Render()
 
-	l := format.CountLines(f.String())
 	name := t.Prompt(" ")
-	t.ClearLine(l)
+	t.ClearLine(format.CountLines(f.String()))
 
 	return name
 }
 
-// importParseRecordsFound processes the bookmarks found from the import
+// parseRecordsFound processes the bookmarks found from the import
 // browser process.
-func importParseRecordsFound(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice) error {
+func parseRecordsFound(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	if err := cleanDuplicateRecords(r, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {

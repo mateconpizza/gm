@@ -149,12 +149,10 @@ func loadDataPath() (string, error) {
 
 		return config.PathJoin(envDataHome), nil
 	}
-
 	dataHome, err := config.DataPath()
 	if err != nil {
 		return "", fmt.Errorf("loading paths: %w", err)
 	}
-
 	log.Printf("loadPath: dataHome: %v\n", dataHome)
 
 	return dataHome, nil

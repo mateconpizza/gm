@@ -28,7 +28,7 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	var title string
 	var burl string
 
-	if err := qrcode.GenImg(config.App.Name); err != nil {
+	if err := qrcode.GenerateImg(config.App.Name); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

@@ -35,8 +35,8 @@ func (q *QRCode) Generate() error {
 	return nil
 }
 
-// GenImg generates the PNG from the QR-Code.
-func (q *QRCode) GenImg(s string) error {
+// GenerateImg generates the PNG from the QR-Code.
+func (q *QRCode) GenerateImg(s string) error {
 	if q.QR == nil {
 		return ErrQRNotGenerated
 	}

@@ -34,7 +34,7 @@ var importDatabaseCmd = &cobra.Command{
 			r.Close()
 			sys.ErrAndExit(err)
 		}))
-		fromDB, err := importSelectDatabase(r)
+		fromDB, err := chooseDB(r)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -82,16 +82,6 @@ func chooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 	return &db, nil
 }
 
-// importSelectDatabase prompts the user to select a database.
-func importSelectDatabase(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
-	db, err := chooseDB(r)
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return db, nil
-}
-
 // importFromDB imports bookmarks from the given database.
 func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 	// set interrupt handler
@@ -108,10 +98,8 @@ func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 	f.Header("Import from Database").Ln().
 		Row().Ln().Text(repo.Summary(fromDB)).
 		Row().Ln().Render()
-
-	f.Clean().Warning("continue?")
-
-	if !t.Confirm(f.String(), "y") {
+	// prompt
+	if !t.Confirm(f.Clean().Warning("continue?").String(), "y") {
 		return handler.ErrActionAborted
 	}
 	t.ClearLine(1)
@@ -128,7 +116,6 @@ func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 	if err != nil {
 		return err
 	}
-
 	t.ClearLine(1)
 	if err := cleanDuplicateRecords(toDB, records); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
@@ -138,11 +125,9 @@ func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 
 		return err
 	}
-
-	if err := importInsertRecords(t, toDB, records); err != nil {
+	if err := insertRecordsFromSource(t, toDB, records); err != nil {
 		return err
 	}
-
 	// remove prompt
 	t.ClearLine(1)
 	success := color.BrightGreen("Successfully").Italic().Bold().String()

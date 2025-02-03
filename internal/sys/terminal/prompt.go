@@ -11,6 +11,7 @@ import (
 
 	prompt "github.com/c-bata/go-prompt"
 
+	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/sys"
 )
@@ -181,7 +182,6 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 // getUserInput reads user input and validates against the options.
 func getUserInput(rd io.Reader, prompt string, opts []string, def string) string {
 	r := bufio.NewReader(rd)
-
 	for {
 		fmt.Print(prompt)
 		input, err := r.ReadString('\n')
@@ -189,17 +189,14 @@ func getUserInput(rd io.Reader, prompt string, opts []string, def string) string
 			log.Print("Error reading input:", err)
 			return ""
 		}
-
 		input = strings.ToLower(strings.TrimSpace(input))
 		if input == "" && def != "" {
 			return def
 		}
-
 		if isValidOption(input, opts) {
 			return input
 		}
-
-		ClearLine(1)
+		ClearLine(format.CountLines(prompt))
 	}
 }
 
@@ -213,7 +210,6 @@ func fmtChoicesWithDefault(opts []string, def string) []string {
 	for i := 0; i < len(opts); i++ {
 		if strings.HasPrefix(opts[i], def) {
 			w := opts[i]
-
 			// append to the end of the slice
 			opts[i] = opts[len(opts)-1]
 			opts = opts[:len(opts)-1]
@@ -276,7 +272,6 @@ func buildPrompt(q, opts string) string {
 	if q == "" {
 		return fmt.Sprintf("%s %s ", q, color.Gray(opts))
 	}
-
 	if opts == "" {
 		return q + " "
 	}

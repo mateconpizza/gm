@@ -60,9 +60,7 @@ func (s *Spinner) Stop() {
 		log.Print("spinner not started")
 		return
 	}
-
 	s.done <- true
-
 	log.Print("spinner stopped")
 }
 

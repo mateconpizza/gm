@@ -16,7 +16,8 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-func importSelectBackup(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
+// selectBackup prompts the user to select a backup file.
+func selectBackup(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 	files, err := repo.Backups(r)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -32,6 +33,11 @@ func importSelectBackup(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error
 		}
 		backups.Append(bk)
 	})
+
+	if backups.Len() == 1 {
+		bk := backups.Item(0)
+		return &bk, nil
+	}
 
 	m := menu.New[repo.SQLiteRepository](
 		menu.WithDefaultSettings(),
@@ -68,7 +74,7 @@ var importBackupCmd = &cobra.Command{
 		defer r.Close()
 
 		var bk *repo.SQLiteRepository
-		if bk, err = importSelectBackup(r); err != nil {
+		if bk, err = selectBackup(r); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
@@ -76,7 +82,6 @@ var importBackupCmd = &cobra.Command{
 			r.Close()
 			sys.ErrAndExit(err)
 		}))
-
 		if err := importFromDB(t, r, bk); err != nil {
 			return fmt.Errorf("%w", err)
 		}

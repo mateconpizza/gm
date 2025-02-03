@@ -38,32 +38,26 @@ var (
 )
 
 func initConfig() {
-	// Set logging level
+	// set logging level
 	handler.LoggingLevel(&Verbose)
-
-	// Set force
+	// set force
 	handler.Force(&Force)
-
-	// Enable color
+	// enable color
 	config.App.Color = WithColor != "never" && !terminal.IsPiped()
 	menu.WithColor(&config.App.Color)
-
-	// Set terminal defaults
+	// set terminal defaults
 	terminal.NoColor(&config.App.Color)
 	terminal.LoadMaxWidth()
-
-	// Enable color output
+	// enable color output
 	color.Enable(&config.App.Color)
-
-	// Load data home path for the app.
+	// load data home path for the app.
 	dataHomePath, err := loadDataPath()
 	if err != nil {
 		sys.ErrAndExit(err)
 	}
 	config.App.Path.Data = dataHomePath                            // Home
 	config.App.Path.Backup = filepath.Join(dataHomePath, "backup") // Backups
-
-	// Set database settings/paths
+	// set database settings/paths
 	Cfg = repo.NewSQLiteCfg(dataHomePath)
 	Cfg.SetName(DBName)
 	Cfg.Backup.SetLimit(backupGetLimit())
@@ -72,36 +66,33 @@ func initConfig() {
 // init sets the config for the root command.
 func init() {
 	cobra.OnInitialize(initConfig)
-
-	// Global
+	// global
 	pf := rootCmd.PersistentFlags()
 	pf.StringVarP(&DBName, "name", "n", config.DB.Name, "database name")
 	pf.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
 	pf.BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	pf.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
-
-	// Local
+	// local
 	f := rootCmd.Flags()
-	// Prints
+	// prints
 	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	f.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
 	f.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
 	f.StringVarP(&Field, "field", "f", "", "output by field [id|url|title|tags]")
-	// Actions
+	// actions
 	f.BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
 	f.BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
 	f.BoolVarP(&QR, "qr", "q", false, "generate qr-code")
 	f.BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
 	f.StringSliceVarP(&Tags, "tag", "t", nil, "list by tag")
-	// Experimental
+	// experimental
 	f.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
 	f.BoolVarP(&Edit, "edit", "e", false, "edit with preferred text editor")
 	f.BoolVarP(&Status, "status", "s", false, "check bookmarks status")
-	// Modifiers
+	// modifiers
 	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
-
-	// Others
+	// others
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.SilenceErrors = true
 	rootCmd.DisableSuggestions = true

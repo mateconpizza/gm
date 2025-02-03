@@ -53,9 +53,8 @@ func cleanDuplicateRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	bs.FilterInPlace(func(b *Bookmark) bool {
 		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
 	})
-
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	if originalLen != bs.Len() {
+		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 		skip := color.BrightYellow("skipping")
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-bs.Len())
 		f.Row().Ln().Warning(s).Ln().Render()
@@ -68,49 +67,28 @@ func cleanDuplicateRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	return nil
 }
 
-// importInsert inserts the bookmarks found from the import process.
-func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
-	// FIX: merge with importInsertRecords
-	bs.FilterInPlace(func(b *Bookmark) bool {
-		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
-	})
-	if bs.Empty() {
-		return nil
-	}
-	if err := r.InsertMultiple(bs); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	success := color.BrightGreen("Successfully").Italic().Bold()
-	f.Row().Ln()
-	f.Success(fmt.Sprintf("%s %d bookmarks imported.\n", success, bs.Len())).Render()
-
-	return nil
-}
-
-// importInsertRecords inserts records into the database.
-func importInsertRecords(t *terminal.Term, r *repo.SQLiteRepository, records *Slice) error {
-	// FIX: merge with importInsert
+// insertRecordsFromSource inserts records into the database.
+func insertRecordsFromSource(t *terminal.Term, r *repo.SQLiteRepository, records *Slice) error {
 	report := fmt.Sprintf("import %d records?", records.Len())
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	if !t.Confirm(f.Row().Ln().Header(report).String(), "y") {
 		return handler.ErrActionAborted
 	}
-
 	sp := spinner.New(spinner.WithMesg(color.Yellow("importing record/s...").String()))
 	sp.Start()
-	defer sp.Stop()
-
 	if err := r.InsertMultiple(records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	sp.Stop()
+	success := color.BrightGreen("Successfully").Italic().String()
+	msg := fmt.Sprintf("%s imported %d record/s", success, records.Len())
+	f.Clean().Success(msg).Ln().Render()
 
 	return nil
 }
 
-// importSelectSource prompts the user to select an import source.
-func importSelectSource() (*importSource, error) {
+// selectSource prompts the user to select an import source.
+func selectSource() (*importSource, error) {
 	t := terminal.New(terminal.WithInterruptFn(func(err error) {
 		sys.ErrAndExit(err)
 	}))
@@ -148,7 +126,7 @@ var importCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// enable menu
 		Menu = true
-		src, err := importSelectSource()
+		src, err := selectSource()
 		if err != nil {
 			return err
 		}
