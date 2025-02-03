@@ -167,6 +167,7 @@ func CheckStatus(bs *Slice) error {
 // LoggingLevel sets the logging level based on the verbose flag.
 func LoggingLevel(v *bool) {
 	if *v {
+		log.SetPrefix("gomarks: ")
 		log.SetFlags(log.LstdFlags | log.Lshortfile)
 		log.Println("verbose mode: on")
 
