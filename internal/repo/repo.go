@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -15,9 +16,9 @@ import (
 
 // SQLiteRepository implements the Repository interface.
 type SQLiteRepository struct {
-	DB     *sqlx.DB      `json:"-"`
-	Cfg    *SQLiteConfig `json:"db"`
-	closed bool
+	DB  *sqlx.DB      `json:"-"`
+	Cfg *SQLiteConfig `json:"db"`
+	mu  sync.Once     // ensure that Close is only called once
 }
 
 // String returns a string representation of the repository.
@@ -30,24 +31,16 @@ func (r *SQLiteRepository) String() string {
 	return r.Cfg.Name + " " + records.String()
 }
 
-// IsClosed checks if the database connection is closed.
-func (r *SQLiteRepository) IsClosed() bool {
-	return r.closed
-}
-
 // Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLiteRepository) Close() {
-	s := r.Cfg.Name
-	if r.IsClosed() {
-		log.Printf("database '%s' already closed.\n", s)
-		return
-	}
-	if err := r.DB.Close(); err != nil {
-		log.Printf("closing '%s' database: %v", s, err)
-	}
-
-	r.closed = true
-	log.Printf("database '%s' closed.\n", s)
+	var err error
+	r.mu.Do(func() {
+		log.Printf("database '%s' closed.\n", r.Cfg.Name)
+		err = r.DB.Close()
+		if err != nil {
+			log.Printf("closing '%s' database: %v", r.Cfg.Name, err)
+		}
+	})
 }
 
 func (r *SQLiteRepository) SetMain(t Table) {
@@ -63,9 +56,8 @@ func (r *SQLiteRepository) SetDeleted(t Table) {
 // newSQLiteRepository returns a new SQLiteRepository.
 func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteConfig) *SQLiteRepository {
 	return &SQLiteRepository{
-		DB:     db,
-		Cfg:    cfg,
-		closed: false,
+		DB:  db,
+		Cfg: cfg,
 	}
 }
 

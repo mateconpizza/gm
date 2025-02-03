@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -30,6 +31,7 @@ func CountRecords(r *SQLiteRepository, t Table) int {
 func databasesFromPath(p string) (*slice.Slice[string], error) {
 	log.Printf("databasesFromPath: path: '%s'", p)
 	if !files.Exists(p) {
+		log.Printf("path does not exist: '%s'", p)
 		return nil, files.ErrPathNotFound
 	}
 
@@ -118,13 +120,16 @@ func Backups(r *SQLiteRepository) (*slice.Slice[string], error) {
 	s := filepath.Base(r.Cfg.Fullpath())
 	backups, err := databasesFromPath(r.Cfg.Backup.Path)
 	if err != nil {
+		if errors.Is(err, files.ErrPathNotFound) {
+			return nil, fmt.Errorf("%w for '%s'", ErrBackupNotFound, s)
+		}
+
 		return nil, err
 	}
 
 	backups.FilterInPlace(func(b *string) bool {
 		return strings.Contains(*b, s)
 	})
-
 	if backups.Len() == 0 {
 		return backups, fmt.Errorf("%w: '%s'", ErrBackupNotFound, s)
 	}
