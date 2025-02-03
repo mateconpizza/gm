@@ -9,8 +9,8 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/junegunn/fzf v0.58.0
-	github.com/junegunn/go-shellwords v0.0.0-20240813092932-a62c48c52e97
+	github.com/junegunn/fzf v0.59.0
+	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e

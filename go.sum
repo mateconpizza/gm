@@ -24,10 +24,10 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/jmoiron/sqlx v1.4.0 h1:1PLqN7S1UYp5t4SrVVnt4nUVNemrDAtxlulVe+Qgm3o=
 github.com/jmoiron/sqlx v1.4.0/go.mod h1:ZrZ7UsYB/weZdl2Bxg6jCRO9c3YHl8r3ahlKmRT4JLY=
-github.com/junegunn/fzf v0.58.0 h1:sT6lO4OTkHpEHpr8E1iZz6bvxZ6URHjTYl8/yhS8s1U=
-github.com/junegunn/fzf v0.58.0/go.mod h1:IsDYaa3WFbMYYi8yp92fQFTqN10hs3nH4OMBiz/kJXo=
-github.com/junegunn/go-shellwords v0.0.0-20240813092932-a62c48c52e97 h1:rqzLixVo1c/GQW6px9j1xQmlvQIn+lf/V6M1UQ7IFzw=
-github.com/junegunn/go-shellwords v0.0.0-20240813092932-a62c48c52e97/go.mod h1:6EILKtGpo5t+KLb85LNZLAF6P9LKp78hJI80PXMcn3c=
+github.com/junegunn/fzf v0.59.0 h1:WzJo+rODEm7Kg+VSPuCR0SaV59LL5W4svgpbqP7fabQ=
+github.com/junegunn/fzf v0.59.0/go.mod h1:6XnH75DDRsbLkNkxsOztqbL6gcGYqzckiWwG+Upg740=
+github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741 h1:7dYDtfMDfKzjT+DVfIS4iqknSEKtZpEcXtu6vuaasHs=
+github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741/go.mod h1:6EILKtGpo5t+KLb85LNZLAF6P9LKp78hJI80PXMcn3c=
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/lucasb-eyer/go-colorful v1.2.0 h1:1nnpGOrhyZZuNyfu1QjKiUICQ74+3FNCN69Aj6K7nkY=
