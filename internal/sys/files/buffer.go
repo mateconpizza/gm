@@ -36,9 +36,8 @@ type TextEditor struct {
 // `TextEditors`
 //
 // # fallbackEditors: `"vim", "nvim", "nano", "emacs"`.
-func Editor(s string) (*TextEditor, error) {
+func GetEditor(s string) (*TextEditor, error) {
 	envs := []string{s, "EDITOR"}
-
 	// find $EDITOR and $GOMARKS_EDITOR
 	for _, e := range envs {
 		if editor, found := getEditorFromEnv(e); found {

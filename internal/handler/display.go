@@ -6,16 +6,14 @@ import (
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // Print prints the bookmarks in different formats.
 func Print(bs *Slice) error {
-	n := terminal.MinWidth
 	lastIdx := bs.Len() - 1
 
 	bs.ForEachIdx(func(i int, b Bookmark) {
-		fmt.Print(bookmark.Frame(&b, n))
+		fmt.Print(bookmark.Frame(&b))
 		if i != lastIdx {
 			fmt.Println()
 		}

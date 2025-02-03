@@ -3,12 +3,14 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
@@ -16,6 +18,8 @@ import (
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
+
+const maxItemsToEdit = 10
 
 type (
 	Bookmark = bookmark.Bookmark
@@ -42,65 +46,86 @@ func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	return nil
 }
 
-// Edition edits the bookmark with a text editor.
+// Edition edits the bookmarks using a text editor.
 func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 	n := bs.Len()
 	if n == 0 {
 		return repo.ErrRecordQueryNotProvided
 	}
-
-	const maxItems = 10
-	e := color.BrightOrange("editing").Bold()
-	q := fmt.Sprintf("%s %d bookmarks, continue?", e, n)
-	if err := confirmUserLimit(n, maxItems, q); err != nil {
+	prompt := fmt.Sprintf("%s %d bookmarks, continue?", color.BrightOrange("editing").Bold(), n)
+	if err := confirmUserLimit(n, maxItemsToEdit, prompt); err != nil {
 		return err
 	}
-
-	header := "# [%d/%d] | %d | %s\n\n"
-	te, err := files.Editor(config.App.Env.Editor)
+	te, err := files.GetEditor(config.App.Env.Editor)
 	if err != nil {
+		return fmt.Errorf("getting editor: %w", err)
+	}
+	editFn := func(idx int, b bookmark.Bookmark) error {
+		return editBookmark(r, te, &b, idx, n)
+	}
+	// for each bookmark, invoke the helper to edit it.
+	if err := bs.ForEachErrIdx(editFn); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	// edition edits the bookmark with a text editor.
-	edition := func(i int, b Bookmark) error {
-		tempB := b
+	return nil
+}
 
-		// prepare header and buffer
-		buf := bookmark.Buffer(&b)
-		tShort := format.Shorten(b.Title, terminal.MinWidth-10)
-		format.BufferAppend(fmt.Sprintf(header, i+1, n, b.ID, tShort), &buf)
-		format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
-		bufCopy := make([]byte, len(buf))
-		copy(bufCopy, buf)
-
-		if err := bookmark.Edit(te, buf, &b); err != nil {
-			if errors.Is(err, bookmark.ErrBufferUnchanged) {
-				return nil
-			}
-
-			return fmt.Errorf("%w", err)
+// editBookmark handles editing a single bookmark.
+func editBookmark(
+	r *repo.SQLiteRepository,
+	te *files.TextEditor,
+	b *bookmark.Bookmark,
+	idx, total int,
+) error {
+	original := b
+	// prepare the buffer with a header and version info.
+	buf := prepareBuffer(r, b, idx, total)
+	// launch the editor to allow the user to edit the bookmark.
+	if err := bookmark.Edit(te, buf, b); err != nil {
+		// if nothing was changed, simply continue.
+		if errors.Is(err, bookmark.ErrBufferUnchanged) {
+			return nil
 		}
 
-		// FIX: find a better way to update URL
-		if tempB.URL != b.URL {
-			if _, err := r.UpdateURL(&b, &tempB); err != nil {
-				return fmt.Errorf("updating URL: %w", err)
-			}
-		} else {
-			if _, err := r.Update(&b); err != nil {
-				return fmt.Errorf("handle edition: %w", err)
-			}
-		}
-
-		fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
-
-		return nil
-	}
-
-	if err := bs.ForEachErrIdx(edition); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	return updateBookmark(r, b, original)
+}
+
+// prepareBuffer builds the buffer for the bookmark by adding a header and version info.
+func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total int) []byte {
+	buf := b.Buffer()
+	w := terminal.MinWidth
+	const spaces = 7
+	// prepare the header with a short title.
+	shortTitle := format.Shorten(b.Title, w-10)
+	header := fmt.Sprintf("# %d | %s\n", b.ID, shortTitle)
+	// append the header and version information.
+	sep := fmt.Sprintf("# %s [%d/%d]\n", strings.Repeat("-",
+		w-spaces-len(fmt.Sprintf("%d/%d", idx, total))), idx+1, total)
+	format.BufferAppend(sep, &buf)
+	format.BufferAppend(header, &buf)
+	format.BufferAppend(fmt.Sprintf("# database: '%s'\n", r.Cfg.Fullpath()), &buf)
+	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
+
+	return buf
+}
+
+// updateBookmark updates the repository with the modified bookmark.
+// It calls UpdateURL if the bookmark's URL changed, otherwise it calls Update.
+func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) error {
+	if original.URL != b.URL {
+		if _, err := r.UpdateURL(b, original); err != nil {
+			return fmt.Errorf("updating URL: %w", err)
+		}
+	} else {
+		if _, err := r.Update(b); err != nil {
+			return fmt.Errorf("updating bookmark: %w", err)
+		}
+	}
+	fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
 
 	return nil
 }
@@ -108,24 +133,28 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 // Remove prompts the user the records to remove.
 func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 	defer r.Close()
-
 	if err := validateRemove(bs, *force); err != nil {
 		return err
 	}
-
 	if !*force {
 		c := color.BrightRed
 		f := frame.New(frame.WithColorBorder(c), frame.WithNoNewLine())
 		header := c("Removing Bookmarks").String()
 		f.Header(header).Ln().Ln().Render().Clean()
 
-		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+		interruptFn := func(err error) {
 			r.Close()
 			sys.ErrAndExit(err)
-		}))
+		}
 
+		t := terminal.New(terminal.WithInterruptFn(interruptFn))
+		defer t.CancelInterruptHandler()
+		m := menu.New[Bookmark](
+			menu.WithInterruptFn(interruptFn),
+			menu.WithMultiSelection(),
+		)
 		prompt := color.BrightRed("remove").Bold().String()
-		if err := Confirmation(t, bs, prompt, c); err != nil {
+		if err := Confirmation(m, t, bs, prompt, c); err != nil {
 			return err
 		}
 	}

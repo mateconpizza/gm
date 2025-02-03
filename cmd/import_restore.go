@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/bookmark"
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/handler"
@@ -15,6 +17,8 @@ import (
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
+
+var infoRecord bool
 
 // importRestoreCmd imports/restore bookmarks from deleted table.
 var importRestoreCmd = &cobra.Command{
@@ -38,6 +42,7 @@ var importRestoreCmd = &cobra.Command{
 		m := menu.New[Bookmark](
 			menu.WithDefaultSettings(),
 			menu.WithMultiSelection(),
+			menu.WithPreviewCustomCmd(config.App.Cmd+" import restore -i {1}"),
 			menu.WithHeader("select record/s to restore", false),
 		)
 		if Multiline {
@@ -52,16 +57,25 @@ var importRestoreCmd = &cobra.Command{
 			return repo.ErrRecordNoMatch
 		}
 
+		if infoRecord {
+			bs.ForEach(func(b Bookmark) {
+				fmt.Println(bookmark.FrameFormatted(&b, color.BrightYellow))
+			})
+
+			return nil
+		}
+
 		if Remove {
 			return r.DeleteAndReorder(bs, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTagsDeleted)
 		}
 
-		return restore(r, bs)
+		return restore(m, r, bs)
 	},
 }
 
 func init() {
 	f := importRestoreCmd.Flags()
+	f.BoolVarP(&infoRecord, "info", "i", false, "show record/s info")
 	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 	f.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
@@ -81,7 +95,7 @@ func init() {
 // }
 
 // handleRestore restores record/s from the deleted table.
-func restore(r *repo.SQLiteRepository, bs *Slice) error {
+func restore(m *menu.Menu[Bookmark], r *repo.SQLiteRepository, bs *Slice) error {
 	c := color.BrightYellow
 	f := frame.New(frame.WithColorBorder(c), frame.WithNoNewLine())
 	header := c("Restoring Bookmarks").String()
@@ -93,7 +107,7 @@ func restore(r *repo.SQLiteRepository, bs *Slice) error {
 	}))
 
 	prompt := color.BrightYellow("restore").Bold().String()
-	if err := handler.Confirmation(t, bs, prompt, c); err != nil {
+	if err := handler.Confirmation(m, t, bs, prompt, c); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

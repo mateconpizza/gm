@@ -1,7 +1,6 @@
 package bookmark
 
 import (
-	"bytes"
 	"fmt"
 	"net/url"
 	"strings"
@@ -9,38 +8,10 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// Buffer returns a formatted buffer with item attrs.
-func Buffer(b *Bookmark) []byte {
-	return []byte(fmt.Sprintf(`# URL:
-%s
-# Title: (leave an empty line for web fetch)
-%s
-# Tags: (comma separated)
-%s
-# Description: (leave an empty line for web fetch)
-%s
-# end
-`, b.URL, b.Title, b.Tags, b.Desc))
-}
-
-// BufferSlice returns a buffer with the provided slice of bookmarks.
-func BufferSlice(bs *slice.Slice[Bookmark]) []byte {
-	// FIX: replace with menu
-	buf := bytes.NewBuffer([]byte{})
-	buf.WriteString("## Remove the <URL> line to ignore bookmark\n")
-	fmt.Fprintf(buf, "## Showing %d bookmark/s\n\n", bs.Len())
-	bs.ForEach(func(b Bookmark) {
-		buf.Write(formatBufferSimple(&b))
-	})
-
-	return bytes.TrimSpace(buf.Bytes())
-}
-
-// Oneline formats a bookmark in a single line.
+// Oneline formats a bookmark in a single line with max width.
 func Oneline(b *Bookmark) string {
 	var sb strings.Builder
 	const (
@@ -48,15 +19,11 @@ func Oneline(b *Bookmark) string {
 		minTagsLen     = 34
 		defaultTagsLen = 24
 	)
-
 	width := terminal.MaxWidth
-
 	idLen := format.PaddingConditional(5, idWithColor)
 	tagsLen := format.PaddingConditional(minTagsLen, defaultTagsLen)
-
 	// calculate maximum length for url and tags based on total width
 	urlLen := width - idLen - tagsLen
-
 	// define template with formatted placeholders
 	template := "%-*s %s %-*s %-*s\n"
 
@@ -80,7 +47,7 @@ func Oneline(b *Bookmark) string {
 	return sb.String()
 }
 
-// Multiline formats a bookmark for fzf.
+// Multiline formats a bookmark for fzf with max width.
 func Multiline(b *Bookmark) string {
 	width := terminal.MaxWidth
 	var sb strings.Builder
@@ -93,14 +60,13 @@ func Multiline(b *Bookmark) string {
 	return sb.String()
 }
 
-func FrameFormatted(b *Bookmark, width int, c color.ColorFn) string {
+func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	f := frame.New(frame.WithColorBorder(c))
+	width := terminal.MinWidth
 	width -= len(f.Border.Row)
-
 	// split and add intendation
 	descSplit := format.Split(b.Desc, width)
 	titleSplit := format.Split(b.Title, width)
-
 	// add color and style
 	id := color.BrightYellow(b.ID).Bold().String()
 	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
@@ -116,32 +82,28 @@ func FrameFormatted(b *Bookmark, width int, c color.ColorFn) string {
 }
 
 // FmtWithFrame formats and displays a bookmark with styling and frame layout.
-func FmtWithFrame(f *frame.Frame, b *Bookmark, n int, c color.ColorFn) {
-	n -= len(f.Border.Row)
-
-	titleSplit := format.Split(b.Title, n)
+func FmtWithFrame(f *frame.Frame, b *Bookmark, c color.ColorFn) {
+	width := terminal.MinWidth - len(f.Border.Row)
+	titleSplit := format.Split(b.Title, width)
 	idStr := color.BrightWhite(b.ID).Bold().String()
-
-	urlColor := format.Shorten(PrettifyURL(b.URL, c), n)
+	urlColor := format.Shorten(PrettifyURL(b.URL, c), width)
 	title := color.ApplyMany(titleSplit, color.Cyan)
 	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
 	f.Mid(fmt.Sprintf("%s %s %s", idStr, format.MidBulletPoint, urlColor)).Ln()
 	f.Mid(title...).Ln()
-	f.Mid(tags).Ln()
+	f.Mid(tags).Ln().Ln().Render()
 }
 
-// Frame formats a bookmark in a frame.
-func Frame(b *Bookmark, width int) string {
+// Frame formats a bookmark in a frame with min width.
+func Frame(b *Bookmark) string {
+	width := terminal.MinWidth
 	f := frame.New(frame.WithColorBorder(color.Gray))
-
 	// indentation
 	width -= len(f.Border.Row)
-
 	// split and add intendation
 	descSplit := format.Split(b.Desc, width)
 	titleSplit := format.Split(b.Title, width)
-
 	// add color and style
 	id := color.BrightYellow(b.ID).Bold().String()
 	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
@@ -168,15 +130,13 @@ func PrettifyURL(s string, c color.ColorFn) string {
 	if err != nil {
 		return ""
 	}
-
+	// default color
 	if c == nil {
-		c = color.BrightWhite
+		c = color.Default
 	}
-
 	if u.Host == "" || u.Path == "" {
 		return c(s).Bold().String()
 	}
-
 	host := c(u.Host).Bold().String()
 	pathSegments := strings.FieldsFunc(
 		strings.TrimLeft(u.Path, "/"),
@@ -193,13 +153,6 @@ func PrettifyURL(s string, c color.ColorFn) string {
 	).Italic()
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
-}
-
-// formatBufferSimple returns a simple buf with ID, title, tags and URL.
-func formatBufferSimple(b *Bookmark) []byte {
-	// FIX: replace with menu
-	id := fmt.Sprintf("[%d]", b.ID)
-	return []byte(fmt.Sprintf("# %s %10s\n# tags: %s\n%s\n\n", id, b.Title, b.Tags, b.URL))
 }
 
 // FzfFormatter returns a function to format a bookmark for the FZF menu.

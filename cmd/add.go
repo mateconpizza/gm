@@ -250,11 +250,11 @@ func addHandleClipboard(t *terminal.Term) string {
 
 // bookmarkEdition edits a bookmark with a text editor.
 func bookmarkEdition(b *Bookmark) error {
-	te, err := files.Editor(config.App.Env.Editor)
+	te, err := files.GetEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	if err := bookmark.Edit(te, bookmark.Buffer(b), b); err != nil {
+	if err := bookmark.Edit(te, b.Buffer(), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

@@ -12,11 +12,10 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -41,31 +40,36 @@ func OnSubcommand() {
 }
 
 // Confirmation prompts the user to confirm the action.
-func Confirmation(t *terminal.Term, bs *Slice, prompt string, colors color.ColorFn) error {
+func Confirmation(
+	m *menu.Menu[Bookmark],
+	t *terminal.Term,
+	bs *Slice,
+	prompt string,
+	colors color.ColorFn,
+) error {
 	for !*force {
 		n := bs.Len()
 		if n == 0 {
 			return repo.ErrRecordNotFound
 		}
-
-		bs.ForEachIdx(func(i int, b Bookmark) {
-			fmt.Println(bookmark.FrameFormatted(&b, terminal.MinWidth, colors))
+		bs.ForEach(func(b Bookmark) {
+			fmt.Println(bookmark.FrameFormatted(&b, colors))
 		})
-
 		// render frame
 		f := frame.New(frame.WithColorBorder(colors), frame.WithNoNewLine())
 		q := f.Footer(prompt + fmt.Sprintf(" %d bookmark/s?", n)).String()
-		opt := t.Choose(q, []string{"yes", "no", "edit"}, "n")
-		opt = strings.ToLower(opt)
-		switch opt {
+		opt := t.Choose(q, []string{"yes", "no", "select"}, "n")
+		switch strings.ToLower(opt) {
 		case "n", "no":
 			return ErrActionAborted
 		case "y", "yes":
 			return nil
-		case "e", "edit":
-			if err := filterSlice(bs); err != nil {
+		case "s", "select":
+			items, err := Selection(m, bs.Items(), bookmark.FzfFormatter(false))
+			if err != nil {
 				return err
 			}
+			bs.Set(&items)
 			fmt.Println()
 		}
 	}
@@ -125,35 +129,6 @@ func validateRemove(bs *Slice, force bool) error {
 			ErrActionAborted,
 		)
 	}
-
-	return nil
-}
-
-// filterSlice select which item to remove from a slice using the
-// text editor.
-func filterSlice(bs *Slice) error {
-	buf := bookmark.BufferSlice(bs)
-	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
-
-	editor, err := files.Editor(config.App.Env.Editor)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := files.Edit(editor, &buf); err != nil {
-		return fmt.Errorf("on editing slice buffer: %w", err)
-	}
-
-	c := format.ByteSliceToLines(&buf)
-	urls := bookmark.ExtractContentLine(&c)
-	if len(urls) == 0 {
-		return ErrActionAborted
-	}
-
-	bs.FilterInPlace(func(b *Bookmark) bool {
-		_, exists := urls[b.URL]
-		return exists
-	})
 
 	return nil
 }
