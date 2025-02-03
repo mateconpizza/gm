@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -15,15 +14,32 @@ const (
 	defaultDesc  string = "no description available (unfiled)"
 )
 
-type Scraper struct {
-	doc *goquery.Document
+type OptFn func(*Options)
+
+type Options struct {
 	uri string
+	doc *goquery.Document
+	ctx context.Context
+}
+
+type Scraper struct {
+	Options
+}
+
+func WithContext(ctx context.Context) OptFn {
+	return func(o *Options) {
+		o.ctx = ctx
+	}
 }
 
 // Scrape fetches and parses the URL content.
 func (s *Scraper) Scrape() error {
-	s.doc = scrapeURL(s.uri)
+	s.doc = scrapeURL(s.uri, s.ctx)
 	return nil
+}
+
+func defaults() *Options {
+	return &Options{}
 }
 
 // Title retrieves the page title from the Scraper's Doc field, falling back
@@ -69,15 +85,20 @@ func (s *Scraper) Desc() string {
 }
 
 // New creates a new Scraper.
-func New(s string) *Scraper {
-	return &Scraper{uri: s}
+func New(s string, opts ...OptFn) *Scraper {
+	o := defaults()
+	for _, opt := range opts {
+		opt(o)
+	}
+	o.uri = s
+
+	return &Scraper{
+		Options: *o,
+	}
 }
 
 // scrapeURL fetches and parses the HTML content from a URL.
-func scrapeURL(s string) *goquery.Document {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
 		log.Printf("error creating request: %v", err)
