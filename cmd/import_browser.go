@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -92,7 +94,9 @@ func scrapeMissingData(bs *Slice) error {
 		go func(b Bookmark) {
 			defer wg.Done()
 
-			sc := scraper.New(b.URL)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			sc := scraper.New(b.URL, scraper.WithContext(ctx))
 			if err := sc.Scrape(); err != nil {
 				log.Printf("scraping error: %v", err)
 			}

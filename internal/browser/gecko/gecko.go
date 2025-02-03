@@ -20,6 +20,16 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
+var ignoredPrefixes = slice.New(
+	"about:",
+	"apt:",
+	"chrome://",
+	"file://",
+	"place:",
+	"vivaldi://",
+	"moz-extension://",
+)
+
 var (
 	ErrBrowserIsOpen           = errors.New("browser is open")
 	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
@@ -116,28 +126,27 @@ func New(name string, c color.ColorFn) *GeckoBrowser {
 }
 
 type geckoBookmark struct {
-	fk     int
-	parent int
-	title  string
-	url    string
-	tags   string
+	FK     int    `db:"fk"`
+	Parent int    `db:"parent"`
+	Title  string `db:"title"`
+	URL    string `db:"url"`
+	Tags   string `db:"tags"`
 }
 
 // openSQLite opens the SQLite database and returns a *sql.DB object.
 func openSQLite(dbPath string) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite3", dbPath)
+	f := fmt.Sprintf("file:%s?cache=shared", dbPath)
+	db, err := sqlx.Open("sqlite3", f)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
 	s := spinner.New(
 		spinner.WithMesg(color.BrightBlue("connecting to database...").String()),
 		spinner.WithColor(color.Gray),
 	)
 	s.Start()
 	defer s.Stop()
-
-	// Check if the database is reachable
+	// check if the database is reachable
 	if err = db.Ping(); err != nil {
 		log.Printf("failed to ping database: %v\n", err)
 		if err.Error() == "database is locked" {
@@ -153,79 +162,46 @@ func openSQLite(dbPath string) (*sqlx.DB, error) {
 // isNonGenericURL checks if the given URL is a non-generic URL based on a set
 // of ignored prefixes.
 func isNonGenericURL(url string) bool {
-	log.Print("isNonGenericURL checking url:", url)
-	ignoredPrefixes := []string{
-		"about:",
-		"apt:",
-		"chrome://",
-		"file://",
-		"place:",
-		"vivaldi://",
-		"moz-extension://",
-	}
-
-	for _, prefix := range ignoredPrefixes {
-		if strings.HasPrefix(url, prefix) {
-			return true
-		}
+	if ignoredPrefixes.Any(func(prefix string) bool {
+		return strings.HasPrefix(url, prefix)
+	}) {
+		log.Printf("ignoring URL: %s\n", url)
+		return true
 	}
 
 	return false
 }
 
 // queryBookmarks queries the bookmarks table to retrieve some sample data.
-func queryBookmarks(db *sqlx.DB) ([]geckoBookmark, error) {
-	rows, err := db.Query(
-		"SELECT DISTINCT fk, parent, title FROM moz_bookmarks WHERE type=1 AND title IS NOT NULL",
-	)
+func queryBookmarks(db *sqlx.DB) (*slice.Slice[geckoBookmark], error) {
+	q := "SELECT DISTINCT fk, parent, title FROM moz_bookmarks WHERE type=1 AND title IS NOT NULL"
+	bs := slice.New[geckoBookmark]()
+	err := db.Select(bs.Items(), q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query bookmarks: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("Error closing rows: %v", err)
-		}
-	}()
-
-	var gb geckoBookmark
-	var bookmarks []geckoBookmark
-	for rows.Next() {
-		var title, id, parent string
-		if err := rows.Scan(&gb.fk, &gb.parent, &gb.title); err != nil {
-			fmt.Printf(
-				"failed to scan title, id row: title=%v id=%v parent=%v\n",
-				title,
-				id,
-				parent,
-			)
-
-			continue
-		}
-
-		gb.url, err = processURLs(db, gb.fk)
+	parseGeckoBookmark := func(gb *geckoBookmark) error {
+		gb.URL, err = processURLs(db, gb.FK)
 		if err != nil {
-			return nil, err
+			return err
 		}
-
-		if gb.url == "" {
-			continue
+		if gb.URL == "" {
+			return nil
 		}
-
-		gb.tags, err = processTags(db, gb.fk)
+		gb.Tags, err = processTags(db, gb.FK)
 		if err != nil {
-			return nil, err
+			return err
 		}
+		gb.Tags += " " + getTodayFormatted()
+		gb.Tags = bookmark.ParseTags(gb.Tags)
 
-		gb.tags += " " + getTodayFormatted()
-		gb.tags = bookmark.ParseTags(gb.tags)
-		bookmarks = append(bookmarks, gb)
+		return nil
+	}
+	if err := bs.ForEachMutErr(parseGeckoBookmark); err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
-	}
-
-	return bookmarks, nil
+	return bs, nil
 }
 
 func allProfiles(p string) (map[string]string, error) {
@@ -249,106 +225,91 @@ func allProfiles(p string) (map[string]string, error) {
 	return result, nil
 }
 
-func processProfile(
-	t *terminal.Term,
-	bs *slice.Slice[bookmark.Bookmark],
-	profileName, dbPath string,
-) {
+// processProfile processes a single profile and extracts bookmarks.
+func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profile, path string) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Row().Ln().Render()
-	f.Clean().Header(fmt.Sprintf("import bookmarks from '%s' profile?", profileName))
+	f.Clean().Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
 	if !t.Confirm(f.String(), "n") {
 		t.ClearLine(1)
-		f.Clean().Row("Skipping profile...'" + profileName + "'").Ln().Render()
+		f.Clean().Warning("Skipping profile...'" + profile + "'").Ln().Render()
 		return
 	}
-	ogSize := bs.Len()
 	// FIX: get path by OS
-	dbPath = files.ExpandHomeDir(dbPath)
-	db, err := openSQLite(dbPath)
+	path = files.ExpandHomeDir(path)
+	db, err := openSQLite(path)
 	defer func() {
-		if err := db.Close(); err != nil {
-			log.Printf("err closing database for profile '%s': %v\n", profileName, err)
+		if db == nil {
+			return
 		}
-		log.Printf("database for profile '%s' closed.\n", profileName)
+		if err := db.Close(); err != nil {
+			log.Printf("err closing database for profile '%s': %v\n", profile, err)
+		}
+		log.Printf("database for profile '%s' closed.\n", profile)
 	}()
 	if err != nil {
-		log.Printf("err opening database for profile '%s': %v\n", profileName, err)
+		log.Printf("err opening database for profile '%s': %v\n", profile, err)
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
 			f.Clean().Error("database is " + l + ", maybe firefox is open?").Ln().Render()
 			return
 		}
-		fmt.Printf("err opening database for profile '%s': %v\n", profileName, err)
+		fmt.Printf("err opening database for profile '%s': %v\n", profile, err)
 
 		return
 	}
 
 	gmarks, err := queryBookmarks(db)
 	if err != nil {
-		fmt.Printf("Error querying bookmarks for profile '%s': %v\n", profileName, err)
+		fmt.Printf("err querying bookmarks for profile '%s': %v\n", profile, err)
 		return
 	}
-
-	for _, m := range gmarks {
-		if m.url == "" {
-			continue
+	skipped := 0
+	gmarks.ForEach(func(gb geckoBookmark) {
+		if gb.URL == "" {
+			return
 		}
 		b := bookmark.New()
-		b.Title = m.title
-		b.URL = m.url
-		b.Tags = m.tags
-
-		if bs.Has(func(b bookmark.Bookmark) bool {
-			return b.URL == m.url
-		}) {
-			continue
+		b.Title = gb.Title
+		b.URL = gb.URL
+		b.Tags = gb.Tags
+		if bs.Includes(b) {
+			skipped++
+			return
 		}
-
-		bs.Append(b)
-	}
+		bs.Push(b)
+	})
 
 	if err := db.Close(); err != nil {
 		log.Printf("err closing rows: %v", err)
 	}
 
 	found := color.BrightBlue("found")
-	f.Clean().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Render()
+	f.Clean().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-skipped)).Ln().Render()
 }
 
+// processTags processes the tags for a single bookmark.
 func processTags(db *sqlx.DB, fk int) (string, error) {
+	var tagIDs []int
 	var tags []string
-	rows, err := db.Query("SELECT parent FROM moz_bookmarks WHERE fk=? AND title IS NULL", fk)
+	// fetch all parent tag ids in a single query
+	err := db.Select(&tagIDs, "SELECT parent FROM moz_bookmarks WHERE fk=? AND title IS NULL", fk)
 	if err != nil {
 		return "", fmt.Errorf("failed to query tags: %w", err)
 	}
-
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Printf("Error closing rows: %v", err)
-		}
-	}()
-
-	for rows.Next() {
-		var tagID string
-		if err := rows.Scan(&tagID); err != nil {
-			return "", fmt.Errorf("failed to scan tag row: %w", err)
-		}
-
-		var tag string
-		err := db.QueryRow("SELECT title FROM moz_bookmarks WHERE id=?", tagID).Scan(&tag)
-		if err != nil {
-			return "", fmt.Errorf("failed to query tag title: %w", err)
-		}
-		if tag != "" {
-			tags = append(tags, tag)
-		}
+	if len(tagIDs) == 0 {
+		return "", nil
 	}
-
-	if err := rows.Err(); err != nil {
-		return "", fmt.Errorf("rows iteration error: %w", err)
+	// fetch all tag titles in a single query using in clause
+	query, args, err := sqlx.In("SELECT title FROM moz_bookmarks WHERE id IN (?)", tagIDs)
+	if err != nil {
+		return "", fmt.Errorf("failed to build IN query: %w", err)
 	}
-
+	query = db.Rebind(query)
+	err = db.Select(&tags, query, args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to query tag titles: %w", err)
+	}
 	if len(tags) == 0 {
 		return "", nil
 	}
