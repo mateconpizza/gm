@@ -52,6 +52,7 @@ linters:
     # - stylecheck
     - tagalign
     # - testpackage
+    - testifylint
     - unconvert
     - unparam
     - unused
@@ -118,3 +119,7 @@ linters-settings:
       - name: early-return
       - name: unexported-naming
       - name: nested-structs
+  testifylint:
+    enable-all: true
+    disable:
+      - require-error

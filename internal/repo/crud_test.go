@@ -80,7 +80,7 @@ func TestDeleteRecordBulk(t *testing.T) {
 	emptyRows := slice.New[Row]()
 	err = r.Records(r.Cfg.Tables.Main, emptyRows)
 	assert.ErrorIs(t, err, ErrRecordNotFound, "expected ErrRecordNotFound, got %v", err)
-	assert.Equal(t, emptyRows.Len(), 0, "expected 0 records, got %d", emptyRows.Len())
+	assert.Equal(t, 0, emptyRows.Len(), "expected 0 records, got %d", emptyRows.Len())
 }
 
 func TestByURL(t *testing.T) {
@@ -108,15 +108,7 @@ func TestByID(t *testing.T) {
 	record, err := r.ByID(r.Cfg.Tables.Main, recordID)
 	assert.NoError(t, err, "failed to retrieve bookmark by ID")
 	assert.Equal(t, record.ID, recordID, "expected bookmark ID %d, got %d", recordID, record.ID)
-	assert.Equal(t, record.ID, record.ID, "expected record ID %d, got %d", record.ID, record.ID)
-	assert.Equal(
-		t,
-		record.URL,
-		record.URL,
-		"expected record URL %s, got %s",
-		record.URL,
-		record.URL,
-	)
+	assert.Equal(t, record.ID, recordID, "expected record ID %d, got %d", record.ID, recordID)
 }
 
 func TestDuplicateErr(t *testing.T) {
@@ -146,7 +138,7 @@ func TestGetRecordsByQuery(t *testing.T) {
 	bs := slice.New[Row]()
 	err := r.ByQuery(r.Cfg.Tables.Main, "example", bs)
 	assert.NoError(t, err, "ByQuery returned an error: %v", err)
-	assert.Equal(t, bs.Len(), expectedRecords, "%d records, got %d", expectedRecords, bs.Len())
+	assert.Equal(t, expectedRecords, bs.Len(), "%d records, got %d", expectedRecords, bs.Len())
 
 	var count int
 	err = r.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", r.Cfg.Tables.Main)).Scan(&count)

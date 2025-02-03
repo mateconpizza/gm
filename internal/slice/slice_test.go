@@ -289,8 +289,8 @@ func TestFilterInt(t *testing.T) {
 			assert.Equal(t, len(f.items), len(test.expected))
 			assert.Equal(
 				t,
-				f.items,
 				test.expected,
+				f.items,
 				"expected %v, got %v",
 				test.expected,
 				f.items,
@@ -327,8 +327,8 @@ func TestFilterStrings(t *testing.T) {
 			assert.Equal(t, len(f.items), len(test.expected))
 			assert.Equal(
 				t,
-				f.items,
 				test.expected,
+				f.items,
 				"expected %v, got %v",
 				test.expected,
 				f.items,
@@ -367,7 +367,7 @@ func TestFilterInPlace(t *testing.T) {
 		})
 
 		assert.Equal(t, original, s.items)
-		assert.Equal(t, 3, len(s.items))
+		assert.Len(t, s.items, 3)
 	})
 
 	t.Run("all elements filtered", func(t *testing.T) {
@@ -377,7 +377,6 @@ func TestFilterInPlace(t *testing.T) {
 		})
 
 		assert.Empty(t, s.items)
-		assert.Equal(t, 0, len(s.items))
 	})
 
 	t.Run("struct filtering", func(t *testing.T) {
@@ -396,7 +395,7 @@ func TestFilterInPlace(t *testing.T) {
 			return p.Age >= 30
 		})
 
-		assert.Equal(t, 2, len(s.items))
+		assert.Len(t, s.items, 2)
 		assert.Contains(t, s.items, Person{"Alice", 30})
 		assert.Contains(t, s.items, Person{"Charlie", 35})
 	})
@@ -425,7 +424,7 @@ func TestFilterInPlace(t *testing.T) {
 		})
 
 		assert.Equal(t, []int{4, 5}, s.items)
-		assert.Equal(t, 2, len(s.items))
+		assert.Len(t, s.items, 2)
 		assert.Equal(t, 5, cap(s.items), "capacity should remain unchanged")
 	})
 
@@ -472,7 +471,7 @@ func TestIndexString(t *testing.T) {
 			idx := s.Index(test.name)
 			assert.NotEqual(t, idx, -1)
 			assert.Equal(t, s.items[idx], test.name)
-			assert.Equal(t, idx, test.expected, "expected %v, got %v", test.expected, idx)
+			assert.Equal(t, test.expected, idx, "expected %v, got %v", test.expected, idx)
 		})
 	}
 }
@@ -504,7 +503,7 @@ func TestDelete(t *testing.T) {
 		s := New(test.input...)
 		s.Del(test.name)
 		assert.Equal(t, len(s.items), len(test.expected))
-		assert.Equal(t, s.items, test.expected, "expected %v, got %v", test.expected, s.items)
+		assert.Equal(t, test.expected, s.items, "expected %v, got %v", test.expected, s.items)
 	}
 }
 
@@ -534,7 +533,7 @@ func TestAppendLoop(t *testing.T) {
 	for _, test := range testAddStr {
 		s := New(test.input...)
 		s.Append(&test.name)
-		assert.Equal(t, s.items, test.expected, "expected %v, got %v", test.expected, s.items)
+		assert.Equal(t, test.expected, s.items, "expected %v, got %v", test.expected, s.items)
 	}
 }
 

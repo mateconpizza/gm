@@ -106,7 +106,7 @@ func TestGetOrCreateTag(t *testing.T) {
 	_ = r.execTx(context.Background(), func(tx *sqlx.Tx) error {
 		// test creating a new tag
 		tagID, err := createTag(tx, ttags, newTagName)
-		assert.NotEqual(t, tagID, int64(0), "CreateTag returned ID 0, expected a valid ID")
+		assert.NotEqual(t, int64(0), tagID, "CreateTag returned ID 0, expected a valid ID")
 		assert.NoError(t, err, "failed to create tag")
 		// verify tag was inserted
 		newTagID, err := getTag(tx, ttags, newTagName)

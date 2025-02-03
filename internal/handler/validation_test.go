@@ -13,12 +13,12 @@ func TestExtractIDsFromString(t *testing.T) {
 	}
 	ids, err := extractIDsFrom(idsStr)
 	assert.NoError(t, err)
-	assert.Equal(t, ids, []int{1, 2, 3})
+	assert.Equal(t, []int{1, 2, 3}, ids)
 	// invalid ids
 	nonIntStr := []string{
 		"a", "b", "c",
 	}
 	ids, err = extractIDsFrom(nonIntStr)
 	assert.NoError(t, err)
-	assert.Equal(t, ids, []int{})
+	assert.Equal(t, []int{}, ids)
 }
