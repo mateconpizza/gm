@@ -128,8 +128,8 @@ func dbListHandler(_ *terminal.Term, r *repo.SQLiteRepository) error {
 		f.Header(nColor + " database/s found").Ln()
 	}
 
-	dbs.ForEachIdx(func(i int, r repo.SQLiteRepository) {
-		f.Text(repo.Summary(&r))
+	dbs.ForEachMut(func(r *repo.SQLiteRepository) {
+		f.Text(repo.Summary(r))
 	})
 
 	f.Render()

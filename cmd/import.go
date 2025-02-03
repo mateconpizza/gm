@@ -50,7 +50,7 @@ func getSource(key string) (*importSource, bool) {
 // cleanDuplicateRecords removes duplicate bookmarks from the import process.
 func cleanDuplicateRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	originalLen := bs.Len()
-	bs.Filter(func(b Bookmark) bool {
+	bs.FilterInPlace(func(b *Bookmark) bool {
 		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
 	})
 
@@ -71,13 +71,12 @@ func cleanDuplicateRecords(r *repo.SQLiteRepository, bs *Slice) error {
 // importInsert inserts the bookmarks found from the import process.
 func importInsert(r *repo.SQLiteRepository, bs *Slice) error {
 	// FIX: merge with importInsertRecords
-	bs.Filter(func(b Bookmark) bool {
+	bs.FilterInPlace(func(b *Bookmark) bool {
 		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
 	})
 	if bs.Empty() {
 		return nil
 	}
-
 	if err := r.InsertMultiple(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}

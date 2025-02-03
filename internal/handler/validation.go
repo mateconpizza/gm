@@ -150,7 +150,7 @@ func filterSlice(bs *Slice) error {
 		return ErrActionAborted
 	}
 
-	bs.Filter(func(b Bookmark) bool {
+	bs.FilterInPlace(func(b *Bookmark) bool {
 		_, exists := urls[b.URL]
 		return exists
 	})
@@ -187,7 +187,7 @@ func ValidateDB(cmd *cobra.Command, c *repo.SQLiteConfig) error {
 	}
 
 	// find with no|other extension
-	databases.ForEach(func(r repo.SQLiteRepository) {
+	databases.ForEachMut(func(r *repo.SQLiteRepository) {
 		s := strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name))
 		if s == dbName {
 			c.Name = r.Cfg.Name

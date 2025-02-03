@@ -10,20 +10,40 @@ import (
 var ErrSliceEmpty = errors.New("slice is empty")
 
 type Slice[T comparable] struct {
-	items *[]T
+	items []T
 }
 
 // ForEach loops all items.
 func (s *Slice[T]) ForEach(fn func(T)) {
-	for _, ele := range *s.items {
-		fn(ele)
+	for i := range s.items {
+		fn(s.items[i])
+	}
+}
+
+// ForEachMut applies the given function to each element of the slice, allowing
+// the function to mutate the elements.
+func (s *Slice[T]) ForEachMut(fn func(*T)) {
+	for i := range s.items {
+		fn(&s.items[i])
 	}
 }
 
 // ForEachErr loops all items and returns a err.
 func (s *Slice[T]) ForEachErr(fn func(T) error) error {
-	for _, ele := range *s.items {
-		if err := fn(ele); err != nil {
+	for i := range s.items {
+		if err := fn(s.items[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ForEachMutErr applies the given function to each element of the slice, allowing
+// the function to mutate the elements.
+func (s *Slice[T]) ForEachMutErr(fn func(*T) error) error {
+	for i := range s.items {
+		if err := fn(&s.items[i]); err != nil {
 			return err
 		}
 	}
@@ -33,14 +53,14 @@ func (s *Slice[T]) ForEachErr(fn func(T) error) error {
 
 // ForEachIdx loop items all items with index.
 func (s *Slice[T]) ForEachIdx(fn func(int, T)) {
-	for i, ele := range *s.items {
+	for i, ele := range s.items {
 		fn(i, ele)
 	}
 }
 
 // ForEachErrIdx loop items all items with index and returns a err.
 func (s *Slice[T]) ForEachErrIdx(fn func(int, T) error) error {
-	for i, ele := range *s.items {
+	for i, ele := range s.items {
 		if err := fn(i, ele); err != nil {
 			return err
 		}
@@ -49,21 +69,49 @@ func (s *Slice[T]) ForEachErrIdx(fn func(int, T) error) error {
 	return nil
 }
 
-// Filter filters the items with a callback.
-func (s *Slice[T]) Filter(fn func(T) bool) {
-	slice := New[T]()
-	for _, ele := range *s.items {
-		t := ele
-		if fn(t) {
-			slice.Append(&t)
+// Filter creates a new Slice containing only the elements that satisfy the
+// given predicate.
+func (s *Slice[T]) Filter(predicate func(T) bool) *Slice[T] {
+	filtered := make([]T, 0, len(s.items))
+	for _, item := range s.items {
+		if predicate(item) {
+			filtered = append(filtered, item)
 		}
 	}
-	*s.items = *slice.items
+
+	return &Slice[T]{items: filtered}
+}
+
+// FilterInPlace filters the items in place with a callback.
+func (s *Slice[T]) FilterInPlace(fn func(*T) bool) {
+	filtered := s.items[:0]
+	for i := range s.items {
+		if fn(&s.items[i]) {
+			filtered = append(filtered, s.items[i])
+		}
+	}
+	s.items = filtered
+}
+
+// Includes checks if the item is in the slice.
+func (s *Slice[T]) Includes(target *T) bool {
+	return slices.Contains(s.items, *target)
+}
+
+// Any checks if any item matches the predicate.
+func (s *Slice[T]) Any(predicate func(T) bool) bool {
+	for _, item := range s.items {
+		if predicate(item) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Has checks if the item is in the slice.
 func (s *Slice[T]) Has(fn func(T) bool) bool {
-	for _, ele := range *s.items {
+	for _, ele := range s.items {
 		if fn(ele) {
 			return true
 		}
@@ -78,7 +126,7 @@ func (s *Slice[T]) Head(n int) {
 	if n <= 0 || n > l || l == 0 {
 		return
 	}
-	*s.items = (*s.items)[:n]
+	s.items = (s.items)[:n]
 }
 
 // Tail returns the last n items.
@@ -88,48 +136,53 @@ func (s *Slice[T]) Tail(n int) {
 		return
 	}
 	tail := l - n
-	*s.items = (*s.items)[tail:]
+	s.items = (s.items)[tail:]
 }
 
 // Len returns the length of the items.
 func (s *Slice[T]) Len() int {
-	return len(*s.items)
+	return len(s.items)
 }
 
-// Append adds a single item to the items.
+// Push adds a single item to the items.
+func (s *Slice[T]) Push(item *T) {
+	s.items = append(s.items, *item)
+}
+
+// Append adds multiple items to the items.
 func (s *Slice[T]) Append(elements ...*T) {
 	for _, ele := range elements {
-		if ele != nil && !slices.Contains(*s.items, *ele) {
-			*s.items = append(*s.items, *ele)
+		if ele != nil && !slices.Contains(s.items, *ele) {
+			s.items = append(s.items, *ele)
 		}
 	}
 }
 
 // Set sets the items.
 func (s *Slice[T]) Set(items *[]T) {
-	*s.items = *items
+	s.items = *items
 }
 
 // Item returns a single item by index.
 func (s *Slice[T]) Item(i int) T {
-	return (*s.items)[i]
+	return (s.items)[i]
 }
 
 // Items returns all items in the slice.
 func (s *Slice[T]) Items() *[]T {
-	return s.items
+	return &s.items
 }
 
 // Index returns the index of the item.
 func (s *Slice[T]) Index(item T) int {
-	return slices.Index(*s.items, item)
+	return slices.Index(s.items, item)
 }
 
 // Del removes an items from the slice.
 func (s *Slice[T]) Del(item T) {
 	idx := s.Index(item)
 	if idx != -1 {
-		*s.items = slices.Delete(*s.items, idx, idx+1)
+		s.items = slices.Delete(s.items, idx, idx+1)
 	}
 }
 
@@ -137,38 +190,35 @@ func (s *Slice[T]) Del(item T) {
 // elements of the original slice.
 func (s *Slice[T]) TrimElements(n int) *Slice[T] {
 	var filtered []T
-	if len(*s.items) > n {
-		filtered = (*s.items)[:len(*s.items)-n]
+	if len(s.items) > n {
+		filtered = (s.items)[:len(s.items)-n]
 	}
 
-	return &Slice[T]{items: &filtered}
+	return &Slice[T]{items: filtered}
 }
 
 // Clean removes all items from the slice.
 func (s *Slice[T]) Clean() {
-	*s.items = make([]T, 0)
+	s.items = make([]T, 0)
 }
 
 // Empty returns true if the slice is empty.
 func (s *Slice[T]) Empty() bool {
-	return len(*s.items) == 0
-}
-
-// From creates a new slice from the given items.
-func From[T comparable](items []T) *Slice[T] {
-	return &Slice[T]{items: &items}
+	return len(s.items) == 0
 }
 
 // Sort sorts the items in the slice based on the provided less function.
 func (s *Slice[T]) Sort(less func(a, b T) bool) {
-	sort.Slice(*s.items, func(i, j int) bool {
-		return less((*s.items)[i], (*s.items)[j])
+	sort.Slice(s.items, func(i, j int) bool {
+		return less((s.items)[i], (s.items)[j])
 	})
 }
 
 // New creates a new slice of bookmarks.
-func New[T comparable]() *Slice[T] {
-	items := make([]T, 0)
+func New[T comparable](items ...T) *Slice[T] {
+	if len(items) == 0 {
+		items = make([]T, 0)
+	}
 
-	return &Slice[T]{items: &items}
+	return &Slice[T]{items: items}
 }

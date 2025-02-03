@@ -22,7 +22,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 	// if the slice contains bookmarks, filter by tag.
 	if !bs.Empty() {
 		for _, tag := range tags {
-			bs.Filter(func(b Bookmark) bool {
+			bs.FilterInPlace(func(b *Bookmark) bool {
 				return strings.Contains(b.Tags, tag)
 			})
 		}
@@ -41,7 +41,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNoMatch, t)
 	}
 
-	bs.Filter(func(b Bookmark) bool {
+	bs.FilterInPlace(func(b *Bookmark) bool {
 		for _, tag := range tags {
 			if !strings.Contains(b.Tags, tag) {
 				return false

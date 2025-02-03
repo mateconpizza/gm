@@ -54,7 +54,7 @@ func testSliceBookmarks() *Slice {
 		b.URL = fmt.Sprintf("https://www.example%d.com", i)
 		b.Tags = fmt.Sprintf("test,tag%d,go", i)
 		b.Desc = fmt.Sprintf("Description %d", i)
-		s.Append(b)
+		s.Push(b)
 	}
 
 	return s

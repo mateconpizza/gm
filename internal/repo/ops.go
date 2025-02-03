@@ -38,7 +38,7 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	return slice.From(f), nil
+	return slice.New(f...), nil
 }
 
 // Find finds a database by name in the given path.
@@ -49,7 +49,7 @@ func Find(name, path string) (*SQLiteRepository, error) {
 		return nil, err
 	}
 
-	dbs.Filter(func(db SQLiteRepository) bool {
+	dbs.FilterInPlace(func(db *SQLiteRepository) bool {
 		return db.Cfg.Name == files.EnsureExt(name, ".db")
 	})
 	if dbs.Len() == 0 {
@@ -121,8 +121,8 @@ func Backups(r *SQLiteRepository) (*slice.Slice[string], error) {
 		return nil, err
 	}
 
-	backups.Filter(func(b string) bool {
-		return strings.Contains(b, s)
+	backups.FilterInPlace(func(b *string) bool {
+		return strings.Contains(*b, s)
 	})
 
 	if backups.Len() == 0 {

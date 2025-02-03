@@ -44,14 +44,14 @@ var importDatabaseCmd = &cobra.Command{
 	},
 }
 
-// importChooseDB prompts the user to select a database to import from.
-func importChooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
+// chooseDB prompts the user to select a database to import from.
+func chooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 	dbs, err := repo.Databases(r.Cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	dbs.Filter(func(db repo.SQLiteRepository) bool {
+	dbs.FilterInPlace(func(db *repo.SQLiteRepository) bool {
 		return db.Cfg.Name != r.Cfg.Name
 	})
 
@@ -84,7 +84,7 @@ func importChooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 
 // importSelectDatabase prompts the user to select a database.
 func importSelectDatabase(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
-	db, err := importChooseDB(r)
+	db, err := chooseDB(r)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
