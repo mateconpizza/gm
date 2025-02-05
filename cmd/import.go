@@ -7,10 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/handler"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
@@ -48,7 +50,7 @@ func getSource(key string) (*importSource, bool) {
 }
 
 // cleanDuplicateRecords removes duplicate bookmarks from the import process.
-func cleanDuplicateRecords(r *repo.SQLiteRepository, bs *Slice) error {
+func cleanDuplicateRecords(r *Repo, bs *Slice) error {
 	originalLen := bs.Len()
 	bs.FilterInPlace(func(b *Bookmark) bool {
 		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
@@ -67,8 +69,84 @@ func cleanDuplicateRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	return nil
 }
 
+// selectBackup prompts the user to select a backup file.
+func selectBackup(m *menu.Menu[Repo], r *Repo) (*slice.Slice[Repo], error) {
+	backups, err := repo.Backups(r)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if backups.Len() == 1 {
+		bk := backups.Item(0)
+		backups.Set(&[]Repo{bk})
+		return backups, nil
+	}
+	backupSlice, err := handler.Selection(m, backups.Items(), repo.SummaryBackupLine)
+	if err != nil {
+		return backups, fmt.Errorf("%w", err)
+	}
+	backups.Set(&backupSlice)
+
+	return backups, nil
+}
+
+// importBackupCmd imports bookmarks from a backup file.
+var importBackupCmd = &cobra.Command{
+	Use:     "backup",
+	Aliases: []string{"b", "bk", "backups"},
+	Short:   "import bookmarks from backup",
+	RunE: func(_ *cobra.Command, _ []string) error {
+		r, err := repo.New(Cfg)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		defer r.Close()
+
+		m := menu.New[Repo](
+			menu.WithDefaultSettings(),
+			menu.WithHeader(fmt.Sprintf("choose a backup from '%s'", r.Cfg.Name), false),
+			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
+		)
+		backups, err := selectBackup(m, r)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		bk := backups.Item(0)
+
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))
+		if err := importFromDB(t, r, &bk); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
+	},
+}
+
+// importBrowserCmd imports bookmarks from a browser.
+var importBrowserCmd = &cobra.Command{
+	Use:     "browser",
+	Aliases: []string{"b"},
+	Short:   "import bookmarks from browser",
+	RunE: func(_ *cobra.Command, _ []string) error {
+		r, err := repo.New(Cfg)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		defer r.Close()
+
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))
+
+		return importFromBrowser(t, r)
+	},
+}
+
 // insertRecordsFromSource inserts records into the database.
-func insertRecordsFromSource(t *terminal.Term, r *repo.SQLiteRepository, records *Slice) error {
+func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	report := fmt.Sprintf("import %d records?", records.Len())
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	if !t.Confirm(f.Row().Ln().Header(report).String(), "y") {
@@ -136,5 +214,8 @@ var importCmd = &cobra.Command{
 }
 
 func init() {
+	importCmd.AddCommand(importBackupCmd)
+	importCmd.AddCommand(importBrowserCmd)
+	importCmd.AddCommand(importDatabaseCmd)
 	rootCmd.AddCommand(importCmd)
 }

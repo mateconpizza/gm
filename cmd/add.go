@@ -45,7 +45,7 @@ var addCmd = &cobra.Command{
 }
 
 // add adds a new bookmark.
-func add(t *terminal.Term, r *repo.SQLiteRepository, args []string) error {
+func add(t *terminal.Term, r *Repo, args []string) error {
 	if t.IsPiped() && len(args) < 2 {
 		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
 	}
@@ -124,7 +124,7 @@ func addHandleURL(t *terminal.Term, args *[]string) string {
 }
 
 // addHandleTags retrieves the Tags from args or prompts the user for input.
-func addHandleTags(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) string {
+func addHandleTags(t *terminal.Term, r *Repo, args *[]string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Header(color.BrightBlue("Tags\t:").String())
 	// this checks if tags are provided, parses them and return them
@@ -154,7 +154,7 @@ func addHandleTags(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) s
 // addParseNewBookmark fetch metadata and parses the new bookmark.
 func addParseNewBookmark(
 	t *terminal.Term,
-	r *repo.SQLiteRepository,
+	r *Repo,
 	b *Bookmark,
 	args []string,
 ) error {
@@ -204,7 +204,7 @@ func addTitleAndDesc(url string, verbose bool) (title, desc string) {
 }
 
 // addParseURL parse URL from args.
-func addParseURL(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) (string, error) {
+func addParseURL(t *terminal.Term, r *Repo, args *[]string) (string, error) {
 	url := addHandleURL(t, args)
 	if url == "" {
 		return url, bookmark.ErrURLEmpty

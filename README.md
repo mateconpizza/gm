@@ -16,6 +16,7 @@
 
 ### ✨ Features
 
+- [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
 - [x] Support multiple `databases`
 - [x] Restore `deleted` bookmarks
 - [x] Import `bookmarks` from `firefox` based browsers
@@ -32,53 +33,35 @@
 ### 📦 Installation
 
 ```sh
-git clone "https://github.com/haaag/gm" && cd gm
-
-# build using make
-make
-
-# or build using `go build`
-go build -o ./bin
+go install github.com/haaag/gm@latest
 ```
 
-This will create a `./bin/gm` binary in your current directory.
+_To uninstall the program remove the binary in your `go env GOPATH`_
 
 ### 📖 Usage <small><sub>(🚧WIP)</sub></small>
-
-_This must be simplified a bit._
 
 ```sh
 $ gm --help
 Simple yet powerful bookmark manager for your terminal
 
+Usage:
+  gm [flags]
+  gm [command]
+
 Available Commands:
-  add         add a new bookmark
-  bk          backup management
-  db          database management
+  backup      backup management
+  config      configuration management
+  database    database management
   help        Help about any command
-  import      import bookmarks from browser/database
-  restore     restore deleted bookmarks
+  import      import bookmarks from various sources
+  records     records management
   version     print version information
 
 Flags:
       --color string   output with pretty colors [always|never] (default "always")
-  -c, --copy           copy bookmark to clipboard
-  -e, --edit           edit with preferred text editor
-  -f, --field string   output by field [id|url|title|tags]
       --force          force action | don't ask confirmation
-  -H, --head int       the <int> first part of bookmarks
   -h, --help           help for gm
-  -j, --json           output in JSON format
-  -m, --menu           menu mode (fzf)
-  -M, --multiline      output in formatted multiline (fzf)
   -n, --name string    database name (default "bookmarks.db")
-  -O, --oneline        output in formatted oneline (fzf)
-  -o, --open           open bookmark in default browser
-  -q, --qr             generate qr-code
-  -r, --remove         remove a bookmarks by query or id
-  -s, --status         check bookmarks status
-  -t, --tag strings    list by tag
-  -T, --tail int       the <int> last part of bookmarks
   -v, --verbose        verbose mode
 ```
 

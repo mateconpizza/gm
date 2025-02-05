@@ -150,10 +150,10 @@ func (s *Slice[T]) Push(item *T) {
 }
 
 // Append adds multiple items to the items.
-func (s *Slice[T]) Append(elements ...*T) {
+func (s *Slice[T]) Append(elements ...T) {
 	for _, ele := range elements {
-		if ele != nil && !slices.Contains(s.items, *ele) {
-			s.items = append(s.items, *ele)
+		if !slices.Contains(s.items, ele) {
+			s.items = append(s.items, ele)
 		}
 	}
 }
@@ -186,17 +186,6 @@ func (s *Slice[T]) Del(item T) {
 	}
 }
 
-// TrimElements returns a new Slice object with the first len(elements) - n
-// elements of the original slice.
-func (s *Slice[T]) TrimElements(n int) *Slice[T] {
-	var filtered []T
-	if len(s.items) > n {
-		filtered = (s.items)[:len(s.items)-n]
-	}
-
-	return &Slice[T]{items: filtered}
-}
-
 // Clean removes all items from the slice.
 func (s *Slice[T]) Clean() {
 	s.items = make([]T, 0)
@@ -216,9 +205,5 @@ func (s *Slice[T]) Sort(less func(a, b T) bool) {
 
 // New creates a new slice of bookmarks.
 func New[T comparable](items ...T) *Slice[T] {
-	if len(items) == 0 {
-		items = make([]T, 0)
-	}
-
 	return &Slice[T]{items: items}
 }

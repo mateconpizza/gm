@@ -16,6 +16,8 @@ var (
 	ErrNoItems       = errors.New("no items")
 )
 
+type Repo = repo.SQLiteRepository
+
 // ByTags returns a slice of bookmarks based on the provided tags.
 func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 	// FIX: redo, simplify
@@ -128,6 +130,10 @@ func ByHeadAndTail(bs *Slice, h, t int) error {
 	}
 
 	return nil
+}
+
+func SelectRepo(m *menu.Menu[Repo], items *[]Repo, fmtFn func(*Repo) string) ([]Repo, error) {
+	return Selection(m, items, fmtFn)
 }
 
 // Selection allows the user to select multiple records in a menu

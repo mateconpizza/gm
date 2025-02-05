@@ -61,7 +61,7 @@ func (s *Spinner) Stop() {
 		return
 	}
 	s.done <- true
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	log.Print("spinner stopped")
 }
 

@@ -102,7 +102,7 @@ func WithKeybindEdit() OptFn {
 		if !edit.Hidden {
 			o.header = appendKeytoHeader(o.header, edit.Bind, edit.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(edit.Bind+":execute(%s --edit {1})"))
+		o.keybind = append(o.keybind, withCommand(edit.Bind+":execute(%s records --edit {1})"))
 	}
 }
 
@@ -118,7 +118,7 @@ func WithKeybindOpen() OptFn {
 		if !open.Hidden {
 			o.header = appendKeytoHeader(o.header, open.Bind, open.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(open.Bind+":execute(%s --open {1})"))
+		o.keybind = append(o.keybind, withCommand(open.Bind+":execute(%s records --open {1})"))
 	}
 }
 
@@ -133,7 +133,7 @@ func WithKeybindQR() OptFn {
 		if !qr.Hidden {
 			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr {1})"))
+		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s records --qr {1})"))
 	}
 }
 
@@ -149,7 +149,7 @@ func WithKeybindOpenQR() OptFn {
 		if !qr.Hidden {
 			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr --open {1})"))
+		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s records --qr --open {1})"))
 	}
 }
 
@@ -166,7 +166,7 @@ func WithDefaultKeybinds() OptFn {
 		if !yank.Hidden {
 			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s --copy {1})"))
+		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s records --copy {1})"))
 	}
 }
 

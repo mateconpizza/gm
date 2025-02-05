@@ -15,7 +15,7 @@ import (
 // setupTestDB sets up a test database.
 func setupTestDB(t *testing.T) *SQLiteRepository {
 	t.Helper()
-	c := NewSQLiteCfg("")
+	c := NewSQLiteCfg()
 	db, err := MustOpenDatabase("file:testdb?mode=memory&cache=shared")
 	assert.NoError(t, err, "failed to open database")
 	r := newSQLiteRepository(db, c)
@@ -61,7 +61,7 @@ func testSliceBookmarks() *Slice {
 }
 
 func TestInit(t *testing.T) {
-	c := NewSQLiteCfg("")
+	c := NewSQLiteCfg()
 	db, err := MustOpenDatabase("file:testdb?mode=memory&cache=shared")
 	assert.NoError(t, err, "failed to open database")
 	r := newSQLiteRepository(db, c)

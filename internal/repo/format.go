@@ -19,53 +19,28 @@ func Summary(r *SQLiteRepository) string {
 	deleted := format.PaddedLine("deleted:", CountRecords(r, r.Cfg.Tables.Deleted))
 	tags := format.PaddedLine("tags:", CountRecords(r, r.Cfg.Tables.Tags))
 
-	return f.Header(color.Yellow(r.Cfg.Name).Bold().Italic().String()).
+	return f.Header(color.Yellow(r.Cfg.Name).Italic().String()).
 		Row(records).
 		Row(deleted).
 		Row(tags).
 		Row(path).String()
 }
 
-// SummaryRecords generates a summary of record counts for a given SQLite
+// SummaryRecordsLine generates a summary of record counts for a given SQLite
 // repository and bookmark.
-func SummaryRecords(s string) string {
-	f := filepath.Base(s)
-	c := NewSQLiteCfg(filepath.Dir(s))
-	c.SetName(f)
-	r, _ := New(c)
-
+func SummaryRecordsLine(r *SQLiteRepository) string {
 	main := fmt.Sprintf("(main: %d, ", CountRecords(r, r.Cfg.Tables.Main))
 	deleted := fmt.Sprintf("deleted: %d)", CountRecords(r, r.Cfg.Tables.Deleted))
 	records := color.Gray(main + deleted).Italic()
-	date := formatBackupDate(f)
+	date := formatBackupDate(r.Cfg.Name)
 
 	return date + " " + records.String()
 }
 
-func SummaryMultiline(s string) string {
-	g := color.BrightGray
-	f := filepath.Base(s)
-	c := NewSQLiteCfg(filepath.Dir(s))
-	c.SetName(f)
-	r, _ := New(c)
-
-	sep := color.BrightGray("", format.MidBulletPoint, "").Bold().String()
-	name := color.BrightYellow(strings.Split(s, "_")[2]).Italic().String()
-
-	mainRecords := color.BrightPurple(CountRecords(r, r.Cfg.Tables.Main))
-	delRecords := color.BrightPurple(CountRecords(r, r.Cfg.Tables.Deleted))
-	records := g("main: ").String() + mainRecords.String()
-	records += sep
-	records += g("deleted: ").String() + delRecords.String()
-	date := formatBackupDate(f)
-
-	return date + sep + name + sep + records
-}
-
-// BackupDetail returns the details of a backup.
-func BackupDetail(r *SQLiteRepository) string {
+// SummaryBackupDetail returns the details of a backup.
+func SummaryBackupDetail(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Header(color.BrightCyan("backup detail:").Bold().Italic().String())
+	f.Header(color.BrightCyan("backup detail:").Italic().String())
 
 	backups, err := Backups(r)
 	if err != nil {
@@ -73,15 +48,24 @@ func BackupDetail(r *SQLiteRepository) string {
 	}
 
 	n := backups.Len()
-	backups.ForEachIdx(func(i int, bk string) {
+	backups.ForEachIdx(func(i int, bk SQLiteRepository) {
 		if n == i+1 {
-			f.Footer(SummaryRecords(bk))
+			f.Footer(SummaryRecordsLine(&bk))
 		} else {
-			f.Row(SummaryRecords(bk))
+			f.Row(SummaryRecordsLine(&bk))
 		}
 	})
 
 	return f.String()
+}
+
+// SummaryBackupLine returns a summary of a backup in one line.
+func SummaryBackupLine(r *SQLiteRepository) string {
+	main := fmt.Sprintf("(main: %d, ", CountRecords(r, r.Cfg.Tables.Main))
+	deleted := fmt.Sprintf("deleted: %d)", CountRecords(r, r.Cfg.Tables.Deleted))
+	records := color.Gray(main + deleted).Italic()
+
+	return filepath.Base(r.Cfg.Fullpath()) + " " + records.String()
 }
 
 // BackupsSummary returns a summary of the backups.
@@ -89,7 +73,7 @@ func BackupsSummary(r *SQLiteRepository) string {
 	var (
 		f            = frame.New(frame.WithColorBorder(color.BrightGray))
 		empty        = "n/a"
-		backupsColor = color.BrightMagenta("backups").Bold().Italic()
+		backupsColor = color.BrightMagenta("backups").Italic()
 		backupsInfo  = format.PaddedLine("found:", empty)
 		lastBackup   = empty
 	)
@@ -104,7 +88,8 @@ func BackupsSummary(r *SQLiteRepository) string {
 
 	if n > 0 {
 		backupsInfo = format.PaddedLine("found:", strconv.Itoa(n)+" backups found")
-		lastBackup = SummaryRecords(backups.Item(n - 1))
+		lastItem := backups.Item(n - 1)
+		lastBackup = SummaryRecordsLine(&lastItem)
 	}
 
 	status := format.PaddedLine("status:", getBkStateColored(r.Cfg.Backup.Limit))
@@ -124,7 +109,7 @@ func BackupsSummary(r *SQLiteRepository) string {
 func Info(r *SQLiteRepository) string {
 	s := Summary(r)
 	s += BackupsSummary(r)
-	s += BackupDetail(r)
+	s += SummaryBackupDetail(r)
 
 	return s
 }

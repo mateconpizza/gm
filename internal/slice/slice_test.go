@@ -532,7 +532,7 @@ func TestAppendLoop(t *testing.T) {
 
 	for _, test := range testAddStr {
 		s := New(test.input...)
-		s.Append(&test.name)
+		s.Append(test.name)
 		assert.Equal(t, test.expected, s.items, "expected %v, got %v", test.expected, s.items)
 	}
 }

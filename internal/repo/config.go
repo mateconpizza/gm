@@ -69,14 +69,18 @@ func (c *SQLiteConfig) SetName(s string) *SQLiteConfig {
 	return c
 }
 
+func (c *SQLiteConfig) SetBackupPath(p string) *SQLiteConfig {
+	c.Backup = *newSQLiteBackup(p)
+	return c
+}
+
 // Exists returns true if the SQLite database exists.
 func (c *SQLiteConfig) Exists() bool {
 	return files.Exists(c.Fullpath())
 }
 
 // NewSQLiteCfg returns the default settings for the database.
-func NewSQLiteCfg(p string) *SQLiteConfig {
-	backupPath := filepath.Join(p, "backup")
+func NewSQLiteCfg() *SQLiteConfig {
 	return &SQLiteConfig{
 		Tables: tables{
 			Main:               "bookmarks",
@@ -85,8 +89,6 @@ func NewSQLiteCfg(p string) *SQLiteConfig {
 			RecordsTags:        "bookmark_tags",
 			RecordsTagsDeleted: "deleted_records_tags",
 		},
-		Path:         p,
-		Backup:       *newSQLiteBackup(backupPath),
 		MaxBytesSize: maxBytesSize,
 	}
 }

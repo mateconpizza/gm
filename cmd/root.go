@@ -13,12 +13,12 @@ import (
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 type (
 	Bookmark = bookmark.Bookmark
 	Slice    = slice.Slice[Bookmark]
+	Repo     = repo.SQLiteRepository
 )
 
 var (
@@ -30,7 +30,7 @@ var (
 )
 
 // handleData processes records based on user input and filtering criteria.
-func handleData(m *menu.Menu[Bookmark], r *repo.SQLiteRepository, args []string) (*Slice, error) {
+func handleData(m *menu.Menu[Bookmark], r *Repo, args []string) (*Slice, error) {
 	bs := slice.New[Bookmark]()
 	if err := handler.Records(r, bs, args); err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -73,12 +73,10 @@ var rootCmd = &cobra.Command{
 		if isSubCmdCalled(cmd, "init") {
 			return nil
 		}
-
 		// ignore if subcommand `version` was called.
 		if isSubCmdCalled(cmd, "version") {
 			return nil
 		}
-
 		// load menu config
 		if err := menu.LoadConfig(); err != nil {
 			log.Println("error loading config:", err)
@@ -87,51 +85,8 @@ var rootCmd = &cobra.Command{
 
 		return handler.ValidateDB(cmd, Cfg)
 	},
-	RunE: func(_ *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		defer r.Close()
-
-		terminal.ReadPipedInput(&args)
-		m := menu.New[Bookmark](handler.MenuDefaults(Multiline)...)
-		bs, err := handleData(m, r, args)
-		if err != nil {
-			return err
-		}
-
-		if bs.Empty() {
-			return repo.ErrRecordNotFound
-		}
-
-		// actions
-		switch {
-		case Status:
-			return handler.CheckStatus(bs)
-		case Remove:
-			return handler.Remove(r, bs)
-		case Edit:
-			return handler.Edition(r, bs)
-		case Copy:
-			return handler.Copy(bs)
-		case Open && !QR:
-			return handler.Open(bs)
-		}
-
-		// display
-		switch {
-		case JSON:
-			return handler.JSON(bs)
-		case Oneline:
-			return handler.Oneline(bs)
-		case Field != "":
-			return handler.ByField(bs, Field)
-		case QR:
-			return handler.QR(bs, Open)
-		default:
-			return handler.Print(bs)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Usage()
 	},
 }
 

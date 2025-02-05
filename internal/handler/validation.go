@@ -148,19 +148,16 @@ func ValidateDB(cmd *cobra.Command, c *repo.SQLiteConfig) error {
 	if c.Exists() {
 		return nil
 	}
-
-	s := color.BrightYellow(config.App.Cmd, "init").Italic()
-	init := fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBNotFound, s)
+	s := color.BrightYellow(config.App.Cmd, "database init").Italic()
+	init := fmt.Errorf("%w '%s': use '%s' to initialize", repo.ErrDBNotFound, c.Name, s)
 	databases, err := repo.Databases(c.Path)
 	if err != nil {
 		return init
 	}
-
 	dbName, err := cmd.Flags().GetString("name")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
 	// find with no|other extension
 	databases.ForEachMut(func(r *repo.SQLiteRepository) {
 		s := strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name))

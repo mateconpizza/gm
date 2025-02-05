@@ -75,12 +75,10 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	paths.ForEach(func(p string) {
 		name := filepath.Base(p)
 		path := filepath.Dir(p)
-
-		c := NewSQLiteCfg(path)
-		c.SetName(name)
-
+		c := NewSQLiteCfg()
+		c.SetPath(path).SetName(name)
 		rep, _ := New(c)
-		dbs.Append(rep)
+		dbs.Push(rep)
 	})
 
 	if dbs.Len() == 0 {
@@ -116,22 +114,38 @@ func CreateBackup(src, destName string, force bool) error {
 }
 
 // Backups returns a filtered list of backup paths and an error if any.
-func Backups(r *SQLiteRepository) (*slice.Slice[string], error) {
+func Backups(r *SQLiteRepository) (*slice.Slice[SQLiteRepository], error) {
 	s := filepath.Base(r.Cfg.Fullpath())
-	backups, err := databasesFromPath(r.Cfg.Backup.Path)
+	bksPaths, err := databasesFromPath(r.Cfg.Backup.Path)
+	backups := slice.New[SQLiteRepository]()
 	if err != nil {
 		if errors.Is(err, files.ErrPathNotFound) {
-			return nil, fmt.Errorf("%w for '%s'", ErrBackupNotFound, s)
+			return backups, fmt.Errorf("%w for '%s'", ErrBackupNotFound, s)
 		}
 
-		return nil, err
+		return backups, err
 	}
 
-	backups.FilterInPlace(func(b *string) bool {
+	bksPaths.FilterInPlace(func(b *string) bool {
 		return strings.Contains(*b, s)
 	})
-	if backups.Len() == 0 {
+	if bksPaths.Len() == 0 {
 		return backups, fmt.Errorf("%w: '%s'", ErrBackupNotFound, s)
+	}
+
+	err = bksPaths.ForEachErr(func(s string) error {
+		c := NewSQLiteCfg()
+		c.SetPath(filepath.Dir(s)).SetName(filepath.Base(s))
+		r, err := New(c)
+		if err != nil {
+			return err
+		}
+		backups.Push(r)
+
+		return nil
+	})
+	if err != nil {
+		return backups, fmt.Errorf("%w", err)
 	}
 
 	return backups, nil

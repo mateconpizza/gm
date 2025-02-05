@@ -290,7 +290,7 @@ func (r *SQLiteRepository) deleteBulk(ctx context.Context, t Table, ids *slice.S
 	log.Printf("deleting %d records from table: %s", n, t)
 	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
 		query := fmt.Sprintf("DELETE FROM %s WHERE id IN (?)", t)
-		q, args, err := sqlx.In(query, *ids.Items())
+		q, args, err := sqlx.In(query, ids.Items())
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -333,7 +333,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted Table) erro
 	}
 	ids := slice.New[int]()
 	bs.ForEach(func(b Row) {
-		ids.Append(&b.ID)
+		ids.Append(b.ID)
 	})
 	if ids.Empty() {
 		return ErrRecordIDNotProvided
@@ -607,7 +607,7 @@ func (r *SQLiteRepository) Restore(ctx context.Context, from, to Table, bs *Slic
 
 		ids := slice.New[int]()
 		bs.ForEach(func(b Row) {
-			ids.Append(&b.ID)
+			ids.Append(b.ID)
 		})
 
 		// delete records from deleted table

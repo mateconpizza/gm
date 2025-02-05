@@ -45,13 +45,13 @@ var importDatabaseCmd = &cobra.Command{
 }
 
 // chooseDB prompts the user to select a database to import from.
-func chooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
+func chooseDB(r *Repo) (*Repo, error) {
 	dbs, err := repo.Databases(r.Cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	dbs.FilterInPlace(func(db *repo.SQLiteRepository) bool {
+	dbs.FilterInPlace(func(db *Repo) bool {
 		return db.Cfg.Name != r.Cfg.Name
 	})
 
@@ -61,11 +61,11 @@ func chooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 		return &db, nil
 	}
 
-	fmtter := func(r *repo.SQLiteRepository) string {
+	fmtter := func(r *Repo) string {
 		return r.String()
 	}
 
-	m := menu.New[repo.SQLiteRepository](
+	m := menu.New[Repo](
 		menu.WithDefaultSettings(),
 		menu.WithPreview(),
 		menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} -i"),
@@ -83,7 +83,7 @@ func chooseDB(r *repo.SQLiteRepository) (*repo.SQLiteRepository, error) {
 }
 
 // importFromDB imports bookmarks from the given database.
-func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
+func importFromDB(t *terminal.Term, toDB, fromDB *Repo) error {
 	// set interrupt handler
 	interruptFn := func(err error) {
 		toDB.Close()
@@ -135,9 +135,4 @@ func importFromDB(t *terminal.Term, toDB, fromDB *repo.SQLiteRepository) error {
 	f.Clean().Success(success + " " + s).Ln().Render()
 
 	return nil
-}
-
-func init() {
-	// add cmd as a `import` subcommand
-	importCmd.AddCommand(importDatabaseCmd)
 }

@@ -12,26 +12,16 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/handler"
-	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-var dumpConfig bool
-
-var initCmd = &cobra.Command{
+var dbInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initialize a new bookmarks database",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		if dumpConfig {
-			if err := menu.DumpConfig(Force); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
-		}
 		// create paths for the application.
 		p := config.App.Path
 		t := terminal.New()
@@ -56,11 +46,6 @@ var initCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-func init() {
-	initCmd.Flags().BoolVar(&dumpConfig, "dump-config", false, "dump config data")
-	rootCmd.AddCommand(initCmd)
 }
 
 // createPaths creates the paths for the application.
@@ -93,7 +78,7 @@ func createPaths(t *terminal.Term, path string) error {
 }
 
 // initDB creates a new database and populates it with the initial bookmark.
-func initDB(r *repo.SQLiteRepository) (*Bookmark, error) {
+func initDB(r *Repo) (*Bookmark, error) {
 	if r.IsInitialized() && !Force {
 		return nil, fmt.Errorf("%w: '%s'", repo.ErrDBAlreadyInitialized, DBName)
 	}
