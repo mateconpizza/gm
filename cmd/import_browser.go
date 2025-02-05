@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"github.com/haaag/gm/internal/bookmark/scraper"
 	"github.com/haaag/gm/internal/browser"
 	"github.com/haaag/gm/internal/browser/blink"
@@ -17,14 +15,12 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// supportedBrowser defines a supported browser.
+// supportedBrowser represents a supported browser.
 type supportedBrowser struct {
 	key     string
 	browser browser.Browser
@@ -48,6 +44,7 @@ var registeredBrowser = []supportedBrowser{
 //   - Firefox -> f
 //   - Waterfox -> w
 //   - Chromium -> c
+//   - ...
 func getBrowser(key string) (browser.Browser, bool) {
 	for _, pair := range registeredBrowser {
 		if pair.key == key {
@@ -104,7 +101,7 @@ func scrapeMissingData(bs *Slice) error {
 			b.Desc = sc.Desc()
 
 			mu.Lock()
-			r.Append(&b)
+			r.Append(b)
 			mu.Unlock()
 		}(b)
 	})
@@ -117,7 +114,7 @@ func scrapeMissingData(bs *Slice) error {
 }
 
 // importFromBrowser imports bookmarks from a browser.
-func importFromBrowser(t *terminal.Term, r *repo.SQLiteRepository) error {
+func importFromBrowser(t *terminal.Term, r *Repo) error {
 	name := selectBrowser(t)
 	br, err := loadBrowser(name)
 	if err != nil {
@@ -158,7 +155,7 @@ func selectBrowser(t *terminal.Term) string {
 
 // parseRecordsFound processes the bookmarks found from the import
 // browser process.
-func parseRecordsFound(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice) error {
+func parseRecordsFound(t *terminal.Term, r *Repo, bs *Slice) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	if err := cleanDuplicateRecords(r, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
@@ -177,30 +174,4 @@ func parseRecordsFound(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice) er
 	}
 
 	return nil
-}
-
-// importBrowserCmd imports bookmarks from a browser.
-var importBrowserCmd = &cobra.Command{
-	Use:     "browser",
-	Aliases: []string{"b"},
-	Short:   "import bookmarks from browser",
-	RunE: func(_ *cobra.Command, _ []string) error {
-		r, err := repo.New(Cfg)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		defer r.Close()
-
-		t := terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))
-
-		return importFromBrowser(t, r)
-	},
-}
-
-func init() {
-	// add cmd as a `import` subcommand
-	importCmd.AddCommand(importBrowserCmd)
 }

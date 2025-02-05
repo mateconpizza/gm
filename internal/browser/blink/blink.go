@@ -264,7 +264,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 			continue
 		}
 
-		bs.Append(b)
+		bs.Append(*b)
 	}
 
 	found := color.BrightBlue("found")

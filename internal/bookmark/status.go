@@ -71,7 +71,7 @@ func Status(bs *slice.Slice[Bookmark]) error {
 		go func(b *Bookmark) {
 			defer wg.Done()
 			res := makeRequest(b, ctx, sem)
-			responses.Append(&res)
+			responses.Append(res)
 		}(&b)
 
 		return nil

@@ -1,18 +1,12 @@
 package config
 
-var Version string = "0.1.7" // Version of the application
+var Version string = "0.1.8" // Version of the application
 
 const (
-	AppName string = "gomarks"      // Default name of the application
-	Command string = "gm"           // Default name of the executable
-	DBName  string = "bookmarks.db" // Default name of the database
+	AppName       string = "gomarks"      // Default name of the application
+	Command       string = "gm"           // Default name of the executable
+	DefaultDBName string = "bookmarks.db" // Default name of the database
 )
-
-type Table string
-
-func (t Table) String() string {
-	return string(t)
-}
 
 type (
 	app struct {
@@ -26,9 +20,8 @@ type (
 	}
 
 	path struct {
-		Backup string `json:"backup"` // Path to store database backups
-		Config string `json:"home"`   // Path to store configuration (unused)
-		Data   string `json:"data"`   // Path to store database
+		Config string `json:"home"` // Path to store configuration (unused)
+		Data   string `json:"data"` // Path to store database
 	}
 
 	information struct {
@@ -39,28 +32,10 @@ type (
 	}
 
 	environment struct {
-		Home      string `json:"home"`        // Environment variable for the home directory
-		Editor    string `json:"editor"`      // Environment variable for the preferred editor
-		BackupMax string `json:"max_backups"` // Environment variable for the maximum number of backups
+		Home   string `json:"home"`   // Environment variable for the home directory
+		Editor string `json:"editor"` // Environment variable for the preferred editor
 	}
 )
-
-type database struct {
-	Name             string // Default name of the SQLite database.
-	Tables           tables // Names of the tables in the SQLite database.
-	BackupMaxBackups int    // Maximum number of backups allowed.
-}
-
-type tables struct {
-	Main Table
-}
-
-// DB is the default database configuration.
-var DB = database{
-	Name:             "bookmarks.db",
-	Tables:           tables{Main: "bookmarks"},
-	BackupMaxBackups: 3,
-}
 
 // App is the default application configuration.
 var App = app{
@@ -74,8 +49,7 @@ var App = app{
 		Desc:  "Simple yet powerful bookmark manager for your terminal",
 	},
 	Env: environment{
-		Home:      "GOMARKS_HOME",
-		Editor:    "GOMARKS_EDITOR",
-		BackupMax: "GOMARKS_BACKUP_MAX",
+		Home:   "GOMARKS_HOME",
+		Editor: "GOMARKS_EDITOR",
 	},
 }

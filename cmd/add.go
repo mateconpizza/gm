@@ -21,11 +21,11 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// addCmd represents the add command.
-var addCmd = &cobra.Command{
-	Use:    "add",
-	Short:  "add a new bookmark",
-	Hidden: true,
+// newRecordCmd represents the add command.
+var newRecordCmd = &cobra.Command{
+	Use:     "new",
+	Short:   "Add a new bookmark",
+	Aliases: []string{"add"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
@@ -45,7 +45,7 @@ var addCmd = &cobra.Command{
 }
 
 // add adds a new bookmark.
-func add(t *terminal.Term, r *repo.SQLiteRepository, args []string) error {
+func add(t *terminal.Term, r *Repo, args []string) error {
 	if t.IsPiped() && len(args) < 2 {
 		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
 	}
@@ -124,7 +124,7 @@ func addHandleURL(t *terminal.Term, args *[]string) string {
 }
 
 // addHandleTags retrieves the Tags from args or prompts the user for input.
-func addHandleTags(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) string {
+func addHandleTags(t *terminal.Term, r *Repo, args *[]string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
 	f.Header(color.BrightBlue("Tags\t:").String())
 	// this checks if tags are provided, parses them and return them
@@ -152,12 +152,7 @@ func addHandleTags(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) s
 }
 
 // addParseNewBookmark fetch metadata and parses the new bookmark.
-func addParseNewBookmark(
-	t *terminal.Term,
-	r *repo.SQLiteRepository,
-	b *Bookmark,
-	args []string,
-) error {
+func addParseNewBookmark(t *terminal.Term, r *Repo, b *Bookmark, args []string) error {
 	// retrieve url
 	url, err := addParseURL(t, r, &args)
 	if err != nil {
@@ -166,7 +161,7 @@ func addParseNewBookmark(
 	// retrieve tags
 	tags := addHandleTags(t, r, &args)
 	// fetch title and description
-	title, desc := addTitleAndDesc(url, true)
+	title, desc := addTitleAndDesc(url)
 	b.URL = url
 	b.Title = title
 	b.Tags = bookmark.ParseTags(tags)
@@ -176,7 +171,7 @@ func addParseNewBookmark(
 }
 
 // addTitleAndDesc fetch and display title and description.
-func addTitleAndDesc(url string, verbose bool) (title, desc string) {
+func addTitleAndDesc(url string) (title, desc string) {
 	sp := spinner.New(
 		spinner.WithMesg(color.Yellow("scraping webpage...").String()),
 		spinner.WithColor(color.BrightMagenta),
@@ -189,22 +184,20 @@ func addTitleAndDesc(url string, verbose bool) (title, desc string) {
 	desc = sc.Desc()
 	sp.Stop()
 
-	if verbose {
-		const indentation int = 10
-		f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
-		width := terminal.MinWidth - len(f.Border.Row)
-		titleColor := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
-		descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
-		f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln().
-			Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln().
-			Render()
-	}
+	const indentation int = 10
+	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	width := terminal.MinWidth - len(f.Border.Row)
+	titleColor := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
+	descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
+	f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln().
+		Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln().
+		Render()
 
 	return title, desc
 }
 
 // addParseURL parse URL from args.
-func addParseURL(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) (string, error) {
+func addParseURL(t *terminal.Term, r *Repo, args *[]string) (string, error) {
 	url := addHandleURL(t, args)
 	if url == "" {
 		return url, bookmark.ErrURLEmpty
@@ -259,8 +252,4 @@ func bookmarkEdition(b *Bookmark) error {
 	}
 
 	return nil
-}
-
-func init() {
-	rootCmd.AddCommand(addCmd)
 }

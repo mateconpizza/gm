@@ -21,22 +21,12 @@ import (
 
 var ErrActionAborted = errors.New("action aborted")
 
-var (
-	// force is used to force the action, dont ask for confirmation.
-	force *bool
-
-	// subCommandCalled is used to check if the subcommand was called, to modify
-	// some aspects of the program flow, and menu options.
-	subCommandCalled bool
-)
+// force is used to force the action, dont ask for confirmation.
+var force *bool
 
 // Force sets the force flag.
 func Force(f *bool) {
 	force = f
-}
-
-func OnSubcommand() {
-	subCommandCalled = true
 }
 
 // Confirmation prompts the user to confirm the action.
@@ -65,7 +55,7 @@ func Confirmation(
 		case "y", "yes":
 			return nil
 		case "s", "select":
-			items, err := Selection(m, bs.Items(), bookmark.FzfFormatter(false))
+			items, err := Selection(m, *bs.Items(), bookmark.FzfFormatter(false))
 			if err != nil {
 				return err
 			}
@@ -148,19 +138,16 @@ func ValidateDB(cmd *cobra.Command, c *repo.SQLiteConfig) error {
 	if c.Exists() {
 		return nil
 	}
-
 	s := color.BrightYellow(config.App.Cmd, "init").Italic()
-	init := fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBNotFound, s)
+	init := fmt.Errorf("%w '%s': use '%s' to initialize", repo.ErrDBNotFound, c.Name, s)
 	databases, err := repo.Databases(c.Path)
 	if err != nil {
 		return init
 	}
-
 	dbName, err := cmd.Flags().GetString("name")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
 	// find with no|other extension
 	databases.ForEachMut(func(r *repo.SQLiteRepository) {
 		s := strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name))

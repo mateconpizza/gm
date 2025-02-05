@@ -61,8 +61,6 @@ func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
 		return false, fmt.Errorf("tableExists: %w", err)
 	}
 
-	log.Printf("table '%s' exists: %v", t, count > 0)
-
 	return count > 0, nil
 }
 

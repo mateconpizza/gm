@@ -69,6 +69,11 @@ func (m *Menu[T]) callInterruptFn(err error) {
 	log.Printf("interruptFn is nil")
 }
 
+// SetInterruptFn sets the interrupt function for the menu.
+func (m *Menu[T]) SetInterruptFn(fn func(error)) {
+	m.interruptFn = fn
+}
+
 // WithInterruptFn sets the interrupt function for the menu.
 func WithInterruptFn(fn func(error)) OptFn {
 	return func(o *Options) {
@@ -102,7 +107,7 @@ func WithKeybindEdit() OptFn {
 		if !edit.Hidden {
 			o.header = appendKeytoHeader(o.header, edit.Bind, edit.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(edit.Bind+":execute(%s --edit {1})"))
+		o.keybind = append(o.keybind, withCommand(edit.Bind+":execute(%s records --edit {1})"))
 	}
 }
 
@@ -118,7 +123,7 @@ func WithKeybindOpen() OptFn {
 		if !open.Hidden {
 			o.header = appendKeytoHeader(o.header, open.Bind, open.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(open.Bind+":execute(%s --open {1})"))
+		o.keybind = append(o.keybind, withCommand(open.Bind+":execute(%s records --open {1})"))
 	}
 }
 
@@ -133,7 +138,7 @@ func WithKeybindQR() OptFn {
 		if !qr.Hidden {
 			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr {1})"))
+		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s records --qr {1})"))
 	}
 }
 
@@ -149,7 +154,7 @@ func WithKeybindOpenQR() OptFn {
 		if !qr.Hidden {
 			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s --qr --open {1})"))
+		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s records --qr --open {1})"))
 	}
 }
 
@@ -166,7 +171,7 @@ func WithDefaultKeybinds() OptFn {
 		if !yank.Hidden {
 			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Description)
 		}
-		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s --copy {1})"))
+		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s records --copy {1})"))
 	}
 }
 
@@ -194,11 +199,10 @@ func WithMultiSelection() OptFn {
 		}
 	}
 
-	h := appendKeytoHeader(make([]string, 0), "ctrl-a", "toggle-all")
-
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
 		if !menuConfig.Keymaps.ToggleAll.Hidden {
+			h := appendKeytoHeader(make([]string, 0), "ctrl-a", "toggle-all")
 			o.header = append(o.header, h...)
 		}
 		o.keybind = append(o.keybind, "ctrl-a:toggle-all")
@@ -229,7 +233,7 @@ func WithPreview() OptFn {
 
 	opts := []string{
 		"--preview-window=~4,+{2}+4/3,<80(up)",
-		withCommand("--preview=%s {1} --color=" + withColor),
+		withCommand("--preview=%s records {1} --color=" + withColor),
 	}
 
 	return func(o *Options) {
@@ -243,7 +247,19 @@ func WithPreview() OptFn {
 
 // WithPreviewCustomCmd adds preview with a custom command.
 func WithPreviewCustomCmd(cmd string) OptFn {
-	opts := []string{"--preview=" + cmd}
+	if !menuConfig.Preview {
+		return func(o *Options) {}
+	}
+	preview := menuConfig.Keymaps.Preview
+	if !preview.Enabled {
+		return func(o *Options) {}
+	}
+
+	withColor := "never"
+	if *addColor {
+		withColor = "always"
+	}
+	opts := []string{"--preview=" + cmd + " --color=" + withColor}
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
@@ -305,8 +321,8 @@ func (m *Menu[T]) setup() error {
 }
 
 // Select runs Fzf with the given items and returns the selected item/s.
-func (m *Menu[T]) Select(items *[]T, preprocessor func(*T) string) ([]T, error) {
-	if len(*items) == 0 {
+func (m *Menu[T]) Select(items []T, preprocessor func(*T) string) ([]T, error) {
+	if len(items) == 0 {
 		return nil, ErrFzfNoRecords
 	}
 
@@ -322,11 +338,11 @@ func (m *Menu[T]) Select(items *[]T, preprocessor func(*T) string) ([]T, error) 
 	log.Printf("menu args: %v", m.args)
 
 	// channels
-	inputChan := formatItems(*items, preprocessor)
+	inputChan := formatItems(items, preprocessor)
 	outputChan := make(chan string)
 	resultChan := make(chan []T)
 
-	go processOutput(*items, preprocessor, outputChan, resultChan)
+	go processOutput(items, preprocessor, outputChan, resultChan)
 
 	// Build Fzf.Options
 	options, err := fzf.ParseOptions(m.defaults, m.args)

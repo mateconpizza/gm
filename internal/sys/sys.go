@@ -11,8 +11,9 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
-	"github.com/haaag/gm/internal/config"
 	"github.com/pkg/browser"
+
+	"github.com/haaag/gm/internal/config"
 )
 
 var (

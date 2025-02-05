@@ -31,14 +31,12 @@ var importRestoreCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
-
 		terminal.ReadPipedInput(&args)
-
 		// Switch tables and read from deleted table
 		t := r.Cfg.Tables
 		r.SetMain(t.Deleted)
 		r.SetDeleted(t.Main)
-
+		// menu
 		m := menu.New[Bookmark](
 			menu.WithDefaultSettings(),
 			menu.WithMultiSelection(),
@@ -48,6 +46,7 @@ var importRestoreCmd = &cobra.Command{
 		if Multiline {
 			m.AddOpts(menu.WithMultilineView())
 		}
+		Menu = true
 		bs, err := handleData(m, r, args)
 		if err != nil {
 			return err
@@ -85,17 +84,8 @@ func init() {
 	importCmd.AddCommand(importRestoreCmd)
 }
 
-// func init() {
-// 	f := importRestoreCmd.Flags()
-// 	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
-// 	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
-// 	f.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
-// 	f.BoolVarP(&Multiline, "multiline", "M", false, "print data in formatted multiline (fzf)")
-// 	f.StringSliceVarP(&Tags, "tags", "t", nil, "filter bookmarks by tag")
-// }
-
 // handleRestore restores record/s from the deleted table.
-func restore(m *menu.Menu[Bookmark], r *repo.SQLiteRepository, bs *Slice) error {
+func restore(m *menu.Menu[Bookmark], r *Repo, bs *Slice) error {
 	c := color.BrightYellow
 	f := frame.New(frame.WithColorBorder(c), frame.WithNoNewLine())
 	header := c("Restoring Bookmarks").String()

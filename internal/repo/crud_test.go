@@ -68,7 +68,7 @@ func TestDeleteRecordBulk(t *testing.T) {
 	// delete the record and verify that it was deleted successfully
 	ids := slice.New[int]()
 	newRows.ForEach(func(r Row) {
-		ids.Append(&r.ID)
+		ids.Append(r.ID)
 	})
 	assert.Equal(t, ids.Len(), newRows.Len(), "expected %d IDs, got %d", ids.Len(), newRows.Len())
 

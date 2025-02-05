@@ -333,7 +333,7 @@ func (r *SQLiteRepository) DeleteAndReorder(bs *Slice, main, deleted Table) erro
 	}
 	ids := slice.New[int]()
 	bs.ForEach(func(b Row) {
-		ids.Append(&b.ID)
+		ids.Append(b.ID)
 	})
 	if ids.Empty() {
 		return ErrRecordIDNotProvided
@@ -607,7 +607,7 @@ func (r *SQLiteRepository) Restore(ctx context.Context, from, to Table, bs *Slic
 
 		ids := slice.New[int]()
 		bs.ForEach(func(b Row) {
-			ids.Append(&b.ID)
+			ids.Append(b.ID)
 		})
 
 		// delete records from deleted table
@@ -642,7 +642,7 @@ func (r *SQLiteRepository) execTx(ctx context.Context, fn func(tx *sqlx.Tx) erro
 	}()
 
 	if err := fn(tx); err != nil {
-		return err
+		return fmt.Errorf("fn transaction: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
