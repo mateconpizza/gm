@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -14,44 +12,31 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/handler"
-	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// removeDatabases removes a list of databases.
-func removeDatabases(t *terminal.Term, dbs *slice.Slice[Repo]) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	s := color.BrightRed("removing").String()
+var ErrDBNameRequired = errors.New("name required")
 
-	dbs.ForEachIdx(func(i int, r Repo) {
-		f.Info(repo.SummaryRecordsLine(&r)).Ln()
-	})
+var databaseNewCmd = &cobra.Command{
+	Use:   "new",
+	Short: "initialize a new bookmarks database",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return ErrDBNameRequired
+		}
+		if err := handler.ValidateDB(cmd, Cfg); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		Cfg.SetName(args[0])
 
-	msg := s + " " + strconv.Itoa(dbs.Len()) + " items/s"
-	if !t.Confirm(f.Row("\n").Warning(msg+", continue?").String(), "n") {
-		return handler.ErrActionAborted
-	}
-
-	sp := spinner.New(spinner.WithMesg(color.Yellow("removing database...").String()))
-	sp.Start()
-	if err := dbs.ForEachErr(removeSecure); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	sp.Stop()
-	t.ClearLine(format.CountLines(f.String()))
-	s = color.BrightGreen("Successfully").Italic().String()
-	f.Clean().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed").Ln().Render()
-
-	return nil
+		return initCmd.RunE(cmd, args)
+	},
 }
 
-// dbDropCmd drops a database.
-var dbDropCmd = &cobra.Command{
+// databaseDropCmd drops a database.
+var databaseDropCmd = &cobra.Command{
 	Use:   "drop",
 	Short: "drop a database",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +46,7 @@ var dbDropCmd = &cobra.Command{
 		}
 		defer r.Close()
 
-		if !r.IsInitialized() {
+		if r.IsInitialized() && !Force {
 			return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 		}
 
@@ -100,7 +85,7 @@ var dbDropCmd = &cobra.Command{
 }
 
 // dbDropCmd drops a database.
-var dbListCmd = &cobra.Command{
+var databaseListCmd = &cobra.Command{
 	Use:     "list",
 	Short:   "list databases",
 	Aliases: []string{"ls", "l"},
@@ -120,7 +105,7 @@ var dbListCmd = &cobra.Command{
 			return fmt.Errorf("%w", repo.ErrDBsNotFound)
 		}
 
-		f := frame.New(frame.WithColorBorder(color.Gray))
+		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		// add header
 		if n > 1 {
 			nColor := color.BrightCyan(n).Bold().String()
@@ -128,7 +113,7 @@ var dbListCmd = &cobra.Command{
 		}
 
 		dbs.ForEachMut(func(r *Repo) {
-			f.Text(repo.Summary(r))
+			f.Text(repo.RepoSummary(r))
 		})
 
 		f.Render()
@@ -137,10 +122,11 @@ var dbListCmd = &cobra.Command{
 	},
 }
 
-// dbInfoCmd shows information about a database.
-var dbInfoCmd = &cobra.Command{
-	Use:   "info",
-	Short: "show information about a database",
+// databaseInfoCmd shows information about a database.
+var databaseInfoCmd = &cobra.Command{
+	Use:     "info",
+	Short:   "show information about a database",
+	Aliases: []string{"i", "show"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
@@ -148,14 +134,6 @@ var dbInfoCmd = &cobra.Command{
 		}
 		defer r.Close()
 		if JSON {
-			backups, err := repo.Backups(r)
-			if err != nil {
-				Cfg.Backup.Files = nil
-			} else {
-				backups.ForEach(func(bk Repo) {
-					Cfg.Backup.Files = append(Cfg.Backup.Files, bk.Cfg.Fullpath())
-				})
-			}
 			fmt.Println(string(format.ToJSON(r)))
 
 			return nil
@@ -167,70 +145,13 @@ var dbInfoCmd = &cobra.Command{
 	},
 }
 
-// dbRemoveCmd remove a database.
-var dbRemoveCmd = &cobra.Command{
-	Use:     "remove",
-	Aliases: []string{"rm", "del", "delete"},
+// databaseRmCmd remove a database.
+var databaseRmCmd = &cobra.Command{
+	Use:     "rm",
 	Short:   "remove a database",
+	Aliases: []string{"r", "remove"},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
-		if err != nil {
-			return fmt.Errorf("database: %w", err)
-		}
-		if !r.Cfg.Exists() {
-			return repo.ErrDBNotFound
-		}
-		t := terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))
-		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-		// show repo info
-		i := repo.Info(r)
-		i += f.Row().Ln().String()
-		fmt.Print(i)
-
-		rm := color.BrightRed("remove").Bold().String()
-		if !t.Confirm(f.Clean().Mid(rm+" "+r.Cfg.Name+"?").String(), "n") {
-			return handler.ErrActionAborted
-		}
-		filesToRemove := slice.New[Repo]()
-
-		backups, err := repo.Backups(r)
-		if err != nil {
-			if !errors.Is(err, repo.ErrBackupNotFound) {
-				return fmt.Errorf("%w", err)
-			}
-		}
-		// add backups to remove
-		if backups.Len() > 0 {
-			items := backups.Items()
-			f.Clean().Mid(rm + " backups?")
-			opt := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
-			switch strings.ToLower(opt) {
-			case "n", "no":
-				sk := color.BrightYellow("skipping").String()
-				t.ReplaceLine(1, f.Clean().Warning(sk+" backup/s\n").Row().String())
-			case "a", "all":
-				filesToRemove.Set(items)
-			case "s", "select":
-				m := menu.New[Repo](
-					menu.WithDefaultSettings(),
-					menu.WithMultiSelection(),
-					menu.WithHeader(fmt.Sprintf("select backup/s from '%s'", r.Cfg.Name), false),
-					menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
-				)
-				selected, err := handler.Selection(m, items, nil)
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-				t.ClearLine(1)
-				filesToRemove.Append(selected...)
-			}
-		}
-		filesToRemove.Push(r)
-
-		return removeDatabases(t, filesToRemove)
+		return dbRemoveCmd.RunE(cmd, args)
 	},
 }
 
@@ -248,15 +169,17 @@ func init() {
 	f := dbCmd.Flags()
 	f.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	f.BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
-	f.StringVarP(&DBName, "name", "n", config.DB.Name, "database name")
+	f.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
 	f.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
-	dbInfoCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output in JSON format")
+	databaseInfoCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	_ = dbCmd.Flags().MarkHidden("color")
 	// add subcommands
-	dbCmd.AddCommand(dbDropCmd)
-	dbCmd.AddCommand(dbInfoCmd)
-	dbCmd.AddCommand(dbInitCmd)
-	dbCmd.AddCommand(dbListCmd)
-	dbCmd.AddCommand(dbRemoveCmd)
+	dbCmd.AddCommand(
+		databaseDropCmd,
+		databaseInfoCmd,
+		databaseNewCmd,
+		databaseListCmd,
+		databaseRmCmd,
+	)
 	rootCmd.AddCommand(dbCmd)
 }

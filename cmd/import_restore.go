@@ -31,14 +31,12 @@ var importRestoreCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
-
 		terminal.ReadPipedInput(&args)
-
 		// Switch tables and read from deleted table
 		t := r.Cfg.Tables
 		r.SetMain(t.Deleted)
 		r.SetDeleted(t.Main)
-
+		// menu
 		m := menu.New[Bookmark](
 			menu.WithDefaultSettings(),
 			menu.WithMultiSelection(),
@@ -48,6 +46,7 @@ var importRestoreCmd = &cobra.Command{
 		if Multiline {
 			m.AddOpts(menu.WithMultilineView())
 		}
+		Menu = true
 		bs, err := handleData(m, r, args)
 		if err != nil {
 			return err

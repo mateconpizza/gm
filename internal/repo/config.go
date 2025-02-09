@@ -30,25 +30,15 @@ type tables struct {
 type SQLiteBackup struct {
 	Path       string   `json:"path"`        // Path to store backups
 	Files      []string `json:"files"`       // List of backup files
-	Limit      int      `json:"limit"`       // Maximum number of backups
 	DateFormat string   `json:"date_format"` // Date format
-	Enabled    bool     `json:"enabled"`     // Backup enabled
 }
 
-// SetLimit sets the maximum number of backups.
-func (b *SQLiteBackup) SetLimit(n int) {
-	b.Limit = n
-	b.Enabled = n > 0
-}
-
-// newSQLiteBackup returns a new SQLiteBackup.
-func newSQLiteBackup(p string) *SQLiteBackup {
+// NewSQLiteBackup returns a new SQLiteBackup.
+func NewSQLiteBackup(from string) *SQLiteBackup {
 	return &SQLiteBackup{
-		Path:       p,
-		Files:      []string{},
-		Enabled:    false,
-		DateFormat: "2006-01-02_15-04",
-		Limit:      3,
+		Path:       from,
+		Files:      getBackups(from),
+		DateFormat: "20060102-150405",
 	}
 }
 
@@ -69,18 +59,13 @@ func (c *SQLiteConfig) SetName(s string) *SQLiteConfig {
 	return c
 }
 
-func (c *SQLiteConfig) SetBackupPath(p string) *SQLiteConfig {
-	c.Backup = *newSQLiteBackup(p)
-	return c
-}
-
 // Exists returns true if the SQLite database exists.
 func (c *SQLiteConfig) Exists() bool {
 	return files.Exists(c.Fullpath())
 }
 
 // NewSQLiteCfg returns the default settings for the database.
-func NewSQLiteCfg() *SQLiteConfig {
+func NewSQLiteCfg(fullpath string) *SQLiteConfig {
 	return &SQLiteConfig{
 		Tables: tables{
 			Main:               "bookmarks",
@@ -89,6 +74,9 @@ func NewSQLiteCfg() *SQLiteConfig {
 			RecordsTags:        "bookmark_tags",
 			RecordsTagsDeleted: "deleted_records_tags",
 		},
+		Path:         filepath.Dir(fullpath),
+		Name:         files.EnsureExt(filepath.Base(fullpath), ".db"),
+		Backup:       *NewSQLiteBackup(filepath.Join(filepath.Dir(fullpath), "backup")),
 		MaxBytesSize: maxBytesSize,
 	}
 }

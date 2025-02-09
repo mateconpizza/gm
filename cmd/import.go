@@ -20,16 +20,20 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-var ErrImportSourceNotFound = errors.New("import source not found")
+var (
+	ErrImportSourceNotFound = errors.New("import source not found")
+	ErrImportSameDatabase   = errors.New("cannot import into the same database")
+)
 
 // importSource defines a bookmark import source.
 type importSource struct {
-	key   string
-	name  string
-	color color.ColorFn
-	cmd   *cobra.Command
+	key   string         // Shortname of the source
+	name  string         // Name of the source
+	color color.ColorFn  // Color used of the `key`
+	cmd   *cobra.Command // Cobra command
 }
 
+// registeredImportSources contains the registered import sources.
 var registeredImportSources = []importSource{
 	{"a", "database", color.BrightBlue, importDatabaseCmd},
 	{"s", "browser", color.BrightGreen, importBrowserCmd},
@@ -71,16 +75,17 @@ func cleanDuplicateRecords(r *Repo, bs *Slice) error {
 
 // selectBackup prompts the user to select a backup file.
 func selectBackup(m *menu.Menu[Repo], r *Repo) (*slice.Slice[Repo], error) {
-	backups, err := repo.Backups(r)
+	backups, err := repo.Databases(r.Cfg.Backup.Path)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 	if backups.Len() == 1 {
-		bk := backups.Item(0)
-		backups.Set(&[]Repo{bk})
 		return backups, nil
 	}
-	backupSlice, err := handler.Selection(m, backups.Items(), repo.SummaryBackupLine)
+	if backups.Len() == 0 {
+		return nil, repo.ErrBackupNotFound
+	}
+	backupSlice, err := handler.Selection(m, *backups.Items(), repo.SummaryBackupLine)
 	if err != nil {
 		return backups, fmt.Errorf("%w", err)
 	}
@@ -103,24 +108,37 @@ var importBackupCmd = &cobra.Command{
 
 		m := menu.New[Repo](
 			menu.WithDefaultSettings(),
-			menu.WithHeader(fmt.Sprintf("choose a backup from '%s'", r.Cfg.Name), false),
+			menu.WithHeader("choose a backup to import from", false),
 			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
 		)
 		backups, err := selectBackup(m, r)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		bk := backups.Item(0)
-
+		fromBK := backups.Item(0)
 		t := terminal.New(terminal.WithInterruptFn(func(err error) {
 			r.Close()
 			sys.ErrAndExit(err)
 		}))
-		if err := importFromDB(t, r, &bk); err != nil {
-			return fmt.Errorf("%w", err)
+		var toDB *Repo
+		if DBName != config.DefaultDBName {
+			toDB = r
+		} else {
+			toDB, err = selectRepo("choose a database to import to")
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
 		}
 
-		return nil
+		mb := menu.New[Bookmark](
+			menu.WithDefaultSettings(),
+			menu.WithMultiSelection(),
+			menu.WithHeader("select record/s to import", false),
+			menu.WithPreview(),
+			menu.WithPreviewCustomCmd(config.App.Cmd+" -n ./backup/"+fromBK.Cfg.Name+" {1}"),
+		)
+
+		return importFromDB(mb, t, toDB, &fromBK)
 	},
 }
 
@@ -145,6 +163,104 @@ var importBrowserCmd = &cobra.Command{
 	},
 }
 
+// importDatabaseCmd imports bookmarks from a database.
+var importDatabaseCmd = &cobra.Command{
+	Use:     "database",
+	Aliases: []string{"d", "db"},
+	Short:   "import bookmarks from database",
+	RunE: func(_ *cobra.Command, _ []string) error {
+		toDB, err := repo.New(Cfg)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		defer toDB.Close()
+		interruptFn := func(err error) {
+			toDB.Close()
+			sys.ErrAndExit(err)
+		}
+		dbs, err := repo.Databases(Cfg.Path)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		defer dbs.ForEachMut(func(r *repo.SQLiteRepository) { r.Close() })
+		dbs.FilterInPlace(func(db *Repo) bool {
+			return db.Cfg.Name != toDB.Cfg.Name
+		})
+		if dbs.Len() == 0 {
+			return repo.ErrDBsNotFound
+		}
+		ppp := config.App.Cmd + " db -n {1} info"
+		fmt.Printf("ppp: %v\n", ppp)
+		t := terminal.New(terminal.WithInterruptFn(interruptFn))
+		m := menu.New[Repo](
+			menu.WithInterruptFn(interruptFn),
+			menu.WithDefaultSettings(),
+			menu.WithPreview(),
+			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} info"),
+			menu.WithHeader("choose a database to import from", false),
+		)
+		item, err := handler.Selection(m, *dbs.Items(), repo.RepoSummaryRecords)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		fromDB := &item[0]
+		defer fromDB.Close()
+		mb := menu.New[Bookmark](
+			menu.WithDefaultSettings(),
+			menu.WithMultiSelection(),
+			menu.WithHeader("select record/s to import", false),
+			menu.WithPreview(),
+			menu.WithPreviewCustomCmd("gm -n "+fromDB.Cfg.Name+" records {1}"),
+		)
+
+		return importFromDB(mb, t, toDB, fromDB)
+	},
+}
+
+// importFromDB imports bookmarks from the given database.
+func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, toDB, fromDB *Repo) error {
+	// set interrupt handler
+	interruptFn := func(err error) {
+		toDB.Close()
+		fromDB.Close()
+		log.Println("importFromDB interrupted")
+		sys.ErrAndExit(err)
+	}
+	t.SetInterruptFn(interruptFn)
+	m.SetInterruptFn(interruptFn)
+	defer t.CancelInterruptHandler()
+	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f.Header("Import from Database\n").Row("\n").Text(repo.RepoSummary(fromDB)).Row("\n").Render()
+	// prompt
+	if !t.Confirm(f.Clean().Warning("continue?").String(), "y") {
+		return handler.ErrActionAborted
+	}
+	t.ClearLine(1)
+	Menu = true
+	records, err := handleData(m, fromDB, []string{})
+	if err != nil {
+		return err
+	}
+	t.ClearLine(1)
+	if err := cleanDuplicateRecords(toDB, records); err != nil {
+		if errors.Is(err, slice.ErrSliceEmpty) {
+			f.Clean().Row("\n").Mid("no new bookmark found, skipping import\n").Render()
+			return nil
+		}
+
+		return err
+	}
+	if err := insertRecordsFromSource(t, toDB, records); err != nil {
+		return err
+	}
+	// remove prompt
+	success := color.BrightGreen("Successfully").Italic().Bold().String()
+	s := fmt.Sprintf("imported %d record/s", records.Len())
+	t.ReplaceLine(1, f.Clean().Success(success+" "+s).Ln().String())
+
+	return nil
+}
+
 // insertRecordsFromSource inserts records into the database.
 func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	report := fmt.Sprintf("import %d records?", records.Len())
@@ -159,7 +275,7 @@ func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	}
 	sp.Stop()
 	success := color.BrightGreen("Successfully").Italic().String()
-	msg := fmt.Sprintf("%s imported %d record/s", success, records.Len())
+	msg := fmt.Sprintf(success+" imported %d record/s", records.Len())
 	f.Clean().Success(msg).Ln().Render()
 
 	return nil
@@ -174,7 +290,6 @@ func selectSource() (*importSource, error) {
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	f.Header("Supported Sources").Ln().Row().Ln()
-
 	for _, src := range registeredImportSources {
 		s := src.color(src.key).Bold().String() + " " + src.cmd.Short
 		f.Mid(s).Ln()
@@ -190,7 +305,6 @@ func selectSource() (*importSource, error) {
 	if !found {
 		return nil, fmt.Errorf("%w: '%s'", ErrImportSourceNotFound, name)
 	}
-
 	log.Printf("source: '%s' called", source.name)
 
 	return source, nil
@@ -214,8 +328,6 @@ var importCmd = &cobra.Command{
 }
 
 func init() {
-	importCmd.AddCommand(importBackupCmd)
-	importCmd.AddCommand(importBrowserCmd)
-	importCmd.AddCommand(importDatabaseCmd)
+	importCmd.AddCommand(importBackupCmd, importBrowserCmd, importDatabaseCmd)
 	rootCmd.AddCommand(importCmd)
 }

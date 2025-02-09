@@ -55,6 +55,7 @@ Available Commands:
   help        Help about any command
   import      import bookmarks from various sources
   records     records management
+  remove      Remove databases/backups
   version     print version information
 
 Flags:
@@ -67,12 +68,12 @@ Flags:
 
 ### 🔑 Supported Env Vars
 
-| Name                 | type | Description                              | Status                                    |
-| -------------------- | ---- | ---------------------------------------- | ----------------------------------------- |
-| `GOMARKS_HOME`       | str  | Path to database/yaml                    | <span style="color:green">**done**</span> |
-| `GOMARKS_EDITOR`     | str  | Preferred text editor                    | <span style="color:green">**done**</span> |
-| `GOMARKS_BACKUP_MAX` | int  | Maximum number of backups _(def: **3**)_ | <span style="color:green">**done**</span> |
-| `NO_COLOR`           | int  | Disable all colors                       | <span style="color:green">**done**</span> |
+| Name                     | type | Description                              | Status                                    |
+| ------------------------ | ---- | ---------------------------------------- | ----------------------------------------- |
+| `GOMARKS_HOME`           | str  | Path to database/yaml                    | <span style="color:green">**done**</span> |
+| `GOMARKS_EDITOR`         | str  | Preferred text editor                    | <span style="color:green">**done**</span> |
+| `NO_COLOR`               | int  | Disable all colors                       | <span style="color:green">**done**</span> |
+| ~~`GOMARKS_BACKUP_MAX`~~ | int  | Maximum number of backups _(def: **3**)_ | <span style="color:green">**done**</span> |
 
 <details>
 <summary><strong>📜 Menu support</strong></summary>

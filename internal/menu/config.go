@@ -22,7 +22,7 @@ const (
 var ErrConfigFileExists = errors.New("config file already exists")
 
 // menuConfig holds the menu configuration.
-var menuConfig Config
+var menuConfig Config = defaultMenuConfig
 
 // Keymap holds the keymap configuration.
 type Keymap struct {
@@ -118,7 +118,6 @@ func DumpConfig(force bool) error {
 
 func LoadConfig() error {
 	f := filepath.Join(config.App.Path.Data, keymapsConfigFile)
-
 	if !files.Exists(f) {
 		log.Println("menu configfile not found. loading defaults")
 		menuConfig = defaultMenuConfig

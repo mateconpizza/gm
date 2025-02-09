@@ -45,7 +45,6 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 
 // Find finds a database by name in the given path.
 func Find(name, path string) (*SQLiteRepository, error) {
-	var found SQLiteRepository
 	dbs, err := Databases(path)
 	if err != nil {
 		return nil, err
@@ -58,29 +57,30 @@ func Find(name, path string) (*SQLiteRepository, error) {
 		return nil, fmt.Errorf("'%s' %w", name, ErrDBNotFound)
 	}
 
-	found = dbs.Item(0)
+	found := dbs.Item(0)
 
 	return &found, nil
 }
 
 // Databases returns the list of databases.
 func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
-	// FIX: redo this
 	paths, err := databasesFromPath(path)
 	if err != nil {
+		if errors.Is(err, files.ErrPathNotFound) {
+			return nil, ErrBackupNotFound
+		}
+
 		return nil, fmt.Errorf("'%s' %w", path, err)
+	}
+	if paths.Len() == 0 {
+		return nil, ErrBackupNotFound
 	}
 
 	dbs := slice.New[SQLiteRepository]()
 	paths.ForEach(func(p string) {
-		name := filepath.Base(p)
-		path := filepath.Dir(p)
-		c := NewSQLiteCfg()
-		c.SetPath(path).SetName(name)
-		rep, _ := New(c)
+		rep, _ := New(NewSQLiteCfg(p))
 		dbs.Push(rep)
 	})
-
 	if dbs.Len() == 0 {
 		return nil, fmt.Errorf("%w: %s", ErrDBNotFound, path)
 	}
@@ -88,64 +88,61 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	return dbs, nil
 }
 
-// CreateBackup creates a new backup.
-func CreateBackup(src, destName string, force bool) error {
-	log.Printf("CreateBackup: src: %s, dest: %s", src, destName)
-	sourcePath := filepath.Dir(src)
-	if !files.Exists(sourcePath) {
-		return fmt.Errorf("%w: %s", ErrBackupPathNotSet, sourcePath)
+// NewBackup creates a new backup from the given repository.
+func NewBackup(r *SQLiteRepository) (string, error) {
+	bk := r.Cfg.Backup
+	if err := files.MkdirAll(bk.Path); err != nil {
+		return "", fmt.Errorf("%w", err)
 	}
+	destDSN := AddPrefixDate(r.Cfg.Name, bk.DateFormat)
+	_ = r.DB.MustExec("VACUUM INTO ?", filepath.Join(bk.Path, destDSN))
 
-	backupPath := filepath.Join(sourcePath, "backup")
-	if err := files.MkdirAll(backupPath); err != nil {
-		return fmt.Errorf("%w", err)
+	return destDSN, nil
+}
+
+// getBackups returns a filtered list of backups in a given path.
+func getBackups(path string) []string {
+	paths, err := databasesFromPath(path)
+	if err != nil {
+		return []string{}
 	}
+	name := filepath.Base(path)
+	paths.FilterInPlace(func(s *string) bool {
+		return strings.Contains(*s, name)
+	})
 
-	destPath := filepath.Join(backupPath, destName)
-	if files.Exists(destPath) && !force {
-		return fmt.Errorf("%w: %s", ErrBackupAlreadyExists, destName)
-	}
-
-	if err := files.Copy(src, destPath); err != nil {
-		return fmt.Errorf("copying file: %w", err)
-	}
-
-	return nil
+	return *paths.Items()
 }
 
 // Backups returns a filtered list of backup paths and an error if any.
 func Backups(r *SQLiteRepository) (*slice.Slice[SQLiteRepository], error) {
 	s := filepath.Base(r.Cfg.Fullpath())
-	bksPaths, err := databasesFromPath(r.Cfg.Backup.Path)
 	backups := slice.New[SQLiteRepository]()
+	paths, err := databasesFromPath(r.Cfg.Backup.Path)
 	if err != nil {
 		if errors.Is(err, files.ErrPathNotFound) {
-			return backups, fmt.Errorf("%w for '%s'", ErrBackupNotFound, s)
+			return nil, ErrBackupNotFound
 		}
 
 		return backups, err
 	}
-
-	bksPaths.FilterInPlace(func(b *string) bool {
+	// filter by current repo name
+	paths.FilterInPlace(func(b *string) bool {
 		return strings.Contains(*b, s)
 	})
-	if bksPaths.Len() == 0 {
-		return backups, fmt.Errorf("%w: '%s'", ErrBackupNotFound, s)
+	if paths.Len() == 0 {
+		return nil, fmt.Errorf("%w: '%s'", ErrBackupNotFound, s)
 	}
-
-	err = bksPaths.ForEachErr(func(s string) error {
-		c := NewSQLiteCfg()
-		c.SetPath(filepath.Dir(s)).SetName(filepath.Base(s))
-		r, err := New(c)
+	if err = paths.ForEachErr(func(s string) error {
+		r, err := New(NewSQLiteCfg(s))
 		if err != nil {
 			return err
 		}
 		backups.Push(r)
 
 		return nil
-	})
-	if err != nil {
-		return backups, fmt.Errorf("%w", err)
+	}); err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	return backups, nil

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/spf13/cobra"
 
@@ -24,7 +23,6 @@ type (
 var (
 	// SQLiteCfg holds the configuration for the database and backups.
 	Cfg *repo.SQLiteConfig
-
 	// Main database name.
 	DBName string
 )
@@ -35,7 +33,6 @@ func handleData(m *menu.Menu[Bookmark], r *Repo, args []string) (*Slice, error) 
 	if err := handler.Records(r, bs, args); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
-
 	// filter by Tag
 	if len(Tags) > 0 {
 		if err := handler.ByTags(r, Tags, bs); err != nil {
@@ -50,8 +47,7 @@ func handleData(m *menu.Menu[Bookmark], r *Repo, args []string) (*Slice, error) 
 	}
 	// select with fzf-menu
 	if Menu {
-		f := bookmark.FzfFormatter(Multiline)
-		items, err := handler.Selection(m, bs.Items(), f)
+		items, err := handler.Selection(m, *bs.Items(), bookmark.FzfFormatter(Multiline))
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -69,24 +65,16 @@ var rootCmd = &cobra.Command{
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		// ignore if subcommand `init` was called.
-		if isSubCmdCalled(cmd, "init") {
+		// ignore if one of this subcommands was called.
+		subcmds := []string{"init", "new", "version"}
+		if isSubCmdCalled(cmd, subcmds...) {
 			return nil
-		}
-		// ignore if subcommand `version` was called.
-		if isSubCmdCalled(cmd, "version") {
-			return nil
-		}
-		// load menu config
-		if err := menu.LoadConfig(); err != nil {
-			log.Println("error loading config:", err)
-			return fmt.Errorf("%w", err)
 		}
 
 		return handler.ValidateDB(cmd, Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return cmd.Usage()
+		return recordsCmd.RunE(cmd, args)
 	},
 }
 

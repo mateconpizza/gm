@@ -39,7 +39,9 @@ func (s *Scraper) Scrape() error {
 }
 
 func defaults() *Options {
-	return &Options{}
+	return &Options{
+		ctx: context.Background(),
+	}
 }
 
 // Title retrieves the page title from the Scraper's Doc field, falling back

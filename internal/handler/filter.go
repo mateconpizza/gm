@@ -89,7 +89,7 @@ func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 	if bs.Empty() {
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
-		return fmt.Errorf("%w by id/s: %s", repo.ErrRecordNotFound, bids)
+		return fmt.Errorf("%w by id/s: %s in '%s'", repo.ErrRecordNotFound, bids, r.Cfg.Name)
 	}
 
 	return nil
@@ -132,14 +132,10 @@ func ByHeadAndTail(bs *Slice, h, t int) error {
 	return nil
 }
 
-func SelectRepo(m *menu.Menu[Repo], items *[]Repo, fmtFn func(*Repo) string) ([]Repo, error) {
-	return Selection(m, items, fmtFn)
-}
-
 // Selection allows the user to select multiple records in a menu
 // interface.
-func Selection[T comparable](m *menu.Menu[T], items *[]T, fmtFn func(*T) string) ([]T, error) {
-	if len(*items) == 0 {
+func Selection[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) ([]T, error) {
+	if len(items) == 0 {
 		return nil, repo.ErrRecordNoMatch
 	}
 
@@ -158,30 +154,4 @@ func Selection[T comparable](m *menu.Menu[T], items *[]T, fmtFn func(*T) string)
 	}
 
 	return result, nil
-}
-
-// MenuDefaults returns the options for the menu.
-func MenuDefaults(multiline bool) []menu.OptFn {
-	// menu opts
-	opts := []menu.OptFn{
-		menu.WithDefaultKeybinds(),
-		menu.WithDefaultSettings(),
-		menu.WithMultiSelection(),
-	}
-
-	if !subCommandCalled {
-		opts = append(opts,
-			menu.WithPreview(),
-			menu.WithKeybindEdit(),
-			menu.WithKeybindOpen(),
-			menu.WithKeybindQR(),
-			menu.WithKeybindOpenQR(),
-		)
-	}
-
-	if multiline {
-		opts = append(opts, menu.WithMultilineView())
-	}
-
-	return opts
 }

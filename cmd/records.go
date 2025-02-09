@@ -13,19 +13,14 @@ import (
 
 var recordsCmd = &cobra.Command{
 	Use:     "records",
-	Aliases: []string{"r"},
+	Aliases: []string{"r", "items"},
 	Short:   "records management",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if addFlag, _ := cmd.Flags().GetBool("add"); addFlag {
-			return addCmd.RunE(cmd, args)
-		}
-
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
-
 		terminal.ReadPipedInput(&args)
 		// menu
 		mo := []menu.OptFn{
@@ -33,6 +28,7 @@ var recordsCmd = &cobra.Command{
 			menu.WithDefaultSettings(),
 			menu.WithMultiSelection(),
 			menu.WithPreview(),
+			menu.WithPreviewCustomCmd("gm -n " + r.Cfg.Name + " r {1}"),
 			menu.WithKeybindEdit(),
 			menu.WithKeybindOpen(),
 			menu.WithKeybindQR(),
@@ -46,7 +42,6 @@ var recordsCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
 		if bs.Empty() {
 			return repo.ErrRecordNotFound
 		}
@@ -81,7 +76,6 @@ var recordsCmd = &cobra.Command{
 
 func init() {
 	rf := recordsCmd.Flags()
-	rf.BoolP("add", "a", false, "Add a new record")
 	rf.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	rf.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
 	rf.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
@@ -99,6 +93,5 @@ func init() {
 	// Modifiers
 	rf.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	rf.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
-	recordsCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(recordsCmd)
 }

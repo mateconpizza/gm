@@ -20,7 +20,7 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// supportedBrowser defines a supported browser.
+// supportedBrowser represents a supported browser.
 type supportedBrowser struct {
 	key     string
 	browser browser.Browser

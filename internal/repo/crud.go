@@ -642,7 +642,7 @@ func (r *SQLiteRepository) execTx(ctx context.Context, fn func(tx *sqlx.Tx) erro
 	}()
 
 	if err := fn(tx); err != nil {
-		return err
+		return fmt.Errorf("fn transaction: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
