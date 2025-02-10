@@ -68,47 +68,33 @@ func loadBrowser(k string) (browser.Browser, error) {
 	return b, nil
 }
 
-// scrapeMissingData scrapes missing data from bookmarks found from the import
+// scrapeMissingDescription scrapes missing data from bookmarks found from the import
 // process.
-func scrapeMissingData(bs *Slice) error {
+func scrapeMissingDescription(bs *Slice) error {
 	if bs.Len() == 0 {
 		return nil
 	}
-
 	msg := color.BrightGreen("scraping missing data...").Italic().String()
 	sp := spinner.New(spinner.WithColor(color.Gray), spinner.WithMesg(msg))
 	sp.Start()
 	defer sp.Stop()
-
-	var (
-		r  = slice.New[Bookmark]()
-		mu sync.Mutex
-		wg sync.WaitGroup
-	)
-
-	bs.ForEach(func(b Bookmark) {
+	var wg sync.WaitGroup
+	errs := make([]string, 0)
+	bs.ForEachMut(func(b *Bookmark) {
 		wg.Add(1)
-		go func(b Bookmark) {
-			defer wg.Done()
-
+		go func(b *Bookmark) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
+			defer wg.Done()
 			sc := scraper.New(b.URL, scraper.WithContext(ctx))
 			if err := sc.Scrape(); err != nil {
+				errs = append(errs, fmt.Sprintf("url %s: %s", b.URL, err.Error()))
 				log.Printf("scraping error: %v", err)
 			}
-
 			b.Desc = sc.Desc()
-
-			mu.Lock()
-			r.Append(b)
-			mu.Unlock()
 		}(b)
 	})
-
 	wg.Wait()
-
-	*bs = *r
 
 	return nil
 }
@@ -126,7 +112,7 @@ func importFromBrowser(t *terminal.Term, r *Repo) error {
 		return fmt.Errorf("browser '%s': %w", br.Name(), err)
 	}
 	// clean and process found bookmarks
-	if err := parseRecordsFound(t, r, bs); err != nil {
+	if err := parseFoundFromBrowser(t, r, bs); err != nil {
 		return err
 	}
 	if bs.Len() == 0 {
@@ -153,9 +139,9 @@ func selectBrowser(t *terminal.Term) string {
 	return name
 }
 
-// parseRecordsFound processes the bookmarks found from the import
+// parseFoundFromBrowser processes the bookmarks found from the import
 // browser process.
-func parseRecordsFound(t *terminal.Term, r *Repo, bs *Slice) error {
+func parseFoundFromBrowser(t *terminal.Term, r *Repo, bs *Slice) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
 	if err := cleanDuplicateRecords(r, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
@@ -168,7 +154,7 @@ func parseRecordsFound(t *terminal.Term, r *Repo, bs *Slice) error {
 	msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
 	f.Row().Ln().Render().Clean()
 	if t.Confirm(f.Mid(msg).String(), "n") {
-		if err := scrapeMissingData(bs); err != nil {
+		if err := scrapeMissingDescription(bs); err != nil {
 			return err
 		}
 	}
