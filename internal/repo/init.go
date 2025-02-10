@@ -35,7 +35,6 @@ func (r *SQLiteRepository) Init() error {
 // IsInitialized returns true if the database is initialized.
 func (r *SQLiteRepository) IsInitialized() bool {
 	allExist := true
-
 	for t := range r.tablesAndSchema() {
 		exists, err := r.tableExists(t)
 		if err != nil {

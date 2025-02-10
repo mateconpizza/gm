@@ -53,7 +53,7 @@ func selectRepo(p string) (*Repo, error) {
 // bkRemoveCmd removes backups.
 var bkRemoveCmd = &cobra.Command{
 	Use:     "backup",
-	Short:   "remove a backup",
+	Short:   "Remove a backup",
 	Aliases: []string{"bk", "b", "backups"},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		r, err := selectRepo("choose a database to remove a backup from")
@@ -151,7 +151,7 @@ func handleRmBackups(t *terminal.Term, r *Repo) error {
 var dbRemoveCmd = &cobra.Command{
 	Use:     "database",
 	Aliases: []string{"db", "d"},
-	Short:   "remove a database",
+	Short:   "Remove a database",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := selectRepo("select database to remove")
 		if err != nil {
@@ -225,7 +225,6 @@ var removeCmd = &cobra.Command{
 }
 
 func init() {
-	removeCmd.AddCommand(dbRemoveCmd)
-	removeCmd.AddCommand(bkRemoveCmd)
+	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
 	rootCmd.AddCommand(removeCmd)
 }

@@ -18,7 +18,7 @@ func prettyVersion() string {
 
 var versionCmd = &cobra.Command{
 	Use:    "version",
-	Short:  "print version information",
+	Short:  "Print version information",
 	Hidden: false,
 	Run: func(_ *cobra.Command, args []string) {
 		fmt.Println(prettyVersion())

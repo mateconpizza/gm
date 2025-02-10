@@ -14,7 +14,7 @@ import (
 var recordsCmd = &cobra.Command{
 	Use:     "records",
 	Aliases: []string{"r", "items"},
-	Short:   "records management",
+	Short:   "Records management",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

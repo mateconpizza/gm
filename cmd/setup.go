@@ -175,7 +175,7 @@ func loadDataPath() (string, error) {
 
 var initCmd = &cobra.Command{
 	Use:    "init",
-	Short:  "initialize a new bookmarks database",
+	Short:  "Initialize a new bookmarks database",
 	Hidden: true,
 	RunE: func(_ *cobra.Command, _ []string) error {
 		// create paths for the application.

@@ -21,7 +21,7 @@ var ErrDBNameRequired = errors.New("name required")
 
 var databaseNewCmd = &cobra.Command{
 	Use:   "new",
-	Short: "initialize a new bookmarks database",
+	Short: "Initialize a new bookmarks database",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return ErrDBNameRequired
@@ -38,22 +38,19 @@ var databaseNewCmd = &cobra.Command{
 // databaseDropCmd drops a database.
 var databaseDropCmd = &cobra.Command{
 	Use:   "drop",
-	Short: "drop a database",
+	Short: "Drop a database",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
 			return fmt.Errorf("database: %w", err)
 		}
 		defer r.Close()
-
-		if r.IsInitialized() && !Force {
+		if !r.IsInitialized() && !Force {
 			return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 		}
-
 		if r.IsEmpty(r.Cfg.Tables.Main, r.Cfg.Tables.Deleted) {
 			return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.Name)
 		}
-
 		t := terminal.New(terminal.WithInterruptFn(func(err error) {
 			r.Close()
 			sys.ErrAndExit(err)
@@ -87,7 +84,7 @@ var databaseDropCmd = &cobra.Command{
 // dbDropCmd drops a database.
 var databaseListCmd = &cobra.Command{
 	Use:     "list",
-	Short:   "list databases",
+	Short:   "List databases",
 	Aliases: []string{"ls", "l"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
@@ -125,7 +122,7 @@ var databaseListCmd = &cobra.Command{
 // databaseInfoCmd shows information about a database.
 var databaseInfoCmd = &cobra.Command{
 	Use:     "info",
-	Short:   "show information about a database",
+	Short:   "Show information about a database",
 	Aliases: []string{"i", "show"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
@@ -148,7 +145,7 @@ var databaseInfoCmd = &cobra.Command{
 // databaseRmCmd remove a database.
 var databaseRmCmd = &cobra.Command{
 	Use:     "rm",
-	Short:   "remove a database",
+	Short:   "Remove a database",
 	Aliases: []string{"r", "remove"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return dbRemoveCmd.RunE(cmd, args)
@@ -159,7 +156,7 @@ var databaseRmCmd = &cobra.Command{
 var dbCmd = &cobra.Command{
 	Use:     "database",
 	Aliases: []string{"db"},
-	Short:   "database management",
+	Short:   "Database management",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Usage()
 	},

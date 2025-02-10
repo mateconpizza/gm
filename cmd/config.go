@@ -13,7 +13,7 @@ var menuConfig bool
 // configCmd configuration management.
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "configuration management",
+	Short: "Configuration management",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return cmd.Usage()
 	},
@@ -22,7 +22,7 @@ var configCmd = &cobra.Command{
 // configDumpCmd dump to yaml file.
 var configDumpCmd = &cobra.Command{
 	Use:     "dump",
-	Short:   "dump config to yaml file",
+	Short:   "Dump config to yaml file",
 	Aliases: []string{"d"},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if menuConfig {

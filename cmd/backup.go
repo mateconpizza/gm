@@ -19,7 +19,7 @@ import (
 var backupCmd = &cobra.Command{
 	Use:     "backup",
 	Aliases: []string{"b", "bk", "backups"},
-	Short:   "backup management",
+	Short:   "Backup management",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Usage()
 	},
@@ -28,7 +28,7 @@ var backupCmd = &cobra.Command{
 // backupListCmd list backups.
 var backupListCmd = &cobra.Command{
 	Use:     "list",
-	Short:   "list backups from a database",
+	Short:   "List backups from a database",
 	Aliases: []string{"ls", "l"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
@@ -45,7 +45,7 @@ var backupListCmd = &cobra.Command{
 // backupCmd backup management.
 var backupNewCmd = &cobra.Command{
 	Use:     "new",
-	Short:   "create a new backup",
+	Short:   "Create a new backup",
 	Aliases: []string{"create", "new", "add"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
@@ -88,7 +88,7 @@ var backupNewCmd = &cobra.Command{
 // backupRmCmd remove backups.
 var backupRmCmd = &cobra.Command{
 	Use:   "rm",
-	Short: "remove a backup/s",
+	Short: "Remove a backup/s",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return bkRemoveCmd.RunE(cmd, args)
 	},

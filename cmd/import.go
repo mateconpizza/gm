@@ -219,11 +219,9 @@ var importRestoreCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
 		if bs.Empty() {
 			return repo.ErrRecordNoMatch
 		}
-
 		if Remove {
 			return r.DeleteAndReorder(bs, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTagsDeleted)
 		}
