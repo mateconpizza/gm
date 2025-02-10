@@ -290,7 +290,7 @@ func (r *SQLiteRepository) deleteBulk(ctx context.Context, t Table, ids *slice.S
 	log.Printf("deleting %d records from table: %s", n, t)
 	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
 		query := fmt.Sprintf("DELETE FROM %s WHERE id IN (?)", t)
-		q, args, err := sqlx.In(query, ids.Items())
+		q, args, err := sqlx.In(query, *ids.Items())
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
