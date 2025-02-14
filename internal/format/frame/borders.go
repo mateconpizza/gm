@@ -315,19 +315,23 @@ func WithDefaultBorders() OptFn {
 // WithBordersCustom sets a custom border.
 func WithBordersCustom(header, row, mid, footer string) OptFn {
 	return func(o *Options) {
-		o.Border.Header = header
-		o.Border.Row = row
-		o.Border.Mid = mid
-		o.Border.Footer = footer
+		o.Border = &FrameBorders{
+			Header: header,
+			Row:    row,
+			Mid:    mid,
+			Footer: footer,
+		}
 	}
 }
 
 // WithNoBorders sets no border.
 func WithNoBorders() OptFn {
 	return func(o *Options) {
-		o.Border.Header = ""
-		o.Border.Row = ""
-		o.Border.Mid = ""
-		o.Border.Footer = ""
+		o.Border = &FrameBorders{
+			Header: "",
+			Row:    "",
+			Mid:    "",
+			Footer: "",
+		}
 	}
 }

@@ -47,10 +47,10 @@ func cleanDuplicateRecords(r *Repo, bs *Slice) error {
 		return !r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
 	})
 	if originalLen != bs.Len() {
-		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		skip := color.BrightYellow("skipping")
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-bs.Len())
-		f.Row().Ln().Warning(s).Ln().Render()
+		f.Row().Ln().Warning(s).Ln().Flush()
 	}
 
 	if bs.Empty() {
@@ -232,10 +232,10 @@ var importRestoreCmd = &cobra.Command{
 
 // importFromDB imports bookmarks from the given database.
 func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	f.Header("Import from Database\n").Row("\n").Text(repo.RepoSummary(srcDB)).Row("\n").Render()
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f.Header("Import from Database\n").Row("\n").Text(repo.RepoSummary(srcDB)).Row("\n").Flush()
 	// prompt
-	if !t.Confirm(f.Clean().Warning("continue?").String(), "y") {
+	if !t.Confirm(f.Clear().Warning("continue?").String(), "y") {
 		return handler.ErrActionAborted
 	}
 	t.ClearLine(1)
@@ -247,7 +247,7 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 	t.ClearLine(1)
 	if err := cleanDuplicateRecords(destDB, records); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
-			f.Clean().Row("\n").Mid("no new bookmark found, skipping import\n").Render()
+			f.Clear().Row("\n").Mid("no new bookmark found, skipping import\n").Flush()
 			return nil
 		}
 
@@ -258,8 +258,8 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 	}
 	// remove prompt
 	success := color.BrightGreen("Successfully").Italic().Bold().String()
-	s := fmt.Sprintf("imported %d record/s", records.Len())
-	t.ReplaceLine(1, f.Clean().Success(success+" "+s).Ln().String())
+	s := fmt.Sprintf("imported %d record/s\n", records.Len())
+	t.ReplaceLine(1, f.Clear().Success(success+" "+s).Ln().String())
 
 	return nil
 }
@@ -267,8 +267,8 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 // insertRecordsFromSource inserts records into the database.
 func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	report := fmt.Sprintf("import %d records?", records.Len())
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	if !t.Confirm(f.Row().Ln().Header(report).String(), "y") {
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	if !t.Confirm(f.Row("\n").Header(report).String(), "y") {
 		return handler.ErrActionAborted
 	}
 	sp := spinner.New(spinner.WithMesg(color.Yellow("importing record/s...").String()))
@@ -278,8 +278,8 @@ func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	}
 	sp.Stop()
 	success := color.BrightGreen("Successfully").Italic().String()
-	msg := fmt.Sprintf(success+" imported %d record/s", records.Len())
-	f.Clean().Success(msg).Ln().Render()
+	msg := fmt.Sprintf(success+" imported %d record/s\n", records.Len())
+	f.Clear().Success(msg).Flush()
 
 	return nil
 }
@@ -287,9 +287,9 @@ func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 // handleRestore restores record/s from the deleted table.
 func restoreDeleted(m *menu.Menu[Bookmark], r *Repo, bs *Slice) error {
 	c := color.BrightYellow
-	f := frame.New(frame.WithColorBorder(c), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(c))
 	header := c("Restoring Bookmarks\n").String()
-	f.Header(header).Ln().Render()
+	f.Header(header).Ln().Flush()
 	t := terminal.New(terminal.WithInterruptFn(func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
@@ -307,9 +307,9 @@ func restoreDeleted(m *menu.Menu[Bookmark], r *Repo, bs *Slice) error {
 		return fmt.Errorf("%w", err)
 	}
 	sp.Stop()
-	f = frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f = frame.New(frame.WithColorBorder(color.Gray))
 	success := color.BrightGreen("Successfully").Italic().String()
-	t.ReplaceLine(1, f.Success(success+" bookmark/s restored").String())
+	t.ReplaceLine(1, f.Success(success+" bookmark/s restored\n").String())
 
 	return nil
 }

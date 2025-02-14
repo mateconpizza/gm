@@ -104,9 +104,9 @@ func (b *GeckoBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark]
 		return nil, err
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
-	f.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Render()
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
+	f.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
 
 	bs := slice.New[bookmark.Bookmark]()
 	for profile, v := range profiles {
@@ -227,12 +227,12 @@ func allProfiles(p string) (map[string]string, error) {
 
 // processProfile processes a single profile and extracts bookmarks.
 func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profile, path string) {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	f.Row().Ln().Render()
-	f.Clean().Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f.Row().Ln().Flush()
+	f.Clear().Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
 	if !t.Confirm(f.String(), "n") {
 		t.ClearLine(1)
-		f.Clean().Warning("Skipping profile...'" + profile + "'").Ln().Render()
+		f.Clear().Warning("Skipping profile...'" + profile + "'").Ln().Flush()
 		return
 	}
 	// FIX: get path by OS
@@ -251,7 +251,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 		log.Printf("err opening database for profile '%s': %v\n", profile, err)
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
-			f.Clean().Error("database is " + l + ", maybe firefox is open?").Ln().Render()
+			f.Clear().Error("database is " + l + ", maybe firefox is open?").Ln().Flush()
 			return
 		}
 		fmt.Printf("err opening database for profile '%s': %v\n", profile, err)
@@ -285,7 +285,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 	}
 
 	found := color.BrightBlue("found")
-	f.Clean().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-skipped)).Ln().Render()
+	f.Clear().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-skipped)).Ln().Flush()
 }
 
 // processTags processes the tags for a single bookmark.

@@ -75,7 +75,7 @@ var bkRemoveCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		rm := color.BrightRed("Removing").String()
 		f.Header(rm + " backup/s from '" + r.Cfg.Name).Ln().Row("\n")
 		items, err := handler.Selection(m, *backups.Items(), repo.RepoSummaryRecords)
@@ -97,7 +97,7 @@ var bkRemoveCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		success := color.BrightGreen("Successfully").Italic().String()
-		t.ReplaceLine(1, f.Clean().Success(success+" backup/s removed").String())
+		t.ReplaceLine(1, f.Clear().Success(success+" backup/s removed\n").String())
 
 		return nil
 	},
@@ -117,15 +117,15 @@ func handleRmBackups(t *terminal.Term, r *Repo) error {
 		return nil
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	rm := color.BrightRed("remove").Bold().String()
 	items := backups.Items()
-	f.Clean().Mid(rm + " backups?")
+	f.Clear().Mid(rm + " backups?")
 	opt := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
 	switch strings.ToLower(opt) {
 	case "n", "no":
 		sk := color.BrightYellow("skipping").String()
-		t.ReplaceLine(1, f.Clean().Warning(sk+" backup/s\n").Row().String())
+		t.ReplaceLine(1, f.Clear().Warning(sk+" backup/s\n").Row().String())
 	case "a", "all":
 		filesToRemove.Set(items)
 	case "s", "select":
@@ -164,14 +164,14 @@ var dbRemoveCmd = &cobra.Command{
 			r.Close()
 			sys.ErrAndExit(err)
 		}))
-		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		// show repo info
 		i := repo.Info(r)
 		i += f.Row().Ln().String()
 		fmt.Print(i)
 
 		rm := color.BrightRed("remove").Bold().String()
-		if !t.Confirm(f.Clean().Error(rm+" "+r.Cfg.Name+"?").String(), "n") {
+		if !t.Confirm(f.Clear().Error(rm+" "+r.Cfg.Name+"?").String(), "n") {
 			return handler.ErrActionAborted
 		}
 		if err := handleRmBackups(t, r); err != nil {
@@ -182,7 +182,7 @@ var dbRemoveCmd = &cobra.Command{
 		}
 
 		success := color.BrightGreen("Successfully").Italic().String()
-		t.ReplaceLine(1, f.Clean().Success(success+" removed database").String())
+		t.ReplaceLine(1, f.Clear().Success(success+" removed database").String())
 
 		return nil
 	},
@@ -190,7 +190,7 @@ var dbRemoveCmd = &cobra.Command{
 
 // rmDatabases removes a list of databases.
 func rmDatabases(t *terminal.Term, dbs *slice.Slice[Repo]) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	s := color.BrightRed("removing").String()
 	dbs.ForEachMut(func(r *Repo) {
 		f.Info(repo.RepoSummaryRecords(r)).Ln()
@@ -210,7 +210,7 @@ func rmDatabases(t *terminal.Term, dbs *slice.Slice[Repo]) error {
 	sp.Stop()
 	t.ClearLine(format.CountLines(f.String()))
 	s = color.BrightGreen("Successfully").Italic().String()
-	f.Clean().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed").Ln().Render()
+	f.Clear().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed\n").Flush()
 
 	return nil
 }

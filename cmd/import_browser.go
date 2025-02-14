@@ -124,35 +124,34 @@ func importFromBrowser(t *terminal.Term, r *Repo) error {
 
 // selectBrowser returns the name of the browser selected by the user.
 func selectBrowser(t *terminal.Term) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-	f.Header("Supported Browsers").Ln().Row().Ln()
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f.Header("Supported Browsers\n").Row("\n")
 
 	for _, c := range registeredBrowser {
 		b := c.browser
-		f.Mid(b.Color(b.Short()) + " " + b.Name()).Ln()
+		f.Mid(b.Color(b.Short()) + " " + b.Name() + "\n")
 	}
-	f.Row().Ln().Footer("which browser do you use?").Render()
+	f.Row("\n").Footer("which browser do you use?")
+	defer t.ClearLine(format.CountLines(f.String()))
+	f.Flush()
 
-	name := t.Prompt(" ")
-	t.ClearLine(format.CountLines(f.String()))
-
-	return name
+	return t.Prompt(" ")
 }
 
 // parseFoundFromBrowser processes the bookmarks found from the import
 // browser process.
 func parseFoundFromBrowser(t *terminal.Term, r *Repo, bs *Slice) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	if err := cleanDuplicateRecords(r, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
-			f.Row().Ln().Mid("no new bookmark found, skipping import").Ln().Render()
+			f.Row().Ln().Mid("no new bookmark found, skipping import").Ln().Flush()
 			return nil
 		}
 	}
 
 	countStr := color.BrightBlue(bs.Len())
 	msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
-	f.Row().Ln().Render().Clean()
+	f.Row().Ln().Flush().Clear()
 	if t.Confirm(f.Mid(msg).String(), "n") {
 		if err := scrapeMissingDescription(bs); err != nil {
 			return err

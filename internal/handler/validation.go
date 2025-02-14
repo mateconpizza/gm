@@ -46,9 +46,13 @@ func Confirmation(
 			fmt.Println(bookmark.FrameFormatted(&b, colors))
 		})
 		// render frame
-		f := frame.New(frame.WithColorBorder(colors), frame.WithNoNewLine())
+		f := frame.New(frame.WithColorBorder(colors))
 		q := f.Footer(prompt + fmt.Sprintf(" %d bookmark/s?", n)).String()
-		opt := t.Choose(q, []string{"yes", "no", "select"}, "n")
+		opts := []string{"yes", "no"}
+		if bs.Len() > 1 {
+			opts = append(opts, "select")
+		}
+		opt := t.Choose(q, opts, "n")
 		switch strings.ToLower(opt) {
 		case "n", "no":
 			return ErrActionAborted
@@ -77,7 +81,7 @@ func confirmUserLimit(count, maxItems int, q string) error {
 		return nil
 	}
 	defer terminal.ClearLine(1)
-	f := frame.New(frame.WithColorBorder(color.BrightBlue), frame.WithNoNewLine()).Header(q)
+	f := frame.New(frame.WithColorBorder(color.BrightBlue)).Header(q)
 	if !terminal.Confirm(f.String(), "n") {
 		return ErrActionAborted
 	}

@@ -56,11 +56,11 @@ var databaseDropCmd = &cobra.Command{
 			sys.ErrAndExit(err)
 		}))
 
-		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		warn := color.BrightRed("dropping").String()
-		f.Header(warn + " all bookmarks database").Ln().Row().Ln().Render()
+		f.Header(warn + " all bookmarks database").Ln().Row().Ln().Flush()
 		fmt.Print(repo.Info(r))
-		f.Clean().Row().Ln().Render().Clean()
+		f.Clear().Row().Ln().Flush().Clear()
 		if !Force {
 			if !t.Confirm(f.Footer("continue?").String(), "n") {
 				return handler.ErrActionAborted
@@ -75,7 +75,7 @@ var databaseDropCmd = &cobra.Command{
 			t.ClearLine(1)
 		}
 		success := color.BrightGreen("Successfully").Italic().String()
-		f.Clean().Success(success + " database dropped").Ln().Render()
+		f.Clear().Success(success + " database dropped").Ln().Flush()
 
 		return nil
 	},
@@ -106,14 +106,14 @@ var databaseListCmd = &cobra.Command{
 		// add header
 		if n > 1 {
 			nColor := color.BrightCyan(n).Bold().String()
-			f.Header(nColor + " database/s found").Ln()
+			f.Header(nColor + " database/s found\n").Row("\n")
 		}
 
 		dbs.ForEachMut(func(r *Repo) {
 			f.Text(repo.RepoSummary(r))
 		})
 
-		f.Render()
+		f.Flush()
 
 		return nil
 	},

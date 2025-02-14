@@ -52,7 +52,8 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 	// header
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	h := color.BrightYellow("Add Bookmark").String()
-	f.Warning(h + color.Gray(" (ctrl+c to exit)").Italic().String()).Ln().Render()
+	f.Warning(h + color.Gray(" (ctrl+c to exit)\n").Italic().String()).Row("\n").Flush()
+
 	b := bookmark.New()
 	if err := addParseNewBookmark(t, r, b, args); err != nil {
 		return err
@@ -72,16 +73,17 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
-	f.Clean().Success(success + " bookmark created").Render()
+	f.Success(success + " bookmark created\n").Flush()
 
 	return nil
 }
 
 // addHandleConfirmation confirms if the user wants to save the bookmark.
 func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
-	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.Gray))
 	save := color.BrightGreen("save").String()
 	opt := t.Choose(f.Success(save).String()+" bookmark?", []string{"yes", "no", "edit"}, "y")
+
 	switch strings.ToLower(opt) {
 	case "n", "no":
 		return fmt.Errorf("%w", handler.ErrActionAborted)
@@ -96,12 +98,12 @@ func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
 
 // addHandleURL retrieves a URL from args or prompts the user for input.
 func addHandleURL(t *terminal.Term, args *[]string) string {
-	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Header(color.BrightMagenta("URL\t:").String())
 	// checks if url is provided
 	if len(*args) > 0 {
 		url := strings.TrimRight((*args)[0], "\n")
-		f.Text(" " + color.Gray(url).String()).Ln().Render()
+		f.Text(" " + color.Gray(url).String()).Ln().Flush()
 		*args = (*args)[1:]
 
 		return url
@@ -112,41 +114,42 @@ func addHandleURL(t *terminal.Term, args *[]string) string {
 		return c
 	}
 
-	f.Ln().Render()
+	f.Ln().Flush()
 	url := t.Input(f.Border.Mid)
-	f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
-		Text(" " + color.Gray(url).String()).Ln()
+	f.Mid(color.BrightMagenta("URL\t:").String()).Text(" " + color.Gray(url).String()).Ln()
 	// clean 'frame' lines
 	t.ClearLine(format.CountLines(f.String()))
-	f.Render()
+	f.Flush()
 
 	return url
 }
 
 // addHandleTags retrieves the Tags from args or prompts the user for input.
 func addHandleTags(t *terminal.Term, r *Repo, args *[]string) string {
-	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Header(color.BrightBlue("Tags\t:").String())
 	// this checks if tags are provided, parses them and return them
 	if len(*args) > 0 {
 		tags := strings.TrimRight((*args)[0], "\n")
 		tags = strings.Join(strings.Fields(tags), ",")
 		tags = bookmark.ParseTags(tags)
-		f.Text(" " + color.Gray(tags).String()).Ln().Render()
+		f.Text(" " + color.Gray(tags).String()).Ln().Flush()
+
 		*args = (*args)[1:]
 
 		return tags
 	}
 	// prompt for tags
-	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Render()
+	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
+
 	mTags, _ := repo.CounterTags(r)
 	tags := bookmark.ParseTags(t.ChooseTags(f.Border.Mid, mTags))
 
-	f.Clean().Mid(color.BrightBlue("Tags\t:").String()).
+	f.Clear().Mid(color.BrightBlue("Tags\t:").String()).
 		Text(" " + color.Gray(tags).String()).Ln()
 
 	t.ClearLine(format.CountLines(f.String()))
-	f.Render()
+	f.Flush()
 
 	return tags
 }
@@ -185,13 +188,15 @@ func addTitleAndDesc(url string) (title, desc string) {
 	sp.Stop()
 
 	const indentation int = 10
-	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+
+	f := frame.New(frame.WithColorBorder(color.Gray))
+
 	width := terminal.MinWidth - len(f.Border.Row)
 	titleColor := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
 	descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
 	f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln().
 		Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln().
-		Render()
+		Flush()
 
 	return title, desc
 }
@@ -218,25 +223,24 @@ func addHandleClipboard(t *terminal.Term) string {
 	if !handler.URLValid(c) {
 		return ""
 	}
-	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
-	f.Mid(color.BrightCyan("found valid URL in clipboard").Italic().String()).Ln()
-	f.Render()
-	lines := format.CountLines(f.String()) + 1
 
-	bURL := f.Clean().Mid(color.BrightMagenta("URL\t:").String()).
-		Text(" " + color.Gray(c).String()).String()
-	fmt.Print(bURL)
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	f.Mid(color.BrightCyan("found valid URL in clipboard\n").Italic().String()).Flush()
+	lines := format.CountLines(f.String())
+	bURL := f.Mid(color.BrightMagenta("URL\t:").String()).
+		Text(" " + color.Gray(c).String() + "\n").Row("\n").
+		Flush()
+	opt := t.Choose(f.Mid("continue?").String(), []string{"yes", "no"}, "y")
+	lines += format.CountLines(f.String())
 
-	f.Clean().Ln().Row().Ln().Render().Clean()
-	lines += format.CountLines(f.Mid("continue?").String())
-	opt := t.Choose(f.String(), []string{"yes", "no"}, "y")
+	defer t.ClearLine(lines)
+
 	switch opt {
 	case "n", "no":
 		t.ClearLine(lines)
 		return ""
 	default:
-		t.ClearLine(lines)
-		fmt.Println(bURL)
+		fmt.Print(bURL)
 		return c
 	}
 }
@@ -247,6 +251,7 @@ func bookmarkEdition(b *Bookmark) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	if err := bookmark.Edit(te, b.Buffer(), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}

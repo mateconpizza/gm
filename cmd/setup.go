@@ -117,13 +117,13 @@ func createPaths(t *terminal.Term, path string) error {
 	if files.Exists(path) {
 		return nil
 	}
-	f := frame.New(frame.WithColorBorder(color.Gray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Header(prettyVersion()).Ln().Row().Ln()
 	f.Mid(format.PaddedLine("create path:", "'"+path+"'\n"))
 	f.Mid(format.PaddedLine("create db:", "'"+Cfg.Fullpath()+"'\n"))
-	f.Row("\n").Render()
+	f.Row("\n").Flush()
 	lines := format.CountLines(f.String())
-	if !t.Confirm(f.Clean().Footer("continue?").String(), "y") {
+	if !t.Confirm(f.Footer("continue?").String(), "y") {
 		return handler.ErrActionAborted
 	}
 	// clean terminal keeping header+row
@@ -133,9 +133,9 @@ func createPaths(t *terminal.Term, path string) error {
 	if err := files.MkdirAll(path); err != nil {
 		sys.ErrAndExit(err)
 	}
-	f.Clean()
+	f.Clear()
 	f.Success(fmt.Sprintf("Successfully created directory path '%s'.\n", path))
-	f.Success("Successfully created initial bookmark.\n").Row("\n").Render()
+	f.Success("Successfully created initial bookmark.\n").Row("\n").Flush()
 
 	return nil
 }
@@ -201,7 +201,7 @@ var initCmd = &cobra.Command{
 		if Cfg.Name != config.DefaultDBName {
 			s := color.Gray(Cfg.Name).Italic().String()
 			success := color.BrightGreen("Successfully").Italic().String()
-			f.Success(success + " initialized database " + s).Render()
+			f.Success(success + " initialized database " + s).Flush()
 
 			return nil
 		}
@@ -219,7 +219,7 @@ var initCmd = &cobra.Command{
 		fmt.Print(bookmark.Frame(ib))
 		s := color.BrightGreen("Successfully").Italic().String()
 		f.Row().Success(s + " initialized database " + color.Gray(Cfg.Name).Italic().String()).
-			Render()
+			Flush()
 
 		return nil
 	},

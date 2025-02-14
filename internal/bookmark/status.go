@@ -164,7 +164,7 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 	total := fmt.Sprintf("Total %s checked,", color.Blue(r.Len()).Bold())
 	f.Row().Footer(total + " took " + color.Blue(took).Bold().String())
 
-	f.Render()
+	f.Flush()
 }
 
 // buildResponse builds a Response from an HTTP response.

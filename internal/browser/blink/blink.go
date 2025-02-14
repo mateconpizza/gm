@@ -102,9 +102,9 @@ func (b *BlinkBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark]
 		return nil, err
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
-	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Render()
+	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Flush()
 
 	bs := slice.New[Record]()
 	for profile, v := range profiles {
@@ -227,19 +227,17 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 
 // processProfile extracts profile system names and user names.
 func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path string) {
-	f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	if !files.Exists(path) {
-		s := "Skipping profile...'" + profile + "', bookmarks file not found"
-		f.Row().Ln().Header(s).Ln().Render()
+		s := "Skipping profile...'" + profile + "', bookmarks file not found\n"
+		f.Row("\n").Header(s).Flush()
 		return
 	}
 
-	f.Row().Ln().Render().Clean()
+	f.Row("\n").Flush()
 	f.Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
 	if !t.Confirm(f.String(), "n") {
-		t.ClearLine(1)
-		f.Clean().Row("Skipping profile...'" + profile + "'").Ln().Render()
+		t.ReplaceLine(1, f.Clear().Row("Skipping profile...'"+profile+"'\n").String())
 		return
 	}
 
@@ -268,7 +266,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 	}
 
 	found := color.BrightBlue("found")
-	f.Clean().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Render()
+	f.Clear().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Flush()
 }
 
 // Define the main function to load the Chrome database.

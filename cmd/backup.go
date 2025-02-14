@@ -66,8 +66,8 @@ var backupNewCmd = &cobra.Command{
 			return fmt.Errorf("%w", repo.ErrDBEmpty)
 		}
 		backupInfoPrint(r)
-		f := frame.New(frame.WithColorBorder(color.BrightGray), frame.WithNoNewLine())
-		f.Row("\n").Render().Clean()
+		f := frame.New(frame.WithColorBorder(color.BrightGray))
+		f.Row("\n").Flush().Clear()
 		c := color.BrightGreen("backup").Bold().String()
 		if !t.Confirm(f.Success("create "+c).String(), "n") {
 			return handler.ErrActionAborted
@@ -79,7 +79,7 @@ var backupNewCmd = &cobra.Command{
 
 		success := color.BrightGreen("Successfully").Italic().String()
 		s := color.Text(newBkPath).Italic().String()
-		t.ReplaceLine(1, f.Clean().Success(success+" backup created: "+s).String())
+		t.ReplaceLine(1, f.Clear().Success(success+" backup created: "+s).String())
 
 		return nil
 	},

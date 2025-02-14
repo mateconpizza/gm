@@ -156,7 +156,7 @@ func CheckStatus(bs *Slice) error {
 
 	f := frame.New(frame.WithColorBorder(color.BrightBlue))
 	f.Header(fmt.Sprintf("checking %s of %d bookmarks", status, n))
-	f.Render()
+	f.Flush()
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}

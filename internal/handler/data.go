@@ -138,9 +138,9 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 	if !*force {
 		c := color.BrightRed
-		f := frame.New(frame.WithColorBorder(c), frame.WithNoNewLine())
-		header := c("Removing Bookmarks").String()
-		f.Header(header).Ln().Ln().Render().Clean()
+		f := frame.New(frame.WithColorBorder(c))
+		header := c("Removing Bookmarks\n\n").String()
+		f.Header(header).Flush()
 
 		interruptFn := func(err error) {
 			r.Close()
@@ -179,7 +179,7 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice, force bool) error {
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Success(success + " bookmark/s removed").Render()
+	f.Success(success + " bookmark/s removed\n").Flush()
 
 	return nil
 }

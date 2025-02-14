@@ -75,24 +75,10 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
 	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).
-		Mid(title...).
-		Mid(desc...).
-		Footer(tags).
+		Mid(title...).Ln().
+		Mid(desc...).Ln().
+		Footer(tags).Ln().
 		String()
-}
-
-// FmtWithFrame formats and displays a bookmark with styling and frame layout.
-func FmtWithFrame(f *frame.Frame, b *Bookmark, c color.ColorFn) {
-	width := terminal.MinWidth - len(f.Border.Row)
-	titleSplit := format.Split(b.Title, width)
-	idStr := color.BrightWhite(b.ID).Bold().String()
-	urlColor := format.Shorten(PrettifyURL(b.URL, c), width)
-	title := color.ApplyMany(titleSplit, color.Cyan)
-	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
-
-	f.Mid(fmt.Sprintf("%s %s %s", idStr, format.MidBulletPoint, urlColor)).Ln()
-	f.Mid(title...).Ln()
-	f.Mid(tags).Ln().Ln().Render()
 }
 
 // Frame formats a bookmark in a frame with min width.
@@ -111,10 +97,10 @@ func Frame(b *Bookmark) string {
 	desc := color.ApplyMany(descSplit, color.Gray)
 	tags := color.BrightGray(PrettifyTags(b.Tags)).Italic().String()
 
-	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).
-		Mid(title...).
-		Mid(desc...).
-		Footer(tags).
+	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln().
+		Mid(title...).Ln().
+		Mid(desc...).Ln().
+		Footer(tags).Ln().
 		String()
 }
 
