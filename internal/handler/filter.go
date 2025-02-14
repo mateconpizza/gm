@@ -59,6 +59,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 // ByQuery executes a search query on the given repository based on provided
 // arguments.
 func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
+	// FIX: do i need this?
 	if bs.Len() != 0 || len(args) == 0 {
 		return nil
 	}
@@ -71,7 +72,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	return nil
 }
 
-// ByIds retrieves records from the database based on either
+// ByIDs retrieves records from the database based on either
 // an ID or a query string.
 func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	ids, err := extractIDsFrom(args)
@@ -100,7 +101,6 @@ func ByHeadAndTail(bs *Slice, h, t int) error {
 	if h == 0 && t == 0 {
 		return nil
 	}
-
 	if h < 0 || t < 0 {
 		return fmt.Errorf("%w: head=%d tail=%d", ErrInvalidOption, h, t)
 	}

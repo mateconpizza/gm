@@ -36,12 +36,12 @@ func WithBordersRoundedCorner() OptFn {
 	}
 }
 
-// WithBordersAscii borders
+// WithBordersASCII borders
 // header: +-
 // row:    |
 // mid:    +-
 // footer: +-
-func WithBordersAscii() OptFn {
+func WithBordersASCII() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
 			Header: "+- ",

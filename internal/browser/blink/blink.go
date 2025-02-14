@@ -123,12 +123,12 @@ func New(name string, c color.ColorFn) *BlinkBrowser {
 	}
 }
 
-// structure of the JSON bookmarks file.
+// JSONRoot structure of the JSON bookmarks file.
 type JSONRoot struct {
 	Roots map[string]interface{} `json:"roots"`
 }
 
-// structure of the JSON profile file.
+// JSONProfile structure of the JSON profile file.
 //
 //	"profile": {
 //	    "info_cache": {

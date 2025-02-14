@@ -477,7 +477,6 @@ func (r *SQLiteRepository) ByTag(tag string, bs *Slice) error {
 // ByQuery returns records by query in the give table.
 func (r *SQLiteRepository) ByQuery(t Table, q string, bs *Slice) error {
 	log.Printf("getting records by query: '%s'", q)
-
 	sqlQuery := fmt.Sprintf(`
       SELECT DISTINCT
         b.id, b.url, b.title, b.desc, b.created_at
@@ -489,18 +488,14 @@ func (r *SQLiteRepository) ByQuery(t Table, q string, bs *Slice) error {
         LOWER(t.name) LIKE LOWER(?)
       ORDER BY b.id ASC
     `, t, r.Cfg.Tables.RecordsTags)
-
 	queryValue := "%" + q + "%"
 	if err := r.bySQL(bs, sqlQuery, queryValue, queryValue); err != nil {
 		return err
 	}
-
-	n := bs.Len()
-	if n == 0 {
+	if bs.Len() == 0 {
 		return ErrRecordNoMatch
 	}
-
-	log.Printf("got %d records by query: '%s'", n, q)
+	log.Printf("got %d records by query: '%s'", bs.Len(), q)
 
 	return nil
 }

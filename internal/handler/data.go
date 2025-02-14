@@ -64,7 +64,7 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 		return editBookmark(r, te, &b, idx, n)
 	}
 	// for each bookmark, invoke the helper to edit it.
-	if err := bs.ForEachErrIdx(editFn); err != nil {
+	if err := bs.ForEachIdxErr(editFn); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

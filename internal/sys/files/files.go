@@ -219,8 +219,8 @@ func ModTime(s, format string) string {
 
 // Touch creates a file at this given path.
 // If the file already exists, the function succeeds when exist_ok is true.
-func Touch(s string, exist_ok bool) (*os.File, error) {
-	if Exists(s) && !exist_ok {
+func Touch(s string, existsOK bool) (*os.File, error) {
+	if Exists(s) && !existsOK {
 		return nil, fmt.Errorf("%w: '%s'", ErrFileExists, s)
 	}
 

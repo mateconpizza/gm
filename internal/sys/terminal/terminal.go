@@ -83,8 +83,8 @@ func LoadMaxWidth() {
 	}
 
 	if w < MaxWidth {
-		MaxWidth = w
 		// MinWidth = w
+		MaxWidth = w
 	}
 }
 

@@ -215,30 +215,26 @@ func WithColor(b *bool) {
 
 // WithPreview adds a preview window and a keybind to toggle it.
 func WithPreview() OptFn {
-	// TODO: sometimes is better to show the preview window, e.g: selecting
-	// databases
-	if !menuConfig.Preview {
-		return func(o *Options) {}
-	}
-
 	preview := menuConfig.Keymaps.Preview
 	if !preview.Enabled {
 		return func(o *Options) {}
 	}
-
 	withColor := "never"
 	if *addColor {
 		withColor = "always"
 	}
 
-	opts := []string{
-		"--preview-window=~4,+{2}+4/3,<80(up)",
-		withCommand("--preview=%s records {1} --color=" + withColor),
+	opts := make([]string, 0, 2)
+	opts = append(opts, withCommand("--preview=%s records {1} --color="+withColor))
+	if !menuConfig.Preview {
+		opts = append(opts, "--preview-window=hidden,up")
+	} else {
+		opts = append(opts, "--preview-window=~4,+{2}+4/3,<80(up)")
 	}
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
-		if !preview.Hidden {
+		if !preview.Hidden || !menuConfig.Preview {
 			o.header = appendKeytoHeader(o.header, preview.Bind, "toggle-preview")
 		}
 		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
@@ -247,9 +243,6 @@ func WithPreview() OptFn {
 
 // WithPreviewCustomCmd adds preview with a custom command.
 func WithPreviewCustomCmd(cmd string) OptFn {
-	if !menuConfig.Preview {
-		return func(o *Options) {}
-	}
 	preview := menuConfig.Keymaps.Preview
 	if !preview.Enabled {
 		return func(o *Options) {}

@@ -129,12 +129,12 @@ func validateRemove(bs *Slice, force bool) error {
 
 // URLValid checks if a string is a valid URL.
 func URLValid(s string) bool {
-	parsedUrl, err := url.Parse(s)
+	parsedURL, err := url.Parse(s)
 	if err != nil {
 		return false
 	}
 
-	return parsedUrl.Scheme != "" && parsedUrl.Host != ""
+	return parsedURL.Scheme != "" && parsedURL.Host != ""
 }
 
 // ValidateDB verifies if the database exists.

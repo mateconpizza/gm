@@ -19,10 +19,11 @@ func RepoSummary(r *SQLiteRepository) string {
 	tags := format.PaddedLine("tags:", CountRecords(r, r.Cfg.Tables.Tags))
 
 	return f.Header(color.Yellow(r.Cfg.Name).Italic().String()).
-		Row(records).
-		Row(deleted).
-		Row(tags).
-		Row(path).String()
+		Ln().Row(records).
+		Ln().Row(deleted).
+		Ln().Row(tags).
+		Ln().Row(path).
+		Ln().String()
 }
 
 // RepoSummaryRecords generates a summary of record counts for a given SQLite
@@ -38,20 +39,21 @@ func RepoSummaryRecords(r *SQLiteRepository) string {
 // BackupSummaryDetail returns the details of a backup.
 func BackupSummaryDetail(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Header(color.BrightCyan("summary:").Italic().String())
+	f.Header(color.BrightCyan("summary:\n").Italic().String())
 
 	backups, err := Backups(r)
 	if err != nil {
-		return f.Row(format.PaddedLine("found:", "n/a")).String()
+		return f.Row(format.PaddedLine("found:", "n/a\n")).String()
 	}
+	defer backups.ForEachMut(func(bk *SQLiteRepository) { bk.Close() })
 
 	n := backups.Len()
 	backups.ForEachMut(func(bk *SQLiteRepository) {
-		if n == 0 {
-			f.Footer(RepoSummaryRecords(bk))
+		if n == 1 {
+			f.Footer(RepoSummaryRecords(bk)).Ln()
 			return
 		}
-		f.Row(RepoSummaryRecords(bk))
+		f.Row(RepoSummaryRecords(bk)).Ln()
 		n--
 	})
 
@@ -74,7 +76,7 @@ func BackupsSummary(r *SQLiteRepository) string {
 	var (
 		f            = frame.New(frame.WithColorBorder(color.BrightGray))
 		empty        = "n/a"
-		backupsColor = color.BrightMagenta("backups").Italic()
+		backupsColor = color.BrightMagenta("backups:").Italic()
 		backupsInfo  = format.PaddedLine("found:", empty)
 		lastBackup   = empty
 	)
@@ -96,9 +98,10 @@ func BackupsSummary(r *SQLiteRepository) string {
 	last := format.PaddedLine("last:", lastBackup)
 
 	return f.Header(backupsColor.String()).
-		Row(last).
-		Row(path).
-		Row(backupsInfo).String()
+		Ln().Row(last).
+		Ln().Row(path).
+		Ln().Row(backupsInfo).
+		Ln().String()
 }
 
 // Info returns the repository info.

@@ -29,6 +29,7 @@ type filterFn = func(completions []prompt.Suggest, sub string, ignoreCase bool) 
 func inputWithTags[T comparable, V any](p string, items map[T]V, exitFn func(error)) string {
 	o, restore := prepareInputState(exitFn)
 	defer restore()
+
 	s := prompt.Input(p, completerTagsWithCount(items, prompt.FilterHasPrefix), o...)
 
 	return s
@@ -39,6 +40,7 @@ func inputWithTags[T comparable, V any](p string, items map[T]V, exitFn func(err
 func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string {
 	o, restore := prepareInputState(exitFn)
 	defer restore()
+
 	s := prompt.Input(p, completerPrefix(items), o...)
 
 	return s
@@ -49,6 +51,7 @@ func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string
 func inputWithFuzzySuggestions[T any](p string, items []T, exitFn func(error)) string {
 	o, restore := prepareInputState(exitFn)
 	defer restore()
+
 	s := prompt.Input(p, completerFuzzy(items), o...)
 
 	return s
@@ -85,7 +88,6 @@ func ReadPipedInput(args *[]string) {
 // exitFn.
 func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 	// BUG: https://github.com/c-bata/go-prompt/issues/233#issuecomment-1076162632
-
 	if err := saveState(); err != nil {
 		exitFn(err)
 	}
@@ -130,7 +132,7 @@ func promptOptions(c *bool) (o []prompt.Option) {
 		)
 	}
 
-	return
+	return o
 }
 
 // completerHelper creates a PromptSuggester that filters suggestions based on
@@ -182,20 +184,25 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 // getUserInput reads user input and validates against the options.
 func getUserInput(rd io.Reader, prompt string, opts []string, def string) string {
 	r := bufio.NewReader(rd)
+
 	for {
 		fmt.Print(prompt)
+
 		input, err := r.ReadString('\n')
 		if err != nil {
 			log.Print("Error reading input:", err)
 			return ""
 		}
+
 		input = strings.ToLower(strings.TrimSpace(input))
 		if input == "" && def != "" {
 			return def
 		}
+
 		if isValidOption(input, opts) {
 			return input
 		}
+
 		ClearLine(format.CountLines(prompt))
 	}
 }
@@ -223,8 +230,8 @@ func fmtChoicesWithDefault(opts []string, def string) []string {
 // getQueryFromPipe reads the input from the pipe.
 func getQueryFromPipe(r io.Reader) string {
 	var result strings.Builder
-	scanner := bufio.NewScanner(bufio.NewReader(r))
 
+	scanner := bufio.NewScanner(bufio.NewReader(r))
 	for scanner.Scan() {
 		line := scanner.Text()
 		result.WriteString(line)
@@ -272,6 +279,7 @@ func buildPrompt(q, opts string) string {
 	if q == "" {
 		return fmt.Sprintf("%s %s ", q, color.Gray(opts))
 	}
+
 	if opts == "" {
 		return q + " "
 	}
@@ -282,6 +290,7 @@ func buildPrompt(q, opts string) string {
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
 func WaitForEnter() {
 	fmt.Print("Press ENTER to continue...")
+
 	var input string
 	_, _ = fmt.Scanln(&input)
 }

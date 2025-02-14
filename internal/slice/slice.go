@@ -51,15 +51,15 @@ func (s *Slice[T]) ForEachMutErr(fn func(*T) error) error {
 	return nil
 }
 
-// ForEachIdx loop items all items with index.
+// ForEachIdx loop items with index.
 func (s *Slice[T]) ForEachIdx(fn func(int, T)) {
 	for i, ele := range s.items {
 		fn(i, ele)
 	}
 }
 
-// ForEachErrIdx loop items all items with index and returns a err.
-func (s *Slice[T]) ForEachErrIdx(fn func(int, T) error) error {
+// ForEachIdxErr loop items with index and returns a error.
+func (s *Slice[T]) ForEachIdxErr(fn func(int, T) error) error {
 	for i, ele := range s.items {
 		if err := fn(i, ele); err != nil {
 			return err

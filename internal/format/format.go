@@ -1,4 +1,4 @@
-// Package `format` provides utilities for formatting and manipulating strings
+// Package format provides utilities for formatting and manipulating strings
 package format
 
 import (
@@ -33,11 +33,6 @@ func PaddingConditional(minVal, maxVal int) int {
 	}
 
 	return minVal
-}
-
-// Header returns a formatted string with a title.
-func Header(s string) string {
-	return s + "\n\n"
 }
 
 // Shorten shortens a string to a maximum length.
@@ -139,16 +134,12 @@ func ByteSliceToLines(data []byte) []string {
 	return strings.Split(string(data), "\n")
 }
 
-// BufferCopy copies the contents of a byte slice into a new byte slice.
-func BufferCopy(buf *[]byte) []byte {
-	return append([]byte(nil), *buf...)
-}
-
 // BufferAppend inserts a header string at the beginning of a byte buffer.
 func BufferAppend(s string, buf *[]byte) {
 	*buf = append([]byte(s), *buf...)
 }
 
+// BufferAppendEnd appends a string to the end of a byte buffer.
 func BufferAppendEnd(s string, buf *[]byte) {
 	*buf = append(*buf, []byte(s)...)
 }
