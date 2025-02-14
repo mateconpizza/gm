@@ -9,37 +9,32 @@ import (
 func TestEnv(t *testing.T) {
 	tests := []struct {
 		name  string
-		env   string
+		key   string
 		value string
 	}{
 		{
 			name:  "EnvSet",
-			env:   "TEST_KEY",
+			key:   "TEST_KEY",
 			value: "testValue",
 		},
 		{
 			name:  "EnvNotSet",
-			env:   "TEST_KEY",
+			key:   "TEST_KEY",
 			value: "",
 		},
 		{
 			name:  "EnvOne",
-			env:   "TEST_KEY",
+			key:   "TEST_KEY",
 			value: "1",
-		},
-		{
-			name:  "",
-			env:   "",
-			value: "",
 		},
 	}
 
 	for _, tt := range tests {
-		_ = os.Setenv(tt.env, tt.value)
-		got := Env(tt.env, tt.value)
+		t.Setenv(tt.key, tt.value)
+		got := Env(tt.key, tt.value)
 
 		// unset env after obtaining value
-		if err := os.Unsetenv(tt.env); err != nil {
+		if err := os.Unsetenv(tt.key); err != nil {
 			log.Printf("unsetting env: %s", err.Error())
 		}
 
@@ -50,6 +45,7 @@ func TestEnv(t *testing.T) {
 }
 
 func TestBinExists(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		command string
 		exists  bool

@@ -23,6 +23,7 @@ func testScrapeFn(t *testing.T, getTitleOrDesc func(string) (string, error), tes
 	expected string
 },
 ) {
+	t.Helper()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.server != nil {
@@ -45,6 +46,7 @@ func testScrapeFn(t *testing.T, getTitleOrDesc func(string) (string, error), tes
 }
 
 func TestTitle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		url      string
@@ -81,6 +83,7 @@ func TestTitle(t *testing.T) {
 
 //nolint:funlen //test
 func TestDesc(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		url      string

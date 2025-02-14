@@ -3,6 +3,7 @@ package bookmark
 import "testing"
 
 func TestExtractBlock(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		startMarker string
 		endMarker   string
@@ -52,6 +53,7 @@ func TestExtractBlock(t *testing.T) {
 }
 
 func TestExtractLineContent(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		c        []string
 		expected int

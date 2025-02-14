@@ -86,6 +86,7 @@ func TestForEachMut(t *testing.T) {
 
 //nolint:funlen,err113 //test
 func TestForEachErr(t *testing.T) {
+	t.Parallel()
 	var (
 		errExpected  = errors.New("first element error")
 		errExpected2 = errors.New("second element error")
@@ -164,7 +165,9 @@ func TestForEachErr(t *testing.T) {
 
 //nolint:funlen,err113 //test
 func TestForEachMutErr(t *testing.T) {
+	t.Parallel()
 	t.Run("mutates all elements successfully", func(t *testing.T) {
+		t.Parallel()
 		s := New(1, 2, 3)
 		err := s.ForEachMutErr(func(n *int) error {
 			*n++
@@ -177,6 +180,7 @@ func TestForEachMutErr(t *testing.T) {
 	})
 
 	t.Run("Stops on error and returns partial mutations", func(t *testing.T) {
+		t.Parallel()
 		s := New(1, 2, 3, 4)
 		callCount := 0
 		expectedError := errors.New("custom error")
@@ -196,6 +200,7 @@ func TestForEachMutErr(t *testing.T) {
 	})
 
 	t.Run("handles struct mutations with errors", func(t *testing.T) {
+		t.Parallel()
 		type Person struct {
 			Name string
 			Age  int
@@ -223,6 +228,7 @@ func TestForEachMutErr(t *testing.T) {
 	})
 
 	t.Run("returns nil error for empty slice", func(t *testing.T) {
+		t.Parallel()
 		s := New[string]()
 		err := s.ForEachMutErr(func(s *string) error {
 			return errors.New("should never be called")
@@ -233,6 +239,7 @@ func TestForEachMutErr(t *testing.T) {
 	})
 
 	t.Run("mutation with pointer types", func(t *testing.T) {
+		t.Parallel()
 		type Counter struct {
 			Value int
 		}
@@ -256,6 +263,7 @@ func TestForEachMutErr(t *testing.T) {
 }
 
 func TestFilterInt(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		fn       func(int) bool
 		name     string
@@ -300,6 +308,7 @@ func TestFilterInt(t *testing.T) {
 }
 
 func TestFilterStrings(t *testing.T) {
+	t.Parallel()
 	testWithInt := []struct {
 		fn       func(string) bool
 		name     string
@@ -340,6 +349,7 @@ func TestFilterStrings(t *testing.T) {
 //nolint:funlen //test
 func TestFilterInPlace(t *testing.T) {
 	t.Run("basic filtering with integers", func(t *testing.T) {
+		t.Parallel()
 		s := New(1, 2, 3, 4, 5)
 		originalCap := cap(s.items)
 
@@ -353,12 +363,14 @@ func TestFilterInPlace(t *testing.T) {
 	})
 
 	t.Run("empty slice", func(t *testing.T) {
+		t.Parallel()
 		s := New[int]()
 		s.FilterInPlace(func(n *int) bool { return true })
 		assert.Empty(t, s.items)
 	})
 
 	t.Run("no elements filtered", func(t *testing.T) {
+		t.Parallel()
 		s := New("apple", "banana", "cherry")
 		original := s.items
 
@@ -371,6 +383,7 @@ func TestFilterInPlace(t *testing.T) {
 	})
 
 	t.Run("all elements filtered", func(t *testing.T) {
+		t.Parallel()
 		s := New(1.1, 2.2, 3.3)
 		s.FilterInPlace(func(f *float64) bool {
 			return *f > 10.0 // None match
@@ -380,6 +393,7 @@ func TestFilterInPlace(t *testing.T) {
 	})
 
 	t.Run("struct filtering", func(t *testing.T) {
+		t.Parallel()
 		type Person struct {
 			Name string
 			Age  int
@@ -401,6 +415,7 @@ func TestFilterInPlace(t *testing.T) {
 	})
 
 	t.Run("pointer elements", func(t *testing.T) {
+		t.Parallel()
 		ptr := func(v int) *int { return &v }
 		s := New(ptr(1), ptr(2), ptr(3), ptr(4))
 
@@ -414,6 +429,7 @@ func TestFilterInPlace(t *testing.T) {
 	})
 
 	t.Run("capacity management", func(t *testing.T) {
+		t.Parallel()
 		// Slice inicial con capacidad 5
 		original := make([]int, 0, 5)
 		original = append(original, 1, 2, 3, 4, 5)
@@ -429,6 +445,7 @@ func TestFilterInPlace(t *testing.T) {
 	})
 
 	t.Run("mutation check", func(t *testing.T) {
+		t.Parallel()
 		s := New(1, 2, 3)
 		originalPtr := &(s.items)[0]
 
@@ -443,6 +460,7 @@ func TestFilterInPlace(t *testing.T) {
 }
 
 func TestIndexString(t *testing.T) {
+	t.Parallel()
 	testIdx := []struct {
 		name     string
 		input    []string
@@ -477,6 +495,7 @@ func TestIndexString(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	t.Parallel()
 	testDeleteStr := []struct {
 		name     string
 		input    []string
@@ -508,6 +527,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestAppendLoop(t *testing.T) {
+	t.Parallel()
 	testAddStr := []struct {
 		name     string
 		input    []string
@@ -538,6 +558,7 @@ func TestAppendLoop(t *testing.T) {
 }
 
 func TestAny(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		items     []int
@@ -585,5 +606,6 @@ func TestAny(t *testing.T) {
 }
 
 func TestIncludes(t *testing.T) {
+	t.Parallel()
 	t.Skip("not implemented yet")
 }

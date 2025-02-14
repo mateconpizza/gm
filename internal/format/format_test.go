@@ -7,6 +7,7 @@ import (
 )
 
 func TestShortenString(t *testing.T) {
+	t.Parallel()
 	test := []struct {
 		input    string
 		expected string
@@ -32,6 +33,7 @@ func TestShortenString(t *testing.T) {
 }
 
 func TestUnique(t *testing.T) {
+	t.Parallel()
 	test := []struct {
 		input    []string
 		expected []string

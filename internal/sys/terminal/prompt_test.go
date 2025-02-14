@@ -8,6 +8,7 @@ import (
 )
 
 func TestTerm_GetUserInput(t *testing.T) {
+	t.Parallel()
 	opts := []string{"yes", "no"}
 	// test confirm
 	input := "yes\n"
@@ -27,6 +28,7 @@ func TestTerm_GetUserInput(t *testing.T) {
 }
 
 func TestTerm_GetQueryFromPipe(t *testing.T) {
+	t.Parallel()
 	input := "hello\n"
 	mockInput := strings.NewReader(input)
 	result := getQueryFromPipe(mockInput)
@@ -34,6 +36,7 @@ func TestTerm_GetQueryFromPipe(t *testing.T) {
 }
 
 func TestTerm_FmtChoicesWithDefault(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		opts []string

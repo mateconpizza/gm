@@ -11,6 +11,7 @@ import (
 )
 
 func TestHelper(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	enabled := true
 	NoColor(&enabled)
@@ -32,6 +33,7 @@ func TestTerm_Input(t *testing.T) {
 }
 
 func TestTerm_Prompt(t *testing.T) {
+	t.Parallel()
 	question := "Enter your favorite language: "
 	input := "golang\n"
 	mockInput := strings.NewReader(input)
@@ -41,6 +43,7 @@ func TestTerm_Prompt(t *testing.T) {
 }
 
 func TestTerm_Choose(t *testing.T) {
+	t.Parallel()
 	enabled := true
 	NoColor(&enabled)
 	question := "Enter your favorite language: "
@@ -57,6 +60,7 @@ func TestTerm_Choose(t *testing.T) {
 }
 
 func TestTerm_Confirm(t *testing.T) {
+	t.Parallel()
 	question := "Are you sure? "
 	yesInput := "y\n"
 	term := New()
@@ -74,6 +78,7 @@ func TestTerm_Confirm(t *testing.T) {
 }
 
 func TestTerm_IsPiped(t *testing.T) {
+	t.Parallel()
 	r, _, _ := os.Pipe()
 	tests := []struct {
 		name   string
