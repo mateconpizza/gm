@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/haaag/rotato"
+
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
@@ -15,7 +17,6 @@ import (
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -164,15 +165,17 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 
 // removeRecords removes the records from the database.
 func removeRecords(r *repo.SQLiteRepository, bs *Slice, force bool) error {
-	mesg := color.Gray("removing record/s...").String()
-	sp := spinner.New(spinner.WithMesg(mesg))
+	sp := rotato.New(
+		rotato.WithMesg("removing record/s..."),
+		rotato.WithMesgColor(rotato.ColorGray),
+	)
 	sp.Start()
 
 	if err := r.DeleteAndReorder(bs, r.Cfg.Tables.Main, r.Cfg.Tables.Deleted); err != nil {
 		return fmt.Errorf("deleting and reordering records: %w", err)
 	}
 
-	sp.Stop()
+	sp.Done()
 
 	if !force {
 		terminal.ClearLine(1)

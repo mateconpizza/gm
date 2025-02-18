@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/haaag/rotato"
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
@@ -18,7 +19,6 @@ import (
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -201,13 +201,16 @@ func rmDatabases(t *terminal.Term, dbs *slice.Slice[Repo]) error {
 		return handler.ErrActionAborted
 	}
 
-	sp := spinner.New(spinner.WithMesg(color.Yellow("removing database...").String()))
+	sp := rotato.New(
+		rotato.WithMesg("removing database..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+	)
 	sp.Start()
 	if err := dbs.ForEachMutErr(rmRepo); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	sp.Stop()
+	sp.Done()
 	t.ClearLine(format.CountLines(f.String()))
 	s = color.BrightGreen("Successfully").Italic().String()
 	f.Clear().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed\n").Flush()

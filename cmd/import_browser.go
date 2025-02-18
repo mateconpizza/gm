@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/haaag/rotato"
+
 	"github.com/haaag/gm/internal/bookmark/scraper"
 	"github.com/haaag/gm/internal/browser"
 	"github.com/haaag/gm/internal/browser/blink"
@@ -16,7 +18,6 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -75,9 +76,9 @@ func scrapeMissingDescription(bs *Slice) error {
 		return nil
 	}
 	msg := color.BrightGreen("scraping missing data...").Italic().String()
-	sp := spinner.New(spinner.WithColor(color.Gray), spinner.WithMesg(msg))
+	sp := rotato.New(rotato.WithSpinnerColor(rotato.ColorGray), rotato.WithMesg(msg))
 	sp.Start()
-	defer sp.Stop()
+	defer sp.Done()
 	var wg sync.WaitGroup
 	errs := make([]string, 0)
 	bs.ForEachMut(func(b *Bookmark) {

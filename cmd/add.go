@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/haaag/rotato"
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/bookmark"
@@ -17,7 +18,6 @@ import (
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -175,9 +175,10 @@ func addParseNewBookmark(t *terminal.Term, r *Repo, b *Bookmark, args []string) 
 
 // addTitleAndDesc fetch and display title and description.
 func addTitleAndDesc(url string) (title, desc string) {
-	sp := spinner.New(
-		spinner.WithMesg(color.Yellow("scraping webpage...").String()),
-		spinner.WithColor(color.BrightMagenta),
+	sp := rotato.New(
+		rotato.WithMesg("scraping webpage..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+		rotato.WithSpinnerColor(rotato.ColorBrightMagenta),
 	)
 	sp.Start()
 	// scrape data
@@ -185,7 +186,7 @@ func addTitleAndDesc(url string) (title, desc string) {
 	_ = sc.Scrape()
 	title = sc.Title()
 	desc = sc.Desc()
-	sp.Stop()
+	sp.Done()
 
 	const indentation int = 10
 

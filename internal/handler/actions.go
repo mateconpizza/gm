@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/haaag/rotato"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/haaag/gm/internal/bookmark"
@@ -18,7 +19,6 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -102,9 +102,13 @@ func Open(bs *Slice) error {
 		return err
 	}
 
-	sp := spinner.New(spinner.WithMesg(color.BrightGreen("opening bookmarks...").String()))
+	sp := rotato.New(
+		rotato.WithMesg("opening bookmarks..."),
+		rotato.WithMesgColor(rotato.ColorBrightGreen),
+		rotato.WithSpinnerColor(rotato.ColorBrightGreen),
+	)
 	sp.Start()
-	defer sp.Stop()
+	defer sp.Done()
 
 	sem := semaphore.NewWeighted(maxGoroutines)
 	var wg sync.WaitGroup

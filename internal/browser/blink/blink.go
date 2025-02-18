@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/haaag/rotato"
+
 	"github.com/haaag/gm/internal/bookmark"
 	browserpath "github.com/haaag/gm/internal/browser/paths"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -276,19 +277,19 @@ func loadChromeDatabase(
 ) ([]blinkBookmark, error) {
 	byteValue, _ := os.ReadFile(path)
 
-	s := spinner.New(
-		spinner.WithMesg(color.BrightBlue("parsing bookmark file...").String()),
-		spinner.WithColor(color.Gray),
+	s := rotato.New(
+		rotato.WithMesg("parsing bookmark file..."),
+		rotato.WithMesgColor(rotato.ColorBrightBlue),
+		rotato.WithSpinnerColor(rotato.ColorGray),
 	)
 	s.Start()
-	defer s.Stop()
+	defer s.Done()
 
 	// unmarshal the json data
 	var data JSONRoot
 	if err := json.Unmarshal(byteValue, &data); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
-
 	// traverse the roots
 	results := make([]blinkBookmark, 0)
 	roots := data.Roots

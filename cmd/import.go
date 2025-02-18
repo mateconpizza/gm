@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/haaag/rotato"
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
@@ -18,7 +19,6 @@ import (
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -271,12 +271,15 @@ func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	if !t.Confirm(f.Row("\n").Header(report).String(), "y") {
 		return handler.ErrActionAborted
 	}
-	sp := spinner.New(spinner.WithMesg(color.Yellow("importing record/s...").String()))
+	sp := rotato.New(
+		rotato.WithMesg("importing record/s..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+	)
 	sp.Start()
 	if err := r.InsertMultiple(records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	sp.Stop()
+	sp.Done()
 	success := color.BrightGreen("Successfully").Italic().String()
 	msg := fmt.Sprintf(success+" imported %d record/s\n", records.Len())
 	f.Clear().Success(msg).Flush()
@@ -299,14 +302,17 @@ func restoreDeleted(m *menu.Menu[Bookmark], r *Repo, bs *Slice) error {
 	if err := handler.Confirmation(m, t, bs, prompt, c); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	sp := spinner.New(spinner.WithMesg(color.Yellow("restoring record/s...").String()))
+	sp := rotato.New(
+		rotato.WithMesg("restoring record/s..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+	)
 	sp.Start()
 	ts := r.Cfg.Tables
 	if err := r.Restore(context.Background(), ts.Main, ts.Deleted, bs); err != nil {
 		t.ClearLine(1)
 		return fmt.Errorf("%w", err)
 	}
-	sp.Stop()
+	sp.Done()
 	f = frame.New(frame.WithColorBorder(color.Gray))
 	success := color.BrightGreen("Successfully").Italic().String()
 	t.ReplaceLine(1, f.Success(success+" bookmark/s restored\n").String())

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/haaag/rotato"
 	"github.com/jmoiron/sqlx"
 	ini "gopkg.in/ini.v1"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/spinner"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -140,12 +140,12 @@ func openSQLite(dbPath string) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	s := spinner.New(
-		spinner.WithMesg(color.BrightBlue("connecting to database...").String()),
-		spinner.WithColor(color.Gray),
+	s := rotato.New(
+		rotato.WithMesg(color.BrightBlue("connecting to database...").String()),
+		rotato.WithSpinnerColor(rotato.ColorGray),
 	)
 	s.Start()
-	defer s.Stop()
+	defer s.Done()
 	// check if the database is reachable
 	if err = db.Ping(); err != nil {
 		log.Printf("failed to ping database: %v\n", err)

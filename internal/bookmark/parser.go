@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/haaag/rotato"
+
 	"github.com/haaag/gm/internal/bookmark/scraper"
 	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/sys/spinner"
 )
 
 var ErrLineNotFound = errors.New("line not found")
@@ -160,10 +160,12 @@ func scrapeBookmark(b *Bookmark) *Bookmark {
 	if b.Title == "" || b.Desc == "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		mesg := color.Yellow("scraping webpage...").String()
-		sp := spinner.New(spinner.WithMesg(mesg))
+		sp := rotato.New(
+			rotato.WithMesg("scraping webpage..."),
+			rotato.WithMesgColor(rotato.ColorYellow),
+		)
 		sp.Start()
-		defer sp.Stop()
+		defer sp.Done()
 
 		sc := scraper.New(b.URL, scraper.WithContext(ctx))
 		if err := sc.Scrape(); err != nil {
