@@ -86,7 +86,7 @@ func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
 
 	switch strings.ToLower(opt) {
 	case "n", "no":
-		return fmt.Errorf("%w", handler.ErrActionAborted)
+		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
 		if err := bookmarkEdition(b); err != nil {
 			return fmt.Errorf("%w", err)
@@ -168,7 +168,7 @@ func addParseNewBookmark(t *terminal.Term, r *Repo, b *Bookmark, args []string) 
 	b.URL = url
 	b.Title = title
 	b.Tags = bookmark.ParseTags(tags)
-	b.Desc = strings.Join(format.Split(desc, terminal.MinWidth), "\n")
+	b.Desc = strings.Join(format.SplitIntoChunks(desc, terminal.MinWidth), "\n")
 
 	return nil
 }

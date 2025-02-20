@@ -10,13 +10,14 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/sys/files"
 )
 
 const (
-	defaultPrompt     string = " " + config.AppName + "> " // Default input prompt
-	keymapsConfigFile string = "menu.yml"                   // Default keymaps config file
+	defaultPrompt     string = config.AppName + "> " // Default input prompt
+	keymapsConfigFile string = "menu.yml"            // Default keymaps config file
 )
 
 var ErrConfigFileExists = errors.New("config file already exists")
@@ -33,12 +34,12 @@ type Keymap struct {
 }
 
 // NewKeymap creates a new keymap.
-func NewKeymap(bind, description string, enabled, hidden bool) *Keymap {
+func NewKeymap(bind, description string) *Keymap {
 	return &Keymap{
 		Bind:        bind,
 		Description: description,
-		Enabled:     enabled,
-		Hidden:      hidden,
+		Enabled:     true,
+		Hidden:      false,
 	}
 }
 
@@ -53,11 +54,17 @@ type FZFKeymaps struct {
 	Yank      Keymap `yaml:"yank"`
 }
 
+// fzfHeader holds the header configuration for FZF.
+type fzfHeader struct {
+	Enabled   bool   `yaml:"enabled"`
+	Separator string `yaml:"separator"`
+}
+
 // Config holds the menu configuration.
 type Config struct {
 	Prompt  string     `yaml:"prompt"`
-	Header  bool       `yaml:"header"`
 	Preview bool       `yaml:"preview"`
+	Header  fzfHeader  `yaml:"header"`
 	Keymaps FZFKeymaps `yaml:"keymaps"`
 }
 
@@ -72,11 +79,17 @@ var defaultKeymaps = FZFKeymaps{
 	Yank:      Keymap{Bind: "ctrl-y", Description: "yank", Enabled: true, Hidden: false},
 }
 
+// defaultHeader holds the default header configuration.
+var defaultHeader = fzfHeader{
+	Enabled:   true,
+	Separator: " " + format.UnicodeMidBulletPoint + " ",
+}
+
 // defaultMenuConfig holds the default menu configuration.
 var defaultMenuConfig = Config{
 	Prompt:  defaultPrompt,
-	Header:  true,
 	Preview: true,
+	Header:  defaultHeader,
 	Keymaps: defaultKeymaps,
 }
 

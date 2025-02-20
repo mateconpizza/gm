@@ -88,8 +88,8 @@ func LoadMaxWidth() {
 	}
 }
 
-// Clear clears the terminal.
-func Clear() {
+// clearTerminal clears the terminal.
+func clearTerminal() {
 	fmt.Print("\033[H\033[2J")
 }
 

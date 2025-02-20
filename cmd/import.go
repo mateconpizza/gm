@@ -74,7 +74,7 @@ var importBackupCmd = &cobra.Command{
 		mPaths := menu.New[string](
 			menu.WithDefaultSettings(),
 			menu.WithPreview(),
-			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
+			menu.WithPreviewCustomCmd("gm db -n ./backup/{1} info"),
 			menu.WithHeader("choose a backup to import from", false),
 		)
 		selected, err := handler.Selection(mPaths, destDB.Cfg.Backup.Files, func(p *string) string {
@@ -236,7 +236,7 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 	f.Header("Import from Database\n").Row("\n").Text(repo.RepoSummary(srcDB)).Row("\n").Flush()
 	// prompt
 	if !t.Confirm(f.Clear().Warning("continue?").String(), "y") {
-		return handler.ErrActionAborted
+		return sys.ErrActionAborted
 	}
 	t.ClearLine(1)
 	Menu = true
@@ -258,8 +258,8 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 	}
 	// remove prompt
 	success := color.BrightGreen("Successfully").Italic().Bold().String()
-	s := fmt.Sprintf("imported %d record/s\n", records.Len())
-	t.ReplaceLine(1, f.Clear().Success(success+" "+s).Ln().String())
+	s := fmt.Sprintf("imported %d record/s", records.Len())
+	t.ReplaceLine(1, f.Clear().Success(success+" "+s).String())
 
 	return nil
 }
@@ -269,7 +269,7 @@ func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	report := fmt.Sprintf("import %d records?", records.Len())
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	if !t.Confirm(f.Row("\n").Header(report).String(), "y") {
-		return handler.ErrActionAborted
+		return sys.ErrActionAborted
 	}
 	sp := rotato.New(
 		rotato.WithMesg("importing record/s..."),
@@ -336,7 +336,7 @@ var importCmd = &cobra.Command{
 		for k, src := range mapSource {
 			maxSourceLen = max(maxSourceLen, len(src.color(k).String()))
 		}
-		delimiter := format.BulletPoint
+		delimiter := format.UnicodeBulletPoint
 		keys := make([]string, 0, len(mapSource))
 		for k, src := range mapSource {
 			s := fmt.Sprintf("%-*s %s %s", maxSourceLen, src.color(k), delimiter, src.cmd.Short)

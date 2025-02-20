@@ -90,7 +90,7 @@ var bkRemoveCmd = &cobra.Command{
 		rm = color.BrightRed("remove").Bold().String()
 		msg := fmt.Sprintf(rm+" %d backup/s?", backups.Len())
 		if !t.Confirm(f.Row("\n").Error(msg).String(), "n") {
-			return handler.ErrActionAborted
+			return sys.ErrActionAborted
 		}
 
 		if err := backups.ForEachMutErr(rmRepo); err != nil {
@@ -172,7 +172,7 @@ var dbRemoveCmd = &cobra.Command{
 
 		rm := color.BrightRed("remove").Bold().String()
 		if !t.Confirm(f.Clear().Error(rm+" "+r.Cfg.Name+"?").String(), "n") {
-			return handler.ErrActionAborted
+			return sys.ErrActionAborted
 		}
 		if err := handleRmBackups(t, r); err != nil {
 			return err
@@ -198,7 +198,7 @@ func rmDatabases(t *terminal.Term, dbs *slice.Slice[Repo]) error {
 
 	msg := s + " " + strconv.Itoa(dbs.Len()) + " items/s"
 	if !t.Confirm(f.Row("\n").Warning(msg+", continue?").String(), "n") {
-		return handler.ErrActionAborted
+		return sys.ErrActionAborted
 	}
 
 	sp := rotato.New(

@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	prompt "github.com/c-bata/go-prompt"
+	"github.com/haaag/gm/internal/sys"
 	"golang.org/x/term"
 )
 
@@ -173,8 +174,7 @@ func (t *Term) Clear() {
 		log.Printf("error clearing the term: %s", ErrNotInteractive)
 		return
 	}
-	fmt.Print("\033[H\033[2J")
-	Clear()
+	clearTerminal()
 }
 
 // CancelInterruptHandler cancels the interrupt handler.
@@ -258,7 +258,7 @@ func setupInterruptHandler(ctx context.Context, onInterrupt func(error)) {
 		case sig := <-sigChan:
 			fmt.Println()
 			log.Printf("received signal: '%v', cleaning up...", sig)
-			onInterrupt(ErrActionAborted)
+			onInterrupt(sys.ErrActionAborted)
 			os.Exit(1)
 		case <-ctx.Done():
 			log.Print("interrupt handler cancelled")

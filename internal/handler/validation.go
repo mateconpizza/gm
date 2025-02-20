@@ -16,10 +16,9 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
-
-var ErrActionAborted = errors.New("action aborted")
 
 // force is used to force the action, dont ask for confirmation.
 var force *bool
@@ -55,7 +54,7 @@ func Confirmation(
 		opt := t.Choose(q, opts, "n")
 		switch strings.ToLower(opt) {
 		case "n", "no":
-			return ErrActionAborted
+			return sys.ErrActionAborted
 		case "y", "yes":
 			return nil
 		case "s", "select":
@@ -83,7 +82,7 @@ func confirmUserLimit(count, maxItems int, q string) error {
 	defer terminal.ClearLine(1)
 	f := frame.New(frame.WithColorBorder(color.BrightBlue)).Header(q)
 	if !terminal.Confirm(f.String(), "n") {
-		return ErrActionAborted
+		return sys.ErrActionAborted
 	}
 
 	return nil
@@ -120,7 +119,7 @@ func validateRemove(bs *Slice, force bool) error {
 	if terminal.IsPiped() && !force {
 		return fmt.Errorf(
 			"%w: input from pipe is not supported yet. use --force",
-			ErrActionAborted,
+			sys.ErrActionAborted,
 		)
 	}
 

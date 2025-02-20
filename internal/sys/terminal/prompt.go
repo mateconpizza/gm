@@ -2,7 +2,6 @@ package terminal
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,8 +14,6 @@ import (
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/sys"
 )
-
-var ErrActionAborted = errors.New("action aborted")
 
 // PromptSuggester is a function that generates suggestions for a given prompt.
 type PromptSuggester = func(in prompt.Document) []prompt.Suggest
@@ -258,7 +255,7 @@ func quitKeybind(f func(err error)) prompt.KeyBind {
 				}
 			}
 
-			f(ErrActionAborted)
+			f(sys.ErrActionAborted)
 		},
 	}
 }

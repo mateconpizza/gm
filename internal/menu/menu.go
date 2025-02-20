@@ -11,13 +11,21 @@ import (
 var addColor *bool
 
 var (
-	ErrFzfExitError     = errors.New("fzf: exit error")
-	ErrFzfInterrupted   = errors.New("fzf: returned exit code 130")
-	ErrFzfNoRecords     = errors.New("fzf: no records provided")
-	ErrFzfReturnCode    = errors.New("fzf: returned a non-zero code")
-	ErrFzfActionAborted = errors.New("fzf: action aborted: code 130")
+	// fzf errors.
+	ErrFzf                    = errors.New("fzf: error: code 2")
+	ErrFzfNoMatching          = errors.New("fzf: no matching record: code 1")
+	ErrFzfInvalidShellCommand = errors.New("fzf: invalid shell command for become action: code 126")
+	ErrFzfActionAborted       = errors.New("fzf: action aborted: code 130")
+	ErrFzfPermissionDenied    = errors.New("fzf: permission denied from become action: code 127")
+
+	// menu errors.
+	ErrFzfExitError   = errors.New("fzf: exit error")
+	ErrFzfInterrupted = errors.New("fzf: returned exit code 130")
+	ErrFzfNoRecords   = errors.New("fzf: no records provided")
+	ErrFzfReturnCode  = errors.New("fzf: returned a non-zero code")
 )
 
+// fzfDefaults are the default options for FZF.
 var fzfDefaults = []string{
 	"--ansi",                // Enable processing of ANSI color codes
 	"--cycle",               // Enable cyclic scroll
@@ -365,4 +373,29 @@ func (m *Menu[T]) Select(items []T, preprocessor func(*T) string) ([]T, error) {
 	}
 
 	return result, nil
+}
+
+// handleFzfErr returns an error based on the exit code of fzf.
+//
+//	0      Normal exit
+//	1      No match
+//	2      Error
+//	126    Permission denied error from become action
+//	127    Invalid shell command for become action.
+//	130    Interrupted with CTRL-C or ESC.
+func handleFzfErr(retcode int) error {
+	switch retcode {
+	case 1:
+		return ErrFzfNoMatching
+	case 2:
+		return ErrFzf
+	case 126:
+		return ErrFzfInvalidShellCommand
+	case 127:
+		return ErrFzfPermissionDenied
+	case 130:
+		return ErrFzfActionAborted
+	}
+
+	return nil
 }

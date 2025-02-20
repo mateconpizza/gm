@@ -36,7 +36,7 @@ func Oneline(b *Bookmark) string {
 		template,
 		idLen,
 		coloredID,
-		format.MidBulletPoint,
+		format.UnicodeMidBulletPoint,
 		urlLen,
 		colorURL,
 		tagsLen,
@@ -52,7 +52,7 @@ func Multiline(b *Bookmark) string {
 	width := terminal.MaxWidth
 	var sb strings.Builder
 	sb.WriteString(color.BrightYellow(b.ID).Bold().String())
-	sb.WriteString(" " + format.MidBulletPoint + " ") // sep
+	sb.WriteString(" " + format.UnicodeMidBulletPoint + " ") // sep
 	sb.WriteString(format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width) + "\n")
 	sb.WriteString(color.Cyan(format.Shorten(b.Title, width)).String() + "\n")
 	sb.WriteString(color.BrightGray(PrettifyTags(b.Tags)).Italic().String())
@@ -64,9 +64,9 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	f := frame.New(frame.WithColorBorder(c))
 	width := terminal.MinWidth
 	width -= len(f.Border.Row)
-	// split and add intendation
-	descSplit := format.Split(b.Desc, width)
-	titleSplit := format.Split(b.Title, width)
+	// split
+	descSplit := format.SplitIntoChunks(b.Desc, width)
+	titleSplit := format.SplitIntoChunks(b.Title, width)
 	// add color and style
 	id := color.BrightYellow(b.ID).Bold().String()
 	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
@@ -88,8 +88,8 @@ func Frame(b *Bookmark) string {
 	// indentation
 	width -= len(f.Border.Row)
 	// split and add intendation
-	descSplit := format.Split(b.Desc, width)
-	titleSplit := format.Split(b.Title, width)
+	descSplit := format.SplitIntoChunks(b.Desc, width)
+	titleSplit := format.SplitIntoChunks(b.Title, width)
 	// add color and style
 	id := color.BrightYellow(b.ID).Bold().String()
 	urlColor := format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width)
@@ -106,8 +106,8 @@ func Frame(b *Bookmark) string {
 
 // PrettifyTags returns a prettified tags.
 func PrettifyTags(s string) string {
-	t := strings.ReplaceAll(s, ",", format.MidBulletPoint)
-	return strings.TrimRight(t, format.MidBulletPoint)
+	t := strings.ReplaceAll(s, ",", format.UnicodeMidBulletPoint)
+	return strings.TrimRight(t, format.UnicodeMidBulletPoint)
 }
 
 // PrettifyURL returns a prettified URL.
@@ -134,8 +134,8 @@ func PrettifyURL(s string, c color.ColorFn) string {
 	}
 
 	pathSeg := color.Text(
-		format.SingleAngleMark,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.SingleAngleMark)),
+		format.UnicodeSingleAngleMark,
+		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.UnicodeSingleAngleMark)),
 	).Italic()
 
 	return fmt.Sprintf("%s %s", host, pathSeg)

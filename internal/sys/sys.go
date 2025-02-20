@@ -19,6 +19,7 @@ import (
 var (
 	ErrCopyToClipboard   = errors.New("copy to clipboard")
 	ErrNotImplementedYet = errors.New("not implemented yet")
+	ErrActionAborted     = errors.New("action aborted")
 )
 
 // Env retrieves an environment variable.
@@ -125,7 +126,12 @@ func ReadClipboard() string {
 
 // ErrAndExit logs the error and exits the program.
 func ErrAndExit(err error) {
+	if errors.Is(err, ErrActionAborted) {
+		log.Print("action aborted")
+		return
+	}
 	if err != nil {
+		log.Print(err)
 		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
 		os.Exit(1)
 	}

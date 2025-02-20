@@ -10,14 +10,13 @@ import (
 	"github.com/haaag/gm/internal/config"
 )
 
-// Unicodes.
 const (
-	BulletPoint      = "\u2022" /* • */
-	MidBulletPoint   = "\u00b7" /* · */
-	PathBigSegment   = "\u25B6" /* ▶ */
-	PathSmallSegment = "\u25B8" /* ▸ */
-	LightDiagCross   = "\u2571" /* ╱ */
-	SingleAngleMark  = "\u203A" /* › */
+	UnicodeBulletPoint      = "\u2022" // •
+	UnicodeMidBulletPoint   = "\u00b7" // ·
+	UnicodePathBigSegment   = "\u25B6" // ▶
+	UnicodePathSmallSegment = "\u25B8" // ▸
+	UnicodeLightDiagCross   = "\u2571" // ╱
+	UnicodeSingleAngleMark  = "\u203A" // ›
 )
 
 // PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.
@@ -80,12 +79,17 @@ func ToJSON(data any) []byte {
 	return jsonData
 }
 
-// Split splits string into chunks of a given length.
-func Split(s string, strLen int) []string {
+// SplitIntoChunks splits strings lines into chunks of a given length.
+func SplitIntoChunks(s string, strLen int) []string {
 	var lines []string
 	var currentLine strings.Builder
 
 	for _, word := range strings.Fields(s) {
+		// If currentLine is empty, write the word directly.
+		if currentLine.Len() == 0 {
+			currentLine.WriteString(word)
+			continue
+		}
 		// Check if adding the new word would exceed the line length
 		if currentLine.Len()+len(word)+1 > strLen {
 			// Add the current line to the result and start a new line
@@ -107,18 +111,6 @@ func Split(s string, strLen int) []string {
 	}
 
 	return lines
-}
-
-// AlignLines adds indentation to each line.
-func AlignLines(lines []string, indentation int) []string {
-	separator := strings.Repeat(" ", indentation)
-	alignedLines := make([]string, 0, len(lines))
-
-	for _, line := range lines {
-		alignedLines = append(alignedLines, separator+line)
-	}
-
-	return alignedLines
 }
 
 // NormalizeSpace removes extra whitespace from a string, leaving only single

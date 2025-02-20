@@ -8,7 +8,6 @@ import (
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
@@ -70,7 +69,7 @@ var backupNewCmd = &cobra.Command{
 		f.Row("\n").Flush().Clear()
 		c := color.BrightGreen("backup").Bold().String()
 		if !t.Confirm(f.Success("create "+c).String(), "n") {
-			return handler.ErrActionAborted
+			return sys.ErrActionAborted
 		}
 		newBkPath, err := repo.NewBackup(r)
 		if err != nil {

@@ -54,7 +54,6 @@ func initConfig() {
 	handler.Force(&Force)
 	// enable color
 	config.App.Color = WithColor != "never" && !terminal.IsPiped()
-	menu.WithColor(&config.App.Color)
 	// set terminal defaults
 	terminal.NoColor(&config.App.Color)
 	terminal.LoadMaxWidth()
@@ -69,6 +68,7 @@ func initConfig() {
 	config.App.Path.Data = dataHomePath
 	Cfg = repo.NewSQLiteCfg(filepath.Join(dataHomePath, DBName))
 	// load menu settings
+	menu.WithColor(&config.App.Color)
 	if err := menu.LoadConfig(); err != nil {
 		log.Println("error loading config:", err)
 	}
@@ -121,10 +121,10 @@ func createPaths(t *terminal.Term, path string) error {
 	f.Header(prettyVersion()).Ln().Row().Ln()
 	f.Mid(format.PaddedLine("create path:", "'"+path+"'\n"))
 	f.Mid(format.PaddedLine("create db:", "'"+Cfg.Fullpath()+"'\n"))
+	lines := format.CountLines(f.String()) + 1
 	f.Row("\n").Flush()
-	lines := format.CountLines(f.String())
 	if !t.Confirm(f.Footer("continue?").String(), "y") {
-		return handler.ErrActionAborted
+		return sys.ErrActionAborted
 	}
 	// clean terminal keeping header+row
 	headerN := 3
@@ -133,8 +133,7 @@ func createPaths(t *terminal.Term, path string) error {
 	if err := files.MkdirAll(path); err != nil {
 		sys.ErrAndExit(err)
 	}
-	f.Clear()
-	f.Success(fmt.Sprintf("Successfully created directory path '%s'.\n", path))
+	f.Clear().Success(fmt.Sprintf("Successfully created directory path '%s'.\n", path))
 	f.Success("Successfully created initial bookmark.\n").Row("\n").Flush()
 
 	return nil
@@ -196,12 +195,11 @@ var initCmd = &cobra.Command{
 		if err := r.Init(); err != nil {
 			return fmt.Errorf("initializing database: %w", err)
 		}
-		f := frame.New(frame.WithColorBorder(color.Gray))
 		// ignore initial bookmark if not DefaultDBName
 		if Cfg.Name != config.DefaultDBName {
 			s := color.Gray(Cfg.Name).Italic().String()
 			success := color.BrightGreen("Successfully").Italic().String()
-			f.Success(success + " initialized database " + s).Flush()
+			fmt.Println(success + " initialized database " + s)
 
 			return nil
 		}
@@ -218,8 +216,9 @@ var initCmd = &cobra.Command{
 		// print new record
 		fmt.Print(bookmark.Frame(ib))
 		s := color.BrightGreen("Successfully").Italic().String()
-		f.Row().Success(s + " initialized database " + color.Gray(Cfg.Name).Italic().String()).
-			Flush()
+		mesg := s + " initialized database " + color.Gray(Cfg.Name+"\n").Italic().String()
+		f := frame.New(frame.WithColorBorder(color.Gray))
+		f.Row("\n").Success(mesg).Flush()
 
 		return nil
 	},

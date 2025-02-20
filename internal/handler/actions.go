@@ -155,7 +155,7 @@ func CheckStatus(bs *Slice) error {
 	status := color.BrightGreen("status").Bold()
 	q := fmt.Sprintf("checking %s of %d, continue?", status, n)
 	if err := confirmUserLimit(n, maxGoroutines, q); err != nil {
-		return ErrActionAborted
+		return sys.ErrActionAborted
 	}
 
 	f := frame.New(frame.WithColorBorder(color.BrightBlue))

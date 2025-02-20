@@ -63,7 +63,7 @@ var databaseDropCmd = &cobra.Command{
 		f.Clear().Row().Ln().Flush().Clear()
 		if !Force {
 			if !t.Confirm(f.Footer("continue?").String(), "n") {
-				return handler.ErrActionAborted
+				return sys.ErrActionAborted
 			}
 		}
 

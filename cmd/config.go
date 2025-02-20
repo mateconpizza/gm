@@ -29,6 +29,8 @@ var configDumpCmd = &cobra.Command{
 			if err := menu.DumpConfig(Force); err != nil {
 				return fmt.Errorf("%w", err)
 			}
+
+			return nil
 		}
 
 		return cmd.Usage()

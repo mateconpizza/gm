@@ -9,6 +9,7 @@ import (
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/sys"
 )
 
 var (
@@ -143,7 +144,7 @@ func Selection[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) 
 	result, err := m.Select(items, fmtFn)
 	if err != nil {
 		if errors.Is(err, menu.ErrFzfActionAborted) {
-			return nil, ErrActionAborted
+			return nil, sys.ErrActionAborted
 		}
 
 		return nil, fmt.Errorf("%w", err)
