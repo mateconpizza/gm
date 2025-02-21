@@ -6,9 +6,9 @@ import (
 	"log"
 
 	fzf "github.com/junegunn/fzf/src"
-)
 
-var addColor *bool
+	"github.com/haaag/gm/internal/config"
+)
 
 var (
 	// fzf errors.
@@ -217,10 +217,6 @@ func WithMultiSelection() OptFn {
 	}
 }
 
-func WithColor(b *bool) {
-	addColor = b
-}
-
 // WithPreview adds a preview window and a keybind to toggle it.
 func WithPreview() OptFn {
 	preview := menuConfig.Keymaps.Preview
@@ -228,7 +224,7 @@ func WithPreview() OptFn {
 		return func(o *Options) {}
 	}
 	withColor := "never"
-	if *addColor {
+	if config.App.Color {
 		withColor = "always"
 	}
 
@@ -257,7 +253,7 @@ func WithPreviewCustomCmd(cmd string) OptFn {
 	}
 
 	withColor := "never"
-	if *addColor {
+	if config.App.Color {
 		withColor = "always"
 	}
 	opts := []string{"--preview=" + cmd + " --color=" + withColor}

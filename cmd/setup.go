@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -14,15 +14,12 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
-
-var ErrNotDefaultDB = errors.New("not the default database")
 
 var (
 	Copy bool
@@ -48,27 +45,22 @@ var (
 )
 
 func initConfig() {
-	// set logging level
-	handler.LoggingLevel(&Verbose)
-	// set force
-	handler.Force(&Force)
-	// enable color
-	config.App.Color = WithColor != "never" && !terminal.IsPiped()
-	// set terminal defaults
-	terminal.NoColor(&config.App.Color)
-	terminal.LoadMaxWidth()
-	// enable color output
-	color.Enable(&config.App.Color)
+	config.SetLoggingLevel(Verbose)
+	config.SetDBName(DBName)
+	config.EnableColor(WithColor != "never" && !terminal.IsPiped())
+	config.SetForce(Force)
+
 	// load data home path for the app.
 	dataHomePath, err := loadDataPath()
 	if err != nil {
 		sys.ErrAndExit(err)
 	}
-	// set app/database settings/paths
-	config.App.Path.Data = dataHomePath
-	Cfg = repo.NewSQLiteCfg(filepath.Join(dataHomePath, DBName))
+	config.SetDataPath(dataHomePath)
+
+	// set database path
+	Cfg = repo.NewSQLiteCfg(filepath.Join(dataHomePath, config.App.DBName))
+
 	// load menu settings
-	menu.WithColor(&config.App.Color)
 	if err := menu.LoadConfig(); err != nil {
 		log.Println("error loading config:", err)
 	}
@@ -222,4 +214,10 @@ var initCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+// prettyVersion formats version in a pretty way.
+func prettyVersion() string {
+	name := color.BrightBlue(config.App.Name).Bold().String()
+	return fmt.Sprintf("%s v%s %s/%s", name, config.App.Version, runtime.GOOS, runtime.GOARCH)
 }

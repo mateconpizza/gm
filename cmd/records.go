@@ -28,7 +28,6 @@ var recordsCmd = &cobra.Command{
 			menu.WithDefaultSettings(),
 			menu.WithMultiSelection(),
 			menu.WithPreview(),
-			menu.WithPreviewCustomCmd("gm -n " + r.Cfg.Name + " r {1}"),
 			menu.WithKeybindEdit(),
 			menu.WithKeybindOpen(),
 			menu.WithKeybindQR(),

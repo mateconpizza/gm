@@ -15,10 +15,8 @@ import (
 	"github.com/haaag/gm/internal/sys/files"
 )
 
-const (
-	defaultPrompt     string = config.AppName + "> " // Default input prompt
-	keymapsConfigFile string = "menu.yml"            // Default keymaps config file
-)
+var defaultPrompt string = config.App.Name + "> " // Default input prompt
+const keymapsConfigFile string = "menu.yml"       // Default keymaps config file
 
 var ErrConfigFileExists = errors.New("config file already exists")
 

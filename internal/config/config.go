@@ -1,15 +1,20 @@
 package config
 
-var Version string = "0.1.8" // Version of the application
+import (
+	"io"
+	"log"
+)
+
+var version string = "0.1.8" // Version of the application
 
 const (
-	AppName       string = "gomarks"      // Default name of the application
-	Command       string = "gm"           // Default name of the executable
+	appName       string = "gomarks"      // Default name of the application
+	command       string = "gm"           // Default name of the executable
 	DefaultDBName string = "bookmarks.db" // Default name of the database
 )
 
 type (
-	app struct {
+	AppConfig struct {
 		Name    string      `json:"name"`    // Name of the application
 		Cmd     string      `json:"cmd"`     // Name of the executable
 		Version string      `json:"version"` // Version of the application
@@ -17,10 +22,13 @@ type (
 		Env     environment `json:"env"`     // Application environment variables
 		Path    path        `json:"path"`    // Application path
 		Color   bool        `json:"-"`       // Application color enable
+		Force   bool        `json:"force"`   // force action, dont ask for confirmation.
+		DBName  string      `json:"db"`      // Database name
+		Verbose bool        `json:"verbose"` // Logging level
 	}
 
 	path struct {
-		Config string `json:"home"` // Path to store configuration (unused)
+		// Config string `json:"home"` // Path to store configuration (unused)
 		Data   string `json:"data"` // Path to store database
 	}
 
@@ -37,11 +45,49 @@ type (
 	}
 )
 
+// EnableColor enables color output.
+func EnableColor(enabled bool) {
+	App.Color = enabled
+}
+
+// SetForce is used to force the action, dont ask for confirmation.
+func SetForce(f bool) {
+	App.Force = f
+}
+
+// SetDBName sets the database name.
+func SetDBName(s string) {
+	App.DBName = s
+}
+
+// SetDataPath sets the app data path.
+func SetDataPath(p string) {
+	App.Path.Data = p
+}
+
+// SetLoggingLevel sets the logging level based on the verbose flag.
+func SetLoggingLevel(b bool) {
+	App.Verbose = b
+	if b {
+		log.SetPrefix(appName + ": ")
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+		log.Println("verbose mode: on")
+
+		return
+	}
+
+	silentLogger := log.New(io.Discard, "", 0)
+	log.SetOutput(silentLogger.Writer())
+}
+
 // App is the default application configuration.
-var App = app{
-	Name:    AppName,
-	Cmd:     Command,
-	Version: Version,
+var App = &AppConfig{
+	Name:    appName,
+	Cmd:     command,
+	Version: version,
+	DBName:  DefaultDBName,
+	Color:   false,
+	Force:   false,
 	Info: information{
 		URL:   "https://github.com/haaag/gomarks#readme",
 		Title: "Gomarks: A bookmark manager",

@@ -10,6 +10,7 @@ import (
 
 	prompt "github.com/c-bata/go-prompt"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/sys"
@@ -90,7 +91,7 @@ func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 	}
 
 	// opts
-	o = promptOptions(enabledColor)
+	o = promptOptions(config.App.Color)
 	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
 
 	// restores term state
@@ -104,7 +105,7 @@ func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 }
 
 // promptOptions generates default options for prompt.
-func promptOptions(c *bool) (o []prompt.Option) {
+func promptOptions(c bool) (o []prompt.Option) {
 	o = append(o,
 		prompt.OptionPrefixTextColor(prompt.White),
 		prompt.OptionInputTextColor(prompt.DefaultColor),
@@ -121,7 +122,7 @@ func promptOptions(c *bool) (o []prompt.Option) {
 	)
 
 	// color
-	if *c {
+	if c {
 		o = append(o,
 			prompt.OptionPrefixTextColor(prompt.DefaultColor),
 			prompt.OptionPreviewSuggestionTextColor(prompt.Blue),

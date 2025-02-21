@@ -20,14 +20,6 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// force is used to force the action, dont ask for confirmation.
-var force *bool
-
-// Force sets the force flag.
-func Force(f *bool) {
-	force = f
-}
-
 // Confirmation prompts the user to confirm the action.
 func Confirmation(
 	m *menu.Menu[Bookmark],
@@ -36,7 +28,7 @@ func Confirmation(
 	prompt string,
 	colors color.ColorFn,
 ) error {
-	for !*force {
+	for !config.App.Force {
 		n := bs.Len()
 		if n == 0 {
 			return repo.ErrRecordNotFound
@@ -76,7 +68,7 @@ func Confirmation(
 
 // confirmUserLimit prompts the user to confirm the exceeding limit.
 func confirmUserLimit(count, maxItems int, q string) error {
-	if *force || count < maxItems {
+	if config.App.Force || count < maxItems {
 		return nil
 	}
 	defer terminal.ClearLine(1)

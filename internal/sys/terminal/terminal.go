@@ -8,23 +8,8 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/sys"
-)
-
-var (
-	termState    *term.State
-	enabledColor *bool
-)
-
-// https://no-color.org
-const noColorEnv string = "NO_COLOR"
-
-// Default terminal settings.
-var (
-	MaxWidth  int  = 120
-	MinHeight int  = 15
-	MinWidth  int  = 80
-	Piped     bool = false
 )
 
 var (
@@ -37,14 +22,25 @@ var (
 	ErrNotInteractive      = errors.New("not an interactive terminal")
 )
 
-// NoColor disables color output if the NO_COLOR environment variable is set.
-func NoColor(b *bool) {
+// termState contains the state of the terminal.
+var termState *term.State
+
+// https://no-color.org
+const noColorEnv string = "NO_COLOR"
+
+// Default terminal settings.
+var (
+	MaxWidth  int = 120
+	MinHeight int = 15
+	MinWidth  int = 80
+)
+
+// noColor disables color output if the NO_COLOR environment variable is set.
+func noColor() {
 	if c := sys.Env(noColorEnv, ""); c != "" {
 		log.Println("'NO_COLOR' environment variable found.")
-		*b = false
+		config.EnableColor(false)
 	}
-
-	enabledColor = b
 }
 
 // Save the current terminal state.
@@ -74,9 +70,9 @@ func restoreState() error {
 	return nil
 }
 
-// LoadMaxWidth updates `MaxWidth` to the current width if it is smaller than
+// loadMaxWidth updates `MaxWidth` to the current width if it is smaller than
 // the existing `MaxWidth`.
-func LoadMaxWidth() {
+func loadMaxWidth() {
 	w, _ := getWidth()
 	if w == 0 {
 		return
@@ -131,4 +127,11 @@ func getWidth() (int, error) {
 	}
 
 	return w, nil
+}
+
+func init() {
+	// Loads the terminal settings.
+	loadMaxWidth()
+	// checks for NO_COLOR env.
+	noColor()
 }

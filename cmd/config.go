@@ -40,6 +40,7 @@ var configDumpCmd = &cobra.Command{
 func init() {
 	f := configCmd.Flags()
 	f.BoolP("help", "h", false, "Hidden help")
+	// set and hide persistent flag
 	f.StringVarP(&DBName, "name", "n", "", "database name")
 	_ = configCmd.PersistentFlags().MarkHidden("help")
 	_ = f.MarkHidden("name")

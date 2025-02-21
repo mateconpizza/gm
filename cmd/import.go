@@ -74,7 +74,7 @@ var importBackupCmd = &cobra.Command{
 		mPaths := menu.New[string](
 			menu.WithDefaultSettings(),
 			menu.WithPreview(),
-			menu.WithPreviewCustomCmd("gm db -n ./backup/{1} info"),
+			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
 			menu.WithHeader("choose a backup to import from", false),
 		)
 		selected, err := handler.Selection(mPaths, destDB.Cfg.Backup.Files, func(p *string) string {
@@ -208,8 +208,8 @@ var importRestoreCmd = &cobra.Command{
 		m := menu.New[Bookmark](
 			menu.WithDefaultSettings(),
 			menu.WithMultiSelection(),
-			menu.WithPreviewCustomCmd("gm records {1}"),
-			menu.WithHeader("select record/s to restore", false),
+			menu.WithPreview(),
+			menu.WithHeader("select record/s to restore from '"+config.App.DBName+"'", false),
 		)
 		if Multiline {
 			m.AddOpts(menu.WithMultilineView())

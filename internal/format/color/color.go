@@ -4,13 +4,12 @@ package color
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strings"
-)
 
-var enableColorOutput *bool
+	"github.com/haaag/gm/internal/config"
+)
 
 type ColorFn func(arg ...any) *Color
 
@@ -60,17 +59,6 @@ func ANSICode(f ColorFn) string {
 	return v.String()
 }
 
-// Enable allows to enable/disable color output.
-func Enable(b *bool) {
-	log.Println("color enabled:", *b)
-	enableColorOutput = b
-}
-
-// Toggle toggles color output.
-func Toggle() {
-	*enableColorOutput = !*enableColorOutput
-}
-
 // Color represents styled text with a specific color and formatting styles.
 type Color struct {
 	text   string
@@ -112,7 +100,7 @@ func (c *Color) Underline() *Color {
 }
 
 func (c *Color) String() string {
-	if enableColorOutput == nil || !*enableColorOutput {
+	if !config.App.Color {
 		return c.text
 	}
 	// apply styles

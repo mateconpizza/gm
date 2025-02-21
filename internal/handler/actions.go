@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"strings"
 	"sync"
 
@@ -159,25 +157,10 @@ func CheckStatus(bs *Slice) error {
 	}
 
 	f := frame.New(frame.WithColorBorder(color.BrightBlue))
-	f.Header(fmt.Sprintf("checking %s of %d bookmarks", status, n))
-	f.Flush()
+	f.Header(fmt.Sprintf("checking %s of %d bookmarks\n", status, n)).Flush()
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	return nil
-}
-
-// LoggingLevel sets the logging level based on the verbose flag.
-func LoggingLevel(v *bool) {
-	if *v {
-		log.SetPrefix("gomarks: ")
-		log.SetFlags(log.LstdFlags | log.Lshortfile)
-		log.Println("verbose mode: on")
-
-		return
-	}
-
-	silentLogger := log.New(io.Discard, "", 0)
-	log.SetOutput(silentLogger.Writer())
 }

@@ -134,10 +134,10 @@ func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) er
 // Remove prompts the user the records to remove.
 func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 	defer r.Close()
-	if err := validateRemove(bs, *force); err != nil {
+	if err := validateRemove(bs, config.App.Force); err != nil {
 		return err
 	}
-	if !*force {
+	if !config.App.Force {
 		c := color.BrightRed
 		f := frame.New(frame.WithColorBorder(c))
 		header := c("Removing Bookmarks\n\n").String()
@@ -160,11 +160,11 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 		}
 	}
 
-	return removeRecords(r, bs, *force)
+	return removeRecords(r, bs)
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(r *repo.SQLiteRepository, bs *Slice, force bool) error {
+func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -177,7 +177,7 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice, force bool) error {
 
 	sp.Done()
 
-	if !force {
+	if !config.App.Force {
 		terminal.ClearLine(1)
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
