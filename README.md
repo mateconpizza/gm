@@ -14,6 +14,8 @@
 > This repo is a work in progress!
 > Needing both cleaning up and documenting.
 
+https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
+
 ### ✨ Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
