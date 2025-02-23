@@ -74,7 +74,7 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	desc := color.ApplyMany(descSplit, color.Gray)
 	tags := color.Gray(PrettifyTags(b.Tags)).Italic().String()
 
-	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).
+	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln().
 		Mid(title...).Ln().
 		Mid(desc...).Ln().
 		Footer(tags).Ln().

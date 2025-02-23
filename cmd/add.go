@@ -60,7 +60,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 	}
 	// ask confirmation
 	fmt.Println()
-	if !Force && !t.IsPiped() {
+	if !config.App.Force && !t.IsPiped() {
 		if err := addHandleConfirmation(t, b); err != nil {
 			if !errors.Is(err, bookmark.ErrBufferUnchanged) {
 				return fmt.Errorf("%w", err)

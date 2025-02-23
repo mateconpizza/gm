@@ -140,8 +140,7 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 	if !config.App.Force {
 		c := color.BrightRed
 		f := frame.New(frame.WithColorBorder(c))
-		header := c("Removing Bookmarks\n\n").String()
-		f.Header(header).Flush()
+		f.Header(c("Removing Bookmarks\n\n").String()).Flush()
 
 		interruptFn := func(err error) {
 			r.Close()

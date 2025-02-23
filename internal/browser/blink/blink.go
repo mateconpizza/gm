@@ -229,8 +229,9 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 // processProfile extracts profile system names and user names.
 func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path string) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	skip := color.BrightYellow("skipping").String()
 	if !files.Exists(path) {
-		s := "Skipping profile...'" + profile + "', bookmarks file not found\n"
+		s := skip + " profile...'" + profile + "', bookmarks file not found\n"
 		f.Row("\n").Header(s).Flush()
 		return
 	}
@@ -238,7 +239,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 	f.Row("\n").Flush()
 	f.Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
 	if !t.Confirm(f.String(), "n") {
-		t.ReplaceLine(1, f.Clear().Row("Skipping profile...'"+profile+"'\n").String())
+		t.ReplaceLine(1, f.Clear().Row(skip+" profile...'"+profile+"'").String())
 		return
 	}
 

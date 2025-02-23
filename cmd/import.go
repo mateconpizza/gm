@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/haaag/rotato"
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
@@ -26,6 +28,9 @@ var (
 	ErrImportSourceNotFound = errors.New("import source not found")
 	ErrImportSameDatabase   = errors.New("cannot import into the same database")
 )
+
+// showFromDeleted shows record from deleted table.
+var showFromDeleted bool
 
 // importSource defines a bookmark import source.
 type importSourceNew struct {
@@ -180,7 +185,7 @@ var importDatabaseCmd = &cobra.Command{
 			menu.WithMultiSelection(),
 			menu.WithHeader("select record/s to import", false),
 			menu.WithPreview(),
-			menu.WithPreviewCustomCmd("gm -n "+srcDB.Cfg.Name+" records {1}"),
+			menu.WithPreviewCustomCmd(config.App.Cmd+" -n "+srcDB.Cfg.Name+" records {1}"),
 			menu.WithInterruptFn(interruptFn),
 		)
 
@@ -200,16 +205,29 @@ var importRestoreCmd = &cobra.Command{
 		}
 		defer r.Close()
 		terminal.ReadPipedInput(&args)
-		// Switch tables and read from deleted table
+		// switch tables and read from deleted table
 		ts := r.Cfg.Tables
 		r.SetMain(ts.Deleted)
 		r.SetDeleted(ts.Main)
+		// this is for the fzf preview when restoring deleted records.
+		if showFromDeleted {
+			bid, err := strconv.Atoi(args[0])
+			if err != nil {
+				return nil
+			}
+			b, _ := r.ByID(r.Cfg.Tables.Main, bid)
+			fmt.Print(bookmark.Frame(b))
+
+			return nil
+		}
 		// menu
 		m := menu.New[Bookmark](
 			menu.WithDefaultSettings(),
 			menu.WithMultiSelection(),
-			menu.WithPreview(),
-			menu.WithHeader("select record/s to restore from '"+config.App.DBName+"'", false),
+			menu.WithPreviewCustomCmd(
+				config.App.Cmd+" -n "+r.Cfg.Name+" import restore --deleted {1}",
+			),
+			menu.WithHeader("select record/s to restore from '"+r.Cfg.Name+"'", false),
 		)
 		if Multiline {
 			m.AddOpts(menu.WithMultilineView())
@@ -312,10 +330,11 @@ func restoreDeleted(m *menu.Menu[Bookmark], r *Repo, bs *Slice) error {
 		t.ClearLine(1)
 		return fmt.Errorf("%w", err)
 	}
+
 	sp.Done()
 	f = frame.New(frame.WithColorBorder(color.Gray))
 	success := color.BrightGreen("Successfully").Italic().String()
-	t.ReplaceLine(1, f.Success(success+" bookmark/s restored\n").String())
+	t.ReplaceLine(1, f.Success(success+" bookmark/s restored").String())
 
 	return nil
 }
@@ -369,6 +388,8 @@ func init() {
 	rf.BoolVarP(&Multiline, "multiline", "M", false, "print data in formatted multiline (fzf)")
 	rf.BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
 	rf.StringSliceVarP(&Tags, "tags", "t", nil, "filter bookmarks by tag")
+	rf.BoolVarP(&showFromDeleted, "deleted", "d", false, "show deleted bookmarks")
+	_ = rf.MarkHidden("deleted")
 	importCmd.AddCommand(importBackupCmd, importBrowserCmd, importDatabaseCmd, importRestoreCmd)
 	rootCmd.AddCommand(importCmd)
 }

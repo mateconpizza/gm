@@ -97,7 +97,7 @@ var bkRemoveCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		success := color.BrightGreen("Successfully").Italic().String()
-		t.ReplaceLine(1, f.Clear().Success(success+" backup/s removed\n").String())
+		t.ReplaceLine(1, f.Clear().Success(success+" backup/s removed").String())
 
 		return nil
 	},

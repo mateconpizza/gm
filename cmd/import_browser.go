@@ -75,10 +75,13 @@ func scrapeMissingDescription(bs *Slice) error {
 	if bs.Len() == 0 {
 		return nil
 	}
-	msg := color.BrightGreen("scraping missing data...").Italic().String()
-	sp := rotato.New(rotato.WithSpinnerColor(rotato.ColorGray), rotato.WithMesg(msg))
+	sp := rotato.New(
+		rotato.WithSpinnerColor(rotato.ColorGray),
+		rotato.WithMesg("scraping missing data..."),
+		rotato.WithMesgColor(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+	)
 	sp.Start()
-	defer sp.Done()
 	var wg sync.WaitGroup
 	errs := make([]string, 0)
 	bs.ForEachMut(func(b *Bookmark) {
@@ -96,6 +99,8 @@ func scrapeMissingDescription(bs *Slice) error {
 		}(b)
 	})
 	wg.Wait()
+
+	sp.Done("Scraping done")
 
 	return nil
 }

@@ -45,7 +45,7 @@ var databaseDropCmd = &cobra.Command{
 			return fmt.Errorf("database: %w", err)
 		}
 		defer r.Close()
-		if !r.IsInitialized() && !Force {
+		if !r.IsInitialized() && !config.App.Force {
 			return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 		}
 		if r.IsEmpty(r.Cfg.Tables.Main, r.Cfg.Tables.Deleted) {
@@ -61,7 +61,7 @@ var databaseDropCmd = &cobra.Command{
 		f.Header(warn + " all bookmarks database").Ln().Row().Ln().Flush()
 		fmt.Print(repo.Info(r))
 		f.Clear().Row().Ln().Flush().Clear()
-		if !Force {
+		if !config.App.Force {
 			if !t.Confirm(f.Footer("continue?").String(), "n") {
 				return sys.ErrActionAborted
 			}

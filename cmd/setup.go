@@ -47,7 +47,7 @@ var (
 func initConfig() {
 	config.SetLoggingLevel(Verbose)
 	config.SetDBName(DBName)
-	config.EnableColor(WithColor != "never" && !terminal.IsPiped())
+	config.EnableColor(WithColor == "always" && !terminal.IsPiped())
 	config.SetForce(Force)
 
 	// load data home path for the app.
@@ -68,7 +68,6 @@ func initConfig() {
 
 // init sets the config for the root command.
 func init() {
-	cobra.OnInitialize(initConfig)
 	// global
 	pf := rootCmd.PersistentFlags()
 	pf.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
@@ -102,6 +101,7 @@ func init() {
 	rootCmd.DisableSuggestions = true
 	rootCmd.SuggestionsMinimumDistance = 1
 	rootCmd.AddCommand(initCmd)
+	cobra.OnInitialize(initConfig)
 }
 
 // createPaths creates the paths for the application.
@@ -181,7 +181,7 @@ var initCmd = &cobra.Command{
 		}
 		defer r.Close()
 		// initialize database
-		if r.IsInitialized() && !Force {
+		if r.IsInitialized() && !config.App.Force {
 			return fmt.Errorf("'%s' %w", r.Cfg.Name, repo.ErrDBAlreadyInitialized)
 		}
 		if err := r.Init(); err != nil {

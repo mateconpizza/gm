@@ -128,7 +128,7 @@ func ReadClipboard() string {
 func ErrAndExit(err error) {
 	if errors.Is(err, ErrActionAborted) {
 		log.Print("action aborted")
-		return
+		os.Exit(1)
 	}
 	if err != nil {
 		log.Print(err)
