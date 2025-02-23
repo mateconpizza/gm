@@ -30,17 +30,17 @@ type Response struct {
 }
 
 func (r *Response) String() string {
-	id := color.Gray("id:").String()
+	id := color.Gray("ID:").String()
 	id += fmt.Sprintf("[%s]", color.Purple(fmt.Sprintf("%-3d", r.bID)).Bold())
 
 	colorStatus, colorCode := prettifyURLStatus(r.statusCode)
-	code := color.Gray(":code:").String()
+	code := color.Gray(":Code:").String()
 	code += fmt.Sprintf("[%s]", colorCode)
 
-	status := color.Gray(":status:").String()
+	status := color.Gray(":Status:").String()
 	status += fmt.Sprintf("[%s]", colorStatus)
 
-	url := color.Gray(":url:").String()
+	url := color.Gray(":URL:").String()
 	url += format.Shorten(r.URL, terminal.MinWidth)
 
 	return fmt.Sprintf("%s%s%s%s", id, code, status, url)
@@ -115,7 +115,7 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 		statusText = color.Text("non-standard code").Italic().String()
 	}
 
-	return total + " urls returned '" + statusText + "' (" + code + ")"
+	return total + " URLs returned '" + statusText + "' (" + code + ")"
 }
 
 // printSummaryStatus prints a summary of HTTP status codes and their
@@ -126,7 +126,7 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 		codes = make(map[int][]Response)
 	)
 
-	f.Header(color.BrightGreen("Summary URLs status:").Bold().String())
+	f.Header(color.BrightGreen("Summary URLs status:\n").Bold().String())
 
 	r.ForEach(func(r Response) {
 		codes[r.statusCode] = append(codes[r.statusCode], r)
@@ -140,13 +140,13 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 			http.StatusGone,
 			http.StatusInternalServerError,
 			http.StatusServiceUnavailable:
-			f.Mid(fmtSummary(n, statusCode, color.Red))
+			f.Mid(fmtSummary(n, statusCode, color.Red)).Ln()
 		case http.StatusForbidden, http.StatusTooManyRequests:
-			f.Mid(fmtSummary(n, statusCode, color.Orange))
+			f.Mid(fmtSummary(n, statusCode, color.Orange)).Ln()
 		case http.StatusOK:
-			f.Mid(fmtSummary(n, statusCode, color.BrightGreen))
+			f.Mid(fmtSummary(n, statusCode, color.BrightGreen)).Ln()
 		default:
-			f.Mid(fmtSummary(n, statusCode, color.Yellow))
+			f.Mid(fmtSummary(n, statusCode, color.Yellow)).Ln()
 		}
 
 		// adds URLs detail
@@ -162,7 +162,7 @@ func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
 	total := fmt.Sprintf("Total %s checked,", color.Blue(r.Len()).Bold())
-	f.Row().Footer(total + " took " + color.Blue(took).Bold().String())
+	f.Row("\n").Footer(total + " took " + color.Blue(took).Bold().String() + "\n")
 
 	f.Flush()
 }

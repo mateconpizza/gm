@@ -46,7 +46,7 @@ func handleData(m *menu.Menu[Bookmark], r *Repo, args []string) (*Slice, error) 
 		}
 	}
 	// select with fzf-menu
-	if Menu {
+	if Menu || Multiline {
 		items, err := handler.Selection(m, *bs.Items(), bookmark.FzfFormatter(Multiline))
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)

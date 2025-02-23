@@ -445,7 +445,7 @@ func (r *SQLiteRepository) ByURL(t Table, bURL string) (*Row, error) {
 
 // bySQL retrieves records from the SQLite database based on the provided SQL query.
 func (r *SQLiteRepository) bySQL(bs *Slice, q string, args ...any) error {
-	var bb []bookmark.Bookmark
+	var bb []Row
 	err := r.DB.Select(&bb, q, args...)
 	if err != nil {
 		return fmt.Errorf("%w", err)

@@ -171,7 +171,8 @@ func WithDefaultKeybinds() OptFn {
 		if !yank.Hidden {
 			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Desc)
 		}
-		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s records --copy {1})"))
+		cmd := ":execute(%s -n " + config.App.DBName + " records --copy {1})"
+		o.keybind = append(o.keybind, withCommand(yank.Bind+cmd))
 	}
 }
 

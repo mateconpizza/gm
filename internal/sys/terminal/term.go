@@ -12,8 +12,9 @@ import (
 	"syscall"
 
 	prompt "github.com/c-bata/go-prompt"
-	"github.com/haaag/gm/internal/sys"
 	"golang.org/x/term"
+
+	"github.com/haaag/gm/internal/sys"
 )
 
 // TODO:

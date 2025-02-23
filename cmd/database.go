@@ -23,13 +23,20 @@ var databaseNewCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Initialize a new bookmarks database",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var name string
+		t := terminal.New()
 		if len(args) == 0 {
+			name = t.Prompt("+ New database name: ")
+		} else {
+			name = args[0]
+		}
+		if name == "" {
 			return ErrDBNameRequired
 		}
 		if err := handler.ValidateDB(cmd, Cfg); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		Cfg.SetName(args[0])
+		Cfg.SetName(name)
 
 		return initCmd.RunE(cmd, args)
 	},
