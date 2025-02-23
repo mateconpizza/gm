@@ -3,14 +3,16 @@ package config
 import (
 	"io"
 	"log"
+	"path/filepath"
 )
 
 var version string = "0.1.8" // Version of the application
 
 const (
-	appName       string = "gomarks"      // Default name of the application
-	command       string = "gm"           // Default name of the executable
-	DefaultDBName string = "bookmarks.db" // Default name of the database
+	appName        string = "gomarks"      // Default name of the application
+	command        string = "gm"           // Default name of the executable
+	DefaultDBName  string = "bookmarks.db" // Default name of the database
+	configFilename string = "config.yml"   // Default config filename
 )
 
 type (
@@ -29,7 +31,8 @@ type (
 
 	path struct {
 		// Config string `json:"home"` // Path to store configuration (unused)
-		Data   string `json:"data"` // Path to store database
+		Data       string `json:"data"`   // Path to store database
+		ConfigFile string `json:"config"` // Path to config file
 	}
 
 	information struct {
@@ -50,7 +53,7 @@ func EnableColor(enabled bool) {
 	App.Color = enabled
 }
 
-// SetForce is used to force the action, dont ask for confirmation.
+// SetForce sets the force flag, this will skip the confirmation prompt.
 func SetForce(f bool) {
 	App.Force = f
 }
@@ -63,6 +66,7 @@ func SetDBName(s string) {
 // SetDataPath sets the app data path.
 func SetDataPath(p string) {
 	App.Path.Data = p
+	App.Path.ConfigFile = filepath.Join(p, configFilename)
 }
 
 // SetLoggingLevel sets the logging level based on the verbose flag.

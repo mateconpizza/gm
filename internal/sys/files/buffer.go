@@ -29,7 +29,8 @@ type TextEditor struct {
 	args []string
 }
 
-func (te *TextEditor) Edit(content []byte) ([]byte, error) {
+// EditContentBytes edits a byte slice with a text editor.
+func (te *TextEditor) EditContentBytes(content []byte) ([]byte, error) {
 	if te.cmd == "" {
 		return nil, ErrCommandNotFound
 	}
@@ -50,6 +51,23 @@ func (te *TextEditor) Edit(content []byte) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// EditFile edits a file with a text editor.
+func (te *TextEditor) EditFile(p string) error {
+	if te.cmd == "" {
+		return ErrCommandNotFound
+	}
+
+	if !Exists(p) {
+		return fmt.Errorf("%w: '%s'", ErrFileNotFound, p)
+	}
+
+	if err := sys.RunCmd(te.cmd, append(te.args, p)...); err != nil {
+		return fmt.Errorf("error running editor: %w", err)
+	}
+
+	return nil
 }
 
 // GetEditor retrieves the preferred editor to use for editing

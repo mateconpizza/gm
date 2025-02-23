@@ -15,7 +15,7 @@ var ErrBufferUnchanged = errors.New("buffer unchanged")
 // editor, returning an error if any operation fails.
 func Edit(te *files.TextEditor, content []byte, b *Bookmark) error {
 	original := bytes.Clone(content)
-	data, err := te.Edit(content)
+	data, err := te.EditContentBytes(content)
 	if err != nil {
 		return fmt.Errorf("failed to edit content: %w", err)
 	}

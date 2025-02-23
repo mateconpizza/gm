@@ -25,18 +25,6 @@ var (
 	ErrFzfReturnCode  = errors.New("fzf: returned a non-zero code")
 )
 
-// fzfDefaults are the default options for FZF.
-var fzfDefaults = []string{
-	"--ansi",                // Enable processing of ANSI color codes
-	"--cycle",               // Enable cyclic scroll
-	"--reverse",             // A synonym for --layout=reverse
-	"--sync",                // Synchronous search for multi-staged filtering
-	"--info=inline-right",   // Determines the display style of the finder info.
-	"--tac",                 // Reverse the order of the input
-	"--layout=default",      // Choose the layout (default: default)
-	"--color=header:italic", // Header style
-}
-
 type OptFn func(*Options)
 
 type Options struct {
@@ -113,9 +101,10 @@ func WithKeybindEdit() OptFn {
 
 	return func(o *Options) {
 		if !edit.Hidden {
-			o.header = appendKeytoHeader(o.header, edit.Bind, edit.Description)
+			o.header = appendKeytoHeader(o.header, edit.Bind, edit.Desc)
 		}
-		o.keybind = append(o.keybind, withCommand(edit.Bind+":execute(%s records --edit {1})"))
+		cmd := ":execute(%s -n " + config.App.DBName + " records --edit {1})"
+		o.keybind = append(o.keybind, withCommand(edit.Bind+cmd))
 	}
 }
 
@@ -129,9 +118,10 @@ func WithKeybindOpen() OptFn {
 
 	return func(o *Options) {
 		if !open.Hidden {
-			o.header = appendKeytoHeader(o.header, open.Bind, open.Description)
+			o.header = appendKeytoHeader(o.header, open.Bind, open.Desc)
 		}
-		o.keybind = append(o.keybind, withCommand(open.Bind+":execute(%s records --open {1})"))
+		cmd := ":execute(%s -n " + config.App.DBName + " records --open {1})"
+		o.keybind = append(o.keybind, withCommand(open.Bind+cmd))
 	}
 }
 
@@ -144,9 +134,10 @@ func WithKeybindQR() OptFn {
 
 	return func(o *Options) {
 		if !qr.Hidden {
-			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
+			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Desc)
 		}
-		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s records --qr {1})"))
+		cmd := ":execute(%s -n " + config.App.DBName + " records --qr {1})"
+		o.keybind = append(o.keybind, withCommand(qr.Bind+cmd))
 	}
 }
 
@@ -160,9 +151,10 @@ func WithKeybindOpenQR() OptFn {
 
 	return func(o *Options) {
 		if !qr.Hidden {
-			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Description)
+			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Desc)
 		}
-		o.keybind = append(o.keybind, withCommand(qr.Bind+":execute(%s records --qr --open {1})"))
+		cmd := ":execute(%s -n " + config.App.DBName + " records --qr --open {1})"
+		o.keybind = append(o.keybind, withCommand(qr.Bind+cmd))
 	}
 }
 
@@ -177,7 +169,7 @@ func WithDefaultKeybinds() OptFn {
 
 	return func(o *Options) {
 		if !yank.Hidden {
-			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Description)
+			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Desc)
 		}
 		o.keybind = append(o.keybind, withCommand(yank.Bind+":execute(%s records --copy {1})"))
 	}
@@ -219,22 +211,28 @@ func WithMultiSelection() OptFn {
 
 // WithPreview adds a preview window and a keybind to toggle it.
 func WithPreview() OptFn {
-	preview := menuConfig.Keymaps.Preview
-	if !preview.Enabled {
-		return func(o *Options) {}
-	}
-	withColor := "never"
-	if config.App.Color {
-		withColor = "always"
-	}
+	return buildPreviewOpts(withCommand("%s -n " + config.App.DBName + " records {1}"))
+}
 
-	opts := make([]string, 0, 2)
-	opts = append(opts, withCommand("--preview=%s records {1} --color="+withColor))
+// WithPreviewCustomCmd adds preview with a custom command.
+func WithPreviewCustomCmd(cmd string) OptFn {
+	return buildPreviewOpts(cmd)
+}
+
+// buildPreviewOpts builds the preview options.
+func buildPreviewOpts(cmd string) OptFn {
+	var opts []string
+	if !config.App.Color {
+		opts = append(opts, "--no-color")
+	}
+	opts = append(opts, "--preview="+cmd)
 	if !menuConfig.Preview {
 		opts = append(opts, "--preview-window=hidden,up")
 	} else {
 		opts = append(opts, "--preview-window=~4,+{2}+4/3,<80(up)")
 	}
+
+	preview := menuConfig.Keymaps.Preview
 
 	return func(o *Options) {
 		o.args = append(o.args, opts...)
@@ -242,24 +240,6 @@ func WithPreview() OptFn {
 			o.header = appendKeytoHeader(o.header, preview.Bind, "toggle-preview")
 		}
 		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
-	}
-}
-
-// WithPreviewCustomCmd adds preview with a custom command.
-func WithPreviewCustomCmd(cmd string) OptFn {
-	preview := menuConfig.Keymaps.Preview
-	if !preview.Enabled {
-		return func(o *Options) {}
-	}
-
-	withColor := "never"
-	if config.App.Color {
-		withColor = "always"
-	}
-	opts := []string{"--preview=" + cmd + " --color=" + withColor}
-
-	return func(o *Options) {
-		o.args = append(o.args, opts...)
 	}
 }
 
@@ -307,6 +287,7 @@ func New[T comparable](opts ...OptFn) *Menu[T] {
 	}
 }
 
+// GetArgs returns the args from Options.
 func (m *Menu[T]) GetArgs() []string {
 	return m.args
 }
@@ -354,7 +335,7 @@ func (m *Menu[T]) Select(items []T, preprocessor func(*T) string) ([]T, error) {
 	// Run Fzf
 	retcode, err := fzf.Run(options)
 	if retcode != 0 {
-		// regardless of what kind of error, always call `callinterruptfn`
+		// regardless of what kind of error, always call `callInterruptFn`
 		err = handleFzfErr(retcode)
 		m.callInterruptFn(err)
 

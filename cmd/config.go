@@ -5,32 +5,38 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/menu"
+	"github.com/haaag/gm/internal/sys/files"
 )
 
-var menuConfig bool
+// dumpConf is the flag for dumping the config.
+var dumpConf bool
+
+// editConfig edits the config file.
+func editConfig() error {
+	te, err := files.GetEditor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	p := config.App.Path.ConfigFile
+	if err := te.EditFile(p); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
 
 // configCmd configuration management.
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Configuration management",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return cmd.Usage()
-	},
-}
-
-// configDumpCmd dump to yaml file.
-var configDumpCmd = &cobra.Command{
-	Use:     "dump",
-	Short:   "Dump config to yaml file",
-	Aliases: []string{"d"},
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		if menuConfig {
-			if err := menu.DumpConfig(Force); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return nil
+		switch {
+		case dumpConf:
+			return menu.DumpConfig()
+		case Edit:
+			return editConfig()
 		}
 
 		return cmd.Usage()
@@ -40,11 +46,13 @@ var configDumpCmd = &cobra.Command{
 func init() {
 	f := configCmd.Flags()
 	f.BoolP("help", "h", false, "Hidden help")
+	f.BoolVarP(&dumpConf, "dump", "d", false, "dump config")
+	f.BoolVarP(&Edit, "edit", "e", false, "edit config")
 	// set and hide persistent flag
+	f.StringVar(&WithColor, "color", "always", "")
 	f.StringVarP(&DBName, "name", "n", "", "database name")
 	_ = configCmd.PersistentFlags().MarkHidden("help")
 	_ = f.MarkHidden("name")
-	configDumpCmd.Flags().BoolVar(&menuConfig, "menu", false, "dump menu config")
-	configCmd.AddCommand(configDumpCmd)
+	_ = f.MarkHidden("color")
 	rootCmd.AddCommand(configCmd)
 }

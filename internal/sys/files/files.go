@@ -9,6 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	yaml "gopkg.in/yaml.v3"
+
+	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format/color"
 )
 
 var (
@@ -239,4 +244,57 @@ func ExpandHomeDir(s string) string {
 	}
 
 	return s
+}
+
+// WriteYamlFile writes the provided YAML data to the specified file.
+func WriteYamlFile[T any](p string, v *T) error {
+	if Exists(p) && !config.App.Force {
+		f := color.BrightYellow("--force").Italic().String()
+		return fmt.Errorf("'%s' %w. use '%s' to overwrite", p, ErrFileExists, f)
+	}
+
+	f, err := Touch(p, config.App.Force)
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("error closing %s file: %v", p, err)
+		}
+	}()
+
+	data, err := yaml.Marshal(&v)
+	if err != nil {
+		return fmt.Errorf("error marshalling YAML: %w", err)
+	}
+
+	_, err = f.Write(data)
+	if err != nil {
+		return fmt.Errorf("error writing to file: %w", err)
+	}
+
+	fmt.Printf("%s: file saved '%s'\n", config.App.Name, p)
+
+	return nil
+}
+
+// ReadYamlFile unmarshals the YAML data from the specified file.
+func ReadYamlFile[T any](p string, v *T) error {
+	if !Exists(p) {
+		return fmt.Errorf("%w: '%s'", ErrFileNotFound, p)
+	}
+
+	content, err := os.ReadFile(p)
+	if err != nil {
+		return fmt.Errorf("error reading config file: %w", err)
+	}
+
+	err = yaml.Unmarshal(content, &v)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling YAML: %w", err)
+	}
+
+	log.Printf("loading file: %s", p)
+
+	return nil
 }
