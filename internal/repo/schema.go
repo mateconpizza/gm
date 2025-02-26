@@ -7,7 +7,11 @@ var (
         url         TEXT    NOT NULL UNIQUE,
         title       TEXT    DEFAULT "",
         desc        TEXT    DEFAULT "",
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_visit  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        visit_count INTEGER DEFAULT 0,
+        updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        favorite    BOOLEAN DEFAULT FALSE
     );`
 
 	tableTagsSchema = `

@@ -20,12 +20,16 @@ var (
 
 // Bookmark represents a bookmark.
 type Bookmark struct {
-	CreatedAt string `db:"created_at" json:"created_at"`
-	URL       string `db:"url"        json:"url"`
-	Tags      string `db:"tags"       json:"tags"`
-	Title     string `db:"title"      json:"title"`
-	Desc      string `db:"desc"       json:"desc"`
-	ID        int    `db:"id"         json:"id"`
+	URL        string `db:"url"         json:"url"`
+	Tags       string `db:"tags"        json:"tags"`
+	Title      string `db:"title"       json:"title"`
+	Desc       string `db:"desc"        json:"desc"`
+	ID         int    `db:"id"          json:"id"`
+	CreatedAt  string `db:"created_at"  json:"created_at"`
+	LastVisit  string `db:"last_visit"  json:"last_visit"`
+	UpdatedAt  string `db:"updated_at"  json:"updated_at"`
+	VisitCount int    `db:"visit_count" json:"visit_count"`
+	Favorite   bool   `db:"favorite"    json:"favorite"`
 }
 
 // Field returns the value of a field.
