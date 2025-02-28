@@ -14,9 +14,18 @@ import (
 
 const commonDBExts = ".sqlite3,.sqlite,.db"
 
-// CountRecords retrieves the maximum ID from the specified table in the
-// SQLite database.
-func CountRecords(r *SQLiteRepository, t Table) int {
+// CountMainRecords returns the number of records in the main table.
+func CountMainRecords(r *SQLiteRepository) int {
+	return countRecords(r, schemaMain.name)
+}
+
+// CountTagsRecords returns the number of records in the tags table.
+func CountTagsRecords(r *SQLiteRepository) int {
+	return countRecords(r, schemaTags.name)
+}
+
+// count counts the number of rows in the specified table.
+func countRecords(r *SQLiteRepository, t Table) int {
 	var n int
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", t)
 	err := r.DB.QueryRowx(query).Scan(&n)
@@ -44,23 +53,23 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 }
 
 // Find finds a database by name in the given path.
-func Find(name, path string) (*SQLiteRepository, error) {
-	dbs, err := Databases(path)
-	if err != nil {
-		return nil, err
-	}
-
-	dbs.FilterInPlace(func(db *SQLiteRepository) bool {
-		return db.Cfg.Name == files.EnsureExt(name, ".db")
-	})
-	if dbs.Len() == 0 {
-		return nil, fmt.Errorf("'%s' %w", name, ErrDBNotFound)
-	}
-
-	found := dbs.Item(0)
-
-	return &found, nil
-}
+// func Find(name, path string) (*SQLiteRepository, error) {
+// 	dbs, err := Databases(path)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	dbs.FilterInPlace(func(db *SQLiteRepository) bool {
+// 		return db.Cfg.Name == files.EnsureExt(name, ".db")
+// 	})
+// 	if dbs.Len() == 0 {
+// 		return nil, fmt.Errorf("'%s' %w", name, ErrDBNotFound)
+// 	}
+//
+// 	found := dbs.Item(0)
+//
+// 	return &found, nil
+// }
 
 // Databases returns the list of databases.
 func Databases(path string) (*slice.Slice[SQLiteRepository], error) {

@@ -19,12 +19,7 @@ func setupTestDB(t *testing.T) *SQLiteRepository {
 	db, err := openDatabase("file:testdb?mode=memory&cache=shared")
 	assert.NoError(t, err, "failed to open database")
 	r := newSQLiteRepository(db, c)
-	for name, schema := range r.tablesAndSchema() {
-		s := fmt.Sprintf(schema, name)
-		if _, err := db.Exec(s); err != nil {
-			assert.NoError(t, err, "failed to create table %s", name)
-		}
-	}
+	_ = r.Init()
 
 	return r
 }
@@ -67,15 +62,8 @@ func TestInit(t *testing.T) {
 	r := newSQLiteRepository(db, c)
 	assert.NoError(t, r.Init(), "failed to initialize repository")
 	defer teardownthewall(r.DB)
-	tables := []Table{
-		r.Cfg.Tables.Main,
-		r.Cfg.Tables.Deleted,
-		r.Cfg.Tables.Tags,
-		r.Cfg.Tables.RecordsTags,
-		r.Cfg.Tables.RecordsTagsDeleted,
-	}
-	for _, table := range tables {
-		tExists, err := r.tableExists(table)
+	for _, s := range tablesAndSchema() {
+		tExists, err := r.tableExists(s.name)
 		assert.NoError(t, err)
 		assert.True(t, tExists, "main table does not exist")
 	}
@@ -84,8 +72,8 @@ func TestInit(t *testing.T) {
 func TestDropTable(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-	tDrop := r.Cfg.Tables.Main
-	err := r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+	tDrop := schemaMain.name
+	err := r.withTx(context.Background(), func(tx *sqlx.Tx) error {
 		return r.tableDrop(tx, tDrop)
 	})
 	assert.NoError(t, err, "failed to drop table %s", tDrop)
@@ -100,8 +88,8 @@ func TestTableCreate(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	var newTable Table = "new_table"
-	assert.NoError(t, r.execTx(context.Background(), func(tx *sqlx.Tx) error {
-		return r.tableCreate(tx, newTable, tableMainSchema)
+	assert.NoError(t, r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+		return r.tableCreate(tx, newTable, "CREATE TABLE new_table (id INTEGER PRIMARY KEY)")
 	}), "failed to create table %s", newTable)
 	exists, err := r.tableExists(newTable)
 	assert.NoError(t, err)
@@ -112,8 +100,8 @@ func TestTableExists(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	var tt Table = "test_table"
-	assert.NoError(t, r.execTx(context.Background(), func(tx *sqlx.Tx) error {
-		return r.tableCreate(tx, tt, tableMainSchema)
+	assert.NoError(t, r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+		return r.tableCreate(tx, tt, "CREATE TABLE test_table (id INTEGER PRIMARY KEY)")
 	}), "failed to create table %s", tt)
 	exists, err := r.tableExists(tt)
 	assert.NoError(t, err)
@@ -126,9 +114,9 @@ func TestTableExists(t *testing.T) {
 func TestRenameTable(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-	srcTable := r.Cfg.Tables.Main
+	srcTable := schemaMain.name
 	destTable := "new_" + srcTable
-	err := r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+	err := r.withTx(context.Background(), func(tx *sqlx.Tx) error {
 		return r.tableRename(tx, srcTable, destTable)
 	})
 	assert.NoError(t, err, "failed to rename table %s to %s", srcTable, destTable)
@@ -144,7 +132,7 @@ func TestSize(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	b := testSingleBookmark()
-	err := r.Insert(b)
+	err := r.InsertOne(context.Background(), b)
 	assert.NoError(t, err, "failed to insert test data")
 	dbSize, err := r.size()
 	assert.NoError(t, err, "failed to get DB size")

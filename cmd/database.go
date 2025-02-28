@@ -55,9 +55,6 @@ var databaseDropCmd = &cobra.Command{
 		if !r.IsInitialized() && !config.App.Force {
 			return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
 		}
-		if r.IsEmpty(r.Cfg.Tables.Main, r.Cfg.Tables.Deleted) {
-			return fmt.Errorf("%w: '%s'", repo.ErrDBEmpty, r.Cfg.Name)
-		}
 		t := terminal.New(terminal.WithInterruptFn(func(err error) {
 			r.Close()
 			sys.ErrAndExit(err)

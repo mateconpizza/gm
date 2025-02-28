@@ -54,7 +54,7 @@ func (b *Bookmark) Field(f string) (string, error) {
 }
 
 func (b *Bookmark) Buffer() []byte {
-	return []byte(fmt.Sprintf(`# URL: (required)
+	return fmt.Appendf(nil, `# URL: (required)
 %s
 # Title: (leave an empty line for web fetch)
 %s
@@ -63,7 +63,7 @@ func (b *Bookmark) Buffer() []byte {
 # Description: (leave an empty line for web fetch)
 %s
 # end ------------------------------------------------------------------------
-`, b.URL, b.Title, b.Tags, b.Desc))
+`, b.URL, b.Title, b.Tags, b.Desc)
 }
 
 // New creates a new bookmark.

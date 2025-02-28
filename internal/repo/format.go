@@ -2,7 +2,6 @@ package repo
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 
 	"github.com/haaag/gm/internal/format"
@@ -14,13 +13,11 @@ import (
 func RepoSummary(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	path := format.PaddedLine("path:", r.Cfg.Fullpath())
-	records := format.PaddedLine("records:", CountRecords(r, r.Cfg.Tables.Main))
-	deleted := format.PaddedLine("deleted:", CountRecords(r, r.Cfg.Tables.Deleted))
-	tags := format.PaddedLine("tags:", CountRecords(r, r.Cfg.Tables.Tags))
+	records := format.PaddedLine("records:", CountMainRecords(r))
+	tags := format.PaddedLine("tags:", CountTagsRecords(r))
 
 	return f.Header(color.Yellow(r.Cfg.Name).Italic().String()).
 		Ln().Row(records).
-		Ln().Row(deleted).
 		Ln().Row(tags).
 		Ln().Row(path).
 		Ln().String()
@@ -29,9 +26,8 @@ func RepoSummary(r *SQLiteRepository) string {
 // RepoSummaryRecords generates a summary of record counts for a given SQLite
 // repository and bookmark.
 func RepoSummaryRecords(r *SQLiteRepository) string {
-	main := fmt.Sprintf("(main: %d, ", CountRecords(r, r.Cfg.Tables.Main))
-	deleted := fmt.Sprintf("deleted: %d)", CountRecords(r, r.Cfg.Tables.Deleted))
-	records := color.Gray(main + deleted).Italic()
+	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
+	records := color.Gray(main).Italic()
 
 	return r.Cfg.Name + " " + records.String()
 }
@@ -58,15 +54,6 @@ func BackupSummaryDetail(r *SQLiteRepository) string {
 	})
 
 	return f.String()
-}
-
-// SummaryBackupLine returns a summary of a backup in one line.
-func SummaryBackupLine(r *SQLiteRepository) string {
-	main := fmt.Sprintf("(main: %d, ", CountRecords(r, r.Cfg.Tables.Main))
-	deleted := fmt.Sprintf("deleted: %d)", CountRecords(r, r.Cfg.Tables.Deleted))
-	records := color.Gray(main + deleted).Italic()
-
-	return filepath.Base(r.Cfg.Fullpath()) + " " + records.String()
 }
 
 // BackupsSummary returns a summary of the backups.

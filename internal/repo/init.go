@@ -8,23 +8,38 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (r *SQLiteRepository) tablesAndSchema() map[Table]string {
-	return map[Table]string{
-		r.Cfg.Tables.Main:               tableMainSchema,
-		r.Cfg.Tables.Deleted:            tableMainSchema,
-		r.Cfg.Tables.Tags:               tableTagsSchema,
-		r.Cfg.Tables.RecordsTags:        tableBookmarkTagsSchema,
-		r.Cfg.Tables.RecordsTagsDeleted: tableBookmarkTagsSchema,
+type tableSchema struct {
+	name    Table
+	sql     string
+	trigger string
+	index   string
+}
+
+// tablesAnd returns all tables and their schema.
+func tablesAndSchema() []tableSchema {
+	return []tableSchema{
+		schemaMain, schemaTags, schemaRelation,
 	}
 }
 
 // Init initializes a new database and creates the required tables.
 func (r *SQLiteRepository) Init() error {
-	tables := r.tablesAndSchema()
-	return r.execTx(context.Background(), func(tx *sqlx.Tx) error {
-		for table, schema := range tables {
-			if err := r.tableCreate(tx, table, schema); err != nil {
-				return fmt.Errorf("Init: creating '%s' table: %w", table, err)
+	return r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+		for _, s := range tablesAndSchema() {
+			if err := r.tableCreate(tx, s.name, s.sql); err != nil {
+				return fmt.Errorf("creating '%s' table: %w", s.name, err)
+			}
+
+			if s.index != "" {
+				if _, err := tx.Exec(s.index); err != nil {
+					return fmt.Errorf("creating '%s' index: %w", s.name, err)
+				}
+			}
+
+			if s.trigger != "" {
+				if _, err := tx.Exec(s.trigger); err != nil {
+					return fmt.Errorf("creating '%s' trigger: %w", s.name, err)
+				}
 			}
 		}
 
@@ -35,15 +50,15 @@ func (r *SQLiteRepository) Init() error {
 // IsInitialized returns true if the database is initialized.
 func (r *SQLiteRepository) IsInitialized() bool {
 	allExist := true
-	for t := range r.tablesAndSchema() {
-		exists, err := r.tableExists(t)
+	for _, s := range tablesAndSchema() {
+		exists, err := r.tableExists(s.name)
 		if err != nil {
 			log.Printf("IsInitialized: checking if table exists: %v", err)
 			return false
 		}
 		if !exists {
 			allExist = false
-			log.Printf("table %s does not exist", t)
+			log.Printf("table %s does not exist", s.name)
 		}
 	}
 
@@ -52,9 +67,8 @@ func (r *SQLiteRepository) IsInitialized() bool {
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
 func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
-	q := "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?"
 	var count int
-	err := r.DB.Get(&count, q, t)
+	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
 	if err != nil {
 		log.Printf("error checking if table %s exists: %v", t, err)
 		return false, fmt.Errorf("tableExists: %w", err)
@@ -66,23 +80,19 @@ func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
 // tableRename renames the temporary table to the specified main table name.
 func (r *SQLiteRepository) tableRename(tx *sqlx.Tx, srcTable, destTable Table) error {
 	log.Printf("renaming table %s to %s", srcTable, destTable)
-
 	_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", srcTable, destTable))
 	if err != nil {
 		return fmt.Errorf("%w: renaming table from '%s' to '%s'", err, srcTable, destTable)
 	}
-
 	log.Printf("renamed table %s to %s\n", srcTable, destTable)
 
 	return nil
 }
 
 // tableCreate creates a new table with the specified name in the SQLite database.
-func (r *SQLiteRepository) tableCreate(tx *sqlx.Tx, s Table, schema string) error {
-	log.Printf("creating table: %s", s)
-	tableSchema := fmt.Sprintf(schema, s)
-
-	_, err := tx.Exec(tableSchema)
+func (r *SQLiteRepository) tableCreate(tx *sqlx.Tx, name Table, schema string) error {
+	log.Printf("creating table: %s", name)
+	_, err := tx.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("error creating table: %w", err)
 	}
@@ -108,12 +118,6 @@ func (r *SQLiteRepository) tableDrop(tx *sqlx.Tx, t Table) error {
 func (r *SQLiteRepository) maintenance() error {
 	if err := r.checkSize(r.Cfg.MaxBytesSize); err != nil {
 		return fmt.Errorf("%w", err)
-	}
-
-	if r.IsInitialized() {
-		if err := removeUnusedTags(r); err != nil {
-			return fmt.Errorf("%w", err)
-		}
 	}
 
 	return nil
@@ -162,17 +166,6 @@ func (r *SQLiteRepository) size() (int64, error) {
 	return size, nil
 }
 
-// IsEmpty returns true if the database is empty.
-func (r *SQLiteRepository) IsEmpty(tables ...Table) bool {
-	for _, t := range tables {
-		if r.maxID(t) > 0 {
-			return false
-		}
-	}
-
-	return true
-}
-
 // checkSize checks the size of the database.
 func (r *SQLiteRepository) checkSize(n int64) error {
 	size, err := r.size()
@@ -188,15 +181,12 @@ func (r *SQLiteRepository) checkSize(n int64) error {
 
 // DropSecure removes all records database.
 func (r *SQLiteRepository) DropSecure(ctx context.Context) error {
-	tables := []Table{
-		r.Cfg.Tables.Main,
-		r.Cfg.Tables.Deleted,
-		r.Cfg.Tables.Tags,
-		r.Cfg.Tables.RecordsTags,
-		r.Cfg.Tables.RecordsTagsDeleted,
+	tts := tablesAndSchema()
+	tables := make([]Table, 0, len(tts))
+	for _, t := range tts {
+		tables = append(tables, t.name)
 	}
-
-	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
+	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.deleteAll(ctx, tables...); err != nil {
 			return fmt.Errorf("%w", err)
 		}

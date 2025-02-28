@@ -12,10 +12,11 @@ import (
 
 const (
 	UnicodeBulletPoint      = "\u2022" // •
-	UnicodeMidBulletPoint   = "\u00b7" // ·
+	UnicodeLightDiagCross   = "\u2571" // ╱
+	UnicodeMiddleDot        = "\u00b7" // ·
 	UnicodePathBigSegment   = "\u25B6" // ▶
 	UnicodePathSmallSegment = "\u25B8" // ▸
-	UnicodeLightDiagCross   = "\u2571" // ╱
+	UnicodeRightDoubleAngle = "\u00BB" // »
 	UnicodeSingleAngleMark  = "\u203A" // ›
 )
 

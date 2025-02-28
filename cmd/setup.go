@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -202,7 +203,7 @@ var initCmd = &cobra.Command{
 		ib.Tags = bookmark.ParseTags(config.App.Info.Tags)
 		ib.Desc = config.App.Info.Desc
 		// insert new bookmark
-		if err := r.Insert(ib); err != nil {
+		if err := r.InsertOne(context.Background(), ib); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		// print new record

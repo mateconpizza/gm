@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -13,74 +12,37 @@ import (
 	"github.com/haaag/gm/internal/slice"
 )
 
-func TestInsert(t *testing.T) {
+func TestInsertOne(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-	ts := r.Cfg.Tables
-	tableExists, err := r.tableExists(ts.Main)
-	assert.True(t, tableExists, "table %s does not exist", ts.Main)
-	assert.NoError(t, err, "failed to check if table %s exists", ts.Main)
+	mainTable := schemaMain.name
+	tableExists, err := r.tableExists(mainTable)
+	assert.True(t, tableExists, "table %s does not exist", mainTable)
+	assert.NoError(t, err, "failed to check if table %s exists", mainTable)
 	// insert a record
 	record := testSingleBookmark()
-	err = r.execTx(context.Background(), func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, ts.Main, ts.RecordsTags, record)
+	err = r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+		return r.insertIntoTx(tx, record)
 	})
-	assert.NoError(t, err, "failed to insert record into table %s", ts.Main)
+	assert.NoError(t, err, "failed to insert record into table %s", mainTable)
 }
 
 func TestDeleteAll(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-	tt := r.Cfg.Tables
 	ts := []Table{
-		tt.Main,
-		tt.Deleted,
-		tt.Tags,
-		tt.RecordsTags,
-		tt.RecordsTagsDeleted,
+		schemaMain.name,
+		schemaTags.name,
+		schemaRelation.name,
 	}
 	bs := testSliceBookmarks()
 	ctx := context.Background()
-	err := r.insertBulk(ctx, tt.Main, tt.RecordsTags, bs)
+	err := r.insertBulk(ctx, bs)
 	assert.NoError(t, err)
 	assert.NoError(t, r.deleteAll(ctx, ts...), "expected no error when deleting all records")
 	b := bs.Item(0)
-	_, err = r.ByID(r.Cfg.Tables.Main, b.ID)
+	_, err = r.ByID(b.ID)
 	assert.Error(t, err, "expected error when getting bookmark by ID, got nil")
-}
-
-func TestDeleteRecordBulk(t *testing.T) {
-	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
-
-	// insert bookmarks
-	bs := testSliceBookmarks()
-	ctx := context.Background()
-	err := r.insertBulk(ctx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, bs)
-	assert.NoError(t, err, "insertBulk returned an error: %v", err)
-
-	// verify that the record was inserted successfully
-	newRows := slice.New[Row]()
-	err = r.Records(r.Cfg.Tables.Main, newRows)
-	assert.NoError(t, err, "failed to retrieve records")
-	assert.Equal(t, bs.Len(), newRows.Len(), "expected %d records, got %d", bs.Len(), newRows.Len())
-
-	// delete the record and verify that it was deleted successfully
-	ids := slice.New[int]()
-	newRows.ForEach(func(r Row) {
-		ids.Append(r.ID)
-	})
-	assert.Equal(t, ids.Len(), newRows.Len(), "expected %d IDs, got %d", ids.Len(), newRows.Len())
-
-	// test the deletion of a valid record
-	err = r.deleteBulk(ctx, r.Cfg.Tables.Main, ids)
-	assert.NoError(t, err, "deleteBulk returned an error: %v", err)
-
-	// test no records found err
-	emptyRows := slice.New[Row]()
-	err = r.Records(r.Cfg.Tables.Main, emptyRows)
-	assert.ErrorIs(t, err, ErrRecordNotFound, "expected ErrRecordNotFound, got %v", err)
-	assert.Equal(t, 0, emptyRows.Len(), "expected 0 records, got %d", emptyRows.Len())
 }
 
 func TestByURL(t *testing.T) {
@@ -88,11 +50,11 @@ func TestByURL(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	b := testSingleBookmark()
-	err := r.execTx(context.Background(), func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, b)
+	err := r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+		return r.insertIntoTx(tx, b)
 	})
 	assert.NoError(t, err)
-	record, err := r.ByURL(r.Cfg.Tables.Main, b.URL)
+	record, err := r.ByURL(b.URL)
 	assert.NoError(t, err, "failed to retrieve bookmark by URL")
 	assert.Equal(t, b.URL, record.URL, "expected bookmark URL %s, got %s", b.URL, b.URL)
 }
@@ -100,15 +62,25 @@ func TestByURL(t *testing.T) {
 func TestByID(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
+	// insert some records
 	bs := testSliceBookmarks()
 	ctx := context.Background()
-	err := r.insertBulk(ctx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, bs)
+	err := r.insertBulk(ctx, bs)
 	assert.NoError(t, err, "insertBulk returned an error: %v", err)
-	recordID := 3
-	record, err := r.ByID(r.Cfg.Tables.Main, recordID)
+	// get all records
+	newBs := slice.New[Row]()
+	err = r.All(newBs)
+	assert.NoError(t, err, "All returned an error: %v", err)
+	assert.Equal(t, bs.Len(), newBs.Len(), "expected %d records, got %d", bs.Len(), newBs.Len())
+	// get a specific record
+	compareB := newBs.Item(0)
+	// get record byID
+	record, err := r.ByID(compareB.ID)
 	assert.NoError(t, err, "failed to retrieve bookmark by ID")
-	assert.Equal(t, record.ID, recordID, "expected bookmark ID %d, got %d", recordID, record.ID)
-	assert.Equal(t, record.ID, recordID, "expected record ID %d, got %d", record.ID, recordID)
+	assert.Equal(t, record.ID, compareB.ID)
+	assert.Equal(t, record.URL, compareB.URL)
+	assert.Equal(t, record.Desc, compareB.Desc)
+	assert.Equal(t, record.Tags, compareB.Tags)
 }
 
 func TestDuplicateErr(t *testing.T) {
@@ -116,9 +88,9 @@ func TestDuplicateErr(t *testing.T) {
 	defer teardownthewall(r.DB)
 	b := testSingleBookmark()
 	ctx := context.Background()
-	err := r.insertInto(ctx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, b)
+	err := r.insertInto(ctx, b)
 	assert.NoError(t, err)
-	err = r.insertInto(ctx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, b)
+	err = r.insertInto(ctx, b)
 	assert.Error(t, err, "expected error when inserting duplicate record, got nil")
 }
 
@@ -130,18 +102,18 @@ func TestGetRecordsByQuery(t *testing.T) {
 
 	b := testSingleBookmark()
 	ctx := context.Background()
-	_ = r.insertInto(ctx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, b)
+	_ = r.insertInto(ctx, b)
 	b.URL = "https://www.example2.com"
-	_ = r.insertInto(ctx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, b)
+	_ = r.insertInto(ctx, b)
 	b.URL = "https://www.another.com"
 
 	bs := slice.New[Row]()
-	err := r.ByQuery(r.Cfg.Tables.Main, "example", bs)
+	err := r.ByQuery("example", bs)
 	assert.NoError(t, err, "ByQuery returned an error: %v", err)
 	assert.Equal(t, expectedRecords, bs.Len(), "%d records, got %d", expectedRecords, bs.Len())
 
 	var count int
-	err = r.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", r.Cfg.Tables.Main)).Scan(&count)
+	err = r.DB.QueryRow("SELECT COUNT(*) FROM bookmarks").Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, count, bs.Len(), "expected %d records, got %d", bs.Len(), count)
 }
@@ -164,15 +136,15 @@ func TestHasRecord(t *testing.T) {
 
 	b := testSingleBookmark()
 	ctx := context.Background()
-	err := r.insertInto(ctx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, b)
+	err := r.insertInto(ctx, b)
 	assert.NoError(t, err, "insertInto returned an error: %v", err)
 
-	exists := r.HasRecord(r.Cfg.Tables.Main, "url", b.URL)
+	_, exists := r.Has(b.URL)
 	assert.True(t, exists, "r.HasRecord returned false for an existing record")
 
 	nonExistentBookmark := testSingleBookmark()
 	nonExistentBookmark.URL = "https://non_existent.com"
-	exists = r.HasRecord(r.Cfg.Tables.Main, "url", nonExistentBookmark.URL)
+	_, exists = r.Has(nonExistentBookmark.URL)
 	assert.False(t, exists, "r.HasRecord returned true for a non-existent record")
 }
 
@@ -182,17 +154,17 @@ func TestRollback(t *testing.T) {
 
 	b := testSingleBookmark()
 	ctx := context.Background()
-	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, b)
+	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
+		return r.insertIntoTx(tx, b)
 	})
 	assert.NoError(t, err, "Transaction failed")
 
-	newB, err := r.ByID(r.Cfg.Tables.Main, b.ID)
+	newB, err := r.ByID(b.ID)
 	assert.NoError(t, err, "Failed to retrieve bookmark")
 	assert.Equal(t, b.ID, newB.ID)
 	assert.Equal(t, b.URL, newB.URL)
-	err = r.execTx(ctx, func(tx *sqlx.Tx) error {
-		if err := r.deleteInTx(tx, r.Cfg.Tables.Main, b); err != nil {
+	err = r.withTx(ctx, func(tx *sqlx.Tx) error {
+		if err := r.deleteOneTx(tx, b); err != nil {
 			return err
 		}
 
@@ -200,7 +172,7 @@ func TestRollback(t *testing.T) {
 	})
 	assert.Error(t, err, "Expected an error but got nil")
 	// check if the record was deleted
-	deletedB, err := r.ByID(r.Cfg.Tables.Main, b.ID)
+	deletedB, err := r.ByID(b.ID)
 	assert.NoError(t, err, "Failed to retrieve bookmark")
 	assert.NotNil(t, deletedB, "Bookmark was not deleted")
 }
@@ -208,37 +180,56 @@ func TestRollback(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-
-	originalB := testSingleBookmark()
+	oldB := testSingleBookmark()
+	// insert record
 	ctx := context.Background()
-	err := r.execTx(ctx, func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, r.Cfg.Tables.Main, r.Cfg.Tables.RecordsTags, originalB)
-	})
-	assert.NoError(t, err, "Transaction failed")
-
-	originalB.Desc = "new description"
-	originalB.Title = "new title"
-	var newB *Row
-	newB, err = r.Update(originalB)
-	assert.NoError(t, err, "Failed to update bookmark")
-	assert.Equal(t, originalB.ID, newB.ID)
-	assert.Equal(t, originalB.URL, newB.URL)
-	assert.Equal(t, originalB.Desc, newB.Desc)
-	assert.Equal(t, originalB.Title, newB.Title)
-
-	// update URL
-	originalB.URL = "https://newurl.com"
-	newB, err = r.UpdateURL(originalB, originalB)
-	assert.NoError(t, err, "Failed to update bookmark")
-	assert.Equal(t, originalB.ID, newB.ID)
-	assert.Equal(t, originalB.URL, newB.URL)
-	assert.Equal(t, originalB.Desc, newB.Desc)
-	assert.Equal(t, originalB.Title, newB.Title)
+	err := r.InsertOne(ctx, oldB)
+	assert.NoError(t, err)
+	// copy bookmark
+	newB := oldB
+	assert.Equal(t, oldB, newB)
+	// modify bookmark
+	newDesc := "new description"
+	newTags := "tagNew1,tagNew2"
+	newB.Tags = newTags
+	newB.Desc = newDesc
+	// update record in main table
+	_, err = r.UpdateOne(ctx, newB, oldB)
+	assert.NoError(t, err, "expected no error, got %v", err)
+	// get record byID
+	updateB, err := r.ByID(newB.ID)
+	assert.NoError(t, err)
+	// check if the record was updated
+	assert.Equal(t, newB.ID, updateB.ID, "expected bookmark ID %d, got %d", oldB.ID, updateB.ID)
+	assert.Equal(
+		t,
+		updateB.Desc,
+		newB.Desc,
+		"expected description %s, got %s",
+		oldB.Desc,
+		newB.Desc,
+	)
+	assert.Equal(t, updateB.Tags, newB.Tags)
 }
 
-func TestDeleteAndReorder(t *testing.T) {
+func TestDeleteMany(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-
-	t.Skip("not implemented")
+	bsToInsert := testSliceBookmarks()
+	ctx := context.Background()
+	err := r.InsertMany(ctx, bsToInsert)
+	assert.NoError(t, err)
+	// check if the records were inserted
+	bsInserted := slice.New[Row]()
+	err = r.All(bsInserted)
+	assert.NoError(t, err)
+	assert.Len(t, *bsInserted.Items(), 10)
+	// delete the records
+	err = r.DeleteMany(ctx, bsToInsert)
+	assert.NoError(t, err)
+	// check if the records were deleted
+	bsDeleted := slice.New[Row]()
+	err = r.All(bsDeleted)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrRecordNotFound)
 }

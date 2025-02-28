@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -39,7 +40,7 @@ func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 	if bs.Empty() && len(args) == 0 {
 		// if empty, get all records
-		if err := r.Records(r.Cfg.Tables.Main, bs); err != nil {
+		if err := r.All(bs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -79,12 +80,11 @@ func editBookmark(
 	b *bookmark.Bookmark,
 	idx, total int,
 ) error {
-	original := b
+	og := *b
 	// prepare the buffer with a header and version info.
 	buf := prepareBuffer(r, b, idx, total)
 	// launch the editor to allow the user to edit the bookmark.
 	if err := bookmark.Edit(te, buf, b); err != nil {
-		// if nothing was changed, simply continue.
 		if errors.Is(err, bookmark.ErrBufferUnchanged) {
 			return nil
 		}
@@ -92,7 +92,7 @@ func editBookmark(
 		return fmt.Errorf("%w", err)
 	}
 
-	return updateBookmark(r, b, original)
+	return updateBookmark(r, b, &og)
 }
 
 // prepareBuffer builds the buffer for the bookmark by adding a header and version info.
@@ -117,14 +117,9 @@ func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total in
 // updateBookmark updates the repository with the modified bookmark.
 // It calls UpdateURL if the bookmark's URL changed, otherwise it calls Update.
 func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) error {
-	if original.URL != b.URL {
-		if _, err := r.UpdateURL(b, original); err != nil {
-			return fmt.Errorf("updating URL: %w", err)
-		}
-	} else {
-		if _, err := r.Update(b); err != nil {
-			return fmt.Errorf("updating bookmark: %w", err)
-		}
+	ctx := context.Background()
+	if _, err := r.UpdateOne(ctx, b, original); err != nil {
+		return fmt.Errorf("updating record: %w", err)
 	}
 	fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
 
@@ -170,8 +165,14 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	)
 	sp.Start()
 
-	if err := r.DeleteAndReorder(bs, r.Cfg.Tables.Main, r.Cfg.Tables.Deleted); err != nil {
-		return fmt.Errorf("deleting and reordering records: %w", err)
+	ctx := context.Background()
+	// delete records from main table.
+	if err := r.DeleteMany(ctx, bs); err != nil {
+		return fmt.Errorf("deleting records: %w", err)
+	}
+	// reorder IDs from main table to avoid gaps.
+	if err := r.ReorderIDs(ctx); err != nil {
+		return fmt.Errorf("reordering IDs: %w", err)
 	}
 
 	sp.Done()

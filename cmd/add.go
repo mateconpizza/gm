@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -68,8 +69,12 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 		}
 		t.ClearLine(1)
 	}
+	// validate
+	if err := bookmark.Validate(b); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
 	// insert new bookmark
-	if err := r.Insert(b); err != nil {
+	if err := r.InsertOne(context.Background(), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
@@ -210,9 +215,8 @@ func addParseURL(t *terminal.Term, r *Repo, args *[]string) (string, error) {
 	}
 	// WARN: do we need this trim? why?
 	url = strings.TrimRight(url, "/")
-	if r.HasRecord(r.Cfg.Tables.Main, "url", url) {
-		item, _ := r.ByURL(r.Cfg.Tables.Main, url)
-		return "", fmt.Errorf("%w with id: %d", bookmark.ErrDuplicate, item.ID)
+	if b, exists := r.Has(url); exists {
+		return "", fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
 	}
 
 	return url, nil

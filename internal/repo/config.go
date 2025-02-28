@@ -7,24 +7,24 @@ import (
 	"github.com/haaag/gm/internal/sys/files"
 )
 
+type Table string
+
 const maxBytesSize = 1024 * 1024 // 1 MB = 1,048,576 bytes
 
 // SQLiteConfig represents the configuration for a SQLite database.
 type SQLiteConfig struct {
 	Name         string       `json:"name"`           // Name of the SQLite database
 	Path         string       `json:"path"`           // Path to the SQLite database
-	Tables       tables       `json:"tables"`         // Database tables
+	Table        tables       `json:"tables"`         // Database tables
 	Backup       SQLiteBackup `json:"backup"`         // Backup settings
 	MaxBytesSize int64        `json:"max_bytes_size"` // Maximum size of the SQLite database
 }
 
 // tables represents the names of the tables in the SQLite database.
 type tables struct {
-	Main               Table `json:"main"`                 // Name of the main bookmarks table.
-	Deleted            Table `json:"deleted"`              // Name of the deleted bookmarks table.
-	Tags               Table `json:"tags"`                 // Name of the tags table
-	RecordsTags        Table `json:"records_tags"`         // Name of the bookmark tags table
-	RecordsTagsDeleted Table `json:"deleted_records_tags"` // Name of the deleted tags table
+	Main        Table `json:"main"`         // Name of the main bookmarks table.
+	Tags        Table `json:"tags"`         // Name of the tags table
+	RecordsTags Table `json:"records_tags"` // Name of the bookmark tags table
 }
 
 type SQLiteBackup struct {
@@ -67,12 +67,10 @@ func (c *SQLiteConfig) Exists() bool {
 // NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg(fullpath string) *SQLiteConfig {
 	return &SQLiteConfig{
-		Tables: tables{
-			Main:               "bookmarks",
-			Deleted:            "deleted_bookmarks",
-			Tags:               "tags",
-			RecordsTags:        "bookmark_tags",
-			RecordsTagsDeleted: "deleted_records_tags",
+		Table: tables{
+			Main:        schemaMain.name,
+			Tags:        schemaTags.name,
+			RecordsTags: schemaRelation.name,
 		},
 		Path:         filepath.Dir(fullpath),
 		Name:         files.EnsureExt(filepath.Base(fullpath), ".db"),

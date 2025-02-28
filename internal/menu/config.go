@@ -73,7 +73,7 @@ var defaultMenuConfig = &Config{
 	Preview: true,
 	Header: fzfHeader{
 		Enabled:   true,
-		Separator: " " + format.UnicodeMidBulletPoint + " ",
+		Separator: " " + format.UnicodeMiddleDot + " ",
 	},
 	Keymaps: fzfKeymaps{
 		Edit:      Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},

@@ -31,18 +31,6 @@ func (r *SQLiteRepository) Close() {
 	})
 }
 
-// SetMain sets the main table.
-func (r *SQLiteRepository) SetMain(t Table) {
-	log.Printf("main table set to: %s", t)
-	r.Cfg.Tables.Main = t
-}
-
-// SetDeleted sets the deleted table.
-func (r *SQLiteRepository) SetDeleted(t Table) {
-	log.Printf("deleted table set to: %s", t)
-	r.Cfg.Tables.Deleted = t
-}
-
 // newSQLiteRepository returns a new SQLiteRepository.
 func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteConfig) *SQLiteRepository {
 	return &SQLiteRepository{

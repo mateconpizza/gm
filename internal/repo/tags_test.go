@@ -8,35 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRemoveUnusedTags(t *testing.T) {
-	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
-	bs := testSliceBookmarks()
-	ctx := context.Background()
-	tt := r.Cfg.Tables
-
-	// insert some records
-	_ = r.execTx(ctx, func(tx *sqlx.Tx) error {
-		err := r.insertBulk(ctx, tt.Main, tt.RecordsTags, bs)
-		assert.NoError(t, err, "failed to insert records")
-		return nil
-	})
-
-	toRemoveB, err := r.ByID(tt.Main, 1)
-	assert.NoError(t, err, "failed to retrieve bookmark by ID")
-	assert.NotNil(t, toRemoveB, "Bookmark was not deleted")
-	// count tags
-	tagsCount := CountRecords(r, tt.Tags)
-	// delete record
-	err = r.delete(ctx, tt.Main, toRemoveB)
-	assert.NoError(t, err, "failed to delete record")
-	// run RemoveUnusedTags
-	err = removeUnusedTags(r)
-	assert.NoError(t, err, "failed to remove unused tags")
-	tagsCountAfterDel := CountRecords(r, tt.Tags)
-	assert.NotEqual(t, tagsCount, tagsCountAfterDel, "tags count should be different")
-}
-
 func TestTagsCounter(t *testing.T) {
 	t.Parallel()
 	r := setupTestDB(t)
@@ -103,14 +74,13 @@ func TestGetOrCreateTag(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	newTagName := "newtag"
-	ttags := r.Cfg.Tables.Tags
-	_ = r.execTx(context.Background(), func(tx *sqlx.Tx) error {
+	_ = r.withTx(context.Background(), func(tx *sqlx.Tx) error {
 		// test creating a new tag
-		tagID, err := createTag(tx, ttags, newTagName)
+		tagID, err := createTag(tx, newTagName)
 		assert.NotEqual(t, int64(0), tagID, "CreateTag returned ID 0, expected a valid ID")
 		assert.NoError(t, err, "failed to create tag")
 		// verify tag was inserted
-		newTagID, err := getTag(tx, ttags, newTagName)
+		newTagID, err := getTag(tx, newTagName)
 		assert.NoError(t, err, "failed to get tag")
 		assert.Equal(t, tagID, newTagID, "GetTag returned wrong ID for 'newtag' id: %d", newTagID)
 

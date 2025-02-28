@@ -11,38 +11,35 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// Oneline formats a bookmark in a single line with max width.
+// Oneline formats a bookmark in a single line with dynamic width adjustment.
 func Oneline(b *Bookmark) string {
-	var sb strings.Builder
 	const (
 		idWithColor    = 16
 		minTagsLen     = 34
 		defaultTagsLen = 24
+		idPadding      = 5
 	)
 	width := terminal.MaxWidth
-	idLen := format.PaddingConditional(5, idWithColor)
+	idLen := format.PaddingConditional(idPadding, idWithColor)
 	tagsLen := format.PaddingConditional(minTagsLen, defaultTagsLen)
-	// calculate maximum length for url and tags based on total width
-	urlLen := width - idLen - tagsLen
-	// define template with formatted placeholders
-	template := "%-*s %s %-*s %-*s\n"
-
+	// calculate url length dynamically based on available space
+	// add 1 for the bullet point spacer
+	urlLen := width - idLen - tagsLen - 1
+	// apply colors
 	coloredID := color.BrightYellow(b.ID).Bold().String()
 	shortURL := format.Shorten(b.URL, urlLen)
 	colorURL := color.Gray(shortURL).String()
+	// adjust for ansi color codes in url length calculation
 	urlLen += len(colorURL) - len(shortURL)
-	tagsColor := color.BrightCyan(b.Tags).Italic().String()
-	result := fmt.Sprintf(
-		template,
-		idLen,
-		coloredID,
-		format.UnicodeMidBulletPoint,
-		urlLen,
-		colorURL,
-		tagsLen,
-		tagsColor,
-	)
-	sb.WriteString(result)
+	// process and color tags
+	tagsColor := color.BrightCyan(PrettifyTags(b.Tags)).Italic().String()
+	// build the final string directly without intermediate format string
+	var sb strings.Builder
+	sb.Grow(width + 20) // pre-allocate buffer with some extra space for color codes
+	// write each component with proper spacing
+	sb.WriteString(fmt.Sprintf("%-*s ", idLen, coloredID))
+	sb.WriteString(format.UnicodeMiddleDot)
+	sb.WriteString(fmt.Sprintf(" %-*s %-*s\n", urlLen, colorURL, tagsLen, tagsColor))
 
 	return sb.String()
 }
@@ -52,7 +49,7 @@ func Multiline(b *Bookmark) string {
 	width := terminal.MaxWidth
 	var sb strings.Builder
 	sb.WriteString(color.BrightYellow(b.ID).Bold().String())
-	sb.WriteString(" " + format.UnicodeMidBulletPoint + " ") // sep
+	sb.WriteString(" " + format.UnicodeMiddleDot + " ") // sep
 	sb.WriteString(format.Shorten(PrettifyURL(b.URL, color.BrightMagenta), width) + "\n")
 	sb.WriteString(color.Cyan(format.Shorten(b.Title, width)).String() + "\n")
 	sb.WriteString(color.BrightGray(PrettifyTags(b.Tags)).Italic().String())
@@ -62,7 +59,7 @@ func Multiline(b *Bookmark) string {
 
 func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	f := frame.New(frame.WithColorBorder(c))
-	width := terminal.MinWidth
+	width := terminal.MaxWidth
 	width -= len(f.Border.Row)
 	// split
 	descSplit := format.SplitIntoChunks(b.Desc, width)
@@ -83,7 +80,7 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 
 // Frame formats a bookmark in a frame with min width.
 func Frame(b *Bookmark) string {
-	width := terminal.MinWidth
+	width := terminal.MaxWidth
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	// indentation
 	width -= len(f.Border.Row)
@@ -106,8 +103,8 @@ func Frame(b *Bookmark) string {
 
 // PrettifyTags returns a prettified tags.
 func PrettifyTags(s string) string {
-	t := strings.ReplaceAll(s, ",", format.UnicodeMidBulletPoint)
-	return strings.TrimRight(t, format.UnicodeMidBulletPoint)
+	t := strings.ReplaceAll(s, ",", format.UnicodeMiddleDot)
+	return strings.TrimRight(t, format.UnicodeMiddleDot)
 }
 
 // PrettifyURL returns a prettified URL.
@@ -133,10 +130,9 @@ func PrettifyURL(s string, c color.ColorFn) string {
 		return host
 	}
 
-	pathSeg := color.Text(
-		format.UnicodeSingleAngleMark,
-		strings.Join(pathSegments, fmt.Sprintf(" %s ", format.UnicodeSingleAngleMark)),
-	).Italic()
+	uc := color.BrightGray(format.UnicodeRightDoubleAngle).String()
+	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
+	pathSeg := color.Text(uc, segments).Italic()
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }

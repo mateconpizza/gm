@@ -66,7 +66,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 
 	q := strings.Join(args, "%")
-	if err := r.ByQuery(r.Cfg.Tables.Main, q, bs); err != nil {
+	if err := r.ByQuery(q, bs); err != nil {
 		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
 	}
 
@@ -85,7 +85,7 @@ func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.ByIDList(r.Cfg.Tables.Main, ids, bs); err != nil {
+	if err := r.ByIDList(ids, bs); err != nil {
 		return fmt.Errorf("records from args: %w", err)
 	}
 
