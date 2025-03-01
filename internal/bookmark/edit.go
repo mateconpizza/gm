@@ -29,6 +29,10 @@ func Edit(te *files.TextEditor, content []byte, b *Bookmark) error {
 	tb := parseBookmarkContent(lines)
 	tb = scrapeBookmark(tb)
 	tb.ID = b.ID
+	tb.CreatedAt = b.CreatedAt
+	tb.Favorite = b.Favorite
+	tb.LastVisit = b.LastVisit
+	tb.VisitCount = b.VisitCount
 	*b = *tb
 
 	return nil

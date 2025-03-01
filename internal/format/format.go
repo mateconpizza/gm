@@ -20,6 +20,9 @@ const (
 	UnicodeSingleAngleMark  = "\u203A" // ›
 )
 
+// NBSP represents a non-breaking space character.
+const NBSP = "\u00A0"
+
 // PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.
 func PaddedLine(s, v any) string {
 	const pad = 15

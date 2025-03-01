@@ -1,6 +1,22 @@
 package bookmark
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func testSingleBookmark() *Bookmark {
+	return &Bookmark{
+		URL:       "https://www.example.com",
+		Title:     "Title",
+		Tags:      "test,tag1,go",
+		Desc:      "Description",
+		CreatedAt: "2023-01-01T12:00:00Z",
+		LastVisit: "2023-01-01T12:00:00Z",
+		Favorite:  true,
+	}
+}
 
 func TestExtractBlock(t *testing.T) {
 	t.Parallel()
@@ -55,10 +71,12 @@ func TestExtractBlock(t *testing.T) {
 func TestExtractLineContent(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
+		name     string
 		c        []string
 		expected int
 	}{
 		{
+			name: "Test with empty lines and comments",
 			c: []string{
 				"# Line 1",
 				"Line 2",
@@ -71,6 +89,7 @@ func TestExtractLineContent(t *testing.T) {
 			expected: 3,
 		},
 		{
+			name: "Test with multiple comments",
 			c: []string{
 				"# Line 1",
 				" Line 2",
@@ -83,10 +102,60 @@ func TestExtractLineContent(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		temp := test
-		got := ExtractContentLine(&temp.c)
-		if len(got) != test.expected {
-			t.Errorf("ExtractLineContent() = %v, want %v", got, test.expected)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			tt := test
+			got := ExtractContentLine(&tt.c)
+			assert.Len(t, got, tt.expected, "Expected %d lines, got %d", tt.expected, len(got))
+		})
+	}
+}
+
+func TestRecordIsValid(t *testing.T) {
+	validBookmark := testSingleBookmark()
+	err := Validate(validBookmark)
+	assert.NoError(t, err, "expected valid bookmark to be valid")
+	// invalid bookmark
+	invalidBookmark := testSingleBookmark()
+	invalidBookmark.Title = ""
+	invalidBookmark.URL = ""
+	err = Validate(invalidBookmark)
+	assert.Error(t, err, "expected invalid bookmark to be invalid")
+}
+
+func TestParseTags(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "valid tags",
+			input:    "tag1, tag2, tag3 tag",
+			expected: "tag,tag1,tag2,tag3,",
+		},
+		{
+			name:     "duplicate tags",
+			input:    "tag2, tag2 tag1, tag1, tag1",
+			expected: "tag1,tag2,",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "notag",
+		},
+		{
+			name:     "single tag",
+			input:    "tag",
+			expected: "tag,",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tt := test
+			got := ParseTags(tt.input)
+			assert.Equal(t, tt.expected, got, "expected %s, got %s", tt.expected, got)
+		})
 	}
 }
