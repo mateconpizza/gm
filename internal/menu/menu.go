@@ -6,8 +6,6 @@ import (
 	"log"
 
 	fzf "github.com/junegunn/fzf/src"
-
-	"github.com/haaag/gm/internal/config"
 )
 
 var (
@@ -30,7 +28,7 @@ type OptFn func(*Options)
 type Options struct {
 	keybind     []string
 	header      []string
-	args        []string
+	settings    FzfSettings
 	defaults    bool
 	interruptFn func(error)
 }
@@ -49,7 +47,14 @@ func (m *Menu[T]) AddOpts(opts ...OptFn) {
 // defaultOpts returns the default options.
 func defaultOpts() Options {
 	return Options{
-		args:     append(fzfDefaults, "--prompt="+menuConfig.Prompt),
+		settings: []string{
+			"--ansi",
+			"--reverse",
+			"--tac",
+			"--height=95%",
+			"--info=inline-right",
+			"--prompt=" + menuConfig.Prompt,
+		},
 		defaults: false,
 		header:   make([]string, 0),
 	}
@@ -80,101 +85,108 @@ func WithInterruptFn(fn func(error)) OptFn {
 // WithArgs adds new args to Fzf.
 func WithArgs(args ...string) OptFn {
 	return func(o *Options) {
-		o.args = append(o.args, args...)
+		o.settings = append(o.settings, args...)
 	}
 }
 
-// WithDefaultSettings whether to load defaults ($FZF_DEFAULT_OPTS_FILE and
+// WithSettings adds new settings to Fzf.
+func WithSettings(settings FzfSettings) OptFn {
+	return func(o *Options) {
+		o.settings = append(o.settings, settings...)
+	}
+}
+
+// WithUseDefaults whether to load defaults ($FZF_DEFAULT_OPTS_FILE and
 // $FZF_DEFAULT_OPTS).
-func WithDefaultSettings() OptFn {
+func WithUseDefaults() OptFn {
 	return func(o *Options) {
 		o.defaults = true
 	}
 }
 
 // WithKeybindEdit adds a keybind to edit the selected record.
-func WithKeybindEdit() OptFn {
-	edit := menuConfig.Keymaps.Edit
-	if !edit.Enabled {
-		return func(o *Options) {}
-	}
-
-	return func(o *Options) {
-		if !edit.Hidden {
-			o.header = appendKeytoHeader(o.header, edit.Bind, edit.Desc)
-		}
-		cmd := ":execute(%s -n " + config.App.DBName + " records --edit {1})"
-		o.keybind = append(o.keybind, withCommand(edit.Bind+cmd))
-	}
-}
+// func WithKeybindEdit() OptFn {
+// 	edit := MenuConfig.Keymaps.Edit
+// 	if !edit.Enabled {
+// 		return func(o *Options) {}
+// 	}
+//
+// 	return func(o *Options) {
+// 		if !edit.Hidden {
+// 			o.header = appendKeytoHeader(o.header, edit.Bind, edit.Desc)
+// 		}
+// 		cmd := ":execute(%s -n " + config.App.DBName + " records --edit {1})"
+// 		o.keybind = append(o.keybind, withCommand(edit.Bind+cmd))
+// 	}
+// }
 
 // WithKeybindOpen adds a keybind to open the selected record in default
 // browser.
-func WithKeybindOpen() OptFn {
-	open := menuConfig.Keymaps.Open
-	if !open.Enabled {
-		return func(o *Options) {}
-	}
-
-	return func(o *Options) {
-		if !open.Hidden {
-			o.header = appendKeytoHeader(o.header, open.Bind, open.Desc)
-		}
-		cmd := ":execute(%s -n " + config.App.DBName + " records --open {1})"
-		o.keybind = append(o.keybind, withCommand(open.Bind+cmd))
-	}
-}
+// func WithKeybindOpen() OptFn {
+// 	open := MenuConfig.Keymaps.Open
+// 	if !open.Enabled {
+// 		return func(o *Options) {}
+// 	}
+//
+// 	return func(o *Options) {
+// 		if !open.Hidden {
+// 			o.header = appendKeytoHeader(o.header, open.Bind, open.Desc)
+// 		}
+// 		cmd := ":execute(%s -n " + config.App.DBName + " records --open {1})"
+// 		o.keybind = append(o.keybind, withCommand(open.Bind+cmd))
+// 	}
+// }
 
 // WithKeybindQR adds a keybinding to generate a QR code.
-func WithKeybindQR() OptFn {
-	qr := menuConfig.Keymaps.QR
-	if !qr.Enabled {
-		return func(o *Options) {}
-	}
-
-	return func(o *Options) {
-		if !qr.Hidden {
-			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Desc)
-		}
-		cmd := ":execute(%s -n " + config.App.DBName + " records --qr {1})"
-		o.keybind = append(o.keybind, withCommand(qr.Bind+cmd))
-	}
-}
+// func WithKeybindQR() OptFn {
+// 	qr := MenuConfig.Keymaps.QR
+// 	if !qr.Enabled {
+// 		return func(o *Options) {}
+// 	}
+//
+// 	return func(o *Options) {
+// 		if !qr.Hidden {
+// 			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Desc)
+// 		}
+// 		cmd := ":execute(%s -n " + config.App.DBName + " records --qr {1})"
+// 		o.keybind = append(o.keybind, withCommand(qr.Bind+cmd))
+// 	}
+// }
 
 // WithKeybindOpenQR adds a keybinding to generate and open a QR code in the
 // default image viewer.
-func WithKeybindOpenQR() OptFn {
-	qr := menuConfig.Keymaps.OpenQR
-	if !qr.Enabled {
-		return func(o *Options) {}
-	}
-
-	return func(o *Options) {
-		if !qr.Hidden {
-			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Desc)
-		}
-		cmd := ":execute(%s -n " + config.App.DBName + " records --qr --open {1})"
-		o.keybind = append(o.keybind, withCommand(qr.Bind+cmd))
-	}
-}
+// func WithKeybindOpenQR() OptFn {
+// 	qr := MenuConfig.Keymaps.OpenQR
+// 	if !qr.Enabled {
+// 		return func(o *Options) {}
+// 	}
+//
+// 	return func(o *Options) {
+// 		if !qr.Hidden {
+// 			o.header = appendKeytoHeader(o.header, qr.Bind, qr.Desc)
+// 		}
+// 		cmd := ":execute(%s -n " + config.App.DBName + " records --qr --open {1})"
+// 		o.keybind = append(o.keybind, withCommand(qr.Bind+cmd))
+// 	}
+// }
 
 // WithDefaultKeybinds adds default keybinds to Fzf.
 //
 // ctrl-y:copy-to-clipboard.
-func WithDefaultKeybinds() OptFn {
-	yank := menuConfig.Keymaps.Yank
-	if !yank.Enabled {
-		return func(o *Options) {}
-	}
-
-	return func(o *Options) {
-		if !yank.Hidden {
-			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Desc)
-		}
-		cmd := ":execute(%s -n " + config.App.DBName + " records --copy {1})"
-		o.keybind = append(o.keybind, withCommand(yank.Bind+cmd))
-	}
-}
+// func WithDefaultKeybinds() OptFn {
+// 	yank := MenuConfig.Keymaps.Yank
+// 	if !yank.Enabled {
+// 		return func(o *Options) {}
+// 	}
+//
+// 	return func(o *Options) {
+// 		if !yank.Hidden {
+// 			o.header = appendKeytoHeader(o.header, yank.Bind, yank.Desc)
+// 		}
+// 		cmd := ":execute(%s -n " + config.App.DBName + " records --copy {1})"
+// 		o.keybind = append(o.keybind, withCommand(yank.Bind+cmd))
+// 	}
+// }
 
 // WithKeybindNew adds a keybind to Fzf.
 // NOTE: This is experimental.
@@ -184,10 +196,25 @@ func WithDefaultKeybinds() OptFn {
 // e.g: "ctrl-o:execute(echo {})".
 //
 // e.g: "<key>:<action>".
-func WithKeybindNew(key, action, desc string) OptFn {
+// func WithKeybindNew(key, action, desc string) OptFn {
+// 	return func(o *Options) {
+// 		o.header = appendKeytoHeader(o.header, key, desc)
+// 		o.keybind = append(o.keybind, fmt.Sprintf("%s:%s", key, action))
+// 	}
+// }
+
+// WithKeybinds adds a keybind to Fzf.
+func WithKeybinds(keys ...Keymap) OptFn {
 	return func(o *Options) {
-		o.header = appendKeytoHeader(o.header, key, desc)
-		o.keybind = append(o.keybind, fmt.Sprintf("%s:%s", key, action))
+		for _, k := range keys {
+			if !k.Enabled {
+				continue
+			}
+			if !k.Hidden {
+				o.header = appendKeytoHeader(o.header, k.Bind, k.Desc)
+			}
+			o.keybind = append(o.keybind, fmt.Sprintf("%s:%s", k.Bind, k.Action))
+		}
 	}
 }
 
@@ -196,12 +223,12 @@ func WithMultiSelection() OptFn {
 	opts := []string{"--highlight-line", "--multi"}
 	if !menuConfig.Keymaps.ToggleAll.Enabled {
 		return func(o *Options) {
-			o.args = append(o.args, opts...)
+			o.settings = append(o.settings, opts...)
 		}
 	}
 
 	return func(o *Options) {
-		o.args = append(o.args, opts...)
+		o.settings = append(o.settings, opts...)
 		if !menuConfig.Keymaps.ToggleAll.Hidden {
 			h := appendKeytoHeader(make([]string, 0), "ctrl-a", "toggle-all")
 			o.header = append(o.header, h...)
@@ -210,20 +237,20 @@ func WithMultiSelection() OptFn {
 	}
 }
 
-// WithPreview adds a preview window and a keybind to toggle it.
-func WithPreview() OptFn {
-	return buildPreviewOpts(withCommand("%s -n " + config.App.DBName + " records {1}"))
-}
-
-// WithPreviewCustomCmd adds preview with a custom command.
-func WithPreviewCustomCmd(cmd string) OptFn {
+// WithPreview adds preview with a custom command.
+func WithPreview(cmd string) OptFn {
 	return buildPreviewOpts(cmd)
 }
 
 // buildPreviewOpts builds the preview options.
 func buildPreviewOpts(cmd string) OptFn {
+	preview := menuConfig.Keymaps.Preview
+	if !preview.Enabled {
+		return func(o *Options) {}
+	}
+
 	var opts []string
-	if !config.App.Color {
+	if !colorEnabled {
 		opts = append(opts, "--no-color")
 	}
 	opts = append(opts, "--preview="+cmd)
@@ -233,11 +260,9 @@ func buildPreviewOpts(cmd string) OptFn {
 		opts = append(opts, "--preview-window=~4,+{2}+4/3,<80(up)")
 	}
 
-	preview := menuConfig.Keymaps.Preview
-
 	return func(o *Options) {
-		o.args = append(o.args, opts...)
-		if !preview.Hidden || !menuConfig.Preview {
+		o.settings = append(o.settings, opts...)
+		if !preview.Hidden && menuConfig.Preview {
 			o.header = appendKeytoHeader(o.header, preview.Bind, "toggle-preview")
 		}
 		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
@@ -253,7 +278,7 @@ func WithMultilineView() OptFn {
 	}
 
 	return func(o *Options) {
-		o.args = append(o.args, opts...)
+		o.settings = append(o.settings, opts...)
 	}
 }
 
@@ -272,7 +297,7 @@ func WithHeader(header string, replace bool) OptFn {
 // WithPrompt adds a prompt to Fzf.
 func WithPrompt(prompt string) OptFn {
 	return func(o *Options) {
-		o.args = append(o.args, "--prompt="+prompt)
+		o.settings = append(o.settings, "--prompt="+prompt)
 	}
 }
 
@@ -288,15 +313,10 @@ func New[T comparable](opts ...OptFn) *Menu[T] {
 	}
 }
 
-// GetArgs returns the args from Options.
-func (m *Menu[T]) GetArgs() []string {
-	return m.args
-}
-
 // setup loads header, keybind and args from Options.
 func (m *Menu[T]) setup() error {
-	loadHeader(m.header, &m.args)
-	return loadKeybind(m.keybind, &m.args)
+	loadHeader(m.header, &m.settings)
+	return loadKeybind(m.keybind, &m.settings)
 }
 
 // Select runs Fzf with the given items and returns the selected item/s.
@@ -314,7 +334,7 @@ func (m *Menu[T]) Select(items []T, preprocessor func(*T) string) ([]T, error) {
 		preprocessor = toString
 	}
 
-	log.Printf("menu args: %v", m.args)
+	log.Printf("menu args: %v", m.settings)
 
 	// channels
 	inputChan := formatItems(items, preprocessor)
@@ -324,7 +344,7 @@ func (m *Menu[T]) Select(items []T, preprocessor func(*T) string) ([]T, error) {
 	go processOutput(items, preprocessor, outputChan, resultChan)
 
 	// Build Fzf.Options
-	options, err := fzf.ParseOptions(m.defaults, m.args)
+	options, err := fzf.ParseOptions(m.defaults, m.settings)
 	if err != nil {
 		return nil, fmt.Errorf("fzf: %w", err)
 	}

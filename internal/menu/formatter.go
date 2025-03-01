@@ -2,12 +2,10 @@ package menu
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	shellwords "github.com/junegunn/go-shellwords"
-
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format/color"
 )
 
 // appendKeytoHeader appends a key:desc string to the header slice.
@@ -53,7 +51,7 @@ func processOutput[T any](
 
 	for _, item := range items {
 		ti := item
-		formatted := color.RemoveANSICodes(preprocessor(&ti))
+		formatted := ANSICodeRemover(preprocessor(&ti))
 		ogItem[formatted] = item
 	}
 
@@ -66,17 +64,17 @@ func processOutput[T any](
 }
 
 // loadHeader appends a formatted header string to args.
-func loadHeader(header []string, args *[]string) {
+func loadHeader(header []string, args *FzfSettings) {
 	if len(header) == 0 {
 		return
 	}
 
-	h := strings.Join(header, menuConfig.Header.Separator)
+	h := strings.Join(header, menuConfig.Header.Sep)
 	*args = append(*args, "--header="+h)
 }
 
 // loadKeybind appends a comma-separated keybind string to args.
-func loadKeybind(keybind []string, args *[]string) error {
+func loadKeybind(keybind []string, args *FzfSettings) error {
 	if len(keybind) == 0 {
 		return nil
 	}
@@ -91,8 +89,8 @@ func loadKeybind(keybind []string, args *[]string) error {
 	return nil
 }
 
-// withCommand formats string with the name of the Command, the same name
-// used when building the binary.
-func withCommand(s string) string {
-	return fmt.Sprintf(s, config.App.Cmd)
+// ANSICodeRemover removes ANSI codes from a given string.
+func ANSICodeRemover(s string) string {
+	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return re.ReplaceAllString(s, "")
 }

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
 
@@ -13,16 +14,49 @@ import (
 // dumpConf is the flag for dumping the config.
 var dumpConf bool
 
+// dumpAppConfig dumps the app configuration to a YAML file.
+func dumpAppConfig(p string) error {
+	if err := files.WriteYamlFile(p, config.Defaults); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
 // editConfig edits the config file.
-func editConfig() error {
+func editConfig(p string) error {
 	te, err := files.GetEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	p := config.App.Path.ConfigFile
 	if err := te.EditFile(p); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	return nil
+}
+
+// loadConfig loads the menu configuration YAML file.
+func loadConfig(p string) error {
+	if !files.Exists(p) {
+		log.Println("menu configfile not found. loading defaults")
+		return nil
+	}
+	var menuConfig *config.ConfigFile
+	if err := files.ReadYamlFile(p, &menuConfig); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if menuConfig == nil {
+		log.Println("menu configfile is empty. loading defaults")
+		return nil
+	}
+
+	if err := menu.ValidateConfig(menuConfig.Menu); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	config.Fzf = menuConfig.Menu
 
 	return nil
 }
@@ -32,11 +66,12 @@ var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Configuration management",
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		fn := config.App.Path.ConfigFile
 		switch {
 		case dumpConf:
-			return menu.DumpConfig()
+			return dumpAppConfig(fn)
 		case Edit:
-			return editConfig()
+			return editConfig(fn)
 		}
 
 		return cmd.Usage()

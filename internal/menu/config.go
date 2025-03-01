@@ -1,53 +1,50 @@
 package menu
 
 import (
+	"errors"
 	"fmt"
-	"log"
-
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/sys/files"
 )
 
+var (
+	ErrInvalidConfigKeymap   = errors.New("invalid keymap")
+	ErrInvalidConfigSettings = errors.New("invalid settings")
+)
+
+// colorEnabled is a flag to enable color support.
+var colorEnabled bool = false
+
 // menuConfig holds the menu configuration.
-var menuConfig *Config = defaultMenuConfig
+var menuConfig *FzfConfig
 
-// fzfDefaults are the default options for FZF.
-var fzfDefaults = []string{
-	"--ansi",                // Enable processing of ANSI color codes
-	"--cycle",               // Enable cyclic scroll
-	"--reverse",             // A synonym for --layout=reverse
-	"--sync",                // Synchronous search for multi-staged filtering
-	"--info=inline-right",   // Determines the display style of the finder info.
-	"--tac",                 // Reverse the order of the input
-	"--layout=default",      // Choose the layout (default: default)
-	"--color=header:italic", // Header style
+// FzfSettings holds the FZF settings.
+type FzfSettings []string
+
+// FzfConfig holds the menu configuration.
+type FzfConfig struct {
+	Prompt   string      `yaml:"prompt"`   // Fzf prompt
+	Preview  bool        `yaml:"preview"`  // Fzf enable preview
+	Header   FzfHeader   `yaml:"header"`   // Fzf header
+	Keymaps  Keymaps     `yaml:"keymaps"`  // Fzf keymaps
+	Settings FzfSettings `yaml:"settings"` // Fzf settings
 }
 
-// Config holds the menu configuration.
-type Config struct {
-	Prompt  string     `yaml:"prompt"`  // Fzf prompt
-	Preview bool       `yaml:"preview"` // Fzf enable preview
-	Header  fzfHeader  `yaml:"header"`  // Fzf header
-	Keymaps fzfKeymaps `yaml:"keymaps"` // Fzf keymaps
-}
-
-// fzfHeader holds the header configuration for FZF.
-type fzfHeader struct {
-	Enabled   bool   `yaml:"enabled"`
-	Separator string `yaml:"separator"`
+// FzfHeader holds the header configuration for FZF.
+type FzfHeader struct {
+	Enabled bool   `yaml:"enabled"`
+	Sep     string `yaml:"separator"`
 }
 
 // Keymap holds the keymap configuration.
 type Keymap struct {
-	Bind    string `yaml:"bind"`
-	Desc    string `yaml:"description"`
-	Enabled bool   `yaml:"enabled"`
-	Hidden  bool   `yaml:"hidden"`
+	Bind    string `yaml:"bind"`        // keybind combination.
+	Desc    string `yaml:"description"` // keybind description
+	Action  string `yaml:"-"`           // action to execute.
+	Enabled bool   `yaml:"enabled"`     // keybind enabled.
+	Hidden  bool   `yaml:"hidden"`      // keybind hidden.
 }
 
-// fzfKeymaps holds the keymaps for FZF.
-type fzfKeymaps struct {
+// Keymaps holds the keymaps for FZF.
+type Keymaps struct {
 	Edit      Keymap `yaml:"edit"`
 	Open      Keymap `yaml:"open"`
 	Preview   Keymap `yaml:"preview"`
@@ -57,54 +54,35 @@ type fzfKeymaps struct {
 	Yank      Keymap `yaml:"yank"`
 }
 
-// NewKeymap creates a new keymap.
-func NewKeymap(bind, description string) *Keymap {
-	return &Keymap{
-		Bind:    bind,
-		Desc:    description,
-		Enabled: true,
-		Hidden:  false,
-	}
+// SetConfig sets menu configuration.
+func SetConfig(cfg *FzfConfig) {
+	menuConfig = cfg
 }
 
-// defaultMenuConfig holds the default menu configuration.
-var defaultMenuConfig = &Config{
-	Prompt:  config.App.Name + "> ",
-	Preview: true,
-	Header: fzfHeader{
-		Enabled:   true,
-		Separator: " " + format.UnicodeMiddleDot + " ",
-	},
-	Keymaps: fzfKeymaps{
-		Edit:      Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
-		Open:      Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
-		Preview:   Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
-		QR:        Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
-		OpenQR:    Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
-		ToggleAll: Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
-		Yank:      Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
-	},
+// EnableColor enables color support.
+func EnableColor(b bool) {
+	colorEnabled = b
 }
 
-// DumpConfig dumps the menu configuration to a YAML file.
-func DumpConfig() error {
-	if err := files.WriteYamlFile(config.App.Path.ConfigFile, &defaultMenuConfig); err != nil {
-		return fmt.Errorf("%w", err)
+// ValidateConfig validates the menu configuration.
+func ValidateConfig(cfg *FzfConfig) error {
+	keymaps := []Keymap{
+		cfg.Keymaps.Edit,
+		cfg.Keymaps.Open,
+		cfg.Keymaps.QR,
+		cfg.Keymaps.OpenQR,
+		cfg.Keymaps.Yank,
+		cfg.Keymaps.Preview,
+		cfg.Keymaps.ToggleAll,
 	}
 
-	return nil
-}
-
-// LoadConfig loads the defaults if the config YAML file does not exist.
-func LoadConfig() error {
-	p := config.App.Path.ConfigFile
-	if !files.Exists(p) {
-		log.Println("menu configfile not found. loading defaults")
-		menuConfig = defaultMenuConfig
-		return nil
+	for _, k := range keymaps {
+		if k.Bind == "" {
+			return fmt.Errorf("%w: empty keybind", ErrInvalidConfigKeymap)
+		}
 	}
-	if err := files.ReadYamlFile(p, &menuConfig); err != nil {
-		return fmt.Errorf("%w", err)
+	if len(cfg.Settings) == 0 {
+		return fmt.Errorf("%w: empty settings", ErrInvalidConfigSettings)
 	}
 
 	return nil

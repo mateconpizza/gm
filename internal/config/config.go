@@ -83,23 +83,3 @@ func SetLoggingLevel(b bool) {
 	silentLogger := log.New(io.Discard, "", 0)
 	log.SetOutput(silentLogger.Writer())
 }
-
-// App is the default application configuration.
-var App = &AppConfig{
-	Name:    appName,
-	Cmd:     command,
-	Version: version,
-	DBName:  DefaultDBName,
-	Color:   false,
-	Force:   false,
-	Info: information{
-		URL:   "https://github.com/haaag/gomarks#readme",
-		Title: "Gomarks: A bookmark manager",
-		Tags:  "golang,awesome,bookmarks,cli",
-		Desc:  "Simple yet powerful bookmark manager for your terminal",
-	},
-	Env: environment{
-		Home:   "GOMARKS_HOME",
-		Editor: "GOMARKS_EDITOR",
-	},
-}

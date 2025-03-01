@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
@@ -24,14 +25,17 @@ var recordsCmd = &cobra.Command{
 		terminal.ReadPipedInput(&args)
 		// menu
 		mo := []menu.OptFn{
-			menu.WithDefaultKeybinds(),
-			menu.WithDefaultSettings(),
+			menu.WithUseDefaults(),
+			menu.WithSettings(config.Fzf.Settings),
 			menu.WithMultiSelection(),
-			menu.WithPreview(),
-			menu.WithKeybindEdit(),
-			menu.WithKeybindOpen(),
-			menu.WithKeybindQR(),
-			menu.WithKeybindOpenQR(),
+			menu.WithPreview(config.App.Cmd + " -n " + config.App.DBName + " records {1}"),
+			menu.WithKeybinds(
+				config.FzfKeybindEdit(),
+				config.FzfKeybindOpen(),
+				config.FzfKeybindQR(),
+				config.FzfKeybindOpenQR(),
+				config.FzfKeybindYank(),
+			),
 		}
 		if Multiline {
 			mo = append(mo, menu.WithMultilineView())

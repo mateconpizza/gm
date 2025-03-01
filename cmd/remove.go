@@ -38,9 +38,10 @@ func selectRepo(p string) (*Repo, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 	m := menu.New[Repo](
-		menu.WithDefaultSettings(),
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(p, false),
-		menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} info"),
+		menu.WithPreview(config.App.Cmd+" db -n {1} info"),
 	)
 	repos, err := handler.Selection(m, *databases.Items(), repo.RepoSummaryRecords)
 	if err != nil {
@@ -66,10 +67,11 @@ var bkRemoveCmd = &cobra.Command{
 			sys.ErrAndExit(err)
 		}))
 		m := menu.New[Repo](
-			menu.WithDefaultSettings(),
+			menu.WithUseDefaults(),
+			menu.WithSettings(config.Fzf.Settings),
 			menu.WithMultiSelection(),
 			menu.WithHeader("choose backup/s to remove", false),
-			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
+			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
 		)
 		backups, err := repo.Backups(r)
 		if err != nil {
@@ -130,10 +132,11 @@ func handleRmBackups(t *terminal.Term, r *Repo) error {
 		filesToRemove.Set(items)
 	case "s", "select":
 		m := menu.New[Repo](
-			menu.WithDefaultSettings(),
+			menu.WithUseDefaults(),
+			menu.WithSettings(config.Fzf.Settings),
 			menu.WithMultiSelection(),
 			menu.WithHeader(fmt.Sprintf("select backup/s from '%s'", r.Cfg.Name), false),
-			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
+			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
 		)
 		selected, err := handler.Selection(m, *items, repo.RepoSummaryRecords)
 		if err != nil {

@@ -72,9 +72,9 @@ var importBackupCmd = &cobra.Command{
 		}
 		defer destDB.Close()
 		mPaths := menu.New[string](
-			menu.WithDefaultSettings(),
-			menu.WithPreview(),
-			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n ./backup/{1} info"),
+			menu.WithUseDefaults(),
+			menu.WithSettings(config.Fzf.Settings),
+			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
 			menu.WithHeader("choose a backup to import from", false),
 		)
 		selected, err := handler.Selection(mPaths, destDB.Cfg.Backup.Files, func(p *string) string {
@@ -96,10 +96,10 @@ var importBackupCmd = &cobra.Command{
 		t := terminal.New(terminal.WithInterruptFn(interruptFn))
 		defer t.CancelInterruptHandler()
 		mb := menu.New[Bookmark](
-			menu.WithDefaultSettings(),
+			menu.WithUseDefaults(),
 			menu.WithMultiSelection(),
-			menu.WithPreview(),
-			menu.WithPreviewCustomCmd(config.App.Cmd+" -n ./backup/"+srcDB.Cfg.Name+" {1}"),
+			menu.WithSettings(config.Fzf.Settings),
+			menu.WithPreview(config.App.Cmd+" -n ./backup/"+srcDB.Cfg.Name+" {1}"),
 			menu.WithInterruptFn(interruptFn),
 			menu.WithHeader("select record/s to import", false),
 		)
@@ -157,8 +157,9 @@ var importDatabaseCmd = &cobra.Command{
 		}
 		m := menu.New[Repo](
 			menu.WithInterruptFn(interruptFn),
-			menu.WithDefaultSettings(),
-			menu.WithPreviewCustomCmd(config.App.Cmd+" db -n {1} info"),
+			menu.WithSettings(config.Fzf.Settings),
+			menu.WithUseDefaults(),
+			menu.WithPreview(config.App.Cmd+" db -n {1} info"),
 			menu.WithHeader("choose a database to import from", false),
 		)
 		item, err := handler.Selection(m, *dbs.Items(), repo.RepoSummaryRecords)
@@ -175,11 +176,11 @@ var importDatabaseCmd = &cobra.Command{
 		t := terminal.New(terminal.WithInterruptFn(interruptFn))
 		defer t.CancelInterruptHandler()
 		mb := menu.New[Bookmark](
-			menu.WithDefaultSettings(),
+			menu.WithUseDefaults(),
+			menu.WithSettings(config.Fzf.Settings),
 			menu.WithMultiSelection(),
 			menu.WithHeader("select record/s to import", false),
-			menu.WithPreview(),
-			menu.WithPreviewCustomCmd(config.App.Cmd+" -n "+srcDB.Cfg.Name+" records {1}"),
+			menu.WithPreview(config.App.Cmd+" -n "+srcDB.Cfg.Name+" records {1}"),
 			menu.WithInterruptFn(interruptFn),
 		)
 
@@ -217,7 +218,7 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 	// remove prompt
 	success := color.BrightGreen("Successfully").Italic().Bold().String()
 	s := fmt.Sprintf("imported %d record/s", records.Len())
-	t.ReplaceLine(1, f.Clear().Success(success+" "+s).String())
+	t.ReplaceLine(2, f.Clear().Success(success+" "+s).String())
 
 	return nil
 }
@@ -261,14 +262,15 @@ var importCmd = &cobra.Command{
 		for k, src := range mapSource {
 			maxSourceLen = max(maxSourceLen, len(src.color(k).String()))
 		}
-		delimiter := format.UnicodeBulletPoint
+		delimiter := format.NBSP
 		keys := make([]string, 0, len(mapSource))
 		for k, src := range mapSource {
-			s := fmt.Sprintf("%-*s %s %s", maxSourceLen, src.color(k), delimiter, src.cmd.Short)
+			s := fmt.Sprintf("%-*s %s%s", maxSourceLen, src.color(k), delimiter, src.cmd.Short)
 			keys = append(keys, s)
 		}
 		m := menu.New[string](
-			menu.WithDefaultSettings(),
+			menu.WithUseDefaults(),
+			menu.WithSettings(config.Fzf.Settings),
 			menu.WithHeader("select a source to import from", false),
 			menu.WithArgs("--no-bold"),
 		)
@@ -276,7 +278,7 @@ var importCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		selected := color.RemoveANSICodes(strings.Split(k[0], delimiter)[0])
+		selected := menu.ANSICodeRemover(strings.Split(k[0], delimiter)[0])
 		src, ok := mapSource[strings.TrimSpace(selected)]
 		if !ok {
 			return fmt.Errorf("%w: '%s'", ErrImportSourceNotFound, selected)

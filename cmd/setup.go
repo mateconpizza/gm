@@ -61,10 +61,11 @@ func initConfig() {
 	// set database path
 	Cfg = repo.NewSQLiteCfg(filepath.Join(dataHomePath, config.App.DBName))
 
-	// load menu settings
-	if err := menu.LoadConfig(); err != nil {
+	if err := loadConfig(config.App.Path.ConfigFile); err != nil {
 		log.Println("error loading config:", err)
 	}
+	menu.SetConfig(config.Fzf)
+	menu.EnableColor(config.App.Color)
 }
 
 // init sets the config for the root command.
