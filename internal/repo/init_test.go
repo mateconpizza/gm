@@ -37,7 +37,9 @@ func testSingleBookmark() *Row {
 		Title:     "Title",
 		Tags:      "test,tag1,go",
 		Desc:      "Description",
-		CreatedAt: "2023-01-01 12:00:00",
+		CreatedAt: "2023-01-01T12:00:00Z",
+		LastVisit: "2023-01-01T12:00:00Z",
+		Favorite:  true,
 	}
 }
 
@@ -53,6 +55,17 @@ func testSliceBookmarks() *Slice {
 	}
 
 	return s
+}
+
+func testPopulatedDB(t *testing.T) *SQLiteRepository {
+	t.Helper()
+	r := setupTestDB(t)
+	bs := testSliceBookmarks()
+	ctx := context.Background()
+	err := r.InsertMany(ctx, bs)
+	assert.NoError(t, err)
+
+	return r
 }
 
 func TestInit(t *testing.T) {

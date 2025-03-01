@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -34,7 +35,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 	}
 
 	for _, tag := range tags {
-		if err := r.ByTag(tag, bs); err != nil {
+		if err := r.ByTag(context.Background(), tag, bs); err != nil {
 			return fmt.Errorf("byTags :%w", err)
 		}
 	}

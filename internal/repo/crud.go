@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -81,6 +82,7 @@ func (r *SQLiteRepository) UpdateOne(ctx context.Context, newB, oldB *Row) (*Row
 		if err := r.delete(ctx, oldB.URL); err != nil {
 			return fmt.Errorf("delete old record: %w", err)
 		}
+		newB.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 		if err := r.insertAtID(tx, newB); err != nil {
 			return fmt.Errorf("insert new record: %w", err)
 		}
@@ -98,15 +100,7 @@ func (r *SQLiteRepository) All(bs *Slice) error {
 	log.Printf("getting all records")
 	q := `
     SELECT
-      b.id,
-      b.url,
-      b.title,
-      b.desc,
-      b.created_at,
-      b.updated_at,
-      b.visit_count,
-      b.last_visit,
-      b.favorite,
+      b.*,
       GROUP_CONCAT(t.name, ',') AS tags
     FROM
       bookmarks b
@@ -135,15 +129,7 @@ func (r *SQLiteRepository) ByID(bID int) (*Row, error) {
 	log.Printf("getting record by ID=%d\n", bID)
 	q := `
     SELECT
-      b.id,
-      b.url,
-      b.title,
-      b.desc,
-      b.created_at,
-      b.updated_at,
-      b.visit_count,
-      b.last_visit,
-      b.favorite,
+      b.*,
       COALESCE(
         GROUP_CONCAT(t.name, ','),
         ''
@@ -174,15 +160,7 @@ func (r *SQLiteRepository) ByIDList(bIDs []int, bs *Slice) error {
 	}
 	q, args, err := sqlx.In(`
     SELECT
-      b.id,
-      b.url,
-      b.title,
-      b.desc,
-      b.created_at,
-      b.updated_at,
-      b.visit_count,
-      b.last_visit,
-      b.favorite,
+      b.*,
       COALESCE(
         GROUP_CONCAT(t.name, ','),
         ''
@@ -208,16 +186,8 @@ func (r *SQLiteRepository) ByIDList(bIDs []int, bs *Slice) error {
 // ByURL returns a record by its URL in the give table.
 func (r *SQLiteRepository) ByURL(bURL string) (*Row, error) {
 	row := r.DB.QueryRowx(`
-  SELECT
-      b.id,
-      b.url,
-      b.title,
-      b.desc,
-      b.created_at,
-      b.updated_at,
-      b.visit_count,
-      b.last_visit,
-      b.favorite,
+    SELECT
+      b.*,
       COALESCE(
         GROUP_CONCAT(t.name, ','),
         ''
@@ -241,31 +211,30 @@ func (r *SQLiteRepository) ByURL(bURL string) (*Row, error) {
 	return &b, nil
 }
 
-// ByTag returns records filtered by tag.
-func (r *SQLiteRepository) ByTag(tag string, bs *Slice) error {
-	q := `SELECT *
-        FROM bookmarks b
-        JOIN bookmark_tags bt ON b.url = bt.bookmark_url
-        JOIN tags t ON bt.tag_id = t.id
-        WHERE t.name LIKE ?`
+// ByTag returns records filtered by tag, including all associated tags.
+func (r *SQLiteRepository) ByTag(ctx context.Context, tag string, bs *Slice) error {
+	q := `
+    SELECT
+      b.*,
+      COALESCE(GROUP_CONCAT(t_all.name, ','), '') AS tags
+    FROM bookmarks b
+    JOIN bookmark_tags bt_filter ON b.url = bt_filter.bookmark_url
+    JOIN tags t_filter ON bt_filter.tag_id = t_filter.id
+    JOIN bookmark_tags bt_all ON b.url = bt_all.bookmark_url
+    JOIN tags t_all ON bt_all.tag_id = t_all.id
+    WHERE LOWER(t_filter.name) LIKE LOWER(?)
+    GROUP BY b.id
+    ORDER BY b.id ASC;`
 
 	return r.bySQL(bs, q, "%"+tag+"%")
 }
 
 // ByQuery returns records by query in the give table.
-func (r *SQLiteRepository) ByQuery(q string, bs *Slice) error {
-	log.Printf("getting records by query: '%s'", q)
-	sqlQuery := `
+func (r *SQLiteRepository) ByQuery(query string, bs *Slice) error {
+	log.Printf("getting records by query: '%s'", query)
+	q := `
     SELECT
-      b.id,
-      b.url,
-      b.title,
-      b.desc,
-      b.created_at,
-      b.updated_at,
-      b.visit_count,
-      b.last_visit,
-      b.favorite,
+      b.*,
       GROUP_CONCAT(t.name, ',') AS tags
     FROM bookmarks b
     LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
@@ -275,14 +244,14 @@ func (r *SQLiteRepository) ByQuery(q string, bs *Slice) error {
         LOWER(t.name) LIKE LOWER(?))
       GROUP BY b.id
       ORDER BY b.id ASC;`
-	queryValue := "%" + q + "%"
-	if err := r.bySQL(bs, sqlQuery, queryValue, queryValue); err != nil {
+	queryValue := "%" + query + "%"
+	if err := r.bySQL(bs, q, queryValue, queryValue); err != nil {
 		return err
 	}
 	if bs.Len() == 0 {
 		return ErrRecordNoMatch
 	}
-	log.Printf("got %d records by query: '%s'", bs.Len(), q)
+	log.Printf("got %d records by query: '%s'", bs.Len(), query)
 
 	return nil
 }
@@ -446,9 +415,9 @@ func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *Row) error {
 	}
 	q := `
     INSERT
-    OR IGNORE INTO bookmarks (id, url, title, desc)
+    OR IGNORE INTO bookmarks (id, url, title, desc, created_at, updated_at, visit_count, favorite)
     VALUES
-      (:id, :url, :title, :desc)`
+    (:id, :url, :title, :desc, :created_at, :updated_at, :visit_count, :favorite)`
 	_, err := tx.NamedExec(q, b)
 	if err != nil {
 		return fmt.Errorf("%w: '%s'", err, b.URL)
@@ -487,7 +456,6 @@ func (r *SQLiteRepository) insertInto(ctx context.Context, b *Row) error {
 		if err := insertRecord(tx, b); err != nil {
 			return err
 		}
-
 		if err := r.associateTags(tx, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
