@@ -80,10 +80,13 @@ func QR(bs *Slice, open bool) error {
 	return nil
 }
 
-// Copy copies the URL of the first bookmark in the provided Slice to
-// the clipboard.
+// Copy copies the URLs to the system clipboard.
 func Copy(bs *Slice) error {
-	if err := sys.CopyClipboard(bs.Item(0).URL); err != nil {
+	var urls string
+	bs.ForEach(func(b Bookmark) {
+		urls += b.URL + "\n"
+	})
+	if err := sys.CopyClipboard(urls); err != nil {
 		return fmt.Errorf("copy error: %w", err)
 	}
 
