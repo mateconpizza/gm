@@ -77,6 +77,9 @@ func ValidateConfig(cfg *FzfConfig) error {
 	}
 
 	for _, k := range keymaps {
+		if !k.Enabled {
+			continue
+		}
 		if k.Bind == "" {
 			return fmt.Errorf("%w: empty keybind", ErrInvalidConfigKeymap)
 		}
