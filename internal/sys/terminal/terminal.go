@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/sys"
 )
 
@@ -35,12 +34,16 @@ var (
 	MinWidth  int = 80
 )
 
-// noColor disables color output if the NO_COLOR environment variable is set.
-func noColor() {
+// NoColorEnv disables color output if the NO_COLOR environment variable is
+// set.
+func NoColorEnv() bool {
 	if c := sys.Env(noColorEnv, ""); c != "" {
 		log.Println("'NO_COLOR' environment variable found.")
-		config.EnableColor(false)
+
+		return true
 	}
+
+	return false
 }
 
 // Save the current terminal state.
@@ -132,6 +135,4 @@ func getWidth() (int, error) {
 func init() {
 	// Loads the terminal settings.
 	loadMaxWidth()
-	// checks for NO_COLOR env.
-	noColor()
 }

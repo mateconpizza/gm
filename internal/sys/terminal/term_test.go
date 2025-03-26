@@ -13,7 +13,7 @@ import (
 func TestHelper(t *testing.T) {
 	t.Parallel()
 	t.Helper()
-	noColor()
+	NoColorEnv()
 }
 
 func TestTerm_Input(t *testing.T) {
@@ -43,7 +43,7 @@ func TestTerm_Prompt(t *testing.T) {
 
 func TestTerm_Choose(t *testing.T) {
 	t.Parallel()
-	noColor()
+	NoColorEnv()
 	question := "Enter your favorite language: "
 	input := "golang\n"
 	mockInput := strings.NewReader(input)

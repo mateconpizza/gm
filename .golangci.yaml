@@ -172,6 +172,7 @@ linters:
       - common-false-positives
     paths:
       - cmd/Test.go
+      - internal/format/color/colorhex.go
       - third_party$
       - builtin$
       - examples$

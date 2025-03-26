@@ -48,7 +48,7 @@ var (
 func initConfig() {
 	config.SetLoggingLevel(Verbose)
 	config.SetDBName(DBName)
-	config.EnableColor(WithColor == "always" && !terminal.IsPiped())
+	config.EnableColor(WithColor == "always" && !terminal.IsPiped() && !terminal.NoColorEnv())
 	config.SetForce(Force)
 
 	// load data home path for the app.
