@@ -6,7 +6,10 @@ import (
 	"fmt"
 
 	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/sys/files"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var ErrBufferUnchanged = errors.New("buffer unchanged")
@@ -15,14 +18,14 @@ var ErrBufferUnchanged = errors.New("buffer unchanged")
 // editor, returning an error if any operation fails.
 func Edit(te *files.TextEditor, content []byte, b *Bookmark) error {
 	original := bytes.Clone(content)
-	data, err := te.EditContentBytes(content)
+	modifiedData, err := te.EditBytes(content)
 	if err != nil {
 		return fmt.Errorf("failed to edit content: %w", err)
 	}
-	if bytes.Equal(data, original) {
+	if bytes.Equal(modifiedData, original) {
 		return ErrBufferUnchanged
 	}
-	lines := format.ByteSliceToLines(data)
+	lines := format.ByteSliceToLines(modifiedData)
 	if err := validateBookmarkFormat(lines); err != nil {
 		return fmt.Errorf("invalid bookmark format: %w", err)
 	}
@@ -33,6 +36,15 @@ func Edit(te *files.TextEditor, content []byte, b *Bookmark) error {
 	tb.Favorite = b.Favorite
 	tb.LastVisit = b.LastVisit
 	tb.VisitCount = b.VisitCount
+
+	f := frame.New(frame.WithColorBorder(color.BrightBlue))
+	f.Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
+	diff := te.Diff(b.Buffer(), tb.Buffer())
+	fmt.Println(format.ColorDiff(diff))
+	if !terminal.Confirm(f.Footer("save changes?").String(), "y") {
+		return ErrBufferUnchanged
+	}
+
 	*b = *tb
 
 	return nil

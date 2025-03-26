@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format/color"
 )
 
 const (
@@ -171,4 +172,21 @@ func Unique(t []string) []string {
 // CountLines counts the number of lines in a string.
 func CountLines(s string) int {
 	return len(strings.Split(s, "\n"))
+}
+
+// ColorDiff colorizes the diff output.
+func ColorDiff(s string) string {
+	var r []string
+	for _, l := range strings.Split(s, "\n") {
+		switch {
+		case strings.HasPrefix(l, "+"):
+			r = append(r, "  "+color.BrightGreen(l).String())
+		case strings.HasPrefix(l, "-"):
+			r = append(r, "  "+color.BrightRed(l).String())
+		default:
+			r = append(r, "  "+color.BrightGray(l).Italic().String())
+		}
+	}
+
+	return strings.Join(r, "\n")
 }

@@ -172,8 +172,13 @@ func scrapeBookmark(b *Bookmark) *Bookmark {
 			log.Printf("scraping error: %s", err)
 		}
 
-		b.Title = validateAttr(b.Title, sc.Title())
-		b.Desc = validateAttr(b.Desc, sc.Desc())
+		if b.Title == "" {
+			b.Title = validateAttr(b.Title, sc.Title())
+		}
+
+		if b.Desc == "" {
+			b.Desc = validateAttr(b.Desc, sc.Desc())
+		}
 	}
 
 	return b

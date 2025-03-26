@@ -80,7 +80,7 @@ func editBookmark(
 	b *bookmark.Bookmark,
 	idx, total int,
 ) error {
-	og := *b
+	originalData := *b
 	// prepare the buffer with a header and version info.
 	buf := prepareBuffer(r, b, idx, total)
 	// launch the editor to allow the user to edit the bookmark.
@@ -92,7 +92,7 @@ func editBookmark(
 		return fmt.Errorf("%w", err)
 	}
 
-	return updateBookmark(r, b, &og)
+	return updateBookmark(r, b, &originalData)
 }
 
 // prepareBuffer builds the buffer for the bookmark by adding a header and version info.
