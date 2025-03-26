@@ -1,15 +1,11 @@
-issues:
-  uniq-by-line: true
-  exclude-files:
-    - cmd/Test.go
-  include:
-    - EXC0001
-    - EXC0005
-    - EXC0011
-    - EXC0012
-    - EXC0013
+version: "2"
+run:
+  issues-exit-code: 1
+  tests: true
+output:
+  path-prefix: ""
 linters:
-  disable-all: true
+  default: none
   enable:
     - asasalint
     - bidichk
@@ -25,10 +21,7 @@ linters:
     - gocritic
     - gocyclo
     - godot
-    - gofumpt
-    - goimports
     - gosec
-    - gosimple
     - govet
     - iface
     - ineffassign
@@ -55,7 +48,6 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
-    - stylecheck
     - tagalign
     - testifylint
     - thelper
@@ -67,71 +59,57 @@ linters:
     - wastedassign
     - whitespace
     - wrapcheck
-run:
-  tests: true
-  issues-exit-code: 1
-output:
-  print-issued-lines: true
-  print-linter-name: true
-  path-prefix: ""
-  sort-results: true
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
-    exclude-functions: []
-  nlreturn:
-    block-size: 3
-  goconst:
-    min-len: 2
-    min-occurrences: 4
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-  nolintlint:
-    require-explanation: false
-    require-specific: true
-  gosec:
-    excludes:
-      - G115
-      - G201
-      - G204
-  errorlint:
-    errorf: true
-    asserts: false
-    comparison: false
-  revive:
-    ignore-generated-header: true
-    severity: warning
-    rules:
-      - name: atomic
-      - name: unexported-return
-      - name: errorf
-      - name: error-return
-      - name: error-naming
-      - name: if-return
-      - name: increment-decrement
-      - name: range
-      - name: receiver-naming
-      - name: empty-block
-      - name: confusing-naming
-      - name: unnecessary-stmt
-      - name: struct-tag
-      - name: modifies-value-receiver
-      - name: bool-literal-in-expr
-      - name: early-return
-      - name: unexported-naming
-      - name: nested-structs
-  testifylint:
-    enable-all: true
-    disable:
-      - require-error
-  stylecheck:
-    checks:
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+    errorlint:
+      errorf: true
+      asserts: false
+      comparison: false
+    goconst:
+      min-len: 2
+      min-occurrences: 4
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    gosec:
+      excludes:
+        - G115
+        - G201
+        - G204
+    nlreturn:
+      block-size: 3
+    nolintlint:
+      require-explanation: false
+      require-specific: true
+    revive:
+      severity: warning
+      rules:
+        - name: atomic
+        - name: unexported-return
+        - name: errorf
+        - name: error-return
+        - name: error-naming
+        - name: if-return
+        - name: increment-decrement
+        - name: range
+        - name: receiver-naming
+        - name: empty-block
+        - name: confusing-naming
+        - name: unnecessary-stmt
+        - name: struct-tag
+        - name: modifies-value-receiver
+        - name: bool-literal-in-expr
+        - name: early-return
+        - name: unexported-naming
+        - name: nested-structs
+    staticcheck:
+      checks:
       - "-ST1000"
       # Dot imports are discouraged.
       # https://staticcheck.dev/docs/checks/#ST1001
@@ -184,3 +162,29 @@ linters-settings:
       # Redundant type in variable declaration.
       # https://staticcheck.dev/docs/checks/#ST1023
       - ST1023
+    testifylint:
+      enable-all: true
+      disable:
+        - require-error
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+    paths:
+      - cmd/Test.go
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  uniq-by-line: true
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - cmd/Test.go
+      - third_party$
+      - builtin$
+      - examples$
