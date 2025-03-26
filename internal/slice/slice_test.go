@@ -294,7 +294,7 @@ func TestFilterInt(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s := New(test.input...)
 			f := s.Filter(test.fn)
-			assert.Equal(t, len(f.items), len(test.expected))
+			assert.Len(t, f.items, len(test.expected))
 			assert.Equal(
 				t,
 				test.expected,
@@ -333,7 +333,7 @@ func TestFilterStrings(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s := New(test.input...)
 			f := s.Filter(test.fn)
-			assert.Equal(t, len(f.items), len(test.expected))
+			assert.Len(t, f.items, len(test.expected))
 			assert.Equal(
 				t,
 				test.expected,
@@ -521,7 +521,7 @@ func TestDelete(t *testing.T) {
 	for _, test := range testDeleteStr {
 		s := New(test.input...)
 		s.Del(test.name)
-		assert.Equal(t, len(s.items), len(test.expected))
+		assert.Len(t, s.items, len(test.expected))
 		assert.Equal(t, test.expected, s.items, "expected %v, got %v", test.expected, s.items)
 	}
 }

@@ -24,7 +24,7 @@ func TestTerm_GetUserInput(t *testing.T) {
 	input = "invalid\n"
 	mockInput = strings.NewReader(input)
 	result = getUserInput(mockInput, "Proceed?", opts, "no")
-	assert.Equal(t, "", result)
+	assert.Empty(t, result)
 }
 
 func TestTerm_GetQueryFromPipe(t *testing.T) {

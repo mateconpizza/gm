@@ -93,6 +93,7 @@ func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
 	case "n", "no":
 		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
+		t.ClearLine(1)
 		if err := bookmarkEdition(b); err != nil {
 			return fmt.Errorf("%w", err)
 		}

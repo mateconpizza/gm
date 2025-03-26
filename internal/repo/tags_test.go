@@ -67,7 +67,7 @@ func TestTagsCounter(t *testing.T) {
 		assert.Equal(t, expectedCount, count)
 	}
 	// ensure no extra tags are in the result
-	assert.Equal(t, len(expectedCounts), len(tagCounts))
+	assert.Len(t, expectedCounts, len(tagCounts))
 }
 
 func TestGetOrCreateTag(t *testing.T) {

@@ -21,10 +21,11 @@ func NewBorders(header, row, mid, footer string) *FrameBorders {
 }
 
 // WithBordersRoundedCorner borders
-// header: ┌─
-// row:    │
-// mid:    ├─
-// footer: └─
+//
+//	header: ┌─
+//	row:    │
+//	mid:    ├─
+//	footer: └─
 func WithBordersRoundedCorner() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -37,10 +38,11 @@ func WithBordersRoundedCorner() OptFn {
 }
 
 // WithBordersASCII borders
-// header: +-
-// row:    |
-// mid:    +-
-// footer: +-
+//
+//	header: +-
+//	row:    |
+//	mid:    +-
+//	footer: +-
 func WithBordersASCII() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -53,10 +55,11 @@ func WithBordersASCII() OptFn {
 }
 
 // WithBordersDotted borders
-// header: ..
-// row:    .
-// mid:    ..
-// footer: ..
+//
+//	header: ..
+//	row:    .
+//	mid:    ..
+//	footer: ..
 func WithBordersDotted() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -69,10 +72,11 @@ func WithBordersDotted() OptFn {
 }
 
 // WithBordersMidDotted borders
-// header: ··
-// row:    ·
-// mid:    ··
-// footer: ··
+//
+//	header: ··
+//	row:    ·
+//	mid:    ··
+//	footer: ··
 func WithBordersMidDotted() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -86,10 +90,10 @@ func WithBordersMidDotted() OptFn {
 
 // WithBordersDouble borders
 //
-// header: ╔═
-// row:    ║
-// mid:    ╠═
-// footer: ╚═
+//	header: ╔═
+//	row:    ║
+//	mid:    ╠═
+//	footer: ╚═
 func WithBordersDouble() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -103,10 +107,10 @@ func WithBordersDouble() OptFn {
 
 // WithBordersSingleLine borders
 //
-// header: ┌─
-// row:    │
-// mid:    ├─
-// footer: └─
+//	header: ┌─
+//	row:    │
+//	mid:    ├─
+//	footer: └─
 func WithBordersSingleLine() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -120,10 +124,10 @@ func WithBordersSingleLine() OptFn {
 
 // WithBordersSimple borders
 //
-// header: -
-// row:    |
-// mid:    -
-// footer: -
+//	header: -
+//	row:    |
+//	mid:    -
+//	footer: -
 func WithBordersSimple() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -137,10 +141,10 @@ func WithBordersSimple() OptFn {
 
 // WithBordersDashed borders
 //
-// header: --
-// row:    |
-// mid:    --
-// footer: --
+//	header: --
+//	row:    |
+//	mid:    --
+//	footer: --
 func WithBordersDashed() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -154,10 +158,10 @@ func WithBordersDashed() OptFn {
 
 // WithBordersArtDeco borders
 //
-// header: ╓─
-// row:    ║
-// mid:    ╠─
-// footer: ╙─
+//	header: ╓─
+//	row:    ║
+//	mid:    ╠─
+//	footer: ╙─
 func WithBordersArtDeco() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -171,10 +175,10 @@ func WithBordersArtDeco() OptFn {
 
 // WithBordersHeavy borders
 //
-// header: ┏━
-// row:    ┃
-// mid:    ┣━
-// footer: ┗━
+//	header: ┏━
+//	row:    ┃
+//	mid:    ┣━
+//	footer: ┗━
 func WithBordersHeavy() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -188,10 +192,10 @@ func WithBordersHeavy() OptFn {
 
 // WithBordersSolidSquare borders
 //
-// header: ╭
-// row:    │
-// mid:    ├
-// footer: ╰
+//	header: ╭
+//	row:    │
+//	mid:    ├
+//	footer: ╰
 func WithBordersSolidSquare() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -205,10 +209,10 @@ func WithBordersSolidSquare() OptFn {
 
 // WithBordersHollowSquare borders
 //
-// header: ╭
-// row:    │
-// mid:    ├
-// footer: ╰
+//	header: ╭
+//	row:    │
+//	mid:    ├
+//	footer: ╰
 func WithBordersHollowSquare() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -222,10 +226,10 @@ func WithBordersHollowSquare() OptFn {
 
 // WithBordersSolidBullet borders
 //
-// header: ╭
-// row:    │
-// mid:    ├
-// footer: ╰
+//	header: ╭
+//	row:    │
+//	mid:    ├
+//	footer: ╰
 func WithBordersSolidBullet() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -239,10 +243,10 @@ func WithBordersSolidBullet() OptFn {
 
 // WithBordersHollowBullet borders
 //
-// header: ╭
-// row:    │
-// mid:    ├
-// footer: ╰
+//	header: ╭
+//	row:    │
+//	mid:    ├
+//	footer: ╰
 func WithBordersHollowBullet() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -256,10 +260,10 @@ func WithBordersHollowBullet() OptFn {
 
 // WithBordersHollowDiamond borders
 //
-// header: ╭
-// row:    │
-// mid:    ├
-// footer: ╰
+//	header: ╭
+//	row:    │
+//	mid:    ├
+//	footer: ╰
 func WithBordersHollowDiamond() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -273,10 +277,10 @@ func WithBordersHollowDiamond() OptFn {
 
 // WithBordersSolidDiamond borders
 //
-// header: ╭
-// row:    │
-// mid:    ├
-// footer: ╰
+//	header: ╭
+//	row:    │
+//	mid:    ├
+//	footer: ╰
 func WithBordersSolidDiamond() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
@@ -290,10 +294,10 @@ func WithBordersSolidDiamond() OptFn {
 
 // WithBordersPlusSign borders
 //
-// header: +
-// row:    |
-// mid:    +
-// footer: +
+//	header: +
+//	row:    |
+//	mid:    +
+//	footer: +
 func WithBordersPlusSign() OptFn {
 	return func(o *Options) {
 		o.Border = &FrameBorders{
