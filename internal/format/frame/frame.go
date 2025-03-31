@@ -93,27 +93,34 @@ func (f *Frame) Mid(s ...string) *Frame {
 }
 
 func (f *Frame) Error(s ...string) *Frame {
-	e := color.BrightRed(f.Border.Mid).String()
+	e := color.BrightRed("✗ ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Warning(s ...string) *Frame {
-	e := color.BrightYellow(f.Border.Mid).String()
+	e := color.BrightYellow("⚠ ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Success(s ...string) *Frame {
-	e := color.BrightGreen(f.Border.Mid).String()
+	e := color.BrightGreen("✓ ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Info(s ...string) *Frame {
-	e := color.BrightBlue(f.Border.Mid).String()
+	e := color.BrightBlue("i ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
+}
+
+func (f *Frame) Question(s ...string) *Frame {
+	q := color.BrightGreen("? ").Bold().String()
+	mid := f.applyStyle(q)
+
+	return f.applyBorder(mid, color.ApplyMany(s, color.StyleBold))
 }
 
 func (f *Frame) Footer(s ...string) *Frame {

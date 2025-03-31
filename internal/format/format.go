@@ -89,6 +89,9 @@ func SplitIntoChunks(s string, strLen int) []string {
 	var lines []string
 	var currentLine strings.Builder
 
+	// Remember if the original string ended with a newline.
+	endsWithNewline := strings.HasSuffix(s, "\n")
+
 	for _, word := range strings.Fields(s) {
 		// If currentLine is empty, write the word directly.
 		if currentLine.Len() == 0 {
@@ -113,6 +116,11 @@ func SplitIntoChunks(s string, strLen int) []string {
 	// Add the last line if it's not empty
 	if currentLine.Len() > 0 {
 		lines = append(lines, currentLine.String())
+	}
+
+	// If the original string ended with a newline, add an extra empty string.
+	if endsWithNewline {
+		lines = append(lines, "")
 	}
 
 	return lines

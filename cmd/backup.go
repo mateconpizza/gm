@@ -67,8 +67,8 @@ var backupNewCmd = &cobra.Command{
 		backupInfoPrint(r)
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		f.Row("\n").Flush().Clear()
-		c := color.BrightGreen("backup").Bold().String()
-		if !t.Confirm(f.Success("create "+c).String(), "n") {
+		c := color.BrightGreen("backup").String()
+		if !t.Confirm(f.Question("create "+c).String(), "n") {
 			return sys.ErrActionAborted
 		}
 		newBkPath, err := repo.NewBackup(r)

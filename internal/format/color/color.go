@@ -200,6 +200,30 @@ func BrightYellow(arg ...any) *Color {
 	return addColor(brightYellow, arg...)
 }
 
+func StyleBold(arg ...any) *Color {
+	return addColor(bold, arg...)
+}
+
+func StyleDim(arg ...any) *Color {
+	return addColor(dim, arg...)
+}
+
+func StyleItalic(arg ...any) *Color {
+	return addColor(italic, arg...)
+}
+
+func StyleUnderline(arg ...any) *Color {
+	return addColor(underline, arg...)
+}
+
+func StyleStrikethrough(arg ...any) *Color {
+	return addColor(strikethrough, arg...)
+}
+
+func StyleInverse(arg ...any) *Color {
+	return addColor(inverse, arg...)
+}
+
 func Default(arg ...any) *Color {
 	return addColor(brightWhite, arg...)
 }
@@ -217,11 +241,13 @@ func join(text ...any) string {
 	return strings.Join(str, " ")
 }
 
-// ApplyMany applies a color to a slice of strings returning new slice of
-// strings.
-func ApplyMany(s []string, c ColorFn) []string {
-	for i := 0; i < len(s); i++ {
-		s[i] = c(s[i]).String()
+// ApplyMany applies multiple colors to a slice of strings, returning a new
+// slice.
+func ApplyMany(s []string, colors ...ColorFn) []string {
+	for i := range s {
+		for _, c := range colors {
+			s[i] = c(s[i]).String()
+		}
 	}
 
 	return s

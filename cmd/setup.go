@@ -127,8 +127,8 @@ func createPaths(t *terminal.Term, path string) error {
 	if err := files.MkdirAll(path); err != nil {
 		sys.ErrAndExit(err)
 	}
-	f.Clear().Success(fmt.Sprintf("Successfully created directory path '%s'.\n", path))
-	f.Success("Successfully created initial bookmark.\n").Row("\n").Flush()
+	f.Clear().Info(fmt.Sprintf("Successfully created directory path '%s'.\n", path))
+	f.Info("Successfully created initial bookmark.\n").Row("\n").Flush()
 
 	return nil
 }

@@ -41,7 +41,9 @@ func Edit(te *files.TextEditor, content []byte, b *Bookmark) error {
 	f.Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
 	diff := te.Diff(b.Buffer(), tb.Buffer())
 	fmt.Println(format.ColorDiff(diff))
-	if !terminal.Confirm(f.Footer("save changes?").String(), "y") {
+
+	q := color.Text("save changes?").Bold().String()
+	if !terminal.Confirm(f.Question(q).String(), "y") {
 		return ErrBufferUnchanged
 	}
 

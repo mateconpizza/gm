@@ -91,7 +91,7 @@ var bkRemoveCmd = &cobra.Command{
 
 		rm = color.BrightRed("remove").Bold().String()
 		msg := fmt.Sprintf(rm+" %d backup/s?", backups.Len())
-		if !t.Confirm(f.Row("\n").Error(msg).String(), "n") {
+		if !t.Confirm(f.Row("\n").Question(msg).String(), "n") {
 			return sys.ErrActionAborted
 		}
 
@@ -174,7 +174,7 @@ var dbRemoveCmd = &cobra.Command{
 		fmt.Print(i)
 
 		rm := color.BrightRed("remove").Bold().String()
-		if !t.Confirm(f.Clear().Error(rm+" "+r.Cfg.Name+"?").String(), "n") {
+		if !t.Confirm(f.Clear().Question(rm+" "+r.Cfg.Name+"?").String(), "n") {
 			return sys.ErrActionAborted
 		}
 		if err := handleRmBackups(t, r); err != nil {

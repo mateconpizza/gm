@@ -53,7 +53,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 	// header
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	h := color.BrightYellow("Add Bookmark").String()
-	f.Warning(h + color.Gray(" (ctrl+c to exit)\n").Italic().String()).Row("\n").Flush()
+	f.Header(h + color.Gray(" (ctrl+c to exit)\n").Italic().String()).Row("\n").Flush()
 
 	b := bookmark.New()
 	if err := addParseNewBookmark(t, r, b, args); err != nil {
@@ -86,8 +86,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 // addHandleConfirmation confirms if the user wants to save the bookmark.
 func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	save := color.BrightGreen("save").String()
-	opt := t.Choose(f.Success(save).String()+" bookmark?", []string{"yes", "no", "edit"}, "y")
+	opt := t.Choose(f.Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
 
 	switch strings.ToLower(opt) {
 	case "n", "no":
@@ -236,7 +235,7 @@ func addHandleClipboard(t *terminal.Term) string {
 	bURL := f.Mid(color.BrightMagenta("URL\t:").String()).
 		Text(" " + color.Gray(c).String() + "\n").Row("\n").
 		Flush()
-	opt := t.Choose(f.Mid("continue?").String(), []string{"yes", "no"}, "y")
+	opt := t.Choose(f.Question("continue?").String(), []string{"yes", "no"}, "y")
 	lines += format.CountLines(f.String())
 
 	defer t.ClearLine(lines)
