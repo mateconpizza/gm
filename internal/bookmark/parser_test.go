@@ -103,6 +103,7 @@ func TestExtractLineContent(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			tt := test
 			got := ExtractContentLine(&tt.c)
 			assert.Len(t, got, tt.expected, "Expected %d lines, got %d", tt.expected, len(got))
@@ -111,6 +112,7 @@ func TestExtractLineContent(t *testing.T) {
 }
 
 func TestRecordIsValid(t *testing.T) {
+	t.Parallel()
 	validBookmark := testSingleBookmark()
 	err := Validate(validBookmark)
 	assert.NoError(t, err, "expected valid bookmark to be valid")
@@ -122,6 +124,7 @@ func TestRecordIsValid(t *testing.T) {
 	assert.Error(t, err, "expected invalid bookmark to be invalid")
 }
 
+//nolint:dupword //test
 func TestParseTags(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -153,6 +156,7 @@ func TestParseTags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			tt := test
 			got := ParseTags(tt.input)
 			assert.Equal(t, tt.expected, got, "expected %s, got %s", tt.expected, got)

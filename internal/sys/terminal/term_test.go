@@ -10,13 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+//nolint:paralleltest //test
 func TestHelper(t *testing.T) {
-	t.Parallel()
 	t.Helper()
 	NoColorEnv()
 }
 
-func TestTerm_Input(t *testing.T) {
+func TestTermInput(t *testing.T) {
+	t.Parallel()
 	TestHelper(t)
 	t.Skip("Skipping test for now")
 	input := "yes\n"
@@ -31,7 +32,7 @@ func TestTerm_Input(t *testing.T) {
 	assert.Equal(t, "golang", result, "expected user input to be 'golang'")
 }
 
-func TestTerm_Prompt(t *testing.T) {
+func TestTermPrompt(t *testing.T) {
 	t.Parallel()
 	question := "Enter your favorite language: "
 	input := "golang\n"
@@ -57,7 +58,7 @@ func TestTerm_Choose(t *testing.T) {
 	assert.Equal(t, "golang", result, "expected user input to be 'golang'")
 }
 
-func TestTerm_Confirm(t *testing.T) {
+func TestTermConfirm(t *testing.T) {
 	t.Parallel()
 	question := "Are you sure? "
 	yesInput := "y\n"
@@ -75,7 +76,7 @@ func TestTerm_Confirm(t *testing.T) {
 	assert.False(t, term.Confirm(question, "n"), "user confirms false (default)")
 }
 
-func TestTerm_IsPiped(t *testing.T) {
+func TestTermIsPiped(t *testing.T) {
 	t.Parallel()
 	r, _, _ := os.Pipe()
 	tests := []struct {
@@ -102,6 +103,7 @@ func TestTerm_IsPiped(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			term := New(WithReader(tt.reader))
 			assert.Equal(t, tt.want, term.IsPiped(), tt.name)
 		})

@@ -9,15 +9,20 @@ linters:
   enable:
     - asasalint
     - bidichk
+    - decorder
     - dogsled
     - dupl
+    - dupword
+    - durationcheck
     - err113
     - errcheck
     - errname
     - errorlint
+    - fatcontext
     - forcetypeassert
     - funlen
     - goconst
+    - gocognit
     - gocritic
     - gocyclo
     - godot
@@ -38,6 +43,7 @@ linters:
     - nlreturn
     - noctx
     - nolintlint
+    - paralleltest
     - perfsprint
     - prealloc
     - predeclared

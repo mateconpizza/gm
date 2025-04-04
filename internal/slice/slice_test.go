@@ -13,6 +13,7 @@ var (
 )
 
 func TestForEach(t *testing.T) {
+	t.Parallel()
 	s := New(intItems...)
 	result := 15
 	var sum int
@@ -23,6 +24,7 @@ func TestForEach(t *testing.T) {
 }
 
 func TestForEachMut(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		input     []int
@@ -77,6 +79,7 @@ func TestForEachMut(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			s := &Slice[int]{items: tt.input}
 			s.ForEachMut(tt.transform)
 			assert.Equal(t, tt.expected, s.items)
@@ -149,6 +152,7 @@ func TestForEachErr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			s := &Slice[int]{items: tt.input}
 			err := s.ForEachErr(tt.fn)
 
@@ -292,6 +296,7 @@ func TestFilterInt(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			s := New(test.input...)
 			f := s.Filter(test.fn)
 			assert.Len(t, f.items, len(test.expected))
@@ -331,6 +336,7 @@ func TestFilterStrings(t *testing.T) {
 
 	for _, test := range testWithInt {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			s := New(test.input...)
 			f := s.Filter(test.fn)
 			assert.Len(t, f.items, len(test.expected))
@@ -485,6 +491,7 @@ func TestIndexString(t *testing.T) {
 
 	for _, test := range testIdx {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			s := New(test.input...)
 			idx := s.Index(test.name)
 			assert.NotEqual(t, idx, -1)
@@ -599,6 +606,7 @@ func TestAny(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			s := &Slice[int]{items: tt.items}
 			assert.Equal(t, tt.expected, s.Any(tt.predicate))
 		})

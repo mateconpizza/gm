@@ -7,6 +7,7 @@ import (
 )
 
 func TestExtractIDsFromString(t *testing.T) {
+	t.Parallel()
 	// valid ids
 	idsStr := []string{
 		"1", "2", "3",

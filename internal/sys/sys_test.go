@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+//nolint:paralleltest //test
 func TestEnv(t *testing.T) {
 	tests := []struct {
 		name  string

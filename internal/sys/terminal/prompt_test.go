@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTerm_GetUserInput(t *testing.T) {
+func TestTermGetUserInput(t *testing.T) {
 	t.Parallel()
 	opts := []string{"yes", "no"}
 	// test confirm
@@ -27,7 +27,7 @@ func TestTerm_GetUserInput(t *testing.T) {
 	assert.Empty(t, result)
 }
 
-func TestTerm_GetQueryFromPipe(t *testing.T) {
+func TestTermGetQueryFromPipe(t *testing.T) {
 	t.Parallel()
 	input := "hello\n"
 	mockInput := strings.NewReader(input)
@@ -35,7 +35,7 @@ func TestTerm_GetQueryFromPipe(t *testing.T) {
 	assert.Equal(t, input, result)
 }
 
-func TestTerm_FmtChoicesWithDefault(t *testing.T) {
+func TestTermFmtChoicesWithDefault(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name string
@@ -70,6 +70,7 @@ func TestTerm_FmtChoicesWithDefault(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := fmtChoicesWithDefault(tt.opts, tt.def)
 			assert.Equal(t, tt.want, result)
 		})

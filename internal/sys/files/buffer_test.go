@@ -7,6 +7,7 @@ import (
 )
 
 func TestDiff(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		a        []byte
@@ -48,6 +49,7 @@ func TestDiff(t *testing.T) {
 	te := &TextEditor{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, te.Diff(tt.a, tt.b))
 		})
 	}

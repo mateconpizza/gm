@@ -1,3 +1,4 @@
+//nolint:paralleltest //test
 package repo
 
 import (

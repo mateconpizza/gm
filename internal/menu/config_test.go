@@ -30,6 +30,7 @@ func testValidConfig(t *testing.T) *FzfConfig {
 }
 
 func TestValidateConfig(t *testing.T) {
+	t.Parallel()
 	cfg := testValidConfig(t)
 	// invalid keybind
 	cfg.Keymaps.Edit.Bind = ""
