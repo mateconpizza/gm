@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -119,7 +120,15 @@ func (t *Term) ChooseTags(p string, items map[string]int) string {
 
 // Confirm prompts the user with a question and options.
 func (t *Term) Confirm(q, def string) bool {
-	choices := fmtChoicesWithDefault([]string{"y", "n"}, def)
+	if len(def) > 1 {
+		// get first char
+		def = def[:1]
+	}
+	opts := []string{"y", "n"}
+	if !slices.Contains(opts, def) {
+		def = "n"
+	}
+	choices := fmtChoicesWithDefault(opts, def)
 	chosen := t.promptWithChoices(q, choices, def)
 
 	return strings.EqualFold(chosen, "y")

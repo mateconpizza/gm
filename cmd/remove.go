@@ -57,7 +57,7 @@ var bkRemoveCmd = &cobra.Command{
 	Short:   "Remove a backup",
 	Aliases: []string{"bk", "b", "backups"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		r, err := selectRepo("choose a database to remove a backup from")
+		r, err := selectRepo("select a database from which you want to remove a backup.")
 		if err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
@@ -80,7 +80,7 @@ var bkRemoveCmd = &cobra.Command{
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		rm := color.BrightRed("Removing").String()
 		f.Header(rm + " backup/s from '" + r.Cfg.Name).Ln().Row("\n")
-		items, err := handler.Selection(m, *backups.Items(), repo.RepoSummaryRecords)
+		items, err := handler.Selection(m, *backups.Items(), repo.BackupSummaryWithFmtDate)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

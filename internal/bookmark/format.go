@@ -100,12 +100,17 @@ func Frame(b *Bookmark) string {
 }
 
 // prettifyTags returns a prettified tags.
+//
+//	tag1·tag2·tag3
 func prettifyTags(s string) string {
 	uc := format.UnicodeMiddleDot
 	return strings.TrimRight(strings.ReplaceAll(s, ",", uc), uc)
 }
 
 // breadcrumbsURL returns a prettified URL with color.
+//
+//	https://example.org/title/some-title
+//	https://example.org > title > some-title
 func breadcrumbsURL(s string, c color.ColorFn) string {
 	u, err := url.Parse(s)
 	if err != nil {

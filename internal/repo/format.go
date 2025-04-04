@@ -3,6 +3,7 @@ package repo
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
@@ -25,11 +26,26 @@ func RepoSummary(r *SQLiteRepository) string {
 
 // RepoSummaryRecords generates a summary of record counts for a given SQLite
 // repository and bookmark.
+//
+//	repositoryName (main: n)
 func RepoSummaryRecords(r *SQLiteRepository) string {
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
 	records := color.Gray(main).Italic()
 
 	return r.Cfg.Name + " " + records.String()
+}
+
+// BackupSummaryWithFmtDate generates a summary of record counts for a given
+// SQLite repository.
+//
+//	repositoryName (main: n) (time)
+func BackupSummaryWithFmtDate(r *SQLiteRepository) string {
+	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
+	records := color.Gray(main).Italic()
+	t := strings.Split(r.Cfg.Name, "_")[0]
+	bkTime := color.Gray(format.RelativeTime(t)).Italic()
+
+	return r.Cfg.Name + " " + records.String() + " " + bkTime.String()
 }
 
 // BackupSummaryDetail returns the details of a backup.
@@ -46,10 +62,10 @@ func BackupSummaryDetail(r *SQLiteRepository) string {
 	n := backups.Len()
 	backups.ForEachMut(func(bk *SQLiteRepository) {
 		if n == 1 {
-			f.Footer(RepoSummaryRecords(bk)).Ln()
+			f.Footer(BackupSummaryWithFmtDate(bk)).Ln()
 			return
 		}
-		f.Row(RepoSummaryRecords(bk)).Ln()
+		f.Row(BackupSummaryWithFmtDate(bk)).Ln()
 		n--
 	})
 
@@ -61,11 +77,12 @@ func BackupSummaryDetail(r *SQLiteRepository) string {
 // last, path and number of backups.
 func BackupsSummary(r *SQLiteRepository) string {
 	var (
-		f            = frame.New(frame.WithColorBorder(color.BrightGray))
-		empty        = "n/a"
-		backupsColor = color.BrightMagenta("backups:").Italic()
-		backupsInfo  = format.PaddedLine("found:", empty)
-		lastBackup   = empty
+		f              = frame.New(frame.WithColorBorder(color.BrightGray))
+		empty          = "n/a"
+		backupsColor   = color.BrightMagenta("backups:").Italic()
+		backupsInfo    = format.PaddedLine("found:", empty)
+		lastBackup     = empty
+		lastBackupDate = empty
 	)
 
 	var n int
@@ -80,13 +97,16 @@ func BackupsSummary(r *SQLiteRepository) string {
 		backupsInfo = format.PaddedLine("found:", strconv.Itoa(n)+" backups found")
 		lastItem := backups.Item(n - 1)
 		lastBackup = RepoSummaryRecords(&lastItem)
+		lastBackupDate = format.RelativeTime(strings.Split(lastItem.Cfg.Name, "_")[0])
 	}
 	path := format.PaddedLine("path:", r.Cfg.Backup.Path)
 	last := format.PaddedLine("last:", lastBackup)
+	lastDate := format.PaddedLine("date:", lastBackupDate)
 
 	return f.Header(backupsColor.String()).
-		Ln().Row(last).
 		Ln().Row(path).
+		Ln().Row(last).
+		Ln().Row(lastDate).
 		Ln().Row(backupsInfo).
 		Ln().String()
 }

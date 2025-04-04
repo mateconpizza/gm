@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
@@ -197,4 +198,31 @@ func ColorDiff(s string) string {
 	}
 
 	return strings.Join(r, "\n")
+}
+
+// RelativeTime takes a timestamp string in the format "20060102-150405"
+// and returns a relative description.
+//
+//	"today", "yesterday" or "X days ago"
+func RelativeTime(ts string) string {
+	const layout = "20060102-150405"
+
+	t, err := time.Parse(layout, ts)
+	if err != nil {
+		return "invalid timestamp"
+	}
+	now := time.Now()
+
+	// calculate the duration between now and the timestamp.
+	// we assume the timestamp is in the past.
+	diff := now.Sub(t)
+	days := int(diff.Hours() / 24)
+	if days <= 0 {
+		return "today"
+	}
+	if days == 1 {
+		return "yesterday"
+	}
+
+	return fmt.Sprintf("%d days ago", days)
 }
