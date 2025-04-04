@@ -2,7 +2,7 @@ module github.com/haaag/gm
 
 go 1.23.0
 
-toolchain go1.23.6
+toolchain go1.24.1
 
 require github.com/mattn/go-sqlite3 v1.14.24
 
@@ -12,7 +12,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/haaag/rotato v0.1.10
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/junegunn/fzf v0.60.3
+	github.com/junegunn/fzf v0.61.0
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
@@ -29,7 +29,7 @@ require (
 
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
-	github.com/charlievieth/fastwalk v1.0.9 // indirect
+	github.com/charlievieth/fastwalk v1.0.10 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/gdamore/tcell/v2 v2.8.1 // indirect
