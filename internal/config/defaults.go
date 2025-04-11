@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/haaag/gm/internal/menu"
 )
@@ -13,36 +14,41 @@ const (
 	unicodePathBigSegment = "\u25B6" // ▶
 )
 
+const (
+	defaultPrompt    = unicodePathBigSegment + " "
+	defaultHeaderSep = " " + unicodeMiddleDot + " "
+)
+
 // ConfigFile represents the configuration file.
 type ConfigFile struct {
-	Menu *menu.FzfConfig `yaml:"menu"` // Menu configuration
+	Colorscheme string       `yaml:"colorscheme"` // App colorscheme
+	Menu        *menu.Config `yaml:"menu"`        // Menu configuration
 }
 
 // fzfSettings are the options for FZF.
 var fzfSettings = menu.FzfSettings{
-	"--ansi",                     // Enable processing of ANSI color codes
-	"--reverse",                  // A synonym for --layout=reverse
-	"--sync",                     // Synchronous search for multi-staged filtering
-	"--info=inline-right",        // Determines the display style of the finder info.
-	"--tac",                      // Reverse the order of the input
-	"--layout=default",           // Choose the layout (default: default)
-	"--color=prompt:bold",        // Prompt style
-	"--color=header:italic:gray", // Header style
-	"--height=100%",              // Set the height of the menu
-	"--marker=\u00b7",            // Multi-selection marker
-	"--no-scrollbar",             // Remove scrollbar
-	"--pointer=▶",                // Pointer
-	"--border-label= GoMarks ",   // Label to print on the horizontal border line
-	"--border",                   // Border around the window
+	"--ansi",                            // Enable processing of ANSI color codes
+	"--reverse",                         // A synonym for --layout=reverse
+	"--sync",                            // Synchronous search for multi-staged filtering
+	"--info=inline-right",               // Determines the display style of the finder info.
+	"--tac",                             // Reverse the order of the input
+	"--layout=default",                  // Choose the layout (default: default)
+	"--color=prompt:bold",               // Prompt style
+	"--color=header:italic:bright-blue", // Header style
+	"--height=100%",                     // Set the height of the menu
+	"--marker=\u00b7",                   // Multi-selection marker
+	"--no-scrollbar",                    // Remove scrollbar
+	"--border-label= GoMarks ",          // Label to print on the horizontal border line
+	"--border",                          // Border around the window
 }
 
 // Fzf holds the default menu configuration.
-var Fzf = &menu.FzfConfig{
-	Prompt:  unicodePathBigSegment + " ",
+var Fzf = &menu.Config{
+	Prompt:  defaultPrompt,
 	Preview: true,
 	Header: menu.FzfHeader{
 		Enabled: true,
-		Sep:     " " + unicodeMiddleDot + " ",
+		Sep:     defaultHeaderSep,
 	},
 	Keymaps: menu.Keymaps{
 		Edit:      fzfKey{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
@@ -122,8 +128,11 @@ var App = &AppConfig{
 	Cmd:     command,
 	Version: version,
 	DBName:  DefaultDBName,
-	Color:   false,
-	Force:   false,
+	Colorscheme: colorscheme{
+		Name: "default",
+	},
+	Color: false,
+	Force: false,
 	Info: information{
 		URL:   "https://github.com/haaag/gomarks#readme",
 		Title: "Gomarks: A bookmark manager",
@@ -138,5 +147,19 @@ var App = &AppConfig{
 
 // Defaults holds the default configuration.
 var Defaults = &ConfigFile{
-	Menu: Fzf,
+	Colorscheme: "default",
+	Menu:        Fzf,
+}
+
+func Validate(cfg *ConfigFile) error {
+	if cfg.Colorscheme == "" {
+		log.Println("WARNING: empty colorscheme, loading default colorscheme")
+		cfg.Colorscheme = "default"
+	}
+
+	if err := cfg.Menu.Validate(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }

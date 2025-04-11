@@ -17,16 +17,17 @@ const (
 
 type (
 	AppConfig struct {
-		Name    string      `json:"name"`    // Name of the application
-		Cmd     string      `json:"cmd"`     // Name of the executable
-		Version string      `json:"version"` // Version of the application
-		Info    information `json:"data"`    // Application information
-		Env     environment `json:"env"`     // Application environment variables
-		Path    path        `json:"path"`    // Application path
-		Color   bool        `json:"-"`       // Application color enable
-		Force   bool        `json:"force"`   // force action, dont ask for confirmation.
-		DBName  string      `json:"db"`      // Database name
-		Verbose bool        `json:"verbose"` // Logging level
+		Name        string      `json:"name"`        // Name of the application
+		Cmd         string      `json:"cmd"`         // Name of the executable
+		Colorscheme colorscheme `json:"colorscheme"` // Name of the colorscheme
+		Version     string      `json:"version"`     // Version of the application
+		Info        information `json:"data"`        // Application information
+		Env         environment `json:"env"`         // Application environment variables
+		Path        path        `json:"path"`        // Application path
+		Color       bool        `json:"-"`           // Application color enable
+		Force       bool        `json:"force"`       // force action, dont ask for confirmation.
+		DBName      string      `json:"db"`          // Database name
+		Verbose     bool        `json:"verbose"`     // Logging level
 	}
 
 	path struct {
@@ -46,7 +47,17 @@ type (
 		Home   string `json:"home"`   // Environment variable for the home directory
 		Editor string `json:"editor"` // Environment variable for the preferred editor
 	}
+
+	colorscheme struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
 )
+
+// SetColorSchemePath sets the colorscheme path.
+func SetColorSchemePath(p string) {
+	App.Colorscheme.Path = p
+}
 
 // EnableColor enables color output.
 func EnableColor(enabled bool) {

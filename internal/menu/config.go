@@ -3,6 +3,7 @@ package menu
 import (
 	"errors"
 	"fmt"
+	"log"
 )
 
 var (
@@ -10,22 +11,72 @@ var (
 	ErrInvalidConfigSettings = errors.New("invalid settings")
 )
 
+const (
+	unicodeMiddleDot      = "\u00b7" // ·
+	unicodePathBigSegment = "\u25B6" // ▶
+)
+
+const (
+	defaultPrompt    = unicodePathBigSegment + " "
+	defaultHeaderSep = " " + unicodeMiddleDot + " "
+)
+
 // colorEnabled is a flag to enable color support.
 var colorEnabled bool = false
 
 // menuConfig holds the menu configuration.
-var menuConfig *FzfConfig
+var menuConfig *Config
 
 // FzfSettings holds the FZF settings.
 type FzfSettings []string
 
-// FzfConfig holds the menu configuration.
-type FzfConfig struct {
+// Config holds the menu configuration.
+type Config struct {
 	Prompt   string      `yaml:"prompt"`   // Fzf prompt
 	Preview  bool        `yaml:"preview"`  // Fzf enable preview
 	Header   FzfHeader   `yaml:"header"`   // Fzf header
 	Keymaps  Keymaps     `yaml:"keymaps"`  // Fzf keymaps
 	Settings FzfSettings `yaml:"settings"` // Fzf settings
+}
+
+func (c *Config) Validate() error {
+	keymaps := []Keymap{
+		c.Keymaps.Edit,
+		c.Keymaps.Open,
+		c.Keymaps.QR,
+		c.Keymaps.OpenQR,
+		c.Keymaps.Yank,
+		c.Keymaps.Preview,
+		c.Keymaps.ToggleAll,
+	}
+
+	for _, k := range keymaps {
+		if !k.Enabled {
+			continue
+		}
+		if k.Bind == "" {
+			return fmt.Errorf("%w: empty keybind", ErrInvalidConfigKeymap)
+		}
+	}
+
+	// set default prompt
+	if c.Prompt == "" {
+		log.Println("WARNING: empty prompt, loading default prompt")
+		c.Prompt = defaultPrompt
+	}
+
+	// set default header separator
+	if c.Header.Sep == "" {
+		log.Println("WARNING: empty header separator, loading default header separator")
+		c.Header.Sep = defaultHeaderSep
+	}
+
+	// set default settings
+	if len(c.Settings) == 0 {
+		log.Println("WARNING: empty settings, loading default settings")
+	}
+
+	return nil
 }
 
 // FzfHeader holds the header configuration for FZF.
@@ -55,38 +106,11 @@ type Keymaps struct {
 }
 
 // SetConfig sets menu configuration.
-func SetConfig(cfg *FzfConfig) {
+func SetConfig(cfg *Config) {
 	menuConfig = cfg
 }
 
 // EnableColor enables color support.
 func EnableColor(b bool) {
 	colorEnabled = b
-}
-
-// ValidateConfig validates the menu configuration.
-func ValidateConfig(cfg *FzfConfig) error {
-	keymaps := []Keymap{
-		cfg.Keymaps.Edit,
-		cfg.Keymaps.Open,
-		cfg.Keymaps.QR,
-		cfg.Keymaps.OpenQR,
-		cfg.Keymaps.Yank,
-		cfg.Keymaps.Preview,
-		cfg.Keymaps.ToggleAll,
-	}
-
-	for _, k := range keymaps {
-		if !k.Enabled {
-			continue
-		}
-		if k.Bind == "" {
-			return fmt.Errorf("%w: empty keybind", ErrInvalidConfigKeymap)
-		}
-	}
-	if len(cfg.Settings) == 0 {
-		return fmt.Errorf("%w: empty settings", ErrInvalidConfigSettings)
-	}
-
-	return nil
 }
