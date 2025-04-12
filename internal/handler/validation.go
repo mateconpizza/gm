@@ -50,7 +50,11 @@ func Confirmation(
 		case "y", "yes":
 			return nil
 		case "s", "select":
-			items, err := Selection(m, *bs.Items(), bookmark.FzfFormatter(false))
+			items, err := Selection(
+				m,
+				*bs.Items(),
+				bookmark.FzfFormatter(false, config.App.Colorscheme.Name),
+			)
 			if err != nil {
 				return err
 			}

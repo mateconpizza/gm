@@ -57,9 +57,10 @@ func initConfig() {
 		sys.ErrAndExit(err)
 	}
 	config.SetDataPath(dataHomePath)
-
 	// set database path
 	Cfg = repo.NewSQLiteCfg(filepath.Join(dataHomePath, config.App.DBName))
+	// set colorscheme path
+	config.SetColorSchemePath(filepath.Join(dataHomePath, "colorscheme"))
 
 	if err := loadConfig(config.App.Path.ConfigFile); err != nil {
 		log.Println("error loading config:", err)
@@ -208,7 +209,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		// print new record
-		fmt.Print(bookmark.Frame(ib))
+		fmt.Print(bookmark.Frame(ib, color.DefaultColorScheme()))
 		s := color.BrightGreen("Successfully").Italic().String()
 		mesg := s + " initialized database " + color.Gray(Cfg.Name+"\n").Italic().String()
 		f := frame.New(frame.WithColorBorder(color.Gray))

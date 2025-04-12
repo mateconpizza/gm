@@ -23,6 +23,7 @@ type (
 var (
 	// SQLiteCfg holds the configuration for the database and backups.
 	Cfg *repo.SQLiteConfig
+
 	// Main database name.
 	DBName string
 )
@@ -47,7 +48,11 @@ func handleData(m *menu.Menu[Bookmark], r *Repo, args []string) (*Slice, error) 
 	}
 	// select with fzf-menu
 	if Menu || Multiline {
-		items, err := handler.Selection(m, *bs.Items(), bookmark.FzfFormatter(Multiline))
+		items, err := handler.Selection(
+			m,
+			*bs.Items(),
+			bookmark.FzfFormatter(Multiline, config.App.Colorscheme.Name),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}

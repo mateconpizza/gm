@@ -6,14 +6,20 @@ import (
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
+	"github.com/haaag/gm/internal/format/color"
 )
 
-// Print prints the bookmarks in different formats.
+// Print prints the bookmarks in a frame format with the given colorscheme.
 func Print(bs *Slice) error {
+	s := config.App.Colorscheme.Name
 	lastIdx := bs.Len() - 1
+	cs, ok := color.Schemes[s]
+	if !ok {
+		return fmt.Errorf("%w: '%s'", color.ErrColorSchemeUnknown, s)
+	}
 
 	bs.ForEachIdx(func(i int, b Bookmark) {
-		fmt.Print(bookmark.Frame(&b))
+		fmt.Print(bookmark.Frame(&b, cs))
 		if i != lastIdx {
 			fmt.Println()
 		}
@@ -36,8 +42,13 @@ func JSON(bs *Slice) error {
 
 // Oneline formats the bookmarks in oneline.
 func Oneline(bs *Slice) error {
+	s := config.App.Colorscheme.Name
+	cs, ok := color.Schemes[s]
+	if !ok {
+		return fmt.Errorf("%w: '%s'", color.ErrColorSchemeUnknown, s)
+	}
 	bs.ForEach(func(b Bookmark) {
-		fmt.Print(bookmark.Oneline(&b))
+		fmt.Print(bookmark.Oneline(&b, cs))
 	})
 
 	return nil

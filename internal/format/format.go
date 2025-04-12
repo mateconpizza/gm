@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -225,4 +227,62 @@ func RelativeTime(ts string) string {
 	}
 
 	return fmt.Sprintf("%d days ago", days)
+}
+
+// TagsWithPound returns a prettified tags with #.
+//
+//	#tag1 #tag2 #tag3
+func TagsWithPound(s string) string {
+	var sb strings.Builder
+	tagsSplit := strings.Split(s, ",")
+	slices.Sort(tagsSplit)
+	for _, t := range tagsSplit {
+		if t == "" {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("#%s ", t))
+	}
+
+	return sb.String()
+}
+
+// TagsWithUnicode returns a prettified tags.
+//
+//	tag1·tag2·tag3
+func TagsWithUnicode(s string) string {
+	ud := UnicodeMiddleDot
+	return strings.TrimRight(strings.ReplaceAll(s, ",", ud), ud)
+}
+
+// URLBreadCrumbs returns a prettified URL with color.
+//
+//	https://example.org/title/some-title
+//	https://example.org > title > some-title
+func URLBreadCrumbs(s string, c color.ColorFn) string {
+	u, err := url.Parse(s)
+	if err != nil {
+		return ""
+	}
+	// default color
+	if c == nil {
+		c = color.Default
+	}
+	if u.Host == "" || u.Path == "" {
+		return c(s).Bold().String()
+	}
+	host := c(u.Host).Bold().String()
+	pathSegments := strings.FieldsFunc(
+		strings.TrimLeft(u.Path, "/"),
+		func(r rune) bool { return r == '/' },
+	)
+
+	if len(pathSegments) == 0 {
+		return host
+	}
+
+	uc := UnicodeSingleAngleMark
+	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
+	pathSeg := color.Text(uc, segments).Italic()
+
+	return fmt.Sprintf("%s %s", host, pathSeg)
 }

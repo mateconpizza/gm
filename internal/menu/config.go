@@ -17,8 +17,8 @@ const (
 )
 
 const (
-	defaultPrompt    = unicodePathBigSegment + " "
-	defaultHeaderSep = " " + unicodeMiddleDot + " "
+	DefaultPrompt    = unicodePathBigSegment + " "
+	DefaultHeaderSep = " " + unicodeMiddleDot + " "
 )
 
 // colorEnabled is a flag to enable color support.
@@ -32,6 +32,9 @@ type FzfSettings []string
 
 // Config holds the menu configuration.
 type Config struct {
+	// TODO: complete `Defaults` option. This will be used to load fzf's users
+	// configuration
+	Defaults bool        `yaml:"defaults"` // Fzf use fzf defaults
 	Prompt   string      `yaml:"prompt"`   // Fzf prompt
 	Preview  bool        `yaml:"preview"`  // Fzf enable preview
 	Header   FzfHeader   `yaml:"header"`   // Fzf header
@@ -39,6 +42,7 @@ type Config struct {
 	Settings FzfSettings `yaml:"settings"` // Fzf settings
 }
 
+// Validate validates the menu configuration.
 func (c *Config) Validate() error {
 	keymaps := []Keymap{
 		c.Keymaps.Edit,
@@ -62,13 +66,13 @@ func (c *Config) Validate() error {
 	// set default prompt
 	if c.Prompt == "" {
 		log.Println("WARNING: empty prompt, loading default prompt")
-		c.Prompt = defaultPrompt
+		c.Prompt = DefaultPrompt
 	}
 
 	// set default header separator
 	if c.Header.Sep == "" {
 		log.Println("WARNING: empty header separator, loading default header separator")
-		c.Header.Sep = defaultHeaderSep
+		c.Header.Sep = DefaultHeaderSep
 	}
 
 	// set default settings

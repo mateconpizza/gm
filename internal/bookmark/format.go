@@ -11,8 +11,8 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// Oneline formats a bookmark in a single line with dynamic width adjustment.
-func Oneline(b *Bookmark) string {
+// Oneline formats a bookmark in a single line with the given colorscheme.
+func Oneline(b *Bookmark, cs *color.Scheme) string {
 	const (
 		idWithColor    = 16
 		minTagsLen     = 34
@@ -26,13 +26,13 @@ func Oneline(b *Bookmark) string {
 	// add 1 for the UnicodeMiddleDot spacer
 	urlLen := w - idLen - tagsLen - 1
 	// apply colors
-	coloredID := color.BrightYellow(b.ID).Bold().String()
+	coloredID := cs.BrightYellow(b.ID).Bold().String()
 	shortURL := format.Shorten(b.URL, urlLen)
-	colorURL := color.Gray(shortURL).String()
+	colorURL := cs.BrightWhite(shortURL).String()
 	// adjust for ansi color codes in url length calculation
 	urlLen += len(colorURL) - len(shortURL)
 	// process and color tags
-	tagsColor := color.BrightCyan(prettifyTags(b.Tags)).Italic().String()
+	tagsColor := cs.Blue(format.TagsWithUnicode(b.Tags)).Italic().String()
 	var sb strings.Builder
 	sb.Grow(w + 20) // pre-allocate buffer with some extra space for color codes
 	sb.WriteString(fmt.Sprintf("%-*s ", idLen, coloredID))
@@ -43,14 +43,14 @@ func Oneline(b *Bookmark) string {
 }
 
 // Multiline formats a bookmark for fzf with max width.
-func Multiline(b *Bookmark) string {
+func Multiline(b *Bookmark, cs *color.Scheme) string {
 	w := terminal.MaxWidth
 	var sb strings.Builder
-	sb.WriteString(color.BrightYellow(b.ID).Bold().String())
+	sb.WriteString(cs.BrightYellow(b.ID).Bold().String())
 	sb.WriteString(format.NBSP)
-	sb.WriteString(format.Shorten(breadcrumbsURL(b.URL, color.BrightMagenta), w) + "\n")
-	sb.WriteString(color.Cyan(format.Shorten(b.Title, w)).String() + "\n")
-	sb.WriteString(color.BrightGray(prettifyTags(b.Tags)).Italic().String())
+	sb.WriteString(format.Shorten(format.URLBreadCrumbs(b.URL, cs.BrightMagenta), w) + "\n")
+	sb.WriteString(cs.Cyan(format.Shorten(b.Title, w)).String() + "\n")
+	sb.WriteString(cs.BrightWhite(format.TagsWithUnicode(b.Tags)).Italic().String())
 
 	return sb.String()
 }
@@ -77,20 +77,20 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 }
 
 // Frame formats a bookmark in a frame with min width.
-func Frame(b *Bookmark) string {
-	w := terminal.MaxWidth
-	f := frame.New(frame.WithColorBorder(color.Gray))
+func Frame(b *Bookmark, cs *color.Scheme) string {
+	w := terminal.MinWidth
+	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
 	// indentation
 	w -= len(f.Border.Row)
-	// split and add intendation
+	// split and add indentation
 	descSplit := format.SplitIntoChunks(b.Desc, w)
 	titleSplit := format.SplitIntoChunks(b.Title, w)
 	// add color and style
-	id := color.BrightYellow(b.ID).Bold().String()
-	urlColor := format.Shorten(breadcrumbsURL(b.URL, color.BrightMagenta), w)
-	title := color.ApplyMany(titleSplit, color.Cyan)
-	desc := color.ApplyMany(descSplit, color.Gray)
-	tags := color.BrightGray(prettifyTags(b.Tags)).Italic().String()
+	id := cs.BrightYellow(b.ID).Bold()
+	urlColor := format.Shorten(format.URLBreadCrumbs(b.URL, cs.BrightMagenta), w)
+	title := color.ApplyMany(titleSplit, cs.BrightCyan)
+	desc := color.ApplyMany(descSplit, cs.White)
+	tags := cs.BrightWhite(format.TagsWithPound(b.Tags)).Italic().String()
 
 	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln().
 		Mid(title...).Ln().
@@ -141,10 +141,24 @@ func breadcrumbsURL(s string, c color.ColorFn) string {
 }
 
 // FzfFormatter returns a function to format a bookmark for the FZF menu.
-func FzfFormatter(m bool) func(b *Bookmark) string {
-	if m {
-		return Multiline
+func FzfFormatter(m bool, colorScheme string) func(b *Bookmark) string {
+	var (
+		cs *color.Scheme
+		ok bool
+	)
+	cs, ok = color.Schemes[colorScheme]
+	if !ok {
+		cs = color.DefaultColorScheme()
 	}
 
-	return Oneline
+	switch {
+	case m:
+		return func(b *Bookmark) string {
+			return Multiline(b, cs)
+		}
+	default:
+		return func(b *Bookmark) string {
+			return Oneline(b, cs)
+		}
+	}
 }

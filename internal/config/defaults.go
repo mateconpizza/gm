@@ -7,18 +7,6 @@ import (
 	"github.com/haaag/gm/internal/menu"
 )
 
-type fzfKey = menu.Keymap
-
-const (
-	unicodeMiddleDot      = "\u00b7" // ·
-	unicodePathBigSegment = "\u25B6" // ▶
-)
-
-const (
-	defaultPrompt    = unicodePathBigSegment + " "
-	defaultHeaderSep = " " + unicodeMiddleDot + " "
-)
-
 // ConfigFile represents the configuration file.
 type ConfigFile struct {
 	Colorscheme string       `yaml:"colorscheme"` // App colorscheme
@@ -27,6 +15,7 @@ type ConfigFile struct {
 
 // fzfSettings are the options for FZF.
 var fzfSettings = menu.FzfSettings{
+	// TODO: maybe, put it in `menu.go`
 	"--ansi",                            // Enable processing of ANSI color codes
 	"--reverse",                         // A synonym for --layout=reverse
 	"--sync",                            // Synchronous search for multi-staged filtering
@@ -44,20 +33,27 @@ var fzfSettings = menu.FzfSettings{
 
 // Fzf holds the default menu configuration.
 var Fzf = &menu.Config{
-	Prompt:  defaultPrompt,
-	Preview: true,
+	// TODO: maybe, put it in `menu.go`
+	Defaults: true,
+	Prompt:   menu.DefaultPrompt,
+	Preview:  true,
 	Header: menu.FzfHeader{
 		Enabled: true,
-		Sep:     defaultHeaderSep,
+		Sep:     menu.DefaultHeaderSep,
 	},
 	Keymaps: menu.Keymaps{
-		Edit:      fzfKey{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
-		Open:      fzfKey{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
-		QR:        fzfKey{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
-		OpenQR:    fzfKey{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
-		Yank:      fzfKey{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
-		Preview:   fzfKey{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
-		ToggleAll: fzfKey{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
+		Edit:   menu.Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
+		Open:   menu.Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
+		QR:     menu.Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
+		OpenQR: menu.Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
+		Yank:   menu.Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
+		Preview: menu.Keymap{
+			Bind:    "ctrl-/",
+			Desc:    "toggle-preview",
+			Enabled: true,
+			Hidden:  false,
+		},
+		ToggleAll: menu.Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
 	},
 	Settings: fzfSettings,
 }
@@ -151,6 +147,7 @@ var Defaults = &ConfigFile{
 	Menu:        Fzf,
 }
 
+// Validate validates the configuration file.
 func Validate(cfg *ConfigFile) error {
 	if cfg.Colorscheme == "" {
 		log.Println("WARNING: empty colorscheme, loading default colorscheme")
