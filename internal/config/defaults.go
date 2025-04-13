@@ -120,15 +120,13 @@ func FzfKeybindYank() menu.Keymap {
 
 // App is the default application configuration.
 var App = &AppConfig{
-	Name:    appName,
-	Cmd:     command,
-	Version: version,
-	DBName:  DefaultDBName,
-	Colorscheme: colorscheme{
-		Name: "default",
-	},
-	Color: false,
-	Force: false,
+	Name:        appName,
+	Cmd:         command,
+	Version:     version,
+	DBName:      DefaultDBName,
+	Colorscheme: "default",
+	Color:       false,
+	Force:       false,
 	Info: information{
 		URL:   "https://github.com/haaag/gomarks#readme",
 		Title: "Gomarks: A bookmark manager",

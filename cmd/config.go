@@ -67,7 +67,7 @@ func loadConfig(p string) error {
 	}
 
 	config.Fzf = cfg.Menu
-	config.App.Colorscheme.Name = cfg.Colorscheme
+	config.App.Colorscheme = cfg.Colorscheme
 
 	return nil
 }
@@ -75,7 +75,7 @@ func loadConfig(p string) error {
 // exportColorScheme saves given colorscheme to a YAML file in the colorschemes
 // path.
 func exportColorScheme(cs *color.Scheme) error {
-	p := config.App.Colorscheme.Path
+	p := config.App.Path.Colorschemes
 	if p == "" {
 		return fmt.Errorf("%w for colorschemes", files.ErrPathNotFound)
 	}
@@ -91,7 +91,7 @@ func exportColorScheme(cs *color.Scheme) error {
 
 // printColorSchemes prints a list of available colorschemes.
 func printColorSchemes() error {
-	fs, err := files.FindByExtList(config.App.Colorscheme.Path, "yaml")
+	fs, err := files.FindByExtList(config.App.Path.Colorschemes, "yaml")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

@@ -19,7 +19,7 @@ type (
 	AppConfig struct {
 		Name        string      `json:"name"`        // Name of the application
 		Cmd         string      `json:"cmd"`         // Name of the executable
-		Colorscheme colorscheme `json:"colorscheme"` // Name of the colorscheme
+		Colorscheme string      `json:"colorscheme"` // Name of the colorscheme
 		Version     string      `json:"version"`     // Version of the application
 		Info        information `json:"data"`        // Application information
 		Env         environment `json:"env"`         // Application environment variables
@@ -32,8 +32,9 @@ type (
 
 	path struct {
 		// Config string `json:"home"` // Path to store configuration (unused)
-		Data       string `json:"data"`   // Path to store database
-		ConfigFile string `json:"config"` // Path to config file
+		Data         string `json:"data"`         // Path to store database
+		ConfigFile   string `json:"config"`       // Path to config file
+		Colorschemes string `json:"colorschemes"` // Path to store colorschemes
 	}
 
 	information struct {
@@ -56,7 +57,7 @@ type (
 
 // SetColorSchemePath sets the colorscheme path.
 func SetColorSchemePath(p string) {
-	App.Colorscheme.Path = p
+	App.Path.Colorschemes = p
 }
 
 // EnableColor enables color output.

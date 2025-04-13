@@ -11,7 +11,7 @@ import (
 
 // Print prints the bookmarks in a frame format with the given colorscheme.
 func Print(bs *Slice) error {
-	s := config.App.Colorscheme.Name
+	s := config.App.Colorscheme
 	lastIdx := bs.Len() - 1
 	cs, ok := color.Schemes[s]
 	if !ok {
@@ -42,7 +42,7 @@ func JSON(bs *Slice) error {
 
 // Oneline formats the bookmarks in oneline.
 func Oneline(bs *Slice) error {
-	s := config.App.Colorscheme.Name
+	s := config.App.Colorscheme
 	cs, ok := color.Schemes[s]
 	if !ok {
 		return fmt.Errorf("%w: '%s'", color.ErrColorSchemeUnknown, s)
