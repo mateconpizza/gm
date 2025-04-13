@@ -112,7 +112,7 @@ func FzfKeybindYank() menu.Keymap {
 	return menu.Keymap{
 		Bind:    Fzf.Keymaps.Yank.Bind,
 		Desc:    Fzf.Keymaps.Yank.Desc,
-		Action:  fmtKeybindCmd("--copy {1})"),
+		Action:  fmtKeybindCmd("--copy {+1})"),
 		Enabled: Fzf.Keymaps.Yank.Enabled,
 		Hidden:  Fzf.Keymaps.Yank.Hidden,
 	}
