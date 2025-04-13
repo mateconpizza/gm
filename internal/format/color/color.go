@@ -4,13 +4,20 @@ package color
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
-
-	"github.com/haaag/gm/internal/config"
 )
 
 type ColorFn func(arg ...any) *Color
+
+var colorEnabled bool
+
+// Enable enables color support.
+func Enable(b bool) {
+	colorEnabled = b
+	log.Println("color enabled:", colorEnabled)
+}
 
 const (
 	// normal colors.
@@ -99,7 +106,7 @@ func (c *Color) Underline() *Color {
 }
 
 func (c *Color) String() string {
-	if !config.App.Color {
+	if !colorEnabled {
 		return c.text
 	}
 	// apply styles

@@ -67,6 +67,9 @@ func initConfig() {
 	}
 	menu.SetConfig(config.Fzf)
 	menu.EnableColor(config.App.Color)
+
+	// enable global color
+	color.Enable(config.App.Color)
 }
 
 // init sets the config for the root command.
