@@ -83,7 +83,7 @@ func (b *GeckoBrowser) Color(s string) string {
 func (b *GeckoBrowser) LoadPaths() error {
 	p, ok := geckoBrowserPaths[b.name]
 	if !ok {
-		return fmt.Errorf("%w: '%s'", ErrBrowserUnsupported, b.name)
+		return fmt.Errorf("%w: %q", ErrBrowserUnsupported, b.name)
 	}
 	b.paths = p
 
@@ -96,7 +96,7 @@ func (b *GeckoBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark]
 		return nil, ErrBrowserConfigPathNotSet
 	}
 	if !files.Exists(p.profiles) {
-		return nil, fmt.Errorf("%w: '%s'", files.ErrFileNotFound, p.profiles)
+		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, p.profiles)
 	}
 
 	profiles, err := allProfiles(p.profiles)
@@ -229,7 +229,7 @@ func allProfiles(p string) (map[string]string, error) {
 func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profile, path string) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Row().Ln().Flush()
-	f.Clear().Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
+	f.Clear().Header(fmt.Sprintf("import bookmarks from %q profile?", profile))
 	if !t.Confirm(f.String(), "n") {
 		t.ClearLine(1)
 		f.Clear().Warning("Skipping profile...'" + profile + "'").Ln().Flush()
@@ -243,25 +243,25 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 			return
 		}
 		if err := db.Close(); err != nil {
-			log.Printf("err closing database for profile '%s': %v\n", profile, err)
+			log.Printf("err closing database for profile %q: %v\n", profile, err)
 		}
-		log.Printf("database for profile '%s' closed.\n", profile)
+		log.Printf("database for profile %q closed.\n", profile)
 	}()
 	if err != nil {
-		log.Printf("err opening database for profile '%s': %v\n", profile, err)
+		log.Printf("err opening database for profile %q: %v\n", profile, err)
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
 			f.Clear().Error("database is " + l + ", maybe firefox is open?").Ln().Flush()
 			return
 		}
-		fmt.Printf("err opening database for profile '%s': %v\n", profile, err)
+		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
 
 		return
 	}
 
 	gmarks, err := queryBookmarks(db)
 	if err != nil {
-		fmt.Printf("err querying bookmarks for profile '%s': %v\n", profile, err)
+		fmt.Printf("err querying bookmarks for profile %q: %v\n", profile, err)
 		return
 	}
 	skipped := 0

@@ -60,7 +60,7 @@ func getBrowser(key string) (browser.Browser, bool) {
 func loadBrowser(k string) (browser.Browser, error) {
 	b, ok := getBrowser(k)
 	if !ok {
-		return nil, fmt.Errorf("%w: '%s'", browser.ErrBrowserUnsupported, k)
+		return nil, fmt.Errorf("%w: %q", browser.ErrBrowserUnsupported, k)
 	}
 	if err := b.LoadPaths(); err != nil {
 		return nil, fmt.Errorf("error loading browser paths: %w", err)
@@ -115,7 +115,7 @@ func importFromBrowser(t *terminal.Term, r *Repo) error {
 	// find bookmarks
 	bs, err := br.Import(t)
 	if err != nil {
-		return fmt.Errorf("browser '%s': %w", br.Name(), err)
+		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
 	// clean and process found bookmarks
 	if err := parseFoundFromBrowser(t, r, bs); err != nil {

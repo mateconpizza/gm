@@ -44,7 +44,7 @@ func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *Row) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("processing tag: '%s' with id: %d\n", tag, tagID)
+		log.Printf("processing tag: %q with id: %d\n", tag, tagID)
 		_ = tx.MustExec(
 			"INSERT OR IGNORE INTO bookmark_tags (bookmark_url, tag_id) VALUES (?, ?)",
 			b.URL,

@@ -56,16 +56,23 @@ func initConfig() {
 	if err != nil {
 		sys.ErrAndExit(err)
 	}
+
+	// set app home
 	config.SetDataPath(dataHomePath)
+
 	// set database path
 	Cfg = repo.NewSQLiteCfg(filepath.Join(dataHomePath, config.App.DBName))
+
 	// set colorscheme path
 	config.SetColorSchemePath(filepath.Join(dataHomePath, "colorscheme"))
 
+	// load config from YAML
 	if err := loadConfig(config.App.Path.ConfigFile); err != nil {
 		log.Println("error loading config:", err)
 	}
 	menu.SetConfig(config.Fzf)
+
+	// enable color in menu UI
 	menu.EnableColor(config.App.Color)
 
 	// enable global color
@@ -117,11 +124,13 @@ func createPaths(t *terminal.Term, path string) error {
 	}
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Header(prettyVersion()).Ln().Row().Ln()
-	f.Mid(format.PaddedLine("create path:", "'"+path+"'\n"))
-	f.Mid(format.PaddedLine("create db:", "'"+Cfg.Fullpath()+"'\n"))
+	p := color.Text(path).Italic().String()
+	fp := color.Text(Cfg.Fullpath()).Italic().String()
+	f.Info(format.PaddedLine("Create path:", p+"\n"))
+	f.Info(format.PaddedLine("Create db:", fp+"\n"))
 	lines := format.CountLines(f.String()) + 1
 	f.Row("\n").Flush()
-	if !t.Confirm(f.Footer("continue?").String(), "y") {
+	if !t.Confirm(f.Question("continue?").String(), "y") {
 		return sys.ErrActionAborted
 	}
 	// clean terminal keeping header+row
@@ -131,8 +140,8 @@ func createPaths(t *terminal.Term, path string) error {
 	if err := files.MkdirAll(path); err != nil {
 		sys.ErrAndExit(err)
 	}
-	f.Clear().Info(fmt.Sprintf("Successfully created directory path '%s'.\n", path))
-	f.Info("Successfully created initial bookmark.\n").Row("\n").Flush()
+	f.Clear().Success(fmt.Sprintf("Created directory path %q\n", path))
+	f.Success("Inserted initial bookmark\n").Row("\n").Flush()
 
 	return nil
 }
@@ -142,7 +151,7 @@ func isSubCmdCalled(cmd *cobra.Command, names ...string) bool {
 	targetCmd, _, _ := cmd.Root().Find(os.Args[1:])
 	for _, name := range names {
 		if targetCmd != nil && targetCmd.Name() == name {
-			log.Printf("isSubCmdCalled: '%s' is called\n", name)
+			log.Printf("isSubCmdCalled: %q is called\n", name)
 			return true
 		}
 	}
@@ -165,7 +174,7 @@ func loadDataPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("loading paths: %w", err)
 	}
-	log.Printf("loadPath: dataHome: %v\n", dataHome)
+	log.Printf("loadPath: dataHome: %q\n", dataHome)
 
 	return dataHome, nil
 }
@@ -188,7 +197,7 @@ var initCmd = &cobra.Command{
 		defer r.Close()
 		// initialize database
 		if r.IsInitialized() && !config.App.Force {
-			return fmt.Errorf("'%s' %w", r.Cfg.Name, repo.ErrDBAlreadyInitialized)
+			return fmt.Errorf("%q %w", r.Name(), repo.ErrDBAlreadyInitialized)
 		}
 		if err := r.Init(); err != nil {
 			return fmt.Errorf("initializing database: %w", err)

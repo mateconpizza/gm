@@ -10,38 +10,38 @@ func TestDiff(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
-		a        []byte
-		b        []byte
+		inputA   []byte
+		inputB   []byte
 		expected string
 	}{
 		{
 			name:     "No Changes",
-			a:        []byte("line1\nline2\nline3"),
-			b:        []byte("line1\nline2\nline3"),
+			inputA:   []byte("line1\nline2\nline3"),
+			inputB:   []byte("line1\nline2\nline3"),
 			expected: "line1\nline2\nline3",
 		},
 		{
 			name:     "Line Added",
-			a:        []byte("line1\nline2"),
-			b:        []byte("line1\nline2\nline3"),
+			inputA:   []byte("line1\nline2"),
+			inputB:   []byte("line1\nline2\nline3"),
 			expected: "line1\nline2\n+line3",
 		},
 		{
 			name:     "Line Removed",
-			a:        []byte("line1\nline2\nline3"),
-			b:        []byte("line1\nline3"),
+			inputA:   []byte("line1\nline2\nline3"),
+			inputB:   []byte("line1\nline3"),
 			expected: "line1\n-line2\nline3",
 		},
 		{
 			name:     "Line Modified",
-			a:        []byte("line1\nline2\nline3"),
-			b:        []byte("line1\nlineX\nline3"),
+			inputA:   []byte("line1\nline2\nline3"),
+			inputB:   []byte("line1\nlineX\nline3"),
 			expected: "line1\n-line2\n+lineX\nline3",
 		},
 		{
 			name:     "Multiple Changes",
-			a:        []byte("lineA\nlineB\nlineC\nlineD"),
-			b:        []byte("lineA\nlineX\nlineC\nlineY"),
+			inputA:   []byte("lineA\nlineB\nlineC\nlineD"),
+			inputB:   []byte("lineA\nlineX\nlineC\nlineY"),
 			expected: "lineA\n-lineB\n+lineX\nlineC\n-lineD\n+lineY",
 		},
 	}
@@ -50,7 +50,7 @@ func TestDiff(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.expected, te.Diff(tt.a, tt.b))
+			assert.Equal(t, tt.expected, te.Diff(tt.inputA, tt.inputB))
 		})
 	}
 }

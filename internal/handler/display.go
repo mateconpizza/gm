@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
@@ -15,8 +16,9 @@ func Print(bs *Slice) error {
 	lastIdx := bs.Len() - 1
 	cs, ok := color.Schemes[s]
 	if !ok {
-		return fmt.Errorf("%w: '%s'", color.ErrColorSchemeUnknown, s)
+		return fmt.Errorf("%w: %q", color.ErrColorSchemeUnknown, s)
 	}
+	log.Printf("loaded colorscheme: %q", cs.Name)
 
 	bs.ForEachIdx(func(i int, b Bookmark) {
 		fmt.Print(bookmark.Frame(&b, cs))
@@ -31,10 +33,12 @@ func Print(bs *Slice) error {
 // JSON formats the bookmarks in JSON.
 func JSON(bs *Slice) error {
 	if bs.Empty() {
+		log.Printf("formatting config in JSON")
 		fmt.Println(string(format.ToJSON(config.App)))
 		return nil
 	}
 
+	log.Printf("formatting %d bookmarks in JSON", bs.Len())
 	fmt.Println(string(format.ToJSON(bs.Items())))
 
 	return nil
@@ -45,8 +49,10 @@ func Oneline(bs *Slice) error {
 	s := config.App.Colorscheme
 	cs, ok := color.Schemes[s]
 	if !ok {
-		return fmt.Errorf("%w: '%s'", color.ErrColorSchemeUnknown, s)
+		return fmt.Errorf("%w: %q", color.ErrColorSchemeUnknown, s)
 	}
+	log.Printf("loaded colorscheme: %q", cs.Name)
+
 	bs.ForEach(func(b Bookmark) {
 		fmt.Print(bookmark.Oneline(&b, cs))
 	})
@@ -66,6 +72,7 @@ func ByField(bs *Slice, f string) error {
 
 		return nil
 	}
+	log.Printf("selected field: %q", f)
 
 	if err := bs.ForEachErr(printer); err != nil {
 		return fmt.Errorf("%w", err)

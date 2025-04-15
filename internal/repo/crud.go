@@ -231,7 +231,7 @@ func (r *SQLiteRepository) ByTag(ctx context.Context, tag string, bs *Slice) err
 
 // ByQuery returns records by query in the give table.
 func (r *SQLiteRepository) ByQuery(query string, bs *Slice) error {
-	log.Printf("getting records by query: '%s'", query)
+	log.Printf("getting records by query: %q", query)
 	q := `
     SELECT
       b.*,
@@ -251,7 +251,7 @@ func (r *SQLiteRepository) ByQuery(query string, bs *Slice) error {
 	if bs.Len() == 0 {
 		return ErrRecordNoMatch
 	}
-	log.Printf("got %d records by query: '%s'", bs.Len(), query)
+	log.Printf("got %d records by query: %q", bs.Len(), query)
 
 	return nil
 }
@@ -297,7 +297,7 @@ func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
 		}
 		// populate temp table
 		if err := r.insertManyIntoTempTable(ctx, tx, bs); err != nil {
-			return fmt.Errorf("%w: insert many (table '%s')", err, schemaTemp.name)
+			return fmt.Errorf("%w: insert many (table %q)", err, schemaTemp.name)
 		}
 		// drop main table
 		if err := r.tableDrop(tx, schemaMain.name); err != nil {
@@ -420,7 +420,7 @@ func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *Row) error {
     (:id, :url, :title, :desc, :created_at, :updated_at, :visit_count, :favorite)`
 	_, err := tx.NamedExec(q, b)
 	if err != nil {
-		return fmt.Errorf("%w: '%s'", err, b.URL)
+		return fmt.Errorf("%w: %q", err, b.URL)
 	}
 	if err := r.associateTags(tx, b); err != nil {
 		return fmt.Errorf("failed to associate tags: %w", err)
@@ -463,7 +463,7 @@ func (r *SQLiteRepository) insertInto(ctx context.Context, b *Row) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("%w: '%s'", err, b.URL)
+		return fmt.Errorf("%w: %q", err, b.URL)
 	}
 
 	log.Printf("inserted record: %s\n", b.URL)
@@ -474,7 +474,7 @@ func (r *SQLiteRepository) insertInto(ctx context.Context, b *Row) error {
 // insertIntoTx inserts a record inside an existing transaction.
 func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *Row) error {
 	if _, err := r.hasTx(tx, b.URL); err != nil {
-		return fmt.Errorf("duplicate record: %w, '%s'", err, b.URL)
+		return fmt.Errorf("duplicate record: %w, %q", err, b.URL)
 	}
 	// insert record and associate tags in the same transaction.
 	if err := insertRecord(tx, b); err != nil {

@@ -70,6 +70,7 @@ func TestTagsCounter(t *testing.T) {
 	assert.Len(t, expectedCounts, len(tagCounts))
 }
 
+//nolint:paralleltest //test
 func TestGetOrCreateTag(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)

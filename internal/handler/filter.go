@@ -42,7 +42,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 
 	if bs.Empty() {
 		t := strings.Join(tags, ", ")
-		return fmt.Errorf("%w by tag: '%s'", repo.ErrRecordNoMatch, t)
+		return fmt.Errorf("%w by tag: %q", repo.ErrRecordNoMatch, t)
 	}
 
 	bs.FilterInPlace(func(b *Bookmark) bool {
@@ -68,7 +68,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 	q := strings.Join(args, "%")
 	if err := r.ByQuery(q, bs); err != nil {
-		return fmt.Errorf("%w: '%s'", err, strings.Join(args, " "))
+		return fmt.Errorf("%w: %q", err, strings.Join(args, " "))
 	}
 
 	return nil
@@ -92,7 +92,7 @@ func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 	if bs.Empty() {
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
-		return fmt.Errorf("%w by id/s: %s in '%s'", repo.ErrRecordNotFound, bids, r.Cfg.Name)
+		return fmt.Errorf("%w by id/s: %s in %q", repo.ErrRecordNotFound, bids, r.Name())
 	}
 
 	return nil

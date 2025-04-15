@@ -53,7 +53,7 @@ var databaseDropCmd = &cobra.Command{
 		}
 		defer r.Close()
 		if !r.IsInitialized() && !config.App.Force {
-			return fmt.Errorf("%w: '%s'", repo.ErrDBNotInitialized, r.Cfg.Name)
+			return fmt.Errorf("%w: %q", repo.ErrDBNotInitialized, r.Name())
 		}
 		t := terminal.New(terminal.WithInterruptFn(func(err error) {
 			r.Close()
@@ -66,7 +66,7 @@ var databaseDropCmd = &cobra.Command{
 		fmt.Print(repo.Info(r))
 		f.Clear().Row().Ln().Flush().Clear()
 		if !config.App.Force {
-			if !t.Confirm(f.Footer("continue?").String(), "n") {
+			if !t.Confirm(f.Question("continue?").String(), "n") {
 				return sys.ErrActionAborted
 			}
 		}

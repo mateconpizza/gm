@@ -34,12 +34,12 @@ type FzfSettings []string
 type Config struct {
 	// TODO: complete `Defaults` option. This will be used to load fzf's users
 	// configuration
-	Defaults bool        `yaml:"defaults"` // Fzf use fzf defaults
-	Prompt   string      `yaml:"prompt"`   // Fzf prompt
-	Preview  bool        `yaml:"preview"`  // Fzf enable preview
-	Header   FzfHeader   `yaml:"header"`   // Fzf header
-	Keymaps  Keymaps     `yaml:"keymaps"`  // Fzf keymaps
-	Settings FzfSettings `yaml:"settings"` // Fzf settings
+	Defaults bool        `json:"defaults" yaml:"defaults"` // Fzf use fzf defaults
+	Prompt   string      `json:"prompt"   yaml:"prompt"`   // Fzf prompt
+	Preview  bool        `json:"preview"  yaml:"preview"`  // Fzf enable preview
+	Header   FzfHeader   `json:"header"   yaml:"header"`   // Fzf header
+	Keymaps  Keymaps     `json:"keymaps"  yaml:"keymaps"`  // Fzf keymaps
+	Settings FzfSettings `json:"settings" yaml:"settings"` // Fzf settings
 }
 
 // Validate validates the menu configuration.

@@ -19,14 +19,19 @@ type SQLiteRepository struct {
 	closeOnce sync.Once
 }
 
+// Name returns the name of the SQLite database.
+func (r *SQLiteRepository) Name() string {
+	return r.Cfg.Name
+}
+
 // Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLiteRepository) Close() {
-	s := r.Cfg.Name
+	s := r.Name()
 	r.closeOnce.Do(func() {
 		if err := r.DB.Close(); err != nil {
-			log.Printf("closing '%s' database: %v", s, err)
+			log.Printf("closing %q database: %v", s, err)
 		} else {
-			log.Printf("database '%s' closed.\n", s)
+			log.Printf("database %q closed.\n", s)
 		}
 	})
 }
@@ -59,7 +64,7 @@ func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 // openDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
 func openDatabase(s string) (*sqlx.DB, error) {
-	log.Printf("opening database: '%s'", s)
+	log.Printf("opening database: %q", s)
 	db, err := sqlx.Open("sqlite3", s)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)

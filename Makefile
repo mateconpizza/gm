@@ -47,6 +47,10 @@ vtestfn:
 	@echo '>> Testing function $(FN)'
 	@go test -v -run $(FN) ./...
 
+# Benchmark code
+bench:
+	@echo '>> Benchmark'
+	@go test -run='^$$' -bench=. ./... | grep -v "PASS"
 
 # Lint code with 'golangci-lint'
 lint:

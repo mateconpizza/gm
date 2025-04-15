@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 )
 
-var version = "0.1.11" // Version of the application
+// version of the application.
+var version = "0.1.11"
 
 const (
 	appName        string = "gomarks"      // Default name of the application
@@ -20,14 +21,14 @@ type (
 		Name        string      `json:"name"`        // Name of the application
 		Cmd         string      `json:"cmd"`         // Name of the executable
 		Colorscheme string      `json:"colorscheme"` // Name of the colorscheme
-		Version     string      `json:"version"`     // Version of the application
+		DBName      string      `json:"db"`          // Database name
 		Info        information `json:"data"`        // Application information
 		Env         environment `json:"env"`         // Application environment variables
 		Path        path        `json:"path"`        // Application path
 		Color       bool        `json:"-"`           // Application color enable
-		Force       bool        `json:"force"`       // force action, dont ask for confirmation.
-		DBName      string      `json:"db"`          // Database name
-		Verbose     bool        `json:"verbose"`     // Logging level
+		Force       bool        `json:"-"`           // force action, dont ask for confirmation.
+		Verbose     bool        `json:"-"`           // Logging level
+		Version     string      `json:"version"`     // Version of the application
 	}
 
 	path struct {
@@ -47,11 +48,6 @@ type (
 	environment struct {
 		Home   string `json:"home"`   // Environment variable for the home directory
 		Editor string `json:"editor"` // Environment variable for the preferred editor
-	}
-
-	colorscheme struct {
-		Name string `json:"name"`
-		Path string `json:"path"`
 	}
 )
 

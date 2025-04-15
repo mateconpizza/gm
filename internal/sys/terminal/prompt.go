@@ -180,11 +180,11 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 }
 
 // getUserInput reads user input and validates against the options.
-func getUserInput(rd io.Reader, prompt string, opts []string, def string) string {
+func getUserInput(rd io.Reader, p string, opts []string, def string) string {
 	r := bufio.NewReader(rd)
 
 	for {
-		fmt.Print(prompt)
+		fmt.Print(p)
 
 		input, err := r.ReadString('\n')
 		if err != nil {
@@ -201,7 +201,7 @@ func getUserInput(rd io.Reader, prompt string, opts []string, def string) string
 			return input
 		}
 
-		ClearLine(format.CountLines(prompt))
+		ClearLine(format.CountLines(p))
 	}
 }
 

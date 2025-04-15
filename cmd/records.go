@@ -12,6 +12,7 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
+// recordsCmd is the main command and entrypoint.
 var recordsCmd = &cobra.Command{
 	Use:     "records",
 	Aliases: []string{"r", "items"},

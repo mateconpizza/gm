@@ -76,7 +76,7 @@ func (b *BlinkBrowser) Color(s string) string {
 func (b *BlinkBrowser) LoadPaths() error {
 	p, ok := blinkBrowserPaths[b.name]
 	if !ok {
-		return fmt.Errorf("%w: '%s'", ErrBrowserUnsupported, b.name)
+		return fmt.Errorf("%w: %q", ErrBrowserUnsupported, b.name)
 	}
 	b.paths = p
 
@@ -90,7 +90,7 @@ func (b *BlinkBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark]
 		return nil, ErrBrowserConfigPathNotSet
 	}
 	if !files.Exists(p.profiles) {
-		return nil, fmt.Errorf("%w: '%s'", files.ErrFileNotFound, p.profiles)
+		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, p.profiles)
 	}
 
 	jsonData, err := os.ReadFile(p.profiles)
@@ -237,7 +237,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 	}
 
 	f.Row("\n").Flush()
-	f.Header(fmt.Sprintf("import bookmarks from '%s' profile?", profile))
+	f.Header(fmt.Sprintf("import bookmarks from %q profile?", profile))
 	if !t.Confirm(f.String(), "n") {
 		t.ReplaceLine(1, f.Clear().Row(skip+" profile...'"+profile+"'").String())
 		return
@@ -258,7 +258,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 		b.URL = c.url
 		b.Tags = bookmark.ParseTags(strings.Join(c.tags, ","))
 
-		if bs.Has(func(b bookmark.Bookmark) bool {
+		if bs.Any(func(b bookmark.Bookmark) bool {
 			return b.URL == c.url
 		}) {
 			continue

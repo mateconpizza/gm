@@ -27,18 +27,18 @@ func (r *SQLiteRepository) Init() error {
 	return r.withTx(context.Background(), func(tx *sqlx.Tx) error {
 		for _, s := range tablesAndSchema() {
 			if err := r.tableCreate(tx, s.name, s.sql); err != nil {
-				return fmt.Errorf("creating '%s' table: %w", s.name, err)
+				return fmt.Errorf("creating %q table: %w", s.name, err)
 			}
 
 			if s.index != "" {
 				if _, err := tx.Exec(s.index); err != nil {
-					return fmt.Errorf("creating '%s' index: %w", s.name, err)
+					return fmt.Errorf("creating %q index: %w", s.name, err)
 				}
 			}
 
 			if s.trigger != "" {
 				if _, err := tx.Exec(s.trigger); err != nil {
-					return fmt.Errorf("creating '%s' trigger: %w", s.name, err)
+					return fmt.Errorf("creating %q trigger: %w", s.name, err)
 				}
 			}
 		}
@@ -82,7 +82,7 @@ func (r *SQLiteRepository) tableRename(tx *sqlx.Tx, srcTable, destTable Table) e
 	log.Printf("renaming table %s to %s", srcTable, destTable)
 	_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", srcTable, destTable))
 	if err != nil {
-		return fmt.Errorf("%w: renaming table from '%s' to '%s'", err, srcTable, destTable)
+		return fmt.Errorf("%w: renaming table from %q to %q", err, srcTable, destTable)
 	}
 	log.Printf("renamed table %s to %s\n", srcTable, destTable)
 
@@ -106,7 +106,7 @@ func (r *SQLiteRepository) tableDrop(tx *sqlx.Tx, t Table) error {
 
 	_, err := tx.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
 	if err != nil {
-		return fmt.Errorf("%w: dropping table '%s'", err, t)
+		return fmt.Errorf("%w: dropping table %q", err, t)
 	}
 
 	log.Printf("dropped table: %s\n", t)

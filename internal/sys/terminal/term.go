@@ -146,8 +146,8 @@ func (t *Term) Choose(q string, opts []string, def string) string {
 
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoices(q string, opts []string, def string) string {
-	prompt := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
-	return getUserInput(t.reader, prompt, opts, def)
+	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
+	return getUserInput(t.reader, p, opts, def)
 }
 
 // ClearLine deletes n lines in the console.

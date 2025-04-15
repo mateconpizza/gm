@@ -40,11 +40,12 @@ func (te *TextEditor) EditBytes(content []byte) ([]byte, error) {
 	}
 	defer closeAndClean(f)
 
-	log.Printf("editing file: '%s' with text editor: '%s'", f.Name(), te.name)
-	log.Printf("executing args: cmd='%s' args='%v'", te.cmd, te.args)
+	log.Printf("editing file: %q with text editor: %q", f.Name(), te.name)
+	log.Printf("executing args: cmd=%q args='%v'", te.cmd, te.args)
 	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
 		return nil, fmt.Errorf("error running editor: %w", err)
 	}
+
 	data, err := os.ReadFile(f.Name())
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
@@ -60,7 +61,7 @@ func (te *TextEditor) EditFile(p string) error {
 	}
 
 	if !Exists(p) {
-		return fmt.Errorf("%w: '%s'", ErrFileNotFound, p)
+		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
 	}
 
 	if err := sys.RunCmd(te.cmd, append(te.args, p)...); err != nil {
@@ -137,7 +138,7 @@ func GetEditor(s string) (*TextEditor, error) {
 	for _, e := range envs {
 		if editor, found := getEditorFromEnv(e); found {
 			if editor.cmd == "" {
-				return nil, fmt.Errorf("%w: '%s'", ErrTextEditorNotFound, editor.name)
+				return nil, fmt.Errorf("%w: %q", ErrTextEditorNotFound, editor.name)
 			}
 
 			return editor, nil
@@ -208,54 +209,6 @@ func createTEmpFileWithData(d []byte) (*os.File, error) {
 	}
 
 	return tf, nil
-}
-
-// readContent reads the content of the specified file into the given byte
-// slice and returns any error encountered.
-func readContent(f *os.File, d *[]byte) error {
-	log.Printf("reading file: '%s'", f.Name())
-	var err error
-	*d, err = os.ReadFile(f.Name())
-	if err != nil {
-		return fmt.Errorf("error reading file: %w", err)
-	}
-
-	return nil
-}
-
-// editFile executes a command to edit the specified file, logging errors if
-// the command fails.
-func editFile(te *TextEditor, f *os.File) error {
-	if te.cmd == "" {
-		return ErrCommandNotFound
-	}
-
-	log.Printf("executing args: cmd='%s' args='%v'", te.cmd, te.args)
-	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
-		return fmt.Errorf("error running editor: %w", err)
-	}
-
-	return nil
-}
-
-// Edit edits the contents of a byte slice by creating a temporary file,
-// editing it with an external editor, and then reading the modified contents
-// back into the byte slice.
-func Edit(te *TextEditor, b []byte) error {
-	f, err := createTEmpFileWithData(b)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	defer closeAndClean(f)
-	log.Printf("editing file: '%s' with text editor: '%s'", f.Name(), te.name)
-	if err := editFile(te, f); err != nil {
-		return err
-	}
-	if err := readContent(f, &b); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
 }
 
 func newTextEditor(c, n string, arg []string) *TextEditor {

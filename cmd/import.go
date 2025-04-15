@@ -99,7 +99,7 @@ var importBackupCmd = &cobra.Command{
 			menu.WithUseDefaults(),
 			menu.WithMultiSelection(),
 			menu.WithSettings(config.Fzf.Settings),
-			menu.WithPreview(config.App.Cmd+" -n ./backup/"+srcDB.Cfg.Name+" {1}"),
+			menu.WithPreview(config.App.Cmd+" -n ./backup/"+srcDB.Name()+" {1}"),
 			menu.WithInterruptFn(interruptFn),
 			menu.WithHeader("select record/s to import", false),
 		)
@@ -146,7 +146,7 @@ var importDatabaseCmd = &cobra.Command{
 		}
 		defer dbs.ForEachMut(func(r *repo.SQLiteRepository) { r.Close() })
 		dbs.FilterInPlace(func(db *Repo) bool {
-			return db.Cfg.Name != destDB.Cfg.Name
+			return db.Name() != destDB.Name()
 		})
 		if dbs.Len() == 0 {
 			return repo.ErrDBsNotFound
@@ -180,7 +180,7 @@ var importDatabaseCmd = &cobra.Command{
 			menu.WithSettings(config.Fzf.Settings),
 			menu.WithMultiSelection(),
 			menu.WithHeader("select record/s to import", false),
-			menu.WithPreview(config.App.Cmd+" -n "+srcDB.Cfg.Name+" records {1}"),
+			menu.WithPreview(config.App.Cmd+" -n "+srcDB.Name()+" records {1}"),
 			menu.WithInterruptFn(interruptFn),
 		)
 
@@ -194,7 +194,7 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 	i := color.BrightMagenta("Import").Bold().String() + " from Database\n"
 	f.Header(i).Row("\n").Text(repo.RepoSummary(srcDB)).Row("\n").Flush()
 	// prompt
-	if !t.Confirm(f.Clear().Warning("continue?").String(), "y") {
+	if !t.Confirm(f.Clear().Question("continue?").String(), "y") {
 		return sys.ErrActionAborted
 	}
 	t.ClearLine(1)
@@ -281,7 +281,7 @@ var importCmd = &cobra.Command{
 		selected := menu.ANSICodeRemover(strings.Split(k[0], delimiter)[0])
 		src, ok := mapSource[strings.TrimSpace(selected)]
 		if !ok {
-			return fmt.Errorf("%w: '%s'", ErrImportSourceNotFound, selected)
+			return fmt.Errorf("%w: %q", ErrImportSourceNotFound, selected)
 		}
 
 		return src.cmd.RunE(cmd, args)

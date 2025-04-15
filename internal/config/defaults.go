@@ -9,8 +9,8 @@ import (
 
 // ConfigFile represents the configuration file.
 type ConfigFile struct {
-	Colorscheme string       `yaml:"colorscheme"` // App colorscheme
-	Menu        *menu.Config `yaml:"menu"`        // Menu configuration
+	Colorscheme string       `json:"colorscheme" yaml:"colorscheme"` // App colorscheme
+	Menu        *menu.Config `json:"menu"        yaml:"menu"`        // Menu configuration
 }
 
 // fzfSettings are the options for FZF.
@@ -42,17 +42,12 @@ var Fzf = &menu.Config{
 		Sep:     menu.DefaultHeaderSep,
 	},
 	Keymaps: menu.Keymaps{
-		Edit:   menu.Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
-		Open:   menu.Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
-		QR:     menu.Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
-		OpenQR: menu.Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
-		Yank:   menu.Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
-		Preview: menu.Keymap{
-			Bind:    "ctrl-/",
-			Desc:    "toggle-preview",
-			Enabled: true,
-			Hidden:  false,
-		},
+		Edit:      menu.Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
+		Open:      menu.Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
+		QR:        menu.Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
+		OpenQR:    menu.Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
+		Yank:      menu.Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
+		Preview:   menu.Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
 		ToggleAll: menu.Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
 	},
 	Settings: fzfSettings,

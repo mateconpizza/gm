@@ -173,7 +173,7 @@ func (p *Palette) Len() int {
 	v := reflect.ValueOf(*p)
 	count := 0
 
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		val := v.Field(i).String()
 		if strings.TrimSpace(val) != "" {
 			count++

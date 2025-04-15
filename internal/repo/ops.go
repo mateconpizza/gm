@@ -38,9 +38,9 @@ func countRecords(r *SQLiteRepository, t Table) int {
 
 // databasesFromPath returns the list of files from the given path.
 func databasesFromPath(p string) (*slice.Slice[string], error) {
-	log.Printf("databasesFromPath: path: '%s'", p)
+	log.Printf("databasesFromPath: path: %q", p)
 	if !files.Exists(p) {
-		log.Printf("path does not exist: '%s'", p)
+		log.Printf("path does not exist: %q", p)
 		return nil, files.ErrPathNotFound
 	}
 
@@ -63,7 +63,7 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 // 		return db.Cfg.Name == files.EnsureExt(name, ".db")
 // 	})
 // 	if dbs.Len() == 0 {
-// 		return nil, fmt.Errorf("'%s' %w", name, ErrDBNotFound)
+// 		return nil, fmt.Errorf("%q %w", name, ErrDBNotFound)
 // 	}
 //
 // 	found := dbs.Item(0)
@@ -79,7 +79,7 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 			return nil, ErrBackupNotFound
 		}
 
-		return nil, fmt.Errorf("'%s' %w", path, err)
+		return nil, fmt.Errorf("%q %w", path, err)
 	}
 	if paths.Len() == 0 {
 		return nil, ErrBackupNotFound
@@ -103,7 +103,7 @@ func NewBackup(r *SQLiteRepository) (string, error) {
 	if err := files.MkdirAll(bk.Path); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-	destDSN := AddPrefixDate(r.Cfg.Name, bk.DateFormat)
+	destDSN := AddPrefixDate(r.Name(), bk.DateFormat)
 	_ = r.DB.MustExec("VACUUM INTO ?", filepath.Join(bk.Path, destDSN))
 
 	return destDSN, nil
@@ -140,7 +140,7 @@ func Backups(r *SQLiteRepository) (*slice.Slice[SQLiteRepository], error) {
 		return strings.Contains(*b, s)
 	})
 	if paths.Len() == 0 {
-		return nil, fmt.Errorf("%w: '%s'", ErrBackupNotFound, s)
+		return nil, fmt.Errorf("%w: %q", ErrBackupNotFound, s)
 	}
 	if err = paths.ForEachErr(func(s string) error {
 		r, err := New(NewSQLiteCfg(s))

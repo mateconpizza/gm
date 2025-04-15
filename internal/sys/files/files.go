@@ -43,10 +43,10 @@ func List(root, pattern string) ([]string, error) {
 	query := root + "/*" + pattern
 	files, err := filepath.Glob(query)
 	if err != nil {
-		return nil, fmt.Errorf("%w: getting files query: '%s'", err, query)
+		return nil, fmt.Errorf("%w: getting files query: %q", err, query)
 	}
 
-	log.Printf("found %d files in path: '%s'", len(files), root)
+	log.Printf("found %d files in path: %q", len(files), root)
 
 	return files, nil
 }
@@ -57,7 +57,7 @@ func mkdir(s string) error {
 		return nil
 	}
 
-	log.Printf("creating path: '%s'", s)
+	log.Printf("creating path: %q", s)
 	if err := os.MkdirAll(s, dirPerm); err != nil {
 		return fmt.Errorf("creating %s: %w", s, err)
 	}
@@ -79,10 +79,10 @@ func MkdirAll(s ...string) error {
 // Remove removes the specified file if it exists.
 func Remove(s string) error {
 	if !Exists(s) {
-		return fmt.Errorf("%w: '%s'", ErrFileNotFound, s)
+		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
 	}
 
-	log.Printf("removing file: '%s'", s)
+	log.Printf("removing file: %q", s)
 
 	if err := os.Remove(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
@@ -109,7 +109,7 @@ func Copy(from, to string) error {
 		return fmt.Errorf("error creating destination file: %w", err)
 	}
 
-	log.Printf("copying '%s' to '%s'", filepath.Base(from), filepath.Base(to))
+	log.Printf("copying %q to %q", filepath.Base(from), filepath.Base(to))
 
 	defer func() {
 		if err := dstFile.Close(); err != nil {
@@ -127,7 +127,7 @@ func Copy(from, to string) error {
 
 // cleanupTemp Removes the specified temporary file.
 func cleanupTemp(s string) error {
-	log.Printf("removing temp file: '%s'", s)
+	log.Printf("removing temp file: %q", s)
 	err := os.Remove(s)
 	if err != nil {
 		return fmt.Errorf("could not cleanup temp file: %w", err)
@@ -149,7 +149,7 @@ func closeAndClean(f *os.File) {
 // CreateTemp Creates a temporary file with the provided prefix.
 func CreateTemp(prefix, ext string) (*os.File, error) {
 	fileName := fmt.Sprintf("%s-*.%s", prefix, ext)
-	log.Printf("creating temp file: '%s'", fileName)
+	log.Printf("creating temp file: %q", fileName)
 	tempFile, err := os.CreateTemp("", fileName)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
@@ -160,7 +160,7 @@ func CreateTemp(prefix, ext string) (*os.File, error) {
 
 func FindByExtList(root string, ext ...string) ([]string, error) {
 	if !Exists(root) {
-		log.Printf("FindByExtList: path does not exist: '%s'", root)
+		log.Printf("path not found: %q", root)
 		return nil, ErrPathNotFound
 	}
 
@@ -180,18 +180,14 @@ func FindByExtList(root string, ext ...string) ([]string, error) {
 // given directory.
 func findByExt(root, ext string) ([]string, error) {
 	if !Exists(root) {
-		log.Printf("FindByExtension: path does not exist: '%s'", root)
+		log.Printf("FindByExtension: path does not exist: %q", root)
 		return nil, ErrPathNotFound
 	}
 
-	log.Printf("searching files in path: '%s' with suffix: '%s'", root, ext)
-
 	files, err := filepath.Glob(root + "/*" + ext)
 	if err != nil {
-		return nil, fmt.Errorf("getting files: %w with suffix: '%s'", err, ext)
+		return nil, fmt.Errorf("getting files: %w with suffix: %q", err, ext)
 	}
-
-	log.Printf("found %d files", len(files))
 
 	return files, nil
 }
@@ -226,7 +222,7 @@ func ModTime(s, format string) string {
 // If the file already exists, the function succeeds when exist_ok is true.
 func Touch(s string, existsOK bool) (*os.File, error) {
 	if Exists(s) && !existsOK {
-		return nil, fmt.Errorf("%w: '%s'", ErrFileExists, s)
+		return nil, fmt.Errorf("%w: %q", ErrFileExists, s)
 	}
 
 	f, err := os.Create(s)
@@ -246,11 +242,11 @@ func ExpandHomeDir(s string) string {
 	return s
 }
 
-// WriteYamlFile writes the provided YAML data to the specified file.
-func WriteYamlFile[T any](p string, v *T) error {
+// YamlWrite writes the provided YAML data to the specified file.
+func YamlWrite[T any](p string, v *T) error {
 	if Exists(p) && !config.App.Force {
 		f := color.BrightYellow("--force").Italic().String()
-		return fmt.Errorf("'%s' %w. use '%s' to overwrite", p, ErrFileExists, f)
+		return fmt.Errorf("%q %w. use %q to overwrite", p, ErrFileExists, f)
 	}
 
 	f, err := Touch(p, config.App.Force)
@@ -259,7 +255,7 @@ func WriteYamlFile[T any](p string, v *T) error {
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Printf("error closing %s file: %v", p, err)
+			log.Printf("error closing %q file: %v", p, err)
 		}
 	}()
 
@@ -273,15 +269,15 @@ func WriteYamlFile[T any](p string, v *T) error {
 		return fmt.Errorf("error writing to file: %w", err)
 	}
 
-	fmt.Printf("%s: file saved '%s'\n", config.App.Name, p)
+	fmt.Printf("%s: file saved %q\n", config.App.Name, p)
 
 	return nil
 }
 
-// ReadYamlFile unmarshals the YAML data from the specified file.
-func ReadYamlFile[T any](p string, v *T) error {
+// YamlRead unmarshals the YAML data from the specified file.
+func YamlRead[T any](p string, v *T) error {
 	if !Exists(p) {
-		return fmt.Errorf("%w: '%s'", ErrFileNotFound, p)
+		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
 	}
 
 	content, err := os.ReadFile(p)
@@ -294,7 +290,7 @@ func ReadYamlFile[T any](p string, v *T) error {
 		return fmt.Errorf("error unmarshalling YAML: %w", err)
 	}
 
-	log.Printf("loading file: %s", p)
+	log.Printf("loading file: %q", p)
 
 	return nil
 }

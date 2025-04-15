@@ -2,14 +2,15 @@ package slice
 
 import (
 	"errors"
+	"slices"
 	"sort"
-
-	"golang.org/x/exp/slices"
+	"sync"
 )
 
 var ErrSliceEmpty = errors.New("slice is empty")
 
 type Slice[T comparable] struct {
+	mu    sync.Mutex
 	items []T
 }
 
@@ -100,24 +101,7 @@ func (s *Slice[T]) Includes(target *T) bool {
 
 // Any checks if any item matches the predicate.
 func (s *Slice[T]) Any(predicate func(T) bool) bool {
-	for _, item := range s.items {
-		if predicate(item) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Has checks if the item is in the slice.
-func (s *Slice[T]) Has(fn func(T) bool) bool {
-	for _, ele := range s.items {
-		if fn(ele) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(s.items, predicate)
 }
 
 // Head returns the first n items.
@@ -146,11 +130,15 @@ func (s *Slice[T]) Len() int {
 
 // Push adds a single item to the items.
 func (s *Slice[T]) Push(item *T) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.items = append(s.items, *item)
 }
 
 // Append adds multiple items to the items.
 func (s *Slice[T]) Append(elements ...T) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for _, ele := range elements {
 		if !slices.Contains(s.items, ele) {
 			s.items = append(s.items, ele)
@@ -203,7 +191,7 @@ func (s *Slice[T]) Sort(less func(a, b T) bool) {
 	})
 }
 
-// New creates a new slice of bookmarks.
+// New creates a new slice of type T.
 func New[T comparable](items ...T) *Slice[T] {
 	return &Slice[T]{items: items}
 }

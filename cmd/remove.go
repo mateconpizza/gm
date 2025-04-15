@@ -57,7 +57,7 @@ var bkRemoveCmd = &cobra.Command{
 	Short:   "Remove a backup",
 	Aliases: []string{"bk", "b", "backups"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		r, err := selectRepo("select a database from which you want to remove a backup.")
+		r, err := selectRepo("select a database from which you want to remove a backup")
 		if err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
@@ -79,7 +79,7 @@ var bkRemoveCmd = &cobra.Command{
 		}
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		rm := color.BrightRed("Removing").String()
-		f.Header(rm + " backup/s from '" + r.Cfg.Name).Ln().Row("\n")
+		f.Header(rm + " backup/s from " + r.Name()).Ln().Row("\n")
 		items, err := handler.Selection(m, *backups.Items(), repo.BackupSummaryWithFmtDate)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -135,7 +135,7 @@ func handleRmBackups(t *terminal.Term, r *Repo) error {
 			menu.WithUseDefaults(),
 			menu.WithSettings(config.Fzf.Settings),
 			menu.WithMultiSelection(),
-			menu.WithHeader(fmt.Sprintf("select backup/s from '%s'", r.Cfg.Name), false),
+			menu.WithHeader(fmt.Sprintf("select backup/s from %q", r.Name()), false),
 			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
 		)
 		selected, err := handler.Selection(m, *items, repo.RepoSummaryRecords)
@@ -174,7 +174,7 @@ var dbRemoveCmd = &cobra.Command{
 		fmt.Print(i)
 
 		rm := color.BrightRed("remove").Bold().String()
-		if !t.Confirm(f.Clear().Question(rm+" "+r.Cfg.Name+"?").String(), "n") {
+		if !t.Confirm(f.Clear().Question(rm+" "+r.Name()+"?").String(), "n") {
 			return sys.ErrActionAborted
 		}
 		if err := handleRmBackups(t, r); err != nil {
@@ -200,7 +200,7 @@ func rmDatabases(t *terminal.Term, dbs *slice.Slice[Repo]) error {
 	})
 
 	msg := s + " " + strconv.Itoa(dbs.Len()) + " items/s"
-	if !t.Confirm(f.Row("\n").Warning(msg+", continue?").String(), "n") {
+	if !t.Confirm(f.Row("\n").Question(msg+", continue?").String(), "n") {
 		return sys.ErrActionAborted
 	}
 

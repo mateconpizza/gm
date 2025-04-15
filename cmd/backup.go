@@ -59,7 +59,7 @@ var backupNewCmd = &cobra.Command{
 
 		srcPath := r.Cfg.Fullpath()
 		if !files.Exists(srcPath) {
-			return fmt.Errorf("%w: '%s'", repo.ErrDBNotFound, srcPath)
+			return fmt.Errorf("%w: %q", repo.ErrDBNotFound, srcPath)
 		}
 		if files.Empty(srcPath) {
 			return fmt.Errorf("%w", repo.ErrDBEmpty)

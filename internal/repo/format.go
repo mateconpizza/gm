@@ -17,7 +17,7 @@ func RepoSummary(r *SQLiteRepository) string {
 	records := format.PaddedLine("records:", CountMainRecords(r))
 	tags := format.PaddedLine("tags:", CountTagsRecords(r))
 
-	return f.Header(color.Yellow(r.Cfg.Name).Italic().String()).
+	return f.Header(color.Yellow(r.Name()).Italic().String()).
 		Ln().Row(records).
 		Ln().Row(tags).
 		Ln().Row(path).
@@ -32,7 +32,7 @@ func RepoSummaryRecords(r *SQLiteRepository) string {
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
 	records := color.Gray(main).Italic()
 
-	return r.Cfg.Name + " " + records.String()
+	return r.Name() + " " + records.String()
 }
 
 // BackupSummaryWithFmtDate generates a summary of record counts for a given
@@ -42,10 +42,10 @@ func RepoSummaryRecords(r *SQLiteRepository) string {
 func BackupSummaryWithFmtDate(r *SQLiteRepository) string {
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
 	records := color.Gray(main).Italic()
-	t := strings.Split(r.Cfg.Name, "_")[0]
+	t := strings.Split(r.Name(), "_")[0]
 	bkTime := color.Gray(format.RelativeTime(t)).Italic()
 
-	return r.Cfg.Name + " " + records.String() + " " + bkTime.String()
+	return r.Name() + " " + records.String() + " " + bkTime.String()
 }
 
 // BackupSummaryDetail returns the details of a backup.
@@ -97,7 +97,8 @@ func BackupsSummary(r *SQLiteRepository) string {
 		backupsInfo = format.PaddedLine("found:", strconv.Itoa(n)+" backups found")
 		lastItem := backups.Item(n - 1)
 		lastBackup = RepoSummaryRecords(&lastItem)
-		lastBackupDate = format.RelativeTime(strings.Split(lastItem.Cfg.Name, "_")[0])
+		s := format.RelativeTime(strings.Split(lastItem.Name(), "_")[0])
+		lastBackupDate = color.BrightGreen(s).Italic().String()
 	}
 	path := format.PaddedLine("path:", r.Cfg.Backup.Path)
 	last := format.PaddedLine("last:", lastBackup)

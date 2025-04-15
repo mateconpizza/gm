@@ -108,7 +108,7 @@ func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total in
 		w-spaces-len(fmt.Sprintf("%d/%d", idx, total))), idx+1, total)
 	format.BufferAppend(sep, &buf)
 	format.BufferAppend(header, &buf)
-	format.BufferAppend(fmt.Sprintf("# database: '%s'\n", r.Cfg.Name), &buf)
+	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
 	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
 
 	return buf

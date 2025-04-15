@@ -80,7 +80,7 @@ func loadKeybind(keybind []string, args *FzfSettings) error {
 	}
 
 	keys := strings.Join(keybind, ",")
-	a, err := shellwords.Parse(fmt.Sprintf("%s='%s'", "--bind", keys))
+	a, err := shellwords.Parse(fmt.Sprintf("%s=%q", "--bind", keys))
 	if err != nil {
 		return fmt.Errorf("parsing keybinds args: %w", err)
 	}

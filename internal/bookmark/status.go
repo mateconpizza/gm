@@ -84,7 +84,7 @@ func Status(bs *slice.Slice[Bookmark]) error {
 	wg.Wait()
 
 	duration := time.Since(start)
-	printSummaryStatus(*responses, duration)
+	printSummaryStatus(responses, duration)
 
 	return nil
 }
@@ -120,7 +120,7 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 
 // printSummaryStatus prints a summary of HTTP status codes and their
 // corresponding URLs.
-func printSummaryStatus(r slice.Slice[Response], d time.Duration) {
+func printSummaryStatus(r *slice.Slice[Response], d time.Duration) {
 	var (
 		f     = frame.New(frame.WithColorBorder(color.Gray)).Ln()
 		codes = make(map[int][]Response)

@@ -25,7 +25,7 @@ var (
 
 // dumpAppConfig dumps the app configuration to a YAML file.
 func dumpAppConfig(p string) error {
-	if err := files.WriteYamlFile(p, config.Defaults); err != nil {
+	if err := files.YamlWrite(p, config.Defaults); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -53,7 +53,7 @@ func loadConfig(p string) error {
 	}
 
 	var cfg *config.ConfigFile
-	if err := files.ReadYamlFile(p, &cfg); err != nil {
+	if err := files.YamlRead(p, &cfg); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -82,7 +82,7 @@ func exportColorScheme(cs *color.Scheme) error {
 	log.Printf("colorscheme path: '%s'", p)
 
 	fn := filepath.Join(p, cs.Name+".yaml")
-	if err := files.WriteYamlFile(fn, cs); err != nil {
+	if err := files.YamlWrite(fn, cs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -97,7 +97,7 @@ func printColorSchemes() error {
 	}
 	for _, s := range fs {
 		var cs *color.Scheme
-		if err := files.ReadYamlFile(s, &cs); err != nil {
+		if err := files.YamlRead(s, &cs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
