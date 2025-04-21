@@ -12,7 +12,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/haaag/rotato v0.1.10
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/junegunn/fzf v0.61.1
+	github.com/junegunn/fzf v0.61.2
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
