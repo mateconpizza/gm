@@ -3,7 +3,7 @@ package files
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -40,8 +40,7 @@ func (te *TextEditor) EditBytes(content []byte) ([]byte, error) {
 	}
 	defer closeAndClean(f)
 
-	log.Printf("editing file: %q with text editor: %q", f.Name(), te.name)
-	log.Printf("executing args: cmd=%q args='%v'", te.cmd, te.args)
+	slog.Debug("editing file", "name", f.Name(), "editor", te.name)
 	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
 		return nil, fmt.Errorf("error running editor: %w", err)
 	}
@@ -145,9 +144,9 @@ func NewEditor(s string) (*TextEditor, error) {
 		}
 	}
 
-	log.Printf(
-		"$EDITOR and $GOMARKS_EDITOR not set, checking fallback text editor: %s",
-		textEditors,
+	slog.Debug(
+		"$EDITOR and $GOMARKS_EDITOR not set, checking fallback text editor",
+		"editors", textEditors,
 	)
 
 	// find fallback
@@ -163,7 +162,7 @@ func getEditorFromEnv(e string) (*TextEditor, bool) {
 	s := strings.Fields(sys.Env(e, ""))
 	if len(s) != 0 {
 		editor := newTextEditor(sys.BinPath(s[0]), s[0], s[1:])
-		log.Printf("$EDITOR set: '%v'", editor)
+		slog.Info("$EDITOR set", "editor", editor)
 		return editor, true
 	}
 
@@ -177,7 +176,7 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 	for _, e := range editors {
 		if sys.BinExists(e) {
 			editor := newTextEditor(sys.BinPath(e), e, []string{})
-			log.Printf("found fallback text editor: '%v'", editor)
+			slog.Info("found fallback text editor", "editor", editor)
 			return editor, true
 		}
 	}

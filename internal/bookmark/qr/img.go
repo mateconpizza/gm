@@ -6,7 +6,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
-	"log"
+	"log/slog"
 	"os"
 
 	qrcode "github.com/skip2/go-qrcode"
@@ -39,7 +39,7 @@ func loadImage(s string) (image.Image, error) {
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Printf("error closing source file: %v", err)
+			slog.Error("closing source file", "file", f.Name(), "error", err)
 		}
 	}()
 
@@ -104,7 +104,7 @@ func addLabel(path, text, pos string) error {
 
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Printf("error closing source file: %v", err)
+			slog.Error("closing source file", "file", f.Name(), "error", err)
 		}
 	}()
 

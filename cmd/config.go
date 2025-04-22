@@ -3,7 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -62,7 +62,7 @@ func editConfig(p string) error {
 // getConfig loads the config file.
 func getConfig(p string) (*config.ConfigFile, error) {
 	if !files.Exists(p) {
-		log.Println("configfile not found. loading defaults")
+		slog.Warn("configfile not found, loading defaults")
 		return nil, ErrConfigFileNotFound
 	}
 
@@ -92,7 +92,7 @@ func loadConfig(p string) error {
 	}
 
 	if cfg == nil {
-		log.Println("configfile is empty. loading defaults")
+		slog.Warn("configfile is empty. loading defaults")
 		return nil
 	}
 
@@ -121,7 +121,7 @@ func ExportColorScheme(cs *color.Scheme) error {
 	if p == "" {
 		return fmt.Errorf("%w for colorschemes", files.ErrPathNotFound)
 	}
-	log.Printf("colorscheme path: %q", p)
+	slog.Info("colorscheme path", "path", p)
 
 	fn := filepath.Join(p, cs.Name+".yaml")
 	if err := files.YamlWrite(fn, cs); err != nil {

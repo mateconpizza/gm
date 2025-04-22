@@ -75,7 +75,7 @@ var databaseDropCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if !Verbose {
+		if VerboseFlag > 0 {
 			t.ClearLine(1)
 		}
 		success := color.BrightGreen("Successfully").Italic().String()
@@ -169,7 +169,6 @@ var dbCmd = &cobra.Command{
 func init() {
 	f := dbCmd.Flags()
 	f.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
-	f.BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	f.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
 	f.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
 	databaseInfoCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output in JSON format")

@@ -3,7 +3,7 @@ package terminal
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"golang.org/x/term"
@@ -38,7 +38,7 @@ var (
 // set.
 func NoColorEnv() bool {
 	if c := sys.Env(noColorEnv, ""); c != "" {
-		log.Println("'NO_COLOR' environment variable found.")
+		slog.Debug("NO_COLOR", "env found", c)
 
 		return true
 	}
@@ -48,7 +48,7 @@ func NoColorEnv() bool {
 
 // Save the current terminal state.
 func saveState() error {
-	log.Print("saving terminal state...")
+	slog.Debug("saving terminal state")
 	oldState, err := term.GetState(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("saving state: %w", err)
@@ -60,7 +60,7 @@ func saveState() error {
 
 // Restore the previously saved terminal state.
 func restoreState() error {
-	log.Print("restoring terminal state...")
+	slog.Debug("restoring terminal state")
 	if termState == nil {
 		return ErrNoStateToRestore
 	}

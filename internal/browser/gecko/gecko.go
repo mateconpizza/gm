@@ -3,7 +3,7 @@ package gecko
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -148,7 +148,7 @@ func openSQLite(dbPath string) (*sqlx.DB, error) {
 	defer s.Done()
 	// check if the database is reachable
 	if err = db.Ping(); err != nil {
-		log.Printf("failed to ping database: %v\n", err)
+		slog.Error("failed to ping database", "err", err)
 		if err.Error() == "database is locked" {
 			return nil, ErrBrowserIsOpen
 		}
@@ -165,7 +165,7 @@ func isNonGenericURL(url string) bool {
 	if ignoredPrefixes.Any(func(prefix string) bool {
 		return strings.HasPrefix(url, prefix)
 	}) {
-		log.Printf("ignoring URL: %s\n", url)
+		slog.Info("ignoring URL", "url", url)
 		return true
 	}
 
@@ -243,12 +243,12 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 			return
 		}
 		if err := db.Close(); err != nil {
-			log.Printf("err closing database for profile %q: %v\n", profile, err)
+			slog.Error("err closing database for profile", "profile", profile, "err", err)
 		}
-		log.Printf("database for profile %q closed.\n", profile)
+		slog.Debug("database for profile closed", "profile", profile)
 	}()
 	if err != nil {
-		log.Printf("err opening database for profile %q: %v\n", profile, err)
+		slog.Error("opening database for profile", "profile", profile, "err", err)
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
 			f.Clear().Error("database is " + l + ", maybe firefox is open?").Ln().Flush()
@@ -281,7 +281,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 	})
 
 	if err := db.Close(); err != nil {
-		log.Printf("err closing rows: %v", err)
+		slog.Error("closing rows", "err", err)
 	}
 
 	found := color.BrightBlue("found")
@@ -326,7 +326,7 @@ func processURLs(db *sqlx.DB, fk int) (string, error) {
 
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("Error closing rows: %v", err)
+			slog.Error("closing rows", "err", err)
 		}
 	}()
 

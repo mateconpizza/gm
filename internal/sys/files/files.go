@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +46,7 @@ func List(root, pattern string) ([]string, error) {
 		return nil, fmt.Errorf("%w: getting files query: %q", err, query)
 	}
 
-	log.Printf("found %d files in path: %q", len(files), root)
+	slog.Debug("found files", "count", len(files), "path", root)
 
 	return files, nil
 }
@@ -57,7 +57,7 @@ func mkdir(s string) error {
 		return nil
 	}
 
-	log.Printf("creating path: %q", s)
+	slog.Debug("creating path", "path", s)
 	if err := os.MkdirAll(s, dirPerm); err != nil {
 		return fmt.Errorf("creating %s: %w", s, err)
 	}
@@ -82,7 +82,7 @@ func Remove(s string) error {
 		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
 	}
 
-	log.Printf("removing file: %q", s)
+	slog.Debug("removing file", "path", s)
 
 	if err := os.Remove(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
@@ -100,7 +100,7 @@ func Copy(from, to string) error {
 
 	defer func() {
 		if err := srcFile.Close(); err != nil {
-			log.Printf("error closing source file: %v", err)
+			slog.Error("closing source file", "file", from, "error", err)
 		}
 	}()
 
@@ -109,11 +109,11 @@ func Copy(from, to string) error {
 		return fmt.Errorf("error creating destination file: %w", err)
 	}
 
-	log.Printf("copying %q to %q", filepath.Base(from), filepath.Base(to))
+	slog.Debug("copying file", "from", from, "to", to)
 
 	defer func() {
 		if err := dstFile.Close(); err != nil {
-			log.Printf("error closing destination file: %v", err)
+			slog.Error("closing destination file", "file", dstFile.Name(), "error", err)
 		}
 	}()
 
@@ -127,7 +127,7 @@ func Copy(from, to string) error {
 
 // cleanupTemp Removes the specified temporary file.
 func cleanupTemp(s string) error {
-	log.Printf("removing temp file: %q", s)
+	slog.Debug("removing temp file", "file", s)
 	err := os.Remove(s)
 	if err != nil {
 		return fmt.Errorf("could not cleanup temp file: %w", err)
@@ -139,17 +139,17 @@ func cleanupTemp(s string) error {
 // closeAndClean closes the provided file and deletes the associated temporary file.
 func closeAndClean(f *os.File) {
 	if err := f.Close(); err != nil {
-		log.Printf("Error closing temp file: %v", err)
+		slog.Error("closing temp file", "file", f.Name(), "error", err)
 	}
 	if err := cleanupTemp(f.Name()); err != nil {
-		log.Printf("%v", err)
+		slog.Error("removing temp file", "file", f.Name(), "error", err)
 	}
 }
 
 // CreateTemp Creates a temporary file with the provided prefix.
 func CreateTemp(prefix, ext string) (*os.File, error) {
 	fileName := fmt.Sprintf("%s-*.%s", prefix, ext)
-	log.Printf("creating temp file: %q", fileName)
+	slog.Debug("creating temp file", "name", fileName)
 	tempFile, err := os.CreateTemp("", fileName)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
@@ -160,7 +160,7 @@ func CreateTemp(prefix, ext string) (*os.File, error) {
 
 func FindByExtList(root string, ext ...string) ([]string, error) {
 	if !Exists(root) {
-		log.Printf("path not found: %q", root)
+		slog.Warn("path not found", "path", root)
 		return nil, ErrPathNotFound
 	}
 
@@ -180,7 +180,7 @@ func FindByExtList(root string, ext ...string) ([]string, error) {
 // given directory.
 func findByExt(root, ext string) ([]string, error) {
 	if !Exists(root) {
-		log.Printf("FindByExtension: path does not exist: %q", root)
+		slog.Error("path not found", "path", root)
 		return nil, ErrPathNotFound
 	}
 
@@ -211,7 +211,7 @@ func Empty(s string) bool {
 func ModTime(s, format string) string {
 	file, err := os.Stat(s)
 	if err != nil {
-		log.Printf("GetModTime: %v", err)
+		slog.Error("getting modification time", "file", s, "error", err)
 		return ""
 	}
 
@@ -255,7 +255,7 @@ func YamlWrite[T any](p string, v *T) error {
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Printf("error closing %q file: %v", p, err)
+			slog.Error("closing file", "file", p, "error", err)
 		}
 	}()
 
@@ -290,7 +290,7 @@ func YamlRead[T any](p string, v *T) error {
 		return fmt.Errorf("error unmarshalling YAML: %w", err)
 	}
 
-	log.Printf("loading file: %q", p)
+	slog.Debug("YamlRead", "path", p)
 
 	return nil
 }

@@ -104,7 +104,6 @@ func backupInfoPrint(r *repo.SQLiteRepository) {
 func init() {
 	f := backupCmd.Flags()
 	f.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
-	f.BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
 	f.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
 	f.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
 	_ = backupCmd.Flags().MarkHidden("color")

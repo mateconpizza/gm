@@ -2,7 +2,7 @@ package scraper
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -103,7 +103,7 @@ func New(s string, opts ...OptFn) *Scraper {
 func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
-		log.Printf("error creating request: %v", err)
+		slog.Error("creating request", "url", s, "error", err.Error())
 		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
 
 		return doc
@@ -119,7 +119,7 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Printf("error doing request: %v", err)
+		slog.Error("doing request", "url", s, "error", err.Error())
 		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
 
 		return doc
@@ -127,14 +127,14 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			log.Printf("error closing response body: %v", err)
+			slog.Error("closing response body", "error", err.Error())
 		}
 	}()
 
 	// Parse the HTML response body
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		log.Printf("error creating document: %v", err)
+		slog.Error("creating document", "url", s, "error", err.Error())
 		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
 
 		return doc

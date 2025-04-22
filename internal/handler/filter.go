@@ -68,7 +68,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 	q := strings.Join(args, "%")
 	if err := r.ByQuery(q, bs); err != nil {
-		return fmt.Errorf("%w: %q", err, strings.Join(args, " "))
+		return fmt.Errorf("%w: %s", err, strings.Join(args, " "))
 	}
 
 	return nil

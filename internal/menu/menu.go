@@ -3,7 +3,7 @@ package menu
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	fzf "github.com/junegunn/fzf/src"
 )
@@ -63,11 +63,11 @@ func defaultOpts() Options {
 // callInterruptFn calls the interrupt function.
 func (m *Menu[T]) callInterruptFn(err error) {
 	if m.interruptFn != nil {
-		log.Printf("calling interruptFn with err: '%v'", err)
+		slog.Debug("calling interruptFn with err", "err", err)
 		m.interruptFn(err)
 	}
 
-	log.Printf("interruptFn is nil")
+	slog.Warn("interruptFn is nil")
 }
 
 // SetInterruptFn sets the interrupt function for the menu.
@@ -231,11 +231,11 @@ func (m *Menu[T]) Select(items []T, preprocessor func(*T) string) ([]T, error) {
 	}
 
 	if preprocessor == nil {
-		log.Print("preprocessor is nil")
+		slog.Warn("preprocessor is nil")
 		preprocessor = toString
 	}
 
-	log.Printf("menu args: %v", m.settings)
+	slog.Debug("menu args", "args", m.settings)
 
 	// channels
 	inputChan := formatItems(items, preprocessor)

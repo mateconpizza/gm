@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -55,12 +55,12 @@ func ExtractContentLine(c *[]string) map[string]bool {
 // Validate validates the bookmark.
 func Validate(b *Bookmark) error {
 	if b.URL == "" {
-		log.Print("bookmark is invalid. URL is empty")
+		slog.Error("bookmark is invalid. URL is empty")
 		return ErrURLEmpty
 	}
 
 	if b.Tags == "," || b.Tags == "" {
-		log.Print("bookmark is invalid. Tags are empty")
+		slog.Error("bookmark is invalid. Tags are empty")
 		return ErrTagsEmpty
 	}
 
@@ -188,7 +188,7 @@ func scrapeBookmark(b *Bookmark) *Bookmark {
 
 		sc := scraper.New(b.URL, scraper.WithContext(ctx))
 		if err := sc.Scrape(); err != nil {
-			log.Printf("scraping error: %s", err)
+			slog.Error("scraping error", "error", err)
 		}
 
 		if b.Title == "" {

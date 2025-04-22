@@ -5,7 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -41,7 +42,7 @@ func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs *Slice) error {
 	if bs.Empty() {
 		return ErrRecordIDNotProvided
 	}
-	log.Printf("deleting %d records from the relation table", bs.Len())
+	slog.Debug("deleting many records from the relation table", "count", bs.Len())
 	var urls []string
 	bs.ForEach(func(b Row) {
 		urls = append(urls, b.URL)
@@ -60,7 +61,7 @@ func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs *Slice) error {
 		}
 		defer func() {
 			if err := stmt.Close(); err != nil {
-				log.Printf("delete many: %v: closing stmt", err)
+				slog.Error("delete many: closing stmt", "error", err)
 			}
 		}()
 		// execute statement
@@ -97,7 +98,6 @@ func (r *SQLiteRepository) UpdateOne(ctx context.Context, newB, oldB *Row) (*Row
 
 // All returns all bookmarks.
 func (r *SQLiteRepository) All(bs *Slice) error {
-	log.Printf("getting all records")
 	q := `
     SELECT
       b.*,
@@ -116,7 +116,7 @@ func (r *SQLiteRepository) All(bs *Slice) error {
 	if bs.Len() == 0 {
 		return ErrRecordNotFound
 	}
-	log.Printf("got %d records", bs.Len())
+	slog.Debug("getting all records", "got", bs.Len())
 
 	return nil
 }
@@ -126,7 +126,7 @@ func (r *SQLiteRepository) ByID(bID int) (*Row, error) {
 	if bID > r.maxID() {
 		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, r.maxID())
 	}
-	log.Printf("getting record by ID=%d\n", bID)
+	slog.Info("getting record by ID", "id", bID)
 	q := `
     SELECT
       b.*,
@@ -233,7 +233,7 @@ func (r *SQLiteRepository) ByTag(ctx context.Context, tag string, bs *Slice) err
 
 // ByQuery returns records by query in the give table.
 func (r *SQLiteRepository) ByQuery(query string, bs *Slice) error {
-	log.Printf("getting records by query: %q", query)
+	slog.Info("getting records by query", "query", query)
 	q := `
     SELECT
       b.*,
@@ -253,7 +253,7 @@ func (r *SQLiteRepository) ByQuery(query string, bs *Slice) error {
 	if bs.Len() == 0 {
 		return ErrRecordNoMatch
 	}
-	log.Printf("got %d records by query: %q", bs.Len(), query)
+	slog.Info("got records by query", "count", bs.Len(), "query", query)
 
 	return nil
 }
@@ -263,7 +263,9 @@ func (r *SQLiteRepository) Has(bURL string) (*Row, bool) {
 	var count int
 	q := "SELECT COUNT(*) FROM bookmarks WHERE url = ?"
 	if err := r.DB.QueryRowx(q, bURL).Scan(&count); err != nil {
-		log.Fatal(err)
+		slog.Error("error getting count", "error", err)
+		r.Close()
+		os.Exit(1)
 	}
 	if count == 0 {
 		return nil, false
@@ -355,7 +357,7 @@ func (r *SQLiteRepository) delete(ctx context.Context, bURL string) error {
 
 // deleteOneTx deletes an single record in the given table.
 func (r *SQLiteRepository) deleteOneTx(tx *sqlx.Tx, b *Row) error {
-	log.Printf("deleting record: %s (table: bookmarks)", b.URL)
+	slog.Debug("deleting record", "url", b.URL)
 	// remove tags relationships first
 	if _, err := tx.Exec(
 		fmt.Sprintf("DELETE FROM %s WHERE bookmark_url = ?", schemaRelation.name),
@@ -376,7 +378,7 @@ func (r *SQLiteRepository) deleteOneTx(tx *sqlx.Tx, b *Row) error {
 	if rowsAffected == 0 {
 		return ErrRecordNotFound
 	}
-	log.Printf("successfully deleted record ID %d", b.ID)
+	slog.Debug("deleted record", "id", b.ID)
 
 	return nil
 }
@@ -384,14 +386,14 @@ func (r *SQLiteRepository) deleteOneTx(tx *sqlx.Tx, b *Row) error {
 // deleteAll deletes all records in the give table.
 func (r *SQLiteRepository) deleteAll(ctx context.Context, ts ...Table) error {
 	if len(ts) == 0 {
-		log.Printf("no tables to delete")
+		slog.Debug("no tables to delete")
 		return nil
 	}
-	log.Printf("deleting all records from %d tables", len(ts))
+	slog.Debug("deleting all records from tables", "tables", ts)
 
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		for _, t := range ts {
-			log.Printf("deleting records from table: %s", t)
+			slog.Debug("deleting records from table", "table", t)
 			_, err := tx.Exec(fmt.Sprintf("DELETE FROM %s", t))
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -437,7 +439,7 @@ func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *Row) error {
 
 // insertBulk creates multiple records in the given tables.
 func (r *SQLiteRepository) insertBulk(ctx context.Context, bs *Slice) error {
-	log.Printf("inserting %d records into main table", bs.Len())
+	slog.Info("inserting records into main table", "count", bs.Len())
 	bs.Sort(func(a, b Row) bool {
 		return a.ID < b.ID
 	})
@@ -472,7 +474,7 @@ func (r *SQLiteRepository) insertInto(ctx context.Context, b *Row) error {
 		return fmt.Errorf("%w: %q", err, b.URL)
 	}
 
-	log.Printf("inserted record: %s\n", b.URL)
+	slog.Debug("inserted record", "url", b.URL)
 
 	return nil
 }
@@ -489,7 +491,7 @@ func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *Row) error {
 	if err := r.associateTags(tx, b); err != nil {
 		return fmt.Errorf("failed to associate tags: %w", err)
 	}
-	log.Printf("inserted record: %s\n", b.URL)
+	slog.Debug("inserted record", "url", b.URL)
 
 	return nil
 }
@@ -518,7 +520,7 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Printf("delete many: %v: closing stmt", err)
+			slog.Error("delete many: closing stmt", "error", err)
 		}
 	}()
 	insertter := func(b Row) error {
@@ -585,7 +587,7 @@ func (r *SQLiteRepository) withTx(ctx context.Context, fn func(tx *sqlx.Tx) erro
 			_ = tx.Rollback() // ensure rollback on panic
 			panic(p)          // re-throw the panic after rollback
 		} else if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-			log.Printf("rollback error: %v", err)
+			slog.Error("rollback error", "error", err)
 		}
 	}()
 

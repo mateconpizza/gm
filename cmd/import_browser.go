@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -93,7 +93,7 @@ func scrapeMissingDescription(bs *Slice) error {
 			sc := scraper.New(b.URL, scraper.WithContext(ctx))
 			if err := sc.Scrape(); err != nil {
 				errs = append(errs, fmt.Sprintf("url %s: %s", b.URL, err.Error()))
-				log.Printf("scraping error: %v", err)
+				slog.Warn("scraping error", "url", b.URL, "err", err)
 			}
 			b.Desc = sc.Desc()
 		}(b)

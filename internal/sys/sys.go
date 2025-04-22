@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"runtime"
@@ -41,7 +41,7 @@ func BinPath(s string) string {
 		return ""
 	}
 	c := strings.TrimRight(string(out), "\n")
-	log.Printf("which %s = %s", s, c)
+	slog.Debug("binary path", "which", s, "found", c)
 
 	return c
 }
@@ -69,6 +69,7 @@ func RunCmd(s string, arg ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
+	slog.Debug("running command", "command", s, "args", arg)
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("running command: %w", err)
@@ -108,7 +109,7 @@ func CopyClipboard(s string) error {
 		return fmt.Errorf("%w: %w", ErrCopyToClipboard, err)
 	}
 
-	log.Print("text copied to clipboard:", s)
+	slog.Debug("text copied to clipboard", "text", s)
 
 	return nil
 }
@@ -117,7 +118,7 @@ func CopyClipboard(s string) error {
 func ReadClipboard() string {
 	s, err := clipboard.ReadAll()
 	if err != nil {
-		log.Printf("could not read clipboard: %s\n", err)
+		slog.Error("could not read clipboard", "err", err)
 		return ""
 	}
 
@@ -127,11 +128,11 @@ func ReadClipboard() string {
 // ErrAndExit logs the error and exits the program.
 func ErrAndExit(err error) {
 	if errors.Is(err, ErrActionAborted) {
-		log.Print("action aborted")
+		slog.Debug("action aborted")
 		os.Exit(1)
 	}
 	if err != nil {
-		log.Print(err)
+		slog.Warn("exit", "error", err)
 		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
 		os.Exit(1)
 	}

@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -40,13 +40,13 @@ var (
 	Multiline bool
 	WithColor string
 
-	Force   bool
-	Status  bool
-	Verbose bool
+	Force       bool
+	Status      bool
+	VerboseFlag int
 )
 
 func initConfig() {
-	config.SetLoggingLevel(Verbose)
+	config.SetVerbosity(VerboseFlag)
 	config.SetDBName(DBName)
 	config.EnableColor(WithColor == "always" && !terminal.IsPiped() && !terminal.NoColorEnv())
 	config.SetForce(Force)
@@ -68,7 +68,7 @@ func initConfig() {
 
 	// load config from YAML
 	if err := loadConfig(config.App.Path.ConfigFile); err != nil {
-		log.Println("error loading config:", err)
+		slog.Error("loading config", "err", err)
 	}
 	menu.SetConfig(config.Fzf)
 
@@ -85,7 +85,7 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	pf.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
 	pf.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
-	pf.BoolVarP(&Verbose, "verbose", "v", false, "verbose mode")
+	pf.CountVarP(&VerboseFlag, "verbose", "v", "Increase verbosity (-v, -vv, -vvv)")
 	pf.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	_ = pf.MarkHidden("help")
 	// local
@@ -151,7 +151,7 @@ func isSubCmdCalled(cmd *cobra.Command, names ...string) bool {
 	targetCmd, _, _ := cmd.Root().Find(os.Args[1:])
 	for _, name := range names {
 		if targetCmd != nil && targetCmd.Name() == name {
-			log.Printf("isSubCmdCalled: %q is called\n", name)
+			slog.Debug("subcommand called", "name", name)
 			return true
 		}
 	}
@@ -166,7 +166,7 @@ func isSubCmdCalled(cmd *cobra.Command, names ...string) bool {
 func loadDataPath() (string, error) {
 	envDataHome := sys.Env(config.App.Env.Home, "")
 	if envDataHome != "" {
-		log.Printf("loadPath: envDataHome: %v\n", envDataHome)
+		slog.Debug("app home", "env path", envDataHome)
 
 		return config.PathJoin(envDataHome), nil
 	}
@@ -174,7 +174,7 @@ func loadDataPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("loading paths: %w", err)
 	}
-	log.Printf("loadPath: dataHome: %q\n", dataHome)
+	slog.Debug("app home", "path", dataHome)
 
 	return dataHome, nil
 }

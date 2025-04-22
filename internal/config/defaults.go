@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/haaag/gm/internal/menu"
 )
@@ -143,7 +143,7 @@ var Defaults = &ConfigFile{
 // Validate validates the configuration file.
 func Validate(cfg *ConfigFile) error {
 	if cfg.Colorscheme == "" {
-		log.Println("WARNING: empty colorscheme, loading default colorscheme")
+		slog.Warn("empty colorscheme, loading default colorscheme")
 		cfg.Colorscheme = "default"
 	}
 

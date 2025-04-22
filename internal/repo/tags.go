@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -35,7 +35,7 @@ func (r *SQLiteRepository) GetOrCreateTag(tx *sqlx.Tx, s string) (int64, error) 
 // associateTags associates tags to the given record.
 func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *Row) error {
 	tags := strings.Split(b.Tags, ",")
-	log.Printf("associating tags: %v with URL: %s\n", tags, b.URL)
+	slog.Debug("associating tags with URL", "tags", tags, "url", b.URL)
 	for _, tag := range tags {
 		if tag == "" || tag == " " {
 			continue
@@ -44,7 +44,7 @@ func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *Row) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("processing tag: %q with id: %d\n", tag, tagID)
+		slog.Debug("processing Tags", "tag", tag, "tagID", tagID)
 		_ = tx.MustExec(
 			"INSERT OR IGNORE INTO bookmark_tags (bookmark_url, tag_id) VALUES (?, ?)",
 			b.URL,

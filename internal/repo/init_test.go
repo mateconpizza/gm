@@ -4,7 +4,7 @@ package repo
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -28,7 +28,7 @@ func setupTestDB(t *testing.T) *SQLiteRepository {
 // teardownthewall closes the database connection.
 func teardownthewall(db *sqlx.DB) {
 	if err := db.Close(); err != nil {
-		log.Printf("Error closing rows: %v", err)
+		slog.Error("closing database", "error", err)
 	}
 }
 

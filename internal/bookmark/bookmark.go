@@ -3,6 +3,7 @@ package bookmark
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 )
 
@@ -30,25 +31,34 @@ type Bookmark struct {
 	UpdatedAt  string `db:"updated_at"  json:"updated_at"  yaml:"updated_at"`
 	VisitCount int    `db:"visit_count" json:"visit_count" yaml:"visit_count"`
 	Favorite   bool   `db:"favorite"    json:"favorite"    yaml:"favorite"`
+	Checksum   string `db:"-"           json:"checksum"    yaml:"checksum"`
 }
 
 // Field returns the value of a field.
 func (b *Bookmark) Field(f string) (string, error) {
+	var field string
 	var s string
 	switch f {
 	case "id", "i", "1":
+		field = "id"
 		s = strconv.Itoa(b.ID)
 	case "url", "u", "2":
+		field = "url"
 		s = b.URL
 	case "title", "t", "3":
+		field = "title"
 		s = b.Title
 	case "tags", "T", "4":
+		field = "tags"
 		s = b.Tags
 	case "desc", "d", "5":
+		field = "desc"
 		s = b.Desc
 	default:
 		return "", fmt.Errorf("%w: %q", ErrUnknownField, f)
 	}
+
+	slog.Info("selected field", "field", field)
 
 	return s, nil
 }

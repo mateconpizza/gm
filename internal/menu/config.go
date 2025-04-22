@@ -3,7 +3,7 @@ package menu
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 )
 
 var (
@@ -65,19 +65,19 @@ func (c *Config) Validate() error {
 
 	// set default prompt
 	if c.Prompt == "" {
-		log.Println("WARNING: empty prompt, loading default prompt")
+		slog.Warn("empty prompt, loading default prompt")
 		c.Prompt = DefaultPrompt
 	}
 
 	// set default header separator
 	if c.Header.Sep == "" {
-		log.Println("WARNING: empty header separator, loading default header separator")
+		slog.Warn("empty header separator, loading default header separator")
 		c.Header.Sep = DefaultHeaderSep
 	}
 
 	// set default settings
 	if len(c.Settings) == 0 {
-		log.Println("WARNING: empty settings, loading default settings")
+		slog.Warn("empty settings, loading default settings")
 	}
 
 	return nil

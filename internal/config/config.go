@@ -1,8 +1,8 @@
 package config
 
 import (
-	"io"
-	"log"
+	"log/slog"
+	"os"
 	"path/filepath"
 )
 
@@ -77,17 +77,34 @@ func SetDataPath(p string) {
 	App.Path.ConfigFile = filepath.Join(p, configFilename)
 }
 
-// SetLoggingLevel sets the logging level based on the verbose flag.
-func SetLoggingLevel(b bool) {
-	App.Verbose = b
-	if b {
-		log.SetPrefix(appName + ": ")
-		log.SetFlags(log.LstdFlags | log.Lshortfile)
-		log.Println("verbose mode: on")
-
-		return
+func SetVerbosity(verbose int) {
+	levels := []slog.Level{
+		slog.LevelError,
+		slog.LevelWarn,
+		slog.LevelInfo,
+		slog.LevelDebug,
 	}
+	level := levels[min(verbose, len(levels)-1)]
 
-	silentLogger := log.New(io.Discard, "", 0)
-	log.SetOutput(silentLogger.Writer())
+	logger := slog.New(
+		slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			AddSource: true,
+			Level:     level,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == "source" {
+					if source, ok := a.Value.Any().(*slog.Source); ok {
+						dir, file := filepath.Split(source.File)
+						source.File = filepath.Join(filepath.Base(filepath.Clean(dir)), file)
+
+						return slog.Attr{Key: "source", Value: slog.AnyValue(source)}
+					}
+				}
+
+				return a
+			},
+		}),
+	)
+	slog.SetDefault(logger)
+
+	slog.Debug("logging", "level", level)
 }

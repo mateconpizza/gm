@@ -1,7 +1,7 @@
 package sys
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"testing"
 )
@@ -36,7 +36,7 @@ func TestEnv(t *testing.T) {
 
 		// unset env after obtaining value
 		if err := os.Unsetenv(tt.key); err != nil {
-			log.Printf("unsetting env: %s", err.Error())
+			slog.Error("unsetting env", "env", tt.key, "error", err)
 		}
 
 		if got != tt.value {

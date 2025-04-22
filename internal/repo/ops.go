@@ -3,7 +3,7 @@ package repo
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
@@ -38,9 +38,8 @@ func countRecords(r *SQLiteRepository, t Table) int {
 
 // databasesFromPath returns the list of files from the given path.
 func databasesFromPath(p string) (*slice.Slice[string], error) {
-	log.Printf("databasesFromPath: path: %q", p)
+	slog.Debug("databases", "path", p)
 	if !files.Exists(p) {
-		log.Printf("path does not exist: %q", p)
 		return nil, files.ErrPathNotFound
 	}
 

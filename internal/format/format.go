@@ -4,8 +4,9 @@ package format
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -79,9 +80,11 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 
 // ToJSON converts an interface to JSON.
 func ToJSON(data any) []byte {
+	// FIX: add ([]byte, error), remove os.Exit
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		log.Fatalf("error converting to JSON: %s", err)
+		slog.Error("error converting to JSON", "error", err)
+		os.Exit(1)
 	}
 
 	return jsonData

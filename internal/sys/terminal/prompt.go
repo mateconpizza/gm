@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -188,7 +188,7 @@ func getUserInput(rd io.Reader, p string, opts []string, def string) string {
 
 		input, err := r.ReadString('\n')
 		if err != nil {
-			log.Print("Error reading input:", err)
+			slog.Error("error reading input", "error", err)
 			return ""
 		}
 

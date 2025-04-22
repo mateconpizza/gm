@@ -3,7 +3,7 @@ package repo
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/jmoiron/sqlx"
@@ -29,9 +29,9 @@ func (r *SQLiteRepository) Close() {
 	s := r.Name()
 	r.closeOnce.Do(func() {
 		if err := r.DB.Close(); err != nil {
-			log.Printf("closing %q database: %v", s, err)
+			slog.Error("closing database", "name", s, "error", err)
 		} else {
-			log.Printf("database %q closed.\n", s)
+			slog.Info("database closed", "name", s)
 		}
 	})
 }
@@ -49,7 +49,7 @@ func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteConfig) *SQLiteRepository {
 func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 	db, err := openDatabase(c.Fullpath())
 	if err != nil {
-		log.Println("error opening database:", err)
+		slog.Error("NewRepo", "error", err)
 		return nil, err
 	}
 
@@ -64,7 +64,7 @@ func New(c *SQLiteConfig) (*SQLiteRepository, error) {
 // openDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
 func openDatabase(s string) (*sqlx.DB, error) {
-	log.Printf("opening database: %q", s)
+	slog.Debug("opening database", "path", s)
 	db, err := sqlx.Open("sqlite3", s)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)

@@ -4,7 +4,7 @@ package color
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"reflect"
 	"strings"
 )
@@ -16,7 +16,7 @@ var colorEnabled bool
 // Enable enables color support.
 func Enable(b bool) {
 	colorEnabled = b
-	log.Println("color enabled:", colorEnabled)
+	slog.Debug("color enabled", "bool", colorEnabled)
 }
 
 const (

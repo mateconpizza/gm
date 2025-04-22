@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -213,7 +213,7 @@ func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Resp
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
 	if err != nil {
-		log.Printf("error creating request for %s: %v\n", b.URL, err)
+		slog.Error("creating request", slog.String("url", b.URL), slog.String("error", err.Error()))
 		return buildResponse(b, http.StatusNotFound, true)
 	}
 

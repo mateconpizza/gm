@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"slices"
@@ -72,7 +72,7 @@ func (t *Term) SetReader(r io.Reader) {
 
 // SetInterruptFn sets the interrupt function for the terminal.
 func (t *Term) SetInterruptFn(fn func(error)) {
-	log.Print("setting interrupt function")
+	slog.Info("setting interrupt function")
 	if t.InterruptFn != nil {
 		t.CancelInterruptHandler()
 	}
@@ -153,7 +153,7 @@ func (t *Term) promptWithChoices(q string, opts []string, def string) string {
 // ClearLine deletes n lines in the console.
 func (t *Term) ClearLine(n int) {
 	if !t.isInteractiveTerminal(n) {
-		log.Printf("error clearing line: %s", ErrNotInteractive)
+		slog.Error("error clearing line", "error", ErrNotInteractive)
 		return
 	}
 	ClearLine(n)
@@ -162,7 +162,7 @@ func (t *Term) ClearLine(n int) {
 // ReplaceLine deletes n lines in the console and prints the given string.
 func (t *Term) ReplaceLine(n int, s string) {
 	if !t.isInteractiveTerminal(n) {
-		log.Printf("error replacing line: %s", ErrNotInteractive)
+		slog.Error("error replacing line", "error", ErrNotInteractive)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (t *Term) ReplaceLine(n int, s string) {
 // ClearChars deletes n characters in the console.
 func (t *Term) ClearChars(n int) {
 	if !t.isInteractiveTerminal(n) {
-		log.Printf("error clearing chars: %s", ErrNotInteractive)
+		slog.Error("error clearing chars", "error", ErrNotInteractive)
 		return
 	}
 	ClearChars(n)
@@ -181,7 +181,7 @@ func (t *Term) ClearChars(n int) {
 // Clear clears the terminal.
 func (t *Term) Clear() {
 	if !t.isInteractiveTerminal(1) {
-		log.Printf("error clearing the term: %s", ErrNotInteractive)
+		slog.Error("error clearing the term", "error", ErrNotInteractive)
 		return
 	}
 	clearTerminal()
@@ -190,7 +190,7 @@ func (t *Term) Clear() {
 // CancelInterruptHandler cancels the interrupt handler.
 func (t *Term) CancelInterruptHandler() {
 	if t.cancelFn != nil {
-		log.Print("cancelling interrupt handler")
+		slog.Warn("cancelling interrupt handler")
 		t.cancelFn()
 	}
 }
@@ -267,11 +267,11 @@ func setupInterruptHandler(ctx context.Context, onInterrupt func(error)) {
 		select {
 		case sig := <-sigChan:
 			fmt.Println()
-			log.Printf("received signal: '%v', cleaning up...", sig)
+			slog.Debug("interrupt handler called", "signal", sig)
 			onInterrupt(sys.ErrActionAborted)
 			os.Exit(1)
 		case <-ctx.Done():
-			log.Print("interrupt handler cancelled")
+			slog.Warn("interrupt handler cancelled")
 			return
 		}
 	}()
