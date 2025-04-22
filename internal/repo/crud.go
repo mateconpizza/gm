@@ -150,6 +150,8 @@ func (r *SQLiteRepository) ByID(bID int) (*Row, error) {
 		return nil, fmt.Errorf("getting by ID: %w", err)
 	}
 
+	b.Tags = bookmark.ParseTags(b.Tags)
+
 	return &b, nil
 }
 
@@ -330,6 +332,10 @@ func (r *SQLiteRepository) bySQL(bs *Slice, q string, args ...any) error {
 	bs.Set(&bb)
 	bs.Sort(func(a, b Row) bool {
 		return a.ID < b.ID
+	})
+
+	bs.ForEachMut(func(b *Row) {
+		b.Tags = bookmark.ParseTags(b.Tags)
 	})
 
 	return nil

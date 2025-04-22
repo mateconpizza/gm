@@ -79,7 +79,7 @@ func TestUpdateOne(t *testing.T) {
 	assert.Equal(t, oldB, newB)
 	// modify bookmark
 	newDesc := "new description"
-	newTags := "tagNew1,tagNew2"
+	newTags := "tagNew1,tagNew2,"
 	newB.Tags = newTags
 	newB.Desc = newDesc
 	// update record in main table
