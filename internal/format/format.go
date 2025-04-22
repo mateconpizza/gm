@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -235,7 +235,7 @@ func RelativeTime(ts string) string {
 func TagsWithPound(s string) string {
 	var sb strings.Builder
 	tagsSplit := strings.Split(s, ",")
-	slices.Sort(tagsSplit)
+	sort.Strings(tagsSplit)
 	for _, t := range tagsSplit {
 		if t == "" {
 			continue

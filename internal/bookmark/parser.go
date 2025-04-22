@@ -76,13 +76,32 @@ func validateBookmarkFormat(b []string) error {
 	return validateTagsBuffer(b)
 }
 
+// cleanLines sanitazes a string by removing empty lines.
+func cleanLines(s string) string {
+	stringSplit := strings.Split(s, "\n")
+	if len(stringSplit) == 1 {
+		return s
+	}
+
+	result := make([]string, 0)
+	for _, ss := range stringSplit {
+		trimmed := strings.TrimSpace(ss)
+		if ss == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+
+	return strings.Join(result, "\n")
+}
+
 // parseBookmarkContent parses the provided content into a bookmark struct.
 func parseBookmarkContent(lines []string) *Bookmark {
 	b := New()
-	b.URL = extractTextBlock(lines, "# URL:", "# Title:")
-	b.Title = extractTextBlock(lines, "# Title:", "# Tags:")
-	b.Tags = ParseTags(extractTextBlock(lines, "# Tags:", "# Description:"))
-	b.Desc = extractTextBlock(lines, "# Description:", "# end")
+	b.URL = cleanLines(extractTextBlock(lines, "# URL:", "# Title:"))
+	b.Title = cleanLines(extractTextBlock(lines, "# Title:", "# Tags:"))
+	b.Tags = ParseTags(cleanLines(extractTextBlock(lines, "# Tags:", "# Description:")))
+	b.Desc = cleanLines(extractTextBlock(lines, "# Description:", "# end"))
 
 	return b
 }

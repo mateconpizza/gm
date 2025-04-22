@@ -29,7 +29,11 @@ func Edit(te *files.TextEditor, content []byte, b *Bookmark) error {
 	if err := validateBookmarkFormat(lines); err != nil {
 		return fmt.Errorf("invalid bookmark format: %w", err)
 	}
+
 	tb := parseBookmarkContent(lines)
+	if b.Equals(tb) {
+		return ErrBufferUnchanged
+	}
 	tb = scrapeBookmark(tb)
 	tb.ID = b.ID
 	tb.CreatedAt = b.CreatedAt

@@ -99,13 +99,13 @@ func editBookmark(
 func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total int) []byte {
 	buf := b.Buffer()
 	w := terminal.MinWidth
-	const spaces = 7
+	const spaces = 10
 	// prepare the header with a short title.
-	shortTitle := format.Shorten(b.Title, w-10)
+	shortTitle := format.Shorten(b.Title, w-spaces-6)
 	header := fmt.Sprintf("#\n# %d %s %s\n", b.ID, format.UnicodeBulletPoint, shortTitle)
 	// append the header and version information.
-	sep := fmt.Sprintf("# %s [%d/%d]\n\n", strings.Repeat("-",
-		w-spaces-len(fmt.Sprintf("%d/%d", idx, total))), idx+1, total)
+	sep := fmt.Sprintf("# %s\n\n", strings.Repeat("-", w-spaces))
+	format.BufferAppendEnd(fmt.Sprintf(" [%d/%d]", idx+1, total), &buf)
 	format.BufferAppend(sep, &buf)
 	format.BufferAppend(header, &buf)
 	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
