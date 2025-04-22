@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/haaag/rotato"
 
@@ -104,9 +103,9 @@ func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total in
 	shortTitle := format.Shorten(b.Title, w-spaces-6)
 	header := fmt.Sprintf("#\n# %d %s %s\n", b.ID, format.UnicodeBulletPoint, shortTitle)
 	// append the header and version information.
-	sep := fmt.Sprintf("# %s\n\n", strings.Repeat("-", w-spaces))
+	sep := format.CenteredLine(terminal.MinWidth-spaces, "bookmark edition")
 	format.BufferAppendEnd(fmt.Sprintf(" [%d/%d]", idx+1, total), &buf)
-	format.BufferAppend(sep, &buf)
+	format.BufferAppend("# "+sep+"\n\n", &buf)
 	format.BufferAppend(header, &buf)
 	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
 	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)

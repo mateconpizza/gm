@@ -62,7 +62,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 	// ask confirmation
 	fmt.Println()
 	if !config.App.Force && !t.IsPiped() {
-		if err := addHandleConfirmation(t, b); err != nil {
+		if err := addHandleConfirmation(r, t, b); err != nil {
 			if !errors.Is(err, bookmark.ErrBufferUnchanged) {
 				return fmt.Errorf("%w", err)
 			}
@@ -84,7 +84,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 }
 
 // addHandleConfirmation confirms if the user wants to save the bookmark.
-func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
+func addHandleConfirmation(r *Repo, t *terminal.Term, b *Bookmark) error {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	opt := t.Choose(f.Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
 
@@ -93,7 +93,7 @@ func addHandleConfirmation(t *terminal.Term, b *Bookmark) error {
 		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
 		t.ClearLine(1)
-		if err := bookmarkEdition(b); err != nil {
+		if err := bookmarkEdition(r, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -251,13 +251,21 @@ func addHandleClipboard(t *terminal.Term) string {
 }
 
 // bookmarkEdition edits a bookmark with a text editor.
-func bookmarkEdition(b *Bookmark) error {
+func bookmarkEdition(r *Repo, b *Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := bookmark.Edit(te, b.Buffer(), b); err != nil {
+	const spaces = 10
+	buf := b.Buffer()
+	sep := format.CenteredLine(terminal.MinWidth-spaces, "bookmark addition")
+	format.BufferAppendEnd(" [New]", &buf)
+	format.BufferAppend("#\n# "+sep+"\n\n", &buf)
+	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
+	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
+
+	if err := bookmark.Edit(te, buf, b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

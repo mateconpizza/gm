@@ -286,3 +286,18 @@ func URLBreadCrumbs(s string, c color.ColorFn) string {
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }
+
+// CenteredLine returns a string of exactly 'width' characters,
+// centering the label between dashes.
+func CenteredLine(width int, label string) string {
+	const spaces = 2
+	if width < len(label)+spaces {
+		return label
+	}
+
+	dashCount := width - len(label) - spaces
+	left := dashCount / 2
+	right := dashCount - left
+
+	return strings.Repeat("-", left) + " " + label + " " + strings.Repeat("-", right)
+}
