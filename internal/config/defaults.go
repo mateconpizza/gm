@@ -62,7 +62,7 @@ func FzfKeybindEdit() menu.Keymap {
 	return menu.Keymap{
 		Bind:    Fzf.Keymaps.Edit.Bind,
 		Desc:    Fzf.Keymaps.Edit.Desc,
-		Action:  fmtKeybindCmd("--edit {1})"),
+		Action:  fmtKeybindCmd("--edit {+1})"),
 		Enabled: Fzf.Keymaps.Edit.Enabled,
 		Hidden:  Fzf.Keymaps.Edit.Hidden,
 	}
@@ -73,7 +73,7 @@ func FzfKeybindOpen() menu.Keymap {
 	return menu.Keymap{
 		Bind:    Fzf.Keymaps.Open.Bind,
 		Desc:    Fzf.Keymaps.Open.Desc,
-		Action:  fmtKeybindCmd("--open {1})"),
+		Action:  fmtKeybindCmd("--open {+1})"),
 		Enabled: Fzf.Keymaps.Open.Enabled,
 		Hidden:  Fzf.Keymaps.Open.Hidden,
 	}
@@ -84,7 +84,7 @@ func FzfKeybindQR() menu.Keymap {
 	return menu.Keymap{
 		Bind:    Fzf.Keymaps.QR.Bind,
 		Desc:    Fzf.Keymaps.QR.Desc,
-		Action:  fmtKeybindCmd("--qr {1})"),
+		Action:  fmtKeybindCmd("--qr {+1})"),
 		Enabled: Fzf.Keymaps.QR.Enabled,
 		Hidden:  Fzf.Keymaps.QR.Hidden,
 	}
@@ -96,7 +96,7 @@ func FzfKeybindOpenQR() menu.Keymap {
 	return menu.Keymap{
 		Bind:    Fzf.Keymaps.OpenQR.Bind,
 		Desc:    Fzf.Keymaps.OpenQR.Desc,
-		Action:  fmtKeybindCmd("--qr --open {1})"),
+		Action:  fmtKeybindCmd("--qr --open {+1})"),
 		Enabled: Fzf.Keymaps.OpenQR.Enabled,
 		Hidden:  Fzf.Keymaps.OpenQR.Hidden,
 	}
