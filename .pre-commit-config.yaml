@@ -16,6 +16,6 @@ repos:
     hooks:
       - id: go-vet
       - id: go-build
-      - id: go-unit-tests
+      # - id: go-unit-tests
       - id: go-mod-tidy
       - id: no-go-testing

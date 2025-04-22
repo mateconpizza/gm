@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -10,21 +11,31 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/sys/files"
+	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 var (
-	// dumpConfFlag is the flag for dumping the config.
-	dumpConfFlag bool
+	// createConfFlag is the flag for creating a new config file.
+	createConfFlag bool
 
 	// colorSchemeFlag list available color schemes.
 	colorSchemeFlag bool
 )
 
-// dumpAppConfig dumps the app configuration to a YAML file.
-func dumpAppConfig(p string) error {
+var ErrConfigFileNotFound = errors.New("config file not found")
+
+// createAppConfig dumps the app configuration to a YAML file.
+func createAppConfig(p string) error {
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	f.Info(format.PaddedLine("Destination:", color.Text(p).Italic()) + "\n").Row("\n")
+	if !terminal.Confirm(f.Question("continue?").String(), "y") {
+		return nil
+	}
+
 	if err := files.YamlWrite(p, config.Defaults); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -34,7 +45,10 @@ func dumpAppConfig(p string) error {
 
 // editConfig edits the config file.
 func editConfig(p string) error {
-	te, err := files.GetEditor(config.App.Env.Editor)
+	if !files.Exists(p) {
+		return ErrConfigFileNotFound
+	}
+	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -45,16 +59,36 @@ func editConfig(p string) error {
 	return nil
 }
 
-// loadConfig loads the menu configuration YAML file.
-func loadConfig(p string) error {
+// getConfig loads the config file.
+func getConfig(p string) (*config.ConfigFile, error) {
 	if !files.Exists(p) {
 		log.Println("configfile not found. loading defaults")
-		return nil
+		return nil, ErrConfigFileNotFound
 	}
 
 	var cfg *config.ConfigFile
 	if err := files.YamlRead(p, &cfg); err != nil {
-		return fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	if cfg == nil {
+		return nil, ErrConfigFileNotFound
+	}
+
+	if err := config.Validate(cfg); err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return cfg, nil
+}
+
+// loadConfig loads the menu configuration YAML file.
+func loadConfig(p string) error {
+	cfg, err := getConfig(p)
+	if err != nil {
+		if !errors.Is(err, ErrConfigFileNotFound) {
+			return fmt.Errorf("%w", err)
+		}
 	}
 
 	if cfg == nil {
@@ -62,24 +96,32 @@ func loadConfig(p string) error {
 		return nil
 	}
 
-	if err := config.Validate(cfg); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
 	config.Fzf = cfg.Menu
 	config.App.Colorscheme = cfg.Colorscheme
+
+	return loadColorSchemes()
+}
+
+// printConfigJSON prints the config file as JSON.
+func printConfigJSON(p string) error {
+	cfg, err := getConfig(p)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	fmt.Println(string(format.ToJSON(cfg)))
 
 	return nil
 }
 
-// exportColorScheme saves given colorscheme to a YAML file in the colorschemes
+// ExportColorScheme saves given colorscheme to a YAML file in the colorschemes
 // path.
-func exportColorScheme(cs *color.Scheme) error {
+func ExportColorScheme(cs *color.Scheme) error {
+	// TODO: use it or lose it
 	p := config.App.Path.Colorschemes
 	if p == "" {
 		return fmt.Errorf("%w for colorschemes", files.ErrPathNotFound)
 	}
-	log.Printf("colorscheme path: '%s'", p)
+	log.Printf("colorscheme path: %q", p)
 
 	fn := filepath.Join(p, cs.Name+".yaml")
 	if err := files.YamlWrite(fn, cs); err != nil {
@@ -89,23 +131,36 @@ func exportColorScheme(cs *color.Scheme) error {
 	return nil
 }
 
-// printColorSchemes prints a list of available colorschemes.
-func printColorSchemes() error {
+// loadColorSchemes loads available colorschemes.
+func loadColorSchemes() error {
 	fs, err := files.FindByExtList(config.App.Path.Colorschemes, "yaml")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	for _, s := range fs {
 		var cs *color.Scheme
 		if err := files.YamlRead(s, &cs); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-
 		if err := cs.Validate(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
 		color.Schemes[cs.Name] = cs
+	}
+
+	return nil
+}
+
+// printColorSchemes prints a list of available colorschemes.
+func printColorSchemes() error {
+	if !files.Exists(config.App.Path.Colorschemes) {
+		return fmt.Errorf("%w for colorschemes", files.ErrPathNotFound)
+	}
+
+	if err := loadColorSchemes(); err != nil {
+		return err
 	}
 
 	keys := make([]string, 0, len(color.Schemes))
@@ -134,12 +189,14 @@ var configCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		fn := config.App.Path.ConfigFile
 		switch {
-		case dumpConfFlag:
-			return dumpAppConfig(fn)
+		case createConfFlag:
+			return createAppConfig(fn)
 		case Edit:
 			return editConfig(fn)
 		case colorSchemeFlag:
 			return printColorSchemes()
+		case JSON:
+			return printConfigJSON(fn)
 		}
 
 		return cmd.Usage()
@@ -149,9 +206,10 @@ var configCmd = &cobra.Command{
 func init() {
 	f := configCmd.Flags()
 	f.BoolP("help", "h", false, "Hidden help")
-	f.BoolVarP(&dumpConfFlag, "dump", "d", false, "dump config")
+	f.BoolVarP(&createConfFlag, "create", "c", false, "create config file")
 	f.BoolVarP(&colorSchemeFlag, "schemes", "s", false, "list available color schemes")
 	f.BoolVarP(&Edit, "edit", "e", false, "edit config")
+	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	// set and hide persistent flag
 	f.StringVar(&WithColor, "color", "always", "")
 	f.StringVarP(&DBName, "name", "n", "", "database name")

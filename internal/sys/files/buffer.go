@@ -125,14 +125,14 @@ func (te *TextEditor) Diff(a, b []byte) string {
 	return strings.Join(diffLines, "\n")
 }
 
-// GetEditor retrieves the preferred editor to use for editing
+// NewEditor retrieves the preferred editor to use for editing
 //
 // If env variable `GOMARKS_EDITOR` is not set, uses the `EDITOR`.
 // If env variable `EDITOR` is not set, uses the first available
 // `TextEditors`
 //
 // # fallbackEditors: `"vim", "nvim", "nano", "emacs"`.
-func GetEditor(s string) (*TextEditor, error) {
+func NewEditor(s string) (*TextEditor, error) {
 	envs := []string{s, "EDITOR"}
 	// find $EDITOR and $GOMARKS_EDITOR
 	for _, e := range envs {

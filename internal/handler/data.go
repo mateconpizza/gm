@@ -58,7 +58,7 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 	if err := confirmUserLimit(n, maxItemsToEdit, prompt); err != nil {
 		return err
 	}
-	te, err := files.GetEditor(config.App.Env.Editor)
+	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("getting editor: %w", err)
 	}
