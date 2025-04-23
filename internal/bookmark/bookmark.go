@@ -84,6 +84,7 @@ func (b *Bookmark) Buffer() []byte {
 %s
 # Description: (leave an empty line for web fetch)
 %s
+
 # end ------------------------------------------------------------------`,
 		b.URL, b.Title, ParseTags(b.Tags), b.Desc)
 }

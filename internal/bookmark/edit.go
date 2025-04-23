@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
@@ -18,7 +19,7 @@ var ErrBufferUnchanged = errors.New("buffer unchanged")
 // editor, returning an error if any operation fails.
 func Edit(te *files.TextEditor, content []byte, b *Bookmark) error {
 	original := bytes.Clone(content)
-	modifiedData, err := te.EditBytes(content)
+	modifiedData, err := te.EditBytes(content, config.App.Name)
 	if err != nil {
 		return fmt.Errorf("failed to edit content: %w", err)
 	}

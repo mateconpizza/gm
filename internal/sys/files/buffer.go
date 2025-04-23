@@ -30,11 +30,11 @@ type TextEditor struct {
 }
 
 // EditBytes edits a byte slice with a text editor.
-func (te *TextEditor) EditBytes(content []byte) ([]byte, error) {
+func (te *TextEditor) EditBytes(content []byte, extension string) ([]byte, error) {
 	if te.cmd == "" {
 		return nil, ErrCommandNotFound
 	}
-	f, err := createTEmpFileWithData(content)
+	f, err := createTempFileWithData(content, extension)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -194,11 +194,10 @@ func saveBytestToFile(f *os.File, d []byte) error {
 	return nil
 }
 
-// createTEmpFileWithData creates a temporary file and writes the provided data
+// createTempFileWithData creates a temporary file and writes the provided data
 // to it.
-func createTEmpFileWithData(d []byte) (*os.File, error) {
-	const tempExt = "bookmark"
-	tf, err := CreateTemp("edit", tempExt)
+func createTempFileWithData(d []byte, extension string) (*os.File, error) {
+	tf, err := CreateTemp("edit", extension)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}

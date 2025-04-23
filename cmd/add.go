@@ -237,6 +237,7 @@ func addHandleClipboard(t *terminal.Term) string {
 		Flush()
 	opt := t.Choose(f.Question("continue?").String(), []string{"yes", "no"}, "y")
 	lines += format.CountLines(f.String())
+	f.Clear()
 
 	defer t.ClearLine(lines)
 
@@ -263,7 +264,7 @@ func bookmarkEdition(r *Repo, b *Bookmark) error {
 	format.BufferAppendEnd(" [New]", &buf)
 	format.BufferAppend("#\n# "+sep+"\n\n", &buf)
 	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
-	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
+	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Version), &buf)
 
 	if err := bookmark.Edit(te, buf, b); err != nil {
 		return fmt.Errorf("%w", err)

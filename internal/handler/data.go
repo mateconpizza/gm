@@ -101,14 +101,15 @@ func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total in
 	const spaces = 10
 	// prepare the header with a short title.
 	shortTitle := format.Shorten(b.Title, w-spaces-6)
-	header := fmt.Sprintf("#\n# %d %s %s\n", b.ID, format.UnicodeBulletPoint, shortTitle)
+	header := fmt.Sprintf("# %d %s\n", b.ID, shortTitle)
+	header += "#\n"
 	// append the header and version information.
 	sep := format.CenteredLine(terminal.MinWidth-spaces, "bookmark edition")
-	format.BufferAppendEnd(fmt.Sprintf(" [%d/%d]", idx+1, total), &buf)
 	format.BufferAppend("# "+sep+"\n\n", &buf)
+	format.BufferAppend(fmt.Sprintf("# database:\t%q\n", r.Name()), &buf)
+	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Version), &buf)
 	format.BufferAppend(header, &buf)
-	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
-	format.BufferAppendVersion(config.App.Name, config.App.Version, &buf)
+	format.BufferAppendEnd(fmt.Sprintf(" [%d/%d]", idx+1, total), &buf)
 
 	return buf
 }
