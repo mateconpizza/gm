@@ -118,7 +118,7 @@ func CopyClipboard(s string) error {
 func ReadClipboard() string {
 	s, err := clipboard.ReadAll()
 	if err != nil {
-		slog.Error("could not read clipboard", "err", err)
+		slog.Warn("could not read clipboard", "err", err)
 		return ""
 	}
 

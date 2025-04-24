@@ -13,9 +13,10 @@ var (
 	ErrColorSchemeName       = errors.New("missing colorscheme name")
 	ErrColorSchemePalette    = errors.New("missing palette")
 	ErrColorSchemeUnknown    = errors.New("unknown colorscheme")
+	ErrColorSchemePath       = errors.New("missing colorscheme path")
 )
 
-var Schemes = map[string]*Scheme{
+var DefaultSchemes = map[string]*Scheme{
 	"gruvbox-light-medium": GruvboxLightMedium(),
 	"gruvbox-dark-medium":  GruvboxDarkMedium(),
 	"default":              DefaultColorScheme(),

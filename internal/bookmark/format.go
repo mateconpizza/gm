@@ -146,7 +146,7 @@ func FzfFormatter(m bool, colorScheme string) func(b *Bookmark) string {
 		cs *color.Scheme
 		ok bool
 	)
-	cs, ok = color.Schemes[colorScheme]
+	cs, ok = color.DefaultSchemes[colorScheme]
 	if !ok {
 		cs = color.DefaultColorScheme()
 	}

@@ -164,9 +164,10 @@ func isSubCmdCalled(cmd *cobra.Command, names ...string) bool {
 // If environment variable GOMARKS_HOME is not set, uses the data user
 // directory.
 func loadDataPath() (string, error) {
-	envDataHome := sys.Env(config.App.Env.Home, "")
+	e := config.App.Env.Home
+	envDataHome := sys.Env(e, "")
 	if envDataHome != "" {
-		slog.Debug("app home", "env path", envDataHome)
+		slog.Debug("reading home env", e, envDataHome)
 
 		return config.PathJoin(envDataHome), nil
 	}
@@ -174,7 +175,7 @@ func loadDataPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("loading paths: %w", err)
 	}
-	slog.Debug("app home", "path", dataHome)
+	slog.Debug("home app", "path", dataHome)
 
 	return dataHome, nil
 }

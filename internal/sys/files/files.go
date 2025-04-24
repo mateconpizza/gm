@@ -11,9 +11,6 @@ import (
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
-
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format/color"
 )
 
 var (
@@ -243,19 +240,14 @@ func ExpandHomeDir(s string) string {
 }
 
 // YamlWrite writes the provided YAML data to the specified file.
-func YamlWrite[T any](p string, v *T) error {
-	if Exists(p) && !config.App.Force {
-		f := color.BrightYellow("--force").Italic().String()
-		return fmt.Errorf("%q %w. use %q to overwrite", p, ErrFileExists, f)
-	}
-
-	f, err := Touch(p, config.App.Force)
+func YamlWrite[T any](p string, v *T, force bool) error {
+	f, err := Touch(p, force)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
-			slog.Error("closing file", "file", p, "error", err)
+			slog.Error("Yaml closing file", "file", p, "error", err)
 		}
 	}()
 
@@ -269,7 +261,7 @@ func YamlWrite[T any](p string, v *T) error {
 		return fmt.Errorf("error writing to file: %w", err)
 	}
 
-	fmt.Printf("%s: file saved %q\n", config.App.Name, p)
+	slog.Info("YamlWrite success", "path", p)
 
 	return nil
 }

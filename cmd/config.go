@@ -14,6 +14,7 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -28,17 +29,23 @@ var (
 
 var ErrConfigFileNotFound = errors.New("config file not found")
 
-// createAppConfig dumps the app configuration to a YAML file.
-func createAppConfig(p string) error {
+// createConfig dumps the app configuration to a YAML file.
+func createConfig(p string) error {
+	if files.Exists(p) && !config.App.Force {
+		f := color.BrightYellow("--force").Italic().String()
+		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
+	}
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Info(format.PaddedLine("Destination:", color.Text(p).Italic()) + "\n").Row("\n")
-	if !terminal.Confirm(f.Question("continue?").String(), "y") {
+	f.Info(format.PaddedLine("File:", color.Text(p).Italic()) + "\n").Row("\n")
+	if !terminal.Confirm(f.Question("create?").String(), "y") {
 		return nil
 	}
 
-	if err := files.YamlWrite(p, config.Defaults); err != nil {
+	if err := files.YamlWrite(p, config.Defaults, config.App.Force); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	fmt.Printf("%s: file saved %q\n", config.App.Name, p)
 
 	return nil
 }
@@ -85,10 +92,8 @@ func getConfig(p string) (*config.ConfigFile, error) {
 // loadConfig loads the menu configuration YAML file.
 func loadConfig(p string) error {
 	cfg, err := getConfig(p)
-	if err != nil {
-		if !errors.Is(err, ErrConfigFileNotFound) {
-			return fmt.Errorf("%w", err)
-		}
+	if err != nil && !errors.Is(err, ErrConfigFileNotFound) {
+		return fmt.Errorf("%w", err)
 	}
 
 	if cfg == nil {
@@ -99,7 +104,7 @@ func loadConfig(p string) error {
 	config.Fzf = cfg.Menu
 	config.App.Colorscheme = cfg.Colorscheme
 
-	return loadColorSchemes()
+	return nil
 }
 
 // printConfigJSON prints the config file as JSON.
@@ -123,57 +128,40 @@ func ExportColorScheme(cs *color.Scheme) error {
 	}
 	slog.Info("colorscheme path", "path", p)
 
-	fn := filepath.Join(p, cs.Name+".yaml")
-	if err := files.YamlWrite(fn, cs); err != nil {
+	f := filepath.Join(p, cs.Name+".yaml")
+	if files.Exists(f) && !config.App.Force {
+		f := color.BrightYellow("--force").Italic().String()
+		return fmt.Errorf("%q %w. use %s to overwrite", filepath.Base(f), files.ErrFileExists, f)
+	}
+	if err := files.YamlWrite(f, cs, config.App.Force); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	return nil
-}
-
-// loadColorSchemes loads available colorschemes.
-func loadColorSchemes() error {
-	fs, err := files.FindByExtList(config.App.Path.Colorschemes, "yaml")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	for _, s := range fs {
-		var cs *color.Scheme
-		if err := files.YamlRead(s, &cs); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		if err := cs.Validate(); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		color.Schemes[cs.Name] = cs
-	}
+	fmt.Printf("%s: file saved %q\n", config.App.Name, f)
 
 	return nil
 }
 
 // printColorSchemes prints a list of available colorschemes.
 func printColorSchemes() error {
-	if !files.Exists(config.App.Path.Colorschemes) {
-		return fmt.Errorf("%w for colorschemes", files.ErrPathNotFound)
+	schemes, err := handler.LoadColorSchemesFiles(config.App.Path.Colorschemes, color.DefaultSchemes)
+	if err != nil && !errors.Is(err, color.ErrColorSchemePath) {
+		return fmt.Errorf("%w", err)
 	}
 
-	if err := loadColorSchemes(); err != nil {
-		return err
-	}
+	color.DefaultSchemes = schemes
 
-	keys := make([]string, 0, len(color.Schemes))
-	for k := range color.Schemes {
+	keys := make([]string, 0, len(color.DefaultSchemes))
+	for k := range color.DefaultSchemes {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	h := color.BrightYellow("ColorSchemes " + strconv.Itoa(len(keys)) + " found\n").String()
+	h := color.BrightYellow("ColorSchemes " + strconv.Itoa(len(keys)) + " Found\n").String()
 	f.Header(h).Row("\n")
 	for _, k := range keys {
-		cs, _ := color.Schemes[k]
+		cs, _ := color.DefaultSchemes[k]
 		c := strconv.Itoa(cs.Palette.Len())
 		f.Mid(fmt.Sprintf("%-*s %v\n", 20, cs.Name, color.Gray(" ("+c+" colors)")))
 	}
@@ -190,7 +178,7 @@ var configCmd = &cobra.Command{
 		fn := config.App.Path.ConfigFile
 		switch {
 		case createConfFlag:
-			return createAppConfig(fn)
+			return createConfig(fn)
 		case Edit:
 			return editConfig(fn)
 		case colorSchemeFlag:
