@@ -7,7 +7,7 @@ toolchain go1.24.1
 require github.com/mattn/go-sqlite3 v1.14.28
 
 require (
-	github.com/PuerkitoBio/goquery v1.10.2
+	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/atotto/clipboard v0.1.4
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/haaag/rotato v0.1.10
@@ -43,7 +43,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 )
