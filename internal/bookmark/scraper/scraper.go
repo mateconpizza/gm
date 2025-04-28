@@ -9,10 +9,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const (
-	defaultTitle string = "untitled (unfiled)"
-	defaultDesc  string = "no description available (unfiled)"
-)
+const defaultTitle string = "untitled (unfiled)"
 
 type OptFn func(*Options)
 
@@ -77,10 +74,6 @@ func (s *Scraper) Desc() string {
 		if desc != "" {
 			break
 		}
-	}
-
-	if desc == "" {
-		return defaultDesc
 	}
 
 	return strings.TrimSpace(desc)

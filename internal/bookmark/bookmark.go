@@ -82,7 +82,7 @@ func (b *Bookmark) Buffer() []byte {
 %s
 # Tags: (comma separated)
 %s
-# Description: (leave an empty line for web fetch)
+# Description:
 %s
 
 # end ------------------------------------------------------------------`,

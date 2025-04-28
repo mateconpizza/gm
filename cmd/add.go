@@ -199,10 +199,13 @@ func addTitleAndDesc(url string) (title, desc string) {
 
 	width := terminal.MinWidth - len(f.Border.Row)
 	titleColor := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
-	descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
-	f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln().
-		Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln().
-		Flush()
+	f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln()
+	if desc != "" {
+		descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
+		f.Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln()
+	}
+
+	f.Flush()
 
 	return title, desc
 }

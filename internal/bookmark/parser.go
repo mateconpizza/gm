@@ -176,7 +176,7 @@ func validateAttr(s, fallback string) string {
 // scrapeBookmark updates a Bookmark's title and description by scraping the
 // webpage if they are missing.
 func scrapeBookmark(b *Bookmark) *Bookmark {
-	if b.Title == "" || b.Desc == "" {
+	if b.Title == "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		sp := rotato.New(

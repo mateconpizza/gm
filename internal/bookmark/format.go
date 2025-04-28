@@ -2,7 +2,6 @@ package bookmark
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/haaag/gm/internal/format"
@@ -49,7 +48,9 @@ func Multiline(b *Bookmark, cs *color.Scheme) string {
 	sb.WriteString(cs.BrightYellow(b.ID).Bold().String())
 	sb.WriteString(format.NBSP)
 	sb.WriteString(format.Shorten(format.URLBreadCrumbs(b.URL, cs.BrightMagenta), w) + "\n")
-	sb.WriteString(cs.Cyan(format.Shorten(b.Title, w)).String() + "\n")
+	if b.Title != "" {
+		sb.WriteString(cs.Cyan(format.Shorten(b.Title, w)).String() + "\n")
+	}
 	sb.WriteString(cs.BrightWhite(format.TagsWithUnicode(b.Tags)).Italic().String())
 
 	return sb.String()
@@ -59,21 +60,27 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	f := frame.New(frame.WithColorBorder(c))
 	w := terminal.MaxWidth
 	w -= len(f.Border.Row)
-	// split
-	descSplit := format.SplitIntoChunks(b.Desc, w)
-	titleSplit := format.SplitIntoChunks(b.Title, w)
-	// add color and style
+	// id + url
 	id := color.BrightYellow(b.ID).Bold().String()
-	urlColor := format.Shorten(breadcrumbsURL(b.URL, color.BrightMagenta), w)
-	title := color.ApplyMany(titleSplit, color.Cyan)
-	desc := color.ApplyMany(descSplit, color.Gray)
-	tags := color.Gray(prettifyTags(b.Tags)).Italic().String()
+	urlColor := format.Shorten(format.URLBreadCrumbs(b.URL, color.BrightMagenta), w)
+	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
+	// title
+	if b.Title != "" {
+		titleSplit := format.SplitIntoChunks(b.Title, w)
+		title := color.ApplyMany(titleSplit, color.Cyan)
+		f.Mid(title...).Ln()
+	}
+	// description
+	if b.Desc != "" {
+		descSplit := format.SplitIntoChunks(b.Desc, w)
+		desc := color.ApplyMany(descSplit, color.Gray)
+		f.Mid(desc...).Ln()
+	}
+	// tags
+	tags := color.Gray(format.TagsWithPound(b.Tags)).Italic().String()
+	f.Footer(tags).Ln()
 
-	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln().
-		Mid(title...).Ln().
-		Mid(desc...).Ln().
-		Footer(tags).Ln().
-		String()
+	return f.String()
 }
 
 // Frame formats a bookmark in a frame with min width.
@@ -82,62 +89,27 @@ func Frame(b *Bookmark, cs *color.Scheme) string {
 	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
 	// indentation
 	w -= len(f.Border.Row)
-	// split and add indentation
-	descSplit := format.SplitIntoChunks(b.Desc, w)
-	titleSplit := format.SplitIntoChunks(b.Title, w)
-	// add color and style
+	// id + url
 	id := cs.BrightYellow(b.ID).Bold()
 	urlColor := format.Shorten(format.URLBreadCrumbs(b.URL, cs.BrightMagenta), w)
-	title := color.ApplyMany(titleSplit, cs.BrightCyan)
-	desc := color.ApplyMany(descSplit, cs.White)
+	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
+	// title
+	if b.Title != "" {
+		titleSplit := format.SplitIntoChunks(b.Title, w)
+		title := color.ApplyMany(titleSplit, cs.BrightCyan)
+		f.Mid(title...).Ln()
+	}
+	// description
+	if b.Desc != "" {
+		descSplit := format.SplitIntoChunks(b.Desc, w)
+		desc := color.ApplyMany(descSplit, cs.White)
+		f.Mid(desc...).Ln()
+	}
+	// tags
 	tags := cs.BrightWhite(format.TagsWithPound(b.Tags)).Italic().String()
+	f.Footer(tags).Ln()
 
-	return f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln().
-		Mid(title...).Ln().
-		Mid(desc...).Ln().
-		Footer(tags).Ln().
-		String()
-}
-
-// prettifyTags returns a prettified tags.
-//
-//	tag1·tag2·tag3
-func prettifyTags(s string) string {
-	uc := format.UnicodeMiddleDot
-	return strings.TrimRight(strings.ReplaceAll(s, ",", uc), uc)
-}
-
-// breadcrumbsURL returns a prettified URL with color.
-//
-//	https://example.org/title/some-title
-//	https://example.org > title > some-title
-func breadcrumbsURL(s string, c color.ColorFn) string {
-	u, err := url.Parse(s)
-	if err != nil {
-		return ""
-	}
-	// default color
-	if c == nil {
-		c = color.Default
-	}
-	if u.Host == "" || u.Path == "" {
-		return c(s).Bold().String()
-	}
-	host := c(u.Host).Bold().String()
-	pathSegments := strings.FieldsFunc(
-		strings.TrimLeft(u.Path, "/"),
-		func(r rune) bool { return r == '/' },
-	)
-
-	if len(pathSegments) == 0 {
-		return host
-	}
-
-	uc := format.UnicodeSingleAngleMark
-	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
-	pathSeg := color.Text(uc, segments).Italic()
-
-	return fmt.Sprintf("%s %s", host, pathSeg)
+	return f.String()
 }
 
 // FzfFormatter returns a function to format a bookmark for the FZF menu.

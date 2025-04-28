@@ -104,7 +104,7 @@ func TestDesc(t *testing.T) {
 			server: createTestServer(
 				"<html><head><title>Test Title</title></head></html>",
 			),
-			expected: defaultDesc,
+			expected: "",
 		},
 		{
 			name: "ValidMetaDescription",
@@ -129,7 +129,7 @@ func TestDesc(t *testing.T) {
 			server: createTestServer(
 				"<html><head><meta name=\"description\" content=\"\"></head></html>",
 			),
-			expected: defaultDesc,
+			expected: "",
 		},
 		{
 			name: "DescriptionWithWhitespace",
@@ -143,7 +143,7 @@ func TestDesc(t *testing.T) {
 			name:     "InvalidDescription",
 			url:      "http://example.com",
 			server:   createTestServer(``),
-			expected: defaultDesc,
+			expected: "",
 		},
 	}
 
