@@ -16,17 +16,9 @@ type colorSchemes = map[string]*color.Scheme
 
 // Print prints the bookmarks in a frame format with the given colorscheme.
 func Print(bs *Slice) error {
-	schemes, err := LoadColorSchemesFiles(config.App.Path.Colorschemes, color.DefaultSchemes)
-	if err != nil && !errors.Is(err, color.ErrColorSchemePath) {
-		return fmt.Errorf("%w", err)
-	}
-	color.DefaultSchemes = schemes
-
-	csName := config.App.Colorscheme
-	cs, ok := color.DefaultSchemes[csName]
-	if !ok {
-		slog.Warn("printing bookmarks", "error", csName+" not found, using default")
-		cs, _ = color.DefaultSchemes["default"]
+	cs, err := getColorScheme(config.App.Colorscheme)
+	if err != nil {
+		return err
 	}
 	slog.Info("colorscheme loaded", "name", cs.Name)
 
@@ -57,17 +49,9 @@ func JSON(bs *Slice) error {
 
 // Oneline formats the bookmarks in oneline.
 func Oneline(bs *Slice) error {
-	schemes, err := LoadColorSchemesFiles(config.App.Path.Colorschemes, color.DefaultSchemes)
-	if err != nil && !errors.Is(err, color.ErrColorSchemePath) {
-		return fmt.Errorf("%w", err)
-	}
-	color.DefaultSchemes = schemes
-
-	csName := config.App.Colorscheme
-	cs, ok := color.DefaultSchemes[csName]
-	if !ok {
-		slog.Warn("printing bookmarks", "error", csName+" not found, using default")
-		cs, _ = color.DefaultSchemes["default"]
+	cs, err := getColorScheme(config.App.Colorscheme)
+	if err != nil {
+		return err
 	}
 	slog.Info("colorscheme loaded", "name", cs.Name)
 
@@ -127,4 +111,44 @@ func LoadColorSchemesFiles(p string, schemes colorSchemes) (colorSchemes, error)
 	}
 
 	return schemes, nil
+}
+
+// getColorScheme returns a colorscheme based on the given name.
+//
+// If the colorscheme is not found, the default colorscheme is returned.
+func getColorScheme(s string) (*color.Scheme, error) {
+	schemes, err := LoadColorSchemesFiles(config.App.Path.Colorschemes, color.DefaultSchemes)
+	if err != nil && !errors.Is(err, color.ErrColorSchemePath) {
+		return nil, fmt.Errorf("%w", err)
+	}
+	color.DefaultSchemes = schemes
+
+	cs, ok := color.DefaultSchemes[s]
+	if !ok {
+		slog.Warn("printing bookmarks", "error", s+" not found, using default")
+		cs, _ = color.DefaultSchemes["default"]
+	}
+	slog.Info("colorscheme loaded", "name", cs.Name)
+
+	return cs, nil
+}
+
+// FzfFormatter returns a function to format a bookmark for the FZF menu.
+func FzfFormatter(m bool, colorScheme string) func(b *Bookmark) string {
+	cs, err := getColorScheme(config.App.Colorscheme)
+	if err != nil {
+		slog.Error("getting colorscheme", slog.String("error", err.Error()))
+	}
+	slog.Info("colorscheme loaded", "name", cs.Name)
+
+	switch {
+	case m:
+		return func(b *Bookmark) string {
+			return bookmark.Multiline(b, cs)
+		}
+	default:
+		return func(b *Bookmark) string {
+			return bookmark.Oneline(b, cs)
+		}
+	}
 }

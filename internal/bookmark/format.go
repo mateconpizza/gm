@@ -111,26 +111,3 @@ func Frame(b *Bookmark, cs *color.Scheme) string {
 
 	return f.String()
 }
-
-// FzfFormatter returns a function to format a bookmark for the FZF menu.
-func FzfFormatter(m bool, colorScheme string) func(b *Bookmark) string {
-	var (
-		cs *color.Scheme
-		ok bool
-	)
-	cs, ok = color.DefaultSchemes[colorScheme]
-	if !ok {
-		cs = color.DefaultColorScheme()
-	}
-
-	switch {
-	case m:
-		return func(b *Bookmark) string {
-			return Multiline(b, cs)
-		}
-	default:
-		return func(b *Bookmark) string {
-			return Oneline(b, cs)
-		}
-	}
-}

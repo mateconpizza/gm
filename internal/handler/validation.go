@@ -53,7 +53,7 @@ func confirmation(
 			items, err := Selection(
 				m,
 				*bs.Items(),
-				bookmark.FzfFormatter(false, config.App.Colorscheme),
+				FzfFormatter(false, config.App.Colorscheme),
 			)
 			if err != nil {
 				return err

@@ -51,7 +51,7 @@ func handleData(m *menu.Menu[Bookmark], r *Repo, args []string) (*Slice, error) 
 		items, err := handler.Selection(
 			m,
 			*bs.Items(),
-			bookmark.FzfFormatter(Multiline, config.App.Colorscheme),
+			handler.FzfFormatter(Multiline, config.App.Colorscheme),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
