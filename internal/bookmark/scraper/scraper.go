@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -94,6 +95,13 @@ func New(s string, opts ...OptFn) *Scraper {
 
 // scrapeURL fetches and parses the HTML content from a URL.
 func scrapeURL(s string, ctx context.Context) *goquery.Document {
+	if !isSupportedScheme(s) {
+		slog.Warn("unsupported scheme", "url", s)
+		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
+		return doc
+	}
+
+	s = normalizeURL(s)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
 		slog.Error("creating request", "url", s, "error", err.Error())
@@ -134,4 +142,25 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	}
 
 	return doc
+}
+
+func normalizeURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme == "" {
+		// If no scheme, default to http
+		return "http://" + raw
+	}
+
+	return raw
+}
+
+// isSupportedScheme checks if the given URL scheme is supported.
+func isSupportedScheme(rawURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return false
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+
+	return scheme == "http" || scheme == "https"
 }
