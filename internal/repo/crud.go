@@ -281,16 +281,21 @@ func (r *SQLiteRepository) Has(bURL string) (*Row, bool) {
 
 // ReorderIDs reorders the IDs in the main table.
 func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
-	// get all records
-	bs := slice.New[Row]()
-	if err := r.All(bs); err != nil {
-		return err
-	}
-	if bs.Empty() {
-		return nil
-	}
-
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+		// check if last item has been deleted
+		if r.maxID() == 0 {
+			return r.resetSQLiteSequence(tx, schemaMain.name)
+		}
+		// get all records
+		bs := slice.New[Row]()
+		if err := r.All(bs); err != nil {
+			if !errors.Is(ErrRecordNotFound, err) {
+				return err
+			}
+		}
+		if bs.Empty() {
+			return nil
+		}
 		// drop the trigger to avoid errors during the table reorganization.
 		if _, err := tx.Exec("DROP TRIGGER IF EXISTS cleanup_bookmark_and_tags"); err != nil {
 			return fmt.Errorf("dropping trigger: %w", err)
