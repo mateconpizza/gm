@@ -237,7 +237,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 	}
 
 	f.Row("\n").Flush()
-	f.Header(fmt.Sprintf("import bookmarks from %q profile?", profile))
+	f.Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
 	if !t.Confirm(f.String(), "n") {
 		t.ReplaceLine(1, f.Clear().Row(skip+" profile...'"+profile+"'").String())
 		return

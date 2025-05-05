@@ -227,7 +227,7 @@ func importFromDB(m *menu.Menu[Bookmark], t *terminal.Term, destDB, srcDB *Repo)
 func insertRecordsFromSource(t *terminal.Term, r *Repo, records *Slice) error {
 	report := fmt.Sprintf("import %d records?", records.Len())
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	if !t.Confirm(f.Row("\n").Header(report).String(), "y") {
+	if !t.Confirm(f.Row("\n").Question(report).String(), "y") {
 		return sys.ErrActionAborted
 	}
 	sp := rotato.New(

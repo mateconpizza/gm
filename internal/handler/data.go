@@ -149,7 +149,7 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 			menu.WithMultiSelection(),
 		)
 		prompt := color.BrightRed("remove").Bold().String()
-		if err := Confirmation(m, t, bs, prompt, c); err != nil {
+		if err := confirmation(m, t, bs, prompt, c); err != nil {
 			return err
 		}
 	}

@@ -229,7 +229,7 @@ func allProfiles(p string) (map[string]string, error) {
 func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profile, path string) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Row().Ln().Flush()
-	f.Clear().Header(fmt.Sprintf("import bookmarks from %q profile?", profile))
+	f.Clear().Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
 	if !t.Confirm(f.String(), "n") {
 		t.ClearLine(1)
 		f.Clear().Warning("Skipping profile...'" + profile + "'").Ln().Flush()

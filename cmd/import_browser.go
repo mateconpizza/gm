@@ -155,10 +155,9 @@ func parseFoundFromBrowser(t *terminal.Term, r *Repo, bs *Slice) error {
 		}
 	}
 
-	countStr := color.BrightBlue(bs.Len())
-	msg := fmt.Sprintf("scrape missing data from %s bookmarks found?", countStr)
+	msg := fmt.Sprintf("scrape missing data from %d bookmarks found?", bs.Len())
 	f.Row().Ln().Flush().Clear()
-	if t.Confirm(f.Mid(msg).String(), "n") {
+	if t.Confirm(f.Question(msg).String(), "n") {
 		if err := scrapeMissingDescription(bs); err != nil {
 			return err
 		}

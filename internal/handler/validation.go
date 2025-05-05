@@ -20,8 +20,8 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// Confirmation prompts the user to confirm the action.
-func Confirmation(
+// confirmation prompts the user to confirm the action.
+func confirmation(
 	m *menu.Menu[Bookmark],
 	t *terminal.Term,
 	bs *Slice,
