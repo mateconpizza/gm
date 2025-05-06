@@ -201,7 +201,9 @@ func parseTitleAndDescription(url string) (title, desc string) {
 	sp.Start()
 	// scrape data
 	sc := scraper.New(url)
-	_ = sc.Scrape()
+	if err := sc.Scrape(); err != nil {
+		return title, desc
+	}
 	title = sc.Title()
 	desc = sc.Desc()
 	sp.Done()

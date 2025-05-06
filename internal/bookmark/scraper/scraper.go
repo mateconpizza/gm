@@ -95,13 +95,13 @@ func New(s string, opts ...OptFn) *Scraper {
 
 // scrapeURL fetches and parses the HTML content from a URL.
 func scrapeURL(s string, ctx context.Context) *goquery.Document {
+	s = normalizeURL(s)
 	if !isSupportedScheme(s) {
 		slog.Warn("unsupported scheme", "url", s)
 		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
 		return doc
 	}
 
-	s = normalizeURL(s)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
 		slog.Error("creating request", "url", s, "error", err.Error())
