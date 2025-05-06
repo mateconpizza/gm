@@ -56,7 +56,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 	f.Header(h + color.Gray(" (ctrl+c to exit)\n").Italic().String()).Row("\n").Flush()
 
 	b := bookmark.New()
-	if err := addParseNewBookmark(t, r, b, args); err != nil {
+	if err := parserNewBookmark(t, r, b, args); err != nil {
 		return err
 	}
 	// ask confirmation
@@ -159,17 +159,20 @@ func addHandleTags(t *terminal.Term, r *Repo, args *[]string) string {
 	return tags
 }
 
-// addParseNewBookmark fetch metadata and parses the new bookmark.
-func addParseNewBookmark(t *terminal.Term, r *Repo, b *Bookmark, args []string) error {
+// parserNewBookmark fetch metadata and parses the new bookmark.
+func parserNewBookmark(t *terminal.Term, r *Repo, b *Bookmark, args []string) error {
 	// retrieve url
-	url, err := addParseURL(t, r, &args)
+	url, err := parseNewURL(t, &args)
 	if err != nil {
 		return err
+	}
+	if b, exists := r.Has(url); exists {
+		return fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
 	}
 	// retrieve tags
 	tags := addHandleTags(t, r, &args)
 	// fetch title and description
-	title, desc := addTitleAndDesc(url)
+	title, desc := parseTitleAndDescription(url)
 	b.URL = url
 	b.Title = title
 	b.Tags = bookmark.ParseTags(tags)
@@ -178,8 +181,18 @@ func addParseNewBookmark(t *terminal.Term, r *Repo, b *Bookmark, args []string) 
 	return nil
 }
 
-// addTitleAndDesc fetch and display title and description.
-func addTitleAndDesc(url string) (title, desc string) {
+// parseTitleAndDescription fetch and display title and description.
+func parseTitleAndDescription(url string) (title, desc string) {
+	const indentation int = 10
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	width := terminal.MinWidth - len(f.Border.Row)
+
+	if titleFlag != "" {
+		t := color.Gray(format.SplitAndAlign(titleFlag, width, indentation)).String()
+		f.Mid(color.BrightCyan("Title\t: ").String()).Text(t).Ln().Flush()
+		return titleFlag, desc
+	}
+
 	sp := rotato.New(
 		rotato.WithMesg("scraping webpage..."),
 		rotato.WithMesgColor(rotato.ColorYellow),
@@ -193,13 +206,8 @@ func addTitleAndDesc(url string) (title, desc string) {
 	desc = sc.Desc()
 	sp.Done()
 
-	const indentation int = 10
-
-	f := frame.New(frame.WithColorBorder(color.Gray))
-
-	width := terminal.MinWidth - len(f.Border.Row)
-	titleColor := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
-	f.Mid(color.BrightCyan("Title\t: ").String()).Text(titleColor).Ln()
+	t := color.Gray(format.SplitAndAlign(title, width, indentation)).String()
+	f.Mid(color.BrightCyan("Title\t: ").String()).Text(t).Ln()
 	if desc != "" {
 		descColor := color.Gray(format.SplitAndAlign(desc, width, indentation)).String()
 		f.Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln()
@@ -210,19 +218,15 @@ func addTitleAndDesc(url string) (title, desc string) {
 	return title, desc
 }
 
-// addParseURL parse URL from args.
-func addParseURL(t *terminal.Term, r *Repo, args *[]string) (string, error) {
+// parseNewURL parse URL from args.
+func parseNewURL(t *terminal.Term, args *[]string) (string, error) {
 	url := addHandleURL(t, args)
 	if url == "" {
 		return url, bookmark.ErrURLEmpty
 	}
-	// WARN: do we need this trim? why?
-	url = strings.TrimRight(url, "/")
-	if b, exists := r.Has(url); exists {
-		return "", fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
-	}
 
-	return url, nil
+	// Trim trailing slash for future comparisons
+	return strings.TrimRight(url, "/"), nil
 }
 
 // addHandleClipboard checks if there a valid URL in the clipboard.

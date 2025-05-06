@@ -4,6 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var titleFlag string
+
 // newCmd represents the new command.
 var newCmd = &cobra.Command{
 	Use:   "new",
@@ -44,6 +46,7 @@ var newBookmarkCmd = &cobra.Command{
 }
 
 func init() {
+	newBookmarkCmd.Flags().StringVar(&titleFlag, "title", "", "new bookmark title")
 	newCmd.AddCommand(newDatabaseCmd, newBackupCmd, newBookmarkCmd)
 	rootCmd.AddCommand(newCmd)
 }
