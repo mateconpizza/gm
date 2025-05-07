@@ -110,8 +110,9 @@ func prettifyURLStatus(code int) (status, statusCode string) {
 func fmtSummary(n, statusCode int, c color.ColorFn) string {
 	total := fmt.Sprintf(c("%-3d").Bold().String(), n)
 	code := c(statusCode).Bold().String()
-	statusText := color.Text(http.StatusText(statusCode)).Italic().String()
-	if statusText == "" {
+	s := http.StatusText(statusCode)
+	statusText := color.Text(s).Italic().String()
+	if s == "" {
 		statusText = color.Text("non-standard code").Italic().String()
 	}
 
@@ -156,14 +157,13 @@ func printSummaryStatus(r *slice.Slice[Response], d time.Duration) {
 			}
 			bid := fmt.Sprintf(color.Gray("%-3d").Bold().String(), r.bID)
 			url := color.Gray(format.Shorten(r.URL, terminal.MinWidth)).Italic().String()
-			f.Row(fmt.Sprintf(" %s %s", bid, url))
+			f.Row(fmt.Sprintf(" %s %s", bid, url)).Ln()
 		}
 	}
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
 	total := fmt.Sprintf("Total %s checked,", color.Blue(r.Len()).Bold())
 	f.Row("\n").Footer(total + " took " + color.Blue(took).Bold().String() + "\n")
-
 	f.Flush()
 }
 
