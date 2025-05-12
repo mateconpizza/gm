@@ -22,7 +22,7 @@ type (
 
 var (
 	// SQLiteCfg holds the configuration for the database and backups.
-	Cfg *repo.SQLiteConfig
+	Cfg *repo.SQLiteCfg
 
 	// Main database name.
 	DBName string

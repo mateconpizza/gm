@@ -16,6 +16,7 @@ var (
 	ErrDBsNotFound          = errors.New("no database/s found")
 	ErrSQLQuery             = errors.New("executing query")
 	ErrDBBeginTx            = errors.New("begin transaction")
+	ErrDBCorrupted          = errors.New("database corrupted")
 )
 
 var (

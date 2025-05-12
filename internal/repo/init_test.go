@@ -16,7 +16,7 @@ import (
 // setupTestDB sets up a test database.
 func setupTestDB(t *testing.T) *SQLiteRepository {
 	t.Helper()
-	c := NewSQLiteCfg("")
+	c, _ := NewSQLiteCfg("")
 	db, err := openDatabase("file:testdb?mode=memory&cache=shared")
 	assert.NoError(t, err, "failed to open database")
 	r := newSQLiteRepository(db, c)
@@ -70,7 +70,7 @@ func testPopulatedDB(t *testing.T) *SQLiteRepository {
 }
 
 func TestInit(t *testing.T) {
-	c := NewSQLiteCfg("")
+	c, _ := NewSQLiteCfg("")
 	db, err := openDatabase("file:testdb?mode=memory&cache=shared")
 	assert.NoError(t, err, "failed to open database")
 	r := newSQLiteRepository(db, c)
@@ -140,20 +140,4 @@ func TestRenameTable(t *testing.T) {
 	destExists, err := r.tableExists(destTable)
 	assert.NoError(t, err, "failed to check if table %s exists", destTable)
 	assert.True(t, destExists, "table %s does not exist", destTable)
-}
-
-func TestSize(t *testing.T) {
-	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
-	b := testSingleBookmark()
-	err := r.InsertOne(context.Background(), b)
-	assert.NoError(t, err, "failed to insert test data")
-	dbSize, err := r.size()
-	assert.NoError(t, err, "failed to get DB size")
-	assert.GreaterOrEqual(
-		t,
-		dbSize,
-		int64(1000),
-		"expected database size to be less than 1000 bytes",
-	)
 }

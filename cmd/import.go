@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"log/slog"
 	"strings"
 
 	"github.com/haaag/rotato"
@@ -77,13 +77,27 @@ var importBackupCmd = &cobra.Command{
 			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
 			menu.WithHeader("choose a backup to import from", false),
 		)
-		selected, err := handler.Selection(mPaths, destDB.Cfg.Backup.Files, func(p *string) string {
-			return filepath.Base(*p)
+		bks, err := destDB.BackupsList()
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		selected, err := handler.Selection(mPaths, bks, func(p *string) string {
+			bk, err := repo.NewFromBackup(*p)
+			if err != nil {
+				slog.Error("select bk", "err", err.Error())
+			}
+			defer bk.Close()
+
+			return repo.BackupSummaryWithFmtDate(bk)
 		})
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		srcDB, err := repo.New(repo.NewSQLiteCfg(selected[0]))
+		cfg, err := repo.NewSQLiteCfg(selected[0])
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		srcDB, err := repo.New(cfg)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

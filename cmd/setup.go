@@ -61,7 +61,10 @@ func initConfig() {
 	config.SetDataPath(dataHomePath)
 
 	// set database path
-	Cfg = repo.NewSQLiteCfg(filepath.Join(dataHomePath, config.App.DBName))
+	Cfg, err = repo.NewSQLiteCfg(filepath.Join(dataHomePath, config.App.DBName))
+	if err != nil {
+		sys.ErrAndExit(err)
+	}
 
 	// set colorscheme path
 	config.SetColorSchemePath(filepath.Join(dataHomePath, "colorscheme"))

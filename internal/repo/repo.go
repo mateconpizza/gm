@@ -1,21 +1,33 @@
+// Package repo provides the model of the configuration for a database.
 package repo
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"sync"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/haaag/gm/internal/sys/files"
 )
 
-// FIX: rethink/redo SQLiteRepository|SQLiteConfig
+type Table string
+
+const (
+	// Common extensions for SQLite databases.
+	commonDBExts = ".sqlite3,.sqlite,.db"
+
+	// Default date format for timestamps.
+	defaultDateFormat = "20060102-150405"
+)
 
 // SQLiteRepository implements the Repository interface.
 type SQLiteRepository struct {
-	DB        *sqlx.DB      `json:"-"`
-	Cfg       *SQLiteConfig `json:"db"`
+	DB        *sqlx.DB   `json:"-"`
+	Cfg       *SQLiteCfg `json:"db"`
 	closeOnce sync.Once
 }
 
@@ -36,8 +48,13 @@ func (r *SQLiteRepository) Close() {
 	})
 }
 
+// BackupsList returns a list of available backup files.
+func (r *SQLiteRepository) BackupsList() ([]string, error) {
+	return listDatabaseBackups(r.Cfg.BackupDir, r.Cfg.Name)
+}
+
 // newSQLiteRepository returns a new SQLiteRepository.
-func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteConfig) *SQLiteRepository {
+func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteCfg) *SQLiteRepository {
 	return &SQLiteRepository{
 		DB:  db,
 		Cfg: cfg,
@@ -46,19 +63,47 @@ func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteConfig) *SQLiteRepository {
 
 // New creates a new `SQLiteRepository` using the provided configuration and
 // opens the database, returning the repository or an error.
-func New(c *SQLiteConfig) (*SQLiteRepository, error) {
+func New(c *SQLiteCfg) (*SQLiteRepository, error) {
 	db, err := openDatabase(c.Fullpath())
 	if err != nil {
-		slog.Error("NewRepo", "error", err)
+		slog.Error("NewRepo", "error", err, "path", c.Fullpath())
 		return nil, err
 	}
 
-	r := newSQLiteRepository(db, c)
-	if err := r.maintenance(); err != nil {
-		return nil, err
+	return newSQLiteRepository(db, c), nil
+}
+
+// NewFromBackup creates a SQLiteRepository from a backup file.
+func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
+	if backupPath == "" {
+		return nil, files.ErrPathNotFound
+	}
+	backupFile := filepath.Base(backupPath)
+	parentDir := filepath.Dir(backupPath)
+
+	// check if we're already in a backup directory
+	if filepath.Base(parentDir) == "backup" {
+		parentDir = filepath.Dir(filepath.Dir(backupPath))
+	} else {
+		parentDir = filepath.Dir(backupPath)
+	}
+	backupDir := filepath.Join(parentDir, "backup")
+	cfg := &SQLiteCfg{
+		Path:      backupDir,
+		Name:      backupFile,
+		BackupDir: backupDir,
 	}
 
-	return r, nil
+	slog.Debug("reading backup", "name", backupFile)
+	db, err := openDatabase(backupPath)
+	if err != nil {
+		return nil, fmt.Errorf("opening backup database: %w", err)
+	}
+
+	return &SQLiteRepository{
+		DB:  db,
+		Cfg: cfg,
+	}, nil
 }
 
 // openDatabase opens a SQLite database at the specified path and verifies
@@ -74,4 +119,45 @@ func openDatabase(s string) (*sqlx.DB, error) {
 	}
 
 	return db, nil
+}
+
+// SQLiteCfg represents the configuration for a SQLite database.
+type SQLiteCfg struct {
+	Name        string   `json:"name"`         // Name of the SQLite database
+	Path        string   `json:"path"`         // Path to the SQLite database
+	BackupDir   string   `json:"backup_path"`  // Backup path
+	BackupFiles []string `json:"backup_files"` // Backup files
+	DateFormat  string   `json:"date_format"`  // Date format
+}
+
+// Fullpath returns the full path to the SQLite database.
+func (c *SQLiteCfg) Fullpath() string {
+	return filepath.Join(c.Path, c.Name)
+}
+
+// SetName sets the name of the SQLite database.
+func (c *SQLiteCfg) SetName(s string) *SQLiteCfg {
+	c.Name = files.EnsureExt(s, ".db")
+	return c
+}
+
+// Exists returns true if the SQLite database exists.
+func (c *SQLiteCfg) Exists() bool {
+	return files.Exists(c.Fullpath())
+}
+
+// NewSQLiteCfg returns the default settings for the database.
+func NewSQLiteCfg(p string) (*SQLiteCfg, error) {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return nil, fmt.Errorf("cannot resolve %q: %w", p, err)
+	}
+	baseDir := filepath.Dir(abs)
+
+	return &SQLiteCfg{
+		Path:       baseDir,
+		Name:       files.EnsureExt(filepath.Base(abs), ".db"),
+		BackupDir:  filepath.Join(baseDir, "backup"),
+		DateFormat: defaultDateFormat,
+	}, nil
 }

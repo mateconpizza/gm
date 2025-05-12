@@ -100,7 +100,7 @@ func BackupsSummary(r *SQLiteRepository) string {
 		s := format.RelativeTime(strings.Split(lastItem.Name(), "_")[0])
 		lastBackupDate = color.BrightGreen(s).Italic().String()
 	}
-	path := format.PaddedLine("path:", r.Cfg.Backup.Path)
+	path := format.PaddedLine("path:", r.Cfg.BackupDir)
 	last := format.PaddedLine("last:", lastBackup)
 	lastDate := format.PaddedLine("date:", lastBackupDate)
 

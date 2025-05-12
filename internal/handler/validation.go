@@ -133,7 +133,7 @@ func URLValid(s string) bool {
 }
 
 // ValidateDB verifies if the database exists.
-func ValidateDB(cmd *cobra.Command, c *repo.SQLiteConfig) error {
+func ValidateDB(cmd *cobra.Command, c *repo.SQLiteCfg) error {
 	if c.Exists() {
 		return nil
 	}

@@ -12,15 +12,15 @@ import (
 	"github.com/haaag/gm/internal/sys/files"
 )
 
-const commonDBExts = ".sqlite3,.sqlite,.db"
-
 // CountMainRecords returns the number of records in the main table.
 func CountMainRecords(r *SQLiteRepository) int {
+	slog.Debug("count main records", "database", r.Name())
 	return countRecords(r, schemaMain.name)
 }
 
 // CountTagsRecords returns the number of records in the tags table.
 func CountTagsRecords(r *SQLiteRepository) int {
+	slog.Debug("count tags records", "database", r.Name())
 	return countRecords(r, schemaTags.name)
 }
 
@@ -51,25 +51,6 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 	return slice.New(f...), nil
 }
 
-// Find finds a database by name in the given path.
-// func Find(name, path string) (*SQLiteRepository, error) {
-// 	dbs, err := Databases(path)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	dbs.FilterInPlace(func(db *SQLiteRepository) bool {
-// 		return db.Cfg.Name == files.EnsureExt(name, ".db")
-// 	})
-// 	if dbs.Len() == 0 {
-// 		return nil, fmt.Errorf("%q %w", name, ErrDBNotFound)
-// 	}
-//
-// 	found := dbs.Item(0)
-//
-// 	return &found, nil
-// }
-
 // Databases returns the list of databases.
 func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	paths, err := databasesFromPath(path)
@@ -85,10 +66,19 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	}
 
 	dbs := slice.New[SQLiteRepository]()
-	paths.ForEach(func(p string) {
-		rep, _ := New(NewSQLiteCfg(p))
+	err = paths.ForEachErr(func(p string) error {
+		cfg, err := NewSQLiteCfg(p)
+		if err != nil {
+			return err
+		}
+		rep, _ := New(cfg)
 		dbs.Push(rep)
+
+		return nil
 	})
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
 	if dbs.Len() == 0 {
 		return nil, fmt.Errorf("%w: %s", ErrDBNotFound, path)
 	}
@@ -98,66 +88,83 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 
 // NewBackup creates a new backup from the given repository.
 func NewBackup(r *SQLiteRepository) (string, error) {
-	bk := r.Cfg.Backup
-	if err := files.MkdirAll(bk.Path); err != nil {
+	if err := files.MkdirAll(r.Cfg.BackupDir); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-	destDSN := AddPrefixDate(r.Name(), bk.DateFormat)
-	_ = r.DB.MustExec("VACUUM INTO ?", filepath.Join(bk.Path, destDSN))
+	// destDSN -> 20060102-150405_dbName.db
+	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(r.Cfg.DateFormat), r.Name())
+	destPath := filepath.Join(r.Cfg.BackupDir, destDSN)
+	slog.Info("creating SQLite backup",
+		"src", r.Cfg.Fullpath(),
+		"dest", destPath,
+	)
+	_ = r.DB.MustExec("VACUUM INTO ?", destPath)
+	if err := verifySQLiteIntegrity(destPath); err != nil {
+		return "", err
+	}
 
 	return destDSN, nil
 }
 
-// getBackups returns a filtered list of backups in a given path.
-func getBackups(path string) []string {
-	paths, err := databasesFromPath(path)
+// listDatabaseBackups returns a filtered list of database backups.
+func listDatabaseBackups(dir, dbName string) ([]string, error) {
+	// Remove .db extension for matching
+	baseName := strings.TrimSuffix(dbName, ".db")
+	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db"))
 	if err != nil {
-		return []string{}
+		return nil, fmt.Errorf("listing backups: %w", err)
 	}
-	name := filepath.Base(path)
-	paths.FilterInPlace(func(s *string) bool {
-		return strings.Contains(*s, name)
-	})
+	if len(entries) == 0 {
+		return entries, fmt.Errorf("%w for %q", ErrBackupNotFound, dbName)
+	}
 
-	return *paths.Items()
+	return entries, nil
 }
 
 // Backups returns a filtered list of backup paths and an error if any.
 func Backups(r *SQLiteRepository) (*slice.Slice[SQLiteRepository], error) {
-	s := filepath.Base(r.Cfg.Fullpath())
 	backups := slice.New[SQLiteRepository]()
-	paths, err := databasesFromPath(r.Cfg.Backup.Path)
+	bkPaths, err := r.BackupsList()
 	if err != nil {
-		if errors.Is(err, files.ErrPathNotFound) {
-			return nil, ErrBackupNotFound
-		}
-
 		return backups, err
 	}
-	// filter by current repo name
-	paths.FilterInPlace(func(b *string) bool {
-		return strings.Contains(*b, s)
-	})
-	if paths.Len() == 0 {
-		return nil, fmt.Errorf("%w: %q", ErrBackupNotFound, s)
-	}
-	if err = paths.ForEachErr(func(s string) error {
-		r, err := New(NewSQLiteCfg(s))
+	for _, p := range bkPaths {
+		backup, err := NewFromBackup(p)
 		if err != nil {
-			return err
+			return backups, err
 		}
-		backups.Push(r)
 
-		return nil
-	}); err != nil {
-		return nil, fmt.Errorf("%w", err)
+		backups.Push(backup)
 	}
 
 	return backups, nil
 }
 
-// AddPrefixDate adds the current date and time to the specified name.
-func AddPrefixDate(s, f string) string {
-	now := time.Now().Format(f)
-	return fmt.Sprintf("%s_%s", now, s)
+// verifySQLiteIntegrity checks the integrity of the SQLite database.
+func verifySQLiteIntegrity(path string) error {
+	slog.Debug("verifying SQLite integrity", "path", path)
+
+	db, err := openDatabase(path)
+	if err != nil {
+		return fmt.Errorf("no se pudo abrir backup: %w", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			slog.Error("error closing db", "error", err)
+		}
+	}()
+
+	var result string
+	row := db.QueryRow("PRAGMA integrity_check;")
+	if err := row.Scan(&result); err != nil {
+		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
+	}
+
+	if result != "ok" {
+		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
+	}
+
+	slog.Debug("SQLite integrity verified", "result", result)
+
+	return nil
 }

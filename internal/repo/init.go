@@ -111,15 +111,6 @@ func (r *SQLiteRepository) tableDrop(tx *sqlx.Tx, t Table) error {
 	return nil
 }
 
-// maintenance performs maintenance tasks on the SQLite repository.
-func (r *SQLiteRepository) maintenance() error {
-	if err := r.checkSize(r.Cfg.MaxBytesSize); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
-
 // resetSQLiteSequence resets the SQLite sequence for the given table.
 func (r *SQLiteRepository) resetSQLiteSequence(tx *sqlx.Tx, tables ...Table) error {
 	if len(tables) == 0 {
@@ -137,40 +128,13 @@ func (r *SQLiteRepository) resetSQLiteSequence(tx *sqlx.Tx, tables ...Table) err
 	return nil
 }
 
-// vacuum rebuilds the database file, repacking it into a minimal amount of
+// Vacuum rebuilds the database file, repacking it into a minimal amount of
 // disk space.
-func (r *SQLiteRepository) vacuum() error {
+func (r *SQLiteRepository) Vacuum() error {
 	slog.Debug("vacuuming database")
 	_, err := r.DB.Exec("VACUUM")
 	if err != nil {
 		return fmt.Errorf("vacuum: %w", err)
-	}
-
-	return nil
-}
-
-// size returns the size of the database.
-func (r *SQLiteRepository) size() (int64, error) {
-	var size int64
-	err := r.DB.QueryRow("SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()").
-		Scan(&size)
-	if err != nil {
-		return 0, fmt.Errorf("size: %w", err)
-	}
-
-	slog.Debug("database size", "bytes", size)
-
-	return size, nil
-}
-
-// checkSize checks the size of the database.
-func (r *SQLiteRepository) checkSize(n int64) error {
-	size, err := r.size()
-	if err != nil {
-		return fmt.Errorf("size: %w", err)
-	}
-	if size > n {
-		return r.vacuum()
 	}
 
 	return nil
@@ -194,5 +158,5 @@ func (r *SQLiteRepository) DropSecure(ctx context.Context) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	return r.vacuum()
+	return r.Vacuum()
 }

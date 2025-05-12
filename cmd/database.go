@@ -134,6 +134,7 @@ var databaseInfoCmd = &cobra.Command{
 			return fmt.Errorf("database: %w", err)
 		}
 		defer r.Close()
+		r.Cfg.BackupFiles, _ = r.BackupsList()
 		if JSON {
 			fmt.Println(string(format.ToJSON(r)))
 

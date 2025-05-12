@@ -174,6 +174,10 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	if err := r.ReorderIDs(ctx); err != nil {
 		return fmt.Errorf("reordering IDs: %w", err)
 	}
+	// recover space after deletion.
+	if err := r.Vacuum(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
 
 	sp.Done()
 
