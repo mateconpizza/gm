@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/encryptor"
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
@@ -72,9 +75,17 @@ var rootCmd = &cobra.Command{
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		// ignore if one of this subcommands was called.
-		subcmds := []string{"init", "new", "version"}
+		subcmds := []string{"init", "new", "version", "lock", "unlock"}
 		if isSubCmdCalled(cmd, subcmds...) {
 			return nil
+		}
+		p := filepath.Join(config.App.Path.Data, config.App.DBName)
+		if err := encryptor.IsEncrypted(p); err != nil {
+			if errors.Is(err, encryptor.ErrFileEncrypted) {
+				return repo.ErrDBDecryptFirst
+			}
+
+			return fmt.Errorf("%w", err)
 		}
 
 		return handler.ValidateDB(cmd, Cfg)

@@ -43,7 +43,7 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 		return nil, files.ErrPathNotFound
 	}
 
-	f, err := files.FindByExtList(p, strings.Split(commonDBExts, ",")...)
+	f, err := files.FindByExtList(p, ".db")
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -56,15 +56,11 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	paths, err := databasesFromPath(path)
 	if err != nil {
 		if errors.Is(err, files.ErrPathNotFound) {
-			return nil, ErrBackupNotFound
+			return nil, ErrDBNotFound
 		}
 
 		return nil, fmt.Errorf("%q %w", path, err)
 	}
-	if paths.Len() == 0 {
-		return nil, ErrBackupNotFound
-	}
-
 	dbs := slice.New[SQLiteRepository]()
 	err = paths.ForEachErr(func(p string) error {
 		cfg, err := NewSQLiteCfg(p)
@@ -79,11 +75,18 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
-	if dbs.Len() == 0 {
-		return nil, fmt.Errorf("%w: %s", ErrDBNotFound, path)
-	}
 
 	return dbs, nil
+}
+
+// DatabasesEncrypted returns all encrypted database files.
+func DatabasesEncrypted(root string) ([]string, error) {
+	fs, err := files.FindByExtList(root, "enc")
+	if err != nil {
+		return fs, fmt.Errorf("%w", err)
+	}
+
+	return fs, nil
 }
 
 // NewBackup creates a new backup from the given repository.

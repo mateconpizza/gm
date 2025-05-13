@@ -12,6 +12,7 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/encryptor"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/menu"
@@ -160,4 +161,26 @@ func ValidateDB(cmd *cobra.Command, c *repo.SQLiteCfg) error {
 	}
 
 	return init
+}
+
+// passwordConfirm prompts user for password input.
+func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
+	f.Question("Password: ").Flush()
+	s, err := t.InputPassword()
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	f.Ln().Question("Confirm Password: ").Flush()
+	s2, err := t.InputPassword()
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	fmt.Println()
+	if s != s2 {
+		return "", encryptor.ErrPassphraseMismatch
+	}
+
+	return s, nil
 }

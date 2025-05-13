@@ -92,6 +92,33 @@ func (t *Term) Input(p string) string {
 	return s
 }
 
+func (t *Term) InputPassword() (string, error) {
+	if err := saveState(); err != nil {
+		return "", err
+	}
+	fd := syscall.Stdin
+
+	t.SetInterruptFn(func(err error) {
+		if err := restoreState(); err != nil {
+			slog.Error("restoring state", "error", err)
+		}
+		sys.ErrAndExit(err)
+	})
+
+	defer func() {
+		if err := restoreState(); err != nil {
+			slog.Error("restoring state", "error", err)
+		}
+	}()
+
+	p, err := term.ReadPassword(fd)
+	if err != nil {
+		return "", fmt.Errorf("reading password: %w", err)
+	}
+
+	return string(p), nil
+}
+
 // Prompt get the input data from the user and return it.
 func (t *Term) Prompt(p string) string {
 	r := bufio.NewReader(t.reader)

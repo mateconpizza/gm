@@ -47,7 +47,7 @@ var (
 
 func initConfig() {
 	config.SetVerbosity(VerboseFlag)
-	config.SetDBName(DBName)
+	config.SetDBName(files.EnsureExt(DBName, ".db"))
 	config.EnableColor(WithColor == "always" && !terminal.IsPiped() && !terminal.NoColorEnv())
 	config.SetForce(Force)
 

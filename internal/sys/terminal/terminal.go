@@ -46,9 +46,13 @@ func NoColorEnv() bool {
 	return false
 }
 
-// Save the current terminal state.
+// saveState the current terminal state.
 func saveState() error {
 	slog.Debug("saving terminal state")
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		slog.Debug("not a terminal, skipping saveState")
+		return nil
+	}
 	oldState, err := term.GetState(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("saving state: %w", err)
@@ -58,15 +62,17 @@ func saveState() error {
 	return nil
 }
 
-// Restore the previously saved terminal state.
+// restoreState the previously saved terminal state.
 func restoreState() error {
 	slog.Debug("restoring terminal state")
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		slog.Debug("not a terminal, skipping restoreState")
+		return nil
+	}
 	if termState == nil {
 		return ErrNoStateToRestore
 	}
-
-	err := term.Restore(int(os.Stdin.Fd()), termState)
-	if err != nil {
+	if err := term.Restore(int(os.Stdin.Fd()), termState); err != nil {
 		return fmt.Errorf("restoring state: %w", err)
 	}
 

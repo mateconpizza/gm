@@ -17,7 +17,7 @@ var (
 
 const (
 	dirPerm  = 0o755 // Permissions for new directories.
-	filePerm = 0o644 // Permissions for new files.
+	FilePerm = 0o644 // Permissions for new files.
 )
 
 // Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
@@ -186,7 +186,7 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 
 // saveBytestToFile Writes the provided data to a temporary file.
 func saveBytestToFile(f *os.File, d []byte) error {
-	err := os.WriteFile(f.Name(), d, filePerm)
+	err := os.WriteFile(f.Name(), d, FilePerm)
 	if err != nil {
 		return fmt.Errorf("error writing to temp file: %w", err)
 	}

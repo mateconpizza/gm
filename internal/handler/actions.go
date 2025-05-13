@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -12,11 +14,13 @@ import (
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/qr"
 	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/encryptor"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -164,6 +168,68 @@ func CheckStatus(bs *Slice) error {
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	return nil
+}
+
+// LockDB locks the database.
+func LockDB(t *terminal.Term, rToLock string) error {
+	slog.Debug("encrypting database", "name", config.App.DBName)
+	if !files.Exists(rToLock) {
+		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
+	}
+	fileOg := rToLock
+	if !strings.HasSuffix(rToLock, ".enc") {
+		rToLock += ".enc"
+	}
+	if err := encryptor.IsEncrypted(rToLock); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	if !terminal.Confirm(f.Question(fmt.Sprintf("Lock %q?", fileOg)).String(), "y") {
+		return sys.ErrActionAborted
+	}
+	pass, err := passwordConfirm(t, f.Clear())
+	if err != nil {
+		return err
+	}
+	if err := encryptor.Lock(fileOg, pass); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	success := color.BrightGreen("Successfully").Italic().String()
+	fmt.Println(success + " database locked")
+
+	return nil
+}
+
+// UnlockDB unlocks the database.
+func UnlockDB(t *terminal.Term, rToUnlock string) error {
+	if !strings.HasSuffix(rToUnlock, ".enc") {
+		rToUnlock += ".enc"
+	}
+	slog.Debug("unlocking database", "name", rToUnlock)
+	if !files.Exists(rToUnlock) {
+		s := filepath.Base(strings.TrimSuffix(rToUnlock, ".enc"))
+		return fmt.Errorf("%w: %q", files.ErrFileNotFound, s)
+	}
+
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	q := fmt.Sprintf("Unlock %q?", rToUnlock)
+	if !terminal.Confirm(f.Question(q).String(), "y") {
+		return sys.ErrActionAborted
+	}
+
+	f.Clear().Question("Password: ").Flush()
+	s, err := t.InputPassword()
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	if err := encryptor.Unlock(rToUnlock, s); err != nil {
+		fmt.Println()
+		return fmt.Errorf("%w", err)
+	}
+	success := color.BrightGreen("\nSuccessfully").Italic().String()
+	fmt.Println(success + " database unlocked")
 
 	return nil
 }

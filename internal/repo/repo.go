@@ -17,9 +17,6 @@ import (
 type Table string
 
 const (
-	// Common extensions for SQLite databases.
-	commonDBExts = ".sqlite3,.sqlite,.db"
-
 	// Default date format for timestamps.
 	defaultDateFormat = "20060102-150405"
 )

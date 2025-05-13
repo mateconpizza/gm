@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -117,6 +118,18 @@ var databaseListCmd = &cobra.Command{
 			f.Text(repo.RepoSummary(r))
 		})
 
+		s, err := repo.DatabasesEncrypted(config.App.Path.Data)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if len(s) > 0 {
+			nColor := color.BrightCyan(len(s)).Bold().String()
+			f.Row("\n").Header(nColor + " encrypted database/s found\n").Flush()
+			for _, file := range s {
+				f.Row(color.BrightMagenta(filepath.Base(file)).String()).Ln()
+			}
+		}
+
 		f.Flush()
 
 		return nil
@@ -157,6 +170,32 @@ var databaseRmCmd = &cobra.Command{
 	},
 }
 
+var databaseLockCmd = &cobra.Command{
+	Use:   "lock",
+	Short: "Lock a database",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			sys.ErrAndExit(err)
+		}))
+		r := filepath.Join(config.App.Path.Data, config.App.DBName)
+
+		return handler.LockDB(t, r)
+	},
+}
+
+var databaseUnlockCmd = &cobra.Command{
+	Use:   "unlock",
+	Short: "Unlock a database",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		t := terminal.New(terminal.WithInterruptFn(func(err error) {
+			sys.ErrAndExit(err)
+		}))
+		r := filepath.Join(config.App.Path.Data, config.App.DBName)
+
+		return handler.UnlockDB(t, r)
+	},
+}
+
 // dbCmd database management.
 var dbCmd = &cobra.Command{
 	Use:     "database",
@@ -181,6 +220,8 @@ func init() {
 		databaseNewCmd,
 		databaseListCmd,
 		databaseRmCmd,
+		databaseLockCmd,
+		databaseUnlockCmd,
 	)
 	rootCmd.AddCommand(dbCmd)
 }
