@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
@@ -21,6 +23,15 @@ var backupCmd = &cobra.Command{
 	Short:   "Backup management",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Usage()
+	},
+}
+
+// backupRmCmd remove backups.
+var backupRmCmd = &cobra.Command{
+	Use:   "rm",
+	Short: "Remove a backup/s",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return bkRemoveCmd.RunE(cmd, args)
 	},
 }
 
@@ -45,7 +56,7 @@ var backupListCmd = &cobra.Command{
 var backupNewCmd = &cobra.Command{
 	Use:     "new",
 	Short:   "Create a new backup",
-	Aliases: []string{"create", "new", "add"},
+	Aliases: []string{"create", "add"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
@@ -68,8 +79,10 @@ var backupNewCmd = &cobra.Command{
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		f.Row("\n").Flush().Clear()
 		c := color.BrightGreen("backup").String()
-		if !t.Confirm(f.Question("create "+c).String(), "n") {
-			return sys.ErrActionAborted
+		if !config.App.Force {
+			if !t.Confirm(f.Question("create "+c).String(), "y") {
+				return sys.ErrActionAborted
+			}
 		}
 		newBkPath, err := repo.NewBackup(r)
 		if err != nil {
@@ -78,18 +91,9 @@ var backupNewCmd = &cobra.Command{
 
 		success := color.BrightGreen("Successfully").Italic().String()
 		s := color.Text(newBkPath).Italic().String()
-		t.ReplaceLine(1, f.Clear().Success(success+" backup created: "+s).String())
+		f.Clear().Success(success + " backup created: " + s + "\n").Flush()
 
-		return nil
-	},
-}
-
-// backupRmCmd remove backups.
-var backupRmCmd = &cobra.Command{
-	Use:   "rm",
-	Short: "Remove a backup/s",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return bkRemoveCmd.RunE(cmd, args)
+		return handler.LockDB(t, filepath.Join(r.Cfg.BackupDir, newBkPath))
 	},
 }
 

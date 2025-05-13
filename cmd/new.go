@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/haaag/gm/internal/handler"
 )
 
 var titleFlag string
@@ -10,6 +12,9 @@ var titleFlag string
 var newCmd = &cobra.Command{
 	Use:   "new",
 	Short: "New bookmark, database, backup",
+	PreRunE: func(cmd *cobra.Command, _ []string) error {
+		return handler.CheckDBNotEncrypted()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newRecordCmd.RunE(cmd, args)
 	},

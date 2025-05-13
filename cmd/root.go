@@ -1,15 +1,12 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/encryptor"
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
@@ -79,16 +76,11 @@ var rootCmd = &cobra.Command{
 		if isSubCmdCalled(cmd, subcmds...) {
 			return nil
 		}
-		p := filepath.Join(config.App.Path.Data, config.App.DBName)
-		if err := encryptor.IsEncrypted(p); err != nil {
-			if errors.Is(err, encryptor.ErrFileEncrypted) {
-				return repo.ErrDBDecryptFirst
-			}
-
+		if err := handler.CheckDBNotEncrypted(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		return handler.ValidateDB(cmd, Cfg)
+		return handler.ValidateDBExistence(cmd, Cfg)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return recordsCmd.RunE(cmd, args)

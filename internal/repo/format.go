@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
@@ -16,8 +17,12 @@ func RepoSummary(r *SQLiteRepository) string {
 	path := format.PaddedLine("path:", r.Cfg.Fullpath())
 	records := format.PaddedLine("records:", CountMainRecords(r))
 	tags := format.PaddedLine("tags:", CountTagsRecords(r))
+	name := r.Cfg.Name
+	if name == config.DefaultDBName {
+		name += color.BrightGray(" (default) ").Italic().String()
+	}
 
-	return f.Header(color.Yellow(r.Name()).Italic().String()).
+	return f.Header(color.Yellow(name).Italic().String()).
 		Ln().Row(records).
 		Ln().Row(tags).
 		Ln().Row(path).

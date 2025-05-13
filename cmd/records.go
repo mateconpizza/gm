@@ -17,6 +17,9 @@ var recordsCmd = &cobra.Command{
 	Use:     "records",
 	Aliases: []string{"r", "items"},
 	Short:   "Records management",
+	PreRunE: func(cmd *cobra.Command, _ []string) error {
+		return handler.CheckDBNotEncrypted()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {

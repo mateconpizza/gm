@@ -133,8 +133,8 @@ func URLValid(s string) bool {
 	return parsedURL.Scheme != "" && parsedURL.Host != ""
 }
 
-// ValidateDB verifies if the database exists.
-func ValidateDB(cmd *cobra.Command, c *repo.SQLiteCfg) error {
+// ValidateDBExistence verifies if the database exists.
+func ValidateDBExistence(cmd *cobra.Command, c *repo.SQLiteCfg) error {
 	if c.Exists() {
 		return nil
 	}
@@ -183,4 +183,19 @@ func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
 	}
 
 	return s, nil
+}
+
+// CheckDBNotEncrypted checks if the database is encrypted.
+func CheckDBNotEncrypted() error {
+	p := filepath.Join(config.App.Path.Data, config.App.DBName)
+	err := encryptor.IsEncrypted(p)
+	if err != nil {
+		if errors.Is(err, encryptor.ErrFileEncrypted) {
+			return repo.ErrDBDecryptFirst
+		}
+
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }

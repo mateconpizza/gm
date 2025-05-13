@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -34,7 +35,7 @@ var databaseNewCmd = &cobra.Command{
 		if name == "" {
 			return ErrDBNameRequired
 		}
-		if err := handler.ValidateDB(cmd, Cfg); err != nil {
+		if err := handler.ValidateDBExistence(cmd, Cfg); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		Cfg.SetName(name)
@@ -97,19 +98,25 @@ var databaseListCmd = &cobra.Command{
 			return fmt.Errorf("database: %w", err)
 		}
 		defer r.Close()
+		// unlocked databases
 		dbs, err := repo.Databases(r.Cfg.Path)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-
 		n := dbs.Len()
 		if n == 0 {
 			return fmt.Errorf("%w", repo.ErrDBsNotFound)
 		}
+		// locked databases
+		s, err := repo.DatabasesEncrypted(config.App.Path.Data)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
 
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		// add header
-		if n > 1 {
+		if n > 1 || len(s) > 1 {
+			n += len(s)
 			nColor := color.BrightCyan(n).Bold().String()
 			f.Header(nColor + " database/s found\n").Row("\n")
 		}
@@ -118,15 +125,12 @@ var databaseListCmd = &cobra.Command{
 			f.Text(repo.RepoSummary(r))
 		})
 
-		s, err := repo.DatabasesEncrypted(config.App.Path.Data)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
 		if len(s) > 0 {
-			nColor := color.BrightCyan(len(s)).Bold().String()
-			f.Row("\n").Header(nColor + " encrypted database/s found\n").Flush()
 			for _, file := range s {
-				f.Row(color.BrightMagenta(filepath.Base(file)).String()).Ln()
+				file = strings.TrimSuffix(file, ".enc")
+				s := color.BrightMagenta(filepath.Base(file)).Italic().String()
+				e := color.BrightGray("(encrypted) ").Italic().String()
+				f.Mid(format.PaddedLine(s, e)).Ln()
 			}
 		}
 

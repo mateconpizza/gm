@@ -27,6 +27,9 @@ var newRecordCmd = &cobra.Command{
 	Use:     "new",
 	Short:   "Add a new bookmark",
 	Aliases: []string{"add"},
+	PreRunE: func(cmd *cobra.Command, _ []string) error {
+		return handler.CheckDBNotEncrypted()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(Cfg)
 		if err != nil {
