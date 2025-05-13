@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
 - [x] Migrate items from one database to another
-- [ ] Encrypt database <sub>_priority_</sub>
+- [x] Encrypt database <sub>_priority_</sub>
 - [ ] Add `docker|podman` support <sub>_priority_</sub>
 - [ ] ...
 
