@@ -50,6 +50,12 @@ func (r *SQLiteRepository) BackupsList() ([]string, error) {
 	return listDatabaseBackups(r.Cfg.BackupDir, r.Cfg.Name)
 }
 
+// Backup creates a backup of the SQLite database and returns the path to the
+// backup filepath.
+func (r *SQLiteRepository) Backup() (string, error) {
+	return newBackup(r)
+}
+
 // newSQLiteRepository returns a new SQLiteRepository.
 func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteCfg) *SQLiteRepository {
 	return &SQLiteRepository{

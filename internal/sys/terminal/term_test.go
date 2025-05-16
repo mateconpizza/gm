@@ -16,22 +16,6 @@ func TestHelper(t *testing.T) {
 	NoColorEnv()
 }
 
-func TestTermInput(t *testing.T) {
-	t.Parallel()
-	TestHelper(t)
-	t.Skip("Skipping test for now")
-	input := "yes\n"
-	mockInput := strings.NewReader(input)
-	var capturedErr error
-	exitFn := func(err error) {
-		capturedErr = err
-	}
-	term := New(WithReader(mockInput), WithInterruptFn(exitFn))
-	result := term.Input("enter your favorite language: ")
-	assert.NoError(t, capturedErr, "expected no error during input")
-	assert.Equal(t, "golang", result, "expected user input to be 'golang'")
-}
-
 func TestTermPrompt(t *testing.T) {
 	t.Parallel()
 	question := "Enter your favorite language: "
@@ -53,27 +37,58 @@ func TestTerm_Choose(t *testing.T) {
 		capturedErr = err
 	}
 	term := New(WithReader(mockInput), WithInterruptFn(exitFn))
-	result := term.Choose(question, []string{"golang", "python", "javascript"}, "python")
+	result, err := term.Choose(question, []string{"golang", "python", "javascript"}, "python")
+	assert.NoError(t, err, "expected no error during input")
 	assert.NoError(t, capturedErr, "expected no error during input")
 	assert.Equal(t, "golang", result, "expected user input to be 'golang'")
 }
 
 func TestTermConfirm(t *testing.T) {
-	t.Parallel()
-	question := "Are you sure? "
-	yesInput := "y\n"
-	term := New()
-	mockInput := strings.NewReader(yesInput)
-	term.SetReader(mockInput)
-	assert.True(t, term.Confirm(question, "y"), "user confirms true")
-	assert.False(t, term.Confirm(question, "n"), "user cancel")
+	t.Run("confirm valid", func(t *testing.T) {
+		t.Parallel()
+		question := "Are you sure? "
+		term := New(WithReader(strings.NewReader("y\n")))
+		assert.True(t, term.Confirm(question, "y"), "user confirms true")
+		assert.False(t, term.Confirm(question, "n"), "user cancel")
+	})
+	t.Run("confirm with ENTER (default)", func(t *testing.T) {
+		t.Parallel()
+		question := "Continue? "
+		term := New(WithReader(strings.NewReader("\n")))
+		assert.True(t, term.Confirm(question, "y"), "user confirms true (default)")
+		assert.False(t, term.Confirm(question, "n"), "user confirms false (default)")
+	})
+	t.Run("confirm with invalid input", func(t *testing.T) {
+		t.Parallel()
+		term := New(WithReader(strings.NewReader("invalid\n")))
+		question := "Continue? "
+		assert.False(t, term.Confirm(question, "y"), "user cancel")
+	})
+}
 
-	// confirm with ENTER (default)
-	enterInput := "\n"
-	mockInput = strings.NewReader(enterInput)
-	term.SetReader(mockInput)
-	assert.True(t, term.Confirm(question, "y"), "user confirms true (default)")
-	assert.False(t, term.Confirm(question, "n"), "user confirms false (default)")
+func TestTestConfirmErr(t *testing.T) {
+	t.Run("user cancels", func(t *testing.T) {
+		t.Parallel()
+		term := New(WithReader(strings.NewReader("n\n")))
+		err := term.ConfirmErr("continue?", "y")
+		assert.Error(t, err, "user cancel")
+		assert.ErrorIs(t, err, ErrActionAborted)
+	})
+	t.Run("exceed attempts", func(t *testing.T) {
+		t.Parallel()
+		input := "bad\nalso\nwrong\n"
+		term := New(WithReader(strings.NewReader(input)))
+		err := term.ConfirmErr("continue?", "y")
+		assert.Error(t, err, "exceed attempts")
+		assert.ErrorIs(t, err, ErrIncorrectAttempts)
+	})
+	t.Run("valid input", func(t *testing.T) {
+		t.Parallel()
+		input := "y\n"
+		term := New(WithReader(strings.NewReader(input)))
+		err := term.ConfirmErr("continue?", "y")
+		assert.NoError(t, err)
+	})
 }
 
 func TestTermIsPiped(t *testing.T) {

@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -18,7 +20,9 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
@@ -175,25 +179,21 @@ func CheckStatus(bs *Slice) error {
 // LockDB locks the database.
 func LockDB(t *terminal.Term, rToLock string) error {
 	slog.Debug("encrypting database", "name", config.App.DBName)
-	if !files.Exists(rToLock) {
-		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
-	}
-	fileOg := rToLock
-	if !strings.HasSuffix(rToLock, ".enc") {
-		rToLock += ".enc"
-	}
 	if err := encryptor.IsEncrypted(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	if !files.Exists(rToLock) {
+		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
+	}
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	if !terminal.Confirm(f.Question(fmt.Sprintf("Lock %q?", fileOg)).String(), "y") {
-		return sys.ErrActionAborted
+	if err := t.ConfirmErr(f.Question(fmt.Sprintf("Lock %q?", rToLock)).String(), "y"); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 	pass, err := passwordConfirm(t, f.Clear())
 	if err != nil {
 		return err
 	}
-	if err := encryptor.Lock(fileOg, pass); err != nil {
+	if err := encryptor.Lock(rToLock, pass); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
@@ -204,6 +204,9 @@ func LockDB(t *terminal.Term, rToLock string) error {
 
 // UnlockDB unlocks the database.
 func UnlockDB(t *terminal.Term, rToUnlock string) error {
+	if files.Exists(rToUnlock) {
+		return fmt.Errorf("%w: %q", encryptor.ErrFileNotEncrypted, filepath.Base(rToUnlock))
+	}
 	if !strings.HasSuffix(rToUnlock, ".enc") {
 		rToUnlock += ".enc"
 	}
@@ -214,12 +217,7 @@ func UnlockDB(t *terminal.Term, rToUnlock string) error {
 	}
 
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	q := fmt.Sprintf("Unlock %q?", rToUnlock)
-	if !terminal.Confirm(f.Question(q).String(), "y") {
-		return sys.ErrActionAborted
-	}
-
-	f.Clear().Question("Password: ").Flush()
+	f.Question("Password: ").Flush()
 	s, err := t.InputPassword()
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -232,4 +230,126 @@ func UnlockDB(t *terminal.Term, rToUnlock string) error {
 	fmt.Println(success + " database unlocked")
 
 	return nil
+}
+
+func RemoveBackups(t *terminal.Term, f *frame.Frame, r *repo.SQLiteRepository) error {
+	filesToRemove := slice.New[repo.SQLiteRepository]()
+	backups, err := repo.Backups(r)
+	if err != nil {
+		if !errors.Is(err, repo.ErrBackupNotFound) {
+			return fmt.Errorf("%w", err)
+		}
+		backups = slice.New[repo.SQLiteRepository]()
+	}
+	if backups.Len() == 0 {
+		return nil
+	}
+
+	rm := color.BrightRed("remove").Bold().String()
+	items := backups.Items()
+	f.Clear().Mid(rm + " backups?")
+	opt, err := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	switch strings.ToLower(opt) {
+	case "n", "no":
+		sk := color.BrightYellow("skipping").String()
+		t.ReplaceLine(1, f.Clear().Warning(sk+" backup/s\n").Row().String())
+	case "a", "all":
+		filesToRemove.Set(items)
+	case "s", "select":
+		m := menu.New[repo.SQLiteRepository](
+			menu.WithUseDefaults(),
+			menu.WithSettings(config.Fzf.Settings),
+			menu.WithMultiSelection(),
+			menu.WithHeader(fmt.Sprintf("select backup/s from %q", r.Name()), false),
+			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
+		)
+		selected, err := Selection(m, *items, repo.RepoSummaryRecords)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		t.ClearLine(1)
+		filesToRemove.Append(selected...)
+	}
+	filesToRemove.Push(r)
+
+	return rmDatabases(t, f.Clear(), filesToRemove)
+}
+
+func rmDatabases(t *terminal.Term, f *frame.Frame, dbs *slice.Slice[repo.SQLiteRepository]) error {
+	s := color.BrightRed("removing").String()
+	dbs.ForEachMut(func(r *repo.SQLiteRepository) {
+		f.Mid(repo.RepoSummaryRecords(r)).Ln()
+	})
+
+	msg := s + " " + strconv.Itoa(dbs.Len()) + " items/s"
+	if err := t.ConfirmErr(f.Row("\n").Question(msg+", continue?").String(), "n"); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	sp := rotato.New(
+		rotato.WithMesg("removing database..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+	)
+	sp.Start()
+
+	rmRepo := func(r *repo.SQLiteRepository) error {
+		if err := files.Remove(r.Cfg.Fullpath()); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
+	}
+
+	if err := dbs.ForEachMutErr(rmRepo); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	sp.Done()
+	t.ClearLine(format.CountLines(f.String()))
+	s = color.BrightGreen("Successfully").Italic().String()
+	f.Clear().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed\n").Flush()
+
+	return nil
+}
+
+// SelectionRepo selects a repo.
+func SelectionRepo(args []string) (string, error) {
+	var repoPath string
+	fs, err := filepath.Glob(config.App.Path.Data + "/*.db*")
+	if err != nil {
+		return repoPath, fmt.Errorf("%w", err)
+	}
+	if len(fs) == 0 {
+		return repoPath, fmt.Errorf("%w", repo.ErrDBsNotFound)
+	}
+	if len(args) == 0 {
+		repoPath, err = SelectItemFrom(fs, "select database to remove")
+		if err != nil {
+			return repoPath, fmt.Errorf("%w", err)
+		}
+	} else {
+		repoName := args[0]
+		for _, r := range fs {
+			repoName = files.EnsureExt(repoName, ".db")
+			s := filepath.Base(r)
+			if s == repoName || s == repoName+".enc" {
+				repoPath = r
+				break
+			}
+		}
+	}
+	if repoPath == "" {
+		return repoPath, fmt.Errorf("%w: %q", repo.ErrDBNotFound, args[0])
+	}
+	if !files.Exists(repoPath) {
+		return repoPath, fmt.Errorf("%w: %q", repo.ErrDBNotFound, repoPath)
+	}
+	if err := encryptor.IsEncrypted(repoPath); err != nil {
+		return repoPath, fmt.Errorf("%w", err)
+	}
+
+	return repoPath, nil
 }

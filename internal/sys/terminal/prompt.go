@@ -61,8 +61,14 @@ func Confirm(q, def string) bool {
 	return t.Confirm(q, def)
 }
 
+// ConfirmErr prompts the user with a question and options.
+func ConfirmErr(q, def string) error {
+	t := New(WithInterruptFn(sys.ErrAndExit))
+	return t.ConfirmErr(q, def)
+}
+
 // Choose prompts the user to enter one of the given options.
-func Choose(q string, opts []string, def string) string {
+func Choose(q string, opts []string, def string) (string, error) {
 	t := New(WithInterruptFn(sys.ErrAndExit))
 	return t.Choose(q, opts, def)
 }
@@ -179,30 +185,37 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 	}
 }
 
-// getUserInput reads user input and validates against the options.
-func getUserInput(rd io.Reader, p string, opts []string, def string) string {
+// getUserInputWithAttempts reads user input and validates against the options,
+// with a limited number of attempts (3).
+func getUserInputWithAttempts(rd io.Reader, p string, opts []string, def string) (string, error) {
 	r := bufio.NewReader(rd)
-
-	for {
+	const attempts = 3
+	var count int
+	for count < attempts {
 		fmt.Print(p)
 
 		input, err := r.ReadString('\n')
 		if err != nil {
 			slog.Error("error reading input", "error", err)
-			return ""
+			return "", fmt.Errorf("%w", err)
 		}
 
 		input = strings.ToLower(strings.TrimSpace(input))
 		if input == "" && def != "" {
-			return def
+			return def, nil
 		}
 
 		if isValidOption(input, opts) {
-			return input
+			return input, nil
 		}
 
-		ClearLine(format.CountLines(p))
+		count++
+		if count <= attempts-1 {
+			ClearLine(format.CountLines(p))
+		}
 	}
+
+	return "", fmt.Errorf("%d %w", attempts, ErrIncorrectAttempts)
 }
 
 // fmtChoicesWithDefault capitalizes the default option and appends to the end of
@@ -211,8 +224,7 @@ func fmtChoicesWithDefault(opts []string, def string) []string {
 	if def == "" {
 		return opts
 	}
-
-	for i := 0; i < len(opts); i++ {
+	for i := range opts {
 		if strings.HasPrefix(opts[i], def) {
 			w := opts[i]
 			// append to the end of the slice

@@ -80,11 +80,11 @@ var backupNewCmd = &cobra.Command{
 		f.Row("\n").Flush().Clear()
 		c := color.BrightGreen("backup").String()
 		if !config.App.Force {
-			if !t.Confirm(f.Question("create "+c).String(), "y") {
-				return sys.ErrActionAborted
+			if err := t.ConfirmErr(f.Question("create "+c).String(), "y"); err != nil {
+				return fmt.Errorf("%w", err)
 			}
 		}
-		newBkPath, err := repo.NewBackup(r)
+		newBkPath, err := r.Backup()
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -101,7 +101,7 @@ var backupNewCmd = &cobra.Command{
 func backupInfoPrint(r *repo.SQLiteRepository) {
 	s := repo.RepoSummary(r)
 	s += repo.BackupsSummary(r)
-	s += repo.BackupSummaryDetail(r)
+	s += repo.BackupListDetail(r)
 	fmt.Print(s)
 }
 

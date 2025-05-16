@@ -18,9 +18,10 @@ import (
 )
 
 var (
-	ErrPassphraseEmpty    = errors.New("passphrase cannot be empty")
-	ErrPassphraseMismatch = errors.New("passphrase mismatch")
-	ErrFileEncrypted      = errors.New("already encrypted")
+	ErrPassphraseEmpty    = errors.New("password cannot be empty")
+	ErrPassphraseMismatch = errors.New("password mismatch")
+	ErrFileEncrypted      = errors.New("file already encrypted")
+	ErrFileNotEncrypted   = errors.New("file not encrypted")
 	ErrFileExtMismatch    = errors.New("file must have .enc extension")
 	ErrCipherTextShort    = errors.New("ciphertext too short")
 )
@@ -161,7 +162,7 @@ func IsEncrypted(s string) error {
 	if files.Exists(s) {
 		return fmt.Errorf("%w: %q", ErrFileEncrypted, filepath.Base(s))
 	}
-	slog.Debug("file is not encrypted")
+	slog.Debug("file not encrypted")
 
 	return nil
 }

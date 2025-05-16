@@ -8,23 +8,33 @@ import (
 )
 
 func TestTermGetUserInput(t *testing.T) {
-	t.Parallel()
-	opts := []string{"yes", "no"}
-	// test confirm
-	input := "yes\n"
-	mockInput := strings.NewReader(input)
-	result := getUserInput(mockInput, "Proceed?", opts, "no")
-	assert.Equal(t, "yes", result, "Expected 'yes' but got %s", result)
-	// test default
-	input = "\n"
-	mockInput = strings.NewReader(input)
-	result = getUserInput(mockInput, "Proceed?", opts, "no")
-	assert.Equal(t, "no", result)
-	// test invalid
-	input = "invalid\n"
-	mockInput = strings.NewReader(input)
-	result = getUserInput(mockInput, "Proceed?", opts, "no")
-	assert.Empty(t, result)
+	t.Run("confirm", func(t *testing.T) {
+		t.Parallel()
+		opts := []string{"yes", "no"}
+		input := "yes\n"
+		mockInput := strings.NewReader(input)
+		result, err := getUserInputWithAttempts(mockInput, "Proceed?", opts, "no")
+		assert.NoError(t, err)
+		assert.Equal(t, "yes", result, "Expected 'yes' but got %s", result)
+	})
+	t.Run("default", func(t *testing.T) {
+		t.Parallel()
+		opts := []string{"yes", "no"}
+		input := "\n"
+		mockInput := strings.NewReader(input)
+		result, err := getUserInputWithAttempts(mockInput, "Proceed?", opts, "no")
+		assert.NoError(t, err)
+		assert.Equal(t, "no", result)
+	})
+	t.Run("invalid", func(t *testing.T) {
+		t.Parallel()
+		opts := []string{"yes", "no"}
+		input := "invalid\n"
+		mockInput := strings.NewReader(input)
+		result, err := getUserInputWithAttempts(mockInput, "Proceed?", opts, "no")
+		assert.Error(t, err)
+		assert.Empty(t, result)
+	})
 }
 
 func TestTermGetQueryFromPipe(t *testing.T) {

@@ -147,6 +147,16 @@ func (t *Term) ChooseTags(p string, items map[string]int) string {
 
 // Confirm prompts the user with a question and options.
 func (t *Term) Confirm(q, def string) bool {
+	err := t.ConfirmErr(q, def)
+	if err != nil {
+		slog.Error("terminal confirm", "err", err)
+	}
+
+	return err == nil
+}
+
+// ConfirmErr prompts the user with a question and options.
+func (t *Term) ConfirmErr(q, def string) error {
 	if len(def) > 1 {
 		// get first char
 		def = def[:1]
@@ -156,25 +166,32 @@ func (t *Term) Confirm(q, def string) bool {
 		def = "n"
 	}
 	choices := fmtChoicesWithDefault(opts, def)
-	chosen := t.promptWithChoices(q, choices, def)
+	chosen, err := t.promptWithChoicesErr(q, choices, def)
+	if err != nil {
+		return err
+	}
 
-	return strings.EqualFold(chosen, "y")
+	if !strings.EqualFold(chosen, "y") {
+		return ErrActionAborted
+	}
+
+	return nil
 }
 
 // Choose prompts the user to enter one of the given options.
-func (t *Term) Choose(q string, opts []string, def string) string {
-	for i := 0; i < len(opts); i++ {
+func (t *Term) Choose(q string, opts []string, def string) (string, error) {
+	for i := range opts {
 		opts[i] = strings.ToLower(opts[i])
 	}
 	opts = fmtChoicesWithDefault(opts, def)
 
-	return t.promptWithChoices(q, opts, def)
+	return t.promptWithChoicesErr(q, opts, def)
 }
 
 // promptWithChoices prompts the user to enter one of the given options.
-func (t *Term) promptWithChoices(q string, opts []string, def string) string {
+func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string, error) {
 	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
-	return getUserInput(t.reader, p, opts, def)
+	return getUserInputWithAttempts(t.reader, p, opts, def)
 }
 
 // ClearLine deletes n lines in the console.

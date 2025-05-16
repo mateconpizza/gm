@@ -44,7 +44,10 @@ func confirmation(
 		if bs.Len() > 1 {
 			opts = append(opts, "select")
 		}
-		opt := t.Choose(q, opts, "n")
+		opt, err := t.Choose(q, opts, "n")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
 		switch strings.ToLower(opt) {
 		case "n", "no":
 			return sys.ErrActionAborted

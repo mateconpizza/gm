@@ -19,6 +19,8 @@ var (
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
 	ErrNoStateToRestore    = errors.New("no term state to restore")
 	ErrNotInteractive      = errors.New("not an interactive terminal")
+	ErrIncorrectAttempts   = errors.New("incorrect attempts")
+	ErrActionAborted       = errors.New("action aborted")
 )
 
 // termState contains the state of the terminal.

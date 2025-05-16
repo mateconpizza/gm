@@ -133,8 +133,8 @@ func createPaths(t *terminal.Term, path string) error {
 	f.Info(format.PaddedLine("Create db:", fp+"\n"))
 	lines := format.CountLines(f.String()) + 1
 	f.Row("\n").Flush()
-	if !t.Confirm(f.Question("continue?").String(), "y") {
-		return sys.ErrActionAborted
+	if err := t.ConfirmErr(f.Question("continue?").String(), "y"); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 	// clean terminal keeping header+row
 	headerN := 3

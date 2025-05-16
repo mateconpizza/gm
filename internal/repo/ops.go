@@ -89,8 +89,8 @@ func DatabasesEncrypted(root string) ([]string, error) {
 	return fs, nil
 }
 
-// NewBackup creates a new backup from the given repository.
-func NewBackup(r *SQLiteRepository) (string, error) {
+// newBackup creates a new backup from the given repository.
+func newBackup(r *SQLiteRepository) (string, error) {
 	if err := files.MkdirAll(r.Cfg.BackupDir); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -113,12 +113,9 @@ func NewBackup(r *SQLiteRepository) (string, error) {
 func listDatabaseBackups(dir, dbName string) ([]string, error) {
 	// Remove .db extension for matching
 	baseName := strings.TrimSuffix(dbName, ".db")
-	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db"))
+	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db*"))
 	if err != nil {
 		return nil, fmt.Errorf("listing backups: %w", err)
-	}
-	if len(entries) == 0 {
-		return entries, fmt.Errorf("%w for %q", ErrBackupNotFound, dbName)
 	}
 
 	return entries, nil

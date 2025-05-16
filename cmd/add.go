@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/haaag/rotato"
@@ -89,7 +90,10 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 // addHandleConfirmation confirms if the user wants to save the bookmark.
 func addHandleConfirmation(r *Repo, t *terminal.Term, b *Bookmark) error {
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	opt := t.Choose(f.Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
+	opt, err := t.Choose(f.Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
 
 	switch strings.ToLower(opt) {
 	case "n", "no":
@@ -247,7 +251,12 @@ func addHandleClipboard(t *terminal.Term) string {
 	bURL := f.Mid(color.BrightMagenta("URL\t:").String()).
 		Text(" " + color.Gray(c).String() + "\n").Row("\n").
 		Flush()
-	opt := t.Choose(f.Question("continue?").String(), []string{"yes", "no"}, "y")
+	opt, err := t.Choose(f.Question("continue?").String(), []string{"yes", "no"}, "y")
+	if err != nil {
+		slog.Error("choosing", "error", err)
+		return ""
+	}
+
 	lines += format.CountLines(f.String())
 	f.Clear()
 

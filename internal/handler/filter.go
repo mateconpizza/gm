@@ -8,17 +8,13 @@ import (
 	"strings"
 
 	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys"
 )
 
 var (
 	ErrInvalidOption = errors.New("invalid option")
 	ErrNoItems       = errors.New("no items")
 )
-
-type Repo = repo.SQLiteRepository
 
 // ByTags returns a slice of bookmarks based on the provided tags.
 func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
@@ -132,28 +128,4 @@ func ByHeadAndTail(bs *Slice, h, t int) error {
 	}
 
 	return nil
-}
-
-// Selection allows the user to select multiple records in a menu
-// interface.
-func Selection[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) ([]T, error) {
-	if len(items) == 0 {
-		return nil, repo.ErrRecordNoMatch
-	}
-
-	var result []T
-	result, err := m.Select(items, fmtFn)
-	if err != nil {
-		if errors.Is(err, menu.ErrFzfActionAborted) {
-			return nil, sys.ErrActionAborted
-		}
-
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	if len(result) == 0 {
-		return nil, ErrNoItems
-	}
-
-	return result, nil
 }
