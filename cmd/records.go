@@ -45,9 +45,9 @@ var recordsCmd = &cobra.Command{
 			mo = append(mo, menu.WithMultilineView())
 		}
 		m := menu.New[Bookmark](mo...)
-		bs, err := handleData(m, r, args)
+		bs, err := handler.Data(cmd, m, r, args)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w", err)
 		}
 		if bs.Empty() {
 			return repo.ErrRecordNotFound

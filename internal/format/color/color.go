@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -258,4 +259,10 @@ func ApplyMany(s []string, colors ...ColorFn) []string {
 	}
 
 	return s
+}
+
+// ANSICodeRemover removes ANSI codes from a given string.
+func ANSICodeRemover(s string) string {
+	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return re.ReplaceAllString(s, "")
 }

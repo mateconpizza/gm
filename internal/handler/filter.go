@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -18,6 +19,7 @@ var (
 
 // ByTags returns a slice of bookmarks based on the provided tags.
 func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
+	slog.Debug("by tags", "tags", tags, "count", bs.Len())
 	// FIX: redo, simplify
 	// if the slice contains bookmarks, filter by tag.
 	if !bs.Empty() {
@@ -73,6 +75,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 // ByIDs retrieves records from the database based on either
 // an ID or a query string.
 func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
+	slog.Debug("getting by IDs")
 	ids, err := extractIDsFrom(args)
 	if len(ids) == 0 {
 		return nil

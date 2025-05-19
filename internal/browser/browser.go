@@ -18,5 +18,5 @@ type Browser interface {
 	Short() string
 	LoadPaths() error
 	Color(string) string
-	Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark], error)
+	Import(t *terminal.Term, force bool) (*slice.Slice[bookmark.Bookmark], error)
 }

@@ -2,10 +2,11 @@ package menu
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	shellwords "github.com/junegunn/go-shellwords"
+
+	"github.com/haaag/gm/internal/format/color"
 )
 
 // appendKeytoHeader appends a key:desc string to the header slice.
@@ -17,9 +18,8 @@ func appendKeytoHeader(opts []string, key, desc string) []string {
 	return append(opts, fmt.Sprintf("%s:%s", key, desc))
 }
 
-// toString converts any item to a string.
-func toString[T any](s T) string {
-	return fmt.Sprintf("%+v\n", s)
+func defaultPreprocessor[T any](item *T) string {
+	return fmt.Sprintf("%+v", *item)
 }
 
 // formatItems formats each item in the slice using the preprocessor function
@@ -51,7 +51,7 @@ func processOutput[T any](
 
 	for _, item := range items {
 		ti := item
-		formatted := ANSICodeRemover(preprocessor(&ti))
+		formatted := color.ANSICodeRemover(preprocessor(&ti))
 		ogItem[formatted] = item
 	}
 
@@ -87,10 +87,4 @@ func loadKeybind(keybind []string, args *FzfSettings) error {
 	*args = append(*args, a...)
 
 	return nil
-}
-
-// ANSICodeRemover removes ANSI codes from a given string.
-func ANSICodeRemover(s string) string {
-	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	return re.ReplaceAllString(s, "")
 }

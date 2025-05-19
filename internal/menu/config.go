@@ -25,7 +25,7 @@ const (
 var colorEnabled bool = false
 
 // menuConfig holds the menu configuration.
-var menuConfig *Config
+var menuConfig *Config = &Config{}
 
 // FzfSettings holds the FZF settings.
 type FzfSettings []string

@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/haaag/rotato"
+	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
@@ -29,6 +31,7 @@ type (
 
 // Records gets records based on user input and filtering criteria.
 func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
+	slog.Debug("records", "args", args)
 	if err := ByIDs(r, bs, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -70,6 +73,92 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 	}
 
 	return nil
+}
+
+// Remove prompts the user the records to remove.
+func Remove(r *repo.SQLiteRepository, bs *Slice) error {
+	defer r.Close()
+	if err := validateRemove(bs, config.App.Force); err != nil {
+		return err
+	}
+	if !config.App.Force {
+		c := color.BrightRed
+		f := frame.New(frame.WithColorBorder(c))
+		f.Header(c("Removing Bookmarks\n\n").String()).Flush()
+
+		interruptFn := func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}
+
+		t := terminal.New(terminal.WithInterruptFn(interruptFn))
+		defer t.CancelInterruptHandler()
+		m := menu.New[Bookmark](
+			menu.WithInterruptFn(interruptFn),
+			menu.WithMultiSelection(),
+		)
+		prompt := color.BrightRed("remove").Bold().String()
+		if err := confirmation(m, t, bs, prompt, c); err != nil {
+			return err
+		}
+	}
+
+	return removeRecords(r, bs)
+}
+
+// Data processes records based on user input and filtering criteria.
+func Data(
+	cmd *cobra.Command,
+	m *menu.Menu[Bookmark],
+	r *repo.SQLiteRepository,
+	args []string,
+) (*Slice, error) {
+	bs := slice.New[Bookmark]()
+	if err := Records(r, bs, args); err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	// filter by Tag
+	tags, err := cmd.Flags().GetStringSlice("tag")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if len(tags) > 0 {
+		if err := ByTags(r, tags, bs); err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+	}
+	// filter by head and tail
+	head, err := cmd.Flags().GetInt("head")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	tail, err := cmd.Flags().GetInt("tail")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if head > 0 || tail > 0 {
+		if err := ByHeadAndTail(bs, head, tail); err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+	}
+	// select with fzf-menu
+	mFlag, err := cmd.Flags().GetBool("menu")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	mlFlag, err := cmd.Flags().GetBool("multiline")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if mFlag || mlFlag {
+		items, err := Selection(m, *bs.Items(), FzfFormatter(mlFlag, config.App.Colorscheme))
+		if err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+		bs.Set(&items)
+	}
+
+	return bs, nil
 }
 
 // editBookmark handles editing a single bookmark.
@@ -126,37 +215,6 @@ func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) er
 	return nil
 }
 
-// Remove prompts the user the records to remove.
-func Remove(r *repo.SQLiteRepository, bs *Slice) error {
-	defer r.Close()
-	if err := validateRemove(bs, config.App.Force); err != nil {
-		return err
-	}
-	if !config.App.Force {
-		c := color.BrightRed
-		f := frame.New(frame.WithColorBorder(c))
-		f.Header(c("Removing Bookmarks\n\n").String()).Flush()
-
-		interruptFn := func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}
-
-		t := terminal.New(terminal.WithInterruptFn(interruptFn))
-		defer t.CancelInterruptHandler()
-		m := menu.New[Bookmark](
-			menu.WithInterruptFn(interruptFn),
-			menu.WithMultiSelection(),
-		)
-		prompt := color.BrightRed("remove").Bold().String()
-		if err := confirmation(m, t, bs, prompt, c); err != nil {
-			return err
-		}
-	}
-
-	return removeRecords(r, bs)
-}
-
 // removeRecords removes the records from the database.
 func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	sp := rotato.New(
@@ -187,6 +245,31 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 	success := color.BrightGreen("Successfully").Italic().String()
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Success(success + " bookmark/s removed\n").Flush()
+
+	return nil
+}
+
+// insertRecordsToRepo inserts records into the database.
+func insertRecordsToRepo(t *terminal.Term, r *repo.SQLiteRepository, records *Slice) error {
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	if !config.App.Force {
+		report := fmt.Sprintf("import %d records?", records.Len())
+		if err := t.ConfirmErr(f.Row("\n").Question(report).String(), "y"); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+	sp := rotato.New(
+		rotato.WithMesg("importing record/s..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+	)
+	sp.Start()
+	if err := r.InsertMany(context.Background(), records); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	sp.Done()
+	success := color.BrightGreen("Successfully").Italic().String()
+	msg := fmt.Sprintf(success+" imported %d record/s\n", records.Len())
+	f.Clear().Success(msg).Flush()
 
 	return nil
 }

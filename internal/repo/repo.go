@@ -76,6 +76,19 @@ func New(c *SQLiteCfg) (*SQLiteRepository, error) {
 	return newSQLiteRepository(db, c), nil
 }
 
+func NewRepository(p string) (*SQLiteRepository, error) {
+	cfg, err := NewSQLiteCfg(p)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	r, err := New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("database: %w", err)
+	}
+
+	return r, nil
+}
+
 // NewFromBackup creates a SQLiteRepository from a backup file.
 func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
 	if backupPath == "" {

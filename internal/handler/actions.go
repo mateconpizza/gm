@@ -28,33 +28,6 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// openQR opens a QR-Code image in the system default image viewer.
-func openQR(qrcode *qr.QRCode, b *Bookmark) error {
-	const maxLabelLen = 55
-	var title string
-	var burl string
-
-	if err := qrcode.GenerateImg(config.App.Name); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	title = format.Shorten(b.Title, maxLabelLen)
-	if err := qrcode.Label(title, "top"); err != nil {
-		return fmt.Errorf("%w: adding top label", err)
-	}
-
-	burl = format.Shorten(b.URL, maxLabelLen)
-	if err := qrcode.Label(burl, "bottom"); err != nil {
-		return fmt.Errorf("%w: adding bottom label", err)
-	}
-
-	if err := qrcode.Open(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
-
 // QR handles creation, rendering or opening of QR-Codes.
 func QR(bs *Slice, open bool) error {
 	qrFn := func(b Bookmark) error {
@@ -176,8 +149,8 @@ func CheckStatus(bs *Slice) error {
 	return nil
 }
 
-// LockDB locks the database.
-func LockDB(t *terminal.Term, rToLock string) error {
+// LockRepo locks the database.
+func LockRepo(t *terminal.Term, rToLock string) error {
 	slog.Debug("encrypting database", "name", config.App.DBName)
 	if err := encryptor.IsEncrypted(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
@@ -202,9 +175,9 @@ func LockDB(t *terminal.Term, rToLock string) error {
 	return nil
 }
 
-// UnlockDB unlocks the database.
-func UnlockDB(t *terminal.Term, rToUnlock string) error {
-	if files.Exists(rToUnlock) {
+// UnlockRepo unlocks the database.
+func UnlockRepo(t *terminal.Term, rToUnlock string) error {
+	if err := encryptor.IsEncrypted(rToUnlock); err == nil {
 		return fmt.Errorf("%w: %q", encryptor.ErrFileNotEncrypted, filepath.Base(rToUnlock))
 	}
 	if !strings.HasSuffix(rToUnlock, ".enc") {
@@ -217,7 +190,11 @@ func UnlockDB(t *terminal.Term, rToUnlock string) error {
 	}
 
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Question("Password: ").Flush()
+	q := fmt.Sprintf("Unlock %q?", rToUnlock)
+	if err := t.ConfirmErr(f.Question(q).String(), "y"); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	f.Clear().Question("Password: ").Flush()
 	s, err := t.InputPassword()
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -278,6 +255,33 @@ func RemoveBackups(t *terminal.Term, f *frame.Frame, r *repo.SQLiteRepository) e
 	return rmDatabases(t, f.Clear(), filesToRemove)
 }
 
+// openQR opens a QR-Code image in the system default image viewer.
+func openQR(qrcode *qr.QRCode, b *Bookmark) error {
+	const maxLabelLen = 55
+	var title string
+	var burl string
+
+	if err := qrcode.GenerateImg(config.App.Name); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	title = format.Shorten(b.Title, maxLabelLen)
+	if err := qrcode.Label(title, "top"); err != nil {
+		return fmt.Errorf("%w: adding top label", err)
+	}
+
+	burl = format.Shorten(b.URL, maxLabelLen)
+	if err := qrcode.Label(burl, "bottom"); err != nil {
+		return fmt.Errorf("%w: adding bottom label", err)
+	}
+
+	if err := qrcode.Open(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
 func rmDatabases(t *terminal.Term, f *frame.Frame, dbs *slice.Slice[repo.SQLiteRepository]) error {
 	s := color.BrightRed("removing").String()
 	dbs.ForEachMut(func(r *repo.SQLiteRepository) {
@@ -313,43 +317,4 @@ func rmDatabases(t *terminal.Term, f *frame.Frame, dbs *slice.Slice[repo.SQLiteR
 	f.Clear().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed\n").Flush()
 
 	return nil
-}
-
-// SelectionRepo selects a repo.
-func SelectionRepo(args []string) (string, error) {
-	var repoPath string
-	fs, err := filepath.Glob(config.App.Path.Data + "/*.db*")
-	if err != nil {
-		return repoPath, fmt.Errorf("%w", err)
-	}
-	if len(fs) == 0 {
-		return repoPath, fmt.Errorf("%w", repo.ErrDBsNotFound)
-	}
-	if len(args) == 0 {
-		repoPath, err = SelectItemFrom(fs, "select database to remove")
-		if err != nil {
-			return repoPath, fmt.Errorf("%w", err)
-		}
-	} else {
-		repoName := args[0]
-		for _, r := range fs {
-			repoName = files.EnsureExt(repoName, ".db")
-			s := filepath.Base(r)
-			if s == repoName || s == repoName+".enc" {
-				repoPath = r
-				break
-			}
-		}
-	}
-	if repoPath == "" {
-		return repoPath, fmt.Errorf("%w: %q", repo.ErrDBNotFound, args[0])
-	}
-	if !files.Exists(repoPath) {
-		return repoPath, fmt.Errorf("%w: %q", repo.ErrDBNotFound, repoPath)
-	}
-	if err := encryptor.IsEncrypted(repoPath); err != nil {
-		return repoPath, fmt.Errorf("%w", err)
-	}
-
-	return repoPath, nil
 }

@@ -19,7 +19,7 @@ var (
 	// menu errors.
 	ErrFzfExitError   = errors.New("fzf: exit error")
 	ErrFzfInterrupted = errors.New("fzf: returned exit code 130")
-	ErrFzfNoRecords   = errors.New("fzf: no records provided")
+	ErrFzfNoItems     = errors.New("fzf: no items found")
 	ErrFzfReturnCode  = errors.New("fzf: returned a non-zero code")
 )
 
@@ -31,32 +31,40 @@ type Options struct {
 	settings    FzfSettings
 	defaults    bool
 	interruptFn func(error)
+	runner      MenuRunner
+}
+
+type Items[T comparable] struct {
+	items        []T
+	preprocessor func(*T) string
 }
 
 type Menu[T comparable] struct {
 	Options
+	Items[T]
+}
+
+// Select executes Fzf with the set elements and returns the selected item/s.
+func (m *Menu[T]) Select() ([]T, error) {
+	if err := m.setup(); err != nil {
+		return nil, err
+	}
+
+	selected, err := selectFromItems(m)
+	if err != nil {
+		return nil, err
+	}
+	if len(selected) == 0 {
+		return nil, ErrFzfNoItems
+	}
+
+	return selected, nil
 }
 
 // AddOpts adds options to the menu.
 func (m *Menu[T]) AddOpts(opts ...OptFn) {
 	for _, fn := range opts {
 		fn(&m.Options)
-	}
-}
-
-// defaultOpts returns the default options.
-func defaultOpts() Options {
-	return Options{
-		settings: []string{
-			"--ansi",
-			"--reverse",
-			"--tac",
-			"--height=95%",
-			"--info=inline-right",
-			"--prompt=" + menuConfig.Prompt,
-		},
-		defaults: false,
-		header:   make([]string, 0),
 	}
 }
 
@@ -70,9 +78,24 @@ func (m *Menu[T]) callInterruptFn(err error) {
 	slog.Warn("interruptFn is nil")
 }
 
+// setup loads header, keybind and args from Options.
+func (m *Menu[T]) setup() error {
+	loadHeader(m.header, &m.settings)
+	return loadKeybind(m.keybind, &m.settings)
+}
+
 // SetInterruptFn sets the interrupt function for the menu.
 func (m *Menu[T]) SetInterruptFn(fn func(error)) {
 	m.interruptFn = fn
+}
+
+// SetItems sets the items for the menu.
+func (m *Menu[T]) SetItems(items []T) {
+	m.items = items
+}
+
+func (m *Menu[T]) SetPreprocessor(preprocessor func(*T) string) {
+	m.preprocessor = preprocessor
 }
 
 // WithInterruptFn sets the interrupt function for the menu.
@@ -138,36 +161,16 @@ func WithMultiSelection() OptFn {
 	}
 }
 
+// WithRunner Add new OptionFn for test configuration.
+func WithRunner(r MenuRunner) OptFn {
+	return func(o *Options) {
+		o.runner = r
+	}
+}
+
 // WithPreview adds preview with a custom command.
 func WithPreview(cmd string) OptFn {
 	return buildPreviewOpts(cmd)
-}
-
-// buildPreviewOpts builds the preview options.
-func buildPreviewOpts(cmd string) OptFn {
-	preview := menuConfig.Keymaps.Preview
-	if !preview.Enabled {
-		return func(o *Options) {}
-	}
-
-	var opts []string
-	if !colorEnabled {
-		opts = append(opts, "--no-color")
-	}
-	opts = append(opts, "--preview="+cmd)
-	if !menuConfig.Preview {
-		opts = append(opts, "--preview-window=hidden,up")
-	} else {
-		opts = append(opts, "--preview-window=~4,+{2}+4/3,<80(up)")
-	}
-
-	return func(o *Options) {
-		o.settings = append(o.settings, opts...)
-		if !preview.Hidden && menuConfig.Preview {
-			o.header = appendKeytoHeader(o.header, preview.Bind, "toggle-preview")
-		}
-		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
-	}
 }
 
 // WithMultilineView adds multiline view and highlights the entire current line
@@ -204,97 +207,42 @@ func WithPrompt(prompt string) OptFn {
 
 // New returns a new Menu.
 func New[T comparable](opts ...OptFn) *Menu[T] {
-	o := defaultOpts()
+	defaults := Options{
+		settings: []string{
+			"--ansi",
+			"--reverse",
+			"--tac",
+			"--height=95%",
+			"--info=inline-right",
+			"--prompt=" + menuConfig.Prompt,
+		},
+		defaults: false,
+		header:   make([]string, 0),
+		runner:   &defaultRunner{},
+	}
+
 	for _, fn := range opts {
-		fn(&o)
+		fn(&defaults)
 	}
 
 	return &Menu[T]{
-		Options: o,
+		Options: defaults,
 	}
 }
 
-// setup loads header, keybind and args from Options.
-func (m *Menu[T]) setup() error {
-	loadHeader(m.header, &m.settings)
-	return loadKeybind(m.keybind, &m.settings)
+type MenuRunner interface {
+	Run(options *fzf.Options) (int, error)
+	Parse(defaults bool, settings FzfSettings) (*fzf.Options, error)
 }
 
-// Select runs Fzf with the given items and returns the selected item/s.
-func (m *Menu[T]) Select(items []T, preprocessor func(*T) string) ([]T, error) {
-	if len(items) == 0 {
-		return nil, ErrFzfNoRecords
-	}
+type defaultRunner struct{}
 
-	if err := m.setup(); err != nil {
-		return nil, err
-	}
-
-	if preprocessor == nil {
-		slog.Warn("preprocessor is nil")
-		preprocessor = toString
-	}
-
-	slog.Debug("menu args", "args", m.settings)
-
-	// channels
-	inputChan := formatItems(items, preprocessor)
-	outputChan := make(chan string)
-	resultChan := make(chan []T)
-
-	go processOutput(items, preprocessor, outputChan, resultChan)
-
-	// Build Fzf.Options
-	options, err := fzf.ParseOptions(m.defaults, m.settings)
-	if err != nil {
-		return nil, fmt.Errorf("fzf: %w", err)
-	}
-
-	// Set up input and output channels
-	options.Input = inputChan
-	options.Output = outputChan
-
-	// Run Fzf
-	retcode, err := fzf.Run(options)
-	if retcode != 0 {
-		// regardless of what kind of error, always call `callInterruptFn`
-		err = handleFzfErr(retcode)
-		m.callInterruptFn(err)
-
-		return nil, err
-	}
-
-	close(outputChan)
-	result := <-resultChan
-
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return result, nil
+//nolint:wrapcheck //notneeded
+func (d *defaultRunner) Run(options *fzf.Options) (int, error) {
+	return fzf.Run(options)
 }
 
-// handleFzfErr returns an error based on the exit code of fzf.
-//
-//	0      Normal exit
-//	1      No match
-//	2      Error
-//	126    Permission denied error from become action
-//	127    Invalid shell command for become action.
-//	130    Interrupted with CTRL-C or ESC.
-func handleFzfErr(retcode int) error {
-	switch retcode {
-	case 1:
-		return ErrFzfNoMatching
-	case 2:
-		return ErrFzf
-	case 126:
-		return ErrFzfInvalidShellCommand
-	case 127:
-		return ErrFzfPermissionDenied
-	case 130:
-		return ErrFzfActionAborted
-	}
-
-	return nil
+//nolint:wrapcheck //notneeded
+func (d *defaultRunner) Parse(def bool, s FzfSettings) (*fzf.Options, error) {
+	return fzf.ParseOptions(def, s)
 }

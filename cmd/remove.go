@@ -64,8 +64,6 @@ var bkRemoveCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		// backups := slice.New[string]()
-		// backups.Append(fs...)
 		items, err := handler.Selection(m, fs, func(s *string) string {
 			return repo.BackupSummaryWithFmtDateFromPath(*s)
 		})
@@ -106,7 +104,7 @@ var dbRemoveCmd = &cobra.Command{
 		var repoPath string
 		var err error
 		if Menu {
-			repoPath, err = handler.SelectionRepo(args)
+			repoPath, err = handler.SelectRepo(args)
 			if err != nil {
 				return fmt.Errorf("failed to select repo: %w", err)
 			}

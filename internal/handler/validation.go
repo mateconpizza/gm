@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -124,16 +123,6 @@ func validateRemove(bs *Slice, force bool) error {
 	}
 
 	return nil
-}
-
-// URLValid checks if a string is a valid URL.
-func URLValid(s string) bool {
-	parsedURL, err := url.Parse(s)
-	if err != nil {
-		return false
-	}
-
-	return parsedURL.Scheme != "" && parsedURL.Host != ""
 }
 
 // ValidateDBExistence verifies if the database exists.

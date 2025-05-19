@@ -90,7 +90,7 @@ func (b *GeckoBrowser) LoadPaths() error {
 	return nil
 }
 
-func (b *GeckoBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark], error) {
+func (b *GeckoBrowser) Import(t *terminal.Term, force bool) (*slice.Slice[bookmark.Bookmark], error) {
 	p := b.paths
 	if p.profiles == "" || p.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -111,7 +111,7 @@ func (b *GeckoBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark]
 	bs := slice.New[bookmark.Bookmark]()
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, v)
-		processProfile(t, bs, profile, p)
+		processProfile(t, bs, profile, p, force)
 	}
 
 	return bs, nil
@@ -226,14 +226,17 @@ func allProfiles(p string) (map[string]string, error) {
 }
 
 // processProfile processes a single profile and extracts bookmarks.
-func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profile, path string) {
+func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profile, path string, force bool) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Row().Ln().Flush()
-	f.Clear().Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
-	if !t.Confirm(f.String(), "n") {
-		t.ClearLine(1)
-		f.Clear().Warning("Skipping profile...'" + profile + "'").Ln().Flush()
-		return
+	if !force {
+		f.Clear().Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
+		if err := t.ConfirmErr(f.String(), "y"); err != nil {
+			f.Clear().Warning("Skipping profile...'" + profile + "'").Ln().Flush()
+			return
+		}
+	} else {
+		f.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
 	}
 	// FIX: get path by OS
 	path = files.ExpandHomeDir(path)
@@ -279,11 +282,9 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 		}
 		bs.Push(b)
 	})
-
 	if err := db.Close(); err != nil {
 		slog.Error("closing rows", "err", err)
 	}
-
 	found := color.BrightBlue("found")
 	f.Clear().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-skipped)).Ln().Flush()
 }

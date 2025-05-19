@@ -126,7 +126,7 @@ func getColorScheme(s string) (*color.Scheme, error) {
 	cs, ok := color.DefaultSchemes[s]
 	if !ok {
 		slog.Warn("printing bookmarks", "error", s+" not found, using default")
-		cs, _ = color.DefaultSchemes["default"]
+		cs = color.DefaultSchemes["default"]
 	}
 	slog.Info("colorscheme loaded", "name", cs.Name)
 

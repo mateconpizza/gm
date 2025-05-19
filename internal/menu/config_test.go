@@ -41,19 +41,27 @@ func testValidConfig(t *testing.T) *Config {
 
 func TestValidateConfig(t *testing.T) {
 	t.Parallel()
-	cfg := testValidConfig(t)
-	cfgKeys := *cfg
-	// invalid keybind
-	cfgKeys.Keymaps.Edit.Bind = ""
-	assert.Error(t, cfgKeys.Validate())
-	assert.ErrorIs(t, cfgKeys.Validate(), ErrInvalidConfigKeymap)
-	// default prompt and header separator
-	cfgStr := *cfg
-	cfgStr.Prompt = ""
-	cfgStr.Header.Sep = ""
-	assert.Empty(t, cfgStr.Prompt)
-	assert.Empty(t, cfgStr.Header.Sep)
-	assert.NoError(t, cfgStr.Validate())
-	assert.NotEmpty(t, cfgStr.Prompt)
-	assert.NotEmpty(t, cfgStr.Header.Sep)
+	t.Run("valid config", func(t *testing.T) {
+		t.Parallel()
+		cfg := testValidConfig(t)
+		assert.NoError(t, cfg.Validate())
+	})
+	t.Run("invalid config", func(t *testing.T) {
+		t.Parallel()
+		cfg := testValidConfig(t)
+		cfg.Keymaps.Edit.Bind = ""
+		assert.Error(t, cfg.Validate())
+		assert.ErrorIs(t, cfg.Validate(), ErrInvalidConfigKeymap)
+	})
+	t.Run("default prompt and header separator", func(t *testing.T) {
+		t.Parallel()
+		cfg := testValidConfig(t)
+		cfg.Prompt = ""
+		cfg.Header.Sep = ""
+		assert.Empty(t, cfg.Prompt)
+		assert.Empty(t, cfg.Header.Sep)
+		assert.NoError(t, cfg.Validate())
+		assert.NotEmpty(t, cfg.Prompt)
+		assert.NotEmpty(t, cfg.Header.Sep)
+	})
 }

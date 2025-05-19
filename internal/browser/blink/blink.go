@@ -84,7 +84,7 @@ func (b *BlinkBrowser) LoadPaths() error {
 }
 
 // Import extracts profile system names and user names.
-func (b *BlinkBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark], error) {
+func (b *BlinkBrowser) Import(t *terminal.Term, force bool) (*slice.Slice[bookmark.Bookmark], error) {
 	p := b.paths
 	if p.bookmarks == "" || p.profiles == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -110,7 +110,7 @@ func (b *BlinkBrowser) Import(t *terminal.Term) (*slice.Slice[bookmark.Bookmark]
 	bs := slice.New[Record]()
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, profile)
-		processProfile(t, bs, v, files.ExpandHomeDir(p))
+		processProfile(t, bs, v, files.ExpandHomeDir(p), force)
 	}
 
 	return bs, nil
@@ -227,7 +227,7 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 }
 
 // processProfile extracts profile system names and user names.
-func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path string) {
+func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path string, force bool) {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	skip := color.BrightYellow("skipping").String()
 	if !files.Exists(path) {
@@ -237,10 +237,14 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 	}
 
 	f.Row("\n").Flush()
-	f.Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
-	if !t.Confirm(f.String(), "n") {
-		t.ReplaceLine(1, f.Clear().Row(skip+" profile...'"+profile+"'").String())
-		return
+	if !force {
+		f.Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
+		if err := t.ConfirmErr(f.String(), "y"); err != nil {
+			t.ReplaceLine(1, f.Clear().Row(skip+" profile...'"+profile+"'").String())
+			return
+		}
+	} else {
+		f.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
 	}
 
 	uniqueTag := getTodayFormatted()

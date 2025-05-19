@@ -22,6 +22,7 @@ type (
 		Cmd         string      `json:"cmd"`         // Name of the executable
 		Colorscheme string      `json:"colorscheme"` // Name of the colorscheme
 		DBName      string      `json:"db"`          // Database name
+		DBPath      string      `json:"db_path"`     // Database path
 		Info        information `json:"data"`        // Application information
 		Env         environment `json:"env"`         // Application environment variables
 		Path        path        `json:"path"`        // Application path
@@ -35,6 +36,7 @@ type (
 		// Config string `json:"home"` // Path to store configuration (unused)
 		Data         string `json:"data"`         // Path to store database
 		ConfigFile   string `json:"config"`       // Path to config file
+		Backup       string `json:"backup"`       // Path to store backups
 		Colorschemes string `json:"colorschemes"` // Path to store colorschemes
 	}
 
@@ -71,10 +73,16 @@ func SetDBName(s string) {
 	App.DBName = s
 }
 
+// SetDBPath sets the database fullpath.
+func SetDBPath(p string) {
+	App.DBPath = p
+}
+
 // SetDataPath sets the app data path.
 func SetDataPath(p string) {
 	App.Path.Data = p
 	App.Path.ConfigFile = filepath.Join(p, configFilename)
+	App.Path.Backup = filepath.Join(p, "backup")
 }
 
 func SetVerbosity(verbose int) {

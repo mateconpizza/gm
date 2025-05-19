@@ -93,7 +93,7 @@ var backupNewCmd = &cobra.Command{
 		s := color.Text(newBkPath).Italic().String()
 		f.Clear().Success(success + " backup created: " + s + "\n").Flush()
 
-		return handler.LockDB(t, filepath.Join(r.Cfg.BackupDir, newBkPath))
+		return handler.LockRepo(t, filepath.Join(r.Cfg.BackupDir, newBkPath))
 	},
 }
 

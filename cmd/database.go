@@ -183,7 +183,7 @@ var databaseLockCmd = &cobra.Command{
 		}))
 		r := filepath.Join(config.App.Path.Data, config.App.DBName)
 
-		return handler.LockDB(t, r)
+		return handler.LockRepo(t, r)
 	},
 }
 
@@ -196,7 +196,7 @@ var databaseUnlockCmd = &cobra.Command{
 		}))
 		r := filepath.Join(config.App.Path.Data, config.App.DBName)
 
-		return handler.UnlockDB(t, r)
+		return handler.UnlockRepo(t, r)
 	},
 }
 
