@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/spf13/cobra"
+
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys/files"
 )
 
@@ -151,4 +155,25 @@ func FzfFormatter(m bool, colorScheme string) func(b *Bookmark) string {
 			return bookmark.Oneline(b, cs)
 		}
 	}
+}
+
+// ListDatabases lists the available databases.
+func ListDatabases(_ *cobra.Command, _ []string) error {
+	fs, err := files.FindByExtList(config.App.Path.Data, ".db", ".enc")
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	n := len(fs)
+	if n > 1 {
+		nColor := color.BrightCyan(n).Bold().String()
+		f.Header(nColor + " database/s found\n").Row("\n").Flush()
+	}
+
+	for _, f := range fs {
+		fmt.Print(repo.RepoSummaryFromPath(f))
+	}
+
+	return nil
 }

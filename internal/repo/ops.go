@@ -63,11 +63,7 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	}
 	dbs := slice.New[SQLiteRepository]()
 	err = paths.ForEachErr(func(p string) error {
-		cfg, err := NewSQLiteCfg(p)
-		if err != nil {
-			return err
-		}
-		rep, _ := New(cfg)
+		rep, _ := New(p)
 		dbs.Push(rep)
 
 		return nil

@@ -114,11 +114,7 @@ var dbRemoveCmd = &cobra.Command{
 		if err := encryptor.IsEncrypted(repoPath); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		cfg, err := repo.NewSQLiteCfg(repoPath)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		r, err := repo.New(cfg)
+		r, err := repo.New(repoPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

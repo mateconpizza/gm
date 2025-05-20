@@ -194,7 +194,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 		// init database
-		r, err := repo.New(Cfg)
+		r, err := repo.New(config.App.DBPath)
 		if r == nil {
 			return fmt.Errorf("init database: %w", err)
 		}

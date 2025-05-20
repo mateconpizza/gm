@@ -16,7 +16,38 @@ import (
 // RepoSummary returns a summary of the repository.
 func RepoSummary(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	path := format.PaddedLine("path:", r.Cfg.Fullpath())
+	path := format.PaddedLine("path:", format.ReplaceHomePath(r.Cfg.Fullpath()))
+	records := format.PaddedLine("records:", CountMainRecords(r))
+	tags := format.PaddedLine("tags:", CountTagsRecords(r))
+	name := r.Cfg.Name
+	if name == config.DefaultDBName {
+		name += color.BrightGray(" (default) ").Italic().String()
+	}
+
+	return f.Header(color.Yellow(name).Italic().String()).
+		Ln().Row(records).
+		Ln().Row(tags).
+		Ln().Row(path).
+		Ln().String()
+}
+
+func RepoSummaryFromPath(p string) string {
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	if strings.HasSuffix(p, ".enc") {
+		p = strings.TrimSuffix(p, ".enc")
+		s := color.BrightMagenta(filepath.Base(p)).Italic().String()
+		e := color.BrightGray("(locked) ").Italic().String()
+
+		return f.Mid(format.PaddedLine(s, e)).Ln().String()
+	}
+
+	path := format.PaddedLine("path:", format.ReplaceHomePath(p))
+	r, err := New(p)
+	if err != nil {
+		return f.Row(path).String()
+	}
+	defer r.Close()
+
 	records := format.PaddedLine("records:", CountMainRecords(r))
 	tags := format.PaddedLine("tags:", CountTagsRecords(r))
 	name := r.Cfg.Name
@@ -45,15 +76,14 @@ func RepoSummaryRecords(r *SQLiteRepository) string {
 // RepoSummaryRecordsFromPath generates a summary of record counts for a given SQLite
 // repository and bookmark.
 //
-//	repositoryName (main: n) | (encrypted)
+//	repositoryName (main: n) | (locked)
 func RepoSummaryRecordsFromPath(p string) string {
 	if strings.HasSuffix(p, ".enc") {
 		s := filepath.Base(p)
 		s += color.Gray(" (encrypted)").Italic().String()
 		return s
 	}
-	cfg, _ := NewSQLiteCfg(p)
-	r, _ := New(cfg)
+	r, _ := New(p)
 	defer r.Close()
 
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
@@ -89,8 +119,7 @@ func BackupSummaryWithFmtDateFromPath(p string) string {
 		return name + bkTime.String()
 	}
 
-	cfg, _ := NewSQLiteCfg(p)
-	r, _ := New(cfg)
+	r, _ := New(p)
 	defer r.Close()
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
 	records := color.Gray(main).Italic()

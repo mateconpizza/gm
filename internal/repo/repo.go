@@ -64,29 +64,22 @@ func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteCfg) *SQLiteRepository {
 	}
 }
 
-// New creates a new `SQLiteRepository` using the provided configuration and
-// opens the database, returning the repository or an error.
-func New(c *SQLiteCfg) (*SQLiteRepository, error) {
-	db, err := openDatabase(c.Fullpath())
+// New returns a new SQLiteRepository from the provided path.
+func New(p string) (*SQLiteRepository, error) {
+	if p == "" {
+		return nil, files.ErrPathEmpty
+	}
+	c, err := NewSQLiteCfg(p)
 	if err != nil {
-		slog.Error("NewRepo", "error", err, "path", c.Fullpath())
+		return nil, fmt.Errorf("%w", err)
+	}
+	db, err := openDatabase(p)
+	if err != nil {
+		slog.Error("NewRepo", "error", err, "path", p)
 		return nil, err
 	}
 
 	return newSQLiteRepository(db, c), nil
-}
-
-func NewRepository(p string) (*SQLiteRepository, error) {
-	cfg, err := NewSQLiteCfg(p)
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	r, err := New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("database: %w", err)
-	}
-
-	return r, nil
 }
 
 // NewFromBackup creates a SQLiteRepository from a backup file.

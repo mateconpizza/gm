@@ -41,7 +41,7 @@ var backupListCmd = &cobra.Command{
 	Short:   "List backups from a database",
 	Aliases: []string{"ls", "l"},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
+		r, err := repo.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
@@ -58,7 +58,7 @@ var backupNewCmd = &cobra.Command{
 	Short:   "Create a new backup",
 	Aliases: []string{"create", "add"},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
+		r, err := repo.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}

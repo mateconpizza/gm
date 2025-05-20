@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -49,7 +48,7 @@ var databaseDropCmd = &cobra.Command{
 	Use:   "drop",
 	Short: "Drop a database",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
+		r, err := repo.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("database: %w", err)
 		}
@@ -87,57 +86,12 @@ var databaseDropCmd = &cobra.Command{
 	},
 }
 
-// dbDropCmd drops a database.
+// databaseListCmd lists the available databases.
 var databaseListCmd = &cobra.Command{
 	Use:     "list",
 	Short:   "List databases",
 	Aliases: []string{"ls", "l"},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
-		if err != nil {
-			return fmt.Errorf("database: %w", err)
-		}
-		defer r.Close()
-		// unlocked databases
-		dbs, err := repo.Databases(r.Cfg.Path)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		n := dbs.Len()
-		if n == 0 {
-			return fmt.Errorf("%w", repo.ErrDBsNotFound)
-		}
-		// locked databases
-		s, err := repo.DatabasesEncrypted(config.App.Path.Data)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		f := frame.New(frame.WithColorBorder(color.BrightGray))
-		// add header
-		if n > 1 || len(s) > 1 {
-			n += len(s)
-			nColor := color.BrightCyan(n).Bold().String()
-			f.Header(nColor + " database/s found\n").Row("\n")
-		}
-
-		dbs.ForEachMut(func(r *Repo) {
-			f.Text(repo.RepoSummary(r))
-		})
-
-		if len(s) > 0 {
-			for _, file := range s {
-				file = strings.TrimSuffix(file, ".enc")
-				s := color.BrightMagenta(filepath.Base(file)).Italic().String()
-				e := color.BrightGray("(encrypted) ").Italic().String()
-				f.Mid(format.PaddedLine(s, e)).Ln()
-			}
-		}
-
-		f.Flush()
-
-		return nil
-	},
+	RunE:    handler.ListDatabases,
 }
 
 // databaseInfoCmd shows information about a database.
@@ -146,7 +100,7 @@ var databaseInfoCmd = &cobra.Command{
 	Short:   "Show information about a database",
 	Aliases: []string{"i", "show"},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
+		r, err := repo.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("database: %w", err)
 		}

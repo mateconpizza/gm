@@ -17,6 +17,7 @@ var (
 	ErrFileNotFound = errors.New("file not found")
 	ErrPathNotFound = errors.New("path not found")
 	ErrFileExists   = errors.New("file already exists")
+	ErrPathEmpty    = errors.New("path is empty")
 )
 
 // Exists checks if a file exists.

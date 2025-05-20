@@ -21,7 +21,7 @@ var recordsCmd = &cobra.Command{
 		return handler.CheckDBNotEncrypted()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(Cfg)
+		r, err := repo.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
