@@ -187,12 +187,18 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 
 // getUserInputWithAttempts reads user input and validates against the options,
 // with a limited number of attempts (3).
-func getUserInputWithAttempts(rd io.Reader, p string, opts []string, def string) (string, error) {
+func getUserInputWithAttempts(
+	rd io.Reader,
+	w io.Writer,
+	p string,
+	opts []string,
+	def string,
+) (string, error) {
 	r := bufio.NewReader(rd)
 	const attempts = 3
 	var count int
 	for count < attempts {
-		fmt.Print(p)
+		fmt.Fprint(w, p)
 
 		input, err := r.ReadString('\n')
 		if err != nil {

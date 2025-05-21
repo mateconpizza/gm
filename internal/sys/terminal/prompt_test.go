@@ -13,7 +13,8 @@ func TestTermGetUserInput(t *testing.T) {
 		opts := []string{"yes", "no"}
 		input := "yes\n"
 		mockInput := strings.NewReader(input)
-		result, err := getUserInputWithAttempts(mockInput, "Proceed?", opts, "no")
+		mockOutput := &strings.Builder{}
+		result, err := getUserInputWithAttempts(mockInput, mockOutput, "Proceed?", opts, "no")
 		assert.NoError(t, err)
 		assert.Equal(t, "yes", result, "Expected 'yes' but got %s", result)
 	})
@@ -22,7 +23,8 @@ func TestTermGetUserInput(t *testing.T) {
 		opts := []string{"yes", "no"}
 		input := "\n"
 		mockInput := strings.NewReader(input)
-		result, err := getUserInputWithAttempts(mockInput, "Proceed?", opts, "no")
+		mockOutput := &strings.Builder{}
+		result, err := getUserInputWithAttempts(mockInput, mockOutput, "Proceed?", opts, "no")
 		assert.NoError(t, err)
 		assert.Equal(t, "no", result)
 	})
@@ -31,7 +33,8 @@ func TestTermGetUserInput(t *testing.T) {
 		opts := []string{"yes", "no"}
 		input := "invalid\n"
 		mockInput := strings.NewReader(input)
-		result, err := getUserInputWithAttempts(mockInput, "Proceed?", opts, "no")
+		mockOutput := &strings.Builder{}
+		result, err := getUserInputWithAttempts(mockInput, mockOutput, "Proceed?", opts, "no")
 		assert.Error(t, err)
 		assert.Empty(t, result)
 	})

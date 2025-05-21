@@ -33,6 +33,7 @@ type TermOptFn func(*Options)
 // Options represents the options for the terminal.
 type Options struct {
 	reader      io.Reader
+	writer      io.Writer
 	PromptStr   string
 	InterruptFn func(error)
 }
@@ -47,6 +48,7 @@ type Term struct {
 func defaultOpts() Options {
 	return Options{
 		reader:    os.Stdin,
+		writer:    os.Stdout,
 		PromptStr: termPromptPrefix,
 	}
 }
@@ -55,6 +57,13 @@ func defaultOpts() Options {
 func WithReader(r io.Reader) TermOptFn {
 	return func(o *Options) {
 		o.reader = r
+	}
+}
+
+// WithWriter sets the writer for the terminal.
+func WithWriter(w io.Writer) TermOptFn {
+	return func(o *Options) {
+		o.writer = w
 	}
 }
 
@@ -191,13 +200,13 @@ func (t *Term) Choose(q string, opts []string, def string) (string, error) {
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string, error) {
 	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
-	return getUserInputWithAttempts(t.reader, p, opts, def)
+	return getUserInputWithAttempts(t.reader, t.writer, p, opts, def)
 }
 
 // ClearLine deletes n lines in the console.
 func (t *Term) ClearLine(n int) {
 	if !t.isInteractiveTerminal(n) {
-		slog.Error("error clearing line", "error", ErrNotInteractive)
+		slog.Debug("clearing line", "error", ErrNotInteractive)
 		return
 	}
 	ClearLine(n)
