@@ -93,7 +93,7 @@ func init() {
 	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	f.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
 	f.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
-	f.StringVarP(&Field, "field", "f", "", "output by field [id|url|title|tags]")
+	f.StringVarP(&Field, "field", "f", "", "output by field [id,1|url,2|title,3|tags,4]")
 	// actions
 	f.BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
 	f.BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")

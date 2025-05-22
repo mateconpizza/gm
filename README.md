@@ -1,13 +1,20 @@
 <div align="center">
-    <h1><b>🔖 GoMarks</b></h1>
-    <span>Simple cli tool for manage your bookmarks <sub>🚧 WIP</sub> </span>
-<br>
-<br>
+    <div>
+        <h1><b><span style="font-size: 1.2em">📑</span> GoMarks</b></h1>
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/haaag/gm)
 ![Linux](https://img.shields.io/badge/-Linux-grey?logo=linux)
 ![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=Flat&logo=sqlite&logoColor=white)
 
+<img align="center" width="240px" src="assets/gophers-19.png" alt="Writing gopher logo">
+</div>
+<span>Simple CLI tool for manage your bookmarks <sub><b>🚧 WIP</b></sub></span>
+<br>
+<br>
+<div align="center">
+  <small>💙 Gopher image by <a href="https://github.com/MariaLetta/free-gophers-pack">Maria Letta</a></small>
+</div>
+<br>
 </div>
 
 > [!WARNING]
@@ -16,7 +23,7 @@
 
 https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 
-### ✨ Features
+### Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
 - [x] Support multiple `databases`
@@ -32,15 +39,15 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 - [ ] Add `docker|podman` support <sub>_priority_</sub>
 - [ ] ...
 
-### 📦 Installation
+### Installation
 
 ```sh
 go install github.com/haaag/gm@latest
 ```
 
-_To uninstall the program remove the binary in your `go env GOPATH`_
+<sub>_To uninstall the program remove the binary in your `go env GOPATH`_</sub>
 
-### 📖 Usage <small><sub>(🚧WIP)</sub></small>
+### Usage <small><sub>(🚧WIP)</sub></small>
 
 ```sh
 $ gm --help
@@ -51,31 +58,45 @@ Usage:
   gm [command]
 
 Available Commands:
-  backup      backup management
-  config      configuration management
-  database    database management
+  backup      Backup management
+  config      Configuration management
+  database    Database management
   help        Help about any command
-  import      import bookmarks from various sources
-  records     records management
+  import      Import bookmarks from various sources
+  new         New bookmark, database, backup
+  records     Records management
   remove      Remove databases/backups
-  version     print version information
 
 Flags:
-      --color string   output with pretty colors [always|never] (default "always")
-      --force          force action | don't ask confirmation
-  -h, --help           help for gm
-  -n, --name string    database name (default "bookmarks.db")
-  -v, --verbose        verbose mode
+      --color string    output with pretty colors [always|never] (default "always")
+  -c, --copy            copy bookmark to clipboard
+  -e, --edit            edit with preferred text editor
+  -f, --field string    output by field [id,1|url,2|title,3|tags,4]
+      --force           force action | don't ask confirmation
+  -H, --head int        the <int> first part of bookmarks
+  -h, --help            help for gm
+  -j, --json            output in JSON format
+  -m, --menu            menu mode (fzf)
+  -M, --multiline       output in formatted multiline (fzf)
+  -n, --name string     database name (default "bookmarks.db")
+  -O, --oneline         output in formatted oneline (fzf)
+  -o, --open            open bookmark in default browser
+  -q, --qr              generate qr-code
+  -r, --remove          remove a bookmarks by query or id
+  -s, --status          check bookmarks status
+  -t, --tag strings     list by tag
+  -T, --tail int        the <int> last part of bookmarks
+  -v, --verbose count   Increase verbosity (-v, -vv, -vvv)
+      --version         version for gm
 ```
 
-### 🔑 Supported Env Vars
+### Supported Env Vars
 
-| Name                     | type | Description                              | Status                                    |
-| ------------------------ | ---- | ---------------------------------------- | ----------------------------------------- |
-| `GOMARKS_HOME`           | str  | Path to database/yaml                    | <span style="color:green">**done**</span> |
-| `GOMARKS_EDITOR`         | str  | Preferred text editor                    | <span style="color:green">**done**</span> |
-| `NO_COLOR`               | int  | Disable all colors                       | <span style="color:green">**done**</span> |
-| ~~`GOMARKS_BACKUP_MAX`~~ | int  | Maximum number of backups _(def: **3**)_ | <span style="color:green">**done**</span> |
+| Name             | type | Description           | Status                                    |
+| ---------------- | ---- | --------------------- | ----------------------------------------- |
+| `GOMARKS_HOME`   | str  | Path to database/yaml | <span style="color:green">**done**</span> |
+| `GOMARKS_EDITOR` | str  | Preferred text editor | <span style="color:green">**done**</span> |
+| `NO_COLOR`       | int  | Disable all colors    | <span style="color:green">**done**</span> |
 
 <details>
 <summary><strong>📜 Menu support</strong></summary>
