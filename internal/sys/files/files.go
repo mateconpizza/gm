@@ -14,16 +14,32 @@ import (
 )
 
 var (
-	ErrFileNotFound = errors.New("file not found")
-	ErrPathNotFound = errors.New("path not found")
-	ErrFileExists   = errors.New("file already exists")
-	ErrPathEmpty    = errors.New("path is empty")
+	ErrFileNotFound    = errors.New("file/s not found")
+	ErrPathNotFound    = errors.New("path not found")
+	ErrFileExists      = errors.New("file already exists")
+	ErrNotFile         = errors.New("not a file")
+	ErrPathEmpty       = errors.New("path is empty")
+	ErrNothingToRemove = errors.New("nothing to remove")
 )
 
 // Exists checks if a file exists.
 func Exists(s string) bool {
 	_, err := os.Stat(s)
 	return !os.IsNotExist(err)
+}
+
+// IsFile checks if the given path exists and refers to a regular file.
+func IsFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+
+		return false
+	}
+
+	return info.Mode().IsRegular()
 }
 
 // size returns the size of a file.
@@ -65,8 +81,11 @@ func mkdir(s string) error {
 
 // MkdirAll creates all the given paths.
 func MkdirAll(s ...string) error {
-	for _, path := range s {
-		if err := mkdir(path); err != nil {
+	for _, p := range s {
+		if p == "" {
+			return ErrPathEmpty
+		}
+		if err := mkdir(p); err != nil {
 			return err
 		}
 	}
@@ -192,6 +211,9 @@ func findByExt(root, ext string) ([]string, error) {
 
 // EnsureExt appends the specified suffix to the filename.
 func EnsureExt(s, suffix string) string {
+	if s == "" {
+		return s
+	}
 	e := filepath.Ext(s)
 	if e == suffix || e != "" {
 		return s
@@ -286,4 +308,16 @@ func YamlRead[T any](p string, v *T) error {
 	slog.Debug("YamlRead", "path", p)
 
 	return nil
+}
+
+func Find(root, pattern string) ([]string, error) {
+	f, err := filepath.Glob(filepath.Join(root, pattern))
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if len(f) == 0 {
+		return nil, fmt.Errorf("%w: %q", ErrFileNotFound, pattern)
+	}
+
+	return f, nil
 }

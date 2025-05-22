@@ -1,4 +1,4 @@
-package encryptor
+package locker
 
 import (
 	"log/slog"

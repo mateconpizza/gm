@@ -12,6 +12,8 @@ import (
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/locker"
+	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys/files"
 )
@@ -137,8 +139,8 @@ func getColorScheme(s string) (*color.Scheme, error) {
 	return cs, nil
 }
 
-// FzfFormatter returns a function to format a bookmark for the FZF menu.
-func FzfFormatter(m bool, colorScheme string) func(b *Bookmark) string {
+// fzfFormatter returns a function to format a bookmark for the FZF menu.
+func fzfFormatter(m bool) func(b *Bookmark) string {
 	cs, err := getColorScheme(config.App.Colorscheme)
 	if err != nil {
 		slog.Error("getting colorscheme", slog.String("error", err.Error()))
@@ -158,8 +160,8 @@ func FzfFormatter(m bool, colorScheme string) func(b *Bookmark) string {
 }
 
 // ListDatabases lists the available databases.
-func ListDatabases(_ *cobra.Command, _ []string) error {
-	fs, err := files.FindByExtList(config.App.Path.Data, ".db", ".enc")
+func ListDatabases(p string) error {
+	fs, err := files.FindByExtList(p, ".db", ".enc")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -176,4 +178,53 @@ func ListDatabases(_ *cobra.Command, _ []string) error {
 	}
 
 	return nil
+}
+
+// RepoInfo prints the database info.
+func RepoInfo(p string, j bool) error {
+	if err := locker.IsLocked(p); err != nil {
+		fmt.Print(repo.RepoSummaryFromPath(config.App.DBPath + ".enc"))
+		return nil
+	}
+	r, err := repo.New(config.App.DBPath)
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	defer r.Close()
+	r.Cfg.BackupFiles, _ = r.BackupsList()
+	if j {
+		fmt.Println(string(format.ToJSON(r)))
+		return nil
+	}
+
+	fmt.Print(repo.Info(r))
+
+	return nil
+}
+
+// MenuForRecords returns a FZF menu for showing records.
+func MenuForRecords[T comparable](cmd *cobra.Command) *menu.Menu[T] {
+	mo := []menu.OptFn{
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithMultiSelection(),
+		menu.WithPreview(config.App.Cmd + " --name " + config.App.DBName + " records {1}"),
+		menu.WithKeybinds(
+			config.FzfKeybindEdit(),
+			config.FzfKeybindOpen(),
+			config.FzfKeybindQR(),
+			config.FzfKeybindOpenQR(),
+			config.FzfKeybindYank(),
+		),
+	}
+	multi, err := cmd.Flags().GetBool("multiline")
+	if err != nil {
+		slog.Debug("getting 'Multiline' flag", "error", err.Error())
+		multi = false
+	}
+	if multi {
+		mo = append(mo, menu.WithMultilineView())
+	}
+
+	return menu.New[T](mo...)
 }

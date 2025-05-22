@@ -102,10 +102,19 @@ func (t *Term) Input(p string) string {
 }
 
 func (t *Term) InputPassword() (string, error) {
+	// if not a terminal (testing or piped input) - read from configured reader
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		var password string
+		if _, err := fmt.Fscanln(t.reader, &password); err != nil {
+			return "", fmt.Errorf("reading password: %w", err)
+		}
+
+		return password, nil
+	}
+
 	if err := saveState(); err != nil {
 		return "", err
 	}
-	fd := syscall.Stdin
 
 	t.SetInterruptFn(func(err error) {
 		if err := restoreState(); err != nil {
@@ -120,6 +129,8 @@ func (t *Term) InputPassword() (string, error) {
 		}
 	}()
 
+	// Use stdin file descriptor for reading password securely
+	fd := int(os.Stdin.Fd())
 	p, err := term.ReadPassword(fd)
 	if err != nil {
 		return "", fmt.Errorf("reading password: %w", err)

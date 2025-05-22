@@ -198,7 +198,7 @@ func getUserInputWithAttempts(
 	const attempts = 3
 	var count int
 	for count < attempts {
-		fmt.Fprint(w, p)
+		_, _ = fmt.Fprint(w, p)
 
 		input, err := r.ReadString('\n')
 		if err != nil {

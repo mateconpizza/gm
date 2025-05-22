@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -316,4 +317,12 @@ func ReplaceHomePath(p string) string {
 	}
 
 	return "~" + p[len(home):]
+}
+
+func StripSuffixes(p string) string {
+	for ext := filepath.Ext(p); ext != ""; ext = filepath.Ext(p) {
+		p = p[:len(p)-len(ext)]
+	}
+
+	return p
 }

@@ -1,13 +1,17 @@
 package repo
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
+	"github.com/haaag/gm/internal/config"
+	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys/files"
 )
@@ -52,7 +56,22 @@ func databasesFromPath(p string) (*slice.Slice[string], error) {
 }
 
 // Databases returns the list of databases.
-func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
+//
+// locked|unlocked databases.
+func Databases(root string) ([]string, error) {
+	fs, err := files.FindByExtList(root, ".db", ".enc")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if len(fs) == 0 {
+		return nil, ErrDBsNotFound
+	}
+
+	return fs, nil
+}
+
+// DatabasesUnlocked returns the list of databases.
+func DatabasesUnlocked(path string) (*slice.Slice[SQLiteRepository], error) {
 	paths, err := databasesFromPath(path)
 	if err != nil {
 		if errors.Is(err, files.ErrPathNotFound) {
@@ -75,11 +94,11 @@ func Databases(path string) (*slice.Slice[SQLiteRepository], error) {
 	return dbs, nil
 }
 
-// DatabasesEncrypted returns all encrypted database files.
-func DatabasesEncrypted(root string) ([]string, error) {
+// DatabasesLocked returns all encrypted database files.
+func DatabasesLocked(root string) ([]string, error) {
 	fs, err := files.FindByExtList(root, "enc")
 	if err != nil {
-		return fs, fmt.Errorf("%w", err)
+		return fs, fmt.Errorf("%w: %q", err, filepath.Base(root))
 	}
 
 	return fs, nil
@@ -87,7 +106,7 @@ func DatabasesEncrypted(root string) ([]string, error) {
 
 // newBackup creates a new backup from the given repository.
 func newBackup(r *SQLiteRepository) (string, error) {
-	if err := files.MkdirAll(r.Cfg.BackupDir); err != nil {
+	if err := files.MkdirAll(config.App.Path.Backup); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 	// destDSN -> 20060102-150405_dbName.db
@@ -97,6 +116,9 @@ func newBackup(r *SQLiteRepository) (string, error) {
 		"src", r.Cfg.Fullpath(),
 		"dest", destPath,
 	)
+	if files.Exists(destPath) {
+		return "", fmt.Errorf("%w: %q", ErrBackupExists, destPath)
+	}
 	_ = r.DB.MustExec("VACUUM INTO ?", destPath)
 	if err := verifySQLiteIntegrity(destPath); err != nil {
 		return "", err
@@ -105,10 +127,10 @@ func newBackup(r *SQLiteRepository) (string, error) {
 	return destDSN, nil
 }
 
-// listDatabaseBackups returns a filtered list of database backups.
-func listDatabaseBackups(dir, dbName string) ([]string, error) {
-	// Remove .db extension for matching
-	baseName := strings.TrimSuffix(dbName, ".db")
+// ListDatabaseBackups returns a filtered list of database backups.
+func ListDatabaseBackups(dir, dbName string) ([]string, error) {
+	// Remove .db|.enc extension for matching
+	baseName := format.StripSuffixes(dbName)
 	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db*"))
 	if err != nil {
 		return nil, fmt.Errorf("listing backups: %w", err)
@@ -161,6 +183,96 @@ func verifySQLiteIntegrity(path string) error {
 	}
 
 	slog.Debug("SQLite integrity verified", "result", result)
+
+	return nil
+}
+
+// isInit returns true if the database is initialized.
+func isInit(r *SQLiteRepository) bool {
+	allExist := true
+	for _, s := range tablesAndSchema() {
+		exists, err := r.tableExists(s.name)
+		if err != nil {
+			slog.Error("checking if table exists", "name", s.name, "error", err)
+			return false
+		}
+		if !exists {
+			allExist = false
+			slog.Warn("table does not exist", "name", s.name)
+		}
+	}
+
+	return allExist
+}
+
+// IsInitialized checks if the database is initialized.
+func IsInitialized(p string) (bool, error) {
+	slog.Debug("checking if database is initialized", "path", p)
+	allExist := true
+	r, err := New(p)
+	if err != nil {
+		return false, err
+	}
+	for _, s := range tablesAndSchema() {
+		exists, err := r.tableExists(s.name)
+		if err != nil {
+			slog.Error("checking if table exists", "name", s.name, "error", err)
+			return false, err
+		}
+		if !exists {
+			allExist = false
+			slog.Warn("table does not exist", "name", s.name)
+		}
+	}
+
+	return allExist, nil
+}
+
+// Drop removes all records database.
+func Drop(r *SQLiteRepository, ctx context.Context) error {
+	tts := tablesAndSchema()
+	tables := make([]Table, 0, len(tts))
+	for _, t := range tts {
+		tables = append(tables, t.name)
+	}
+
+	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
+		if err := r.deleteAll(ctx, tables...); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return resetSQLiteSequence(tx, tables...)
+	})
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return r.Vacuum()
+}
+
+func vacuum(r *SQLiteRepository) error {
+	slog.Debug("vacuuming database")
+	_, err := r.DB.Exec("VACUUM")
+	if err != nil {
+		return fmt.Errorf("vacuum: %w", err)
+	}
+
+	return nil
+}
+
+// resetSQLiteSequence resets the SQLite sequence for the given table.
+func resetSQLiteSequence(tx *sqlx.Tx, tables ...Table) error {
+	if len(tables) == 0 {
+		slog.Warn("no tables provided to reset sqlite sequence")
+		return nil
+	}
+
+	for _, t := range tables {
+		slog.Debug("resetting sqlite sequence", "table", t)
+		if _, err := tx.Exec("DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
+			return fmt.Errorf("resetting sqlite sequence: %w", err)
+		}
+	}
 
 	return nil
 }

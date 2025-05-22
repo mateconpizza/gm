@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -16,13 +15,11 @@ import (
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/qr"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/encryptor"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/menu"
+	"github.com/haaag/gm/internal/locker"
 	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
@@ -151,22 +148,27 @@ func CheckStatus(bs *Slice) error {
 
 // LockRepo locks the database.
 func LockRepo(t *terminal.Term, rToLock string) error {
-	slog.Debug("encrypting database", "name", config.App.DBName)
-	if err := encryptor.IsEncrypted(rToLock); err != nil {
+	slog.Debug("locking database", "name", config.App.DBName)
+	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	if !files.Exists(rToLock) {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
 	}
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	if err := t.ConfirmErr(f.Question(fmt.Sprintf("Lock %q?", rToLock)).String(), "y"); err != nil {
+	q := fmt.Sprintf("Lock %q?", filepath.Base(rToLock))
+	if err := t.ConfirmErr(f.Question(q).String(), "y"); err != nil {
+		if errors.Is(err, terminal.ErrActionAborted) {
+			return nil
+		}
+
 		return fmt.Errorf("%w", err)
 	}
 	pass, err := passwordConfirm(t, f.Clear())
 	if err != nil {
 		return err
 	}
-	if err := encryptor.Lock(rToLock, pass); err != nil {
+	if err := locker.Lock(rToLock, pass); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	success := color.BrightGreen("Successfully").Italic().String()
@@ -177,8 +179,8 @@ func LockRepo(t *terminal.Term, rToLock string) error {
 
 // UnlockRepo unlocks the database.
 func UnlockRepo(t *terminal.Term, rToUnlock string) error {
-	if err := encryptor.IsEncrypted(rToUnlock); err == nil {
-		return fmt.Errorf("%w: %q", encryptor.ErrFileNotEncrypted, filepath.Base(rToUnlock))
+	if err := locker.IsLocked(rToUnlock); err == nil {
+		return fmt.Errorf("%w: %q", locker.ErrFileNotEncrypted, filepath.Base(rToUnlock))
 	}
 	if !strings.HasSuffix(rToUnlock, ".enc") {
 		rToUnlock += ".enc"
@@ -199,7 +201,7 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	if err := encryptor.Unlock(rToUnlock, s); err != nil {
+	if err := locker.Unlock(rToUnlock, s); err != nil {
 		fmt.Println()
 		return fmt.Errorf("%w", err)
 	}
@@ -207,52 +209,6 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 	fmt.Println(success + " database unlocked")
 
 	return nil
-}
-
-func RemoveBackups(t *terminal.Term, f *frame.Frame, r *repo.SQLiteRepository) error {
-	filesToRemove := slice.New[repo.SQLiteRepository]()
-	backups, err := repo.Backups(r)
-	if err != nil {
-		if !errors.Is(err, repo.ErrBackupNotFound) {
-			return fmt.Errorf("%w", err)
-		}
-		backups = slice.New[repo.SQLiteRepository]()
-	}
-	if backups.Len() == 0 {
-		return nil
-	}
-
-	rm := color.BrightRed("remove").Bold().String()
-	items := backups.Items()
-	f.Clear().Mid(rm + " backups?")
-	opt, err := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	switch strings.ToLower(opt) {
-	case "n", "no":
-		sk := color.BrightYellow("skipping").String()
-		t.ReplaceLine(1, f.Clear().Warning(sk+" backup/s\n").Row().String())
-	case "a", "all":
-		filesToRemove.Set(items)
-	case "s", "select":
-		m := menu.New[repo.SQLiteRepository](
-			menu.WithUseDefaults(),
-			menu.WithSettings(config.Fzf.Settings),
-			menu.WithMultiSelection(),
-			menu.WithHeader(fmt.Sprintf("select backup/s from %q", r.Name()), false),
-			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
-		)
-		selected, err := Selection(m, *items, repo.RepoSummaryRecords)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		t.ClearLine(1)
-		filesToRemove.Append(selected...)
-	}
-	filesToRemove.Push(r)
-
-	return rmDatabases(t, f.Clear(), filesToRemove)
 }
 
 // openQR opens a QR-Code image in the system default image viewer.
@@ -278,43 +234,6 @@ func openQR(qrcode *qr.QRCode, b *Bookmark) error {
 	if err := qrcode.Open(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
-	return nil
-}
-
-func rmDatabases(t *terminal.Term, f *frame.Frame, dbs *slice.Slice[repo.SQLiteRepository]) error {
-	s := color.BrightRed("removing").String()
-	dbs.ForEachMut(func(r *repo.SQLiteRepository) {
-		f.Mid(repo.RepoSummaryRecords(r)).Ln()
-	})
-
-	msg := s + " " + strconv.Itoa(dbs.Len()) + " items/s"
-	if err := t.ConfirmErr(f.Row("\n").Question(msg+", continue?").String(), "n"); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	sp := rotato.New(
-		rotato.WithMesg("removing database..."),
-		rotato.WithMesgColor(rotato.ColorYellow),
-	)
-	sp.Start()
-
-	rmRepo := func(r *repo.SQLiteRepository) error {
-		if err := files.Remove(r.Cfg.Fullpath()); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return nil
-	}
-
-	if err := dbs.ForEachMutErr(rmRepo); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	sp.Done()
-	t.ClearLine(format.CountLines(f.String()))
-	s = color.BrightGreen("Successfully").Italic().String()
-	f.Clear().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed\n").Flush()
 
 	return nil
 }

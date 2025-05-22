@@ -1,4 +1,4 @@
-package encryptor
+package locker
 
 import (
 	"crypto/aes"
@@ -153,8 +153,8 @@ func decrypt(ciphertext []byte, passphrase string) ([]byte, error) {
 	return plaintext, nil
 }
 
-// IsEncrypted checks if the given file has .enc extension.
-func IsEncrypted(s string) error {
+// IsLocked checks if the given file has .enc extension.
+func IsLocked(s string) error {
 	slog.Debug("checking if file is encrypted")
 	if !strings.HasSuffix(s, ".enc") {
 		s += ".enc"

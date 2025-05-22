@@ -74,8 +74,7 @@ func (m *Menu[T]) callInterruptFn(err error) {
 		slog.Debug("calling interruptFn with err", "err", err)
 		m.interruptFn(err)
 	}
-
-	slog.Warn("interruptFn is nil")
+	slog.Debug("interruptFn is nil")
 }
 
 // setup loads header, keybind and args from Options.

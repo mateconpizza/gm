@@ -200,7 +200,7 @@ func init() {
 	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	// set and hide persistent flag
 	f.StringVar(&WithColor, "color", "always", "")
-	f.StringVarP(&DBName, "name", "n", "", "database name")
+	f.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
 	_ = configCmd.PersistentFlags().MarkHidden("help")
 	_ = f.MarkHidden("name")
 	_ = f.MarkHidden("color")

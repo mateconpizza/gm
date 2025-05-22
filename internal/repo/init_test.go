@@ -44,9 +44,9 @@ func testSingleBookmark() *Row {
 	}
 }
 
-func testSliceBookmarks() *Slice {
+func testSliceBookmarks(n int) *Slice {
 	s := slice.New[Row]()
-	for i := 0; i < 10; i++ {
+	for i := range n {
 		b := testSingleBookmark()
 		b.Title = fmt.Sprintf("Title %d", i)
 		b.URL = fmt.Sprintf("https://www.example%d.com", i)
@@ -58,10 +58,10 @@ func testSliceBookmarks() *Slice {
 	return s
 }
 
-func testPopulatedDB(t *testing.T) *SQLiteRepository {
+func testPopulatedDB(t *testing.T, n int) *SQLiteRepository {
 	t.Helper()
 	r := setupTestDB(t)
-	bs := testSliceBookmarks()
+	bs := testSliceBookmarks(n)
 	ctx := context.Background()
 	err := r.InsertMany(ctx, bs)
 	assert.NoError(t, err)

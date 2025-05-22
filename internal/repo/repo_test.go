@@ -42,6 +42,14 @@ func TestNewRepository(t *testing.T) {
 		assert.ErrorIs(t, err, files.ErrPathEmpty)
 	})
 
+	t.Run("non-existent path returns ErrPathNotFound", func(t *testing.T) {
+		t.Parallel()
+		r, err := New("/tmp/invalid/path")
+		assert.Nil(t, r)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrDBNotFound)
+	})
+
 	t.Run("valid path to non-sqlite file returns error", func(t *testing.T) {
 		t.Parallel()
 		nonSqlitePath := filepath.Join(t.TempDir(), "not_a_db.txt")

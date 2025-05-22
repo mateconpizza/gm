@@ -284,7 +284,7 @@ func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		// check if last item has been deleted
 		if r.maxID() == 0 {
-			return r.resetSQLiteSequence(tx, schemaMain.name)
+			return resetSQLiteSequence(tx, schemaMain.name)
 		}
 		// get all records
 		bs := slice.New[Row]()

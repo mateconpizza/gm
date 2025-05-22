@@ -3,47 +3,46 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/encryptor"
+	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/locker"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// confirmation prompts the user to confirm the action.
-func confirmation(
-	m *menu.Menu[Bookmark],
-	t *terminal.Term,
-	bs *Slice,
-	prompt string,
-	colors color.ColorFn,
-) error {
+// confirmRemove prompts the user to confirm the action.
+func confirmRemove(m *menu.Menu[Bookmark], t *terminal.Term, bs *Slice, s string) error {
 	for !config.App.Force {
+		cs, err := getColorScheme(config.App.Colorscheme)
+		if err != nil {
+			return err
+		}
 		n := bs.Len()
 		if n == 0 {
 			return repo.ErrRecordNotFound
 		}
 		bs.ForEach(func(b Bookmark) {
-			fmt.Println(bookmark.FrameFormatted(&b, colors))
+			fmt.Println(bookmark.Frame(&b, cs))
 		})
-		// render frame
-		f := frame.New(frame.WithColorBorder(colors))
-		q := f.Footer(prompt + fmt.Sprintf(" %d bookmark/s?", n)).String()
+
+		f := frame.New(frame.WithColorBorder(color.BrightRed))
 		opts := []string{"yes", "no"}
 		if bs.Len() > 1 {
 			opts = append(opts, "select")
 		}
-		opt, err := t.Choose(q, opts, "n")
+		opt, err := t.Choose(f.Question(fmt.Sprintf("%s %d bookmark/s?", s, n)).String(), opts, "n")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -53,11 +52,7 @@ func confirmation(
 		case "y", "yes":
 			return nil
 		case "s", "select":
-			items, err := Selection(
-				m,
-				*bs.Items(),
-				FzfFormatter(false, config.App.Colorscheme),
-			)
+			items, err := SelectionWithMenu(m, *bs.Items(), fzfFormatter(false))
 			if err != nil {
 				return err
 			}
@@ -125,34 +120,52 @@ func validateRemove(bs *Slice, force bool) error {
 	return nil
 }
 
-// ValidateDBExistence verifies if the database exists.
-func ValidateDBExistence(cmd *cobra.Command, c *repo.SQLiteCfg) error {
-	if c.Exists() {
+// ValidateDBExists verifies if the database exists.
+func ValidateDBExists(p string) error {
+	slog.Debug("validating database", "path", p)
+	if files.Exists(p) {
 		return nil
 	}
-	s := color.BrightYellow(config.App.Cmd, "init").Italic()
-	init := fmt.Errorf("%w %q: use '%s' to initialize", repo.ErrDBNotFound, c.Name, s)
-	databases, err := repo.Databases(c.Path)
-	if err != nil {
-		return init
+	if err := locker.IsLocked(p); err != nil {
+		return repo.ErrDBLocked
 	}
-	dbName, err := cmd.Flags().GetString("name")
-	if err != nil {
-		return fmt.Errorf("%w", err)
+	i := color.BrightYellow(config.App.Cmd, "init").Italic()
+	// check if default db not found
+	name := filepath.Base(p)
+	if name == config.DefaultDBName {
+		slog.Warn("default database not found", "name", name)
+		return fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBMainNotFound, i)
 	}
-	// find with no|other extension
-	databases.ForEachMut(func(r *repo.SQLiteRepository) {
-		s := strings.TrimSuffix(r.Name(), filepath.Ext(r.Name()))
-		if s == dbName {
-			c.Name = r.Name()
+	ei := fmt.Errorf("%w %q: use '%s' to initialize", repo.ErrDBNotFound, name, i)
+	dbs, err := repo.Databases(filepath.Dir(p))
+	if err != nil {
+		return ei
+	}
+	if slices.Contains(dbs, name) {
+		return nil
+	}
+
+	return ei
+}
+
+// FindDB returns the path to the database.
+func FindDB(p string) (string, error) {
+	slog.Debug("searching db", "path", p)
+	if files.Exists(p) {
+		return p, nil
+	}
+	fs, err := repo.Databases(filepath.Dir(p))
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+	s := filepath.Base(p)
+	for _, f := range fs {
+		if strings.Contains(f, s) {
+			return f, nil
 		}
-	})
-
-	if c.Exists() {
-		return nil
 	}
 
-	return init
+	return "", fmt.Errorf("%w: %q", repo.ErrDBNotFound, format.StripSuffixes(s))
 }
 
 // passwordConfirm prompts user for password input.
@@ -171,7 +184,7 @@ func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
 
 	fmt.Println()
 	if s != s2 {
-		return "", encryptor.ErrPassphraseMismatch
+		return "", locker.ErrPassphraseMismatch
 	}
 
 	return s, nil
@@ -180,10 +193,10 @@ func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
 // CheckDBNotEncrypted checks if the database is encrypted.
 func CheckDBNotEncrypted() error {
 	p := filepath.Join(config.App.Path.Data, config.App.DBName)
-	err := encryptor.IsEncrypted(p)
+	err := locker.IsLocked(p)
 	if err != nil {
-		if errors.Is(err, encryptor.ErrFileEncrypted) {
-			return repo.ErrDBDecryptFirst
+		if errors.Is(err, locker.ErrFileEncrypted) {
+			return repo.ErrDBUnlockFirst
 		}
 
 		return fmt.Errorf("%w", err)

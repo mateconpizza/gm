@@ -40,20 +40,25 @@ func (r *SQLiteRepository) Close() {
 		if err := r.DB.Close(); err != nil {
 			slog.Error("closing database", "name", s, "error", err)
 		} else {
-			slog.Info("database closed", "name", s)
+			slog.Debug("database closed", "name", s)
 		}
 	})
 }
 
 // BackupsList returns a list of available backup files.
 func (r *SQLiteRepository) BackupsList() ([]string, error) {
-	return listDatabaseBackups(r.Cfg.BackupDir, r.Cfg.Name)
+	return ListDatabaseBackups(r.Cfg.BackupDir, r.Cfg.Name)
 }
 
 // Backup creates a backup of the SQLite database and returns the path to the
 // backup filepath.
 func (r *SQLiteRepository) Backup() (string, error) {
 	return newBackup(r)
+}
+
+// IsInitialized returns true if the database is initialized.
+func (r *SQLiteRepository) IsInitialized() bool {
+	return isInit(r)
 }
 
 // newSQLiteRepository returns a new SQLiteRepository.
@@ -64,10 +69,37 @@ func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteCfg) *SQLiteRepository {
 	}
 }
 
-// New returns a new SQLiteRepository from the provided path.
+// New returns a new SQLiteRepository from an existing database path.
 func New(p string) (*SQLiteRepository, error) {
+	return newRepository(p, func(path string) error {
+		slog.Debug("new repo: checking if database exists", "path", path)
+		if !files.Exists(path) {
+			return fmt.Errorf("%w: %q", ErrDBNotFound, path)
+		}
+
+		return nil
+	})
+}
+
+// Init initializes a new SQLiteRepository at the provided path.
+func Init(p string) (*SQLiteRepository, error) {
+	return newRepository(p, func(path string) error {
+		slog.Debug("init repo: checking if database exists", "path", path)
+		if files.Exists(path) {
+			return fmt.Errorf("%w: %q", ErrDBAlreadyExists, path)
+		}
+
+		return nil
+	})
+}
+
+// newRepository returns a new SQLiteRepository from the provided path.
+func newRepository(p string, validate func(string) error) (*SQLiteRepository, error) {
 	if p == "" {
 		return nil, files.ErrPathEmpty
+	}
+	if err := validate(p); err != nil {
+		return nil, err
 	}
 	c, err := NewSQLiteCfg(p)
 	if err != nil {
@@ -142,12 +174,6 @@ type SQLiteCfg struct {
 // Fullpath returns the full path to the SQLite database.
 func (c *SQLiteCfg) Fullpath() string {
 	return filepath.Join(c.Path, c.Name)
-}
-
-// SetName sets the name of the SQLite database.
-func (c *SQLiteCfg) SetName(s string) *SQLiteCfg {
-	c.Name = files.EnsureExt(s, ".db")
-	return c
 }
 
 // Exists returns true if the SQLite database exists.

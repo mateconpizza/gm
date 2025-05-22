@@ -9,9 +9,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/encryptor"
 	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
+	"github.com/haaag/gm/internal/format/frame"
+	"github.com/haaag/gm/internal/locker"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
@@ -19,9 +20,23 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
-// Selection allows the user to select multiple records in a menu
+// Select allows the user to select a record in a menu interface.
+func Select[T comparable](items []T, fmtFn func(*T) string, opts ...menu.OptFn) ([]T, error) {
+	if len(items) == 0 {
+		return nil, menu.ErrFzfNoItems
+	}
+	m := menu.New[T](opts...)
+	selected, err := SelectionWithMenu(m, items, fmtFn)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return selected, nil
+}
+
+// SelectionWithMenu allows the user to select multiple records in a menu
 // interface.
-func Selection[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) ([]T, error) {
+func SelectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) ([]T, error) {
 	if len(items) == 0 {
 		return nil, menu.ErrFzfNoItems
 	}
@@ -49,29 +64,23 @@ func Selection[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) 
 // SelectRepoBackup lets the user choose a backup and handles decryption if
 // needed.
 func SelectRepoBackup(destDB *repo.SQLiteRepository) (string, error) {
-	mBks := menu.New[string](
-		menu.WithUseDefaults(),
-		menu.WithSettings(config.Fzf.Settings),
-		menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
-		menu.WithHeader("choose a backup to import from", false),
-	)
-
 	bks, err := destDB.BackupsList()
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-
-	selected, err := Selection(mBks, bks, func(p *string) string {
-		return repo.BackupSummaryWithFmtDateFromPath(*p)
-	})
+	selected, err := Select(bks,
+		func(p *string) string { return repo.BackupSummaryWithFmtDateFromPath(*p) },
+		menu.WithArgs("--cycle"),
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
+		menu.WithHeader("choose a backup to import from", false))
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-
 	backupPath := selected[0]
-
 	// Handle encrypted backups
-	if err := encryptor.IsEncrypted(backupPath); err != nil {
+	if err := locker.IsLocked(backupPath); err != nil {
 		if err := UnlockRepo(terminal.New(), backupPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
@@ -83,15 +92,13 @@ func SelectRepoBackup(destDB *repo.SQLiteRepository) (string, error) {
 
 // SelectItemFrom lets the user choose a repo from a list.
 func SelectItemFrom(fs []string, header string) (string, error) {
-	m := menu.New[string](
+	repos, err := Select(fs,
+		func(p *string) string { return repo.RepoSummaryRecordsFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
 		menu.WithPreview(config.App.Cmd+" db -n {1} info"),
 	)
-	repos, err := Selection(m, fs, func(p *string) string {
-		return repo.RepoSummaryRecordsFromPath(*p)
-	})
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -102,7 +109,7 @@ func SelectItemFrom(fs []string, header string) (string, error) {
 // SelectRepo selects a repo.
 func SelectRepo(args []string) (string, error) {
 	var repoPath string
-	fs, err := filepath.Glob(config.App.Path.Data + "/*.db*")
+	fs, err := files.Find(config.App.Path.Data, "/*.db*")
 	if err != nil {
 		return repoPath, fmt.Errorf("%w", err)
 	}
@@ -131,9 +138,6 @@ func SelectRepo(args []string) (string, error) {
 	if !files.Exists(repoPath) {
 		return repoPath, fmt.Errorf("%w: %q", repo.ErrDBNotFound, repoPath)
 	}
-	if err := encryptor.IsEncrypted(repoPath); err != nil {
-		return repoPath, fmt.Errorf("%w", err)
-	}
 
 	return repoPath, nil
 }
@@ -143,16 +147,14 @@ func SelectBackup(root, header string) ([]string, error) {
 	if err != nil {
 		return fs, fmt.Errorf("%w", err)
 	}
-	m := menu.New[string](
+	repos, err := Select(fs,
+		func(p *string) string { return repo.RepoSummaryRecordsFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
 		menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
 	)
-	repos, err := Selection(m, fs, func(p *string) string {
-		return repo.RepoSummaryRecordsFromPath(*p)
-	})
 	if err != nil {
 		return repos, fmt.Errorf("%w", err)
 	}
@@ -163,18 +165,16 @@ func SelectBackup(root, header string) ([]string, error) {
 // SelectFileEncrypted lets the user choose a repo from a list of encrypted
 // repos found in the given root directory.
 func SelectFileEncrypted(root, header string) ([]string, error) {
-	m := menu.New[string](
-		menu.WithUseDefaults(),
-		menu.WithSettings(config.Fzf.Settings),
-		menu.WithHeader(header, false),
-	)
 	bks, err := files.FindByExtList(root, "enc")
 	if err != nil {
 		return bks, fmt.Errorf("%w", err)
 	}
-	selected, err := Selection(m, bks, func(p *string) string {
-		return repo.BackupSummaryWithFmtDateFromPath(*p)
-	})
+	selected, err := Select(bks,
+		func(p *string) string { return repo.BackupSummaryWithFmtDateFromPath(*p) },
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithHeader(header, false),
+	)
 	if err != nil {
 		return bks, fmt.Errorf("%w", err)
 	}
@@ -192,7 +192,7 @@ func SelectFile(header string, search func() ([]string, error)) ([]string, error
 	if err != nil {
 		return fs, fmt.Errorf("%w", err)
 	}
-	selected, err := Selection(m, fs, func(p *string) string {
+	selected, err := SelectionWithMenu(m, fs, func(p *string) string {
 		return *p
 	})
 	if err != nil {
@@ -229,11 +229,27 @@ func SelectSource(cmd *cobra.Command, args []string) error {
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader("select a source to import from", false),
 	)
-	r, err := Selection(m, s, nil)
+	r, err := SelectionWithMenu(m, s, nil)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	c := color.ANSICodeRemover(strings.Split(r[0], d)[0])
 
 	return sources[strings.TrimSpace(c)](cmd, args)
+}
+
+// selectBrowser returns the key of the browser selected by the user.
+func selectBrowser(t *terminal.Term) string {
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f.Header("Supported Browsers\n").Row("\n")
+
+	for _, c := range registeredBrowser {
+		b := c.browser
+		f.Mid(b.Color(b.Short()) + " " + b.Name() + "\n")
+	}
+	f.Row("\n").Footer("which browser do you use?")
+	defer t.ClearLine(format.CountLines(f.String()))
+	f.Flush()
+
+	return t.Prompt(" ")
 }

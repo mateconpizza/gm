@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -35,6 +36,52 @@ var backupRmCmd = &cobra.Command{
 	},
 }
 
+// backupRmCmd remove backups.
+var backupLockCmd = &cobra.Command{
+	Use:   "lock",
+	Short: "Lock a database backup",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
+		fs, err := handler.SelectBackup(config.App.Path.Backup, "select backup/s to lock")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		f := frame.New(frame.WithColorBorder(color.BrightGray))
+		f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
+		for _, r := range fs {
+			if err := handler.LockRepo(t, r); err != nil {
+				if errors.Is(err, terminal.ErrActionAborted) ||
+					errors.Is(err, terminal.ErrIncorrectAttempts) {
+					f.Warning(color.BrightGray("skipped: " + err.Error() + "\n").Italic().String()).Flush()
+					continue
+				}
+
+				return fmt.Errorf("%w", err)
+			}
+		}
+
+		return nil
+	},
+}
+
+// backupRmCmd remove backups.
+var backupUnlockCmd = &cobra.Command{
+	Use:   "unlock",
+	Short: "Unlock a database backup",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
+		if !files.Exists(config.App.Path.Backup) {
+			return fmt.Errorf("%w", repo.ErrBackupNotFound)
+		}
+		r, err := handler.SelectFileEncrypted(config.App.Path.Backup, "select backup to unlock")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return handler.UnlockRepo(t, r[0])
+	},
+}
+
 // backupListCmd list backups.
 var backupListCmd = &cobra.Command{
 	Use:     "list",
@@ -46,7 +93,7 @@ var backupListCmd = &cobra.Command{
 			return fmt.Errorf("backup: %w", err)
 		}
 		defer r.Close()
-		backupInfoPrint(r)
+		fmt.Print(repo.Info(r))
 
 		return nil
 	},
@@ -75,7 +122,7 @@ var backupNewCmd = &cobra.Command{
 		if files.Empty(srcPath) {
 			return fmt.Errorf("%w", repo.ErrDBEmpty)
 		}
-		backupInfoPrint(r)
+		fmt.Print(repo.Info(r))
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		f.Row("\n").Flush().Clear()
 		c := color.BrightGreen("backup").String()
@@ -92,17 +139,13 @@ var backupNewCmd = &cobra.Command{
 		success := color.BrightGreen("Successfully").Italic().String()
 		s := color.Text(newBkPath).Italic().String()
 		f.Clear().Success(success + " backup created: " + s + "\n").Flush()
+		// FIX: don't return -> gomarks: action aborted
+		if config.App.Force {
+			return nil
+		}
 
 		return handler.LockRepo(t, filepath.Join(r.Cfg.BackupDir, newBkPath))
 	},
-}
-
-// backupInfoPrint prints repository's backup info.
-func backupInfoPrint(r *repo.SQLiteRepository) {
-	s := repo.RepoSummary(r)
-	s += repo.BackupsSummary(r)
-	s += repo.BackupListDetail(r)
-	fmt.Print(s)
 }
 
 func init() {
@@ -113,6 +156,7 @@ func init() {
 	_ = backupCmd.Flags().MarkHidden("color")
 	f.BoolP("help", "h", false, "Hidden help")
 	_ = f.MarkHidden("help")
-	backupCmd.AddCommand(backupNewCmd, backupListCmd, backupRmCmd)
+	backupUnlockCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
+	backupCmd.AddCommand(backupNewCmd, backupListCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
 	rootCmd.AddCommand(backupCmd)
 }

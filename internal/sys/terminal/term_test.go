@@ -26,7 +26,7 @@ func TestTermPrompt(t *testing.T) {
 	assert.Equal(t, "golang", result, "expected user input to be 'golang'")
 }
 
-func TestTerm_Choose(t *testing.T) {
+func TestTermChoose(t *testing.T) {
 	t.Parallel()
 	NoColorEnv()
 	question := "Enter your favorite language: "
@@ -123,4 +123,26 @@ func TestTermIsPiped(t *testing.T) {
 			assert.Equal(t, tt.want, term.IsPiped(), tt.name)
 		})
 	}
+}
+
+func TestInputPassword(t *testing.T) {
+	t.Run("valid password input", func(t *testing.T) {
+		t.Parallel()
+		pwd := "123"
+		input := strings.NewReader(pwd + "\n")
+		term := New(WithWriter(io.Discard), WithReader(input))
+		s, err := term.InputPassword()
+		assert.NoError(t, err)
+		assert.Equal(t, pwd, s)
+	})
+	t.Run("password mismatch", func(t *testing.T) {
+		t.Parallel()
+		input := strings.NewReader("password1\npassword2\n")
+		term := New(WithWriter(io.Discard), WithReader(input))
+		s1, err := term.InputPassword()
+		assert.NoError(t, err)
+		s2, err := term.InputPassword()
+		assert.NoError(t, err)
+		assert.NotEqual(t, s1, s2)
+	})
 }

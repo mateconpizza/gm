@@ -19,13 +19,8 @@ type (
 	Repo     = repo.SQLiteRepository
 )
 
-var (
-	// SQLiteCfg holds the configuration for the database and backups.
-	Cfg *repo.SQLiteCfg
-
-	// Main database name.
-	DBName string
-)
+// DBName main database name.
+var DBName string
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
@@ -35,19 +30,16 @@ var rootCmd = &cobra.Command{
 	Version:      prettyVersion(),
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
-	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		// ignore if one of this subcommands was called.
-		subcmds := []string{"init", "new", "version", "lock", "unlock"}
-		if isSubCmdCalled(cmd, subcmds...) {
-			return nil
-		}
-		if err := handler.CheckDBNotEncrypted(); err != nil {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := handler.ValidateDBExists(config.App.DBPath); err != nil {
 			return fmt.Errorf("%w", err)
 		}
+		if recordsCmd.PreRunE != nil {
+			if err := recordsCmd.PreRunE(cmd, args); err != nil {
+				return fmt.Errorf("%w", err)
+			}
+		}
 
-		return handler.ValidateDBExistence(cmd, Cfg)
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
 		return recordsCmd.RunE(cmd, args)
 	},
 }

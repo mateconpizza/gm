@@ -47,7 +47,6 @@ var (
 
 func initConfig() {
 	config.SetVerbosity(VerboseFlag)
-	config.SetDBName(files.EnsureExt(DBName, ".db"))
 	config.EnableColor(WithColor == "always" && !terminal.IsPiped() && !terminal.NoColorEnv())
 	config.SetForce(Force)
 
@@ -59,15 +58,12 @@ func initConfig() {
 
 	// set app home
 	config.SetDataPath(dataHomePath)
-
-	// set database path
-	Cfg, err = repo.NewSQLiteCfg(filepath.Join(dataHomePath, config.App.DBName))
-	if err != nil {
-		sys.ErrAndExit(err)
-	}
-
 	// set colorscheme path
 	config.SetColorSchemePath(filepath.Join(dataHomePath, "colorscheme"))
+	// set database name
+	config.SetDBName(files.EnsureExt(DBName, ".db"))
+	// set database path
+	config.SetDBPath(filepath.Join(dataHomePath, config.App.DBName))
 
 	// load config from YAML
 	if err := loadConfig(config.App.Path.ConfigFile); err != nil {
@@ -128,7 +124,7 @@ func createPaths(t *terminal.Term, path string) error {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Header(prettyVersion()).Ln().Row().Ln()
 	p := color.Text(path).Italic().String()
-	fp := color.Text(Cfg.Fullpath()).Italic().String()
+	fp := color.Text(config.App.DBPath).Italic().String()
 	f.Info(format.PaddedLine("Create path:", p+"\n"))
 	f.Info(format.PaddedLine("Create db:", fp+"\n"))
 	lines := format.CountLines(f.String()) + 1
@@ -187,6 +183,17 @@ var initCmd = &cobra.Command{
 	Use:    "init",
 	Short:  "Initialize a new bookmarks database",
 	Hidden: true,
+	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+		if files.Exists(config.App.DBPath) {
+			if ok, _ := repo.IsInitialized(config.App.DBPath); ok {
+				return repo.ErrDBExistsAndInit
+			}
+
+			return fmt.Errorf("%q %w", config.App.DBName, repo.ErrDBAlreadyExists)
+		}
+
+		return nil
+	},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		// create paths for the application.
 		t := terminal.New()
@@ -194,9 +201,9 @@ var initCmd = &cobra.Command{
 			return err
 		}
 		// init database
-		r, err := repo.New(config.App.DBPath)
+		r, err := repo.Init(config.App.DBPath)
 		if r == nil {
-			return fmt.Errorf("init database: %w", err)
+			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
 		// initialize database
@@ -207,8 +214,8 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("initializing database: %w", err)
 		}
 		// ignore initial bookmark if not DefaultDBName
-		if Cfg.Name != config.DefaultDBName {
-			s := color.Gray(Cfg.Name).Italic().String()
+		if config.App.DBName != config.DefaultDBName {
+			s := color.Gray(config.App.DBName).Italic().String()
 			success := color.BrightGreen("Successfully").Italic().String()
 			fmt.Println(success + " initialized database " + s)
 
@@ -227,7 +234,7 @@ var initCmd = &cobra.Command{
 		// print new record
 		fmt.Print(bookmark.Frame(ib, color.DefaultColorScheme()))
 		s := color.BrightGreen("Successfully").Italic().String()
-		mesg := s + " initialized database " + color.Gray(Cfg.Name+"\n").Italic().String()
+		mesg := s + " initialized database " + color.Gray(config.App.DBName+"\n").Italic().String()
 		f := frame.New(frame.WithColorBorder(color.Gray))
 		f.Row("\n").Success(mesg).Flush()
 

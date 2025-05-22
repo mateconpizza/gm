@@ -7,7 +7,6 @@ import (
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/handler"
-	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -27,25 +26,7 @@ var recordsCmd = &cobra.Command{
 		}
 		defer r.Close()
 		terminal.ReadPipedInput(&args)
-		// menu
-		mo := []menu.OptFn{
-			menu.WithUseDefaults(),
-			menu.WithSettings(config.Fzf.Settings),
-			menu.WithMultiSelection(),
-			menu.WithPreview(config.App.Cmd + " -n " + config.App.DBName + " records {1}"),
-			menu.WithKeybinds(
-				config.FzfKeybindEdit(),
-				config.FzfKeybindOpen(),
-				config.FzfKeybindQR(),
-				config.FzfKeybindOpenQR(),
-				config.FzfKeybindYank(),
-			),
-		}
-		if Multiline {
-			mo = append(mo, menu.WithMultilineView())
-		}
-		m := menu.New[Bookmark](mo...)
-		bs, err := handler.Data(cmd, m, r, args)
+		bs, err := handler.Data(cmd, handler.MenuForRecords[Bookmark](cmd), r, args)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -67,14 +48,14 @@ var recordsCmd = &cobra.Command{
 		}
 		// display
 		switch {
-		case JSON:
-			return handler.JSON(bs)
-		case Oneline:
-			return handler.Oneline(bs)
 		case Field != "":
 			return handler.ByField(bs, Field)
 		case QR:
 			return handler.QR(bs, Open)
+		case JSON:
+			return handler.JSON(bs)
+		case Oneline:
+			return handler.Oneline(bs)
 		default:
 			return handler.Print(bs)
 		}

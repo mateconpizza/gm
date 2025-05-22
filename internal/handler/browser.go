@@ -4,10 +4,7 @@ import (
 	"github.com/haaag/gm/internal/browser"
 	"github.com/haaag/gm/internal/browser/blink"
 	"github.com/haaag/gm/internal/browser/gecko"
-	"github.com/haaag/gm/internal/format"
 	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // supportedBrowser represents a supported browser.
@@ -43,20 +40,4 @@ func getBrowser(key string) (browser.Browser, bool) {
 	}
 
 	return nil, false
-}
-
-// selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(t *terminal.Term) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Header("Supported Browsers\n").Row("\n")
-
-	for _, c := range registeredBrowser {
-		b := c.browser
-		f.Mid(b.Color(b.Short()) + " " + b.Name() + "\n")
-	}
-	f.Row("\n").Footer("which browser do you use?")
-	defer t.ClearLine(format.CountLines(f.String()))
-	f.Flush()
-
-	return t.Prompt(" ")
 }

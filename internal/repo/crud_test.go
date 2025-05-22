@@ -32,7 +32,7 @@ func TestInsertMany(t *testing.T) {
 }
 
 func TestDeleteOne(t *testing.T) {
-	r := testPopulatedDB(t)
+	r := testPopulatedDB(t, 10)
 	defer teardownthewall(r.DB)
 
 	b, err := r.ByID(1)
@@ -47,7 +47,7 @@ func TestDeleteOne(t *testing.T) {
 func TestDeleteMany(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-	bsToInsert := testSliceBookmarks()
+	bsToInsert := testSliceBookmarks(10)
 	ctx := context.Background()
 	err := r.InsertMany(ctx, bsToInsert)
 	assert.NoError(t, err)
@@ -98,7 +98,7 @@ func TestUpdateOne(t *testing.T) {
 }
 
 func TestAllRecords(t *testing.T) {
-	r := testPopulatedDB(t)
+	r := testPopulatedDB(t, 10)
 	defer teardownthewall(r.DB)
 	// get all records
 	bs := slice.New[Row]()
@@ -108,7 +108,7 @@ func TestAllRecords(t *testing.T) {
 }
 
 func TestByID(t *testing.T) {
-	r := testPopulatedDB(t)
+	r := testPopulatedDB(t, 10)
 	defer teardownthewall(r.DB)
 	// get all records
 	bs := slice.New[Row]()
@@ -127,7 +127,7 @@ func TestByID(t *testing.T) {
 }
 
 func TestByIDList(t *testing.T) {
-	r := testPopulatedDB(t)
+	r := testPopulatedDB(t, 10)
 	defer teardownthewall(r.DB)
 
 	ids := []int{1, 4, 2, 5, 8}
@@ -155,7 +155,7 @@ func TestByURL(t *testing.T) {
 }
 
 func TestByTag(t *testing.T) {
-	r := testPopulatedDB(t)
+	r := testPopulatedDB(t, 10)
 	defer teardownthewall(r.DB)
 	bs := slice.New[Row]()
 	err := r.ByTag(context.Background(), "tag1", bs)
@@ -253,7 +253,7 @@ func TestDeleteAll(t *testing.T) {
 		schemaTags.name,
 		schemaRelation.name,
 	}
-	bs := testSliceBookmarks()
+	bs := testSliceBookmarks(10)
 	ctx := context.Background()
 	err := r.insertBulk(ctx, bs)
 	assert.NoError(t, err)
@@ -264,7 +264,7 @@ func TestDeleteAll(t *testing.T) {
 }
 
 func TestRecordIDs(t *testing.T) {
-	r := testPopulatedDB(t)
+	r := testPopulatedDB(t, 10)
 	defer teardownthewall(r.DB)
 	// get all records
 	bs := slice.New[Row]()

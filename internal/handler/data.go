@@ -17,7 +17,6 @@ import (
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -75,37 +74,6 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 	return nil
 }
 
-// Remove prompts the user the records to remove.
-func Remove(r *repo.SQLiteRepository, bs *Slice) error {
-	defer r.Close()
-	if err := validateRemove(bs, config.App.Force); err != nil {
-		return err
-	}
-	if !config.App.Force {
-		c := color.BrightRed
-		f := frame.New(frame.WithColorBorder(c))
-		f.Header(c("Removing Bookmarks\n\n").String()).Flush()
-
-		interruptFn := func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}
-
-		t := terminal.New(terminal.WithInterruptFn(interruptFn))
-		defer t.CancelInterruptHandler()
-		m := menu.New[Bookmark](
-			menu.WithInterruptFn(interruptFn),
-			menu.WithMultiSelection(),
-		)
-		prompt := color.BrightRed("remove").Bold().String()
-		if err := confirmation(m, t, bs, prompt, c); err != nil {
-			return err
-		}
-	}
-
-	return removeRecords(r, bs)
-}
-
 // Data processes records based on user input and filtering criteria.
 func Data(
 	cmd *cobra.Command,
@@ -151,7 +119,7 @@ func Data(
 		return nil, fmt.Errorf("%w", err)
 	}
 	if mFlag || mlFlag {
-		items, err := Selection(m, *bs.Items(), FzfFormatter(mlFlag, config.App.Colorscheme))
+		items, err := SelectionWithMenu(m, *bs.Items(), fzfFormatter(mlFlag))
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -222,7 +190,6 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 		rotato.WithMesgColor(rotato.ColorGray),
 	)
 	sp.Start()
-
 	ctx := context.Background()
 	// delete records from main table.
 	if err := r.DeleteMany(ctx, bs); err != nil {

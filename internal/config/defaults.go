@@ -25,7 +25,6 @@ var fzfSettings = menu.FzfSettings{
 	"--color=prompt:bold",               // Prompt style
 	"--color=header:italic:bright-blue", // Header style
 	"--height=100%",                     // Set the height of the menu
-	"--marker=\u00b7",                   // Multi-selection marker
 	"--no-scrollbar",                    // Remove scrollbar
 	"--border-label= GoMarks ",          // Label to print on the horizontal border line
 	"--border",                          // Border around the window
@@ -33,7 +32,6 @@ var fzfSettings = menu.FzfSettings{
 
 // Fzf holds the default menu configuration.
 var Fzf = &menu.Config{
-	// TODO: maybe, put it in `menu.go`
 	Defaults: true,
 	Prompt:   menu.DefaultPrompt,
 	Preview:  true,
