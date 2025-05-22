@@ -6,7 +6,7 @@
 ![Linux](https://img.shields.io/badge/-Linux-grey?logo=linux)
 ![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=Flat&logo=sqlite&logoColor=white)
 
-<img align="center" width="240px" src="assets/gophers-19.png" alt="Writing gopher logo">
+<img align="center" width="240px" src="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/refs/heads/master/illustrations/png/19.png" alt="Writing gopher logo">
 </div>
 <span>Simple CLI tool for manage your bookmarks <sub><b>🚧 WIP</b></sub></span>
 <br>
