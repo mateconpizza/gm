@@ -8,12 +8,12 @@
 
 <img align="center" width="240px" src="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/refs/heads/master/illustrations/png/19.png" alt="Writing gopher logo">
 </div>
+<div align="center">
+  <sub>💙 Gopher image by <a href="https://github.com/MariaLetta/free-gophers-pack">Maria Letta</a></sub>
+</div>
+<br>
 <span>Simple CLI tool for manage your bookmarks <sub><b>🚧 WIP</b></sub></span>
 <br>
-<br>
-<div align="center">
-  <small>💙 Gopher image by <a href="https://github.com/MariaLetta/free-gophers-pack">Maria Letta</a></small>
-</div>
 <br>
 </div>
 
