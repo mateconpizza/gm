@@ -2,10 +2,13 @@ package scraper
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -98,49 +101,81 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	s = normalizeURL(s)
 	if !isSupportedScheme(s) {
 		slog.Warn("unsupported scheme", "url", s)
-		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
-		return doc
+		return emptyDoc()
 	}
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
-		slog.Error("creating request", "url", s, "error", err.Error())
-		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
-
-		return doc
+		slog.Error("failed to create request", "url", s, "error", err)
+		return emptyDoc()
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	cl := &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        10,
+			IdleConnTimeout:     90 * time.Second,
+			TLSHandshakeTimeout: 10 * time.Second,
+			DisableCompression:  false,
+		},
 	}
 
-	// Set a User-Agent header
-	req.Header.Set(
-		"User-Agent",
-		"Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0",
-	)
-
-	// Create a new HTTP client
-	client := &http.Client{}
-	res, err := client.Do(req)
+	startTime := time.Now()
+	res, err := cl.Do(req)
 	if err != nil {
-		slog.Error("doing request", "url", s, "error", err.Error())
-		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
-
-		return doc
+		d := time.Since(startTime).Milliseconds()
+		slog.Error("request failed", "url", s, "error", err.Error(), "duration_ms", d, "stack", debug.Stack())
+		return emptyDoc()
 	}
-
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			slog.Error("closing response body", "error", err.Error())
+			slog.Error("error closing response body", "url", s, "error", err)
 		}
 	}()
-
-	// Parse the HTML response body
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	slog.Info("received response", "url", s, "status", res.StatusCode, "duration", time.Since(startTime))
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		logResponseStatusCode(res, s)
+		return emptyDoc()
+	}
+	// Check content type to make sure it's HTML
+	contentType := res.Header.Get("Content-Type")
+	if !strings.Contains(strings.ToLower(contentType), "html") {
+		slog.Warn("unexpected content type", "url", s, "content_type", contentType)
+	}
+	// Read the body with a limit to prevent memory issues
+	// with excessively large responses
+	bodyReader := io.LimitReader(res.Body, 10*1024*1024) // 10MB limit
+	doc, err := goquery.NewDocumentFromReader(bodyReader)
 	if err != nil {
-		slog.Error("creating document", "url", s, "error", err.Error())
-		doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
-
-		return doc
+		slog.Error("failed to parse HTML", "url", s, "error", err)
+		return emptyDoc()
 	}
 
+	return doc
+}
+
+// logResponseStatusCode logs the status code of the HTTP response.
+func logResponseStatusCode(res *http.Response, s string) {
+	switch res.StatusCode {
+	case http.StatusNotFound:
+		slog.Error("page not found (404)", "url", s)
+	case http.StatusForbidden, http.StatusUnauthorized:
+		slog.Error("access denied", "url", s, "status_code", res.StatusCode)
+	case http.StatusTooManyRequests:
+		slog.Error("rate limited", "url", s)
+	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
+		slog.Error("server error", "url", s, "status_code", res.StatusCode)
+	}
+}
+
+func emptyDoc() *goquery.Document {
+	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(""))
 	return doc
 }
 

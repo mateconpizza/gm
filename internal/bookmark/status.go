@@ -155,7 +155,7 @@ func printSummaryStatus(r *slice.Slice[Response], d time.Duration) {
 			if r.statusCode == http.StatusOK {
 				continue
 			}
-			bid := fmt.Sprintf(color.Gray("%-3d").Bold().String(), r.bID)
+			bid := fmt.Sprintf(color.BrightGray("%-3d").String(), r.bID)
 			url := color.Gray(format.Shorten(r.URL, terminal.MinWidth)).Italic().String()
 			f.Row(fmt.Sprintf(" %s %s", bid, url)).Ln()
 		}

@@ -29,10 +29,19 @@ const (
 // NBSP represents a non-breaking space character.
 const NBSP = "\u00A0"
 
+// spaces returns a string with n spaces.
+func spaces(n int) string {
+	return fmt.Sprintf("%*s", n, "")
+}
+
 // PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.
 func PaddedLine(s, v any) string {
 	const pad = 15
-	return fmt.Sprintf("%-*s %v", pad, s, v)
+	str := fmt.Sprint(s)
+	visibleLen := len(color.ANSICodeRemover(str))
+	padding := max(pad-visibleLen, 0)
+
+	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
 }
 
 // PaddingConditional returns the padding for the colorized output.
