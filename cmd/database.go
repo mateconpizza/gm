@@ -32,6 +32,10 @@ var dbCmd = &cobra.Command{
 		return handler.ValidateDBExists(p)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if JSON {
+			return handler.RepoInfo(config.App.DBPath, JSON)
+		}
+
 		return cmd.Usage()
 	},
 }

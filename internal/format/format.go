@@ -4,7 +4,6 @@ package format
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -89,15 +88,13 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 }
 
 // ToJSON converts an interface to JSON.
-func ToJSON(data any) []byte {
-	// FIX: add ([]byte, error), remove os.Exit
+func ToJSON(data any) ([]byte, error) {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		slog.Error("error converting to JSON", "error", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("%w", err)
 	}
 
-	return jsonData
+	return jsonData, nil
 }
 
 // SplitIntoChunks splits strings lines into chunks of a given length.

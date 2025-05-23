@@ -53,7 +53,7 @@ var recordsCmd = &cobra.Command{
 		case QR:
 			return handler.QR(bs, Open)
 		case JSON:
-			return handler.JSON(bs)
+			return handler.JSONSlice(bs)
 		case Oneline:
 			return handler.Oneline(bs)
 		default:

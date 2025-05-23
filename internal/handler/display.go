@@ -39,16 +39,14 @@ func Print(bs *Slice) error {
 	return nil
 }
 
-// JSON formats the bookmarks in JSON.
-func JSON(bs *Slice) error {
-	if bs.Empty() {
-		slog.Debug("formatting config in JSON")
-		fmt.Println(string(format.ToJSON(config.App)))
-		return nil
-	}
-
+// JSONSlice formats the bookmarks in JSONSlice.
+func JSONSlice(bs *Slice) error {
 	slog.Debug("formatting bookmarks in JSON", "count", bs.Len())
-	fmt.Println(string(format.ToJSON(bs.Items())))
+	j, err := format.ToJSON(bs.Items())
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	fmt.Println(string(j))
 
 	return nil
 }
@@ -183,17 +181,22 @@ func ListDatabases(p string) error {
 // RepoInfo prints the database info.
 func RepoInfo(p string, j bool) error {
 	if err := locker.IsLocked(p); err != nil {
-		fmt.Print(repo.RepoSummaryFromPath(config.App.DBPath + ".enc"))
+		fmt.Print(repo.RepoSummaryFromPath(p + ".enc"))
 		return nil
 	}
-	r, err := repo.New(config.App.DBPath)
+	r, err := repo.New(p)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
 	defer r.Close()
 	r.Cfg.BackupFiles, _ = r.BackupsList()
 	if j {
-		fmt.Println(string(format.ToJSON(r)))
+		b, err := format.ToJSON(r)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		fmt.Println(string(b))
+
 		return nil
 	}
 

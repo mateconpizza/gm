@@ -113,7 +113,11 @@ func printConfigJSON(p string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	fmt.Println(string(format.ToJSON(cfg)))
+	j, err := format.ToJSON(cfg)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	fmt.Println(string(j))
 
 	return nil
 }
