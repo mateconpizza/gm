@@ -135,6 +135,7 @@ func init() {
 	f.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	f.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
 	f.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
+	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	_ = dbCmd.Flags().MarkHidden("color")
 
 	// new database

@@ -29,7 +29,7 @@ var newRecordCmd = &cobra.Command{
 	Short:   "Add a new bookmark",
 	Aliases: []string{"add"},
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
-		return handler.CheckDBNotEncrypted()
+		return handler.CheckDBNotEncrypted(config.App.DBPath)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(config.App.DBPath)
@@ -154,7 +154,7 @@ func addHandleTags(t *terminal.Term, r *Repo, args *[]string) string {
 	// prompt for tags
 	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
-	mTags, _ := repo.CounterTags(r)
+	mTags, _ := repo.TagsCounter(r)
 	tags := bookmark.ParseTags(t.ChooseTags(f.Border.Mid, mTags))
 
 	f.Clear().Mid(color.BrightBlue("Tags\t:").String()).

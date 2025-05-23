@@ -80,8 +80,8 @@ func createTag(tx *sqlx.Tx, tag string) (int64, error) {
 	return tagID, nil
 }
 
-// CounterTags returns a map with tag as key and count as value.
-func CounterTags(r *SQLiteRepository) (map[string]int, error) {
+// TagsCounter returns a map with tag as key and count as value.
+func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
 	q := `
 		SELECT
       t.name,
@@ -106,4 +106,15 @@ func CounterTags(r *SQLiteRepository) (map[string]int, error) {
 	}
 
 	return tagCounts, nil
+}
+
+// TagsList returns the list of tags.
+func TagsList(r *SQLiteRepository) ([]string, error) {
+	var tags []string
+	err := r.DB.Select(&tags, `SELECT name FROM tags ORDER BY name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all tags: %w", err)
+	}
+
+	return tags, nil
 }

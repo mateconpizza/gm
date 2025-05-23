@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -47,6 +48,43 @@ func JSONSlice(bs *Slice) error {
 		return fmt.Errorf("%w", err)
 	}
 	fmt.Println(string(j))
+
+	return nil
+}
+
+// JSONTags formats the tags counter in JSON.
+func JSONTags(p string) error {
+	r, err := repo.New(p)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	defer r.Close()
+	tags, err := repo.TagsCounter(r)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	j, err := format.ToJSON(tags)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	fmt.Println(string(j))
+
+	return nil
+}
+
+// ListTags lists the tags.
+func ListTags(p string) error {
+	r, err := repo.New(p)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	defer r.Close()
+
+	tags, err := repo.TagsList(r)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	fmt.Println(strings.Join(tags, "\n"))
 
 	return nil
 }

@@ -52,7 +52,7 @@ func TestTagsCounter(t *testing.T) {
 		}
 	}
 	// run tagscounter
-	tagCounts, err := CounterTags(r)
+	tagCounts, err := TagsCounter(r)
 	assert.NoError(t, err, "failed to count tags")
 	// expected tag counts
 	expectedCounts := map[string]int{

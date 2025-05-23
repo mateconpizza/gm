@@ -11,13 +11,35 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
+var listTagsFlag bool
+
+var recordsTagsCmd = &cobra.Command{
+	Use:     "tags",
+	Aliases: []string{"t"},
+	Short:   "Tags management",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		switch {
+		case JSON:
+			return handler.JSONTags(config.App.DBPath)
+		case listTagsFlag:
+			return handler.ListTags(config.App.DBPath)
+		}
+
+		return cmd.Usage()
+	},
+}
+
 // recordsCmd is the main command and entrypoint.
 var recordsCmd = &cobra.Command{
 	Use:     "records",
 	Aliases: []string{"r", "items"},
 	Short:   "Records management",
-	PreRunE: func(cmd *cobra.Command, _ []string) error {
-		return handler.CheckDBNotEncrypted()
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		if err := handler.CheckDBNotEncrypted(config.App.DBPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return handler.ValidateDBExists(config.App.DBPath)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := repo.New(config.App.DBPath)
@@ -81,5 +103,10 @@ func init() {
 	// Modifiers
 	rf.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	rf.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+
+	recordsTagsCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output tags in JSON format")
+	recordsTagsCmd.Flags().BoolVarP(&listTagsFlag, "list", "l", false, "list all tags")
+
+	recordsCmd.AddCommand(recordsTagsCmd)
 	rootCmd.AddCommand(recordsCmd)
 }

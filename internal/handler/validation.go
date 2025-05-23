@@ -191,8 +191,7 @@ func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
 }
 
 // CheckDBNotEncrypted checks if the database is encrypted.
-func CheckDBNotEncrypted() error {
-	p := filepath.Join(config.App.Path.Data, config.App.DBName)
+func CheckDBNotEncrypted(p string) error {
 	err := locker.IsLocked(p)
 	if err != nil {
 		if errors.Is(err, locker.ErrFileEncrypted) {
