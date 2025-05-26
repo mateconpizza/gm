@@ -17,6 +17,7 @@ import (
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/slice"
+	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
@@ -63,8 +64,12 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 	if err != nil {
 		return fmt.Errorf("getting editor: %w", err)
 	}
+	t := terminal.New(terminal.WithInterruptFn(func(err error) {
+		r.Close()
+		sys.ErrAndExit(err)
+	}))
 	editFn := func(idx int, b bookmark.Bookmark) error {
-		return editBookmark(r, te, &b, idx, n)
+		return editBookmark(r, te, t, &b, idx, n)
 	}
 	// for each bookmark, invoke the helper to edit it.
 	if err := bs.ForEachIdxErr(editFn); err != nil {
@@ -133,6 +138,7 @@ func Data(
 func editBookmark(
 	r *repo.SQLiteRepository,
 	te *files.TextEditor,
+	t *terminal.Term,
 	b *bookmark.Bookmark,
 	idx, total int,
 ) error {
@@ -140,7 +146,7 @@ func editBookmark(
 	// prepare the buffer with a header and version info.
 	buf := prepareBuffer(r, b, idx, total)
 	// launch the editor to allow the user to edit the bookmark.
-	if err := bookmark.Edit(te, buf, b); err != nil {
+	if err := bookmark.Edit(te, t, buf, b); err != nil {
 		if errors.Is(err, bookmark.ErrBufferUnchanged) {
 			return nil
 		}

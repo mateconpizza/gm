@@ -195,8 +195,8 @@ func CountLines(s string) int {
 	return len(strings.Split(s, "\n"))
 }
 
-// ColorDiff colorizes the diff output.
-func ColorDiff(s string) string {
+// DiffColor colorizes the diff output.
+func DiffColor(s string) string {
 	var r []string
 	for _, l := range strings.Split(s, "\n") {
 		switch {

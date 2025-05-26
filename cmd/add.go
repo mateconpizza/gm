@@ -71,7 +71,6 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 				return fmt.Errorf("%w", err)
 			}
 		}
-		t.ClearLine(1)
 	}
 	// validate
 	if err := bookmark.Validate(b); err != nil {
@@ -90,7 +89,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 // addHandleConfirmation confirms if the user wants to save the bookmark.
 func addHandleConfirmation(r *Repo, t *terminal.Term, b *Bookmark) error {
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	opt, err := t.Choose(f.Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
+	opt, err := t.Choose(f.Clear().Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -100,7 +99,7 @@ func addHandleConfirmation(r *Repo, t *terminal.Term, b *Bookmark) error {
 		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
 		t.ClearLine(1)
-		if err := bookmarkEdition(r, b); err != nil {
+		if err := bookmarkEdition(r, t, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -273,7 +272,7 @@ func addHandleClipboard(t *terminal.Term) string {
 }
 
 // bookmarkEdition edits a bookmark with a text editor.
-func bookmarkEdition(r *Repo, b *Bookmark) error {
+func bookmarkEdition(r *Repo, t *terminal.Term, b *Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -287,7 +286,7 @@ func bookmarkEdition(r *Repo, b *Bookmark) error {
 	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
 	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Version), &buf)
 
-	if err := bookmark.Edit(te, buf, b); err != nil {
+	if err := bookmark.Edit(te, t, buf, b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
