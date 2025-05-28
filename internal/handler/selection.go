@@ -79,7 +79,7 @@ func SelectRepoBackup(destDB *repo.SQLiteRepository) (string, error) {
 		return "", fmt.Errorf("%w", err)
 	}
 	backupPath := selected[0]
-	// Handle encrypted backups
+	// Handle locked backups
 	if err := locker.IsLocked(backupPath); err != nil {
 		if err := UnlockRepo(terminal.New(), backupPath); err != nil {
 			return "", fmt.Errorf("%w", err)
@@ -162,9 +162,9 @@ func SelectBackup(root, header string) ([]string, error) {
 	return repos, nil
 }
 
-// SelectFileEncrypted lets the user choose a repo from a list of encrypted
+// SelectFileLocked lets the user choose a repo from a list of locked
 // repos found in the given root directory.
-func SelectFileEncrypted(root, header string) ([]string, error) {
+func SelectFileLocked(root, header string) ([]string, error) {
 	bks, err := files.FindByExtList(root, "enc")
 	if err != nil {
 		return bks, fmt.Errorf("%w", err)

@@ -19,9 +19,6 @@ type (
 	Repo     = repo.SQLiteRepository
 )
 
-// DBName main database name.
-var DBName string
-
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
 	Use:          config.App.Cmd,
@@ -30,14 +27,15 @@ var rootCmd = &cobra.Command{
 	Version:      prettyVersion(),
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return handler.AssertDefaultDatabaseExists()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := handler.ValidateDBExists(config.App.DBPath); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		if recordsCmd.PreRunE != nil {
-			if err := recordsCmd.PreRunE(cmd, args); err != nil {
-				return fmt.Errorf("%w", err)
-			}
+		if err := recordsCmd.PersistentPreRunE(cmd, args); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		return recordsCmd.RunE(cmd, args)

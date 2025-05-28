@@ -10,6 +10,7 @@ import (
 
 	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/slice"
 )
 
 var (
@@ -18,13 +19,13 @@ var (
 )
 
 // ByTags returns a slice of bookmarks based on the provided tags.
-func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
+func ByTags(r *repo.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Bookmark]) error {
 	slog.Debug("by tags", "tags", tags, "count", bs.Len())
 	// FIX: redo, simplify
 	// if the slice contains bookmarks, filter by tag.
 	if !bs.Empty() {
 		for _, tag := range tags {
-			bs.FilterInPlace(func(b *Bookmark) bool {
+			bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
 				return strings.Contains(b.Tags, tag)
 			})
 		}
@@ -45,7 +46,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 		return fmt.Errorf("%w by tag: %q", repo.ErrRecordNoMatch, t)
 	}
 
-	bs.FilterInPlace(func(b *Bookmark) bool {
+	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
 		for _, tag := range tags {
 			if !strings.Contains(b.Tags, tag) {
 				return false
@@ -60,7 +61,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 
 // ByQuery executes a search query on the given repository based on provided
 // arguments.
-func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
+func ByQuery(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	// FIX: do i need this?
 	if bs.Len() != 0 || len(args) == 0 {
 		return nil
@@ -78,7 +79,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 // ByIDs retrieves records from the database based on either
 // an ID or a query string.
-func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
+func ByIDs(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("getting by IDs")
 	ids, err := extractIDsFrom(args)
 	if len(ids) == 0 {
@@ -104,7 +105,7 @@ func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 }
 
 // ByHeadAndTail returns a slice of bookmarks with limited elements.
-func ByHeadAndTail(bs *Slice, h, t int) error {
+func ByHeadAndTail(bs *slice.Slice[bookmark.Bookmark], h, t int) error {
 	if h == 0 && t == 0 {
 		return nil
 	}

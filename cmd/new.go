@@ -13,8 +13,10 @@ var titleFlag string
 var newCmd = &cobra.Command{
 	Use:   "new",
 	Short: "New bookmark, database, backup",
+	Example: `  gm new db -n newDBName
+  gm new bk`,
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
-		return handler.CheckDBNotEncrypted(config.App.DBPath)
+		return handler.CheckDBLocked(config.App.DBPath)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newRecordCmd.RunE(cmd, args)
@@ -24,7 +26,7 @@ var newCmd = &cobra.Command{
 // newDatabaseCmd creates a new database.
 var newDatabaseCmd = &cobra.Command{
 	Use:     "database",
-	Short:   "Initialize a new bookmarks database",
+	Short:   "Create a new bookmarks database",
 	Aliases: []string{"db", "d"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return databaseNewCmd.RunE(cmd, args)
@@ -34,7 +36,7 @@ var newDatabaseCmd = &cobra.Command{
 // newBackupCmd creates a new backup.
 var newBackupCmd = &cobra.Command{
 	Use:     "backup",
-	Short:   "Create a new backup",
+	Short:   backupNewCmd.Short,
 	Aliases: []string{"bk"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return backupNewCmd.RunE(cmd, args)
@@ -44,7 +46,7 @@ var newBackupCmd = &cobra.Command{
 // newBookmarkCmd creates a new bookmark.
 var newBookmarkCmd = &cobra.Command{
 	Use:     "record",
-	Short:   "Create a new record",
+	Short:   newRecordCmd.Short,
 	Aliases: []string{"r"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newRecordCmd.RunE(cmd, args)
@@ -53,6 +55,8 @@ var newBookmarkCmd = &cobra.Command{
 
 func init() {
 	newBookmarkCmd.Flags().StringVar(&titleFlag, "title", "", "new bookmark title")
+	newDatabaseCmd.Flags().StringVarP(&DBName, "name", "n", "", "new database name")
+	_ = newDatabaseCmd.MarkFlagRequired("name")
 	newCmd.AddCommand(newDatabaseCmd, newBackupCmd, newBookmarkCmd)
 	rootCmd.AddCommand(newCmd)
 }

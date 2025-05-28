@@ -11,6 +11,7 @@ import (
 
 	"github.com/haaag/rotato"
 
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/bookmark/scraper"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
@@ -22,7 +23,11 @@ import (
 
 // parseFoundFromBrowser processes the bookmarks found from the import
 // browser process.
-func parseFoundFromBrowser(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice) error {
+func parseFoundFromBrowser(
+	t *terminal.Term,
+	r *repo.SQLiteRepository,
+	bs *slice.Slice[bookmark.Bookmark],
+) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	if err := cleanDuplicates(r, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
@@ -47,9 +52,9 @@ func parseFoundFromBrowser(t *terminal.Term, r *repo.SQLiteRepository, bs *Slice
 }
 
 // cleanDuplicates removes duplicate bookmarks from the import process.
-func cleanDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
+func cleanDuplicates(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	originalLen := bs.Len()
-	bs.FilterInPlace(func(b *Bookmark) bool {
+	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
 		_, exists := r.Has(b.URL)
 		return !exists
 	})
@@ -69,7 +74,7 @@ func cleanDuplicates(r *repo.SQLiteRepository, bs *Slice) error {
 
 // scrapeMissingDescription scrapes missing data from bookmarks found from the import
 // process.
-func scrapeMissingDescription(bs *Slice) error {
+func scrapeMissingDescription(bs *slice.Slice[bookmark.Bookmark]) error {
 	if bs.Len() == 0 {
 		return nil
 	}
@@ -82,9 +87,9 @@ func scrapeMissingDescription(bs *Slice) error {
 	sp.Start()
 	var wg sync.WaitGroup
 	errs := make([]string, 0)
-	bs.ForEachMut(func(b *Bookmark) {
+	bs.ForEachMut(func(b *bookmark.Bookmark) {
 		wg.Add(1)
-		go func(b *Bookmark) {
+		go func(b *bookmark.Bookmark) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			defer wg.Done()

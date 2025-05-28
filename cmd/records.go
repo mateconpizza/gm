@@ -35,7 +35,7 @@ var recordsCmd = &cobra.Command{
 	Aliases: []string{"r", "items"},
 	Short:   "Records management",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		if err := handler.CheckDBNotEncrypted(config.App.DBPath); err != nil {
+		if err := handler.CheckDBLocked(config.App.DBPath); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
@@ -104,7 +104,7 @@ func init() {
 	rf.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	rf.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 
-	recordsTagsCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output tags in JSON format")
+	recordsTagsCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output tags+count in JSON format")
 	recordsTagsCmd.Flags().BoolVarP(&listTagsFlag, "list", "l", false, "list all tags")
 
 	recordsCmd.AddCommand(recordsTagsCmd)

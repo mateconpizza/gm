@@ -17,16 +17,14 @@ import (
 // bkRemoveOtroCmd removes backups.
 var bkRemoveCmd = &cobra.Command{
 	Use:     "bk",
-	Short:   "Remove a backup",
+	Short:   "Remove one or more backups from local storage",
 	Aliases: []string{"backup", "b", "backups"},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
+		input := "s\n" // input for prompt, this will show menu to select brackups.
 		t := terminal.New(
-			// send 's' as 'select' to prompt user menu interface to select backups
-			// from repo.
-			terminal.WithReader(strings.NewReader("s\n")),
-			// send the output to null, show no prompt
-			terminal.WithWriter(io.Discard),
+			terminal.WithReader(strings.NewReader(input)),
+			terminal.WithWriter(io.Discard), // send output to null, show no prompt
 		)
 
 		return handler.RemoveBackups(t, f, config.App.DBPath)
@@ -37,7 +35,9 @@ var bkRemoveCmd = &cobra.Command{
 var dbRemoveCmd = &cobra.Command{
 	Use:     "db",
 	Aliases: []string{"database", "d"},
-	Short:   "Remove a database",
+	Short:   "Remove one or more databases from local storage",
+	Example: `  gm rm db -n dbName
+  gm rm db -n dbName --force`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
 		return handler.RemoveRepo(t, config.App.DBPath)

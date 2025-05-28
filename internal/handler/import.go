@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/browser"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
@@ -22,7 +23,7 @@ import (
 // ImportFromDB imports bookmarks from the given database.
 func ImportFromDB(
 	cmd *cobra.Command,
-	m *menu.Menu[Bookmark],
+	m *menu.Menu[bookmark.Bookmark],
 	t *terminal.Term,
 	destDB, srcDB *repo.SQLiteRepository,
 ) error {
@@ -126,7 +127,7 @@ func ImportFromBackup(cmd *cobra.Command, args []string) error {
 		sys.ErrAndExit(err)
 	}
 
-	m := menu.New[Bookmark](
+	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -182,7 +183,7 @@ func ImportFromDatabase(cmd *cobra.Command, _ []string) error {
 		sys.ErrAndExit(err)
 	}
 
-	m := menu.New[Bookmark](
+	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),

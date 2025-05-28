@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	ErrFileNotFound    = errors.New("file/s not found")
+	ErrFileNotFound    = errors.New("file not found")
 	ErrPathNotFound    = errors.New("path not found")
 	ErrFileExists      = errors.New("file already exists")
 	ErrNotFile         = errors.New("not a file")

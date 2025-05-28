@@ -2,15 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"log/slog"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/handler"
+	"github.com/haaag/gm/internal/locker"
 	"github.com/haaag/gm/internal/repo"
 	"github.com/haaag/gm/internal/sys"
+	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
@@ -20,16 +20,7 @@ var dbCmd = &cobra.Command{
 	Aliases: []string{"db"},
 	Short:   "Database management",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		// ignore if one of this subcommands was called.
-		if isSubCmdCalled(cmd, []string{"new", "info"}...) {
-			return nil
-		}
-		p, err := handler.FindDB(config.App.DBPath)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return handler.ValidateDBExists(p)
+		return handler.AssertDefaultDatabaseExists()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if JSON {
@@ -43,15 +34,15 @@ var dbCmd = &cobra.Command{
 // databaseNewCmd initialize a new bookmarks database.
 var databaseNewCmd = &cobra.Command{
 	Use:   "new",
-	Short: "Initialize a new bookmarks database",
+	Short: initCmd.Short,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if err := locker.IsLocked(config.App.DBPath); err != nil {
+			return fmt.Errorf("%w: is locked", repo.ErrDBExists)
+		}
+
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if DBName == "" {
-			return fmt.Errorf("%w: missing database name", repo.ErrDBNameRequired)
-		}
-		if config.App.DBName == config.DefaultDBName {
-			slog.Warn("default database name is reserved", "name", DBName)
-			return cmd.Help()
-		}
 		if initCmd.PersistentPreRunE != nil {
 			if err := initCmd.PersistentPreRunE(cmd, args); err != nil {
 				return fmt.Errorf("%w", err)
@@ -104,7 +95,7 @@ var databaseInfoCmd = &cobra.Command{
 // databaseRmCmd remove a database.
 var databaseRmCmd = &cobra.Command{
 	Use:     "rm",
-	Short:   "Remove a database",
+	Short:   dbRemoveCmd.Short,
 	Aliases: []string{"r", "remove"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return dbRemoveCmd.RunE(cmd, args)
@@ -114,6 +105,19 @@ var databaseRmCmd = &cobra.Command{
 var databaseLockCmd = &cobra.Command{
 	Use:   "lock",
 	Short: "Lock a database",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if files.Exists(config.App.DBPath + ".enc") {
+			return locker.ErrItemLocked
+		}
+		if err := locker.IsLocked(config.App.DBPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if !files.Exists(config.App.DBPath) {
+			return fmt.Errorf("%w: %q", repo.ErrDBNotFound, config.App.DBName)
+		}
+
+		return nil
+	},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
 		return handler.LockRepo(t, config.App.DBPath)
@@ -123,10 +127,16 @@ var databaseLockCmd = &cobra.Command{
 var databaseUnlockCmd = &cobra.Command{
 	Use:   "unlock",
 	Short: "Unlock a database",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if !files.Exists(config.App.DBPath) && !files.Exists(config.App.DBPath+".enc") {
+			return repo.ErrDBNotFound
+		}
+
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-		r := filepath.Join(config.App.Path.Data, config.App.DBName)
-		return handler.UnlockRepo(t, r)
+		return handler.UnlockRepo(t, config.App.DBPath)
 	},
 }
 
@@ -139,7 +149,8 @@ func init() {
 	_ = dbCmd.Flags().MarkHidden("color")
 
 	// new database
-	databaseNewCmd.Flags().StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
+	databaseNewCmd.Flags().StringVarP(&DBName, "name", "n", "", "new database name")
+	_ = databaseNewCmd.MarkFlagRequired("name")
 	// show database info
 	databaseInfoCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	// remove database

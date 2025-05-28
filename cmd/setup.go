@@ -22,27 +22,27 @@ import (
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
+// DBName main database name.
+var DBName string
+
 var (
-	Copy bool
-	Open bool
-	Tags []string
-	QR   bool
-
-	Menu   bool
-	Edit   bool
-	Head   int
-	Remove bool
-	Tail   int
-
-	Field     string
-	JSON      bool
-	Oneline   bool
-	Multiline bool
-	WithColor string
-
-	Force       bool
-	Status      bool
-	VerboseFlag int
+	Copy        bool     // Copy URL into clipboard
+	Open        bool     // Open URL in default browser
+	Tags        []string // Tags list to filter bookmarks
+	QR          bool     // QR code generator
+	Menu        bool     // Menu mode
+	Edit        bool     // Edit mode
+	Head        int      // Head limit
+	Remove      bool     // Remove bookmarks
+	Tail        int      // Tail limit
+	Field       string   // Field to print
+	JSON        bool     // JSON output
+	Oneline     bool     // Oneline output
+	Multiline   bool     // Multiline output
+	WithColor   string   // WithColor enable color output
+	Force       bool     // Force action
+	Status      bool     // Status checks URLs status code
+	VerboseFlag int      // Verbose flag
 )
 
 func initConfig() {
@@ -189,7 +189,7 @@ var initCmd = &cobra.Command{
 				return repo.ErrDBExistsAndInit
 			}
 
-			return fmt.Errorf("%q %w", config.App.DBName, repo.ErrDBAlreadyExists)
+			return fmt.Errorf("%q %w", config.App.DBName, repo.ErrDBExists)
 		}
 
 		return nil

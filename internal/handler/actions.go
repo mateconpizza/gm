@@ -20,14 +20,15 @@ import (
 	"github.com/haaag/gm/internal/format/frame"
 	"github.com/haaag/gm/internal/locker"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(bs *Slice, open bool) error {
-	qrFn := func(b Bookmark) error {
+func QR(bs *slice.Slice[bookmark.Bookmark], open bool) error {
+	qrFn := func(b bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return fmt.Errorf("%w", err)
@@ -59,9 +60,9 @@ func QR(bs *Slice, open bool) error {
 }
 
 // Copy copies the URLs to the system clipboard.
-func Copy(bs *Slice) error {
+func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 	var urls string
-	bs.ForEach(func(b Bookmark) {
+	bs.ForEach(func(b bookmark.Bookmark) {
 		urls += b.URL + "\n"
 	})
 	if err := sys.CopyClipboard(urls); err != nil {
@@ -72,7 +73,7 @@ func Copy(bs *Slice) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(bs *Slice) error {
+func Open(bs *slice.Slice[bookmark.Bookmark]) error {
 	const maxGoroutines = 15
 	// get user confirmation to procced
 	o := color.BrightGreen("opening").Bold()
@@ -92,14 +93,14 @@ func Open(bs *Slice) error {
 	sem := semaphore.NewWeighted(maxGoroutines)
 	var wg sync.WaitGroup
 	errCh := make(chan error, bs.Len())
-	actionFn := func(b Bookmark) error {
+	actionFn := func(b bookmark.Bookmark) error {
 		if err := sem.Acquire(context.Background(), 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
 		defer sem.Release(1)
 
 		wg.Add(1)
-		go func(b Bookmark) {
+		go func(b bookmark.Bookmark) {
 			defer wg.Done()
 			if err := sys.OpenInBrowser(b.URL); err != nil {
 				errCh <- fmt.Errorf("open error: %w", err)
@@ -124,7 +125,7 @@ func Open(bs *Slice) error {
 }
 
 // CheckStatus prints the status code of the bookmark URL.
-func CheckStatus(bs *Slice) error {
+func CheckStatus(bs *slice.Slice[bookmark.Bookmark]) error {
 	n := bs.Len()
 	if n == 0 {
 		return repo.ErrRecordQueryNotProvided
@@ -180,7 +181,7 @@ func LockRepo(t *terminal.Term, rToLock string) error {
 // UnlockRepo unlocks the database.
 func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
-		return fmt.Errorf("%w: %q", locker.ErrFileNotEncrypted, filepath.Base(rToUnlock))
+		return locker.ErrItemUnlocked
 	}
 	if !strings.HasSuffix(rToUnlock, ".enc") {
 		rToUnlock += ".enc"
@@ -212,7 +213,7 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 }
 
 // openQR opens a QR-Code image in the system default image viewer.
-func openQR(qrcode *qr.QRCode, b *Bookmark) error {
+func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	const maxLabelLen = 55
 	var title string
 	var burl string

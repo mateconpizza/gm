@@ -73,7 +73,7 @@ var backupUnlockCmd = &cobra.Command{
 		if !files.Exists(config.App.Path.Backup) {
 			return fmt.Errorf("%w", repo.ErrBackupNotFound)
 		}
-		r, err := handler.SelectFileEncrypted(config.App.Path.Backup, "select backup to unlock")
+		r, err := handler.SelectFileLocked(config.App.Path.Backup, "select backup to unlock")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

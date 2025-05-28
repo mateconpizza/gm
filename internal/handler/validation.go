@@ -17,23 +17,30 @@ import (
 	"github.com/haaag/gm/internal/locker"
 	"github.com/haaag/gm/internal/menu"
 	"github.com/haaag/gm/internal/repo"
+	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
 	"github.com/haaag/gm/internal/sys/files"
 	"github.com/haaag/gm/internal/sys/terminal"
 )
 
 // confirmRemove prompts the user to confirm the action.
-func confirmRemove(m *menu.Menu[Bookmark], t *terminal.Term, bs *Slice, s string) error {
+func confirmRemove(
+	m *menu.Menu[bookmark.Bookmark],
+	t *terminal.Term,
+	bs *slice.Slice[bookmark.Bookmark],
+	s string,
+) error {
 	for !config.App.Force {
 		cs, err := getColorScheme(config.App.Colorscheme)
 		if err != nil {
 			return err
 		}
+		slog.Info("colorscheme loaded", "name", cs.Name)
 		n := bs.Len()
 		if n == 0 {
 			return repo.ErrRecordNotFound
 		}
-		bs.ForEach(func(b Bookmark) {
+		bs.ForEach(func(b bookmark.Bookmark) {
 			fmt.Println(bookmark.Frame(&b, cs))
 		})
 
@@ -105,7 +112,7 @@ func extractIDsFrom(args []string) ([]int, error) {
 }
 
 // validateRemove checks if the remove operation is valid.
-func validateRemove(bs *Slice, force bool) error {
+func validateRemove(bs *slice.Slice[bookmark.Bookmark], force bool) error {
 	if bs.Empty() {
 		return repo.ErrRecordNotFound
 	}
@@ -130,13 +137,14 @@ func ValidateDBExists(p string) error {
 		return repo.ErrDBLocked
 	}
 	i := color.BrightYellow(config.App.Cmd, "init").Italic()
+	o := color.BrightYellow(config.App.Cmd, "new").Italic()
 	// check if default db not found
 	name := filepath.Base(p)
 	if name == config.DefaultDBName {
 		slog.Warn("default database not found", "name", name)
-		return fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBMainNotFound, i)
+		return fmt.Errorf("%w: use %s to initialize", repo.ErrDBMainNotFound, i)
 	}
-	ei := fmt.Errorf("%w %q: use '%s' to initialize", repo.ErrDBNotFound, name, i)
+	ei := fmt.Errorf("%w: use %s or %s", repo.ErrDBNotFound, i, o)
 	dbs, err := repo.Databases(filepath.Dir(p))
 	if err != nil {
 		return ei
@@ -190,15 +198,26 @@ func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
 	return s, nil
 }
 
-// CheckDBNotEncrypted checks if the database is encrypted.
-func CheckDBNotEncrypted(p string) error {
+// CheckDBLocked checks if the database is locked.
+func CheckDBLocked(p string) error {
 	err := locker.IsLocked(p)
 	if err != nil {
-		if errors.Is(err, locker.ErrFileEncrypted) {
+		if errors.Is(err, locker.ErrItemLocked) {
 			return repo.ErrDBUnlockFirst
 		}
 
 		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+// AssertDefaultDatabaseExists checks if the default database exists.
+func AssertDefaultDatabaseExists() error {
+	p := filepath.Join(config.App.Path.Data, config.DefaultDBName)
+	if !files.Exists(p) {
+		i := color.BrightYellow(config.App.Cmd, "init").Italic()
+		return fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBMainNotFound, i)
 	}
 
 	return nil

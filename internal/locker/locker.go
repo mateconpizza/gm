@@ -20,8 +20,8 @@ import (
 var (
 	ErrPassphraseEmpty    = errors.New("password cannot be empty")
 	ErrPassphraseMismatch = errors.New("password mismatch")
-	ErrFileEncrypted      = errors.New("file already encrypted")
-	ErrFileNotEncrypted   = errors.New("file not encrypted")
+	ErrItemLocked         = errors.New("item is locked")
+	ErrItemUnlocked       = errors.New("item is unlocked")
 	ErrFileExtMismatch    = errors.New("file must have .enc extension")
 	ErrCipherTextShort    = errors.New("ciphertext too short")
 )
@@ -49,12 +49,12 @@ func Lock(path, passphrase string) error {
 		return err
 	}
 	// Write encrypted data to disk
-	encryptedPath := path + ".enc"
-	err = writeAndReplaceFile(encryptedPath, ciphertext, path, backupPath)
+	lockedPath := path + ".enc"
+	err = writeAndReplaceFile(lockedPath, ciphertext, path, backupPath)
 	if err != nil {
 		return err
 	}
-	slog.Debug("file locked", "path", encryptedPath)
+	slog.Debug("file locked", "path", lockedPath)
 	// Cleanup successful operation
 	_ = os.Remove(backupPath)
 
@@ -73,7 +73,7 @@ func Unlock(path, passphrase string) error {
 	// Read the encrypted content
 	ciphertext, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read encrypted file: %w", err)
+		return fmt.Errorf("failed to read locked file: %w", err)
 	}
 	// Perform decryption
 	plaintext, err := decrypt(ciphertext, passphrase)
@@ -155,14 +155,14 @@ func decrypt(ciphertext []byte, passphrase string) ([]byte, error) {
 
 // IsLocked checks if the given file has .enc extension.
 func IsLocked(s string) error {
-	slog.Debug("checking if file is encrypted")
+	slog.Debug("checking if file is locked")
 	if !strings.HasSuffix(s, ".enc") {
 		s += ".enc"
 	}
 	if files.Exists(s) {
-		return fmt.Errorf("%w: %q", ErrFileEncrypted, filepath.Base(s))
+		return fmt.Errorf("%w: %q", ErrItemLocked, filepath.Base(s))
 	}
-	slog.Debug("file not encrypted")
+	slog.Debug("file not locked")
 
 	return nil
 }

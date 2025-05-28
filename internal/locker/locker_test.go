@@ -84,7 +84,7 @@ func TestBackupFile(t *testing.T) {
 	})
 }
 
-func TestEncryptAndDecrypt(t *testing.T) {
+func TestLockAndUnlocked(t *testing.T) {
 	t.Parallel()
 	pp := "123456"
 	b := []byte(

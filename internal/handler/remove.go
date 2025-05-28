@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/haaag/rotato"
 
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/format/color"
 	"github.com/haaag/gm/internal/format/frame"
@@ -46,54 +48,71 @@ func RemoveRepo(t *terminal.Term, p string) error {
 	}
 
 	if err := RemoveBackups(t, f.Clear(), p); err != nil {
-		return fmt.Errorf("%w", err)
+		if !errors.Is(err, repo.ErrBackupNotFound) {
+			return fmt.Errorf("%w", err)
+		}
 	}
 
 	if err := files.Remove(p); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
+	s := color.BrightGreen("Successfully").Italic().String()
+	var a string
+	dbName := filepath.Base(p)
+	if dbName == config.DefaultDBName {
+		a = color.Text(fmt.Sprintf("%q", "main")).Italic().String()
+	} else {
+		a = color.Text(fmt.Sprintf("%q", filepath.Base(p))).Italic().String()
+	}
+	f.Clear().Success(s + " database " + a + " removed\n").Flush()
+
 	return nil
 }
 
 // RemoveBackups removes backups.
 func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
-	filesToRemove := slice.New[string]()
 	fs, err := repo.ListDatabaseBackups(config.App.Path.Backup, filepath.Base(p))
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	if len(fs) == 0 {
-		return removeSlicePath(f.Clear(), filesToRemove)
+		return repo.ErrBackupNotFound
 	}
 	rm := color.BrightRed("remove").Bold().String()
 	f.Question(rm + " backups?")
 
-	opt, err := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	switch strings.ToLower(opt) {
-	case "n", "no":
-		sk := color.BrightYellow("skipping").String()
-		t.ReplaceLine(1, f.Clear().Warning(sk+" backup/s\n").Row().String())
-	case "a", "all":
+	filesToRemove := slice.New[string]()
+	if config.App.Force {
 		filesToRemove.Append(fs...)
-	case "s", "select":
-		selected, err := Select(fs,
-			func(p *string) string { return repo.BackupSummaryWithFmtDateFromPath(*p) },
-			menu.WithArgs("--cycle"),
-			menu.WithUseDefaults(),
-			menu.WithSettings(config.Fzf.Settings),
-			menu.WithMultiSelection(),
-			menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p)), false),
-			menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
-		)
+	} else {
+		opt, err := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		t.ClearLine(1)
-		filesToRemove.Append(selected...)
+
+		switch strings.ToLower(opt) {
+		case "n", "no":
+			sk := color.BrightYellow("skipping").String()
+			t.ReplaceLine(1, f.Clear().Warning(sk+" backup/s\n").Row().String())
+		case "a", "all":
+			filesToRemove.Append(fs...)
+		case "s", "select":
+			selected, err := Select(fs,
+				func(p *string) string { return repo.BackupSummaryWithFmtDateFromPath(*p) },
+				menu.WithArgs("--cycle"),
+				menu.WithUseDefaults(),
+				menu.WithSettings(config.Fzf.Settings),
+				menu.WithMultiSelection(),
+				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p)), false),
+				menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
+			)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			t.ClearLine(1)
+			filesToRemove.Append(selected...)
+		}
 	}
 
 	return removeSlicePath(f.Clear(), filesToRemove)
@@ -113,7 +132,7 @@ func removeSlicePath(f *frame.Frame, dbs *slice.Slice[string]) error {
 			f.Mid(repo.RepoSummaryRecordsFromPath(r)).Ln()
 		})
 
-		msg := fmt.Sprintf("%s %d items/s", s, n)
+		msg := fmt.Sprintf("%s %d item/s", s, n)
 		if err := t.ConfirmErr(f.Row("\n").Question(msg+", continue?").String(), "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -125,27 +144,27 @@ func removeSlicePath(f *frame.Frame, dbs *slice.Slice[string]) error {
 	)
 	sp.Start()
 
-	rmRepo := func(p *string) error {
-		if err := files.Remove(*p); err != nil {
+	rmRepo := func(p string) error {
+		if err := files.Remove(p); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
 		return nil
 	}
 
-	if err := dbs.ForEachMutErr(rmRepo); err != nil {
+	if err := dbs.ForEachErr(rmRepo); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	sp.Done()
 	s = color.BrightGreen("Successfully").Italic().String()
-	f.Clear().Success(s + " " + strconv.Itoa(dbs.Len()) + " items/s removed\n").Flush()
+	f.Clear().Row("\n").Success(s + " " + strconv.Itoa(dbs.Len()) + " item/s removed\n").Flush()
 
 	return nil
 }
 
 // Remove prompts the user the records to remove.
-func Remove(r *repo.SQLiteRepository, bs *Slice) error {
+func Remove(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	defer r.Close()
 	if err := validateRemove(bs, config.App.Force); err != nil {
 		return err
@@ -162,7 +181,7 @@ func Remove(r *repo.SQLiteRepository, bs *Slice) error {
 
 		t := terminal.New(terminal.WithInterruptFn(interruptFn))
 		defer t.CancelInterruptHandler()
-		m := menu.New[Bookmark](
+		m := menu.New[bookmark.Bookmark](
 			menu.WithInterruptFn(interruptFn),
 			menu.WithMultiSelection(),
 		)

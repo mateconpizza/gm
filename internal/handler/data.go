@@ -24,13 +24,8 @@ import (
 
 const maxItemsToEdit = 10
 
-type (
-	Bookmark = bookmark.Bookmark
-	Slice    = slice.Slice[Bookmark]
-)
-
 // Records gets records based on user input and filtering criteria.
-func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
+func Records(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("records", "args", args)
 	if err := ByIDs(r, bs, args); err != nil {
 		return fmt.Errorf("%w", err)
@@ -53,7 +48,7 @@ func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 }
 
 // Edition edits the bookmarks using a text editor.
-func Edition(r *repo.SQLiteRepository, bs *Slice) error {
+func Edition(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	n := bs.Len()
 	if n == 0 {
 		return repo.ErrRecordQueryNotProvided
@@ -84,11 +79,11 @@ func Edition(r *repo.SQLiteRepository, bs *Slice) error {
 // Data processes records based on user input and filtering criteria.
 func Data(
 	cmd *cobra.Command,
-	m *menu.Menu[Bookmark],
+	m *menu.Menu[bookmark.Bookmark],
 	r *repo.SQLiteRepository,
 	args []string,
-) (*Slice, error) {
-	bs := slice.New[Bookmark]()
+) (*slice.Slice[bookmark.Bookmark], error) {
+	bs := slice.New[bookmark.Bookmark]()
 	if err := Records(r, bs, args); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -192,7 +187,7 @@ func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) er
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
+func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -225,7 +220,11 @@ func removeRecords(r *repo.SQLiteRepository, bs *Slice) error {
 }
 
 // insertRecordsToRepo inserts records into the database.
-func insertRecordsToRepo(t *terminal.Term, r *repo.SQLiteRepository, records *Slice) error {
+func insertRecordsToRepo(
+	t *terminal.Term,
+	r *repo.SQLiteRepository,
+	records *slice.Slice[bookmark.Bookmark],
+) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	if !config.App.Force {
 		report := fmt.Sprintf("import %d records?", records.Len())
