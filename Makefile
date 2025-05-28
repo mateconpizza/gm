@@ -29,8 +29,12 @@ debug: test
 # Run tests
 test:
 	@echo '>> Testing $(BINARY_NAME)'
-	@go test ./...
-	@echo
+	@gotestsum --hide-summary=skipped
+
+# Run tests with gotestsum
+testsum:
+	@echo '>> Testing $(BINARY_NAME)'
+	@gotestsum --hide-summary=skipped
 
 # Run tests with verbose mode on
 vtest:
@@ -50,7 +54,7 @@ vtestfn:
 # Benchmark code
 bench:
 	@echo '>> Benchmark'
-	@go test -run='^$$' -bench=. ./... | grep -v "PASS"
+	@go test -run='^$$' -bench=. ./... | grep -v "PASS" | grep -v "ok" | grep -v "?"
 
 # Lint code with 'golangci-lint'
 lint:

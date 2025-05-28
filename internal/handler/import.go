@@ -57,15 +57,8 @@ func ImportFromDB(
 
 		return err
 	}
-	if err := insertRecordsToRepo(t, destDB, records); err != nil {
-		return err
-	}
-	// remove prompt
-	success := color.BrightGreen("Successfully").Italic().Bold().String()
-	s := fmt.Sprintf("imported %d record/s", records.Len())
-	t.ReplaceLine(2, f.Clear().Success(success+" "+s).String())
 
-	return nil
+	return insertRecordsToRepo(t, destDB, records)
 }
 
 // ImportFromBrowser imports bookmarks from the given browser.

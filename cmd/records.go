@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/handler"
 	"github.com/haaag/gm/internal/repo"
@@ -48,7 +49,7 @@ var recordsCmd = &cobra.Command{
 		}
 		defer r.Close()
 		terminal.ReadPipedInput(&args)
-		bs, err := handler.Data(cmd, handler.MenuForRecords[Bookmark](cmd), r, args)
+		bs, err := handler.Data(cmd, handler.MenuForRecords[bookmark.Bookmark](cmd), r, args)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -66,7 +67,7 @@ var recordsCmd = &cobra.Command{
 		case Copy:
 			return handler.Copy(bs)
 		case Open && !QR:
-			return handler.Open(bs)
+			return handler.Open(r, bs)
 		}
 		// display
 		switch {

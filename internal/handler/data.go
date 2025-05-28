@@ -141,7 +141,7 @@ func editBookmark(
 ) error {
 	originalData := *b
 	// prepare the buffer with a header and version info.
-	buf := prepareBuffer(r, b, idx, total)
+	buf := prepareBuffer(b, idx, total)
 	// launch the editor to allow the user to edit the bookmark.
 	if err := bookmark.Edit(te, t, buf, b); err != nil {
 		if errors.Is(err, bookmark.ErrBufferUnchanged) {
@@ -155,7 +155,7 @@ func editBookmark(
 }
 
 // prepareBuffer builds the buffer for the bookmark by adding a header and version info.
-func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total int) []byte {
+func prepareBuffer(b *bookmark.Bookmark, idx, total int) []byte {
 	buf := b.Buffer()
 	w := terminal.MinWidth
 	const spaces = 10
@@ -166,7 +166,7 @@ func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total in
 	// append the header and version information.
 	sep := format.CenteredLine(terminal.MinWidth-spaces, "bookmark edition")
 	format.BufferAppend("# "+sep+"\n\n", &buf)
-	format.BufferAppend(fmt.Sprintf("# database:\t%q\n", r.Name()), &buf)
+	format.BufferAppend(fmt.Sprintf("# database:\t%q\n", config.App.DBName), &buf)
 	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Version), &buf)
 	format.BufferAppend(header, &buf)
 	format.BufferAppendEnd(fmt.Sprintf(" [%d/%d]", idx+1, total), &buf)
@@ -175,10 +175,8 @@ func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total in
 }
 
 // updateBookmark updates the repository with the modified bookmark.
-// It calls UpdateURL if the bookmark's URL changed, otherwise it calls Update.
 func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) error {
-	ctx := context.Background()
-	if _, err := r.Update(ctx, b, original); err != nil {
+	if _, err := r.Update(context.Background(), b, original); err != nil {
 		return fmt.Errorf("updating record: %w", err)
 	}
 	fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())

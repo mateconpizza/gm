@@ -559,6 +559,7 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	if b.Checksum == "" {
 		b.Checksum = bookmark.GenerateChecksum(b)
 	}
+	b.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 	r, err := tx.NamedExec(
 		`INSERT INTO bookmarks (
     	url, title, desc, created_at, last_visit,
@@ -617,6 +618,45 @@ func (r *SQLiteRepository) withTx(ctx context.Context, fn func(tx *sqlx.Tx) erro
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit failed: %w", err)
+	}
+
+	return nil
+}
+
+func (r *SQLiteRepository) UpdateVisitDateAndCount(ctx context.Context, b *bookmark.Bookmark) error {
+	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+		return updateVisit(tx, b)
+	})
+}
+
+func (r *SQLiteRepository) Favorite(ctx context.Context, b *bookmark.Bookmark) error {
+	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+		return updateFavorite(tx, b)
+	})
+}
+
+// updateVisit updates the visit count and last visit date for a bookmark.
+func updateVisit(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+	_, err := tx.Exec(
+		"UPDATE bookmarks SET visit_count = visit_count + 1, last_visit = ? WHERE url = ?",
+		time.Now().UTC().Format(time.RFC3339),
+		b.URL,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update visit count: %w", err)
+	}
+
+	return nil
+}
+
+func updateFavorite(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+	_, err := tx.Exec(
+		"UPDATE bookmarks SET favorite = ? WHERE url = ?",
+		b.Favorite,
+		b.URL,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update favorite: %w", err)
 	}
 
 	return nil

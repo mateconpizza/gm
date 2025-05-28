@@ -73,7 +73,7 @@ func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(bs *slice.Slice[bookmark.Bookmark]) error {
+func Open(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	const maxGoroutines = 15
 	// get user confirmation to procced
 	o := color.BrightGreen("opening").Bold()
@@ -119,6 +119,13 @@ func Open(bs *slice.Slice[bookmark.Bookmark]) error {
 
 	for err := range errCh {
 		return err
+	}
+
+	updateVisit := func(b bookmark.Bookmark) error {
+		return r.UpdateVisitDateAndCount(context.Background(), &b)
+	}
+	if err := bs.ForEachErr(updateVisit); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	return nil

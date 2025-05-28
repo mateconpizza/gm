@@ -16,7 +16,7 @@ import (
 // setupTestDB sets up a test database.
 func setupTestDB(t *testing.T) *SQLiteRepository {
 	t.Helper()
-	c, _ := NewSQLiteCfg("")
+	c, _ := newSQLiteCfg("")
 	db, err := openDatabase("file:testdb?mode=memory&cache=shared")
 	assert.NoError(t, err, "failed to open database")
 	r := newSQLiteRepository(db, c)
@@ -70,7 +70,7 @@ func testPopulatedDB(t *testing.T, n int) *SQLiteRepository {
 }
 
 func TestInit(t *testing.T) {
-	c, _ := NewSQLiteCfg("")
+	c, _ := newSQLiteCfg("")
 	db, err := openDatabase("file:testdb?mode=memory&cache=shared")
 	assert.NoError(t, err, "failed to open database")
 	r := newSQLiteRepository(db, c)

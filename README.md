@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
 - [x] Support multiple `databases`
-- [x] Restore `deleted` bookmarks
+- [x] ~Restore `deleted` bookmarks~
 - [x] Import `bookmarks` from `firefox` based browsers
 - [x] Import `bookmarks` from `chromium` based browsers
 - [x] Fetch `title` and `description` from added URL
@@ -138,7 +138,7 @@ https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
 <details>
 <summary><strong>⚙️ Configuration</strong></summary>
 
-- [x] `$GOMARKS_HOME/menu.yml` file
+- [x] `$GOMARKS_HOME/config.yml` file
 
 #### YAML file structure
 

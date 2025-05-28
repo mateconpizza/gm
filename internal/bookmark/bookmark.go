@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -21,17 +22,53 @@ var (
 
 // Bookmark represents a bookmark.
 type Bookmark struct {
+	ID         int    `db:"id"          json:"id"          yaml:"id"`
 	URL        string `db:"url"         json:"url"         yaml:"url"`
-	Tags       string `db:"tags"        json:"tags"        yaml:"-"`
+	Tags       string `db:"tags"        json:"-"           yaml:"-"`
 	Title      string `db:"title"       json:"title"       yaml:"title"`
 	Desc       string `db:"desc"        json:"desc"        yaml:"desc"`
-	ID         int    `db:"id"          json:"id"          yaml:"id"`
 	CreatedAt  string `db:"created_at"  json:"created_at"  yaml:"created_at"`
 	LastVisit  string `db:"last_visit"  json:"last_visit"  yaml:"last_visit"`
 	UpdatedAt  string `db:"updated_at"  json:"updated_at"  yaml:"updated_at"`
 	VisitCount int    `db:"visit_count" json:"visit_count" yaml:"visit_count"`
 	Favorite   bool   `db:"favorite"    json:"favorite"    yaml:"favorite"`
-	Checksum   string `db:"-"           json:"checksum"    yaml:"checksum"`
+	Checksum   string `db:"checksum"    json:"checksum"    yaml:"checksum"`
+}
+
+type BookmarkJSON struct {
+	ID         int      `json:"id"`
+	URL        string   `json:"url"`
+	Tags       []string `json:"tags"`
+	Title      string   `json:"title"`
+	Desc       string   `json:"desc"`
+	CreatedAt  string   `json:"created_at"`
+	LastVisit  string   `json:"last_visit"`
+	UpdatedAt  string   `json:"updated_at"`
+	VisitCount int      `json:"visit_count"`
+	Favorite   bool     `json:"favorite"`
+	Checksum   string   `json:"checksum"`
+}
+
+func (b *Bookmark) ToJSON() *BookmarkJSON {
+	t := func(s string) []string {
+		return strings.FieldsFunc(s, func(r rune) bool {
+			return r == ',' || r == ' '
+		})
+	}
+
+	return &BookmarkJSON{
+		ID:         b.ID,
+		URL:        b.URL,
+		Title:      b.Title,
+		Desc:       b.Desc,
+		Tags:       t(b.Tags),
+		CreatedAt:  b.CreatedAt,
+		LastVisit:  b.LastVisit,
+		UpdatedAt:  b.UpdatedAt,
+		VisitCount: b.VisitCount,
+		Favorite:   b.Favorite,
+		Checksum:   b.Checksum,
+	}
 }
 
 // Field returns the value of a field.

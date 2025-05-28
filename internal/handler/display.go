@@ -44,7 +44,11 @@ func Print(bs *slice.Slice[bookmark.Bookmark]) error {
 // JSONSlice formats the bookmarks in JSONSlice.
 func JSONSlice(bs *slice.Slice[bookmark.Bookmark]) error {
 	slog.Debug("formatting bookmarks in JSON", "count", bs.Len())
-	j, err := format.ToJSON(bs.Items())
+	var r []*bookmark.BookmarkJSON
+	bs.ForEach(func(b bookmark.Bookmark) {
+		r = append(r, b.ToJSON())
+	})
+	j, err := format.ToJSON(r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

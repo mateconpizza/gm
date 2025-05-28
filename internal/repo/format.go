@@ -17,7 +17,7 @@ import (
 // RepoSummary returns a summary of the repository.
 func RepoSummary(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	path := format.PaddedLine("path:", format.ReplaceHomePath(r.Cfg.Fullpath()))
+	path := format.PaddedLine("path:", format.ReplaceHomePath(config.App.DBPath))
 	records := format.PaddedLine("records:", CountMainRecords(r))
 	tags := format.PaddedLine("tags:", CountTagsRecords(r))
 	name := r.Cfg.Name

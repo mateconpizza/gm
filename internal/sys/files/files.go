@@ -98,9 +98,7 @@ func Remove(s string) error {
 	if !Exists(s) {
 		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
 	}
-
 	slog.Debug("removing file", "path", s)
-
 	if err := os.Remove(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}

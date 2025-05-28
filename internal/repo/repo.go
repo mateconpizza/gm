@@ -101,7 +101,7 @@ func newRepository(p string, validate func(string) error) (*SQLiteRepository, er
 	if err := validate(p); err != nil {
 		return nil, err
 	}
-	c, err := NewSQLiteCfg(p)
+	c, err := newSQLiteCfg(p)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -181,8 +181,8 @@ func (c *SQLiteCfg) Exists() bool {
 	return files.Exists(c.Fullpath())
 }
 
-// NewSQLiteCfg returns the default settings for the database.
-func NewSQLiteCfg(p string) (*SQLiteCfg, error) {
+// newSQLiteCfg returns the default settings for the database.
+func newSQLiteCfg(p string) (*SQLiteCfg, error) {
 	abs, err := filepath.Abs(p)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %q: %w", p, err)

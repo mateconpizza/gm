@@ -5,18 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/config"
 	"github.com/haaag/gm/internal/handler"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
 	"github.com/haaag/gm/internal/sys"
-)
-
-type (
-	Bookmark = bookmark.Bookmark
-	Slice    = slice.Slice[Bookmark]
-	Repo     = repo.SQLiteRepository
 )
 
 // rootCmd represents the base command when called without any subcommands.

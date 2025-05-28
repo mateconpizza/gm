@@ -50,7 +50,7 @@ var newRecordCmd = &cobra.Command{
 }
 
 // add adds a new bookmark.
-func add(t *terminal.Term, r *Repo, args []string) error {
+func add(t *terminal.Term, r *repo.SQLiteRepository, args []string) error {
 	if t.IsPiped() && len(args) < 2 {
 		return fmt.Errorf("%w: URL or TAGS cannot be empty", bookmark.ErrInvalid)
 	}
@@ -87,7 +87,7 @@ func add(t *terminal.Term, r *Repo, args []string) error {
 }
 
 // addHandleConfirmation confirms if the user wants to save the bookmark.
-func addHandleConfirmation(r *Repo, t *terminal.Term, b *Bookmark) error {
+func addHandleConfirmation(r *repo.SQLiteRepository, t *terminal.Term, b *bookmark.Bookmark) error {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	opt, err := t.Choose(f.Clear().Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
 	if err != nil {
@@ -136,7 +136,7 @@ func addHandleURL(t *terminal.Term, args *[]string) string {
 }
 
 // addHandleTags retrieves the Tags from args or prompts the user for input.
-func addHandleTags(t *terminal.Term, r *Repo, args *[]string) string {
+func addHandleTags(t *terminal.Term, r *repo.SQLiteRepository, args *[]string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Header(color.BrightBlue("Tags\t:").String())
 	// this checks if tags are provided, parses them and return them
@@ -166,7 +166,12 @@ func addHandleTags(t *terminal.Term, r *Repo, args *[]string) string {
 }
 
 // parserNewBookmark fetch metadata and parses the new bookmark.
-func parserNewBookmark(t *terminal.Term, r *Repo, b *Bookmark, args []string) error {
+func parserNewBookmark(
+	t *terminal.Term,
+	r *repo.SQLiteRepository,
+	b *bookmark.Bookmark,
+	args []string,
+) error {
 	// retrieve url
 	url, err := parseNewURL(t, &args)
 	if err != nil {
@@ -272,7 +277,7 @@ func addHandleClipboard(t *terminal.Term) string {
 }
 
 // bookmarkEdition edits a bookmark with a text editor.
-func bookmarkEdition(r *Repo, t *terminal.Term, b *Bookmark) error {
+func bookmarkEdition(r *repo.SQLiteRepository, t *terminal.Term, b *bookmark.Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
