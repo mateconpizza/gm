@@ -2,7 +2,6 @@
 package repo
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ func TestDropRepository(t *testing.T) {
 	b, err := r.ByID(1)
 	assert.NoError(t, err)
 	assert.NotNil(t, b)
-	err = Drop(r, context.Background())
+	err = Drop(r, t.Context())
 	assert.NoError(t, err)
 	b, err = r.ByID(1)
 	assert.Nil(t, b)

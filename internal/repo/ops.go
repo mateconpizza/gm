@@ -94,7 +94,7 @@ func DatabasesUnlocked(path string) (*slice.Slice[SQLiteRepository], error) {
 	return dbs, nil
 }
 
-// DatabasesLocked returns all encrypted database files.
+// DatabasesLocked returns all locked database files.
 func DatabasesLocked(root string) ([]string, error) {
 	fs, err := files.FindByExtList(root, "enc")
 	if err != nil {

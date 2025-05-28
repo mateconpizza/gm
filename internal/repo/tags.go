@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -33,7 +34,7 @@ func (r *SQLiteRepository) GetOrCreateTag(tx *sqlx.Tx, s string) (int64, error) 
 }
 
 // associateTags associates tags to the given record.
-func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *Row) error {
+func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	tags := strings.Split(b.Tags, ",")
 	slog.Debug("associating tags with URL", "tags", tags, "url", b.URL)
 	for _, tag := range tags {

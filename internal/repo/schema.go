@@ -10,9 +10,10 @@ const (
 
 // schemaMain is the schema for the main table.
 var schemaMain = tableSchema{
-	name:  tableMainName,
-	sql:   tableMainSchema,
-	index: tableMainIndex,
+	name:    tableMainName,
+	sql:     tableMainSchema,
+	index:   tableMainIndex,
+	trigger: tableMainTrigger,
 }
 
 // schemaTags is the schema for the tags table.
@@ -52,12 +53,21 @@ const (
         last_visit  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         visit_count INTEGER DEFAULT 0,
-        favorite    BOOLEAN DEFAULT FALSE
+        favorite    BOOLEAN DEFAULT FALSE,
+				checksum 		TEXT NOT NULL
     );`
 
 	tableMainIndex = `
     CREATE UNIQUE INDEX IF NOT EXISTS idx_bookmarks_url
     ON bookmarks(url);`
+
+	tableMainTrigger = `
+		CREATE TRIGGER IF NOT EXISTS update_bookmark_updated_at
+		AFTER UPDATE ON bookmarks
+		FOR EACH ROW
+		BEGIN
+				UPDATE bookmarks SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+		END;`
 )
 
 // temp table.

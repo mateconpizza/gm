@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +22,7 @@ func createTestSQLiteDB(t *testing.T, dir, dbName string) string {
 	defer db.Close() // Ensure the DB connection is closed when this helper returns
 
 	// Ping to ensure the connection is valid and the file is accessible as a DB
-	err = db.PingContext(context.Background())
+	err = db.PingContext(t.Context())
 	assert.NoError(t, err, "Failed to ping SQLite DB for test setup at %s", dbPath)
 
 	// Create a dummy table to make it a valid SQLite database file
@@ -78,7 +77,7 @@ func TestNewRepository(t *testing.T) {
 
 		// Optionally, ping the DB connection within the returned repository
 		// to ensure it's still alive and functional.
-		err = r.DB.PingContext(context.Background())
+		err = r.DB.PingContext(t.Context())
 		assert.NoError(t, err, "Repository DB connection should be pingable after creation")
 	})
 }

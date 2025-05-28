@@ -2,7 +2,6 @@
 package repo
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/haaag/gm/internal/bookmark"
 	"github.com/haaag/gm/internal/slice"
 )
 
@@ -32,8 +32,8 @@ func teardownthewall(db *sqlx.DB) {
 	}
 }
 
-func testSingleBookmark() *Row {
-	return &Row{
+func testSingleBookmark() *bookmark.Bookmark {
+	return &bookmark.Bookmark{
 		URL:       "https://www.example.com",
 		Title:     "Title",
 		Tags:      "test,tag1,go",
@@ -44,8 +44,8 @@ func testSingleBookmark() *Row {
 	}
 }
 
-func testSliceBookmarks(n int) *Slice {
-	s := slice.New[Row]()
+func testSliceBookmarks(n int) *slice.Slice[bookmark.Bookmark] {
+	s := slice.New[bookmark.Bookmark]()
 	for i := range n {
 		b := testSingleBookmark()
 		b.Title = fmt.Sprintf("Title %d", i)
@@ -62,7 +62,7 @@ func testPopulatedDB(t *testing.T, n int) *SQLiteRepository {
 	t.Helper()
 	r := setupTestDB(t)
 	bs := testSliceBookmarks(n)
-	ctx := context.Background()
+	ctx := t.Context()
 	err := r.InsertMany(ctx, bs)
 	assert.NoError(t, err)
 
@@ -87,7 +87,7 @@ func TestDropTable(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	tDrop := schemaMain.name
-	err := r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableDrop(tx, tDrop)
 	})
 	assert.NoError(t, err, "failed to drop table %s", tDrop)
@@ -102,7 +102,7 @@ func TestTableCreate(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	var newTable Table = "new_table"
-	assert.NoError(t, r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+	assert.NoError(t, r.withTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableCreate(tx, newTable, "CREATE TABLE new_table (id INTEGER PRIMARY KEY)")
 	}), "failed to create table %s", newTable)
 	exists, err := r.tableExists(newTable)
@@ -114,7 +114,7 @@ func TestTableExists(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	var tt Table = "test_table"
-	assert.NoError(t, r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+	assert.NoError(t, r.withTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableCreate(tx, tt, "CREATE TABLE test_table (id INTEGER PRIMARY KEY)")
 	}), "failed to create table %s", tt)
 	exists, err := r.tableExists(tt)
@@ -130,7 +130,7 @@ func TestRenameTable(t *testing.T) {
 	defer teardownthewall(r.DB)
 	srcTable := schemaMain.name
 	destTable := "new_" + srcTable
-	err := r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableRename(tx, srcTable, destTable)
 	})
 	assert.NoError(t, err, "failed to rename table %s to %s", srcTable, destTable)

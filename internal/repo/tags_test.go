@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"context"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -24,15 +23,16 @@ func TestTagsCounter(t *testing.T) {
 	}
 
 	records := []struct {
-		id     int
-		url    string
-		title  string
-		desc   string
-		tagIDs []int
+		id       int
+		url      string
+		title    string
+		desc     string
+		tagIDs   []int
+		checksum string
 	}{
-		{1, "http://example1.com", "Example 1", "Description 1", []int{1, 2}},
-		{2, "http://example2.com", "Example 2", "Description 2", []int{2}},
-		{3, "http://example3.com", "Example 3", "Description 3", []int{}}, // No tags
+		{1, "http://example1.com", "Example 1", "Description 1", []int{1, 2}, "checksum"},
+		{2, "http://example2.com", "Example 2", "Description 2", []int{2}, "checksum"},
+		{3, "http://example3.com", "Example 3", "Description 3", []int{}, "checksum"}, // No tags
 	}
 
 	for _, tag := range tags {
@@ -41,8 +41,8 @@ func TestTagsCounter(t *testing.T) {
 	}
 
 	for _, record := range records {
-		_, err := r.DB.Exec("INSERT INTO bookmarks (id, url, title, desc) VALUES (?, ?, ?, ?)",
-			record.id, record.url, record.title, record.desc)
+		_, err := r.DB.Exec("INSERT INTO bookmarks (id, url, title, desc, checksum) VALUES (?, ?, ?, ?, ?)",
+			record.id, record.url, record.title, record.desc, record.checksum)
 		assert.NoError(t, err, "failed to insert bookmark")
 
 		for _, tagID := range record.tagIDs {
@@ -75,7 +75,7 @@ func TestGetOrCreateTag(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	newTagName := "newtag"
-	_ = r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+	_ = r.withTx(t.Context(), func(tx *sqlx.Tx) error {
 		// test creating a new tag
 		tagID, err := createTag(tx, newTagName)
 		assert.NotEqual(t, int64(0), tagID, "CreateTag returned ID 0, expected a valid ID")

@@ -1,12 +1,14 @@
 package repo
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -15,20 +17,15 @@ import (
 	"github.com/haaag/gm/internal/slice"
 )
 
-type (
-	Row   = bookmark.Bookmark
-	Slice = slice.Slice[Row]
-)
-
 // InsertOne creates a new record in the main table.
-func (r *SQLiteRepository) InsertOne(ctx context.Context, b *Row) error {
+func (r *SQLiteRepository) InsertOne(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		return r.insertIntoTx(tx, b)
 	})
 }
 
 // InsertMany creates multiple records.
-func (r *SQLiteRepository) InsertMany(ctx context.Context, bs *Slice) error {
+func (r *SQLiteRepository) InsertMany(ctx context.Context, bs *slice.Slice[bookmark.Bookmark]) error {
 	return r.insertBulk(ctx, bs)
 }
 
@@ -38,13 +35,13 @@ func (r *SQLiteRepository) DeleteOne(ctx context.Context, bURL string) error {
 }
 
 // DeleteMany deletes multiple records from the main table.
-func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs *Slice) error {
+func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs *slice.Slice[bookmark.Bookmark]) error {
 	if bs.Empty() {
 		return ErrRecordIDNotProvided
 	}
 	slog.Debug("deleting many records from the relation table", "count", bs.Len())
 	var urls []string
-	bs.ForEach(func(b Row) {
+	bs.ForEach(func(b bookmark.Bookmark) {
 		urls = append(urls, b.URL)
 	})
 
@@ -77,8 +74,11 @@ func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs *Slice) error {
 	})
 }
 
-// UpdateOne updates an existing record in the relation table.
-func (r *SQLiteRepository) UpdateOne(ctx context.Context, newB, oldB *Row) (*Row, error) {
+// Update updates an existing record in the relation table.
+func (r *SQLiteRepository) Update(
+	ctx context.Context,
+	newB, oldB *bookmark.Bookmark,
+) (*bookmark.Bookmark, error) {
 	if err := r.withTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.delete(ctx, oldB.URL); err != nil {
 			return fmt.Errorf("delete old record: %w", err)
@@ -97,7 +97,7 @@ func (r *SQLiteRepository) UpdateOne(ctx context.Context, newB, oldB *Row) (*Row
 }
 
 // All returns all bookmarks.
-func (r *SQLiteRepository) All(bs *Slice) error {
+func (r *SQLiteRepository) All() ([]bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
@@ -110,19 +110,20 @@ func (r *SQLiteRepository) All(bs *Slice) error {
       b.id
     ORDER BY
       b.id ASC;`
-	if err := r.bySQL(bs, q); err != nil {
-		return err
+	bs, err := r.bySQL(q)
+	if err != nil {
+		return nil, err
 	}
-	if bs.Len() == 0 {
-		return ErrRecordNotFound
+	if len(bs) == 0 {
+		return nil, ErrRecordNotFound
 	}
-	slog.Debug("getting all records", "got", bs.Len())
+	slog.Debug("getting all records", "got", len(bs))
 
-	return nil
+	return bs, nil
 }
 
 // ByID returns a record by its ID in the give table.
-func (r *SQLiteRepository) ByID(bID int) (*Row, error) {
+func (r *SQLiteRepository) ByID(bID int) (*bookmark.Bookmark, error) {
 	if bID > r.maxID() {
 		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, r.maxID())
 	}
@@ -140,7 +141,7 @@ func (r *SQLiteRepository) ByID(bID int) (*Row, error) {
       LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
       b.id = ?`
-	var b Row
+	var b bookmark.Bookmark
 	err := r.DB.Get(&b, q, bID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -156,9 +157,9 @@ func (r *SQLiteRepository) ByID(bID int) (*Row, error) {
 }
 
 // ByIDList returns a list of records by their IDs in the give table.
-func (r *SQLiteRepository) ByIDList(bIDs []int, bs *Slice) error {
+func (r *SQLiteRepository) ByIDList(bIDs []int) ([]bookmark.Bookmark, error) {
 	if len(bIDs) == 0 {
-		return ErrRecordIDNotProvided
+		return nil, ErrRecordIDNotProvided
 	}
 	q, args, err := sqlx.In(`
     SELECT
@@ -179,14 +180,19 @@ func (r *SQLiteRepository) ByIDList(bIDs []int, bs *Slice) error {
       b.id ASC
     `, bIDs)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
-	return r.bySQL(bs, r.DB.Rebind(q), args...)
+	bs, err := r.bySQL(r.DB.Rebind(q), args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return bs, nil
 }
 
 // ByURL returns a record by its URL in the give table.
-func (r *SQLiteRepository) ByURL(bURL string) (*Row, error) {
+func (r *SQLiteRepository) ByURL(bURL string) (*bookmark.Bookmark, error) {
 	row := r.DB.QueryRowx(`
     SELECT
       b.*,
@@ -200,7 +206,7 @@ func (r *SQLiteRepository) ByURL(bURL string) (*Row, error) {
       LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
       b.url = ?`, bURL)
-	var b Row
+	var b bookmark.Bookmark
 	err := row.StructScan(&b)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -214,7 +220,7 @@ func (r *SQLiteRepository) ByURL(bURL string) (*Row, error) {
 }
 
 // ByTag returns records filtered by tag, including all associated tags.
-func (r *SQLiteRepository) ByTag(ctx context.Context, tag string, bs *Slice) error {
+func (r *SQLiteRepository) ByTag(ctx context.Context, tag string) ([]bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
@@ -228,11 +234,16 @@ func (r *SQLiteRepository) ByTag(ctx context.Context, tag string, bs *Slice) err
     GROUP BY b.id
     ORDER BY b.id ASC;`
 
-	return r.bySQL(bs, q, "%"+tag+"%")
+	bs, err := r.bySQL(q, "%"+tag+"%")
+	if err != nil {
+		return nil, err
+	}
+
+	return bs, nil
 }
 
 // ByQuery returns records by query in the give table.
-func (r *SQLiteRepository) ByQuery(query string, bs *Slice) error {
+func (r *SQLiteRepository) ByQuery(query string) ([]bookmark.Bookmark, error) {
 	slog.Info("getting records by query", "query", query)
 	q := `
     SELECT
@@ -247,19 +258,20 @@ func (r *SQLiteRepository) ByQuery(query string, bs *Slice) error {
       GROUP BY b.id
       ORDER BY b.id ASC;`
 	queryValue := "%" + query + "%"
-	if err := r.bySQL(bs, q, queryValue, queryValue); err != nil {
-		return err
+	bs, err := r.bySQL(q, queryValue, queryValue)
+	if err != nil {
+		return nil, err
 	}
-	if bs.Len() == 0 {
-		return ErrRecordNoMatch
+	if len(bs) == 0 {
+		return nil, ErrRecordNoMatch
 	}
-	slog.Info("got records by query", "count", bs.Len(), "query", query)
+	slog.Info("got records by query", "count", len(bs), "query", query)
 
-	return nil
+	return bs, nil
 }
 
 // Has checks if a record exists in the main table.
-func (r *SQLiteRepository) Has(bURL string) (*Row, bool) {
+func (r *SQLiteRepository) Has(bURL string) (*bookmark.Bookmark, bool) {
 	var count int
 	q := "SELECT COUNT(*) FROM bookmarks WHERE url = ?"
 	if err := r.DB.QueryRowx(q, bURL).Scan(&count); err != nil {
@@ -287,12 +299,14 @@ func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
 			return resetSQLiteSequence(tx, schemaMain.name)
 		}
 		// get all records
-		bs := slice.New[Row]()
-		if err := r.All(bs); err != nil {
+		bb, err := r.All()
+		if err != nil {
 			if !errors.Is(ErrRecordNotFound, err) {
 				return err
 			}
 		}
+		bs := slice.New[bookmark.Bookmark]()
+		bs.Set(&bb)
 		if bs.Empty() {
 			return nil
 		}
@@ -330,22 +344,20 @@ func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
 }
 
 // bySQL retrieves records from the SQLite database based on the provided SQL query.
-func (r *SQLiteRepository) bySQL(bs *Slice, q string, args ...any) error {
-	var bb []Row
+func (r *SQLiteRepository) bySQL(q string, args ...any) ([]bookmark.Bookmark, error) {
+	var bb []bookmark.Bookmark
 	err := r.DB.Select(&bb, q, args...)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
-	bs.Set(&bb)
-	bs.Sort(func(a, b Row) bool {
-		return a.ID < b.ID
+	slices.SortFunc(bb, func(a, b bookmark.Bookmark) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
+	for i := range bb {
+		bb[i].Tags = bookmark.ParseTags(bb[i].Tags)
+	}
 
-	bs.ForEachMut(func(b *Row) {
-		b.Tags = bookmark.ParseTags(b.Tags)
-	})
-
-	return nil
+	return bb, nil
 }
 
 // DeleteOne deletes one record from the relation table.
@@ -361,7 +373,7 @@ func (r *SQLiteRepository) delete(ctx context.Context, bURL string) error {
 }
 
 // deleteOneTx deletes an single record in the given table.
-func (r *SQLiteRepository) deleteOneTx(tx *sqlx.Tx, b *Row) error {
+func (r *SQLiteRepository) deleteOneTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	slog.Debug("deleting record", "url", b.URL)
 	// remove tags relationships first
 	if _, err := tx.Exec(
@@ -422,15 +434,15 @@ func (r *SQLiteRepository) hasTx(tx *sqlx.Tx, target any) (bool, error) {
 }
 
 // insertAtID inserts a new record at the given ID.
-func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *Row) error {
+func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	if err := bookmark.Validate(b); err != nil {
 		return fmt.Errorf("abort: %w", err)
 	}
 	q := `
     INSERT
-    OR IGNORE INTO bookmarks (id, url, title, desc, created_at, updated_at, visit_count, favorite)
+    OR IGNORE INTO bookmarks (id, url, title, desc, created_at, updated_at, visit_count, favorite, checksum)
     VALUES
-    (:id, :url, :title, :desc, :created_at, :updated_at, :visit_count, :favorite)`
+    (:id, :url, :title, :desc, :created_at, :updated_at, :visit_count, :favorite, :checksum)`
 	_, err := tx.NamedExec(q, b)
 	if err != nil {
 		return fmt.Errorf("%w: %q", err, b.URL)
@@ -443,21 +455,21 @@ func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *Row) error {
 }
 
 // insertBulk creates multiple records in the given tables.
-func (r *SQLiteRepository) insertBulk(ctx context.Context, bs *Slice) error {
+func (r *SQLiteRepository) insertBulk(ctx context.Context, bs *slice.Slice[bookmark.Bookmark]) error {
 	slog.Info("inserting records into main table", "count", bs.Len())
-	bs.Sort(func(a, b Row) bool {
+	bs.Sort(func(a, b bookmark.Bookmark) bool {
 		return a.ID < b.ID
 	})
 
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
-		return bs.ForEachErr(func(b Row) error {
+		return bs.ForEachErr(func(b bookmark.Bookmark) error {
 			return r.insertIntoTx(tx, &b)
 		})
 	})
 }
 
 // insertInto creates a new record in the given tables.
-func (r *SQLiteRepository) insertInto(ctx context.Context, b *Row) error {
+func (r *SQLiteRepository) insertInto(ctx context.Context, b *bookmark.Bookmark) error {
 	if err := bookmark.Validate(b); err != nil {
 		return fmt.Errorf("insert record: %w", err)
 	}
@@ -485,7 +497,7 @@ func (r *SQLiteRepository) insertInto(ctx context.Context, b *Row) error {
 }
 
 // insertIntoTx inserts a record inside an existing transaction.
-func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *Row) error {
+func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	if _, err := r.hasTx(tx, b.URL); err != nil {
 		return fmt.Errorf("duplicate record: %w, %q", err, b.URL)
 	}
@@ -505,7 +517,7 @@ func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *Row) error {
 func (r *SQLiteRepository) insertManyIntoTempTable(
 	ctx context.Context,
 	tx *sqlx.Tx,
-	bs *Slice,
+	bs *slice.Slice[bookmark.Bookmark],
 ) error {
 	q := `
   INSERT INTO temp_bookmarks (
@@ -528,7 +540,7 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
 			slog.Error("delete many: closing stmt", "error", err)
 		}
 	}()
-	insertter := func(b Row) error {
+	insertter := func(b bookmark.Bookmark) error {
 		if _, err := stmt.Exec(b); err != nil {
 			return fmt.Errorf("insert bookmark %s: %w", b.URL, err)
 		}
@@ -543,16 +555,19 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
 }
 
 // insertRecord inserts a new record into the table.
-func insertRecord(tx *sqlx.Tx, b *Row) error {
+func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+	if b.Checksum == "" {
+		b.Checksum = bookmark.GenerateChecksum(b)
+	}
 	r, err := tx.NamedExec(
 		`INSERT INTO bookmarks (
-    url, title, desc, created_at, last_visit,
-    updated_at, visit_count, favorite
+    	url, title, desc, created_at, last_visit,
+    	updated_at, visit_count, favorite, checksum
   )
   VALUES
     (
       :url, :title, :desc, :created_at, :last_visit,
-      :updated_at, :visit_count, :favorite
+			:updated_at, :visit_count, :favorite, :checksum
     )`,
 		&b,
 	)

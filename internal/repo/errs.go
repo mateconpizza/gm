@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	// database errs.
+	ErrDBExists             = errors.New("database exists")
 	ErrDBAlreadyExists      = errors.New("database already exists")
 	ErrDBAlreadyInitialized = errors.New("already initialized")
 	ErrDBExistsAndInit      = errors.New("database already exists and initialized")

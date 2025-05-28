@@ -86,7 +86,7 @@ func Init(p string) (*SQLiteRepository, error) {
 	return newRepository(p, func(path string) error {
 		slog.Debug("init repo: checking if database exists", "path", path)
 		if files.Exists(path) {
-			return fmt.Errorf("%w: %q", ErrDBAlreadyExists, path)
+			return fmt.Errorf("%w: %q", ErrDBExists, path)
 		}
 
 		return nil

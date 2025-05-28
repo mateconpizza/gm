@@ -42,9 +42,11 @@ func Records(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 
 	if bs.Empty() && len(args) == 0 {
 		// if empty, get all records
-		if err := r.All(bs); err != nil {
+		bb, err := r.All()
+		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+		bs.Set(&bb)
 	}
 
 	return nil
@@ -181,7 +183,7 @@ func prepareBuffer(r *repo.SQLiteRepository, b *bookmark.Bookmark, idx, total in
 // It calls UpdateURL if the bookmark's URL changed, otherwise it calls Update.
 func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) error {
 	ctx := context.Background()
-	if _, err := r.UpdateOne(ctx, b, original); err != nil {
+	if _, err := r.Update(ctx, b, original); err != nil {
 		return fmt.Errorf("updating record: %w", err)
 	}
 	fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())

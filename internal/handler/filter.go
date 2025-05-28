@@ -33,9 +33,11 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *Slice) error {
 	}
 
 	for _, tag := range tags {
-		if err := r.ByTag(context.Background(), tag, bs); err != nil {
+		bb, err := r.ByTag(context.Background(), tag)
+		if err != nil {
 			return fmt.Errorf("byTags :%w", err)
 		}
+		bs.Append(bb...)
 	}
 
 	if bs.Empty() {
@@ -65,9 +67,11 @@ func ByQuery(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 	}
 
 	q := strings.Join(args, "%")
-	if err := r.ByQuery(q, bs); err != nil {
+	bb, err := r.ByQuery(q)
+	if err != nil {
 		return fmt.Errorf("%w: %s", err, strings.Join(args, " "))
 	}
+	bs.Set(&bb)
 
 	return nil
 }
@@ -85,9 +89,11 @@ func ByIDs(r *repo.SQLiteRepository, bs *Slice, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := r.ByIDList(ids, bs); err != nil {
+	bb, err := r.ByIDList(ids)
+	if err != nil {
 		return fmt.Errorf("records from args: %w", err)
 	}
+	bs.Set(&bb)
 
 	if bs.Empty() {
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
