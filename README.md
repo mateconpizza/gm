@@ -2,7 +2,7 @@
     <div>
         <h1><b><span style="font-size: 1.2em">📑</span> GoMarks</b></h1>
 
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/haaag/gm)
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mateconpizza/gm)
 ![Linux](https://img.shields.io/badge/-Linux-grey?logo=linux)
 ![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=Flat&logo=sqlite&logoColor=white)
 
@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 ### Installation
 
 ```sh
-go install github.com/haaag/gm@latest
+go install github.com/mateconpizza/gm@latest
 ```
 
 <sub>_To uninstall the program remove the binary in your `go env GOPATH`_</sub>

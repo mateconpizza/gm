@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/haaag/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys"
 )
 
 var (

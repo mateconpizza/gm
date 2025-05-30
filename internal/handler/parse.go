@@ -9,16 +9,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/haaag/rotato"
+	"github.com/mateconpizza/rotato"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/bookmark/scraper"
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/scraper"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 // parseFoundFromBrowser processes the bookmarks found from the import

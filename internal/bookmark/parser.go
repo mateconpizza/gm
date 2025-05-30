@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/haaag/rotato"
+	"github.com/mateconpizza/rotato"
 
-	"github.com/haaag/gm/internal/bookmark/scraper"
-	"github.com/haaag/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/bookmark/scraper"
+	"github.com/mateconpizza/gm/internal/format"
 )
 
 var ErrLineNotFound = errors.New("line not found")
@@ -144,7 +144,7 @@ func extractTextBlock(content []string, startMarker, endMarker string) string {
 // validateURLBuffer validates url in the buffer.
 func validateURLBuffer(content []string) error {
 	u := extractTextBlock(content, "# URL:", "# Title:")
-	if format.IsEmptyLine(u) {
+	if strings.TrimSpace(u) == "" {
 		return fmt.Errorf("%w: URL", ErrLineNotFound)
 	}
 
@@ -154,7 +154,7 @@ func validateURLBuffer(content []string) error {
 // validateTagsBuffer validates tags in the buffer.
 func validateTagsBuffer(content []string) error {
 	t := extractTextBlock(content, "# Tags:", "# Description:")
-	if format.IsEmptyLine(t) {
+	if strings.TrimSpace(t) == "" {
 		return fmt.Errorf("%w: Tags", ErrLineNotFound)
 	}
 
@@ -163,9 +163,7 @@ func validateTagsBuffer(content []string) error {
 
 // validateAttr validates bookmark attribute.
 func validateAttr(s, fallback string) string {
-	s = format.NormalizeSpace(s)
-	s = strings.TrimSpace(s)
-
+	s = strings.TrimSpace(format.NormalizeSpace(s))
 	if s == "" {
 		return strings.TrimSpace(fallback)
 	}

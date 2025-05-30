@@ -7,17 +7,17 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/browser"
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/menu"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/browser"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/menu"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 // ImportFromDB imports bookmarks from the given database.

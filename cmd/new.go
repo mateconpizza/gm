@@ -3,8 +3,8 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/handler"
 )
 
 var titleFlag string

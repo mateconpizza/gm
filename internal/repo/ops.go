@@ -10,10 +10,10 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
 // CountMainRecords returns the number of records in the main table.

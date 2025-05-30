@@ -3,9 +3,9 @@ package browser
 import (
 	"errors"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 var ErrBrowserUnsupported = errors.New("browser unsupported")

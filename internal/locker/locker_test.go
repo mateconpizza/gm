@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/haaag/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
 func testTempFile(t *testing.T) *os.File {

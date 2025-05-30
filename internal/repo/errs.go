@@ -6,10 +6,9 @@ var (
 	// database errs.
 	ErrDBExists             = errors.New("database exists")
 	ErrDBAlreadyInitialized = errors.New("already initialized")
-	ErrDBExistsAndInit      = errors.New("database already exists and initialized")
+	ErrDBExistsAndInit      = errors.New("database exists and initialized")
 	ErrDBEmpty              = errors.New("database is empty")
 	ErrDBNotFound           = errors.New("database not found")
-	ErrDBNotInitialized     = errors.New("database not initialized")
 	ErrDBsNotFound          = errors.New("no database/s found")
 	ErrDBCorrupted          = errors.New("database corrupted")
 	ErrDBLocked             = errors.New("database is locked")

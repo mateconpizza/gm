@@ -6,25 +6,29 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 // Oneline formats a bookmark in a single line with the given colorscheme.
 func Oneline(b *Bookmark, cs *color.Scheme) string {
-	const (
-		idWithColor    = 16
-		minTagsLen     = 34
-		defaultTagsLen = 24
-		idPadding      = 5
-	)
 	w := terminal.MaxWidth
-	idLen := format.PaddingConditional(idPadding, idWithColor)
-	tagsLen := format.PaddingConditional(minTagsLen, defaultTagsLen)
-	// calculate url length dynamically based on available space
-	// add 1 for the UnicodeMiddleDot spacer
+	const (
+		idPadding      = 3
+		idWithColor    = 16
+		defaultTagsLen = 24
+		minTagsLen     = 34
+	)
+	idLen := idPadding
+	tagsLen := minTagsLen
+	if cs.Enabled {
+		idLen = idWithColor
+		tagsLen = defaultTagsLen
+	}
+	// calculate url length dynamically based on available space add 1 for the
+	// UnicodeMiddleDot spacer
 	urlLen := w - idLen - tagsLen - 1
 	// apply colors
 	coloredID := cs.BrightYellow(b.ID).Bold().String()
@@ -93,7 +97,7 @@ func Frame(b *Bookmark, cs *color.Scheme) string {
 	w -= len(f.Border.Row)
 	// id + url
 	id := cs.BrightYellow(b.ID).Bold()
-	urlColor := format.Shorten(format.URLBreadCrumbs(b.URL, cs.BrightMagenta), w)
+	urlColor := format.Shorten(format.URLBreadCrumbs(b.URL, cs.BrightMagenta), w) + color.Reset()
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 	// title
 	if b.Title != "" {

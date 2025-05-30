@@ -167,6 +167,7 @@ func (p *Palette) Background(s ...any) *Color {
 type Scheme struct {
 	Name     string `yaml:"name"` // Name of the scheme
 	*Palette `yaml:",inline"`
+	Enabled  bool `yaml:"-"`
 }
 
 // Len returns the number of colors found in the scheme.

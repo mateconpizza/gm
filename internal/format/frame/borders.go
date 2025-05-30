@@ -1,12 +1,5 @@
 package frame
 
-var defaultBorders = &FrameBorders{
-	Header: "+ ",
-	Row:    "| ",
-	Mid:    "+ ",
-	Footer: "+ ",
-}
-
 func SetDefaultBorders(b *FrameBorders) {
 	defaultBorders = b
 }

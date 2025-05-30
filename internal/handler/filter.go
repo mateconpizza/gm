@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/slice"
 )
 
 var (

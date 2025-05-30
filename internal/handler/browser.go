@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"github.com/haaag/gm/internal/browser"
-	"github.com/haaag/gm/internal/browser/blink"
-	"github.com/haaag/gm/internal/browser/gecko"
-	"github.com/haaag/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/browser"
+	"github.com/mateconpizza/gm/internal/browser/blink"
+	"github.com/mateconpizza/gm/internal/browser/gecko"
+	"github.com/mateconpizza/gm/internal/format/color"
 )
 
 // supportedBrowser represents a supported browser.

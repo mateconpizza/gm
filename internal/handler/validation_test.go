@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/locker"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 func TestExtractIDsFromString(t *testing.T) {

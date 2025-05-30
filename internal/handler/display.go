@@ -8,16 +8,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/locker"
-	"github.com/haaag/gm/internal/menu"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/menu"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
 type colorSchemes = map[string]*color.Scheme
@@ -100,6 +100,7 @@ func Oneline(bs *slice.Slice[bookmark.Bookmark]) error {
 	if err != nil {
 		return err
 	}
+	cs.Enabled = config.App.Color
 	slog.Info("colorscheme loaded", "name", cs.Name)
 
 	bs.ForEach(func(b bookmark.Bookmark) {

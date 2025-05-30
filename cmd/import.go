@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/handler"
 )
 
 var ErrImportSourceNotFound = errors.New("import source not found")

@@ -10,10 +10,10 @@ import (
 
 	prompt "github.com/c-bata/go-prompt"
 
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/sys"
 )
 
 // PromptSuggester is a function that generates suggestions for a given prompt.

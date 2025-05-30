@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/haaag/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
 type Table string

@@ -13,8 +13,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/slice"
 )
 
 // InsertOne creates a new record in the main table.

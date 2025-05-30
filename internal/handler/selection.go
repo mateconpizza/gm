@@ -8,16 +8,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/locker"
-	"github.com/haaag/gm/internal/menu"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/menu"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 // Select allows the user to select a record in a menu interface.

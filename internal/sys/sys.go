@@ -13,7 +13,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/pkg/browser"
 
-	"github.com/haaag/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/config"
 )
 
 var (

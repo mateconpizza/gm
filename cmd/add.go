@@ -7,20 +7,20 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/haaag/rotato"
+	"github.com/mateconpizza/rotato"
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/bookmark/scraper"
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/handler"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/scraper"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 // newRecordCmd represents the add command.
@@ -289,7 +289,7 @@ func bookmarkEdition(r *repo.SQLiteRepository, t *terminal.Term, b *bookmark.Boo
 	format.BufferAppendEnd(" [New]", &buf)
 	format.BufferAppend("#\n# "+sep+"\n\n", &buf)
 	format.BufferAppend(fmt.Sprintf("# database: %q\n", r.Name()), &buf)
-	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Version), &buf)
+	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
 
 	if err := bookmark.Edit(te, t, buf, b); err != nil {
 		return fmt.Errorf("%w", err)

@@ -4,8 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/haaag/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/color"
 )
+
+var defaultBorders = &FrameBorders{
+	Header: "+ ",
+	Row:    "| ",
+	Mid:    "+ ",
+	Footer: "+ ",
+}
 
 // OptFn is an option function for the frame.
 type OptFn func(*Options)
@@ -82,14 +89,46 @@ func (f *Frame) Header(s ...string) *Frame {
 	return f.applyBorder(header, s)
 }
 
+func (f *Frame) Headerln(s ...string) *Frame {
+	return f.Header(s...).Ln()
+}
+
 func (f *Frame) Row(s ...string) *Frame {
 	row := f.applyStyle(f.Border.Row)
 	return f.applyBorder(row, s)
 }
 
+func (f *Frame) Rowln(s ...string) *Frame {
+	return f.Row(s...).Ln()
+}
+
 func (f *Frame) Mid(s ...string) *Frame {
 	mid := f.applyStyle(f.Border.Mid)
 	return f.applyBorder(mid, s)
+}
+
+func (f *Frame) Midln(s ...string) *Frame {
+	return f.Mid(s...).Ln()
+}
+
+func (f *Frame) Footer(s ...string) *Frame {
+	foo := f.applyStyle(f.Border.Footer)
+	return f.applyBorder(foo, s)
+}
+
+func (f *Frame) Footerln(s ...string) *Frame {
+	return f.Footer(s...).Ln()
+}
+
+func (f *Frame) Flush() *Frame {
+	fmt.Print(strings.Join(f.text, ""))
+	return f.Clear()
+}
+
+// Clear clears the frame.
+func (f *Frame) Clear() *Frame {
+	f.text = make([]string, 0)
+	return f
 }
 
 func (f *Frame) Error(s ...string) *Frame {
@@ -121,22 +160,6 @@ func (f *Frame) Question(s ...string) *Frame {
 	mid := f.applyStyle(q)
 
 	return f.applyBorder(mid, color.ApplyMany(s, color.StyleBold))
-}
-
-func (f *Frame) Footer(s ...string) *Frame {
-	foo := f.applyStyle(f.Border.Footer)
-	return f.applyBorder(foo, s)
-}
-
-func (f *Frame) Flush() *Frame {
-	fmt.Print(strings.Join(f.text, ""))
-	return f.Clear()
-}
-
-// Clear clears the frame.
-func (f *Frame) Clear() *Frame {
-	f.text = make([]string, 0)
-	return f
 }
 
 func (f *Frame) String() string {

@@ -8,8 +8,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/slice"
 )
 
 func TestInsertOne(t *testing.T) {

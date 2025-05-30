@@ -10,10 +10,11 @@ import (
 var version = "0.1.13"
 
 const (
-	appName        string = "gomarks"      // Default name of the application
-	command        string = "gm"           // Default name of the executable
-	DefaultDBName  string = "bookmarks.db" // Default name of the database
-	configFilename string = "config.yml"   // Default config filename
+	appName         string = "gomarks"      // Default name of the application
+	command         string = "gm"           // Default name of the executable
+	DefaultDBName   string = "bookmarks.db" // Default name of the database
+	DefaultFilename string = "config.yml"   // Default config filename
+	configFilename  string = "config.yml"   // Default config filename
 )
 
 type (
@@ -29,7 +30,6 @@ type (
 		Color       bool        `json:"-"`           // Application color enable
 		Force       bool        `json:"-"`           // force action, dont ask for confirmation.
 		Verbose     bool        `json:"-"`           // Logging level
-		Version     string      `json:"version"`     // Version of the application
 	}
 
 	path struct {
@@ -41,10 +41,11 @@ type (
 	}
 
 	information struct {
-		URL   string `json:"url"`   // URL of the application
-		Title string `json:"title"` // Title of the application
-		Tags  string `json:"tags"`  // Tags of the application
-		Desc  string `json:"desc"`  // Description of the application
+		URL     string `json:"url"`     // URL of the application
+		Title   string `json:"title"`   // Title of the application
+		Tags    string `json:"tags"`    // Tags of the application
+		Desc    string `json:"desc"`    // Description of the application
+		Version string `json:"version"` // Version of the application
 	}
 
 	environment struct {
@@ -78,8 +79,8 @@ func SetDBPath(p string) {
 	App.DBPath = p
 }
 
-// SetDataPath sets the app data path.
-func SetDataPath(p string) {
+// SetPaths sets the app data path.
+func SetPaths(p string) {
 	App.Path.Data = p
 	App.Path.ConfigFile = filepath.Join(p, configFilename)
 	App.Path.Backup = filepath.Join(p, "backup")

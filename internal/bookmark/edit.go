@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 var ErrBufferUnchanged = errors.New("buffer unchanged")
@@ -30,7 +30,7 @@ func Edit(te *files.TextEditor, t *terminal.Term, content []byte, b *Bookmark) e
 		if bytes.Equal(modifiedData, original) {
 			return ErrBufferUnchanged
 		}
-		lines := format.ByteSliceToLines(modifiedData)
+		lines := strings.Split(string(modifiedData), "\n") // bytes to lines
 		if err := validateBookmarkFormat(lines); err != nil {
 			return fmt.Errorf("invalid bookmark format: %w", err)
 		}

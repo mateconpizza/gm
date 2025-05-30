@@ -15,7 +15,7 @@ import (
 	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
 
-	"github.com/haaag/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys"
 )
 
 // TODO:

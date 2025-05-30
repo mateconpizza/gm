@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/haaag/gm/internal/menu"
+	"github.com/mateconpizza/gm/internal/menu"
 )
 
 // ConfigFile represents the configuration file.
@@ -115,16 +115,16 @@ func FzfKeybindYank() menu.Keymap {
 var App = &AppConfig{
 	Name:        appName,
 	Cmd:         command,
-	Version:     version,
 	DBName:      DefaultDBName,
 	Colorscheme: "default",
 	Color:       false,
 	Force:       false,
 	Info: information{
-		URL:   "https://github.com/haaag/gomarks#readme",
-		Title: "Gomarks: A bookmark manager",
-		Tags:  "golang,awesome,bookmarks,cli",
-		Desc:  "Simple yet powerful bookmark manager for your terminal",
+		URL:     "https://github.com/mateconpizza/gomarks#readme",
+		Title:   "Gomarks: A bookmark manager",
+		Tags:    "golang,awesome,bookmarks,cli",
+		Desc:    "Simple yet powerful bookmark manager for your terminal",
+		Version: version,
 	},
 	Env: environment{
 		Home:   "GOMARKS_HOME",

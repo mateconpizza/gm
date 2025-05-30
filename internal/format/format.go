@@ -11,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/color"
 )
 
 const (
@@ -41,15 +40,6 @@ func PaddedLine(s, v any) string {
 	padding := max(pad-visibleLen, 0)
 
 	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
-}
-
-// PaddingConditional returns the padding for the colorized output.
-func PaddingConditional(minVal, maxVal int) int {
-	if config.App.Color {
-		return maxVal
-	}
-
-	return minVal
 }
 
 // Shorten shortens a string to a maximum length.
@@ -142,14 +132,7 @@ func SplitIntoChunks(s string, strLen int) []string {
 // NormalizeSpace removes extra whitespace from a string, leaving only single
 // spaces between words.
 func NormalizeSpace(s string) string {
-	s = strings.TrimSpace(s)
-	return strings.Join(strings.Fields(s), " ")
-}
-
-// ByteSliceToLines returns the content of a []byte as a slice of strings,
-// splitting on newline characters.
-func ByteSliceToLines(data []byte) []string {
-	return strings.Split(string(data), "\n")
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
 }
 
 // BufferAppend inserts a header string at the beginning of a byte buffer.
@@ -160,16 +143,6 @@ func BufferAppend(s string, buf *[]byte) {
 // BufferAppendEnd appends a string to the end of a byte buffer.
 func BufferAppendEnd(s string, buf *[]byte) {
 	*buf = append(*buf, []byte(s)...)
-}
-
-// BufferAppendVersion inserts a header string at the beginning of a byte buffer.
-func BufferAppendVersion(name, version string, buf *[]byte) {
-	BufferAppend(fmt.Sprintf("# %s: v%s\n", name, version), buf)
-}
-
-// IsEmptyLine checks if a line is empty.
-func IsEmptyLine(line string) bool {
-	return strings.TrimSpace(line) == ""
 }
 
 // Unique returns a slice of unique, non-empty strings from the input slice.
@@ -198,7 +171,7 @@ func CountLines(s string) int {
 // DiffColor colorizes the diff output.
 func DiffColor(s string) string {
 	var r []string
-	for _, l := range strings.Split(s, "\n") {
+	for l := range strings.SplitSeq(s, "\n") {
 		switch {
 		case strings.HasPrefix(l, "+"):
 			r = append(r, "  "+color.BrightGreen(l).String())
@@ -254,6 +227,11 @@ func TagsWithPound(s string) string {
 	}
 
 	return sb.String()
+}
+
+// TagsWithPoundList returns a prettified tags list with #.
+func TagsWithPoundList(s string) []string {
+	return strings.FieldsFunc(TagsWithPound(s), func(r rune) bool { return r == ' ' })
 }
 
 // TagsWithUnicode returns a prettified tags.

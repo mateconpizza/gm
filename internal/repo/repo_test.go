@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/haaag/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
 //nolint:errcheck //test

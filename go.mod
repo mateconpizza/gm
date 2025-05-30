@@ -1,4 +1,4 @@
-module github.com/haaag/gm
+module github.com/mateconpizza/gm
 
 go 1.24
 
@@ -10,10 +10,10 @@ require (
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/atotto/clipboard v0.1.4
 	github.com/c-bata/go-prompt v0.2.6
-	github.com/haaag/rotato v0.1.10
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/junegunn/fzf v0.61.3
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
+	github.com/mateconpizza/rotato v0.1.11
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e

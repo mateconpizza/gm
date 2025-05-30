@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/haaag/gm/internal/bookmark"
 	"github.com/jmoiron/sqlx"
+	"github.com/mateconpizza/gm/internal/bookmark"
 )
 
 // GetOrCreateTag returns the tag ID.

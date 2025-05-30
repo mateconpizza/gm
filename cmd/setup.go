@@ -4,46 +4,25 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/format"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/menu"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys"
-	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/menu"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 // DBName main database name.
 var DBName string
-
-var (
-	Copy        bool     // Copy URL into clipboard
-	Open        bool     // Open URL in default browser
-	Tags        []string // Tags list to filter bookmarks
-	QR          bool     // QR code generator
-	Menu        bool     // Menu mode
-	Edit        bool     // Edit mode
-	Head        int      // Head limit
-	Remove      bool     // Remove bookmarks
-	Tail        int      // Tail limit
-	Field       string   // Field to print
-	JSON        bool     // JSON output
-	Oneline     bool     // Oneline output
-	Multiline   bool     // Multiline output
-	WithColor   string   // WithColor enable color output
-	Force       bool     // Force action
-	Status      bool     // Status checks URLs status code
-	VerboseFlag int      // Verbose flag
-)
 
 func initConfig() {
 	config.SetVerbosity(VerboseFlag)
@@ -57,7 +36,7 @@ func initConfig() {
 	}
 
 	// set app home
-	config.SetDataPath(dataHomePath)
+	config.SetPaths(dataHomePath)
 	// set colorscheme path
 	config.SetColorSchemePath(filepath.Join(dataHomePath, "colorscheme"))
 	// set database name
@@ -80,38 +59,7 @@ func initConfig() {
 
 // init sets the config for the root command.
 func init() {
-	// global
-	pf := rootCmd.PersistentFlags()
-	pf.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
-	pf.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
-	pf.CountVarP(&VerboseFlag, "verbose", "v", "Increase verbosity (-v, -vv, -vvv)")
-	pf.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
-	_ = pf.MarkHidden("help")
-	// local
-	f := rootCmd.Flags()
-	// prints
-	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
-	f.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
-	f.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
-	f.StringVarP(&Field, "field", "f", "", "output by field [id,1|url,2|title,3|tags,4]")
-	// actions
-	f.BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
-	f.BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
-	f.BoolVarP(&QR, "qr", "q", false, "generate qr-code")
-	f.BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
-	f.StringSliceVarP(&Tags, "tag", "t", nil, "list by tag")
-	// experimental
-	f.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
-	f.BoolVarP(&Edit, "edit", "e", false, "edit with preferred text editor")
-	f.BoolVarP(&Status, "status", "s", false, "check bookmarks status")
-	// modifiers
-	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
-	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
-	// cmd settings
-	rootCmd.CompletionOptions.HiddenDefaultCmd = true
-	rootCmd.SilenceErrors = true
-	rootCmd.DisableSuggestions = true
-	rootCmd.SuggestionsMinimumDistance = 1
+	initRootFlags(rootCmd)
 	rootCmd.AddCommand(initCmd)
 	cobra.OnInitialize(initConfig)
 }
@@ -143,19 +91,6 @@ func createPaths(t *terminal.Term, path string) error {
 	f.Success("Inserted initial bookmark\n").Row("\n").Flush()
 
 	return nil
-}
-
-// isSubCmdCalled checks if a specific subcommand was invoked.
-func isSubCmdCalled(cmd *cobra.Command, names ...string) bool {
-	targetCmd, _, _ := cmd.Root().Find(os.Args[1:])
-	for _, name := range names {
-		if targetCmd != nil && targetCmd.Name() == name {
-			slog.Debug("subcommand called", "name", name)
-			return true
-		}
-	}
-
-	return false
 }
 
 // loadDataPath loads the path to the application's home directory.
@@ -245,5 +180,5 @@ var initCmd = &cobra.Command{
 // prettyVersion formats version in a pretty way.
 func prettyVersion() string {
 	name := color.BrightBlue(config.App.Name).Bold().String()
-	return fmt.Sprintf("%s v%s %s/%s", name, config.App.Version, runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf("%s v%s %s/%s", name, config.App.Info.Version, runtime.GOOS, runtime.GOARCH)
 }

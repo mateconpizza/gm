@@ -54,6 +54,7 @@ const (
 	italic        = "\x1b[3m"
 	strikethrough = "\x1b[9m"
 	underline     = "\x1b[4m"
+	undercurl     = "\x1b[4:3m"
 
 	// reset colors.
 	reset = "\x1b[0m"
@@ -104,6 +105,10 @@ func (c *Color) Strikethrough() *Color {
 
 func (c *Color) Underline() *Color {
 	return c.applyStyle(underline)
+}
+
+func (c *Color) Undercurl() *Color {
+	return c.applyStyle(undercurl)
 }
 
 func (c *Color) String() string {
@@ -209,31 +214,35 @@ func BrightYellow(arg ...any) *Color {
 }
 
 func StyleBold(arg ...any) *Color {
-	return addColor(bold, arg...)
+	return Text(join(arg...)).Bold()
 }
 
 func StyleDim(arg ...any) *Color {
-	return addColor(dim, arg...)
+	return Text(join(arg...)).Dim()
 }
 
 func StyleItalic(arg ...any) *Color {
-	return addColor(italic, arg...)
+	return Text(join(arg...)).Italic()
 }
 
 func StyleUnderline(arg ...any) *Color {
-	return addColor(underline, arg...)
+	return Text(join(arg...)).Underline()
+}
+
+func StyleUndercurl(arg ...any) *Color {
+	return Text(join(arg...)).Undercurl()
 }
 
 func StyleStrikethrough(arg ...any) *Color {
-	return addColor(strikethrough, arg...)
+	return Text(join(arg...)).Strikethrough()
 }
 
 func StyleInverse(arg ...any) *Color {
-	return addColor(inverse, arg...)
+	return Text(join(arg...)).Inverse()
 }
 
 func Default(arg ...any) *Color {
-	return addColor(brightWhite, arg...)
+	return Text(join(arg...))
 }
 
 func addColor(c string, arg ...any) *Color {
@@ -265,4 +274,23 @@ func ApplyMany(s []string, colors ...ColorFn) []string {
 func ANSICodeRemover(s string) string {
 	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	return re.ReplaceAllString(s, "")
+}
+
+// MkColorFn combines multiple Color functions into a single function.
+func MkColorFn(fns ...ColorFn) ColorFn {
+	return func(arg ...any) *Color {
+		c := Text(join(arg...))
+		colorSet := false
+
+		for _, fn := range fns {
+			tmp := fn()
+			if !colorSet && tmp.color != "" {
+				c.color = tmp.color
+				colorSet = true
+			}
+			c.styles = append(c.styles, tmp.styles...)
+		}
+
+		return c
+	}
 }

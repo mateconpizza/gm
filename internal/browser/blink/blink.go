@@ -8,15 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/haaag/rotato"
+	"github.com/mateconpizza/rotato"
 
-	"github.com/haaag/gm/internal/bookmark"
-	browserpath "github.com/haaag/gm/internal/browser/paths"
-	"github.com/haaag/gm/internal/format/color"
-	"github.com/haaag/gm/internal/format/frame"
-	"github.com/haaag/gm/internal/slice"
-	"github.com/haaag/gm/internal/sys/files"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	browserpath "github.com/mateconpizza/gm/internal/browser/paths"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 type Record = bookmark.Bookmark

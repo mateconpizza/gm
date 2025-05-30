@@ -6,7 +6,7 @@ import (
 
 	shellwords "github.com/junegunn/go-shellwords"
 
-	"github.com/haaag/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/color"
 )
 
 // appendKeytoHeader appends a key:desc string to the header slice.

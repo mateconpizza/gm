@@ -5,30 +5,38 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/haaag/gm/internal/bookmark"
-	"github.com/haaag/gm/internal/config"
-	"github.com/haaag/gm/internal/handler"
-	"github.com/haaag/gm/internal/repo"
-	"github.com/haaag/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
-var listTagsFlag bool
-
-var recordsTagsCmd = &cobra.Command{
-	Use:     "tags",
-	Aliases: []string{"t"},
-	Short:   "Tags management",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		switch {
-		case JSON:
-			return handler.JSONTags(config.App.DBPath)
-		case listTagsFlag:
-			return handler.ListTags(config.App.DBPath)
-		}
-
-		return cmd.Usage()
-	},
+type tagsFlagType struct {
+	json bool
+	list bool
 }
+
+var (
+	// tags flags.
+	tagsFlags = tagsFlagType{}
+
+	// recordsTagsCmd tags management.
+	recordsTagsCmd = &cobra.Command{
+		Use:     "tags",
+		Aliases: []string{"t"},
+		Short:   "Tags management",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			switch {
+			case tagsFlags.json:
+				return handler.JSONTags(config.App.DBPath)
+			case tagsFlags.list:
+				return handler.ListTags(config.App.DBPath)
+			}
+			return cmd.Usage()
+		},
+	}
+)
 
 // recordsCmd is the main command and entrypoint.
 var recordsCmd = &cobra.Command{
@@ -105,8 +113,8 @@ func init() {
 	rf.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	rf.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 
-	recordsTagsCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output tags+count in JSON format")
-	recordsTagsCmd.Flags().BoolVarP(&listTagsFlag, "list", "l", false, "list all tags")
+	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.json, "json", "j", false, "output tags+count in JSON format")
+	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
 
 	recordsCmd.AddCommand(recordsTagsCmd)
 	rootCmd.AddCommand(recordsCmd)
