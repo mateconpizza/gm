@@ -120,7 +120,7 @@ var App = &AppConfig{
 	Color:       false,
 	Force:       false,
 	Info: information{
-		URL:     "https://github.com/mateconpizza/gomarks#readme",
+		URL:     "https://github.com/mateconpizza/gm#readme",
 		Title:   "Gomarks: A bookmark manager",
 		Tags:    "golang,awesome,bookmarks,cli",
 		Desc:    "Simple yet powerful bookmark manager for your terminal",

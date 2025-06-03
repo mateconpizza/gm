@@ -161,6 +161,15 @@ func (s *Slice[T]) Items() *[]T {
 	return &s.items
 }
 
+// ItemsPtr returns all items in the slice.
+func (s *Slice[T]) ItemsPtr() []*T {
+	result := make([]*T, 0, len(s.items))
+	for i := range s.items {
+		result = append(result, &s.items[i])
+	}
+	return result
+}
+
 // Index returns the index of the item.
 func (s *Slice[T]) Index(item T) int {
 	return slices.Index(s.items, item)

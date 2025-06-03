@@ -2,6 +2,7 @@
 package files
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,19 @@ var (
 func Exists(s string) bool {
 	_, err := os.Stat(s)
 	return !os.IsNotExist(err)
+}
+
+func ExistsErr(p string) error {
+	_, err := os.Stat(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrFileNotFound
+		}
+
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }
 
 // IsFile checks if the given path exists and refers to a regular file.
@@ -98,7 +112,7 @@ func Remove(s string) error {
 	if !Exists(s) {
 		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
 	}
-	slog.Debug("removing file", "path", s)
+	slog.Debug("removing path", "path", s)
 	if err := os.Remove(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}
@@ -283,6 +297,55 @@ func YamlWrite[T any](p string, v *T, force bool) error {
 	}
 
 	slog.Info("YamlWrite success", "path", p)
+
+	return nil
+}
+
+// JSONWrite writes the provided data as JSON to the specified file.
+// It uses generics to accept any type `T`.
+func JSONWrite[T any](p string, v *T, force bool) error {
+	f, err := Touch(p, force)
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			slog.Error("Json closing file", "file", p, "error", err)
+		}
+	}()
+
+	// Marshal the data to JSON.
+	data, err := json.MarshalIndent(v, "", "  ") // Use MarshalIndent for pretty-printed JSON
+	if err != nil {
+		return fmt.Errorf("error marshalling JSON: %w", err)
+	}
+
+	_, err = f.Write(data)
+	if err != nil {
+		return fmt.Errorf("error writing to file: %w", err)
+	}
+
+	slog.Info("JsonWrite success", "path", p)
+
+	return nil
+}
+
+func JSONRead[T any](p string, v *T) error {
+	if !Exists(p) {
+		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
+	}
+
+	content, err := os.ReadFile(p)
+	if err != nil {
+		return fmt.Errorf("error reading config file: %w", err)
+	}
+
+	err = json.Unmarshal(content, &v)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling JSON: %w", err)
+	}
+
+	slog.Debug("JsonRead", "path", p)
 
 	return nil
 }

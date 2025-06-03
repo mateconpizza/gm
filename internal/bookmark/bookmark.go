@@ -126,7 +126,27 @@ func (b *Bookmark) Buffer() []byte {
 		b.URL, b.Title, ParseTags(b.Tags), b.Desc)
 }
 
+func (b *Bookmark) GenerateChecksum() {
+	b.Checksum = Checksum(b.URL, b.Title, b.Desc, b.Tags)
+}
+
 // New creates a new bookmark.
 func New() *Bookmark {
 	return &Bookmark{}
+}
+
+func NewFromJSON(json *BookmarkJSON) *Bookmark {
+	b := New()
+	b.ID = json.ID
+	b.URL = json.URL
+	b.Title = json.Title
+	b.Desc = json.Desc
+	b.Tags = ParseTags(strings.Join(json.Tags, ","))
+	b.CreatedAt = json.CreatedAt
+	b.LastVisit = json.LastVisit
+	b.UpdatedAt = json.UpdatedAt
+	b.VisitCount = json.VisitCount
+	b.Favorite = json.Favorite
+	b.Checksum = json.Checksum
+	return b
 }

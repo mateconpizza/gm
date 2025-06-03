@@ -54,7 +54,7 @@ const (
         updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         visit_count INTEGER DEFAULT 0,
         favorite    BOOLEAN DEFAULT FALSE,
-				checksum 		TEXT NOT NULL
+        checksum    TEXT NOT NULL
     );`
 
 	tableMainIndex = `
@@ -84,7 +84,8 @@ const (
         last_visit  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         visit_count INTEGER DEFAULT 0,
-        favorite    BOOLEAN DEFAULT FALSE
+        favorite    BOOLEAN DEFAULT FALSE,
+        checksum    TEXT NOT NULL
     );`
 )
 

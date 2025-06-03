@@ -84,6 +84,7 @@ func (r *SQLiteRepository) Update(
 			return fmt.Errorf("delete old record: %w", err)
 		}
 		newB.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		newB.GenerateChecksum()
 		if err := r.insertAtID(tx, newB); err != nil {
 			return fmt.Errorf("insert new record: %w", err)
 		}
@@ -522,12 +523,12 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
 	q := `
   INSERT INTO temp_bookmarks (
     url, title, desc, created_at, last_visit,
-    updated_at, visit_count, favorite
+    updated_at, visit_count, favorite, checksum
   )
   VALUES
     (
       :url, :title, :desc, :created_at, :last_visit,
-      :updated_at, :visit_count, :favorite
+      :updated_at, :visit_count, :favorite, :checksum
     )
   `
 	// FIX: pass the context
@@ -557,7 +558,7 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
 // insertRecord inserts a new record into the table.
 func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	if b.Checksum == "" {
-		b.Checksum = bookmark.GenerateChecksum(b)
+		b.GenerateChecksum()
 	}
 	b.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 	r, err := tx.NamedExec(

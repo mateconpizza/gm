@@ -37,6 +37,7 @@ type (
 		Data         string `json:"data"`         // Path to store database
 		ConfigFile   string `json:"config"`       // Path to config file
 		Backup       string `json:"backup"`       // Path to store backups
+		Git          string `json:"git"`          // Path to store git
 		Colorschemes string `json:"colorschemes"` // Path to store colorschemes
 	}
 
@@ -84,6 +85,7 @@ func SetPaths(p string) {
 	App.Path.Data = p
 	App.Path.ConfigFile = filepath.Join(p, configFilename)
 	App.Path.Backup = filepath.Join(p, "backup")
+	App.Path.Git = filepath.Join(p, "git")
 }
 
 func SetVerbosity(verbose int) {

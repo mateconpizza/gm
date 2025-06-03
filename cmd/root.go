@@ -10,11 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 )
 
-var _ = `
-  database    Database management
-  records     Records management
-`
-
 // CLI Flags.
 var (
 	Copy        bool     // Copy URL into clipboard

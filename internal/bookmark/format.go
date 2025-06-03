@@ -1,8 +1,6 @@
 package bookmark
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -116,16 +114,4 @@ func Frame(b *Bookmark, cs *color.Scheme) string {
 	f.Footer(tags).Ln()
 
 	return f.String()
-}
-
-// GenerateChecksum generates a checksum for the bookmark.
-func GenerateChecksum(b *Bookmark) string {
-	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s", b.URL, b.Title, b.Desc, b.Tags)
-	return generateHash(data, 8)
-}
-
-// generateHash generates a hash from a string with the given length.
-func generateHash(s string, c int) string {
-	hash := sha256.Sum256([]byte(s))
-	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
 }

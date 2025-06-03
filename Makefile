@@ -29,7 +29,8 @@ debug: test
 # Run tests
 test:
 	@echo '>> Testing $(BINARY_NAME)'
-	@gotestsum --hide-summary=skipped
+	@go test ./...
+	@echo
 
 # Run tests with gotestsum
 testsum:
