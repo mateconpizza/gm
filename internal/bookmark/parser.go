@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/slice"
 )
 
 var ErrLineNotFound = errors.New("line not found")
@@ -39,12 +41,13 @@ func ParseTags(tags string) string {
 	return tags + ","
 }
 
-// ExtractContentLine extracts URLs from the a slice of strings.
+// ExtractContentLine extracts content lines from a string slice.
 func ExtractContentLine(c *[]string) map[string]bool {
+	const comment = "#"
 	m := make(map[string]bool)
 	for _, l := range *c {
 		l = strings.TrimSpace(l)
-		if !strings.HasPrefix(l, "#") && !strings.EqualFold(l, "") {
+		if !strings.HasPrefix(l, comment) && !strings.EqualFold(l, "") {
 			m[l] = true
 		}
 	}
@@ -199,4 +202,40 @@ func scrapeBookmark(b *Bookmark) *Bookmark {
 	}
 
 	return b
+}
+
+// ScrapeMissingDescription scrapes missing data from bookmarks found from the import
+// process.
+func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
+	if bs.Len() == 0 {
+		return nil
+	}
+	sp := rotato.New(
+		rotato.WithSpinnerColor(rotato.ColorGray),
+		rotato.WithMesg("scraping missing data..."),
+		rotato.WithMesgColor(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+	)
+	sp.Start()
+	var wg sync.WaitGroup
+	errs := make([]string, 0)
+	bs.ForEachMut(func(b *Bookmark) {
+		wg.Add(1)
+		go func(b *Bookmark) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			defer wg.Done()
+			sc := scraper.New(b.URL, scraper.WithContext(ctx))
+			if err := sc.Scrape(); err != nil {
+				errs = append(errs, fmt.Sprintf("url %s: %s", b.URL, err.Error()))
+				slog.Warn("scraping error", "url", b.URL, "err", err)
+			}
+			b.Desc = sc.Desc()
+		}(b)
+	})
+	wg.Wait()
+
+	sp.Done("Scraping done")
+
+	return nil
 }

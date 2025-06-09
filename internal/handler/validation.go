@@ -11,7 +11,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
@@ -59,7 +58,7 @@ func confirmRemove(
 		case "y", "yes":
 			return nil
 		case "s", "select":
-			items, err := SelectionWithMenu(m, *bs.Items(), fzfFormatter(false))
+			items, err := selectionWithMenu(m, *bs.Items(), fzfFormatter(false))
 			if err != nil {
 				return err
 			}
@@ -173,7 +172,7 @@ func FindDB(p string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("%w: %q", repo.ErrDBNotFound, format.StripSuffixes(s))
+	return "", fmt.Errorf("%w: %q", repo.ErrDBNotFound, files.StripSuffixes(s))
 }
 
 // passwordConfirm prompts user for password input.

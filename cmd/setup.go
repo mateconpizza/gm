@@ -40,7 +40,7 @@ func initConfig() {
 	// set colorscheme path
 	config.SetColorSchemePath(filepath.Join(dataHomePath, "colorscheme"))
 	// set database name
-	config.SetDBName(files.EnsureExt(DBName, ".db"))
+	config.SetDBName(files.EnsureSuffix(DBName, ".db"))
 	// set database path
 	config.SetDBPath(filepath.Join(dataHomePath, config.App.DBName))
 

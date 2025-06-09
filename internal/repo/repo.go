@@ -191,7 +191,7 @@ func newSQLiteCfg(p string) (*SQLiteCfg, error) {
 
 	return &SQLiteCfg{
 		Path:       baseDir,
-		Name:       files.EnsureExt(filepath.Base(abs), ".db"),
+		Name:       files.EnsureSuffix(filepath.Base(abs), ".db"),
 		BackupDir:  filepath.Join(baseDir, "backup"),
 		DateFormat: defaultDateFormat,
 	}, nil

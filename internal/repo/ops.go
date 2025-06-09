@@ -10,8 +10,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
@@ -26,6 +26,18 @@ func CountMainRecords(r *SQLiteRepository) int {
 func CountTagsRecords(r *SQLiteRepository) int {
 	slog.Debug("count tags records", "database", r.Name())
 	return countRecords(r, schemaTags.name)
+}
+
+// CountFavorites returns the number of favorite records.
+func CountFavorites(r *SQLiteRepository) int {
+	var n int
+	query := "SELECT COUNT(*) FROM bookmarks WHERE favorite = 1"
+	err := r.DB.QueryRowx(query).Scan(&n)
+	if err != nil {
+		return 0
+	}
+
+	return n
 }
 
 // count counts the number of rows in the specified table.
@@ -104,6 +116,31 @@ func DatabasesLocked(root string) ([]string, error) {
 	return fs, nil
 }
 
+// HasURL checks if a record exists in the main table.
+func HasURL(bURL string) (*bookmark.Bookmark, error) {
+	r, err := New(config.App.DBPath)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	var count int
+	q := "SELECT COUNT(*) FROM bookmarks WHERE url = ?"
+	if err := r.DB.QueryRowx(q, bURL).Scan(&count); err != nil {
+		slog.Error("error getting count", "error", err)
+		r.Close()
+		return nil, fmt.Errorf("getting count: %w", err)
+	}
+	if count == 0 {
+		return nil, ErrRecordNotFound
+	}
+
+	item, err := r.ByURL(bURL)
+	if err != nil {
+		return nil, fmt.Errorf("ByURL: %w", err)
+	}
+
+	return item, nil
+}
+
 // newBackup creates a new backup from the given repository.
 func newBackup(r *SQLiteRepository) (string, error) {
 	if err := files.MkdirAll(config.App.Path.Backup); err != nil {
@@ -130,7 +167,7 @@ func newBackup(r *SQLiteRepository) (string, error) {
 // ListDatabaseBackups returns a filtered list of database backups.
 func ListDatabaseBackups(dir, dbName string) ([]string, error) {
 	// Remove .db|.enc extension for matching
-	baseName := format.StripSuffixes(dbName)
+	baseName := files.StripSuffixes(dbName)
 	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db*"))
 	if err != nil {
 		return nil, fmt.Errorf("listing backups: %w", err)

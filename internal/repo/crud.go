@@ -123,6 +123,29 @@ func (r *SQLiteRepository) All() ([]bookmark.Bookmark, error) {
 	return bs, nil
 }
 
+// AllPtr returns all bookmarks.
+func (r *SQLiteRepository) AllPtr() ([]*bookmark.Bookmark, error) {
+	q := `
+    SELECT
+      b.*,
+      GROUP_CONCAT(t.name, ',') AS tags
+    FROM
+      bookmarks b
+      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN tags t ON bt.tag_id = t.id
+    GROUP BY
+      b.id
+    ORDER BY
+      b.id ASC;`
+	bs, err := r.bySQLPtr(q)
+	if err != nil {
+		return nil, err
+	}
+	slog.Debug("getting all records", "got", len(bs))
+
+	return bs, nil
+}
+
 // ByID returns a record by its ID in the give table.
 func (r *SQLiteRepository) ByID(bID int) (*bookmark.Bookmark, error) {
 	if bID > r.maxID() {
@@ -352,6 +375,23 @@ func (r *SQLiteRepository) bySQL(q string, args ...any) ([]bookmark.Bookmark, er
 		return nil, fmt.Errorf("%w", err)
 	}
 	slices.SortFunc(bb, func(a, b bookmark.Bookmark) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+	for i := range bb {
+		bb[i].Tags = bookmark.ParseTags(bb[i].Tags)
+	}
+
+	return bb, nil
+}
+
+// bySQL retrieves records from the SQLite database based on the provided SQL query.
+func (r *SQLiteRepository) bySQLPtr(q string, args ...any) ([]*bookmark.Bookmark, error) {
+	var bb []*bookmark.Bookmark
+	err := r.DB.Select(&bb, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	slices.SortFunc(bb, func(a, b *bookmark.Bookmark) int {
 		return cmp.Compare(a.ID, b.ID)
 	})
 	for i := range bb {

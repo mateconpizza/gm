@@ -3,12 +3,17 @@ package bookmark
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
+	"log/slog"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
+	"github.com/mateconpizza/rotato"
+
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
@@ -16,10 +21,9 @@ import (
 var ErrInvalidChecksum = errors.New("invalid checksum")
 
 // ExportBookmarks creates the repository structure.
-func ExportBookmarks(root, dbName string, bs []*Bookmark) error {
-	dbName = strings.TrimSuffix(dbName, filepath.Ext(dbName))
+func ExportBookmarks(root string, bs []*Bookmark) error {
 	for _, b := range bs {
-		if err := storeBookmarkJSON(root, dbName, b, config.App.Force); err != nil {
+		if err := StoreAsJSON(root, b, config.App.Force); err != nil {
 			return err
 		}
 	}
@@ -27,14 +31,53 @@ func ExportBookmarks(root, dbName string, bs []*Bookmark) error {
 	return nil
 }
 
-// storeBookmarkJSON creates files structure.
-func storeBookmarkJSON(rootPath, dbName string, b *Bookmark, force bool) error {
-	domain, err := HashDomain(b.URL)
+func StoreAsGPG(root string, bookmarks []*Bookmark) error {
+	root = filepath.Join(root, files.StripSuffixes(config.App.DBName))
+	if err := files.MkdirAll(root); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	sp := rotato.New(
+		rotato.WithPrefix("Encrypting"),
+		rotato.WithMesg("bookmarks..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithFailColorMesg(rotato.ColorBrightRed),
+	)
+
+	n := len(bookmarks)
+	count := 0
+	for i := range n {
+		hashPath, err := bookmarks[i].HashPath()
+		if err != nil {
+			return fmt.Errorf("hashing path: %w", err)
+		}
+		if err := gpg.Create(root, hashPath, bookmarks[i].ToJSON()); err != nil {
+			if errors.Is(err, files.ErrFileExists) {
+				continue
+			}
+			return fmt.Errorf("creating GPG file: %w", err)
+		}
+		sp.Start()
+		count++
+		sp.UpdatePrefix(fmt.Sprintf("Encrypting [%d/%d]", count, n))
+	}
+	if count > 0 {
+		sp.Done("done")
+	} else {
+		sp.Done()
+	}
+
+	return nil
+}
+
+// StoreAsJSON creates files structure.
+func StoreAsJSON(rootPath string, b *Bookmark, force bool) error {
+	domain, err := Domain(b.URL)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	// domainPath: root -> data -> dbName -> domain
-	domainPath := filepath.Join(rootPath, "data", dbName, domain)
+	domainPath := filepath.Join(rootPath, domain)
 	if err := files.MkdirAll(domainPath); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -42,14 +85,14 @@ func storeBookmarkJSON(rootPath, dbName string, b *Bookmark, force bool) error {
 	urlHash := HashURL(b.URL)
 	filePathJSON := filepath.Join(domainPath, urlHash+".json")
 	if err := files.JSONWrite(filePathJSON, b.ToJSON(), force); err != nil {
-		return resolveFileConflictError(err, filePathJSON, b)
+		return resolveFileConflictError(rootPath, err, filePathJSON, b)
 	}
 
 	return nil
 }
 
 // resolveFileConflictError resolves a file conflict error.
-func resolveFileConflictError(err error, filePathJSON string, b *Bookmark) error {
+func resolveFileConflictError(rootPath string, err error, filePathJSON string, b *Bookmark) error {
 	if !errors.Is(err, files.ErrFileExists) {
 		return err
 	}
@@ -61,53 +104,61 @@ func resolveFileConflictError(err error, filePathJSON string, b *Bookmark) error
 	if bj.Checksum == b.Checksum {
 		return nil
 	}
-	s := strings.TrimSuffix(config.App.DBName, filepath.Ext(config.App.DBName))
-	return storeBookmarkJSON(config.App.Path.Git, s, b, true)
+	return StoreAsJSON(rootPath, b, true)
 }
 
-// CleanupFiles removes the files associated with a bookmark.
-func CleanupFiles(root, rawURL string) error {
-	domain, err := HashDomain(rawURL)
+// CleanupGitFiles removes the files associated with a bookmark.
+func CleanupGitFiles(root string, b *Bookmark, extension string) error {
+	slog.Debug("cleaning up git files")
+	hashPath, err := b.HashPath()
 	if err != nil {
-		return fmt.Errorf("hasher domain: %w", err)
+		return fmt.Errorf("%w", err)
 	}
-	domainPath := filepath.Join(root, domain)
-	urlHash := HashURL(rawURL)
-	filePathJSON := filepath.Join(domainPath, urlHash+".json")
-	if err := files.Remove(filePathJSON); err != nil {
+	fname := filepath.Join(root, hashPath+extension)
+	if !files.Exists(fname) {
+		slog.Debug("file not found", "path", fname)
+		return nil
+	}
+	if err := files.Remove(fname); err != nil {
 		return fmt.Errorf("removing file:%w", err)
 	}
 	// check if the directory is empty
-	dirs, err := files.List(domainPath, "*")
+	fdir := filepath.Dir(fname)
+	dirs, err := files.List(fdir, "*")
 	if err != nil {
 		return fmt.Errorf("listing directory: %w", err)
 	}
 	if len(dirs) == 0 {
-		if err := files.Remove(domainPath); err != nil {
+		// remove empty path
+		if err := files.Remove(fdir); err != nil {
 			return fmt.Errorf("removing directory: %w", err)
 		}
 	}
 	return nil
 }
 
-func validateChecksum(b *BookmarkJSON) bool {
+func ValidateChecksumJSON(b *BookmarkJSON) bool {
 	tags := ParseTags(strings.Join(b.Tags, ","))
 	return b.Checksum == Checksum(b.URL, b.Title, b.Desc, tags)
 }
 
-// errorTracker provides thread-safe error tracking.
-type errorTracker struct {
+func ValidateChecksum(b *Bookmark) bool {
+	return b.Checksum == Checksum(b.URL, b.Title, b.Desc, b.Tags)
+}
+
+// ErrTracker provides thread-safe error tracking.
+type ErrTracker struct {
 	mu    sync.Mutex
 	error error
 }
 
-// newErrorTracker creates a new error tracker.
-func newErrorTracker() *errorTracker {
-	return &errorTracker{}
+// NewErrorTracker creates a new error tracker.
+func NewErrorTracker() *ErrTracker {
+	return &ErrTracker{}
 }
 
-// setError sets the first error encountered (thread-safe).
-func (et *errorTracker) setError(err error) {
+// SetError sets the first error encountered (thread-safe).
+func (et *ErrTracker) SetError(err error) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
@@ -116,8 +167,8 @@ func (et *errorTracker) setError(err error) {
 	}
 }
 
-// getError returns the first error encountered (if any).
-func (et *errorTracker) getError() error {
+// GetError returns the first error encountered (if any).
+func (et *ErrTracker) GetError() error {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 	return et.error
@@ -129,19 +180,31 @@ func loadBookmarkFromFile(path string) (*Bookmark, error) {
 	if err := files.JSONRead(path, &bj); err != nil {
 		return nil, fmt.Errorf("JSON error in %s: %w", path, err)
 	}
-	if !validateChecksum(&bj) {
+	if !ValidateChecksumJSON(&bj) {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidChecksum, path)
 	}
 	return NewFromJSON(&bj), nil
 }
 
-// loadConcurrently processes a single JSON file in a goroutine.
-func loadConcurrently(
+func LoadConcurrentlyFake(
 	path string,
 	bs *slice.Slice[Bookmark],
 	wg *sync.WaitGroup,
 	sem chan struct{},
-	errTracker *errorTracker,
+	loader func(path string) (*Bookmark, error),
+	errTracker *ErrTracker,
+) {
+}
+
+// LoadConcurrently processes a single JSON file in a goroutine.
+func LoadConcurrently(
+	path string,
+	bs *slice.Slice[Bookmark],
+	wg *sync.WaitGroup,
+	mu *sync.Mutex,
+	sem chan struct{},
+	loader func(path string) (*Bookmark, error),
+	errTracker *ErrTracker,
 ) {
 	sem <- struct{}{} // acquire semaphore
 	wg.Add(1)
@@ -152,9 +215,9 @@ func loadConcurrently(
 			wg.Done() // mark goroutine as done
 		}()
 
-		b, err := loadBookmarkFromFile(filePath)
+		b, err := loader(filePath)
 		if err != nil {
-			errTracker.setError(err)
+			errTracker.SetError(err)
 			return
 		}
 
@@ -162,19 +225,22 @@ func loadConcurrently(
 	}(path)
 }
 
-// LoadJSONBookmarks loads JSON bookmarks from a directory tree with
+// LoadBookmarksFromPath loads JSON bookmarks from a directory tree with
 // controlled concurrency.
-func LoadJSONBookmarks(repoPath string, bs *slice.Slice[Bookmark]) error {
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 8)
-	errTracker := newErrorTracker()
+func LoadBookmarksFromPath(root string, bs *slice.Slice[Bookmark]) error {
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+	)
+	sem := make(chan struct{}, runtime.NumCPU()*2)
+	errTracker := NewErrorTracker()
 
-	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && filepath.Ext(path) == ".json" {
-			loadConcurrently(path, bs, &wg, sem, errTracker)
+		if !d.IsDir() && filepath.Ext(path) == ".json" {
+			LoadConcurrently(path, bs, &wg, &mu, sem, loadBookmarkFromFile, errTracker)
 		}
 
 		return nil
@@ -185,7 +251,36 @@ func LoadJSONBookmarks(repoPath string, bs *slice.Slice[Bookmark]) error {
 
 	wg.Wait()
 
-	return errTracker.getError()
+	return errTracker.GetError()
+}
+
+// LoadJSONBookmarks loads JSON bookmarks from a directory tree with
+// controlled concurrency.
+func LoadJSONBookmarks(root string, bs *slice.Slice[Bookmark]) error {
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+	)
+	sem := make(chan struct{}, runtime.NumCPU()*2)
+	errTracker := NewErrorTracker()
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Ext(path) == ".json" {
+			LoadConcurrently(path, bs, &wg, &mu, sem, loadBookmarkFromFile, errTracker)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("filepath.Walk error: %w", err)
+	}
+
+	wg.Wait()
+
+	return errTracker.GetError()
 }
 
 // FindChanged returns the bookmarks that have changed since the last sync.

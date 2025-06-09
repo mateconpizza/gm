@@ -80,6 +80,10 @@ func add(t *terminal.Term, r *repo.SQLiteRepository, args []string) error {
 	if err := r.InsertOne(context.Background(), b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	// sync if available
+	if err := handler.GitCommit("Add"); err != nil {
+		return fmt.Errorf("%w", err)
+	}
 	success := color.BrightGreen("Successfully").Italic().String()
 	f.Success(success + " bookmark created\n").Flush()
 

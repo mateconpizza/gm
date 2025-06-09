@@ -2,11 +2,12 @@
 package format
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -303,10 +304,8 @@ func ReplaceHomePath(p string) string {
 	return "~" + p[len(home):]
 }
 
-func StripSuffixes(p string) string {
-	for ext := filepath.Ext(p); ext != ""; ext = filepath.Ext(p) {
-		p = p[:len(p)-len(ext)]
-	}
-
-	return p
+// GenerateHash generates a hash from a string with the given length.
+func GenerateHash(s string, c int) string {
+	hash := sha256.Sum256([]byte(s))
+	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
 }

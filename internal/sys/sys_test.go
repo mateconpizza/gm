@@ -78,5 +78,12 @@ func TestBinExists(t *testing.T) {
 		if got != tt.exists {
 			t.Errorf("%s: got: %v, expected: %v", tt.command, got, tt.exists)
 		}
+		err := Which(tt.command)
+		if err != nil && tt.exists {
+			t.Errorf("%s: got: %v, expected: nil", tt.command, err)
+		}
+		if err == nil && !tt.exists {
+			t.Errorf("%s: got: nil, expected: error", tt.command)
+		}
 	}
 }

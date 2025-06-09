@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -128,6 +129,17 @@ func (b *Bookmark) Buffer() []byte {
 
 func (b *Bookmark) GenerateChecksum() {
 	b.Checksum = Checksum(b.URL, b.Title, b.Desc, b.Tags)
+}
+
+// HashPath returns the hash path of a bookmark.
+//
+//	hashDomain + Checksum
+func (b *Bookmark) HashPath() (string, error) {
+	domain, err := HashDomain(b.URL)
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+	return filepath.Join(domain, b.Checksum), nil
 }
 
 // New creates a new bookmark.

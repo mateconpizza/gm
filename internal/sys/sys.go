@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -20,6 +21,7 @@ var (
 	ErrCopyToClipboard   = errors.New("copy to clipboard")
 	ErrNotImplementedYet = errors.New("not implemented yet")
 	ErrActionAborted     = errors.New("action aborted")
+	ErrSysCmdNotFound    = errors.New("command not found")
 )
 
 // Env retrieves an environment variable.
@@ -49,6 +51,17 @@ func BinPath(s string) string {
 // BinExists checks if the binary exists in $PATH.
 func BinExists(s string) bool {
 	return ExecuteCmd("which", s) == nil
+}
+
+// Which checks if the command exists in $PATH.
+func Which(cmd string) error {
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		fullPath := filepath.Join(dir, cmd)
+		if info, err := os.Stat(fullPath); err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
+			return nil
+		}
+	}
+	return ErrSysCmdNotFound
 }
 
 // ExecuteCmd runs a command with the given arguments and returns an error if

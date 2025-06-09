@@ -10,7 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
+
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
 var (
@@ -20,49 +22,19 @@ var (
 	ErrGitNoOrigin        = errors.New("git: no origin remote configured")
 	ErrGitNoRemote        = errors.New("git: no remote configured")
 	ErrGitNothingToCommit = errors.New("git: no changes to commit")
+	ErrGitRepoNotFound    = errors.New("git: repo not found")
 )
 
-type SyncGitSummary struct {
-	GitBranch          string `json:"git_branch"`
-	GitRemote          string `json:"git_remote"`
-	LastSync           string `json:"last_sync"`
-	ConflictResolution string `json:"conflict_resolution"`
-	HashAlgorithm      string `json:"hash_algorithm"`
-	Version            string `json:"version"`
-}
+const cmdGit = "git"
 
-func NewSummary(repoPath, v string) *SyncGitSummary {
-	return &SyncGitSummary{
-		ConflictResolution: "timestamp",
-		HashAlgorithm:      "checksum",
-		Version:            v,
-	}
-}
-
-func UpdatedSummary(repoPath, v string) (*SyncGitSummary, error) {
-	branch, err := getBranch(repoPath)
+func Clone(destRepoPath, repoURL string) (string, error) {
+	cmd := exec.Command(cmdGit, "clone", repoURL, destRepoPath)
+	output, err := cmd.CombinedOutput()
+	o := strings.TrimSpace(string(output))
 	if err != nil {
-		return nil, fmt.Errorf("getting branch: %w", err)
+		return o, fmt.Errorf("git clone: %w", err)
 	}
-	remote, err := getRemote(repoPath)
-	if err != nil {
-		remote = ""
-	}
-
-	return &SyncGitSummary{
-		GitBranch:          branch,
-		GitRemote:          remote,
-		LastSync:           time.Now().Format(time.RFC3339),
-		ConflictResolution: "timestamp",
-		HashAlgorithm:      "checksum",
-		Version:            v,
-	}, nil
-}
-
-// fileExists checks if a file fileExists.
-func fileExists(s string) bool {
-	_, err := os.Stat(s)
-	return !os.IsNotExist(err)
+	return o, nil
 }
 
 // AddAll adds all local changes.
@@ -87,7 +59,7 @@ func Fetch(repoPath string) error {
 	if err := runWithWriter(os.Stdout, repoPath, "fetch"); err != nil {
 		return fmt.Errorf("git fetch: %w", err)
 	}
-	branch, err := getBranch(repoPath)
+	branch, err := GetBranch(repoPath)
 	if err != nil {
 		return fmt.Errorf("could not get current branch: %w", err)
 	}
@@ -99,18 +71,22 @@ func Fetch(repoPath string) error {
 func HasChanges(repoPath string) (bool, error) {
 	output, err := runWithOutput(repoPath, "status", "--porcelain")
 	if err != nil {
+		slog.Error("git status failed", "path", repoPath, "error", err)
 		return false, fmt.Errorf("git status failed: %w", err)
 	}
 	return strings.TrimSpace(output) != "", nil
 }
 
 // InitRepo creates a new Git repository.
-func InitRepo(repoPath string, force bool) error {
+func InitRepo(repoPath string, force bool) (string, error) {
+	if err := sys.Which(cmdGit); err != nil {
+		return "", fmt.Errorf("%w: %s", err, cmdGit)
+	}
 	slog.Debug("initializing git", "path", repoPath)
 	if IsInitialized(repoPath) && !force {
-		return ErrGitInitialized
+		return "", ErrGitInitialized
 	}
-	return runWithWriter(os.Stdout, repoPath, "init")
+	return runWithOutput(repoPath, "init")
 }
 
 // Log returns the log of the repo.
@@ -136,7 +112,7 @@ func PushChanges(repoPath string) error {
 	if strings.TrimSpace(remotes) == "" {
 		return ErrGitNoRemote
 	}
-	branch, err := getBranch(repoPath)
+	branch, err := GetBranch(repoPath)
 	if err != nil {
 		return fmt.Errorf("could not get current branch: %w", err)
 	}
@@ -158,7 +134,7 @@ func Status(repoPath string) (string, error) {
 	}
 
 	var out bytes.Buffer
-	cmd := exec.Command("git", "diff", "--cached", "--name-status")
+	cmd := exec.Command(cmdGit, "diff", "--cached", "--name-status")
 	cmd.Stdout = &out
 	cmd.Dir = repoPath
 
@@ -190,13 +166,13 @@ func Status(repoPath string) (string, error) {
 	return fmt.Sprintf("Added: %d, Modified: %d, Deleted: %d", added, modified, deleted), nil
 }
 
-// getBranch returns the current branch.
-func getBranch(repoPath string) (string, error) {
+// GetBranch returns the current branch.
+func GetBranch(repoPath string) (string, error) {
 	return runWithOutput(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 }
 
-// getRemote returns the origin of the repository.
-func getRemote(repoPath string) (string, error) {
+// GetRemote returns the origin of the repository.
+func GetRemote(repoPath string) (string, error) {
 	slog.Debug("getting git remote", "path", repoPath)
 	return runWithOutput(repoPath, "config", "--get", "remote.origin.url")
 }
@@ -204,7 +180,7 @@ func getRemote(repoPath string) (string, error) {
 // IsInitialized checks if the repo is initialized.
 func IsInitialized(repoPath string) bool {
 	slog.Debug("checking if git is initialized", "path", repoPath)
-	return fileExists(filepath.Join(repoPath, ".git"))
+	return files.Exists(filepath.Join(repoPath, ".git"))
 }
 
 // hasCommits checks if the repo has commits.
@@ -222,7 +198,7 @@ func hasCommits(repoPath string) bool {
 
 // runWithOutput executes a git command and returns the output.
 func runWithOutput(repoPath string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command(cmdGit, args...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(output)), err
@@ -230,7 +206,7 @@ func runWithOutput(repoPath string, args ...string) (string, error) {
 
 // runWithWriter executes a Git command and writes output to the provided io.Writer.
 func runWithWriter(stdout io.Writer, repoPath string, s ...string) error {
-	cmd := exec.Command("git", s...)
+	cmd := exec.Command(cmdGit, s...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	o := strings.TrimSpace(string(output))

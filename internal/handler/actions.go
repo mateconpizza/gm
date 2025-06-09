@@ -18,7 +18,9 @@ import (
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -243,5 +245,83 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
+	return nil
+}
+
+// GitCommit commits the bookmarks to the git repo.
+func GitCommit(actionMsg string) error {
+	repoPath := config.App.Path.Git
+	if !files.Exists(repoPath) {
+		return nil
+	}
+
+	bookmarks, err := loadBookmarks(config.App.DBPath)
+	if err != nil {
+		return err
+	}
+	// FIX: what to do if no bookmarks found? return err? clean git repo?
+	if len(bookmarks) == 0 {
+		slog.Debug("no bookmarks found", "repo", repoPath)
+		return nil
+	}
+
+	root := filepath.Join(repoPath, files.StripSuffixes(config.App.DBName))
+	if err := exportBookmarks(repoPath, root, bookmarks); err != nil {
+		return err
+	}
+
+	return commitIfChanged(repoPath, actionMsg)
+}
+
+func loadBookmarks(dbPath string) ([]*bookmark.Bookmark, error) {
+	r, err := repo.New(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("open repo: %w", err)
+	}
+	defer r.Close()
+
+	all, err := r.AllPtr()
+	if err != nil {
+		return nil, fmt.Errorf("load records: %w", err)
+	}
+
+	return all, nil
+}
+
+func exportBookmarks(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
+	if gpg.IsActive(repoPath) {
+		if err := bookmark.StoreAsGPG(repoPath, bookmarks); err != nil {
+			return fmt.Errorf("store as GPG: %w", err)
+		}
+	} else {
+		if err := bookmark.ExportBookmarks(root, bookmarks); err != nil {
+			return fmt.Errorf("export bookmarks: %w", err)
+		}
+		if err := diffDeletedBookmarks(root, bookmarks); err != nil {
+			return fmt.Errorf("diff deleted: %w", err)
+		}
+	}
+	return nil
+}
+
+func commitIfChanged(repoPath, actionMsg string) error {
+	changed, _ := git.HasChanges(repoPath)
+	if !changed {
+		return git.ErrGitNothingToCommit
+	}
+
+	if err := git.AddAll(repoPath); err != nil {
+		return fmt.Errorf("git add: %w", err)
+	}
+
+	status, err := git.Status(repoPath)
+	if err != nil {
+		status = ""
+	}
+
+	msg := fmt.Sprintf("[%s] %s: %s", config.App.DBName, actionMsg, status)
+	if err := git.CommitChanges(repoPath, msg); err != nil {
+		return fmt.Errorf("git commit: %w", err)
+	}
 	return nil
 }

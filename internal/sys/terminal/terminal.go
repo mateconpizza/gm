@@ -21,6 +21,7 @@ var (
 	ErrNotInteractive      = errors.New("not an interactive terminal")
 	ErrIncorrectAttempts   = errors.New("incorrect attempts")
 	ErrActionAborted       = errors.New("action aborted")
+	ErrCannotBeEmpty       = errors.New("cannot be empty")
 )
 
 // termState contains the state of the terminal.

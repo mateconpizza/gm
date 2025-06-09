@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
@@ -120,6 +121,19 @@ func Remove(s string) error {
 	return nil
 }
 
+// RemoveAll removes the specified file if it exists.
+func RemoveAll(s string) error {
+	if !Exists(s) {
+		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
+	}
+	slog.Debug("removing path", "path", s)
+	if err := os.RemoveAll(s); err != nil {
+		return fmt.Errorf("removing file: %w", err)
+	}
+
+	return nil
+}
+
 // Copy copies the contents of a source file to a destination file.
 func Copy(from, to string) error {
 	srcFile, err := os.Open(from)
@@ -221,8 +235,8 @@ func findByExt(root, ext string) ([]string, error) {
 	return files, nil
 }
 
-// EnsureExt appends the specified suffix to the filename.
-func EnsureExt(s, suffix string) string {
+// EnsureSuffix appends the specified suffix to the filename.
+func EnsureSuffix(s, suffix string) string {
 	if s == "" {
 		return s
 	}
@@ -232,6 +246,15 @@ func EnsureExt(s, suffix string) string {
 	}
 
 	return fmt.Sprintf("%s%s", s, suffix)
+}
+
+// StripSuffixes removes all suffixes from the path.
+func StripSuffixes(p string) string {
+	for ext := filepath.Ext(p); ext != ""; ext = filepath.Ext(p) {
+		p = p[:len(p)-len(ext)]
+	}
+
+	return p
 }
 
 // Empty returns true if the file at path s has non-zero size.
@@ -255,6 +278,12 @@ func ModTime(s, format string) string {
 func Touch(s string, existsOK bool) (*os.File, error) {
 	if Exists(s) && !existsOK {
 		return nil, fmt.Errorf("%w: %q", ErrFileExists, s)
+	}
+
+	if !Exists(filepath.Dir(s)) {
+		if err := MkdirAll(filepath.Dir(s)); err != nil {
+			return nil, err
+		}
 	}
 
 	f, err := os.Create(s)
@@ -301,12 +330,33 @@ func YamlWrite[T any](p string, v *T, force bool) error {
 	return nil
 }
 
+// YamlRead unmarshals the YAML data from the specified file.
+func YamlRead[T any](p string, v *T) error {
+	if !Exists(p) {
+		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
+	}
+
+	content, err := os.ReadFile(p)
+	if err != nil {
+		return fmt.Errorf("error reading config file: %w", err)
+	}
+
+	err = yaml.Unmarshal(content, &v)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling YAML: %w", err)
+	}
+
+	slog.Debug("YamlRead", "path", p)
+
+	return nil
+}
+
 // JSONWrite writes the provided data as JSON to the specified file.
 // It uses generics to accept any type `T`.
 func JSONWrite[T any](p string, v *T, force bool) error {
 	f, err := Touch(p, force)
 	if err != nil {
-		return fmt.Errorf("error creating file: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
@@ -350,27 +400,6 @@ func JSONRead[T any](p string, v *T) error {
 	return nil
 }
 
-// YamlRead unmarshals the YAML data from the specified file.
-func YamlRead[T any](p string, v *T) error {
-	if !Exists(p) {
-		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
-	}
-
-	content, err := os.ReadFile(p)
-	if err != nil {
-		return fmt.Errorf("error reading config file: %w", err)
-	}
-
-	err = yaml.Unmarshal(content, &v)
-	if err != nil {
-		return fmt.Errorf("error unmarshalling YAML: %w", err)
-	}
-
-	slog.Debug("YamlRead", "path", p)
-
-	return nil
-}
-
 func Find(root, pattern string) ([]string, error) {
 	f, err := filepath.Glob(filepath.Join(root, pattern))
 	if err != nil {
@@ -381,4 +410,20 @@ func Find(root, pattern string) ([]string, error) {
 	}
 
 	return f, nil
+}
+
+func ListRootFolders(root string, ignored ...string) ([]string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, fmt.Errorf("listing root folders: %w", err)
+	}
+
+	var folders []string
+	for _, entry := range entries {
+		if entry.IsDir() && !slices.Contains(ignored, entry.Name()) {
+			folders = append(folders, entry.Name())
+		}
+	}
+
+	return folders, nil
 }

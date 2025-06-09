@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
 
 	"github.com/mateconpizza/rotato"
 	"github.com/spf13/cobra"
@@ -14,6 +18,8 @@ import (
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/menu"
 	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
@@ -121,7 +127,7 @@ func Data(
 		return nil, fmt.Errorf("%w", err)
 	}
 	if mFlag || mlFlag {
-		items, err := SelectionWithMenu(m, *bs.Items(), fzfFormatter(mlFlag))
+		items, err := selectionWithMenu(m, *bs.Items(), fzfFormatter(mlFlag))
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -181,7 +187,15 @@ func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) er
 	}
 	fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
 
-	return nil
+	// FIX: find a better way to remove
+	// old gpg file
+	if gpg.IsActive(config.App.Path.Git) {
+		root := filepath.Join(config.App.Path.Git, files.StripSuffixes(r.Cfg.Name))
+		if err := bookmark.CleanupGitFiles(root, original, ".gpg"); err != nil {
+			return fmt.Errorf("cleaning up git files: %w", err)
+		}
+	}
+	return GitCommit("Modify")
 }
 
 // removeRecords removes the records from the database.
@@ -204,12 +218,22 @@ func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 	if err := r.Vacuum(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	// remove GPG file
+	root := config.App.Path.Git
+	if gpg.IsActive(root) {
+		for _, b := range bs.ItemsPtr() {
+			root := filepath.Join(config.App.Path.Git, files.StripSuffixes(r.Cfg.Name))
+			if err := bookmark.CleanupGitFiles(root, b, ".gpg"); err != nil {
+				return fmt.Errorf("cleaning up git files: %w", err)
+			}
+		}
+		if err := GitCommit("Remove"); err != nil {
+			return err
+		}
+	}
 
 	sp.Done()
 
-	if !config.App.Force {
-		terminal.ClearLine(1)
-	}
 	success := color.BrightGreen("Successfully").Italic().String()
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Success(success + " bookmark/s removed\n").Flush()
@@ -244,4 +268,70 @@ func insertRecordsToRepo(
 	f.Clear().Success(msg).Flush()
 
 	return nil
+}
+
+// diffDeletedBookmarks checks for deleted bookmarks.
+func diffDeletedBookmarks(root string, bookmarks []*bookmark.Bookmark) error {
+	jsonBookmarks := slice.New[bookmark.Bookmark]()
+	if err := bookmark.LoadJSONBookmarks(root, jsonBookmarks); err != nil {
+		return fmt.Errorf("loading JSON bookmarks: %w", err)
+	}
+	diff := bookmark.FindChanged(bookmarks, jsonBookmarks.ItemsPtr())
+	if len(diff) == 0 {
+		return nil
+	}
+
+	for _, b := range diff {
+		if _, err := repo.HasURL(b.URL); err != nil {
+			continue
+		}
+		if err := bookmark.CleanupGitFiles(root, b, ".json"); err != nil {
+			return fmt.Errorf("cleanup files: %w", err)
+		}
+	}
+	return nil
+}
+
+// GitSummary returns a new SyncGitSummary.
+func GitSummary(repoPath string) (*git.SyncGitSummary, error) {
+	r, err := repo.New(config.App.DBPath)
+	if err != nil {
+		return nil, fmt.Errorf("creating repo: %w", err)
+	}
+	branch, err := git.GetBranch(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("getting branch: %w", err)
+	}
+	remote, err := git.GetRemote(repoPath)
+	if err != nil {
+		remote = ""
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("getting hostname: %w", err)
+	}
+
+	summary := &git.SyncGitSummary{
+		GitBranch:          branch,
+		GitRemote:          remote,
+		LastSync:           time.Now().Format(time.RFC3339),
+		ConflictResolution: "timestamp",
+		HashAlgorithm:      "SHA-256",
+		ClientInfo: &git.ClientInfo{
+			Hostname:   hostname,
+			Platform:   runtime.GOOS,
+			Architect:  runtime.GOARCH,
+			AppVersion: config.App.Info.Version,
+		},
+		RepoStats: &git.RepoStats{
+			Name:      r.Cfg.Name,
+			Bookmarks: repo.CountMainRecords(r),
+			Tags:      repo.CountTagsRecords(r),
+			Favorites: repo.CountFavorites(r),
+		},
+	}
+
+	summary.GenerateChecksum()
+
+	return summary, nil
 }

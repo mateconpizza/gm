@@ -3,22 +3,23 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/browser"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/importer"
 	"github.com/mateconpizza/gm/internal/menu"
 	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
+
+var ErrNotImplemented = errors.New("not implemented")
 
 // ImportFromDB imports bookmarks from the given database.
 func ImportFromDB(
@@ -58,41 +59,11 @@ func ImportFromDB(
 		return err
 	}
 
-	return insertRecordsToRepo(t, destDB, records)
-}
-
-// ImportFromBrowser imports bookmarks from the given browser.
-func ImportFromBrowser(cmd *cobra.Command, args []string) error {
-	r, err := repo.New(config.App.DBPath)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	defer r.Close()
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	}))
-	br, ok := getBrowser(selectBrowser(t))
-	if !ok {
-		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
-	}
-	if err := br.LoadPaths(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	// find bookmarks
-	bs, err := br.Import(t, config.App.Force)
-	if err != nil {
-		return fmt.Errorf("browser %q: %w", br.Name(), err)
-	}
-	// clean and process found bookmarks
-	if err := parseFoundFromBrowser(t, r, bs); err != nil {
-		return err
-	}
-	if bs.Len() == 0 {
-		return nil
+	if err := importer.InsertIntoRepo(t, destDB, records); err != nil {
+		return fmt.Errorf("inserting records: %w", err)
 	}
 
-	return insertRecordsToRepo(t, r, bs)
+	return GitCommit("Import")
 }
 
 // ImportFromBackup imports bookmarks from a backup.
@@ -135,56 +106,24 @@ func ImportFromBackup(cmd *cobra.Command, args []string) error {
 	return ImportFromDB(cmd, m, t, destDB, srcDB)
 }
 
-// ImportFromDatabase is the RunE for “databaseold” (import bookmarks).
-func ImportFromDatabase(cmd *cobra.Command, _ []string) error {
-	// build list of candidate .db files
-	dbs := slice.New[string]()
-	fs, err := files.FindByExtList(config.App.Path.Data, ".db")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	dbs.Set(&fs)
-	dbs = dbs.Filter(func(r string) bool {
-		return filepath.Base(r) != config.App.DBName
-	})
-	// ask the user which one to import from
-	s, err := SelectItemFrom(*dbs.Items(), "choose a database to import from")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	if !files.Exists(s) {
-		return fmt.Errorf("%w: %q", repo.ErrDBNotFound, s)
-	}
-	// open source and destination
-	srcDB, err := repo.New(s)
+// ImportFromDatabase imports bookmarks from a database.
+func ImportFromDatabase() error {
+	srcDB, err := SelectDatabase()
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer srcDB.Close()
 
-	destPath := filepath.Join(config.App.Path.Data, config.App.DBName)
-	destDB, err := repo.New(destPath)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	defer destDB.Close()
-
-	// build interrupt cleanup
-	interruptFn := func(err error) {
-		destDB.Close()
-		srcDB.Close()
-		sys.ErrAndExit(err)
+	if err := importer.Database(srcDB); err != nil {
+		return fmt.Errorf("import from database: %w", err)
 	}
 
-	m := menu.New[bookmark.Bookmark](
-		menu.WithUseDefaults(),
-		menu.WithSettings(config.Fzf.Settings),
-		menu.WithMultiSelection(),
-		menu.WithHeader("select record/s to import", false),
-		menu.WithPreview(config.App.Cmd+" -n "+srcDB.Name()+" records {1}"),
-		menu.WithInterruptFn(interruptFn),
-	)
-	t := terminal.New(terminal.WithInterruptFn(interruptFn))
+	if err := GitCommit("Import from Browser"); err != nil {
+		if errors.Is(err, git.ErrGitNothingToCommit) {
+			return nil
+		}
+		return fmt.Errorf("commit: %w", err)
+	}
 
-	return ImportFromDB(cmd, m, t, destDB, srcDB)
+	return nil
 }

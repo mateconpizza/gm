@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
@@ -15,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/menu"
 	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -26,7 +25,7 @@ func Select[T comparable](items []T, fmtFn func(*T) string, opts ...menu.OptFn) 
 		return nil, menu.ErrFzfNoItems
 	}
 	m := menu.New[T](opts...)
-	selected, err := SelectionWithMenu(m, items, fmtFn)
+	selected, err := selectionWithMenu(m, items, fmtFn)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -34,9 +33,9 @@ func Select[T comparable](items []T, fmtFn func(*T) string, opts ...menu.OptFn) 
 	return selected, nil
 }
 
-// SelectionWithMenu allows the user to select multiple records in a menu
+// selectionWithMenu allows the user to select multiple records in a menu
 // interface.
-func SelectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) ([]T, error) {
+func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) ([]T, error) {
 	if len(items) == 0 {
 		return nil, menu.ErrFzfNoItems
 	}
@@ -124,7 +123,7 @@ func SelectRepo(args []string) (string, error) {
 	} else {
 		repoName := args[0]
 		for _, r := range fs {
-			repoName = files.EnsureExt(repoName, ".db")
+			repoName = files.EnsureSuffix(repoName, ".db")
 			s := filepath.Base(r)
 			if s == repoName || s == repoName+".enc" {
 				repoPath = r
@@ -192,7 +191,7 @@ func SelectFile(header string, search func() ([]string, error)) ([]string, error
 	if err != nil {
 		return fs, fmt.Errorf("%w", err)
 	}
-	selected, err := SelectionWithMenu(m, fs, func(p *string) string {
+	selected, err := selectionWithMenu(m, fs, func(p *string) string {
 		return *p
 	})
 	if err != nil {
@@ -200,42 +199,6 @@ func SelectFile(header string, search func() ([]string, error)) ([]string, error
 	}
 
 	return selected, nil
-}
-
-// SelectSource lets the user choose a source to import from.
-func SelectSource(cmd *cobra.Command, args []string) error {
-	sources := map[string]func(*cobra.Command, []string) error{
-		"backups":  ImportFromBackup,
-		"browser":  ImportFromBrowser,
-		"database": ImportFromDatabase,
-	}
-
-	menuFlag, err := cmd.Flags().GetBool("menu")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	if !menuFlag {
-		err := cmd.Help()
-		return fmt.Errorf("%w", err)
-	}
-	d := format.NBSP
-	s := []string{
-		format.PaddedLine(color.BrightYellow("backups"), d+"Import bookmarks from backups"),
-		format.PaddedLine(color.BrightGreen("browser"), d+"Import bookmarks from browser"),
-		format.PaddedLine(color.BrightBlue("database"), d+"Import bookmarks from database"),
-	}
-	m := menu.New[string](
-		menu.WithUseDefaults(),
-		menu.WithSettings(config.Fzf.Settings),
-		menu.WithHeader("select a source to import from", false),
-	)
-	r, err := SelectionWithMenu(m, s, nil)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	c := color.ANSICodeRemover(strings.Split(r[0], d)[0])
-
-	return sources[strings.TrimSpace(c)](cmd, args)
 }
 
 // selectBrowser returns the key of the browser selected by the user.
@@ -252,4 +215,31 @@ func selectBrowser(t *terminal.Term) string {
 	f.Flush()
 
 	return t.Prompt(" ")
+}
+
+func SelectDatabase() (*repo.SQLiteRepository, error) {
+	// build list of candidate .db files
+	dbFiles, err := files.FindByExtList(config.App.Path.Data, ".db")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	dbs := slice.New(dbFiles...)
+	dbs = dbs.Filter(func(r string) bool {
+		return filepath.Base(r) != config.App.DBName
+	})
+	// ask the user which one to import from
+	s, err := SelectItemFrom(*dbs.Items(), "choose a database to import from")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	if !files.Exists(s) {
+		return nil, fmt.Errorf("%w: %q", repo.ErrDBNotFound, s)
+	}
+	// open source and destination
+	srcDB, err := repo.New(s)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return srcDB, nil
 }
