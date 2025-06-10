@@ -293,22 +293,6 @@ func diffDeletedBookmarks(root string, bookmarks []*bookmark.Bookmark) error {
 	return nil
 }
 
-// UpdateSummary updates the summary file.
-func UpdateSummary(dbPath, repoPath string) error {
-	dbName := filepath.Base(dbPath)
-	summaryPath := filepath.Join(repoPath, files.StripSuffixes(dbName), git.SummaryFileName)
-
-	newSum, err := GitSummary(dbPath, repoPath)
-	if err != nil {
-		return fmt.Errorf("generating summary: %w", err)
-	}
-	if err := files.JSONWrite(summaryPath, newSum, true); err != nil {
-		return fmt.Errorf("writing summary: %w", err)
-	}
-
-	return nil
-}
-
 // GitSummary returns a new SyncGitSummary.
 func GitSummary(dbPath, repoPath string) (*git.SyncGitSummary, error) {
 	r, err := repo.New(dbPath)

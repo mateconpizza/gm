@@ -48,7 +48,7 @@ var gitPushCmd = &cobra.Command{
 		// Generate the new summary
 		for _, r := range tracked {
 			dbPath := filepath.Join(config.App.Path.Data, files.EnsureSuffix(r, ".db"))
-			if err := handler.UpdateSummary(dbPath, repoPath); err != nil {
+			if err := handler.GitSummaryUpdate(dbPath, repoPath); err != nil {
 				return fmt.Errorf("updating summary: %w", err)
 			}
 		}

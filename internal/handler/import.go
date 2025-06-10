@@ -28,6 +28,7 @@ func ImportFromDB(
 	t *terminal.Term,
 	destDB, srcDB *repo.SQLiteRepository,
 ) error {
+	// FIX: move to `importer` package
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	i := color.BrightMagenta("Import").Bold().String() + " from Database\n"
 	f.Header(i).Row("\n").Text(repo.RepoSummary(srcDB)).Row("\n").Flush()
@@ -59,7 +60,7 @@ func ImportFromDB(
 		return err
 	}
 
-	if err := importer.InsertIntoRepo(t, destDB, records); err != nil {
+	if err := importer.IntoRepo(t, destDB, records); err != nil {
 		return fmt.Errorf("inserting records: %w", err)
 	}
 
@@ -68,6 +69,7 @@ func ImportFromDB(
 
 // ImportFromBackup imports bookmarks from a backup.
 func ImportFromBackup(cmd *cobra.Command, args []string) error {
+	// FIX: move to `importer` package or remove
 	destDB, err := repo.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)

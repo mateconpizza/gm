@@ -89,7 +89,7 @@ func Browser(r *repo.SQLiteRepository) error {
 		return nil
 	}
 
-	return InsertIntoRepo(t, r, bs)
+	return IntoRepo(t, r, bs)
 }
 
 // Database imports bookmarks from a database.
@@ -151,8 +151,8 @@ func Database(srcDB *repo.SQLiteRepository) error {
 	return nil
 }
 
-// InsertIntoRepo inserts records into the database.
-func InsertIntoRepo(
+// IntoRepo inserts records into the database.
+func IntoRepo(
 	t *terminal.Term,
 	r *repo.SQLiteRepository,
 	records *slice.Slice[bookmark.Bookmark],
