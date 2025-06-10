@@ -2,6 +2,7 @@ package frame
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/format/color"
@@ -29,6 +30,7 @@ type Options struct {
 
 type Frame struct {
 	Options
+	writer io.Writer
 }
 
 // defaultOpts returns the default frame options.
@@ -137,6 +139,13 @@ func (f *Frame) Error(s ...string) *Frame {
 	return f.applyBorder(mid, s)
 }
 
+func (f *Frame) ErrorErr(err error) *Frame {
+	if err == nil {
+		return f
+	}
+	return f.Error(err.Error())
+}
+
 func (f *Frame) Warning(s ...string) *Frame {
 	e := color.BrightYellow("⚠ ").Bold().String()
 	mid := f.applyStyle(e)
@@ -164,6 +173,26 @@ func (f *Frame) Question(s ...string) *Frame {
 
 func (f *Frame) String() string {
 	return strings.Join(f.text, "")
+}
+
+func (f *Frame) Write(p []byte) (int, error) {
+	content := string(p)
+
+	// Handle carriage returns by splitting on \r and taking the last part
+	if strings.Contains(content, "\r") {
+		lines := strings.Split(content, "\r")
+		// Only process the last line after \r (this simulates overwriting)
+		content = lines[len(lines)-1]
+	}
+
+	// Split by newlines and process each non-empty line
+	for line := range strings.SplitSeq(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			f.Rowln(line)
+		}
+	}
+	return len(p), nil
 }
 
 // New returns a new frame.

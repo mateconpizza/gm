@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
@@ -23,40 +25,38 @@ var (
 	ErrGitNoRemote        = errors.New("git: no remote configured")
 	ErrGitNothingToCommit = errors.New("git: no changes to commit")
 	ErrGitRepoNotFound    = errors.New("git: repo not found")
+	ErrGitRepoURLEmpty    = errors.New("git: repo url is empty")
 )
 
-const cmdGit = "git"
+const gitCommand = "git"
 
-func Clone(destRepoPath, repoURL string) (string, error) {
-	cmd := exec.Command(cmdGit, "clone", repoURL, destRepoPath)
-	output, err := cmd.CombinedOutput()
-	o := strings.TrimSpace(string(output))
-	if err != nil {
-		return o, fmt.Errorf("git clone: %w", err)
-	}
-	return o, nil
+func Clone(destRepoPath, repoURL string) error {
+	slog.Debug("cloning git repo", "path", destRepoPath, "url", repoURL)
+	return runGitCmd("", "clone", repoURL, destRepoPath)
 }
 
 // AddAll adds all local changes.
 func AddAll(repoPath string) error {
-	return runWithWriter(os.Stdout, repoPath, "add", ".")
+	slog.Debug("adding all changes", "path", repoPath)
+	return runGitCmd(repoPath, "add", ".")
 }
 
 // AddRemote adds a remote repository.
 func AddRemote(repoPath, reporURL string) error {
 	slog.Debug("setting git remote", "path", repoPath)
-	return runWithWriter(os.Stdout, repoPath, "remote", "add", "origin", reporURL)
+	return runGitCmd(repoPath, "remote", "add", "origin", reporURL)
 }
 
 // CommitChanges commits local changes.
 func CommitChanges(repoPath, msg string) error {
-	return runWithWriter(os.Stdout, repoPath, "commit", "-m", msg)
+	slog.Debug("committing changes", "path", repoPath)
+	return runGitCmd(repoPath, "commit", "-m", msg)
 }
 
 // Fetch pulls changes from remote repository.
 func Fetch(repoPath string) error {
 	// first, fetch to see if there are remote changes
-	if err := runWithWriter(os.Stdout, repoPath, "fetch"); err != nil {
+	if err := runGitCmd(repoPath, "fetch"); err != nil {
 		return fmt.Errorf("git fetch: %w", err)
 	}
 	branch, err := GetBranch(repoPath)
@@ -64,7 +64,7 @@ func Fetch(repoPath string) error {
 		return fmt.Errorf("could not get current branch: %w", err)
 	}
 	// pull the changes <pull>
-	return runWithWriter(os.Stdout, repoPath, "pull", "origin", branch)
+	return runGitCmd(repoPath, "pull", "origin", branch)
 }
 
 // HasChanges checks if there are any staged or unstaged changes in the repo.
@@ -79,8 +79,8 @@ func HasChanges(repoPath string) (bool, error) {
 
 // InitRepo creates a new Git repository.
 func InitRepo(repoPath string, force bool) (string, error) {
-	if err := sys.Which(cmdGit); err != nil {
-		return "", fmt.Errorf("%w: %s", err, cmdGit)
+	if _, err := sys.Which(gitCommand); err != nil {
+		return "", fmt.Errorf("%w: %s", err, gitCommand)
 	}
 	slog.Debug("initializing git", "path", repoPath)
 	if IsInitialized(repoPath) && !force {
@@ -89,10 +89,18 @@ func InitRepo(repoPath string, force bool) (string, error) {
 	return runWithOutput(repoPath, "init")
 }
 
+// InitRepoNew creates a new Git repository.
+func InitRepoNew(repoPath string, force bool) error {
+	slog.Debug("initializing git", "path", repoPath)
+	if IsInitialized(repoPath) && !force {
+		return ErrGitInitialized
+	}
+	return runGitCmd(repoPath, "init")
+}
+
 // Log returns the log of the repo.
 func Log(repoPath string) error {
-	return runWithWriter(
-		os.Stdout,
+	return runGitCmd(
 		repoPath,
 		"log",
 		"--pretty=format:'%h %ad | %s%d [%an]'",
@@ -121,10 +129,10 @@ func PushChanges(repoPath string) error {
 	if err != nil {
 		// no upstream, so set it
 		slog.Debug("no upstream set, using --set-upstream", "branch", branch)
-		return runWithWriter(os.Stdout, repoPath, "push", "--set-upstream", "origin", branch)
+		return runGitCmd(repoPath, "push", "--set-upstream", "origin", branch)
 	}
 
-	return runWithWriter(os.Stdout, repoPath, "push")
+	return runGitCmd(repoPath, "push")
 }
 
 // Status returns the status of the repo.
@@ -134,7 +142,7 @@ func Status(repoPath string) (string, error) {
 	}
 
 	var out bytes.Buffer
-	cmd := exec.Command(cmdGit, "diff", "--cached", "--name-status")
+	cmd := exec.Command(gitCommand, "diff", "--cached", "--name-status")
 	cmd.Stdout = &out
 	cmd.Dir = repoPath
 
@@ -198,7 +206,7 @@ func hasCommits(repoPath string) bool {
 
 // runWithOutput executes a git command and returns the output.
 func runWithOutput(repoPath string, args ...string) (string, error) {
-	cmd := exec.Command(cmdGit, args...)
+	cmd := exec.Command(gitCommand, args...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(output)), err
@@ -206,7 +214,7 @@ func runWithOutput(repoPath string, args ...string) (string, error) {
 
 // runWithWriter executes a Git command and writes output to the provided io.Writer.
 func runWithWriter(stdout io.Writer, repoPath string, s ...string) error {
-	cmd := exec.Command(cmdGit, s...)
+	cmd := exec.Command(gitCommand, s...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	o := strings.TrimSpace(string(output))
@@ -217,5 +225,28 @@ func runWithWriter(stdout io.Writer, repoPath string, s ...string) error {
 	if o != "" {
 		_, _ = fmt.Fprintf(stdout, "%s\n", o)
 	}
+	return nil
+}
+
+// runGitCmd executes a Git command.
+func runGitCmd(repoPath string, commands ...string) error {
+	gitCommand, err := sys.Which(gitCommand)
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, gitCommand)
+	}
+
+	f := frame.New(frame.WithColorBorder(color.BrightOrange))
+	defer f.Flush()
+
+	commands = append([]string{gitCommand, "-C", repoPath}, commands...)
+	cmdColors := color.ApplyMany(slices.Clone(commands), color.Gray, color.StyleItalic)
+	f.Midln(strings.Join(cmdColors, " ")).Flush()
+
+	err = sys.ExecCmdWithWriter(f, commands...)
+	if err != nil {
+		f.Error("")
+		return fmt.Errorf("%w", err)
+	}
+
 	return nil
 }

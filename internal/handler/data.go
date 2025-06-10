@@ -189,7 +189,7 @@ func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) er
 
 	// FIX: find a better way to remove
 	// old gpg file
-	if gpg.IsActive(config.App.Path.Git) {
+	if gpg.IsInitialized(config.App.Path.Git) {
 		root := filepath.Join(config.App.Path.Git, files.StripSuffixes(r.Cfg.Name))
 		if err := bookmark.CleanupGitFiles(root, original, ".gpg"); err != nil {
 			return fmt.Errorf("cleaning up git files: %w", err)
@@ -218,9 +218,12 @@ func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 	if err := r.Vacuum(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	sp.Done()
+
 	// remove GPG file
 	root := config.App.Path.Git
-	if gpg.IsActive(root) {
+	if gpg.IsInitialized(root) {
 		for _, b := range bs.ItemsPtr() {
 			root := filepath.Join(config.App.Path.Git, files.StripSuffixes(r.Cfg.Name))
 			if err := bookmark.CleanupGitFiles(root, b, ".gpg"); err != nil {
@@ -231,8 +234,6 @@ func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 			return err
 		}
 	}
-
-	sp.Done()
 
 	success := color.BrightGreen("Successfully").Italic().String()
 	f := frame.New(frame.WithColorBorder(color.Gray))
@@ -292,9 +293,25 @@ func diffDeletedBookmarks(root string, bookmarks []*bookmark.Bookmark) error {
 	return nil
 }
 
+// UpdateSummary updates the summary file.
+func UpdateSummary(dbPath, repoPath string) error {
+	dbName := filepath.Base(dbPath)
+	summaryPath := filepath.Join(repoPath, files.StripSuffixes(dbName), git.SummaryFileName)
+
+	newSum, err := GitSummary(dbPath, repoPath)
+	if err != nil {
+		return fmt.Errorf("generating summary: %w", err)
+	}
+	if err := files.JSONWrite(summaryPath, newSum, true); err != nil {
+		return fmt.Errorf("writing summary: %w", err)
+	}
+
+	return nil
+}
+
 // GitSummary returns a new SyncGitSummary.
-func GitSummary(repoPath string) (*git.SyncGitSummary, error) {
-	r, err := repo.New(config.App.DBPath)
+func GitSummary(dbPath, repoPath string) (*git.SyncGitSummary, error) {
+	r, err := repo.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
@@ -334,4 +351,23 @@ func GitSummary(repoPath string) (*git.SyncGitSummary, error) {
 	summary.GenerateChecksum()
 
 	return summary, nil
+}
+
+// GitRepoStats returns a new RepoStats.
+func GitRepoStats(summary *git.SyncGitSummary, repoPath string) error {
+	r, err := repo.New(config.App.DBPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+	defer r.Close()
+
+	summary.RepoStats = &git.RepoStats{
+		Name:      r.Cfg.Name,
+		Bookmarks: repo.CountMainRecords(r),
+		Tags:      repo.CountTagsRecords(r),
+		Favorites: repo.CountFavorites(r),
+	}
+
+	summary.GenerateChecksum()
+	return nil
 }

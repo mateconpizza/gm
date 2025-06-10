@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -54,14 +55,14 @@ func BinExists(s string) bool {
 }
 
 // Which checks if the command exists in $PATH.
-func Which(cmd string) error {
+func Which(cmd string) (string, error) {
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 		fullPath := filepath.Join(dir, cmd)
 		if info, err := os.Stat(fullPath); err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
-			return nil
+			return fullPath, nil
 		}
 	}
-	return ErrSysCmdNotFound
+	return "", ErrSysCmdNotFound
 }
 
 // ExecuteCmd runs a command with the given arguments and returns an error if
@@ -70,6 +71,19 @@ func ExecuteCmd(arg ...string) error {
 	cmd := exec.CommandContext(context.Background(), arg[0], arg[1:]...)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("running command: %w", err)
+	}
+
+	return nil
+}
+
+// ExecCmdWithWriter runs a command with the given arguments and writes the
+// output to the writer.
+func ExecCmdWithWriter(w io.Writer, s ...string) error {
+	cmd := exec.CommandContext(context.Background(), s[0], s[1:]...)
+	cmd.Stdout = w
+	cmd.Stderr = w
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	return nil
@@ -85,7 +99,7 @@ func RunCmd(s string, arg ...string) error {
 	slog.Debug("running command", "command", s, "args", arg)
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("running command: %w", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	return nil

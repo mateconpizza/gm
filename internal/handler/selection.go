@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/format"
-	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/menu"
@@ -201,22 +199,6 @@ func SelectFile(header string, search func() ([]string, error)) ([]string, error
 	return selected, nil
 }
 
-// selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(t *terminal.Term) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Header("Supported Browsers\n").Row("\n")
-
-	for _, c := range registeredBrowser {
-		b := c.browser
-		f.Mid(b.Color(b.Short()) + " " + b.Name() + "\n")
-	}
-	f.Row("\n").Footer("which browser do you use?")
-	defer t.ClearLine(format.CountLines(f.String()))
-	f.Flush()
-
-	return t.Prompt(" ")
-}
-
 func SelectDatabase() (*repo.SQLiteRepository, error) {
 	// build list of candidate .db files
 	dbFiles, err := files.FindByExtList(config.App.Path.Data, ".db")
@@ -242,4 +224,37 @@ func SelectDatabase() (*repo.SQLiteRepository, error) {
 	}
 
 	return srcDB, nil
+}
+
+// SelectecTrackedDatabase prompts user to select which databases to track.
+func SelectecTrackedDatabase(repoPath string, f *frame.Frame, t *terminal.Term) ([]string, error) {
+	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
+	if err != nil {
+		return nil, fmt.Errorf("finding db files: %w", err)
+	}
+
+	f.Ln().Midln("Select which databases to track").Flush()
+	tracked := make([]string, 0, len(dbFiles))
+
+	for _, dbFile := range dbFiles {
+		f.Clear()
+		dbName := files.StripSuffixes(filepath.Base(dbFile))
+		if files.Exists(filepath.Join(repoPath, dbName)) {
+			f.Info(filepath.Base(dbFile) + " is already tracked\n").Flush()
+			continue
+		}
+		if !t.Confirm(f.Clear().Question(fmt.Sprintf("Track %q?", dbName)).String(), "n") {
+			t.ClearLine(1)
+			f.Clear().Info(fmt.Sprintf("Skipping %q\n", dbName)).Flush()
+			continue
+		}
+		tracked = append(tracked, dbFile)
+		t.ReplaceLine(1, f.Clear().Success(fmt.Sprintf("Tracking %q", dbName)).String())
+	}
+
+	if len(tracked) == 0 {
+		return nil, terminal.ErrActionAborted
+	}
+
+	return tracked, nil
 }

@@ -413,6 +413,7 @@ func Find(root, pattern string) ([]string, error) {
 }
 
 func ListRootFolders(root string, ignored ...string) ([]string, error) {
+	// FIX: return fullpath.
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, fmt.Errorf("listing root folders: %w", err)

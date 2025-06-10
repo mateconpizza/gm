@@ -9,8 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
@@ -25,17 +28,19 @@ var recipient string
 const (
 	gitAttPath    = ".gitattributes"
 	gitAttContent = "*.gpg diff=gpg"
-	FilenameID    = ".gpg-id"
-	cmdGPG        = "gpg"
+	FingerprintID = ".gpg-id"
+	GPGCommand    = "gpg"
 )
 
+// FIX:
+//
 //nolint:unused //notneeded
 var gpgArgs = []string{
 	"--quiet", "--yes", "--compress-algo=none", "--no-encrypt-to",
 }
 
-// IsActive returns true if GPG is active.
-func IsActive(path string) bool {
+// IsInitialized returns true if GPG is active.
+func IsInitialized(path string) bool {
 	if err := loadFingerprint(path); err != nil {
 		return false
 	}
@@ -44,19 +49,11 @@ func IsActive(path string) bool {
 
 // PromptGPGPassphrase tries to prompt for the passphrase using a dummy decryption.
 func PromptGPGPassphrase() error {
-	cmd := exec.Command(cmdGPG, "--quiet", "--batch", "--yes", "--list-secret-keys")
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to prompt GPG passphrase: %w", err)
-	}
-	return nil
+	return runGPGCmd(append(gpgArgs, "--batch", "--list-secret-keys")...)
 }
 
 func Decrypt(encryptedPath string) ([]byte, error) {
-	cmd := exec.Command(cmdGPG, "--quiet", "-d", encryptedPath)
+	cmd := exec.Command(GPGCommand, "--quiet", "-d", encryptedPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(output))
@@ -66,7 +63,7 @@ func Decrypt(encryptedPath string) ([]byte, error) {
 }
 
 func encrypt(path string, content []byte) error {
-	cmd := exec.Command(cmdGPG, "--yes", "-e", "-r", recipient, "-o", path)
+	cmd := exec.Command(GPGCommand, "--yes", "-e", "-r", recipient, "-o", path)
 	cmd.Stdin = bytes.NewReader(content)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -80,7 +77,7 @@ func encrypt(path string, content []byte) error {
 // extractFingerPrint will extract the gpg fingerprint from the output of `gpg
 // --list-keys --with-colons`.
 func extractFingerPrint() (string, error) {
-	cmd := exec.Command(cmdGPG, "--list-keys", "--with-colons")
+	cmd := exec.Command(GPGCommand, "--list-keys", "--with-colons")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("gpg list-keys: %w", err)
@@ -104,7 +101,7 @@ func extractFingerPrint() (string, error) {
 
 // loadFingerprint loads fingerprint from the .gpg-id file.
 func loadFingerprint(path string) error {
-	f := filepath.Join(path, FilenameID)
+	f := filepath.Join(path, FingerprintID)
 	if !files.Exists(f) {
 		return ErrNoGPGIDFile
 	}
@@ -139,13 +136,13 @@ func Save(root, path string, b any) error {
 
 // Init will extract the gpg fingerprint and save it to .gpg-id.
 func Init(path string) error {
-	if err := sys.Which(cmdGPG); err != nil {
-		return fmt.Errorf("%w: %s", err, cmdGPG)
+	if _, err := sys.Which(GPGCommand); err != nil {
+		return fmt.Errorf("%w: %s", err, GPGCommand)
 	}
 	if err := files.MkdirAll(path); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	fileIDPath := filepath.Join(path, FilenameID)
+	fileIDPath := filepath.Join(path, FingerprintID)
 	fingerprint, err := extractFingerPrint()
 	if err != nil {
 		return err
@@ -174,4 +171,28 @@ func Create(root, hashPath string, bookmark any) error {
 	}
 
 	return Save(root, filePath, bookmark)
+}
+
+// runGPGCmd executes a GPG command.
+func runGPGCmd(commands ...string) error {
+	gpgCommand, err := sys.Which(GPGCommand)
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, gpgCommand)
+	}
+
+	f := frame.New(frame.WithColorBorder(color.BrightOrange))
+	defer f.Flush()
+
+	commands = append([]string{gpgCommand}, commands...)
+
+	cmdColors := color.ApplyMany(slices.Clone(commands), color.Gray, color.StyleItalic)
+	f.Midln(strings.Join(cmdColors, " ")).Flush()
+
+	err = sys.ExecCmdWithWriter(f, commands...)
+	if err != nil {
+		f.Error("")
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
 }

@@ -289,7 +289,7 @@ func loadBookmarks(dbPath string) ([]*bookmark.Bookmark, error) {
 }
 
 func exportBookmarks(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
-	if gpg.IsActive(repoPath) {
+	if gpg.IsInitialized(repoPath) {
 		if err := bookmark.StoreAsGPG(repoPath, bookmarks); err != nil {
 			return fmt.Errorf("store as GPG: %w", err)
 		}
@@ -304,7 +304,14 @@ func exportBookmarks(repoPath, root string, bookmarks []*bookmark.Bookmark) erro
 	return nil
 }
 
+// commitIfChanged commits the bookmarks to the git repo if there are changes.
 func commitIfChanged(repoPath, actionMsg string) error {
+	err := GitSummaryUpdate(repoPath)
+	if err != nil {
+		return err
+	}
+
+	// Check if any changes
 	changed, _ := git.HasChanges(repoPath)
 	if !changed {
 		return git.ErrGitNothingToCommit
@@ -319,9 +326,41 @@ func commitIfChanged(repoPath, actionMsg string) error {
 		status = ""
 	}
 
-	msg := fmt.Sprintf("[%s] %s: %s", config.App.DBName, actionMsg, status)
+	msg := fmt.Sprintf("[%s] %s %s", config.App.DBName, actionMsg, status)
 	if err := git.CommitChanges(repoPath, msg); err != nil {
 		return fmt.Errorf("git commit: %w", err)
+	}
+
+	return nil
+}
+
+func GitSummaryUpdate(repoPath string) error {
+	dbName := files.StripSuffixes(config.App.DBName)
+	summaryPath := filepath.Join(repoPath, dbName, git.SummaryFileName)
+
+	var summary *git.SyncGitSummary
+
+	if !files.Exists(summaryPath) {
+		// Create new summary with only RepoStats
+		summary = git.NewSummary()
+		if err := GitRepoStats(summary, repoPath); err != nil {
+			return fmt.Errorf("creating repo stats: %w", err)
+		}
+	} else {
+		// Load existing summary
+		summary = git.NewSummary()
+		if err := files.JSONRead(summaryPath, summary); err != nil {
+			return fmt.Errorf("reading summary: %w", err)
+		}
+		// Update only RepoStats
+		if err := GitRepoStats(summary, repoPath); err != nil {
+			return fmt.Errorf("updating repo stats: %w", err)
+		}
+	}
+
+	// Save updated or new summary
+	if err := files.JSONWrite(summaryPath, summary, true); err != nil {
+		return fmt.Errorf("writing summary: %w", err)
 	}
 	return nil
 }

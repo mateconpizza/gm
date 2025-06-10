@@ -13,6 +13,9 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/format/frame"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -36,8 +39,9 @@ func StoreAsGPG(root string, bookmarks []*Bookmark) error {
 	if err := files.MkdirAll(root); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	sp := rotato.New(
-		rotato.WithPrefix("Encrypting"),
+		rotato.WithPrefix(f.Mid("Encrypting").String()),
 		rotato.WithMesg("bookmarks..."),
 		rotato.WithMesgColor(rotato.ColorYellow),
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
@@ -59,7 +63,7 @@ func StoreAsGPG(root string, bookmarks []*Bookmark) error {
 		}
 		sp.Start()
 		count++
-		sp.UpdatePrefix(fmt.Sprintf("Encrypting [%d/%d]", count, n))
+		sp.UpdatePrefix(f.Clear().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
 	}
 	if count > 0 {
 		sp.Done("done")
@@ -186,16 +190,6 @@ func loadBookmarkFromFile(path string) (*Bookmark, error) {
 	return NewFromJSON(&bj), nil
 }
 
-func LoadConcurrentlyFake(
-	path string,
-	bs *slice.Slice[Bookmark],
-	wg *sync.WaitGroup,
-	sem chan struct{},
-	loader func(path string) (*Bookmark, error),
-	errTracker *ErrTracker,
-) {
-}
-
 // LoadConcurrently processes a single JSON file in a goroutine.
 func LoadConcurrently(
 	path string,
@@ -268,7 +262,7 @@ func LoadJSONBookmarks(root string, bs *slice.Slice[Bookmark]) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && filepath.Ext(path) == ".json" {
+		if !d.IsDir() && filepath.Ext(path) == ".json" && filepath.Base(path) != git.SummaryFileName {
 			LoadConcurrently(path, bs, &wg, &mu, sem, loadBookmarkFromFile, errTracker)
 		}
 

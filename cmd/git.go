@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,48 +40,25 @@ var gitPushCmd = &cobra.Command{
 	Short: "Update remote refs along with associated objects",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoPath := config.App.Path.Git
-		dbName := files.StripSuffixes(config.App.DBName)
-		summaryPath := filepath.Join(repoPath, dbName, "summary.json")
+		tracked, err := files.ListRootFolders(repoPath, ".git")
+		if err != nil {
+			return fmt.Errorf("listing tracked: %w", err)
+		}
 
 		// Generate the new summary
-		newSum, err := handler.GitSummary(repoPath)
-		if err != nil {
-			return fmt.Errorf("generating summary: %w", err)
-		}
-
-		// Determine whether to write summary
-		writeAndCommit := func() error {
-			if err := files.JSONWrite(summaryPath, newSum, true); err != nil {
-				return fmt.Errorf("writing summary: %w", err)
-			}
-			if err := git.AddAll(repoPath); err != nil {
-				return fmt.Errorf("staging summary: %w", err)
-			}
-			msg := fmt.Sprintf("[%s]: Updating Summary", config.App.DBName)
-			if err := git.CommitChanges(repoPath, msg); err != nil {
-				return fmt.Errorf("committing summary: %w", err)
-			}
-			return nil
-		}
-
-		// Check if summary file exists
-		if !files.Exists(summaryPath) {
-			if err := writeAndCommit(); err != nil {
-				return err
-			}
-		} else {
-			oldSum := git.NewSummary()
-			if err := files.JSONRead(summaryPath, oldSum); err != nil {
-				return fmt.Errorf("reading existing summary: %w", err)
-			}
-			if newSum.Checksum != oldSum.Checksum {
-				if err := writeAndCommit(); err != nil {
-					return err
-				}
+		for _, r := range tracked {
+			dbPath := filepath.Join(config.App.Path.Data, files.EnsureSuffix(r, ".db"))
+			if err := handler.UpdateSummary(dbPath, repoPath); err != nil {
+				return fmt.Errorf("updating summary: %w", err)
 			}
 		}
+		if err := git.AddAll(repoPath); err != nil {
+			return fmt.Errorf("staging summary: %w", err)
+		}
+		if err := git.CommitChanges(repoPath, "Updating Summary"); err != nil {
+			return fmt.Errorf("committing summary: %w", err)
+		}
 
-		// Push all changes
 		return git.PushChanges(repoPath)
 	},
 }
@@ -122,28 +100,48 @@ var gitInitCmd = &cobra.Command{
 		t := terminal.New(terminal.WithInterruptFn(func(err error) {
 			sys.ErrAndExit(err)
 		}))
-
+		f := frame.New(frame.WithColorBorder(color.BrightBlue))
 		repoPath := config.App.Path.Git
-		init, err := git.InitRepo(repoPath, config.App.Force)
+
+		if err := git.InitRepoNew(repoPath, config.App.Force); err != nil {
+			return fmt.Errorf("init repo: %w", err)
+		}
+
+		tracked, err := handler.SelectecTrackedDatabase(repoPath, f, t)
 		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		f := frame.New(frame.WithColorBorder(color.Gray))
-		if init != "" {
-			f.Midln(init)
+			return fmt.Errorf("select tracked: %w", err)
 		}
 
-		if !t.Confirm(f.Question("Use GPG to encrypt the repository?").String(), "y") {
-			if err := handler.GitCommit("Initializing repo"); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			success := color.BrightGreen("Successfully").Italic().String()
-			f.Clear().Success(success + color.Text(" initialized\n").Italic().String()).Flush()
-
-			return nil
-		}
-		return gpgInitCmd.RunE(cmd, args)
+		return initializeTracking(f, t, tracked)
 	},
+}
+
+// initializeTracking will initialize the tracking database.
+func initializeTracking(f *frame.Frame, t *terminal.Term, tracked []string) error {
+	s := f.Clear().Question("Use GPG for encryption?").String()
+	if gpg.IsInitialized(config.App.Path.Git) || !t.Confirm(s, "y") {
+		for _, dbFile := range tracked {
+			config.SetDBName(filepath.Base(dbFile))
+			config.SetDBPath(dbFile)
+			if err := handler.GitCommit("Initializing repo"); err != nil {
+				return fmt.Errorf("committing db: %w", err)
+			}
+		}
+		success := color.BrightGreen("Successfully").Italic().String()
+		f.Clear().Success(success + color.Text(" initialized\n").Italic().String()).Flush()
+
+		return nil
+	}
+
+	for _, dbFile := range tracked {
+		config.SetDBName(filepath.Base(dbFile))
+		config.SetDBPath(dbFile)
+		if err := gpgInitCmd.RunE(&cobra.Command{}, []string{}); err != nil {
+			return fmt.Errorf("gpg init: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // gitCmd represents the git command.
@@ -180,7 +178,14 @@ var gpgInitCmd = &cobra.Command{
 		success := color.BrightGreen("Successfully").Italic().String()
 		f := frame.New(frame.WithColorBorder(color.Gray))
 		f.Clear().Success(success + color.Text(" initialized\n").Italic().String()).Flush()
-		return handler.GitCommit("Initializing encrypted repo")
+		if err := handler.GitCommit("Initializing encrypted repo"); err != nil {
+			if errors.Is(err, git.ErrGitNothingToCommit) {
+				return nil
+			}
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	},
 }
 
@@ -195,7 +200,7 @@ var gitCloneCmd = &cobra.Command{
 		// * Maybe move this into subcommand `import`? added as a new source/way to
 		// import?
 		if len(args) == 0 {
-			return ErrImportGitRepoNotFound
+			return git.ErrGitRepoURLEmpty
 		}
 		repoPath := args[0]
 
@@ -210,23 +215,13 @@ var gitCloneCmd = &cobra.Command{
 			sys.ErrAndExit(err)
 		}))
 
-		if err := importer.Git(tmpPath, repoPath, f, t); err != nil {
-			return fmt.Errorf("importing from repo: %w", err)
-		}
-
-		f.Clear().Rowln().
-			Success(color.BrightGreen("Successfully").Italic().String() + " imported bookmarks from git\n").
-			Flush()
-
-		return nil
+		return importer.Git(tmpPath, repoPath, f, t)
 	},
 }
 
 func init() {
 	gitRemoteCmd.Flags().StringVar(&gitFlags.origin, "add", "", "git remote origin")
 	_ = gitRemoteCmd.MarkFlagRequired("add")
-
-	gitCloneCmd.Flags().StringVar(&gitFlags.repo, "repo", "", "repository URL")
 
 	gitCmd.AddCommand(gitPullCmd, gitPushCmd, gitCommitCmd, gitRemoteCmd,
 		gitInitCmd, gitLogCmd, gpgInitCmd, gitCloneCmd)

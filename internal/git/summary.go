@@ -7,6 +7,8 @@ import (
 	"github.com/mateconpizza/gm/internal/format"
 )
 
+const SummaryFileName = "summary.json"
+
 type RepoStats struct {
 	Name      string `json:"dbname"`
 	Bookmarks int    `json:"bookmarks"`

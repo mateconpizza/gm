@@ -40,7 +40,6 @@ linters:
     - nestif
     - nilerr
     - nilnil
-    # - nlreturn
     - noctx
     - nolintlint
     - paralleltest
@@ -59,7 +58,6 @@ linters:
     - thelper
     - unconvert
     - unparam
-    # - unused
     - usestdlibvars
     - usetesting
     - wastedassign

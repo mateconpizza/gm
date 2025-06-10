@@ -169,7 +169,7 @@ func (t *Term) ChooseTags(p string, items map[string]int) string {
 func (t *Term) Confirm(q, def string) bool {
 	err := t.ConfirmErr(q, def)
 	if err != nil {
-		slog.Error("terminal confirm", "err", err)
+		slog.Debug("terminal confirm", "err", err)
 	}
 
 	return err == nil

@@ -13,10 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/repo"
 )
 
-var (
-	ErrImportSourceNotFound  = errors.New("import source not found")
-	ErrImportGitRepoNotFound = errors.New("git repo not found")
-)
+var ErrImportSourceNotFound = errors.New("import source not found")
 
 // importFromCmd imports bookmarks from various sources.
 var importFromCmd = &cobra.Command{

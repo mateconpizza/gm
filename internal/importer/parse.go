@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/git"
@@ -101,13 +103,14 @@ func diffDeletedBookmarks(root string, r *repo.SQLiteRepository, bookmarks []*bo
 	return nil
 }
 
-func parseJSONRepo(root string) ([]*bookmark.Bookmark, error) {
+func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	// FIX:
 	_ = diffDeletedBookmarks(root, nil, nil)
+	_ = f
 	return nil, ErrNotImplemented
 }
 
-func parseGPGRepo(root string) ([]*bookmark.Bookmark, error) {
+func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	var (
 		count      = 0
 		errTracker = bookmark.NewErrorTracker()
@@ -116,7 +119,7 @@ func parseGPGRepo(root string) ([]*bookmark.Bookmark, error) {
 		bookmarks  = []*bookmark.Bookmark{}
 	)
 	sp := rotato.New(
-		rotato.WithPrefix("Decrypting bookmarks"),
+		rotato.WithPrefix(f.Mid("Decrypting bookmarks").String()),
 		rotato.WithMesgColor(rotato.ColorBrightBlue),
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic, rotato.ColorStyleBold),
 	)
@@ -163,17 +166,17 @@ func parseGPGRepo(root string) ([]*bookmark.Bookmark, error) {
 	return bookmarks, nil
 }
 
-func parseGitRepo(repoPath string) ([]*bookmark.Bookmark, error) {
+func parseGitRepo(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error) {
 	if !files.Exists(repoPath) {
 		return nil, fmt.Errorf("%w: %q", git.ErrGitRepoNotFound, repoPath)
 	}
 	rootDir := filepath.Dir(repoPath)
-	if !gpg.IsActive(rootDir) {
+	if !gpg.IsInitialized(rootDir) {
 		fmt.Println("load as a JSON repository")
-		return parseJSONRepo(repoPath)
+		return parseJSONRepo(f, repoPath)
 	}
 
-	return parseGPGRepo(repoPath)
+	return parseGPGRepo(f, repoPath)
 }
 
 // parseGPGFile is a WalkDirFunc that loads .gpg files concurrently.
@@ -211,4 +214,65 @@ func parseGPGFile(
 		bookmark.LoadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
 		return nil
 	}
+}
+
+func gitRepo(root, repoName string, t *terminal.Term, f *frame.Frame) error {
+	f.Clear().Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
+	repoPath := filepath.Join(root, repoName)
+	// read summary.json
+	sum := git.NewSummary()
+	if err := files.JSONRead(filepath.Join(repoPath, git.SummaryFileName), sum); err != nil {
+		return fmt.Errorf("reading summary: %w", err)
+	}
+	f.Midln(format.PaddedLine("records:", sum.RepoStats.Bookmarks)).
+		Midln(format.PaddedLine("tags:", sum.RepoStats.Tags)).
+		Midln(format.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
+
+	if err := t.ConfirmErr(f.Rowln().Question("Import records from this repo?").String(), "y"); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	dbName := sum.RepoStats.Name
+	f.Clear().Question(fmt.Sprintf("Create database %q?", dbName))
+	if dbName == config.DefaultDBName {
+		f.Clear().Warning(color.Text("Drop default database?").Bold().String())
+	}
+	if err := t.ConfirmErr(f.String(), "n"); err != nil {
+		dbName = files.EnsureSuffix(t.Prompt(f.Clear().Info("Enter new name: ").String()), ".db")
+		if dbName == "" {
+			return terminal.ErrCannotBeEmpty
+		}
+	}
+
+	bookmarks, err := parseGitRepo(f.Clear(), repoPath)
+	if err != nil {
+		return fmt.Errorf("importing bookmarks: %w", err)
+	}
+
+	dbPath := filepath.Join(config.App.Path.Data, dbName)
+	if files.Exists(dbPath) {
+		if err := files.Remove(dbPath); err != nil {
+			return fmt.Errorf("removing %q: %w", dbPath, err)
+		}
+	}
+	r, err := repo.Init(dbPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+
+	if err := r.Init(); err != nil {
+		return fmt.Errorf("initializing database: %w", err)
+	}
+
+	records := slice.New[bookmark.Bookmark]()
+	for _, b := range bookmarks {
+		records.Push(b)
+	}
+	if err := r.InsertMany(context.Background(), records); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	r.Close()
+	f.Clear().Success(fmt.Sprintf("Imported %d records into %q\n", records.Len(), dbName)).Flush()
+
+	return nil
 }
