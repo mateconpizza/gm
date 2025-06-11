@@ -291,7 +291,7 @@ func SaveNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) err
 		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
 		t.ClearLine(1)
-		if err := editNewBookmark(t, b); err != nil {
+		if err := editNewBookmark(t, f.Clear(), b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -300,7 +300,7 @@ func SaveNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) err
 }
 
 // editNewBookmark edits a new bookmark.
-func editNewBookmark(t *terminal.Term, b *bookmark.Bookmark) error {
+func editNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -314,8 +314,12 @@ func editNewBookmark(t *terminal.Term, b *bookmark.Bookmark) error {
 	format.BufferAppend(fmt.Sprintf("# database: %q\n", config.App.DBName), &buf)
 	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
 
-	if err := bookmark.Edit(te, t, buf, b); err != nil {
-		return fmt.Errorf("%w", err)
+	if err := bookmark.Edit(te, t, f.Clear(), buf, b); err != nil {
+		if !errors.Is(err, bookmark.ErrBufferUnchanged) {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	}
 
 	return nil

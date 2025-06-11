@@ -75,9 +75,14 @@ func TestTitle(t *testing.T) {
 
 	testScrapeFn(t, func(url string) (string, error) {
 		sc := New(url)
-		_ = sc.Scrape()
+		_ = sc.Start()
 
-		return sc.Title(), nil
+		s, err := sc.Title()
+		if err != nil {
+			return "", err
+		}
+
+		return s, nil
 	}, tests)
 }
 
@@ -149,8 +154,13 @@ func TestDesc(t *testing.T) {
 
 	testScrapeFn(t, func(url string) (string, error) {
 		sc := New(url)
-		_ = sc.Scrape()
+		_ = sc.Start()
 
-		return sc.Desc(), nil
+		s, err := sc.Desc()
+		if err != nil {
+			return "", err
+		}
+
+		return s, nil
 	}, tests)
 }

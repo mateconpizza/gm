@@ -199,7 +199,9 @@ func DroppingDB(r *repo.SQLiteRepository, t *terminal.Term) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Header(color.BrightRed("Dropping").String() + " all records\n").Row("\n").Flush()
 	fmt.Print(repo.Info(r))
-	f.Clear().Row().Ln().Flush().Clear()
+
+	f.Clear().Rowln().Flush()
+
 	if !config.App.Force {
 		if r.Cfg.Name == config.DefaultDBName {
 			f.Warning(color.Text("dropping 'default' database, continue?").Bold().String())

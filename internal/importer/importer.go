@@ -22,7 +22,7 @@ import (
 )
 
 // Git imports bookmarks from a git repository.
-func Git(tmpPath, repoPath string, f *frame.Frame, t *terminal.Term) error {
+func Git(tmpPath, repoPath string, t *terminal.Term, f *frame.Frame) error {
 	if err := git.Clone(tmpPath, repoPath); err != nil {
 		return fmt.Errorf("%w", err)
 	}

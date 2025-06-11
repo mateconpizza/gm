@@ -19,7 +19,7 @@ var ErrBufferUnchanged = errors.New("buffer unchanged")
 
 // Edit modifies the provided bookmark based on the given byte slice and text
 // editor, returning an error if any operation fails.
-func Edit(te *files.TextEditor, t *terminal.Term, content []byte, b *Bookmark) error {
+func Edit(te *files.TextEditor, t *terminal.Term, f *frame.Frame, content []byte, b *Bookmark) error {
 	original := bytes.Clone(content)
 	var tb *Bookmark
 	for {
@@ -39,14 +39,16 @@ func Edit(te *files.TextEditor, t *terminal.Term, content []byte, b *Bookmark) e
 		if b.Equals(tb) {
 			return ErrBufferUnchanged
 		}
-		tb = scrapeBookmark(tb)
+		tb, err = scrapeBookmark(tb)
+		if err != nil {
+			return fmt.Errorf("scraping: %w", err)
+		}
 		tb.ID = b.ID
 		tb.CreatedAt = b.CreatedAt
 		tb.Favorite = b.Favorite
 		tb.LastVisit = b.LastVisit
 		tb.VisitCount = b.VisitCount
 
-		f := frame.New(frame.WithColorBorder(color.BrightBlue))
 		f.Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
 		diff := te.Diff(b.Buffer(), tb.Buffer())
 		fmt.Println(format.DiffColor(diff))

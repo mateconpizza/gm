@@ -110,21 +110,21 @@ var gitInitCmd = &cobra.Command{
 		f := frame.New(frame.WithColorBorder(color.BrightBlue))
 		repoPath := config.App.Path.Git
 
-		if err := git.InitRepoNew(repoPath, config.App.Force); err != nil {
+		if err := git.InitRepo(repoPath, config.App.Force); err != nil {
 			return fmt.Errorf("init repo: %w", err)
 		}
 
-		tracked, err := handler.SelectecTrackedDatabase(repoPath, f, t)
+		tracked, err := handler.SelectecTrackedDB(t, f, repoPath)
 		if err != nil {
 			return fmt.Errorf("select tracked: %w", err)
 		}
 
-		return initializeTracking(f, t, tracked)
+		return initializeTracking(t, f, tracked)
 	},
 }
 
 // initializeTracking will initialize the tracking database.
-func initializeTracking(f *frame.Frame, t *terminal.Term, tracked []string) error {
+func initializeTracking(t *terminal.Term, f *frame.Frame, tracked []string) error {
 	s := f.Clear().Question("Use GPG for encryption?").String()
 	if gpg.IsInitialized(config.App.Path.Git) || !t.Confirm(s, "y") {
 		for _, dbFile := range tracked {
@@ -222,7 +222,7 @@ var gitCloneCmd = &cobra.Command{
 			sys.ErrAndExit(err)
 		}))
 
-		return importer.Git(tmpPath, repoPath, f, t)
+		return importer.Git(tmpPath, repoPath, t, f)
 	},
 }
 

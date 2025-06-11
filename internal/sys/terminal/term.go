@@ -15,6 +15,7 @@ import (
 	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
 
+	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
 )
 
@@ -177,6 +178,10 @@ func (t *Term) Confirm(q, def string) bool {
 
 // ConfirmErr prompts the user with a question and options.
 func (t *Term) ConfirmErr(q, def string) error {
+	if config.App.Force {
+		return nil
+	}
+
 	if len(def) > 1 {
 		// get first char
 		def = def[:1]
@@ -200,6 +205,9 @@ func (t *Term) ConfirmErr(q, def string) error {
 
 // Choose prompts the user to enter one of the given options.
 func (t *Term) Choose(q string, opts []string, def string) (string, error) {
+	if config.App.Force {
+		return def, nil
+	}
 	for i := range opts {
 		opts[i] = strings.ToLower(opts[i])
 	}

@@ -73,7 +73,7 @@ var databaseDropCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := handler.GitDropRepo(config.App.DBPath, config.App.Path.Git); err != nil {
+		if err := handler.GitDropRepo(config.App.DBPath, config.App.Path.Git, "Dropped"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

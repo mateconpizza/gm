@@ -176,32 +176,42 @@ func validateAttr(s, fallback string) string {
 
 // scrapeBookmark updates a Bookmark's title and description by scraping the
 // webpage if they are missing.
-func scrapeBookmark(b *Bookmark) *Bookmark {
-	if b.Title == "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		sp := rotato.New(
-			rotato.WithMesg("scraping webpage..."),
-			rotato.WithMesgColor(rotato.ColorYellow),
-		)
-		sp.Start()
-		defer sp.Done()
-
-		sc := scraper.New(b.URL, scraper.WithContext(ctx))
-		if err := sc.Scrape(); err != nil {
-			slog.Error("scraping error", "error", err)
-		}
-
-		if b.Title == "" {
-			b.Title = validateAttr(b.Title, sc.Title())
-		}
-
-		if b.Desc == "" {
-			b.Desc = validateAttr(b.Desc, sc.Desc())
-		}
+func scrapeBookmark(b *Bookmark) (*Bookmark, error) {
+	if b.Title != "" {
+		return b, nil
 	}
 
-	return b
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	sp := rotato.New(
+		rotato.WithMesg("scraping webpage..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+	)
+	sp.Start()
+	defer sp.Done()
+
+	sc := scraper.New(b.URL, scraper.WithContext(ctx))
+	if err := sc.Start(); err != nil {
+		slog.Error("scraping error", "error", err)
+	}
+
+	if b.Title == "" {
+		t, err := sc.Title()
+		if err != nil {
+			return nil, fmt.Errorf("%w: title", err)
+		}
+		b.Title = validateAttr(b.Title, t)
+	}
+
+	if b.Desc == "" {
+		d, err := sc.Desc()
+		if err != nil {
+			return nil, fmt.Errorf("%w: description", err)
+		}
+		b.Desc = validateAttr(b.Desc, d)
+	}
+
+	return b, nil
 }
 
 // ScrapeMissingDescription scrapes missing data from bookmarks found from the import
@@ -226,11 +236,11 @@ func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
 			defer cancel()
 			defer wg.Done()
 			sc := scraper.New(b.URL, scraper.WithContext(ctx))
-			if err := sc.Scrape(); err != nil {
+			if err := sc.Start(); err != nil {
 				errs = append(errs, fmt.Sprintf("url %s: %s", b.URL, err.Error()))
 				slog.Warn("scraping error", "url", b.URL, "err", err)
 			}
-			b.Desc = sc.Desc()
+			b.Desc, _ = sc.Desc()
 		}(b)
 	})
 	wg.Wait()

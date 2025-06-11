@@ -130,7 +130,7 @@ func promptOptions(c bool) (o []prompt.Option) {
 	// color
 	if c {
 		o = append(o,
-			prompt.OptionPrefixTextColor(prompt.DefaultColor),
+			prompt.OptionPrefixTextColor(prompt.DarkGray),
 			prompt.OptionPreviewSuggestionTextColor(prompt.Blue),
 			prompt.OptionInputTextColor(prompt.DarkGray),
 		)

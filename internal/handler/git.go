@@ -37,7 +37,7 @@ func GitCommit(actionMsg string) error {
 	// FIX: what to do if no bookmarks found? return err? clean git repo?
 	if len(bookmarks) == 0 {
 		slog.Debug("no bookmarks found", "repo", repoPath)
-		return nil
+		return GitDropRepo(config.App.DBPath, config.App.Path.Git, "Last bookmarks deleted")
 	}
 
 	root := filepath.Join(repoPath, files.StripSuffixes(config.App.DBName))
@@ -65,7 +65,7 @@ func GitSummaryUpdate(dbPath, repoPath string) error {
 }
 
 // GitDropRepo removes the repo from the git repo.
-func GitDropRepo(dbPath, repoPath string) error {
+func GitDropRepo(dbPath, repoPath, mesg string) error {
 	slog.Debug("dropping repo", "dbPath", dbPath)
 	if !git.IsInitialized(repoPath) {
 		return nil
@@ -84,7 +84,7 @@ func GitDropRepo(dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	msg := fmt.Sprintf("[%s] Dropped", filepath.Base(dbPath))
+	msg := fmt.Sprintf("[%s] %s", filepath.Base(dbPath), mesg)
 	if err := git.CommitChanges(repoPath, msg); err != nil {
 		return fmt.Errorf("%w", err)
 	}

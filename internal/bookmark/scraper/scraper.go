@@ -2,25 +2,30 @@ package scraper
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/mateconpizza/rotato"
 )
+
+var ErrScrapeNotStarted = errors.New("scrape not started")
 
 const defaultTitle string = "untitled (unfiled)"
 
 type OptFn func(*Options)
 
 type Options struct {
-	uri string
-	doc *goquery.Document
-	ctx context.Context
+	uri     string
+	doc     *goquery.Document
+	ctx     context.Context
+	started bool
+	sp      *rotato.Spinner
 }
 
 type Scraper struct {
@@ -33,15 +38,35 @@ func WithContext(ctx context.Context) OptFn {
 	}
 }
 
-// Scrape fetches and parses the URL content.
-func (s *Scraper) Scrape() error {
+func WithSpinner(sp *rotato.Spinner) OptFn {
+	return func(o *Options) {
+		o.sp = sp
+	}
+}
+
+// Start fetches and parses the URL content.
+func (s *Scraper) Start() error {
+	if s.started {
+		return nil
+	}
+
+	s.sp.Start()
+	defer s.sp.Done()
+
 	s.doc = scrapeURL(s.uri, s.ctx)
+	s.started = true
+
 	return nil
 }
 
 func defaults() *Options {
 	return &Options{
 		ctx: context.Background(),
+		sp: rotato.New(
+			rotato.WithMesg("scraping webpage..."),
+			rotato.WithMesgColor(rotato.ColorYellow),
+			rotato.WithSpinnerColor(rotato.ColorBrightMagenta),
+		),
 	}
 }
 
@@ -49,20 +74,36 @@ func defaults() *Options {
 // to a default value if not found.
 //
 // default: `untitled (unfiled)`
-func (s *Scraper) Title() string {
+func (s *Scraper) Title() (string, error) {
+	if !s.started {
+		return "", ErrScrapeNotStarted
+	}
 	t := s.doc.Find("title").Text()
 	if t == "" {
-		return defaultTitle
+		return defaultTitle, nil
 	}
 
-	return strings.TrimSpace(t)
+	return strings.TrimSpace(t), nil
+}
+
+// Keywords extracts the content of the meta keywords tag.
+func (s *Scraper) Keywords() (string, error) {
+	if !s.started {
+		return "", ErrScrapeNotStarted
+	}
+	kw := s.doc.Find("meta[name='keywords']").AttrOr("content", "")
+	return strings.TrimSpace(kw), nil
 }
 
 // Desc retrieves the page description from the Scraper's Doc field,
 // defaulting to a predefined value if not found.
 //
 // default: `no description available (unfiled)`
-func (s *Scraper) Desc() string {
+func (s *Scraper) Desc() (string, error) {
+	if !s.started {
+		return "", ErrScrapeNotStarted
+	}
+
 	var desc string
 	for _, selector := range []string{
 		"meta[name='description']",
@@ -80,7 +121,7 @@ func (s *Scraper) Desc() string {
 		}
 	}
 
-	return strings.TrimSpace(desc)
+	return strings.TrimSpace(desc), nil
 }
 
 // New creates a new Scraper.
@@ -105,7 +146,7 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
-		slog.Error("failed to create request", "url", s, "error", err)
+		slog.Warn("failed to create request", "url", s, "error", err)
 		return emptyDoc()
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0")
@@ -130,12 +171,12 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	res, err := cl.Do(req)
 	if err != nil {
 		d := time.Since(startTime).Milliseconds()
-		slog.Error("request failed", "url", s, "error", err.Error(), "duration_ms", d, "stack", debug.Stack())
+		slog.Warn("request failed", "url", s, "error", err.Error(), "duration_ms", d)
 		return emptyDoc()
 	}
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			slog.Error("error closing response body", "url", s, "error", err)
+			slog.Warn("error closing response body", "url", s, "error", err)
 		}
 	}()
 	slog.Info("received response", "url", s, "status", res.StatusCode, "duration", time.Since(startTime))
@@ -153,7 +194,7 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	bodyReader := io.LimitReader(res.Body, 10*1024*1024) // 10MB limit
 	doc, err := goquery.NewDocumentFromReader(bodyReader)
 	if err != nil {
-		slog.Error("failed to parse HTML", "url", s, "error", err)
+		slog.Warn("failed to parse HTML", "url", s, "error", err)
 		return emptyDoc()
 	}
 
@@ -164,13 +205,13 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 func logResponseStatusCode(res *http.Response, s string) {
 	switch res.StatusCode {
 	case http.StatusNotFound:
-		slog.Error("page not found (404)", "url", s)
+		slog.Warn("page not found (404)", "url", s)
 	case http.StatusForbidden, http.StatusUnauthorized:
-		slog.Error("access denied", "url", s, "status_code", res.StatusCode)
+		slog.Warn("access denied", "url", s, "status_code", res.StatusCode)
 	case http.StatusTooManyRequests:
-		slog.Error("rate limited", "url", s)
+		slog.Warn("rate limited", "url", s)
 	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
-		slog.Error("server error", "url", s, "status_code", res.StatusCode)
+		slog.Warn("server error", "url", s, "status_code", res.StatusCode)
 	}
 }
 

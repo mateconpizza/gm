@@ -226,11 +226,17 @@ func SelectDatabase() (*repo.SQLiteRepository, error) {
 	return srcDB, nil
 }
 
-// SelectecTrackedDatabase prompts user to select which databases to track.
-func SelectecTrackedDatabase(repoPath string, f *frame.Frame, t *terminal.Term) ([]string, error) {
+// SelectecTrackedDB prompts user to select which databases to track.
+func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]string, error) {
 	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
 	if err != nil {
 		return nil, fmt.Errorf("finding db files: %w", err)
+	}
+
+	if len(dbFiles) == 1 {
+		dbName := files.StripSuffixes(filepath.Base(dbFiles[0]))
+		f.Clear().Success(fmt.Sprintf("Tracking %q\n", dbName)).Flush()
+		return dbFiles, nil
 	}
 
 	f.Ln().Midln("Select which databases to track").Flush()

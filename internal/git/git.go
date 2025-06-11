@@ -80,7 +80,7 @@ func Fetch(repoPath string) error {
 	if err != nil {
 		return fmt.Errorf("could not get current branch: %w", err)
 	}
-	// pull the changes <pull>
+
 	return runGitCmd(repoPath, "pull", "origin", branch)
 }
 
@@ -95,19 +95,7 @@ func HasChanges(repoPath string) (bool, error) {
 }
 
 // InitRepo creates a new Git repository.
-func InitRepo(repoPath string, force bool) (string, error) {
-	if _, err := sys.Which(gitCommand); err != nil {
-		return "", fmt.Errorf("%w: %s", err, gitCommand)
-	}
-	slog.Debug("initializing git", "path", repoPath)
-	if IsInitialized(repoPath) && !force {
-		return "", ErrGitInitialized
-	}
-	return runWithOutput(repoPath, "init")
-}
-
-// InitRepoNew creates a new Git repository.
-func InitRepoNew(repoPath string, force bool) error {
+func InitRepo(repoPath string, force bool) error {
 	slog.Debug("initializing git", "path", repoPath)
 	if IsInitialized(repoPath) && !force {
 		return ErrGitInitialized

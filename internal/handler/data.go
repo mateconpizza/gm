@@ -115,8 +115,11 @@ func editBookmark(
 	originalData := *b
 	// prepare the buffer with a header and version info.
 	buf := prepareBuffer(b, idx, total)
+
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+
 	// launch the editor to allow the user to edit the bookmark.
-	if err := bookmark.Edit(te, t, buf, b); err != nil {
+	if err := bookmark.Edit(te, t, f, buf, b); err != nil {
 		if errors.Is(err, bookmark.ErrBufferUnchanged) {
 			return nil
 		}
