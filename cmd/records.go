@@ -71,7 +71,7 @@ var recordsCmd = &cobra.Command{
 		case Remove:
 			return handler.Remove(r, bs)
 		case Edit:
-			return handler.Edition(r, bs)
+			return handler.EditSlice(r, bs)
 		case Copy:
 			return handler.Copy(bs)
 		case Open && !QR:

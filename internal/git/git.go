@@ -21,8 +21,7 @@ var (
 	ErrGitInitialized     = errors.New("git: repo is initialized")
 	ErrGitNotInitialized  = errors.New("git: repo is not initialized")
 	ErrGitNoCommits       = errors.New("git: no commits found")
-	ErrGitNoOrigin        = errors.New("git: no origin remote configured")
-	ErrGitNoRemote        = errors.New("git: no remote configured")
+	ErrGitNoRemote        = errors.New("git: no upstream configured")
 	ErrGitNothingToCommit = errors.New("git: no changes to commit")
 	ErrGitRepoNotFound    = errors.New("git: repo not found")
 	ErrGitRepoURLEmpty    = errors.New("git: repo url is empty")
@@ -45,6 +44,24 @@ func AddAll(repoPath string) error {
 func AddRemote(repoPath, reporURL string) error {
 	slog.Debug("setting git remote", "path", repoPath)
 	return runGitCmd(repoPath, "remote", "add", "origin", reporURL)
+}
+
+// HasUnpushedCommits checks if there are any unpushed commits.
+func HasUnpushedCommits(repoPath string) (bool, error) {
+	err := runWithWriter(io.Discard, repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	if err != nil {
+		if strings.Contains(err.Error(), "no upstream configured") {
+			return false, ErrGitNoRemote
+		}
+		return false, err
+	}
+
+	s, err := runWithOutput(repoPath, "rev-list", "--count", "HEAD", "^@{u}")
+	if err != nil {
+		return false, err
+	}
+
+	return s != "0", nil
 }
 
 // CommitChanges commits local changes.

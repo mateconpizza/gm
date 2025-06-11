@@ -2,7 +2,6 @@ package frame
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/format/color"
@@ -30,7 +29,6 @@ type Options struct {
 
 type Frame struct {
 	Options
-	writer io.Writer
 }
 
 // defaultOpts returns the default frame options.
@@ -51,6 +49,11 @@ func WithColorBorder(c color.ColorFn) OptFn {
 func (f *Frame) Text(t ...string) *Frame {
 	f.text = append(f.text, t...)
 	return f
+}
+
+func (f *Frame) Textln(t ...string) *Frame {
+	f.text = append(f.text, t...)
+	return f.Ln()
 }
 
 // Ln adds a new line.
@@ -175,6 +178,7 @@ func (f *Frame) String() string {
 	return strings.Join(f.text, "")
 }
 
+// Write implements the io.Writer interface.
 func (f *Frame) Write(p []byte) (int, error) {
 	content := string(p)
 

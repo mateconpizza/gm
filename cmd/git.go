@@ -22,7 +22,6 @@ import (
 
 type gitFlagsType struct {
 	origin string
-	repo   string
 }
 
 var gitFlags = gitFlagsType{}
@@ -43,6 +42,14 @@ var gitPushCmd = &cobra.Command{
 		tracked, err := files.ListRootFolders(repoPath, ".git")
 		if err != nil {
 			return fmt.Errorf("listing tracked: %w", err)
+		}
+
+		procced, err := git.HasUnpushedCommits(repoPath)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if !procced {
+			return git.ErrGitNoCommits
 		}
 
 		// Generate the new summary

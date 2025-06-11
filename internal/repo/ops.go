@@ -28,6 +28,15 @@ func CountTagsRecords(r *SQLiteRepository) int {
 	return countRecords(r, schemaTags.name)
 }
 
+// TagsCounterFromPath returns a map with tag as key and count as value.
+func TagsCounterFromPath(dbPath string) (map[string]int, error) {
+	r, err := New(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	return TagsCounter(r)
+}
+
 // CountFavorites returns the number of favorite records.
 func CountFavorites(r *SQLiteRepository) int {
 	var n int

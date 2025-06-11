@@ -58,6 +58,7 @@ linters:
     - thelper
     - unconvert
     - unparam
+    - unused
     - usestdlibvars
     - usetesting
     - wastedassign

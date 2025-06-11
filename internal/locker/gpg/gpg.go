@@ -32,9 +32,6 @@ const (
 	GPGCommand    = "gpg"
 )
 
-// FIX:
-//
-//nolint:unused //notneeded
 var gpgArgs = []string{
 	"--quiet", "--yes", "--compress-algo=none", "--no-encrypt-to",
 }

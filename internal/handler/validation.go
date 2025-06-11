@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -155,26 +156,6 @@ func ValidateDBExists(p string) error {
 	return ei
 }
 
-// FindDB returns the path to the database.
-func FindDB(p string) (string, error) {
-	slog.Debug("searching db", "path", p)
-	if files.Exists(p) {
-		return p, nil
-	}
-	fs, err := repo.Databases(filepath.Dir(p))
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-	s := filepath.Base(p)
-	for _, f := range fs {
-		if strings.Contains(f, s) {
-			return f, nil
-		}
-	}
-
-	return "", fmt.Errorf("%w: %q", repo.ErrDBNotFound, files.StripSuffixes(s))
-}
-
 // passwordConfirm prompts user for password input.
 func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
 	f.Question("Password: ").Flush()
@@ -220,4 +201,14 @@ func AssertDefaultDatabaseExists() error {
 	}
 
 	return nil
+}
+
+// URLValid checks if a string is a valid URL.
+func URLValid(s string) bool {
+	parsedURL, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+
+	return parsedURL.Scheme != "" && parsedURL.Host != ""
 }

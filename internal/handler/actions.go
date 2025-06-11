@@ -245,3 +245,78 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 
 	return nil
 }
+
+// EditSlice edits the bookmarks using a text editor.
+func EditSlice(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+	n := bs.Len()
+	if n == 0 {
+		return repo.ErrRecordQueryNotProvided
+	}
+	prompt := fmt.Sprintf("%s %d bookmarks, continue?", color.BrightOrange("editing").Bold(), n)
+	if err := confirmUserLimit(n, maxItemsToEdit, prompt); err != nil {
+		return err
+	}
+	te, err := files.NewEditor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("getting editor: %w", err)
+	}
+	t := terminal.New(terminal.WithInterruptFn(func(err error) {
+		r.Close()
+		sys.ErrAndExit(err)
+	}))
+	editFn := func(idx int, b bookmark.Bookmark) error {
+		return editBookmark(r, te, t, &b, idx, n)
+	}
+	// for each bookmark, invoke the helper to edit it.
+	if err := bs.ForEachIdxErr(editFn); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+// SaveNewBookmark asks the user if they want to save the bookmark.
+func SaveNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) error {
+	opt, err := t.Choose(
+		f.Clear().Question("save bookmark?").String(),
+		[]string{"yes", "no", "edit"},
+		"y",
+	)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	switch strings.ToLower(opt) {
+	case "n", "no":
+		return fmt.Errorf("%w", sys.ErrActionAborted)
+	case "e", "edit":
+		t.ClearLine(1)
+		if err := editNewBookmark(t, b); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	return nil
+}
+
+// editNewBookmark edits a new bookmark.
+func editNewBookmark(t *terminal.Term, b *bookmark.Bookmark) error {
+	te, err := files.NewEditor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	const spaces = 10
+	buf := b.Buffer()
+	sep := format.CenteredLine(terminal.MinWidth-spaces, "bookmark addition")
+	format.BufferAppendEnd(" [New]", &buf)
+	format.BufferAppend("#\n# "+sep+"\n\n", &buf)
+	format.BufferAppend(fmt.Sprintf("# database: %q\n", config.App.DBName), &buf)
+	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
+
+	if err := bookmark.Edit(te, t, buf, b); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}

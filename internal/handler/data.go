@@ -5,10 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
-	"runtime"
-	"time"
+	"strings"
 
 	"github.com/mateconpizza/rotato"
 	"github.com/spf13/cobra"
@@ -18,12 +16,10 @@ import (
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/menu"
 	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
@@ -48,35 +44,6 @@ func Records(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args 
 			return fmt.Errorf("%w", err)
 		}
 		bs.Set(&bb)
-	}
-
-	return nil
-}
-
-// Edition edits the bookmarks using a text editor.
-func Edition(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
-	n := bs.Len()
-	if n == 0 {
-		return repo.ErrRecordQueryNotProvided
-	}
-	prompt := fmt.Sprintf("%s %d bookmarks, continue?", color.BrightOrange("editing").Bold(), n)
-	if err := confirmUserLimit(n, maxItemsToEdit, prompt); err != nil {
-		return err
-	}
-	te, err := files.NewEditor(config.App.Env.Editor)
-	if err != nil {
-		return fmt.Errorf("getting editor: %w", err)
-	}
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	}))
-	editFn := func(idx int, b bookmark.Bookmark) error {
-		return editBookmark(r, te, t, &b, idx, n)
-	}
-	// for each bookmark, invoke the helper to edit it.
-	if err := bs.ForEachIdxErr(editFn); err != nil {
-		return fmt.Errorf("%w", err)
 	}
 
 	return nil
@@ -242,35 +209,6 @@ func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 	return nil
 }
 
-// insertRecordsToRepo inserts records into the database.
-func insertRecordsToRepo(
-	t *terminal.Term,
-	r *repo.SQLiteRepository,
-	records *slice.Slice[bookmark.Bookmark],
-) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	if !config.App.Force {
-		report := fmt.Sprintf("import %d records?", records.Len())
-		if err := t.ConfirmErr(f.Row("\n").Question(report).String(), "y"); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-	sp := rotato.New(
-		rotato.WithMesg("importing record/s..."),
-		rotato.WithMesgColor(rotato.ColorYellow),
-	)
-	sp.Start()
-	if err := r.InsertMany(context.Background(), records); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	sp.Done()
-	success := color.BrightGreen("Successfully").Italic().String()
-	msg := fmt.Sprintf(success+" imported %d record/s\n", records.Len())
-	f.Clear().Success(msg).Flush()
-
-	return nil
-}
-
 // diffDeletedBookmarks checks for deleted bookmarks.
 func diffDeletedBookmarks(root string, bookmarks []*bookmark.Bookmark) error {
 	jsonBookmarks := slice.New[bookmark.Bookmark]()
@@ -293,65 +231,22 @@ func diffDeletedBookmarks(root string, bookmarks []*bookmark.Bookmark) error {
 	return nil
 }
 
-// GitSummary returns a new SyncGitSummary.
-func GitSummary(dbPath, repoPath string) (*git.SyncGitSummary, error) {
-	r, err := repo.New(dbPath)
+// FindDB returns the path to the database.
+func FindDB(p string) (string, error) {
+	slog.Debug("searching db", "path", p)
+	if files.Exists(p) {
+		return p, nil
+	}
+	fs, err := repo.Databases(filepath.Dir(p))
 	if err != nil {
-		return nil, fmt.Errorf("creating repo: %w", err)
+		return "", fmt.Errorf("%w", err)
 	}
-	branch, err := git.GetBranch(repoPath)
-	if err != nil {
-		return nil, fmt.Errorf("getting branch: %w", err)
-	}
-	remote, err := git.GetRemote(repoPath)
-	if err != nil {
-		remote = ""
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("getting hostname: %w", err)
+	s := filepath.Base(p)
+	for _, f := range fs {
+		if strings.Contains(f, s) {
+			return f, nil
+		}
 	}
 
-	summary := &git.SyncGitSummary{
-		GitBranch:          branch,
-		GitRemote:          remote,
-		LastSync:           time.Now().Format(time.RFC3339),
-		ConflictResolution: "timestamp",
-		HashAlgorithm:      "SHA-256",
-		ClientInfo: &git.ClientInfo{
-			Hostname:   hostname,
-			Platform:   runtime.GOOS,
-			Architect:  runtime.GOARCH,
-			AppVersion: config.App.Info.Version,
-		},
-		RepoStats: &git.RepoStats{
-			Name:      r.Cfg.Name,
-			Bookmarks: repo.CountMainRecords(r),
-			Tags:      repo.CountTagsRecords(r),
-			Favorites: repo.CountFavorites(r),
-		},
-	}
-
-	summary.GenerateChecksum()
-
-	return summary, nil
-}
-
-// GitRepoStats returns a new RepoStats.
-func GitRepoStats(summary *git.SyncGitSummary, repoPath string) error {
-	r, err := repo.New(config.App.DBPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	defer r.Close()
-
-	summary.RepoStats = &git.RepoStats{
-		Name:      r.Cfg.Name,
-		Bookmarks: repo.CountMainRecords(r),
-		Tags:      repo.CountTagsRecords(r),
-		Favorites: repo.CountFavorites(r),
-	}
-
-	summary.GenerateChecksum()
-	return nil
+	return "", fmt.Errorf("%w: %q", repo.ErrDBNotFound, files.StripSuffixes(s))
 }

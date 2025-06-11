@@ -67,8 +67,17 @@ var databaseDropCmd = &cobra.Command{
 			r.Close()
 			sys.ErrAndExit(err)
 		}))
+		_ = t
 
-		return handler.DroppingDB(r, t)
+		if err := handler.DroppingDB(r, t); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		if err := handler.GitDropRepo(config.App.DBPath, config.App.Path.Git); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	},
 }
 

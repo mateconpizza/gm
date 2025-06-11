@@ -3,7 +3,10 @@ package handler
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"runtime"
+	"time"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
@@ -38,7 +41,7 @@ func GitCommit(actionMsg string) error {
 	}
 
 	root := filepath.Join(repoPath, files.StripSuffixes(config.App.DBName))
-	if err := storeBookmarksInGitRepo(repoPath, root, bookmarks); err != nil {
+	if err := gitStoreBookmarksInRepo(repoPath, root, bookmarks); err != nil {
 		return err
 	}
 
@@ -61,8 +64,36 @@ func GitSummaryUpdate(dbPath, repoPath string) error {
 	return nil
 }
 
-// storeBookmarksInGitRepo stores the bookmarks in the git repo.
-func storeBookmarksInGitRepo(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
+// GitDropRepo removes the repo from the git repo.
+func GitDropRepo(dbPath, repoPath string) error {
+	slog.Debug("dropping repo", "dbPath", dbPath)
+	if !git.IsInitialized(repoPath) {
+		return nil
+	}
+
+	dirPath := filepath.Join(repoPath, filepath.Base(files.StripSuffixes(dbPath)))
+	if !files.Exists(dirPath) {
+		slog.Debug("repo does not exist", "path", dirPath)
+		return nil
+	}
+	if err := files.RemoveAll(dirPath); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := git.AddAll(repoPath); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	msg := fmt.Sprintf("[%s] Dropped", filepath.Base(dbPath))
+	if err := git.CommitChanges(repoPath, msg); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+// gitStoreBookmarksInRepo stores the bookmarks in the git repo.
+func gitStoreBookmarksInRepo(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
 	if gpg.IsInitialized(repoPath) {
 		if err := bookmark.StoreAsGPG(repoPath, bookmarks); err != nil {
 			return fmt.Errorf("store as GPG: %w", err)
@@ -136,5 +167,68 @@ func gitSummaryRepoStats(repoPath string) error {
 	if err := files.JSONWrite(summaryPath, summary, true); err != nil {
 		return fmt.Errorf("writing summary: %w", err)
 	}
+	return nil
+}
+
+// GitSummary returns a new SyncGitSummary.
+func GitSummary(dbPath, repoPath string) (*git.SyncGitSummary, error) {
+	r, err := repo.New(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("creating repo: %w", err)
+	}
+	branch, err := git.GetBranch(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("getting branch: %w", err)
+	}
+	remote, err := git.GetRemote(repoPath)
+	if err != nil {
+		remote = ""
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("getting hostname: %w", err)
+	}
+
+	summary := &git.SyncGitSummary{
+		GitBranch:          branch,
+		GitRemote:          remote,
+		LastSync:           time.Now().Format(time.RFC3339),
+		ConflictResolution: "timestamp",
+		HashAlgorithm:      "SHA-256",
+		ClientInfo: &git.ClientInfo{
+			Hostname:   hostname,
+			Platform:   runtime.GOOS,
+			Architect:  runtime.GOARCH,
+			AppVersion: config.App.Info.Version,
+		},
+		RepoStats: &git.RepoStats{
+			Name:      r.Cfg.Name,
+			Bookmarks: repo.CountMainRecords(r),
+			Tags:      repo.CountTagsRecords(r),
+			Favorites: repo.CountFavorites(r),
+		},
+	}
+
+	summary.GenerateChecksum()
+
+	return summary, nil
+}
+
+// GitRepoStats returns a new RepoStats.
+func GitRepoStats(summary *git.SyncGitSummary, repoPath string) error {
+	r, err := repo.New(config.App.DBPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+	defer r.Close()
+
+	summary.RepoStats = &git.RepoStats{
+		Name:      r.Cfg.Name,
+		Bookmarks: repo.CountMainRecords(r),
+		Tags:      repo.CountTagsRecords(r),
+		Favorites: repo.CountFavorites(r),
+	}
+
+	summary.GenerateChecksum()
 	return nil
 }
