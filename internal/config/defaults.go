@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/mateconpizza/gm/internal/menu"
+	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
 // ConfigFile represents the configuration file.
