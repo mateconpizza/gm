@@ -14,8 +14,8 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var ErrLineNotFound = errors.New("line not found")
@@ -34,7 +34,7 @@ func ParseTags(tags string) string {
 		return r == ',' || r == ' '
 	})
 	sort.Strings(split)
-	tags = strings.Join(format.Unique(split), ",")
+	tags = strings.Join(uniqueItem(split), ",")
 	if strings.HasSuffix(tags, ",") {
 		return tags
 	}
@@ -198,7 +198,7 @@ func validateTagsBuffer(content []string) error {
 
 // validateAttr validates bookmark attribute.
 func validateAttr(s, fallback string) string {
-	s = strings.TrimSpace(format.NormalizeSpace(s))
+	s = strings.TrimSpace(txt.NormalizeSpace(s))
 	if s == "" {
 		return strings.TrimSpace(fallback)
 	}
@@ -248,7 +248,7 @@ func scrapeBookmark(b *Bookmark) (*Bookmark, error) {
 
 // hashURL generates a hash from a hashURL.
 func hashURL(rawURL string) string {
-	return format.GenerateHash(rawURL, 12)
+	return txt.GenerateHash(rawURL, 12)
 }
 
 // hashDomain generates a hash from a domain.
@@ -257,7 +257,7 @@ func hashDomain(rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return format.GenerateHash(domain, 12), nil
+	return txt.GenerateHash(domain, 12), nil
 }
 
 // domain extracts the domain from a URL.
@@ -274,5 +274,23 @@ func domain(rawURL string) (string, error) {
 // Checksum generates a checksum for the bookmark.
 func Checksum(rawURL, title, desc, tags string) string {
 	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s", rawURL, title, desc, tags)
-	return format.GenerateHash(data, 8)
+	return txt.GenerateHash(data, 8)
+}
+
+// uniqueItem returns a slice of unique, non-empty strings from the input slice.
+func uniqueItem(t []string) []string {
+	seen := make(map[string]bool)
+	var tags []string
+
+	for _, tag := range t {
+		if tag == "" {
+			continue
+		}
+		if !seen[tag] {
+			seen[tag] = true
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags
 }

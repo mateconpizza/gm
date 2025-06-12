@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -48,7 +48,7 @@ func JSONSlice(bs *slice.Slice[bookmark.Bookmark]) error {
 	bs.ForEach(func(b bookmark.Bookmark) {
 		r = append(r, b.ToJSON())
 	})
-	j, err := format.ToJSON(r)
+	j, err := ToJSON(r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -68,7 +68,7 @@ func JSONTags(p string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	j, err := format.ToJSON(tags)
+	j, err := ToJSON(tags)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -234,7 +234,7 @@ func RepoInfo(p string, j bool) error {
 	defer r.Close()
 	r.Cfg.BackupFiles, _ = r.ListBackups()
 	if j {
-		b, err := format.ToJSON(r)
+		b, err := ToJSON(r)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -273,4 +273,14 @@ func MenuForRecords[T comparable](cmd *cobra.Command) *menu.Menu[T] {
 	}
 
 	return menu.New[T](mo...)
+}
+
+// ToJSON converts an interface to JSON.
+func ToJSON(data any) ([]byte, error) {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return jsonData, nil
 }

@@ -4,10 +4,10 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/browser/blink"
 	"github.com/mateconpizza/gm/internal/sys/browser/gecko"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // supportedBrowser represents a supported browser.
@@ -58,7 +58,7 @@ func selectBrowser(t *terminal.Term) string {
 		f.Midln(b.Color(b.Short()) + " " + b.Name())
 	}
 	f.Rowln().Footer("which browser do you use?")
-	defer t.ClearLine(format.CountLines(f.String()))
+	defer t.ClearLine(txt.CountLines(f.String()))
 	f.Flush()
 
 	return t.Prompt(" ")

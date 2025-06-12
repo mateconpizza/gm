@@ -17,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/slice"
@@ -25,6 +24,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 const FileExtJSON = ".json"
@@ -320,9 +320,9 @@ func parseGitRepository(root, repoName string, t *terminal.Term, f *frame.Frame)
 		return fmt.Errorf("reading summary: %w", err)
 	}
 
-	f.Midln(format.PaddedLine("records:", sum.RepoStats.Bookmarks)).
-		Midln(format.PaddedLine("tags:", sum.RepoStats.Tags)).
-		Midln(format.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
+	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
+		Midln(txt.PaddedLine("tags:", sum.RepoStats.Tags)).
+		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
 
 	if err := t.ConfirmErr(f.Rowln().Question("Import records from this repo?").String(), "y"); err != nil {
 		return fmt.Errorf("%w", err)

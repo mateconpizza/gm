@@ -1,13 +1,10 @@
-// Package format provides utilities for formatting and manipulating strings
-package format
+package txt
 
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -78,16 +75,6 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 	return result.String()
 }
 
-// ToJSON converts an interface to JSON.
-func ToJSON(data any) ([]byte, error) {
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return jsonData, nil
-}
-
 // SplitIntoChunks splits strings lines into chunks of a given length.
 func SplitIntoChunks(s string, strLen int) []string {
 	var lines []string
@@ -136,32 +123,37 @@ func NormalizeSpace(s string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
 }
 
-// BufferAppend inserts a header string at the beginning of a byte buffer.
-func BufferAppend(s string, buf *[]byte) {
-	*buf = append([]byte(s), *buf...)
-}
+// URLBreadCrumbs returns a prettified URL with color.
+//
+//	https://example.org/title/some-title
+//	https://example.org > title > some-title
+func URLBreadCrumbs(s string, c color.ColorFn) string {
+	u, err := url.Parse(s)
+	if err != nil {
+		return ""
+	}
+	// default color
+	if c == nil {
+		c = color.Default
+	}
+	if u.Host == "" || u.Path == "" {
+		return c(s).Bold().String()
+	}
+	host := c(u.Host).Bold().String()
+	pathSegments := strings.FieldsFunc(
+		strings.TrimLeft(u.Path, "/"),
+		func(r rune) bool { return r == '/' },
+	)
 
-// BufferAppendEnd appends a string to the end of a byte buffer.
-func BufferAppendEnd(s string, buf *[]byte) {
-	*buf = append(*buf, []byte(s)...)
-}
-
-// Unique returns a slice of unique, non-empty strings from the input slice.
-func Unique(t []string) []string {
-	seen := make(map[string]bool)
-	var tags []string
-
-	for _, tag := range t {
-		if tag == "" {
-			continue
-		}
-		if !seen[tag] {
-			seen[tag] = true
-			tags = append(tags, tag)
-		}
+	if len(pathSegments) == 0 {
+		return host
 	}
 
-	return tags
+	uc := UnicodeSingleAngleMark
+	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
+	pathSeg := color.Text(uc, segments).Italic()
+
+	return fmt.Sprintf("%s %s", host, pathSeg)
 }
 
 // CountLines counts the number of lines in a string.
@@ -243,39 +235,6 @@ func TagsWithUnicode(s string) string {
 	return strings.TrimRight(strings.ReplaceAll(s, ",", ud), ud)
 }
 
-// URLBreadCrumbs returns a prettified URL with color.
-//
-//	https://example.org/title/some-title
-//	https://example.org > title > some-title
-func URLBreadCrumbs(s string, c color.ColorFn) string {
-	u, err := url.Parse(s)
-	if err != nil {
-		return ""
-	}
-	// default color
-	if c == nil {
-		c = color.Default
-	}
-	if u.Host == "" || u.Path == "" {
-		return c(s).Bold().String()
-	}
-	host := c(u.Host).Bold().String()
-	pathSegments := strings.FieldsFunc(
-		strings.TrimLeft(u.Path, "/"),
-		func(r rune) bool { return r == '/' },
-	)
-
-	if len(pathSegments) == 0 {
-		return host
-	}
-
-	uc := UnicodeSingleAngleMark
-	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
-	pathSeg := color.Text(uc, segments).Italic()
-
-	return fmt.Sprintf("%s %s", host, pathSeg)
-}
-
 // CenteredLine returns a string of exactly 'width' characters,
 // centering the label between dashes.
 func CenteredLine(width int, label string) string {
@@ -289,19 +248,6 @@ func CenteredLine(width int, label string) string {
 	right := dashCount - left
 
 	return strings.Repeat("-", left) + " " + label + " " + strings.Repeat("-", right)
-}
-
-// ReplaceHomePath replaces the home directory with a tilde (~).
-func ReplaceHomePath(p string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return p
-	}
-	if !strings.HasPrefix(p, home) {
-		return p
-	}
-
-	return "~" + p[len(home):]
 }
 
 // GenerateHash generates a hash from a string with the given length.

@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -24,6 +23,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
@@ -229,12 +229,12 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	title = format.Shorten(b.Title, maxLabelLen)
+	title = txt.Shorten(b.Title, maxLabelLen)
 	if err := qrcode.Label(title, "top"); err != nil {
 		return fmt.Errorf("%w: adding top label", err)
 	}
 
-	burl = format.Shorten(b.URL, maxLabelLen)
+	burl = txt.Shorten(b.URL, maxLabelLen)
 	if err := qrcode.Label(burl, "bottom"); err != nil {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
@@ -308,11 +308,11 @@ func editNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) err
 
 	const spaces = 10
 	buf := b.Buffer()
-	sep := format.CenteredLine(terminal.MinWidth-spaces, "bookmark addition")
-	format.BufferAppendEnd(" [New]", &buf)
-	format.BufferAppend("#\n# "+sep+"\n\n", &buf)
-	format.BufferAppend(fmt.Sprintf("# database: %q\n", config.App.DBName), &buf)
-	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
+	sep := txt.CenteredLine(terminal.MinWidth-spaces, "bookmark addition")
+	bookmark.BufferAppendEnd(" [New]", &buf)
+	bookmark.BufferAppend("#\n# "+sep+"\n\n", &buf)
+	bookmark.BufferAppend(fmt.Sprintf("# database: %q\n", config.App.DBName), &buf)
+	bookmark.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
 
 	if err := bookmark.Edit(te, t, f.Clear(), buf, b); err != nil {
 		if !errors.Is(err, bookmark.ErrBufferUnchanged) {

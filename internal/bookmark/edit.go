@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var ErrBufferUnchanged = errors.New("buffer unchanged")
@@ -51,7 +51,7 @@ func Edit(te *files.TextEditor, t *terminal.Term, f *frame.Frame, content []byte
 
 		f.Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
 		diff := te.Diff(b.Buffer(), tb.Buffer())
-		fmt.Println(format.DiffColor(diff))
+		fmt.Println(txt.DiffColor(diff))
 
 		opt, err := t.Choose(
 			f.Clear().Question("save changes?").String(),

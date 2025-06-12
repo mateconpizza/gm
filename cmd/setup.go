@@ -12,13 +12,13 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // DBName main database name.
@@ -73,16 +73,16 @@ func createPaths(t *terminal.Term, path string) error {
 	f.Header(prettyVersion()).Ln().Row().Ln()
 	p := color.Text(path).Italic().String()
 	fp := color.Text(config.App.DBPath).Italic().String()
-	f.Info(format.PaddedLine("Create path:", p+"\n"))
-	f.Info(format.PaddedLine("Create db:", fp+"\n"))
-	lines := format.CountLines(f.String()) + 1
+	f.Info(txt.PaddedLine("Create path:", p+"\n"))
+	f.Info(txt.PaddedLine("Create db:", fp+"\n"))
+	lines := txt.CountLines(f.String()) + 1
 	f.Row("\n").Flush()
 	if err := t.ConfirmErr(f.Question("continue?").String(), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	// clean terminal keeping header+row
 	headerN := 3
-	lines += format.CountLines(f.String()) - headerN
+	lines += txt.CountLines(f.String()) - headerN
 	t.ClearLine(lines)
 	if err := files.MkdirAll(path); err != nil {
 		sys.ErrAndExit(err)

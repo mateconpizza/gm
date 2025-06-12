@@ -13,11 +13,11 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var ErrNetworkUnreachable = errors.New("network is unreachable")
@@ -41,7 +41,7 @@ func (r *Response) String() string {
 	status += fmt.Sprintf("[%s]", colorStatus)
 
 	url := color.Gray(":URL:").String()
-	url += format.Shorten(r.URL, terminal.MinWidth)
+	url += txt.Shorten(r.URL, terminal.MinWidth)
 
 	return fmt.Sprintf("%s%s%s%s", id, code, status, url)
 }
@@ -156,7 +156,7 @@ func printSummaryStatus(r *slice.Slice[Response], d time.Duration) {
 				continue
 			}
 			bid := fmt.Sprintf(color.BrightGray("%-3d").String(), r.bID)
-			url := color.Gray(format.Shorten(r.URL, terminal.MinWidth)).Italic().String()
+			url := color.Gray(txt.Shorten(r.URL, terminal.MinWidth)).Italic().String()
 			f.Row(fmt.Sprintf(" %s %s", bid, url)).Ln()
 		}
 	}

@@ -11,9 +11,9 @@ import (
 	prompt "github.com/c-bata/go-prompt"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // PromptSuggester is a function that generates suggestions for a given prompt.
@@ -217,7 +217,7 @@ func getUserInputWithAttempts(
 
 		count++
 		if count <= attempts-1 {
-			ClearLine(format.CountLines(p))
+			ClearLine(txt.CountLines(p))
 		}
 	}
 

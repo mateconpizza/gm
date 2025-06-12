@@ -1,4 +1,4 @@
-package format
+package txt
 
 import (
 	"testing"
@@ -29,27 +29,6 @@ func TestShortenString(t *testing.T) {
 		r := Shorten(tt.input, tt.length)
 		assert.Len(t, r, tt.length)
 		assert.Equal(t, tt.expected, r)
-	}
-}
-
-func TestUnique(t *testing.T) {
-	t.Parallel()
-	test := []struct {
-		input    []string
-		expected []string
-	}{
-		{
-			input:    []string{"a", "b", "b", "B", "c"},
-			expected: []string{"a", "b", "B", "c"},
-		},
-		{
-			input:    []string{"a", "a", "a", "a", "a"},
-			expected: []string{"a"},
-		},
-	}
-	for _, tt := range test {
-		items := Unique(tt.input)
-		assert.Equal(t, tt.expected, items)
 	}
 }
 

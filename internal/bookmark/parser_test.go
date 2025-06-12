@@ -120,3 +120,24 @@ func TestParseTags(t *testing.T) {
 		})
 	}
 }
+
+func TestUniqueItem(t *testing.T) {
+	t.Parallel()
+	test := []struct {
+		input    []string
+		expected []string
+	}{
+		{
+			input:    []string{"a", "b", "b", "B", "c"},
+			expected: []string{"a", "b", "B", "c"},
+		},
+		{
+			input:    []string{"a", "a", "a", "a", "a"},
+			expected: []string{"a"},
+		},
+	}
+	for _, tt := range test {
+		items := uniqueItem(tt.input)
+		assert.Equal(t, tt.expected, items)
+	}
+}

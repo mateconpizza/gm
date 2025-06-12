@@ -15,13 +15,13 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 const maxItemsToEdit = 10
@@ -136,16 +136,16 @@ func prepareBuffer(b *bookmark.Bookmark, idx, total int) []byte {
 	w := terminal.MinWidth
 	const spaces = 10
 	// prepare the header with a short title.
-	shortTitle := format.Shorten(b.Title, w-spaces-6)
+	shortTitle := txt.Shorten(b.Title, w-spaces-6)
 	header := fmt.Sprintf("# %d %s\n", b.ID, shortTitle)
 	header += "#\n"
 	// append the header and version information.
-	sep := format.CenteredLine(terminal.MinWidth-spaces, "bookmark edition")
-	format.BufferAppend("# "+sep+"\n\n", &buf)
-	format.BufferAppend(fmt.Sprintf("# database:\t%q\n", config.App.DBName), &buf)
-	format.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
-	format.BufferAppend(header, &buf)
-	format.BufferAppendEnd(fmt.Sprintf(" [%d/%d]", idx+1, total), &buf)
+	sep := txt.CenteredLine(terminal.MinWidth-spaces, "bookmark edition")
+	bookmark.BufferAppend("# "+sep+"\n\n", &buf)
+	bookmark.BufferAppend(fmt.Sprintf("# database:\t%q\n", config.App.DBName), &buf)
+	bookmark.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
+	bookmark.BufferAppend(header, &buf)
+	bookmark.BufferAppendEnd(fmt.Sprintf(" [%d/%d]", idx+1, total), &buf)
 
 	return buf
 }

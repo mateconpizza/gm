@@ -453,3 +453,16 @@ func RemoveFilepath(fname string) error {
 
 	return nil
 }
+
+// ReplaceHomePath replaces the home directory with a tilde (~).
+func ReplaceHomePath(p string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return p
+	}
+	if !strings.HasPrefix(p, home) {
+		return p
+	}
+
+	return "~" + p[len(home):]
+}

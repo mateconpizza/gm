@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/format"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 const SummaryFileName = "summary.json"
@@ -57,7 +57,7 @@ func (s *SyncGitSummary) GenerateChecksum() {
 		sb.WriteString(s.ClientInfo.AppVersion)
 	}
 
-	s.Checksum = format.GenerateHash(sb.String(), length)
+	s.Checksum = txt.GenerateHash(sb.String(), length)
 }
 
 func NewSummary() *SyncGitSummary {

@@ -8,12 +8,12 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 type bookmarkTemp struct {
@@ -51,7 +51,7 @@ func readURLFromClipboard(t *terminal.Term, f *frame.Frame) string {
 	f.Mid(color.BrightMagenta("URL\t:").String()).
 		Textln(" " + color.Gray(c).String())
 
-	lines := format.CountLines(f.String())
+	lines := txt.CountLines(f.String())
 	f.Flush()
 
 	if err := t.ConfirmErr(f.Clear().Question("found valid URL in clipboard, use URL?").String(), "y"); err != nil {
@@ -125,7 +125,7 @@ func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *book
 	f.Clear().Mid(color.BrightBlue("Tags\t:").String()).
 		Text(" " + color.Gray(b.tags).String()).Ln()
 
-	t.ClearLine(format.CountLines(f.String()))
+	t.ClearLine(txt.CountLines(f.String()))
 	f.Flush()
 }
 
@@ -159,7 +159,7 @@ func NewBookmark(
 
 	b.URL = newURL
 	b.Title = bTemp.title
-	b.Desc = strings.Join(format.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
+	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
 	b.Tags = bookmark.ParseTags(bTemp.tags)
 
 	return nil
@@ -171,7 +171,7 @@ func fetchTitleAndDesc(f *frame.Frame, sc *scraper.Scraper, b *bookmarkTemp) {
 	width := terminal.MinWidth - len(f.Border.Row)
 
 	if b.title != "" {
-		t := color.Gray(format.SplitAndAlign(b.title, width, indentation)).String()
+		t := color.Gray(txt.SplitAndAlign(b.title, width, indentation)).String()
 		f.Mid(color.BrightCyan("Title\t: ").String()).Text(t).Ln().Flush()
 		return
 	}
@@ -182,10 +182,10 @@ func fetchTitleAndDesc(f *frame.Frame, sc *scraper.Scraper, b *bookmarkTemp) {
 	b.desc, _ = sc.Desc()
 	b.tags, _ = sc.Keywords()
 
-	t := color.Gray(format.SplitAndAlign(b.title, width, indentation)).String()
+	t := color.Gray(txt.SplitAndAlign(b.title, width, indentation)).String()
 	f.Mid(color.BrightCyan("Title\t: ").String()).Text(t).Ln()
 	if b.desc != "" {
-		descColor := color.Gray(format.SplitAndAlign(b.desc, width, indentation)).String()
+		descColor := color.Gray(txt.SplitAndAlign(b.desc, width, indentation)).String()
 		f.Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln()
 	}
 

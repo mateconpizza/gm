@@ -11,12 +11,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var (
@@ -36,7 +36,7 @@ func createConfig(p string) error {
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Info(format.PaddedLine("File:", color.Text(p).Italic()) + "\n").Row("\n")
+	f.Info(txt.PaddedLine("File:", color.Text(p).Italic()) + "\n").Row("\n")
 	if !terminal.Confirm(f.Question("create?").String(), "y") {
 		return nil
 	}
@@ -113,7 +113,7 @@ func printConfigJSON(p string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	j, err := format.ToJSON(cfg)
+	j, err := handler.ToJSON(cfg)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -165,8 +165,8 @@ func printColorSchemes() error {
 	h := color.BrightYellow("ColorSchemes " + strconv.Itoa(len(keys)) + " Found\n").String()
 	f.Header(h).Row("\n")
 	for _, k := range keys {
-		cs, _ := color.DefaultSchemes[k]
-		c := strconv.Itoa(cs.Palette.Len())
+		cs := color.DefaultSchemes[k]
+		c := strconv.Itoa(cs.Len())
 		f.Mid(fmt.Sprintf("%-*s %v\n", 20, cs.Name, color.Gray(" ("+c+" colors)")))
 	}
 	f.Flush()
