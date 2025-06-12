@@ -8,12 +8,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/importer"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -105,17 +105,12 @@ var gitLogCmd = &cobra.Command{
 var gitInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Create empty Git repository",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if files.Exists(config.App.Path.Git) {
-			return nil
-		}
-		return files.MkdirAll(config.App.Path.Git)
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		t := terminal.New(terminal.WithInterruptFn(func(err error) {
 			sys.ErrAndExit(err)
 		}))
 		f := frame.New(frame.WithColorBorder(color.BrightBlue))
+
 		repoPath := config.App.Path.Git
 
 		if err := git.InitRepo(repoPath, config.App.Force); err != nil {
@@ -137,7 +132,13 @@ func initializeTracking(t *terminal.Term, f *frame.Frame, tracked []string) erro
 
 	if gpg.IsInitialized(config.App.Path.Git) || !t.Confirm(s, "y") {
 		for _, dbFile := range tracked {
-			if err := handler.GitExport(dbFile); err != nil {
+			if err := port.GitExport(dbFile); err != nil {
+				if errors.Is(err, git.ErrGitNothingToCommit) {
+					f.Clear().
+						Warning(fmt.Sprintf("Skipping %q, no bookmarks found\n", filepath.Base(dbFile))).
+						Flush()
+					continue
+				}
 				return fmt.Errorf("%w", err)
 			}
 			if err := handler.GitCommit("Initializing repo"); err != nil {
@@ -198,7 +199,14 @@ var gpgInitCmd = &cobra.Command{
 		f := frame.New(frame.WithColorBorder(color.Gray))
 		f.Clear().Success(success + color.Text(" initialized\n").Italic().String()).Flush()
 
-		if err := handler.GitExport(config.App.DBPath); err != nil {
+		if err := port.GitExport(config.App.DBPath); err != nil {
+			if errors.Is(err, git.ErrGitNothingToCommit) {
+				f.Clear().
+					Warning(fmt.Sprintf("Skipping %q, no bookmarks found\n", filepath.Base(config.App.DBPath))).
+					Flush()
+				return nil
+			}
+
 			return fmt.Errorf("%w", err)
 		}
 
@@ -219,7 +227,7 @@ var gitCloneCmd = &cobra.Command{
 	Long:  "Clone a repository and import to the a new bookmarks database",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// FIX:
-		// * Clone this repo into `config.App.Path.Git`? Discard if already exists?
+		// * Clone this repo into `config.App.Path.Git`
 		// 	- Discard if already exists? Merge? Ignore?
 		// * Maybe move this into subcommand `import`? added as a new source/way to
 		// import?
@@ -234,12 +242,23 @@ var gitCloneCmd = &cobra.Command{
 				return fmt.Errorf("removing temp repo: %w", err)
 			}
 		}
+
 		f := frame.New(frame.WithColorBorder(color.Gray))
 		t := terminal.New(terminal.WithInterruptFn(func(err error) {
 			sys.ErrAndExit(err)
 		}))
 
-		return importer.Git(tmpPath, repoPath, t, f)
+		if err := port.GitImport(t, f, tmpPath, repoPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if err := port.GitExport(config.App.DBPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if err := handler.GitCommit("Import from git"); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	},
 }
 

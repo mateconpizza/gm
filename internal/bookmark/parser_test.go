@@ -68,49 +68,6 @@ func TestExtractBlock(t *testing.T) {
 	}
 }
 
-func TestExtractLineContent(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		c        []string
-		expected int
-	}{
-		{
-			name: "Test with empty lines and comments",
-			c: []string{
-				"# Line 1",
-				"Line 2",
-				"               ",
-				"# Line 3",
-				"Line 4",
-				"",
-				"Line 5",
-			},
-			expected: 3,
-		},
-		{
-			name: "Test with multiple comments",
-			c: []string{
-				"# Line 1",
-				" Line 2",
-				"# Line 3",
-				"# Line 4",
-				"# Line 5",
-			},
-			expected: 1,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			tt := test
-			got := ExtractContentLine(&tt.c)
-			assert.Len(t, got, tt.expected, "Expected %d lines, got %d", tt.expected, len(got))
-		})
-	}
-}
-
 func TestRecordIsValid(t *testing.T) {
 	t.Parallel()
 	validBookmark := testSingleBookmark()

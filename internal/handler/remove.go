@@ -56,6 +56,9 @@ func RemoveRepo(t *terminal.Term, p string) error {
 	if err := files.Remove(p); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	if err := GitDropRepo(config.App.DBPath, config.App.Path.Git, "Dropped"); err != nil {
+		return fmt.Errorf("%w", err)
+	}
 
 	s := color.BrightGreen("Successfully").Italic().String()
 	var a string
@@ -72,7 +75,7 @@ func RemoveRepo(t *terminal.Term, p string) error {
 
 // RemoveBackups removes backups.
 func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
-	fs, err := db.ListDatabaseBackups(config.App.Path.Backup, filepath.Base(p))
+	fs, err := db.ListBackups(config.App.Path.Backup, filepath.Base(p))
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

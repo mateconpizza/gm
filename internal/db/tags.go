@@ -11,8 +11,8 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 )
 
-// GetOrCreateTag returns the tag ID.
-func (r *SQLiteRepository) GetOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
+// getOrCreateTag returns the tag ID.
+func (r *SQLiteRepository) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
 	if s == "" {
 		// no tag to process
 		return 0, nil
@@ -41,7 +41,7 @@ func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) erro
 		if tag == "" || tag == " " {
 			continue
 		}
-		tagID, err := r.GetOrCreateTag(tx, tag)
+		tagID, err := r.getOrCreateTag(tx, tag)
 		if err != nil {
 			return err
 		}

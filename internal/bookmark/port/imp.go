@@ -1,10 +1,13 @@
-package importer
+package port
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
+	"sync"
 
 	"github.com/mateconpizza/rotato"
 
@@ -22,8 +25,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
-// Git imports bookmarks from a git repository.
-func Git(tmpPath, repoPath string, t *terminal.Term, f *frame.Frame) error {
+// GitImport imports bookmarks from a git repository.
+func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) error {
 	if err := git.Clone(tmpPath, repoPath); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -39,7 +42,7 @@ func Git(tmpPath, repoPath string, t *terminal.Term, f *frame.Frame) error {
 	f.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	for _, repoName := range repos {
-		if err := loadGitRepo(tmpPath, repoName, t, f.Clear()); err != nil {
+		if err := parseGitRepository(tmpPath, repoName, t, f.Clear()); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				t.ClearLine(1)
 				f.Clear().Warning(fmt.Sprintf("skipping repo %q\n", repoName)).Flush()
@@ -61,6 +64,7 @@ func Git(tmpPath, repoPath string, t *terminal.Term, f *frame.Frame) error {
 	f.Clear().Rowln().
 		Success(color.BrightGreen("Successfully").Italic().String() + " imported bookmarks from git\n").
 		Flush()
+
 	return nil
 }
 
@@ -132,7 +136,7 @@ func Database(srcDB *db.SQLiteRepository) error {
 	bs := slice.New(records...)
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	if err := deduplicate(f, destDB, bs); err != nil {
+	if _, err := deduplicate(f, destDB, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
 			f.Midln("no new bookmark found, skipping import").Flush()
 			return nil
@@ -152,7 +156,7 @@ func Database(srcDB *db.SQLiteRepository) error {
 	return nil
 }
 
-// IntoRepo inserts records into the database.
+// IntoRepo import records into the database.
 func IntoRepo(
 	t *terminal.Term,
 	r *db.SQLiteRepository,
@@ -181,6 +185,54 @@ func IntoRepo(
 	return nil
 }
 
+// FromBackup imports bookmarks from a backup.
+func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteRepository) error {
+	interruptFn := func(err error) {
+		destDB.Close()
+		srcDB.Close()
+		sys.ErrAndExit(err)
+	}
+
+	m := menu.New[bookmark.Bookmark](
+		menu.WithUseDefaults(),
+		menu.WithMultiSelection(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", config.App.Cmd, srcDB.Name())),
+		menu.WithInterruptFn(interruptFn),
+		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'", false),
+	)
+	defer t.CancelInterruptHandler()
+
+	bookmarks, err := srcDB.All()
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	cs := color.DefaultColorScheme()
+	m.SetItems(bookmarks)
+	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
+		return bookmark.Oneline(b, cs)
+	})
+
+	items, err := m.Select()
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	bs := slice.New(items...)
+
+	if _, err := deduplicate(f, destDB, bs); err != nil {
+		if errors.Is(err, slice.ErrSliceEmpty) {
+			f.Clear().Row("\n").Mid("no new bookmark found, skipping import\n").Flush()
+			return nil
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+// mergeRecords merges non-duplicates records into database.
 func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
 	r, err := db.New(dbPath)
 	if err != nil {
@@ -188,7 +240,7 @@ func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
 	}
 	defer r.Close()
 
-	bookmarks, err := parseGitRepo(f.Clear(), repoPath)
+	bookmarks, err := exportFromGit(f.Clear(), repoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
@@ -204,15 +256,19 @@ func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	f.Clear().
-		Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), filepath.Base(dbPath))).
-		Flush()
+	n := len(bookmarks)
+	if n > 0 {
+		f.Clear().
+			Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).
+			Flush()
+	}
 
 	return nil
 }
 
+// intoDB import into database.
 func intoDB(f *frame.Frame, dbPath, dbName, repoPath string) error {
-	bookmarks, err := parseGitRepo(f.Clear(), repoPath)
+	bookmarks, err := exportFromGit(f.Clear(), repoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
@@ -241,4 +297,92 @@ func intoDB(f *frame.Frame, dbPath, dbName, repoPath string) error {
 		Flush()
 
 	return nil
+}
+
+func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
+	bookmarks, err := exportFromGit(f.Clear(), repoPath)
+	if err != nil {
+		return err
+	}
+
+	m := menu.New[bookmark.Bookmark](
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s to import", false),
+		menu.WithInterruptFn(func(err error) { // build interrupt cleanup
+			sys.ErrAndExit(err)
+		}),
+	)
+
+	coso := make([]bookmark.Bookmark, 0, len(bookmarks))
+	for _, b := range bookmarks {
+		coso = append(coso, *b)
+	}
+
+	slices.SortFunc(coso, func(a, b bookmark.Bookmark) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	cs := color.DefaultColorScheme()
+
+	m.SetItems(coso)
+	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
+		return bookmark.Oneline(b, cs)
+	})
+	selected, err := m.Select()
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	bs := slice.New(selected...)
+	r, err := db.New(dbPath)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	debookmarks, err := deduplicate(f.Clear(), r, bs)
+	if err != nil {
+		return err
+	}
+
+	n := len(debookmarks)
+	if n > 0 {
+		f.Clear().
+			Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).
+			Flush()
+	}
+
+	return nil
+}
+
+// loadConcurrently processes a single JSON file in a goroutine.
+func loadConcurrently(
+	path string,
+	bs *slice.Slice[bookmark.Bookmark],
+	wg *sync.WaitGroup,
+	mu *sync.Mutex,
+	sem chan struct{},
+	loader func(path string) (*bookmark.Bookmark, error),
+	errTracker *ErrTracker,
+) {
+	// FIX: replace slice with []*Bookmark
+	_ = mu
+	sem <- struct{}{} // acquire semaphore
+	wg.Add(1)
+
+	go func(filePath string) {
+		defer func() {
+			<-sem     // release semaphore
+			wg.Done() // mark goroutine as done
+		}()
+
+		b, err := loader(filePath)
+		if err != nil {
+			errTracker.SetError(err)
+			return
+		}
+
+		bs.Push(b)
+	}(path)
 }

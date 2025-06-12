@@ -7,19 +7,17 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/importer"
 	"github.com/mateconpizza/gm/internal/menu"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
-
-var ErrNotImplemented = errors.New("not implemented")
 
 // ImportFromDB imports bookmarks from the given database.
 func ImportFromDB(
@@ -60,16 +58,42 @@ func ImportFromDB(
 		return err
 	}
 
-	if err := importer.IntoRepo(t, destDB, records); err != nil {
+	if err := port.IntoRepo(t, destDB, records); err != nil {
 		return fmt.Errorf("inserting records: %w", err)
 	}
 
 	return GitCommit("Import")
 }
 
+func ImportFromBackupNew(destDB *db.SQLiteRepository) error {
+	backupPath, err := SelectRepoBackup(destDB)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	srcDB, err := db.New(backupPath)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	defer srcDB.Close()
+
+	t := terminal.New(terminal.WithInterruptFn(func(err error) {
+		destDB.Close()
+		srcDB.Close()
+		sys.ErrAndExit(err)
+	}))
+
+	f := frame.New(frame.WithColorBorder(color.Gray))
+
+	if err := port.FromBackup(t, f, destDB, srcDB); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
 // ImportFromBackup imports bookmarks from a backup.
 func ImportFromBackup(cmd *cobra.Command, args []string) error {
-	// FIX: move to `importer` package or remove
 	destDB, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -116,7 +140,7 @@ func ImportFromDatabase() error {
 	}
 	defer srcDB.Close()
 
-	if err := importer.Database(srcDB); err != nil {
+	if err := port.Database(srcDB); err != nil {
 		return fmt.Errorf("import from database: %w", err)
 	}
 

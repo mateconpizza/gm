@@ -232,7 +232,7 @@ func RepoInfo(p string, j bool) error {
 		return fmt.Errorf("database: %w", err)
 	}
 	defer r.Close()
-	r.Cfg.BackupFiles, _ = r.BackupsList()
+	r.Cfg.BackupFiles, _ = r.ListBackups()
 	if j {
 		b, err := format.ToJSON(r)
 		if err != nil {

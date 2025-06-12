@@ -45,9 +45,9 @@ func (r *SQLiteRepository) Close() {
 	})
 }
 
-// BackupsList returns a list of available backup files.
-func (r *SQLiteRepository) BackupsList() ([]string, error) {
-	return ListDatabaseBackups(r.Cfg.BackupDir, r.Cfg.Name)
+// ListBackups returns a list of available backup files.
+func (r *SQLiteRepository) ListBackups() ([]string, error) {
+	return ListBackups(r.Cfg.BackupDir, r.Cfg.Name)
 }
 
 // Backup creates a backup of the SQLite database and returns the path to the

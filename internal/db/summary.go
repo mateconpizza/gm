@@ -62,7 +62,7 @@ func RepoSummaryFromPath(p string) string {
 		name = format.PaddedLine(name, color.Gray("(default)").Italic())
 	}
 	f.Header(name).Ln().Row(records).Ln().Row(tags).Ln()
-	backups, _ := r.BackupsList()
+	backups, _ := r.ListBackups()
 	if len(backups) > 0 {
 		f.Row(format.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
 	}
@@ -142,7 +142,7 @@ func BackupSummaryWithFmtDateFromPath(p string) string {
 // BackupListDetail returns the details of a backup.
 func BackupListDetail(r *SQLiteRepository) string {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	fs, err := r.BackupsList()
+	fs, err := r.ListBackups()
 	if len(fs) == 0 {
 		return ""
 	}
@@ -180,7 +180,7 @@ func BackupsSummary(r *SQLiteRepository) string {
 	)
 
 	var n int
-	fs, err := r.BackupsList()
+	fs, err := r.ListBackups()
 	if len(fs) == 0 {
 		return ""
 	}

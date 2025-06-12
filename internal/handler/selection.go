@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/frame"
@@ -62,7 +61,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 // SelectRepoBackup lets the user choose a backup and handles decryption if
 // needed.
 func SelectRepoBackup(destDB *db.SQLiteRepository) (string, error) {
-	bks, err := destDB.BackupsList()
+	bks, err := destDB.ListBackups()
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -242,7 +241,6 @@ func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]str
 
 	f.Ln().Midln("Select which databases to track").Flush()
 	tracked := make([]string, 0, len(dbFiles))
-	trackedFile := make([]string, 0, len(dbFiles))
 
 	for _, dbFile := range dbFiles {
 		f.Clear()
@@ -257,17 +255,11 @@ func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]str
 			continue
 		}
 		tracked = append(tracked, dbFile)
-		trackedFile = append(trackedFile, filepath.Base(dbFile))
 		t.ReplaceLine(1, f.Clear().Success(fmt.Sprintf("Tracking %q", dbName)).String())
 	}
 
 	if len(tracked) == 0 {
 		return nil, terminal.ErrActionAborted
-	}
-
-	fname := filepath.Join(repoPath, bookmark.FileTrackRepo)
-	if err := files.JSONWrite(fname, &trackedFile, true); err != nil {
-		return nil, fmt.Errorf("%w", err)
 	}
 
 	return tracked, nil

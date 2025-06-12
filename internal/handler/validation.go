@@ -145,7 +145,7 @@ func ValidateDBExists(p string) error {
 		return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
 	}
 	ei := fmt.Errorf("%w: use %s or %s", db.ErrDBNotFound, i, o)
-	dbs, err := db.Databases(filepath.Dir(p))
+	dbs, err := db.List(filepath.Dir(p))
 	if err != nil {
 		return ei
 	}

@@ -1,10 +1,11 @@
-package importer
+package port
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -26,12 +27,44 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
-var ErrNotImplemented = errors.New("not implemented")
+const FileExtJSON = ".json"
 
 type loaderFileFn = func(path string) (*bookmark.Bookmark, error)
 
+// ErrTracker provides thread-safe error tracking.
+type ErrTracker struct {
+	mu    sync.Mutex
+	error error
+}
+
+// NewErrorTracker creates a new error tracker.
+func NewErrorTracker() *ErrTracker {
+	return &ErrTracker{}
+}
+
+// SetError sets the first error encountered (thread-safe).
+func (et *ErrTracker) SetError(err error) {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	if et.error == nil {
+		et.error = err
+	}
+}
+
+// GetError returns the first error encountered (if any).
+func (et *ErrTracker) GetError() error {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+	return et.error
+}
+
 // deduplicate removes duplicate bookmarks.
-func deduplicate(f *frame.Frame, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func deduplicate(
+	f *frame.Frame,
+	r *db.SQLiteRepository,
+	bs *slice.Slice[bookmark.Bookmark],
+) ([]*bookmark.Bookmark, error) {
 	originalLen := bs.Len()
 	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
 		_, exists := r.Has(b.URL)
@@ -44,10 +77,10 @@ func deduplicate(f *frame.Frame, r *db.SQLiteRepository, bs *slice.Slice[bookmar
 	}
 
 	if bs.Empty() {
-		return slice.ErrSliceEmpty
+		return nil, slice.ErrSliceEmpty
 	}
 
-	return nil
+	return bs.ItemsPtr(), nil
 }
 
 // deduplicate removes duplicate bookmarks.
@@ -82,7 +115,7 @@ func parseFoundInBrowser(
 ) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Rowln()
-	if err := deduplicate(f, r, bs); err != nil {
+	if _, err := deduplicate(f, r, bs); err != nil {
 		if errors.Is(err, slice.ErrSliceEmpty) {
 			f.Midln("no new bookmark found, skipping import").Flush()
 			return nil
@@ -110,7 +143,7 @@ func parseFoundInBrowser(
 func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	var (
 		count      = 0
-		errTracker = bookmark.NewErrorTracker()
+		errTracker = NewErrorTracker()
 		wg         sync.WaitGroup
 		mu         sync.Mutex
 		bookmarks  = []*bookmark.Bookmark{}
@@ -165,7 +198,7 @@ func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	var (
 		count      = 0
-		errTracker = bookmark.NewErrorTracker()
+		errTracker = NewErrorTracker()
 		wg         sync.WaitGroup
 		mu         sync.Mutex
 		bookmarks  = []*bookmark.Bookmark{}
@@ -218,24 +251,12 @@ func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	return bookmarks, nil
 }
 
-func parseGitRepo(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error) {
-	if !files.Exists(repoPath) {
-		return nil, fmt.Errorf("%w: %q", git.ErrGitRepoNotFound, repoPath)
-	}
-	rootDir := filepath.Dir(repoPath)
-	if !gpg.IsInitialized(rootDir) {
-		return parseJSONRepo(f, repoPath)
-	}
-
-	return parseGPGRepo(f, repoPath)
-}
-
 // parseGPGFile is a WalkDirFunc that loads .gpg files concurrently.
 func parseGPGFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.WalkDirFunc {
 	var (
 		bs                 = slice.New[bookmark.Bookmark]()
 		count              = 0
-		errTracker         = bookmark.NewErrorTracker()
+		errTracker         = NewErrorTracker()
 		passphrasePrompted = false
 		sem                = make(chan struct{}, runtime.NumCPU()*2)
 	)
@@ -259,7 +280,7 @@ func parseGPGFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.Wa
 			return nil
 		}
 
-		bookmark.LoadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
+		loadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
 
 		return nil
 	}
@@ -268,7 +289,7 @@ func parseGPGFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.Wa
 func parseJSONFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.WalkDirFunc {
 	var (
 		bs         = slice.New[bookmark.Bookmark]()
-		errTracker = bookmark.NewErrorTracker()
+		errTracker = NewErrorTracker()
 		sem        = make(chan struct{}, runtime.NumCPU()*2)
 	)
 
@@ -277,19 +298,19 @@ func parseJSONFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.W
 			return err
 		}
 
-		if d.IsDir() || filepath.Ext(path) != bookmark.FileJSONExt {
+		if d.IsDir() || filepath.Ext(path) != FileExtJSON {
 			return nil
 		}
 
-		bookmark.LoadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
+		loadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
 		time.Sleep(5 * time.Millisecond)
 
 		return nil
 	}
 }
 
-// loadGitRepo loads a git repo into a database.
-func loadGitRepo(root, repoName string, t *terminal.Term, f *frame.Frame) error {
+// parseGitRepository loads a git repo into a database.
+func parseGitRepository(root, repoName string, t *terminal.Term, f *frame.Frame) error {
 	f.Clear().Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
 
@@ -319,17 +340,17 @@ func loadGitRepo(root, repoName string, t *terminal.Term, f *frame.Frame) error 
 		f.Clear().Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
 		f.Question("What do you want to do?")
 
-		opt, err = t.Choose(f.String(), []string{"merge", "drop", "create", "skip"}, "s")
+		opt, err = t.Choose(f.String(), []string{"merge", "drop", "create", "select", "ignore"}, "m")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		f.Clear()
 	}
 
-	return loadGitRepoAction(t, f, opt, dbPath, dbName, repoPath)
+	return parseGitRepositoryAction(t, f, opt, dbPath, dbName, repoPath)
 }
 
-func loadGitRepoAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbName, repoPath string) error {
+func parseGitRepositoryAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbName, repoPath string) error {
 	switch strings.ToLower(opt) {
 	case "new":
 		if err := intoDB(f, dbPath, dbName, repoPath); err != nil {
@@ -349,16 +370,82 @@ func loadGitRepoAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbName, re
 			return fmt.Errorf("%w", err)
 		}
 		if err := mergeRecords(f.Clear(), dbPath, repoPath); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 	case "m", "merge":
 		f.Info("Merging database\n").Flush()
 		if err := mergeRecords(f.Clear(), dbPath, repoPath); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
-	case "s", "skip":
+	case "s", "select":
+		if err := selectRecords(f.Clear(), dbPath, repoPath); err != nil {
+			return err
+		}
+	case "i", "ignore":
 		f.Clear().Warning("Skipping repository..." + dbName + "\n").Flush()
 		return nil
+	}
+
+	return nil
+}
+
+// resolveFileConflictError resolves a file conflict error.
+func resolveFileConflictError(rootPath string, err error, filePathJSON string, b *bookmark.Bookmark) error {
+	if !errors.Is(err, files.ErrFileExists) {
+		return err
+	}
+	bj := bookmark.BookmarkJSON{}
+	if err := files.JSONRead(filePathJSON, &bj); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	// no need to update
+	if bj.Checksum == b.Checksum {
+		return nil
+	}
+	return gitStoreAsJSON(rootPath, b, true)
+}
+
+func gitUpdateJSON(root string, oldB, newB *bookmark.Bookmark) error {
+	if err := GitCleanJSON(root, []*bookmark.Bookmark{oldB}); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return GitStore(newB)
+}
+
+// GitCleanJSON removes the files from the git repo.
+func GitCleanJSON(root string, bs []*bookmark.Bookmark) error {
+	slog.Debug("cleaning up git JSON files")
+	for _, b := range bs {
+		jsonPath, err := b.JSONPath()
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		fname := filepath.Join(root, jsonPath)
+		if err := files.RemoveFilepath(fname); err != nil {
+			return fmt.Errorf("cleaning JSON: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GitCleanGPG removes the files from the git repo.
+func GitCleanGPG(root string, bs []*bookmark.Bookmark) error {
+	slog.Debug("cleaning up git JSON files")
+	for _, b := range bs {
+		gpgPath, err := b.GPGPath()
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		fname := filepath.Join(root, gpgPath)
+		if err := files.RemoveFilepath(fname); err != nil {
+			if errors.Is(err, files.ErrFileNotFound) {
+				return nil
+			}
+			return fmt.Errorf("cleaning GPG: %w", err)
+		}
 	}
 
 	return nil

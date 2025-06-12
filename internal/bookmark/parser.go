@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -41,20 +42,6 @@ func ParseTags(tags string) string {
 	return tags + ","
 }
 
-// ExtractContentLine extracts content lines from a string slice.
-func ExtractContentLine(c *[]string) map[string]bool {
-	const comment = "#"
-	m := make(map[string]bool)
-	for _, l := range *c {
-		l = strings.TrimSpace(l)
-		if !strings.HasPrefix(l, comment) && !strings.EqualFold(l, "") {
-			m[l] = true
-		}
-	}
-
-	return m
-}
-
 // Validate validates the bookmark.
 func Validate(b *Bookmark) error {
 	if b.URL == "" {
@@ -68,6 +55,51 @@ func Validate(b *Bookmark) error {
 	}
 
 	return nil
+}
+
+// ScrapeMissingDescription scrapes missing data from bookmarks found from the import
+// process.
+func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
+	if bs.Len() == 0 {
+		return nil
+	}
+	sp := rotato.New(
+		rotato.WithSpinnerColor(rotato.ColorGray),
+		rotato.WithMesg("scraping missing data..."),
+		rotato.WithMesgColor(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+	)
+	sp.Start()
+	var wg sync.WaitGroup
+	errs := make([]string, 0)
+	bs.ForEachMut(func(b *Bookmark) {
+		wg.Add(1)
+		go func(b *Bookmark) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			defer wg.Done()
+			sc := scraper.New(b.URL, scraper.WithContext(ctx))
+			if err := sc.Start(); err != nil {
+				errs = append(errs, fmt.Sprintf("url %s: %s", b.URL, err.Error()))
+				slog.Warn("scraping error", "url", b.URL, "err", err)
+			}
+			b.Desc, _ = sc.Desc()
+		}(b)
+	})
+	wg.Wait()
+
+	sp.Done("Scraping done")
+
+	return nil
+}
+
+func ValidateChecksumJSON(b *BookmarkJSON) bool {
+	tags := ParseTags(strings.Join(b.Tags, ","))
+	return b.Checksum == Checksum(b.URL, b.Title, b.Desc, tags)
+}
+
+func ValidateChecksum(b *Bookmark) bool {
+	return b.Checksum == Checksum(b.URL, b.Title, b.Desc, b.Tags)
 }
 
 // validateBookmarkFormat checks if the URL and Tags are in the content.
@@ -214,38 +246,33 @@ func scrapeBookmark(b *Bookmark) (*Bookmark, error) {
 	return b, nil
 }
 
-// ScrapeMissingDescription scrapes missing data from bookmarks found from the import
-// process.
-func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
-	if bs.Len() == 0 {
-		return nil
+// hashURL generates a hash from a hashURL.
+func hashURL(rawURL string) string {
+	return format.GenerateHash(rawURL, 12)
+}
+
+// hashDomain generates a hash from a domain.
+func hashDomain(rawURL string) (string, error) {
+	domain, err := domain(rawURL)
+	if err != nil {
+		return "", err
 	}
-	sp := rotato.New(
-		rotato.WithSpinnerColor(rotato.ColorGray),
-		rotato.WithMesg("scraping missing data..."),
-		rotato.WithMesgColor(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-	)
-	sp.Start()
-	var wg sync.WaitGroup
-	errs := make([]string, 0)
-	bs.ForEachMut(func(b *Bookmark) {
-		wg.Add(1)
-		go func(b *Bookmark) {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			defer wg.Done()
-			sc := scraper.New(b.URL, scraper.WithContext(ctx))
-			if err := sc.Start(); err != nil {
-				errs = append(errs, fmt.Sprintf("url %s: %s", b.URL, err.Error()))
-				slog.Warn("scraping error", "url", b.URL, "err", err)
-			}
-			b.Desc, _ = sc.Desc()
-		}(b)
-	})
-	wg.Wait()
+	return format.GenerateHash(domain, 12), nil
+}
 
-	sp.Done("Scraping done")
+// domain extracts the domain from a URL.
+func domain(rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing url: %w", err)
+	}
+	// normalize domain
+	domain := strings.ToLower(u.Hostname())
+	return strings.TrimPrefix(domain, "www."), nil
+}
 
-	return nil
+// Checksum generates a checksum for the bookmark.
+func Checksum(rawURL, title, desc, tags string) string {
+	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s", rawURL, title, desc, tags)
+	return format.GenerateHash(data, 8)
 }

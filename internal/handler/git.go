@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
@@ -19,6 +20,11 @@ import (
 
 // GitCommit commits the bookmarks to the git repo.
 func GitCommit(actionMsg string) error {
+	if !git.IsInitialized(config.App.Path.Git) {
+		slog.Debug("git export: git not initialized")
+		return nil
+	}
+
 	repoPath := config.App.Path.Git
 	if !files.Exists(repoPath) {
 		return nil
@@ -42,7 +48,7 @@ func GitCommit(actionMsg string) error {
 	}
 
 	root := filepath.Join(repoPath, files.StripSuffixes(config.App.DBName))
-	if err := bookmark.GitExport(repoPath, root, bookmarks); err != nil {
+	if err := port.GitWrite(repoPath, root, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -263,17 +269,17 @@ func GitCleanFiles(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) e
 		return nil
 	}
 
-	fileExt := bookmark.FileJSONExt
+	fileExt := port.FileExtJSON
 	if gpg.IsInitialized(repoPath) {
 		fileExt = gpg.Extension
 	}
 
 	var cleaner func(string, []*bookmark.Bookmark) error
 	switch fileExt {
-	case bookmark.FileJSONExt:
-		cleaner = bookmark.GitCleanJSON
+	case port.FileExtJSON:
+		cleaner = port.GitCleanJSON
 	case gpg.Extension:
-		cleaner = bookmark.GitCleanGPG
+		cleaner = port.GitCleanGPG
 	}
 
 	rootRepo := filepath.Join(repoPath, files.StripSuffixes(r.Cfg.Name))
@@ -282,28 +288,4 @@ func GitCleanFiles(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) e
 	}
 
 	return GitCommit("Remove")
-}
-
-// GitExport exports the bookmarks to the git repo.
-func GitExport(dbPath string) error {
-	r, err := db.New(dbPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	defer r.Close()
-
-	bookmarks, err := r.AllPtr()
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	repoPath := config.App.Path.Git
-	dbName := filepath.Base(dbPath)
-	root := filepath.Join(repoPath, files.StripSuffixes(dbName))
-
-	if err := bookmark.GitExport(repoPath, root, bookmarks); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
 }

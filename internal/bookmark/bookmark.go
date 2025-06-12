@@ -7,18 +7,21 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/mateconpizza/gm/internal/locker/gpg"
 )
 
 var (
-	ErrDuplicate    = errors.New("bookmark already exists")
-	ErrInvalid      = errors.New("bookmark invalid")
-	ErrInvalidID    = errors.New("invalid bookmark id")
-	ErrInvalidInput = errors.New("invalid input")
-	ErrNotFound     = errors.New("no bookmark found")
-	ErrNotSelected  = errors.New("no bookmark selected")
-	ErrTagsEmpty    = errors.New("TAGS cannot be empty")
-	ErrURLEmpty     = errors.New("URL cannot be empty")
-	ErrUnknownField = errors.New("bookmark field unknown")
+	ErrDuplicate       = errors.New("bookmark already exists")
+	ErrInvalid         = errors.New("bookmark invalid")
+	ErrInvalidID       = errors.New("invalid bookmark id")
+	ErrInvalidInput    = errors.New("invalid input")
+	ErrNotFound        = errors.New("no bookmark found")
+	ErrNotSelected     = errors.New("no bookmark selected")
+	ErrTagsEmpty       = errors.New("tags cannot be empty")
+	ErrURLEmpty        = errors.New("URL cannot be empty")
+	ErrUnknownField    = errors.New("bookmark field unknown")
+	ErrInvalidChecksum = errors.New("invalid checksum")
 )
 
 // Bookmark represents a bookmark.
@@ -135,7 +138,7 @@ func (b *Bookmark) GenerateChecksum() {
 //
 //	hashDomain + Checksum
 func (b *Bookmark) HashPath() (string, error) {
-	domain, err := HashDomain(b.URL)
+	domain, err := hashDomain(b.URL)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -147,6 +150,10 @@ func (b *Bookmark) Domain() (string, error) {
 	return domain(b.URL)
 }
 
+func (b *Bookmark) HashURL() string {
+	return hashURL(b.URL)
+}
+
 // JSONPath returns the path to the JSON file.
 //
 //	domain -> urlHash.json
@@ -156,19 +163,19 @@ func (b *Bookmark) JSONPath() (string, error) {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	urlHash := HashURL(b.URL)
-	return filepath.Join(domain, urlHash+FileJSONExt), nil
+	urlHash := hashURL(b.URL)
+	return filepath.Join(domain, urlHash+".json"), nil
 }
 
 // GPGPath returns the path to the GPG file.
 //
 //	domainHash -> urlHash.gpg
 func (b *Bookmark) GPGPath() (string, error) {
-	domain, err := HashDomain(b.URL)
+	domain, err := hashDomain(b.URL)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-	return filepath.Join(domain, b.Checksum+FileGPGExt), nil
+	return filepath.Join(domain, b.Checksum+gpg.Extension), nil
 }
 
 // New creates a new bookmark.

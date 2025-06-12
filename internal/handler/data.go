@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format"
@@ -156,7 +157,7 @@ func UpdateBookmark(r *db.SQLiteRepository, b, original *bookmark.Bookmark) erro
 	}
 	fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
 
-	if err := bookmark.GitUpdate(r.Cfg.Fullpath(), b, original); err != nil {
+	if err := port.GitUpdate(r.Cfg.Fullpath(), b, original); err != nil {
 		return fmt.Errorf("git update: %w", err)
 	}
 
@@ -225,7 +226,7 @@ func FindDB(p string) (string, error) {
 	if files.Exists(p) {
 		return p, nil
 	}
-	fs, err := db.Databases(filepath.Dir(p))
+	fs, err := db.List(filepath.Dir(p))
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}

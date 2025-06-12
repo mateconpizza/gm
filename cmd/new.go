@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
@@ -97,7 +98,7 @@ var newBookmarkCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := bookmark.GitStore(b); err != nil {
+		if err := port.GitStore(b); err != nil {
 			return fmt.Errorf("git store: %w", err)
 		}
 
