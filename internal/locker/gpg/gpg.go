@@ -13,9 +13,9 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/format/color"
-	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
 var (

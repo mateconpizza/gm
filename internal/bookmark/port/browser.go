@@ -6,8 +6,8 @@ import (
 	"github.com/mateconpizza/gm/internal/browser/gecko"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
-	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
 // supportedBrowser represents a supported browser.

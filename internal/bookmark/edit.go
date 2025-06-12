@@ -9,10 +9,10 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
-	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
 var ErrBufferUnchanged = errors.New("buffer unchanged")

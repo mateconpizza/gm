@@ -8,10 +8,10 @@ import (
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format/color"
-	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
 // bkRemoveOtroCmd removes backups.
