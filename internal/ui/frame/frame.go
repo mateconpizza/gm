@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
 var defaultBorders = &FrameBorders{

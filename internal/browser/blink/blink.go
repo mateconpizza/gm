@@ -12,10 +12,10 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	browserpath "github.com/mateconpizza/gm/internal/browser/paths"
-	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 

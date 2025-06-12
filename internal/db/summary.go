@@ -9,8 +9,8 @@ import (
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format"
-	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 

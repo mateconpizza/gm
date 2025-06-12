@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateconpizza/gm/internal/format/color"
+	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
 const (
