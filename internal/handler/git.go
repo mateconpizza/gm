@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
@@ -34,15 +35,15 @@ func GitCommit(actionMsg string) error {
 		return fmt.Errorf("load records: %w", err)
 	}
 
-	// FIX: what to do if no bookmarks found? return err? clean git repo?
+	// remove repo if no bookmarks
 	if len(bookmarks) == 0 {
 		slog.Debug("no bookmarks found", "repo", repoPath)
-		return GitDropRepo(config.App.DBPath, config.App.Path.Git, "Last bookmarks deleted")
+		return GitDropRepo(config.App.DBPath, config.App.Path.Git, "Dropped")
 	}
 
 	root := filepath.Join(repoPath, files.StripSuffixes(config.App.DBName))
-	if err := gitStoreBookmarksInRepo(repoPath, root, bookmarks); err != nil {
-		return err
+	if err := bookmark.GitExport(repoPath, root, bookmarks); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	return commitIfChanged(repoPath, actionMsg)
@@ -93,21 +94,22 @@ func GitDropRepo(dbPath, repoPath, mesg string) error {
 }
 
 // gitStoreBookmarksInRepo stores the bookmarks in the git repo.
-func gitStoreBookmarksInRepo(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
-	if gpg.IsInitialized(repoPath) {
-		if err := bookmark.StoreAsGPG(repoPath, bookmarks); err != nil {
-			return fmt.Errorf("store as GPG: %w", err)
-		}
-	} else {
-		if err := bookmark.ExportBookmarks(root, bookmarks); err != nil {
-			return fmt.Errorf("export bookmarks: %w", err)
-		}
-		if err := diffDeletedBookmarks(root, bookmarks); err != nil {
-			return fmt.Errorf("diff deleted: %w", err)
-		}
-	}
-	return nil
-}
+// func gitStoreBookmarksInRepo(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
+// 	if gpg.IsInitialized(repoPath) {
+// 		if err := bookmark.GitStoreAsGPG(repoPath, bookmarks); err != nil {
+// 			return fmt.Errorf("store as GPG: %w", err)
+// 		}
+// 		return nil
+// 	}
+//
+// 	if err := bookmark.ExportAsJSON(root, bookmarks); err != nil {
+// 		return fmt.Errorf("export bookmarks: %w", err)
+// 	}
+// 	// if err := diffDeletedBookmarks(root, bookmarks); err != nil {
+// 	// 	return fmt.Errorf("diff deleted: %w", err)
+// 	// }
+// 	return nil
+// }
 
 // commitIfChanged commits the bookmarks to the git repo if there are changes.
 func commitIfChanged(repoPath, actionMsg string) error {
@@ -129,6 +131,10 @@ func commitIfChanged(repoPath, actionMsg string) error {
 	status, err := git.Status(repoPath)
 	if err != nil {
 		status = ""
+	}
+
+	if status != "" {
+		status = "(" + status + ")"
 	}
 
 	msg := fmt.Sprintf("[%s] %s %s", config.App.DBName, actionMsg, status)
@@ -230,5 +236,74 @@ func GitRepoStats(summary *git.SyncGitSummary, repoPath string) error {
 	}
 
 	summary.GenerateChecksum()
+	return nil
+}
+
+func GitSummaryGenerate(repoPath string) error {
+	tracked, err := files.ListRootFolders(repoPath, ".git")
+	if err != nil {
+		return fmt.Errorf("listing tracked: %w", err)
+	}
+
+	// Generate the new summary
+	for _, r := range tracked {
+		dbPath := filepath.Join(config.App.Path.Data, files.EnsureSuffix(r, ".db"))
+		if err := GitSummaryUpdate(dbPath, repoPath); err != nil {
+			return fmt.Errorf("updating summary: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GitCleanFiles removes the files from the git repo.
+func GitCleanFiles(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+	repoPath := config.App.Path.Git
+	if !git.IsInitialized(repoPath) {
+		return nil
+	}
+
+	fileExt := bookmark.FileJSONExt
+	if gpg.IsInitialized(repoPath) {
+		fileExt = gpg.Extension
+	}
+
+	var cleaner func(string, []*bookmark.Bookmark) error
+	switch fileExt {
+	case bookmark.FileJSONExt:
+		cleaner = bookmark.GitCleanJSON
+	case gpg.Extension:
+		cleaner = bookmark.GitCleanGPG
+	}
+
+	rootRepo := filepath.Join(repoPath, files.StripSuffixes(r.Cfg.Name))
+	if err := cleaner(rootRepo, bs.ItemsPtr()); err != nil {
+		return fmt.Errorf("cleaning repo: %w", err)
+	}
+
+	return GitCommit("Remove")
+}
+
+// GitExport exports the bookmarks to the git repo.
+func GitExport(dbPath string) error {
+	r, err := repo.New(dbPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+	defer r.Close()
+
+	bookmarks, err := r.AllPtr()
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	repoPath := config.App.Path.Git
+	dbName := filepath.Base(dbPath)
+	root := filepath.Join(repoPath, files.StripSuffixes(dbName))
+
+	if err := bookmark.GitExport(repoPath, root, bookmarks); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
 	return nil
 }

@@ -69,7 +69,7 @@ var databaseDropCmd = &cobra.Command{
 		}))
 		_ = t
 
-		if err := handler.DroppingDB(r, t); err != nil {
+		if err := handler.DroppingDB(t, r); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 

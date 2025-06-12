@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -41,9 +42,21 @@ func AddAll(repoPath string) error {
 }
 
 // AddRemote adds a remote repository.
-func AddRemote(repoPath, reporURL string) error {
-	slog.Debug("setting git remote", "path", repoPath)
-	return runGitCmd(repoPath, "remote", "add", "origin", reporURL)
+func AddRemote(repoPath, repoURL string) error {
+	slog.Debug("setting git remote", "path", repoPath, "remote", repoURL)
+	if config.App.Force {
+		return runGitCmd(repoPath, "remote", "set-url", "origin", repoURL)
+	}
+
+	return runGitCmd(repoPath, "remote", "add", "origin", repoURL)
+}
+
+func SetUpstream(repoPath string) error {
+	b, err := GetBranch(repoPath)
+	if err != nil {
+		return err
+	}
+	return runGitCmd(repoPath, "push", "--set-upstream", "origin", b)
 }
 
 // HasUnpushedCommits checks if there are any unpushed commits.
@@ -176,7 +189,18 @@ func Status(repoPath string) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf("Added: %d, Modified: %d, Deleted: %d", added, modified, deleted), nil
+	var parts []string
+	if added > 0 {
+		parts = append(parts, fmt.Sprintf("Add:%d", added))
+	}
+	if deleted > 0 {
+		parts = append(parts, fmt.Sprintf("Del:%d", deleted))
+	}
+	if modified > 0 {
+		parts = append(parts, fmt.Sprintf("Mod:%d", modified))
+	}
+
+	return strings.TrimSpace(strings.Join(parts, " ")), nil
 }
 
 // GetBranch returns the current branch.

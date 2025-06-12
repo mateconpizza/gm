@@ -15,15 +15,15 @@ func HashURL(rawURL string) string {
 
 // HashDomain generates a hash from a domain.
 func HashDomain(rawURL string) (string, error) {
-	domain, err := Domain(rawURL)
+	domain, err := domain(rawURL)
 	if err != nil {
 		return "", err
 	}
 	return format.GenerateHash(domain, 12), nil
 }
 
-// Domain extracts the domain from a URL.
-func Domain(rawURL string) (string, error) {
+// domain extracts the domain from a URL.
+func domain(rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("parsing url: %w", err)

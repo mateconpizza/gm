@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/menu"
 	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
@@ -127,7 +126,7 @@ func editBookmark(
 		return fmt.Errorf("%w", err)
 	}
 
-	return updateBookmark(r, b, &originalData)
+	return UpdateBookmark(r, b, &originalData)
 }
 
 // prepareBuffer builds the buffer for the bookmark by adding a header and version info.
@@ -150,21 +149,17 @@ func prepareBuffer(b *bookmark.Bookmark, idx, total int) []byte {
 	return buf
 }
 
-// updateBookmark updates the repository with the modified bookmark.
-func updateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) error {
+// UpdateBookmark updates the repository with the modified bookmark.
+func UpdateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) error {
 	if _, err := r.Update(context.Background(), b, original); err != nil {
 		return fmt.Errorf("updating record: %w", err)
 	}
 	fmt.Printf("%s: [%d] %s\n", config.App.Name, b.ID, color.Blue("updated").Bold())
 
-	// FIX: find a better way to remove
-	// old gpg file
-	if gpg.IsInitialized(config.App.Path.Git) {
-		root := filepath.Join(config.App.Path.Git, files.StripSuffixes(r.Cfg.Name))
-		if err := bookmark.CleanupGitFiles(root, original, ".gpg"); err != nil {
-			return fmt.Errorf("cleaning up git files: %w", err)
-		}
+	if err := bookmark.GitUpdate(r.Cfg.Fullpath(), b, original); err != nil {
+		return fmt.Errorf("git update: %w", err)
 	}
+
 	return GitCommit("Modify")
 }
 
@@ -191,18 +186,8 @@ func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 
 	sp.Done()
 
-	// remove GPG file
-	root := config.App.Path.Git
-	if gpg.IsInitialized(root) {
-		for _, b := range bs.ItemsPtr() {
-			root := filepath.Join(config.App.Path.Git, files.StripSuffixes(r.Cfg.Name))
-			if err := bookmark.CleanupGitFiles(root, b, ".gpg"); err != nil {
-				return fmt.Errorf("cleaning up git files: %w", err)
-			}
-		}
-		if err := GitCommit("Remove"); err != nil {
-			return err
-		}
+	if err := GitCleanFiles(r, bs); err != nil {
+		return err
 	}
 
 	success := color.BrightGreen("Successfully").Italic().String()
@@ -213,26 +198,26 @@ func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 }
 
 // diffDeletedBookmarks checks for deleted bookmarks.
-func diffDeletedBookmarks(root string, bookmarks []*bookmark.Bookmark) error {
-	jsonBookmarks := slice.New[bookmark.Bookmark]()
-	if err := bookmark.LoadJSONBookmarks(root, jsonBookmarks); err != nil {
-		return fmt.Errorf("loading JSON bookmarks: %w", err)
-	}
-	diff := bookmark.FindChanged(bookmarks, jsonBookmarks.ItemsPtr())
-	if len(diff) == 0 {
-		return nil
-	}
-
-	for _, b := range diff {
-		if _, err := repo.HasURL(b.URL); err != nil {
-			continue
-		}
-		if err := bookmark.CleanupGitFiles(root, b, ".json"); err != nil {
-			return fmt.Errorf("cleanup files: %w", err)
-		}
-	}
-	return nil
-}
+// func diffDeletedBookmarks(root string, bookmarks []*bookmark.Bookmark) error {
+// 	jsonBookmarks := slice.New[bookmark.Bookmark]()
+// 	if err := bookmark.LoadJSONBookmarks(root, jsonBookmarks); err != nil {
+// 		return fmt.Errorf("loading JSON bookmarks: %w", err)
+// 	}
+// 	diff := bookmark.FindChanged(bookmarks, jsonBookmarks.ItemsPtr())
+// 	if len(diff) == 0 {
+// 		return nil
+// 	}
+//
+// 	for _, b := range diff {
+// 		if _, err := repo.HasURL(b.URL); err != nil {
+// 			continue
+// 		}
+// 		if err := bookmark.CleanupGitFiles(root, b, bookmark.JSONExtension); err != nil {
+// 			return fmt.Errorf("cleanup files: %w", err)
+// 		}
+// 	}
+// 	return nil
+// }
 
 // FindDB returns the path to the database.
 func FindDB(p string) (string, error) {

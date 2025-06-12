@@ -109,6 +109,13 @@ func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *book
 		return
 	}
 
+	if config.App.Force {
+		b.tags = "notag"
+		f.Text(" " + color.Gray(b.tags).
+			Italic().String()).Ln().Flush()
+		return
+	}
+
 	// prompt|take input for tags
 	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 

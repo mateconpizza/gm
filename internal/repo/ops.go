@@ -37,6 +37,15 @@ func TagsCounterFromPath(dbPath string) (map[string]int, error) {
 	return TagsCounter(r)
 }
 
+// DropFromPath drops the database from the given path.
+func DropFromPath(dbPath string) error {
+	r, err := New(dbPath)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	return Drop(r, context.Background())
+}
+
 // CountFavorites returns the number of favorite records.
 func CountFavorites(r *SQLiteRepository) int {
 	var n int

@@ -195,7 +195,7 @@ func Remove(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error 
 }
 
 // DroppingDB drops a database.
-func DroppingDB(r *repo.SQLiteRepository, t *terminal.Term) error {
+func DroppingDB(t *terminal.Term, r *repo.SQLiteRepository) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Header(color.BrightRed("Dropping").String() + " all records\n").Row("\n").Flush()
 	fmt.Print(repo.Info(r))

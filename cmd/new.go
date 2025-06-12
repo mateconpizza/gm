@@ -97,6 +97,10 @@ var newBookmarkCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
+		if err := bookmark.GitStore(b); err != nil {
+			return fmt.Errorf("git store: %w", err)
+		}
+
 		if err := handler.GitCommit("Add"); err != nil {
 			return fmt.Errorf("%w", err)
 		}

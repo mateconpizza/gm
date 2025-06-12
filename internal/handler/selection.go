@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
@@ -241,6 +242,7 @@ func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]str
 
 	f.Ln().Midln("Select which databases to track").Flush()
 	tracked := make([]string, 0, len(dbFiles))
+	trackedFile := make([]string, 0, len(dbFiles))
 
 	for _, dbFile := range dbFiles {
 		f.Clear()
@@ -255,11 +257,17 @@ func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]str
 			continue
 		}
 		tracked = append(tracked, dbFile)
+		trackedFile = append(trackedFile, filepath.Base(dbFile))
 		t.ReplaceLine(1, f.Clear().Success(fmt.Sprintf("Tracking %q", dbName)).String())
 	}
 
 	if len(tracked) == 0 {
 		return nil, terminal.ErrActionAborted
+	}
+
+	fname := filepath.Join(repoPath, bookmark.FileTrackRepo)
+	if err := files.JSONWrite(fname, &trackedFile, true); err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	return tracked, nil

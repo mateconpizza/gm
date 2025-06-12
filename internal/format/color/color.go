@@ -245,6 +245,10 @@ func Default(arg ...any) *Color {
 	return Text(join(arg...))
 }
 
+func Normal(arg ...any) *Color {
+	return Text(join(arg...))
+}
+
 func addColor(c string, arg ...any) *Color {
 	return &Color{text: join(arg...), color: c}
 }

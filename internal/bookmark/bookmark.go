@@ -142,6 +142,35 @@ func (b *Bookmark) HashPath() (string, error) {
 	return filepath.Join(domain, b.Checksum), nil
 }
 
+// Domain returns the domain of a bookmark.
+func (b *Bookmark) Domain() (string, error) {
+	return domain(b.URL)
+}
+
+// JSONPath returns the path to the JSON file.
+//
+//	domain -> urlHash.json
+func (b *Bookmark) JSONPath() (string, error) {
+	domain, err := domain(b.URL)
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	urlHash := HashURL(b.URL)
+	return filepath.Join(domain, urlHash+FileJSONExt), nil
+}
+
+// GPGPath returns the path to the GPG file.
+//
+//	domainHash -> urlHash.gpg
+func (b *Bookmark) GPGPath() (string, error) {
+	domain, err := HashDomain(b.URL)
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+	return filepath.Join(domain, b.Checksum+FileGPGExt), nil
+}
+
 // New creates a new bookmark.
 func New() *Bookmark {
 	return &Bookmark{}

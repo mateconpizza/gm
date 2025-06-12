@@ -1,14 +1,15 @@
 package importer
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/mateconpizza/rotato"
 
@@ -26,6 +27,8 @@ import (
 )
 
 var ErrNotImplemented = errors.New("not implemented")
+
+type loaderFileFn = func(path string) (*bookmark.Bookmark, error)
 
 // deduplicate removes duplicate bookmarks.
 func deduplicate(f *frame.Frame, r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
@@ -45,6 +48,29 @@ func deduplicate(f *frame.Frame, r *repo.SQLiteRepository, bs *slice.Slice[bookm
 	}
 
 	return nil
+}
+
+// deduplicate removes duplicate bookmarks.
+func deduplicatePtr(f *frame.Frame, r *repo.SQLiteRepository, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+	originalLen := len(bs)
+	filtered := make([]*bookmark.Bookmark, 0, len(bs))
+
+	for _, b := range bs {
+		if _, exists := r.Has(b.URL); exists {
+			continue
+		}
+
+		filtered = append(filtered, b)
+	}
+
+	n := len(filtered)
+	if originalLen != n {
+		skip := color.BrightYellow("skipping")
+		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-n)
+		f.Warning(s + "\n").Flush()
+	}
+
+	return filtered
 }
 
 // parseFoundInBrowser processes the bookmarks found from the import
@@ -81,33 +107,59 @@ func parseFoundInBrowser(
 	return nil
 }
 
-// diffDeletedBookmarks checks for deleted bookmarks.
-func diffDeletedBookmarks(root string, r *repo.SQLiteRepository, bookmarks []*bookmark.Bookmark) error {
-	jsonBookmarks := slice.New[bookmark.Bookmark]()
-	if err := bookmark.LoadJSONBookmarks(root, jsonBookmarks); err != nil {
-		return fmt.Errorf("loading JSON bookmarks: %w", err)
-	}
-	diff := bookmark.FindChanged(bookmarks, jsonBookmarks.ItemsPtr())
-	if len(diff) == 0 {
-		return nil
-	}
-
-	for _, b := range diff {
-		if _, ok := r.Has(b.URL); ok {
-			continue
-		}
-		if err := bookmark.CleanupGitFiles(root, b, ".json"); err != nil {
-			return fmt.Errorf("cleanup files: %w", err)
-		}
-	}
-	return nil
-}
-
 func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
-	// FIX:
-	_ = diffDeletedBookmarks(root, nil, nil)
-	_ = f
-	return nil, ErrNotImplemented
+	var (
+		count      = 0
+		errTracker = bookmark.NewErrorTracker()
+		wg         sync.WaitGroup
+		mu         sync.Mutex
+		bookmarks  = []*bookmark.Bookmark{}
+	)
+	sp := rotato.New(
+		rotato.WithPrefix(f.Mid("Loading JSON bookmarks").String()),
+		rotato.WithMesgColor(rotato.ColorBrightBlue),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic, rotato.ColorStyleBold),
+	)
+
+	loader := func(path string) (*bookmark.Bookmark, error) {
+		bj := &bookmark.BookmarkJSON{}
+		if err := files.JSONRead(path, bj); err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
+
+		if !bookmark.ValidateChecksumJSON(bj) {
+			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
+		}
+
+		count++
+		sp.UpdateMesg(fmt.Sprintf("[%d] %s", count, filepath.Base(path)))
+
+		b := bookmark.NewFromJSON(bj)
+
+		mu.Lock()
+		bookmarks = append(bookmarks, b)
+		mu.Unlock()
+
+		return b, nil
+	}
+
+	sp.Start()
+
+	err := filepath.WalkDir(root, parseJSONFile(&wg, &mu, loader))
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	wg.Wait()
+	err = errTracker.GetError()
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	sp.UpdatePrefix(fmt.Sprintf("Loaded %d bookmarks", count))
+	sp.Done()
+
+	return bookmarks, nil
 }
 
 func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
@@ -172,7 +224,6 @@ func parseGitRepo(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error)
 	}
 	rootDir := filepath.Dir(repoPath)
 	if !gpg.IsInitialized(rootDir) {
-		fmt.Println("load as a JSON repository")
 		return parseJSONRepo(f, repoPath)
 	}
 
@@ -180,11 +231,7 @@ func parseGitRepo(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error)
 }
 
 // parseGPGFile is a WalkDirFunc that loads .gpg files concurrently.
-func parseGPGFile(
-	wg *sync.WaitGroup,
-	mu *sync.Mutex,
-	loader func(path string) (*bookmark.Bookmark, error),
-) fs.WalkDirFunc {
+func parseGPGFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.WalkDirFunc {
 	var (
 		bs                 = slice.New[bookmark.Bookmark]()
 		count              = 0
@@ -197,7 +244,7 @@ func parseGPGFile(
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || filepath.Ext(path) != ".gpg" {
+		if d.IsDir() || filepath.Ext(path) != gpg.Extension {
 			return nil
 		}
 		// encrypt|decrypt the first item found, this will prompt the user
@@ -211,19 +258,47 @@ func parseGPGFile(
 			count--
 			return nil
 		}
+
 		bookmark.LoadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
+
 		return nil
 	}
 }
 
-func gitRepo(root, repoName string, t *terminal.Term, f *frame.Frame) error {
+func parseJSONFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.WalkDirFunc {
+	var (
+		bs         = slice.New[bookmark.Bookmark]()
+		errTracker = bookmark.NewErrorTracker()
+		sem        = make(chan struct{}, runtime.NumCPU()*2)
+	)
+
+	return func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() || filepath.Ext(path) != bookmark.FileJSONExt {
+			return nil
+		}
+
+		bookmark.LoadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
+		time.Sleep(5 * time.Millisecond)
+
+		return nil
+	}
+}
+
+// loadGitRepo loads a git repo into a database.
+func loadGitRepo(root, repoName string, t *terminal.Term, f *frame.Frame) error {
 	f.Clear().Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
+
 	// read summary.json
 	sum := git.NewSummary()
 	if err := files.JSONRead(filepath.Join(repoPath, git.SummaryFileName), sum); err != nil {
 		return fmt.Errorf("reading summary: %w", err)
 	}
+
 	f.Midln(format.PaddedLine("records:", sum.RepoStats.Bookmarks)).
 		Midln(format.PaddedLine("tags:", sum.RepoStats.Tags)).
 		Midln(format.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
@@ -232,47 +307,59 @@ func gitRepo(root, repoName string, t *terminal.Term, f *frame.Frame) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	dbName := sum.RepoStats.Name
-	f.Clear().Question(fmt.Sprintf("Create database %q?", dbName))
-	if dbName == config.DefaultDBName {
-		f.Clear().Warning(color.Text("Drop default database?").Bold().String())
-	}
-	if err := t.ConfirmErr(f.String(), "n"); err != nil {
-		dbName = files.EnsureSuffix(t.Prompt(f.Clear().Info("Enter new name: ").String()), ".db")
-		if dbName == "" {
-			return terminal.ErrCannotBeEmpty
+	var (
+		dbName = sum.RepoStats.Name
+		dbPath = filepath.Join(config.App.Path.Data, dbName)
+		opt    string
+		err    error
+	)
+	if !files.Exists(dbPath) {
+		opt = "new"
+	} else {
+		f.Clear().Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
+		f.Question("What do you want to do?")
+
+		opt, err = t.Choose(f.String(), []string{"merge", "drop", "create", "skip"}, "s")
+		if err != nil {
+			return fmt.Errorf("%w", err)
 		}
+		f.Clear()
 	}
 
-	bookmarks, err := parseGitRepo(f.Clear(), repoPath)
-	if err != nil {
-		return fmt.Errorf("importing bookmarks: %w", err)
-	}
+	return loadGitRepoAction(t, f, opt, dbPath, dbName, repoPath)
+}
 
-	dbPath := filepath.Join(config.App.Path.Data, dbName)
-	if files.Exists(dbPath) {
-		if err := files.Remove(dbPath); err != nil {
-			return fmt.Errorf("removing %q: %w", dbPath, err)
+func loadGitRepoAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbName, repoPath string) error {
+	switch strings.ToLower(opt) {
+	case "new":
+		if err := intoDB(f, dbPath, dbName, repoPath); err != nil {
+			return fmt.Errorf("%w", err)
 		}
+	case "c", "create":
+		var dbName string
+		for dbName == "" {
+			dbName = files.EnsureSuffix(t.Prompt(f.Clear().Info("Enter new name: ").String()), ".db")
+		}
+		if err := intoDB(f, dbPath, dbName, repoPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	case "d", "drop":
+		f.Warning("Dropping database\n").Flush()
+		if err := repo.DropFromPath(dbPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if err := mergeRecords(f.Clear(), dbPath, repoPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	case "m", "merge":
+		f.Info("Merging database\n").Flush()
+		if err := mergeRecords(f.Clear(), dbPath, repoPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	case "s", "skip":
+		f.Clear().Warning("Skipping repository..." + dbName + "\n").Flush()
+		return nil
 	}
-	r, err := repo.Init(dbPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-
-	if err := r.Init(); err != nil {
-		return fmt.Errorf("initializing database: %w", err)
-	}
-
-	records := slice.New[bookmark.Bookmark]()
-	for _, b := range bookmarks {
-		records.Push(b)
-	}
-	if err := r.InsertMany(context.Background(), records); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	r.Close()
-	f.Clear().Success(fmt.Sprintf("Imported %d records into %q\n", records.Len(), dbName)).Flush()
 
 	return nil
 }

@@ -39,11 +39,6 @@ var gitPushCmd = &cobra.Command{
 	Short: "Update remote refs along with associated objects",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoPath := config.App.Path.Git
-		tracked, err := files.ListRootFolders(repoPath, ".git")
-		if err != nil {
-			return fmt.Errorf("listing tracked: %w", err)
-		}
-
 		procced, err := git.HasUnpushedCommits(repoPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -52,12 +47,8 @@ var gitPushCmd = &cobra.Command{
 			return git.ErrGitNoCommits
 		}
 
-		// Generate the new summary
-		for _, r := range tracked {
-			dbPath := filepath.Join(config.App.Path.Data, files.EnsureSuffix(r, ".db"))
-			if err := handler.GitSummaryUpdate(dbPath, repoPath); err != nil {
-				return fmt.Errorf("updating summary: %w", err)
-			}
+		if err := handler.GitSummaryGenerate(repoPath); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 		if err := git.AddAll(repoPath); err != nil {
 			return fmt.Errorf("staging summary: %w", err)
@@ -82,7 +73,24 @@ var gitRemoteCmd = &cobra.Command{
 	Use:   "remote",
 	Short: "Manage set of tracked repositories",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return git.AddRemote(config.App.Path.Git, gitFlags.origin)
+		repoPath := config.App.Path.Git
+		if err := git.AddRemote(repoPath, gitFlags.origin); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if err := handler.GitSummaryGenerate(repoPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if err := git.AddAll(repoPath); err != nil {
+			return fmt.Errorf("staging summary: %w", err)
+		}
+		if err := git.CommitChanges(repoPath, "Updating Summary"); err != nil {
+			return fmt.Errorf("committing summary: %w", err)
+		}
+		if err := git.SetUpstream(repoPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	},
 }
 
@@ -126,12 +134,14 @@ var gitInitCmd = &cobra.Command{
 // initializeTracking will initialize the tracking database.
 func initializeTracking(t *terminal.Term, f *frame.Frame, tracked []string) error {
 	s := f.Clear().Question("Use GPG for encryption?").String()
+
 	if gpg.IsInitialized(config.App.Path.Git) || !t.Confirm(s, "y") {
 		for _, dbFile := range tracked {
-			config.SetDBName(filepath.Base(dbFile))
-			config.SetDBPath(dbFile)
+			if err := handler.GitExport(dbFile); err != nil {
+				return fmt.Errorf("%w", err)
+			}
 			if err := handler.GitCommit("Initializing repo"); err != nil {
-				return fmt.Errorf("committing db: %w", err)
+				return fmt.Errorf("%w", err)
 			}
 		}
 		success := color.BrightGreen("Successfully").Italic().String()
@@ -179,12 +189,19 @@ var gpgInitCmd = &cobra.Command{
 	Short:  "Initialize a git GPG repository",
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := gpg.Init(config.App.Path.Git); err != nil {
+		repoPath := config.App.Path.Git
+		if err := gpg.Init(repoPath); err != nil {
 			return fmt.Errorf("gpg init: %w", err)
 		}
+
 		success := color.BrightGreen("Successfully").Italic().String()
 		f := frame.New(frame.WithColorBorder(color.Gray))
 		f.Clear().Success(success + color.Text(" initialized\n").Italic().String()).Flush()
+
+		if err := handler.GitExport(config.App.DBPath); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
 		if err := handler.GitCommit("Initializing encrypted repo"); err != nil {
 			if errors.Is(err, git.ErrGitNothingToCommit) {
 				return nil

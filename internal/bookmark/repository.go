@@ -23,73 +23,18 @@ import (
 
 var ErrInvalidChecksum = errors.New("invalid checksum")
 
-// ExportBookmarks creates the repository structure.
-func ExportBookmarks(root string, bs []*Bookmark) error {
+const (
+	FileGPGExt    = gpg.Extension
+	FileJSONExt   = ".json"
+	FileTrackRepo = ".tracked.json"
+)
+
+// ExportAsJSON creates the repository structure.
+func ExportAsJSON(root string, bs []*Bookmark) error {
 	for _, b := range bs {
-		if err := StoreAsJSON(root, b, config.App.Force); err != nil {
+		if err := GitStoreAsJSON(root, b, config.App.Force); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func StoreAsGPG(root string, bookmarks []*Bookmark) error {
-	root = filepath.Join(root, files.StripSuffixes(config.App.DBName))
-	if err := files.MkdirAll(root); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	sp := rotato.New(
-		rotato.WithPrefix(f.Mid("Encrypting").String()),
-		rotato.WithMesg("bookmarks..."),
-		rotato.WithMesgColor(rotato.ColorYellow),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-		rotato.WithFailColorMesg(rotato.ColorBrightRed),
-	)
-
-	n := len(bookmarks)
-	count := 0
-	for i := range n {
-		hashPath, err := bookmarks[i].HashPath()
-		if err != nil {
-			return fmt.Errorf("hashing path: %w", err)
-		}
-		if err := gpg.Create(root, hashPath, bookmarks[i].ToJSON()); err != nil {
-			if errors.Is(err, files.ErrFileExists) {
-				continue
-			}
-			return fmt.Errorf("creating GPG file: %w", err)
-		}
-		sp.Start()
-		count++
-		sp.UpdatePrefix(f.Clear().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
-	}
-	if count > 0 {
-		sp.Done("done")
-	} else {
-		sp.Done()
-	}
-
-	return nil
-}
-
-// StoreAsJSON creates files structure.
-func StoreAsJSON(rootPath string, b *Bookmark, force bool) error {
-	domain, err := Domain(b.URL)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	// domainPath: root -> data -> dbName -> domain
-	domainPath := filepath.Join(rootPath, domain)
-	if err := files.MkdirAll(domainPath); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	// urlHash := domainPath -> urlHash.json
-	urlHash := HashURL(b.URL)
-	filePathJSON := filepath.Join(domainPath, urlHash+".json")
-	if err := files.JSONWrite(filePathJSON, b.ToJSON(), force); err != nil {
-		return resolveFileConflictError(rootPath, err, filePathJSON, b)
 	}
 
 	return nil
@@ -108,7 +53,7 @@ func resolveFileConflictError(rootPath string, err error, filePathJSON string, b
 	if bj.Checksum == b.Checksum {
 		return nil
 	}
-	return StoreAsJSON(rootPath, b, true)
+	return GitStoreAsJSON(rootPath, b, true)
 }
 
 // CleanupGitFiles removes the files associated with a bookmark.
@@ -233,7 +178,7 @@ func LoadBookmarksFromPath(root string, bs *slice.Slice[Bookmark]) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && filepath.Ext(path) == ".json" {
+		if !d.IsDir() && filepath.Ext(path) == FileJSONExt && filepath.Base(path) != git.SummaryFileName {
 			LoadConcurrently(path, bs, &wg, &mu, sem, loadBookmarkFromFile, errTracker)
 		}
 
@@ -262,7 +207,7 @@ func LoadJSONBookmarks(root string, bs *slice.Slice[Bookmark]) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && filepath.Ext(path) == ".json" && filepath.Base(path) != git.SummaryFileName {
+		if !d.IsDir() && filepath.Ext(path) == FileJSONExt && filepath.Base(path) != git.SummaryFileName {
 			LoadConcurrently(path, bs, &wg, &mu, sem, loadBookmarkFromFile, errTracker)
 		}
 
@@ -299,4 +244,170 @@ func FindChanged(oldBookmarks, newBookmarks []*Bookmark) []*Bookmark {
 	}
 
 	return changed
+}
+
+// GitStore saves the bookmark to the git repo as a file.
+func GitStore(b *Bookmark) error {
+	repoPath := config.App.Path.Git
+	if !git.IsInitialized(repoPath) {
+		return nil
+	}
+	fileExt := FileJSONExt
+	if gpg.IsInitialized(repoPath) {
+		fileExt = gpg.Extension
+	}
+
+	root := filepath.Join(repoPath, files.StripSuffixes(config.App.DBName))
+
+	switch fileExt {
+	case FileJSONExt:
+		return GitStoreAsJSON(root, b, config.App.Force)
+	case gpg.Extension:
+		return GitStoreAsGPG(root, []*Bookmark{b})
+	}
+
+	return nil
+}
+
+// GitCleanJSON removes the files from the git repo.
+func GitCleanJSON(root string, bs []*Bookmark) error {
+	slog.Debug("cleaning up git JSON files")
+	for _, b := range bs {
+		jsonPath, err := b.JSONPath()
+		if err != nil {
+			return err
+		}
+		fname := filepath.Join(root, jsonPath)
+		if err := files.RemoveFilepath(fname); err != nil {
+			return fmt.Errorf("cleaning JSON: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GitCleanGPG removes the files from the git repo.
+func GitCleanGPG(root string, bs []*Bookmark) error {
+	slog.Debug("cleaning up git JSON files")
+	for _, b := range bs {
+		gpgPath, err := b.GPGPath()
+		if err != nil {
+			return err
+		}
+
+		fname := filepath.Join(root, gpgPath)
+		if err := files.RemoveFilepath(fname); err != nil {
+			return fmt.Errorf("cleaning GPG: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GitUpdate updates the git repo.
+func GitUpdate(dbPath string, newB, oldB *Bookmark) error {
+	repoPath := config.App.Path.Git
+	if !git.IsInitialized(repoPath) {
+		return nil
+	}
+
+	fileExt := FileJSONExt
+	if gpg.IsInitialized(repoPath) {
+		fileExt = gpg.Extension
+	}
+
+	dbName := files.StripSuffixes(filepath.Base(dbPath))
+	root := filepath.Join(repoPath, dbName)
+
+	switch fileExt {
+	case FileJSONExt:
+		return GitUpdateJSON(root, oldB, newB)
+	case gpg.Extension:
+		return GitCleanGPG(root, []*Bookmark{newB})
+	}
+
+	return nil
+}
+
+func GitUpdateJSON(root string, oldB, newB *Bookmark) error {
+	if err := GitCleanJSON(root, []*Bookmark{oldB}); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	return GitStore(newB)
+}
+
+func GitStoreAsGPG(root string, bookmarks []*Bookmark) error {
+	if err := files.MkdirAll(root); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	sp := rotato.New(
+		rotato.WithPrefix(f.Mid("Encrypting").String()),
+		rotato.WithMesg("bookmarks..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithFailColorMesg(rotato.ColorBrightRed),
+	)
+
+	n := len(bookmarks)
+	count := 0
+	for i := range n {
+		hashPath, err := bookmarks[i].HashPath()
+		if err != nil {
+			return fmt.Errorf("hashing path: %w", err)
+		}
+		if err := gpg.Create(root, hashPath, bookmarks[i].ToJSON()); err != nil {
+			if errors.Is(err, files.ErrFileExists) {
+				continue
+			}
+			return fmt.Errorf("creating GPG file: %w", err)
+		}
+		sp.Start()
+		count++
+		sp.UpdatePrefix(f.Clear().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
+	}
+
+	if count > 0 {
+		sp.Done("done")
+	} else {
+		sp.Done()
+	}
+
+	return nil
+}
+
+// GitStoreAsJSON creates files structure.
+//
+//	root -> dbName -> domain
+func GitStoreAsJSON(rootPath string, b *Bookmark, force bool) error {
+	domain, err := domain(b.URL)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	// domainPath: root -> dbName -> domain
+	domainPath := filepath.Join(rootPath, domain)
+	if err := files.MkdirAll(domainPath); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	// urlHash := domainPath -> urlHash.json
+	urlHash := HashURL(b.URL)
+	filePathJSON := filepath.Join(domainPath, urlHash+FileJSONExt)
+	if err := files.JSONWrite(filePathJSON, b.ToJSON(), force); err != nil {
+		return resolveFileConflictError(rootPath, err, filePathJSON, b)
+	}
+
+	return nil
+}
+
+// GitExport exports the bookmarks to the git repo.
+func GitExport(repoPath, root string, bookmarks []*Bookmark) error {
+	if gpg.IsInitialized(repoPath) {
+		if err := GitStoreAsGPG(root, bookmarks); err != nil {
+			return fmt.Errorf("store as GPG: %w", err)
+		}
+
+		return nil
+	}
+
+	return ExportAsJSON(root, bookmarks)
 }

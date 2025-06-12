@@ -428,3 +428,28 @@ func ListRootFolders(root string, ignored ...string) ([]string, error) {
 
 	return folders, nil
 }
+
+// RemoveFilepath removes the file and its parent directory if empty.
+func RemoveFilepath(fname string) error {
+	if !Exists(fname) {
+		slog.Debug("file not found", "path", fname)
+		return fmt.Errorf("%w: %q", ErrFileNotFound, fname)
+	}
+	if err := Remove(fname); err != nil {
+		return fmt.Errorf("removing file:%w", err)
+	}
+	// check if the directory is empty
+	fdir := filepath.Dir(fname)
+	dirs, err := List(fdir, "*")
+	if err != nil {
+		return fmt.Errorf("listing directory: %w", err)
+	}
+	if len(dirs) == 0 {
+		// remove empty path
+		if err := Remove(fdir); err != nil {
+			return fmt.Errorf("removing directory: %w", err)
+		}
+	}
+
+	return nil
+}

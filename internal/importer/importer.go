@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/mateconpizza/rotato"
 
@@ -38,7 +39,7 @@ func Git(tmpPath, repoPath string, t *terminal.Term, f *frame.Frame) error {
 	f.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	for _, repoName := range repos {
-		if err := gitRepo(tmpPath, repoName, t, f.Clear()); err != nil {
+		if err := loadGitRepo(tmpPath, repoName, t, f.Clear()); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				t.ClearLine(1)
 				f.Clear().Warning(fmt.Sprintf("skipping repo %q\n", repoName)).Flush()
@@ -176,6 +177,68 @@ func IntoRepo(
 	success := color.BrightGreen("Successfully").Italic().String()
 	msg := fmt.Sprintf(success+" imported %d record/s\n", records.Len())
 	f.Clear().Success(msg).Flush()
+
+	return nil
+}
+
+func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
+	r, err := repo.New(dbPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+	defer r.Close()
+
+	bookmarks, err := parseGitRepo(f.Clear(), repoPath)
+	if err != nil {
+		return fmt.Errorf("importing bookmarks: %w", err)
+	}
+
+	bookmarks = deduplicatePtr(f.Clear(), r, bookmarks)
+
+	records := slice.New[bookmark.Bookmark]()
+	for _, b := range bookmarks {
+		records.Push(b)
+	}
+
+	if err := r.InsertMany(context.Background(), records); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	f.Clear().
+		Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), filepath.Base(dbPath))).
+		Flush()
+
+	return nil
+}
+
+func intoDB(f *frame.Frame, dbPath, dbName, repoPath string) error {
+	bookmarks, err := parseGitRepo(f.Clear(), repoPath)
+	if err != nil {
+		return fmt.Errorf("importing bookmarks: %w", err)
+	}
+
+	dbPath = filepath.Join(filepath.Dir(dbPath), dbName)
+	r, err := repo.Init(dbPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+
+	if err := r.Init(); err != nil {
+		return fmt.Errorf("initializing database: %w", err)
+	}
+
+	records := slice.New[bookmark.Bookmark]()
+	for _, b := range bookmarks {
+		records.Push(b)
+	}
+
+	if err := r.InsertMany(context.Background(), records); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	f.Clear().
+		Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), filepath.Base(dbPath))).
+		Flush()
 
 	return nil
 }

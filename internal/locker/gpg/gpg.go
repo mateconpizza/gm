@@ -30,6 +30,7 @@ const (
 	gitAttContent = "*.gpg diff=gpg"
 	FingerprintID = ".gpg-id"
 	GPGCommand    = "gpg"
+	Extension     = ".gpg"
 )
 
 var gpgArgs = []string{
@@ -117,7 +118,7 @@ func loadFingerprint(path string) error {
 
 // Save encrypts the provided data and saves it to the specified path.
 func Save(root, path string, b any) error {
-	path = files.StripSuffixes(path) + ".gpg"
+	path = files.StripSuffixes(path) + Extension
 	data, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
 		return fmt.Errorf("json marshal: %w", err)
@@ -162,7 +163,7 @@ func Create(root, hashPath string, bookmark any) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	filePath := filepath.Join(root, hashPath+".gpg")
+	filePath := filepath.Join(root, hashPath+Extension)
 	if files.Exists(filePath) {
 		return files.ErrFileExists
 	}
