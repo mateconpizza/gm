@@ -8,10 +8,10 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
@@ -64,7 +64,7 @@ var newBookmarkCmd = &cobra.Command{
 	Short:   "Create a new bookmark",
 	Aliases: []string{"r"},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(config.App.DBPath)
+		r, err := db.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

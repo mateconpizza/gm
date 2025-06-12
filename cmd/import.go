@@ -7,10 +7,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/importer"
-	"github.com/mateconpizza/gm/internal/repo"
 )
 
 var ErrImportSourceNotFound = errors.New("import source not found")
@@ -44,7 +44,7 @@ var importFromBrowserCmd = &cobra.Command{
 	Use:   "browser",
 	Short: "Import bookmarks from browser",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(config.App.DBPath)
+		r, err := db.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

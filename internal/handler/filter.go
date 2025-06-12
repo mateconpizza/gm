@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/repo"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/slice"
 )
 
@@ -19,7 +19,7 @@ var (
 )
 
 // ByTags returns a slice of bookmarks based on the provided tags.
-func ByTags(r *repo.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Bookmark]) error {
+func ByTags(r *db.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Bookmark]) error {
 	slog.Debug("by tags", "tags", tags, "count", bs.Len())
 	// FIX: redo, simplify
 	// if the slice contains bookmarks, filter by tag.
@@ -43,7 +43,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Bo
 
 	if bs.Empty() {
 		t := strings.Join(tags, ", ")
-		return fmt.Errorf("%w by tag: %q", repo.ErrRecordNoMatch, t)
+		return fmt.Errorf("%w by tag: %q", db.ErrRecordNoMatch, t)
 	}
 
 	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
@@ -61,7 +61,7 @@ func ByTags(r *repo.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Bo
 
 // ByQuery executes a search query on the given repository based on provided
 // arguments.
-func ByQuery(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
+func ByQuery(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	// FIX: do i need this?
 	if bs.Len() != 0 || len(args) == 0 {
 		return nil
@@ -79,7 +79,7 @@ func ByQuery(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args 
 
 // ByIDs retrieves records from the database based on either
 // an ID or a query string.
-func ByIDs(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
+func ByIDs(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("getting by IDs")
 	ids, err := extractIDsFrom(args)
 	if len(ids) == 0 {
@@ -98,7 +98,7 @@ func ByIDs(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []
 
 	if bs.Empty() {
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
-		return fmt.Errorf("%w by id/s: %s in %q", repo.ErrRecordNotFound, bids, r.Name())
+		return fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, r.Name())
 	}
 
 	return nil

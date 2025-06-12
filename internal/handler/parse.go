@@ -7,10 +7,10 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -21,7 +21,7 @@ type bookmarkTemp struct {
 }
 
 // cleanDuplicates removes duplicate bookmarks from the import process.
-func cleanDuplicates(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func cleanDuplicates(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	originalLen := bs.Len()
 	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
 		_, exists := r.Has(b.URL)
@@ -119,7 +119,7 @@ func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *book
 	// prompt|take input for tags
 	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
-	mTags, _ := repo.TagsCounterFromPath(config.App.DBPath)
+	mTags, _ := db.TagsCounterFromPath(config.App.DBPath)
 	b.tags = bookmark.ParseTags(t.ChooseTags(f.Border.Mid, mTags))
 
 	f.Clear().Mid(color.BrightBlue("Tags\t:").String()).
@@ -133,7 +133,7 @@ func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *book
 func NewBookmark(
 	f *frame.Frame,
 	t *terminal.Term,
-	r *repo.SQLiteRepository,
+	r *db.SQLiteRepository,
 	b *bookmark.Bookmark,
 	title, tags string,
 	args []string,

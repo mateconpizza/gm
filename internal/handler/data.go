@@ -13,11 +13,11 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -26,7 +26,7 @@ import (
 const maxItemsToEdit = 10
 
 // Records gets records based on user input and filtering criteria.
-func Records(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
+func Records(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("records", "args", args)
 	if err := ByIDs(r, bs, args); err != nil {
 		return fmt.Errorf("%w", err)
@@ -52,7 +52,7 @@ func Records(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args 
 func Data(
 	cmd *cobra.Command,
 	m *menu.Menu[bookmark.Bookmark],
-	r *repo.SQLiteRepository,
+	r *db.SQLiteRepository,
 	args []string,
 ) (*slice.Slice[bookmark.Bookmark], error) {
 	bs := slice.New[bookmark.Bookmark]()
@@ -105,7 +105,7 @@ func Data(
 
 // editBookmark handles editing a single bookmark.
 func editBookmark(
-	r *repo.SQLiteRepository,
+	r *db.SQLiteRepository,
 	te *files.TextEditor,
 	t *terminal.Term,
 	b *bookmark.Bookmark,
@@ -150,7 +150,7 @@ func prepareBuffer(b *bookmark.Bookmark, idx, total int) []byte {
 }
 
 // UpdateBookmark updates the repository with the modified bookmark.
-func UpdateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) error {
+func UpdateBookmark(r *db.SQLiteRepository, b, original *bookmark.Bookmark) error {
 	if _, err := r.Update(context.Background(), b, original); err != nil {
 		return fmt.Errorf("updating record: %w", err)
 	}
@@ -164,7 +164,7 @@ func UpdateBookmark(r *repo.SQLiteRepository, b, original *bookmark.Bookmark) er
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func removeRecords(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -225,7 +225,7 @@ func FindDB(p string) (string, error) {
 	if files.Exists(p) {
 		return p, nil
 	}
-	fs, err := repo.Databases(filepath.Dir(p))
+	fs, err := db.Databases(filepath.Dir(p))
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -236,5 +236,5 @@ func FindDB(p string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("%w: %q", repo.ErrDBNotFound, files.StripSuffixes(s))
+	return "", fmt.Errorf("%w: %q", db.ErrDBNotFound, files.StripSuffixes(s))
 }

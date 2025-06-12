@@ -10,12 +10,12 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
@@ -59,12 +59,12 @@ func JSONSlice(bs *slice.Slice[bookmark.Bookmark]) error {
 
 // JSONTags formats the tags counter in JSON.
 func JSONTags(p string) error {
-	r, err := repo.New(p)
+	r, err := db.New(p)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer r.Close()
-	tags, err := repo.TagsCounter(r)
+	tags, err := db.TagsCounter(r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -79,13 +79,13 @@ func JSONTags(p string) error {
 
 // ListTags lists the tags.
 func ListTags(p string) error {
-	r, err := repo.New(p)
+	r, err := db.New(p)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer r.Close()
 
-	tags, err := repo.TagsList(r)
+	tags, err := db.TagsList(r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -215,7 +215,7 @@ func ListDatabases(p string) error {
 	}
 
 	for _, f := range fs {
-		fmt.Print(repo.RepoSummaryFromPath(f))
+		fmt.Print(db.RepoSummaryFromPath(f))
 	}
 
 	return nil
@@ -224,10 +224,10 @@ func ListDatabases(p string) error {
 // RepoInfo prints the database info.
 func RepoInfo(p string, j bool) error {
 	if err := locker.IsLocked(p); err != nil {
-		fmt.Print(repo.RepoSummaryFromPath(p + ".enc"))
+		fmt.Print(db.RepoSummaryFromPath(p + ".enc"))
 		return nil
 	}
-	r, err := repo.New(p)
+	r, err := db.New(p)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
@@ -243,7 +243,7 @@ func RepoInfo(p string, j bool) error {
 		return nil
 	}
 
-	fmt.Print(repo.Info(r))
+	fmt.Print(db.Info(r))
 
 	return nil
 }

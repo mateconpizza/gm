@@ -7,8 +7,8 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
@@ -51,7 +51,7 @@ var recordsCmd = &cobra.Command{
 		return handler.ValidateDBExists(config.App.DBPath)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(config.App.DBPath)
+		r, err := db.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -62,7 +62,7 @@ var recordsCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		if bs.Empty() {
-			return repo.ErrRecordNotFound
+			return db.ErrRecordNotFound
 		}
 		// actions
 		switch {

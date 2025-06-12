@@ -15,11 +15,11 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -73,7 +73,7 @@ func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func Open(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	const maxGoroutines = 15
 	// get user confirmation to procced
 	o := color.BrightGreen("opening").Bold()
@@ -135,7 +135,7 @@ func Open(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 func CheckStatus(bs *slice.Slice[bookmark.Bookmark]) error {
 	n := bs.Len()
 	if n == 0 {
-		return repo.ErrRecordQueryNotProvided
+		return db.ErrRecordQueryNotProvided
 	}
 
 	const maxGoroutines = 15
@@ -247,10 +247,10 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 }
 
 // EditSlice edits the bookmarks using a text editor.
-func EditSlice(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func EditSlice(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	n := bs.Len()
 	if n == 0 {
-		return repo.ErrRecordQueryNotProvided
+		return db.ErrRecordQueryNotProvided
 	}
 	prompt := fmt.Sprintf("%s %d bookmarks, continue?", color.BrightOrange("editing").Bold(), n)
 	if err := confirmUserLimit(n, maxItemsToEdit, prompt); err != nil {

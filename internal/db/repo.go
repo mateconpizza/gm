@@ -1,5 +1,5 @@
 // Package repo provides the model of the configuration for a database.
-package repo
+package db
 
 import (
 	"context"

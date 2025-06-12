@@ -8,10 +8,10 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -61,13 +61,13 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 
 // SelectRepoBackup lets the user choose a backup and handles decryption if
 // needed.
-func SelectRepoBackup(destDB *repo.SQLiteRepository) (string, error) {
+func SelectRepoBackup(destDB *db.SQLiteRepository) (string, error) {
 	bks, err := destDB.BackupsList()
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 	selected, err := Select(bks,
-		func(p *string) string { return repo.BackupSummaryWithFmtDateFromPath(*p) },
+		func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
 		menu.WithArgs("--cycle"),
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -91,7 +91,7 @@ func SelectRepoBackup(destDB *repo.SQLiteRepository) (string, error) {
 // SelectItemFrom lets the user choose a repo from a list.
 func SelectItemFrom(fs []string, header string) (string, error) {
 	repos, err := Select(fs,
-		func(p *string) string { return repo.RepoSummaryRecordsFromPath(*p) },
+		func(p *string) string { return db.RepoSummaryRecordsFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
@@ -112,7 +112,7 @@ func SelectRepo(args []string) (string, error) {
 		return repoPath, fmt.Errorf("%w", err)
 	}
 	if len(fs) == 0 {
-		return repoPath, fmt.Errorf("%w", repo.ErrDBsNotFound)
+		return repoPath, fmt.Errorf("%w", db.ErrDBsNotFound)
 	}
 	if len(args) == 0 {
 		repoPath, err = SelectItemFrom(fs, "select database to remove")
@@ -131,10 +131,10 @@ func SelectRepo(args []string) (string, error) {
 		}
 	}
 	if repoPath == "" {
-		return repoPath, fmt.Errorf("%w: %q", repo.ErrDBNotFound, args[0])
+		return repoPath, fmt.Errorf("%w: %q", db.ErrDBNotFound, args[0])
 	}
 	if !files.Exists(repoPath) {
-		return repoPath, fmt.Errorf("%w: %q", repo.ErrDBNotFound, repoPath)
+		return repoPath, fmt.Errorf("%w: %q", db.ErrDBNotFound, repoPath)
 	}
 
 	return repoPath, nil
@@ -146,7 +146,7 @@ func SelectBackup(root, header string) ([]string, error) {
 		return fs, fmt.Errorf("%w", err)
 	}
 	repos, err := Select(fs,
-		func(p *string) string { return repo.RepoSummaryRecordsFromPath(*p) },
+		func(p *string) string { return db.RepoSummaryRecordsFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -168,7 +168,7 @@ func SelectFileLocked(root, header string) ([]string, error) {
 		return bks, fmt.Errorf("%w", err)
 	}
 	selected, err := Select(bks,
-		func(p *string) string { return repo.BackupSummaryWithFmtDateFromPath(*p) },
+		func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
@@ -200,7 +200,7 @@ func SelectFile(header string, search func() ([]string, error)) ([]string, error
 	return selected, nil
 }
 
-func SelectDatabase() (*repo.SQLiteRepository, error) {
+func SelectDatabase() (*db.SQLiteRepository, error) {
 	// build list of candidate .db files
 	dbFiles, err := files.FindByExtList(config.App.Path.Data, ".db")
 	if err != nil {
@@ -216,10 +216,10 @@ func SelectDatabase() (*repo.SQLiteRepository, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 	if !files.Exists(s) {
-		return nil, fmt.Errorf("%w: %q", repo.ErrDBNotFound, s)
+		return nil, fmt.Errorf("%w: %q", db.ErrDBNotFound, s)
 	}
 	// open source and destination
-	srcDB, err := repo.New(s)
+	srcDB, err := db.New(s)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}

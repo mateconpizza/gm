@@ -1,5 +1,5 @@
 //nolint:paralleltest //test
-package repo
+package db
 
 import (
 	"testing"

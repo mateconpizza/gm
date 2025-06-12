@@ -12,10 +12,10 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -30,14 +30,14 @@ func RemoveRepo(t *terminal.Term, p string) error {
 	}
 	p = pp
 	if !files.Exists(p) {
-		return fmt.Errorf("%w: %q", repo.ErrDBNotFound, p)
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, p)
 	}
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	if filepath.Base(p) == config.DefaultDBName && !config.App.Force {
 		return fmt.Errorf("%w: default database cannot be removed, use --force", terminal.ErrActionAborted)
 	}
-	i := repo.RepoSummaryFromPath(p)
+	i := db.RepoSummaryFromPath(p)
 	fmt.Print(i)
 
 	if !config.App.Force {
@@ -48,7 +48,7 @@ func RemoveRepo(t *terminal.Term, p string) error {
 	}
 
 	if err := RemoveBackups(t, f.Clear(), p); err != nil {
-		if !errors.Is(err, repo.ErrBackupNotFound) {
+		if !errors.Is(err, db.ErrBackupNotFound) {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -72,12 +72,12 @@ func RemoveRepo(t *terminal.Term, p string) error {
 
 // RemoveBackups removes backups.
 func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
-	fs, err := repo.ListDatabaseBackups(config.App.Path.Backup, filepath.Base(p))
+	fs, err := db.ListDatabaseBackups(config.App.Path.Backup, filepath.Base(p))
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	if len(fs) == 0 {
-		return repo.ErrBackupNotFound
+		return db.ErrBackupNotFound
 	}
 	rm := color.BrightRed("remove").Bold().String()
 	f.Question(rm + " backups?")
@@ -99,7 +99,7 @@ func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
 			filesToRemove.Append(fs...)
 		case "s", "select":
 			selected, err := Select(fs,
-				func(p *string) string { return repo.BackupSummaryWithFmtDateFromPath(*p) },
+				func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
 				menu.WithArgs("--cycle"),
 				menu.WithUseDefaults(),
 				menu.WithSettings(config.Fzf.Settings),
@@ -129,7 +129,7 @@ func removeSlicePath(f *frame.Frame, dbs *slice.Slice[string]) error {
 	if n > 1 && !config.App.Force {
 		f.Row("\n")
 		dbs.ForEach(func(r string) {
-			f.Mid(repo.RepoSummaryRecordsFromPath(r)).Ln()
+			f.Mid(db.RepoSummaryRecordsFromPath(r)).Ln()
 		})
 
 		msg := fmt.Sprintf("%s %d item/s", s, n)
@@ -164,7 +164,7 @@ func removeSlicePath(f *frame.Frame, dbs *slice.Slice[string]) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func Remove(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	defer r.Close()
 	if err := validateRemove(bs, config.App.Force); err != nil {
 		return err
@@ -195,10 +195,10 @@ func Remove(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error 
 }
 
 // DroppingDB drops a database.
-func DroppingDB(t *terminal.Term, r *repo.SQLiteRepository) error {
+func DroppingDB(t *terminal.Term, r *db.SQLiteRepository) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Header(color.BrightRed("Dropping").String() + " all records\n").Row("\n").Flush()
-	fmt.Print(repo.Info(r))
+	fmt.Print(db.Info(r))
 
 	f.Clear().Rowln().Flush()
 

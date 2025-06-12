@@ -11,11 +11,11 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/browser"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -65,7 +65,7 @@ func Git(tmpPath, repoPath string, t *terminal.Term, f *frame.Frame) error {
 }
 
 // Browser imports bookmarks from a supported browser.
-func Browser(r *repo.SQLiteRepository) error {
+func Browser(r *db.SQLiteRepository) error {
 	t := terminal.New(terminal.WithInterruptFn(func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
@@ -94,8 +94,8 @@ func Browser(r *repo.SQLiteRepository) error {
 }
 
 // Database imports bookmarks from a database.
-func Database(srcDB *repo.SQLiteRepository) error {
-	destDB, err := repo.New(config.App.DBPath)
+func Database(srcDB *db.SQLiteRepository) error {
+	destDB, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -155,7 +155,7 @@ func Database(srcDB *repo.SQLiteRepository) error {
 // IntoRepo inserts records into the database.
 func IntoRepo(
 	t *terminal.Term,
-	r *repo.SQLiteRepository,
+	r *db.SQLiteRepository,
 	records *slice.Slice[bookmark.Bookmark],
 ) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
@@ -182,7 +182,7 @@ func IntoRepo(
 }
 
 func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
-	r, err := repo.New(dbPath)
+	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -218,7 +218,7 @@ func intoDB(f *frame.Frame, dbPath, dbName, repoPath string) error {
 	}
 
 	dbPath = filepath.Join(filepath.Dir(dbPath), dbName)
-	r, err := repo.Init(dbPath)
+	r, err := db.Init(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}

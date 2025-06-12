@@ -8,10 +8,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -71,7 +71,7 @@ var backupUnlockCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
 		if !files.Exists(config.App.Path.Backup) {
-			return fmt.Errorf("%w", repo.ErrBackupNotFound)
+			return fmt.Errorf("%w", db.ErrBackupNotFound)
 		}
 		r, err := handler.SelectFileLocked(config.App.Path.Backup, "select backup to unlock")
 		if err != nil {
@@ -88,12 +88,12 @@ var backupListCmd = &cobra.Command{
 	Short:   "List backups from a database",
 	Aliases: []string{"ls", "l"},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(config.App.DBPath)
+		r, err := db.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
 		defer r.Close()
-		fmt.Print(repo.Info(r))
+		fmt.Print(db.Info(r))
 
 		return nil
 	},
@@ -105,7 +105,7 @@ var backupNewCmd = &cobra.Command{
 	Short:   "Create a new backup",
 	Aliases: []string{"create", "add"},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := repo.New(config.App.DBPath)
+		r, err := db.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
@@ -117,12 +117,12 @@ var backupNewCmd = &cobra.Command{
 
 		srcPath := config.App.DBPath
 		if !files.Exists(srcPath) {
-			return fmt.Errorf("%w: %q", repo.ErrDBNotFound, srcPath)
+			return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
 		}
 		if files.Empty(srcPath) {
-			return fmt.Errorf("%w", repo.ErrDBEmpty)
+			return fmt.Errorf("%w", db.ErrDBEmpty)
 		}
-		fmt.Print(repo.Info(r))
+		fmt.Print(db.Info(r))
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		f.Row("\n").Flush().Clear()
 		c := color.BrightGreen("backup").String()

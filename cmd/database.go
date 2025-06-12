@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -37,7 +37,7 @@ var databaseNewCmd = &cobra.Command{
 	Short: initCmd.Short,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		if err := locker.IsLocked(config.App.DBPath); err != nil {
-			return fmt.Errorf("%w: is locked", repo.ErrDBExists)
+			return fmt.Errorf("%w: is locked", db.ErrDBExists)
 		}
 
 		return nil
@@ -58,7 +58,7 @@ var databaseDropCmd = &cobra.Command{
 	Use:   "drop",
 	Short: "Drop a database",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		r, err := repo.New(config.App.DBPath)
+		r, err := db.New(config.App.DBPath)
 		if err != nil {
 			return fmt.Errorf("database: %w", err)
 		}
@@ -122,7 +122,7 @@ var databaseLockCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		if !files.Exists(config.App.DBPath) {
-			return fmt.Errorf("%w: %q", repo.ErrDBNotFound, config.App.DBName)
+			return fmt.Errorf("%w: %q", db.ErrDBNotFound, config.App.DBName)
 		}
 
 		return nil
@@ -138,7 +138,7 @@ var databaseUnlockCmd = &cobra.Command{
 	Short: "Unlock a database",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		if !files.Exists(config.App.DBPath) && !files.Exists(config.App.DBPath+".enc") {
-			return repo.ErrDBNotFound
+			return db.ErrDBNotFound
 		}
 
 		return nil

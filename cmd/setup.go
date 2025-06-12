@@ -11,11 +11,11 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -120,11 +120,11 @@ var initCmd = &cobra.Command{
 	Hidden: true,
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		if files.Exists(config.App.DBPath) {
-			if ok, _ := repo.IsInitialized(config.App.DBPath); ok {
-				return repo.ErrDBExistsAndInit
+			if ok, _ := db.IsInitialized(config.App.DBPath); ok {
+				return db.ErrDBExistsAndInit
 			}
 
-			return fmt.Errorf("%q %w", config.App.DBName, repo.ErrDBExists)
+			return fmt.Errorf("%q %w", config.App.DBName, db.ErrDBExists)
 		}
 
 		return nil
@@ -136,14 +136,14 @@ var initCmd = &cobra.Command{
 			return err
 		}
 		// init database
-		r, err := repo.Init(config.App.DBPath)
+		r, err := db.Init(config.App.DBPath)
 		if r == nil {
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
 		// initialize database
 		if r.IsInitialized() && !config.App.Force {
-			return fmt.Errorf("%q %w", r.Name(), repo.ErrDBAlreadyInitialized)
+			return fmt.Errorf("%q %w", r.Name(), db.ErrDBAlreadyInitialized)
 		}
 		if err := r.Init(); err != nil {
 			return fmt.Errorf("initializing database: %w", err)

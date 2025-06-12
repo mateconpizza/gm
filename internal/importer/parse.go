@@ -15,12 +15,12 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -31,7 +31,7 @@ var ErrNotImplemented = errors.New("not implemented")
 type loaderFileFn = func(path string) (*bookmark.Bookmark, error)
 
 // deduplicate removes duplicate bookmarks.
-func deduplicate(f *frame.Frame, r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func deduplicate(f *frame.Frame, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	originalLen := bs.Len()
 	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
 		_, exists := r.Has(b.URL)
@@ -51,7 +51,7 @@ func deduplicate(f *frame.Frame, r *repo.SQLiteRepository, bs *slice.Slice[bookm
 }
 
 // deduplicate removes duplicate bookmarks.
-func deduplicatePtr(f *frame.Frame, r *repo.SQLiteRepository, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+func deduplicatePtr(f *frame.Frame, r *db.SQLiteRepository, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	originalLen := len(bs)
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
 
@@ -77,7 +77,7 @@ func deduplicatePtr(f *frame.Frame, r *repo.SQLiteRepository, bs []*bookmark.Boo
 // browser process.
 func parseFoundInBrowser(
 	t *terminal.Term,
-	r *repo.SQLiteRepository,
+	r *db.SQLiteRepository,
 	bs *slice.Slice[bookmark.Bookmark],
 ) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
@@ -345,7 +345,7 @@ func loadGitRepoAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbName, re
 		}
 	case "d", "drop":
 		f.Warning("Dropping database\n").Flush()
-		if err := repo.DropFromPath(dbPath); err != nil {
+		if err := db.DropFromPath(dbPath); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		if err := mergeRecords(f.Clear(), dbPath, repoPath); err != nil {

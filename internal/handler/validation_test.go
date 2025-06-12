@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
@@ -56,7 +56,7 @@ func TestFindLockedDB(t *testing.T) {
 		nonExistentFile := filepath.Join(path, "non-existent.db")
 		got, err := FindDB(nonExistentFile)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, repo.ErrDBNotFound)
+		assert.ErrorIs(t, err, db.ErrDBNotFound)
 		assert.Empty(t, got)
 	})
 }

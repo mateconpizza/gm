@@ -8,12 +8,12 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/importer"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -26,12 +26,12 @@ func ImportFromDB(
 	cmd *cobra.Command,
 	m *menu.Menu[bookmark.Bookmark],
 	t *terminal.Term,
-	destDB, srcDB *repo.SQLiteRepository,
+	destDB, srcDB *db.SQLiteRepository,
 ) error {
 	// FIX: move to `importer` package
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	i := color.BrightMagenta("Import").Bold().String() + " from Database\n"
-	f.Header(i).Row("\n").Text(repo.RepoSummary(srcDB)).Row("\n").Flush()
+	f.Header(i).Row("\n").Text(db.RepoSummary(srcDB)).Row("\n").Flush()
 	// prompt
 	if err := t.ConfirmErr(f.Clear().Question("continue?").String(), "y"); err != nil {
 		return fmt.Errorf("%w", err)
@@ -70,7 +70,7 @@ func ImportFromDB(
 // ImportFromBackup imports bookmarks from a backup.
 func ImportFromBackup(cmd *cobra.Command, args []string) error {
 	// FIX: move to `importer` package or remove
-	destDB, err := repo.New(config.App.DBPath)
+	destDB, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -81,7 +81,7 @@ func ImportFromBackup(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	srcDB, err := repo.New(backupPath)
+	srcDB, err := db.New(backupPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

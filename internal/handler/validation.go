@@ -12,11 +12,11 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/format/color"
 	"github.com/mateconpizza/gm/internal/format/frame"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/menu"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -38,7 +38,7 @@ func confirmRemove(
 		slog.Info("colorscheme loaded", "name", cs.Name)
 		n := bs.Len()
 		if n == 0 {
-			return repo.ErrRecordNotFound
+			return db.ErrRecordNotFound
 		}
 		bs.ForEach(func(b bookmark.Bookmark) {
 			fmt.Println(bookmark.Frame(&b, cs))
@@ -69,7 +69,7 @@ func confirmRemove(
 	}
 
 	if bs.Empty() {
-		return repo.ErrRecordNotFound
+		return db.ErrRecordNotFound
 	}
 
 	return nil
@@ -114,7 +114,7 @@ func extractIDsFrom(args []string) ([]int, error) {
 // validateRemove checks if the remove operation is valid.
 func validateRemove(bs *slice.Slice[bookmark.Bookmark], force bool) error {
 	if bs.Empty() {
-		return repo.ErrRecordNotFound
+		return db.ErrRecordNotFound
 	}
 
 	if terminal.IsPiped() && !force {
@@ -134,7 +134,7 @@ func ValidateDBExists(p string) error {
 		return nil
 	}
 	if err := locker.IsLocked(p); err != nil {
-		return repo.ErrDBLocked
+		return db.ErrDBLocked
 	}
 	i := color.BrightYellow(config.App.Cmd, "init").Italic()
 	o := color.BrightYellow(config.App.Cmd, "new").Italic()
@@ -142,10 +142,10 @@ func ValidateDBExists(p string) error {
 	name := filepath.Base(p)
 	if name == config.DefaultDBName {
 		slog.Warn("default database not found", "name", name)
-		return fmt.Errorf("%w: use %s to initialize", repo.ErrDBMainNotFound, i)
+		return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
 	}
-	ei := fmt.Errorf("%w: use %s or %s", repo.ErrDBNotFound, i, o)
-	dbs, err := repo.Databases(filepath.Dir(p))
+	ei := fmt.Errorf("%w: use %s or %s", db.ErrDBNotFound, i, o)
+	dbs, err := db.Databases(filepath.Dir(p))
 	if err != nil {
 		return ei
 	}
@@ -183,7 +183,7 @@ func CheckDBLocked(p string) error {
 	err := locker.IsLocked(p)
 	if err != nil {
 		if errors.Is(err, locker.ErrItemLocked) {
-			return repo.ErrDBUnlockFirst
+			return db.ErrDBUnlockFirst
 		}
 
 		return fmt.Errorf("%w", err)
@@ -197,7 +197,7 @@ func AssertDefaultDatabaseExists() error {
 	p := filepath.Join(config.App.Path.Data, config.DefaultDBName)
 	if !files.Exists(p) {
 		i := color.BrightYellow(config.App.Cmd, "init").Italic()
-		return fmt.Errorf("%w: use '%s' to initialize", repo.ErrDBMainNotFound, i)
+		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
 	}
 
 	return nil

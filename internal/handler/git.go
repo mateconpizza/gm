@@ -10,9 +10,9 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/repo"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
@@ -24,7 +24,7 @@ func GitCommit(actionMsg string) error {
 		return nil
 	}
 
-	r, err := repo.New(config.App.DBPath)
+	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("open repo: %w", err)
 	}
@@ -178,7 +178,7 @@ func gitSummaryRepoStats(repoPath string) error {
 
 // GitSummary returns a new SyncGitSummary.
 func GitSummary(dbPath, repoPath string) (*git.SyncGitSummary, error) {
-	r, err := repo.New(dbPath)
+	r, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
@@ -209,9 +209,9 @@ func GitSummary(dbPath, repoPath string) (*git.SyncGitSummary, error) {
 		},
 		RepoStats: &git.RepoStats{
 			Name:      r.Cfg.Name,
-			Bookmarks: repo.CountMainRecords(r),
-			Tags:      repo.CountTagsRecords(r),
-			Favorites: repo.CountFavorites(r),
+			Bookmarks: db.CountMainRecords(r),
+			Tags:      db.CountTagsRecords(r),
+			Favorites: db.CountFavorites(r),
 		},
 	}
 
@@ -222,7 +222,7 @@ func GitSummary(dbPath, repoPath string) (*git.SyncGitSummary, error) {
 
 // GitRepoStats returns a new RepoStats.
 func GitRepoStats(summary *git.SyncGitSummary, repoPath string) error {
-	r, err := repo.New(config.App.DBPath)
+	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -230,9 +230,9 @@ func GitRepoStats(summary *git.SyncGitSummary, repoPath string) error {
 
 	summary.RepoStats = &git.RepoStats{
 		Name:      r.Cfg.Name,
-		Bookmarks: repo.CountMainRecords(r),
-		Tags:      repo.CountTagsRecords(r),
-		Favorites: repo.CountFavorites(r),
+		Bookmarks: db.CountMainRecords(r),
+		Tags:      db.CountTagsRecords(r),
+		Favorites: db.CountFavorites(r),
 	}
 
 	summary.GenerateChecksum()
@@ -257,7 +257,7 @@ func GitSummaryGenerate(repoPath string) error {
 }
 
 // GitCleanFiles removes the files from the git repo.
-func GitCleanFiles(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func GitCleanFiles(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	repoPath := config.App.Path.Git
 	if !git.IsInitialized(repoPath) {
 		return nil
@@ -286,7 +286,7 @@ func GitCleanFiles(r *repo.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 
 // GitExport exports the bookmarks to the git repo.
 func GitExport(dbPath string) error {
-	r, err := repo.New(dbPath)
+	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
