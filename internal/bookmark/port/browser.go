@@ -1,9 +1,9 @@
 package port
 
 import (
-	"github.com/mateconpizza/gm/internal/browser"
-	"github.com/mateconpizza/gm/internal/browser/blink"
-	"github.com/mateconpizza/gm/internal/browser/gecko"
+	"github.com/mateconpizza/gm/internal/sys/browser"
+	"github.com/mateconpizza/gm/internal/sys/browser/blink"
+	"github.com/mateconpizza/gm/internal/sys/browser/gecko"
 	"github.com/mateconpizza/gm/internal/format"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
