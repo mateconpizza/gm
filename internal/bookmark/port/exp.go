@@ -1,6 +1,7 @@
 package port
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -200,4 +201,14 @@ func exportFromGit(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error
 	}
 
 	return parseGPGRepo(f, repoPath)
+}
+
+// ToJSON converts an interface to JSON.
+func ToJSON(data any) ([]byte, error) {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return jsonData, nil
 }

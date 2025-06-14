@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/printer"
 )
 
 type tagsFlagType struct {
@@ -29,9 +32,9 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case tagsFlags.json:
-				return handler.JSONTags(config.App.DBPath)
+				return printer.JSONTags(config.App.DBPath)
 			case tagsFlags.list:
-				return handler.ListTags(config.App.DBPath)
+				return printer.TagsList(config.App.DBPath)
 			}
 			return cmd.Usage()
 		},
@@ -58,7 +61,7 @@ var recordsCmd = &cobra.Command{
 		defer r.Close()
 
 		terminal.ReadPipedInput(&args)
-		bs, err := handler.Data(cmd, handler.MenuForRecords[bookmark.Bookmark](cmd), r, args)
+		bs, err := handler.Data(cmd, menuForRecords[bookmark.Bookmark](cmd), r, args)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -83,15 +86,15 @@ var recordsCmd = &cobra.Command{
 		// display
 		switch {
 		case Field != "":
-			return handler.ByField(bs, Field)
+			return printer.ByField(bs, Field)
 		case QR:
 			return handler.QR(bs, Open)
 		case JSON:
-			return handler.JSONSlice(bs)
+			return printer.JSONRecordSlice(bs)
 		case Oneline:
-			return handler.Oneline(bs)
+			return printer.Oneline(bs)
 		default:
-			return handler.Print(bs)
+			return printer.RecordSlice(bs)
 		}
 	},
 }
@@ -130,4 +133,31 @@ func initRecordFlags(cmd *cobra.Command) {
 	// Modifiers
 	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
 	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+}
+
+// menuForRecords returns a FZF menu for showing records.
+func menuForRecords[T comparable](cmd *cobra.Command) *menu.Menu[T] {
+	mo := []menu.OptFn{
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithMultiSelection(),
+		menu.WithPreview(config.App.Cmd + " --name " + config.App.DBName + " records {1}"),
+		menu.WithKeybinds(
+			config.FzfKeybindEdit(),
+			config.FzfKeybindOpen(),
+			config.FzfKeybindQR(),
+			config.FzfKeybindOpenQR(),
+			config.FzfKeybindYank(),
+		),
+	}
+	multi, err := cmd.Flags().GetBool("multiline")
+	if err != nil {
+		slog.Debug("getting 'Multiline' flag", "error", err.Error())
+		multi = false
+	}
+	if multi {
+		mo = append(mo, menu.WithMultilineView())
+	}
+
+	return menu.New[T](mo...)
 }

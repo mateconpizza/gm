@@ -17,9 +17,9 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/printer"
 )
 
 type dbTrackerType struct {
@@ -116,7 +116,7 @@ var (
 
 			switch {
 			case gitTrackerFlags.list:
-				return ui.PrintGitRepoTracked(f, tracked)
+				return printer.GitRepoTracked(f, tracked)
 			case gitTrackerFlags.mgt:
 				return handler.GitTrackManagement(t, f, repoPath)
 			case gitTrackerFlags.untrack:

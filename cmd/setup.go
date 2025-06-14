@@ -152,8 +152,7 @@ var initCmd = &cobra.Command{
 
 		// ignore initial bookmark if not DefaultDBName
 		if config.App.DBName != config.DefaultDBName {
-			s := color.Gray(config.App.DBName).Italic().String()
-			fmt.Println(txt.SuccessMesg("initialized database " + s))
+			fmt.Println(txt.SuccessMesg("initialized database " + config.App.DBName))
 
 			return nil
 		}
@@ -171,9 +170,7 @@ var initCmd = &cobra.Command{
 
 		// print new record
 		fmt.Print(bookmark.Frame(ib, color.DefaultColorScheme()))
-
-		s := color.Gray(config.App.DBName + "\n").Italic().String()
-		fmt.Print("\n" + txt.SuccessMesg("initialized database "+s))
+		fmt.Print("\n" + txt.SuccessMesg("initialized database "+config.App.DBName))
 
 		return nil
 	},

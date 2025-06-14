@@ -169,3 +169,18 @@ func fetchTitleAndDesc(f *frame.Frame, sc *scraper.Scraper, b *bookmarkTemp) {
 
 	f.Flush()
 }
+
+// fzfFormatter returns a function to format a bookmark for the FZF menu.
+func fzfFormatter(m bool) func(b *bookmark.Bookmark) string {
+	cs := color.DefaultColorScheme()
+	switch {
+	case m:
+		return func(b *bookmark.Bookmark) string {
+			return bookmark.Multiline(b, cs)
+		}
+	default:
+		return func(b *bookmark.Bookmark) string {
+			return bookmark.Oneline(b, cs)
+		}
+	}
+}

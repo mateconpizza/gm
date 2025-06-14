@@ -4,14 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path/filepath"
-	"sort"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -19,13 +16,8 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
-var (
-	// createConfFlag is the flag for creating a new config file.
-	createConfFlag bool
-
-	// colorSchemeFlag list available color schemes.
-	colorSchemeFlag bool
-)
+// createConfFlag is the flag for creating a new config file.
+var createConfFlag bool
 
 var ErrConfigFileNotFound = errors.New("config file not found")
 
@@ -113,63 +105,11 @@ func printConfigJSON(p string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	j, err := handler.ToJSON(cfg)
+	j, err := port.ToJSON(cfg)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	fmt.Println(string(j))
-
-	return nil
-}
-
-// ExportColorScheme saves given colorscheme to a YAML file in the colorschemes
-// path.
-func ExportColorScheme(cs *color.Scheme) error {
-	// TODO: use it or lose it
-	p := config.App.Path.Colorschemes
-	if p == "" {
-		return fmt.Errorf("%w for colorschemes", files.ErrPathNotFound)
-	}
-	slog.Info("colorscheme path", "path", p)
-
-	f := filepath.Join(p, cs.Name+".yaml")
-	if files.Exists(f) && !config.App.Force {
-		f := color.BrightYellow("--force").Italic().String()
-		return fmt.Errorf("%q %w. use %s to overwrite", filepath.Base(f), files.ErrFileExists, f)
-	}
-	if err := files.YamlWrite(f, cs, config.App.Force); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Printf("%s: file saved %q\n", config.App.Name, f)
-
-	return nil
-}
-
-// printColorSchemes prints a list of available colorschemes.
-func printColorSchemes() error {
-	schemes, err := handler.LoadColorSchemesFiles(config.App.Path.Colorschemes, color.DefaultSchemes)
-	if err != nil && !errors.Is(err, color.ErrColorSchemePath) {
-		return fmt.Errorf("%w", err)
-	}
-
-	color.DefaultSchemes = schemes
-
-	keys := make([]string, 0, len(color.DefaultSchemes))
-	for k := range color.DefaultSchemes {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	h := color.BrightYellow("ColorSchemes " + strconv.Itoa(len(keys)) + " Found\n").String()
-	f.Header(h).Row("\n")
-	for _, k := range keys {
-		cs := color.DefaultSchemes[k]
-		c := strconv.Itoa(cs.Len())
-		f.Mid(fmt.Sprintf("%-*s %v\n", 20, cs.Name, color.Gray(" ("+c+" colors)")))
-	}
-	f.Flush()
 
 	return nil
 }
@@ -185,8 +125,6 @@ var configCmd = &cobra.Command{
 			return createConfig(fn)
 		case Edit:
 			return editConfig(fn)
-		case colorSchemeFlag:
-			return printColorSchemes()
 		case JSON:
 			return printConfigJSON(fn)
 		}
@@ -199,7 +137,6 @@ func init() {
 	f := configCmd.Flags()
 	f.BoolP("help", "h", false, "Hidden help")
 	f.BoolVarP(&createConfFlag, "create", "c", false, "create config file")
-	f.BoolVarP(&colorSchemeFlag, "schemes", "s", false, "list available color schemes")
 	f.BoolVarP(&Edit, "edit", "e", false, "edit config")
 	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
 	// set and hide persistent flag

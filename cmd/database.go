@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/printer"
 )
 
 // dbCmd database management.
@@ -24,7 +25,7 @@ var dbCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if JSON {
-			return handler.RepoInfo(config.App.DBPath, JSON)
+			return printer.RepoInfo(config.App.DBPath, JSON)
 		}
 
 		return cmd.Usage()
@@ -87,7 +88,7 @@ var databaseListCmd = &cobra.Command{
 	Short:   "List databases",
 	Aliases: []string{"ls", "l"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return handler.PrintDatabases(config.App.Path.Data)
+		return printer.DatabasesList(config.App.Path.Data)
 	},
 }
 
@@ -97,7 +98,7 @@ var databaseInfoCmd = &cobra.Command{
 	Short:   "Show information about a database",
 	Aliases: []string{"i", "show"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return handler.RepoInfo(config.App.DBPath, JSON)
+		return printer.RepoInfo(config.App.DBPath, JSON)
 	},
 }
 

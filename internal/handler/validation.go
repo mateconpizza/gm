@@ -31,11 +31,8 @@ func confirmRemove(
 	s string,
 ) error {
 	for !config.App.Force {
-		cs, err := getColorScheme(config.App.Colorscheme)
-		if err != nil {
-			return err
-		}
-		slog.Info("colorscheme loaded", "name", cs.Name)
+		cs := color.DefaultColorScheme()
+
 		n := bs.Len()
 		if n == 0 {
 			return db.ErrRecordNotFound
@@ -53,6 +50,7 @@ func confirmRemove(
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		switch strings.ToLower(opt) {
 		case "n", "no":
 			return sys.ErrActionAborted
