@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -16,29 +17,31 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
+type dbTrackerType struct {
+	list    bool
+	track   bool
+	untrack bool
+	mgt     bool
+}
+
 type gitFlagsType struct {
 	origin string
+	redo   bool
 }
 
 var gitFlags = gitFlagsType{}
-
-var gitPullCmd = &cobra.Command{
-	Use:   "pull",
-	Short: "Fetch from and integrate with another repository or a local branch",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return git.Fetch(config.App.Path.Git)
-	},
-}
 
 var gitPushCmd = &cobra.Command{
 	Use:   "push",
 	Short: "Update remote refs along with associated objects",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		repoPath := config.App.Path.Git
+		cfg := config.App
+		repoPath := cfg.Path.Git
 		procced, err := git.HasUnpushedCommits(repoPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -47,7 +50,7 @@ var gitPushCmd = &cobra.Command{
 			return git.ErrGitNoCommits
 		}
 
-		if err := handler.GitSummaryGenerate(repoPath); err != nil {
+		if err := handler.GitSummaryGenerate(cfg.Path.Data, repoPath, cfg.Info.Version); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		if err := git.AddAll(repoPath); err != nil {
@@ -65,7 +68,7 @@ var gitCommitCmd = &cobra.Command{
 	Use:   "commit",
 	Short: "Record changes to the repository",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return handler.GitCommit("Update")
+		return handler.GitCommit(config.App.DBPath, config.App.Path.Git, "Update")
 	},
 }
 
@@ -77,7 +80,7 @@ var gitRemoteCmd = &cobra.Command{
 		if err := git.AddRemote(repoPath, gitFlags.origin); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		if err := handler.GitSummaryGenerate(repoPath); err != nil {
+		if err := handler.GitSummaryGenerate(config.App.Path.Data, repoPath, config.App.Info.Version); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		if err := git.AddAll(repoPath); err != nil {
@@ -94,13 +97,38 @@ var gitRemoteCmd = &cobra.Command{
 	},
 }
 
-var gitLogCmd = &cobra.Command{
-	Use:   "log",
-	Short: "Show commit logs",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return git.Log(config.App.Path.Git)
-	},
-}
+var (
+	gitTrackerFlags = dbTrackerType{}
+
+	gitTrackerCmd = &cobra.Command{
+		Use:     "tracker",
+		Short:   "Track database in git",
+		Aliases: []string{"t"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			repoPath := config.App.Path.Git
+			tracked, err := git.Tracked(repoPath)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			f := frame.New(frame.WithColorBorder(color.Gray))
+			t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
+
+			switch {
+			case gitTrackerFlags.list:
+				return ui.PrintGitRepoTracked(f, tracked)
+			case gitTrackerFlags.mgt:
+				return handler.GitTrackManagement(t, f, repoPath)
+			case gitTrackerFlags.untrack:
+				return handler.GitTrackRemoveRepo(config.App.DBName, repoPath, tracked)
+			case gitTrackerFlags.track:
+				return handler.GitTrackAddRepo(config.App.DBName, repoPath, tracked)
+			}
+
+			return cmd.Help()
+		},
+	}
+)
 
 var gitInitCmd = &cobra.Command{
 	Use:   "init",
@@ -113,7 +141,7 @@ var gitInitCmd = &cobra.Command{
 
 		repoPath := config.App.Path.Git
 
-		if err := git.InitRepo(repoPath, config.App.Force); err != nil {
+		if err := git.InitRepo(repoPath, gitFlags.redo); err != nil {
 			return fmt.Errorf("init repo: %w", err)
 		}
 
@@ -122,57 +150,36 @@ var gitInitCmd = &cobra.Command{
 			return fmt.Errorf("select tracked: %w", err)
 		}
 
-		return initializeTracking(t, f, tracked)
+		if len(tracked) == 0 {
+			return terminal.ErrActionAborted
+		}
+
+		if err := git.SetTracked(repoPath, tracked); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		if t.Confirm(f.Question("Use GPG for encryption?").String(), "y") {
+			if err := gpg.Init(repoPath); err != nil {
+				return fmt.Errorf("gpg init: %w", err)
+			}
+		}
+
+		return handler.GitInitTracking(repoPath, tracked)
 	},
-}
-
-// initializeTracking will initialize the tracking database.
-func initializeTracking(t *terminal.Term, f *frame.Frame, tracked []string) error {
-	s := f.Clear().Question("Use GPG for encryption?").String()
-
-	if gpg.IsInitialized(config.App.Path.Git) || !t.Confirm(s, "y") {
-		for _, dbFile := range tracked {
-			if err := port.GitExport(dbFile); err != nil {
-				if errors.Is(err, git.ErrGitNothingToCommit) {
-					f.Clear().
-						Warning(fmt.Sprintf("Skipping %q, no bookmarks found\n", filepath.Base(dbFile))).
-						Flush()
-					continue
-				}
-				return fmt.Errorf("%w", err)
-			}
-			if err := handler.GitCommit("Initializing repo"); err != nil {
-				return fmt.Errorf("%w", err)
-			}
-		}
-		success := color.BrightGreen("Successfully").Italic().String()
-		f.Clear().Success(success + color.Text(" initialized\n").Italic().String()).Flush()
-
-		return nil
-	}
-
-	for _, dbFile := range tracked {
-		config.SetDBName(filepath.Base(dbFile))
-		config.SetDBPath(dbFile)
-		if err := gpgInitCmd.RunE(&cobra.Command{}, []string{}); err != nil {
-			return fmt.Errorf("gpg init: %w", err)
-		}
-	}
-
-	return nil
 }
 
 // gitCmd represents the git command.
 var gitCmd = &cobra.Command{
-	Use:     "git",
-	Short:   "Git commands",
-	Aliases: []string{"g"},
+	Use:                "git",
+	Short:              "git commands",
+	Aliases:            []string{"g"},
+	DisableFlagParsing: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if err := handler.AssertDefaultDatabaseExists(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 		switch cmd.Name() {
-		case "init", "git", "clone":
+		case "init", "import":
 			return nil
 		}
 		if !git.IsInitialized(config.App.Path.Git) {
@@ -181,50 +188,22 @@ var gitCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return cmd.Usage()
+		if slices.ContainsFunc([]string{"-h", "--help", "help"}, func(x string) bool {
+			return slices.Contains(args, x)
+		}) {
+			return cmd.Help()
+		}
+
+		if len(args) == 0 {
+			args = append(args, "log", "--oneline")
+		}
+		return git.RunGitCmd(config.App.Path.Git, args...)
 	},
 }
 
-var gpgInitCmd = &cobra.Command{
-	Use:    "gpg",
-	Short:  "Initialize a git GPG repository",
-	Hidden: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		repoPath := config.App.Path.Git
-		if err := gpg.Init(repoPath); err != nil {
-			return fmt.Errorf("gpg init: %w", err)
-		}
-
-		success := color.BrightGreen("Successfully").Italic().String()
-		f := frame.New(frame.WithColorBorder(color.Gray))
-		f.Clear().Success(success + color.Text(" initialized\n").Italic().String()).Flush()
-
-		if err := port.GitExport(config.App.DBPath); err != nil {
-			if errors.Is(err, git.ErrGitNothingToCommit) {
-				f.Clear().
-					Warning(fmt.Sprintf("Skipping %q, no bookmarks found\n", filepath.Base(config.App.DBPath))).
-					Flush()
-				return nil
-			}
-
-			return fmt.Errorf("%w", err)
-		}
-
-		if err := handler.GitCommit("Initializing encrypted repo"); err != nil {
-			if errors.Is(err, git.ErrGitNothingToCommit) {
-				return nil
-			}
-			return fmt.Errorf("%w", err)
-		}
-
-		return nil
-	},
-}
-
-var gitCloneCmd = &cobra.Command{
-	Use:   "clone",
-	Short: "Clone a repository",
-	Long:  "Clone a repository and import to the a new bookmarks database",
+var gitImportCmd = &cobra.Command{
+	Use:   "import",
+	Short: "import bookmarks from git",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// FIX:
 		// * Clone this repo into `config.App.Path.Git`
@@ -234,7 +213,7 @@ var gitCloneCmd = &cobra.Command{
 		if len(args) == 0 {
 			return git.ErrGitRepoURLEmpty
 		}
-		repoPath := args[0]
+		repoPathToClone := args[0]
 
 		tmpPath := filepath.Join(os.TempDir(), config.App.Name+"-clone")
 		if files.Exists(tmpPath) {
@@ -248,13 +227,18 @@ var gitCloneCmd = &cobra.Command{
 			sys.ErrAndExit(err)
 		}))
 
-		if err := port.GitImport(t, f, tmpPath, repoPath); err != nil {
+		if err := port.GitImport(t, f, tmpPath, repoPathToClone); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		if err := port.GitExport(config.App.DBPath); err != nil {
+		dbPath := config.App.DBPath
+		if err := port.GitExport(dbPath); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		if err := handler.GitCommit("Import from git"); err != nil {
+		if err := handler.GitCommit(dbPath, config.App.Path.Git, "Import from git"); err != nil {
+			if errors.Is(err, git.ErrGitNothingToCommit) {
+				return nil
+			}
+
 			return fmt.Errorf("%w", err)
 		}
 
@@ -266,7 +250,14 @@ func init() {
 	gitRemoteCmd.Flags().StringVar(&gitFlags.origin, "add", "", "git remote origin")
 	_ = gitRemoteCmd.MarkFlagRequired("add")
 
-	gitCmd.AddCommand(gitPullCmd, gitPushCmd, gitCommitCmd, gitRemoteCmd,
-		gitInitCmd, gitLogCmd, gpgInitCmd, gitCloneCmd)
+	gitInitCmd.Flags().BoolVar(&gitFlags.redo, "redo", false, "reinitialize")
+
+	// tracker
+	gitTrackerCmd.Flags().BoolVarP(&gitTrackerFlags.track, "track", "t", false, "track database in git")
+	gitTrackerCmd.Flags().BoolVarP(&gitTrackerFlags.untrack, "untrack", "u", false, "untrack database in git")
+	gitTrackerCmd.Flags().BoolVarP(&gitTrackerFlags.list, "list", "l", false, "list tracked databases")
+	gitTrackerCmd.Flags().BoolVarP(&gitTrackerFlags.mgt, "manage", "m", false, "repos management in git")
+
+	gitCmd.AddCommand(gitPushCmd, gitCommitCmd, gitInitCmd, gitImportCmd, gitTrackerCmd)
 	rootCmd.AddCommand(gitCmd)
 }

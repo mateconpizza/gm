@@ -63,6 +63,7 @@ func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
 	if bs.Len() == 0 {
 		return nil
 	}
+
 	sp := rotato.New(
 		rotato.WithSpinnerColor(rotato.ColorGray),
 		rotato.WithMesg("scraping missing data..."),
@@ -70,6 +71,7 @@ func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
 	)
 	sp.Start()
+
 	var wg sync.WaitGroup
 	errs := make([]string, 0)
 	bs.ForEachMut(func(b *Bookmark) {
@@ -86,6 +88,7 @@ func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
 			b.Desc, _ = sc.Desc()
 		}(b)
 	})
+
 	wg.Wait()
 
 	sp.Done("Scraping done")
@@ -133,52 +136,17 @@ func cleanLines(s string) string {
 // parseBookmarkContent parses the provided content into a bookmark struct.
 func parseBookmarkContent(lines []string) *Bookmark {
 	b := New()
-	b.URL = cleanLines(extractTextBlock(lines, "# URL:", "# Title:"))
-	b.Title = cleanLines(extractTextBlock(lines, "# Title:", "# Tags:"))
-	b.Tags = ParseTags(cleanLines(extractTextBlock(lines, "# Tags:", "# Description:")))
-	b.Desc = cleanLines(extractTextBlock(lines, "# Description:", "# end"))
+	b.URL = cleanLines(txt.ExtractBlock(lines, "# URL:", "# Title:"))
+	b.Title = cleanLines(txt.ExtractBlock(lines, "# Title:", "# Tags:"))
+	b.Tags = ParseTags(cleanLines(txt.ExtractBlock(lines, "# Tags:", "# Description:")))
+	b.Desc = cleanLines(txt.ExtractBlock(lines, "# Description:", "# end"))
 
 	return b
 }
 
-// extractTextBlock extracts a block of text from a string, delimited by the
-// specified start and end markers.
-func extractTextBlock(content []string, startMarker, endMarker string) string {
-	startIndex := -1
-	endIndex := -1
-	isInBlock := false
-
-	var cleanedBlock []string
-
-	for i, line := range content {
-		if strings.HasPrefix(line, startMarker) {
-			startIndex = i
-			isInBlock = true
-
-			continue
-		}
-
-		if strings.HasPrefix(line, endMarker) && isInBlock {
-			endIndex = i
-
-			break // Found end marker line
-		}
-
-		if isInBlock {
-			cleanedBlock = append(cleanedBlock, line)
-		}
-	}
-
-	if startIndex == -1 || endIndex == -1 {
-		return ""
-	}
-
-	return strings.Join(cleanedBlock, "\n")
-}
-
 // validateURLBuffer validates url in the buffer.
 func validateURLBuffer(content []string) error {
-	u := extractTextBlock(content, "# URL:", "# Title:")
+	u := txt.ExtractBlock(content, "# URL:", "# Title:")
 	if strings.TrimSpace(u) == "" {
 		return fmt.Errorf("%w: URL", ErrLineNotFound)
 	}
@@ -188,7 +156,7 @@ func validateURLBuffer(content []string) error {
 
 // validateTagsBuffer validates tags in the buffer.
 func validateTagsBuffer(content []string) error {
-	t := extractTextBlock(content, "# Tags:", "# Description:")
+	t := txt.ExtractBlock(content, "# Tags:", "# Description:")
 	if strings.TrimSpace(t) == "" {
 		return fmt.Errorf("%w: Tags", ErrLineNotFound)
 	}
@@ -208,42 +176,30 @@ func validateAttr(s, fallback string) string {
 
 // scrapeBookmark updates a Bookmark's title and description by scraping the
 // webpage if they are missing.
-func scrapeBookmark(b *Bookmark) (*Bookmark, error) {
+func scrapeBookmark(b *Bookmark) *Bookmark {
 	if b.Title != "" {
-		return b, nil
+		return b
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	sp := rotato.New(
-		rotato.WithMesg("scraping webpage..."),
-		rotato.WithMesgColor(rotato.ColorYellow),
-	)
-	sp.Start()
-	defer sp.Done()
 
-	sc := scraper.New(b.URL, scraper.WithContext(ctx))
+	sc := scraper.New(b.URL, scraper.WithContext(ctx), scraper.WithSpinner())
 	if err := sc.Start(); err != nil {
 		slog.Error("scraping error", "error", err)
 	}
 
 	if b.Title == "" {
-		t, err := sc.Title()
-		if err != nil {
-			return nil, fmt.Errorf("%w: title", err)
-		}
+		t, _ := sc.Title()
 		b.Title = validateAttr(b.Title, t)
 	}
 
 	if b.Desc == "" {
-		d, err := sc.Desc()
-		if err != nil {
-			return nil, fmt.Errorf("%w: description", err)
-		}
+		d, _ := sc.Desc()
 		b.Desc = validateAttr(b.Desc, d)
 	}
 
-	return b, nil
+	return b
 }
 
 // hashURL generates a hash from a hashURL.

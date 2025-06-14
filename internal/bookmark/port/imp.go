@@ -23,6 +23,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // GitImport imports bookmarks from a git repository.
@@ -61,9 +62,7 @@ func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) error
 		return fmt.Errorf("removing temp repo: %w", err)
 	}
 
-	f.Clear().Rowln().
-		Success(color.BrightGreen("Successfully").Italic().String() + " imported bookmarks from git\n").
-		Flush()
+	fmt.Print(txt.SuccessMesg("imported bookmarks from git\n"))
 
 	return nil
 }
@@ -136,22 +135,21 @@ func Database(srcDB *db.SQLiteRepository) error {
 	bs := slice.New(records...)
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	if _, err := deduplicate(f, destDB, bs); err != nil {
-		if errors.Is(err, slice.ErrSliceEmpty) {
-			f.Midln("no new bookmark found, skipping import").Flush()
-			return nil
-		}
-
+	dRecords, err := Deduplicate(f, destDB, bs)
+	if err != nil {
 		return err
+	}
+
+	if len(dRecords) == 0 {
+		f.Midln("no new bookmark found, skipping import").Flush()
+		return nil
 	}
 
 	if err := destDB.InsertMany(context.Background(), bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	success := color.BrightGreen("Successfully").Italic().String()
-	msg := fmt.Sprintf(success+" imported %d record/s from %s\n", bs.Len(), srcDB.Name())
-	f.Clear().Success(msg).Flush()
+	fmt.Print(txt.SuccessMesg(fmt.Sprintf("imported %d record/s from %s\n", bs.Len(), srcDB.Name())))
 
 	return nil
 }
@@ -178,9 +176,8 @@ func IntoRepo(
 		return fmt.Errorf("%w", err)
 	}
 	sp.Done()
-	success := color.BrightGreen("Successfully").Italic().String()
-	msg := fmt.Sprintf(success+" imported %d record/s\n", records.Len())
-	f.Clear().Success(msg).Flush()
+
+	fmt.Print(txt.SuccessMesg(fmt.Sprintf("imported %d record/s\n", records.Len())))
 
 	return nil
 }
@@ -220,13 +217,14 @@ func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteReposi
 	}
 	bs := slice.New(items...)
 
-	if _, err := deduplicate(f, destDB, bs); err != nil {
-		if errors.Is(err, slice.ErrSliceEmpty) {
-			f.Clear().Row("\n").Mid("no new bookmark found, skipping import\n").Flush()
-			return nil
-		}
-
+	dRecords, err := Deduplicate(f, destDB, bs)
+	if err != nil {
 		return err
+	}
+
+	if len(dRecords) == 0 {
+		f.Clear().Row("\n").Mid("no new bookmark found, skipping import\n").Flush()
+		return nil
 	}
 
 	return nil
@@ -341,7 +339,7 @@ func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	debookmarks, err := deduplicate(f.Clear(), r, bs)
+	debookmarks, err := Deduplicate(f.Clear(), r, bs)
 	if err != nil {
 		return err
 	}

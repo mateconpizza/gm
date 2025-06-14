@@ -200,8 +200,8 @@ func fzfFormatter(m bool) func(b *bookmark.Bookmark) string {
 	}
 }
 
-// ListDatabases lists the available databases.
-func ListDatabases(p string) error {
+// PrintDatabases lists the available databases.
+func PrintDatabases(p string) error {
 	fs, err := files.FindByExtList(p, ".db", ".enc")
 	if err != nil {
 		return fmt.Errorf("%w", err)

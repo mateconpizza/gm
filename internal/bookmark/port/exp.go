@@ -109,18 +109,7 @@ func GitWrite(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
 		return nil
 	}
 
-	return ExportAsJSON(root, bookmarks)
-}
-
-// ExportAsJSON creates the repository structure.
-func ExportAsJSON(root string, bs []*bookmark.Bookmark) error {
-	for _, b := range bs {
-		if err := gitStoreAsJSON(root, b, config.App.Force); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return exportAsJSON(root, bookmarks)
 }
 
 // gitStoreAsJSON creates files structure.
@@ -140,7 +129,18 @@ func gitStoreAsJSON(rootPath string, b *bookmark.Bookmark, force bool) error {
 	urlHash := b.HashURL()
 	filePathJSON := filepath.Join(domainPath, urlHash+FileExtJSON)
 	if err := files.JSONWrite(filePathJSON, b.ToJSON(), force); err != nil {
-		return resolveFileConflictError(rootPath, err, filePathJSON, b)
+		return resolveFileConflictErr(rootPath, err, filePathJSON, b)
+	}
+
+	return nil
+}
+
+// exportAsJSON creates the repository structure.
+func exportAsJSON(root string, bs []*bookmark.Bookmark) error {
+	for _, b := range bs {
+		if err := gitStoreAsJSON(root, b, config.App.Force); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -152,6 +152,7 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 	if err := files.MkdirAll(root); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	sp := rotato.New(
 		rotato.WithPrefix(f.Mid("Encrypting").String()),

@@ -109,3 +109,53 @@ func TestSplitIntoChunks(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractBlock(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		startMarker string
+		endMarker   string
+		expected    string
+		content     []string
+	}{
+		{
+			content: []string{
+				"Line 1",
+				"## start marker",
+				"Content to extract",
+				"More content",
+				"## end marker",
+				"Line after end marker",
+			},
+			startMarker: "## start marker",
+			endMarker:   "## end marker",
+			expected:    "Content to extract\nMore content",
+		},
+		{
+			content: []string{
+				"Line 1",
+				"## start marker",
+				"Content to extract",
+				"Only start marker, no end marker",
+			},
+			startMarker: "## start marker",
+			endMarker:   "## end marker",
+			expected:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		test := tt
+		result := ExtractBlock(test.content, test.startMarker, test.endMarker)
+		if result != tt.expected {
+			t.Errorf(
+				"Failed for content: %v, startMarker: %s, endMarker: %s\nExpected: %q\nGot: %q\n",
+				tt.content,
+				tt.startMarker,
+				tt.endMarker,
+				tt.expected,
+				result,
+			)
+		}
+	}
+}

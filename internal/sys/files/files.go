@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	ErrFileNotFound    = errors.New("file not found")
+	ErrFileNotFound    = errors.New("not found")
 	ErrPathNotFound    = errors.New("path not found")
 	ErrFileExists      = errors.New("file already exists")
 	ErrNotFile         = errors.New("not a file")
@@ -412,7 +412,7 @@ func Find(root, pattern string) ([]string, error) {
 	return f, nil
 }
 
-func ListRootFolders(root string, ignored ...string) ([]string, error) {
+func ListRootFolders(root string, ignore ...string) ([]string, error) {
 	// FIX: return fullpath.
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -421,7 +421,7 @@ func ListRootFolders(root string, ignored ...string) ([]string, error) {
 
 	var folders []string
 	for _, entry := range entries {
-		if entry.IsDir() && !slices.Contains(ignored, entry.Name()) {
+		if entry.IsDir() && !slices.Contains(ignore, entry.Name()) {
 			folders = append(folders, entry.Name())
 		}
 	}

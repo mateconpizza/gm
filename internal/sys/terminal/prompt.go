@@ -224,6 +224,39 @@ func getUserInputWithAttempts(
 	return "", fmt.Errorf("%d %w", attempts, ErrIncorrectAttempts)
 }
 
+// fmtChoicesWithDefaultColor capitalizes and highlights the default option,
+// and highlights the first letter of each option in red.
+func fmtChoicesWithDefaultColor(opts []string, def string) []string {
+	if def == "" {
+		for i := range len(opts) {
+			opts[i] = dim(opts[i]).String()
+		}
+
+		return opts
+	}
+
+	var formatted []string
+	var defaultOpt string
+
+	for _, opt := range opts {
+		if strings.HasPrefix(opt, def) {
+			// Capitalize and color the first letter of the default
+			colored := hl(strings.ToUpper(opt[:1])).String() + dim(opt[1:]).String()
+			defaultOpt = colored
+		} else {
+			// Highlight first letter of non-default
+			colored := hl(opt[:1]).String() + dim(opt[1:]).String()
+			formatted = append(formatted, colored)
+		}
+	}
+
+	if defaultOpt != "" {
+		formatted = append(formatted, defaultOpt)
+	}
+
+	return formatted
+}
+
 // fmtChoicesWithDefault capitalizes the default option and appends to the end of
 // the slice.
 func fmtChoicesWithDefault(opts []string, def string) []string {
@@ -281,6 +314,10 @@ func quitKeybind(f func(err error)) prompt.KeyBind {
 
 // isValidOption checks if input is a valid choice.
 func isValidOption(input string, opts []string) bool {
+	for i := range len(opts) {
+		opts[i] = color.ANSICodeRemover(opts[i])
+	}
+
 	for _, opt := range opts {
 		if strings.EqualFold(input, opt) || strings.EqualFold(input, opt[:1]) {
 			return true
@@ -293,14 +330,14 @@ func isValidOption(input string, opts []string) bool {
 // buildPrompt returns a formatted string with a question and options.
 func buildPrompt(q, opts string) string {
 	if q == "" {
-		return fmt.Sprintf("%s %s ", q, color.Gray(opts))
+		return fmt.Sprintf("%s %s ", q, opts)
 	}
 
 	if opts == "" {
 		return q + " "
 	}
 
-	return fmt.Sprintf("%s %s ", q, color.Gray(opts))
+	return fmt.Sprintf("%s %s ", q, opts)
 }
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.

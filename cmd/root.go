@@ -39,26 +39,9 @@ func initRootFlags(cmd *cobra.Command) {
 	pf.CountVarP(&VerboseFlag, "verbose", "v", "Increase verbosity (-v, -vv, -vvv)")
 	pf.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
 	_ = pf.MarkHidden("help")
-	// local
-	f := cmd.Flags()
-	// prints
-	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
-	f.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
-	f.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
-	f.StringVarP(&Field, "field", "f", "", "output by field [id,1|url,2|title,3|tags,4]")
-	// actions
-	f.BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
-	f.BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
-	f.BoolVarP(&QR, "qr", "q", false, "generate qr-code")
-	f.BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
-	f.StringSliceVarP(&Tags, "tag", "t", nil, "list by tag")
-	// experimental
-	f.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
-	f.BoolVarP(&Edit, "edit", "e", false, "edit with preferred text editor")
-	f.BoolVarP(&Status, "status", "s", false, "check bookmarks status")
-	// modifiers
-	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
-	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+
+	initRecordFlags(cmd)
+
 	// cmd settings
 	cmd.CompletionOptions.HiddenDefaultCmd = true
 	cmd.SilenceErrors = true

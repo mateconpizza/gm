@@ -15,13 +15,18 @@ import (
 	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
 
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
 // TODO:
 // - [ ] check `CancelInterruptHandler` implementation.
 // - [ ] check `IsPiped` implementation
+
+var (
+	hl  = color.BrightGreen
+	dim = color.Gray
+)
 
 const termPromptPrefix = "> "
 
@@ -178,19 +183,21 @@ func (t *Term) Confirm(q, def string) bool {
 
 // ConfirmErr prompts the user with a question and options.
 func (t *Term) ConfirmErr(q, def string) error {
-	if config.App.Force {
-		return nil
-	}
-
 	if len(def) > 1 {
 		// get first char
 		def = def[:1]
 	}
+
 	opts := []string{"y", "n"}
 	if !slices.Contains(opts, def) {
 		def = "n"
 	}
+
 	choices := fmtChoicesWithDefault(opts, def)
+	for i := range len(choices) {
+		choices[i] = dim(choices[i]).String()
+	}
+
 	chosen, err := t.promptWithChoicesErr(q, choices, def)
 	if err != nil {
 		return err
@@ -205,20 +212,21 @@ func (t *Term) ConfirmErr(q, def string) error {
 
 // Choose prompts the user to enter one of the given options.
 func (t *Term) Choose(q string, opts []string, def string) (string, error) {
-	if config.App.Force {
-		return def, nil
-	}
 	for i := range opts {
 		opts[i] = strings.ToLower(opts[i])
 	}
-	opts = fmtChoicesWithDefault(opts, def)
+	opts = fmtChoicesWithDefaultColor(opts, def)
 
 	return t.promptWithChoicesErr(q, opts, def)
 }
 
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string, error) {
-	p := buildPrompt(q, fmt.Sprintf("[%s]:", strings.Join(opts, "/")))
+	sep := dim("/").String()
+	s := dim("[").String()
+	e := dim("]:").String()
+
+	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 	return getUserInputWithAttempts(t.reader, t.writer, p, opts, def)
 }
 

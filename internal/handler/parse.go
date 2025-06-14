@@ -8,7 +8,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -20,23 +19,38 @@ type bookmarkTemp struct {
 	title, desc, tags string
 }
 
-// cleanDuplicates removes duplicate bookmarks from the import process.
-func cleanDuplicates(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
-	originalLen := bs.Len()
-	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
-		_, exists := r.Has(b.URL)
-		return !exists
-	})
-	if originalLen != bs.Len() {
-		f := frame.New(frame.WithColorBorder(color.BrightGray))
-		skip := color.BrightYellow("skipping")
-		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-bs.Len())
-		f.Row().Ln().Warning(s).Ln().Flush()
+// NewBookmark fetch metadata and parses the new bookmark.
+func NewBookmark(
+	f *frame.Frame,
+	t *terminal.Term,
+	r *db.SQLiteRepository,
+	b *bookmark.Bookmark,
+	title, tags string,
+	args []string,
+) error {
+	newURL, err := newURLFromArgs(t, f, args)
+	if err != nil {
+		return err
+	}
+	newURL = strings.TrimRight(newURL, "/")
+	if b, exists := r.Has(newURL); exists {
+		return fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
 	}
 
-	if bs.Empty() {
-		return slice.ErrSliceEmpty
-	}
+	bTemp := &bookmarkTemp{}
+	bTemp.title = title
+	bTemp.tags = tags
+
+	sc := scraper.New(newURL, scraper.WithSpinner())
+
+	// fetch title, description and tags
+	tagsFromArgs(t, f.Clear(), sc, bTemp)
+	fetchTitleAndDesc(f, sc, bTemp)
+
+	b.URL = newURL
+	b.Title = bTemp.title
+	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
+	b.Tags = bookmark.ParseTags(bTemp.tags)
 
 	return nil
 }
@@ -44,7 +58,7 @@ func cleanDuplicates(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark])
 // readURLFromClipboard checks if there a valid URL in the clipboard.
 func readURLFromClipboard(t *terminal.Term, f *frame.Frame) string {
 	c := sys.ReadClipboard()
-	if !URLValid(c) {
+	if !validURL(c) {
 		return ""
 	}
 
@@ -127,42 +141,6 @@ func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *book
 
 	t.ClearLine(txt.CountLines(f.String()))
 	f.Flush()
-}
-
-// NewBookmark fetch metadata and parses the new bookmark.
-func NewBookmark(
-	f *frame.Frame,
-	t *terminal.Term,
-	r *db.SQLiteRepository,
-	b *bookmark.Bookmark,
-	title, tags string,
-	args []string,
-) error {
-	newURL, err := newURLFromArgs(t, f, args)
-	if err != nil {
-		return err
-	}
-	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := r.Has(newURL); exists {
-		return fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
-	}
-
-	bTemp := &bookmarkTemp{}
-	bTemp.title = title
-	bTemp.tags = tags
-
-	sc := scraper.New(newURL)
-
-	// fetch title, description and tags
-	tagsFromArgs(t, f.Clear(), sc, bTemp)
-	fetchTitleAndDesc(f, sc, bTemp)
-
-	b.URL = newURL
-	b.Title = bTemp.title
-	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
-	b.Tags = bookmark.ParseTags(bTemp.tags)
-
-	return nil
 }
 
 // fetchTitleAndDesc fetch and display title and description.

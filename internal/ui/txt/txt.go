@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
 const (
@@ -41,6 +42,8 @@ func PaddedLine(s, v any) string {
 }
 
 // Shorten shortens a string to a maximum length.
+//
+//	string...
 func Shorten(s string, maxLength int) string {
 	if len(s) > maxLength {
 		return s[:maxLength-3] + "..."
@@ -237,6 +240,8 @@ func TagsWithUnicode(s string) string {
 
 // CenteredLine returns a string of exactly 'width' characters,
 // centering the label between dashes.
+//
+//	-------- label --------
 func CenteredLine(width int, label string) string {
 	const spaces = 2
 	if width < len(label)+spaces {
@@ -254,4 +259,71 @@ func CenteredLine(width int, label string) string {
 func GenerateHash(s string, c int) string {
 	hash := sha256.Sum256([]byte(s))
 	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
+}
+
+// SuccessMesg returns a prettified success message.
+func SuccessMesg(s string) string {
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	success := color.BrightGreen("Successfully ").Italic().String()
+	message := success + color.Text(s).Italic().String()
+	return f.Clear().Success(message).String()
+}
+
+// WarningMesg returns a prettified warning message.
+func WarningMesg(s string) string {
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	warning := color.BrightYellow("Warning ").Italic().String()
+	message := warning + color.Text(s).Italic().String()
+	return f.Clear().Warning(message).String()
+}
+
+// ErrorMesg returns a prettified error message.
+func ErrorMesg(s string) string {
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	err := color.BrightRed("Error ").Italic().String()
+	message := err + color.Text(s).Italic().String()
+	return f.Clear().Error(message).String()
+}
+
+// InfoMesg returns a prettified info message.
+func InfoMesg(s string) string {
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	info := color.BrightBlue("Info ").Italic().String()
+	message := info + color.Text(s).Italic().String()
+	return f.Clear().Info(message).String()
+}
+
+// ExtractBlock extracts a block of text from a string, delimited by the
+// specified start and end markers.
+func ExtractBlock(content []string, startMarker, endMarker string) string {
+	startIndex := -1
+	endIndex := -1
+	isInBlock := false
+
+	var cleanedBlock []string
+
+	for i, line := range content {
+		if strings.HasPrefix(line, startMarker) {
+			startIndex = i
+			isInBlock = true
+
+			continue
+		}
+
+		if strings.HasPrefix(line, endMarker) && isInBlock {
+			endIndex = i
+
+			break // Found end marker line
+		}
+
+		if isInBlock {
+			cleanedBlock = append(cleanedBlock, line)
+		}
+	}
+
+	if startIndex == -1 || endIndex == -1 {
+		return ""
+	}
+
+	return strings.Join(cleanedBlock, "\n")
 }

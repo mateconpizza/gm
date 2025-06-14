@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -84,7 +85,11 @@ func TestTermFmtChoicesWithDefault(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := fmtChoicesWithDefault(tt.opts, tt.def)
+			result := fmtChoicesWithDefaultColor(tt.opts, tt.def)
+			for i := range len(result) {
+				result[i] = color.ANSICodeRemover(result[i])
+			}
+
 			assert.Equal(t, tt.want, result)
 		})
 	}

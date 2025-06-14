@@ -87,7 +87,7 @@ var databaseListCmd = &cobra.Command{
 	Short:   "List databases",
 	Aliases: []string{"ls", "l"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return handler.ListDatabases(config.App.Path.Data)
+		return handler.PrintDatabases(config.App.Path.Data)
 	},
 }
 
@@ -160,10 +160,13 @@ func init() {
 	// new database
 	databaseNewCmd.Flags().StringVarP(&DBName, "name", "n", "", "new database name")
 	_ = databaseNewCmd.MarkFlagRequired("name")
+
 	// show database info
 	databaseInfoCmd.Flags().BoolVarP(&JSON, "json", "j", false, "output in JSON format")
+
 	// remove database
 	databaseRmCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "select database to remove (fzf)")
+
 	// add subcommands
 	dbCmd.AddCommand(
 		databaseDropCmd, databaseInfoCmd, databaseNewCmd, databaseListCmd,

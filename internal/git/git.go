@@ -26,29 +26,35 @@ var (
 	ErrGitNothingToCommit = errors.New("git: no changes to commit")
 	ErrGitRepoNotFound    = errors.New("git: repo not found")
 	ErrGitRepoURLEmpty    = errors.New("git: repo url is empty")
+	ErrGitTracked         = errors.New("git: repo already tracked")
+	ErrGitNotTracked      = errors.New("git: repo not tracked")
+	ErrGitNoTrackedRepos  = errors.New("git: no tracked repos found")
 )
 
-const gitCommand = "git"
+const (
+	gitCommand  = "git"
+	FileTracked = ".tracked.json"
+)
 
 func Clone(destRepoPath, repoURL string) error {
 	slog.Debug("cloning git repo", "path", destRepoPath, "url", repoURL)
-	return runGitCmd("", "clone", repoURL, destRepoPath)
+	return RunGitCmd("", "clone", repoURL, destRepoPath)
 }
 
 // AddAll adds all local changes.
 func AddAll(repoPath string) error {
 	slog.Debug("adding all changes", "path", repoPath)
-	return runGitCmd(repoPath, "add", ".")
+	return RunGitCmd(repoPath, "add", ".")
 }
 
 // AddRemote adds a remote repository.
 func AddRemote(repoPath, repoURL string) error {
 	slog.Debug("setting git remote", "path", repoPath, "remote", repoURL)
 	if config.App.Force {
-		return runGitCmd(repoPath, "remote", "set-url", "origin", repoURL)
+		return RunGitCmd(repoPath, "remote", "set-url", "origin", repoURL)
 	}
 
-	return runGitCmd(repoPath, "remote", "add", "origin", repoURL)
+	return RunGitCmd(repoPath, "remote", "add", "origin", repoURL)
 }
 
 func SetUpstream(repoPath string) error {
@@ -56,7 +62,7 @@ func SetUpstream(repoPath string) error {
 	if err != nil {
 		return err
 	}
-	return runGitCmd(repoPath, "push", "--set-upstream", "origin", b)
+	return RunGitCmd(repoPath, "push", "--set-upstream", "origin", b)
 }
 
 // HasUnpushedCommits checks if there are any unpushed commits.
@@ -80,21 +86,7 @@ func HasUnpushedCommits(repoPath string) (bool, error) {
 // CommitChanges commits local changes.
 func CommitChanges(repoPath, msg string) error {
 	slog.Debug("committing changes", "path", repoPath)
-	return runGitCmd(repoPath, "commit", "-m", msg)
-}
-
-// Fetch pulls changes from remote repository.
-func Fetch(repoPath string) error {
-	// first, fetch to see if there are remote changes
-	if err := runGitCmd(repoPath, "fetch"); err != nil {
-		return fmt.Errorf("git fetch: %w", err)
-	}
-	branch, err := GetBranch(repoPath)
-	if err != nil {
-		return fmt.Errorf("could not get current branch: %w", err)
-	}
-
-	return runGitCmd(repoPath, "pull", "origin", branch)
+	return RunGitCmd(repoPath, "commit", "-m", msg)
 }
 
 // HasChanges checks if there are any staged or unstaged changes in the repo.
@@ -113,18 +105,12 @@ func InitRepo(repoPath string, force bool) error {
 	if IsInitialized(repoPath) && !force {
 		return ErrGitInitialized
 	}
-	return runGitCmd(repoPath, "init")
-}
 
-// Log returns the log of the repo.
-func Log(repoPath string) error {
-	return runGitCmd(
-		repoPath,
-		"log",
-		"--pretty=format:'%h %ad | %s%d [%an]'",
-		"--graph",
-		"--date=short",
-	)
+	if err := files.MkdirAll(repoPath); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return RunGitCmd(repoPath, "init")
 }
 
 // PushChanges pushes local changes to remote.
@@ -147,10 +133,10 @@ func PushChanges(repoPath string) error {
 	if err != nil {
 		// no upstream, so set it
 		slog.Debug("no upstream set, using --set-upstream", "branch", branch)
-		return runGitCmd(repoPath, "push", "--set-upstream", "origin", branch)
+		return RunGitCmd(repoPath, "push", "--set-upstream", "origin", branch)
 	}
 
-	return runGitCmd(repoPath, "push")
+	return RunGitCmd(repoPath, "push")
 }
 
 // Status returns the status of the repo.
@@ -257,8 +243,8 @@ func runWithWriter(stdout io.Writer, repoPath string, s ...string) error {
 	return nil
 }
 
-// runGitCmd executes a Git command.
-func runGitCmd(repoPath string, commands ...string) error {
+// RunGitCmd executes a Git command.
+func RunGitCmd(repoPath string, commands ...string) error {
 	gitCommand, err := sys.Which(gitCommand)
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, gitCommand)
@@ -278,4 +264,36 @@ func runGitCmd(repoPath string, commands ...string) error {
 	}
 
 	return nil
+}
+
+// SetTracked sets the tracked repositories.
+func SetTracked(repoPath string, repos []string) error {
+	tracked := make([]string, 0, len(repos))
+
+	for _, r := range repos {
+		tracked = append(tracked, files.StripSuffixes(filepath.Base(r)))
+	}
+
+	fname := filepath.Join(repoPath, FileTracked)
+	if err := files.JSONWrite(fname, &tracked, true); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+// Tracked returns the tracked repositories.
+func Tracked(repoPath string) ([]string, error) {
+	tracked := make([]string, 0)
+
+	fname := filepath.Join(repoPath, FileTracked)
+	if !files.Exists(fname) {
+		return tracked, fmt.Errorf("%w: %q", files.ErrFileNotFound, fname)
+	}
+
+	if err := files.JSONRead(fname, &tracked); err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return tracked, nil
 }

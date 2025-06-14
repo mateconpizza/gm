@@ -115,13 +115,3 @@ func Frame(b *Bookmark, cs *color.Scheme) string {
 
 	return f.String()
 }
-
-// BufferAppend inserts a header string at the beginning of a byte buffer.
-func BufferAppend(s string, buf *[]byte) {
-	*buf = append([]byte(s), *buf...)
-}
-
-// BufferAppendEnd appends a string to the end of a byte buffer.
-func BufferAppendEnd(s string, buf *[]byte) {
-	*buf = append(*buf, []byte(s)...)
-}

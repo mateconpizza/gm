@@ -203,8 +203,8 @@ func AssertDefaultDatabaseExists() error {
 	return nil
 }
 
-// URLValid checks if a string is a valid URL.
-func URLValid(s string) bool {
+// validURL checks if a string is a valid URL.
+func validURL(s string) bool {
 	parsedURL, err := url.Parse(s)
 	if err != nil {
 		return false

@@ -179,8 +179,8 @@ func LockRepo(t *terminal.Term, rToLock string) error {
 	if err := locker.Lock(rToLock, pass); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	success := color.BrightGreen("Successfully").Italic().String()
-	fmt.Println(success + " database locked")
+
+	fmt.Print(txt.SuccessMesg("database locked\n"))
 
 	return nil
 }
@@ -213,8 +213,8 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 		fmt.Println()
 		return fmt.Errorf("%w", err)
 	}
-	success := color.BrightGreen("\nSuccessfully").Italic().String()
-	fmt.Println(success + " database unlocked")
+
+	fmt.Print(txt.SuccessMesg("database unlocked\n"))
 
 	return nil
 }
@@ -246,29 +246,82 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	return nil
 }
 
+// EditBookmarks edits a slice of bookmarks.
+func EditBookmarks(
+	t *terminal.Term,
+	f *frame.Frame,
+	r *db.SQLiteRepository,
+	te *files.TextEditor,
+	bs []*bookmark.Bookmark,
+) error {
+	n := len(bs)
+
+	if n == 0 {
+		return bookmark.ErrNotFound
+	}
+
+	for i := range n {
+		b := bs[i]
+		current := *b
+
+	editLoop:
+		for {
+			editedB, err := bookmark.Edit(te, &current, i, n)
+			if err != nil {
+				if errors.Is(err, bookmark.ErrBufferUnchanged) {
+					break editLoop
+				}
+
+				return fmt.Errorf("%w", err)
+			}
+
+			f.Clear().Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
+			diff := te.Diff(current.Buffer(), editedB.Buffer())
+			fmt.Println(txt.DiffColor(diff))
+
+			opt, err := t.Choose(
+				f.Clear().Question("save changes?").String(),
+				[]string{"yes", "no", "edit"},
+				"y",
+			)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			switch strings.ToLower(opt) {
+			case "y", "yes":
+				if err := handleEditedBookmark(r, editedB, b); err != nil {
+					return err
+				}
+				fmt.Print("\n")
+
+				break editLoop
+			case "n", "No":
+				return sys.ErrActionAborted
+			case "e", "edit":
+				current = *editedB
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
 // EditSlice edits the bookmarks using a text editor.
 func EditSlice(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
-	n := bs.Len()
-	if n == 0 {
-		return db.ErrRecordQueryNotProvided
-	}
-	prompt := fmt.Sprintf("%s %d bookmarks, continue?", color.BrightOrange("editing").Bold(), n)
-	if err := confirmUserLimit(n, maxItemsToEdit, prompt); err != nil {
-		return err
-	}
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
-		return fmt.Errorf("getting editor: %w", err)
+		return fmt.Errorf("%w", err)
 	}
+
 	t := terminal.New(terminal.WithInterruptFn(func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
 	}))
-	editFn := func(idx int, b bookmark.Bookmark) error {
-		return editBookmark(r, te, t, &b, idx, n)
-	}
-	// for each bookmark, invoke the helper to edit it.
-	if err := bs.ForEachIdxErr(editFn); err != nil {
+
+	f := frame.New(frame.WithColorBorder(color.Gray))
+	if err := EditBookmarks(t, f, r, te, bs.ItemsPtr()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -276,7 +329,7 @@ func EditSlice(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) error {
+func SaveNewBookmark(t *terminal.Term, f *frame.Frame, r *db.SQLiteRepository, b *bookmark.Bookmark) error {
 	opt, err := t.Choose(
 		f.Clear().Question("save bookmark?").String(),
 		[]string{"yes", "no", "edit"},
@@ -286,40 +339,18 @@ func SaveNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) err
 		return fmt.Errorf("%w", err)
 	}
 
-	switch strings.ToLower(opt) {
-	case "n", "no":
-		return fmt.Errorf("%w", sys.ErrActionAborted)
-	case "e", "edit":
-		t.ClearLine(1)
-		if err := editNewBookmark(t, f.Clear(), b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-
-	return nil
-}
-
-// editNewBookmark edits a new bookmark.
-func editNewBookmark(t *terminal.Term, f *frame.Frame, b *bookmark.Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	const spaces = 10
-	buf := b.Buffer()
-	sep := txt.CenteredLine(terminal.MinWidth-spaces, "bookmark addition")
-	bookmark.BufferAppendEnd(" [New]", &buf)
-	bookmark.BufferAppend("#\n# "+sep+"\n\n", &buf)
-	bookmark.BufferAppend(fmt.Sprintf("# database: %q\n", config.App.DBName), &buf)
-	bookmark.BufferAppend(fmt.Sprintf("# %s:\tv%s\n", "version", config.App.Info.Version), &buf)
-
-	if err := bookmark.Edit(te, t, f.Clear(), buf, b); err != nil {
-		if !errors.Is(err, bookmark.ErrBufferUnchanged) {
-			return fmt.Errorf("%w", err)
+	switch strings.ToLower(opt) {
+	case "n", "no":
+		return fmt.Errorf("%w", sys.ErrActionAborted)
+	case "e", "edit":
+		if err := EditBookmarks(t, f, r, te, []*bookmark.Bookmark{b}); err != nil {
+			return err
 		}
-
-		return nil
 	}
 
 	return nil

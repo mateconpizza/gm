@@ -12,7 +12,7 @@ import (
 
 type ColorFn func(arg ...any) *Color
 
-var colorEnabled bool
+var colorEnabled bool = true
 
 // Enable enables color support.
 func Enable(b bool) {

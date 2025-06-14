@@ -38,9 +38,19 @@ func WithContext(ctx context.Context) OptFn {
 	}
 }
 
-func WithSpinner(sp *rotato.Spinner) OptFn {
+func WithCustomSpinner(sp *rotato.Spinner) OptFn {
 	return func(o *Options) {
 		o.sp = sp
+	}
+}
+
+func WithSpinner() OptFn {
+	return func(o *Options) {
+		o.sp = rotato.New(
+			rotato.WithMesg("scraping webpage..."),
+			rotato.WithMesgColor(rotato.ColorYellow),
+			rotato.WithSpinnerColor(rotato.ColorBrightMagenta),
+		)
 	}
 }
 
@@ -50,8 +60,10 @@ func (s *Scraper) Start() error {
 		return nil
 	}
 
-	s.sp.Start()
-	defer s.sp.Done()
+	if s.sp != nil {
+		s.sp.Start()
+		defer s.sp.Done()
+	}
 
 	s.doc = scrapeURL(s.uri, s.ctx)
 	s.started = true
@@ -62,11 +74,6 @@ func (s *Scraper) Start() error {
 func defaults() *Options {
 	return &Options{
 		ctx: context.Background(),
-		sp: rotato.New(
-			rotato.WithMesg("scraping webpage..."),
-			rotato.WithMesgColor(rotato.ColorYellow),
-			rotato.WithSpinnerColor(rotato.ColorBrightMagenta),
-		),
 	}
 }
 

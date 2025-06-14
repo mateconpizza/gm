@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -90,26 +88,7 @@ var newBookmarkCmd = &cobra.Command{
 			return fmt.Errorf("validation failed: %w", err)
 		}
 
-		if err := handler.SaveNewBookmark(t, f, b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		if err := r.InsertOne(context.Background(), b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		if err := port.GitStore(b); err != nil {
-			return fmt.Errorf("git store: %w", err)
-		}
-
-		if err := handler.GitCommit("Add"); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		success := color.BrightGreen("Successfully").Italic().String()
-		f.Clear().Success(success + " bookmark created\n").Flush()
-
-		return nil
+		return handler.SaveNewBookmark(t, f, r, b)
 	},
 }
 

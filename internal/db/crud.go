@@ -79,18 +79,21 @@ func (r *SQLiteRepository) Update(
 	ctx context.Context,
 	newB, oldB *bookmark.Bookmark,
 ) (*bookmark.Bookmark, error) {
-	if err := r.withTx(ctx, func(tx *sqlx.Tx) error {
+	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.delete(ctx, oldB.URL); err != nil {
 			return fmt.Errorf("delete old record: %w", err)
 		}
+
 		newB.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 		newB.GenerateChecksum()
+
 		if err := r.insertAtID(tx, newB); err != nil {
 			return fmt.Errorf("insert new record: %w", err)
 		}
 
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 

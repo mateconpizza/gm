@@ -41,7 +41,7 @@ var (
 // recordsCmd is the main command and entrypoint.
 var recordsCmd = &cobra.Command{
 	Use:     "records",
-	Aliases: []string{"r", "items"},
+	Aliases: []string{"r"},
 	Short:   "Records management",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		if err := handler.CheckDBLocked(config.App.DBPath); err != nil {
@@ -56,6 +56,7 @@ var recordsCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
+
 		terminal.ReadPipedInput(&args)
 		bs, err := handler.Data(cmd, handler.MenuForRecords[bookmark.Bookmark](cmd), r, args)
 		if err != nil {
@@ -64,6 +65,7 @@ var recordsCmd = &cobra.Command{
 		if bs.Empty() {
 			return db.ErrRecordNotFound
 		}
+
 		// actions
 		switch {
 		case Status:
@@ -77,6 +79,7 @@ var recordsCmd = &cobra.Command{
 		case Open && !QR:
 			return handler.Open(r, bs)
 		}
+
 		// display
 		switch {
 		case Field != "":
@@ -94,28 +97,37 @@ var recordsCmd = &cobra.Command{
 }
 
 func init() {
-	rf := recordsCmd.Flags()
-	rf.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
-	rf.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
-	rf.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
-	rf.StringVarP(&Field, "field", "f", "", "output by field [id|url|title|tags]")
-	// Actions
-	rf.BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
-	rf.BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
-	rf.BoolVarP(&QR, "qr", "q", false, "generate qr-code")
-	rf.BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
-	rf.StringSliceVarP(&Tags, "tag", "t", nil, "list by tag")
-	// Experimental
-	rf.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
-	rf.BoolVarP(&Edit, "edit", "e", false, "edit with preferred text editor")
-	rf.BoolVarP(&Status, "status", "s", false, "check bookmarks status")
-	// Modifiers
-	rf.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
-	rf.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+	initRecordFlags(recordsCmd)
 
 	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.json, "json", "j", false, "output tags+count in JSON format")
 	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
 
 	recordsCmd.AddCommand(recordsTagsCmd)
 	rootCmd.AddCommand(recordsCmd)
+}
+
+func initRecordFlags(cmd *cobra.Command) {
+	f := cmd.Flags()
+
+	// Prints
+	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
+	f.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
+	f.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
+	f.StringVarP(&Field, "field", "f", "", "output by field [id|url|title|tags]")
+
+	// Actions
+	f.BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
+	f.BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
+	f.BoolVarP(&QR, "qr", "q", false, "generate qr-code")
+	f.BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
+	f.StringSliceVarP(&Tags, "tag", "t", nil, "list by tag")
+
+	// Experimental
+	f.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
+	f.BoolVarP(&Edit, "edit", "e", false, "edit with preferred text editor")
+	f.BoolVarP(&Status, "status", "s", false, "check bookmarks status")
+
+	// Modifiers
+	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
+	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 }

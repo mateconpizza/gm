@@ -7,70 +7,111 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var ErrBufferUnchanged = errors.New("buffer unchanged")
 
-// Edit modifies the provided bookmark based on the given byte slice and text
-// editor, returning an error if any operation fails.
-func Edit(te *files.TextEditor, t *terminal.Term, f *frame.Frame, content []byte, b *Bookmark) error {
-	original := bytes.Clone(content)
-	var tb *Bookmark
-	for {
-		modifiedData, err := te.EditBytes(content, config.App.Name)
-		if err != nil {
-			return fmt.Errorf("failed to edit content: %w", err)
-		}
-		if bytes.Equal(modifiedData, original) {
-			return ErrBufferUnchanged
-		}
-		lines := strings.Split(string(modifiedData), "\n") // bytes to lines
-		if err := validateBookmarkFormat(lines); err != nil {
-			return fmt.Errorf("invalid bookmark format: %w", err)
-		}
+// BookmarkEdit holds information about a bookmark edit operation.
+type BookmarkEdit struct {
+	item   *Bookmark
+	header []byte
+	body   []byte
+	footer []byte
+	idx    int
+	total  int
+}
 
-		tb = parseBookmarkContent(lines)
-		if b.Equals(tb) {
-			return ErrBufferUnchanged
-		}
-		tb, err = scrapeBookmark(tb)
-		if err != nil {
-			return fmt.Errorf("scraping: %w", err)
-		}
-		tb.ID = b.ID
-		tb.CreatedAt = b.CreatedAt
-		tb.Favorite = b.Favorite
-		tb.LastVisit = b.LastVisit
-		tb.VisitCount = b.VisitCount
-
-		f.Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
-		diff := te.Diff(b.Buffer(), tb.Buffer())
-		fmt.Println(txt.DiffColor(diff))
-
-		opt, err := t.Choose(
-			f.Clear().Question("save changes?").String(),
-			[]string{"yes", "no", "edit"},
-			"y",
-		)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		switch strings.ToLower(opt) {
-		case "y", "yes":
-			*b = *tb
-			return nil
-		case "n", "no":
-			return sys.ErrActionAborted
-		case "e", "edit":
-			content = modifiedData
-			fmt.Println()
-			continue
-		}
+func newBookmarkEdit(b *Bookmark) *BookmarkEdit {
+	return &BookmarkEdit{
+		item: b,
+		body: b.Buffer(),
 	}
+}
+
+func (be *BookmarkEdit) Buffer() []byte {
+	buf := make([]byte, 0, len(be.header)+len(be.body)+len(be.footer))
+	buf = append(buf, be.header...)
+	buf = append(buf, be.body...)
+	buf = append(buf, be.footer...)
+	return buf
+}
+
+// Edit edits a bookmark and validates the resulting content.
+func Edit(te *files.TextEditor, b *Bookmark, idx, total int) (*Bookmark, error) {
+	be := newBookmarkEdit(b)
+	be.idx = idx
+	be.total = total
+
+	original := bytes.Clone(be.body)
+
+	prepareBufferForEdition(be)
+
+	modifiedData, err := te.EditBytes(be.Buffer(), config.App.Name)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	if bytes.Equal(modifiedData, original) {
+		return nil, ErrBufferUnchanged
+	}
+
+	lines := strings.Split(string(modifiedData), "\n") // bytes to lines
+	if err := validateBookmarkFormat(lines); err != nil {
+		return nil, fmt.Errorf("invalid bookmark format: %w", err)
+	}
+
+	tb := parseBookmarkContent(lines)
+	if be.item.Equals(tb) {
+		return nil, ErrBufferUnchanged
+	}
+
+	tb = scrapeBookmark(tb)
+	tb.ID = be.item.ID
+	tb.CreatedAt = be.item.CreatedAt
+	tb.Favorite = be.item.Favorite
+	tb.LastVisit = be.item.LastVisit
+	tb.VisitCount = be.item.VisitCount
+
+	return tb, nil
+}
+
+// prepareBufferForEdition prepares the buffer for edition.
+func prepareBufferForEdition(be *BookmarkEdit) {
+	const spaces = 10
+	newBookmark := be.item.ID == 0
+
+	// header
+	shortTitle := txt.Shorten(be.item.Title, terminal.MinWidth-spaces-6)
+	header := fmt.Appendf(nil, "# %d %s\n#\n", be.item.ID, shortTitle)
+	if newBookmark {
+		header = fmt.Appendf(nil, "# %s\n#\n", shortTitle)
+	}
+
+	// header mesg
+	s := "bookmark edition"
+	if newBookmark {
+		s = "bookmark addition"
+	}
+	sep := txt.CenteredLine(terminal.MinWidth-spaces, s)
+
+	// metadata
+	meta := fmt.Appendf(nil,
+		"# database:\t%q\n# version:\tv%s\n# %s\n\n",
+		config.App.DBName,
+		config.App.Info.Version,
+		sep,
+	)
+
+	// footer
+	be.footer = fmt.Appendf(nil, " [%d/%d]", be.idx+1, be.total)
+	if newBookmark {
+		be.footer = fmt.Appendf(nil, " [New]")
+	}
+
+	// assemble
+	header = append(header, meta...)
+	be.header = append(be.header, header...)
 }

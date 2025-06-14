@@ -196,6 +196,7 @@ func (f *Frame) Write(p []byte) (int, error) {
 			f.Rowln(line)
 		}
 	}
+
 	return len(p), nil
 }
 

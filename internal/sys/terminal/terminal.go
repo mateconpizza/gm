@@ -103,14 +103,14 @@ func clearTerminal() {
 
 // ClearChars deletes n characters in the console.
 func ClearChars(n int) {
-	for i := 0; i < n; i++ {
+	for range n {
 		fmt.Print("\b \b")
 	}
 }
 
 // ClearLine deletes n lines in the console.
 func ClearLine(n int) {
-	for i := 0; i < n; i++ {
+	for range n {
 		fmt.Print("\033[F\033[K")
 	}
 }

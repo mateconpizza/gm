@@ -9,13 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
-	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
 var (
@@ -33,10 +30,6 @@ const (
 	Extension     = ".gpg"
 )
 
-var gpgArgs = []string{
-	"--quiet", "--yes", "--compress-algo=none", "--no-encrypt-to",
-}
-
 // IsInitialized returns true if GPG is active.
 func IsInitialized(path string) bool {
 	if err := loadFingerprint(path); err != nil {
@@ -45,12 +38,7 @@ func IsInitialized(path string) bool {
 	return recipient != ""
 }
 
-// PromptGPGPassphrase tries to prompt for the passphrase using a dummy decryption.
-func PromptGPGPassphrase() error {
-	return runGPGCmd(append(gpgArgs, "--batch", "--list-secret-keys")...)
-}
-
-func Decrypt(encryptedPath string) ([]byte, error) {
+func DecryptFile(encryptedPath string) ([]byte, error) {
 	cmd := exec.Command(GPGCommand, "--quiet", "-d", encryptedPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -140,15 +128,18 @@ func Init(path string) error {
 	if err := files.MkdirAll(path); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	fileIDPath := filepath.Join(path, FingerprintID)
 	fingerprint, err := extractFingerPrint()
 	if err != nil {
 		return err
 	}
+
 	err = os.WriteFile(fileIDPath, []byte(fingerprint+"\n"), files.FilePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write .gpg-id: %w", err)
 	}
+
 	err = os.WriteFile(filepath.Join(path, gitAttPath), []byte(gitAttContent), files.FilePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write .gitattributes: %w", err)
@@ -169,28 +160,4 @@ func Create(root, hashPath string, bookmark any) error {
 	}
 
 	return Save(root, filePath, bookmark)
-}
-
-// runGPGCmd executes a GPG command.
-func runGPGCmd(commands ...string) error {
-	gpgCommand, err := sys.Which(GPGCommand)
-	if err != nil {
-		return fmt.Errorf("%w: %s", err, gpgCommand)
-	}
-
-	f := frame.New(frame.WithColorBorder(color.BrightOrange))
-	defer f.Flush()
-
-	commands = append([]string{gpgCommand}, commands...)
-
-	cmdColors := color.ApplyMany(slices.Clone(commands), color.Gray, color.StyleItalic)
-	f.Midln(strings.Join(cmdColors, " ")).Flush()
-
-	err = sys.ExecCmdWithWriter(f, commands...)
-	if err != nil {
-		f.Error("")
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
 }

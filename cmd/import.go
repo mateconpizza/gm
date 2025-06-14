@@ -62,7 +62,7 @@ var importFromBrowserCmd = &cobra.Command{
 			return fmt.Errorf("import from browser: %w", err)
 		}
 
-		if err := handler.GitCommit("Import from Browser"); err != nil {
+		if err := handler.GitCommit(config.App.DBPath, config.App.Path.Git, "Import from Browser"); err != nil {
 			if errors.Is(err, git.ErrGitNothingToCommit) {
 				return nil
 			}
@@ -77,7 +77,7 @@ var importFromGitRepoCmd = &cobra.Command{
 	Use:   "git",
 	Short: "Import bookmarks from git repo",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return gitCloneCmd.RunE(cmd, args)
+		return gitImportCmd.RunE(cmd, args)
 	},
 }
 

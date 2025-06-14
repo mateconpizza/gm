@@ -59,25 +59,23 @@ func (et *ErrTracker) GetError() error {
 	return et.error
 }
 
-// deduplicate removes duplicate bookmarks.
-func deduplicate(
+// Deduplicate removes duplicate bookmarks.
+func Deduplicate(
 	f *frame.Frame,
 	r *db.SQLiteRepository,
 	bs *slice.Slice[bookmark.Bookmark],
 ) ([]*bookmark.Bookmark, error) {
 	originalLen := bs.Len()
+
 	bs.FilterInPlace(func(b *bookmark.Bookmark) bool {
 		_, exists := r.Has(b.URL)
 		return !exists
 	})
+
 	if originalLen != bs.Len() {
 		skip := color.BrightYellow("skipping")
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-bs.Len())
 		f.Warning(s + "\n").Flush()
-	}
-
-	if bs.Empty() {
-		return nil, slice.ErrSliceEmpty
 	}
 
 	return bs.ItemsPtr(), nil
@@ -114,16 +112,18 @@ func parseFoundInBrowser(
 	bs *slice.Slice[bookmark.Bookmark],
 ) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Rowln()
-	if _, err := deduplicate(f, r, bs); err != nil {
-		if errors.Is(err, slice.ErrSliceEmpty) {
-			f.Midln("no new bookmark found, skipping import").Flush()
-			return nil
-		}
+
+	dRecords, err := Deduplicate(f.Rowln(), r, bs)
+	if err != nil {
+		return err
+	}
+	if len(dRecords) == 0 {
+		f.Midln("no new bookmark found, skipping import").Flush()
+		return nil
 	}
 
 	msg := fmt.Sprintf("scrape missing data from %d bookmarks found?", bs.Len())
-	f.Rowln().Flush().Clear()
+	f.Flush().Clear()
 	if !config.App.Force {
 		if err := t.ConfirmErr(f.Question(msg).String(), "y"); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
@@ -140,6 +140,7 @@ func parseFoundInBrowser(
 	return nil
 }
 
+// parseJSONRepo extracts records from a JSON repository.
 func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	var (
 		count      = 0
@@ -210,7 +211,7 @@ func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	)
 
 	loader := func(path string) (*bookmark.Bookmark, error) {
-		content, err := gpg.Decrypt(path)
+		content, err := gpg.DecryptFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -389,8 +390,8 @@ func parseGitRepositoryAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbN
 	return nil
 }
 
-// resolveFileConflictError resolves a file conflict error.
-func resolveFileConflictError(rootPath string, err error, filePathJSON string, b *bookmark.Bookmark) error {
+// resolveFileConflictErr resolves a file conflict error.
+func resolveFileConflictErr(rootPath string, err error, filePathJSON string, b *bookmark.Bookmark) error {
 	if !errors.Is(err, files.ErrFileExists) {
 		return err
 	}

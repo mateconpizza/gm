@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/mateconpizza/rotato"
@@ -20,6 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // RemoveRepo removes a repo.
@@ -101,7 +101,7 @@ func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
 		case "a", "all":
 			filesToRemove.Append(fs...)
 		case "s", "select":
-			selected, err := Select(fs,
+			selected, err := selection(fs,
 				func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
 				menu.WithArgs("--cycle"),
 				menu.WithUseDefaults(),
@@ -160,8 +160,8 @@ func removeSlicePath(f *frame.Frame, dbs *slice.Slice[string]) error {
 	}
 
 	sp.Done()
-	s = color.BrightGreen("Successfully").Italic().String()
-	f.Clear().Row("\n").Success(s + " " + strconv.Itoa(dbs.Len()) + " item/s removed\n").Flush()
+
+	fmt.Print(txt.SuccessMesg(fmt.Sprintf("%d item/s removed\n", dbs.Len())))
 
 	return nil
 }
@@ -207,7 +207,7 @@ func DroppingDB(t *terminal.Term, r *db.SQLiteRepository) error {
 
 	if !config.App.Force {
 		if r.Cfg.Name == config.DefaultDBName {
-			f.Warning(color.Text("dropping 'default' database, continue?").Bold().String())
+			f.Text(txt.WarningMesg("dropping 'default' database, continue?"))
 		} else {
 			f.Question("continue?")
 		}
@@ -219,8 +219,8 @@ func DroppingDB(t *terminal.Term, r *db.SQLiteRepository) error {
 	if err := r.DropSecure(context.Background()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	success := color.BrightGreen("Successfully").Italic().String()
-	f.Clear().Success(success + " database dropped").Ln().Flush()
+
+	fmt.Print(txt.SuccessMesg("database dropped\n"))
 
 	return nil
 }

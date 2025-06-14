@@ -135,6 +135,7 @@ var initCmd = &cobra.Command{
 		if err := createPaths(t, config.App.Path.Data); err != nil {
 			return err
 		}
+
 		// init database
 		r, err := db.Init(config.App.DBPath)
 		if r == nil {
@@ -148,30 +149,31 @@ var initCmd = &cobra.Command{
 		if err := r.Init(); err != nil {
 			return fmt.Errorf("initializing database: %w", err)
 		}
+
 		// ignore initial bookmark if not DefaultDBName
 		if config.App.DBName != config.DefaultDBName {
 			s := color.Gray(config.App.DBName).Italic().String()
-			success := color.BrightGreen("Successfully").Italic().String()
-			fmt.Println(success + " initialized database " + s)
+			fmt.Println(txt.SuccessMesg("initialized database " + s))
 
 			return nil
 		}
+
 		// initial bookmark
 		ib := bookmark.New()
 		ib.URL = config.App.Info.URL
 		ib.Title = config.App.Info.Title
 		ib.Tags = bookmark.ParseTags(config.App.Info.Tags)
 		ib.Desc = config.App.Info.Desc
-		// insert new bookmark
+
 		if err := r.InsertOne(context.Background(), ib); err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		// print new record
 		fmt.Print(bookmark.Frame(ib, color.DefaultColorScheme()))
-		s := color.BrightGreen("Successfully").Italic().String()
-		mesg := s + " initialized database " + color.Gray(config.App.DBName+"\n").Italic().String()
-		f := frame.New(frame.WithColorBorder(color.Gray))
-		f.Row("\n").Success(mesg).Flush()
+
+		s := color.Gray(config.App.DBName + "\n").Italic().String()
+		fmt.Print("\n" + txt.SuccessMesg("initialized database "+s))
 
 		return nil
 	},
