@@ -18,8 +18,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
-// newGit returns a new git manager.
-func newGit(repoPath string) (*git.Manager, error) {
+// NewGit returns a new git manager.
+func NewGit(repoPath string) (*git.Manager, error) {
 	gCmd := "git"
 	gitCmd, err := sys.Which(gCmd)
 	if err != nil {

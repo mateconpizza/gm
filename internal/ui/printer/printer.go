@@ -10,24 +10,69 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
-func GitRepoTracked(f *frame.Frame, t []string) error {
-	if len(t) == 0 {
+func GitRepoTracked(f *frame.Frame, g *git.Manager) error {
+	if len(g.Tracker.List) == 0 {
 		return git.ErrGitNoTrackedRepos
 	}
 
-	f.Header("Tracked databases in git\n").Rowln().Flush()
-	for _, r := range t {
-		f.Success(r).Ln()
+	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
+	if err != nil {
+		return fmt.Errorf("finding db files: %w", err)
+	}
+	f.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
+
+	repos := make([]*git.GitRepository, 0, len(g.Tracker.List))
+	for _, dbPath := range dbFiles {
+		gr := g.NewRepo(dbPath)
+		repos = append(repos, gr)
 	}
 
-	f.Flush()
+	dimmer := color.Gray
+	untracked := make([]*git.GitRepository, 0, len(repos))
+
+	var sb strings.Builder
+	for _, gr := range repos {
+		sb.Reset()
+		if !g.Tracker.IsTracked(gr) {
+			untracked = append(untracked, gr)
+			continue
+		}
+
+		sum := git.NewSummary()
+		if err := handler.GitRepoStats(gr.DBPath, sum); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		st := sum.RepoStats
+
+		s := fmt.Sprintf("(%d bookmarks, %d tags, %d favorites)", st.Bookmarks, st.Tags, st.Favorites)
+		sb.WriteString(txt.PaddedLine(gr.Name, dimmer(s).Italic().String()))
+
+		if gpg.IsInitialized(g.RepoPath) {
+			s = " gpg\n"
+		} else {
+			s = " json\n"
+		}
+
+		sb.WriteString(color.Orange(s).String())
+
+		f.Success(sb.String()).Flush()
+	}
+
+	for _, gr := range untracked {
+		sb.Reset()
+		sb.WriteString(txt.PaddedLine(gr.Name, dimmer("(not tracked)\n").Italic().String()))
+		f.Error(sb.String()).Flush()
+	}
 
 	return nil
 }

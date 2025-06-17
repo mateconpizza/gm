@@ -3,7 +3,6 @@ package gpg
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -26,7 +25,7 @@ const (
 	gitAttPath    = ".gitattributes"
 	gitAttContent = "*.gpg diff=gpg"
 	FingerprintID = ".gpg-id"
-	GPGCommand    = "gpg"
+	gpgCommand    = "gpg"
 	Extension     = ".gpg"
 )
 
@@ -38,8 +37,14 @@ func IsInitialized(path string) bool {
 	return recipient != ""
 }
 
-func DecryptFile(encryptedPath string) ([]byte, error) {
-	cmd := exec.Command(GPGCommand, "--quiet", "-d", encryptedPath)
+// Decrypt decrypts the provided encrypted file.
+func Decrypt(encryptedPath string) ([]byte, error) {
+	cmdPath, err := sys.Which(gpgCommand)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", err, gpgCommand)
+	}
+
+	cmd := exec.Command(cmdPath, "--quiet", "-d", encryptedPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(output))
@@ -48,8 +53,14 @@ func DecryptFile(encryptedPath string) ([]byte, error) {
 	return output, nil
 }
 
-func encrypt(path string, content []byte) error {
-	cmd := exec.Command(GPGCommand, "--yes", "-e", "-r", recipient, "-o", path)
+// Encrypt encrypts the provided data and saves it to the specified path.
+func Encrypt(path string, content []byte) error {
+	cmdPath, err := sys.Which(gpgCommand)
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, cmdPath)
+	}
+
+	cmd := exec.Command(cmdPath, "--yes", "-e", "-r", recipient, "-o", path)
 	cmd.Stdin = bytes.NewReader(content)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -63,7 +74,12 @@ func encrypt(path string, content []byte) error {
 // extractFingerPrint will extract the gpg fingerprint from the output of `gpg
 // --list-keys --with-colons`.
 func extractFingerPrint() (string, error) {
-	cmd := exec.Command(GPGCommand, "--list-keys", "--with-colons")
+	cmdPath, err := sys.Which(gpgCommand)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s", err, cmdPath)
+	}
+
+	cmd := exec.Command(cmdPath, "--list-keys", "--with-colons")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("gpg list-keys: %w", err)
@@ -104,26 +120,10 @@ func loadFingerprint(path string) error {
 	return nil
 }
 
-// Save encrypts the provided data and saves it to the specified path.
-func Save(root, path string, b any) error {
-	path = files.StripSuffixes(path) + Extension
-	data, err := json.MarshalIndent(b, "", "  ")
-	if err != nil {
-		return fmt.Errorf("json marshal: %w", err)
-	}
-
-	dir := filepath.Dir(path)
-	if err := files.MkdirAll(dir); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
-	}
-
-	return encrypt(path, data)
-}
-
 // Init will extract the gpg fingerprint and save it to .gpg-id.
 func Init(path string) error {
-	if _, err := sys.Which(GPGCommand); err != nil {
-		return fmt.Errorf("%w: %s", err, GPGCommand)
+	if _, err := sys.Which(gpgCommand); err != nil {
+		return fmt.Errorf("%w: %s", err, gpgCommand)
 	}
 	if err := files.MkdirAll(path); err != nil {
 		return fmt.Errorf("%w", err)
@@ -146,18 +146,4 @@ func Init(path string) error {
 	}
 
 	return nil
-}
-
-// Create encrypts the provided data and saves it to the specified path.
-func Create(root, hashPath string, bookmark any) error {
-	if err := files.MkdirAll(root); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	filePath := filepath.Join(root, hashPath+Extension)
-	if files.Exists(filePath) {
-		return files.ErrFileExists
-	}
-
-	return Save(root, filePath, bookmark)
 }

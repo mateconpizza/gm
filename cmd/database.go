@@ -7,6 +7,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -74,8 +75,17 @@ var databaseDropCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := handler.GitDropRepo(config.App.DBPath, config.App.Path.Git, "Dropped"); err != nil {
-			return fmt.Errorf("%w", err)
+		if git.IsInitialized(config.App.Path.Git) {
+			g, err := handler.NewGit(config.App.Path.Git)
+			if err != nil {
+				return nil
+			}
+
+			g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
+
+			if err := handler.GitDropRepo(g, "Dropped"); err != nil {
+				return fmt.Errorf("%w", err)
+			}
 		}
 
 		return nil
@@ -173,5 +183,5 @@ func init() {
 		databaseDropCmd, databaseInfoCmd, databaseNewCmd, databaseListCmd,
 		databaseRmCmd, databaseLockCmd, databaseUnlockCmd,
 	)
-	rootCmd.AddCommand(dbCmd)
+	Root.AddCommand(dbCmd)
 }

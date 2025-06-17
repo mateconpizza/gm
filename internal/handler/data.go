@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -123,15 +124,21 @@ func addBookmark(r *db.SQLiteRepository, b *bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := port.GitStore(b); err != nil {
-		return fmt.Errorf("git store: %w", err)
-	}
-
-	if err := GitCommit(r.Cfg.Fullpath(), config.App.Path.Git, "Add"); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
 	fmt.Print(txt.SuccessMesg("bookmark added"))
+
+	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
+		g, err := NewGit(config.App.Path.Git)
+		if err != nil {
+			return err
+		}
+		if err := port.GitStore(b); err != nil {
+			return fmt.Errorf("git store: %w", err)
+		}
+
+		if err := GitCommit(g, "Add"); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
 
 	return nil
 }
@@ -142,13 +149,25 @@ func updateBookmark(r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error
 		return fmt.Errorf("updating record: %w", err)
 	}
 
-	if err := port.GitUpdate(r.Cfg.Fullpath(), newB, oldB); err != nil {
-		return fmt.Errorf("git update: %w", err)
-	}
-
 	fmt.Print(txt.SuccessMesg(fmt.Sprintf("bookmark [%d] updated", newB.ID)))
 
-	return GitCommit(r.Cfg.Fullpath(), config.App.Path.Git, "Modify")
+	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
+		g, err := NewGit(config.App.Path.Git)
+		if err != nil {
+			return err
+		}
+		gr := g.NewRepo(r.Cfg.Fullpath())
+		g.Tracker.SetCurrent(gr)
+
+		if err := port.GitUpdate(gr.DBPath, newB, oldB); err != nil {
+			return fmt.Errorf("git update: %w", err)
+		}
+		if err := GitCommit(g, "Modify"); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // removeRecords removes the records from the database.
@@ -178,8 +197,16 @@ func removeRecords(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) e
 
 	sp.Done()
 
-	if err := gitCleanFiles(config.App.Path.Git, r, bs); err != nil {
-		return err
+	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
+		g, err := NewGit(config.App.Path.Git)
+		if err != nil {
+			return err
+		}
+		gr := g.NewRepo(r.Cfg.Fullpath())
+		g.Tracker.SetCurrent(gr)
+		if err := gitCleanFiles(g, bs); err != nil {
+			return err
+		}
 	}
 
 	fmt.Print(txt.SuccessMesg("bookmark/s removed\n"))

@@ -42,7 +42,7 @@ var backupLockCmd = &cobra.Command{
 	Short: "Lock a database backup",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-		fs, err := handler.SelectBackup(config.App.Path.Backup, "select backup/s to lock")
+		fs, err := handler.SelectBackupMany(config.App.Path.Backup, "select backup/s to lock")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -158,5 +158,5 @@ func init() {
 	_ = f.MarkHidden("help")
 	backupUnlockCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
 	backupCmd.AddCommand(backupNewCmd, backupListCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
-	rootCmd.AddCommand(backupCmd)
+	Root.AddCommand(backupCmd)
 }

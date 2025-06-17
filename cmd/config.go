@@ -146,5 +146,5 @@ func init() {
 	_ = f.MarkHidden("name")
 	_ = f.MarkHidden("color")
 	_ = f.MarkHidden("help")
-	rootCmd.AddCommand(configCmd)
+	Root.AddCommand(configCmd)
 }

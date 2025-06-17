@@ -56,5 +56,5 @@ var removeCmd = &cobra.Command{
 
 func init() {
 	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
-	rootCmd.AddCommand(removeCmd)
+	Root.AddCommand(removeCmd)
 }

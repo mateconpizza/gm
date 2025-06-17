@@ -44,7 +44,7 @@ func NewBookmark(
 	sc := scraper.New(newURL, scraper.WithSpinner())
 
 	// fetch title, description and tags
-	tagsFromArgs(t, f.Clear(), sc, bTemp)
+	tagsFromArgs(t, f.Reset(), sc, bTemp)
 	fetchTitleAndDesc(f, sc, bTemp)
 
 	b.URL = newURL
@@ -68,7 +68,7 @@ func readURLFromClipboard(t *terminal.Term, f *frame.Frame) string {
 	lines := txt.CountLines(f.String())
 	f.Flush()
 
-	if err := t.ConfirmErr(f.Clear().Question("found valid URL in clipboard, use URL?").String(), "y"); err != nil {
+	if err := t.ConfirmErr(f.Reset().Question("found valid URL in clipboard, use URL?").String(), "y"); err != nil {
 		t.ClearLine(lines)
 		return ""
 	}
@@ -90,12 +90,12 @@ func newURLFromArgs(t *terminal.Term, f *frame.Frame, args []string) (string, er
 	}
 
 	// checks clipboard
-	c := readURLFromClipboard(t, f.Clear())
+	c := readURLFromClipboard(t, f.Reset())
 	if c != "" {
 		return c, nil
 	}
 
-	f.Clear().Header(color.BrightMagenta("URL\t:").String()).Flush()
+	f.Reset().Header(color.BrightMagenta("URL\t:").String()).Flush()
 	bURL := t.Input(" ")
 	if bURL == "" {
 		return bURL, bookmark.ErrURLEmpty
@@ -136,7 +136,7 @@ func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *book
 	mTags, _ := db.TagsCounterFromPath(config.App.DBPath)
 	b.tags = bookmark.ParseTags(t.ChooseTags(f.Border.Mid, mTags))
 
-	f.Clear().Mid(color.BrightBlue("Tags\t:").String()).
+	f.Reset().Mid(color.BrightBlue("Tags\t:").String()).
 		Text(" " + color.Gray(b.tags).String()).Ln()
 
 	t.ClearLine(txt.CountLines(f.String()))

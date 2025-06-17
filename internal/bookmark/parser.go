@@ -230,7 +230,7 @@ func domain(rawURL string) (string, error) {
 // Checksum generates a checksum for the bookmark.
 func Checksum(rawURL, title, desc, tags string) string {
 	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s", rawURL, title, desc, tags)
-	return txt.GenerateHash(data, 8)
+	return txt.GenHash(data, 8)
 }
 
 // uniqueItem returns a slice of unique, non-empty strings from the input slice.

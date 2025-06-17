@@ -106,7 +106,7 @@ func init() {
 	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
 
 	recordsCmd.AddCommand(recordsTagsCmd)
-	rootCmd.AddCommand(recordsCmd)
+	Root.AddCommand(recordsCmd)
 }
 
 func initRecordFlags(cmd *cobra.Command) {

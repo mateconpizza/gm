@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
@@ -58,13 +59,25 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 	return result, nil
 }
 
-// selectBackup lets the user choose a backup and handles decryption if
-// needed.
-func selectBackup(destDB *db.SQLiteRepository) (string, error) {
-	bks, err := destDB.ListBackups()
+// selectItem lets the user choose a repo from a list.
+func selectItem(fs []string, header string) (string, error) {
+	repos, err := selection(fs,
+		func(p *string) string { return db.RepoSummaryRecordsFromPath(*p) },
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithHeader(header, false),
+		menu.WithPreview(config.App.Cmd+" db -n {1} info"),
+	)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
+
+	return repos[0], nil
+}
+
+// SelectBackupOne lets the user choose a backup and handles decryption if
+// needed.
+func SelectBackupOne(bks []string) (string, error) {
 	selected, err := selection(bks,
 		func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
 		menu.WithArgs("--cycle"),
@@ -88,23 +101,7 @@ func selectBackup(destDB *db.SQLiteRepository) (string, error) {
 	return backupPath, nil
 }
 
-// selectItem lets the user choose a repo from a list.
-func selectItem(fs []string, header string) (string, error) {
-	repos, err := selection(fs,
-		func(p *string) string { return db.RepoSummaryRecordsFromPath(*p) },
-		menu.WithUseDefaults(),
-		menu.WithSettings(config.Fzf.Settings),
-		menu.WithHeader(header, false),
-		menu.WithPreview(config.App.Cmd+" db -n {1} info"),
-	)
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	return repos[0], nil
-}
-
-func SelectBackup(root, header string) ([]string, error) {
+func SelectBackupMany(root, header string) ([]string, error) {
 	fs, err := files.FindByExtList(root, "db")
 	if err != nil {
 		return fs, fmt.Errorf("%w", err)
@@ -144,7 +141,7 @@ func SelectFileLocked(root, header string) ([]string, error) {
 	return selected, nil
 }
 
-func selectDatabase() (*db.SQLiteRepository, error) {
+func SelectDatabase(currentDBPath string) (*db.SQLiteRepository, error) {
 	// build list of candidate .db files
 	dbFiles, err := files.FindByExtList(config.App.Path.Data, ".db")
 	if err != nil {
@@ -152,7 +149,7 @@ func selectDatabase() (*db.SQLiteRepository, error) {
 	}
 	dbs := slice.New(dbFiles...)
 	dbs = dbs.Filter(func(r string) bool {
-		return filepath.Base(r) != config.App.DBName
+		return r != currentDBPath
 	})
 	// ask the user which one to import from
 	s, err := selectItem(*dbs.Items(), "choose a database to import from")
@@ -171,47 +168,35 @@ func selectDatabase() (*db.SQLiteRepository, error) {
 	return srcDB, nil
 }
 
-// SelectecTrackedDB prompts user to select which databases to track.
-func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]string, error) {
+func SelectecTrackedDBNew(t *terminal.Term, f *frame.Frame, currentRepos []string) ([]string, error) {
 	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
 	if err != nil {
 		return nil, fmt.Errorf("finding db files: %w", err)
 	}
 
-	if len(dbFiles) == 1 {
-		dbName := files.StripSuffixes(filepath.Base(dbFiles[0]))
-		if files.Exists(filepath.Join(repoPath, dbName)) {
-			f.Info(filepath.Base(dbFiles[0]) + " is already tracked\n").Flush()
+	f.Midln("Select which databases to track").Rowln().Flush()
 
-			return []string{}, nil
-		}
-
-		f.Reset().Success(fmt.Sprintf("Tracking %q\n", dbName)).Flush()
-		return dbFiles, nil
-	}
-
-	f.Midln("Select which databases to track").Flush()
 	tracked := make([]string, 0, len(dbFiles))
 
-	for _, dbFile := range dbFiles {
+	for _, dbPath := range dbFiles {
 		f.Reset()
-		dbName := files.StripSuffixes(filepath.Base(dbFile))
+		repoName := files.StripSuffixes(filepath.Base(dbPath))
 
-		if files.Exists(filepath.Join(repoPath, dbName)) {
-			f.Info(filepath.Base(dbFile) + " is already tracked\n").Flush()
-			tracked = append(tracked, dbFile)
+		// remove if exists
+		if slices.Contains(currentRepos, repoName) {
+			f.Reset().Info(fmt.Sprintf("%q is already tracked\n", repoName)).Flush()
 			continue
 		}
 
-		if !t.Confirm(f.Reset().Question(fmt.Sprintf("Track %q?", dbName)).String(), "n") {
+		if !t.Confirm(f.Reset().Question(fmt.Sprintf("Track %q?", repoName)).String(), "n") {
 			t.ClearLine(1)
-			f.Reset().Info(fmt.Sprintf("Skipping %q\n", dbName)).Flush()
+			f.Reset().Warning(fmt.Sprintf("Skipping %q\n", repoName)).Flush()
 			continue
 		}
 
-		tracked = append(tracked, dbFile)
+		tracked = append(tracked, dbPath)
 
-		t.ReplaceLine(1, f.Reset().Success(fmt.Sprintf("Tracking %q", dbName)).String())
+		t.ReplaceLine(1, f.Reset().Success(fmt.Sprintf("Tracking %q", repoName)).String())
 	}
 
 	return tracked, nil

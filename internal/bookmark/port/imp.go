@@ -27,19 +27,23 @@ import (
 )
 
 // GitImport imports bookmarks from a git repository.
-func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) error {
+func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) ([]string, error) {
 	if err := git.Clone(tmpPath, repoPath); err != nil {
-		return fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
 
 	repos, err := files.ListRootFolders(tmpPath, ".git")
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("%w", err)
 	}
+
 	n := len(repos)
 	if n == 0 {
-		return git.ErrGitRepoNotFound
+		return nil, git.ErrGitRepoNotFound
 	}
+
+	var imported []string
+
 	f.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	for _, repoName := range repos {
@@ -51,21 +55,26 @@ func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) error
 				n--
 				continue
 			}
-			return fmt.Errorf("%w", err)
+
+			return nil, fmt.Errorf("%w", err)
+		}
+
+		if dbPath != "" {
+			imported = append(imported, dbPath)
 		}
 	}
 
-	if n == 0 {
-		return terminal.ErrActionAborted
+	if len(imported) == 0 {
+		return nil, terminal.ErrActionAborted
 	}
 
 	if err := files.RemoveAll(tmpPath); err != nil {
-		return fmt.Errorf("removing temp repo: %w", err)
+		return nil, fmt.Errorf("removing temp repo: %w", err)
 	}
 
 	fmt.Print(txt.SuccessMesg("imported bookmarks from git\n"))
 
-	return nil
+	return imported, nil
 }
 
 // Browser imports bookmarks from a supported browser.
@@ -98,13 +107,7 @@ func Browser(r *db.SQLiteRepository) error {
 }
 
 // Database imports bookmarks from a database.
-func Database(srcDB *db.SQLiteRepository) error {
-	destDB, err := db.New(config.App.DBPath)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	defer destDB.Close()
-
+func Database(srcDB, destDB *db.SQLiteRepository) error {
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -185,6 +188,8 @@ func IntoRepo(
 
 // FromBackup imports bookmarks from a backup.
 func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteRepository) error {
+	f.Headerln(color.BrightYellow("Import bookmarks from backup").String())
+	f.Midln(color.Gray(txt.PaddedLine("source:", srcDB.Name())).Italic().String()).Rowln()
 	interruptFn := func(err error) {
 		destDB.Close()
 		srcDB.Close()
@@ -272,7 +277,6 @@ func intoDB(f *frame.Frame, dbPath, repoPath string) error {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
 
-	dbPath = filepath.Join(filepath.Dir(dbPath), dbName)
 	r, err := db.Init(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
@@ -309,26 +313,22 @@ func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import", false),
-		menu.WithInterruptFn(func(err error) { // build interrupt cleanup
-			sys.ErrAndExit(err)
-		}),
 	)
 
-	coso := make([]bookmark.Bookmark, 0, len(bookmarks))
+	records := make([]bookmark.Bookmark, 0, len(bookmarks))
 	for _, b := range bookmarks {
-		coso = append(coso, *b)
+		records = append(records, *b)
 	}
 
-	slices.SortFunc(coso, func(a, b bookmark.Bookmark) int {
+	slices.SortFunc(records, func(a, b bookmark.Bookmark) int {
 		return cmp.Compare(a.ID, b.ID)
 	})
 
-	cs := color.DefaultColorScheme()
-
-	m.SetItems(coso)
+	m.SetItems(records)
 	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return bookmark.Oneline(b, cs)
+		return bookmark.Oneline(b, color.DefaultColorScheme())
 	})
+
 	selected, err := m.Select()
 	if err != nil {
 		return fmt.Errorf("%w", err)

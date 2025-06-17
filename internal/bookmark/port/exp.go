@@ -2,7 +2,6 @@ package port
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -25,7 +24,7 @@ func GitStore(b *bookmark.Bookmark) error {
 	if !git.IsInitialized(repoPath) {
 		return nil
 	}
-	fileExt := FileExtJSON
+	fileExt := JSONFileExt
 	if gpg.IsInitialized(repoPath) {
 		fileExt = gpg.Extension
 	}
@@ -33,7 +32,7 @@ func GitStore(b *bookmark.Bookmark) error {
 	root := filepath.Join(repoPath, files.StripSuffixes(config.App.DBName))
 
 	switch fileExt {
-	case FileExtJSON:
+	case JSONFileExt:
 		return gitStoreAsJSON(root, b, config.App.Force)
 	case gpg.Extension:
 		return exportAsGPG(root, []*bookmark.Bookmark{b})
@@ -49,7 +48,7 @@ func GitUpdate(dbPath string, newB, oldB *bookmark.Bookmark) error {
 		return nil
 	}
 
-	fileExt := FileExtJSON
+	fileExt := JSONFileExt
 	if gpg.IsInitialized(repoPath) {
 		fileExt = gpg.Extension
 	}
@@ -58,7 +57,7 @@ func GitUpdate(dbPath string, newB, oldB *bookmark.Bookmark) error {
 	root := filepath.Join(repoPath, dbName)
 
 	switch fileExt {
-	case FileExtJSON:
+	case JSONFileExt:
 		return gitUpdateJSON(root, oldB, newB)
 	case gpg.Extension:
 		return GitCleanGPG(root, []*bookmark.Bookmark{newB})
@@ -68,13 +67,13 @@ func GitUpdate(dbPath string, newB, oldB *bookmark.Bookmark) error {
 }
 
 // GitExport exports the bookmarks to the git repo.
-func GitExport(dbPath string) error {
-	if !git.IsInitialized(config.App.Path.Git) {
+func GitExport(g *git.Manager) error {
+	if !g.IsInitialized() {
 		slog.Debug("git export: git not initialized")
 		return nil
 	}
 
-	r, err := db.New(dbPath)
+	r, err := db.New(g.Tracker.Current().DBPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -89,11 +88,7 @@ func GitExport(dbPath string) error {
 		return git.ErrGitNothingToCommit
 	}
 
-	repoPath := config.App.Path.Git
-	dbName := filepath.Base(dbPath)
-	root := filepath.Join(repoPath, files.StripSuffixes(dbName))
-
-	if err := GitWrite(repoPath, root, bookmarks); err != nil {
+	if err := GitWrite(g, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -101,8 +96,9 @@ func GitExport(dbPath string) error {
 }
 
 // GitWrite exports the bookmarks to the git repo.
-func GitWrite(repoPath, root string, bookmarks []*bookmark.Bookmark) error {
-	if gpg.IsInitialized(repoPath) {
+func GitWrite(g *git.Manager, bookmarks []*bookmark.Bookmark) error {
+	root := g.Tracker.Current().Path
+	if gpg.IsInitialized(g.RepoPath) {
 		if err := exportAsGPG(root, bookmarks); err != nil {
 			return fmt.Errorf("store as GPG: %w", err)
 		}
@@ -121,14 +117,16 @@ func gitStoreAsJSON(rootPath string, b *bookmark.Bookmark, force bool) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	// domainPath: root -> dbName -> domain
 	domainPath := filepath.Join(rootPath, domain)
 	if err := files.MkdirAll(domainPath); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	// urlHash := domainPath -> urlHash.json
 	urlHash := b.HashURL()
-	filePathJSON := filepath.Join(domainPath, urlHash+FileExtJSON)
+	filePathJSON := filepath.Join(domainPath, urlHash+JSONFileExt)
 	if err := files.JSONWrite(filePathJSON, b.ToJSON(), force); err != nil {
 		return resolveFileConflictErr(rootPath, err, filePathJSON, b)
 	}
@@ -170,12 +168,26 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 		if err != nil {
 			return fmt.Errorf("hashing path: %w", err)
 		}
-		if err := gpg.Create(root, hashPath, bookmarks[i].ToJSON()); err != nil {
-			if errors.Is(err, files.ErrFileExists) {
-				continue
-			}
-			return fmt.Errorf("creating GPG file: %w", err)
+
+		filePath := filepath.Join(root, hashPath+gpg.Extension)
+		if files.Exists(filePath) {
+			continue
 		}
+
+		dir := filepath.Dir(filePath)
+		if err := files.MkdirAll(dir); err != nil {
+			return fmt.Errorf("mkdir: %w", err)
+		}
+
+		data, err := json.MarshalIndent(bookmarks[i].ToJSON(), "", "  ")
+		if err != nil {
+			return fmt.Errorf("json marshal: %w", err)
+		}
+
+		if err := gpg.Encrypt(filePath, data); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
 		sp.Start()
 		count++
 		sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
@@ -190,11 +202,12 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 	return nil
 }
 
-// exportFromGit extracts records from a git repository.
-func exportFromGit(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error) {
+// extractFromGitRepo extracts records from a git repository.
+func extractFromGitRepo(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error) {
 	if !files.Exists(repoPath) {
 		return nil, fmt.Errorf("%w: %q", git.ErrGitRepoNotFound, repoPath)
 	}
+
 	rootDir := filepath.Dir(repoPath)
 	if !gpg.IsInitialized(rootDir) {
 		return parseJSONRepo(f, repoPath)

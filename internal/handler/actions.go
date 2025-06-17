@@ -330,16 +330,15 @@ func EditSlice(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
 func SaveNewBookmark(t *terminal.Term, f *frame.Frame, r *db.SQLiteRepository, b *bookmark.Bookmark) error {
-	opt, err := t.Choose(
-		f.Clear().Question("save bookmark?").String(),
-		[]string{"yes", "no", "edit"},
-		"y",
-	)
-	if err != nil {
-		return fmt.Errorf("%w", err)
+	if config.App.Force {
+		if err := r.InsertOne(context.Background(), b); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		return nil
 	}
 
-	te, err := files.NewEditor(config.App.Env.Editor)
+	opt, err := t.Choose(f.Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -348,8 +347,17 @@ func SaveNewBookmark(t *terminal.Term, f *frame.Frame, r *db.SQLiteRepository, b
 	case "n", "no":
 		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
+		te, err := files.NewEditor(config.App.Env.Editor)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
 		if err := EditBookmarks(t, f, r, te, []*bookmark.Bookmark{b}); err != nil {
 			return err
+		}
+	default:
+		if err := r.InsertOne(context.Background(), b); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 	}
 

@@ -49,8 +49,8 @@ func initRootFlags(cmd *cobra.Command) {
 	cmd.SuggestionsMinimumDistance = 1
 }
 
-// rootCmd represents the base command when called without any subcommands.
-var rootCmd = &cobra.Command{
+// Root represents the base command when called without any subcommands.
+var Root = &cobra.Command{
 	Use:          config.App.Cmd,
 	Short:        config.App.Info.Title,
 	Long:         config.App.Info.Desc,
@@ -70,7 +70,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := Root.Execute(); err != nil {
 		sys.ErrAndExit(err)
 	}
 }

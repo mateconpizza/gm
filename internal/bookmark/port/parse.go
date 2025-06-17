@@ -24,10 +24,11 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
-const FileExtJSON = ".json"
+const JSONFileExt = ".json"
 
 type loaderFileFn = func(path string) (*bookmark.Bookmark, error)
 
@@ -211,7 +212,7 @@ func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	)
 
 	loader := func(path string) (*bookmark.Bookmark, error) {
-		content, err := gpg.DecryptFile(path)
+		content, err := gpg.Decrypt(path)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -299,12 +300,12 @@ func parseJSONFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.W
 			return err
 		}
 
-		if d.IsDir() || filepath.Ext(path) != FileExtJSON {
+		if d.IsDir() || filepath.Ext(path) != JSONFileExt {
 			return nil
 		}
 
 		loadConcurrently(path, bs, wg, mu, sem, loader, errTracker)
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 
 		return nil
 	}
@@ -318,7 +319,7 @@ func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string)
 	// read summary.json
 	sum := git.NewSummary()
 	if err := files.JSONRead(filepath.Join(repoPath, git.SummaryFileName), sum); err != nil {
-		return fmt.Errorf("reading summary: %w", err)
+		return "", fmt.Errorf("reading summary: %w", err)
 	}
 
 	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
@@ -326,7 +327,7 @@ func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string)
 		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
 
 	if err := t.ConfirmErr(f.Rowln().Question("Import records from this repo?").String(), "y"); err != nil {
-		return fmt.Errorf("%w", err)
+		return "", fmt.Errorf("%w", err)
 	}
 
 	var (
@@ -342,7 +343,7 @@ func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string)
 
 		opt, err = t.Choose(f.String(), []string{"merge", "drop", "create", "select", "ignore"}, "m")
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return "", fmt.Errorf("%w", err)
 		}
 		f.Reset()
 	} else {
@@ -354,36 +355,43 @@ func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string)
 		return "", err
 	}
 
-	return parseGitRepositoryAction(t, f, opt, dbPath, dbName, repoPath)
+	return resultPath, nil
 }
 
-func parseGitRepositoryAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbName, repoPath string) error {
-	switch strings.ToLower(opt) {
+// parseGitRepositoryOpt handles the options for parseGitRepository.
+func parseGitRepositoryOpt(t *terminal.Term, f *frame.Frame, o, dbPath, repoPath string) (string, error) {
+	switch strings.ToLower(o) {
 	case "new":
-		if err := intoDB(f, dbPath, dbName, repoPath); err != nil {
-			return fmt.Errorf("%w", err)
+		if err := intoDB(f, dbPath, repoPath); err != nil {
+			return "", err
 		}
+
 	case "c", "create":
 		var dbName string
 		for dbName == "" {
 			dbName = files.EnsureSuffix(t.Prompt(f.Reset().Info("Enter new name: ").String()), ".db")
 		}
-		if err := intoDB(f, dbPath, dbName, repoPath); err != nil {
-			return fmt.Errorf("%w", err)
+
+		dbPath = filepath.Join(filepath.Dir(dbPath), dbName)
+		if err := intoDB(f, dbPath, repoPath); err != nil {
+			return "", err
 		}
+
 	case "d", "drop":
 		f.Warning("Dropping database\n").Flush()
 		if err := db.DropFromPath(dbPath); err != nil {
-			return fmt.Errorf("%w", err)
+			return "", fmt.Errorf("%w", err)
 		}
 		if err := mergeRecords(f.Reset(), dbPath, repoPath); err != nil {
 			return "", err
 		}
+
 	case "m", "merge":
 		f.Info("Merging database\n").Flush()
 		if err := mergeRecords(f.Reset(), dbPath, repoPath); err != nil {
 			return "", err
 		}
+
 	case "s", "select":
 		if err := selectRecords(f.Reset(), dbPath, repoPath); err != nil {
 			if errors.Is(err, menu.ErrFzfActionAborted) {
@@ -392,13 +400,14 @@ func parseGitRepositoryAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbN
 
 			return "", err
 		}
+
 	case "i", "ignore":
 		repoName := files.StripSuffixes(filepath.Base(dbPath))
 		t.ReplaceLine(1, f.Reset().Warning(fmt.Sprintf("skipping repo %q", repoName)).String())
 		return "", nil
 	}
 
-	return nil
+	return dbPath, nil
 }
 
 // resolveFileConflictErr resolves a file conflict error.

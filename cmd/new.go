@@ -101,5 +101,5 @@ func init() {
 	_ = newDatabaseCmd.MarkFlagRequired("name")
 	newCmd.AddCommand(newDatabaseCmd, newBackupCmd)
 
-	rootCmd.AddCommand(newCmd)
+	Root.AddCommand(newCmd)
 }

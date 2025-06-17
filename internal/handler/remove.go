@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -56,8 +57,18 @@ func RemoveRepo(t *terminal.Term, p string) error {
 	if err := files.Remove(p); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	if err := GitDropRepo(config.App.DBPath, config.App.Path.Git, "Dropped"); err != nil {
-		return fmt.Errorf("%w", err)
+
+	if git.IsInitialized(config.App.Path.Git) {
+		g, err := NewGit(config.App.Path.Git)
+		if err != nil {
+			return err
+		}
+		gr := g.NewRepo(p)
+		g.Tracker.SetCurrent(gr)
+
+		if err := GitDropRepo(g, "Dropped"); err != nil {
+			return fmt.Errorf("%w", err)
+		}
 	}
 
 	s := color.BrightGreen("Successfully").Italic().String()

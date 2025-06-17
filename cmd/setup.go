@@ -59,8 +59,8 @@ func initConfig() {
 
 // init sets the config for the root command.
 func init() {
-	initRootFlags(rootCmd)
-	rootCmd.AddCommand(initCmd)
+	initRootFlags(Root)
+	Root.AddCommand(initCmd)
 	cobra.OnInitialize(initConfig)
 }
 
