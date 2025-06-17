@@ -255,10 +255,16 @@ func CenteredLine(width int, label string) string {
 	return strings.Repeat("-", left) + " " + label + " " + strings.Repeat("-", right)
 }
 
-// GenerateHash generates a hash from a string with the given length.
-func GenerateHash(s string, c int) string {
+// GenHash generates a hash from a string with the given length.
+func GenHash(s string, c int) string {
 	hash := sha256.Sum256([]byte(s))
 	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
+}
+
+// GenHashPath generates a hash from a full path.
+func GenHashPath(fullPath string) string {
+	hash := sha256.Sum256([]byte(fullPath))
+	return hex.EncodeToString(hash[:])
 }
 
 // SuccessMesg returns a prettified success message.

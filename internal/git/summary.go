@@ -57,7 +57,7 @@ func (s *SyncGitSummary) GenerateChecksum() {
 		sb.WriteString(s.ClientInfo.AppVersion)
 	}
 
-	s.Checksum = txt.GenerateHash(sb.String(), length)
+	s.Checksum = txt.GenHash(sb.String(), length)
 }
 
 func NewSummary() *SyncGitSummary {

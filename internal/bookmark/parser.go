@@ -204,7 +204,7 @@ func scrapeBookmark(b *Bookmark) *Bookmark {
 
 // hashURL generates a hash from a hashURL.
 func hashURL(rawURL string) string {
-	return txt.GenerateHash(rawURL, 12)
+	return txt.GenHash(rawURL, 12)
 }
 
 // hashDomain generates a hash from a domain.
@@ -213,7 +213,7 @@ func hashDomain(rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return txt.GenerateHash(domain, 12), nil
+	return txt.GenHash(domain, 12), nil
 }
 
 // domain extracts the domain from a URL.
