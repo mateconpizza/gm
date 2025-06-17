@@ -124,7 +124,7 @@ var backupNewCmd = &cobra.Command{
 		}
 		fmt.Print(db.Info(r))
 		f := frame.New(frame.WithColorBorder(color.BrightGray))
-		f.Row("\n").Flush().Clear()
+		f.Row("\n").Flush().Reset()
 		c := color.BrightGreen("backup").String()
 		if !config.App.Force {
 			if err := t.ConfirmErr(f.Question("create "+c).String(), "y"); err != nil {
@@ -138,7 +138,7 @@ var backupNewCmd = &cobra.Command{
 
 		success := color.BrightGreen("Successfully").Italic().String()
 		s := color.Text(newBkPath).Italic().String()
-		f.Clear().Success(success + " backup created: " + s + "\n").Flush()
+		f.Reset().Success(success + " backup created: " + s + "\n").Flush()
 		// FIX: don't return -> gomarks: action aborted
 		if config.App.Force {
 			return nil

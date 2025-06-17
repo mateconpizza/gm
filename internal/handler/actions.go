@@ -172,7 +172,7 @@ func LockRepo(t *terminal.Term, rToLock string) error {
 
 		return fmt.Errorf("%w", err)
 	}
-	pass, err := passwordConfirm(t, f.Clear())
+	pass, err := passwordConfirm(t, f.Reset())
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 	if err := t.ConfirmErr(f.Question(q).String(), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	f.Clear().Question("Password: ").Flush()
+	f.Reset().Question("Password: ").Flush()
 	s, err := t.InputPassword()
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -275,12 +275,12 @@ func EditBookmarks(
 				return fmt.Errorf("%w", err)
 			}
 
-			f.Clear().Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
+			f.Reset().Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
 			diff := te.Diff(current.Buffer(), editedB.Buffer())
 			fmt.Println(txt.DiffColor(diff))
 
 			opt, err := t.Choose(
-				f.Clear().Question("save changes?").String(),
+				f.Reset().Question("save changes?").String(),
 				[]string{"yes", "no", "edit"},
 				"y",
 			)

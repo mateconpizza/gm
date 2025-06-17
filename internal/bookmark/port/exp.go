@@ -178,7 +178,7 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 		}
 		sp.Start()
 		count++
-		sp.UpdatePrefix(f.Clear().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
+		sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
 	}
 
 	if count > 0 {

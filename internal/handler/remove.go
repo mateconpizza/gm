@@ -47,7 +47,7 @@ func RemoveRepo(t *terminal.Term, p string) error {
 		}
 	}
 
-	if err := RemoveBackups(t, f.Clear(), p); err != nil {
+	if err := RemoveBackups(t, f.Reset(), p); err != nil {
 		if !errors.Is(err, db.ErrBackupNotFound) {
 			return fmt.Errorf("%w", err)
 		}
@@ -68,7 +68,7 @@ func RemoveRepo(t *terminal.Term, p string) error {
 	} else {
 		a = color.Text(fmt.Sprintf("%q", filepath.Base(p))).Italic().String()
 	}
-	f.Clear().Success(s + " database " + a + " removed\n").Flush()
+	f.Reset().Success(s + " database " + a + " removed\n").Flush()
 
 	return nil
 }
@@ -97,7 +97,7 @@ func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
 		switch strings.ToLower(opt) {
 		case "n", "no":
 			sk := color.BrightYellow("skipping").String()
-			t.ReplaceLine(1, f.Clear().Warning(sk+" backup/s\n").Row().String())
+			t.ReplaceLine(1, f.Reset().Warning(sk+" backup/s\n").Row().String())
 		case "a", "all":
 			filesToRemove.Append(fs...)
 		case "s", "select":
@@ -118,7 +118,7 @@ func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
 		}
 	}
 
-	return removeSlicePath(f.Clear(), filesToRemove)
+	return removeSlicePath(f.Reset(), filesToRemove)
 }
 
 // removeSlicePath removes a slice of paths.
@@ -203,7 +203,7 @@ func DroppingDB(t *terminal.Term, r *db.SQLiteRepository) error {
 	f.Header(color.BrightRed("Dropping").String() + " all records\n").Row("\n").Flush()
 	fmt.Print(db.Info(r))
 
-	f.Clear().Rowln().Flush()
+	f.Reset().Rowln().Flush()
 
 	if !config.App.Force {
 		if r.Cfg.Name == config.DefaultDBName {

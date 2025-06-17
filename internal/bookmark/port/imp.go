@@ -43,10 +43,11 @@ func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) error
 	f.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	for _, repoName := range repos {
-		if err := parseGitRepository(tmpPath, repoName, t, f.Clear()); err != nil {
+		dbPath, err := parseGitRepository(t, f.Reset(), tmpPath, repoName)
+		if err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				t.ClearLine(1)
-				f.Clear().Warning(fmt.Sprintf("skipping repo %q\n", repoName)).Flush()
+				f.Reset().Warning(fmt.Sprintf("skipping repo %q\n", repoName)).Flush()
 				n--
 				continue
 			}
@@ -223,7 +224,7 @@ func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteReposi
 	}
 
 	if len(dRecords) == 0 {
-		f.Clear().Row("\n").Mid("no new bookmark found, skipping import\n").Flush()
+		f.Reset().Mid("no new bookmark found, skipping import\n").Flush()
 		return nil
 	}
 
@@ -238,12 +239,12 @@ func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
 	}
 	defer r.Close()
 
-	bookmarks, err := exportFromGit(f.Clear(), repoPath)
+	bookmarks, err := extractFromGitRepo(f.Reset(), repoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
 
-	bookmarks = deduplicatePtr(f.Clear(), r, bookmarks)
+	bookmarks = deduplicatePtr(f.Reset(), r, bookmarks)
 
 	records := slice.New[bookmark.Bookmark]()
 	for _, b := range bookmarks {
@@ -256,7 +257,7 @@ func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
 
 	n := len(bookmarks)
 	if n > 0 {
-		f.Clear().
+		f.Reset().
 			Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).
 			Flush()
 	}
@@ -265,8 +266,8 @@ func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
 }
 
 // intoDB import into database.
-func intoDB(f *frame.Frame, dbPath, dbName, repoPath string) error {
-	bookmarks, err := exportFromGit(f.Clear(), repoPath)
+func intoDB(f *frame.Frame, dbPath, repoPath string) error {
+	bookmarks, err := extractFromGitRepo(f.Reset(), repoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
@@ -290,7 +291,7 @@ func intoDB(f *frame.Frame, dbPath, dbName, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	f.Clear().
+	f.Reset().
 		Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), filepath.Base(dbPath))).
 		Flush()
 
@@ -298,7 +299,7 @@ func intoDB(f *frame.Frame, dbPath, dbName, repoPath string) error {
 }
 
 func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
-	bookmarks, err := exportFromGit(f.Clear(), repoPath)
+	bookmarks, err := extractFromGitRepo(f.Reset(), repoPath)
 	if err != nil {
 		return err
 	}
@@ -339,14 +340,14 @@ func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	debookmarks, err := Deduplicate(f.Clear(), r, bs)
+	debookmarks, err := Deduplicate(f.Reset(), r, bs)
 	if err != nil {
 		return err
 	}
 
 	n := len(debookmarks)
 	if n > 0 {
-		f.Clear().
+		f.Reset().
 			Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).
 			Flush()
 	}

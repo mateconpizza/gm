@@ -266,7 +266,7 @@ func SuccessMesg(s string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	success := color.BrightGreen("Successfully ").Italic().String()
 	message := success + color.Text(s).Italic().String()
-	return f.Clear().Success(message).String()
+	return f.Reset().Success(message).String()
 }
 
 // WarningMesg returns a prettified warning message.
@@ -274,7 +274,7 @@ func WarningMesg(s string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	warning := color.BrightYellow("Warning ").Italic().String()
 	message := warning + color.Text(s).Italic().String()
-	return f.Clear().Warning(message).String()
+	return f.Reset().Warning(message).String()
 }
 
 // ErrorMesg returns a prettified error message.
@@ -282,7 +282,7 @@ func ErrorMesg(s string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	err := color.BrightRed("Error ").Italic().String()
 	message := err + color.Text(s).Italic().String()
-	return f.Clear().Error(message).String()
+	return f.Reset().Error(message).String()
 }
 
 // InfoMesg returns a prettified info message.
@@ -290,7 +290,7 @@ func InfoMesg(s string) string {
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	info := color.BrightBlue("Info ").Italic().String()
 	message := info + color.Text(s).Italic().String()
-	return f.Clear().Info(message).String()
+	return f.Reset().Info(message).String()
 }
 
 // ExtractBlock extracts a block of text from a string, delimited by the

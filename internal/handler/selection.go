@@ -180,7 +180,13 @@ func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]str
 
 	if len(dbFiles) == 1 {
 		dbName := files.StripSuffixes(filepath.Base(dbFiles[0]))
-		f.Clear().Success(fmt.Sprintf("Tracking %q\n", dbName)).Flush()
+		if files.Exists(filepath.Join(repoPath, dbName)) {
+			f.Info(filepath.Base(dbFiles[0]) + " is already tracked\n").Flush()
+
+			return []string{}, nil
+		}
+
+		f.Reset().Success(fmt.Sprintf("Tracking %q\n", dbName)).Flush()
 		return dbFiles, nil
 	}
 
@@ -188,7 +194,7 @@ func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]str
 	tracked := make([]string, 0, len(dbFiles))
 
 	for _, dbFile := range dbFiles {
-		f.Clear()
+		f.Reset()
 		dbName := files.StripSuffixes(filepath.Base(dbFile))
 
 		if files.Exists(filepath.Join(repoPath, dbName)) {
@@ -197,15 +203,15 @@ func SelectecTrackedDB(t *terminal.Term, f *frame.Frame, repoPath string) ([]str
 			continue
 		}
 
-		if !t.Confirm(f.Clear().Question(fmt.Sprintf("Track %q?", dbName)).String(), "n") {
+		if !t.Confirm(f.Reset().Question(fmt.Sprintf("Track %q?", dbName)).String(), "n") {
 			t.ClearLine(1)
-			f.Clear().Info(fmt.Sprintf("Skipping %q\n", dbName)).Flush()
+			f.Reset().Info(fmt.Sprintf("Skipping %q\n", dbName)).Flush()
 			continue
 		}
 
 		tracked = append(tracked, dbFile)
 
-		t.ReplaceLine(1, f.Clear().Success(fmt.Sprintf("Tracking %q", dbName)).String())
+		t.ReplaceLine(1, f.Reset().Success(fmt.Sprintf("Tracking %q", dbName)).String())
 	}
 
 	return tracked, nil

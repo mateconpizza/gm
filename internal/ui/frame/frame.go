@@ -25,10 +25,19 @@ type Options struct {
 	Border *FrameBorders
 	color  color.ColorFn
 	text   []string
+	icon   *icon
 }
 
 type Frame struct {
 	Options
+}
+
+type icon struct {
+	error    string
+	info     string
+	question string
+	success  string
+	warning  string
 }
 
 // defaultOpts returns the default frame options.
@@ -37,12 +46,25 @@ func defaultOpts() Options {
 		Border: defaultBorders,
 		color:  nil,
 		text:   make([]string, 0),
+		icon: &icon{
+			error:    "✗",
+			info:     "i",
+			question: "?",
+			success:  "✓",
+			warning:  "!",
+		},
 	}
 }
 
 func WithColorBorder(c color.ColorFn) OptFn {
 	return func(o *Options) {
 		o.color = c
+	}
+}
+
+func WithIconSuccess(i string) OptFn {
+	return func(o *Options) {
+		o.icon.success = i
 	}
 }
 
@@ -127,48 +149,41 @@ func (f *Frame) Footerln(s ...string) *Frame {
 
 func (f *Frame) Flush() *Frame {
 	fmt.Print(strings.Join(f.text, ""))
-	return f.Clear()
+	return f.Reset()
 }
 
-// Clear clears the frame.
-func (f *Frame) Clear() *Frame {
+// Reset clears the frame.
+func (f *Frame) Reset() *Frame {
 	f.text = make([]string, 0)
 	return f
 }
 
 func (f *Frame) Error(s ...string) *Frame {
-	e := color.BrightRed("✗ ").Bold().String()
+	e := color.BrightRed(f.icon.error + " ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
 }
 
-func (f *Frame) ErrorErr(err error) *Frame {
-	if err == nil {
-		return f
-	}
-	return f.Error(err.Error())
-}
-
 func (f *Frame) Warning(s ...string) *Frame {
-	e := color.BrightYellow("⚠ ").Bold().String()
+	e := color.BrightYellow(f.icon.warning + " ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Success(s ...string) *Frame {
-	e := color.BrightGreen("✓ ").Bold().String()
+	e := color.BrightGreen(f.icon.success + " ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Info(s ...string) *Frame {
-	e := color.BrightBlue("i ").Bold().String()
+	e := color.BrightBlue(f.icon.info + " ").Bold().String()
 	mid := f.applyStyle(e)
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Question(s ...string) *Frame {
-	q := color.BrightGreen("? ").Bold().String()
+	q := color.BrightGreen(f.icon.question + " ").Bold().String()
 	mid := f.applyStyle(q)
 
 	return f.applyBorder(mid, color.ApplyMany(s, color.StyleBold))
@@ -180,6 +195,7 @@ func (f *Frame) String() string {
 
 // Write implements the io.Writer interface.
 func (f *Frame) Write(p []byte) (int, error) {
+	defer f.Flush()
 	content := string(p)
 
 	// Handle carriage returns by splitting on \r and taking the last part

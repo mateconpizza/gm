@@ -123,7 +123,7 @@ func parseFoundInBrowser(
 	}
 
 	msg := fmt.Sprintf("scrape missing data from %d bookmarks found?", bs.Len())
-	f.Flush().Clear()
+	f.Flush().Reset()
 	if !config.App.Force {
 		if err := t.ConfirmErr(f.Question(msg).String(), "y"); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
@@ -311,8 +311,8 @@ func parseJSONFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.W
 }
 
 // parseGitRepository loads a git repo into a database.
-func parseGitRepository(root, repoName string, t *terminal.Term, f *frame.Frame) error {
-	f.Clear().Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
+func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string) (string, error) {
+	f.Reset().Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
 
 	// read summary.json
@@ -335,17 +335,23 @@ func parseGitRepository(root, repoName string, t *terminal.Term, f *frame.Frame)
 		opt    string
 		err    error
 	)
-	if !files.Exists(dbPath) {
-		opt = "new"
-	} else {
-		f.Clear().Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
+
+	if files.Exists(dbPath) {
+		f.Reset().Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
 		f.Question("What do you want to do?")
 
 		opt, err = t.Choose(f.String(), []string{"merge", "drop", "create", "select", "ignore"}, "m")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		f.Clear()
+		f.Reset()
+	} else {
+		opt = "new"
+	}
+
+	resultPath, err := parseGitRepositoryOpt(t, f, opt, dbPath, repoPath)
+	if err != nil {
+		return "", err
 	}
 
 	return parseGitRepositoryAction(t, f, opt, dbPath, dbName, repoPath)
@@ -360,7 +366,7 @@ func parseGitRepositoryAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbN
 	case "c", "create":
 		var dbName string
 		for dbName == "" {
-			dbName = files.EnsureSuffix(t.Prompt(f.Clear().Info("Enter new name: ").String()), ".db")
+			dbName = files.EnsureSuffix(t.Prompt(f.Reset().Info("Enter new name: ").String()), ".db")
 		}
 		if err := intoDB(f, dbPath, dbName, repoPath); err != nil {
 			return fmt.Errorf("%w", err)
@@ -370,21 +376,26 @@ func parseGitRepositoryAction(t *terminal.Term, f *frame.Frame, opt, dbPath, dbN
 		if err := db.DropFromPath(dbPath); err != nil {
 			return fmt.Errorf("%w", err)
 		}
-		if err := mergeRecords(f.Clear(), dbPath, repoPath); err != nil {
-			return err
+		if err := mergeRecords(f.Reset(), dbPath, repoPath); err != nil {
+			return "", err
 		}
 	case "m", "merge":
 		f.Info("Merging database\n").Flush()
-		if err := mergeRecords(f.Clear(), dbPath, repoPath); err != nil {
-			return err
+		if err := mergeRecords(f.Reset(), dbPath, repoPath); err != nil {
+			return "", err
 		}
 	case "s", "select":
-		if err := selectRecords(f.Clear(), dbPath, repoPath); err != nil {
-			return err
+		if err := selectRecords(f.Reset(), dbPath, repoPath); err != nil {
+			if errors.Is(err, menu.ErrFzfActionAborted) {
+				return "", nil
+			}
+
+			return "", err
 		}
 	case "i", "ignore":
-		f.Clear().Warning("Skipping repository..." + dbName + "\n").Flush()
-		return nil
+		repoName := files.StripSuffixes(filepath.Base(dbPath))
+		t.ReplaceLine(1, f.Reset().Warning(fmt.Sprintf("skipping repo %q", repoName)).String())
+		return "", nil
 	}
 
 	return nil

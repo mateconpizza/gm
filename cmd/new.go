@@ -88,7 +88,7 @@ var newBookmarkCmd = &cobra.Command{
 			return fmt.Errorf("validation failed: %w", err)
 		}
 
-		return handler.SaveNewBookmark(t, f, r, b)
+		return handler.SaveNewBookmark(t, f.Reset(), r, b)
 	},
 }
 

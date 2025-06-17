@@ -230,9 +230,9 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Row().Ln().Flush()
 	if !force {
-		f.Clear().Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
+		f.Reset().Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
 		if err := t.ConfirmErr(f.String(), "y"); err != nil {
-			f.Clear().Warning("Skipping profile...'" + profile + "'").Ln().Flush()
+			f.Reset().Warning("Skipping profile...'" + profile + "'").Ln().Flush()
 			return
 		}
 	} else {
@@ -254,7 +254,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 		slog.Error("opening database for profile", "profile", profile, "err", err)
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
-			f.Clear().Error("database is " + l + ", maybe firefox is open?").Ln().Flush()
+			f.Reset().Error("database is " + l + ", maybe firefox is open?").Ln().Flush()
 			return
 		}
 		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
@@ -286,7 +286,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 		slog.Error("closing rows", "err", err)
 	}
 	found := color.BrightBlue("found")
-	f.Clear().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-skipped)).Ln().Flush()
+	f.Reset().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-skipped)).Ln().Flush()
 }
 
 // processTags processes the tags for a single bookmark.
