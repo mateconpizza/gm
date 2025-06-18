@@ -27,12 +27,12 @@ import (
 )
 
 // GitImport imports bookmarks from a git repository.
-func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) ([]string, error) {
-	if err := git.Clone(tmpPath, repoPath); err != nil {
+func GitImport(t *terminal.Term, f *frame.Frame, g *git.Manager, urlRepo string) ([]string, error) {
+	if err := g.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	repos, err := files.ListRootFolders(tmpPath, ".git")
+	repos, err := files.ListRootFolders(g.RepoPath, ".git")
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -47,7 +47,7 @@ func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) ([]st
 	f.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepository(t, f.Reset(), tmpPath, repoName)
+		dbPath, err := parseGitRepository(t, f.Reset(), g.RepoPath, repoName)
 		if err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				t.ClearLine(1)
@@ -68,7 +68,7 @@ func GitImport(t *terminal.Term, f *frame.Frame, tmpPath, repoPath string) ([]st
 		return nil, terminal.ErrActionAborted
 	}
 
-	if err := files.RemoveAll(tmpPath); err != nil {
+	if err := files.RemoveAll(g.RepoPath); err != nil {
 		return nil, fmt.Errorf("removing temp repo: %w", err)
 	}
 

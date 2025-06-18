@@ -43,7 +43,7 @@ func GitRepoTracked(f *frame.Frame, g *git.Manager) error {
 	var sb strings.Builder
 	for _, gr := range repos {
 		sb.Reset()
-		if !g.Tracker.IsTracked(gr) {
+		if !g.Tracker.Contains(gr) {
 			untracked = append(untracked, gr)
 			continue
 		}
@@ -54,18 +54,30 @@ func GitRepoTracked(f *frame.Frame, g *git.Manager) error {
 		}
 		st := sum.RepoStats
 
-		s := fmt.Sprintf("(%d bookmarks, %d tags, %d favorites)", st.Bookmarks, st.Tags, st.Favorites)
-		sb.WriteString(txt.PaddedLine(gr.Name, dimmer(s).Italic().String()))
-
-		if gpg.IsInitialized(g.RepoPath) {
-			s = " gpg\n"
-		} else {
-			s = " json\n"
+		var parts []string
+		if st.Bookmarks > 0 {
+			parts = append(parts, fmt.Sprintf("%d bookmarks", st.Bookmarks))
+		}
+		if st.Tags > 0 {
+			parts = append(parts, fmt.Sprintf("%d tags", st.Tags))
+		}
+		if st.Favorites > 0 {
+			parts = append(parts, fmt.Sprintf("%d favorites", st.Favorites))
+		}
+		if len(parts) == 0 {
+			parts = append(parts, "no bookmarks")
 		}
 
-		sb.WriteString(color.Orange(s).String())
+		var t string
+		if gpg.IsInitialized(g.RepoPath) {
+			t = color.Cyan("gpg ").String()
+		} else {
+			t = color.Cyan("json ").String()
+		}
+		s := strings.TrimSpace(fmt.Sprintf("(%s)", strings.Join(parts, ", ")))
+		sb.WriteString(txt.PaddedLine(gr.Name, t+dimmer(s).Italic().String()))
 
-		f.Success(sb.String()).Flush()
+		f.Success(sb.String() + "\n").Flush()
 	}
 
 	for _, gr := range untracked {

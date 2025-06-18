@@ -1,3 +1,4 @@
+// git tracker tracks and untracks a database in git.
 package git
 
 import (
@@ -48,7 +49,7 @@ var (
 
 //nolint:wrapcheck //ignore
 func trackerFunc(cmd *cobra.Command, args []string) error {
-	g, err := newGit(config.App.Path.Git)
+	g, err := handler.NewGit(config.App.Path.Git)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -68,8 +69,14 @@ func trackerFunc(cmd *cobra.Command, args []string) error {
 	case tkFlags.mgt:
 		return management(t, f, g)
 	case tkFlags.track:
+		if ok := g.Tracker.Contains(gr); ok {
+			return git.ErrGitTracked
+		}
 		return trackExportCommit(t, f, g)
 	case tkFlags.untrack:
+		if ok := g.Tracker.Contains(gr); !ok {
+			return git.ErrGitNotTracked
+		}
 		return untrackDropCommit(t, f, g)
 	}
 
@@ -82,12 +89,12 @@ func trackExportCommit(t *terminal.Term, f *frame.Frame, g *git.Manager) error {
 		return git.ErrGitNotInitialized
 	}
 	gr := g.Tracker.Current()
-	if g.Tracker.IsTracked(gr) {
-		return git.ErrGitTracked
-	}
 
-	if !t.Confirm(f.Question(fmt.Sprintf("Track database %q?", gr.DBName)).String(), "y") {
-		return nil
+	if !g.Tracker.Contains(gr) {
+		if !t.Confirm(f.Question(fmt.Sprintf("Track database %q?", gr.DBName)).String(), "y") {
+			return nil
+		}
+		t.ReplaceLine(1, f.Reset().Success(fmt.Sprintf("Tracking database %q", gr.DBName)).String())
 	}
 
 	if err := port.GitExport(g); err != nil {
@@ -177,7 +184,7 @@ func initTracking(g *git.Manager) error {
 // untrackDropCommit removes a tracked repo from the git repository.
 func untrackDropCommit(t *terminal.Term, f *frame.Frame, g *git.Manager) error {
 	gr := g.Tracker.Current()
-	if !g.Tracker.IsTracked(gr) {
+	if !g.Tracker.Contains(gr) {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.DBName)
 	}
 	if !t.Confirm(f.Question(fmt.Sprintf("Untrack %q?", gr.Name)).String(), "n") {
@@ -239,7 +246,7 @@ func managementSelect(t *terminal.Term, f *frame.Frame, g *git.Manager) ([]strin
 	for _, dbPath := range dbFiles {
 		gr := g.NewRepo(dbPath)
 
-		if g.Tracker.IsTracked(gr) {
+		if g.Tracker.Contains(gr) {
 			f.Reset().Info(fmt.Sprintf("%q is already tracked\n", gr.Name)).Flush()
 			continue
 		}
@@ -273,7 +280,7 @@ func management(t *terminal.Term, f *frame.Frame, g *git.Manager) error {
 		gr := g.NewRepo(dbPath)
 		g.Tracker.SetCurrent(gr)
 
-		if !g.Tracker.IsTracked(gr) {
+		if !g.Tracker.Contains(gr) {
 			if err := trackExportCommit(t, f.Reset(), g); err != nil {
 				return err
 			}

@@ -41,7 +41,7 @@ func GitCommit(g *git.Manager, actionMsg string) error {
 
 	gr := g.Tracker.Current()
 
-	if !g.Tracker.IsTracked(gr) {
+	if !g.Tracker.Contains(gr) {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.DBName)
 	}
 
@@ -138,7 +138,7 @@ func commitIfChanged(g *git.Manager, actionMsg string) error {
 func gitRepoSummaryRepoStats(g *git.Manager) error {
 	gr := g.Tracker.Current()
 	var summary *git.SyncGitSummary
-	summaryPath := filepath.Join(gr.Path, gr.DBName, git.SummaryFileName)
+	summaryPath := filepath.Join(gr.Path, git.SummaryFileName)
 
 	if !files.Exists(summaryPath) {
 		// Create new summary with only RepoStats
@@ -165,20 +165,23 @@ func gitRepoSummaryRepoStats(g *git.Manager) error {
 	return nil
 }
 
-// gitSummary returns a new SyncGitSummary.
-func gitSummary(dbPath, repoPath, version string) (*git.SyncGitSummary, error) {
-	r, err := db.New(dbPath)
+// GitSummary returns a new SyncGitSummary.
+func GitSummary(g *git.Manager, version string) (*git.SyncGitSummary, error) {
+	r, err := db.New(g.Tracker.Current().DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
-	branch, err := git.GetBranch(repoPath)
+
+	branch, err := g.Branch()
 	if err != nil {
 		return nil, fmt.Errorf("getting branch: %w", err)
 	}
-	remote, err := git.GetRemote(repoPath)
+
+	remote, err := g.Remote()
 	if err != nil {
 		remote = ""
 	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("getting hostname: %w", err)
@@ -252,4 +255,9 @@ func gitCleanFiles(g *git.Manager, bs *slice.Slice[bookmark.Bookmark]) error {
 	}
 
 	return GitCommit(g, "Remove")
+}
+
+// GitInitialized returns true if the repo is initialized and tracked.
+func GitInitialized(repoPath, dbPath string) bool {
+	return git.IsInitialized(repoPath) && git.IsTracked(repoPath, dbPath)
 }

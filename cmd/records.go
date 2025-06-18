@@ -36,6 +36,7 @@ var (
 			case tagsFlags.list:
 				return printer.TagsList(config.App.DBPath)
 			}
+
 			return cmd.Usage()
 		},
 	}

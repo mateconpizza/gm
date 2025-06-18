@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -24,62 +23,52 @@ import (
 )
 
 // RemoveRepo removes a repo.
-func RemoveRepo(t *terminal.Term, p string) error {
-	pp, err := FindDB(p)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	p = pp
-	if !files.Exists(p) {
-		return fmt.Errorf("%w: %q", db.ErrDBNotFound, p)
+func RemoveRepo(t *terminal.Term, dbPath string) error {
+	if !files.Exists(dbPath) {
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, dbPath)
 	}
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	if filepath.Base(p) == config.DefaultDBName && !config.App.Force {
+	if filepath.Base(dbPath) == config.DefaultDBName && !config.App.Force {
 		return fmt.Errorf("%w: default database cannot be removed, use --force", terminal.ErrActionAborted)
 	}
-	i := db.RepoSummaryFromPath(p)
+	i := db.RepoSummaryFromPath(dbPath)
 	fmt.Print(i)
 
 	if !config.App.Force {
 		rm := color.BrightRed("remove").Bold().String()
-		if err := t.ConfirmErr(f.Row("\n").Question(rm+" "+filepath.Base(p)+"?").String(), "n"); err != nil {
+		if err := t.ConfirmErr(f.Row("\n").Question(rm+" "+filepath.Base(dbPath)+"?").String(), "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
 
-	if err := RemoveBackups(t, f.Reset(), p); err != nil {
+	if err := RemoveBackups(t, f.Reset(), dbPath); err != nil {
 		if !errors.Is(err, db.ErrBackupNotFound) {
 			return fmt.Errorf("%w", err)
 		}
 	}
 
-	if err := files.Remove(p); err != nil {
+	if err := files.Remove(dbPath); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if git.IsInitialized(config.App.Path.Git) {
+	if GitInitialized(config.App.Path.Git, dbPath) {
 		g, err := NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
 		}
-		gr := g.NewRepo(p)
-		g.Tracker.SetCurrent(gr)
-
+		g.Tracker.SetCurrent(g.NewRepo(dbPath))
 		if err := GitDropRepo(g, "Dropped"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
 
-	s := color.BrightGreen("Successfully").Italic().String()
-	var a string
-	dbName := filepath.Base(p)
+	dbName := filepath.Base(dbPath)
 	if dbName == config.DefaultDBName {
-		a = color.Text(fmt.Sprintf("%q", "main")).Italic().String()
-	} else {
-		a = color.Text(fmt.Sprintf("%q", filepath.Base(p))).Italic().String()
+		dbName = "default"
 	}
-	f.Reset().Success(s + " database " + a + " removed\n").Flush()
+
+	fmt.Print(txt.SuccessMesg(" database " + dbName + " removed\n"))
 
 	return nil
 }

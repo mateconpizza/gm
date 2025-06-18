@@ -63,7 +63,7 @@ linters:
     - usetesting
     - wastedassign
     - whitespace
-    - wrapcheck
+    # - wrapcheck
   settings:
     errcheck:
       check-type-assertions: true

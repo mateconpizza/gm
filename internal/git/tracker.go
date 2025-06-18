@@ -3,7 +3,6 @@ package git
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"slices"
 
@@ -16,6 +15,8 @@ var (
 	ErrGitNotTracked     = errors.New("git: repo not tracked")
 	ErrGitNoTrackedRepos = errors.New("git: no tracked repos found")
 	ErrGitTrackNotLoaded = errors.New("git: tracker not loaded")
+	ErrGitRepoNameEmpty  = errors.New("git: repo name is empty")
+	ErrGitCurrentRepo    = errors.New("git: current repo not set")
 )
 
 const filepathTracked = ".tracked.json"
@@ -36,6 +37,7 @@ type GitRepository struct {
 	HashPath string // Database fullpath hash
 }
 
+// Load loads the repositories from the tracker.
 func (t *Tracker) Load() error {
 	if t.loaded {
 		return nil
@@ -52,12 +54,14 @@ func (t *Tracker) Load() error {
 	return nil
 }
 
+// Track adds the repo to the tracker.
 func (t *Tracker) Track(gr *GitRepository) *Tracker {
 	t.List = append(t.List, gr.HashPath)
 
 	return t
 }
 
+// Untrack removes the repo from the tracker.
 func (t *Tracker) Untrack(gr *GitRepository) *Tracker {
 	t.List = slices.DeleteFunc(t.List, func(r string) bool {
 		return r == gr.HashPath
@@ -66,10 +70,12 @@ func (t *Tracker) Untrack(gr *GitRepository) *Tracker {
 	return t
 }
 
+// Save saves the tracker.
 func (t *Tracker) Save() error {
 	if !t.loaded {
 		return ErrGitTrackNotLoaded
 	}
+	t.List = slices.Compact(t.List)
 
 	if err := files.JSONWrite(t.Filename, &t.List, true); err != nil {
 		return fmt.Errorf("%w: %q", err, t.Filename)
@@ -78,21 +84,24 @@ func (t *Tracker) Save() error {
 	return nil
 }
 
-func (t *Tracker) IsTracked(gr *GitRepository) bool {
+// Contains returns true if the repo is tracked.
+func (t *Tracker) Contains(gr *GitRepository) bool {
 	if !t.loaded {
-		slog.Error("tracker not loaded")
+		panic(ErrGitTrackNotLoaded)
 	}
 	return slices.Contains(t.List, gr.HashPath)
 }
 
+// Current returns the current repo.
 func (t *Tracker) Current() *GitRepository {
 	if t.current == nil {
-		panic("current repo not set")
+		panic(ErrGitCurrentRepo)
 	}
 
 	return t.current
 }
 
+// SetCurrent sets the current repo.
 func (t *Tracker) SetCurrent(gr *GitRepository) {
 	t.current = gr
 }

@@ -61,7 +61,6 @@ func editConfig(p string) error {
 // getConfig loads the config file.
 func getConfig(p string) (*config.ConfigFile, error) {
 	if !files.Exists(p) {
-		slog.Warn("configfile not found, loading defaults")
 		return nil, ErrConfigFileNotFound
 	}
 
@@ -89,7 +88,7 @@ func loadConfig(p string) error {
 	}
 
 	if cfg == nil {
-		slog.Warn("configfile is empty. loading defaults")
+		slog.Debug("configfile is empty or not found. loading defaults")
 		return nil
 	}
 

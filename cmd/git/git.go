@@ -3,6 +3,7 @@ package git
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -24,7 +25,7 @@ import (
 
 func init() {
 	gitInitCmd.Flags().BoolVar(&gitFlags.redo, "redo", false, "reinitialize")
-	gitCmd.AddCommand(gitCommitCmd, gitInitCmd, gitImportCmd, gitTrackerCmd, gitTestCmd)
+	gitCmd.AddCommand(gitCommitCmd, gitInitCmd, GitImportCmd, gitTrackerCmd, gitTestCmd, gitPushCmd)
 	cmd.Root.AddCommand(gitCmd)
 }
 
@@ -37,7 +38,7 @@ var (
 
 	gitCmd = &cobra.Command{
 		Use:                "git",
-		Short:              "git commands",
+		Short:              "Git commands",
 		Aliases:            []string{"g"},
 		DisableFlagParsing: true,
 		PersistentPreRunE:  ensureGitEnvironment,
@@ -58,16 +59,23 @@ var (
 		RunE:               gitCommitFunc,
 	}
 
-	gitImportCmd = &cobra.Command{
+	GitImportCmd = &cobra.Command{
 		Use:                "import",
 		Short:              "import bookmarks from git",
 		DisableFlagParsing: false,
 		RunE:               gitCloneAndImportFunc,
 	}
+
+	gitPushCmd = &cobra.Command{
+		Use:                "push",
+		Short:              "push changes to the repository",
+		DisableFlagParsing: true,
+		RunE:               gitPushFunc,
+	}
 )
 
 func gitCommitFunc(_ *cobra.Command, _ []string) error {
-	g, err := newGit(config.App.Path.Git)
+	g, err := handler.NewGit(config.App.Path.Git)
 	if err != nil {
 		return err
 	}
@@ -96,19 +104,23 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 		sys.ErrAndExit(err)
 	}))
 
-	g, err := newGit(config.App.Path.Git)
+	g, err := handler.NewGit(tmpPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	imported, err := port.GitImport(t, f, tmpPath, repoPathToClone)
+	imported, err := port.GitImport(t, f, g, repoPathToClone)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
+	// Update with the default repo path
+	g.SetRepoPath(config.App.Path.Git)
 	if !g.IsInitialized() {
+		slog.Warn("git import: repo not initialized", "path", config.App.Path.Git)
 		return nil
 	}
+
 	if err := g.Tracker.Load(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -124,22 +136,11 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-// newGit returns a new git manager.
-func newGit(repoPath string) (*git.Manager, error) {
-	gCmd := "git"
-	gitCmd, err := sys.Which(gCmd)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %q", err, gCmd)
-	}
-
-	return git.New(repoPath, git.WithCmd(gitCmd)), nil
-}
-
 // gitInitFunc creates a new Git repository.
 func gitInitFunc(_ *cobra.Command, _ []string) error {
 	t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
 	f := frame.New(frame.WithColorBorder(color.BrightBlue))
-	g, err := newGit(config.App.Path.Git)
+	g, err := handler.NewGit(config.App.Path.Git)
 	if err != nil {
 		return err
 	}
@@ -234,21 +235,58 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 	return g.Exec(args...)
 }
 
+func gitPushFunc(_ *cobra.Command, args []string) error {
+	g, err := handler.NewGit(config.App.Path.Git)
+	if err != nil {
+		return err
+	}
+	gr := g.NewRepo(config.App.DBPath)
+	g.Tracker.SetCurrent(gr)
+
+	remote, err := g.Remote()
+	if err != nil || remote == "" {
+		return git.ErrGitNoRemote
+	}
+
+	proceed, err := g.HasUnpushedCommits()
+	if err != nil {
+		return err
+	}
+
+	if !proceed {
+		return git.ErrGitUpToDate
+	}
+
+	sum, err := handler.GitSummary(g, config.App.Info.Version)
+	if err != nil {
+		return err
+	}
+
+	sumFile := filepath.Join(g.Tracker.Current().Path, git.SummaryFileName)
+	if err := files.JSONWrite(sumFile, sum, true); err != nil {
+		return fmt.Errorf("writing summary: %w", err)
+	}
+
+	if err := g.AddAll(); err != nil {
+		return fmt.Errorf("git add: %w", err)
+	}
+
+	if err := g.Commit(fmt.Sprintf("[%s] Update summary", gr.DBName)); err != nil {
+		return fmt.Errorf("git commit: %w", err)
+	}
+
+	if err := g.Push(); err != nil {
+		return fmt.Errorf("git push: %w", err)
+	}
+
+	return nil
+}
+
 var gitTestCmd = &cobra.Command{
 	Use:                "test",
 	Short:              "Test git commands",
 	DisableFlagParsing: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		gitCmd, err := sys.Which("git")
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		g := git.New(config.App.Path.Git, git.WithCmd(gitCmd))
-
-		if len(args) == 0 {
-			args = append(args, "log", "--oneline")
-		}
-
-		return g.Exec(args...)
+		return nil
 	},
 }

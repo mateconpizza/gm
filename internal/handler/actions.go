@@ -293,7 +293,6 @@ func EditBookmarks(
 				if err := handleEditedBookmark(r, editedB, b); err != nil {
 					return err
 				}
-				fmt.Print("\n")
 
 				break editLoop
 			case "n", "No":

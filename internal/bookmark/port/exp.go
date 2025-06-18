@@ -42,25 +42,23 @@ func GitStore(b *bookmark.Bookmark) error {
 }
 
 // GitUpdate updates the git repo.
-func GitUpdate(dbPath string, newB, oldB *bookmark.Bookmark) error {
-	repoPath := config.App.Path.Git
-	if !git.IsInitialized(repoPath) {
+func GitUpdate(g *git.Manager, newB, oldB *bookmark.Bookmark) error {
+	if !g.IsInitialized() {
 		return nil
 	}
 
 	fileExt := JSONFileExt
-	if gpg.IsInitialized(repoPath) {
+	if gpg.IsInitialized(g.RepoPath) {
 		fileExt = gpg.Extension
 	}
 
-	dbName := files.StripSuffixes(filepath.Base(dbPath))
-	root := filepath.Join(repoPath, dbName)
+	gr := g.Tracker.Current()
 
 	switch fileExt {
 	case JSONFileExt:
-		return gitUpdateJSON(root, oldB, newB)
+		return gitUpdateJSON(gr.Path, oldB, newB)
 	case gpg.Extension:
-		return GitCleanGPG(root, []*bookmark.Bookmark{newB})
+		return GitCleanGPG(gr.Path, []*bookmark.Bookmark{newB})
 	}
 
 	return nil

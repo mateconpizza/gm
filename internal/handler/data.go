@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -124,13 +123,12 @@ func addBookmark(r *db.SQLiteRepository, b *bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg("bookmark added"))
-
-	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
+	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
 		}
+		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
 		if err := port.GitStore(b); err != nil {
 			return fmt.Errorf("git store: %w", err)
 		}
@@ -151,7 +149,7 @@ func updateBookmark(r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error
 
 	fmt.Print(txt.SuccessMesg(fmt.Sprintf("bookmark [%d] updated", newB.ID)))
 
-	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
+	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
@@ -159,7 +157,7 @@ func updateBookmark(r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error
 		gr := g.NewRepo(r.Cfg.Fullpath())
 		g.Tracker.SetCurrent(gr)
 
-		if err := port.GitUpdate(gr.DBPath, newB, oldB); err != nil {
+		if err := port.GitUpdate(g, newB, oldB); err != nil {
 			return fmt.Errorf("git update: %w", err)
 		}
 		if err := GitCommit(g, "Modify"); err != nil {
@@ -197,7 +195,7 @@ func removeRecords(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) e
 
 	sp.Done()
 
-	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
+	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
 		if err != nil {
 			return err

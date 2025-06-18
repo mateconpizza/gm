@@ -1,5 +1,7 @@
 package git
 
+const gitCmd = "git"
+
 type GitOptFn func(*GitOpts)
 
 type GitOpts struct {
@@ -9,8 +11,9 @@ type GitOpts struct {
 // Manager represents a Git repository manager.
 type Manager struct {
 	GitOpts
-	RepoPath string
-	Tracker  *Tracker
+	RepoPath      string
+	Tracker       *Tracker
+	isInitialized bool
 }
 
 func defaultOpts() *GitOpts {
@@ -28,7 +31,11 @@ func WithCmd(cmd string) GitOptFn {
 
 // IsInitialized returns true if the Git repository is initialized.
 func (gm *Manager) IsInitialized() bool {
-	return IsInitialized(gm.RepoPath)
+	if !gm.isInitialized {
+		gm.isInitialized = IsInitialized(gm.RepoPath)
+	}
+
+	return gm.isInitialized
 }
 
 // Init creates a new Git repository.
@@ -38,27 +45,31 @@ func (gm *Manager) Init(force bool) error {
 
 // Branch returns the name of the current branch.
 func (gm *Manager) Branch() (string, error) {
-	return GetBranch(gm.RepoPath)
+	return branch(gm.RepoPath)
 }
 
 // Remote returns the origin of the repository.
 func (gm *Manager) Remote() (string, error) {
-	return GetRemote(gm.RepoPath)
+	return remote(gm.RepoPath)
 }
 
 // Status returns the status of the repository.
 func (gm *Manager) Status() (string, error) {
-	return Status(gm.RepoPath)
+	return status(gm.RepoPath)
+}
+
+func (gm *Manager) HasUnpushedCommits() (bool, error) {
+	return hasUnpushedCommits(gm.RepoPath)
 }
 
 // HasChanges checks if there are any staged or unstaged changes in the repo.
 func (gm *Manager) HasChanges() (bool, error) {
-	return HasChanges(gm.RepoPath)
+	return hasChanges(gm.RepoPath)
 }
 
 // AddAll adds all local changes.
 func (gm *Manager) AddAll() error {
-	return AddAll(gm.RepoPath)
+	return addAll(gm.RepoPath)
 }
 
 // AddRemote adds a remote repository.
@@ -76,13 +87,20 @@ func (gm *Manager) Push() error {
 	return push(gm.RepoPath)
 }
 
+// Commit commits changes to the repository.
 func (gm *Manager) Commit(msg string) error {
-	return CommitChanges(gm.RepoPath, msg)
+	return commitChanges(gm.RepoPath, msg)
+}
+
+// SetRepoPath sets the repository path.
+func (gm *Manager) SetRepoPath(repoPath string) {
+	gm.isInitialized = false
+	gm.RepoPath = repoPath
 }
 
 // Exec executes a command in the repository.
 func (gm *Manager) Exec(commands ...string) error {
-	return RunGitCmd(gm.RepoPath, commands...)
+	return runGitCmd(gm.RepoPath, commands...)
 }
 
 // NewRepo creates a new Git repository.

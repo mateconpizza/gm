@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd"
+	cmdGit "github.com/mateconpizza/gm/cmd/git"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
@@ -22,7 +23,12 @@ import (
 var ErrImportSourceNotFound = errors.New("import source not found")
 
 func init() {
-	importFromCmd.AddCommand(importFromBackupCmd, importFromBrowserCmd, importFromDatabaseCmd)
+	importFromCmd.AddCommand(
+		importFromBackupCmd,
+		importFromBrowserCmd,
+		importFromDatabaseCmd,
+		importFromGitRepoCmd,
+	)
 	cmd.Root.AddCommand(importFromCmd)
 }
 
@@ -56,6 +62,12 @@ var (
 		Short: "Import bookmarks from browser",
 		RunE:  fromBrowserFunc,
 	}
+
+	importFromGitRepoCmd = &cobra.Command{
+		Use:   "git",
+		Short: "Import bookmarks from git repo",
+		RunE:  cmdGit.GitImportCmd.RunE,
+	}
 )
 
 func fromBrowserFunc(_ *cobra.Command, _ []string) error {
@@ -69,7 +81,7 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("import from browser: %w", err)
 	}
 
-	if git.IsInitialized(config.App.Path.Git) {
+	if handler.GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := handler.NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
@@ -163,11 +175,3 @@ func fromDatabaseFunc(_ *cobra.Command, _ []string) error {
 
 	return nil
 }
-
-// var importFromGitRepoCmd = &cobra.Command{
-// 	Use:   "git",
-// 	Short: "Import bookmarks from git repo",
-// 	RunE: func(cmd *cobra.Command, args []string) error {
-// 		return gitImportCmd.RunE(cmd, args)
-// 	},
-// }

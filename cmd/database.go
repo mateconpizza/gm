@@ -71,11 +71,7 @@ var databaseDropCmd = &cobra.Command{
 		}))
 		_ = t
 
-		if err := handler.DroppingDB(t, r); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		if git.IsInitialized(config.App.Path.Git) {
+		if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
 			g, err := handler.NewGit(config.App.Path.Git)
 			if err != nil {
 				return nil
@@ -86,6 +82,10 @@ var databaseDropCmd = &cobra.Command{
 			if err := handler.GitDropRepo(g, "Dropped"); err != nil {
 				return fmt.Errorf("%w", err)
 			}
+		}
+
+		if err := handler.DroppingDB(t, r); err != nil {
+			return fmt.Errorf("%w", err)
 		}
 
 		return nil

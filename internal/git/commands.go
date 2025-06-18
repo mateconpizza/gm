@@ -22,42 +22,41 @@ var (
 	ErrGitNotInitialized  = errors.New("git: is not initialized")
 	ErrGitNoCommits       = errors.New("git: no commits found")
 	ErrGitNoRemote        = errors.New("git: no upstream configured")
-	ErrGitNothingToCommit = errors.New("git: no changes to commit")
+	ErrGitNothingToCommit = errors.New("git: nothing to commit, working tree clean")
+	ErrGitUpToDate        = errors.New("git: everything up-to-date")
 	ErrGitRepoNotFound    = errors.New("git: repo not found")
 	ErrGitRepoURLEmpty    = errors.New("git: repo url is empty")
 )
 
-const gitCmd = "git"
-
 func Clone(destRepoPath, repoURL string) error {
-	return RunGitCmd("", "clone", repoURL, destRepoPath)
+	return runGitCmd("", "clone", repoURL, destRepoPath)
 }
 
-// AddAll adds all local changes.
-func AddAll(repoPath string) error {
-	return RunGitCmd(repoPath, "add", ".")
+// addAll adds all local changes.
+func addAll(repoPath string) error {
+	return runGitCmd(repoPath, "add", ".")
 }
 
 // addRemote adds a remote repository.
 func addRemote(repoPath, repoURL string) error {
 	if config.App.Force {
-		return RunGitCmd(repoPath, "remote", "set-url", "origin", repoURL)
+		return runGitCmd(repoPath, "remote", "set-url", "origin", repoURL)
 	}
 
-	return RunGitCmd(repoPath, "remote", "add", "origin", repoURL)
+	return runGitCmd(repoPath, "remote", "add", "origin", repoURL)
 }
 
 func SjtUpstream(repoPath string) error {
-	b, err := GetBranch(repoPath)
+	b, err := branch(repoPath)
 	if err != nil {
 		return err
 	}
-	return RunGitCmd(repoPath, "push", "--set-upstream", "origin", b)
+	return runGitCmd(repoPath, "push", "--set-upstream", "origin", b)
 }
 
-// HasUnpushedCommits checks if there are any unpushed commits.
-func HasUnpushedCommits(repoPath string) (bool, error) {
-	err := RunGitCmd(repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+// hasUnpushedCommits checks if there are any unpushed commits.
+func hasUnpushedCommits(repoPath string) (bool, error) {
+	err := runWithWriter(io.Discard, repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
 	if err != nil {
 		return false, err
 	}
@@ -70,13 +69,13 @@ func HasUnpushedCommits(repoPath string) (bool, error) {
 	return s != "0", nil
 }
 
-// CommitChanges commits local changes.
-func CommitChanges(repoPath, msg string) error {
-	return RunGitCmd(repoPath, "commit", "-m", msg)
+// commitChanges commits local changes.
+func commitChanges(repoPath, msg string) error {
+	return runGitCmd(repoPath, "commit", "-m", msg)
 }
 
-// HasChanges checks if there are any staged or unstaged changes in the repo.
-func HasChanges(repoPath string) (bool, error) {
+// hasChanges checks if there are any staged or unstaged changes in the repo.
+func hasChanges(repoPath string) (bool, error) {
 	output, err := runWithOutput(repoPath, "status", "--porcelain")
 	if err != nil {
 		return false, fmt.Errorf("git status failed: %w", err)
@@ -94,7 +93,7 @@ func initialize(repoPath string, force bool) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	return RunGitCmd(repoPath, "init")
+	return runGitCmd(repoPath, "init")
 }
 
 // push pushes local changes to remote.
@@ -107,7 +106,7 @@ func push(repoPath string) error {
 	if strings.TrimSpace(remotes) == "" {
 		return ErrGitNoRemote
 	}
-	branch, err := GetBranch(repoPath)
+	branch, err := branch(repoPath)
 	if err != nil {
 		return fmt.Errorf("could not get current branch: %w", err)
 	}
@@ -115,14 +114,14 @@ func push(repoPath string) error {
 	err = runWithWriter(io.Discard, repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
 	if err != nil {
 		// no upstream, so set it
-		return RunGitCmd(repoPath, "push", "--set-upstream", "origin", branch)
+		return runGitCmd(repoPath, "push", "--set-upstream", "origin", branch)
 	}
 
-	return RunGitCmd(repoPath, "push")
+	return runGitCmd(repoPath, "push")
 }
 
-// Status returns the status of the repo.
-func Status(repoPath string) (string, error) {
+// status returns the status of the repo.
+func status(repoPath string) (string, error) {
 	if !hasCommits(repoPath) {
 		return "", ErrGitNoCommits
 	}
@@ -171,13 +170,13 @@ func Status(repoPath string) (string, error) {
 	return strings.TrimSpace(strings.Join(parts, " ")), nil
 }
 
-// GetBranch returns the current branch.
-func GetBranch(repoPath string) (string, error) {
+// branch returns the current branch.
+func branch(repoPath string) (string, error) {
 	return runWithOutput(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 }
 
-// GetRemote returns the origin of the repository.
-func GetRemote(repoPath string) (string, error) {
+// remote returns the origin of the repository.
+func remote(repoPath string) (string, error) {
 	return runWithOutput(repoPath, "config", "--get", "remote.origin.url")
 }
 
@@ -222,8 +221,8 @@ func runWithWriter(stdout io.Writer, repoPath string, s ...string) error {
 	return nil
 }
 
-// RunGitCmd executes a Git command.
-func RunGitCmd(repoPath string, commands ...string) error {
+// runGitCmd executes a Git command.
+func runGitCmd(repoPath string, commands ...string) error {
 	gitCommand, err := sys.Which(gitCmd)
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, gitCommand)
