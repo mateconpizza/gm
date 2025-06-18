@@ -128,7 +128,7 @@ func Database(srcDB, destDB *db.SQLiteRepository) error {
 
 	m.SetItems(items)
 	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return bookmark.Oneline(b, color.DefaultColorScheme())
+		return bookmark.Oneline(b)
 	})
 
 	records, err := m.Select()
@@ -211,10 +211,9 @@ func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteReposi
 		return fmt.Errorf("%w", err)
 	}
 
-	cs := color.DefaultColorScheme()
 	m.SetItems(bookmarks)
 	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return bookmark.Oneline(b, cs)
+		return bookmark.Oneline(b)
 	})
 
 	items, err := m.Select()
@@ -326,7 +325,7 @@ func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
 
 	m.SetItems(records)
 	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return bookmark.Oneline(b, color.DefaultColorScheme())
+		return bookmark.Oneline(b)
 	})
 
 	selected, err := m.Select()

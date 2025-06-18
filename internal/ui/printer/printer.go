@@ -91,11 +91,9 @@ func GitRepoTracked(f *frame.Frame, g *git.Manager) error {
 
 // RecordSlice prints the bookmarks in a frame format with the given colorscheme.
 func RecordSlice(bs *slice.Slice[bookmark.Bookmark]) error {
-	cs := color.DefaultColorScheme()
-
 	lastIdx := bs.Len() - 1
 	bs.ForEachIdx(func(i int, b bookmark.Bookmark) {
-		fmt.Print(bookmark.Frame(&b, cs))
+		fmt.Print(bookmark.Frame(&b))
 		if i != lastIdx {
 			fmt.Println()
 		}
@@ -123,11 +121,8 @@ func TagsList(p string) error {
 
 // Oneline formats the bookmarks in oneline.
 func Oneline(bs *slice.Slice[bookmark.Bookmark]) error {
-	cs := color.DefaultColorScheme()
-	cs.Enabled = config.App.Color
-
 	bs.ForEach(func(b bookmark.Bookmark) {
-		fmt.Print(bookmark.Oneline(&b, cs))
+		fmt.Print(bookmark.Oneline(&b))
 	})
 
 	return nil
@@ -168,8 +163,8 @@ func DatabasesList(p string) error {
 		f.Header(nColor + " database/s found\n").Row("\n").Flush()
 	}
 
-	for _, f := range fs {
-		fmt.Print(db.RepoSummaryFromPath(f))
+	for _, fname := range fs {
+		fmt.Print(db.RepoSummaryFromPath(f.Reset(), fname))
 	}
 
 	return nil
@@ -215,9 +210,9 @@ func JSONTags(p string) error {
 }
 
 // RepoInfo prints the database info.
-func RepoInfo(p string, j bool) error {
+func RepoInfo(f *frame.Frame, p string, j bool) error {
 	if err := locker.IsLocked(p); err != nil {
-		fmt.Print(db.RepoSummaryFromPath(p + ".enc"))
+		fmt.Print(db.RepoSummaryFromPath(f, p+".enc"))
 		return nil
 	}
 
@@ -238,7 +233,7 @@ func RepoInfo(p string, j bool) error {
 		return nil
 	}
 
-	fmt.Print(db.Info(r))
+	fmt.Print(db.Info(f.Reset(), r))
 
 	return nil
 }

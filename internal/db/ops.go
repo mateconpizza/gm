@@ -114,7 +114,7 @@ func newBackup(r *SQLiteRepository) (string, error) {
 		return "", err
 	}
 
-	return destDSN, nil
+	return destPath, nil
 }
 
 // verifySQLiteIntegrity checks the integrity of the SQLite database.

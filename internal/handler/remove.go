@@ -32,12 +32,11 @@ func RemoveRepo(t *terminal.Term, dbPath string) error {
 	if filepath.Base(dbPath) == config.DefaultDBName && !config.App.Force {
 		return fmt.Errorf("%w: default database cannot be removed, use --force", terminal.ErrActionAborted)
 	}
-	i := db.RepoSummaryFromPath(dbPath)
-	fmt.Print(i)
+	fmt.Print(db.RepoSummaryFromPath(f.Reset(), dbPath))
 
 	if !config.App.Force {
 		rm := color.BrightRed("remove").Bold().String()
-		if err := t.ConfirmErr(f.Row("\n").Question(rm+" "+filepath.Base(dbPath)+"?").String(), "n"); err != nil {
+		if err := t.ConfirmErr(f.Reset().Row("\n").Question(rm+" "+filepath.Base(dbPath)+"?").String(), "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -68,7 +67,7 @@ func RemoveRepo(t *terminal.Term, dbPath string) error {
 		dbName = "default"
 	}
 
-	fmt.Print(txt.SuccessMesg(" database " + dbName + " removed\n"))
+	fmt.Print(txt.SuccessMesg("database " + dbName + " removed\n"))
 
 	return nil
 }
@@ -82,40 +81,48 @@ func RemoveBackups(t *terminal.Term, f *frame.Frame, p string) error {
 	if len(fs) == 0 {
 		return db.ErrBackupNotFound
 	}
-	rm := color.BrightRed("remove").Bold().String()
-	f.Question(rm + " backups?")
 
 	filesToRemove := slice.New[string]()
-	if config.App.Force {
-		filesToRemove.Append(fs...)
-	} else {
-		opt, err := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
 
-		switch strings.ToLower(opt) {
-		case "n", "no":
-			sk := color.BrightYellow("skipping").String()
-			t.ReplaceLine(1, f.Reset().Warning(sk+" backup/s\n").Row().String())
-		case "a", "all":
-			filesToRemove.Append(fs...)
-		case "s", "select":
-			selected, err := selection(fs,
-				func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
-				menu.WithArgs("--cycle"),
-				menu.WithUseDefaults(),
-				menu.WithSettings(config.Fzf.Settings),
-				menu.WithMultiSelection(),
-				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p)), false),
-				menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
-			)
+	if !config.App.Force {
+	actionLoop:
+		for {
+			rm := color.BrightRed("remove").Bold().String()
+			f.Question(rm + " backups?")
+			opt, err := t.Choose(f.String(), []string{"all", "no", "select"}, "n")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			t.ClearLine(1)
-			filesToRemove.Append(selected...)
+			f.Reset()
+
+			switch strings.ToLower(opt) {
+			case "n", "no":
+				sk := color.BrightYellow("skipping").String()
+				t.ReplaceLine(1, f.Reset().Warning(sk+" backup/s\n").Row().String())
+
+				break actionLoop
+			case "a", "all":
+				filesToRemove.Append(fs...)
+				break actionLoop
+			case "s", "select":
+				selected, err := selection(fs,
+					func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
+					menu.WithArgs("--cycle"),
+					menu.WithUseDefaults(),
+					menu.WithSettings(config.Fzf.Settings),
+					menu.WithMultiSelection(),
+					menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p)), false),
+					menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
+				)
+				if err != nil && !errors.Is(err, sys.ErrActionAborted) {
+					return fmt.Errorf("%w", err)
+				}
+				t.ClearLine(1)
+				filesToRemove.Append(selected...)
+			}
 		}
+	} else {
+		filesToRemove.Append(fs...)
 	}
 
 	return removeSlicePath(f.Reset(), filesToRemove)
@@ -172,10 +179,11 @@ func Remove(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	if err := validateRemove(bs, config.App.Force); err != nil {
 		return err
 	}
+
 	if !config.App.Force {
-		c := color.BrightRed
+		cbr := func(s string) string { return color.BrightRed(s).String() }
 		f := frame.New(frame.WithColorBorder(color.Gray))
-		f.Header(c("Removing Bookmarks\n\n").String()).Flush()
+		f.Header(cbr("Removing Bookmarks\n\n")).Flush()
 
 		interruptFn := func(err error) {
 			r.Close()
@@ -184,10 +192,12 @@ func Remove(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 
 		t := terminal.New(terminal.WithInterruptFn(interruptFn))
 		defer t.CancelInterruptHandler()
+
 		m := menu.New[bookmark.Bookmark](
 			menu.WithInterruptFn(interruptFn),
 			menu.WithMultiSelection(),
 		)
+
 		s := color.BrightRed("remove").Bold().String()
 		if err := confirmRemove(m, t, bs, s); err != nil {
 			return err
@@ -201,7 +211,7 @@ func Remove(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 func DroppingDB(t *terminal.Term, r *db.SQLiteRepository) error {
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	f.Header(color.BrightRed("Dropping").String() + " all records\n").Row("\n").Flush()
-	fmt.Print(db.Info(r))
+	fmt.Print(db.Info(f, r))
 
 	f.Reset().Rowln().Flush()
 

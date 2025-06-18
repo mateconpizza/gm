@@ -69,21 +69,26 @@ func createPaths(t *terminal.Term, path string) error {
 	if files.Exists(path) {
 		return nil
 	}
+
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Header(prettyVersion()).Ln().Row().Ln()
-	p := color.Text(path).Italic().String()
-	fp := color.Text(config.App.DBPath).Italic().String()
-	f.Info(txt.PaddedLine("Create path:", p+"\n"))
-	f.Info(txt.PaddedLine("Create db:", fp+"\n"))
+	c := color.StyleItalic
+
+	f.Headerln(prettyVersion()).Rowln().
+		Info(txt.PaddedLine("Create path:", c(path).Italic().String())).Ln().
+		Info(txt.PaddedLine("Create db:", c(config.App.DBPath).Italic().String())).Ln()
+
 	lines := txt.CountLines(f.String()) + 1
-	f.Row("\n").Flush()
+	f.Rowln().Flush()
+
 	if err := t.ConfirmErr(f.Question("continue?").String(), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	// clean terminal keeping header+row
 	headerN := 3
 	lines += txt.CountLines(f.String()) - headerN
 	t.ClearLine(lines)
+
 	if err := files.MkdirAll(path); err != nil {
 		sys.ErrAndExit(err)
 	}
@@ -143,7 +148,7 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("%w", err)
 		}
 		defer r.Close()
-		// initialize database
+
 		if r.IsInitialized() && !config.App.Force {
 			return fmt.Errorf("%q %w", r.Name(), db.ErrDBAlreadyInitialized)
 		}
@@ -170,8 +175,8 @@ var initCmd = &cobra.Command{
 		}
 
 		// print new record
-		fmt.Print(bookmark.Frame(ib, color.DefaultColorScheme()))
-		fmt.Print("\n" + txt.SuccessMesg("initialized database "+config.App.DBName))
+		fmt.Print(bookmark.Frame(ib))
+		fmt.Print("\n" + txt.SuccessMesg("initialized database "+config.App.DBName+"\n"))
 
 		return nil
 	},

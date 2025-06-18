@@ -48,11 +48,7 @@ var recordsCmd = &cobra.Command{
 	Aliases: []string{"r"},
 	Short:   "Records management",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		if err := handler.CheckDBLocked(config.App.DBPath); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return handler.ValidateDBExists(config.App.DBPath)
+		return handler.AssertDatabaseExists(cmd)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := db.New(config.App.DBPath)

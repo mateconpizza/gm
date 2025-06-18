@@ -192,7 +192,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 
 // ensureGitEnvironment checks if the environment is ready for git commands.
 func ensureGitEnvironment(command *cobra.Command, _ []string) error {
-	if err := handler.AssertDefaultDatabaseExists(); err != nil {
+	if err := handler.AssertDatabaseExists(command); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

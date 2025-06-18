@@ -34,7 +34,7 @@ func ParseTags(tags string) string {
 		return r == ',' || r == ' '
 	})
 	sort.Strings(split)
-	tags = strings.Join(uniqueItem(split), ",")
+	tags = strings.Join(uniqueTags(split), ",")
 	if strings.HasSuffix(tags, ",") {
 		return tags
 	}
@@ -233,8 +233,8 @@ func Checksum(rawURL, title, desc, tags string) string {
 	return txt.GenHash(data, 8)
 }
 
-// uniqueItem returns a slice of unique, non-empty strings from the input slice.
-func uniqueItem(t []string) []string {
+// uniqueTags returns a slice of unique tags.
+func uniqueTags(t []string) []string {
 	seen := make(map[string]bool)
 	var tags []string
 

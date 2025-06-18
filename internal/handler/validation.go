@@ -3,12 +3,11 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
-	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
@@ -31,14 +30,12 @@ func confirmRemove(
 	s string,
 ) error {
 	for !config.App.Force {
-		cs := color.DefaultColorScheme()
-
 		n := bs.Len()
 		if n == 0 {
 			return db.ErrRecordNotFound
 		}
 		bs.ForEach(func(b bookmark.Bookmark) {
-			fmt.Println(bookmark.Frame(&b, cs))
+			fmt.Println(bookmark.Frame(&b))
 		})
 
 		f := frame.New(frame.WithColorBorder(color.BrightRed))
@@ -57,7 +54,7 @@ func confirmRemove(
 		case "y", "yes":
 			return nil
 		case "s", "select":
-			items, err := selectionWithMenu(m, *bs.Items(), fzfFormatter(false))
+			items, err := selectionWithMenu(m, *bs.Items(), bookmark.Oneline)
 			if err != nil {
 				return err
 			}
@@ -125,35 +122,6 @@ func validateRemove(bs *slice.Slice[bookmark.Bookmark], force bool) error {
 	return nil
 }
 
-// ValidateDBExists verifies if the database exists.
-func ValidateDBExists(p string) error {
-	slog.Debug("validating database", "path", p)
-	if files.Exists(p) {
-		return nil
-	}
-	if err := locker.IsLocked(p); err != nil {
-		return db.ErrDBLocked
-	}
-	i := color.BrightYellow(config.App.Cmd, "init").Italic()
-	o := color.BrightYellow(config.App.Cmd, "new").Italic()
-	// check if default db not found
-	name := filepath.Base(p)
-	if name == config.DefaultDBName {
-		slog.Warn("default database not found", "name", name)
-		return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
-	}
-	ei := fmt.Errorf("%w: use %s or %s", db.ErrDBNotFound, i, o)
-	dbs, err := db.List(filepath.Dir(p))
-	if err != nil {
-		return ei
-	}
-	if slices.Contains(dbs, name) {
-		return nil
-	}
-
-	return ei
-}
-
 // passwordConfirm prompts user for password input.
 func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
 	f.Question("Password: ").Flush()
@@ -190,15 +158,24 @@ func CheckDBLocked(p string) error {
 	return nil
 }
 
-// AssertDefaultDatabaseExists checks if the default database exists.
-func AssertDefaultDatabaseExists() error {
-	p := filepath.Join(config.App.Path.Data, config.DefaultDBName)
-	if !files.Exists(p) {
-		i := color.BrightYellow(config.App.Cmd, "init").Italic()
+// AssertDatabaseExists checks if the database exists.
+func AssertDatabaseExists(cmd *cobra.Command) error {
+	fmt.Printf("cmd.Name(): %v\n", cmd.Name())
+	fmt.Printf("cmd.Parent().Name(): %v\n", cmd.Parent().Name())
+	if files.Exists(config.App.DBPath) {
+		return nil
+	}
+
+	if err := CheckDBLocked(config.App.DBPath); err != nil {
+		return err
+	}
+
+	i := color.BrightYellow(config.App.Cmd, "init").Italic()
+	if config.App.DBName == config.DefaultDBName {
 		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
 	}
 
-	return nil
+	return fmt.Errorf("%w %q: use '%s' to initialize", db.ErrDBNotFound, config.App.DBName, i)
 }
 
 // validURL checks if a string is a valid URL.

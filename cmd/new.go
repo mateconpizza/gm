@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 type newRecordType struct {
@@ -29,9 +30,6 @@ var newCmd = &cobra.Command{
 	Example: `  gm new db -n newDBName
   gm new --title='Some title' --tags='tag1 tag2'
   gm new bk`,
-	PreRunE: func(cmd *cobra.Command, _ []string) error {
-		return handler.CheckDBLocked(config.App.DBPath)
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return newBookmarkCmd.RunE(cmd, args)
 	},
@@ -75,9 +73,10 @@ var newBookmarkCmd = &cobra.Command{
 			sys.ErrAndExit(err)
 		}))
 
+		cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
+		cy := func(s string) string { return color.BrightYellow(s).String() }
 		f := frame.New(frame.WithColorBorder(color.Gray))
-		h := color.BrightYellow("Add Bookmark").String()
-		f.Header(h + color.Gray(" (ctrl+c to exit)\n").Italic().String()).Rowln().Flush()
+		f.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
 
 		b := bookmark.New()
 		if err := handler.NewBookmark(f, t, r, b, newRecordF.title, newRecordF.tags, args); err != nil {
@@ -88,7 +87,13 @@ var newBookmarkCmd = &cobra.Command{
 			return fmt.Errorf("validation failed: %w", err)
 		}
 
-		return handler.SaveNewBookmark(t, f.Reset(), r, b)
+		if err := handler.SaveNewBookmark(t, f.Reset(), r, b); err != nil {
+			return err
+		}
+
+		fmt.Print(txt.SuccessMesg("bookmark added\n"))
+
+		return nil
 	},
 }
 

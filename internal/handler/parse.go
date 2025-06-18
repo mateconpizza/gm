@@ -44,8 +44,8 @@ func NewBookmark(
 	sc := scraper.New(newURL, scraper.WithSpinner())
 
 	// fetch title, description and tags
+	fetchTitleAndDesc(f.Reset(), sc, bTemp)
 	tagsFromArgs(t, f.Reset(), sc, bTemp)
-	fetchTitleAndDesc(f, sc, bTemp)
 
 	b.URL = newURL
 	b.Title = bTemp.title
@@ -80,10 +80,11 @@ func readURLFromClipboard(t *terminal.Term, f *frame.Frame) string {
 
 // newURLFromArgs parse URL from args.
 func newURLFromArgs(t *terminal.Term, f *frame.Frame, args []string) (string, error) {
+	cm := func(s string) string { return color.BrightMagenta(s).String() }
 	// checks if url is provided
 	if len(args) > 0 {
 		bURL := strings.TrimRight((args)[0], "\n")
-		f.Header(color.BrightMagenta("URL\t:").String()).
+		f.Header(cm("URL\t:")).
 			Text(" " + color.Gray(bURL).String()).Ln().Flush()
 
 		return bURL, nil
@@ -95,7 +96,7 @@ func newURLFromArgs(t *terminal.Term, f *frame.Frame, args []string) (string, er
 		return c, nil
 	}
 
-	f.Reset().Header(color.BrightMagenta("URL\t:").String()).Flush()
+	f.Reset().Header(cm("URL\t:")).Flush()
 	bURL := t.Input(" ")
 	if bURL == "" {
 		return bURL, bookmark.ErrURLEmpty
@@ -106,10 +107,13 @@ func newURLFromArgs(t *terminal.Term, f *frame.Frame, args []string) (string, er
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
 func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *bookmarkTemp) {
-	f.Header(color.BrightBlue("Tags\t:").String())
+	cb := func(s string) string { return color.BrightBlue(s).String() }
+	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
+
+	f.Header(cb("Tags\t:"))
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
-		f.Text(" " + color.Gray(b.tags).String()).Ln().Flush()
+		f.Textln(" " + cgi(b.tags)).Flush()
 		return
 	}
 
@@ -118,26 +122,22 @@ func tagsFromArgs(t *terminal.Term, f *frame.Frame, sc *scraper.Scraper, b *book
 	if keywords != "" {
 		tt := bookmark.ParseTags(keywords)
 		b.tags = tt
-		f.Text(" " + color.Gray(b.tags).
-			Italic().String()).Ln().Flush()
+		f.Textln(" " + cgi(b.tags)).Flush()
 		return
 	}
 
 	if config.App.Force {
 		b.tags = "notag"
-		f.Text(" " + color.Gray(b.tags).
-			Italic().String()).Ln().Flush()
+		f.Textln(" " + cgi(b.tags)).Flush()
 		return
 	}
 
 	// prompt|take input for tags
 	f.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
-
 	mTags, _ := db.TagsCounterFromPath(config.App.DBPath)
 	b.tags = bookmark.ParseTags(t.ChooseTags(f.Border.Mid, mTags))
 
-	f.Reset().Mid(color.BrightBlue("Tags\t:").String()).
-		Text(" " + color.Gray(b.tags).String()).Ln()
+	f.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))
 
 	t.ClearLine(txt.CountLines(f.String()))
 	f.Flush()
@@ -148,9 +148,13 @@ func fetchTitleAndDesc(f *frame.Frame, sc *scraper.Scraper, b *bookmarkTemp) {
 	const indentation int = 10
 	width := terminal.MinWidth - len(f.Border.Row)
 
+	cc := func(s string) string { return color.BrightCyan(s).String() }
+	cg := func(s string) string { return color.BrightGray(s).String() }
+	co := func(s string) string { return color.BrightOrange(s).String() }
+
 	if b.title != "" {
-		t := color.Gray(txt.SplitAndAlign(b.title, width, indentation)).String()
-		f.Mid(color.BrightCyan("Title\t: ").String()).Text(t).Ln().Flush()
+		t := cg(txt.SplitAndAlign(b.title, width, indentation))
+		f.Mid(cc("Title\t: ")).Textln(t).Flush()
 		return
 	}
 
@@ -160,27 +164,15 @@ func fetchTitleAndDesc(f *frame.Frame, sc *scraper.Scraper, b *bookmarkTemp) {
 	b.desc, _ = sc.Desc()
 	b.tags, _ = sc.Keywords()
 
-	t := color.Gray(txt.SplitAndAlign(b.title, width, indentation)).String()
-	f.Mid(color.BrightCyan("Title\t: ").String()).Text(t).Ln()
+	// title
+	t := cg(txt.SplitAndAlign(b.title, width, indentation))
+	f.Mid(cc("Title\t: ")).Textln(t)
+
+	// description
 	if b.desc != "" {
-		descColor := color.Gray(txt.SplitAndAlign(b.desc, width, indentation)).String()
-		f.Mid(color.BrightOrange("Desc\t: ").String()).Text(descColor).Ln()
+		descColor := cg(txt.SplitAndAlign(b.desc, width, indentation))
+		f.Mid(co("Desc\t: ")).Textln(descColor)
 	}
 
 	f.Flush()
-}
-
-// fzfFormatter returns a function to format a bookmark for the FZF menu.
-func fzfFormatter(m bool) func(b *bookmark.Bookmark) string {
-	cs := color.DefaultColorScheme()
-	switch {
-	case m:
-		return func(b *bookmark.Bookmark) string {
-			return bookmark.Multiline(b, cs)
-		}
-	default:
-		return func(b *bookmark.Bookmark) string {
-			return bookmark.Oneline(b, cs)
-		}
-	}
 }

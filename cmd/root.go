@@ -58,7 +58,7 @@ var Root = &cobra.Command{
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return handler.AssertDefaultDatabaseExists()
+		return handler.AssertDatabaseExists(cmd)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := recordsCmd.PersistentPreRunE(cmd, args); err != nil {

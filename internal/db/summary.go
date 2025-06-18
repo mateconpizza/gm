@@ -16,9 +16,8 @@ import (
 )
 
 // RepoSummary returns a summary of the repository.
-func RepoSummary(r *SQLiteRepository) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	path := txt.PaddedLine("path:", files.ReplaceHomePath(config.App.DBPath))
+func RepoSummary(f *frame.Frame, r *SQLiteRepository) string {
+	path := txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
 	records := txt.PaddedLine("records:", CountMainRecords(r))
 	tags := txt.PaddedLine("tags:", CountTagsRecords(r))
 	name := r.Cfg.Name
@@ -34,8 +33,7 @@ func RepoSummary(r *SQLiteRepository) string {
 }
 
 // RepoSummaryFromPath returns a summary of the repository.
-func RepoSummaryFromPath(p string) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
+func RepoSummaryFromPath(f *frame.Frame, p string) string {
 	if strings.HasSuffix(p, ".enc") {
 		p = strings.TrimSuffix(p, ".enc")
 		s := color.BrightMagenta(filepath.Base(p)).Italic().String()
@@ -49,7 +47,7 @@ func RepoSummaryFromPath(p string) string {
 		return f.Mid(txt.PaddedLine(s, e)).Ln().String()
 	}
 
-	path := txt.PaddedLine("path:", files.ReplaceHomePath(p))
+	path := txt.PaddedLine("path:", files.CollapseHomeDir(p))
 	r, err := New(p)
 	if err != nil {
 		return f.Row(path).String()
@@ -141,8 +139,7 @@ func BackupSummaryWithFmtDateFromPath(p string) string {
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(r *SQLiteRepository) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
+func BackupListDetail(f *frame.Frame, r *SQLiteRepository) string {
 	fs, err := r.ListBackups()
 	if len(fs) == 0 {
 		return ""
@@ -170,9 +167,8 @@ func BackupListDetail(r *SQLiteRepository) string {
 // BackupsSummary returns a summary of the backups.
 //
 // last, path and number of backups.
-func BackupsSummary(r *SQLiteRepository) string {
+func BackupsSummary(f *frame.Frame, r *SQLiteRepository) string {
 	var (
-		f              = frame.New(frame.WithColorBorder(color.BrightGray))
 		empty          = "n/a"
 		backupsColor   = color.BrightMagenta("backups:").Italic()
 		backupsInfo    = txt.PaddedLine("found:", empty)
@@ -204,19 +200,19 @@ func BackupsSummary(r *SQLiteRepository) string {
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
 
-	return f.Header(backupsColor.String()).
-		Ln().Row(path).
-		Ln().Row(last).
-		Ln().Row(lastDate).
-		Ln().Row(backupsInfo).
-		Ln().String()
+	return f.Headerln(backupsColor.String()).
+		Rowln(path).
+		Rowln(last).
+		Rowln(lastDate).
+		Rowln(backupsInfo).
+		String()
 }
 
 // Info returns the repository info.
-func Info(r *SQLiteRepository) string {
-	s := RepoSummary(r)
-	s += BackupsSummary(r)
-	s += BackupListDetail(r)
+func Info(f *frame.Frame, r *SQLiteRepository) string {
+	s := RepoSummary(f.Reset(), r)
+	s += BackupsSummary(f.Reset(), r)
+	s += BackupListDetail(f.Reset(), r)
 
 	return s
 }

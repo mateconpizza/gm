@@ -24,8 +24,9 @@ import (
 // - [ ] check `IsPiped` implementation
 
 var (
-	hl  = color.BrightGreen
-	dim = color.Gray
+	hl     = color.MkColorFn(color.BrightRed, color.StyleBold)
+	dim    = color.BrightGray
+	dimmer = color.Gray
 )
 
 const termPromptPrefix = "> "
@@ -183,6 +184,10 @@ func (t *Term) Confirm(q, def string) bool {
 
 // ConfirmErr prompts the user with a question and options.
 func (t *Term) ConfirmErr(q, def string) error {
+	if force {
+		slog.Debug("force", "def", def)
+		return nil
+	}
 	if len(def) > 1 {
 		// get first char
 		def = def[:1]
@@ -212,6 +217,11 @@ func (t *Term) ConfirmErr(q, def string) error {
 
 // Choose prompts the user to enter one of the given options.
 func (t *Term) Choose(q string, opts []string, def string) (string, error) {
+	if force {
+		slog.Debug("force", "def", def)
+		return def, nil
+	}
+
 	for i := range opts {
 		opts[i] = strings.ToLower(opts[i])
 	}
@@ -222,9 +232,9 @@ func (t *Term) Choose(q string, opts []string, def string) (string, error) {
 
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string, error) {
-	sep := dim("/").String()
-	s := dim("[").String()
-	e := dim("]:").String()
+	sep := dimmer("/").String()
+	s := dimmer("[").String()
+	e := dimmer("]:").String()
 
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 	return getUserInputWithAttempts(t.reader, t.writer, p, opts, def)

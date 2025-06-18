@@ -98,7 +98,13 @@ func Data(
 		return nil, fmt.Errorf("%w", err)
 	}
 	if mFlag || mlFlag {
-		items, err := selectionWithMenu(m, *bs.Items(), fzfFormatter(mlFlag))
+		items, err := selectionWithMenu(m, *bs.Items(), func(b *bookmark.Bookmark) string {
+			if mlFlag {
+				return bookmark.Multiline(b)
+			}
+
+			return bookmark.Oneline(b)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
@@ -147,7 +153,7 @@ func updateBookmark(r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error
 		return fmt.Errorf("updating record: %w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg(fmt.Sprintf("bookmark [%d] updated", newB.ID)))
+	fmt.Println(txt.SuccessMesg(fmt.Sprintf("bookmark [%d] updated", newB.ID)))
 
 	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
@@ -200,8 +206,8 @@ func removeRecords(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) e
 		if err != nil {
 			return err
 		}
-		gr := g.NewRepo(r.Cfg.Fullpath())
-		g.Tracker.SetCurrent(gr)
+
+		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
 		if err := gitCleanFiles(g, bs); err != nil {
 			return err
 		}

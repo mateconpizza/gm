@@ -30,6 +30,9 @@ var termState *term.State
 // https://no-color.org
 const noColorEnv string = "NO_COLOR"
 
+// force action.
+var force bool = false
+
 // Default terminal settings.
 var (
 	MaxWidth  int = 120
@@ -144,4 +147,10 @@ func getWidth() (int, error) {
 func init() {
 	// Loads the terminal settings.
 	loadMaxWidth()
+}
+
+// SetForce sets the force flag, this will skip the confirmation prompt.
+func SetForce(f bool) {
+	slog.Debug("force", "set", f)
+	force = f
 }

@@ -155,15 +155,16 @@ func CheckStatus(bs *slice.Slice[bookmark.Bookmark]) error {
 }
 
 // LockRepo locks the database.
-func LockRepo(t *terminal.Term, rToLock string) error {
+func LockRepo(t *terminal.Term, f *frame.Frame, rToLock string) error {
 	slog.Debug("locking database", "name", config.App.DBName)
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	if !files.Exists(rToLock) {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
 	}
-	f := frame.New(frame.WithColorBorder(color.Gray))
+
 	q := fmt.Sprintf("Lock %q?", filepath.Base(rToLock))
 	if err := t.ConfirmErr(f.Question(q).String(), "y"); err != nil {
 		if errors.Is(err, terminal.ErrActionAborted) {
@@ -172,15 +173,17 @@ func LockRepo(t *terminal.Term, rToLock string) error {
 
 		return fmt.Errorf("%w", err)
 	}
+
 	pass, err := passwordConfirm(t, f.Reset())
 	if err != nil {
 		return err
 	}
+
 	if err := locker.Lock(rToLock, pass); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg("database locked\n"))
+	fmt.Print(txt.SuccessMesg(fmt.Sprintf("database locked: %q\n", filepath.Base(rToLock))))
 
 	return nil
 }
@@ -190,9 +193,11 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
 		return locker.ErrItemUnlocked
 	}
+
 	if !strings.HasSuffix(rToUnlock, ".enc") {
 		rToUnlock += ".enc"
 	}
+
 	slog.Debug("unlocking database", "name", rToUnlock)
 	if !files.Exists(rToUnlock) {
 		s := filepath.Base(strings.TrimSuffix(rToUnlock, ".enc"))
@@ -204,11 +209,13 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 	if err := t.ConfirmErr(f.Question(q).String(), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	f.Reset().Question("Password: ").Flush()
 	s, err := t.InputPassword()
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	if err := locker.Unlock(rToUnlock, s); err != nil {
 		fmt.Println()
 		return fmt.Errorf("%w", err)
@@ -222,8 +229,7 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 // openQR opens a QR-Code image in the system default image viewer.
 func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	const maxLabelLen = 55
-	var title string
-	var burl string
+	var title, burl string
 
 	if err := qrcode.GenerateImg(config.App.Name); err != nil {
 		return fmt.Errorf("%w", err)

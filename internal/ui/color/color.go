@@ -1,11 +1,11 @@
 // Package color provides utilities for formatting and coloring text
 // output in the terminal
+//nolint:staticcheck //ignore
 package color
 
 import (
 	"fmt"
 	"log/slog"
-	"reflect"
 	"regexp"
 	"strings"
 )
@@ -33,7 +33,6 @@ const (
 	red     = "\x1b[31m"
 	white   = "\x1b[37m"
 	yellow  = "\x1b[93m"
-
 	// bright colors.
 	brightBlack   = "\x1b[90m"
 	brightBlue    = "\x1b[94m"
@@ -46,7 +45,6 @@ const (
 	brightRed     = "\x1b[91m"
 	brightWhite   = "\x1b[97m"
 	brightYellow  = "\x1b[93m"
-
 	// styles.
 	bold          = "\x1b[1m"
 	dim           = "\x1b[2m"
@@ -55,17 +53,9 @@ const (
 	strikethrough = "\x1b[9m"
 	underline     = "\x1b[4m"
 	undercurl     = "\x1b[4:3m"
-
 	// reset colors.
 	reset = "\x1b[0m"
 )
-
-// ANSICode returns the ANSI code from a Color function.
-func ANSICode(f ColorFn) string {
-	c := f()
-	v := reflect.ValueOf(c).Elem().FieldByName("color")
-	return v.String()
-}
 
 // Color represents styled text with a specific color and formatting styles.
 type Color struct {
@@ -74,41 +64,9 @@ type Color struct {
 	styles []string
 }
 
-func Text(s ...string) *Color {
-	return &Color{text: strings.Join(s, " ")}
-}
-
 func (c *Color) applyStyle(styles ...string) *Color {
 	c.styles = append(c.styles, styles...)
 	return c
-}
-
-func (c *Color) Bold() *Color {
-	return c.applyStyle(bold)
-}
-
-func (c *Color) Dim() *Color {
-	return c.applyStyle(dim)
-}
-
-func (c *Color) Inverse() *Color {
-	return c.applyStyle(inverse)
-}
-
-func (c *Color) Italic() *Color {
-	return c.applyStyle(italic)
-}
-
-func (c *Color) Strikethrough() *Color {
-	return c.applyStyle(strikethrough)
-}
-
-func (c *Color) Underline() *Color {
-	return c.applyStyle(underline)
-}
-
-func (c *Color) Undercurl() *Color {
-	return c.applyStyle(undercurl)
 }
 
 func (c *Color) String() string {
@@ -121,133 +79,55 @@ func (c *Color) String() string {
 	return fmt.Sprintf("%s%s%s%s", styles, c.color, c.text, reset)
 }
 
-func Reset() string {
-	return reset
-}
+// Normal.
+func Text(s ...string) *Color   { return &Color{text: strings.Join(s, " ")} }
+func Reset() string             { return reset }
+func Default(arg ...any) *Color { return Text(join(arg...)) }
+func Normal(arg ...any) *Color  { return Text(join(arg...)) }
 
-func Black(arg ...any) *Color {
-	return addColor(black, arg...)
-}
+// Styles.
+func (c *Color) Bold() *Color          { return c.applyStyle(bold) }
+func (c *Color) Dim() *Color           { return c.applyStyle(dim) }
+func (c *Color) Inverse() *Color       { return c.applyStyle(inverse) }
+func (c *Color) Italic() *Color        { return c.applyStyle(italic) }
+func (c *Color) Strikethrough() *Color { return c.applyStyle(strikethrough) }
+func (c *Color) Underline() *Color     { return c.applyStyle(underline) }
+func (c *Color) Undercurl() *Color     { return c.applyStyle(undercurl) }
 
-func Blue(arg ...any) *Color {
-	return addColor(blue, arg...)
-}
+// Normal Colors.
+func Black(arg ...any) *Color   { return addColor(black, arg...) }
+func Blue(arg ...any) *Color    { return addColor(blue, arg...) }
+func Cyan(arg ...any) *Color    { return addColor(cyan, arg...) }
+func Gray(arg ...any) *Color    { return addColor(gray, arg...) }
+func Green(arg ...any) *Color   { return addColor(green, arg...) }
+func Magenta(arg ...any) *Color { return addColor(magenta, arg...) }
+func Orange(arg ...any) *Color  { return addColor(orange, arg...) }
+func Purple(arg ...any) *Color  { return addColor(purple, arg...) }
+func Red(arg ...any) *Color     { return addColor(red, arg...) }
+func White(arg ...any) *Color   { return addColor(white, arg...) }
+func Yellow(arg ...any) *Color  { return addColor(yellow, arg...) }
 
-func Cyan(arg ...any) *Color {
-	return addColor(cyan, arg...)
-}
+// Bright Colors.
+func BrightBlack(arg ...any) *Color   { return addColor(brightBlack, arg...) }
+func BrightBlue(arg ...any) *Color    { return addColor(brightBlue, arg...) }
+func BrightCyan(arg ...any) *Color    { return addColor(brightCyan, arg...) }
+func BrightGray(arg ...any) *Color    { return addColor(brightGray, arg...) }
+func BrightGreen(arg ...any) *Color   { return addColor(brightGreen, arg...) }
+func BrightMagenta(arg ...any) *Color { return addColor(brightMagenta, arg...) }
+func BrightOrange(arg ...any) *Color  { return addColor(brightOrange, arg...) }
+func BrightPurple(arg ...any) *Color  { return addColor(brightPurple, arg...) }
+func BrightRed(arg ...any) *Color     { return addColor(brightRed, arg...) }
+func BrightWhite(arg ...any) *Color   { return addColor(brightWhite, arg...) }
+func BrightYellow(arg ...any) *Color  { return addColor(brightYellow, arg...) }
 
-func Gray(arg ...any) *Color {
-	return addColor(gray, arg...)
-}
-
-func Green(arg ...any) *Color {
-	return addColor(green, arg...)
-}
-
-func Magenta(arg ...any) *Color {
-	return addColor(magenta, arg...)
-}
-
-func Orange(arg ...any) *Color {
-	return addColor(orange, arg...)
-}
-
-func Purple(arg ...any) *Color {
-	return addColor(purple, arg...)
-}
-
-func Red(arg ...any) *Color {
-	return addColor(red, arg...)
-}
-
-func White(arg ...any) *Color {
-	return addColor(white, arg...)
-}
-
-func Yellow(arg ...any) *Color {
-	return addColor(yellow, arg...)
-}
-
-func BrightBlack(arg ...any) *Color {
-	return addColor(brightBlack, arg...)
-}
-
-func BrightBlue(arg ...any) *Color {
-	return addColor(brightBlue, arg...)
-}
-
-func BrightCyan(arg ...any) *Color {
-	return addColor(brightCyan, arg...)
-}
-
-func BrightGray(arg ...any) *Color {
-	return addColor(brightGray, arg...)
-}
-
-func BrightGreen(arg ...any) *Color {
-	return addColor(brightGreen, arg...)
-}
-
-func BrightMagenta(arg ...any) *Color {
-	return addColor(brightMagenta, arg...)
-}
-
-func BrightOrange(arg ...any) *Color {
-	return addColor(brightOrange, arg...)
-}
-
-func BrightPurple(arg ...any) *Color {
-	return addColor(brightPurple, arg...)
-}
-
-func BrightRed(arg ...any) *Color {
-	return addColor(brightRed, arg...)
-}
-
-func BrightWhite(arg ...any) *Color {
-	return addColor(brightWhite, arg...)
-}
-
-func BrightYellow(arg ...any) *Color {
-	return addColor(brightYellow, arg...)
-}
-
-func StyleBold(arg ...any) *Color {
-	return Text(join(arg...)).Bold()
-}
-
-func StyleDim(arg ...any) *Color {
-	return Text(join(arg...)).Dim()
-}
-
-func StyleItalic(arg ...any) *Color {
-	return Text(join(arg...)).Italic()
-}
-
-func StyleUnderline(arg ...any) *Color {
-	return Text(join(arg...)).Underline()
-}
-
-func StyleUndercurl(arg ...any) *Color {
-	return Text(join(arg...)).Undercurl()
-}
-
-func StyleStrikethrough(arg ...any) *Color {
-	return Text(join(arg...)).Strikethrough()
-}
-
-func StyleInverse(arg ...any) *Color {
-	return Text(join(arg...)).Inverse()
-}
-
-func Default(arg ...any) *Color {
-	return Text(join(arg...))
-}
-
-func Normal(arg ...any) *Color {
-	return Text(join(arg...))
-}
+// Styles.
+func StyleBold(arg ...any) *Color          { return Text(join(arg...)).Bold() }
+func StyleDim(arg ...any) *Color           { return Text(join(arg...)).Dim() }
+func StyleItalic(arg ...any) *Color        { return Text(join(arg...)).Italic() }
+func StyleUnderline(arg ...any) *Color     { return Text(join(arg...)).Underline() }
+func StyleUndercurl(arg ...any) *Color     { return Text(join(arg...)).Undercurl() }
+func StyleStrikethrough(arg ...any) *Color { return Text(join(arg...)).Strikethrough() }
+func StyleInverse(arg ...any) *Color       { return Text(join(arg...)).Inverse() }
 
 func addColor(c string, arg ...any) *Color {
 	return &Color{text: join(arg...), color: c}

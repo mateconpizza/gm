@@ -13,6 +13,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 )
 
@@ -22,11 +24,12 @@ var dbCmd = &cobra.Command{
 	Aliases: []string{"db"},
 	Short:   "Database management",
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		return handler.AssertDefaultDatabaseExists()
+		return handler.AssertDatabaseExists(cmd)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if JSON {
-			return printer.RepoInfo(config.App.DBPath, JSON)
+			f := frame.New(frame.WithColorBorder(color.Gray))
+			return printer.RepoInfo(f, config.App.DBPath, JSON)
 		}
 
 		return cmd.Usage()
@@ -37,13 +40,6 @@ var dbCmd = &cobra.Command{
 var databaseNewCmd = &cobra.Command{
 	Use:   "new",
 	Short: initCmd.Short,
-	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if err := locker.IsLocked(config.App.DBPath); err != nil {
-			return fmt.Errorf("%w: is locked", db.ErrDBExists)
-		}
-
-		return nil
-	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if initCmd.PersistentPreRunE != nil {
 			if err := initCmd.PersistentPreRunE(cmd, args); err != nil {
@@ -108,7 +104,8 @@ var databaseInfoCmd = &cobra.Command{
 	Short:   "Show information about a database",
 	Aliases: []string{"i", "show"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return printer.RepoInfo(config.App.DBPath, JSON)
+		f := frame.New(frame.WithColorBorder(color.Gray))
+		return printer.RepoInfo(f, config.App.DBPath, JSON)
 	},
 }
 
@@ -140,7 +137,8 @@ var databaseLockCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-		return handler.LockRepo(t, config.App.DBPath)
+		f := frame.New(frame.WithColorBorder(color.Gray))
+		return handler.LockRepo(t, f, config.App.DBPath)
 	},
 }
 

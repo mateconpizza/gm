@@ -11,7 +11,7 @@ import (
 )
 
 // Oneline formats a bookmark in a single line with the given colorscheme.
-func Oneline(b *Bookmark, cs *color.Scheme) string {
+func Oneline(b *Bookmark) string {
 	w := terminal.MaxWidth
 	const (
 		idPadding      = 3
@@ -21,6 +21,7 @@ func Oneline(b *Bookmark, cs *color.Scheme) string {
 	)
 	idLen := idPadding
 	tagsLen := minTagsLen
+	cs := color.DefaultColorScheme()
 	if cs.Enabled {
 		idLen = idWithColor
 		tagsLen = defaultTagsLen
@@ -46,9 +47,10 @@ func Oneline(b *Bookmark, cs *color.Scheme) string {
 }
 
 // Multiline formats a bookmark for fzf with max width.
-func Multiline(b *Bookmark, cs *color.Scheme) string {
+func Multiline(b *Bookmark) string {
 	w := terminal.MaxWidth
 	var sb strings.Builder
+	cs := color.DefaultColorScheme()
 	sb.WriteString(cs.BrightYellow(b.ID).Bold().String())
 	sb.WriteString(txt.NBSP)
 	sb.WriteString(txt.Shorten(txt.URLBreadCrumbs(b.URL, cs.BrightMagenta), w) + "\n")
@@ -88,8 +90,9 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 }
 
 // Frame formats a bookmark in a frame with min width.
-func Frame(b *Bookmark, cs *color.Scheme) string {
+func Frame(b *Bookmark) string {
 	w := terminal.MinWidth
+	cs := color.DefaultColorScheme()
 	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
 	// indentation
 	w -= len(f.Border.Row)

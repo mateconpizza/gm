@@ -87,7 +87,7 @@ func TestUniqueItem(t *testing.T) {
 		},
 	}
 	for _, tt := range test {
-		items := uniqueItem(tt.input)
+		items := uniqueTags(tt.input)
 		assert.Equal(t, tt.expected, items)
 	}
 }

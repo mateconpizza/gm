@@ -54,6 +54,7 @@ func (m *Menu[T]) Select() ([]T, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if len(selected) == 0 {
 		return nil, ErrFzfNoItems
 	}
