@@ -14,9 +14,9 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 func init() {
@@ -83,21 +83,23 @@ var (
 
 // backupLockFunc lock backups.
 func backupLockFunc(cmd *cobra.Command, args []string) error {
-	t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-
 	fs, err := handler.SelectBackupMany(config.App.Path.Backup, "select backup/s to lock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+	)
+
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
+	c.F.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 	for _, r := range fs {
-		if err := handler.LockRepo(t, f.Reset(), r); err != nil {
+		if err := handler.LockRepo(c, r); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
-				f.Warning(cgi("skipped: " + err.Error() + "\n")).Flush()
+				c.F.Warning(cgi("skipped: " + err.Error() + "\n")).Flush()
 				continue
 			}
 
@@ -110,17 +112,21 @@ func backupLockFunc(cmd *cobra.Command, args []string) error {
 
 // backupUnlockFunc unlock backups.
 func backupUnlockFunc(cmd *cobra.Command, args []string) error {
-	t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
 	if !files.Exists(config.App.Path.Backup) {
 		return fmt.Errorf("%w", db.ErrBackupNotFound)
 	}
 
-	r, err := handler.SelectFileLocked(config.App.Path.Backup, "select backup to unlock")
+	repos, err := handler.SelectFileLocked(config.App.Path.Backup, "select backup to unlock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	return handler.UnlockRepo(t, r[0])
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+	)
+
+	return handler.UnlockRepo(c, repos[0])
 }
 
 // backupNewFunc create a new backup.
@@ -131,10 +137,13 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer r.Close()
 
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	}))
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))),
+	)
 
 	srcPath := config.App.DBPath
 	if !files.Exists(srcPath) {
@@ -144,13 +153,12 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	fmt.Print(db.Info(f.Reset(), r))
+	fmt.Print(db.Info(c, r))
 
-	f.Reset().Row("\n").Flush()
+	c.F.Reset().Row("\n").Flush()
 	cgb := func(s string) string { return color.BrightGreen(s).Italic().String() }
 	if !config.App.Force {
-		if err := t.ConfirmErr(f.Question("create "+cgb("backup")).String(), "y"); err != nil {
+		if err := c.ConfirmErr("create "+cgb("backup"), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -160,14 +168,14 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))))
 
 	if config.App.Force {
 		slog.Debug("skipping lock", "path", newBkPath)
 		return nil
 	}
 
-	return handler.LockRepo(t, f.Reset(), newBkPath)
+	return handler.LockRepo(c, newBkPath)
 }
 
 // backupPrettyPrint pretty repo info.
@@ -178,8 +186,8 @@ func backupPrettyPrint(cmd *cobra.Command, args []string) error {
 	}
 	defer r.Close()
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	fmt.Print(db.Info(f, r))
+	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
+	fmt.Print(db.Info(c, r))
 
 	return nil
 }

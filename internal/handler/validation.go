@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -17,18 +18,16 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
+var databaseChecked bool = false
+
 // confirmRemove prompts the user to confirm the action.
-func confirmRemove(
-	m *menu.Menu[bookmark.Bookmark],
-	t *terminal.Term,
-	bs *slice.Slice[bookmark.Bookmark],
-	s string,
-) error {
+func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Slice[bookmark.Bookmark]) error {
 	for !config.App.Force {
 		n := bs.Len()
 		if n == 0 {
@@ -38,12 +37,12 @@ func confirmRemove(
 			fmt.Println(bookmark.Frame(&b))
 		})
 
-		f := frame.New(frame.WithColorBorder(color.BrightRed))
+		s := color.BrightRed("remove").Bold().String()
 		opts := []string{"yes", "no"}
 		if bs.Len() > 1 {
 			opts = append(opts, "select")
 		}
-		opt, err := t.Choose(f.Question(fmt.Sprintf("%s %d bookmark/s?", s, n)).String(), opts, "n")
+		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", s, n), opts, "n")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -123,15 +122,13 @@ func validateRemove(bs *slice.Slice[bookmark.Bookmark], force bool) error {
 }
 
 // passwordConfirm prompts user for password input.
-func passwordConfirm(t *terminal.Term, f *frame.Frame) (string, error) {
-	f.Question("Password: ").Flush()
-	s, err := t.InputPassword()
+func passwordConfirm(c *ui.Console) (string, error) {
+	s, err := c.InputPassword("Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	f.Ln().Question("Confirm Password: ").Flush()
-	s2, err := t.InputPassword()
+	s2, err := c.InputPassword("Confirm Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -160,9 +157,18 @@ func CheckDBLocked(p string) error {
 
 // AssertDatabaseExists checks if the database exists.
 func AssertDatabaseExists(cmd *cobra.Command) error {
-	fmt.Printf("cmd.Name(): %v\n", cmd.Name())
-	fmt.Printf("cmd.Parent().Name(): %v\n", cmd.Parent().Name())
+	if cmd.HasParent() {
+		slog.Debug("assert db exists", "command", cmd.Name(), "parent", cmd.Parent().Name())
+	} else {
+		slog.Debug("assert db exists", "command", cmd.Name())
+	}
+
+	if databaseChecked {
+		return nil
+	}
+
 	if files.Exists(config.App.DBPath) {
+		databaseChecked = true
 		return nil
 	}
 

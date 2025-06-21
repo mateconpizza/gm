@@ -19,6 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
@@ -97,19 +98,21 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 		_ = files.RemoveAll(tmpPath)
 	}()
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
-		fmt.Println("cleaning temp files...")
-		_ = files.RemoveAll(tmpPath)
-		sys.ErrAndExit(err)
-	}))
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+			slog.Debug("cleaning up temp dir", "path", tmpPath)
+			_ = files.RemoveAll(tmpPath)
+			sys.ErrAndExit(err)
+		}))),
+	)
 
 	g, err := handler.NewGit(tmpPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	imported, err := port.GitImport(t, f, g, repoPathToClone)
+	imported, err := port.GitImport(c, g, repoPathToClone)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -128,7 +131,7 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	for _, dbPath := range imported {
 		gr := g.NewRepo(dbPath)
 		g.Tracker.SetCurrent(gr)
-		if err := trackExportCommit(t, f, g); err != nil {
+		if err := trackExportCommit(c, g); err != nil {
 			return err
 		}
 	}
@@ -138,8 +141,6 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 
 // gitInitFunc creates a new Git repository.
 func gitInitFunc(_ *cobra.Command, _ []string) error {
-	t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-	f := frame.New(frame.WithColorBorder(color.BrightBlue))
 	g, err := handler.NewGit(config.App.Path.Git)
 	if err != nil {
 		return err
@@ -154,7 +155,12 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	tracked, err := managementSelect(t, f, g)
+	c := ui.NewConsole(
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightBlue))),
+	)
+
+	tracked, err := managementSelect(c, g)
 	if err != nil {
 		return fmt.Errorf("select tracked: %w", err)
 	}
@@ -163,7 +169,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		return git.ErrGitNoTrackedRepos
 	}
 
-	if t.Confirm(f.Reset().Question("Use GPG for encryption?").String(), "y") {
+	if c.Confirm("Use GPG for encryption?", "y") {
 		if err := gpg.Init(g.RepoPath); err != nil {
 			return fmt.Errorf("gpg init: %w", err)
 		}
@@ -182,7 +188,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		}
 		g.Tracker.SetCurrent(gr)
 
-		if err := initTracking(g); err != nil {
+		if err := initTracking(c, g); err != nil {
 			return err
 		}
 	}
@@ -287,6 +293,15 @@ var gitTestCmd = &cobra.Command{
 	Short:              "Test git commands",
 	DisableFlagParsing: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightRed))),
+			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+				fmt.Println("interrupted by user")
+				sys.ErrAndExit(err)
+			}))),
+		)
+		c.Confirm("Hit me!", "n")
+
 		return nil
 	},
 }

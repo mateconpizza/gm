@@ -11,9 +11,9 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 type newRecordType struct {
@@ -68,18 +68,20 @@ var newBookmarkCmd = &cobra.Command{
 		defer r.Close()
 
 		// setup terminal and interrupt func handler (ctrl+c,esc handler)
-		t := terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+				r.Close()
+				sys.ErrAndExit(err)
+			}))),
+		)
 
 		cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 		cy := func(s string) string { return color.BrightYellow(s).String() }
-		f := frame.New(frame.WithColorBorder(color.Gray))
-		f.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
+		c.F.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
 
 		b := bookmark.New()
-		if err := handler.NewBookmark(f, t, r, b, newRecordF.title, newRecordF.tags, args); err != nil {
+		if err := handler.NewBookmark(c, r, b, newRecordF.title, newRecordF.tags, args); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
@@ -87,11 +89,11 @@ var newBookmarkCmd = &cobra.Command{
 			return fmt.Errorf("validation failed: %w", err)
 		}
 
-		if err := handler.SaveNewBookmark(t, f.Reset(), r, b); err != nil {
+		if err := handler.SaveNewBookmark(c, r, b); err != nil {
 			return err
 		}
 
-		fmt.Print(txt.SuccessMesg("bookmark added\n"))
+		fmt.Print(c.SuccessMesg("bookmark added\n"))
 
 		return nil
 	},

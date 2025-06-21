@@ -10,6 +10,7 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
@@ -20,14 +21,18 @@ var bkRemoveCmd = &cobra.Command{
 	Short:   "Remove one or more backups from local storage",
 	Aliases: []string{"backup", "b", "backups"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		f := frame.New(frame.WithColorBorder(color.BrightGray))
 		input := "s\n" // input for prompt, this will show menu to select brackups.
-		t := terminal.New(
-			terminal.WithReader(strings.NewReader(input)),
-			terminal.WithWriter(io.Discard), // send output to null, show no prompt
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
+			ui.WithTerminal(terminal.New(
+				terminal.WithReader(strings.NewReader(input)),
+				terminal.WithWriter(io.Discard), // send output to null, show no prompt
+			)),
 		)
 
-		return handler.RemoveBackups(t, f, config.App.DBPath)
+		c.F.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
+
+		return handler.RemoveBackups(c, config.App.DBPath)
 	},
 }
 
@@ -39,8 +44,12 @@ var dbRemoveCmd = &cobra.Command{
 	Example: `  gm rm db -n dbName
   gm rm db -n dbName --force`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-		return handler.RemoveRepo(t, config.App.DBPath)
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		)
+
+		return handler.RemoveRepo(c, config.App.DBPath)
 	},
 }
 

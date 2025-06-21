@@ -5,7 +5,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/slice"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 )
 
 var ErrBrowserUnsupported = errors.New("browser unsupported")
@@ -18,5 +18,5 @@ type Browser interface {
 	Short() string
 	LoadPaths() error
 	Color(string) string
-	Import(t *terminal.Term, force bool) (*slice.Slice[bookmark.Bookmark], error)
+	Import(c *ui.Console, force bool) (*slice.Slice[bookmark.Bookmark], error)
 }

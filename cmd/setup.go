@@ -15,6 +15,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -65,36 +66,34 @@ func init() {
 }
 
 // createPaths creates the paths for the application.
-func createPaths(t *terminal.Term, path string) error {
+func createPaths(c *ui.Console, path string) error {
 	if files.Exists(path) {
 		return nil
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	c := color.StyleItalic
+	ci := color.StyleItalic
+	c.F.Headerln(prettyVersion()).Rowln().
+		Info(txt.PaddedLine("Create path:", ci(path).Italic().String())).Ln().
+		Info(txt.PaddedLine("Create db:", ci(config.App.DBPath).Italic().String())).Ln()
 
-	f.Headerln(prettyVersion()).Rowln().
-		Info(txt.PaddedLine("Create path:", c(path).Italic().String())).Ln().
-		Info(txt.PaddedLine("Create db:", c(config.App.DBPath).Italic().String())).Ln()
+	lines := txt.CountLines(c.F.String()) + 1
+	c.F.Rowln().Flush()
 
-	lines := txt.CountLines(f.String()) + 1
-	f.Rowln().Flush()
-
-	if err := t.ConfirmErr(f.Question("continue?").String(), "y"); err != nil {
+	if err := c.ConfirmErr("continue?", "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	// clean terminal keeping header+row
 	headerN := 3
-	lines += txt.CountLines(f.String()) - headerN
-	t.ClearLine(lines)
+	lines += txt.CountLines(c.F.String()) - headerN
+	c.ClearLine(lines)
 
 	if err := files.MkdirAll(path); err != nil {
 		sys.ErrAndExit(err)
 	}
 
-	f.Reset().Success(fmt.Sprintf("Created directory path %q\n", path))
-	f.Success("Inserted initial bookmark\n").Row("\n").Flush()
+	c.Success(fmt.Sprintf("Created directory path %q\n", path)).Flush()
+	c.Success("Inserted initial bookmark\n").Row("\n").Flush()
 
 	return nil
 }
@@ -137,8 +136,16 @@ var initCmd = &cobra.Command{
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {
 		// create paths for the application.
-		t := terminal.New()
-		if err := createPaths(t, config.App.Path.Data); err != nil {
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+			ui.WithTerminal(
+				terminal.New(
+					terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(sys.ErrActionAborted) }),
+				),
+			),
+		)
+
+		if err := createPaths(c, config.App.Path.Data); err != nil {
 			return err
 		}
 
@@ -158,7 +165,7 @@ var initCmd = &cobra.Command{
 
 		// ignore initial bookmark if not DefaultDBName
 		if config.App.DBName != config.DefaultDBName {
-			fmt.Println(txt.SuccessMesg("initialized database " + config.App.DBName))
+			fmt.Println(c.SuccessMesg("initialized database " + config.App.DBName))
 
 			return nil
 		}
@@ -176,7 +183,7 @@ var initCmd = &cobra.Command{
 
 		// print new record
 		fmt.Print(bookmark.Frame(ib))
-		fmt.Print("\n" + txt.SuccessMesg("initialized database "+config.App.DBName+"\n"))
+		fmt.Print("\n" + c.SuccessMesg("initialized database "+config.App.DBName+"\n"))
 
 		return nil
 	},

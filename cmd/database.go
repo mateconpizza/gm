@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -28,8 +29,8 @@ var dbCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if JSON {
-			f := frame.New(frame.WithColorBorder(color.Gray))
-			return printer.RepoInfo(f, config.App.DBPath, JSON)
+			c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
+			return printer.RepoInfo(c, config.App.DBPath, JSON)
 		}
 
 		return cmd.Usage()
@@ -61,11 +62,14 @@ var databaseDropCmd = &cobra.Command{
 			return fmt.Errorf("database: %w", err)
 		}
 		defer r.Close()
-		t := terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))
-		_ = t
+
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+				r.Close()
+				sys.ErrAndExit(err)
+			}))),
+		)
 
 		if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
 			g, err := handler.NewGit(config.App.Path.Git)
@@ -80,7 +84,7 @@ var databaseDropCmd = &cobra.Command{
 			}
 		}
 
-		if err := handler.DroppingDB(t, r); err != nil {
+		if err := handler.DroppingDB(c, r); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
@@ -94,7 +98,10 @@ var databaseListCmd = &cobra.Command{
 	Short:   "List databases",
 	Aliases: []string{"ls", "l"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		return printer.DatabasesList(config.App.Path.Data)
+		return printer.DatabasesList(
+			ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray)))),
+			config.App.Path.Data,
+		)
 	},
 }
 
@@ -104,8 +111,11 @@ var databaseInfoCmd = &cobra.Command{
 	Short:   "Show information about a database",
 	Aliases: []string{"i", "show"},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		f := frame.New(frame.WithColorBorder(color.Gray))
-		return printer.RepoInfo(f, config.App.DBPath, JSON)
+		return printer.RepoInfo(
+			ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray)))),
+			config.App.DBPath,
+			JSON,
+		)
 	},
 }
 
@@ -136,25 +146,26 @@ var databaseLockCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(_ *cobra.Command, _ []string) error {
-		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-		f := frame.New(frame.WithColorBorder(color.Gray))
-		return handler.LockRepo(t, f, config.App.DBPath)
+		c := ui.NewConsole(
+			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		)
+		return handler.LockRepo(c, config.App.DBPath)
 	},
 }
 
 var databaseUnlockCmd = &cobra.Command{
 	Use:   "unlock",
 	Short: "Unlock a database",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if !files.Exists(config.App.DBPath) && !files.Exists(config.App.DBPath+".enc") {
 			return db.ErrDBNotFound
 		}
-
-		return nil
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		t := terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))
-		return handler.UnlockRepo(t, config.App.DBPath)
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.Purple))),
+			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		)
+		return handler.UnlockRepo(c, config.App.DBPath)
 	},
 }
 

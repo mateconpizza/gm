@@ -10,10 +10,24 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 )
+
+func init() {
+	initRecordFlags(recordsCmd)
+
+	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.json, "json", "j", false, "output tags+count in JSON format")
+	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
+
+	recordsCmd.AddCommand(recordsTagsCmd)
+	Root.AddCommand(recordsCmd)
+}
 
 type tagsFlagType struct {
 	json bool
@@ -21,6 +35,18 @@ type tagsFlagType struct {
 }
 
 var (
+	// recordsCmd records management.
+	// main command.
+	recordsCmd = &cobra.Command{
+		Use:     "records",
+		Aliases: []string{"r"},
+		Short:   "Records management",
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return handler.AssertDatabaseExists(cmd)
+		},
+		RunE: recordsCmdFunc,
+	}
+
 	// tags flags.
 	tagsFlags = tagsFlagType{}
 
@@ -43,67 +69,55 @@ var (
 )
 
 // recordsCmd is the main command and entrypoint.
-var recordsCmd = &cobra.Command{
-	Use:     "records",
-	Aliases: []string{"r"},
-	Short:   "Records management",
-	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-		return handler.AssertDatabaseExists(cmd)
-	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := db.New(config.App.DBPath)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		defer r.Close()
+func recordsCmdFunc(cmd *cobra.Command, args []string) error {
+	r, err := db.New(config.App.DBPath)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	defer r.Close()
 
-		terminal.ReadPipedInput(&args)
-		bs, err := handler.Data(cmd, menuForRecords[bookmark.Bookmark](cmd), r, args)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-		if bs.Empty() {
-			return db.ErrRecordNotFound
-		}
+	terminal.ReadPipedInput(&args)
+	bs, err := handler.Data(cmd, menuForRecords[bookmark.Bookmark](cmd), r, args)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+	if bs.Empty() {
+		return db.ErrRecordNotFound
+	}
 
-		// actions
-		switch {
-		case Status:
-			return handler.CheckStatus(bs)
-		case Remove:
-			return handler.Remove(r, bs)
-		case Edit:
-			return handler.EditSlice(r, bs)
-		case Copy:
-			return handler.Copy(bs)
-		case Open && !QR:
-			return handler.Open(r, bs)
-		}
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))),
+	)
 
-		// display
-		switch {
-		case Field != "":
-			return printer.ByField(bs, Field)
-		case QR:
-			return handler.QR(bs, Open)
-		case JSON:
-			return printer.JSONRecordSlice(bs)
-		case Oneline:
-			return printer.Oneline(bs)
-		default:
-			return printer.RecordSlice(bs)
-		}
-	},
-}
+	switch {
+	case Status:
+		return handler.CheckStatus(c, bs)
+	case Remove:
+		return handler.Remove(c, r, bs)
+	case Edit:
+		return handler.EditSlice(c, r, bs)
+	case Copy:
+		return handler.Copy(bs)
+	case Open && !QR:
+		return handler.Open(r, bs)
+	}
 
-func init() {
-	initRecordFlags(recordsCmd)
-
-	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.json, "json", "j", false, "output tags+count in JSON format")
-	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
-
-	recordsCmd.AddCommand(recordsTagsCmd)
-	Root.AddCommand(recordsCmd)
+	switch {
+	case Field != "":
+		return printer.ByField(bs, Field)
+	case QR:
+		return handler.QR(bs, Open)
+	case JSON:
+		return printer.JSONRecordSlice(bs)
+	case Oneline:
+		return printer.Oneline(bs)
+	default:
+		return printer.RecordSlice(bs)
+	}
 }
 
 func initRecordFlags(cmd *cobra.Command) {

@@ -15,9 +15,8 @@ import (
 	"github.com/mateconpizza/gm/internal/slice"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/sys/files"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
 var ignoredPrefixes = slice.New(
@@ -90,7 +89,7 @@ func (b *GeckoBrowser) LoadPaths() error {
 	return nil
 }
 
-func (b *GeckoBrowser) Import(t *terminal.Term, force bool) (*slice.Slice[bookmark.Bookmark], error) {
+func (b *GeckoBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.Bookmark], error) {
 	p := b.paths
 	if p.profiles == "" || p.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -104,14 +103,13 @@ func (b *GeckoBrowser) Import(t *terminal.Term, force bool) (*slice.Slice[bookma
 		return nil, err
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
-	f.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
+	c.F.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
+	c.F.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
 
 	bs := slice.New[bookmark.Bookmark]()
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, v)
-		processProfile(t, bs, profile, p, force)
+		processProfile(c, bs, profile, p, force)
 	}
 
 	return bs, nil
@@ -226,18 +224,17 @@ func allProfiles(p string) (map[string]string, error) {
 }
 
 // processProfile processes a single profile and extracts bookmarks.
-func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profile, path string, force bool) {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Row().Ln().Flush()
+func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, path string, force bool) {
+	c.F.Rowln().Flush()
 	if !force {
-		f.Reset().Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
-		if err := t.ConfirmErr(f.String(), "y"); err != nil {
-			f.Reset().Warning("Skipping profile...'" + profile + "'").Ln().Flush()
+		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
+			c.Warning("skipping profile...'" + profile + "'\n").Flush()
 			return
 		}
 	} else {
-		f.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
+		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
 	}
+
 	// FIX: get path by OS
 	path = files.ExpandHomeDir(path)
 	db, err := openSQLite(path)
@@ -254,7 +251,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 		slog.Error("opening database for profile", "profile", profile, "err", err)
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
-			f.Reset().Error("database is " + l + ", maybe firefox is open?").Ln().Flush()
+			c.Error("database is " + l + ", maybe firefox is open?\n").Flush()
 			return
 		}
 		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
@@ -286,7 +283,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[bookmark.Bookmark], profil
 		slog.Error("closing rows", "err", err)
 	}
 	found := color.BrightBlue("found")
-	f.Reset().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-skipped)).Ln().Flush()
+	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, bs.Len()-skipped)).Flush()
 }
 
 // processTags processes the tags for a single bookmark.

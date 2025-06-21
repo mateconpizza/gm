@@ -21,8 +21,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
@@ -132,7 +132,7 @@ func Open(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 }
 
 // CheckStatus prints the status code of the bookmark URL.
-func CheckStatus(bs *slice.Slice[bookmark.Bookmark]) error {
+func CheckStatus(c *ui.Console, bs *slice.Slice[bookmark.Bookmark]) error {
 	n := bs.Len()
 	if n == 0 {
 		return db.ErrRecordQueryNotProvided
@@ -145,8 +145,7 @@ func CheckStatus(bs *slice.Slice[bookmark.Bookmark]) error {
 		return sys.ErrActionAborted
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightBlue))
-	f.Header(fmt.Sprintf("checking %s of %d bookmarks\n", status, n)).Flush()
+	c.F.Header(fmt.Sprintf("checking %s of %d bookmarks\n", status, n)).Flush()
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -155,7 +154,7 @@ func CheckStatus(bs *slice.Slice[bookmark.Bookmark]) error {
 }
 
 // LockRepo locks the database.
-func LockRepo(t *terminal.Term, f *frame.Frame, rToLock string) error {
+func LockRepo(c *ui.Console, rToLock string) error {
 	slog.Debug("locking database", "name", config.App.DBName)
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
@@ -165,8 +164,7 @@ func LockRepo(t *terminal.Term, f *frame.Frame, rToLock string) error {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
 	}
 
-	q := fmt.Sprintf("Lock %q?", filepath.Base(rToLock))
-	if err := t.ConfirmErr(f.Question(q).String(), "y"); err != nil {
+	if err := c.ConfirmErr(fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "y"); err != nil {
 		if errors.Is(err, terminal.ErrActionAborted) {
 			return nil
 		}
@@ -174,7 +172,7 @@ func LockRepo(t *terminal.Term, f *frame.Frame, rToLock string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	pass, err := passwordConfirm(t, f.Reset())
+	pass, err := passwordConfirm(c)
 	if err != nil {
 		return err
 	}
@@ -183,13 +181,13 @@ func LockRepo(t *terminal.Term, f *frame.Frame, rToLock string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg(fmt.Sprintf("database locked: %q\n", filepath.Base(rToLock))))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("database locked: %q\n", filepath.Base(rToLock))))
 
 	return nil
 }
 
 // UnlockRepo unlocks the database.
-func UnlockRepo(t *terminal.Term, rToUnlock string) error {
+func UnlockRepo(c *ui.Console, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
 		return locker.ErrItemUnlocked
 	}
@@ -204,14 +202,11 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, s)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	q := fmt.Sprintf("Unlock %q?", rToUnlock)
-	if err := t.ConfirmErr(f.Question(q).String(), "y"); err != nil {
+	if err := c.ConfirmErr(fmt.Sprintf("Unlock %q?", rToUnlock), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	f.Reset().Question("Password: ").Flush()
-	s, err := t.InputPassword()
+	s, err := c.InputPassword("Password: ")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -221,7 +216,7 @@ func UnlockRepo(t *terminal.Term, rToUnlock string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg("database unlocked\n"))
+	fmt.Print(c.SuccessMesg("database unlocked\n"))
 
 	return nil
 }
@@ -254,8 +249,7 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 
 // EditBookmarks edits a slice of bookmarks.
 func EditBookmarks(
-	t *terminal.Term,
-	f *frame.Frame,
+	c *ui.Console,
 	r *db.SQLiteRepository,
 	te *files.TextEditor,
 	bs []*bookmark.Bookmark,
@@ -281,22 +275,18 @@ func EditBookmarks(
 				return fmt.Errorf("%w", err)
 			}
 
-			f.Reset().Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
+			c.F.Reset().Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
 			diff := te.Diff(current.Buffer(), editedB.Buffer())
 			fmt.Println(txt.DiffColor(diff))
 
-			opt, err := t.Choose(
-				f.Reset().Question("save changes?").String(),
-				[]string{"yes", "no", "edit"},
-				"y",
-			)
+			opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
 			switch strings.ToLower(opt) {
 			case "y", "yes":
-				if err := handleEditedBookmark(r, editedB, b); err != nil {
+				if err := handleEditedBookmark(c, r, editedB, b); err != nil {
 					return err
 				}
 
@@ -314,19 +304,13 @@ func EditBookmarks(
 }
 
 // EditSlice edits the bookmarks using a text editor.
-func EditSlice(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func EditSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	}))
-
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	if err := EditBookmarks(t, f, r, te, bs.ItemsPtr()); err != nil {
+	if err := EditBookmarks(c, r, te, bs.ItemsPtr()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -334,7 +318,7 @@ func EditSlice(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(t *terminal.Term, f *frame.Frame, r *db.SQLiteRepository, b *bookmark.Bookmark) error {
+func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark) error {
 	if config.App.Force {
 		if err := r.InsertOne(context.Background(), b); err != nil {
 			return fmt.Errorf("%w", err)
@@ -343,7 +327,7 @@ func SaveNewBookmark(t *terminal.Term, f *frame.Frame, r *db.SQLiteRepository, b
 		return nil
 	}
 
-	opt, err := t.Choose(f.Question("save bookmark?").String(), []string{"yes", "no", "edit"}, "y")
+	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -357,7 +341,7 @@ func SaveNewBookmark(t *terminal.Term, f *frame.Frame, r *db.SQLiteRepository, b
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := EditBookmarks(t, f, r, te, []*bookmark.Bookmark{b}); err != nil {
+		if err := EditBookmarks(c, r, te, []*bookmark.Bookmark{b}); err != nil {
 			return err
 		}
 	default:

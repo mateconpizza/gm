@@ -14,7 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/slice"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/sys/files"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
@@ -84,7 +84,7 @@ func (b *BlinkBrowser) LoadPaths() error {
 }
 
 // Import extracts profile system names and user names.
-func (b *BlinkBrowser) Import(t *terminal.Term, force bool) (*slice.Slice[bookmark.Bookmark], error) {
+func (b *BlinkBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.Bookmark], error) {
 	p := b.paths
 	if p.bookmarks == "" || p.profiles == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -110,7 +110,7 @@ func (b *BlinkBrowser) Import(t *terminal.Term, force bool) (*slice.Slice[bookma
 	bs := slice.New[Record]()
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, profile)
-		processProfile(t, bs, v, files.ExpandHomeDir(p), force)
+		processProfile(c, bs, v, files.ExpandHomeDir(p), force)
 	}
 
 	return bs, nil
@@ -126,7 +126,7 @@ func New(name string, c color.ColorFn) *BlinkBrowser {
 
 // JSONRoot structure of the JSON bookmarks file.
 type JSONRoot struct {
-	Roots map[string]interface{} `json:"roots"`
+	Roots map[string]any `json:"roots"`
 }
 
 // JSONProfile structure of the JSON profile file.
@@ -156,14 +156,14 @@ type blinkBookmark struct {
 
 // Define a function to traverse the bookmark folder.
 func traverseBmFolder(
-	children []interface{},
+	children []any,
 	uniqueTag string,
 	parentName string,
 	addParentFolderAsTag bool,
 ) [][]string {
 	var results [][]string
 	for _, child := range children {
-		childMap, ok := child.(map[string]interface{})
+		childMap, ok := child.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -191,7 +191,7 @@ func traverseBmFolder(
 		}
 
 		// Recursively traverse the folder
-		childrenVal, ok := childMap["children"].([]interface{})
+		childrenVal, ok := childMap["children"].([]any)
 		if !ok {
 			continue
 		}
@@ -227,24 +227,21 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 }
 
 // processProfile extracts profile system names and user names.
-func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path string, force bool) {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
+func processProfile(c *ui.Console, bs *slice.Slice[Record], profile, path string, force bool) {
 	skip := color.BrightYellow("skipping").String()
 	if !files.Exists(path) {
-		s := skip + " profile...'" + profile + "', bookmarks file not found\n"
-		f.Row("\n").Header(s).Flush()
+		c.F.Rowln().Headerln(skip + " profile...'" + profile + "', bookmarks file not found").Flush()
 		return
 	}
 
-	f.Row("\n").Flush()
+	c.F.Rowln().Flush()
 	if !force {
-		f.Question(fmt.Sprintf("import bookmarks from %q profile?", profile))
-		if err := t.ConfirmErr(f.String(), "y"); err != nil {
-			t.ReplaceLine(1, f.Reset().Row(skip+" profile...'"+profile+"'").String())
+		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
+			c.ReplaceLine(c.F.Row(skip + " profile...'" + profile + "'").String())
 			return
 		}
 	} else {
-		f.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
+		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
 	}
 
 	uniqueTag := getTodayFormatted()
@@ -272,7 +269,7 @@ func processProfile(t *terminal.Term, bs *slice.Slice[Record], profile, path str
 	}
 
 	found := color.BrightBlue("found")
-	f.Reset().Info(fmt.Sprintf("%s %d bookmarks", found, bs.Len()-ogSize)).Ln().Flush()
+	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, bs.Len()-ogSize)).Flush()
 }
 
 // Define the main function to load the Chrome database.

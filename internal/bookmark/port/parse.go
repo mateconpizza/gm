@@ -22,8 +22,8 @@ import (
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
@@ -62,7 +62,7 @@ func (et *ErrTracker) GetError() error {
 
 // Deduplicate removes duplicate bookmarks.
 func Deduplicate(
-	f *frame.Frame,
+	c *ui.Console,
 	r *db.SQLiteRepository,
 	bs *slice.Slice[bookmark.Bookmark],
 ) ([]*bookmark.Bookmark, error) {
@@ -76,14 +76,14 @@ func Deduplicate(
 	if originalLen != bs.Len() {
 		skip := color.BrightYellow("skipping")
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-bs.Len())
-		f.Warning(s + "\n").Flush()
+		c.Warning(s + "\n").Flush()
 	}
 
 	return bs.ItemsPtr(), nil
 }
 
 // deduplicate removes duplicate bookmarks.
-func deduplicatePtr(f *frame.Frame, r *db.SQLiteRepository, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+func deduplicatePtr(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	originalLen := len(bs)
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
 
@@ -99,7 +99,7 @@ func deduplicatePtr(f *frame.Frame, r *db.SQLiteRepository, bs []*bookmark.Bookm
 	if originalLen != n {
 		skip := color.BrightYellow("skipping")
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-n)
-		f.Warning(s + "\n").Flush()
+		c.Warning(s + "\n").Flush()
 	}
 
 	return filtered
@@ -108,25 +108,21 @@ func deduplicatePtr(f *frame.Frame, r *db.SQLiteRepository, bs []*bookmark.Bookm
 // parseFoundInBrowser processes the bookmarks found from the import
 // browser process.
 func parseFoundInBrowser(
-	t *terminal.Term,
+	c *ui.Console,
 	r *db.SQLiteRepository,
 	bs *slice.Slice[bookmark.Bookmark],
 ) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-
-	dRecords, err := Deduplicate(f.Rowln(), r, bs)
+	dRecords, err := Deduplicate(c, r, bs)
 	if err != nil {
 		return err
 	}
 	if len(dRecords) == 0 {
-		f.Midln("no new bookmark found, skipping import").Flush()
+		c.F.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	msg := fmt.Sprintf("scrape missing data from %d bookmarks found?", bs.Len())
-	f.Flush().Reset()
 	if !config.App.Force {
-		if err := t.ConfirmErr(f.Question(msg).String(), "y"); err != nil {
+		if err := c.ConfirmErr(fmt.Sprintf("scrape missing data from %d bookmarks found?", bs.Len()), "y"); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				return nil
 			}
@@ -142,7 +138,7 @@ func parseFoundInBrowser(
 }
 
 // parseJSONRepo extracts records from a JSON repository.
-func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
+func parseJSONRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 	var (
 		count      = 0
 		errTracker = NewErrorTracker()
@@ -151,7 +147,7 @@ func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 		bookmarks  = []*bookmark.Bookmark{}
 	)
 	sp := rotato.New(
-		rotato.WithPrefix(f.Mid("Loading JSON bookmarks").String()),
+		rotato.WithPrefix(c.F.Mid("Loading JSON bookmarks").String()),
 		rotato.WithMesgColor(rotato.ColorBrightBlue),
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic, rotato.ColorStyleBold),
 	)
@@ -197,7 +193,7 @@ func parseJSONRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 	return bookmarks, nil
 }
 
-func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
+func parseGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 	var (
 		count      = 0
 		errTracker = NewErrorTracker()
@@ -206,7 +202,7 @@ func parseGPGRepo(f *frame.Frame, root string) ([]*bookmark.Bookmark, error) {
 		bookmarks  = []*bookmark.Bookmark{}
 	)
 	sp := rotato.New(
-		rotato.WithPrefix(f.Mid("Decrypting bookmarks").String()),
+		rotato.WithPrefix(c.F.Mid("Decrypting bookmarks").StringReset()),
 		rotato.WithMesgColor(rotato.ColorBrightBlue),
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic, rotato.ColorStyleBold),
 	)
@@ -312,8 +308,8 @@ func parseJSONFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.W
 }
 
 // parseGitRepository loads a git repo into a database.
-func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string) (string, error) {
-	f.Reset().Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
+func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
+	c.F.Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
 
 	// read summary.json
@@ -322,11 +318,11 @@ func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string)
 		return "", fmt.Errorf("reading summary: %w", err)
 	}
 
-	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
+	c.F.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
 		Midln(txt.PaddedLine("tags:", sum.RepoStats.Tags)).
 		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
 
-	if err := t.ConfirmErr(f.Rowln().Question("Import records from this repo?").String(), "y"); err != nil {
+	if err := c.ConfirmErr("Import records from this repo?", "y"); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
@@ -338,19 +334,20 @@ func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string)
 	)
 
 	if files.Exists(dbPath) {
-		f.Reset().Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
-		f.Question("What do you want to do?")
-
-		opt, err = t.Choose(f.String(), []string{"merge", "drop", "create", "select", "ignore"}, "m")
+		c.Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
+		opt, err = c.Choose(
+			"What do you want to do?",
+			[]string{"merge", "drop", "create", "select", "ignore"},
+			"m",
+		)
 		if err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
-		f.Reset()
 	} else {
 		opt = "new"
 	}
 
-	resultPath, err := parseGitRepositoryOpt(t, f, opt, dbPath, repoPath)
+	resultPath, err := parseGitRepositoryOpt(c, opt, dbPath, repoPath)
 	if err != nil {
 		return "", err
 	}
@@ -359,41 +356,41 @@ func parseGitRepository(t *terminal.Term, f *frame.Frame, root, repoName string)
 }
 
 // parseGitRepositoryOpt handles the options for parseGitRepository.
-func parseGitRepositoryOpt(t *terminal.Term, f *frame.Frame, o, dbPath, repoPath string) (string, error) {
+func parseGitRepositoryOpt(c *ui.Console, o, dbPath, repoPath string) (string, error) {
 	switch strings.ToLower(o) {
 	case "new":
-		if err := intoDB(f, dbPath, repoPath); err != nil {
+		if err := intoDB(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
 
 	case "c", "create":
 		var dbName string
 		for dbName == "" {
-			dbName = files.EnsureSuffix(t.Prompt(f.Reset().Info("Enter new name: ").String()), ".db")
+			dbName = files.EnsureSuffix(c.Prompt("Enter new name: "), ".db")
 		}
 
 		dbPath = filepath.Join(filepath.Dir(dbPath), dbName)
-		if err := intoDB(f, dbPath, repoPath); err != nil {
+		if err := intoDB(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
 
 	case "d", "drop":
-		f.Warning("Dropping database\n").Flush()
+		c.Warning("Dropping database\n").Flush()
 		if err := db.DropFromPath(dbPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
-		if err := mergeRecords(f.Reset(), dbPath, repoPath); err != nil {
+		if err := mergeRecords(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
 
 	case "m", "merge":
-		f.Info("Merging database\n").Flush()
-		if err := mergeRecords(f.Reset(), dbPath, repoPath); err != nil {
+		c.Info("Merging database\n").Flush()
+		if err := mergeRecords(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
 
 	case "s", "select":
-		if err := selectRecords(f.Reset(), dbPath, repoPath); err != nil {
+		if err := selectRecords(c, dbPath, repoPath); err != nil {
 			if errors.Is(err, menu.ErrFzfActionAborted) {
 				return "", nil
 			}
@@ -403,7 +400,9 @@ func parseGitRepositoryOpt(t *terminal.Term, f *frame.Frame, o, dbPath, repoPath
 
 	case "i", "ignore":
 		repoName := files.StripSuffixes(filepath.Base(dbPath))
-		t.ReplaceLine(1, f.Reset().Warning(fmt.Sprintf("skipping repo %q", repoName)).String())
+		c.ReplaceLine(
+			c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset(),
+		)
 		return "", nil
 	}
 

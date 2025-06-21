@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
@@ -77,7 +78,14 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 	}
 	defer r.Close()
 
-	if err := port.Browser(r); err != nil {
+	c := ui.NewConsole(
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))),
+	)
+
+	if err := port.Browser(c, r); err != nil {
 		return fmt.Errorf("import from browser: %w", err)
 	}
 
@@ -114,7 +122,15 @@ func fromBackupFunc(commands *cobra.Command, args []string) error {
 		return db.ErrBackupNotFound
 	}
 
-	backupPath, err := handler.SelectBackupOne(bks)
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		}))),
+	)
+
+	backupPath, err := handler.SelectBackupOne(c, bks)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -125,14 +141,13 @@ func fromBackupFunc(commands *cobra.Command, args []string) error {
 	}
 	defer srcDB.Close()
 
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
+	c.T.SetInterruptFn(func(err error) {
 		r.Close()
 		srcDB.Close()
 		sys.ErrAndExit(err)
-	}))
+	})
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	if err := port.FromBackup(t, f, r, srcDB); err != nil {
+	if err := port.FromBackup(c, r, srcDB); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -152,7 +167,16 @@ func fromDatabaseFunc(_ *cobra.Command, _ []string) error {
 	}
 	defer srcDB.Close()
 
-	if err := port.Database(srcDB, r); err != nil {
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+			r.Close()
+			srcDB.Close()
+			sys.ErrAndExit(err)
+		}))),
+	)
+
+	if err := port.Database(c, srcDB, r); err != nil {
 		return fmt.Errorf("import from database: %w", err)
 	}
 

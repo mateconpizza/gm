@@ -14,6 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
@@ -201,17 +202,17 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 }
 
 // extractFromGitRepo extracts records from a git repository.
-func extractFromGitRepo(f *frame.Frame, repoPath string) ([]*bookmark.Bookmark, error) {
+func extractFromGitRepo(c *ui.Console, repoPath string) ([]*bookmark.Bookmark, error) {
 	if !files.Exists(repoPath) {
 		return nil, fmt.Errorf("%w: %q", git.ErrGitRepoNotFound, repoPath)
 	}
 
 	rootDir := filepath.Dir(repoPath)
 	if !gpg.IsInitialized(rootDir) {
-		return parseJSONRepo(f, repoPath)
+		return parseJSONRepo(c, repoPath)
 	}
 
-	return parseGPGRepo(f, repoPath)
+	return parseGPGRepo(c, repoPath)
 }
 
 // ToJSON converts an interface to JSON.

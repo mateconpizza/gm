@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
@@ -65,27 +66,32 @@ func TestPasswordInput(t *testing.T) {
 	t.Run("valid password input", func(t *testing.T) {
 		t.Parallel()
 		pwd := "123"
-		f := frame.New()
 		input := strings.NewReader(pwd + "\n" + pwd + "\n")
-		term := terminal.New(
-			terminal.WithWriter(io.Discard),
-			terminal.WithReader(input),
+
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New()),
+			ui.WithTerminal(terminal.New(
+				terminal.WithWriter(io.Discard),
+				terminal.WithReader(input),
+			)),
 		)
 
-		s, err := passwordConfirm(term, f)
+		s, err := passwordConfirm(c)
 		assert.NoError(t, err)
 		assert.Equal(t, pwd, s)
 	})
 	t.Run("password mismatch", func(t *testing.T) {
 		t.Parallel()
-		f := frame.New()
 		input := strings.NewReader("password1\npassword2\n")
-		term := terminal.New(
-			terminal.WithWriter(io.Discard),
-			terminal.WithReader(input),
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New()),
+			ui.WithTerminal(terminal.New(
+				terminal.WithWriter(io.Discard),
+				terminal.WithReader(input),
+			)),
 		)
 
-		s, err := passwordConfirm(term, f)
+		s, err := passwordConfirm(c)
 		assert.Error(t, err)
 		assert.Empty(t, s)
 		assert.ErrorIs(t, err, locker.ErrPassphraseMismatch)

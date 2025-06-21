@@ -10,47 +10,52 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
+var (
+	cmi = func(s string) string { return color.BrightMagenta(s).Italic().String() }
+	cgi = func(s string) string { return color.Gray(s).Italic().String() }
+)
+
 // RepoSummary returns a summary of the repository.
-func RepoSummary(f *frame.Frame, r *SQLiteRepository) string {
+func RepoSummary(c *ui.Console, r *SQLiteRepository) string {
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
 	records := txt.PaddedLine("records:", CountMainRecords(r))
 	tags := txt.PaddedLine("tags:", CountTagsRecords(r))
 	name := r.Cfg.Name
 	if name == config.DefaultDBName {
-		name += color.Gray(" (default) ").Italic().String()
+		name += cgi(" (default) ")
 	}
 
-	return f.Header(color.Yellow(name).Italic().String()).
-		Ln().Row(records).
-		Ln().Row(tags).
-		Ln().Row(path).
-		Ln().String()
+	return c.F.Headerln(color.Yellow(name).Italic().String()).
+		Rowln(records).
+		Rowln(tags).
+		Rowln(path).
+		String()
 }
 
 // RepoSummaryFromPath returns a summary of the repository.
-func RepoSummaryFromPath(f *frame.Frame, p string) string {
+func RepoSummaryFromPath(c *ui.Console, p string) string {
 	if strings.HasSuffix(p, ".enc") {
 		p = strings.TrimSuffix(p, ".enc")
-		s := color.BrightMagenta(filepath.Base(p)).Italic().String()
+		s := cmi(filepath.Base(p))
 		var e string
 		if filepath.Base(p) == config.DefaultDBName {
-			e = color.Gray("(default locked)").Italic().String()
+			e = "(default locked)"
 		} else {
-			e = color.Gray("(locked)").Italic().String()
+			e = "(locked)"
 		}
 
-		return f.Mid(txt.PaddedLine(s, e)).Ln().String()
+		return c.F.Mid(txt.PaddedLine(s, cgi(e))).Ln().StringReset()
 	}
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(p))
 	r, err := New(p)
 	if err != nil {
-		return f.Row(path).String()
+		return c.F.Row(path).StringReset()
 	}
 	defer r.Close()
 
@@ -58,15 +63,15 @@ func RepoSummaryFromPath(f *frame.Frame, p string) string {
 	tags := txt.PaddedLine("tags:", CountTagsRecords(r))
 	name := color.Yellow(r.Cfg.Name).Italic().String()
 	if r.Cfg.Name == config.DefaultDBName {
-		name = txt.PaddedLine(name, color.Gray("(default)").Italic())
+		name = txt.PaddedLine(name, cgi("(default)"))
 	}
-	f.Header(name).Ln().Row(records).Ln().Row(tags).Ln()
+	c.F.Headerln(name).Rowln(records).Rowln(tags)
 	backups, _ := r.ListBackups()
 	if len(backups) > 0 {
-		f.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
+		c.F.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
 	}
 
-	return f.Row(path).Ln().String()
+	return c.F.Rowln(path).String()
 }
 
 // RepoSummaryRecords generates a summary of record counts for a given SQLite
@@ -75,9 +80,7 @@ func RepoSummaryFromPath(f *frame.Frame, p string) string {
 //	repositoryName (main: n)
 func RepoSummaryRecords(r *SQLiteRepository) string {
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
-	records := color.Gray(main).Italic()
-
-	return r.Name() + " " + records.String()
+	return r.Name() + " " + cgi(main)
 }
 
 // RepoSummaryRecordsFromPath generates a summary of record counts for a given SQLite
@@ -87,16 +90,15 @@ func RepoSummaryRecords(r *SQLiteRepository) string {
 func RepoSummaryRecordsFromPath(p string) string {
 	if strings.HasSuffix(p, ".enc") {
 		s := strings.TrimSuffix(filepath.Base(p), ".enc")
-		e := color.Gray("(locked)").Italic().String()
-		return txt.PaddedLine(s, e)
+		return txt.PaddedLine(s, cgi("(locked)"))
 	}
+
 	r, _ := New(p)
 	defer r.Close()
 
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
-	records := color.Gray(main).Italic()
 
-	return txt.PaddedLine(r.Name(), records)
+	return txt.PaddedLine(r.Name(), cgi(main))
 }
 
 // BackupSummaryWithFmtDate generates a summary of record counts for a given
@@ -105,11 +107,9 @@ func RepoSummaryRecordsFromPath(p string) string {
 //	repositoryName (main: n) (time)
 func BackupSummaryWithFmtDate(r *SQLiteRepository) string {
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
-	records := color.Gray(main).Italic()
 	t := strings.Split(r.Name(), "_")[0]
-	bkTime := color.Gray(txt.RelativeTime(t)).Italic()
 
-	return r.Name() + " " + records.String() + " " + bkTime.String()
+	return r.Name() + " " + cgi(main) + " " + cgi(txt.RelativeTime(t))
 }
 
 // BackupSummaryWithFmtDateFromPath generates a summary of record counts for a given
@@ -119,11 +119,11 @@ func BackupSummaryWithFmtDate(r *SQLiteRepository) string {
 func BackupSummaryWithFmtDateFromPath(p string) string {
 	name := filepath.Base(p)
 	t := strings.Split(name, "_")[0]
-	bkTime := color.Gray(txt.RelativeTime(t)).Italic()
+	bkTime := cgi(txt.RelativeTime(t))
 	if strings.HasSuffix(name, ".enc") {
 		name = strings.TrimSuffix(name, ".enc")
-		name += color.Gray(" (locked) ").Italic().String()
-		return name + bkTime.String()
+		name += cgi(" (locked) ")
+		return name + bkTime
 	}
 
 	r, err := New(p)
@@ -133,20 +133,19 @@ func BackupSummaryWithFmtDateFromPath(p string) string {
 	}
 	defer r.Close()
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
-	records := color.Gray(main).Italic()
 
-	return r.Name() + " " + records.String() + " " + bkTime.String()
+	return r.Name() + " " + cgi(main) + " " + bkTime
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(f *frame.Frame, r *SQLiteRepository) string {
+func BackupListDetail(c *ui.Console, r *SQLiteRepository) string {
 	fs, err := r.ListBackups()
 	if len(fs) == 0 {
 		return ""
 	}
-	f.Header(color.BrightCyan("summary:\n").Italic().String())
+	c.F.Header(color.BrightCyan("summary:\n").Italic().String())
 	if err != nil {
-		return f.Row(txt.PaddedLine("found:", "n/a\n")).String()
+		return c.F.Row(txt.PaddedLine("found:", "n/a\n")).String()
 	}
 	backups := slice.New[string]()
 	backups.Append(fs...)
@@ -154,20 +153,20 @@ func BackupListDetail(f *frame.Frame, r *SQLiteRepository) string {
 	n := backups.Len()
 	backups.ForEach(func(p string) {
 		if n == 1 {
-			f.Footer(BackupSummaryWithFmtDateFromPath(p)).Ln()
+			c.F.Footer(BackupSummaryWithFmtDateFromPath(p)).Ln()
 			return
 		}
-		f.Row(BackupSummaryWithFmtDateFromPath(p)).Ln()
+		c.F.Row(BackupSummaryWithFmtDateFromPath(p)).Ln()
 		n--
 	})
 
-	return f.String()
+	return c.F.String()
 }
 
 // BackupsSummary returns a summary of the backups.
 //
 // last, path and number of backups.
-func BackupsSummary(f *frame.Frame, r *SQLiteRepository) string {
+func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 	var (
 		empty          = "n/a"
 		backupsColor   = color.BrightMagenta("backups:").Italic()
@@ -200,7 +199,7 @@ func BackupsSummary(f *frame.Frame, r *SQLiteRepository) string {
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
 
-	return f.Headerln(backupsColor.String()).
+	return c.F.Headerln(backupsColor.String()).
 		Rowln(path).
 		Rowln(last).
 		Rowln(lastDate).
@@ -209,10 +208,10 @@ func BackupsSummary(f *frame.Frame, r *SQLiteRepository) string {
 }
 
 // Info returns the repository info.
-func Info(f *frame.Frame, r *SQLiteRepository) string {
-	s := RepoSummary(f.Reset(), r)
-	s += BackupsSummary(f.Reset(), r)
-	s += BackupListDetail(f.Reset(), r)
+func Info(c *ui.Console, r *SQLiteRepository) string {
+	s := RepoSummary(c, r)
+	s += BackupsSummary(c, r)
+	s += BackupListDetail(c, r)
 
 	return s
 }

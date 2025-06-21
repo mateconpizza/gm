@@ -20,6 +20,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -27,7 +28,7 @@ import (
 )
 
 // GitImport imports bookmarks from a git repository.
-func GitImport(t *terminal.Term, f *frame.Frame, g *git.Manager, urlRepo string) ([]string, error) {
+func GitImport(c *ui.Console, g *git.Manager, urlRepo string) ([]string, error) {
 	if err := g.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -44,14 +45,15 @@ func GitImport(t *terminal.Term, f *frame.Frame, g *git.Manager, urlRepo string)
 
 	var imported []string
 
-	f.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
+	c.F.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepository(t, f.Reset(), g.RepoPath, repoName)
+		dbPath, err := parseGitRepository(c, g.RepoPath, repoName)
 		if err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
-				t.ClearLine(1)
-				f.Reset().Warning(fmt.Sprintf("skipping repo %q\n", repoName)).Flush()
+				c.ReplaceLine(
+					c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset(),
+				)
 				n--
 				continue
 			}
@@ -72,18 +74,14 @@ func GitImport(t *terminal.Term, f *frame.Frame, g *git.Manager, urlRepo string)
 		return nil, fmt.Errorf("removing temp repo: %w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg("imported bookmarks from git\n"))
+	fmt.Print(c.SuccessMesg("imported bookmarks from git\n"))
 
 	return imported, nil
 }
 
 // Browser imports bookmarks from a supported browser.
-func Browser(r *db.SQLiteRepository) error {
-	t := terminal.New(terminal.WithInterruptFn(func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	}))
-	br, ok := getBrowser(selectBrowser(t))
+func Browser(c *ui.Console, r *db.SQLiteRepository) error {
+	br, ok := getBrowser(selectBrowser(c))
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
 	}
@@ -91,23 +89,23 @@ func Browser(r *db.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 	// find bookmarks
-	bs, err := br.Import(t, config.App.Force)
+	bs, err := br.Import(c, config.App.Force)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
 	// clean and process found bookmarks
-	if err := parseFoundInBrowser(t, r, bs); err != nil {
+	if err := parseFoundInBrowser(c, r, bs); err != nil {
 		return err
 	}
 	if bs.Len() == 0 {
 		return nil
 	}
 
-	return IntoRepo(t, r, bs)
+	return IntoRepo(c, r, bs)
 }
 
 // Database imports bookmarks from a database.
-func Database(srcDB, destDB *db.SQLiteRepository) error {
+func Database(c *ui.Console, srcDB, destDB *db.SQLiteRepository) error {
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -127,9 +125,7 @@ func Database(srcDB, destDB *db.SQLiteRepository) error {
 	}
 
 	m.SetItems(items)
-	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return bookmark.Oneline(b)
-	})
+	m.SetPreprocessor(bookmark.Oneline)
 
 	records, err := m.Select()
 	if err != nil {
@@ -139,7 +135,7 @@ func Database(srcDB, destDB *db.SQLiteRepository) error {
 	bs := slice.New(records...)
 
 	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	dRecords, err := Deduplicate(f, destDB, bs)
+	dRecords, err := Deduplicate(c, destDB, bs)
 	if err != nil {
 		return err
 	}
@@ -153,58 +149,52 @@ func Database(srcDB, destDB *db.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.SuccessMesg(fmt.Sprintf("imported %d record/s from %s\n", bs.Len(), srcDB.Name())))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s from %s\n", bs.Len(), srcDB.Name())))
 
 	return nil
 }
 
 // IntoRepo import records into the database.
 func IntoRepo(
-	t *terminal.Term,
+	c *ui.Console,
 	r *db.SQLiteRepository,
 	records *slice.Slice[bookmark.Bookmark],
 ) error {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	if !config.App.Force {
-		report := fmt.Sprintf("import %d records?", records.Len())
-		if err := t.ConfirmErr(f.Row("\n").Question(report).String(), "y"); err != nil {
+		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", records.Len()), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
+
 	sp := rotato.New(
 		rotato.WithMesg("importing record/s..."),
 		rotato.WithMesgColor(rotato.ColorYellow),
 	)
 	sp.Start()
+
 	if err := r.InsertMany(context.Background(), records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	sp.Done()
 
-	fmt.Print(txt.SuccessMesg(fmt.Sprintf("imported %d record/s\n", records.Len())))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", records.Len())))
 
 	return nil
 }
 
 // FromBackup imports bookmarks from a backup.
-func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteRepository) error {
-	f.Headerln(color.BrightYellow("Import bookmarks from backup").String())
-	f.Midln(color.Gray(txt.PaddedLine("source:", srcDB.Name())).Italic().String()).Rowln()
-	interruptFn := func(err error) {
-		destDB.Close()
-		srcDB.Close()
-		sys.ErrAndExit(err)
-	}
-
+func FromBackup(c *ui.Console, destDB, srcDB *db.SQLiteRepository) error {
+	c.F.Headerln(color.BrightYellow("Import bookmarks from backup").String())
+	c.F.Midln(color.Gray(txt.PaddedLine("source:", srcDB.Name())).Italic().String()).Rowln()
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", config.App.Cmd, srcDB.Name())),
-		menu.WithInterruptFn(interruptFn),
+		menu.WithInterruptFn(c.T.InterruptFn),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'", false),
 	)
-	defer t.CancelInterruptHandler()
+	defer c.T.CancelInterruptHandler()
 
 	bookmarks, err := srcDB.All()
 	if err != nil {
@@ -212,9 +202,7 @@ func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteReposi
 	}
 
 	m.SetItems(bookmarks)
-	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return bookmark.Oneline(b)
-	})
+	m.SetPreprocessor(bookmark.Oneline)
 
 	items, err := m.Select()
 	if err != nil {
@@ -222,13 +210,13 @@ func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteReposi
 	}
 	bs := slice.New(items...)
 
-	dRecords, err := Deduplicate(f, destDB, bs)
+	dRecords, err := Deduplicate(c, destDB, bs)
 	if err != nil {
 		return err
 	}
 
 	if len(dRecords) == 0 {
-		f.Reset().Mid("no new bookmark found, skipping import\n").Flush()
+		c.F.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
@@ -236,19 +224,19 @@ func FromBackup(t *terminal.Term, f *frame.Frame, destDB, srcDB *db.SQLiteReposi
 }
 
 // mergeRecords merges non-duplicates records into database.
-func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
+func mergeRecords(c *ui.Console, dbPath, repoPath string) error {
 	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
 	defer r.Close()
 
-	bookmarks, err := extractFromGitRepo(f.Reset(), repoPath)
+	bookmarks, err := extractFromGitRepo(c, repoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
 
-	bookmarks = deduplicatePtr(f.Reset(), r, bookmarks)
+	bookmarks = deduplicatePtr(c, r, bookmarks)
 
 	records := slice.New[bookmark.Bookmark]()
 	for _, b := range bookmarks {
@@ -261,17 +249,15 @@ func mergeRecords(f *frame.Frame, dbPath, repoPath string) error {
 
 	n := len(bookmarks)
 	if n > 0 {
-		f.Reset().
-			Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).
-			Flush()
+		c.F.Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
 	}
 
 	return nil
 }
 
 // intoDB import into database.
-func intoDB(f *frame.Frame, dbPath, repoPath string) error {
-	bookmarks, err := extractFromGitRepo(f.Reset(), repoPath)
+func intoDB(c *ui.Console, dbPath, repoPath string) error {
+	bookmarks, err := extractFromGitRepo(c, repoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
@@ -294,15 +280,13 @@ func intoDB(f *frame.Frame, dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	f.Reset().
-		Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), filepath.Base(dbPath))).
-		Flush()
+	c.F.Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), filepath.Base(dbPath))).Flush()
 
 	return nil
 }
 
-func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
-	bookmarks, err := extractFromGitRepo(f.Reset(), repoPath)
+func selectRecords(c *ui.Console, dbPath, repoPath string) error {
+	bookmarks, err := extractFromGitRepo(c, repoPath)
 	if err != nil {
 		return err
 	}
@@ -324,9 +308,7 @@ func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
 	})
 
 	m.SetItems(records)
-	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return bookmark.Oneline(b)
-	})
+	m.SetPreprocessor(bookmark.Oneline)
 
 	selected, err := m.Select()
 	if err != nil {
@@ -339,16 +321,14 @@ func selectRecords(f *frame.Frame, dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	debookmarks, err := Deduplicate(f.Reset(), r, bs)
+	debookmarks, err := Deduplicate(c, r, bs)
 	if err != nil {
 		return err
 	}
 
 	n := len(debookmarks)
 	if n > 0 {
-		f.Reset().
-			Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).
-			Flush()
+		c.F.Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
 	}
 
 	return nil

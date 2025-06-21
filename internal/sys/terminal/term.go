@@ -86,17 +86,9 @@ func (t *Term) SetReader(r io.Reader) {
 	t.reader = r
 }
 
-// SetInterruptFn sets the interrupt function for the terminal.
-func (t *Term) SetInterruptFn(fn func(error)) {
-	slog.Info("setting interrupt function")
-	if t.InterruptFn != nil {
-		t.CancelInterruptHandler()
-	}
-	t.InterruptFn = fn
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.cancelFn = cancel
-	setupInterruptHandler(ctx, t.InterruptFn)
+// SetWriter sets the writer for the terminal.
+func (t *Term) SetWriter(w io.Writer) {
+	t.writer = w
 }
 
 // Input get the Input data from the user and return it.
@@ -275,6 +267,21 @@ func (t *Term) Clear() {
 		return
 	}
 	clearTerminal()
+}
+
+// SetInterruptFn sets the interrupt function for the terminal, canceling the
+// interrupt handler if it is already set.
+//
+// If fn is nil, the interrupt handler is disabled.
+func (t *Term) SetInterruptFn(fn func(error)) {
+	slog.Info("setting interrupt function")
+	if t.InterruptFn != nil {
+		t.CancelInterruptHandler()
+	}
+	t.InterruptFn = fn
+	ctx, cancel := context.WithCancel(context.Background())
+	t.cancelFn = cancel
+	setupInterruptHandler(ctx, t.InterruptFn)
 }
 
 // CancelInterruptHandler cancels the interrupt handler.

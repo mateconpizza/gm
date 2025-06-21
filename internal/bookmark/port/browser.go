@@ -4,9 +4,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/browser/blink"
 	"github.com/mateconpizza/gm/internal/sys/browser/gecko"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
@@ -49,17 +48,16 @@ func getBrowser(key string) (browser.Browser, bool) {
 }
 
 // selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(t *terminal.Term) string {
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	f.Header("Supported Browsers\n").Rowln()
+func selectBrowser(c *ui.Console) string {
+	c.F.Header("Supported Browsers\n").Rowln()
 
-	for _, c := range registeredBrowser {
-		b := c.browser
-		f.Midln(b.Color(b.Short()) + " " + b.Name())
+	for _, browser := range registeredBrowser {
+		b := browser.browser
+		c.F.Midln(b.Color(b.Short()) + " " + b.Name())
 	}
-	f.Rowln().Footer("which browser do you use?")
-	defer t.ClearLine(txt.CountLines(f.String()))
-	f.Flush()
 
-	return t.Prompt(" ")
+	defer c.ClearLine(txt.CountLines(c.F.String()) + 1)
+	c.F.Rowln().Flush()
+
+	return c.Prompt("which browser do you use? ")
 }

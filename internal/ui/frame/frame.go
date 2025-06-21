@@ -193,11 +193,16 @@ func (f *Frame) String() string {
 	return strings.Join(f.text, "")
 }
 
+func (f *Frame) StringReset() string {
+	s := f.String()
+	f.Reset()
+	return s
+}
+
 // Write implements the io.Writer interface.
 func (f *Frame) Write(p []byte) (int, error) {
 	defer f.Flush()
 	content := string(p)
-
 	// Handle carriage returns by splitting on \r and taking the last part
 	if strings.Contains(content, "\r") {
 		lines := strings.Split(content, "\r")
@@ -205,10 +210,19 @@ func (f *Frame) Write(p []byte) (int, error) {
 		content = lines[len(lines)-1]
 	}
 
-	// Split by newlines and process each non-empty line
+	// Collect all non-empty lines first
+	var lines []string
 	for line := range strings.SplitSeq(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+
+	for i, line := range lines {
+		if i == len(lines)-1 {
+			f.Footerln(line)
+		} else {
 			f.Rowln(line)
 		}
 	}

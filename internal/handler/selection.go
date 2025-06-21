@@ -3,8 +3,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
@@ -13,8 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
@@ -77,7 +74,7 @@ func selectItem(fs []string, header string) (string, error) {
 
 // SelectBackupOne lets the user choose a backup and handles decryption if
 // needed.
-func SelectBackupOne(bks []string) (string, error) {
+func SelectBackupOne(c *ui.Console, bks []string) (string, error) {
 	selected, err := selection(bks,
 		func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
 		menu.WithArgs("--cycle"),
@@ -92,7 +89,7 @@ func SelectBackupOne(bks []string) (string, error) {
 
 	// Handle locked backups
 	if err := locker.IsLocked(backupPath); err != nil {
-		if err := UnlockRepo(terminal.New(), backupPath); err != nil {
+		if err := UnlockRepo(c, backupPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
 		backupPath = strings.TrimSuffix(backupPath, ".enc")
@@ -147,10 +144,12 @@ func SelectDatabase(currentDBPath string) (*db.SQLiteRepository, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	dbs := slice.New(dbFiles...)
 	dbs = dbs.Filter(func(r string) bool {
 		return r != currentDBPath
 	})
+
 	// ask the user which one to import from
 	s, err := selectItem(*dbs.Items(), "choose a database to import from")
 	if err != nil {
@@ -159,6 +158,7 @@ func SelectDatabase(currentDBPath string) (*db.SQLiteRepository, error) {
 	if !files.Exists(s) {
 		return nil, fmt.Errorf("%w: %q", db.ErrDBNotFound, s)
 	}
+
 	// open source and destination
 	srcDB, err := db.New(s)
 	if err != nil {
@@ -166,38 +166,4 @@ func SelectDatabase(currentDBPath string) (*db.SQLiteRepository, error) {
 	}
 
 	return srcDB, nil
-}
-
-func SelectecTrackedDBNew(t *terminal.Term, f *frame.Frame, currentRepos []string) ([]string, error) {
-	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
-	if err != nil {
-		return nil, fmt.Errorf("finding db files: %w", err)
-	}
-
-	f.Midln("Select which databases to track").Rowln().Flush()
-
-	tracked := make([]string, 0, len(dbFiles))
-
-	for _, dbPath := range dbFiles {
-		f.Reset()
-		repoName := files.StripSuffixes(filepath.Base(dbPath))
-
-		// remove if exists
-		if slices.Contains(currentRepos, repoName) {
-			f.Reset().Info(fmt.Sprintf("%q is already tracked\n", repoName)).Flush()
-			continue
-		}
-
-		if !t.Confirm(f.Reset().Question(fmt.Sprintf("Track %q?", repoName)).String(), "n") {
-			t.ClearLine(1)
-			f.Reset().Warning(fmt.Sprintf("Skipping %q\n", repoName)).Flush()
-			continue
-		}
-
-		tracked = append(tracked, dbPath)
-
-		t.ReplaceLine(1, f.Reset().Success(fmt.Sprintf("Tracking %q", repoName)).String())
-	}
-
-	return tracked, nil
 }

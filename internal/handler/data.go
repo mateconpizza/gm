@@ -18,8 +18,8 @@ import (
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var (
@@ -114,13 +114,13 @@ func Data(
 	return bs, nil
 }
 
-func handleEditedBookmark(r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error {
+func handleEditedBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error {
 	newBookmark := newB.ID == 0
 	if newBookmark {
 		return addBookmark(r, newB)
 	}
 
-	return updateBookmark(r, newB, oldB)
+	return updateBookmark(c, r, newB, oldB)
 }
 
 // addBookmark adds a new bookmark.
@@ -148,12 +148,12 @@ func addBookmark(r *db.SQLiteRepository, b *bookmark.Bookmark) error {
 }
 
 // updateBookmark updates the repository with the modified bookmark.
-func updateBookmark(r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error {
+func updateBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error {
 	if _, err := r.Update(context.Background(), newB, oldB); err != nil {
 		return fmt.Errorf("updating record: %w", err)
 	}
 
-	fmt.Println(txt.SuccessMesg(fmt.Sprintf("bookmark [%d] updated", newB.ID)))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", newB.ID)))
 
 	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
@@ -175,7 +175,7 @@ func updateBookmark(r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -213,7 +213,7 @@ func removeRecords(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) e
 		}
 	}
 
-	fmt.Print(txt.SuccessMesg("bookmark/s removed\n"))
+	fmt.Print(c.SuccessMesg("bookmark/s removed\n"))
 
 	return nil
 }
