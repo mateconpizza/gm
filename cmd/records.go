@@ -40,7 +40,7 @@ var (
 		Use:               "records",
 		Aliases:           []string{"r"},
 		Short:             "Records management",
-		PersistentPreRunE: handler.AssertDatabaseExists,
+		PersistentPreRunE: EnsureDatabaseExistence,
 		RunE:              recordsCmdFunc,
 	}
 

@@ -51,7 +51,7 @@ var (
 				return nil
 			}
 
-			return handler.AssertDatabaseExists(cmd, args)
+			return EnsureDatabaseExistence(cmd, args)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.App

@@ -3,12 +3,9 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
@@ -16,14 +13,11 @@ import (
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
-
-var databaseChecked bool = false
 
 // confirmRemove prompts the user to confirm the action.
 func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Slice[bookmark.Bookmark]) error {
@@ -159,35 +153,6 @@ func CheckDBLocked(p string) error {
 	}
 
 	return nil
-}
-
-// AssertDatabaseExists checks if the database exists.
-func AssertDatabaseExists(cmd *cobra.Command, args []string) error {
-	if cmd.HasParent() {
-		slog.Debug("assert db exists", "command", cmd.Name(), "parent", cmd.Parent().Name())
-	} else {
-		slog.Debug("assert db exists", "command", cmd.Name())
-	}
-
-	if databaseChecked {
-		return nil
-	}
-
-	if files.Exists(config.App.DBPath) {
-		databaseChecked = true
-		return nil
-	}
-
-	if err := CheckDBLocked(config.App.DBPath); err != nil {
-		return err
-	}
-
-	i := color.BrightYellow(config.App.Cmd, "init").Italic()
-	if config.App.DBName == config.DefaultDBName {
-		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
-	}
-
-	return fmt.Errorf("%w %q: use '%s' to initialize", db.ErrDBNotFound, config.App.DBName, i)
 }
 
 // validURL checks if a string is a valid URL.

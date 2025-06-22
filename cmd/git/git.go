@@ -26,7 +26,7 @@ import (
 
 func init() {
 	gitInitCmd.Flags().BoolVar(&gitFlags.redo, "redo", false, "reinitialize")
-	gitCmd.AddCommand(gitCommitCmd, gitInitCmd, GitImportCmd, gitTrackerCmd, gitTestCmd, gitPushCmd)
+	gitCmd.AddCommand(gitCommitCmd, gitInitCmd, GitImportCmd, gitTrackerCmd, gitPushCmd)
 	cmd.Root.AddCommand(gitCmd)
 }
 
@@ -206,7 +206,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 
 // ensureGitEnvironment checks if the environment is ready for git commands.
 func ensureGitEnvironment(command *cobra.Command, args []string) error {
-	if err := handler.AssertDatabaseExists(command, args); err != nil {
+	if err := cmd.EnsureDatabaseExistence(command, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -297,14 +297,4 @@ func gitPushFunc(_ *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-var gitTestCmd = &cobra.Command{
-	Use:   "test",
-	Short: "Test git commands",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("config.App.Flags.Force: %v\n", config.App.Flags.Force)
-		fmt.Printf("config.App.Flags.Color: %v\n", config.App.Flags.ColorStr)
-		return nil
-	},
 }
