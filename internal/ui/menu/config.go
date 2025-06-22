@@ -58,6 +58,7 @@ func (c *Config) Validate() error {
 		if !k.Enabled {
 			continue
 		}
+
 		if k.Bind == "" {
 			return fmt.Errorf("%w: empty keybind", ErrInvalidConfigKeymap)
 		}
@@ -66,12 +67,14 @@ func (c *Config) Validate() error {
 	// set default prompt
 	if c.Prompt == "" {
 		slog.Warn("empty prompt, loading default prompt")
+
 		c.Prompt = DefaultPrompt
 	}
 
 	// set default header separator
 	if c.Header.Sep == "" {
 		slog.Warn("empty header separator, loading default header separator")
+
 		c.Header.Sep = DefaultHeaderSep
 	}
 
@@ -114,7 +117,7 @@ func SetConfig(cfg *Config) {
 	menuConfig = cfg
 }
 
-// EnableColor enables color support.
-func EnableColor(b bool) {
+// ColorEnable enables color support.
+func ColorEnable(b bool) {
 	colorEnabled = b
 }

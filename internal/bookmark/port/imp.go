@@ -22,7 +22,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
@@ -54,7 +53,9 @@ func GitImport(c *ui.Console, g *git.Manager, urlRepo string) ([]string, error) 
 				c.ReplaceLine(
 					c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset(),
 				)
+
 				n--
+
 				continue
 			}
 
@@ -85,11 +86,12 @@ func Browser(c *ui.Console, r *db.SQLiteRepository) error {
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
 	}
+
 	if err := br.LoadPaths(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	// find bookmarks
-	bs, err := br.Import(c, config.App.Force)
+	bs, err := br.Import(c, config.App.Flags.Force)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
@@ -97,6 +99,7 @@ func Browser(c *ui.Console, r *db.SQLiteRepository) error {
 	if err := parseFoundInBrowser(c, r, bs); err != nil {
 		return err
 	}
+
 	if bs.Len() == 0 {
 		return nil
 	}
@@ -134,14 +137,13 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLiteRepository) error {
 
 	bs := slice.New(records...)
 
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
 	dRecords, err := Deduplicate(c, destDB, bs)
 	if err != nil {
 		return err
 	}
 
 	if len(dRecords) == 0 {
-		f.Midln("no new bookmark found, skipping import").Flush()
+		c.F.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
@@ -160,7 +162,7 @@ func IntoRepo(
 	r *db.SQLiteRepository,
 	records *slice.Slice[bookmark.Bookmark],
 ) error {
-	if !config.App.Force {
+	if !config.App.Flags.Force {
 		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", records.Len()), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -175,6 +177,7 @@ func IntoRepo(
 	if err := r.InsertMany(context.Background(), records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	sp.Done()
 
 	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", records.Len())))
@@ -194,6 +197,7 @@ func FromBackup(c *ui.Console, destDB, srcDB *db.SQLiteRepository) error {
 		menu.WithInterruptFn(c.T.InterruptFn),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'", false),
 	)
+
 	defer c.T.CancelInterruptHandler()
 
 	bookmarks, err := srcDB.All()
@@ -208,6 +212,7 @@ func FromBackup(c *ui.Console, destDB, srcDB *db.SQLiteRepository) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	bs := slice.New(items...)
 
 	dRecords, err := Deduplicate(c, destDB, bs)
@@ -316,6 +321,7 @@ func selectRecords(c *ui.Console, dbPath, repoPath string) error {
 	}
 
 	bs := slice.New(selected...)
+
 	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -347,6 +353,7 @@ func loadConcurrently(
 	// FIX: replace slice with []*Bookmark
 	_ = mu
 	sem <- struct{}{} // acquire semaphore
+
 	wg.Add(1)
 
 	go func(filePath string) {

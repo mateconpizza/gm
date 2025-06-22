@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/rotato"
-	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
@@ -30,6 +29,7 @@ var (
 // records gets records based on user input and filtering criteria.
 func records(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("records", "args", args)
+
 	if err := byIDs(r, bs, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -44,6 +44,7 @@ func records(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		bs.Set(&bb)
 	}
 
@@ -51,55 +52,35 @@ func records(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []
 }
 
 // Data processes records based on user input and filtering criteria.
-func Data(
-	cmd *cobra.Command,
-	m *menu.Menu[bookmark.Bookmark],
+func Data(m *menu.Menu[bookmark.Bookmark],
 	r *db.SQLiteRepository,
 	args []string,
 ) (*slice.Slice[bookmark.Bookmark], error) {
+	f := config.App.Flags
 	bs := slice.New[bookmark.Bookmark]()
+
 	if err := records(r, bs, args); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
 	// filter by Tag
-	tags, err := cmd.Flags().GetStringSlice("tag")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	if len(tags) > 0 {
-		if err := byTags(r, tags, bs); err != nil {
+	if len(f.Tags) > 0 {
+		if err := byTags(r, f.Tags, bs); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
 	}
 
 	// filter by head and tail
-	head, err := cmd.Flags().GetInt("head")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	tail, err := cmd.Flags().GetInt("tail")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	if head > 0 || tail > 0 {
-		if err := headAndTail(bs, head, tail); err != nil {
+	if f.Head > 0 || f.Tail > 0 {
+		if err := headAndTail(bs, f.Head, f.Tail); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
 	}
 
 	// select with fzf-menu
-	mFlag, err := cmd.Flags().GetBool("menu")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	mlFlag, err := cmd.Flags().GetBool("multiline")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	if mFlag || mlFlag {
+	if f.Menu || f.Multiline {
 		items, err := selectionWithMenu(m, *bs.Items(), func(b *bookmark.Bookmark) string {
-			if mlFlag {
+			if f.Multiline {
 				return bookmark.Multiline(b)
 			}
 
@@ -108,6 +89,7 @@ func Data(
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
+
 		bs.Set(&items)
 	}
 
@@ -129,12 +111,14 @@ func addBookmark(r *db.SQLiteRepository, b *bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
+	if gitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
 		}
+
 		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
+
 		if err := port.GitStore(b); err != nil {
 			return fmt.Errorf("git store: %w", err)
 		}
@@ -155,17 +139,18 @@ func updateBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *bookmark.
 
 	fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", newB.ID)))
 
-	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
+	if gitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
 		}
-		gr := g.NewRepo(r.Cfg.Fullpath())
-		g.Tracker.SetCurrent(gr)
+
+		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
 
 		if err := port.GitUpdate(g, newB, oldB); err != nil {
 			return fmt.Errorf("git update: %w", err)
 		}
+
 		if err := GitCommit(g, "Modify"); err != nil {
 			return err
 		}
@@ -201,13 +186,14 @@ func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookma
 
 	sp.Done()
 
-	if GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
+	if gitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
 		}
 
 		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
+
 		if err := gitCleanFiles(g, bs); err != nil {
 			return err
 		}
@@ -221,13 +207,16 @@ func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookma
 // FindDB returns the path to the database.
 func FindDB(p string) (string, error) {
 	slog.Debug("searching db", "path", p)
+
 	if files.Exists(p) {
 		return p, nil
 	}
+
 	fs, err := db.List(filepath.Dir(p))
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
+
 	s := filepath.Base(p)
 	for _, f := range fs {
 		if strings.Contains(f, s) {
@@ -258,6 +247,7 @@ func byTags(r *db.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Book
 		if err != nil {
 			return fmt.Errorf("byTags :%w", err)
 		}
+
 		bs.Append(bb...)
 	}
 
@@ -288,10 +278,12 @@ func byQuery(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []
 	}
 
 	q := strings.Join(args, "%")
+
 	bb, err := r.ByQuery(q)
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, strings.Join(args, " "))
 	}
+
 	bs.Set(&bb)
 
 	return nil
@@ -301,6 +293,7 @@ func byQuery(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []
 // an ID or a query string.
 func byIDs(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("getting by IDs")
+
 	ids, err := extractIDsFrom(args)
 	if len(ids) == 0 {
 		return nil
@@ -314,6 +307,7 @@ func byIDs(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []st
 	if err != nil {
 		return fmt.Errorf("records from args: %w", err)
 	}
+
 	bs.Set(&bb)
 
 	if bs.Empty() {
@@ -329,13 +323,17 @@ func headAndTail(bs *slice.Slice[bookmark.Bookmark], h, t int) error {
 	if h == 0 && t == 0 {
 		return nil
 	}
+
 	if h < 0 || t < 0 {
 		return fmt.Errorf("%w: head=%d tail=%d", ErrInvalidOption, h, t)
 	}
 
 	// determine flag order
-	rawArgs := os.Args[1:]
-	order := []string{}
+	var (
+		rawArgs = os.Args[1:]
+		order   = []string{}
+	)
+
 	for _, arg := range rawArgs {
 		if strings.HasPrefix(arg, "-H") || strings.HasPrefix(arg, "--head") {
 			order = append(order, "head")

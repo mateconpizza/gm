@@ -4,6 +4,7 @@ import "testing"
 
 func TestIsNonGenericURL(t *testing.T) {
 	t.Parallel()
+
 	testCases := []struct {
 		url      string
 		expected bool

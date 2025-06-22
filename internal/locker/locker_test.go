@@ -24,9 +24,11 @@ func testTempFile(t *testing.T) *os.File {
 
 func TestValidateInput(t *testing.T) {
 	t.Parallel()
+
 	createTestFile := func(t *testing.T, content string) string {
 		t.Helper()
 		tf := testTempFile(t)
+
 		err := os.WriteFile(tf.Name(), []byte(content), files.FilePerm)
 		if err != nil {
 			t.Fatal(err)
@@ -34,23 +36,29 @@ func TestValidateInput(t *testing.T) {
 
 		return tf.Name()
 	}
+
 	t.Run("empty|invalid passphrase", func(t *testing.T) {
 		t.Parallel()
+
 		tf := createTestFile(t, "")
 		pass := ""
 		err := validateInput(tf, pass)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, ErrPassphraseEmpty)
 	})
+
 	t.Run("valid passphrase", func(t *testing.T) {
 		t.Parallel()
+
 		tf := createTestFile(t, "")
 		pass := "123"
 		err := validateInput(tf, pass)
 		assert.NoError(t, err)
 	})
+
 	t.Run("invalid filepath", func(t *testing.T) {
 		t.Parallel()
+
 		pass := "123456"
 		err := validateInput("/tmp/invalid/path", pass)
 		assert.Error(t, err)
@@ -61,11 +69,13 @@ func TestValidateInput(t *testing.T) {
 func TestBackupFile(t *testing.T) {
 	t.Parallel()
 	tf := testTempFile(t)
+
 	defer func() {
 		if err := os.Remove(tf.Name()); err != nil {
 			slog.Error("err removing tempfile", "error", err.Error())
 		}
 	}()
+
 	b := []byte(
 		"Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
 	)
@@ -76,8 +86,10 @@ func TestBackupFile(t *testing.T) {
 		_, err := backupFile(tf.Name())
 		assert.NoError(t, err)
 	})
+
 	t.Run("invalid filepath", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := backupFile("/tmp/invalid/path")
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, files.ErrFileNotFound)
@@ -86,6 +98,7 @@ func TestBackupFile(t *testing.T) {
 
 func TestLockAndUnlocked(t *testing.T) {
 	t.Parallel()
+
 	pp := "123456"
 	b := []byte(
 		"Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
@@ -104,6 +117,7 @@ func TestWriteAndReplaceFile(t *testing.T) {
 	createTestFile := func(t *testing.T, content string) string {
 		t.Helper()
 		tf := testTempFile(t)
+
 		err := os.WriteFile(tf.Name(), []byte(content), files.FilePerm)
 		if err != nil {
 			t.Fatal(err)
@@ -115,6 +129,7 @@ func TestWriteAndReplaceFile(t *testing.T) {
 	// Helper function to read a file's content
 	readFileContent := func(t *testing.T, path string) string {
 		t.Helper()
+
 		content, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)

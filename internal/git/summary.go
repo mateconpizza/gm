@@ -37,7 +37,9 @@ type SyncGitSummary struct {
 // GenerateChecksum generates a checksum for the SyncGitSummary.
 func (s *SyncGitSummary) GenerateChecksum() {
 	const length = 12
+
 	var sb strings.Builder
+
 	sb.WriteString(s.GitBranch)
 	sb.WriteString(s.GitRemote)
 	sb.WriteString(s.ConflictResolution)

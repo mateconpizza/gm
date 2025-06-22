@@ -80,6 +80,7 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+
 	gr := g.NewRepo(config.App.DBPath)
 	g.Tracker.SetCurrent(gr)
 
@@ -91,6 +92,7 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return git.ErrGitRepoURLEmpty
 	}
+
 	repoPathToClone := args[0]
 
 	tmpPath := filepath.Join(os.TempDir(), config.App.Name+"-clone")
@@ -103,6 +105,7 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
 			slog.Debug("cleaning up temp dir", "path", tmpPath)
 			_ = files.RemoveAll(tmpPath)
+
 			sys.ErrAndExit(err)
 		}))),
 	)
@@ -119,6 +122,7 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 
 	// Update with the default repo path
 	g.SetRepoPath(config.App.Path.Git)
+
 	if !g.IsInitialized() {
 		slog.Warn("git import: repo not initialized", "path", config.App.Path.Git)
 		return nil
@@ -129,8 +133,8 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	}
 
 	for _, dbPath := range imported {
-		gr := g.NewRepo(dbPath)
-		g.Tracker.SetCurrent(gr)
+		g.Tracker.SetCurrent(g.NewRepo(dbPath))
+
 		if err := trackExportCommit(c, g); err != nil {
 			return err
 		}
@@ -145,6 +149,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+
 	g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
 
 	if err := g.Init(gitFlags.redo); err != nil {
@@ -173,9 +178,11 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		if err := gpg.Init(g.RepoPath); err != nil {
 			return fmt.Errorf("gpg init: %w", err)
 		}
+
 		if err := g.AddAll(); err != nil {
 			return fmt.Errorf("git add: %w", err)
 		}
+
 		if err := g.Commit("GPG repo initialized"); err != nil {
 			return fmt.Errorf("git commit: %w", err)
 		}
@@ -186,6 +193,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		if err := g.Tracker.Track(gr).Save(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		g.Tracker.SetCurrent(gr)
 
 		if err := initTracking(c, g); err != nil {
@@ -197,8 +205,8 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 }
 
 // ensureGitEnvironment checks if the environment is ready for git commands.
-func ensureGitEnvironment(command *cobra.Command, _ []string) error {
-	if err := handler.AssertDatabaseExists(command); err != nil {
+func ensureGitEnvironment(command *cobra.Command, args []string) error {
+	if err := handler.AssertDatabaseExists(command, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -206,6 +214,7 @@ func ensureGitEnvironment(command *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	g := git.New(config.App.Path.Git, git.WithCmd(gitCmd))
 
 	switch command.Name() {
@@ -232,11 +241,12 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	g := git.New(config.App.Path.Git, git.WithCmd(gitCmd))
 
 	if len(args) == 0 {
 		args = append(args, "log", "--oneline")
 	}
+
+	g := git.New(config.App.Path.Git, git.WithCmd(gitCmd))
 
 	return g.Exec(args...)
 }
@@ -246,6 +256,7 @@ func gitPushFunc(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	gr := g.NewRepo(config.App.DBPath)
 	g.Tracker.SetCurrent(gr)
 
@@ -289,19 +300,11 @@ func gitPushFunc(_ *cobra.Command, args []string) error {
 }
 
 var gitTestCmd = &cobra.Command{
-	Use:                "test",
-	Short:              "Test git commands",
-	DisableFlagParsing: true,
+	Use:   "test",
+	Short: "Test git commands",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c := ui.NewConsole(
-			ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightRed))),
-			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-				fmt.Println("interrupted by user")
-				sys.ErrAndExit(err)
-			}))),
-		)
-		c.Confirm("Hit me!", "n")
-
+		fmt.Printf("config.App.Flags.Force: %v\n", config.App.Flags.Force)
+		fmt.Printf("config.App.Flags.Color: %v\n", config.App.Flags.ColorStr)
 		return nil
 	},
 }

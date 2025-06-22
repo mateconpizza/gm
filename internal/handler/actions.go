@@ -39,6 +39,7 @@ func QR(bs *slice.Slice[bookmark.Bookmark], open bool) error {
 		}
 
 		var sb strings.Builder
+
 		sb.WriteString(b.Title + "\n")
 		sb.WriteString(b.URL + "\n")
 		sb.WriteString(qrcode.String())
@@ -46,6 +47,7 @@ func QR(bs *slice.Slice[bookmark.Bookmark], open bool) error {
 		fmt.Print(t)
 
 		lines := len(strings.Split(t, "\n"))
+
 		terminal.WaitForEnter()
 		terminal.ClearLine(lines)
 
@@ -62,9 +64,11 @@ func QR(bs *slice.Slice[bookmark.Bookmark], open bool) error {
 // Copy copies the URLs to the system clipboard.
 func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 	var urls string
+
 	bs.ForEach(func(b bookmark.Bookmark) {
 		urls += b.URL + "\n"
 	})
+
 	if err := sys.CopyClipboard(urls); err != nil {
 		return fmt.Errorf("copy error: %w", err)
 	}
@@ -73,12 +77,13 @@ func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	const maxGoroutines = 15
 	// get user confirmation to procced
 	o := color.BrightGreen("opening").Bold()
+
 	s := fmt.Sprintf("%s %d bookmarks, continue?", o, bs.Len())
-	if err := confirmUserLimit(bs.Len(), maxGoroutines, s); err != nil {
+	if err := confirmUserLimit(c, bs.Len(), maxGoroutines, s); err != nil {
 		return err
 	}
 
@@ -90,9 +95,12 @@ func Open(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	sp.Start()
 	defer sp.Done()
 
-	sem := semaphore.NewWeighted(maxGoroutines)
-	var wg sync.WaitGroup
-	errCh := make(chan error, bs.Len())
+	var (
+		wg    sync.WaitGroup
+		sem   = semaphore.NewWeighted(maxGoroutines)
+		errCh = make(chan error, bs.Len())
+	)
+
 	actionFn := func(b bookmark.Bookmark) error {
 		if err := sem.Acquire(context.Background(), 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
@@ -100,8 +108,10 @@ func Open(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 		defer sem.Release(1)
 
 		wg.Add(1)
+
 		go func(b bookmark.Bookmark) {
 			defer wg.Done()
+
 			if err := sys.OpenInBrowser(b.URL); err != nil {
 				errCh <- fmt.Errorf("open error: %w", err)
 			}
@@ -139,13 +149,16 @@ func CheckStatus(c *ui.Console, bs *slice.Slice[bookmark.Bookmark]) error {
 	}
 
 	const maxGoroutines = 15
+
 	status := color.BrightGreen("status").Bold()
+
 	q := fmt.Sprintf("checking %s of %d, continue?", status, n)
-	if err := confirmUserLimit(n, maxGoroutines, q); err != nil {
+	if err := confirmUserLimit(c, n, maxGoroutines, q); err != nil {
 		return sys.ErrActionAborted
 	}
 
 	c.F.Header(fmt.Sprintf("checking %s of %d bookmarks\n", status, n)).Flush()
+
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -156,6 +169,7 @@ func CheckStatus(c *ui.Console, bs *slice.Slice[bookmark.Bookmark]) error {
 // LockRepo locks the database.
 func LockRepo(c *ui.Console, rToLock string) error {
 	slog.Debug("locking database", "name", config.App.DBName)
+
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -197,12 +211,13 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 	}
 
 	slog.Debug("unlocking database", "name", rToUnlock)
+
 	if !files.Exists(rToUnlock) {
 		s := filepath.Base(strings.TrimSuffix(rToUnlock, ".enc"))
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, s)
 	}
 
-	if err := c.ConfirmErr(fmt.Sprintf("Unlock %q?", rToUnlock), "y"); err != nil {
+	if err := c.ConfirmErr(fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -216,6 +231,7 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 		return fmt.Errorf("%w", err)
 	}
 
+	fmt.Println()
 	fmt.Print(c.SuccessMesg("database unlocked\n"))
 
 	return nil
@@ -224,6 +240,7 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // openQR opens a QR-Code image in the system default image viewer.
 func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	const maxLabelLen = 55
+
 	var title, burl string
 
 	if err := qrcode.GenerateImg(config.App.Name); err != nil {
@@ -319,7 +336,7 @@ func EditSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.B
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
 func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark) error {
-	if config.App.Force {
+	if config.App.Flags.Force {
 		if err := r.InsertOne(context.Background(), b); err != nil {
 			return fmt.Errorf("%w", err)
 		}

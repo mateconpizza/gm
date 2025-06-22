@@ -1,3 +1,4 @@
+//nolint:wsl //ignore
 package slice
 
 import (

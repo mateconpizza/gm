@@ -37,6 +37,7 @@ func loadImage(s string) (image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening image: %w", err)
 	}
+
 	defer func() {
 		if err := f.Close(); err != nil {
 			slog.Error("closing source file", "file", f.Name(), "error", err)
@@ -149,10 +150,12 @@ func calcTop(s string, fd *font.Drawer) position {
 // generatePNG generates a PNG from a given QR-Code.
 func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	const imgSize = 512
+
 	qrfile, err := files.CreateTemp(prefix, "png")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}
+
 	if err := qr.WriteFile(imgSize, qrfile.Name()); err != nil {
 		return nil, fmt.Errorf("writing qr-code: %w", err)
 	}

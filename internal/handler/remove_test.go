@@ -1,3 +1,4 @@
+//nolint:wsl //test
 package handler
 
 import (
@@ -11,11 +12,13 @@ import (
 func testSetupDBFiles(t *testing.T, tempDir string, n int) []string {
 	t.Helper()
 	r := make([]string, 0, n)
+
 	for range n {
 		tf, err := os.CreateTemp(tempDir, "sqlite-*.db")
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		r = append(r, tf.Name())
 	}
 

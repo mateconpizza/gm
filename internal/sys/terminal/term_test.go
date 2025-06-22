@@ -1,3 +1,4 @@
+//nolint:wsl //test
 package terminal
 
 import (

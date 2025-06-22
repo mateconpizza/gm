@@ -19,21 +19,52 @@ import (
 // createConfFlag is the flag for creating a new config file.
 var createConfFlag bool
 
-var ErrConfigFileNotFound = errors.New("config file not found")
+func init() {
+	cfg := config.App
+	f := configCmd.Flags()
+	f.BoolVarP(&createConfFlag, "create", "c", false, "create config file")
+	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit config")
+	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.StringVarP(&cfg.DBName, "name", "n", config.DefaultDBName, "database name")
+	_ = f.MarkHidden("name")
+
+	Root.AddCommand(configCmd)
+}
+
+// configCmd configuration management.
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Configuration management",
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		cfg := config.App
+		switch {
+		case createConfFlag:
+			return createConfig(cfg.Path.ConfigFile)
+		case cfg.Flags.Edit:
+			return editConfig(cfg.Path.ConfigFile)
+		case cfg.Flags.JSON:
+			return printConfigJSON(cfg.Path.ConfigFile)
+		}
+
+		return cmd.Usage()
+	},
+}
 
 // createConfig dumps the app configuration to a YAML file.
 func createConfig(p string) error {
-	if files.Exists(p) && !config.App.Force {
+	if files.Exists(p) && !config.App.Flags.Force {
 		f := color.BrightYellow("--force").Italic().String()
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
+
 	f := frame.New(frame.WithColorBorder(color.Gray))
 	f.Info(txt.PaddedLine("File:", color.Text(p).Italic()) + "\n").Row("\n")
+
 	if !terminal.Confirm(f.Question("create?").String(), "y") {
 		return nil
 	}
 
-	if err := files.YamlWrite(p, config.Defaults, config.App.Force); err != nil {
+	if err := files.YamlWrite(p, config.Defaults, config.App.Flags.Force); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -45,12 +76,14 @@ func createConfig(p string) error {
 // editConfig edits the config file.
 func editConfig(p string) error {
 	if !files.Exists(p) {
-		return ErrConfigFileNotFound
+		return files.ErrFileNotFound
 	}
+
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	if err := te.EditFile(p); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -61,7 +94,7 @@ func editConfig(p string) error {
 // getConfig loads the config file.
 func getConfig(p string) (*config.ConfigFile, error) {
 	if !files.Exists(p) {
-		return nil, ErrConfigFileNotFound
+		return nil, files.ErrFileNotFound
 	}
 
 	var cfg *config.ConfigFile
@@ -70,7 +103,7 @@ func getConfig(p string) (*config.ConfigFile, error) {
 	}
 
 	if cfg == nil {
-		return nil, ErrConfigFileNotFound
+		return nil, files.ErrFileNotFound
 	}
 
 	if err := config.Validate(cfg); err != nil {
@@ -83,7 +116,7 @@ func getConfig(p string) (*config.ConfigFile, error) {
 // loadConfig loads the menu configuration YAML file.
 func loadConfig(p string) error {
 	cfg, err := getConfig(p)
-	if err != nil && !errors.Is(err, ErrConfigFileNotFound) {
+	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -93,7 +126,6 @@ func loadConfig(p string) error {
 	}
 
 	config.Fzf = cfg.Menu
-	config.App.Colorscheme = cfg.Colorscheme
 
 	return nil
 }
@@ -104,46 +136,13 @@ func printConfigJSON(p string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	j, err := port.ToJSON(cfg)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	fmt.Println(string(j))
 
 	return nil
-}
-
-// configCmd configuration management.
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Configuration management",
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		fn := config.App.Path.ConfigFile
-		switch {
-		case createConfFlag:
-			return createConfig(fn)
-		case Edit:
-			return editConfig(fn)
-		case JSON:
-			return printConfigJSON(fn)
-		}
-
-		return cmd.Usage()
-	},
-}
-
-func init() {
-	f := configCmd.Flags()
-	f.BoolP("help", "h", false, "Hidden help")
-	f.BoolVarP(&createConfFlag, "create", "c", false, "create config file")
-	f.BoolVarP(&Edit, "edit", "e", false, "edit config")
-	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
-	// set and hide persistent flag
-	f.StringVar(&WithColor, "color", "always", "")
-	f.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
-	_ = configCmd.PersistentFlags().MarkHidden("help")
-	_ = f.MarkHidden("name")
-	_ = f.MarkHidden("color")
-	_ = f.MarkHidden("help")
-	Root.AddCommand(configCmd)
 }

@@ -31,6 +31,7 @@ func NewBookmark(
 	if err != nil {
 		return err
 	}
+
 	newURL = strings.TrimRight(newURL, "/")
 	if b, exists := r.Has(newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
@@ -96,6 +97,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 	}
 
 	c.F.Header(cm("URL\t:")).Flush()
+
 	bURL := c.T.Input(" ")
 	if bURL == "" {
 		return bURL, bookmark.ErrURLEmpty
@@ -110,29 +112,35 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 
 	c.F.Header(cb("Tags\t:"))
+
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
 		c.F.Textln(" " + cgi(b.tags)).Flush()
+
 		return
 	}
 
 	_ = sc.Start()
+
 	keywords, _ := sc.Keywords()
 	if keywords != "" {
 		tt := bookmark.ParseTags(keywords)
 		b.tags = tt
 		c.F.Textln(" " + cgi(b.tags)).Flush()
+
 		return
 	}
 
-	if config.App.Force {
+	if config.App.Flags.Force {
 		b.tags = "notag"
 		c.F.Textln(" " + cgi(b.tags)).Flush()
+
 		return
 	}
 
 	// prompt|take input for tags
 	c.F.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
+
 	mTags, _ := db.TagsCounterFromPath(config.App.DBPath)
 	b.tags = bookmark.ParseTags(c.T.ChooseTags(c.F.Border.Mid, mTags))
 
@@ -145,6 +153,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 // fetchTitleAndDesc fetch and display title and description.
 func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	const indentation int = 10
+
 	width := terminal.MinWidth - len(c.F.Border.Row)
 
 	cc := func(s string) string { return color.BrightCyan(s).String() }
@@ -154,6 +163,7 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	if b.title != "" {
 		t := cg(txt.SplitAndAlign(b.title, width, indentation))
 		c.F.Mid(cc("Title\t: ")).Textln(t).Flush()
+
 		return
 	}
 

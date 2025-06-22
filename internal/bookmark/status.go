@@ -49,6 +49,7 @@ func (r *Response) String() string {
 // Status checks the status of a slice of bookmarks.
 func Status(bs *slice.Slice[Bookmark]) error {
 	const maxConRequests = 25
+
 	var (
 		responses = slice.New[Response]()
 		sem       *semaphore.Weighted
@@ -62,6 +63,7 @@ func Status(bs *slice.Slice[Bookmark]) error {
 
 	schedule := func(b Bookmark) error {
 		wg.Add(1)
+
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
@@ -70,6 +72,7 @@ func Status(bs *slice.Slice[Bookmark]) error {
 
 		go func(b *Bookmark) {
 			defer wg.Done()
+
 			res := makeRequest(b, ctx, sem)
 			responses.Append(res)
 		}(&b)
@@ -111,6 +114,7 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 	total := fmt.Sprintf(c("%-3d").Bold().String(), n)
 	code := c(statusCode).Bold().String()
 	s := http.StatusText(statusCode)
+
 	statusText := color.Text(s).Italic().String()
 	if s == "" {
 		statusText = color.Text("non-standard code").Italic().String()
@@ -155,6 +159,7 @@ func printSummaryStatus(r *slice.Slice[Response], d time.Duration) {
 			if r.statusCode == http.StatusOK {
 				continue
 			}
+
 			bid := fmt.Sprintf(color.BrightGray("%-3d").String(), r.bID)
 			url := color.Gray(txt.Shorten(r.URL, terminal.MinWidth)).Italic().String()
 			f.Row(fmt.Sprintf(" %s %s", bid, url)).Ln()
@@ -184,6 +189,7 @@ func buildResponse(b *Bookmark, statusCode int, hasError bool) Response {
 // appropriate status code.
 func handleRequestError(b *Bookmark, err error) Response {
 	var statusCode int
+
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
 		statusCode = http.StatusGatewayTimeout
@@ -208,6 +214,7 @@ func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Resp
 	defer sem.Release(1)
 
 	timeout := 5 * time.Second
+
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -218,6 +225,7 @@ func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Resp
 	}
 
 	client := http.DefaultClient
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return handleRequestError(b, err)

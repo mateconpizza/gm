@@ -34,6 +34,7 @@ func IsInitialized(path string) bool {
 	if err := loadFingerprint(path); err != nil {
 		return false
 	}
+
 	return recipient != ""
 }
 
@@ -45,11 +46,13 @@ func Decrypt(encryptedPath string) ([]byte, error) {
 	}
 
 	cmd := exec.Command(cmdPath, "--quiet", "-d", encryptedPath)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(output))
 		return nil, fmt.Errorf("gpg decrypt failed: %s: %w", msg, err)
 	}
+
 	return output, nil
 }
 
@@ -62,6 +65,7 @@ func Encrypt(path string, content []byte) error {
 
 	cmd := exec.Command(cmdPath, "--yes", "-e", "-r", recipient, "-o", path)
 	cmd.Stdin = bytes.NewReader(content)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Println(strings.TrimSpace(string(output)))
@@ -80,12 +84,14 @@ func extractFingerPrint() (string, error) {
 	}
 
 	cmd := exec.Command(cmdPath, "--list-keys", "--with-colons")
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("gpg list-keys: %w", err)
 	}
 
 	const fingerprintFieldIndex = 9
+
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -112,6 +118,7 @@ func loadFingerprint(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read .gpg-id: %w", err)
 	}
+
 	recipient = strings.TrimSpace(string(fingerprint))
 	if recipient == "" {
 		return ErrNoFingerprint
@@ -125,11 +132,13 @@ func Init(path string) error {
 	if _, err := sys.Which(gpgCommand); err != nil {
 		return fmt.Errorf("%w: %s", err, gpgCommand)
 	}
+
 	if err := files.MkdirAll(path); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	fileIDPath := filepath.Join(path, FingerprintID)
+
 	fingerprint, err := extractFingerPrint()
 	if err != nil {
 		return err

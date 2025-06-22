@@ -70,6 +70,7 @@ func size(s string) int64 {
 // List returns all files found in a given path.
 func List(root, pattern string) ([]string, error) {
 	query := root + "/*" + pattern
+
 	files, err := filepath.Glob(query)
 	if err != nil {
 		return nil, fmt.Errorf("%w: getting files query: %q", err, query)
@@ -87,6 +88,7 @@ func mkdir(s string) error {
 	}
 
 	slog.Debug("creating path", "path", s)
+
 	if err := os.MkdirAll(s, dirPerm); err != nil {
 		return fmt.Errorf("creating %s: %w", s, err)
 	}
@@ -100,6 +102,7 @@ func MkdirAll(s ...string) error {
 		if p == "" {
 			return ErrPathEmpty
 		}
+
 		if err := mkdir(p); err != nil {
 			return err
 		}
@@ -113,7 +116,9 @@ func Remove(s string) error {
 	if !Exists(s) {
 		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
 	}
+
 	slog.Debug("removing path", "path", s)
+
 	if err := os.Remove(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}
@@ -126,7 +131,9 @@ func RemoveAll(s string) error {
 	if !Exists(s) {
 		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
 	}
+
 	slog.Debug("removing path", "path", s)
+
 	if err := os.RemoveAll(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
 	}
@@ -171,8 +178,8 @@ func Copy(from, to string) error {
 // cleanupTemp Removes the specified temporary file.
 func cleanupTemp(s string) error {
 	slog.Debug("removing temp file", "file", s)
-	err := os.Remove(s)
-	if err != nil {
+
+	if err := os.Remove(s); err != nil {
 		return fmt.Errorf("could not cleanup temp file: %w", err)
 	}
 
@@ -184,6 +191,7 @@ func closeAndClean(f *os.File) {
 	if err := f.Close(); err != nil {
 		slog.Error("closing temp file", "file", f.Name(), "error", err)
 	}
+
 	if err := cleanupTemp(f.Name()); err != nil {
 		slog.Error("removing temp file", "file", f.Name(), "error", err)
 	}
@@ -193,6 +201,7 @@ func closeAndClean(f *os.File) {
 func CreateTemp(prefix, ext string) (*os.File, error) {
 	fileName := fmt.Sprintf("%s-*.%s", prefix, ext)
 	slog.Debug("creating temp file", "name", fileName)
+
 	tempFile, err := os.CreateTemp("", fileName)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
@@ -208,11 +217,13 @@ func FindByExtList(root string, ext ...string) ([]string, error) {
 	}
 
 	var files []string
+
 	for _, e := range ext {
 		f, err := findByExt(root, e)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
+
 		files = append(files, f...)
 	}
 
@@ -240,6 +251,7 @@ func EnsureSuffix(s, suffix string) string {
 	if s == "" {
 		return s
 	}
+
 	e := filepath.Ext(s)
 	if e == suffix || e != "" {
 		return s
@@ -309,6 +321,7 @@ func CollapseHomeDir(p string) string {
 	if err != nil {
 		return p
 	}
+
 	if !strings.HasPrefix(p, home) {
 		return p
 	}
@@ -322,6 +335,7 @@ func YamlWrite[T any](p string, v *T, force bool) error {
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
+
 	defer func() {
 		if err := f.Close(); err != nil {
 			slog.Error("Yaml closing file", "file", p, "error", err)
@@ -371,6 +385,7 @@ func JSONWrite[T any](p string, v *T, force bool) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	defer func() {
 		if err := f.Close(); err != nil {
 			slog.Error("Json closing file", "file", p, "error", err)
@@ -418,6 +433,7 @@ func Find(root, pattern string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	if len(f) == 0 {
 		return nil, fmt.Errorf("%w: %q", ErrFileNotFound, pattern)
 	}
@@ -433,6 +449,7 @@ func ListRootFolders(root string, ignore ...string) ([]string, error) {
 	}
 
 	var folders []string
+
 	for _, entry := range entries {
 		if entry.IsDir() && !slices.Contains(ignore, entry.Name()) {
 			folders = append(folders, entry.Name())
@@ -448,15 +465,19 @@ func RemoveFilepath(fname string) error {
 		slog.Debug("file not found", "path", fname)
 		return fmt.Errorf("%w: %q", ErrFileNotFound, fname)
 	}
+
 	if err := Remove(fname); err != nil {
 		return fmt.Errorf("removing file:%w", err)
 	}
+
 	// check if the directory is empty
 	fdir := filepath.Dir(fname)
+
 	dirs, err := List(fdir, "*")
 	if err != nil {
 		return fmt.Errorf("listing directory: %w", err)
 	}
+
 	if len(dirs) == 0 {
 		// remove empty path
 		if err := Remove(fdir); err != nil {

@@ -75,6 +75,7 @@ func (t *Tracker) Save() error {
 	if !t.loaded {
 		return ErrGitTrackNotLoaded
 	}
+
 	t.List = slices.Compact(t.List)
 
 	if err := files.JSONWrite(t.Filename, &t.List, true); err != nil {
@@ -89,6 +90,7 @@ func (t *Tracker) Contains(gr *GitRepository) bool {
 	if !t.loaded {
 		panic(ErrGitTrackNotLoaded)
 	}
+
 	return slices.Contains(t.List, gr.HashPath)
 }
 
@@ -133,6 +135,7 @@ func Tracked(trackerFile string) ([]string, error) {
 
 func IsTracked(repoPath, dbPath string) bool {
 	t := filepath.Join(repoPath, filepathTracked)
+
 	tracked, err := Tracked(t)
 	if err != nil {
 		return false

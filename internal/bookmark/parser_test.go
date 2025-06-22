@@ -20,6 +20,7 @@ func testSingleBookmark() *Bookmark {
 
 func TestRecordIsValid(t *testing.T) {
 	t.Parallel()
+
 	validBookmark := testSingleBookmark()
 	err := Validate(validBookmark)
 	assert.NoError(t, err, "expected valid bookmark to be valid")
@@ -34,6 +35,7 @@ func TestRecordIsValid(t *testing.T) {
 //nolint:dupword //test
 func TestParseTags(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -64,6 +66,7 @@ func TestParseTags(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
+
 			tt := test
 			got := ParseTags(tt.input)
 			assert.Equal(t, tt.expected, got, "expected %s, got %s", tt.expected, got)
@@ -73,6 +76,7 @@ func TestParseTags(t *testing.T) {
 
 func TestUniqueItem(t *testing.T) {
 	t.Parallel()
+
 	test := []struct {
 		input    []string
 		expected []string
@@ -86,6 +90,7 @@ func TestUniqueItem(t *testing.T) {
 			expected: []string{"a"},
 		},
 	}
+
 	for _, tt := range test {
 		items := uniqueTags(tt.input)
 		assert.Equal(t, tt.expected, items)

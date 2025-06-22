@@ -85,6 +85,7 @@ func (s *Scraper) Title() (string, error) {
 	if !s.started {
 		return "", ErrScrapeNotStarted
 	}
+
 	t := s.doc.Find("title").Text()
 	if t == "" {
 		return defaultTitle, nil
@@ -98,7 +99,9 @@ func (s *Scraper) Keywords() (string, error) {
 	if !s.started {
 		return "", ErrScrapeNotStarted
 	}
+
 	kw := s.doc.Find("meta[name='keywords']").AttrOr("content", "")
+
 	return strings.TrimSpace(kw), nil
 }
 
@@ -137,11 +140,23 @@ func New(s string, opts ...OptFn) *Scraper {
 	for _, opt := range opts {
 		opt(o)
 	}
+
 	o.uri = s
 
 	return &Scraper{
 		Options: *o,
 	}
+}
+
+func setHeaders(r *http.Request) {
+	r.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0")
+	r.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	r.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	r.Header.Set("Connection", "keep-alive")
+	r.Header.Set("Upgrade-Insecure-Requests", "1")
+	r.Header.Set("Sec-Fetch-Dest", "document")
+	r.Header.Set("Sec-Fetch-Mode", "navigate")
+	r.Header.Set("Sec-Fetch-Site", "none")
 }
 
 // scrapeURL fetches and parses the HTML content from a URL.
@@ -151,19 +166,15 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 		slog.Warn("unsupported scheme", "url", s)
 		return emptyDoc()
 	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
 		slog.Warn("failed to create request", "url", s, "error", err)
 		return emptyDoc()
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
-	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Upgrade-Insecure-Requests", "1")
-	req.Header.Set("Sec-Fetch-Dest", "document")
-	req.Header.Set("Sec-Fetch-Mode", "navigate")
-	req.Header.Set("Sec-Fetch-Site", "none")
+
+	setHeaders(req)
+
 	cl := &http.Client{
 		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
@@ -175,18 +186,23 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	}
 
 	startTime := time.Now()
+
 	res, err := cl.Do(req)
 	if err != nil {
 		d := time.Since(startTime).Milliseconds()
 		slog.Warn("request failed", "url", s, "error", err.Error(), "duration_ms", d)
+
 		return emptyDoc()
 	}
+
 	defer func() {
 		if err := res.Body.Close(); err != nil {
 			slog.Warn("error closing response body", "url", s, "error", err)
 		}
 	}()
+
 	slog.Info("received response", "url", s, "status", res.StatusCode, "duration", time.Since(startTime))
+
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		logResponseStatusCode(res, s)
 		return emptyDoc()
@@ -199,6 +215,7 @@ func scrapeURL(s string, ctx context.Context) *goquery.Document {
 	// Read the body with a limit to prevent memory issues
 	// with excessively large responses
 	bodyReader := io.LimitReader(res.Body, 10*1024*1024) // 10MB limit
+
 	doc, err := goquery.NewDocumentFromReader(bodyReader)
 	if err != nil {
 		slog.Warn("failed to parse HTML", "url", s, "error", err)
@@ -243,6 +260,7 @@ func isSupportedScheme(rawURL string) bool {
 	if err != nil {
 		return false
 	}
+
 	scheme := strings.ToLower(parsed.Scheme)
 
 	return scheme == "http" || scheme == "https"

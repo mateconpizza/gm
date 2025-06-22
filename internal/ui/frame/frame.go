@@ -100,6 +100,7 @@ func (f *Frame) applyBorder(border string, s []string) *Frame {
 	}
 	// append first element
 	f.Text(border, s[0])
+
 	if n == 1 {
 		return f
 	}
@@ -161,24 +162,28 @@ func (f *Frame) Reset() *Frame {
 func (f *Frame) Error(s ...string) *Frame {
 	e := color.BrightRed(f.icon.error + " ").Bold().String()
 	mid := f.applyStyle(e)
+
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Warning(s ...string) *Frame {
 	e := color.BrightYellow(f.icon.warning + " ").Bold().String()
 	mid := f.applyStyle(e)
+
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Success(s ...string) *Frame {
 	e := color.BrightGreen(f.icon.success + " ").Bold().String()
 	mid := f.applyStyle(e)
+
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Info(s ...string) *Frame {
 	e := color.BrightBlue(f.icon.info + " ").Bold().String()
 	mid := f.applyStyle(e)
+
 	return f.applyBorder(mid, s)
 }
 
@@ -196,12 +201,14 @@ func (f *Frame) String() string {
 func (f *Frame) StringReset() string {
 	s := f.String()
 	f.Reset()
+
 	return s
 }
 
 // Write implements the io.Writer interface.
 func (f *Frame) Write(p []byte) (int, error) {
 	defer f.Flush()
+
 	content := string(p)
 	// Handle carriage returns by splitting on \r and taking the last part
 	if strings.Contains(content, "\r") {
@@ -212,6 +219,7 @@ func (f *Frame) Write(p []byte) (int, error) {
 
 	// Collect all non-empty lines first
 	var lines []string
+
 	for line := range strings.SplitSeq(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" {

@@ -1,4 +1,4 @@
-//nolint:paralleltest //test
+//nolint:paralleltest,wsl //test
 package db
 
 import (

@@ -1,3 +1,4 @@
+//nolint:wsl //test
 package db
 
 import (
@@ -9,6 +10,7 @@ import (
 
 func TestTagsCounter(t *testing.T) {
 	t.Parallel()
+
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 

@@ -34,6 +34,7 @@ func (te *TextEditor) EditBytes(content []byte, extension string) ([]byte, error
 	if te.cmd == "" {
 		return nil, ErrCommandNotFound
 	}
+
 	f, err := createTempFileWithData(content, extension)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -41,6 +42,7 @@ func (te *TextEditor) EditBytes(content []byte, extension string) ([]byte, error
 	defer closeAndClean(f)
 
 	slog.Debug("editing file", "name", f.Name(), "editor", te.name)
+
 	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
 		return nil, fmt.Errorf("error running editor: %w", err)
 	}
@@ -84,24 +86,21 @@ func (te *TextEditor) Diff(a, b []byte) string {
 
 	// fill the DP (Dynamic Programming) matrix with the length of the LCS.
 	// dp[i+1][j+1] stores the length of the LCS between linesA[:i+1] and linesB[:j+1].
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			if linesA[i] == linesB[j] {
 				// if lines match, LCS length increases by 1.
 				dp[i+1][j+1] = dp[i][j] + 1
 			} else {
 				// otherwise, take the maximum value from the previous row or column.
-				if dp[i+1][j] >= dp[i][j+1] {
-					dp[i+1][j+1] = dp[i+1][j]
-				} else {
-					dp[i+1][j+1] = dp[i][j+1]
-				}
+				dp[i+1][j+1] = max(dp[i+1][j], dp[i][j+1])
 			}
 		}
 	}
 
 	// backtrack to construct the diff output.
 	var diffLines []string
+
 	i, j := m, n
 	for i > 0 || j > 0 {
 		switch {
@@ -163,6 +162,7 @@ func getEditorFromEnv(e string) (*TextEditor, bool) {
 	if len(s) != 0 {
 		editor := newTextEditor(sys.BinPath(s[0]), s[0], s[1:])
 		slog.Info("$EDITOR set", "editor", editor)
+
 		return editor, true
 	}
 
@@ -177,6 +177,7 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 		if sys.BinExists(e) {
 			editor := newTextEditor(sys.BinPath(e), e, []string{})
 			slog.Info("found fallback text editor", "editor", editor)
+
 			return editor, true
 		}
 	}

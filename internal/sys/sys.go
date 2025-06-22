@@ -39,10 +39,12 @@ func Env(s, def string) string {
 // BinPath returns the path of the binary.
 func BinPath(s string) string {
 	cmd := exec.CommandContext(context.Background(), "which", s)
+
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
+
 	c := strings.TrimRight(string(out), "\n")
 	slog.Debug("binary path", "which", s, "found", c)
 
@@ -62,6 +64,7 @@ func Which(cmd string) (string, error) {
 			return fullPath, nil
 		}
 	}
+
 	return "", ErrSysCmdNotFound
 }
 
@@ -82,6 +85,7 @@ func ExecCmdWithWriter(w io.Writer, s ...string) error {
 	cmd := exec.CommandContext(context.Background(), s[0], s[1:]...)
 	cmd.Stdout = w
 	cmd.Stderr = w
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -97,6 +101,7 @@ func RunCmd(s string, arg ...string) error {
 	cmd.Stderr = os.Stderr
 
 	slog.Debug("running command", "command", s, "args", arg)
+
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -108,6 +113,7 @@ func RunCmd(s string, arg ...string) error {
 // OSArgs returns the correct arguments for the OS.
 func OSArgs() []string {
 	var args []string
+
 	switch runtime.GOOS {
 	case "darwin":
 		args = []string{"open"}
@@ -158,6 +164,7 @@ func ErrAndExit(err error) {
 		slog.Debug("action aborted")
 		os.Exit(1)
 	}
+
 	if err != nil {
 		slog.Warn("exit", "error", err)
 		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)

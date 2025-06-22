@@ -22,10 +22,13 @@ var (
 
 // RepoSummary returns a summary of the repository.
 func RepoSummary(c *ui.Console, r *SQLiteRepository) string {
-	path := txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
-	records := txt.PaddedLine("records:", CountMainRecords(r))
-	tags := txt.PaddedLine("tags:", CountTagsRecords(r))
-	name := r.Cfg.Name
+	var (
+		name    = r.Cfg.Name
+		path    = txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
+		records = txt.PaddedLine("records:", CountMainRecords(r))
+		tags    = txt.PaddedLine("tags:", CountTagsRecords(r))
+	)
+
 	if name == config.DefaultDBName {
 		name += cgi(" (default) ")
 	}
@@ -34,7 +37,7 @@ func RepoSummary(c *ui.Console, r *SQLiteRepository) string {
 		Rowln(records).
 		Rowln(tags).
 		Rowln(path).
-		String()
+		StringReset()
 }
 
 // RepoSummaryFromPath returns a summary of the repository.
@@ -42,6 +45,7 @@ func RepoSummaryFromPath(c *ui.Console, p string) string {
 	if strings.HasSuffix(p, ".enc") {
 		p = strings.TrimSuffix(p, ".enc")
 		s := cmi(filepath.Base(p))
+
 		var e string
 		if filepath.Base(p) == config.DefaultDBName {
 			e = "(default locked)"
@@ -53,25 +57,30 @@ func RepoSummaryFromPath(c *ui.Console, p string) string {
 	}
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(p))
+
 	r, err := New(p)
 	if err != nil {
 		return c.F.Row(path).StringReset()
 	}
+
 	defer r.Close()
 
 	records := txt.PaddedLine("records:", CountMainRecords(r))
 	tags := txt.PaddedLine("tags:", CountTagsRecords(r))
 	name := color.Yellow(r.Cfg.Name).Italic().String()
+
 	if r.Cfg.Name == config.DefaultDBName {
 		name = txt.PaddedLine(name, cgi("(default)"))
 	}
+
 	c.F.Headerln(name).Rowln(records).Rowln(tags)
+
 	backups, _ := r.ListBackups()
 	if len(backups) > 0 {
 		c.F.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
 	}
 
-	return c.F.Rowln(path).String()
+	return c.F.Rowln(path).StringReset()
 }
 
 // RepoSummaryRecords generates a summary of record counts for a given SQLite
@@ -120,9 +129,11 @@ func BackupSummaryWithFmtDateFromPath(p string) string {
 	name := filepath.Base(p)
 	t := strings.Split(name, "_")[0]
 	bkTime := cgi(txt.RelativeTime(t))
+
 	if strings.HasSuffix(name, ".enc") {
 		name = strings.TrimSuffix(name, ".enc")
 		name += cgi(" (locked) ")
+
 		return name + bkTime
 	}
 
@@ -131,6 +142,7 @@ func BackupSummaryWithFmtDateFromPath(p string) string {
 		slog.Warn("creating repository from path", "path", p, "error", err)
 		return ""
 	}
+
 	defer r.Close()
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
 
@@ -143,10 +155,13 @@ func BackupListDetail(c *ui.Console, r *SQLiteRepository) string {
 	if len(fs) == 0 {
 		return ""
 	}
+
 	c.F.Header(color.BrightCyan("summary:\n").Italic().String())
+
 	if err != nil {
 		return c.F.Row(txt.PaddedLine("found:", "n/a\n")).String()
 	}
+
 	backups := slice.New[string]()
 	backups.Append(fs...)
 
@@ -156,11 +171,13 @@ func BackupListDetail(c *ui.Console, r *SQLiteRepository) string {
 			c.F.Footer(BackupSummaryWithFmtDateFromPath(p)).Ln()
 			return
 		}
+
 		c.F.Row(BackupSummaryWithFmtDateFromPath(p)).Ln()
+
 		n--
 	})
 
-	return c.F.String()
+	return c.F.StringReset()
 }
 
 // BackupsSummary returns a summary of the backups.
@@ -176,12 +193,15 @@ func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 	)
 
 	var n int
+
 	fs, err := r.ListBackups()
 	if len(fs) == 0 {
 		return ""
 	}
+
 	backups := slice.New[string]()
 	backups.Append(fs...)
+
 	if err != nil {
 		n = 0
 	} else {
@@ -195,6 +215,7 @@ func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 		s := txt.RelativeTime(strings.Split(filepath.Base(lastBackup), "_")[0])
 		lastBackupDate = color.BrightGreen(s).Italic().String()
 	}
+
 	path := txt.PaddedLine("path:", config.App.Path.Backup)
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
@@ -204,7 +225,7 @@ func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 		Rowln(last).
 		Rowln(lastDate).
 		Rowln(backupsInfo).
-		String()
+		StringReset()
 }
 
 // Info returns the repository info.

@@ -89,18 +89,18 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("import from browser: %w", err)
 	}
 
-	if handler.GitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
+	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
 		g, err := handler.NewGit(config.App.Path.Git)
 		if err != nil {
 			return err
 		}
+
 		g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
 
 		if err := handler.GitCommit(g, "Import from Browser"); err != nil {
-			if errors.Is(err, git.ErrGitNothingToCommit) {
-				return nil
+			if !errors.Is(err, git.ErrGitNothingToCommit) {
+				return fmt.Errorf("commit: %w", err)
 			}
-			return fmt.Errorf("commit: %w", err)
 		}
 	}
 
@@ -118,6 +118,7 @@ func fromBackupFunc(commands *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	if len(bks) == 0 {
 		return db.ErrBackupNotFound
 	}
@@ -186,6 +187,7 @@ func fromDatabaseFunc(_ *cobra.Command, _ []string) error {
 		if err != nil {
 			return err
 		}
+
 		gr := g.NewRepo(r.Cfg.Fullpath())
 		g.Tracker.SetCurrent(gr)
 

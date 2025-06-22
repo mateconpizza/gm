@@ -35,17 +35,21 @@ func (r *SQLiteRepository) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) 
 
 // associateTags associates tags to the given record.
 func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
-	tags := strings.Split(b.Tags, ",")
-	slog.Debug("associating tags with URL", "tags", tags, "url", b.URL)
-	for _, tag := range tags {
+	slog.Debug("associating tags with URL", "tags", b.Tags, "url", b.URL)
+
+	tags := strings.SplitSeq(b.Tags, ",")
+	for tag := range tags {
 		if tag == "" || tag == " " {
 			continue
 		}
+
 		tagID, err := r.getOrCreateTag(tx, tag)
 		if err != nil {
 			return err
 		}
+
 		slog.Debug("processing Tags", "tag", tag, "tagID", tagID)
+
 		_ = tx.MustExec(
 			"INSERT OR IGNORE INTO bookmark_tags (bookmark_url, tag_id) VALUES (?, ?)",
 			b.URL,
@@ -59,6 +63,7 @@ func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) erro
 // getTag returns the tag ID.
 func getTag(tx *sqlx.Tx, tag string) (int64, error) {
 	var tagID int64
+
 	err := tx.QueryRowx("SELECT id FROM tags WHERE name = ?", tag).Scan(&tagID)
 	if errors.Is(err, sql.ErrNoRows) {
 		// tag not found
@@ -73,6 +78,7 @@ func getTag(tx *sqlx.Tx, tag string) (int64, error) {
 // createTag creates a new tag.
 func createTag(tx *sqlx.Tx, tag string) (int64, error) {
 	result := tx.MustExec("INSERT INTO tags (name) VALUES (?)", tag)
+
 	tagID, err := result.LastInsertId()
 	if err != nil {
 		return 0, fmt.Errorf("CreateTag: error getting last insert ID: %w", err)
@@ -98,9 +104,11 @@ func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
 		Name  string `db:"name"`
 		Count int    `db:"tag_count"`
 	}
+
 	if err := r.DB.Select(&results, q); err != nil {
 		return nil, fmt.Errorf("error querying tags count: %w", err)
 	}
+
 	tagCounts := make(map[string]int, len(results))
 	for _, row := range results {
 		tagCounts[row.Name] = row.Count
@@ -112,6 +120,7 @@ func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
 // TagsList returns the list of tags.
 func TagsList(r *SQLiteRepository) ([]string, error) {
 	var tags []string
+
 	err := r.DB.Select(&tags, `SELECT name FROM tags ORDER BY name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all tags: %w", err)

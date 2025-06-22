@@ -73,6 +73,7 @@ func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteCfg) *SQLiteRepository {
 func New(p string) (*SQLiteRepository, error) {
 	return newRepository(p, func(path string) error {
 		slog.Debug("new repo: checking if database exists", "path", path)
+
 		if !files.Exists(path) {
 			return fmt.Errorf("%w: %q", ErrDBNotFound, path)
 		}
@@ -85,6 +86,7 @@ func New(p string) (*SQLiteRepository, error) {
 func Init(p string) (*SQLiteRepository, error) {
 	return newRepository(p, func(path string) error {
 		slog.Debug("init repo: checking if database exists", "path", path)
+
 		if files.Exists(path) {
 			return fmt.Errorf("%w: %q", ErrDBExists, path)
 		}
@@ -98,13 +100,16 @@ func newRepository(p string, validate func(string) error) (*SQLiteRepository, er
 	if p == "" {
 		return nil, files.ErrPathEmpty
 	}
+
 	if err := validate(p); err != nil {
 		return nil, err
 	}
+
 	c, err := newSQLiteCfg(p)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	db, err := openDatabase(p)
 	if err != nil {
 		slog.Error("NewRepo", "error", err, "path", p)
@@ -119,8 +124,11 @@ func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
 	if backupPath == "" {
 		return nil, files.ErrPathNotFound
 	}
-	backupFile := filepath.Base(backupPath)
-	parentDir := filepath.Dir(backupPath)
+
+	var (
+		backupFile = filepath.Base(backupPath)
+		parentDir  = filepath.Dir(backupPath)
+	)
 
 	// check if we're already in a backup directory
 	if filepath.Base(parentDir) == "backup" {
@@ -128,6 +136,7 @@ func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
 	} else {
 		parentDir = filepath.Dir(backupPath)
 	}
+
 	backupDir := filepath.Join(parentDir, "backup")
 	cfg := &SQLiteCfg{
 		Path:      backupDir,
@@ -136,6 +145,7 @@ func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
 	}
 
 	slog.Debug("reading backup", "name", backupFile)
+
 	db, err := openDatabase(backupPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening backup database: %w", err)
@@ -151,10 +161,12 @@ func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
 // the connection, returning the database handle or an error.
 func openDatabase(s string) (*sqlx.DB, error) {
 	slog.Debug("opening database", "path", s)
+
 	db, err := sqlx.Open("sqlite3", s)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
+
 	if err := db.PingContext(context.Background()); err != nil {
 		return nil, fmt.Errorf("%w: on ping context", err)
 	}
@@ -187,6 +199,7 @@ func newSQLiteCfg(p string) (*SQLiteCfg, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %q: %w", p, err)
 	}
+
 	baseDir := filepath.Dir(abs)
 
 	return &SQLiteCfg{

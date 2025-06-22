@@ -30,6 +30,7 @@ var (
 // extension.
 func Lock(path, passphrase string) error {
 	slog.Debug("locking file", "path", path)
+
 	if err := validateInput(path, passphrase); err != nil {
 		return err
 	}
@@ -50,10 +51,12 @@ func Lock(path, passphrase string) error {
 	}
 	// Write encrypted data to disk
 	lockedPath := path + ".enc"
+
 	err = writeAndReplaceFile(lockedPath, ciphertext, path, backupPath)
 	if err != nil {
 		return err
 	}
+
 	slog.Debug("file locked", "path", lockedPath)
 	// Cleanup successful operation
 	_ = os.Remove(backupPath)
@@ -64,9 +67,11 @@ func Lock(path, passphrase string) error {
 // Unlock decrypts the given .enc file using AES-GCM decryption and removes the .enc extension.
 func Unlock(path, passphrase string) error {
 	slog.Debug("unlocking file", "path", path)
+
 	if err := validateInput(path, passphrase); err != nil {
 		return err
 	}
+
 	if !strings.HasSuffix(path, ".enc") {
 		return fmt.Errorf("%w: got %q", ErrFileExtMismatch, filepath.Ext(path))
 	}
@@ -87,10 +92,12 @@ func Unlock(path, passphrase string) error {
 	}
 	// Write decrypted data to disk
 	decryptedPath := strings.TrimSuffix(path, ".enc")
+
 	err = writeAndReplaceFile(decryptedPath, plaintext, path, backupPath)
 	if err != nil {
 		return err
 	}
+
 	slog.Debug("file unlocked", "path", decryptedPath)
 	// Cleanup successful operation
 	_ = os.Remove(backupPath)
@@ -156,12 +163,15 @@ func decrypt(ciphertext []byte, passphrase string) ([]byte, error) {
 // IsLocked checks if the given file has .enc extension.
 func IsLocked(s string) error {
 	slog.Debug("checking if file is locked")
+
 	if !strings.HasSuffix(s, ".enc") {
 		s += ".enc"
 	}
+
 	if files.Exists(s) {
 		return fmt.Errorf("%w: %q", ErrItemLocked, filepath.Base(s))
 	}
+
 	slog.Debug("file not locked")
 
 	return nil
@@ -170,7 +180,9 @@ func IsLocked(s string) error {
 // generateKey creates a 32-byte key from the passphrase using SHA-256.
 func generateKey(passphrase string) []byte {
 	slog.Debug("generating key from passphrase")
+
 	hash := sha256.Sum256([]byte(passphrase))
+
 	return hash[:]
 }
 
@@ -179,6 +191,7 @@ func validateInput(path, passphrase string) error {
 	if passphrase == "" {
 		return ErrPassphraseEmpty
 	}
+
 	if !files.Exists(path) {
 		return fmt.Errorf("%w: %s", files.ErrFileNotFound, path)
 	}
@@ -221,6 +234,7 @@ func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPat
 	if err != nil {
 		// If writing fails, attempt to restore from backup
 		slog.Debug("restore from backup", "path", backupPath)
+
 		restoreErr := os.Rename(backupPath, originalPath)
 		if restoreErr != nil {
 			return fmt.Errorf(
@@ -249,6 +263,7 @@ func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPat
 
 		return fmt.Errorf("failed to remove original file: %w", err)
 	}
+
 	slog.Debug("wrote and replaced file", "path", targetPath)
 
 	return nil

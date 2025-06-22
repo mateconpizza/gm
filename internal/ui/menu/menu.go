@@ -75,6 +75,7 @@ func (m *Menu[T]) callInterruptFn(err error) {
 		slog.Debug("calling interruptFn with err", "err", err)
 		m.interruptFn(err)
 	}
+
 	slog.Debug("interruptFn is nil")
 }
 
@@ -134,9 +135,11 @@ func WithKeybinds(keys ...Keymap) OptFn {
 			if !k.Enabled {
 				continue
 			}
+
 			if !k.Hidden {
 				o.header = appendKeytoHeader(o.header, k.Bind, k.Desc)
 			}
+
 			o.keybind = append(o.keybind, fmt.Sprintf("%s:%s", k.Bind, k.Action))
 		}
 	}
@@ -145,6 +148,7 @@ func WithKeybinds(keys ...Keymap) OptFn {
 // WithMultiSelection adds a keybind to select multiple records.
 func WithMultiSelection() OptFn {
 	opts := []string{"--highlight-line", "--multi"}
+
 	if !menuConfig.Keymaps.ToggleAll.Enabled {
 		return func(o *Options) {
 			o.settings = append(o.settings, opts...)
@@ -153,10 +157,12 @@ func WithMultiSelection() OptFn {
 
 	return func(o *Options) {
 		o.settings = append(o.settings, opts...)
+
 		if !menuConfig.Keymaps.ToggleAll.Hidden {
 			h := appendKeytoHeader(make([]string, 0), "ctrl-a", "toggle-all")
 			o.header = append(o.header, h...)
 		}
+
 		o.keybind = append(o.keybind, "ctrl-a:toggle-all")
 	}
 }

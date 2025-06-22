@@ -36,6 +36,7 @@ func (be *BookmarkEdit) Buffer() []byte {
 	buf = append(buf, be.header...)
 	buf = append(buf, be.body...)
 	buf = append(buf, be.footer...)
+
 	return buf
 }
 
@@ -81,10 +82,12 @@ func Edit(te *files.TextEditor, b *Bookmark, idx, total int) (*Bookmark, error) 
 // prepareBufferForEdition prepares the buffer for edition.
 func prepareBufferForEdition(be *BookmarkEdit) {
 	const spaces = 10
+
 	newBookmark := be.item.ID == 0
 
 	// header
 	shortTitle := txt.Shorten(be.item.Title, terminal.MinWidth-spaces-6)
+
 	header := fmt.Appendf(nil, "# %d %s\n#\n", be.item.ID, shortTitle)
 	if newBookmark {
 		header = fmt.Appendf(nil, "# %s\n#\n", shortTitle)
@@ -95,6 +98,7 @@ func prepareBufferForEdition(be *BookmarkEdit) {
 	if newBookmark {
 		s = "bookmark addition"
 	}
+
 	sep := txt.CenteredLine(terminal.MinWidth-spaces, s)
 
 	// metadata

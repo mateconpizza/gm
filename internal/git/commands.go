@@ -39,7 +39,7 @@ func addAll(repoPath string) error {
 
 // addRemote adds a remote repository.
 func addRemote(repoPath, repoURL string) error {
-	if config.App.Force {
+	if config.App.Flags.Force {
 		return runGitCmd(repoPath, "remote", "set-url", "origin", repoURL)
 	}
 
@@ -51,6 +51,7 @@ func SjtUpstream(repoPath string) error {
 	if err != nil {
 		return err
 	}
+
 	return runGitCmd(repoPath, "push", "--set-upstream", "origin", b)
 }
 
@@ -80,6 +81,7 @@ func hasChanges(repoPath string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("git status failed: %w", err)
 	}
+
 	return strings.TrimSpace(output) != "", nil
 }
 
@@ -103,9 +105,11 @@ func push(repoPath string) error {
 	if err != nil {
 		return fmt.Errorf("git remote check failed: %w", err)
 	}
+
 	if strings.TrimSpace(remotes) == "" {
 		return ErrGitNoRemote
 	}
+
 	branch, err := branch(repoPath)
 	if err != nil {
 		return fmt.Errorf("could not get current branch: %w", err)
@@ -127,6 +131,7 @@ func status(repoPath string) (string, error) {
 	}
 
 	var out bytes.Buffer
+
 	cmd := exec.Command(gitCmd, "diff", "--cached", "--name-status")
 	cmd.Stdout = &out
 	cmd.Dir = repoPath
@@ -136,15 +141,18 @@ func status(repoPath string) (string, error) {
 	}
 
 	var added, modified, deleted int
+
 	lines := strings.SplitSeq(strings.TrimSpace(out.String()), "\n")
 	for line := range lines {
 		if line == "" {
 			continue
 		}
+
 		fields := strings.Fields(line)
 		if len(fields) < 2 {
 			continue
 		}
+
 		status := fields[0]
 		switch status {
 		case "A":
@@ -160,9 +168,11 @@ func status(repoPath string) (string, error) {
 	if added > 0 {
 		parts = append(parts, fmt.Sprintf("Add:%d", added))
 	}
+
 	if deleted > 0 {
 		parts = append(parts, fmt.Sprintf("Del:%d", deleted))
 	}
+
 	if modified > 0 {
 		parts = append(parts, fmt.Sprintf("Mod:%d", modified))
 	}
@@ -192,8 +202,10 @@ func hasCommits(repoPath string) bool {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() != 0 {
 			return false
 		}
+
 		return false
 	}
+
 	return true
 }
 
@@ -202,6 +214,7 @@ func runWithOutput(repoPath string, args ...string) (string, error) {
 	cmd := exec.Command(gitCmd, args...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
+
 	return strings.TrimSpace(string(output)), err
 }
 
@@ -211,13 +224,16 @@ func runWithWriter(stdout io.Writer, repoPath string, s ...string) error {
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	o := strings.TrimSpace(string(output))
+
 	if err != nil {
 		//nolint:err113 //notneeded
 		return fmt.Errorf("%s", o)
 	}
+
 	if o != "" {
 		_, _ = fmt.Fprintf(stdout, "%s\n", o)
 	}
+
 	return nil
 }
 
@@ -228,7 +244,7 @@ func runGitCmd(repoPath string, commands ...string) error {
 		return fmt.Errorf("%w: %s", err, gitCommand)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightOrange))
+	f := frame.New(frame.WithColorBorder(color.Orange))
 	defer f.Flush()
 
 	commands = append([]string{gitCommand, "-C", repoPath}, commands...)

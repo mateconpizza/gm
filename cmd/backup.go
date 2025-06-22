@@ -20,14 +20,8 @@ import (
 )
 
 func init() {
-	f := backupCmd.Flags()
-	f.BoolVar(&Force, "force", false, "force action | don't ask confirmation")
-	f.StringVarP(&DBName, "name", "n", config.DefaultDBName, "database name")
-	f.StringVar(&WithColor, "color", "always", "output with pretty colors [always|never]")
-	_ = backupCmd.Flags().MarkHidden("color")
-	f.BoolP("help", "h", false, "Hidden help")
-	_ = f.MarkHidden("help")
-	backupUnlockCmd.Flags().BoolVarP(&Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
+	cfg := config.App
+	backupUnlockCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
 	backupCmd.AddCommand(backupNewCmd, backupListCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
 	Root.AddCommand(backupCmd)
 }
@@ -94,6 +88,7 @@ func backupLockFunc(cmd *cobra.Command, args []string) error {
 	)
 
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
+
 	c.F.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 	for _, r := range fs {
@@ -149,6 +144,7 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
 	}
+
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
@@ -156,8 +152,9 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 	fmt.Print(db.Info(c, r))
 
 	c.F.Reset().Row("\n").Flush()
+
 	cgb := func(s string) string { return color.BrightGreen(s).Italic().String() }
-	if !config.App.Force {
+	if !config.App.Flags.Force {
 		if err := c.ConfirmErr("create "+cgb("backup"), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -170,7 +167,7 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 
 	fmt.Print(c.SuccessMesg(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))))
 
-	if config.App.Force {
+	if config.App.Flags.Force {
 		slog.Debug("skipping lock", "path", newBkPath)
 		return nil
 	}

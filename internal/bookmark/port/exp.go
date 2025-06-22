@@ -25,6 +25,7 @@ func GitStore(b *bookmark.Bookmark) error {
 	if !git.IsInitialized(repoPath) {
 		return nil
 	}
+
 	fileExt := JSONFileExt
 	if gpg.IsInitialized(repoPath) {
 		fileExt = gpg.Extension
@@ -34,7 +35,7 @@ func GitStore(b *bookmark.Bookmark) error {
 
 	switch fileExt {
 	case JSONFileExt:
-		return gitStoreAsJSON(root, b, config.App.Force)
+		return gitStoreAsJSON(root, b, config.App.Flags.Force)
 	case gpg.Extension:
 		return exportAsGPG(root, []*bookmark.Bookmark{b})
 	}
@@ -125,6 +126,7 @@ func gitStoreAsJSON(rootPath string, b *bookmark.Bookmark, force bool) error {
 
 	// urlHash := domainPath -> urlHash.json
 	urlHash := b.HashURL()
+
 	filePathJSON := filepath.Join(domainPath, urlHash+JSONFileExt)
 	if err := files.JSONWrite(filePathJSON, b.ToJSON(), force); err != nil {
 		return resolveFileConflictErr(rootPath, err, filePathJSON, b)
@@ -136,7 +138,7 @@ func gitStoreAsJSON(rootPath string, b *bookmark.Bookmark, force bool) error {
 // exportAsJSON creates the repository structure.
 func exportAsJSON(root string, bs []*bookmark.Bookmark) error {
 	for _, b := range bs {
-		if err := gitStoreAsJSON(root, b, config.App.Force); err != nil {
+		if err := gitStoreAsJSON(root, b, config.App.Flags.Force); err != nil {
 			return err
 		}
 	}
@@ -162,6 +164,7 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 
 	n := len(bookmarks)
 	count := 0
+
 	for i := range n {
 		hashPath, err := bookmarks[i].HashPath()
 		if err != nil {
@@ -188,6 +191,7 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 		}
 
 		sp.Start()
+
 		count++
 		sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
 	}

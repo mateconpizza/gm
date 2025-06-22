@@ -34,6 +34,7 @@ func spaces(n int) string {
 // PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.
 func PaddedLine(s, v any) string {
 	const pad = 15
+
 	str := fmt.Sprint(s)
 	visibleLen := len(color.ANSICodeRemover(str))
 	padding := max(pad-visibleLen, 0)
@@ -55,9 +56,12 @@ func Shorten(s string, maxLength int) string {
 // SplitAndAlign splits a string into multiple lines and aligns the
 // words.
 func SplitAndAlign(s string, lineLength, indentation int) string {
+	var (
+		result      strings.Builder
+		currentLine strings.Builder
+	)
+
 	separator := strings.Repeat(" ", indentation)
-	var result strings.Builder
-	var currentLine strings.Builder
 
 	for _, word := range strings.Fields(s) {
 		if currentLine.Len()+len(word)+1 > lineLength {
@@ -70,9 +74,11 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 			if currentLine.Len() != 0 {
 				currentLine.WriteString(" ")
 			}
+
 			currentLine.WriteString(word)
 		}
 	}
+
 	result.WriteString(currentLine.String())
 
 	return result.String()
@@ -80,8 +86,10 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 
 // SplitIntoChunks splits strings lines into chunks of a given length.
 func SplitIntoChunks(s string, strLen int) []string {
-	var lines []string
-	var currentLine strings.Builder
+	var (
+		lines       []string
+		currentLine strings.Builder
+	)
 
 	// Remember if the original string ended with a newline.
 	endsWithNewline := strings.HasSuffix(s, "\n")
@@ -103,6 +111,7 @@ func SplitIntoChunks(s string, strLen int) []string {
 			if currentLine.Len() != 0 {
 				currentLine.WriteString(" ")
 			}
+
 			currentLine.WriteString(word)
 		}
 	}
@@ -139,9 +148,11 @@ func URLBreadCrumbs(s string, c color.ColorFn) string {
 	if c == nil {
 		c = color.Default
 	}
+
 	if u.Host == "" || u.Path == "" {
 		return c(s).Bold().String()
 	}
+
 	host := c(u.Host).Bold().String()
 	pathSegments := strings.FieldsFunc(
 		strings.TrimLeft(u.Path, "/"),
@@ -167,6 +178,7 @@ func CountLines(s string) int {
 // DiffColor colorizes the diff output.
 func DiffColor(s string) string {
 	var r []string
+
 	for l := range strings.SplitSeq(s, "\n") {
 		switch {
 		case strings.HasPrefix(l, "+"):
@@ -192,15 +204,18 @@ func RelativeTime(ts string) string {
 	if err != nil {
 		return "invalid timestamp"
 	}
+
 	now := time.Now()
 
 	// calculate the duration between now and the timestamp.
 	// we assume the timestamp is in the past.
 	diff := now.Sub(t)
 	days := int(diff.Hours() / 24)
+
 	if days <= 0 {
 		return "today"
 	}
+
 	if days == 1 {
 		return "yesterday"
 	}
@@ -213,12 +228,15 @@ func RelativeTime(ts string) string {
 //	#tag1 #tag2 #tag3
 func TagsWithPound(s string) string {
 	var sb strings.Builder
+
 	tagsSplit := strings.Split(s, ",")
 	sort.Strings(tagsSplit)
+
 	for _, t := range tagsSplit {
 		if t == "" {
 			continue
 		}
+
 		sb.WriteString(fmt.Sprintf("#%s ", t))
 	}
 

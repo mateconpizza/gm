@@ -3,7 +3,6 @@ package bookmark
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -77,29 +76,22 @@ func (b *Bookmark) ToJSON() *BookmarkJSON {
 
 // Field returns the value of a field.
 func (b *Bookmark) Field(f string) (string, error) {
-	var field string
 	var s string
+
 	switch f {
 	case "id", "i", "1":
-		field = "id"
 		s = strconv.Itoa(b.ID)
 	case "url", "u", "2":
-		field = "url"
 		s = b.URL
 	case "title", "t", "3":
-		field = "title"
 		s = b.Title
 	case "tags", "T", "4":
-		field = "tags"
 		s = b.Tags
 	case "desc", "d", "5":
-		field = "desc"
 		s = b.Desc
 	default:
 		return "", fmt.Errorf("%w: %q", ErrUnknownField, f)
 	}
-
-	slog.Info("selected field", "field", field)
 
 	return s, nil
 }
@@ -142,6 +134,7 @@ func (b *Bookmark) HashPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
+
 	return filepath.Join(domain, b.Checksum), nil
 }
 
@@ -164,6 +157,7 @@ func (b *Bookmark) JSONPath() (string, error) {
 	}
 
 	urlHash := hashURL(b.URL)
+
 	return filepath.Join(domain, urlHash+".json"), nil
 }
 
@@ -175,6 +169,7 @@ func (b *Bookmark) GPGPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
+
 	return filepath.Join(domain, b.Checksum+gpg.Extension), nil
 }
 
@@ -196,5 +191,6 @@ func NewFromJSON(json *BookmarkJSON) *Bookmark {
 	b.VisitCount = json.VisitCount
 	b.Favorite = json.Favorite
 	b.Checksum = json.Checksum
+
 	return b
 }

@@ -8,6 +8,7 @@ import (
 
 func TestShortenString(t *testing.T) {
 	t.Parallel()
+
 	test := []struct {
 		input    string
 		expected string
@@ -35,6 +36,7 @@ func TestShortenString(t *testing.T) {
 //nolint:funlen //test
 func TestSplitIntoChunks(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -104,6 +106,7 @@ func TestSplitIntoChunks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			result := SplitIntoChunks(tt.input, tt.strLen)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -112,6 +115,7 @@ func TestSplitIntoChunks(t *testing.T) {
 
 func TestExtractBlock(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		startMarker string
 		endMarker   string
@@ -145,8 +149,7 @@ func TestExtractBlock(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		test := tt
-		result := ExtractBlock(test.content, test.startMarker, test.endMarker)
+		result := ExtractBlock(tt.content, tt.startMarker, tt.endMarker)
 		if result != tt.expected {
 			t.Errorf(
 				"Failed for content: %v, startMarker: %s, endMarker: %s\nExpected: %q\nGot: %q\n",

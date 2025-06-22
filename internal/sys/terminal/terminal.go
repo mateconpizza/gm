@@ -30,7 +30,7 @@ var termState *term.State
 // https://no-color.org
 const noColorEnv string = "NO_COLOR"
 
-// force action.
+// force is a flag to force the terminal to run in non-interactive mode.
 var force bool = false
 
 // Default terminal settings.
@@ -55,14 +55,17 @@ func NoColorEnv() bool {
 // saveState the current terminal state.
 func saveState() error {
 	slog.Debug("saving terminal state")
+
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		slog.Debug("not a terminal, skipping saveState")
 		return nil
 	}
+
 	oldState, err := term.GetState(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("saving state: %w", err)
 	}
+
 	termState = oldState
 
 	return nil
@@ -71,13 +74,16 @@ func saveState() error {
 // restoreState the previously saved terminal state.
 func restoreState() error {
 	slog.Debug("restoring terminal state")
+
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		slog.Debug("not a terminal, skipping restoreState")
 		return nil
 	}
+
 	if termState == nil {
 		return ErrNoStateToRestore
 	}
+
 	if err := term.Restore(int(os.Stdin.Fd()), termState); err != nil {
 		return fmt.Errorf("restoring state: %w", err)
 	}
@@ -136,6 +142,7 @@ func getWidth() (int, error) {
 	if !term.IsTerminal(fd) {
 		return 0, ErrNotTTY
 	}
+
 	w, _, err := term.GetSize(fd)
 	if err != nil {
 		return 0, fmt.Errorf("getting console width: %w", err)
@@ -149,8 +156,6 @@ func init() {
 	loadMaxWidth()
 }
 
-// SetForce sets the force flag, this will skip the confirmation prompt.
-func SetForce(f bool) {
-	slog.Debug("force", "set", f)
-	force = f
+func NonInteractiveMode(b bool) {
+	force = b
 }

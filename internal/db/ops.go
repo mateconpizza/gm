@@ -31,6 +31,7 @@ func TagsCounterFromPath(dbPath string) (map[string]int, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	return TagsCounter(r)
 }
 
@@ -40,15 +41,15 @@ func DropFromPath(dbPath string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	return Drop(r, context.Background())
 }
 
 // CountFavorites returns the number of favorite records.
 func CountFavorites(r *SQLiteRepository) int {
 	var n int
-	query := "SELECT COUNT(*) FROM bookmarks WHERE favorite = 1"
-	err := r.DB.QueryRowx(query).Scan(&n)
-	if err != nil {
+
+	if err := r.DB.QueryRowx("SELECT COUNT(*) FROM bookmarks WHERE favorite = 1").Scan(&n); err != nil {
 		return 0
 	}
 
@@ -58,9 +59,8 @@ func CountFavorites(r *SQLiteRepository) int {
 // count counts the number of rows in the specified table.
 func countRecords(r *SQLiteRepository, t Table) int {
 	var n int
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", t)
-	err := r.DB.QueryRowx(query).Scan(&n)
-	if err != nil {
+
+	if err := r.DB.QueryRowx(fmt.Sprintf("SELECT COUNT(*) FROM %s", t)).Scan(&n); err != nil {
 		return 0
 	}
 
@@ -75,6 +75,7 @@ func List(root string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	if len(fs) == 0 {
 		return nil, ErrDBsNotFound
 	}
@@ -86,6 +87,7 @@ func List(root string) ([]string, error) {
 func ListBackups(dir, dbName string) ([]string, error) {
 	// remove .db|.enc extension for matching
 	baseName := files.StripSuffixes(dbName)
+
 	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db*"))
 	if err != nil {
 		return nil, fmt.Errorf("listing backups: %w", err)
@@ -106,10 +108,13 @@ func newBackup(r *SQLiteRepository) (string, error) {
 		"src", r.Cfg.Fullpath(),
 		"dest", destPath,
 	)
+
 	if files.Exists(destPath) {
 		return "", fmt.Errorf("%w: %q", ErrBackupExists, destPath)
 	}
+
 	_ = r.DB.MustExec("VACUUM INTO ?", destPath)
+
 	if err := verifySQLiteIntegrity(destPath); err != nil {
 		return "", err
 	}
@@ -125,6 +130,7 @@ func verifySQLiteIntegrity(path string) error {
 	if err != nil {
 		return fmt.Errorf("no se pudo abrir backup: %w", err)
 	}
+
 	defer func() {
 		if err := db.Close(); err != nil {
 			slog.Error("error closing db", "error", err)
@@ -132,6 +138,7 @@ func verifySQLiteIntegrity(path string) error {
 	}()
 
 	var result string
+
 	row := db.QueryRow("PRAGMA integrity_check;")
 	if err := row.Scan(&result); err != nil {
 		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
@@ -149,14 +156,17 @@ func verifySQLiteIntegrity(path string) error {
 // isInit returns true if the database is initialized.
 func isInit(r *SQLiteRepository) bool {
 	allExist := true
+
 	for _, s := range tablesAndSchema() {
 		exists, err := r.tableExists(s.name)
 		if err != nil {
 			slog.Error("checking if table exists", "name", s.name, "error", err)
 			return false
 		}
+
 		if !exists {
 			allExist = false
+
 			slog.Warn("table does not exist", "name", s.name)
 		}
 	}
@@ -167,19 +177,24 @@ func isInit(r *SQLiteRepository) bool {
 // IsInitialized checks if the database is initialized.
 func IsInitialized(p string) (bool, error) {
 	slog.Debug("checking if database is initialized", "path", p)
+
 	allExist := true
+
 	r, err := New(p)
 	if err != nil {
 		return false, err
 	}
+
 	for _, s := range tablesAndSchema() {
 		exists, err := r.tableExists(s.name)
 		if err != nil {
 			slog.Error("checking if table exists", "name", s.name, "error", err)
 			return false, err
 		}
+
 		if !exists {
 			allExist = false
+
 			slog.Warn("table does not exist", "name", s.name)
 		}
 	}
@@ -191,6 +206,7 @@ func IsInitialized(p string) (bool, error) {
 func Drop(r *SQLiteRepository, ctx context.Context) error {
 	tts := tablesAndSchema()
 	tables := make([]Table, 0, len(tts))
+
 	for _, t := range tts {
 		tables = append(tables, t.name)
 	}
@@ -211,6 +227,7 @@ func Drop(r *SQLiteRepository, ctx context.Context) error {
 
 func vacuum(r *SQLiteRepository) error {
 	slog.Debug("vacuuming database")
+
 	_, err := r.DB.Exec("VACUUM")
 	if err != nil {
 		return fmt.Errorf("vacuum: %w", err)
@@ -228,6 +245,7 @@ func resetSQLiteSequence(tx *sqlx.Tx, tables ...Table) error {
 
 	for _, t := range tables {
 		slog.Debug("resetting sqlite sequence", "table", t)
+
 		if _, err := tx.Exec("DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
 			return fmt.Errorf("resetting sqlite sequence: %w", err)
 		}

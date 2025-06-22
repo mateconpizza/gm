@@ -34,6 +34,7 @@ func ParseTags(tags string) string {
 		return r == ',' || r == ' '
 	})
 	sort.Strings(split)
+
 	tags = strings.Join(uniqueTags(split), ",")
 	if strings.HasSuffix(tags, ",") {
 		return tags
@@ -72,19 +73,26 @@ func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
 	)
 	sp.Start()
 
-	var wg sync.WaitGroup
-	errs := make([]string, 0)
+	var (
+		wg   sync.WaitGroup
+		errs = make([]string, 0)
+	)
+
 	bs.ForEachMut(func(b *Bookmark) {
 		wg.Add(1)
+
 		go func(b *Bookmark) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			defer wg.Done()
+
 			sc := scraper.New(b.URL, scraper.WithContext(ctx))
+
 			if err := sc.Start(); err != nil {
 				errs = append(errs, fmt.Sprintf("url %s: %s", b.URL, err.Error()))
 				slog.Warn("scraping error", "url", b.URL, "err", err)
 			}
+
 			b.Desc, _ = sc.Desc()
 		}(b)
 	})
@@ -122,11 +130,14 @@ func cleanLines(s string) string {
 	}
 
 	result := make([]string, 0)
+
 	for _, ss := range stringSplit {
 		trimmed := strings.TrimSpace(ss)
+
 		if ss == "" {
 			continue
 		}
+
 		result = append(result, trimmed)
 	}
 
@@ -213,6 +224,7 @@ func hashDomain(rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return txt.GenHash(domain, 12), nil
 }
 
@@ -222,8 +234,10 @@ func domain(rawURL string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing url: %w", err)
 	}
+
 	// normalize domain
 	domain := strings.ToLower(u.Hostname())
+
 	return strings.TrimPrefix(domain, "www."), nil
 }
 
@@ -235,15 +249,19 @@ func Checksum(rawURL, title, desc, tags string) string {
 
 // uniqueTags returns a slice of unique tags.
 func uniqueTags(t []string) []string {
-	seen := make(map[string]bool)
-	var tags []string
+	var (
+		tags []string
+		seen = make(map[string]bool)
+	)
 
 	for _, tag := range t {
 		if tag == "" {
 			continue
 		}
+
 		if !seen[tag] {
 			seen[tag] = true
+
 			tags = append(tags, tag)
 		}
 	}

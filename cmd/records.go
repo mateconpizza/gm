@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -38,13 +37,11 @@ var (
 	// recordsCmd records management.
 	// main command.
 	recordsCmd = &cobra.Command{
-		Use:     "records",
-		Aliases: []string{"r"},
-		Short:   "Records management",
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			return handler.AssertDatabaseExists(cmd)
-		},
-		RunE: recordsCmdFunc,
+		Use:               "records",
+		Aliases:           []string{"r"},
+		Short:             "Records management",
+		PersistentPreRunE: handler.AssertDatabaseExists,
+		RunE:              recordsCmdFunc,
 	}
 
 	// tags flags.
@@ -77,10 +74,12 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 	defer r.Close()
 
 	terminal.ReadPipedInput(&args)
-	bs, err := handler.Data(cmd, menuForRecords[bookmark.Bookmark](cmd), r, args)
+
+	bs, err := handler.Data(menuForRecords[bookmark.Bookmark](cmd), r, args)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	if bs.Empty() {
 		return db.ErrRecordNotFound
 	}
@@ -93,27 +92,29 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		}))),
 	)
 
+	cfg := config.App
+
 	switch {
-	case Status:
+	case cfg.Flags.Status:
 		return handler.CheckStatus(c, bs)
-	case Remove:
+	case cfg.Flags.Remove:
 		return handler.Remove(c, r, bs)
-	case Edit:
+	case cfg.Flags.Edit:
 		return handler.EditSlice(c, r, bs)
-	case Copy:
+	case cfg.Flags.Copy:
 		return handler.Copy(bs)
-	case Open && !QR:
-		return handler.Open(r, bs)
+	case cfg.Flags.Open && !cfg.Flags.QR:
+		return handler.Open(c, r, bs)
 	}
 
 	switch {
-	case Field != "":
-		return printer.ByField(bs, Field)
-	case QR:
-		return handler.QR(bs, Open)
-	case JSON:
+	case cfg.Flags.Field != "":
+		return printer.ByField(bs, cfg.Flags.Field)
+	case cfg.Flags.QR:
+		return handler.QR(bs, cfg.Flags.Open)
+	case cfg.Flags.JSON:
 		return printer.JSONRecordSlice(bs)
-	case Oneline:
+	case cfg.Flags.Oneline:
 		return printer.Oneline(bs)
 	default:
 		return printer.RecordSlice(bs)
@@ -121,29 +122,30 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 }
 
 func initRecordFlags(cmd *cobra.Command) {
+	cfg := config.App
 	f := cmd.Flags()
 
 	// Prints
-	f.BoolVarP(&JSON, "json", "j", false, "output in JSON format")
-	f.BoolVarP(&Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
-	f.BoolVarP(&Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
-	f.StringVarP(&Field, "field", "f", "", "output by field [id|url|title|tags]")
+	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.BoolVarP(&cfg.Flags.Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
+	f.BoolVarP(&cfg.Flags.Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
+	f.StringVarP(&cfg.Flags.Field, "field", "f", "", "output by field [id|url|title|tags]")
 
 	// Actions
-	f.BoolVarP(&Copy, "copy", "c", false, "copy bookmark to clipboard")
-	f.BoolVarP(&Open, "open", "o", false, "open bookmark in default browser")
-	f.BoolVarP(&QR, "qr", "q", false, "generate qr-code")
-	f.BoolVarP(&Remove, "remove", "r", false, "remove a bookmarks by query or id")
-	f.StringSliceVarP(&Tags, "tag", "t", nil, "list by tag")
+	f.BoolVarP(&cfg.Flags.Copy, "copy", "c", false, "copy bookmark to clipboard")
+	f.BoolVarP(&cfg.Flags.Open, "open", "o", false, "open bookmark in default browser")
+	f.BoolVarP(&cfg.Flags.QR, "qr", "q", false, "generate qr-code")
+	f.BoolVarP(&cfg.Flags.Remove, "remove", "r", false, "remove a bookmarks by query or id")
+	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "list by tag")
 
 	// Experimental
-	f.BoolVarP(&Menu, "menu", "m", false, "menu mode (fzf)")
-	f.BoolVarP(&Edit, "edit", "e", false, "edit with preferred text editor")
-	f.BoolVarP(&Status, "status", "s", false, "check bookmarks status")
+	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
+	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit with preferred text editor")
+	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check bookmarks status")
 
 	// Modifiers
-	f.IntVarP(&Head, "head", "H", 0, "the <int> first part of bookmarks")
-	f.IntVarP(&Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "the <int> first part of bookmarks")
+	f.IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "the <int> last part of bookmarks")
 }
 
 // menuForRecords returns a FZF menu for showing records.
@@ -161,12 +163,8 @@ func menuForRecords[T comparable](cmd *cobra.Command) *menu.Menu[T] {
 			config.FzfKeybindYank(),
 		),
 	}
-	multi, err := cmd.Flags().GetBool("multiline")
-	if err != nil {
-		slog.Debug("getting 'Multiline' flag", "error", err.Error())
-		multi = false
-	}
-	if multi {
+
+	if multi, _ := cmd.Flags().GetBool("multiline"); multi {
 		mo = append(mo, menu.WithMultilineView())
 	}
 

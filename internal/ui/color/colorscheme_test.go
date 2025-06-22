@@ -8,6 +8,7 @@ import (
 
 func setupInvalidColorScheme(t *testing.T) *Scheme {
 	t.Helper()
+
 	return NewScheme("", &Palette{
 		Color0: "#282828",
 		Color1: "#cc241d",
@@ -20,6 +21,7 @@ func setupInvalidColorScheme(t *testing.T) *Scheme {
 
 func TestValidateColorScheme(t *testing.T) {
 	t.Parallel()
+
 	cs := setupInvalidColorScheme(t)
 	// err on empty name
 	assert.ErrorIs(t, cs.Validate(), ErrColorSchemeName)

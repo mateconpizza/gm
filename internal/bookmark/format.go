@@ -13,14 +13,17 @@ import (
 // Oneline formats a bookmark in a single line with the given colorscheme.
 func Oneline(b *Bookmark) string {
 	w := terminal.MaxWidth
+
 	const (
 		idPadding      = 3
 		idWithColor    = 16
 		defaultTagsLen = 24
 		minTagsLen     = 34
 	)
+
 	idLen := idPadding
 	tagsLen := minTagsLen
+
 	cs := color.DefaultColorScheme()
 	if cs.Enabled {
 		idLen = idWithColor
@@ -37,7 +40,9 @@ func Oneline(b *Bookmark) string {
 	urlLen += len(colorURL) - len(shortURL)
 	// process and color tags
 	tagsColor := cs.Blue(txt.TagsWithUnicode(b.Tags)).Italic().String()
+
 	var sb strings.Builder
+
 	sb.Grow(w + 20) // pre-allocate buffer with some extra space for color codes
 	sb.WriteString(fmt.Sprintf("%-*s ", idLen, coloredID))
 	sb.WriteString(txt.UnicodeMiddleDot)
@@ -49,14 +54,18 @@ func Oneline(b *Bookmark) string {
 // Multiline formats a bookmark for fzf with max width.
 func Multiline(b *Bookmark) string {
 	w := terminal.MaxWidth
+
 	var sb strings.Builder
+
 	cs := color.DefaultColorScheme()
 	sb.WriteString(cs.BrightYellow(b.ID).Bold().String())
 	sb.WriteString(txt.NBSP)
 	sb.WriteString(txt.Shorten(txt.URLBreadCrumbs(b.URL, cs.BrightMagenta), w) + "\n")
+
 	if b.Title != "" {
 		sb.WriteString(cs.Cyan(txt.Shorten(b.Title, w)).String() + "\n")
 	}
+
 	sb.WriteString(cs.BrightWhite(txt.TagsWithUnicode(b.Tags)).Italic().String())
 
 	return sb.String()

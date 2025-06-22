@@ -11,6 +11,7 @@ import (
 func TestTermGetUserInput(t *testing.T) {
 	t.Run("confirm", func(t *testing.T) {
 		t.Parallel()
+
 		opts := []string{"yes", "no"}
 		input := "yes\n"
 		mockInput := strings.NewReader(input)
@@ -21,6 +22,7 @@ func TestTermGetUserInput(t *testing.T) {
 	})
 	t.Run("default", func(t *testing.T) {
 		t.Parallel()
+
 		opts := []string{"yes", "no"}
 		input := "\n"
 		mockInput := strings.NewReader(input)
@@ -31,6 +33,7 @@ func TestTermGetUserInput(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		t.Parallel()
+
 		opts := []string{"yes", "no"}
 		input := "invalid\n"
 		mockInput := strings.NewReader(input)
@@ -43,6 +46,7 @@ func TestTermGetUserInput(t *testing.T) {
 
 func TestTermGetQueryFromPipe(t *testing.T) {
 	t.Parallel()
+
 	input := "hello\n"
 	mockInput := strings.NewReader(input)
 	result := getQueryFromPipe(mockInput)
@@ -51,6 +55,7 @@ func TestTermGetQueryFromPipe(t *testing.T) {
 
 func TestTermFmtChoicesWithDefault(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name string
 		opts []string
@@ -82,9 +87,11 @@ func TestTermFmtChoicesWithDefault(t *testing.T) {
 			want: []string{},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			result := fmtChoicesWithDefaultColor(tt.opts, tt.def)
 			for i := range len(result) {
 				result[i] = color.ANSICodeRemover(result[i])

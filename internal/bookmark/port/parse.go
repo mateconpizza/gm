@@ -57,6 +57,7 @@ func (et *ErrTracker) SetError(err error) {
 func (et *ErrTracker) GetError() error {
 	et.mu.Lock()
 	defer et.mu.Unlock()
+
 	return et.error
 }
 
@@ -116,12 +117,13 @@ func parseFoundInBrowser(
 	if err != nil {
 		return err
 	}
+
 	if len(dRecords) == 0 {
 		c.F.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	if !config.App.Force {
+	if !config.App.Flags.Force {
 		if err := c.ConfirmErr(fmt.Sprintf("scrape missing data from %d bookmarks found?", bs.Len()), "y"); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				return nil
@@ -134,6 +136,7 @@ func parseFoundInBrowser(
 	if err := bookmark.ScrapeMissingDescription(bs); err != nil {
 		return fmt.Errorf("scrapping missing description: %w", err)
 	}
+
 	return nil
 }
 
@@ -146,6 +149,7 @@ func parseJSONRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 		mu         sync.Mutex
 		bookmarks  = []*bookmark.Bookmark{}
 	)
+
 	sp := rotato.New(
 		rotato.WithPrefix(c.F.Mid("Loading JSON bookmarks").String()),
 		rotato.WithMesgColor(rotato.ColorBrightBlue),
@@ -182,6 +186,7 @@ func parseJSONRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 	}
 
 	wg.Wait()
+
 	err = errTracker.GetError()
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -201,6 +206,7 @@ func parseGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 		mu         sync.Mutex
 		bookmarks  = []*bookmark.Bookmark{}
 	)
+
 	sp := rotato.New(
 		rotato.WithPrefix(c.F.Mid("Decrypting bookmarks").StringReset()),
 		rotato.WithMesgColor(rotato.ColorBrightBlue),
@@ -239,10 +245,12 @@ func parseGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 	}
 
 	wg.Wait()
+
 	err = errTracker.GetError()
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	sp.UpdatePrefix(fmt.Sprintf("Decrypted %d bookmarks", count))
 	sp.Done()
 
@@ -263,6 +271,7 @@ func parseGPGFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.Wa
 		if err != nil {
 			return err
 		}
+
 		if d.IsDir() || filepath.Ext(path) != gpg.Extension {
 			return nil
 		}
@@ -273,8 +282,10 @@ func parseGPGFile(wg *sync.WaitGroup, mu *sync.Mutex, loader loaderFileFn) fs.Wa
 			if err != nil {
 				return err
 			}
+
 			passphrasePrompted = true
 			count--
+
 			return nil
 		}
 
@@ -335,6 +346,7 @@ func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
 
 	if files.Exists(dbPath) {
 		c.Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
+
 		opt, err = c.Choose(
 			"What do you want to do?",
 			[]string{"merge", "drop", "create", "select", "ignore"},
@@ -376,15 +388,18 @@ func parseGitRepositoryOpt(c *ui.Console, o, dbPath, repoPath string) (string, e
 
 	case "d", "drop":
 		c.Warning("Dropping database\n").Flush()
+
 		if err := db.DropFromPath(dbPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
+
 		if err := mergeRecords(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
 
 	case "m", "merge":
 		c.Info("Merging database\n").Flush()
+
 		if err := mergeRecords(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
@@ -403,6 +418,7 @@ func parseGitRepositoryOpt(c *ui.Console, o, dbPath, repoPath string) (string, e
 		c.ReplaceLine(
 			c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset(),
 		)
+
 		return "", nil
 	}
 
@@ -414,6 +430,7 @@ func resolveFileConflictErr(rootPath string, err error, filePathJSON string, b *
 	if !errors.Is(err, files.ErrFileExists) {
 		return err
 	}
+
 	bj := bookmark.BookmarkJSON{}
 	if err := files.JSONRead(filePathJSON, &bj); err != nil {
 		return fmt.Errorf("%w", err)
@@ -422,6 +439,7 @@ func resolveFileConflictErr(rootPath string, err error, filePathJSON string, b *
 	if bj.Checksum == b.Checksum {
 		return nil
 	}
+
 	return gitStoreAsJSON(rootPath, b, true)
 }
 
@@ -436,11 +454,13 @@ func gitUpdateJSON(root string, oldB, newB *bookmark.Bookmark) error {
 // GitCleanJSON removes the files from the git repo.
 func GitCleanJSON(root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git JSON files")
+
 	for _, b := range bs {
 		jsonPath, err := b.JSONPath()
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		fname := filepath.Join(root, jsonPath)
 		if err := files.RemoveFilepath(fname); err != nil {
 			return fmt.Errorf("cleaning JSON: %w", err)
@@ -453,6 +473,7 @@ func GitCleanJSON(root string, bs []*bookmark.Bookmark) error {
 // GitCleanGPG removes the files from the git repo.
 func GitCleanGPG(root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git JSON files")
+
 	for _, b := range bs {
 		gpgPath, err := b.GPGPath()
 		if err != nil {
@@ -464,6 +485,7 @@ func GitCleanGPG(root string, bs []*bookmark.Bookmark) error {
 			if errors.Is(err, files.ErrFileNotFound) {
 				return nil
 			}
+
 			return fmt.Errorf("cleaning GPG: %w", err)
 		}
 	}

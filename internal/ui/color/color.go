@@ -1,6 +1,5 @@
-// Package color provides utilities for formatting and coloring text
-// output in the terminal
-//nolint:staticcheck //ignore
+// Package color provides utilities for formatting and coloring text output in the terminal
+//nolint:staticcheck,gofumpt,goimports //ignore
 package color
 
 import (
@@ -172,6 +171,7 @@ func MkColorFn(fns ...ColorFn) ColorFn {
 				c.color = tmp.color
 				colorSet = true
 			}
+
 			c.styles = append(c.styles, tmp.styles...)
 		}
 

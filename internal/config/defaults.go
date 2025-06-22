@@ -111,27 +111,6 @@ func FzfKeybindYank() menu.Keymap {
 	}
 }
 
-// App is the default application configuration.
-var App = &AppConfig{
-	Name:        appName,
-	Cmd:         command,
-	DBName:      DefaultDBName,
-	Colorscheme: "default",
-	Color:       false,
-	Force:       false,
-	Info: information{
-		URL:     "https://github.com/mateconpizza/gm#readme",
-		Title:   "Gomarks: A bookmark manager",
-		Tags:    "golang,awesome,bookmarks,cli",
-		Desc:    "Simple yet powerful bookmark manager for your terminal",
-		Version: version,
-	},
-	Env: environment{
-		Home:   "GOMARKS_HOME",
-		Editor: "GOMARKS_EDITOR",
-	},
-}
-
 // Defaults holds the default configuration.
 var Defaults = &ConfigFile{
 	Colorscheme: "default",
@@ -142,6 +121,7 @@ var Defaults = &ConfigFile{
 func Validate(cfg *ConfigFile) error {
 	if cfg.Colorscheme == "" {
 		slog.Warn("empty colorscheme, loading default colorscheme")
+
 		cfg.Colorscheme = "default"
 	}
 

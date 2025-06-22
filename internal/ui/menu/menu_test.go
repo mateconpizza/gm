@@ -24,6 +24,7 @@ func (f *fakeRunner) Run(opts *fzf.Options) (int, error) {
 //nolint:funlen //test
 func TestSelectReturnsSelectedItem(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name     string
 		items    []any
@@ -75,6 +76,7 @@ func TestSelectReturnsSelectedItem(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			s := make([]any, len(tt.items))
 			copy(s, tt.items)
 

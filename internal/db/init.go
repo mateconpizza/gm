@@ -50,6 +50,7 @@ func (r *SQLiteRepository) Init() error {
 // tableExists checks whether a table with the specified name exists in the SQLite database.
 func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
 	var count int
+
 	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
 	if err != nil {
 		slog.Error("checking if table exists", "name", t, "error", err)
@@ -62,6 +63,7 @@ func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
 // tableRename renames the temporary table to the specified main table name.
 func (r *SQLiteRepository) tableRename(tx *sqlx.Tx, srcTable, destTable Table) error {
 	slog.Info("renaming table", "from", srcTable, "to", destTable)
+
 	_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", srcTable, destTable))
 	if err != nil {
 		return fmt.Errorf("%w: renaming table from %q to %q", err, srcTable, destTable)
@@ -73,6 +75,7 @@ func (r *SQLiteRepository) tableRename(tx *sqlx.Tx, srcTable, destTable Table) e
 // tableCreate creates a new table with the specified name in the SQLite database.
 func (r *SQLiteRepository) tableCreate(tx *sqlx.Tx, name Table, schema string) error {
 	slog.Debug("creating table", "name", name)
+
 	_, err := tx.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("error creating table: %w", err)

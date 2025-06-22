@@ -32,6 +32,7 @@ func formatItems[T any](items []T, preprocessor func(*T) string) chan string {
 			formatted := preprocessor(&ti)
 			inputChan <- formatted
 		}
+
 		close(inputChan)
 	}()
 
@@ -46,8 +47,10 @@ func processOutput[T any](
 	outputChan <-chan string,
 	resultChan chan<- []T,
 ) {
-	var result []T
-	ogItem := make(map[string]T)
+	var (
+		result []T
+		ogItem = make(map[string]T)
+	)
 
 	for _, item := range items {
 		ti := item
@@ -80,10 +83,12 @@ func loadKeybind(keybind []string, args *FzfSettings) error {
 	}
 
 	keys := strings.Join(keybind, ",")
+
 	a, err := shellwords.Parse(fmt.Sprintf("%s=%q", "--bind", keys))
 	if err != nil {
 		return fmt.Errorf("parsing keybinds args: %w", err)
 	}
+
 	*args = append(*args, a...)
 
 	return nil

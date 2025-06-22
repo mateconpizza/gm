@@ -95,6 +95,7 @@ func (t *Term) SetWriter(w io.Writer) {
 func (t *Term) Input(p string) string {
 	o, restore := prepareInputState(t.InterruptFn)
 	defer restore()
+
 	s := prompt.Input(p, completerDummy(), o...)
 
 	return s
@@ -119,6 +120,7 @@ func (t *Term) InputPassword() (string, error) {
 		if err := restoreState(); err != nil {
 			slog.Error("restoring state", "error", err)
 		}
+
 		sys.ErrAndExit(err)
 	})
 
@@ -130,6 +132,7 @@ func (t *Term) InputPassword() (string, error) {
 
 	// Use stdin file descriptor for reading password securely
 	fd := int(os.Stdin.Fd())
+
 	p, err := term.ReadPassword(fd)
 	if err != nil {
 		return "", fmt.Errorf("reading password: %w", err)
@@ -141,7 +144,9 @@ func (t *Term) InputPassword() (string, error) {
 // Prompt get the input data from the user and return it.
 func (t *Term) Prompt(p string) string {
 	r := bufio.NewReader(t.reader)
+
 	fmt.Print(p)
+
 	s, _ := r.ReadString('\n')
 
 	return strings.TrimSpace(s)
@@ -180,6 +185,7 @@ func (t *Term) ConfirmErr(q, def string) error {
 		slog.Debug("force", "def", def)
 		return nil
 	}
+
 	if len(def) > 1 {
 		// get first char
 		def = def[:1]
@@ -217,6 +223,7 @@ func (t *Term) Choose(q string, opts []string, def string) (string, error) {
 	for i := range opts {
 		opts[i] = strings.ToLower(opts[i])
 	}
+
 	opts = fmtChoicesWithDefaultColor(opts, def)
 
 	return t.promptWithChoicesErr(q, opts, def)
@@ -229,6 +236,7 @@ func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string
 	e := dimmer("]:").String()
 
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
+
 	return getUserInputWithAttempts(t.reader, t.writer, p, opts, def)
 }
 
@@ -238,6 +246,7 @@ func (t *Term) ClearLine(n int) {
 		slog.Debug("clearing line", "error", ErrNotInteractive)
 		return
 	}
+
 	ClearLine(n)
 }
 
@@ -257,6 +266,7 @@ func (t *Term) ClearChars(n int) {
 		slog.Error("error clearing chars", "error", ErrNotInteractive)
 		return
 	}
+
 	ClearChars(n)
 }
 
@@ -266,6 +276,7 @@ func (t *Term) Clear() {
 		slog.Error("error clearing the term", "error", ErrNotInteractive)
 		return
 	}
+
 	clearTerminal()
 }
 
@@ -275,9 +286,11 @@ func (t *Term) Clear() {
 // If fn is nil, the interrupt handler is disabled.
 func (t *Term) SetInterruptFn(fn func(error)) {
 	slog.Info("setting interrupt function")
+
 	if t.InterruptFn != nil {
 		t.CancelInterruptHandler()
 	}
+
 	t.InterruptFn = fn
 	ctx, cancel := context.WithCancel(context.Background())
 	t.cancelFn = cancel
@@ -321,6 +334,7 @@ func (t *Term) PipedInput(input *[]string) {
 	if !t.IsPiped() {
 		return
 	}
+
 	s := getQueryFromPipe(os.Stdin)
 	if s == "" {
 		return
@@ -344,6 +358,7 @@ func New(opts ...TermOptFn) *Term {
 	if t.InterruptFn == nil {
 		t.InterruptFn = defaultInterruptFn
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	t.cancelFn = cancel
 	setupInterruptHandler(ctx, t.InterruptFn)

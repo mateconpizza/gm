@@ -20,7 +20,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
@@ -28,20 +27,23 @@ var databaseChecked bool = false
 
 // confirmRemove prompts the user to confirm the action.
 func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Slice[bookmark.Bookmark]) error {
-	for !config.App.Force {
+	for !config.App.Flags.Force {
 		n := bs.Len()
 		if n == 0 {
 			return db.ErrRecordNotFound
 		}
+
 		bs.ForEach(func(b bookmark.Bookmark) {
 			fmt.Println(bookmark.Frame(&b))
 		})
 
 		s := color.BrightRed("remove").Bold().String()
+
 		opts := []string{"yes", "no"}
 		if bs.Len() > 1 {
 			opts = append(opts, "select")
 		}
+
 		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", s, n), opts, "n")
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -57,6 +59,7 @@ func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Sli
 			if err != nil {
 				return err
 			}
+
 			bs.Set(&items)
 			fmt.Println()
 		}
@@ -70,13 +73,12 @@ func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Sli
 }
 
 // confirmUserLimit prompts the user to confirm the exceeding limit.
-func confirmUserLimit(count, maxItems int, q string) error {
-	if config.App.Force || count < maxItems {
+func confirmUserLimit(c *ui.Console, count, maxItems int, q string) error {
+	if config.App.Flags.Force || count < maxItems {
 		return nil
 	}
-	defer terminal.ClearLine(1)
-	f := frame.New(frame.WithColorBorder(color.BrightBlue)).Header(q)
-	if !terminal.Confirm(f.String(), "n") {
+
+	if !terminal.Confirm(c.F.Question(q).String(), "n") {
 		return sys.ErrActionAborted
 	}
 
@@ -99,6 +101,7 @@ func extractIDsFrom(args []string) ([]int, error) {
 
 			return nil, fmt.Errorf("%w", err)
 		}
+
 		ids = append(ids, id)
 	}
 
@@ -128,12 +131,15 @@ func passwordConfirm(c *ui.Console) (string, error) {
 		return "", fmt.Errorf("%w", err)
 	}
 
+	fmt.Println()
+
 	s2, err := c.InputPassword("Confirm Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
 	fmt.Println()
+
 	if s != s2 {
 		return "", locker.ErrPassphraseMismatch
 	}
@@ -156,7 +162,7 @@ func CheckDBLocked(p string) error {
 }
 
 // AssertDatabaseExists checks if the database exists.
-func AssertDatabaseExists(cmd *cobra.Command) error {
+func AssertDatabaseExists(cmd *cobra.Command, args []string) error {
 	if cmd.HasParent() {
 		slog.Debug("assert db exists", "command", cmd.Name(), "parent", cmd.Parent().Name())
 	} else {

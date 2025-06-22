@@ -84,6 +84,7 @@ func (b *GeckoBrowser) LoadPaths() error {
 	if !ok {
 		return fmt.Errorf("%w: %q", ErrBrowserUnsupported, b.name)
 	}
+
 	b.paths = p
 
 	return nil
@@ -94,6 +95,7 @@ func (b *GeckoBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.
 	if p.profiles == "" || p.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
 	}
+
 	if !files.Exists(p.profiles) {
 		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, p.profiles)
 	}
@@ -107,6 +109,7 @@ func (b *GeckoBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.
 	c.F.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
 
 	bs := slice.New[bookmark.Bookmark]()
+
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, v)
 		processProfile(c, bs, profile, p, force)
@@ -134,19 +137,23 @@ type geckoBookmark struct {
 // openSQLite opens the SQLite database and returns a *sql.DB object.
 func openSQLite(dbPath string) (*sqlx.DB, error) {
 	f := fmt.Sprintf("file:%s?cache=shared", dbPath)
+
 	db, err := sqlx.Open("sqlite3", f)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+
 	s := rotato.New(
 		rotato.WithMesg(color.BrightBlue("connecting to database...").String()),
 		rotato.WithSpinnerColor(rotato.ColorGray),
 	)
 	s.Start()
+
 	defer s.Done()
 	// check if the database is reachable
 	if err = db.Ping(); err != nil {
 		slog.Error("failed to ping database", "err", err)
+
 		if err.Error() == "database is locked" {
 			return nil, ErrBrowserIsOpen
 		}
@@ -174,27 +181,33 @@ func isNonGenericURL(url string) bool {
 func queryBookmarks(db *sqlx.DB) (*slice.Slice[geckoBookmark], error) {
 	q := "SELECT DISTINCT fk, parent, title FROM moz_bookmarks WHERE type=1 AND title IS NOT NULL"
 	bs := slice.New[geckoBookmark]()
+
 	err := db.Select(bs.Items(), q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query bookmarks: %w", err)
 	}
+
 	parseGeckoBookmark := func(gb *geckoBookmark) error {
 		gb.URL, err = processURLs(db, gb.FK)
 		if err != nil {
 			return err
 		}
+
 		if gb.URL == "" {
 			return nil
 		}
+
 		gb.Tags, err = processTags(db, gb.FK)
 		if err != nil {
 			return err
 		}
+
 		gb.Tags += " " + getTodayFormatted()
 		gb.Tags = bookmark.ParseTags(gb.Tags)
 
 		return nil
 	}
+
 	if err := bs.ForEachMutErr(parseGeckoBookmark); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -209,6 +222,7 @@ func allProfiles(p string) (map[string]string, error) {
 	}
 
 	result := make(map[string]string)
+
 	sections := inidata.Sections()
 	for _, sec := range sections {
 		if !strings.HasPrefix(sec.Name(), "Profile") {
@@ -226,6 +240,7 @@ func allProfiles(p string) (map[string]string, error) {
 // processProfile processes a single profile and extracts bookmarks.
 func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, path string, force bool) {
 	c.F.Rowln().Flush()
+
 	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
 			c.Warning("skipping profile...'" + profile + "'\n").Flush()
@@ -238,22 +253,29 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 	// FIX: get path by OS
 	path = files.ExpandHomeDir(path)
 	db, err := openSQLite(path)
+
 	defer func() {
 		if db == nil {
 			return
 		}
+
 		if err := db.Close(); err != nil {
 			slog.Error("err closing database for profile", "profile", profile, "err", err)
 		}
+
 		slog.Debug("database for profile closed", "profile", profile)
 	}()
+
 	if err != nil {
 		slog.Error("opening database for profile", "profile", profile, "err", err)
+
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
 			c.Error("database is " + l + ", maybe firefox is open?\n").Flush()
+
 			return
 		}
+
 		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
 
 		return
@@ -264,37 +286,47 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 		fmt.Printf("err querying bookmarks for profile %q: %v\n", profile, err)
 		return
 	}
+
 	skipped := 0
+
 	gmarks.ForEach(func(gb geckoBookmark) {
 		if gb.URL == "" {
 			return
 		}
+
 		b := bookmark.New()
 		b.Title = gb.Title
 		b.URL = gb.URL
 		b.Tags = gb.Tags
+
 		if bs.Includes(b) {
 			skipped++
 			return
 		}
+
 		bs.Push(b)
 	})
+
 	if err := db.Close(); err != nil {
 		slog.Error("closing rows", "err", err)
 	}
+
 	found := color.BrightBlue("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, bs.Len()-skipped)).Flush()
 }
 
 // processTags processes the tags for a single bookmark.
 func processTags(db *sqlx.DB, fk int) (string, error) {
-	var tagIDs []int
-	var tags []string
+	var (
+		tagIDs []int
+		tags   []string
+	)
 	// fetch all parent tag ids in a single query
 	err := db.Select(&tagIDs, "SELECT parent FROM moz_bookmarks WHERE fk=? AND title IS NULL", fk)
 	if err != nil {
 		return "", fmt.Errorf("failed to query tags: %w", err)
 	}
+
 	if len(tagIDs) == 0 {
 		return "", nil
 	}
@@ -303,11 +335,14 @@ func processTags(db *sqlx.DB, fk int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to build IN query: %w", err)
 	}
+
 	query = db.Rebind(query)
+
 	err = db.Select(&tags, query, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to query tag titles: %w", err)
 	}
+
 	if len(tags) == 0 {
 		return "", nil
 	}
@@ -317,6 +352,7 @@ func processTags(db *sqlx.DB, fk int) (string, error) {
 
 func processURLs(db *sqlx.DB, fk int) (string, error) {
 	var url string
+
 	rows, err := db.Query("SELECT url FROM moz_places where id=?", fk)
 	if err != nil {
 		return url, fmt.Errorf("failed to query places: %w", err)
@@ -332,6 +368,7 @@ func processURLs(db *sqlx.DB, fk int) (string, error) {
 		if err := rows.Scan(&url); err != nil {
 			return url, fmt.Errorf("failed to scan url row: %w", err)
 		}
+
 		if isNonGenericURL(url) {
 			return "", nil
 		}

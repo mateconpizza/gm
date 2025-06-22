@@ -38,6 +38,7 @@ func getBrowser(key string) (browser.Browser, bool) {
 	if key == "" {
 		return nil, false
 	}
+
 	for _, pair := range registeredBrowser {
 		if pair.key == key {
 			return pair.browser, true

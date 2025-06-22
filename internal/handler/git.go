@@ -21,6 +21,7 @@ import (
 // NewGit returns a new git manager.
 func NewGit(repoPath string) (*git.Manager, error) {
 	gCmd := "git"
+
 	gitCmd, err := sys.Which(gCmd)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", err, gCmd)
@@ -32,9 +33,10 @@ func NewGit(repoPath string) (*git.Manager, error) {
 // GitCommit commits the bookmarks to the git repo.
 func GitCommit(g *git.Manager, actionMsg string) error {
 	if !g.IsInitialized() {
-		slog.Debug("git export: git not initialized")
+		slog.Debug("git export: git not initialized", "action", actionMsg)
 		return git.ErrGitNotInitialized
 	}
+
 	if err := g.Tracker.Load(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -77,6 +79,7 @@ func GitCommit(g *git.Manager, actionMsg string) error {
 func GitDropRepo(g *git.Manager, mesg string) error {
 	gr := g.Tracker.Current()
 	slog.Debug("dropping repo", "dbPath", gr.DBPath)
+
 	if !g.IsInitialized() {
 		return fmt.Errorf("dropping repo: %w: %q", git.ErrGitNotInitialized, gr.DBName)
 	}
@@ -136,9 +139,11 @@ func commitIfChanged(g *git.Manager, actionMsg string) error {
 }
 
 func gitRepoSummaryRepoStats(g *git.Manager) error {
-	gr := g.Tracker.Current()
-	var summary *git.SyncGitSummary
-	summaryPath := filepath.Join(gr.Path, git.SummaryFileName)
+	var (
+		gr          = g.Tracker.Current()
+		summary     *git.SyncGitSummary
+		summaryPath = filepath.Join(gr.Path, git.SummaryFileName)
+	)
 
 	if !files.Exists(summaryPath) {
 		// Create new summary with only RepoStats
@@ -162,6 +167,7 @@ func gitRepoSummaryRepoStats(g *git.Manager) error {
 	if err := files.JSONWrite(summaryPath, summary, true); err != nil {
 		return fmt.Errorf("writing summary: %w", err)
 	}
+
 	return nil
 }
 
@@ -228,6 +234,7 @@ func GitRepoStats(dbPath string, summary *git.SyncGitSummary) error {
 	}
 
 	summary.GenerateChecksum()
+
 	return nil
 }
 
@@ -243,6 +250,7 @@ func gitCleanFiles(g *git.Manager, bs *slice.Slice[bookmark.Bookmark]) error {
 	}
 
 	var cleaner func(string, []*bookmark.Bookmark) error
+
 	switch fileExt {
 	case port.JSONFileExt:
 		cleaner = port.GitCleanJSON
@@ -257,7 +265,7 @@ func gitCleanFiles(g *git.Manager, bs *slice.Slice[bookmark.Bookmark]) error {
 	return GitCommit(g, "Remove")
 }
 
-// GitInitialized returns true if the repo is initialized and tracked.
-func GitInitialized(repoPath, dbPath string) bool {
+// gitInitialized returns true if the repo is initialized and tracked.
+func gitInitialized(repoPath, dbPath string) bool {
 	return git.IsInitialized(repoPath) && git.IsTracked(repoPath, dbPath)
 }

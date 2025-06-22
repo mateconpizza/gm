@@ -76,11 +76,13 @@ func trackerFunc(cmd *cobra.Command, args []string) error {
 		if ok := g.Tracker.Contains(gr); ok {
 			return git.ErrGitTracked
 		}
+
 		return trackExportCommit(c, g)
 	case tkFlags.untrack:
 		if ok := g.Tracker.Contains(gr); !ok {
 			return git.ErrGitNotTracked
 		}
+
 		return untrackDropCommit(c, g)
 	}
 
@@ -92,12 +94,14 @@ func trackExportCommit(c *ui.Console, g *git.Manager) error {
 	if !g.IsInitialized() {
 		return git.ErrGitNotInitialized
 	}
+
 	gr := g.Tracker.Current()
 
 	if !g.Tracker.Contains(gr) {
 		if !c.Confirm(fmt.Sprintf("Track database %q?", gr.DBName), "y") {
 			return nil
 		}
+
 		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", gr.DBName)).String())
 	}
 
@@ -160,6 +164,7 @@ func initJSONRepo(c *ui.Console, g *git.Manager) error {
 			fmt.Print(c.WarningMesg(fmt.Sprintf("skipping %q, no bookmarks found\n", gr.DBName)))
 			return nil
 		}
+
 		return fmt.Errorf("%w", err)
 	}
 
@@ -191,11 +196,13 @@ func untrackDropCommit(c *ui.Console, g *git.Manager) error {
 	if !g.Tracker.Contains(gr) {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.DBName)
 	}
+
 	if !c.Confirm(fmt.Sprintf("Untrack %q?", gr.Name), "n") {
 		return nil
 	}
 
 	c.ReplaceLine(c.Warning(fmt.Sprintf("Untracking %q", gr.Name)).String())
+
 	if err := g.Tracker.Untrack(gr).Save(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -220,6 +227,7 @@ func untrackDropCommit(c *ui.Console, g *git.Manager) error {
 // dropRepo removes the repo from the git repo.
 func dropRepo(g *git.Manager, gr *git.GitRepository) error {
 	slog.Debug("dropping repo", "dbPath", gr.DBPath)
+
 	if !g.IsInitialized() {
 		return fmt.Errorf("%w: %q", git.ErrGitNotInitialized, gr.DBName)
 	}
@@ -263,6 +271,7 @@ func managementSelect(c *ui.Console, g *git.Manager) ([]string, error) {
 		if err := g.Tracker.Track(gr).Save(); err != nil {
 			return nil, fmt.Errorf("tracking repo: %w", err)
 		}
+
 		tracked = append(tracked, gr.DBPath)
 
 		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", gr.Name)).String())
@@ -288,6 +297,7 @@ func management(c *ui.Console, g *git.Manager) error {
 			if err := trackExportCommit(c, g); err != nil {
 				return err
 			}
+
 			continue
 		}
 
@@ -309,9 +319,11 @@ func trackedStatus(c *ui.Console, g *git.Manager) error {
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
+
 	c.F.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
 
 	repos := make([]*git.GitRepository, 0, len(g.Tracker.List))
+
 	for _, dbPath := range dbFiles {
 		gr := g.NewRepo(dbPath)
 		repos = append(repos, gr)
@@ -323,6 +335,7 @@ func trackedStatus(c *ui.Console, g *git.Manager) error {
 	var sb strings.Builder
 	for _, gr := range repos {
 		sb.Reset()
+
 		if !g.Tracker.Contains(gr) {
 			untracked = append(untracked, gr)
 			continue
@@ -332,18 +345,22 @@ func trackedStatus(c *ui.Console, g *git.Manager) error {
 		if err := handler.GitRepoStats(gr.DBPath, sum); err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		st := sum.RepoStats
 
 		var parts []string
 		if st.Bookmarks > 0 {
 			parts = append(parts, fmt.Sprintf("%d bookmarks", st.Bookmarks))
 		}
+
 		if st.Tags > 0 {
 			parts = append(parts, fmt.Sprintf("%d tags", st.Tags))
 		}
+
 		if st.Favorites > 0 {
 			parts = append(parts, fmt.Sprintf("%d favorites", st.Favorites))
 		}
+
 		if len(parts) == 0 {
 			parts = append(parts, "no bookmarks")
 		}
@@ -354,6 +371,7 @@ func trackedStatus(c *ui.Console, g *git.Manager) error {
 		} else {
 			t = color.Cyan("json ").String()
 		}
+
 		s := strings.TrimSpace(fmt.Sprintf("(%s)", strings.Join(parts, ", ")))
 		sb.WriteString(txt.PaddedLine(gr.Name, t+dimmer(s).Italic().String()))
 

@@ -78,6 +78,7 @@ func (b *BlinkBrowser) LoadPaths() error {
 	if !ok {
 		return fmt.Errorf("%w: %q", ErrBrowserUnsupported, b.name)
 	}
+
 	b.paths = p
 
 	return nil
@@ -89,6 +90,7 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.
 	if p.bookmarks == "" || p.profiles == "" {
 		return nil, ErrBrowserConfigPathNotSet
 	}
+
 	if !files.Exists(p.profiles) {
 		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, p.profiles)
 	}
@@ -108,6 +110,7 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.
 	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Flush()
 
 	bs := slice.New[Record]()
+
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, profile)
 		processProfile(c, bs, v, files.ExpandHomeDir(p), force)
@@ -162,6 +165,7 @@ func traverseBmFolder(
 	addParentFolderAsTag bool,
 ) [][]string {
 	var results [][]string
+
 	for _, child := range children {
 		childMap, ok := child.(map[string]any)
 		if !ok {
@@ -172,6 +176,7 @@ func traverseBmFolder(
 		if !ok {
 			name = ""
 		}
+
 		url, ok := childMap["url"].(string)
 		if !ok {
 			url = ""
@@ -184,6 +189,7 @@ func traverseBmFolder(
 			if addParentFolderAsTag {
 				tags = append(tags, parentName)
 			}
+
 			item := append([]string{name, url}, tags...)
 			results = append(results, item)
 
@@ -235,6 +241,7 @@ func processProfile(c *ui.Console, bs *slice.Slice[Record], profile, path string
 	}
 
 	c.F.Rowln().Flush()
+
 	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
 			c.ReplaceLine(c.F.Row(skip + " profile...'" + profile + "'").String())
@@ -246,6 +253,7 @@ func processProfile(c *ui.Console, bs *slice.Slice[Record], profile, path string
 
 	uniqueTag := getTodayFormatted()
 	addParentFolderAsTag := true
+
 	result, err := loadChromeDatabase(path, uniqueTag, addParentFolderAsTag)
 	if err != nil {
 		fmt.Println("Error loading Chrome database:", err)
@@ -253,6 +261,7 @@ func processProfile(c *ui.Console, bs *slice.Slice[Record], profile, path string
 
 	// original size
 	ogSize := bs.Len()
+
 	for _, c := range result {
 		b := bookmark.New()
 		b.Title = c.title
@@ -295,18 +304,22 @@ func loadChromeDatabase(
 	// traverse the roots
 	results := make([]blinkBookmark, 0)
 	roots := data.Roots
+
 	for _, value := range roots {
 		if _, ok := value.(string); ok {
 			continue
 		}
-		valueMap, ok := value.(map[string]interface{})
+
+		valueMap, ok := value.(map[string]any)
 		if !ok {
 			continue
 		}
-		children, ok := valueMap["children"].([]interface{})
+
+		children, ok := valueMap["children"].([]any)
 		if !ok {
 			continue
 		}
+
 		parentName, ok := valueMap["name"].(string)
 		if !ok {
 			continue

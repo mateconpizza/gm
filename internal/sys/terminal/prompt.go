@@ -97,7 +97,7 @@ func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 	}
 
 	// opts
-	o = promptOptions(config.App.Color)
+	o = promptOptions(config.App.Flags.Color)
 	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
 
 	// restores term state
@@ -195,8 +195,11 @@ func getUserInputWithAttempts(
 	def string,
 ) (string, error) {
 	r := bufio.NewReader(rd)
+
 	const attempts = 3
+
 	var count int
+
 	for count < attempts {
 		_, _ = fmt.Fprint(w, p)
 
@@ -235,8 +238,10 @@ func fmtChoicesWithDefaultColor(opts []string, def string) []string {
 		return opts
 	}
 
-	var formatted []string
-	var defaultOpt string
+	var (
+		formatted  []string
+		defaultOpt string
+	)
 
 	for _, opt := range opts {
 		if strings.HasPrefix(opt, def) {
@@ -263,6 +268,7 @@ func fmtChoicesWithDefault(opts []string, def string) []string {
 	if def == "" {
 		return opts
 	}
+
 	for i := range opts {
 		if strings.HasPrefix(opts[i], def) {
 			w := opts[i]

@@ -20,6 +20,7 @@ func RecordSlice(bs *slice.Slice[bookmark.Bookmark]) error {
 	lastIdx := bs.Len() - 1
 	bs.ForEachIdx(func(i int, b bookmark.Bookmark) {
 		fmt.Print(bookmark.Frame(&b))
+
 		if i != lastIdx {
 			fmt.Println()
 		}
@@ -40,6 +41,7 @@ func TagsList(p string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	fmt.Println(strings.Join(tags, "\n"))
 
 	return nil
@@ -66,6 +68,7 @@ func ByField(bs *slice.Slice[bookmark.Bookmark], f string) error {
 
 		return nil
 	}
+
 	slog.Info("selected field", "field", f)
 
 	if err := bs.ForEachErr(printer); err != nil {
@@ -97,15 +100,19 @@ func DatabasesList(c *ui.Console, p string) error {
 
 // JSONRecordSlice formats the bookmarks in JSONRecordSlice.
 func JSONRecordSlice(bs *slice.Slice[bookmark.Bookmark]) error {
-	slog.Debug("formatting bookmarks in JSON", "count", bs.Len())
 	var r []*bookmark.BookmarkJSON
+
+	slog.Debug("formatting bookmarks in JSON", "count", bs.Len())
+
 	bs.ForEach(func(b bookmark.Bookmark) {
 		r = append(r, b.ToJSON())
 	})
+
 	j, err := port.ToJSON(r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	fmt.Println(string(j))
 
 	return nil
@@ -153,6 +160,7 @@ func RepoInfo(c *ui.Console, p string, j bool) error {
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
+
 		fmt.Println(string(b))
 
 		return nil

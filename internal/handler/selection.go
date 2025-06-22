@@ -20,7 +20,9 @@ func selection[T comparable](items []T, fmtFn func(*T) string, opts ...menu.OptF
 	if len(items) == 0 {
 		return nil, menu.ErrFzfNoItems
 	}
+
 	m := menu.New[T](opts...)
+
 	selected, err := selectionWithMenu(m, items, fmtFn)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -40,6 +42,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 	m.SetItems(items)
 
 	var result []T
+
 	result, err := m.Select()
 	if err != nil {
 		if errors.Is(err, menu.ErrFzfActionAborted) {
@@ -85,6 +88,7 @@ func SelectBackupOne(c *ui.Console, bks []string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
+
 	backupPath := selected[0]
 
 	// Handle locked backups
@@ -92,6 +96,7 @@ func SelectBackupOne(c *ui.Console, bks []string) (string, error) {
 		if err := UnlockRepo(c, backupPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
+
 		backupPath = strings.TrimSuffix(backupPath, ".enc")
 	}
 
@@ -103,6 +108,7 @@ func SelectBackupMany(root, header string) ([]string, error) {
 	if err != nil {
 		return fs, fmt.Errorf("%w", err)
 	}
+
 	repos, err := selection(fs,
 		func(p *string) string { return db.RepoSummaryRecordsFromPath(*p) },
 		menu.WithUseDefaults(),
@@ -125,6 +131,7 @@ func SelectFileLocked(root, header string) ([]string, error) {
 	if err != nil {
 		return bks, fmt.Errorf("%w", err)
 	}
+
 	selected, err := selection(bks,
 		func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
 		menu.WithUseDefaults(),
@@ -155,6 +162,7 @@ func SelectDatabase(currentDBPath string) (*db.SQLiteRepository, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+
 	if !files.Exists(s) {
 		return nil, fmt.Errorf("%w: %q", db.ErrDBNotFound, s)
 	}

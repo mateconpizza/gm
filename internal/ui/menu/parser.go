@@ -41,6 +41,7 @@ func buildPreviewOpts(cmd string) OptFn {
 	if !colorEnabled {
 		opts = append(opts, "--no-color")
 	}
+
 	opts = append(opts, "--preview="+cmd)
 	if !menuConfig.Preview {
 		opts = append(opts, "--preview-window=hidden,up")
@@ -53,6 +54,7 @@ func buildPreviewOpts(cmd string) OptFn {
 		if !preview.Hidden && menuConfig.Preview {
 			o.header = appendKeytoHeader(o.header, preview.Bind, "toggle-preview")
 		}
+
 		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
 	}
 }
@@ -65,6 +67,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 
 	if m.preprocessor == nil {
 		slog.Warn("preprocessor is nil, defaulting to 'defaultPreprocessor'")
+
 		m.preprocessor = defaultPreprocessor
 	}
 
@@ -98,6 +101,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 	}
 
 	close(outputChan)
+
 	result := <-resultChan
 
 	if err != nil {
