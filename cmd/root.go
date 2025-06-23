@@ -14,6 +14,10 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
+// skipDBCheckAnnotation is used in subcmds declarations to skip the database
+// existence check.
+var skipDBCheckAnnotation = map[string]string{"skip-db-check": "true"}
+
 var databaseChecked bool = false
 
 func initRootFlags(cmd *cobra.Command) {
@@ -37,19 +41,14 @@ func initRootFlags(cmd *cobra.Command) {
 
 // Root represents the base command when called without any subcommands.
 var Root = &cobra.Command{
-	Use:          config.App.Cmd,
-	Short:        config.App.Info.Title,
-	Long:         config.App.Info.Desc,
-	Version:      prettyVersion(),
-	Args:         cobra.MinimumNArgs(0),
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := recordsCmd.PersistentPreRunE(cmd, args); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return recordsCmd.RunE(cmd, args)
-	},
+	Use:               config.App.Cmd,
+	Short:             config.App.Info.Title,
+	Long:              config.App.Info.Desc,
+	Version:           prettyVersion(),
+	Args:              cobra.MinimumNArgs(0),
+	SilenceUsage:      true,
+	PersistentPreRunE: RequireDatabase,
+	RunE:              recordsCmdFunc,
 }
 
 func Execute() {
@@ -58,12 +57,19 @@ func Execute() {
 	}
 }
 
-// EnsureDatabaseExistence checks if the database exists.
-func EnsureDatabaseExistence(cmd *cobra.Command, args []string) error {
+// RequireDatabase checks if the database exists.
+func RequireDatabase(cmd *cobra.Command, args []string) error {
 	if cmd.HasParent() {
 		slog.Debug("assert db exists", "command", cmd.Name(), "parent", cmd.Parent().Name())
 	} else {
 		slog.Debug("assert db exists", "command", cmd.Name())
+	}
+
+	for c := cmd; c != nil; c = c.Parent() {
+		if v, ok := c.Annotations["skip-db-check"]; ok && v == "true" {
+			slog.Debug("skipping db check for", "command", c.Name())
+			return nil
+		}
 	}
 
 	if databaseChecked {

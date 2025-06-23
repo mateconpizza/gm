@@ -6,8 +6,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -101,6 +103,24 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 
 	if err := handler.SaveNewBookmark(c, r, b); err != nil {
 		return err
+	}
+
+	if git.IsInitialized(config.App.Path.Git) &&
+		git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
+		if err := port.GitStore(b); err != nil {
+			return fmt.Errorf("git store: %w", err)
+		}
+
+		g, err := handler.NewGit(config.App.Path.Git)
+		if err != nil {
+			return err
+		}
+
+		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
+
+		if err := handler.GitCommit(g, "Add"); err != nil {
+			return fmt.Errorf("%w", err)
+		}
 	}
 
 	fmt.Print(c.SuccessMesg("bookmark added\n"))

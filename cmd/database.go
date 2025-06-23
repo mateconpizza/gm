@@ -43,16 +43,10 @@ func init() {
 var (
 	// dbCmd database management.
 	dbCmd = &cobra.Command{
-		Use:     "database",
-		Aliases: []string{"db"},
-		Short:   "Database management",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.Name() == "unlock" {
-				return nil
-			}
-
-			return EnsureDatabaseExistence(cmd, args)
-		},
+		Use:               "database",
+		Aliases:           []string{"db"},
+		Short:             "Database management",
+		PersistentPreRunE: RequireDatabase,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.App
 			if cfg.Flags.JSON {
@@ -137,8 +131,9 @@ var (
 	}
 
 	databaseUnlockCmd = &cobra.Command{
-		Use:   "unlock",
-		Short: "Unlock a database",
+		Use:         "unlock",
+		Short:       "Unlock a database",
+		Annotations: skipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := ui.NewConsole(
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Purple))),

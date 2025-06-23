@@ -11,6 +11,7 @@ type Flags struct {
 	Edit      bool     // Edit mode
 	Head      int      // Head limit
 	Remove    bool     // Remove bookmarks
+	Update    bool     // Update bookmarks
 	Tail      int      // Tail limit
 	Field     string   // Field to print
 	JSON      bool     // JSON output

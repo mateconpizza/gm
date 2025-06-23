@@ -41,7 +41,7 @@ func NewBookmark(
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithSpinner())
+	sc := scraper.New(newURL, scraper.WithSpinner("scraping webpage..."))
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)

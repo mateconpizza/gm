@@ -11,7 +11,7 @@ import (
 type tableSchema struct {
 	name    Table
 	sql     string
-	trigger string
+	trigger []string
 	index   string
 }
 
@@ -36,9 +36,11 @@ func (r *SQLiteRepository) Init() error {
 				}
 			}
 
-			if s.trigger != "" {
-				if _, err := tx.Exec(s.trigger); err != nil {
-					return fmt.Errorf("creating %q trigger: %w", s.name, err)
+			if len(s.trigger) > 0 {
+				for _, t := range s.trigger {
+					if _, err := tx.Exec(t); err != nil {
+						return fmt.Errorf("creating %q trigger: %w", s.name, err)
+					}
 				}
 			}
 		}

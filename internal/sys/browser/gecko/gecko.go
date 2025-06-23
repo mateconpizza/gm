@@ -238,6 +238,8 @@ func allProfiles(p string) (map[string]string, error) {
 }
 
 // processProfile processes a single profile and extracts bookmarks.
+//
+//nolint:funlen,wsl //ignored
 func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, path string, force bool) {
 	c.F.Rowln().Flush()
 
@@ -253,29 +255,23 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 	// FIX: get path by OS
 	path = files.ExpandHomeDir(path)
 	db, err := openSQLite(path)
-
 	defer func() {
 		if db == nil {
 			return
 		}
 
-		if err := db.Close(); err != nil {
-			slog.Error("err closing database for profile", "profile", profile, "err", err)
-		}
-
+		_ = db.Close()
 		slog.Debug("database for profile closed", "profile", profile)
 	}()
 
 	if err != nil {
 		slog.Error("opening database for profile", "profile", profile, "err", err)
-
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
 			c.Error("database is " + l + ", maybe firefox is open?\n").Flush()
 
 			return
 		}
-
 		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
 
 		return
@@ -288,7 +284,6 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 	}
 
 	skipped := 0
-
 	gmarks.ForEach(func(gb geckoBookmark) {
 		if gb.URL == "" {
 			return
@@ -298,7 +293,6 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 		b.Title = gb.Title
 		b.URL = gb.URL
 		b.Tags = gb.Tags
-
 		if bs.Includes(b) {
 			skipped++
 			return

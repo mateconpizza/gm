@@ -47,10 +47,10 @@ func WithCustomSpinner(sp *rotato.Spinner) OptFn {
 	}
 }
 
-func WithSpinner() OptFn {
+func WithSpinner(mesg string) OptFn {
 	return func(o *Options) {
 		o.sp = rotato.New(
-			rotato.WithMesg("scraping webpage..."),
+			rotato.WithMesg(mesg),
 			rotato.WithMesgColor(rotato.ColorYellow),
 			rotato.WithSpinnerColor(rotato.ColorBrightMagenta),
 		)

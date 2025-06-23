@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
+	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker"
@@ -24,6 +26,13 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+)
+
+var (
+	cbc = func(s string) string { return color.BrightCyan(s).Italic().String() }
+	cbb = func(s string) string { return color.BrightBlue(s).Italic().String() }
+	cbg = func(s string) string { return color.BrightGreen(s).Bold().String() }
+	cy  = func(s string) string { return color.Yellow(s).String() }
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
@@ -80,9 +89,7 @@ func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	const maxGoroutines = 15
 	// get user confirmation to procced
-	o := color.BrightGreen("opening").Bold()
-
-	s := fmt.Sprintf("%s %d bookmarks, continue?", o, bs.Len())
+	s := fmt.Sprintf("%s %d bookmarks, continue?", cbg("opening"), bs.Len())
 	if err := confirmUserLimit(c, bs.Len(), maxGoroutines, s); err != nil {
 		return err
 	}
@@ -150,14 +157,12 @@ func CheckStatus(c *ui.Console, bs *slice.Slice[bookmark.Bookmark]) error {
 
 	const maxGoroutines = 15
 
-	status := color.BrightGreen("status").Bold()
-
-	q := fmt.Sprintf("checking %s of %d, continue?", status, n)
+	q := fmt.Sprintf("checking %s of %d, continue?", cbg("status"), n)
 	if err := confirmUserLimit(c, n, maxGoroutines, q); err != nil {
 		return sys.ErrActionAborted
 	}
 
-	c.F.Header(fmt.Sprintf("checking %s of %d bookmarks\n", status, n)).Flush()
+	c.F.Header(fmt.Sprintf("checking %s of %d bookmarks\n", cbg("status"), n)).Flush()
 
 	if err := bookmark.Status(bs); err != nil {
 		return fmt.Errorf("%w", err)
@@ -272,52 +277,59 @@ func EditBookmarks(
 	bs []*bookmark.Bookmark,
 ) error {
 	n := len(bs)
-
 	if n == 0 {
 		return bookmark.ErrNotFound
 	}
 
-	for i := range n {
-		b := bs[i]
-		current := *b
-
-	editLoop:
-		for {
-			editedB, err := bookmark.Edit(te, &current, i, n)
-			if err != nil {
-				if errors.Is(err, bookmark.ErrBufferUnchanged) {
-					break editLoop
-				}
-
-				return fmt.Errorf("%w", err)
-			}
-
-			c.F.Reset().Header(color.BrightYellow("Edit Bookmark:\n\n").String()).Flush()
-			diff := te.Diff(current.Buffer(), editedB.Buffer())
-			fmt.Println(txt.DiffColor(diff))
-
-			opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			switch strings.ToLower(opt) {
-			case "y", "yes":
-				if err := handleEditedBookmark(c, r, editedB, b); err != nil {
-					return err
-				}
-
-				break editLoop
-			case "n", "No":
-				return sys.ErrActionAborted
-			case "e", "edit":
-				current = *editedB
-				continue
-			}
+	for i := range bs {
+		if err := editSingleInteractive(c, r, te, bs[i], i, n); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// editSingleInteractive handles editing a single bookmark with confirmation and retry.
+func editSingleInteractive(
+	c *ui.Console,
+	r *db.SQLiteRepository,
+	te *files.TextEditor,
+	b *bookmark.Bookmark,
+	index, total int,
+) error {
+	current := *b
+
+	for {
+		editedB, err := bookmark.Edit(te, &current, index, total)
+		if err != nil {
+			if errors.Is(err, bookmark.ErrBufferUnchanged) {
+				return nil
+			}
+
+			return fmt.Errorf("edit: %w", err)
+		}
+
+		c.F.Reset().Header(cy("Edit Bookmark:\n\n")).Flush()
+
+		diff := txt.Diff(current.Buffer(), editedB.Buffer())
+		fmt.Println(txt.DiffColor(diff))
+
+		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+		if err != nil {
+			return fmt.Errorf("choose: %w", err)
+		}
+
+		switch strings.ToLower(opt) {
+		case "y", "yes":
+			return handleEditedBookmark(c, r, editedB, b)
+		//nolint:goconst //ignore
+		case "n", "no":
+			return sys.ErrActionAborted
+		case "e", "edit":
+			current = *editedB
+		}
+	}
 }
 
 // EditSlice edits the bookmarks using a text editor.
@@ -365,6 +377,71 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark
 		if err := r.InsertOne(context.Background(), b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
+	}
+
+	return nil
+}
+
+// UpdateSlice updates the bookmarks.
+//
+// It uses the scraper to update the title and description.
+func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", bs.Len()))).Rowln().Flush()
+
+	updateFn := func(i int, b bookmark.Bookmark) error {
+		updatedB := b
+		bid := cbc(fmt.Sprintf("[%d]", b.ID))
+		su := txt.Shorten(updatedB.URL, 60)
+
+		sc := scraper.New(updatedB.URL, scraper.WithSpinner(c.Info("updating bookmark "+cbc(su)).String()))
+		if err := sc.Start(); err != nil {
+			slog.Error("scraping error", "error", err)
+		}
+
+		updatedB.Title, _ = sc.Title()
+		updatedB.Desc, _ = sc.Desc()
+
+		if bytes.Equal(b.Buffer(), updatedB.Buffer()) {
+			fmt.Print(c.Info(bid + " " + cbb(su) + " no changes detected\n"))
+			return nil
+		}
+
+		c.F.Reset().Warning("Found changes in " + bid + " " + cbb(su) + "\n").Flush()
+
+		if !bytes.Equal([]byte(b.Title), []byte(updatedB.Title)) {
+			c.F.Reset().Midln(cbc("Title:")).Flush()
+			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updatedB.Title))))
+		}
+
+		if !bytes.Equal([]byte(b.Desc), []byte(updatedB.Desc)) {
+			c.F.Reset().Midln(cbc("Description:")).Flush()
+			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updatedB.Desc))))
+		}
+
+		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+		if err != nil {
+			return fmt.Errorf("choose: %w", err)
+		}
+
+		switch strings.ToLower(opt) {
+		case "y", "yes":
+			return handleEditedBookmark(c, r, &updatedB, &b)
+		case "n", "no":
+			return sys.ErrActionAborted
+		case "e", "edit":
+			te, err := files.NewEditor(config.App.Env.Editor)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			return editSingleInteractive(c, r, te, &updatedB, i, bs.Len())
+		}
+
+		return nil
+	}
+
+	if err := bs.ForEachIdxErr(updateFn); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	return nil

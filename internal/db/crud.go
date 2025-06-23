@@ -385,8 +385,10 @@ func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
 			return fmt.Errorf("creating index: %w", err)
 		}
 		// restore relational table trigger
-		if _, err := tx.Exec(schemaRelation.trigger); err != nil {
-			return fmt.Errorf("recreating trigger: %w", err)
+		for _, t := range schemaRelation.trigger {
+			if _, err := tx.Exec(t); err != nil {
+				return fmt.Errorf("restoring trigger: %w", err)
+			}
 		}
 
 		return nil

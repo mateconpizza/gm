@@ -40,7 +40,7 @@ var (
 		Use:               "records",
 		Aliases:           []string{"r"},
 		Short:             "Records management",
-		PersistentPreRunE: EnsureDatabaseExistence,
+		PersistentPreRunE: RequireDatabase,
 		RunE:              recordsCmdFunc,
 	}
 
@@ -101,6 +101,8 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		return handler.Remove(c, r, bs)
 	case cfg.Flags.Edit:
 		return handler.EditSlice(c, r, bs)
+	case cfg.Flags.Update:
+		return handler.UpdateSlice(c, r, bs)
 	case cfg.Flags.Copy:
 		return handler.Copy(bs)
 	case cfg.Flags.Open && !cfg.Flags.QR:
@@ -137,6 +139,7 @@ func initRecordFlags(cmd *cobra.Command) {
 	f.BoolVarP(&cfg.Flags.QR, "qr", "q", false, "generate qr-code")
 	f.BoolVarP(&cfg.Flags.Remove, "remove", "r", false, "remove a bookmarks by query or id")
 	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "list by tag")
+	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update a bookmarks")
 
 	// Experimental
 	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")

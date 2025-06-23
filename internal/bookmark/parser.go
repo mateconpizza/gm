@@ -195,7 +195,7 @@ func scrapeBookmark(b *Bookmark) *Bookmark {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	sc := scraper.New(b.URL, scraper.WithContext(ctx), scraper.WithSpinner())
+	sc := scraper.New(b.URL, scraper.WithContext(ctx), scraper.WithSpinner("scraping webpage..."))
 	if err := sc.Start(); err != nil {
 		slog.Error("scraping error", "error", err)
 	}

@@ -13,7 +13,7 @@ var schemaMain = tableSchema{
 	name:    tableMainName,
 	sql:     tableMainSchema,
 	index:   tableMainIndex,
-	trigger: tableMainTrigger,
+	trigger: []string{tableMainTriggerUpdateAt},
 }
 
 // schemaTags is the schema for the tags table.
@@ -28,14 +28,14 @@ var schemaRelation = tableSchema{
 	name:    tableRelationName,
 	sql:     tableRelationSchema,
 	index:   tableRelationIndex,
-	trigger: tableRelationTriggerCleanup,
+	trigger: []string{tableRelationTriggerCleanup},
 }
 
 // schemaTemp is used for reordering the IDs in the main table.
 var schemaTemp = tableSchema{
 	name:    tableTempName,
 	sql:     tableTempSchema,
-	trigger: tableRelationTriggerCleanup,
+	trigger: []string{tableRelationTriggerCleanup},
 	index:   tableMainIndex,
 }
 
@@ -62,7 +62,7 @@ const (
     CREATE UNIQUE INDEX IF NOT EXISTS idx_bookmarks_url
     ON bookmarks(url);`
 
-	tableMainTrigger = `
+	tableMainTriggerUpdateAt = `
 		CREATE TRIGGER IF NOT EXISTS update_bookmark_updated_at
 		AFTER UPDATE ON bookmarks
 		FOR EACH ROW
