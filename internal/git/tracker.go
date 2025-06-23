@@ -13,7 +13,7 @@ import (
 var (
 	ErrGitTracked        = errors.New("git: repo already tracked")
 	ErrGitNotTracked     = errors.New("git: repo not tracked")
-	ErrGitNoTrackedRepos = errors.New("git: no tracked repos found")
+	ErrGitNoRepos        = errors.New("git: no repos found")
 	ErrGitTrackNotLoaded = errors.New("git: tracker not loaded")
 	ErrGitRepoNameEmpty  = errors.New("git: repo name is empty")
 	ErrGitCurrentRepo    = errors.New("git: current repo not set")

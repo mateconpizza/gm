@@ -46,7 +46,8 @@ func addRemote(repoPath, repoURL string) error {
 	return runGitCmd(repoPath, "remote", "add", "origin", repoURL)
 }
 
-func SjtUpstream(repoPath string) error {
+// SetUpstream sets the upstream for the current branch.
+func SetUpstream(repoPath string) error {
 	b, err := branch(repoPath)
 	if err != nil {
 		return err
@@ -188,6 +189,10 @@ func branch(repoPath string) (string, error) {
 // remote returns the origin of the repository.
 func remote(repoPath string) (string, error) {
 	return runWithOutput(repoPath, "config", "--get", "remote.origin.url")
+}
+
+func setConfigLocal(repoPath, key, value string) error {
+	return runGitCmd(repoPath, "config", "--local", key, value)
 }
 
 // IsInitialized checks if the repo is initialized.

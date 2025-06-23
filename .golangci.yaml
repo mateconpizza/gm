@@ -65,7 +65,7 @@ linters:
     # - varnamelen
     - wastedassign
     - whitespace
-    - wsl
+    # - wsl
     # - wrapcheck
   settings:
     errcheck:
@@ -116,8 +116,8 @@ linters:
         - name: early-return
         - name: unexported-naming
         - name: nested-structs
-    wsl:
-      allow-trailing-comment: true
+    # wsl:
+    #   allow-trailing-comment: true
     staticcheck:
       checks:
         - "-ST1000"

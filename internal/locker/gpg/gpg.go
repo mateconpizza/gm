@@ -22,12 +22,26 @@ var (
 var recipient string
 
 const (
-	gitAttPath    = ".gitattributes"
 	gitAttContent = "*.gpg diff=gpg"
 	FingerprintID = ".gpg-id"
 	gpgCommand    = "gpg"
 	Extension     = ".gpg"
 )
+
+// GitDiffConf is the gpg diff configuration for git.
+var GitDiffConf = map[string][]string{
+	"diff.gpg.binary": {"true"},
+	"diff.gpg.textconv": {
+		gpgCommand,
+		"-d",
+		"--quiet",
+		"--yes",
+		"--compress-algo=none",
+		"--no-encrypt-to",
+		"--batch",
+		"--use-agent",
+	},
+}
 
 // IsInitialized returns true if GPG is active.
 func IsInitialized(path string) bool {
@@ -128,7 +142,7 @@ func loadFingerprint(path string) error {
 }
 
 // Init will extract the gpg fingerprint and save it to .gpg-id.
-func Init(path string) error {
+func Init(path, gitAttrFile string) error {
 	if _, err := sys.Which(gpgCommand); err != nil {
 		return fmt.Errorf("%w: %s", err, gpgCommand)
 	}
@@ -149,7 +163,7 @@ func Init(path string) error {
 		return fmt.Errorf("failed to write .gpg-id: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, gitAttPath), []byte(gitAttContent), files.FilePerm)
+	err = os.WriteFile(filepath.Join(path, gitAttrFile), []byte(gitAttContent), files.FilePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write .gitattributes: %w", err)
 	}

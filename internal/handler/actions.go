@@ -390,7 +390,7 @@ func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark
 
 	updateFn := func(i int, b bookmark.Bookmark) error {
 		updatedB := b
-		bid := cbc(fmt.Sprintf("[%d]", b.ID))
+		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
 		su := txt.Shorten(updatedB.URL, 60)
 
 		sc := scraper.New(updatedB.URL, scraper.WithSpinner(c.Info("updating bookmark "+cbc(su)).String()))
@@ -427,7 +427,8 @@ func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark
 		case "y", "yes":
 			return handleEditedBookmark(c, r, &updatedB, &b)
 		case "n", "no":
-			return sys.ErrActionAborted
+			c.ReplaceLine(c.F.Warning(bid + " skipping...").String())
+			return nil
 		case "e", "edit":
 			te, err := files.NewEditor(config.App.Env.Editor)
 			if err != nil {

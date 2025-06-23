@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -255,15 +256,30 @@ func managementSelect(c *ui.Console, g *git.Manager) ([]string, error) {
 
 	tracked := make([]string, 0, len(dbFiles))
 
+	var idx int
+	for i, f := range dbFiles {
+		if filepath.Base(f) == config.DefaultDBName {
+			idx = i
+			break
+		}
+	}
+	if idx != 0 {
+		dbFiles[0], dbFiles[idx] = dbFiles[idx], dbFiles[0]
+	}
+
 	for _, dbPath := range dbFiles {
 		gr := g.NewRepo(dbPath)
-
 		if g.Tracker.Contains(gr) {
 			fmt.Print(c.Info(fmt.Sprintf("%q is already tracked\n", gr.Name)))
 			continue
 		}
 
-		if !c.Confirm(fmt.Sprintf("Track %q?", gr.Name), "n") {
+		q := fmt.Sprintf("Track %q?", gr.Name)
+		if gr.DBName == config.DefaultDBName {
+			q = fmt.Sprintf("Track %q database?", "default")
+		}
+
+		if !c.Confirm(q, "n") {
 			c.ReplaceLine(c.Warning(fmt.Sprintf("skipping %q", gr.Name)).String())
 			continue
 		}
@@ -312,7 +328,7 @@ func management(c *ui.Console, g *git.Manager) error {
 //nolint:funlen //ignore
 func trackedStatus(c *ui.Console, g *git.Manager) error {
 	if len(g.Tracker.List) == 0 {
-		return git.ErrGitNoTrackedRepos
+		return git.ErrGitNoRepos
 	}
 
 	dbFiles, err := files.Find(config.App.Path.Data, "*.db")

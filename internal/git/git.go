@@ -3,7 +3,10 @@
 // tracking, and status operations.
 package git
 
-const gitCmd = "git"
+const (
+	gitCmd         = "git"
+	AttributesFile = ".gitattributes"
+)
 
 type GitOptFn func(*GitOpts)
 
@@ -99,6 +102,11 @@ func (gm *Manager) Commit(msg string) error {
 func (gm *Manager) SetRepoPath(repoPath string) {
 	gm.isInitialized = false
 	gm.RepoPath = repoPath
+}
+
+// SetConfigLocal sets a local config value.
+func (gm *Manager) SetConfigLocal(k, v string) error {
+	return setConfigLocal(gm.RepoPath, k, v)
 }
 
 // Exec executes a command in the repository.
