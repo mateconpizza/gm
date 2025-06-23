@@ -1,3 +1,6 @@
+// Package git provides high-level utilities to initialize, manage, and
+// interact with the bookmark's Git repositorie, including commit, push, clone,
+// tracking, and status operations.
 package git
 
 const gitCmd = "git"

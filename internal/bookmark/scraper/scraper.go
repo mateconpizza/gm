@@ -1,3 +1,6 @@
+// Package scraper extracts metadata such as titles, descriptions, keywords,
+// and favicons from web pages, with configurable options for the scraping
+// process.
 package scraper
 
 import (

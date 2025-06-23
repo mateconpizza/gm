@@ -428,8 +428,8 @@ func (r *SQLiteRepository) bySQLPtr(q string, args ...any) ([]*bookmark.Bookmark
 		return cmp.Compare(a.ID, b.ID)
 	})
 
-	for i := range bb {
-		bb[i].Tags = bookmark.ParseTags(bb[i].Tags)
+	for _, b := range bb {
+		b.Tags = bookmark.ParseTags(b.Tags)
 	}
 
 	return bb, nil

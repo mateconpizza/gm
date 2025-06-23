@@ -1,3 +1,6 @@
+// Package port provides functionalities for importing and exporting data,
+// supporting various sources and formats including browsers, databases, Git
+// repositories, JSON, and GPG encrypted files.
 package port
 
 import (

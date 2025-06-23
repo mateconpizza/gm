@@ -2,6 +2,7 @@ package bookmark
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -16,7 +17,7 @@ func Oneline(b *Bookmark) string {
 
 	const (
 		idPadding      = 3
-		idWithColor    = 16
+		idWithColor    = 4 // visible width for IDS up to 9999
 		defaultTagsLen = 24
 		minTagsLen     = 34
 	)
@@ -29,24 +30,28 @@ func Oneline(b *Bookmark) string {
 		idLen = idWithColor
 		tagsLen = defaultTagsLen
 	}
-	// calculate url length dynamically based on available space add 1 for the
-	// UnicodeMiddleDot spacer
-	urlLen := w - idLen - tagsLen - 1
-	// apply colors
-	coloredID := cs.BrightYellow(b.ID).Bold().String()
+
+	// ID padding con color sin romper el formato
+	idStr := strconv.Itoa(b.ID)
+	paddedID := fmt.Sprintf("%*s", idLen, idStr)
+	coloredID := strings.Replace(paddedID, idStr, cs.BrightYellow(idStr).Bold().String(), 1)
+
+	// Calculate long available for URL
+	const urlPadding = 3 // 3 = ' ' + '·' + ' '.
+	urlLen := w - idLen - urlPadding - tagsLen
 	shortURL := txt.Shorten(b.URL, urlLen)
 	colorURL := cs.BrightWhite(shortURL).String()
-	// adjust for ansi color codes in url length calculation
 	urlLen += len(colorURL) - len(shortURL)
-	// process and color tags
+
+	// tags
 	tagsColor := cs.Blue(txt.TagsWithUnicode(b.Tags)).Italic().String()
 
 	var sb strings.Builder
 
-	sb.Grow(w + 20) // pre-allocate buffer with some extra space for color codes
-	sb.WriteString(fmt.Sprintf("%-*s ", idLen, coloredID))
-	sb.WriteString(txt.UnicodeMiddleDot)
-	sb.WriteString(fmt.Sprintf(" %-*s %-*s\n", urlLen, colorURL, tagsLen, tagsColor))
+	sb.Grow(w + 20)
+	sb.WriteString(coloredID)
+	sb.WriteString(" · ")
+	sb.WriteString(fmt.Sprintf("%-*s %-*s\n", urlLen, colorURL, tagsLen, tagsColor))
 
 	return sb.String()
 }
@@ -73,8 +78,7 @@ func Multiline(b *Bookmark) string {
 
 func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	f := frame.New(frame.WithColorBorder(c))
-	w := terminal.MaxWidth
-	w -= len(f.Border.Row)
+	w := terminal.MaxWidth - len(f.Border.Row)
 	// id + url
 	id := color.BrightYellow(b.ID).Bold().String()
 	urlColor := txt.Shorten(txt.URLBreadCrumbs(b.URL, color.BrightMagenta), w)
