@@ -519,9 +519,10 @@ func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 
 	q := `
     INSERT
-    OR IGNORE INTO bookmarks (id, url, title, desc, created_at, updated_at, visit_count, favorite, checksum)
+    OR IGNORE INTO bookmarks (
+			id, url, title, desc, created_at, updated_at, visit_count, favorite, checksum, favicon_url)
     VALUES
-    (:id, :url, :title, :desc, :created_at, :updated_at, :visit_count, :favorite, :checksum)`
+    (:id, :url, :title, :desc, :created_at, :updated_at, :visit_count, :favorite, :checksum, :favicon_url)`
 
 	_, err := tx.NamedExec(q, b)
 	if err != nil {
@@ -607,12 +608,12 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
 	q := `
   INSERT INTO temp_bookmarks (
     url, title, desc, created_at, last_visit,
-    updated_at, visit_count, favorite, checksum
+    updated_at, visit_count, favorite, checksum, favicon_url
   )
   VALUES
     (
       :url, :title, :desc, :created_at, :last_visit,
-      :updated_at, :visit_count, :favorite, :checksum
+      :updated_at, :visit_count, :favorite, :checksum, :favicon_url
     )
   `
 	// FIX: pass the context
@@ -652,12 +653,12 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	r, err := tx.NamedExec(
 		`INSERT INTO bookmarks (
     	url, title, desc, created_at, last_visit,
-    	updated_at, visit_count, favorite, checksum
+    	updated_at, visit_count, favorite, checksum, favicon_url
   )
   VALUES
     (
       :url, :title, :desc, :created_at, :last_visit,
-			:updated_at, :visit_count, :favorite, :checksum
+			:updated_at, :visit_count, :favorite, :checksum, :favicon_url
     )`,
 		&b,
 	)

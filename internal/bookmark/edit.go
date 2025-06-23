@@ -75,6 +75,7 @@ func Edit(te *files.TextEditor, b *Bookmark, idx, total int) (*Bookmark, error) 
 	tb.Favorite = be.item.Favorite
 	tb.LastVisit = be.item.LastVisit
 	tb.VisitCount = be.item.VisitCount
+	tb.FaviconURL = be.item.FaviconURL
 
 	return tb, nil
 }

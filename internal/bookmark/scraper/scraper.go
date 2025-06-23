@@ -16,7 +16,10 @@ import (
 
 var ErrScrapeNotStarted = errors.New("scrape not started")
 
-const defaultTitle string = "untitled (unfiled)"
+const (
+	defaultTitle       string = "untitled (unfiled)"
+	defaultFaviconPath string = "/favicon.ico"
+)
 
 type OptFn func(*Options)
 
@@ -132,6 +135,50 @@ func (s *Scraper) Desc() (string, error) {
 	}
 
 	return strings.TrimSpace(desc), nil
+}
+
+// Favicon returns the URL of the favicon, or an empty string if not found.
+func (s *Scraper) Favicon() (string, error) {
+	if !s.started {
+		return "", ErrScrapeNotStarted
+	}
+
+	selectors := []string{
+		`link[rel="icon"]`,
+		`link[rel="shortcut icon"]`,
+		`link[rel="apple-touch-icon"]`,
+	}
+
+	for _, sel := range selectors {
+		href, exists := s.doc.Find(sel).First().Attr("href")
+		if exists && href != "" {
+			return s.resolveFaviconURL(href), nil
+		}
+	}
+
+	base, err := url.Parse(s.uri)
+	//nolint:nilerr //ignore
+	if err != nil {
+		return "", nil
+	}
+
+	base.Path = defaultFaviconPath
+
+	return base.String(), nil
+}
+
+func (s *Scraper) resolveFaviconURL(href string) string {
+	baseURL, err := url.Parse(s.uri)
+	if err != nil {
+		return href
+	}
+
+	faviconURL, err := url.Parse(href)
+	if err != nil {
+		return href
+	}
+
+	return baseURL.ResolveReference(faviconURL).String()
 }
 
 // New creates a new Scraper.

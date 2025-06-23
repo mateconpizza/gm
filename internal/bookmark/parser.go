@@ -210,6 +210,9 @@ func scrapeBookmark(b *Bookmark) *Bookmark {
 		b.Desc = validateAttr(b.Desc, d)
 	}
 
+	f, _ := sc.Favicon()
+	b.FaviconURL = f
+
 	return b
 }
 

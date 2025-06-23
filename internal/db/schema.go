@@ -54,6 +54,7 @@ const (
         updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         visit_count INTEGER DEFAULT 0,
         favorite    BOOLEAN DEFAULT FALSE,
+        favicon_url TEXT    DEFAULT "",
         checksum    TEXT NOT NULL
     );`
 
@@ -85,6 +86,7 @@ const (
         updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         visit_count INTEGER DEFAULT 0,
         favorite    BOOLEAN DEFAULT FALSE,
+        favicon_url TEXT    DEFAULT "",
         checksum    TEXT NOT NULL
     );`
 )

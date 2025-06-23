@@ -16,7 +16,7 @@ import (
 )
 
 type bookmarkTemp struct {
-	title, desc, tags string
+	title, desc, tags, favicon string
 }
 
 // NewBookmark fetch metadata and parses the new bookmark.
@@ -51,6 +51,7 @@ func NewBookmark(
 	b.Title = bTemp.title
 	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
 	b.Tags = bookmark.ParseTags(bTemp.tags)
+	b.FaviconURL = bTemp.favicon
 
 	return nil
 }
@@ -172,6 +173,7 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	b.title, _ = sc.Title()
 	b.desc, _ = sc.Desc()
 	b.tags, _ = sc.Keywords()
+	b.favicon, _ = sc.Favicon()
 
 	// title
 	t := cg(txt.SplitAndAlign(b.title, width, indentation))

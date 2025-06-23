@@ -35,6 +35,7 @@ type Bookmark struct {
 	UpdatedAt  string `db:"updated_at"  json:"updated_at"  yaml:"updated_at"`
 	VisitCount int    `db:"visit_count" json:"visit_count" yaml:"visit_count"`
 	Favorite   bool   `db:"favorite"    json:"favorite"    yaml:"favorite"`
+	FaviconURL string `db:"favicon_url" json:"favicon_url" yaml:"favicon_url"`
 	Checksum   string `db:"checksum"    json:"checksum"    yaml:"checksum"`
 }
 
@@ -49,6 +50,7 @@ type BookmarkJSON struct {
 	UpdatedAt  string   `json:"updated_at"`
 	VisitCount int      `json:"visit_count"`
 	Favorite   bool     `json:"favorite"`
+	FaviconURL string   `json:"favicon_url"`
 	Checksum   string   `json:"checksum"`
 }
 
@@ -70,6 +72,7 @@ func (b *Bookmark) ToJSON() *BookmarkJSON {
 		UpdatedAt:  b.UpdatedAt,
 		VisitCount: b.VisitCount,
 		Favorite:   b.Favorite,
+		FaviconURL: b.FaviconURL,
 		Checksum:   b.Checksum,
 	}
 }
@@ -190,6 +193,7 @@ func NewFromJSON(json *BookmarkJSON) *Bookmark {
 	b.UpdatedAt = json.UpdatedAt
 	b.VisitCount = json.VisitCount
 	b.Favorite = json.Favorite
+	b.FaviconURL = json.FaviconURL
 	b.Checksum = json.Checksum
 
 	return b
