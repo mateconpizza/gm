@@ -12,6 +12,8 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -58,11 +60,11 @@ func initConfig() {
 // init sets the config for the root command.
 func init() {
 	initRootFlags(Root)
-	Root.AddCommand(initCmd)
+	Root.AddCommand(InitCmd)
 	cobra.OnInitialize(initConfig)
 }
 
-var initCmd = &cobra.Command{
+var InitCmd = &cobra.Command{
 	Use:    "init",
 	Short:  "Initialize a new bookmarks database",
 	Hidden: true,
@@ -77,7 +79,8 @@ var initCmd = &cobra.Command{
 
 		return nil
 	},
-	RunE: initAppFunc,
+	RunE:     initAppFunc,
+	PostRunE: initPostFunc,
 }
 
 // createPaths creates the paths for the application.
@@ -87,7 +90,7 @@ func createPaths(c *ui.Console, path string) error {
 	}
 
 	ci := color.StyleItalic
-	c.F.Headerln(prettyVersion()).Rowln().
+	c.F.Headerln(PrettyVersion()).Rowln().
 		Info(txt.PaddedLine("Create path:", ci(path).Italic().String())).Ln().
 		Info(txt.PaddedLine("Create db:", ci(config.App.DBPath).Italic().String())).Ln()
 
@@ -137,13 +140,14 @@ func loadDataPath() (string, error) {
 	return dataHome, nil
 }
 
-// prettyVersion formats version in a pretty way.
-func prettyVersion() string {
+// PrettyVersion formats version in a pretty way.
+func PrettyVersion() string {
 	name := color.BrightBlue(config.App.Name).Bold().String()
 	return fmt.Sprintf("%s v%s %s/%s", name, config.App.Info.Version, runtime.GOOS, runtime.GOARCH)
 }
 
 func initAppFunc(_ *cobra.Command, _ []string) error {
+	cfg := config.App
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(
@@ -153,17 +157,17 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 		),
 	)
 
-	if err := createPaths(c, config.App.Path.Data); err != nil {
+	if err := createPaths(c, cfg.Path.Data); err != nil {
 		return err
 	}
 
-	r, err := db.Init(config.App.DBPath)
+	r, err := db.Init(cfg.DBPath)
 	if r == nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer r.Close()
 
-	if r.IsInitialized() && !config.App.Flags.Force {
+	if r.IsInitialized() && !cfg.Flags.Force {
 		return fmt.Errorf("%q %w", r.Name(), db.ErrDBAlreadyInitialized)
 	}
 
@@ -171,24 +175,58 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	if config.App.DBName != config.DefaultDBName {
-		fmt.Println(c.SuccessMesg("initialized database " + config.App.DBName))
+	if cfg.DBName != config.DefaultDBName {
+		fmt.Println(c.SuccessMesg("initialized database " + cfg.DBName))
 
 		return nil
 	}
 
+	// initial bookmark
 	ib := bookmark.New()
-	ib.URL = config.App.Info.URL
-	ib.Title = config.App.Info.Title
-	ib.Tags = bookmark.ParseTags(config.App.Info.Tags)
-	ib.Desc = config.App.Info.Desc
+	ib.URL = cfg.Info.URL
+	ib.Title = cfg.Info.Title
+	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
+	ib.Desc = cfg.Info.Desc
 
 	if err := r.InsertOne(context.Background(), ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	fmt.Print(bookmark.Frame(ib))
-	fmt.Print("\n" + c.SuccessMesg("initialized database "+config.App.DBName+"\n"))
+	fmt.Print("\n" + c.SuccessMesg("initialized database "+cfg.DBName+"\n"))
 
 	return nil
+}
+
+// initPostFunc ask user to track new database if git is initialized.
+func initPostFunc(_ *cobra.Command, _ []string) error {
+	cfg := config.App
+	if !git.IsInitialized(cfg.Path.Git) {
+		return nil
+	}
+	gm, err := handler.NewGit(cfg.Path.Git)
+	if err != nil {
+		return err
+	}
+	if err := gm.Tracker.Load(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	gr := gm.NewRepo(cfg.DBPath)
+	if gm.Tracker.Contains(gr) {
+		return nil
+	}
+
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+	)
+	fmt.Print(c.InfoMesg("Git tracking enable\n"))
+	gm.Tracker.SetCurrent(gr)
+
+	if err := files.MkdirAll(gr.Path); err != nil {
+		return fmt.Errorf("creating repo path: %w", err)
+	}
+
+	return handler.GitTrackExportCommit(c, gm, "new database")
 }

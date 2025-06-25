@@ -14,9 +14,9 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
-// skipDBCheckAnnotation is used in subcmds declarations to skip the database
+// SkipDBCheckAnnotation is used in subcmds declarations to skip the database
 // existence check.
-var skipDBCheckAnnotation = map[string]string{"skip-db-check": "true"}
+var SkipDBCheckAnnotation = map[string]string{"skip-db-check": "true"}
 
 var databaseChecked bool = false
 
@@ -44,7 +44,7 @@ var Root = &cobra.Command{
 	Use:               config.App.Cmd,
 	Short:             config.App.Info.Title,
 	Long:              config.App.Info.Desc,
-	Version:           prettyVersion(),
+	Version:           PrettyVersion(),
 	Args:              cobra.MinimumNArgs(0),
 	SilenceUsage:      true,
 	PersistentPreRunE: RequireDatabase,

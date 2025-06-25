@@ -1,14 +1,17 @@
-package cmd
+package database
 
 import (
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -17,7 +20,7 @@ import (
 
 func init() {
 	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
-	Root.AddCommand(removeCmd)
+	dbRootCmd.AddCommand(removeCmd)
 }
 
 var (
@@ -50,6 +53,12 @@ var (
 		Example: `  gm rm db -n dbName
   gm rm db -n dbName --force`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := config.App
+			if len(args) > 0 {
+				cfg.DBName = files.EnsureSuffix(args[0], ".db")
+				cfg.DBPath = filepath.Join(cfg.Path.Data, cfg.DBName)
+			}
+
 			c := ui.NewConsole(
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 				ui.WithTerminal(
@@ -59,6 +68,7 @@ var (
 
 			return handler.RemoveRepo(c, config.App.DBPath)
 		},
+		PostRunE: dbRemovePostFunc,
 	}
 
 	// removeCmd databases/backups management.
@@ -71,3 +81,27 @@ var (
 		},
 	}
 )
+
+func dbRemovePostFunc(_ *cobra.Command, _ []string) error {
+	cfg := config.App
+	if !git.IsInitialized(cfg.Path.Git) {
+		return nil
+	}
+	g, err := handler.NewGit(cfg.Path.Git)
+	if err != nil {
+		return err
+	}
+	gr := g.NewRepo(cfg.DBPath)
+	g.Tracker.SetCurrent(gr)
+	if err := g.Tracker.Load(); err != nil {
+		return err
+	}
+	if !g.Tracker.Contains(g.NewRepo(cfg.DBPath)) {
+		return nil
+	}
+	if err := g.Tracker.Untrack(gr).Save(); err != nil {
+		return err
+	}
+
+	return handler.GitDropRepo(g, "Removed database")
+}

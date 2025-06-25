@@ -48,7 +48,6 @@ func DropFromPath(dbPath string) error {
 // CountFavorites returns the number of favorite records.
 func CountFavorites(r *SQLiteRepository) int {
 	var n int
-
 	if err := r.DB.QueryRowx("SELECT COUNT(*) FROM bookmarks WHERE favorite = 1").Scan(&n); err != nil {
 		return 0
 	}
@@ -59,7 +58,6 @@ func CountFavorites(r *SQLiteRepository) int {
 // count counts the number of rows in the specified table.
 func countRecords(r *SQLiteRepository, t Table) int {
 	var n int
-
 	if err := r.DB.QueryRowx(fmt.Sprintf("SELECT COUNT(*) FROM %s", t)).Scan(&n); err != nil {
 		return 0
 	}
@@ -87,7 +85,6 @@ func List(root string) ([]string, error) {
 func ListBackups(dir, dbName string) ([]string, error) {
 	// remove .db|.enc extension for matching
 	baseName := files.StripSuffixes(dbName)
-
 	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db*"))
 	if err != nil {
 		return nil, fmt.Errorf("listing backups: %w", err)
@@ -206,7 +203,6 @@ func IsInitialized(p string) (bool, error) {
 func Drop(r *SQLiteRepository, ctx context.Context) error {
 	tts := tablesAndSchema()
 	tables := make([]Table, 0, len(tts))
-
 	for _, t := range tts {
 		tables = append(tables, t.name)
 	}

@@ -33,7 +33,7 @@ func init() {
 
 // configCmd configuration management.
 var configCmd = &cobra.Command{
-	Use:   "config",
+	Use:   "conf",
 	Short: "Configuration management",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfg := config.App
@@ -94,7 +94,7 @@ func editConfig(p string) error {
 // getConfig loads the config file.
 func getConfig(p string) (*config.ConfigFile, error) {
 	if !files.Exists(p) {
-		return nil, files.ErrFileNotFound
+		return nil, fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
 	var cfg *config.ConfigFile
@@ -103,7 +103,7 @@ func getConfig(p string) (*config.ConfigFile, error) {
 	}
 
 	if cfg == nil {
-		return nil, files.ErrFileNotFound
+		return nil, fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
 	if err := config.Validate(cfg); err != nil {

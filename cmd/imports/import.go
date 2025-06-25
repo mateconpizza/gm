@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -36,9 +35,9 @@ func init() {
 // imports bookmarks from various sources.
 var (
 	importFromCmd = &cobra.Command{
-		Use:     "import",
+		Use:     "imp",
 		Aliases: []string{"i"},
-		Short:   "Import bookmarks from various sources",
+		Short:   "Import from various sources",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -47,26 +46,26 @@ var (
 	importFromDatabaseCmd = &cobra.Command{
 		Use:     "database",
 		Aliases: []string{"db"},
-		Short:   "Import bookmarks from a database",
+		Short:   "Import from database",
 		RunE:    fromDatabaseFunc,
 	}
 
 	importFromBackupCmd = &cobra.Command{
 		Use:     "backup",
-		Short:   "Import bookmarks from a backup",
+		Short:   "Import from backup",
 		Aliases: []string{"bk"},
 		RunE:    fromBackupFunc,
 	}
 
 	importFromBrowserCmd = &cobra.Command{
 		Use:   "browser",
-		Short: "Import bookmarks from browser",
+		Short: "Import from browser",
 		RunE:  fromBrowserFunc,
 	}
 
 	importFromGitRepoCmd = &cobra.Command{
 		Use:   "git",
-		Short: "Import bookmarks from git repo",
+		Short: "Import from git URL",
 		RunE:  cmdGit.GitImportCmd.RunE,
 	}
 )
@@ -87,21 +86,6 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 
 	if err := port.Browser(c, r); err != nil {
 		return fmt.Errorf("import from browser: %w", err)
-	}
-
-	if git.IsInitialized(config.App.Path.Git) && git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
-		g, err := handler.NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-
-		g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
-
-		if err := handler.GitCommit(g, "Import from Browser"); err != nil {
-			if !errors.Is(err, git.ErrGitNothingToCommit) {
-				return fmt.Errorf("commit: %w", err)
-			}
-		}
 	}
 
 	return nil
@@ -179,24 +163,6 @@ func fromDatabaseFunc(_ *cobra.Command, _ []string) error {
 
 	if err := port.Database(c, srcDB, r); err != nil {
 		return fmt.Errorf("import from database: %w", err)
-	}
-
-	gitPath := config.App.Path.Git
-	if git.IsInitialized(gitPath) && git.IsTracked(gitPath, r.Cfg.Fullpath()) {
-		g, err := handler.NewGit(gitPath)
-		if err != nil {
-			return err
-		}
-
-		gr := g.NewRepo(r.Cfg.Fullpath())
-		g.Tracker.SetCurrent(gr)
-
-		s := fmt.Sprintf("Import from [%s]", srcDB.Name())
-		if err := handler.GitCommit(g, s); err != nil {
-			if !errors.Is(err, git.ErrGitNothingToCommit) {
-				return fmt.Errorf("commit: %w", err)
-			}
-		}
 	}
 
 	return nil

@@ -11,15 +11,12 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/slice"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
-
-type Record = bookmark.Bookmark
 
 var (
 	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
@@ -85,7 +82,7 @@ func (b *BlinkBrowser) LoadPaths() error {
 }
 
 // Import extracts profile system names and user names.
-func (b *BlinkBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.Bookmark], error) {
+func (b *BlinkBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
 	p := b.paths
 	if p.bookmarks == "" || p.profiles == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -109,11 +106,10 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.
 	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
 	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Flush()
 
-	bs := slice.New[Record]()
-
+	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, profile)
-		processProfile(c, bs, v, files.ExpandHomeDir(p), force)
+		processProfile(c, &bs, v, files.ExpandHomeDir(p), force)
 	}
 
 	return bs, nil
@@ -233,7 +229,7 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 }
 
 // processProfile extracts profile system names and user names.
-func processProfile(c *ui.Console, bs *slice.Slice[Record], profile, path string, force bool) {
+func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
 	skip := color.BrightYellow("skipping").String()
 	if !files.Exists(path) {
 		c.F.Rowln().Headerln(skip + " profile...'" + profile + "', bookmarks file not found").Flush()
@@ -260,7 +256,7 @@ func processProfile(c *ui.Console, bs *slice.Slice[Record], profile, path string
 	}
 
 	// original size
-	ogSize := bs.Len()
+	ogSize := len(*bs)
 
 	for _, c := range result {
 		b := bookmark.New()
@@ -268,17 +264,23 @@ func processProfile(c *ui.Console, bs *slice.Slice[Record], profile, path string
 		b.URL = c.url
 		b.Tags = bookmark.ParseTags(strings.Join(c.tags, ","))
 
-		if bs.Any(func(b bookmark.Bookmark) bool {
-			return b.URL == c.url
-		}) {
+		// deduplicate by URL
+		duplicate := false
+		for _, existing := range *bs {
+			if existing.URL == c.url {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
 			continue
 		}
 
-		bs.Append(*b)
+		*bs = append(*bs, b)
 	}
 
 	found := color.BrightBlue("found")
-	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, bs.Len()-ogSize)).Flush()
+	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-ogSize)).Flush()
 }
 
 // Define the main function to load the Chrome database.

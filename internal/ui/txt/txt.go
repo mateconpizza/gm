@@ -1,3 +1,4 @@
+// Package txt provides text formatting helpers.
 package txt
 
 import (

@@ -1,4 +1,4 @@
-package cmd
+package database
 
 import (
 	"errors"
@@ -21,9 +21,10 @@ import (
 
 func init() {
 	cfg := config.App
-	backupUnlockCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
-	backupCmd.AddCommand(backupNewCmd, backupListCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
-	Root.AddCommand(backupCmd)
+	backupUnlockCmd.Flags().
+		BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
+	backupCmd.AddCommand(BackupNewCmd, backupListCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
+	dbRootCmd.AddCommand(backupCmd)
 }
 
 // backupCmd backup management.
@@ -67,7 +68,7 @@ var (
 	}
 
 	// backupCmd backup management.
-	backupNewCmd = &cobra.Command{
+	BackupNewCmd = &cobra.Command{
 		Use:     "new",
 		Short:   "Create a new backup",
 		Aliases: []string{"create", "add"},

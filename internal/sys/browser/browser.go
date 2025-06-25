@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/ui"
 )
 
@@ -18,5 +17,5 @@ type Browser interface {
 	Short() string
 	LoadPaths() error
 	Color(string) string
-	Import(c *ui.Console, force bool) (*slice.Slice[bookmark.Bookmark], error)
+	Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, error)
 }

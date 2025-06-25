@@ -111,33 +111,29 @@ func deduplicatePtr(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookma
 func parseFoundInBrowser(
 	c *ui.Console,
 	r *db.SQLiteRepository,
-	bs *slice.Slice[bookmark.Bookmark],
-) error {
-	dRecords, err := Deduplicate(c, r, bs)
-	if err != nil {
-		return err
-	}
-
-	if len(dRecords) == 0 {
+	bs []*bookmark.Bookmark,
+) ([]*bookmark.Bookmark, error) {
+	bs = deduplicatePtr(c, r, bs)
+	if len(bs) == 0 {
 		c.F.Midln("no new bookmark found, skipping import").Flush()
-		return nil
+		return bs, nil
 	}
 
 	if !config.App.Flags.Force {
-		if err := c.ConfirmErr(fmt.Sprintf("scrape missing data from %d bookmarks found?", bs.Len()), "y"); err != nil {
+		if err := c.ConfirmErr(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y"); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
-				return nil
+				return bs, nil
 			}
 
-			return fmt.Errorf("%w", err)
+			return nil, fmt.Errorf("%w", err)
 		}
 	}
 
 	if err := bookmark.ScrapeMissingDescription(bs); err != nil {
-		return fmt.Errorf("scrapping missing description: %w", err)
+		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 
-	return nil
+	return bs, nil
 }
 
 // parseJSONRepo extracts records from a JSON repository.
@@ -371,7 +367,7 @@ func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
 func parseGitRepositoryOpt(c *ui.Console, o, dbPath, repoPath string) (string, error) {
 	switch strings.ToLower(o) {
 	case "new":
-		if err := intoDB(c, dbPath, repoPath); err != nil {
+		if err := intoDBFromGit(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
 
@@ -382,7 +378,7 @@ func parseGitRepositoryOpt(c *ui.Console, o, dbPath, repoPath string) (string, e
 		}
 
 		dbPath = filepath.Join(filepath.Dir(dbPath), dbName)
-		if err := intoDB(c, dbPath, repoPath); err != nil {
+		if err := intoDBFromGit(c, dbPath, repoPath); err != nil {
 			return "", err
 		}
 

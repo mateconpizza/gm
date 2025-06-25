@@ -9,12 +9,12 @@ import (
 	"log/slog"
 	"os"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/slice"
 )
 
 // InsertOne creates a new record in the main table.
@@ -24,9 +24,8 @@ func (r *SQLiteRepository) InsertOne(ctx context.Context, b *bookmark.Bookmark) 
 	})
 }
 
-// InsertMany creates multiple records.
-func (r *SQLiteRepository) InsertMany(ctx context.Context, bs *slice.Slice[bookmark.Bookmark]) error {
-	return r.insertBulk(ctx, bs)
+func (r *SQLiteRepository) InsertMany(ctx context.Context, bs []*bookmark.Bookmark) error {
+	return r.insertBulkPtr(ctx, bs)
 }
 
 // DeleteOne deletes one record from the main table.
@@ -35,18 +34,18 @@ func (r *SQLiteRepository) DeleteOne(ctx context.Context, bURL string) error {
 }
 
 // DeleteMany deletes multiple records from the main table.
-func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs *slice.Slice[bookmark.Bookmark]) error {
-	if bs.Empty() {
+func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error {
+	n := len(bs)
+	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
 
-	slog.Debug("deleting many records from the relation table", "count", bs.Len())
+	slog.Debug("deleting many records from the relation table", "count", n)
 
-	var urls []string
-
-	bs.ForEach(func(b bookmark.Bookmark) {
-		urls = append(urls, b.URL)
-	})
+	urls := make([]string, 0, len(bs))
+	for i := range bs {
+		urls = append(urls, bs[i].URL)
+	}
 
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		// create query
@@ -347,17 +346,14 @@ func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
 			return resetSQLiteSequence(tx, schemaMain.name)
 		}
 		// get all records
-		bb, err := r.All()
+		bs, err := r.AllPtr()
 		if err != nil {
 			if !errors.Is(ErrRecordNotFound, err) {
 				return err
 			}
 		}
 
-		bs := slice.New[bookmark.Bookmark]()
-		bs.Set(&bb)
-
-		if bs.Empty() {
+		if len(bs) == 0 {
 			return nil
 		}
 		// drop the trigger to avoid errors during the table reorganization.
@@ -538,17 +534,20 @@ func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	return nil
 }
 
-// insertBulk creates multiple records in the given tables.
-func (r *SQLiteRepository) insertBulk(ctx context.Context, bs *slice.Slice[bookmark.Bookmark]) error {
-	slog.Info("inserting records into main table", "count", bs.Len())
-	bs.Sort(func(a, b bookmark.Bookmark) bool {
-		return a.ID < b.ID
+func (r *SQLiteRepository) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) error {
+	slog.Info("inserting records into main table", "count", len(bs))
+	sort.Slice(bs, func(i, j int) bool {
+		return bs[i].ID < bs[j].ID
 	})
 
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
-		return bs.ForEachErr(func(b bookmark.Bookmark) error {
-			return r.insertIntoTx(tx, &b)
-		})
+		for _, b := range bs {
+			if err := r.insertIntoTx(tx, b); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 }
 
@@ -587,6 +586,7 @@ func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) error
 	if _, err := r.hasTx(tx, b.URL); err != nil {
 		return fmt.Errorf("duplicate record: %w, %q", err, b.URL)
 	}
+
 	// insert record and associate tags in the same transaction.
 	if err := insertRecord(tx, b); err != nil {
 		return err
@@ -605,7 +605,7 @@ func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) error
 func (r *SQLiteRepository) insertManyIntoTempTable(
 	ctx context.Context,
 	tx *sqlx.Tx,
-	bs *slice.Slice[bookmark.Bookmark],
+	bs []*bookmark.Bookmark,
 ) error {
 	q := `
   INSERT INTO temp_bookmarks (
@@ -618,7 +618,7 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
       :updated_at, :visit_count, :favorite, :checksum, :favicon_url
     )
   `
-	// FIX: pass the context
+
 	stmt, err := tx.PrepareNamedContext(ctx, q)
 	if err != nil {
 		return fmt.Errorf("prepare statement: %w", err)
@@ -630,15 +630,10 @@ func (r *SQLiteRepository) insertManyIntoTempTable(
 		}
 	}()
 
-	insertter := func(b bookmark.Bookmark) error {
+	for _, b := range bs {
 		if _, err := stmt.Exec(b); err != nil {
 			return fmt.Errorf("insert bookmark %s: %w", b.URL, err)
 		}
-
-		return nil
-	}
-	if err := bs.ForEachErr(insertter); err != nil {
-		return fmt.Errorf("%w", err)
 	}
 
 	return nil

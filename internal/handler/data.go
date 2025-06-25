@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/slice"
@@ -99,68 +98,20 @@ func Data(m *menu.Menu[bookmark.Bookmark],
 func handleEditedBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error {
 	newBookmark := newB.ID == 0
 	if newBookmark {
-		return addBookmark(r, newB)
+		return r.InsertOne(context.Background(), newB)
 	}
 
-	return updateBookmark(c, r, newB, oldB)
-}
-
-// addBookmark adds a new bookmark.
-func addBookmark(r *db.SQLiteRepository, b *bookmark.Bookmark) error {
-	if err := r.InsertOne(context.Background(), b); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if gitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
-		g, err := NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-
-		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
-
-		if err := port.GitStore(b); err != nil {
-			return fmt.Errorf("git store: %w", err)
-		}
-
-		if err := GitCommit(g, "Add"); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-
-	return nil
-}
-
-// updateBookmark updates the repository with the modified bookmark.
-func updateBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error {
 	if _, err := r.Update(context.Background(), newB, oldB); err != nil {
 		return fmt.Errorf("updating record: %w", err)
 	}
 
 	fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", newB.ID)))
 
-	if gitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
-		g, err := NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-
-		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
-
-		if err := port.GitUpdate(g, newB, oldB); err != nil {
-			return fmt.Errorf("git update: %w", err)
-		}
-
-		if err := GitCommit(g, "Modify"); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -168,7 +119,6 @@ func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookma
 	sp.Start()
 
 	ctx := context.Background()
-
 	// delete records from main table.
 	if err := r.DeleteMany(ctx, bs); err != nil {
 		return fmt.Errorf("deleting records: %w", err)
@@ -185,19 +135,6 @@ func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookma
 	}
 
 	sp.Done()
-
-	if gitInitialized(config.App.Path.Git, r.Cfg.Fullpath()) {
-		g, err := NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-
-		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
-
-		if err := gitCleanFiles(g, bs); err != nil {
-			return err
-		}
-	}
 
 	fmt.Print(c.SuccessMesg("bookmark/s removed\n"))
 

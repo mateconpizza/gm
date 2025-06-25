@@ -63,7 +63,7 @@ func testPopulatedDB(t *testing.T, n int) *SQLiteRepository {
 	r := setupTestDB(t)
 	bs := testSliceBookmarks(n)
 	ctx := t.Context()
-	err := r.InsertMany(ctx, bs)
+	err := r.InsertMany(ctx, bs.ItemsPtr())
 	assert.NoError(t, err)
 
 	return r

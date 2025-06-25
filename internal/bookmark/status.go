@@ -13,14 +13,22 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var ErrNetworkUnreachable = errors.New("network is unreachable")
+
+var (
+	cb  = func(s any) string { return color.Blue(s).Bold().String() }
+	cbg = func(s any) string { return color.BrightGreen(s).String() }
+	cr  = func(s any) string { return color.Red(s).String() }
+	cbr = func(s any) string { return color.BrightRed(s).String() }
+	cy  = func(s any) string { return color.Yellow(s).String() }
+	ctb = func(s string) string { return color.Text(s).Bold().String() }
+)
 
 type Response struct {
 	URL        string
@@ -30,38 +38,30 @@ type Response struct {
 }
 
 func (r *Response) String() string {
-	id := color.Gray("ID:").String()
-	id += fmt.Sprintf("[%s]", color.Purple(fmt.Sprintf("%-3d", r.bID)).Bold())
-
+	id := fmt.Sprintf("ID %s", color.Text(fmt.Sprintf("%-3d", r.bID)).Bold())
 	colorStatus, colorCode := prettifyURLStatus(r.statusCode)
-	code := color.Gray(":Code:").String()
-	code += fmt.Sprintf("[%s]", colorCode)
+	url := txt.Shorten(r.URL, terminal.MinWidth)
 
-	status := color.Gray(":Status:").String()
-	status += fmt.Sprintf("[%s]", colorStatus)
-
-	url := color.Gray(":URL:").String()
-	url += txt.Shorten(r.URL, terminal.MinWidth)
-
-	return fmt.Sprintf("%s%s%s%s", id, code, status, url)
+	return fmt.Sprintf("%s (%s %s) %s", id, colorCode, colorStatus, url)
 }
 
 // Status checks the status of a slice of bookmarks.
-func Status(bs *slice.Slice[Bookmark]) error {
+func Status(c *ui.Console, bs []*Bookmark) error {
 	const maxConRequests = 25
 
 	var (
-		responses = slice.New[Response]()
+		responses = make([]*Response, 0, len(bs))
 		sem       *semaphore.Weighted
 		start     time.Time
 		wg        sync.WaitGroup
+		mu        sync.Mutex
 	)
 
 	sem = semaphore.NewWeighted(int64(maxConRequests))
 	start = time.Now()
 	ctx := context.Background()
 
-	schedule := func(b Bookmark) error {
+	schedule := func(b *Bookmark) error {
 		wg.Add(1)
 
 		if err := sem.Acquire(ctx, 1); err != nil {
@@ -73,46 +73,57 @@ func Status(bs *slice.Slice[Bookmark]) error {
 		go func(b *Bookmark) {
 			defer wg.Done()
 
-			res := makeRequest(b, ctx, sem)
-			responses.Append(res)
-		}(&b)
+			res := makeRequest(c, b, ctx, sem)
+			mu.Lock()
+			responses = append(responses, &res)
+			mu.Unlock()
+		}(b)
 
 		return nil
 	}
 
-	if err := bs.ForEachErr(schedule); err != nil {
-		return fmt.Errorf("%w", err)
+	for _, b := range bs {
+		if err := schedule(b); err != nil {
+			return err
+		}
 	}
 
 	wg.Wait()
 
 	duration := time.Since(start)
-	printSummaryStatus(responses, duration)
+	printSummaryStatus(c, responses, duration)
 
 	return nil
 }
 
 // prettifyURLStatus formats HTTP status codes into colored.
 func prettifyURLStatus(code int) (status, statusCode string) {
-	switch code {
-	case http.StatusNotFound:
-		status = color.Red("ER").Bold().String()
-		statusCode = color.Red("404").Bold().String()
-	case http.StatusOK:
-		status = color.BrightGreen("OK").Bold().String()
-		statusCode = color.BrightGreen("200").Bold().String()
-	default:
-		status = color.Yellow("WA").Bold().String()
-		statusCode = color.Yellow(code).Bold().String()
-	}
+	statusCategory := code / 100
 
+	switch statusCategory {
+	case 2: // 2xx status codes
+		status = cbg("OK")
+		statusCode = cbg(code)
+	case 3: // 3xx status codes
+		status = cy("WA")
+		statusCode = cy(code)
+	case 4: // 4xx status codes
+		status = cbr("ER")
+		statusCode = cbr(code)
+	case 5: // 5xx status codes
+		status = cr("ER")
+		statusCode = cr(code)
+	default: // Other status codes
+		status = cy("WA")
+		statusCode = cy(code)
+	}
 	return status, statusCode
 }
 
 // fmtSummary formats the summary of the status codes.
 func fmtSummary(n, statusCode int, c color.ColorFn) string {
 	total := fmt.Sprintf(c("%-3d").Bold().String(), n)
-	code := c(statusCode).Bold().String()
+	code := c(statusCode).String()
 	s := http.StatusText(statusCode)
 
 	statusText := color.Text(s).Italic().String()
@@ -125,69 +136,76 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 
 // printSummaryStatus prints a summary of HTTP status codes and their
 // corresponding URLs.
-func printSummaryStatus(r *slice.Slice[Response], d time.Duration) {
-	var (
-		f     = frame.New(frame.WithColorBorder(color.Gray)).Ln()
-		codes = make(map[int][]Response)
-	)
+func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
+	codes := make(map[int][]Response)
 
-	f.Header(color.BrightGreen("Summary URLs status:\n").Bold().String())
+	c.F.Rowln().Header(ctb("Summary URLs status:\n"))
 
-	r.ForEach(func(r Response) {
-		codes[r.statusCode] = append(codes[r.statusCode], r)
-	})
+	for _, res := range r {
+		codes[res.statusCode] = append(codes[res.statusCode], *res)
+	}
 
 	for statusCode, res := range codes {
 		n := len(res)
 
-		switch statusCode {
-		case http.StatusNotFound,
-			http.StatusGone,
-			http.StatusInternalServerError,
-			http.StatusServiceUnavailable:
-			f.Mid(fmtSummary(n, statusCode, color.Red)).Ln()
-		case http.StatusForbidden, http.StatusTooManyRequests:
-			f.Mid(fmtSummary(n, statusCode, color.Orange)).Ln()
-		case http.StatusOK:
-			f.Mid(fmtSummary(n, statusCode, color.BrightGreen)).Ln()
-		default:
-			f.Mid(fmtSummary(n, statusCode, color.Yellow)).Ln()
+		statusCategory := statusCode / 100
+		switch statusCategory {
+		case 2: // 2xx status codes
+			c.F.Midln(fmtSummary(n, statusCode, color.BrightGreen))
+		case 3: // 3xx status codes
+			c.F.Midln(fmtSummary(n, statusCode, color.Yellow))
+		case 4: // 4xx status codes
+			c.F.Midln(fmtSummary(n, statusCode, color.BrightRed))
+		case 5: // 5xx status codes
+			c.F.Midln(fmtSummary(n, statusCode, color.Red))
+		default: // Other status codes
+			c.F.Midln(fmtSummary(n, statusCode, color.Yellow))
 		}
 
 		// adds URLs detail
 		for _, r := range res {
+			// ignore 200 response
 			if r.statusCode == http.StatusOK {
 				continue
 			}
-
-			bid := fmt.Sprintf(color.BrightGray("%-3d").String(), r.bID)
-			url := color.Gray(txt.Shorten(r.URL, terminal.MinWidth)).Italic().String()
-			f.Row(fmt.Sprintf(" %s %s", bid, url)).Ln()
+			c.F.Rowln(fmt.Sprintf(" > %-3d %s", r.bID, txt.Shorten(r.URL, terminal.MinWidth)))
 		}
 	}
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
-	total := fmt.Sprintf("Total %s checked,", color.Blue(r.Len()).Bold())
-	f.Row("\n").Footer(total + " took " + color.Blue(took).Bold().String() + "\n")
-	f.Flush()
+	total := fmt.Sprintf("Total %s checked,", cb(len(r)))
+	c.F.Rowln().Footerln(total + " took " + cb(took)).Flush()
 }
 
 // buildResponse builds a Response from an HTTP response.
-func buildResponse(b *Bookmark, statusCode int, hasError bool) Response {
+func buildResponse(c *ui.Console, b *Bookmark, statusCode int, hasError bool) Response {
 	result := Response{
 		URL:        b.URL,
 		bID:        b.ID,
 		statusCode: statusCode,
 		hasError:   hasError,
 	}
-	fmt.Println(result.String())
+
+	statusCategory := statusCode / 100
+	switch statusCategory {
+	case 2: // 2xx status codes
+		c.F.Success(result.String() + "\n").Flush()
+	case 3: // 3xx status codes
+		c.F.Warning(result.String() + "\n").Flush()
+	case 4: // 4xx status codes
+		c.F.Error(result.String() + "\n").Flush()
+	case 5: // 5xx status codes
+		c.F.Error(result.String() + "\n").Flush()
+	default: // Other status codes
+		c.F.Midln(result.String()).Flush()
+	}
 
 	return result
 }
 
 // handleRequestError handles errors from the HTTP request and determines the
 // appropriate status code.
-func handleRequestError(b *Bookmark, err error) Response {
+func handleRequestError(c *ui.Console, b *Bookmark, err error) Response {
 	var statusCode int
 
 	switch {
@@ -201,7 +219,7 @@ func handleRequestError(b *Bookmark, err error) Response {
 		statusCode = http.StatusNotFound
 	}
 
-	return buildResponse(b, statusCode, true)
+	return buildResponse(c, b, statusCode, true)
 }
 
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
@@ -209,7 +227,7 @@ func handleRequestError(b *Bookmark, err error) Response {
 //
 // The function uses a weighted semaphore to limit the number of concurrent
 // requests.
-func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Response {
+func makeRequest(c *ui.Console, b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Response {
 	// FIX: Split this function
 	defer sem.Release(1)
 
@@ -221,14 +239,14 @@ func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Resp
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
 	if err != nil {
 		slog.Error("creating request", slog.String("url", b.URL), slog.String("error", err.Error()))
-		return buildResponse(b, http.StatusNotFound, true)
+		return buildResponse(c, b, http.StatusNotFound, true)
 	}
 
 	client := http.DefaultClient
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return handleRequestError(b, err)
+		return handleRequestError(c, b, err)
 	}
 
 	defer func() {
@@ -238,7 +256,7 @@ func makeRequest(b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Resp
 		}
 	}()
 
-	return buildResponse(b, resp.StatusCode, resp.StatusCode != http.StatusOK)
+	return buildResponse(c, b, resp.StatusCode, resp.StatusCode != http.StatusOK)
 }
 
 func isNetworkUnreachableError(err error) bool {

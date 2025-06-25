@@ -47,17 +47,17 @@ func GitStore(b *bookmark.Bookmark) error {
 }
 
 // GitUpdate updates the git repo.
-func GitUpdate(g *git.Manager, newB, oldB *bookmark.Bookmark) error {
-	if !g.IsInitialized() {
+func GitUpdate(gm *git.Manager, newB, oldB *bookmark.Bookmark) error {
+	if !gm.IsInitialized() {
 		return nil
 	}
 
 	fileExt := JSONFileExt
-	if gpg.IsInitialized(g.RepoPath) {
+	if gpg.IsInitialized(gm.RepoPath) {
 		fileExt = gpg.Extension
 	}
 
-	gr := g.Tracker.Current()
+	gr := gm.Tracker.Current()
 
 	switch fileExt {
 	case JSONFileExt:
@@ -70,13 +70,13 @@ func GitUpdate(g *git.Manager, newB, oldB *bookmark.Bookmark) error {
 }
 
 // GitExport exports the bookmarks to the git repo.
-func GitExport(g *git.Manager) error {
-	if !g.IsInitialized() {
+func GitExport(gm *git.Manager) error {
+	if !gm.IsInitialized() {
 		slog.Debug("git export: git not initialized")
 		return nil
 	}
 
-	r, err := db.New(g.Tracker.Current().DBPath)
+	r, err := db.New(gm.Tracker.Current().DBPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -87,11 +87,7 @@ func GitExport(g *git.Manager) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if len(bookmarks) == 0 {
-		return git.ErrGitNothingToCommit
-	}
-
-	if err := GitWrite(g, bookmarks); err != nil {
+	if err := GitWrite(gm, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -99,9 +95,9 @@ func GitExport(g *git.Manager) error {
 }
 
 // GitWrite exports the bookmarks to the git repo.
-func GitWrite(g *git.Manager, bookmarks []*bookmark.Bookmark) error {
-	root := g.Tracker.Current().Path
-	if gpg.IsInitialized(g.RepoPath) {
+func GitWrite(gm *git.Manager, bookmarks []*bookmark.Bookmark) error {
+	root := gm.Tracker.Current().Path
+	if gpg.IsInitialized(gm.RepoPath) {
 		if err := exportAsGPG(root, bookmarks); err != nil {
 			return fmt.Errorf("store as GPG: %w", err)
 		}

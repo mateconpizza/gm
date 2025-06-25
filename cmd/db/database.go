@@ -1,10 +1,11 @@
-package cmd
+package database
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
@@ -19,13 +20,12 @@ import (
 
 func init() {
 	cfg := config.App
-	f := dbCmd.Flags()
+	f := dbRootCmd.Flags()
 	f.StringVarP(&cfg.DBName, "name", "n", config.DefaultDBName, "database name")
 	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
 
 	// new database
-	databaseNewCmd.Flags().StringVarP(&cfg.DBName, "name", "n", "", "new database name")
-	_ = databaseNewCmd.MarkFlagRequired("name")
+	DatabaseNewCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.DefaultDBName, "new database name")
 
 	// show database info
 	databaseInfoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
@@ -33,20 +33,20 @@ func init() {
 	// remove database
 	databaseRmCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select database to remove (fzf)")
 
-	dbCmd.AddCommand(
-		databaseDropCmd, databaseInfoCmd, databaseNewCmd, databaseListCmd,
+	dbRootCmd.AddCommand(
+		databaseDropCmd, databaseInfoCmd, DatabaseNewCmd, databaseListCmd,
 		databaseRmCmd, databaseLockCmd, databaseUnlockCmd,
 	)
-	Root.AddCommand(dbCmd)
+	cmd.Root.AddCommand(dbRootCmd)
 }
 
 var (
-	// dbCmd database management.
-	dbCmd = &cobra.Command{
-		Use:               "database",
-		Aliases:           []string{"db"},
+	// dbRootCmd database management.
+	dbRootCmd = &cobra.Command{
+		Use:               "db",
+		Aliases:           []string{"database", "d"},
 		Short:             "Database management",
-		PersistentPreRunE: RequireDatabase,
+		PersistentPreRunE: cmd.RequireDatabase,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.App
 			if cfg.Flags.JSON {
@@ -58,26 +58,23 @@ var (
 		},
 	}
 
-	// databaseNewCmd initialize a new bookmarks database.
-	databaseNewCmd = &cobra.Command{
-		Use:   "new",
-		Short: initCmd.Short,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if initCmd.PersistentPreRunE != nil {
-				if err := initCmd.PersistentPreRunE(cmd, args); err != nil {
-					return fmt.Errorf("%w", err)
-				}
-			}
-
-			return initCmd.RunE(cmd, args)
-		},
+	// DatabaseNewCmd initialize a new bookmarks database.
+	DatabaseNewCmd = &cobra.Command{
+		Use:               "new",
+		Short:             cmd.InitCmd.Short,
+		Example:           `  gm db new -n newDBName`,
+		Annotations:       cmd.SkipDBCheckAnnotation,
+		PersistentPreRunE: cmd.InitCmd.PersistentPreRunE,
+		RunE:              cmd.InitCmd.RunE,
+		PostRunE:          cmd.InitCmd.PostRunE,
 	}
 
 	// databaseDropCmd drops a database.
 	databaseDropCmd = &cobra.Command{
-		Use:   "drop",
-		Short: "Drop a database",
-		RunE:  dbDropFunc,
+		Use:      "drop",
+		Short:    "Drop a database",
+		RunE:     dbDropFunc,
+		PostRunE: dbDropPostFunc,
 	}
 
 	// databaseListCmd lists the available databases.
@@ -109,10 +106,11 @@ var (
 
 	// databaseRmCmd remove a database.
 	databaseRmCmd = &cobra.Command{
-		Use:     "rm",
-		Short:   dbRemoveCmd.Short,
-		Aliases: []string{"r", "remove"},
-		RunE:    dbRemoveCmd.RunE,
+		Use:      "rm",
+		Short:    dbRemoveCmd.Short,
+		Aliases:  []string{"r", "remove"},
+		RunE:     dbRemoveCmd.RunE,
+		PostRunE: dbRemoveCmd.PostRunE,
 	}
 
 	databaseLockCmd = &cobra.Command{
@@ -133,7 +131,7 @@ var (
 	databaseUnlockCmd = &cobra.Command{
 		Use:         "unlock",
 		Short:       "Unlock a database",
-		Annotations: skipDBCheckAnnotation,
+		Annotations: cmd.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := ui.NewConsole(
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Purple))),
@@ -162,23 +160,39 @@ func dbDropFunc(_ *cobra.Command, _ []string) error {
 		}))),
 	)
 
-	if git.IsInitialized(config.App.Path.Git) &&
-		git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
-		g, err := handler.NewGit(config.App.Path.Git)
-		if err != nil {
-			return nil
-		}
+	return handler.DroppingDB(c, r)
+}
 
-		g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
-
-		if err := handler.GitDropRepo(g, "Dropped"); err != nil {
-			return fmt.Errorf("%w", err)
-		}
+func dbDropPostFunc(_ *cobra.Command, _ []string) error {
+	cfg := config.App
+	if !git.IsInitialized(cfg.Path.Git) {
+		return nil
 	}
 
-	if err := handler.DroppingDB(c, r); err != nil {
-		return fmt.Errorf("%w", err)
+	gm, err := handler.NewGit(cfg.Path.Git)
+	if err != nil {
+		return err
+	}
+	gr := gm.NewRepo(cfg.DBPath)
+	if err := gm.Tracker.Load(); err != nil {
+		return err
+	}
+	if !gm.Tracker.Contains(gr) {
+		return nil
 	}
 
-	return nil
+	c := ui.NewConsole(
+		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+	)
+
+	if !c.Confirm("Untrack database?", "y") {
+		return nil
+	}
+	if err := gm.Tracker.Untrack(gr).Save(); err != nil {
+		return err
+	}
+	gm.Tracker.SetCurrent(gr)
+
+	return handler.GitDropRepo(gm, "dropped")
 }

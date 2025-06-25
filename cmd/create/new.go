@@ -1,15 +1,15 @@
-package cmd
+package create
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd"
+	dbCmd "github.com/mateconpizza/gm/cmd/db"
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -23,11 +23,11 @@ func init() {
 	newBookmarkCmd.Flags().StringVarP(&newRecordF.tags, "tags", "T", "", "bookmark tags")
 	newCmd.AddCommand(newBookmarkCmd)
 
-	newDatabaseCmd.Flags().StringVarP(&config.App.DBName, "name", "n", "", "new database name")
+	newDatabaseCmd.Flags().StringVarP(&config.App.DBName, "name", "n", config.DefaultDBName, "new database name")
 	_ = newDatabaseCmd.MarkFlagRequired("name")
 	newCmd.AddCommand(newDatabaseCmd, newBackupCmd)
 
-	Root.AddCommand(newCmd)
+	cmd.Root.AddCommand(newCmd)
 }
 
 type newRecordType struct {
@@ -43,25 +43,27 @@ var (
 		Use:   "new",
 		Short: "New bookmark, database, backup",
 		Example: `  gm new db -n newDBName
-  gm new --title='Some title' --tags='tag1 tag2'
+  gm new r --title='Some title' --tags='tag1 tag2'
   gm new bk`,
 		RunE: newBookmarkCmd.RunE,
 	}
 
 	// newDatabaseCmd creates a new database.
 	newDatabaseCmd = &cobra.Command{
-		Use:     "database",
-		Short:   "Create a new bookmarks database",
-		Aliases: []string{"db", "d"},
-		RunE:    databaseNewCmd.RunE,
+		Use:         "database",
+		Short:       "Create a new bookmarks database",
+		Aliases:     []string{"db", "d"},
+		Annotations: cmd.SkipDBCheckAnnotation,
+		RunE:        dbCmd.DatabaseNewCmd.RunE,
+		PostRunE:    dbCmd.DatabaseNewCmd.PostRunE,
 	}
 
 	// newBackupCmd creates a new backup.
 	newBackupCmd = &cobra.Command{
 		Use:     "backup",
-		Short:   backupNewCmd.Short,
+		Short:   dbCmd.BackupNewCmd.Short,
 		Aliases: []string{"bk"},
-		RunE:    backupNewCmd.RunE,
+		RunE:    dbCmd.BackupNewCmd.RunE,
 	}
 
 	newBookmarkCmd = &cobra.Command{
@@ -103,24 +105,6 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 
 	if err := handler.SaveNewBookmark(c, r, b); err != nil {
 		return err
-	}
-
-	if git.IsInitialized(config.App.Path.Git) &&
-		git.IsTracked(config.App.Path.Git, r.Cfg.Fullpath()) {
-		if err := port.GitStore(b); err != nil {
-			return fmt.Errorf("git store: %w", err)
-		}
-
-		g, err := handler.NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-
-		g.Tracker.SetCurrent(g.NewRepo(r.Cfg.Fullpath()))
-
-		if err := handler.GitCommit(g, "Add"); err != nil {
-			return fmt.Errorf("%w", err)
-		}
 	}
 
 	fmt.Print(c.SuccessMesg("bookmark added\n"))

@@ -102,6 +102,7 @@ func (gm *Manager) Commit(msg string) error {
 func (gm *Manager) SetRepoPath(repoPath string) {
 	gm.isInitialized = false
 	gm.RepoPath = repoPath
+	gm.Tracker = NewTracker(repoPath)
 }
 
 // SetConfigLocal sets a local config value.

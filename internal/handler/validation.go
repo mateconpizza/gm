@@ -72,9 +72,11 @@ func confirmUserLimit(c *ui.Console, count, maxItems int, q string) error {
 		return nil
 	}
 
-	if !terminal.Confirm(c.F.Question(q).String(), "n") {
+	if !c.Confirm(q+", continue?", "n") {
 		return sys.ErrActionAborted
 	}
+
+	c.ReplaceLine(c.F.Midln(q).StringReset())
 
 	return nil
 }

@@ -26,8 +26,8 @@ type (
 		Info    information `json:"data"`    // Application information
 		Env     environment `json:"env"`     // Application environment variables
 		Path    path        `json:"path"`    // Application path
-		Flags   *Flags      `json:"-"`
-		Verbose bool        `json:"-"` // Logging level
+		Flags   *Flags      `json:"-"`       // Command line flags
+		Verbose bool        `json:"-"`       // Logging level
 	}
 
 	path struct {
@@ -36,7 +36,6 @@ type (
 		ConfigFile string `json:"config"` // Path to config file
 		Backup     string `json:"backup"` // Path to store backups
 		Git        string `json:"git"`    // Path to store git
-		// Colorschemes string `json:"colorschemes"` // Path to store colorschemes
 	}
 
 	information struct {

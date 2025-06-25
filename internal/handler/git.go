@@ -1,21 +1,21 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/ui"
 )
 
 // NewGit returns a new git manager.
@@ -31,23 +31,28 @@ func NewGit(repoPath string) (*git.Manager, error) {
 }
 
 // GitCommit commits the bookmarks to the git repo.
-func GitCommit(g *git.Manager, actionMsg string) error {
-	if !g.IsInitialized() {
+func GitCommit(gm *git.Manager, actionMsg string) error {
+	actionMsg = strings.ToLower(actionMsg)
+	if !gm.IsInitialized() {
 		slog.Debug("git export: git not initialized", "action", actionMsg)
 		return git.ErrGitNotInitialized
 	}
 
-	if err := g.Tracker.Load(); err != nil {
+	if err := gm.Tracker.Load(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	gr := g.Tracker.Current()
+	gr := gm.Tracker.Current()
+	if err := gm.Tracker.Load(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
 
-	if !g.Tracker.Contains(gr) {
+	if !gm.Tracker.Contains(gr) {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.DBName)
 	}
 
 	if !files.Exists(gr.Path) {
+		slog.Debug("repo path does not exist", "path", gr.Path)
 		return nil
 	}
 
@@ -62,25 +67,20 @@ func GitCommit(g *git.Manager, actionMsg string) error {
 		return fmt.Errorf("load records: %w", err)
 	}
 
-	// remove repo if no bookmarks
-	if len(bookmarks) == 0 {
-		slog.Debug("no bookmarks found", "database", gr.DBName)
-		return GitDropRepo(g, "Dropped")
-	}
-
-	if err := port.GitWrite(g, bookmarks); err != nil {
+	if err := port.GitWrite(gm, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	return commitIfChanged(g, actionMsg)
+	return commitIfChanged(gm, actionMsg)
 }
 
 // GitDropRepo removes the repo from the git repo.
-func GitDropRepo(g *git.Manager, mesg string) error {
-	gr := g.Tracker.Current()
+func GitDropRepo(gm *git.Manager, mesg string) error {
+	mesg = strings.ToLower(mesg)
+	gr := gm.Tracker.Current()
 	slog.Debug("dropping repo", "dbPath", gr.DBPath)
 
-	if !g.IsInitialized() {
+	if !gm.IsInitialized() {
 		return fmt.Errorf("dropping repo: %w: %q", git.ErrGitNotInitialized, gr.DBName)
 	}
 
@@ -93,11 +93,11 @@ func GitDropRepo(g *git.Manager, mesg string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := g.AddAll(); err != nil {
+	if err := gm.AddAll(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := g.Commit(fmt.Sprintf("[%s] %s", gr.DBName, mesg)); err != nil {
+	if err := gm.Commit(fmt.Sprintf("[%s] %s", gr.DBName, mesg)); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -105,23 +105,23 @@ func GitDropRepo(g *git.Manager, mesg string) error {
 }
 
 // commitIfChanged commits the bookmarks to the git repo if there are changes.
-func commitIfChanged(g *git.Manager, actionMsg string) error {
-	err := gitRepoSummaryRepoStats(g)
+func commitIfChanged(gm *git.Manager, actionMsg string) error {
+	err := gitRepoSummaryRepoStats(gm)
 	if err != nil {
 		return err
 	}
 
 	// Check if any changes
-	changed, _ := g.HasChanges()
+	changed, _ := gm.HasChanges()
 	if !changed {
 		return git.ErrGitNothingToCommit
 	}
 
-	if err := g.AddAll(); err != nil {
+	if err := gm.AddAll(); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
 
-	status, err := g.Status()
+	status, err := gm.Status()
 	if err != nil {
 		status = ""
 	}
@@ -130,17 +130,17 @@ func commitIfChanged(g *git.Manager, actionMsg string) error {
 		status = "(" + status + ")"
 	}
 
-	msg := fmt.Sprintf("[%s] %s %s", g.Tracker.Current().DBName, actionMsg, status)
-	if err := g.Commit(msg); err != nil {
+	msg := fmt.Sprintf("[%s] %s %s", gm.Tracker.Current().DBName, actionMsg, status)
+	if err := gm.Commit(msg); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 
 	return nil
 }
 
-func gitRepoSummaryRepoStats(g *git.Manager) error {
+func gitRepoSummaryRepoStats(gm *git.Manager) error {
 	var (
-		gr          = g.Tracker.Current()
+		gr          = gm.Tracker.Current()
 		summary     *git.SyncGitSummary
 		summaryPath = filepath.Join(gr.Path, git.SummaryFileName)
 	)
@@ -172,18 +172,18 @@ func gitRepoSummaryRepoStats(g *git.Manager) error {
 }
 
 // GitSummary returns a new SyncGitSummary.
-func GitSummary(g *git.Manager, version string) (*git.SyncGitSummary, error) {
-	r, err := db.New(g.Tracker.Current().DBPath)
+func GitSummary(gm *git.Manager, version string) (*git.SyncGitSummary, error) {
+	r, err := db.New(gm.Tracker.Current().DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
 
-	branch, err := g.Branch()
+	branch, err := gm.Branch()
 	if err != nil {
 		return nil, fmt.Errorf("getting branch: %w", err)
 	}
 
-	remote, err := g.Remote()
+	remote, err := gm.Remote()
 	if err != nil {
 		remote = ""
 	}
@@ -238,34 +238,38 @@ func GitRepoStats(dbPath string, summary *git.SyncGitSummary) error {
 	return nil
 }
 
-// gitCleanFiles removes the files from the git repo.
-func gitCleanFiles(g *git.Manager, bs *slice.Slice[bookmark.Bookmark]) error {
-	if !g.IsInitialized() {
-		return nil
+// GitTrackExportCommit tracks and exports a database.
+func GitTrackExportCommit(c *ui.Console, gm *git.Manager, mesg string) error {
+	if !gm.IsInitialized() {
+		return git.ErrGitNotInitialized
 	}
 
-	fileExt := port.JSONFileExt
-	if gpg.IsInitialized(g.RepoPath) {
-		fileExt = gpg.Extension
+	gr := gm.Tracker.Current()
+	if !gm.Tracker.Contains(gr) {
+		if !c.Confirm(fmt.Sprintf("Track database %q?", gr.DBName), "n") {
+			return nil
+		}
+
+		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", gr.DBName)).String())
 	}
 
-	var cleaner func(string, []*bookmark.Bookmark) error
-
-	switch fileExt {
-	case port.JSONFileExt:
-		cleaner = port.GitCleanJSON
-	case gpg.Extension:
-		cleaner = port.GitCleanGPG
+	if err := port.GitExport(gm); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
-	if err := cleaner(g.Tracker.Current().Path, bs.ItemsPtr()); err != nil {
-		return fmt.Errorf("cleaning repo: %w", err)
+	if err := gm.Tracker.Track(gr).Save(); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
-	return GitCommit(g, "Remove")
-}
+	if err := GitCommit(gm, mesg); err != nil {
+		if errors.Is(err, git.ErrGitNothingToCommit) {
+			return nil
+		}
 
-// gitInitialized returns true if the repo is initialized and tracked.
-func gitInitialized(repoPath, dbPath string) bool {
-	return git.IsInitialized(repoPath) && git.IsTracked(repoPath, dbPath)
+		return fmt.Errorf("%w", err)
+	}
+
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.DBName)))
+
+	return nil
 }

@@ -37,7 +37,7 @@ var (
 	// recordsCmd records management.
 	// main command.
 	recordsCmd = &cobra.Command{
-		Use:               "records",
+		Use:               "rec",
 		Aliases:           []string{"r"},
 		Short:             "Records management",
 		PersistentPreRunE: RequireDatabase,
@@ -75,7 +75,7 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(menuForRecords[bookmark.Bookmark](cmd), r, args)
+	bs, err := handler.Data(menuForRecords(), r, args)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -92,31 +92,31 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		}))),
 	)
 
-	cfg := config.App
+	f := config.App.Flags
 
 	switch {
-	case cfg.Flags.Status:
-		return handler.CheckStatus(c, bs)
-	case cfg.Flags.Remove:
+	case f.Status:
+		return handler.CheckStatus(c, bs.ItemsPtr())
+	case f.Remove:
 		return handler.Remove(c, r, bs)
-	case cfg.Flags.Edit:
-		return handler.EditSlice(c, r, bs)
-	case cfg.Flags.Update:
-		return handler.UpdateSlice(c, r, bs)
-	case cfg.Flags.Copy:
+	case f.Edit:
+		return handler.EditSlice(c, r, bs.ItemsPtr())
+	case f.Update:
+		return handler.UpdateSlice(c, r, bs.ItemsPtr())
+	case f.Copy:
 		return handler.Copy(bs)
-	case cfg.Flags.Open && !cfg.Flags.QR:
+	case f.Open && !f.QR:
 		return handler.Open(c, r, bs)
 	}
 
 	switch {
-	case cfg.Flags.Field != "":
-		return printer.ByField(bs, cfg.Flags.Field)
-	case cfg.Flags.QR:
-		return handler.QR(bs, cfg.Flags.Open)
-	case cfg.Flags.JSON:
-		return printer.JSONRecordSlice(bs)
-	case cfg.Flags.Oneline:
+	case f.Field != "":
+		return printer.ByField(bs, f.Field)
+	case f.QR:
+		return handler.QR(bs, f.Open)
+	case f.JSON:
+		return printer.JSONRecordSlice(bs.ItemsPtr())
+	case f.Oneline:
 		return printer.Oneline(bs)
 	default:
 		return printer.RecordSlice(bs)
@@ -152,12 +152,13 @@ func initRecordFlags(cmd *cobra.Command) {
 }
 
 // menuForRecords returns a FZF menu for showing records.
-func menuForRecords[T comparable](cmd *cobra.Command) *menu.Menu[T] {
+func menuForRecords[T bookmark.Bookmark]() *menu.Menu[T] {
+	cfg := config.App
 	mo := []menu.OptFn{
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
-		menu.WithPreview(config.App.Cmd + " --name " + config.App.DBName + " records {1}"),
+		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithKeybinds(
 			config.FzfKeybindEdit(),
 			config.FzfKeybindOpen(),
@@ -167,7 +168,7 @@ func menuForRecords[T comparable](cmd *cobra.Command) *menu.Menu[T] {
 		),
 	}
 
-	if multi, _ := cmd.Flags().GetBool("multiline"); multi {
+	if cfg.Flags.Multiline {
 		mo = append(mo, menu.WithMultilineView())
 	}
 

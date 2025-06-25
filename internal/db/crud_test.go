@@ -49,7 +49,7 @@ func TestDeleteMany(t *testing.T) {
 	defer teardownthewall(r.DB)
 	bsToInsert := testSliceBookmarks(10)
 	ctx := t.Context()
-	err := r.InsertMany(ctx, bsToInsert)
+	err := r.InsertMany(ctx, bsToInsert.ItemsPtr())
 	assert.NoError(t, err)
 	// check if the records were inserted
 	bsInserted := slice.New[bookmark.Bookmark]()
@@ -58,7 +58,7 @@ func TestDeleteMany(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, *bsInserted.Items(), 10)
 	// delete the records
-	err = r.DeleteMany(ctx, bsToInsert)
+	err = r.DeleteMany(ctx, bsToInsert.ItemsPtr())
 	assert.NoError(t, err)
 	// check if the records were deleted
 	bsDeleted := slice.New[bookmark.Bookmark]()
@@ -261,7 +261,7 @@ func TestDeleteAll(t *testing.T) {
 	}
 	bs := testSliceBookmarks(10)
 	ctx := t.Context()
-	err := r.insertBulk(ctx, bs)
+	err := r.insertBulkPtr(ctx, bs.ItemsPtr())
 	assert.NoError(t, err)
 	assert.NoError(t, r.deleteAll(ctx, ts...), "expected no error when deleting all records")
 	b := bs.Item(0)
@@ -282,7 +282,7 @@ func TestRecordIDs(t *testing.T) {
 	bsToDelete := slice.New[bookmark.Bookmark]()
 	bsToDelete.Append(bs.Item(1), bs.Item(3), bs.Item(5))
 	ctx := t.Context()
-	err = r.DeleteMany(ctx, bsToDelete)
+	err = r.DeleteMany(ctx, bsToDelete.ItemsPtr())
 	assert.NoError(t, err, "DeleteMany returned an error: %v", err)
 	// check if the records were deleted
 	bsDeleted := slice.New[bookmark.Bookmark]()

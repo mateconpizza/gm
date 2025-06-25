@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
@@ -60,8 +59,8 @@ func Validate(b *Bookmark) error {
 
 // ScrapeMissingDescription scrapes missing data from bookmarks found from the import
 // process.
-func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
-	if bs.Len() == 0 {
+func ScrapeMissingDescription(bs []*Bookmark) error {
+	if len(bs) == 0 {
 		return nil
 	}
 
@@ -78,7 +77,7 @@ func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
 		errs = make([]string, 0)
 	)
 
-	bs.ForEachMut(func(b *Bookmark) {
+	for _, b := range bs {
 		wg.Add(1)
 
 		go func(b *Bookmark) {
@@ -95,7 +94,7 @@ func ScrapeMissingDescription(bs *slice.Slice[Bookmark]) error {
 
 			b.Desc, _ = sc.Desc()
 		}(b)
-	})
+	}
 
 	wg.Wait()
 

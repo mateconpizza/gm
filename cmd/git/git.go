@@ -96,9 +96,7 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-
-	gr := g.NewRepo(config.App.DBPath)
-	g.Tracker.SetCurrent(gr)
+	g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
 
 	return handler.GitCommit(g, "Update")
 }
@@ -108,9 +106,7 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return git.ErrGitRepoURLEmpty
 	}
-
 	repoPathToClone := args[0]
-
 	tmpPath := filepath.Join(os.TempDir(), config.App.Name+"-clone")
 	go func() {
 		_ = files.RemoveAll(tmpPath)
@@ -126,32 +122,32 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 		}))),
 	)
 
-	g, err := handler.NewGit(tmpPath)
+	// Set path with the temp dir
+	gm, err := handler.NewGit(tmpPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	imported, err := port.GitImport(c, g, repoPathToClone)
+	imported, err := port.GitImport(c, gm, repoPathToClone)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	// Update with the default repo path
-	g.SetRepoPath(config.App.Path.Git)
+	gm.SetRepoPath(config.App.Path.Git)
 
-	if !g.IsInitialized() {
+	if !gm.IsInitialized() {
 		slog.Warn("git import: repo not initialized", "path", config.App.Path.Git)
 		return nil
 	}
 
-	if err := g.Tracker.Load(); err != nil {
+	if err := gm.Tracker.Load(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	for _, dbPath := range imported {
-		g.Tracker.SetCurrent(g.NewRepo(dbPath))
-
-		if err := trackExportCommit(c, g); err != nil {
+		gm.Tracker.SetCurrent(gm.NewRepo(dbPath))
+		if err := handler.GitTrackExportCommit(c, gm, "import from git"); err != nil {
 			return err
 		}
 	}
@@ -188,7 +184,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		return git.ErrGitNoRepos
 	}
 
-	if c.Confirm("Use GPG for encryption?", "y") {
+	if c.Confirm("Use GPG for encryption?", "n") {
 		if err := gpg.Init(g.RepoPath, git.AttributesFile); err != nil {
 			return fmt.Errorf("gpg init: %w", err)
 		}

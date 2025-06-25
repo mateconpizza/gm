@@ -99,14 +99,14 @@ func DatabasesList(c *ui.Console, p string) error {
 }
 
 // JSONRecordSlice formats the bookmarks in JSONRecordSlice.
-func JSONRecordSlice(bs *slice.Slice[bookmark.Bookmark]) error {
-	var r []*bookmark.BookmarkJSON
+func JSONRecordSlice(bs []*bookmark.Bookmark) error {
+	r := make([]*bookmark.BookmarkJSON, 0, len(bs))
 
-	slog.Debug("formatting bookmarks in JSON", "count", bs.Len())
+	slog.Debug("formatting bookmarks in JSON", "count", len(bs))
 
-	bs.ForEach(func(b bookmark.Bookmark) {
+	for _, b := range bs {
 		r = append(r, b.ToJSON())
-	})
+	}
 
 	j, err := port.ToJSON(r)
 	if err != nil {

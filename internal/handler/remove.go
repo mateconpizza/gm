@@ -23,6 +23,12 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
+var (
+	cred  = func(s string) string { return color.BrightRed(s).String() }
+	credB = func(s string) string { return color.BrightRed(s).Bold().String() }
+	cyel  = func(s string) string { return color.BrightYellow(s).String() }
+)
+
 // RemoveRepo removes a repo.
 func RemoveRepo(c *ui.Console, dbPath string) error {
 	if !files.Exists(dbPath) {
@@ -36,8 +42,7 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 	fmt.Print(db.RepoSummaryFromPath(c, dbPath))
 
 	if !config.App.Flags.Force {
-		s := color.BrightRed("remove").Bold().String()
-		if err := c.ConfirmErr(s+" "+filepath.Base(dbPath)+"?", "n"); err != nil {
+		if err := c.ConfirmErr(credB("remove")+" "+filepath.Base(dbPath)+"?", "n"); err != nil {
 			return err
 		}
 	}
@@ -50,19 +55,6 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 
 	if err := files.Remove(dbPath); err != nil {
 		return fmt.Errorf("%w", err)
-	}
-
-	if gitInitialized(config.App.Path.Git, dbPath) {
-		g, err := NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-
-		g.Tracker.SetCurrent(g.NewRepo(dbPath))
-
-		if err := GitDropRepo(g, "Dropped"); err != nil {
-			return fmt.Errorf("%w", err)
-		}
 	}
 
 	dbName := filepath.Base(dbPath)
@@ -95,16 +87,14 @@ func RemoveBackups(c *ui.Console, p string) error {
 
 actionLoop:
 	for {
-		rm := color.BrightRed("remove").Bold().String()
-		opt, err := c.Choose(rm+" backups?", []string{"all", "no", "select"}, "n")
+		opt, err := c.Choose(credB("remove")+" backups?", []string{"all", "no", "select"}, "n")
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
 		switch strings.ToLower(opt) {
 		case "n", "no":
-			sk := color.BrightYellow("skipping").String()
-			c.ReplaceLine(c.Warning(sk + " backup/s").StringReset())
+			c.ReplaceLine(c.Warning(cyel("skipping") + " backup/s").StringReset())
 			break actionLoop
 		case "a", "all":
 			filesToRemove.Append(fs...)
@@ -153,7 +143,7 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 
 		c.F.Flush()
 
-		msg := fmt.Sprintf("%s %d item/s", color.BrightRed("removing").String(), n)
+		msg := fmt.Sprintf("%s %d item/s", cred("removing"), n)
 		if err := c.ConfirmErr(msg+", continue?", "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -187,18 +177,16 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 // Remove prompts the user the records to remove.
 func Remove(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	defer r.Close()
-
 	if err := validateRemove(bs, config.App.Flags.Force); err != nil {
 		return err
 	}
 
 	if config.App.Flags.Force {
-		return removeRecords(c, r, bs)
+		return removeRecords(c, r, bs.ItemsPtr())
 	}
 
-	cbr := func(s string) string { return color.BrightRed(s).String() }
 	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Header(cbr("Removing Bookmarks\n\n")).Flush()
+	f.Header(cred("Removing Bookmarks\n\n")).Flush()
 
 	defer c.T.CancelInterruptHandler()
 
@@ -211,12 +199,12 @@ func Remove(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Book
 		return err
 	}
 
-	return removeRecords(c, r, bs)
+	return removeRecords(c, r, bs.ItemsPtr())
 }
 
 // DroppingDB drops a database.
 func DroppingDB(c *ui.Console, r *db.SQLiteRepository) error {
-	c.F.Header(color.BrightRed("Dropping").String() + " all records\n").Row("\n").Flush()
+	c.F.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
 	fmt.Print(db.Info(c, r))
 
 	c.F.Reset().Rowln().Flush()

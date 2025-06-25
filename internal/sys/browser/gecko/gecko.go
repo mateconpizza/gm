@@ -90,7 +90,7 @@ func (b *GeckoBrowser) LoadPaths() error {
 	return nil
 }
 
-func (b *GeckoBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.Bookmark], error) {
+func (b *GeckoBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
 	p := b.paths
 	if p.profiles == "" || p.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -108,11 +108,10 @@ func (b *GeckoBrowser) Import(c *ui.Console, force bool) (*slice.Slice[bookmark.
 	c.F.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
 	c.F.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
 
-	bs := slice.New[bookmark.Bookmark]()
-
+	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, v)
-		processProfile(c, bs, profile, p, force)
+		processProfile(c, &bs, profile, p, force)
 	}
 
 	return bs, nil
@@ -178,11 +177,11 @@ func isNonGenericURL(url string) bool {
 }
 
 // queryBookmarks queries the bookmarks table to retrieve some sample data.
-func queryBookmarks(db *sqlx.DB) (*slice.Slice[geckoBookmark], error) {
+func queryBookmarks(db *sqlx.DB) ([]*geckoBookmark, error) {
 	q := "SELECT DISTINCT fk, parent, title FROM moz_bookmarks WHERE type=1 AND title IS NOT NULL"
-	bs := slice.New[geckoBookmark]()
+	var bs []*geckoBookmark
 
-	err := db.Select(bs.Items(), q)
+	err := db.Select(&bs, q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query bookmarks: %w", err)
 	}
@@ -208,8 +207,10 @@ func queryBookmarks(db *sqlx.DB) (*slice.Slice[geckoBookmark], error) {
 		return nil
 	}
 
-	if err := bs.ForEachMutErr(parseGeckoBookmark); err != nil {
-		return nil, fmt.Errorf("%w", err)
+	for _, b := range bs {
+		if err := parseGeckoBookmark(b); err != nil {
+			return nil, err
+		}
 	}
 
 	return bs, nil
@@ -240,7 +241,7 @@ func allProfiles(p string) (map[string]string, error) {
 // processProfile processes a single profile and extracts bookmarks.
 //
 //nolint:funlen,wsl //ignored
-func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, path string, force bool) {
+func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
 	c.F.Rowln().Flush()
 
 	if !force {
@@ -252,14 +253,12 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
 	}
 
-	// FIX: get path by OS
 	path = files.ExpandHomeDir(path)
 	db, err := openSQLite(path)
 	defer func() {
 		if db == nil {
 			return
 		}
-
 		_ = db.Close()
 		slog.Debug("database for profile closed", "profile", profile)
 	}()
@@ -269,11 +268,9 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 		if errors.Is(err, ErrBrowserIsOpen) {
 			l := color.BrightRed("locked").String()
 			c.Error("database is " + l + ", maybe firefox is open?\n").Flush()
-
 			return
 		}
 		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
-
 		return
 	}
 
@@ -284,29 +281,38 @@ func processProfile(c *ui.Console, bs *slice.Slice[bookmark.Bookmark], profile, 
 	}
 
 	skipped := 0
-	gmarks.ForEach(func(gb geckoBookmark) {
+	for _, gb := range gmarks {
 		if gb.URL == "" {
-			return
+			continue
 		}
 
 		b := bookmark.New()
 		b.Title = gb.Title
 		b.URL = gb.URL
 		b.Tags = gb.Tags
-		if bs.Includes(b) {
+
+		// dedup
+		duplicate := false
+		for _, existing := range *bs {
+			if existing.URL == b.URL {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
 			skipped++
-			return
+			continue
 		}
 
-		bs.Push(b)
-	})
+		*bs = append(*bs, b)
+	}
 
 	if err := db.Close(); err != nil {
 		slog.Error("closing rows", "err", err)
 	}
 
 	found := color.BrightBlue("found")
-	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, bs.Len()-skipped)).Flush()
+	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-skipped)).Flush()
 }
 
 // processTags processes the tags for a single bookmark.

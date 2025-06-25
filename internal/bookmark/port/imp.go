@@ -23,16 +23,15 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // GitImport imports bookmarks from a git repository.
-func GitImport(c *ui.Console, g *git.Manager, urlRepo string) ([]string, error) {
-	if err := g.Clone(urlRepo); err != nil {
+func GitImport(c *ui.Console, gm *git.Manager, urlRepo string) ([]string, error) {
+	if err := gm.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	repos, err := files.ListRootFolders(g.RepoPath, ".git")
+	repos, err := files.ListRootFolders(gm.RepoPath, ".git")
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -47,7 +46,7 @@ func GitImport(c *ui.Console, g *git.Manager, urlRepo string) ([]string, error) 
 	c.F.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepository(c, g.RepoPath, repoName)
+		dbPath, err := parseGitRepository(c, gm.RepoPath, repoName)
 		if err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				c.ReplaceLine(
@@ -71,7 +70,7 @@ func GitImport(c *ui.Console, g *git.Manager, urlRepo string) ([]string, error) 
 		return nil, terminal.ErrActionAborted
 	}
 
-	if err := files.RemoveAll(g.RepoPath); err != nil {
+	if err := files.RemoveAll(gm.RepoPath); err != nil {
 		return nil, fmt.Errorf("removing temp repo: %w", err)
 	}
 
@@ -95,12 +94,14 @@ func Browser(c *ui.Console, r *db.SQLiteRepository) error {
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
+
 	// clean and process found bookmarks
-	if err := parseFoundInBrowser(c, r, bs); err != nil {
+	bs, err = parseFoundInBrowser(c, r, bs)
+	if err != nil {
 		return err
 	}
 
-	if bs.Len() == 0 {
+	if len(bs) == 0 {
 		return nil
 	}
 
@@ -135,35 +136,32 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	bs := slice.New(records...)
-
-	dRecords, err := Deduplicate(c, destDB, bs)
-	if err != nil {
-		return err
+	bookmarks := make([]*bookmark.Bookmark, 0, len(records))
+	for i := range records {
+		bookmarks = append(bookmarks, &records[i])
 	}
 
-	if len(dRecords) == 0 {
+	bookmarks = deduplicatePtr(c, destDB, bookmarks)
+	n := len(bookmarks)
+	if n == 0 {
 		c.F.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	if err := destDB.InsertMany(context.Background(), bs); err != nil {
+	if err := destDB.InsertMany(context.Background(), bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s from %s\n", bs.Len(), srcDB.Name())))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s from %s\n", n, srcDB.Name())))
 
 	return nil
 }
 
 // IntoRepo import records into the database.
-func IntoRepo(
-	c *ui.Console,
-	r *db.SQLiteRepository,
-	records *slice.Slice[bookmark.Bookmark],
-) error {
-	if !config.App.Flags.Force {
-		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", records.Len()), "y"); err != nil {
+func IntoRepo(c *ui.Console, r *db.SQLiteRepository, records []*bookmark.Bookmark) error {
+	n := len(records)
+	if !config.App.Flags.Force && n > 1 {
+		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -180,15 +178,15 @@ func IntoRepo(
 
 	sp.Done()
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", records.Len())))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", n)))
 
 	return nil
 }
 
 // FromBackup imports bookmarks from a backup.
 func FromBackup(c *ui.Console, destDB, srcDB *db.SQLiteRepository) error {
-	c.F.Headerln(color.BrightYellow("Import bookmarks from backup").String())
-	c.F.Midln(color.Gray(txt.PaddedLine("source:", srcDB.Name())).Italic().String()).Rowln()
+	s := color.BrightYellow("Import bookmarks from backup: ").String()
+	c.F.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
@@ -213,19 +211,18 @@ func FromBackup(c *ui.Console, destDB, srcDB *db.SQLiteRepository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	bs := slice.New(items...)
-
-	dRecords, err := Deduplicate(c, destDB, bs)
-	if err != nil {
-		return err
+	result := make([]*bookmark.Bookmark, 0, len(items))
+	for i := range items {
+		result = append(result, &items[i])
 	}
 
+	dRecords := deduplicatePtr(c, destDB, result)
 	if len(dRecords) == 0 {
 		c.F.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	return nil
+	return IntoRepo(c, destDB, dRecords)
 }
 
 // mergeRecords merges non-duplicates records into database.
@@ -242,13 +239,7 @@ func mergeRecords(c *ui.Console, dbPath, repoPath string) error {
 	}
 
 	bookmarks = deduplicatePtr(c, r, bookmarks)
-
-	records := slice.New[bookmark.Bookmark]()
-	for _, b := range bookmarks {
-		records.Push(b)
-	}
-
-	if err := r.InsertMany(context.Background(), records); err != nil {
+	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -260,8 +251,8 @@ func mergeRecords(c *ui.Console, dbPath, repoPath string) error {
 	return nil
 }
 
-// intoDB import into database.
-func intoDB(c *ui.Console, dbPath, repoPath string) error {
+// intoDBFromGit import into database.
+func intoDBFromGit(c *ui.Console, dbPath, repoPath string) error {
 	bookmarks, err := extractFromGitRepo(c, repoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
@@ -271,17 +262,11 @@ func intoDB(c *ui.Console, dbPath, repoPath string) error {
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
-
 	if err := r.Init(); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	records := slice.New[bookmark.Bookmark]()
-	for _, b := range bookmarks {
-		records.Push(b)
-	}
-
-	if err := r.InsertMany(context.Background(), records); err != nil {
+	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

@@ -89,7 +89,7 @@ func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
 	const maxGoroutines = 15
 	// get user confirmation to procced
-	s := fmt.Sprintf("%s %d bookmarks, continue?", cbg("opening"), bs.Len())
+	s := fmt.Sprintf("%s %d bookmarks", cbg("open"), bs.Len())
 	if err := confirmUserLimit(c, bs.Len(), maxGoroutines, s); err != nil {
 		return err
 	}
@@ -149,22 +149,20 @@ func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookma
 }
 
 // CheckStatus prints the status code of the bookmark URL.
-func CheckStatus(c *ui.Console, bs *slice.Slice[bookmark.Bookmark]) error {
-	n := bs.Len()
+func CheckStatus(c *ui.Console, bs []*bookmark.Bookmark) error {
+	const maxGoroutines = 15
+
+	n := len(bs)
 	if n == 0 {
 		return db.ErrRecordQueryNotProvided
 	}
 
-	const maxGoroutines = 15
-
-	q := fmt.Sprintf("checking %s of %d, continue?", cbg("status"), n)
-	if err := confirmUserLimit(c, n, maxGoroutines, q); err != nil {
+	s := fmt.Sprintf("checking status of %d bookmarks", n)
+	if err := confirmUserLimit(c, n, maxGoroutines, s); err != nil {
 		return sys.ErrActionAborted
 	}
 
-	c.F.Header(fmt.Sprintf("checking %s of %d bookmarks\n", cbg("status"), n)).Flush()
-
-	if err := bookmark.Status(bs); err != nil {
+	if err := bookmark.Status(c, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -269,8 +267,8 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	return nil
 }
 
-// EditBookmarks edits a slice of bookmarks.
-func EditBookmarks(
+// editBookmarks edits a slice of bookmarks.
+func editBookmarks(
 	c *ui.Console,
 	r *db.SQLiteRepository,
 	te *files.TextEditor,
@@ -333,17 +331,13 @@ func editSingleInteractive(
 }
 
 // EditSlice edits the bookmarks using a text editor.
-func EditSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func EditSlice(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := EditBookmarks(c, r, te, bs.ItemsPtr()); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
+	return editBookmarks(c, r, te, bs)
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
@@ -370,7 +364,7 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := EditBookmarks(c, r, te, []*bookmark.Bookmark{b}); err != nil {
+		if err := editBookmarks(c, r, te, []*bookmark.Bookmark{b}); err != nil {
 			return err
 		}
 	default:
@@ -385,11 +379,11 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark
 // UpdateSlice updates the bookmarks.
 //
 // It uses the scraper to update the title and description.
-func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
-	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", bs.Len()))).Rowln().Flush()
+func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", len(bs)))).Rowln().Flush()
 
-	updateFn := func(i int, b bookmark.Bookmark) error {
-		updatedB := b
+	updateFn := func(i int, b *bookmark.Bookmark) error {
+		updatedB := *b
 		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
 		su := txt.Shorten(updatedB.URL, 60)
 
@@ -400,7 +394,6 @@ func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark
 
 		updatedB.Title, _ = sc.Title()
 		updatedB.Desc, _ = sc.Desc()
-
 		if bytes.Equal(b.Buffer(), updatedB.Buffer()) {
 			fmt.Print(c.Info(bid + " " + cbb(su) + " no changes detected\n"))
 			return nil
@@ -412,7 +405,6 @@ func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark
 			c.F.Reset().Midln(cbc("Title:")).Flush()
 			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updatedB.Title))))
 		}
-
 		if !bytes.Equal([]byte(b.Desc), []byte(updatedB.Desc)) {
 			c.F.Reset().Midln(cbc("Description:")).Flush()
 			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updatedB.Desc))))
@@ -425,7 +417,7 @@ func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark
 
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			return handleEditedBookmark(c, r, &updatedB, &b)
+			return handleEditedBookmark(c, r, &updatedB, b)
 		case "n", "no":
 			c.ReplaceLine(c.F.Warning(bid + " skipping...").String())
 			return nil
@@ -434,15 +426,16 @@ func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-
-			return editSingleInteractive(c, r, te, &updatedB, i, bs.Len())
+			return editSingleInteractive(c, r, te, &updatedB, i, len(bs))
 		}
 
 		return nil
 	}
 
-	if err := bs.ForEachIdxErr(updateFn); err != nil {
-		return fmt.Errorf("%w", err)
+	for i, b := range bs {
+		if err := updateFn(i, b); err != nil {
+			return err
+		}
 	}
 
 	return nil
