@@ -37,6 +37,7 @@ func initRootFlags(cmd *cobra.Command) {
 	cmd.SilenceErrors = true
 	cmd.DisableSuggestions = true
 	cmd.SuggestionsMinimumDistance = 1
+	cobra.EnableCommandSorting = false
 }
 
 // Root represents the base command when called without any subcommands.
@@ -49,6 +50,7 @@ var Root = &cobra.Command{
 	SilenceUsage:      true,
 	PersistentPreRunE: RequireDatabase,
 	RunE:              recordsCmdFunc,
+	PersistentPostRunE: gitUpdate,
 }
 
 func Execute() {

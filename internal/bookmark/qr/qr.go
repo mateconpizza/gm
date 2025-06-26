@@ -59,7 +59,7 @@ func (q *QRCode) Open() error {
 
 	args := make([]string, 0)
 
-	// FIX: remove display, keep default system
+	// FIX: remove display, keep default xdg-open
 	if sys.BinExists("display") {
 		args = append(args, "display", q.file.Name())
 	} else {

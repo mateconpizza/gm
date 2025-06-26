@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -8,6 +9,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -21,7 +23,7 @@ import (
 func init() {
 	initRecordFlags(recordsCmd)
 
-	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.json, "json", "j", false, "output tags+count in JSON format")
+	recordsTagsCmd.Flags().BoolVarP(&config.App.Flags.JSON, "json", "j", false, "output tags+count in JSON format")
 	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
 
 	recordsCmd.AddCommand(recordsTagsCmd)
@@ -29,7 +31,6 @@ func init() {
 }
 
 type tagsFlagType struct {
-	json bool
 	list bool
 }
 
@@ -42,6 +43,7 @@ var (
 		Short:             "Records management",
 		PersistentPreRunE: RequireDatabase,
 		RunE:              recordsCmdFunc,
+		PostRunE:          gitUpdate,
 	}
 
 	// tags flags.
@@ -54,8 +56,8 @@ var (
 		Short:   "Tags management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
-			case tagsFlags.json:
-				return printer.JSONTags(config.App.DBPath)
+			case config.App.Flags.JSON:
+				return printer.TagsJSON(config.App.DBPath)
 			case tagsFlags.list:
 				return printer.TagsList(config.App.DBPath)
 			}
@@ -80,7 +82,7 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if bs.Empty() {
+	if len(bs) == 0 {
 		return db.ErrRecordNotFound
 	}
 
@@ -96,13 +98,13 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case f.Status:
-		return handler.CheckStatus(c, bs.ItemsPtr())
+		return handler.CheckStatus(c, bs)
 	case f.Remove:
 		return handler.Remove(c, r, bs)
 	case f.Edit:
-		return handler.EditSlice(c, r, bs.ItemsPtr())
+		return handler.Edit(c, r, bs)
 	case f.Update:
-		return handler.UpdateSlice(c, r, bs.ItemsPtr())
+		return handler.Update(c, r, bs)
 	case f.Copy:
 		return handler.Copy(bs)
 	case f.Open && !f.QR:
@@ -115,11 +117,11 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 	case f.QR:
 		return handler.QR(bs, f.Open)
 	case f.JSON:
-		return printer.JSONRecordSlice(bs.ItemsPtr())
+		return printer.RecordsJSON(bs)
 	case f.Oneline:
 		return printer.Oneline(bs)
 	default:
-		return printer.RecordSlice(bs)
+		return printer.Records(bs)
 	}
 }
 
@@ -173,4 +175,48 @@ func menuForRecords[T bookmark.Bookmark]() *menu.Menu[T] {
 	}
 
 	return menu.New[T](mo...)
+}
+
+// gitUpdate commits changes to git repository.
+func gitUpdate(cmd *cobra.Command, args []string) error {
+	cfg := config.App
+	if !git.IsInitialized(cfg.Path.Git) {
+		return nil
+	}
+
+	gm, err := handler.NewGit(cfg.Path.Git)
+	if err != nil {
+		return err
+	}
+	if err := gm.Tracker.Load(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	gr := gm.NewRepo(cfg.DBPath)
+	if !gm.Tracker.Contains(gr) {
+		return nil
+	}
+	gm.Tracker.SetCurrent(gr)
+
+	var gitMesg string
+	switch {
+	case cfg.Flags.Remove:
+		gitMesg = "remove bookmarks"
+	case cfg.Flags.Edit:
+		gitMesg = "edit bookmarks"
+	case cfg.Flags.Update:
+		gitMesg = "update bookmarks"
+	case cfg.Flags.Status:
+		gitMesg = "update bookmarks status"
+	default:
+		gitMesg = cmd.Short
+	}
+
+	if err := handler.GitCommit(gm, gitMesg); err != nil {
+		if !errors.Is(err, git.ErrGitNothingToCommit) {
+			return fmt.Errorf("commit: %w", err)
+		}
+	}
+
+	return nil
 }

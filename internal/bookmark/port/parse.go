@@ -436,19 +436,19 @@ func resolveFileConflictErr(rootPath string, err error, filePathJSON string, b *
 		return nil
 	}
 
-	return gitStoreAsJSON(rootPath, b, true)
+	return storeBookmarkAsJSON(rootPath, b, true)
 }
 
 func gitUpdateJSON(root string, oldB, newB *bookmark.Bookmark) error {
-	if err := GitCleanJSON(root, []*bookmark.Bookmark{oldB}); err != nil {
+	if err := cleanJSONRepo(root, []*bookmark.Bookmark{oldB}); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	return GitStore(newB)
 }
 
-// GitCleanJSON removes the files from the git repo.
-func GitCleanJSON(root string, bs []*bookmark.Bookmark) error {
+// cleanJSONRepo removes the files from the git repo.
+func cleanJSONRepo(root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git JSON files")
 
 	for _, b := range bs {
@@ -466,8 +466,8 @@ func GitCleanJSON(root string, bs []*bookmark.Bookmark) error {
 	return nil
 }
 
-// GitCleanGPG removes the files from the git repo.
-func GitCleanGPG(root string, bs []*bookmark.Bookmark) error {
+// cleanGPGRepo removes the files from the git repo.
+func cleanGPGRepo(root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git JSON files")
 
 	for _, b := range bs {

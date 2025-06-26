@@ -105,8 +105,8 @@ func extractIDsFrom(args []string) ([]int, error) {
 }
 
 // validateRemove checks if the remove operation is valid.
-func validateRemove(bs *slice.Slice[bookmark.Bookmark], force bool) error {
-	if bs.Empty() {
+func validateRemove(bs []*bookmark.Bookmark, force bool) error {
+	if len(bs) == 0 {
 		return db.ErrRecordNotFound
 	}
 

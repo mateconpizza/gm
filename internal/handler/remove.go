@@ -175,14 +175,14 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func Remove(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
 	defer r.Close()
 	if err := validateRemove(bs, config.App.Flags.Force); err != nil {
 		return err
 	}
 
 	if config.App.Flags.Force {
-		return removeRecords(c, r, bs.ItemsPtr())
+		return removeRecords(c, r, bs)
 	}
 
 	f := frame.New(frame.WithColorBorder(color.Gray))
@@ -195,11 +195,17 @@ func Remove(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Book
 		menu.WithMultiSelection(),
 	)
 
-	if err := confirmRemove(c, m, bs); err != nil {
+	// FIX: use []*bookmark.Bookmark
+	fixMe := slice.New[bookmark.Bookmark]()
+	for i := range bs {
+		fixMe.Push(bs[i])
+	}
+
+	if err := confirmRemove(c, m, fixMe); err != nil {
 		return err
 	}
 
-	return removeRecords(c, r, bs.ItemsPtr())
+	return removeRecords(c, r, bs)
 }
 
 // DroppingDB drops a database.

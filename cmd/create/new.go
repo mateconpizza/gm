@@ -75,7 +75,7 @@ var (
 )
 
 // newBookmarkCmd creates a new bookmark.
-func newBookmarkFunc(cmd *cobra.Command, args []string) error {
+func newBookmarkFunc(command *cobra.Command, args []string) error {
 	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)

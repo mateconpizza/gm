@@ -38,7 +38,7 @@ func GitStore(b *bookmark.Bookmark) error {
 
 	switch fileExt {
 	case JSONFileExt:
-		return gitStoreAsJSON(root, b, config.App.Flags.Force)
+		return storeBookmarkAsJSON(root, b, config.App.Flags.Force)
 	case gpg.Extension:
 		return exportAsGPG(root, []*bookmark.Bookmark{b})
 	}
@@ -63,7 +63,7 @@ func GitUpdate(gm *git.Manager, newB, oldB *bookmark.Bookmark) error {
 	case JSONFileExt:
 		return gitUpdateJSON(gr.Path, oldB, newB)
 	case gpg.Extension:
-		return GitCleanGPG(gr.Path, []*bookmark.Bookmark{newB})
+		return cleanGPGRepo(gr.Path, []*bookmark.Bookmark{newB})
 	}
 
 	return nil
@@ -108,10 +108,21 @@ func GitWrite(gm *git.Manager, bookmarks []*bookmark.Bookmark) error {
 	return exportAsJSON(root, bookmarks)
 }
 
-// gitStoreAsJSON creates files structure.
+// GitClean cleans the git repo.
+func GitClean(gm *git.Manager, bs []*bookmark.Bookmark) error {
+	root := gm.Tracker.Current().Path
+	slog.Debug("cleaning up git files", "path", root)
+	if gpg.IsInitialized(gm.RepoPath) {
+		return cleanGPGRepo(root, bs)
+	}
+
+	return cleanJSONRepo(root, bs)
+}
+
+// storeBookmarkAsJSON creates files structure.
 //
 //	root -> dbName -> domain
-func gitStoreAsJSON(rootPath string, b *bookmark.Bookmark, force bool) error {
+func storeBookmarkAsJSON(rootPath string, b *bookmark.Bookmark, force bool) error {
 	domain, err := b.Domain()
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -137,7 +148,7 @@ func gitStoreAsJSON(rootPath string, b *bookmark.Bookmark, force bool) error {
 // exportAsJSON creates the repository structure.
 func exportAsJSON(root string, bs []*bookmark.Bookmark) error {
 	for _, b := range bs {
-		if err := gitStoreAsJSON(root, b, config.App.Flags.Force); err != nil {
+		if err := storeBookmarkAsJSON(root, b, config.App.Flags.Force); err != nil {
 			return err
 		}
 	}
@@ -190,7 +201,6 @@ func exportAsGPG(root string, bookmarks []*bookmark.Bookmark) error {
 		}
 
 		sp.Start()
-
 		count++
 		sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
 	}

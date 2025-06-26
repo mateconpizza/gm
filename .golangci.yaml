@@ -21,7 +21,7 @@ linters:
     # - fatcontext tls: failed to verify certificate
     - forcetypeassert
     - funlen
-    - goconst
+    # - goconst
     - gocognit
     - gocritic
     - gocyclo

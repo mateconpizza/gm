@@ -19,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -36,48 +35,44 @@ var (
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(bs *slice.Slice[bookmark.Bookmark], open bool) error {
-	qrFn := func(b bookmark.Bookmark) error {
+func QR(bs []*bookmark.Bookmark, open bool) error {
+	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
 		if open {
-			return openQR(qrcode, &b)
+			return openQR(qrcode, b)
 		}
 
 		var sb strings.Builder
-
 		sb.WriteString(b.Title + "\n")
 		sb.WriteString(b.URL + "\n")
 		sb.WriteString(qrcode.String())
-		t := sb.String()
-		fmt.Print(t)
-
-		lines := len(strings.Split(t, "\n"))
+		fmt.Print(sb.String())
 
 		terminal.WaitForEnter()
-		terminal.ClearLine(lines)
+		terminal.ClearLine(txt.CountLines(sb.String()))
 
 		return nil
 	}
 
-	if err := bs.ForEachErr(qrFn); err != nil {
-		return fmt.Errorf("%w", err)
+	for i := range bs {
+		if err := qrFn(bs[i]); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // Copy copies the URLs to the system clipboard.
-func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
+func Copy(bs []*bookmark.Bookmark) error {
 	var urls string
-
-	bs.ForEach(func(b bookmark.Bookmark) {
-		urls += b.URL + "\n"
-	})
-
+	for i := range bs {
+		urls += bs[i].URL + "\n"
+	}
 	if err := sys.CopyClipboard(urls); err != nil {
 		return fmt.Errorf("copy error: %w", err)
 	}
@@ -86,11 +81,12 @@ func Copy(bs *slice.Slice[bookmark.Bookmark]) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark]) error {
+func Open(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
+	n := len(bs)
 	// get user confirmation to procced
-	s := fmt.Sprintf("%s %d bookmarks", cbg("open"), bs.Len())
-	if err := confirmUserLimit(c, bs.Len(), maxGoroutines, s); err != nil {
+	s := fmt.Sprintf("%s %d bookmarks", cbg("open"), n)
+	if err := confirmUserLimit(c, n, maxGoroutines, s); err != nil {
 		return err
 	}
 
@@ -105,18 +101,18 @@ func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookma
 	var (
 		wg    sync.WaitGroup
 		sem   = semaphore.NewWeighted(maxGoroutines)
-		errCh = make(chan error, bs.Len())
+		errCh = make(chan error, n)
+		ctx   = context.Background()
 	)
 
-	actionFn := func(b bookmark.Bookmark) error {
-		if err := sem.Acquire(context.Background(), 1); err != nil {
+	actionFn := func(b *bookmark.Bookmark) error {
+		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
 		defer sem.Release(1)
-
 		wg.Add(1)
 
-		go func(b bookmark.Bookmark) {
+		go func(b *bookmark.Bookmark) {
 			defer wg.Done()
 
 			if err := sys.OpenInBrowser(b.URL); err != nil {
@@ -127,8 +123,10 @@ func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookma
 		return nil
 	}
 
-	if err := bs.ForEachErr(actionFn); err != nil {
-		return fmt.Errorf("%w", err)
+	for _, b := range bs {
+		if err := actionFn(b); err != nil {
+			return err
+		}
 	}
 
 	wg.Wait()
@@ -138,14 +136,23 @@ func Open(c *ui.Console, r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookma
 		return err
 	}
 
-	updateVisit := func(b bookmark.Bookmark) error {
-		return r.UpdateVisitDateAndCount(context.Background(), &b)
-	}
-	if err := bs.ForEachErr(updateVisit); err != nil {
-		return fmt.Errorf("%w", err)
+	for _, b := range bs {
+		if err := r.UpdateVisitDateAndCount(ctx, b); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// Edit edits the bookmarks using a text editor.
+func Edit(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+	te, err := files.NewEditor(config.App.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return editBookmarks(c, r, te, bs)
 }
 
 // CheckStatus prints the status code of the bookmark URL.
@@ -240,6 +247,71 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 	return nil
 }
 
+// Update updates the bookmarks.
+//
+// It uses the scraper to update the title and description.
+func Update(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", len(bs)))).Rowln().Flush()
+
+	updateFn := func(i int, b *bookmark.Bookmark) error {
+		updatedB := *b
+		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
+		su := txt.Shorten(updatedB.URL, 60)
+
+		sc := scraper.New(updatedB.URL, scraper.WithSpinner(c.Info("updating bookmark "+cbc(su)).String()))
+		if err := sc.Start(); err != nil {
+			slog.Error("scraping error", "error", err)
+		}
+
+		updatedB.Title, _ = sc.Title()
+		updatedB.Desc, _ = sc.Desc()
+		if bytes.Equal(b.Buffer(), updatedB.Buffer()) {
+			fmt.Print(c.Info(bid + " " + cbb(su) + " no changes detected\n"))
+			return nil
+		}
+
+		c.F.Reset().Warning("Found changes in " + bid + " " + cbb(su) + "\n").Flush()
+
+		if !bytes.Equal([]byte(b.Title), []byte(updatedB.Title)) {
+			c.F.Reset().Midln(cbc("Title:")).Flush()
+			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updatedB.Title))))
+		}
+		if !bytes.Equal([]byte(b.Desc), []byte(updatedB.Desc)) {
+			c.F.Reset().Midln(cbc("Description:")).Flush()
+			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updatedB.Desc))))
+		}
+
+		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+		if err != nil {
+			return fmt.Errorf("choose: %w", err)
+		}
+
+		switch strings.ToLower(opt) {
+		case "y", "yes":
+			return handleEditedBookmark(c, r, &updatedB, b)
+		case "n", "no":
+			c.ReplaceLine(c.F.Warning(bid + " skipping...").String())
+			return nil
+		case "e", "edit":
+			te, err := files.NewEditor(config.App.Env.Editor)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			return editSingleInteractive(c, r, te, &updatedB, i, len(bs))
+		}
+
+		return nil
+	}
+
+	for i, b := range bs {
+		if err := updateFn(i, b); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // openQR opens a QR-Code image in the system default image viewer.
 func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	const maxLabelLen = 55
@@ -321,23 +393,12 @@ func editSingleInteractive(
 		switch strings.ToLower(opt) {
 		case "y", "yes":
 			return handleEditedBookmark(c, r, editedB, b)
-		//nolint:goconst //ignore
 		case "n", "no":
 			return sys.ErrActionAborted
 		case "e", "edit":
 			current = *editedB
 		}
 	}
-}
-
-// EditSlice edits the bookmarks using a text editor.
-func EditSlice(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
-	te, err := files.NewEditor(config.App.Env.Editor)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return editBookmarks(c, r, te, bs)
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
@@ -370,71 +431,6 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark
 	default:
 		if err := r.InsertOne(context.Background(), b); err != nil {
 			return fmt.Errorf("%w", err)
-		}
-	}
-
-	return nil
-}
-
-// UpdateSlice updates the bookmarks.
-//
-// It uses the scraper to update the title and description.
-func UpdateSlice(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
-	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", len(bs)))).Rowln().Flush()
-
-	updateFn := func(i int, b *bookmark.Bookmark) error {
-		updatedB := *b
-		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
-		su := txt.Shorten(updatedB.URL, 60)
-
-		sc := scraper.New(updatedB.URL, scraper.WithSpinner(c.Info("updating bookmark "+cbc(su)).String()))
-		if err := sc.Start(); err != nil {
-			slog.Error("scraping error", "error", err)
-		}
-
-		updatedB.Title, _ = sc.Title()
-		updatedB.Desc, _ = sc.Desc()
-		if bytes.Equal(b.Buffer(), updatedB.Buffer()) {
-			fmt.Print(c.Info(bid + " " + cbb(su) + " no changes detected\n"))
-			return nil
-		}
-
-		c.F.Reset().Warning("Found changes in " + bid + " " + cbb(su) + "\n").Flush()
-
-		if !bytes.Equal([]byte(b.Title), []byte(updatedB.Title)) {
-			c.F.Reset().Midln(cbc("Title:")).Flush()
-			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updatedB.Title))))
-		}
-		if !bytes.Equal([]byte(b.Desc), []byte(updatedB.Desc)) {
-			c.F.Reset().Midln(cbc("Description:")).Flush()
-			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updatedB.Desc))))
-		}
-
-		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
-		if err != nil {
-			return fmt.Errorf("choose: %w", err)
-		}
-
-		switch strings.ToLower(opt) {
-		case "y", "yes":
-			return handleEditedBookmark(c, r, &updatedB, b)
-		case "n", "no":
-			c.ReplaceLine(c.F.Warning(bid + " skipping...").String())
-			return nil
-		case "e", "edit":
-			te, err := files.NewEditor(config.App.Env.Editor)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			return editSingleInteractive(c, r, te, &updatedB, i, len(bs))
-		}
-
-		return nil
-	}
-
-	for i, b := range bs {
-		if err := updateFn(i, b); err != nil {
-			return err
 		}
 	}
 

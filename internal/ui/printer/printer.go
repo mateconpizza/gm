@@ -9,22 +9,21 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
-// RecordSlice prints the bookmarks in a frame format with the given colorscheme.
-func RecordSlice(bs *slice.Slice[bookmark.Bookmark]) error {
-	lastIdx := bs.Len() - 1
-	bs.ForEachIdx(func(i int, b bookmark.Bookmark) {
-		fmt.Print(bookmark.Frame(&b))
+// Records prints the bookmarks in a frame format with the given colorscheme.
+func Records(bs []*bookmark.Bookmark) error {
+	lastIdx := len(bs) - 1
+	for i := range bs {
+		fmt.Print(bookmark.Frame(bs[i]))
 
 		if i != lastIdx {
 			fmt.Println()
 		}
-	})
+	}
 
 	return nil
 }
@@ -48,17 +47,17 @@ func TagsList(p string) error {
 }
 
 // Oneline formats the bookmarks in oneline.
-func Oneline(bs *slice.Slice[bookmark.Bookmark]) error {
-	bs.ForEach(func(b bookmark.Bookmark) {
-		fmt.Print(bookmark.Oneline(&b))
-	})
+func Oneline(bs []*bookmark.Bookmark) error {
+	for i := range bs {
+		fmt.Print(bookmark.Oneline(bs[i]))
+	}
 
 	return nil
 }
 
 // ByField prints the selected field.
-func ByField(bs *slice.Slice[bookmark.Bookmark], f string) error {
-	printer := func(b bookmark.Bookmark) error {
+func ByField(bs []*bookmark.Bookmark, f string) error {
+	printer := func(b *bookmark.Bookmark) error {
 		f, err := b.Field(f)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -68,11 +67,12 @@ func ByField(bs *slice.Slice[bookmark.Bookmark], f string) error {
 
 		return nil
 	}
-
 	slog.Info("selected field", "field", f)
 
-	if err := bs.ForEachErr(printer); err != nil {
-		return fmt.Errorf("%w", err)
+	for i := range bs {
+		if err := printer(bs[i]); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -98,12 +98,10 @@ func DatabasesList(c *ui.Console, p string) error {
 	return nil
 }
 
-// JSONRecordSlice formats the bookmarks in JSONRecordSlice.
-func JSONRecordSlice(bs []*bookmark.Bookmark) error {
-	r := make([]*bookmark.BookmarkJSON, 0, len(bs))
-
+// RecordsJSON formats the bookmarks in RecordsJSON.
+func RecordsJSON(bs []*bookmark.Bookmark) error {
 	slog.Debug("formatting bookmarks in JSON", "count", len(bs))
-
+	r := make([]*bookmark.BookmarkJSON, 0, len(bs))
 	for _, b := range bs {
 		r = append(r, b.ToJSON())
 	}
@@ -118,8 +116,8 @@ func JSONRecordSlice(bs []*bookmark.Bookmark) error {
 	return nil
 }
 
-// JSONTags formats the tags counter in JSON.
-func JSONTags(p string) error {
+// TagsJSON formats the tags counter in JSON.
+func TagsJSON(p string) error {
 	r, err := db.New(p)
 	if err != nil {
 		return fmt.Errorf("%w", err)
