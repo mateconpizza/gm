@@ -31,7 +31,7 @@ type Options struct {
 	doc     *goquery.Document
 	ctx     context.Context
 	started bool
-	sp      *rotato.Spinner
+	sp      *rotato.Rotato
 }
 
 type Scraper struct {
@@ -44,7 +44,7 @@ func WithContext(ctx context.Context) OptFn {
 	}
 }
 
-func WithCustomSpinner(sp *rotato.Spinner) OptFn {
+func WithCustomSpinner(sp *rotato.Rotato) OptFn {
 	return func(o *Options) {
 		o.sp = sp
 	}
