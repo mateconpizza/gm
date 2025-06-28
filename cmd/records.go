@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -23,7 +22,8 @@ import (
 func init() {
 	initRecordFlags(recordsCmd)
 
-	recordsTagsCmd.Flags().BoolVarP(&config.App.Flags.JSON, "json", "j", false, "output tags+count in JSON format")
+	recordsTagsCmd.Flags().
+		BoolVarP(&config.App.Flags.JSON, "json", "j", false, "output tags+count in JSON format")
 	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
 
 	recordsCmd.AddCommand(recordsTagsCmd)
@@ -39,7 +39,7 @@ var (
 	// main command.
 	recordsCmd = &cobra.Command{
 		Use:               "rec",
-		Aliases:           []string{"r"},
+		Aliases:           []string{"r", "records"},
 		Short:             "Records management",
 		PersistentPreRunE: RequireDatabase,
 		RunE:              recordsCmdFunc,
@@ -184,39 +184,56 @@ func gitUpdate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	gm, err := handler.NewGit(cfg.Path.Git)
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}
-	if err := gm.Tracker.Load(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	gr := gm.NewRepo(cfg.DBPath)
-	if !gm.Tracker.Contains(gr) {
+	if !gr.IsTracked() {
 		return nil
 	}
-	gm.Tracker.SetCurrent(gr)
 
-	var gitMesg string
+	r, err := db.New(cfg.DBPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+	defer r.Close()
+
+	bookmarks, err := r.AllPtr()
+	if err != nil {
+		return err
+	}
+
+	var mesg string
 	switch {
 	case cfg.Flags.Remove:
-		gitMesg = "remove bookmarks"
+		mesg = "remove bookmarks"
 	case cfg.Flags.Edit:
-		gitMesg = "edit bookmarks"
+		mesg = "edit bookmarks"
 	case cfg.Flags.Update:
-		gitMesg = "update bookmarks"
+		mesg = "update bookmarks"
 	case cfg.Flags.Status:
-		gitMesg = "update bookmarks status"
+		mesg = "update bookmarks status"
 	default:
-		gitMesg = cmd.Short
+		mesg = cmd.Short
 	}
 
-	if err := handler.GitCommit(gm, gitMesg); err != nil {
-		if !errors.Is(err, git.ErrGitNothingToCommit) {
-			return fmt.Errorf("commit: %w", err)
-		}
+	updates, err := gr.Write(bookmarks)
+	if err != nil {
+		return err
 	}
+
+	if !updates {
+		return nil
+	}
+
+	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
+	fmt.Print(c.InfoMesg("updating git repository...\n"))
+
+	if err := gr.Commit(mesg); err != nil {
+		return err
+	}
+
+	fmt.Print(c.SuccessMesg("repository updated\n"))
 
 	return nil
 }

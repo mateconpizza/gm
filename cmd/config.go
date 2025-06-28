@@ -33,8 +33,9 @@ func init() {
 
 // configCmd configuration management.
 var configCmd = &cobra.Command{
-	Use:   "conf",
-	Short: "Configuration management",
+	Use:     "conf",
+	Aliases: []string{"c", "config"},
+	Short:   "Configuration management",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfg := config.App
 		switch {

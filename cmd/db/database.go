@@ -169,15 +169,11 @@ func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	gm, err := handler.NewGit(cfg.Path.Git)
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}
-	gr := gm.NewRepo(cfg.DBPath)
-	if err := gm.Tracker.Load(); err != nil {
-		return err
-	}
-	if !gm.Tracker.Contains(gr) {
+	if !gr.IsTracked() {
 		return nil
 	}
 
@@ -189,10 +185,9 @@ func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 	if !c.Confirm("Untrack database?", "y") {
 		return nil
 	}
-	if err := gm.Tracker.Untrack(gr).Save(); err != nil {
+	if err := gr.Untrack(); err != nil {
 		return err
 	}
-	gm.Tracker.SetCurrent(gr)
 
-	return handler.GitDropRepo(gm, "dropped")
+	return gr.Drop("dropped")
 }

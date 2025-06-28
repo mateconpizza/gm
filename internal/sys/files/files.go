@@ -2,6 +2,7 @@
 package files
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -380,34 +381,49 @@ func YamlRead[T any](p string, v *T) error {
 
 // JSONWrite writes the provided data as JSON to the specified file.
 // It uses generics to accept any type `T`.
-func JSONWrite[T any](p string, v *T, force bool) error {
-	f, err := Touch(p, force)
+func JSONWrite[T any](p string, v *T, force bool) (bool, error) {
+	// Marshal the data to JSON.
+	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return false, fmt.Errorf("error marshalling JSON: %w", err)
 	}
 
+	// Check if the file exists
+	exists := Exists(p)
+	if exists && !force {
+		existing, err := os.ReadFile(p)
+		if err != nil {
+			return false, fmt.Errorf("error reading existing file: %w", err)
+		}
+
+		// Avoid rewriting identical content
+		if bytes.Equal(existing, data) {
+			return false, nil
+		}
+	}
+
+	// Create or truncate the file
+	f, err := Touch(p, force)
+	if err != nil {
+		return false, fmt.Errorf("%w", err)
+	}
 	defer func() {
 		if err := f.Close(); err != nil {
 			slog.Error("Json closing file", "file", p, "error", err)
 		}
 	}()
 
-	// Marshal the data to JSON.
-	data, err := json.MarshalIndent(v, "", "  ") // Use MarshalIndent for pretty-printed JSON
-	if err != nil {
-		return fmt.Errorf("error marshalling JSON: %w", err)
-	}
-
+	// Write new data
 	_, err = f.Write(data)
 	if err != nil {
-		return fmt.Errorf("error writing to file: %w", err)
+		return false, fmt.Errorf("error writing to file: %w", err)
 	}
 
 	slog.Info("JsonWrite success", "path", p)
-
-	return nil
+	return true, nil
 }
 
+// JSONRead unmarshals the JSON data from the specified file.
 func JSONRead[T any](p string, v *T) error {
 	if !Exists(p) {
 		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
@@ -428,6 +444,7 @@ func JSONRead[T any](p string, v *T) error {
 	return nil
 }
 
+// Find returns a list of files matching the provided pattern.
 func Find(root, pattern string) ([]string, error) {
 	f, err := filepath.Glob(filepath.Join(root, pattern))
 	if err != nil {
@@ -441,15 +458,14 @@ func Find(root, pattern string) ([]string, error) {
 	return f, nil
 }
 
+// ListRootFolders returns a list of root folders.
 func ListRootFolders(root string, ignore ...string) ([]string, error) {
-	// FIX: return fullpath.
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, fmt.Errorf("listing root folders: %w", err)
 	}
 
 	var folders []string
-
 	for _, entry := range entries {
 		if entry.IsDir() && !slices.Contains(ignore, entry.Name()) {
 			folders = append(folders, entry.Name())

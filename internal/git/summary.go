@@ -34,8 +34,8 @@ type SyncGitSummary struct {
 	Checksum           string      `json:"checksum"`
 }
 
-// GenerateChecksum generates a checksum for the SyncGitSummary.
-func (s *SyncGitSummary) GenerateChecksum() {
+// GenChecksum generates a checksum for the SyncGitSummary.
+func (s *SyncGitSummary) GenChecksum() {
 	const length = 12
 
 	var sb strings.Builder

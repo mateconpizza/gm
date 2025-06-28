@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
@@ -29,6 +29,7 @@ func init() {
 	gitInitCmd.Flags().BoolVar(&gitFlags.redo, "redo", false, "reinitialize")
 	gitCmd.AddCommand(GitImportCmd) // public
 	gitCmd.AddCommand(gitCommitCmd, gitInitCmd, gitTrackerCmd, gitPushCmd, gitRemoteCmd, gitRawCmd)
+	gitCmd.AddCommand(gitTestCmd)
 	cmd.Root.AddCommand(gitCmd)
 }
 
@@ -92,22 +93,39 @@ var (
 )
 
 func gitCommitFunc(_ *cobra.Command, _ []string) error {
-	g, err := handler.NewGit(config.App.Path.Git)
+	gr, err := git.NewRepo(config.App.DBPath)
 	if err != nil {
 		return err
 	}
-	g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
 
-	return handler.GitCommit(g, "Update")
+	r, err := db.New(gr.Loc.DBPath)
+	if err != nil {
+		return fmt.Errorf("open repo: %w", err)
+	}
+	defer r.Close()
+
+	bs, err := r.AllPtr()
+	if err != nil {
+		return fmt.Errorf("load records: %w", err)
+	}
+
+	if _, err := gr.Write(bs); err != nil {
+		return err
+	}
+
+	return gr.Commit("update")
 }
 
-// gitCloneAndImportFunc clones git repo and imports bookmarks.
+// gitCloneAndImportFunc clones a git repo and imports its bookmarks.
 func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return git.ErrGitRepoURLEmpty
 	}
 	repoPathToClone := args[0]
 	tmpPath := filepath.Join(os.TempDir(), config.App.Name+"-clone")
+	if files.Exists(tmpPath) {
+		_ = files.RemoveAll(tmpPath)
+	}
 	go func() {
 		_ = files.RemoveAll(tmpPath)
 	}()
@@ -123,31 +141,34 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	)
 
 	// Set path with the temp dir
-	gm, err := handler.NewGit(tmpPath)
+	gitCmd, err := sys.Which("git")
+	if err != nil {
+		return fmt.Errorf("%w: %q", err, "git")
+	}
+
+	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
+	imported, err := git.Import(c, gm, repoPathToClone)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	imported, err := port.GitImport(c, gm, repoPathToClone)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	// Update with the default repo path
-	gm.SetRepoPath(config.App.Path.Git)
-
-	if !gm.IsInitialized() {
+	if !git.IsInitialized(config.App.Path.Git) {
 		slog.Warn("git import: repo not initialized", "path", config.App.Path.Git)
 		return nil
 	}
 
-	if err := gm.Tracker.Load(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
 	for _, dbPath := range imported {
-		gm.Tracker.SetCurrent(gm.NewRepo(dbPath))
-		if err := handler.GitTrackExportCommit(c, gm, "import from git"); err != nil {
+		gr, err := git.NewRepo(dbPath)
+		if err != nil {
+			return err
+		}
+
+		if gr.IsTracked() {
+			continue
+		}
+		fmt.Println()
+
+		if err := handler.GitTrackExportCommit(c, gr, "import from git"); err != nil {
 			return err
 		}
 	}
@@ -157,25 +178,21 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 
 // gitInitFunc creates a new Git repository.
 func gitInitFunc(_ *cobra.Command, _ []string) error {
-	g, err := handler.NewGit(config.App.Path.Git)
+	gr, err := git.NewRepo(config.App.DBPath)
 	if err != nil {
 		return err
 	}
 
-	g.Tracker.SetCurrent(g.NewRepo(config.App.DBPath))
-
-	if err := g.Init(gitFlags.redo); err != nil {
+	if err := gr.Git.Init(gitFlags.redo); err != nil {
 		return fmt.Errorf("init repo: %w", err)
-	}
-	if err := g.Tracker.Load(); err != nil {
-		return fmt.Errorf("%w", err)
 	}
 
 	c := ui.NewConsole(
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightBlue))),
 	)
-	tracked, err := managementSelect(c, g)
+
+	tracked, err := managementSelect(c)
 	if err != nil {
 		return fmt.Errorf("select tracked: %w", err)
 	}
@@ -185,32 +202,34 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 	}
 
 	if c.Confirm("Use GPG for encryption?", "n") {
-		if err := gpg.Init(g.RepoPath, git.AttributesFile); err != nil {
+		if err := gpg.Init(gr.Git.RepoPath, git.AttributesFile); err != nil {
 			return fmt.Errorf("gpg init: %w", err)
 		}
 		// add diff to git config
 		for k, v := range gpg.GitDiffConf {
-			if err := g.SetConfigLocal(k, strings.Join(v, " ")); err != nil {
+			if err := gr.Git.SetConfigLocal(k, strings.Join(v, " ")); err != nil {
 				return err
 			}
 		}
-		if err := g.AddAll(); err != nil {
+		if err := gr.Git.AddAll(); err != nil {
 			return fmt.Errorf("git add: %w", err)
 		}
-		if err := g.Commit("GPG repo initialized"); err != nil {
+		if err := gr.Git.Commit("GPG repo initialized"); err != nil {
 			return fmt.Errorf("git commit: %w", err)
 		}
 	}
 
 	for _, dbPath := range tracked {
-		gr := g.NewRepo(dbPath)
-		if err := g.Tracker.Track(gr).Save(); err != nil {
-			return fmt.Errorf("%w", err)
+		newGr, err := git.NewRepo(dbPath)
+		if err != nil {
+			return err
 		}
 
-		g.Tracker.SetCurrent(gr)
+		if err := newGr.Track(); err != nil {
+			return err
+		}
 
-		if err := initTracking(c, g); err != nil {
+		if err := initTracking(c, newGr); err != nil {
 			return err
 		}
 	}
@@ -229,14 +248,14 @@ func ensureGitEnvironment(command *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	g := git.New(config.App.Path.Git, git.WithCmd(gitCmd))
+	gm := git.NewGit(config.App.Path.Git, git.WithCmd(gitCmd))
 
 	switch command.Name() {
 	case "init", "import":
 		return nil
 	}
 
-	if !g.IsInitialized() {
+	if !gm.IsInitialized() {
 		return git.ErrGitNotInitialized
 	}
 
@@ -260,26 +279,23 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 		args = append(args, "log", "--oneline")
 	}
 
-	g := git.New(config.App.Path.Git, git.WithCmd(gitCmd))
+	g := git.NewGit(config.App.Path.Git, git.WithCmd(gitCmd))
 
 	return g.Exec(args...)
 }
 
 func gitPushFunc(_ *cobra.Command, args []string) error {
-	g, err := handler.NewGit(config.App.Path.Git)
+	gr, err := git.NewRepo(config.App.DBPath)
 	if err != nil {
 		return err
 	}
 
-	gr := g.NewRepo(config.App.DBPath)
-	g.Tracker.SetCurrent(gr)
-
-	remote, err := g.Remote()
+	remote, err := gr.Git.Remote()
 	if err != nil || remote == "" {
 		return git.ErrGitNoRemote
 	}
 
-	proceed, err := g.HasUnpushedCommits()
+	proceed, err := gr.Git.HasUnpushedCommits()
 	if err != nil {
 		return err
 	}
@@ -288,25 +304,25 @@ func gitPushFunc(_ *cobra.Command, args []string) error {
 		return git.ErrGitUpToDate
 	}
 
-	sum, err := handler.GitSummary(g, config.App.Info.Version)
+	sum, err := gr.Summary()
 	if err != nil {
 		return err
 	}
 
-	sumFile := filepath.Join(g.Tracker.Current().Path, git.SummaryFileName)
-	if err := files.JSONWrite(sumFile, sum, true); err != nil {
+	sumFile := filepath.Join(gr.Loc.Path, git.SummaryFileName)
+	if _, err := files.JSONWrite(sumFile, sum, true); err != nil {
 		return fmt.Errorf("writing summary: %w", err)
 	}
 
-	if err := g.AddAll(); err != nil {
+	if err := gr.Git.AddAll(); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
 
-	if err := g.Commit(fmt.Sprintf("[%s] Update summary", gr.DBName)); err != nil {
+	if err := gr.Git.Commit(fmt.Sprintf("[%s] Update summary", gr.Loc.DBName)); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 
-	if err := g.Push(); err != nil {
+	if err := gr.Git.Push(); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}
 
@@ -319,35 +335,41 @@ func gitRemoteFunc(_ *cobra.Command, args []string) error {
 	}
 
 	cfg := config.App
-	g, err := handler.NewGit(cfg.Path.Git)
+	gr, err := git.NewRepo(config.App.DBPath)
 	if err != nil {
 		return err
 	}
 
-	gr := g.NewRepo(config.App.DBPath)
-	g.Tracker.SetCurrent(gr)
-
-	if err := g.AddRemote(args[0]); err != nil {
+	if err := gr.Git.AddRemote(args[0]); err != nil {
 		return fmt.Errorf("git remote add: %w", err)
 	}
 
-	sum, err := handler.GitSummary(g, config.App.Info.Version)
+	sum, err := gr.Summary()
 	if err != nil {
 		return err
 	}
 
-	sumFile := filepath.Join(g.Tracker.Current().Path, git.SummaryFileName)
-	if err := files.JSONWrite(sumFile, sum, true); err != nil {
+	sumFile := filepath.Join(gr.Loc.Path, git.SummaryFileName)
+	if _, err := files.JSONWrite(sumFile, sum, true); err != nil {
 		return fmt.Errorf("writing summary: %w", err)
 	}
 
-	if err := g.AddAll(); err != nil {
+	if err := gr.Git.AddAll(); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
 
-	if err := g.Commit(fmt.Sprintf("[%s] Update summary", gr.DBName)); err != nil {
+	if err := gr.Git.Commit(fmt.Sprintf("[%s] Update summary", gr.Loc.DBName)); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 
 	return git.SetUpstream(cfg.Path.Git)
+}
+
+var gitTestCmd = &cobra.Command{
+	Use:    "test",
+	Short:  "test git commands",
+	Hidden: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return nil
+	},
 }

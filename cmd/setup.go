@@ -204,16 +204,12 @@ func initPostFunc(_ *cobra.Command, _ []string) error {
 	if !git.IsInitialized(cfg.Path.Git) {
 		return nil
 	}
-	gm, err := handler.NewGit(cfg.Path.Git)
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}
-	if err := gm.Tracker.Load(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
 
-	gr := gm.NewRepo(cfg.DBPath)
-	if gm.Tracker.Contains(gr) {
+	if gr.IsTracked() {
 		return nil
 	}
 
@@ -222,11 +218,10 @@ func initPostFunc(_ *cobra.Command, _ []string) error {
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
 	)
 	fmt.Print(c.InfoMesg("Git tracking enable\n"))
-	gm.Tracker.SetCurrent(gr)
 
-	if err := files.MkdirAll(gr.Path); err != nil {
+	if err := files.MkdirAll(gr.Loc.Path); err != nil {
 		return fmt.Errorf("creating repo path: %w", err)
 	}
 
-	return handler.GitTrackExportCommit(c, gm, "new database")
+	return handler.GitTrackExportCommit(c, gr, "new database")
 }

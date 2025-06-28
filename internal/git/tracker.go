@@ -7,7 +7,6 @@ import (
 	"slices"
 
 	"github.com/mateconpizza/gm/internal/sys/files"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 var (
@@ -25,19 +24,9 @@ type Tracker struct {
 	List     []string
 	loaded   bool
 	Filename string
-	current  *GitRepository
 }
 
-// GitRepository represents a bookmarks repository.
-type GitRepository struct {
-	DBName   string // Database base name
-	DBPath   string // Database fullpath
-	Name     string // Database name without ext
-	Path     string // Path to where to store the files
-	HashPath string // Database fullpath hash
-}
-
-// Load loads the repositories from the tracker.
+// Load loads the repositories from the tracker file.
 func (t *Tracker) Load() error {
 	if t.loaded {
 		return nil
@@ -55,16 +44,15 @@ func (t *Tracker) Load() error {
 }
 
 // Track adds the repo to the tracker.
-func (t *Tracker) Track(gr *GitRepository) *Tracker {
-	t.List = append(t.List, gr.HashPath)
-
+func (t *Tracker) Track(s string) *Tracker {
+	t.List = append(t.List, s)
 	return t
 }
 
 // Untrack removes the repo from the tracker.
-func (t *Tracker) Untrack(gr *GitRepository) *Tracker {
+func (t *Tracker) Untrack(s string) *Tracker {
 	t.List = slices.DeleteFunc(t.List, func(r string) bool {
-		return r == gr.HashPath
+		return r == s
 	})
 
 	return t
@@ -78,7 +66,7 @@ func (t *Tracker) Save() error {
 
 	t.List = slices.Compact(t.List)
 
-	if err := files.JSONWrite(t.Filename, &t.List, true); err != nil {
+	if _, err := files.JSONWrite(t.Filename, &t.List, true); err != nil {
 		return fmt.Errorf("%w: %q", err, t.Filename)
 	}
 
@@ -86,26 +74,12 @@ func (t *Tracker) Save() error {
 }
 
 // Contains returns true if the repo is tracked.
-func (t *Tracker) Contains(gr *GitRepository) bool {
+func (t *Tracker) Contains(s string) bool {
 	if !t.loaded {
 		panic(ErrGitTrackNotLoaded)
 	}
 
-	return slices.Contains(t.List, gr.HashPath)
-}
-
-// Current returns the current repo.
-func (t *Tracker) Current() *GitRepository {
-	if t.current == nil {
-		panic(ErrGitCurrentRepo)
-	}
-
-	return t.current
-}
-
-// SetCurrent sets the current repo.
-func (t *Tracker) SetCurrent(gr *GitRepository) {
-	t.current = gr
+	return slices.Contains(t.List, s)
 }
 
 func NewTracker(root string) *Tracker {
@@ -119,7 +93,7 @@ func Tracked(trackerFile string) ([]string, error) {
 	tracked := make([]string, 0)
 
 	if !files.Exists(trackerFile) {
-		if err := files.JSONWrite(trackerFile, &tracked, true); err != nil {
+		if _, err := files.JSONWrite(trackerFile, &tracked, true); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
 
@@ -131,30 +105,4 @@ func Tracked(trackerFile string) ([]string, error) {
 	}
 
 	return tracked, nil
-}
-
-func IsTracked(repoPath, dbPath string) bool {
-	t := filepath.Join(repoPath, filepathTracked)
-
-	tracked, err := Tracked(t)
-	if err != nil {
-		return false
-	}
-
-	gr := newGitRepository(repoPath, dbPath)
-
-	return slices.Contains(tracked, gr.HashPath)
-}
-
-func newGitRepository(repoPath, dbPath string) *GitRepository {
-	baseName := filepath.Base(dbPath)
-	name := files.StripSuffixes(baseName)
-
-	return &GitRepository{
-		DBName:   baseName,
-		DBPath:   dbPath,
-		Name:     name,
-		Path:     filepath.Join(repoPath, name),
-		HashPath: txt.GenHashPath(dbPath),
-	}
 }

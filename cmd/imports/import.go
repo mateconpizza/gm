@@ -36,7 +36,7 @@ func init() {
 var (
 	importFromCmd = &cobra.Command{
 		Use:     "imp",
-		Aliases: []string{"i"},
+		Aliases: []string{"i", "import"},
 		Short:   "Import from various sources",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()

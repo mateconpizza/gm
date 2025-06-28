@@ -42,14 +42,14 @@ func initRootFlags(cmd *cobra.Command) {
 
 // Root represents the base command when called without any subcommands.
 var Root = &cobra.Command{
-	Use:               config.App.Cmd,
-	Short:             config.App.Info.Title,
-	Long:              config.App.Info.Desc,
-	Version:           PrettyVersion(),
-	Args:              cobra.MinimumNArgs(0),
-	SilenceUsage:      true,
-	PersistentPreRunE: RequireDatabase,
-	RunE:              recordsCmdFunc,
+	Use:                config.App.Cmd,
+	Short:              config.App.Info.Title,
+	Long:               config.App.Info.Desc,
+	Version:            PrettyVersion(),
+	Args:               cobra.MinimumNArgs(0),
+	SilenceUsage:       true,
+	PersistentPreRunE:  RequireDatabase,
+	RunE:               recordsCmdFunc,
 	PersistentPostRunE: gitUpdate,
 }
 

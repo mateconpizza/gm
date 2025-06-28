@@ -83,25 +83,21 @@ var (
 )
 
 func dbRemovePostFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.App
-	if !git.IsInitialized(cfg.Path.Git) {
+	if !git.IsInitialized(config.App.Path.Git) {
 		return nil
 	}
-	g, err := handler.NewGit(cfg.Path.Git)
+
+	gr, err := git.NewRepo(config.App.DBPath)
 	if err != nil {
 		return err
 	}
-	gr := g.NewRepo(cfg.DBPath)
-	g.Tracker.SetCurrent(gr)
-	if err := g.Tracker.Load(); err != nil {
-		return err
-	}
-	if !g.Tracker.Contains(g.NewRepo(cfg.DBPath)) {
+	if !gr.IsTracked() {
 		return nil
 	}
-	if err := g.Tracker.Untrack(gr).Save(); err != nil {
+
+	if err := gr.Untrack(); err != nil {
 		return err
 	}
 
-	return handler.GitDropRepo(g, "Removed database")
+	return gr.Drop("removed database")
 }

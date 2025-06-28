@@ -18,7 +18,6 @@ type GitOpts struct {
 type Manager struct {
 	GitOpts
 	RepoPath      string
-	Tracker       *Tracker
 	isInitialized bool
 }
 
@@ -64,6 +63,7 @@ func (gm *Manager) Status() (string, error) {
 	return status(gm.RepoPath)
 }
 
+// HasUnpushedCommits checks if there are any unpushed commits in the repo.
 func (gm *Manager) HasUnpushedCommits() (bool, error) {
 	return hasUnpushedCommits(gm.RepoPath)
 }
@@ -102,7 +102,6 @@ func (gm *Manager) Commit(msg string) error {
 func (gm *Manager) SetRepoPath(repoPath string) {
 	gm.isInitialized = false
 	gm.RepoPath = repoPath
-	gm.Tracker = NewTracker(repoPath)
 }
 
 // SetConfigLocal sets a local config value.
@@ -115,13 +114,8 @@ func (gm *Manager) Exec(commands ...string) error {
 	return runGitCmd(gm.RepoPath, commands...)
 }
 
-// NewRepo creates a new Git repository.
-func (gm *Manager) NewRepo(dbPath string) *GitRepository {
-	return newGitRepository(gm.RepoPath, dbPath)
-}
-
-// New creates a new GitManager.
-func New(repoPath string, opts ...GitOptFn) *Manager {
+// NewGit creates a new GitManager.
+func NewGit(repoPath string, opts ...GitOptFn) *Manager {
 	o := defaultOpts()
 	for _, fn := range opts {
 		fn(o)
@@ -130,6 +124,5 @@ func New(repoPath string, opts ...GitOptFn) *Manager {
 	return &Manager{
 		RepoPath: repoPath,
 		GitOpts:  *o,
-		Tracker:  NewTracker(repoPath),
 	}
 }

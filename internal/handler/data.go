@@ -12,10 +12,8 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -107,21 +105,11 @@ func handleEditedBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *boo
 		return fmt.Errorf("updating record: %w", err)
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", newB.ID)))
-
-	if git.IsInitialized(config.App.Path.Git) {
-		gm, err := NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-		gm.Tracker.SetCurrent(gm.NewRepo(r.Cfg.Fullpath()))
-		if err := port.GitClean(gm, []*bookmark.Bookmark{oldB}); err != nil {
-			return err
-		}
-		if err := port.GitWrite(gm, []*bookmark.Bookmark{newB}); err != nil {
-			return err
-		}
+	if err := gitUpdate(r.Cfg.Fullpath(), oldB, newB); err != nil {
+		return err
 	}
+
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", newB.ID)))
 
 	return nil
 }
@@ -152,15 +140,8 @@ func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmar
 
 	sp.Done()
 
-	if git.IsInitialized(config.App.Path.Git) {
-		gm, err := NewGit(config.App.Path.Git)
-		if err != nil {
-			return err
-		}
-		gm.Tracker.SetCurrent(gm.NewRepo(r.Cfg.Fullpath()))
-		if err := port.GitClean(gm, bs); err != nil {
-			return err
-		}
+	if err := gitClean(r.Cfg.Fullpath(), bs); err != nil {
+		return err
 	}
 
 	fmt.Print(c.SuccessMesg("bookmark/s removed\n"))
