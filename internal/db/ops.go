@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys/files"
 )
@@ -55,16 +56,6 @@ func CountFavorites(r *SQLiteRepository) int {
 	return n
 }
 
-// count counts the number of rows in the specified table.
-func countRecords(r *SQLiteRepository, t Table) int {
-	var n int
-	if err := r.DB.QueryRowx(fmt.Sprintf("SELECT COUNT(*) FROM %s", t)).Scan(&n); err != nil {
-		return 0
-	}
-
-	return n
-}
-
 // List returns the list of databases.
 //
 // locked|unlocked databases.
@@ -91,6 +82,25 @@ func ListBackups(dir, dbName string) ([]string, error) {
 	}
 
 	return entries, nil
+}
+
+// HasURL checks if a record exists in the main table.
+func HasURL(dbPath, bURL string) (*bookmark.Bookmark, bool) {
+	r, err := New(dbPath)
+	if err != nil {
+		return nil, false
+	}
+	return r.Has(bURL)
+}
+
+// count counts the number of rows in the specified table.
+func countRecords(r *SQLiteRepository, t Table) int {
+	var n int
+	if err := r.DB.QueryRowx(fmt.Sprintf("SELECT COUNT(*) FROM %s", t)).Scan(&n); err != nil {
+		return 0
+	}
+
+	return n
 }
 
 // newBackup creates a new backup from the given repository.

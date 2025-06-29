@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -157,25 +156,20 @@ func BackupListDetail(c *ui.Console, r *SQLiteRepository) string {
 	}
 
 	c.F.Header(color.BrightCyan("summary:\n").Italic().String())
-
 	if err != nil {
 		return c.F.Row(txt.PaddedLine("found:", "n/a\n")).String()
 	}
 
-	backups := slice.New[string]()
-	backups.Append(fs...)
-
-	n := backups.Len()
-	backups.ForEach(func(p string) {
+	n := len(fs)
+	for i := range fs {
 		if n == 1 {
-			c.F.Footer(BackupSummaryWithFmtDateFromPath(p)).Ln()
-			return
+			c.F.Footer(BackupSummaryWithFmtDateFromPath(fs[i])).Ln()
+			continue
 		}
 
-		c.F.Row(BackupSummaryWithFmtDateFromPath(p)).Ln()
-
+		c.F.Row(BackupSummaryWithFmtDateFromPath(fs[i])).Ln()
 		n--
-	})
+	}
 
 	return c.F.StringReset()
 }
@@ -199,18 +193,15 @@ func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 		return ""
 	}
 
-	backups := slice.New[string]()
-	backups.Append(fs...)
-
 	if err != nil {
 		n = 0
 	} else {
-		n = backups.Len()
+		n = len(fs)
 	}
 
 	if n > 0 {
 		backupsInfo = txt.PaddedLine("found:", strconv.Itoa(n)+" backups found")
-		lastItem := backups.Item(n - 1)
+		lastItem := fs[n-1]
 		lastBackup = RepoSummaryRecordsFromPath(lastItem)
 		s := txt.RelativeTime(strings.Split(filepath.Base(lastBackup), "_")[0])
 		lastBackupDate = color.BrightGreen(s).Italic().String()

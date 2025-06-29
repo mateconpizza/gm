@@ -26,8 +26,11 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 ### Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
+- [x] Track `bookmarks` with `git`
+  - [x] Sync `bookmarks` as `JSON` files
+  - [x] Encrypt `bookmarks` with `GPG` and push to remote
+- [x] Encrypt local database with `AES-GCM`
 - [x] Support multiple `databases`
-- [x] ~Restore `deleted` bookmarks~
 - [x] Import `bookmarks` from `firefox` based browsers
 - [x] Import `bookmarks` from `chromium` based browsers
 - [x] Fetch `title` and `description` from added URL
@@ -35,9 +38,7 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
 - [x] Migrate items from one database to another
-- [x] Encrypt database <sub>_priority_</sub>
 - [ ] Add `docker|podman` support <sub>_priority_</sub>
-- [ ] ...
 
 ### Installation
 
@@ -58,20 +59,19 @@ Usage:
   gm [command]
 
 Available Commands:
-  backup      Backup management
-  config      Configuration management
-  database    Database management
-  help        Help about any command
-  import      Import bookmarks from various sources
+  conf        Configuration management
+  rec         Records management
+  db          Database management
   new         New bookmark, database, backup
-  records     Records management
-  remove      Remove databases/backups
+  git         Git commands
+  imp         Import from various sources
+  help        Help about any command
 
 Flags:
       --color string    output with pretty colors [always|never] (default "always")
   -c, --copy            copy bookmark to clipboard
   -e, --edit            edit with preferred text editor
-  -f, --field string    output by field [id,1|url,2|title,3|tags,4]
+  -f, --field string    output by field [id|url|title|tags]
       --force           force action | don't ask confirmation
   -H, --head int        the <int> first part of bookmarks
   -h, --help            help for gm
@@ -86,6 +86,7 @@ Flags:
   -s, --status          check bookmarks status
   -t, --tag strings     list by tag
   -T, --tail int        the <int> last part of bookmarks
+  -u, --update          update a bookmarks
   -v, --verbose count   Increase verbosity (-v, -vv, -vvv)
       --version         version for gm
 ```

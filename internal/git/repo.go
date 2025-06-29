@@ -92,11 +92,21 @@ func (gr *Repository) Add(bs []*bookmark.Bookmark) error {
 	return nil
 }
 
+// Update updates the bookmarks in the repo.
+func (gr *Repository) Update(oldB, newB *bookmark.Bookmark) error {
+	if err := gr.Remove([]*bookmark.Bookmark{oldB}); err != nil {
+		return err
+	}
+
+	return gr.Add([]*bookmark.Bookmark{newB})
+}
+
 // Remove removes the bookmarks from the repo.
 func (gr *Repository) Remove(bs []*bookmark.Bookmark) error {
 	if gr.IsEncrypted() {
 		return cleanGPGRepo(gr.Loc.Path, bs)
 	}
+
 	return cleanJSONRepo(gr.Loc.Path, bs)
 }
 
@@ -108,6 +118,7 @@ func (gr *Repository) Drop(mesg string) error {
 	if err := gr.Git.AddAll(); err != nil {
 		return err
 	}
+
 	return gr.Git.Commit(mesg)
 }
 
@@ -121,6 +132,7 @@ func (gr *Repository) Stats() (*SyncGitSummary, error) {
 	if err := repoStats(gr.Loc.DBPath, sum); err != nil {
 		return nil, err
 	}
+
 	return sum, nil
 }
 
@@ -139,6 +151,7 @@ func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
 	if gr.IsEncrypted() {
 		return exportAsGPG(gr.Loc.Path, bs)
 	}
+
 	return exportAsJSON(gr.Loc.Path, bs)
 }
 
@@ -146,6 +159,7 @@ func (gr *Repository) Read(c *ui.Console) ([]*bookmark.Bookmark, error) {
 	if gr.IsEncrypted() {
 		return readGPGRepo(c, gr.Loc.Path)
 	}
+
 	return readJSONRepo(c, gr.Loc.Path)
 }
 
@@ -181,6 +195,11 @@ func (gr *Repository) Export() error {
 	return nil
 }
 
+// Records gets all records from the database associated with the repo.
+func (gr *Repository) Records() ([]*bookmark.Bookmark, error) {
+	return records(gr.Loc.DBPath)
+}
+
 // TrackAndCommit tracks and commits the repo.
 func (gr *Repository) TrackAndCommit() error {
 	if err := gr.Export(); err != nil {
@@ -189,21 +208,26 @@ func (gr *Repository) TrackAndCommit() error {
 	if err := gr.Track(); err != nil {
 		return err
 	}
+
 	return gr.Commit("new tracking")
 }
 
+// String returns the repo summary.
 func (gr *Repository) String() string {
 	sum, err := gr.Stats()
 	if err != nil {
 		slog.Error("error getting repo summary", "error", err)
 		return ""
 	}
+
 	return repoSummaryString(sum)
 }
 
+// Read reads the repo and returns the bookmarks.
 func Read(c *ui.Console, path string) ([]*bookmark.Bookmark, error) {
 	if gpg.IsInitialized(path) {
 		return readGPGRepo(c, path)
 	}
+
 	return readJSONRepo(c, path)
 }

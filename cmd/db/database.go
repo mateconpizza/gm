@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -173,7 +174,7 @@ func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	if !gr.IsTracked() {
+	if !gr.IsTracked() || !files.Exists(gr.Loc.DBPath) {
 		return nil
 	}
 
@@ -182,12 +183,13 @@ func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
 	)
 
-	if !c.Confirm("Untrack database?", "y") {
-		return nil
-	}
-	if err := gr.Untrack(); err != nil {
+	if err := gr.Drop("dropped"); err != nil {
 		return err
 	}
 
-	return gr.Drop("dropped")
+	if !c.Confirm("Untrack database?", "n") {
+		return nil
+	}
+
+	return gr.Untrack()
 }

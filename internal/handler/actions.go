@@ -249,33 +249,38 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 
 // Update updates the bookmarks.
 //
-// It uses the scraper to update the title and description.
+// It uses the scraper to update the title, description and favicon.
 func Update(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
 	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", len(bs)))).Rowln().Flush()
 
-	updateFn := func(i int, b *bookmark.Bookmark) error {
+	for i, b := range bs {
 		updatedB := *b
 		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
 		su := txt.Shorten(updatedB.URL, 60)
 
-		sc := scraper.New(updatedB.URL, scraper.WithSpinner(c.Info("updating bookmark "+cbc(su)).String()))
+		sc := scraper.New(
+			updatedB.URL,
+			scraper.WithSpinner(c.Info(bid+" updating bookmark "+cbc(su)).String()),
+		)
 		if err := sc.Start(); err != nil {
 			slog.Error("scraping error", "error", err)
 		}
 
 		updatedB.Title, _ = sc.Title()
 		updatedB.Desc, _ = sc.Desc()
+		updatedB.FaviconURL, _ = sc.Favicon()
 		if bytes.Equal(b.Buffer(), updatedB.Buffer()) {
-			fmt.Print(c.Info(bid + " " + cbb(su) + " no changes detected\n"))
-			return nil
+			fmt.Print(c.Info(bid + " " + cbb(su) + " no changes found\n"))
+			continue
 		}
 
-		c.F.Reset().Warning("Found changes in " + bid + " " + cbb(su) + "\n").Flush()
+		c.F.Reset().Warning(bid + " Found changes in " + cbb(su) + "\n").Flush()
 
 		if !bytes.Equal([]byte(b.Title), []byte(updatedB.Title)) {
 			c.F.Reset().Midln(cbc("Title:")).Flush()
 			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updatedB.Title))))
 		}
+
 		if !bytes.Equal([]byte(b.Desc), []byte(updatedB.Desc)) {
 			c.F.Reset().Midln(cbc("Description:")).Flush()
 			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updatedB.Desc))))
@@ -288,24 +293,23 @@ func Update(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) erro
 
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			return handleEditedBookmark(c, r, &updatedB, b)
+			if err := handleEditedBookmark(c, r, &updatedB, b); err != nil {
+				return err
+			}
+			if i != len(bs)-1 {
+				fmt.Println()
+			}
 		case "n", "no":
-			c.ReplaceLine(c.F.Warning(bid + " skipping...").String())
-			return nil
+			c.ReplaceLine(c.F.Warning(bid + " skip...\n").String())
 		case "e", "edit":
 			te, err := files.NewEditor(config.App.Env.Editor)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			return editSingleInteractive(c, r, te, &updatedB, i, len(bs))
-		}
-
-		return nil
-	}
-
-	for i, b := range bs {
-		if err := updateFn(i, b); err != nil {
-			return err
+			if err := editSingleInteractive(c, r, te, &updatedB, i, len(bs)); err != nil &&
+				!errors.Is(err, sys.ErrActionAborted) {
+				return err
+			}
 		}
 	}
 

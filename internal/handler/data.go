@@ -121,6 +121,7 @@ func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmar
 		rotato.WithMesgColor(rotato.ColorGray),
 	)
 	sp.Start()
+	defer sp.Done()
 
 	ctx := context.Background()
 	// delete records from main table.

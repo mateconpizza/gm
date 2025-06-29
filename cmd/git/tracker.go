@@ -222,7 +222,7 @@ func management(c *ui.Console) error {
 
 func trackedStatus(c *ui.Console, tracked []string) error {
 	if len(tracked) == 0 {
-		return git.ErrGitNoRepos
+		return nil
 	}
 
 	dbFiles, err := files.Find(config.App.Path.Data, "*.db")

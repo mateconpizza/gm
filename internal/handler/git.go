@@ -73,6 +73,7 @@ func gitClean(dbPath string, bs []*bookmark.Bookmark) error {
 	if !gr.IsTracked() {
 		return nil
 	}
+
 	return gr.Remove(bs)
 }
 
@@ -89,8 +90,9 @@ func gitUpdate(dbPath string, oldB, newB *bookmark.Bookmark) error {
 	if !gr.IsTracked() {
 		return nil
 	}
-	if err := gr.Remove([]*bookmark.Bookmark{oldB}); err != nil {
+	if err := gr.Update(oldB, newB); err != nil {
 		return err
 	}
-	return gr.Add([]*bookmark.Bookmark{newB})
+
+	return gr.Commit("update bookmark")
 }

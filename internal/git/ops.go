@@ -473,7 +473,7 @@ func readGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 	sp := rotato.New(
 		rotato.WithPrefix(c.F.Mid("Decrypting bookmarks").StringReset()),
 		rotato.WithMesgColor(rotato.ColorBrightBlue),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic, rotato.ColorStyleBold),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
 	)
 
 	loader := func(path string) (*bookmark.Bookmark, error) {
@@ -515,8 +515,8 @@ func readGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	sp.UpdatePrefix(fmt.Sprintf("Decrypted %d bookmarks", count))
-	sp.Done()
+	sp.UpdatePrefix(c.Success(fmt.Sprintf("Decrypted %d bookmarks", count)).StringReset())
+	sp.Done("done!")
 
 	return bookmarks, nil
 }
