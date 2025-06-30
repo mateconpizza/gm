@@ -1,4 +1,3 @@
-//nolint:wrapcheck //ignore
 package imports
 
 import (
@@ -12,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -41,6 +41,7 @@ var (
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
+		PersistentPostRunE: gitUpdate,
 	}
 
 	importFromDatabaseCmd = &cobra.Command{
@@ -65,7 +66,7 @@ var (
 
 	importFromGitRepoCmd = &cobra.Command{
 		Use:   "git",
-		Short: "Import from git URL",
+		Short: cmdGit.GitImportCmd.Short,
 		RunE:  cmdGit.GitImportCmd.RunE,
 	}
 )
@@ -91,7 +92,7 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-func fromBackupFunc(commands *cobra.Command, args []string) error {
+func fromBackupFunc(command *cobra.Command, args []string) error {
 	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -139,7 +140,7 @@ func fromBackupFunc(commands *cobra.Command, args []string) error {
 	return nil
 }
 
-func fromDatabaseFunc(_ *cobra.Command, _ []string) error {
+func fromDatabaseFunc(command *cobra.Command, _ []string) error {
 	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -166,4 +167,20 @@ func fromDatabaseFunc(_ *cobra.Command, _ []string) error {
 	}
 
 	return nil
+}
+
+func gitUpdate(command *cobra.Command, _ []string) error {
+	gr, err := git.NewRepo(config.App.DBPath)
+	if err != nil {
+		return err
+	}
+	if !gr.IsTracked() {
+		return nil
+	}
+
+	if err := gr.Export(); err != nil {
+		return err
+	}
+
+	return gr.Commit(command.Short)
 }

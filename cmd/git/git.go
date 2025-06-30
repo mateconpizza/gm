@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -15,8 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -117,7 +114,7 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 }
 
 // gitCloneAndImportFunc clones a git repo and imports its bookmarks.
-func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
+func gitCloneAndImportFunc(command *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return git.ErrGitRepoURLEmpty
 	}
@@ -149,9 +146,8 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
 	imported, err := git.Import(c, gm, repoPathToClone)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
-
 	if !git.IsInitialized(config.App.Path.Git) {
 		slog.Warn("git import: repo not initialized", "path", config.App.Path.Git)
 		return nil
@@ -164,11 +160,17 @@ func gitCloneAndImportFunc(_ *cobra.Command, args []string) error {
 		}
 
 		if gr.IsTracked() {
+			if err := gr.Export(); err != nil {
+				return err
+			}
+			if err := gr.Commit(command.Short); err != nil {
+				return err
+			}
 			continue
 		}
 		fmt.Println()
 
-		if err := handler.GitTrackExportCommit(c, gr, "import from git"); err != nil {
+		if err := track(c, gr); err != nil {
 			return err
 		}
 	}
@@ -192,46 +194,12 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightBlue))),
 	)
 
-	tracked, err := managementSelect(c)
-	if err != nil {
+	if err := gr.AskForEncryption(c); err != nil {
+		return err
+	}
+
+	if err := managementSelect(c); err != nil {
 		return fmt.Errorf("select tracked: %w", err)
-	}
-
-	if len(tracked) == 0 {
-		return git.ErrGitNoRepos
-	}
-
-	if c.Confirm("Use GPG for encryption?", "n") {
-		if err := gpg.Init(gr.Git.RepoPath, git.AttributesFile); err != nil {
-			return fmt.Errorf("gpg init: %w", err)
-		}
-		// add diff to git config
-		for k, v := range gpg.GitDiffConf {
-			if err := gr.Git.SetConfigLocal(k, strings.Join(v, " ")); err != nil {
-				return err
-			}
-		}
-		if err := gr.Git.AddAll(); err != nil {
-			return fmt.Errorf("git add: %w", err)
-		}
-		if err := gr.Git.Commit("GPG repo initialized"); err != nil {
-			return fmt.Errorf("git commit: %w", err)
-		}
-	}
-
-	for _, dbPath := range tracked {
-		newGr, err := git.NewRepo(dbPath)
-		if err != nil {
-			return err
-		}
-
-		if err := newGr.Track(); err != nil {
-			return err
-		}
-
-		if err := initTracking(c, newGr); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -318,7 +286,7 @@ func gitPushFunc(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("git add: %w", err)
 	}
 
-	if err := gr.Git.Commit(fmt.Sprintf("[%s] Update summary", gr.Loc.DBName)); err != nil {
+	if err := gr.Git.Commit(fmt.Sprintf("[%s] update summary", gr.Loc.DBName)); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 
@@ -358,7 +326,7 @@ func gitRemoteFunc(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("git add: %w", err)
 	}
 
-	if err := gr.Git.Commit(fmt.Sprintf("[%s] Update summary", gr.Loc.DBName)); err != nil {
+	if err := gr.Git.Commit(fmt.Sprintf("[%s] update summary", gr.Loc.DBName)); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 

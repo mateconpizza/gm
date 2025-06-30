@@ -83,6 +83,8 @@ func (gr *Repository) Add(bs []*bookmark.Bookmark) error {
 		if _, err := exportAsGPG(gr.Loc.Path, bs); err != nil {
 			return err
 		}
+
+		return nil
 	}
 
 	if _, err := exportAsJSON(gr.Loc.Path, bs); err != nil {
@@ -92,8 +94,8 @@ func (gr *Repository) Add(bs []*bookmark.Bookmark) error {
 	return nil
 }
 
-// Update updates the bookmarks in the repo.
-func (gr *Repository) Update(oldB, newB *bookmark.Bookmark) error {
+// UpdateOne updates the bookmarks in the repo.
+func (gr *Repository) UpdateOne(oldB, newB *bookmark.Bookmark) error {
 	if err := gr.Remove([]*bookmark.Bookmark{oldB}); err != nil {
 		return err
 	}
@@ -110,18 +112,13 @@ func (gr *Repository) Remove(bs []*bookmark.Bookmark) error {
 	return cleanJSONRepo(gr.Loc.Path, bs)
 }
 
-// Drop drops the repo.
+// Drop removes a repository's files, updates its summary, and commits the
+// changes.
 func (gr *Repository) Drop(mesg string) error {
-	if err := files.RemoveAll(gr.Loc.Path); err != nil {
-		return err
-	}
-	if err := gr.Git.AddAll(); err != nil {
-		return err
-	}
-
-	return gr.Git.Commit(mesg)
+	return dropRepo(gr, mesg)
 }
 
+// Commit commits the bookmarks to the git repo.
 func (gr *Repository) Commit(msg string) error {
 	return commitIfChanged(gr, msg)
 }
@@ -141,12 +138,18 @@ func (gr *Repository) Summary() (*SyncGitSummary, error) {
 	return syncSummary(gr)
 }
 
-// SummaryWrite writes the repo stats.
+// SummaryWrite calculates, updates, and saves the repository's statistics to
+// its summary file.
 func (gr *Repository) SummaryWrite() error {
 	return writeRepoStats(gr)
 }
 
-// Write writes the files to the git repo.
+func (gr *Repository) SummaryRead() (*SyncGitSummary, error) {
+	return readSummary(gr)
+}
+
+// Write exports the provided bookmarks to the repository's file, encrypting if
+// configured.
 func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
 	if gr.IsEncrypted() {
 		return exportAsGPG(gr.Loc.Path, bs)
@@ -155,6 +158,8 @@ func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
 	return exportAsJSON(gr.Loc.Path, bs)
 }
 
+// Read reads and decrypts the repository's bookmarks, handling encryption if
+// configured.
 func (gr *Repository) Read(c *ui.Console) ([]*bookmark.Bookmark, error) {
 	if gr.IsEncrypted() {
 		return readGPGRepo(c, gr.Loc.Path)
@@ -163,12 +168,16 @@ func (gr *Repository) Read(c *ui.Console) ([]*bookmark.Bookmark, error) {
 	return readJSONRepo(c, gr.Loc.Path)
 }
 
+// Track tracks a repository in Git, exporting its data and committing the
+// changes.
 func (gr *Repository) Track() error {
-	return gr.Tracker.Track(gr.Loc.Hash).Save()
+	return trackRepo(gr)
 }
 
-func (gr *Repository) Untrack() error {
-	return gr.Tracker.Untrack(gr.Loc.Hash).Save()
+// Untrack untracks a repository in Git, removes its files, and
+// commits the change.
+func (gr *Repository) Untrack(mesg string) error {
+	return untrackRemoveRepo(gr, mesg)
 }
 
 // IsEncrypted returns whether the repo is encrypted.
@@ -181,7 +190,8 @@ func (gr *Repository) IsTracked() bool {
 	return gr.Tracker.Contains(gr.Loc.Hash)
 }
 
-// Export exports the repo.
+// Export exports the repository's bookmarks to Git, handling encryption if
+// configured.
 func (gr *Repository) Export() error {
 	bs, err := records(gr.Loc.DBPath)
 	if err != nil {
@@ -195,21 +205,9 @@ func (gr *Repository) Export() error {
 	return nil
 }
 
-// Records gets all records from the database associated with the repo.
+// Records retrieves all bookmarks from the repository's database.
 func (gr *Repository) Records() ([]*bookmark.Bookmark, error) {
 	return records(gr.Loc.DBPath)
-}
-
-// TrackAndCommit tracks and commits the repo.
-func (gr *Repository) TrackAndCommit() error {
-	if err := gr.Export(); err != nil {
-		return err
-	}
-	if err := gr.Track(); err != nil {
-		return err
-	}
-
-	return gr.Commit("new tracking")
 }
 
 // String returns the repo summary.
@@ -220,14 +218,25 @@ func (gr *Repository) String() string {
 		return ""
 	}
 
-	return repoSummaryString(sum)
+	return repoSummaryString(sum.RepoStats)
 }
 
-// Read reads the repo and returns the bookmarks.
-func Read(c *ui.Console, path string) ([]*bookmark.Bookmark, error) {
-	if gpg.IsInitialized(path) {
-		return readGPGRepo(c, path)
+// AskForEncryption prompts the user to enable GPG encryption for the
+// repository if it's not already encrypted.
+func (gr *Repository) AskForEncryption(c *ui.Console) error {
+	if gr.IsEncrypted() {
+		return nil
 	}
 
-	return readJSONRepo(c, path)
+	if !c.Confirm("Use GPG for encryption?", "n") {
+		c.ReplaceLine(c.Info("Skipping GPG encryption").StringReset())
+		return nil
+	}
+
+	return initGPG(c, gr)
+}
+
+// Status returns a prettify status of the repository.
+func (gr *Repository) Status(c *ui.Console) string {
+	return repoStatus(c, gr)
 }

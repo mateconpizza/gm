@@ -1,8 +1,8 @@
 package git
 
 import (
+	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,14 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/mateconpizza/rotato"
-	"golang.org/x/sync/semaphore"
-
 	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
@@ -134,12 +132,14 @@ func writeRepoStats(gr *Repository) error {
 	)
 
 	if !files.Exists(summaryPath) {
+		slog.Debug("creating new summary", "db", gr.Loc.DBPath)
 		// Create new summary with only RepoStats
 		summary = NewSummary()
 		if err := repoStats(gr.Loc.DBPath, summary); err != nil {
 			return fmt.Errorf("creating repo stats: %w", err)
 		}
 	} else {
+		slog.Debug("updating summary", "db", gr.Loc.DBPath)
 		// Load existing summary
 		summary = NewSummary()
 		if err := files.JSONRead(summaryPath, summary); err != nil {
@@ -157,6 +157,15 @@ func writeRepoStats(gr *Repository) error {
 	}
 
 	return nil
+}
+
+func readSummary(gr *Repository) (*SyncGitSummary, error) {
+	sum := NewSummary()
+	if err := files.JSONRead(filepath.Join(gr.Git.RepoPath, SummaryFileName), sum); err != nil {
+		return nil, fmt.Errorf("reading summary: %w", err)
+	}
+
+	return sum, nil
 }
 
 // repoStats returns a new RepoStats.
@@ -234,7 +243,6 @@ func commitIfChanged(gr *Repository, actionMsg string) error {
 	}
 
 	gm := gr.Git
-
 	// check if any changes
 	changed, _ := gm.HasChanges()
 	if !changed {
@@ -253,6 +261,7 @@ func commitIfChanged(gr *Repository, actionMsg string) error {
 		status = "(" + status + ")"
 	}
 
+	actionMsg = strings.ToLower(actionMsg)
 	msg := fmt.Sprintf("[%s] %s %s", gr.Loc.DBName, actionMsg, status)
 	if err := gm.Commit(msg); err != nil {
 		return fmt.Errorf("git commit: %w", err)
@@ -262,19 +271,18 @@ func commitIfChanged(gr *Repository, actionMsg string) error {
 }
 
 // repoSummaryString returns a string representation of the repo summary.
-func repoSummaryString(sum *SyncGitSummary) string {
-	st := sum.RepoStats
+func repoSummaryString(rs *RepoStats) string {
 	var parts []string
-	if st.Bookmarks > 0 {
-		parts = append(parts, fmt.Sprintf("%d bookmarks", st.Bookmarks))
+	if rs.Bookmarks > 0 {
+		parts = append(parts, fmt.Sprintf("%d bookmarks", rs.Bookmarks))
 	}
 
-	if st.Tags > 0 {
-		parts = append(parts, fmt.Sprintf("%d tags", st.Tags))
+	if rs.Tags > 0 {
+		parts = append(parts, fmt.Sprintf("%d tags", rs.Tags))
 	}
 
-	if st.Favorites > 0 {
-		parts = append(parts, fmt.Sprintf("%d favorites", st.Favorites))
+	if rs.Favorites > 0 {
+		parts = append(parts, fmt.Sprintf("%d favorites", rs.Favorites))
 	}
 
 	if len(parts) == 0 {
@@ -311,34 +319,39 @@ func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
 	c.F.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
 		Midln(txt.PaddedLine("tags:", sum.RepoStats.Tags)).
 		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
-
 	if err := c.ConfirmErr("Import records from this repo?", "y"); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
 	var (
-		dbName = sum.RepoStats.Name
-		dbPath = filepath.Join(config.App.Path.Data, dbName)
-		opt    string
-		err    error
+		opt     string
+		err     error
+		dbPath  = filepath.Join(config.App.Path.Data, sum.RepoStats.Name)
+		choices = []string{"merge", "drop", "create", "select", "ignore"}
 	)
 
-	if files.Exists(dbPath) {
-		c.Warning(fmt.Sprintf("Database %q already exists\n", dbName)).Flush()
+	gr, err := NewRepo(dbPath)
+	if err != nil {
+		return "", err
+	}
+	gr.Git.SetRepoPath(repoPath)
 
-		opt, err = c.Choose(
-			"What do you want to do?",
-			[]string{"merge", "drop", "create", "select", "ignore"},
-			"m",
-		)
+	if files.Exists(dbPath) {
+		c.Warning(fmt.Sprintf("Database %q already exists\n", gr.Loc.DBName)).Flush()
+		opt, err = c.Choose("What do you want to do?", choices, "m")
 		if err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
 	} else {
 		opt = "new"
+		gr, err = NewRepo(dbPath)
+		if err != nil {
+			return "", err
+		}
+		gr.Git.SetRepoPath(repoPath)
 	}
 
-	resultPath, err := parseGitRepositoryOpt(c, opt, dbPath, repoPath)
+	resultPath, err := parseGitRepositoryOpt(c, opt, gr)
 	if err != nil {
 		return "", err
 	}
@@ -347,235 +360,280 @@ func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
 }
 
 // parseGitRepositoryOpt handles the options for parseGitRepository.
-func parseGitRepositoryOpt(c *ui.Console, o, dbPath, repoPath string) (string, error) {
-	switch strings.ToLower(o) {
+func parseGitRepositoryOpt(c *ui.Console, opt string, gr *Repository) (string, error) {
+	switch strings.ToLower(opt) {
 	case "new":
-		if err := intoDBFromGit(c, dbPath, repoPath); err != nil {
-			return "", err
-		}
-
+		return handleOptNew(c, gr)
 	case "c", "create":
-		var dbName string
-		for dbName == "" {
-			dbName = files.EnsureSuffix(c.Prompt("Enter new name: "), ".db")
-		}
-
-		dbPath = filepath.Join(filepath.Dir(dbPath), dbName)
-		if err := intoDBFromGit(c, dbPath, repoPath); err != nil {
-			return "", err
-		}
-
+		return handleOptCreate(c, gr)
 	case "d", "drop":
-		c.Warning("Dropping database\n").Flush()
-		if err := db.DropFromPath(dbPath); err != nil {
-			return "", fmt.Errorf("%w", err)
-		}
-		if err := mergeAndInsert(c, dbPath, repoPath); err != nil {
-			return "", err
-		}
-
+		return handleOptDrop(c, gr)
 	case "m", "merge":
-		c.Info("Merging database\n").Flush()
-		if err := mergeAndInsert(c, dbPath, repoPath); err != nil {
-			return "", err
-		}
-
+		return handleOptMerge(c, gr)
 	case "s", "select":
-		if err := selectAndInsert(c, dbPath, repoPath); err != nil {
-			if errors.Is(err, menu.ErrFzfActionAborted) {
-				return "", nil
-			}
-
-			return "", err
-		}
-
+		return handleOptSelect(c, gr)
 	case "i", "ignore":
-		repoName := files.StripSuffixes(filepath.Base(dbPath))
-		c.ReplaceLine(
-			c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset(),
-		)
-
-		return "", nil
+		return handleOptIgnore(c, gr)
+	default:
+		return gr.Loc.DBPath, nil
 	}
-
-	return dbPath, nil
 }
 
-// readJSONRepo extracts records from a JSON repository.
-func readJSONRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
-	var (
-		count      = 0
-		errTracker = NewErrorTracker()
-		wg         sync.WaitGroup
-		mu         sync.Mutex
-		bookmarks  = []*bookmark.Bookmark{}
-	)
-
-	sp := rotato.New(
-		rotato.WithPrefix(c.F.Mid("Loading JSON bookmarks").String()),
-		rotato.WithMesgColor(rotato.ColorBrightBlue),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-	)
-
-	loader := func(path string) (*bookmark.Bookmark, error) {
-		bj := &bookmark.BookmarkJSON{}
-		if err := files.JSONRead(path, bj); err != nil {
-			return nil, fmt.Errorf("%w", err)
-		}
-
-		if !bookmark.ValidateChecksumJSON(bj) {
-			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
-		}
-
-		count++
-		sp.UpdateMesg(fmt.Sprintf("[%d] %s", count, filepath.Base(path)))
-
-		b := bookmark.NewFromJSON(bj)
-
-		mu.Lock()
-		bookmarks = append(bookmarks, b)
-		mu.Unlock()
-
-		return b, nil
-	}
-
-	sp.Start()
-
-	ctx := context.Background()
-	err := filepath.WalkDir(root, parseJSONFile(ctx, &wg, &mu, loader))
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	wg.Wait()
-
-	err = errTracker.GetError()
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	sp.UpdatePrefix(c.Success(fmt.Sprintf("Loaded %d bookmarks", count)).String())
-	sp.Done("done!")
-
-	return bookmarks, nil
-}
-
-// readGPGRepo extracts records from a GPG repository.
-func readGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
-	var (
-		count      = 0
-		errTracker = NewErrorTracker()
-		wg         sync.WaitGroup
-		mu         sync.Mutex
-		bookmarks  = []*bookmark.Bookmark{}
-	)
-
-	sp := rotato.New(
-		rotato.WithPrefix(c.F.Mid("Decrypting bookmarks").StringReset()),
-		rotato.WithMesgColor(rotato.ColorBrightBlue),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-	)
-
-	loader := func(path string) (*bookmark.Bookmark, error) {
-		content, err := gpg.Decrypt(path)
-		if err != nil {
-			return nil, fmt.Errorf("%w", err)
-		}
-
-		bj := &bookmark.BookmarkJSON{}
-		if err := json.Unmarshal(content, bj); err != nil {
-			return nil, fmt.Errorf("%w", err)
-		}
-
-		if !bookmark.ValidateChecksumJSON(bj) {
-			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
-		}
-
-		count++
-		sp.UpdateMesg(fmt.Sprintf("[%d] %s", count, filepath.Base(path)))
-
-		b := bookmark.NewFromJSON(bj)
-		bookmarks = append(bookmarks, b)
-
-		return b, nil
-	}
-
-	sp.Start()
-
-	ctx := context.Background()
-	err := filepath.WalkDir(root, parseGPGFile(ctx, &wg, &mu, loader))
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	wg.Wait()
-
-	err = errTracker.GetError()
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	sp.UpdatePrefix(c.Success(fmt.Sprintf("Decrypted %d bookmarks", count)).StringReset())
-	sp.Done("done!")
-
-	return bookmarks, nil
-}
-
-// parseGPGFile is a WalkDirFunc that loads .gpg files concurrently using a semaphore.
-func parseGPGFile(
-	ctx context.Context,
-	wg *sync.WaitGroup,
-	mu *sync.Mutex,
-	loader loaderFileFn,
-) fs.WalkDirFunc {
-	var (
-		bs                 []*bookmark.Bookmark
-		passphrasePrompted bool
-		errTracker         = NewErrorTracker()
-		sem                = semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
-	)
-
-	return func(path string, d fs.DirEntry, err error) error {
+// removeRepoFiles removes all files in a repository.
+//
+// Leaving only the root directory and the SummaryFileName (summary.json).
+func removeRepoFiles(root string) error {
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || filepath.Ext(path) != gpg.Extension {
+		if root == path || d.IsDir() || d.Name() == SummaryFileName {
 			return nil
 		}
 
-		// Prompt for GPG passphrase on the first valid file
-		if !passphrasePrompted {
-			if _, err := loader(path); err != nil {
-				return err
-			}
-			passphrasePrompted = true
-			return nil
-		}
-
-		loadConcurrently(ctx, path, &bs, wg, mu, sem, loader, errTracker)
-		return nil
-	}
+		return files.RemoveFilepath(path)
+	})
 }
 
-func parseJSONFile(
-	ctx context.Context,
-	wg *sync.WaitGroup,
-	mu *sync.Mutex,
-	loader loaderFileFn,
-) fs.WalkDirFunc {
-	bs := []*bookmark.Bookmark{}
-	errTracker := NewErrorTracker()
-	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
+func untrackRemoveRepo(gr *Repository, mesg string) error {
+	if !gr.IsTracked() {
+		return ErrGitNotTracked
+	}
 
-	return func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
+	if err := gr.Tracker.Untrack(gr.Loc.Hash).Save(); err != nil {
+		return err
+	}
+
+	if err := files.RemoveAll(gr.Loc.Path); err != nil {
+		return err
+	}
+
+	if err := gr.Git.AddAll(); err != nil {
+		return err
+	}
+
+	return gr.Git.Commit(fmt.Sprintf("[%s] %s", gr.Loc.DBName, mesg))
+}
+
+func trackRepo(gr *Repository) error {
+	if gr.IsTracked() {
+		return ErrGitTracked
+	}
+
+	if err := gr.Export(); err != nil {
+		return err
+	}
+
+	if err := gr.Tracker.Track(gr.Loc.Hash).Save(); err != nil {
+		return err
+	}
+
+	return gr.Commit("new tracking")
+}
+
+func initGPG(c *ui.Console, gr *Repository) error {
+	if err := gpg.Init(gr.Git.RepoPath, AttributesFile); err != nil {
+		return fmt.Errorf("gpg init: %w", err)
+	}
+	// add diff to git config
+	for k, v := range gpg.GitDiffConf {
+		if err := gr.Git.SetConfigLocal(k, strings.Join(v, " ")); err != nil {
 			return err
 		}
-		if d.IsDir() || filepath.Ext(path) != JSONFileExt {
-			return nil
-		}
-
-		loadConcurrently(ctx, path, &bs, wg, mu, sem, loader, errTracker)
-		return nil
 	}
+
+	if err := gr.Commit("GPG repo initialized"); err != nil {
+		return err
+	}
+
+	if c != nil {
+		fmt.Print(c.SuccessMesg("GPG repo initialized\n"))
+	}
+
+	return nil
+}
+
+func dropRepo(gr *Repository, mesg string) error {
+	if err := removeRepoFiles(gr.Loc.Path); err != nil {
+		return err
+	}
+
+	if err := gr.SummaryWrite(); err != nil {
+		return err
+	}
+
+	if err := gr.Git.AddAll(); err != nil {
+		return err
+	}
+
+	return gr.Commit(mesg)
+}
+
+// Read reads the repo and returns the bookmarks.
+func Read(c *ui.Console, path string) ([]*bookmark.Bookmark, error) {
+	if gpg.IsInitialized(path) {
+		return readGPGRepo(c, path)
+	}
+
+	return readJSONRepo(c, path)
+}
+
+// selectAndInsert prompts the user to select records to import.
+func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
+	bookmarks, err := extractFromGitRepo(c, repoPath)
+	if err != nil {
+		return err
+	}
+
+	m := menu.New[bookmark.Bookmark](
+		menu.WithArgs("--cycle"),
+		menu.WithUseDefaults(),
+		menu.WithSettings(config.Fzf.Settings),
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s to import", false),
+	)
+
+	records := make([]bookmark.Bookmark, 0, len(bookmarks))
+	for _, b := range bookmarks {
+		records = append(records, *b)
+	}
+
+	slices.SortFunc(records, func(a, b bookmark.Bookmark) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	m.SetItems(records)
+	m.SetPreprocessor(bookmark.Oneline)
+
+	selected, err := m.Select()
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	r, err := db.New(dbPath)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	bs := make([]*bookmark.Bookmark, 0, len(selected))
+	for i := range selected {
+		bs = append(bs, &selected[i])
+	}
+
+	debookmarks := port.Deduplicate(c, r, bs)
+	if err := r.InsertMany(context.Background(), debookmarks); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	n := len(debookmarks)
+	if n > 0 {
+		c.F.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
+	}
+
+	return nil
+}
+
+func repoStatus(c *ui.Console, gr *Repository) string {
+	var (
+		sb  strings.Builder
+		t   string
+		cbc = func(s string) string { return color.BrightCyan(s).String() }
+		cgi = func(s string) string { return color.Gray(s).Italic().String() }
+		cbm = func(s string) string { return color.BrightMagenta(s).String() }
+	)
+
+	if !gr.IsTracked() {
+		sb.WriteString(txt.PaddedLine(gr.Loc.Name, cgi("(not tracked)\n")))
+		return c.Error(sb.String()).StringReset()
+	}
+
+	if gr.IsEncrypted() {
+		t = cbm("gpg ")
+	} else {
+		t = cbc("json ")
+	}
+
+	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
+	sb.WriteString(txt.PaddedLine(gr.Loc.Name, t+cgi(s)))
+
+	c.Success(sb.String() + "\n").Flush()
+
+	return ""
+}
+
+func Info(c *ui.Console, path string) (string, error) {
+	gr, err := NewRepo(path)
+	if err != nil {
+		return "", err
+	}
+
+	return repoStatus(c, gr), nil
+}
+
+func handleOptNew(c *ui.Console, gr *Repository) (string, error) {
+	if err := intoDBFromGit(c, gr); err != nil {
+		return "", err
+	}
+	return gr.Loc.DBPath, nil
+}
+
+func handleOptCreate(c *ui.Console, gr *Repository) (string, error) {
+	var dbName string
+	for dbName == "" {
+		dbName = files.EnsureSuffix(c.Prompt("Enter new name: "), ".db")
+	}
+	dbPath := filepath.Join(filepath.Dir(gr.Loc.DBPath), dbName)
+
+	newGr, err := NewRepo(dbPath)
+	if err != nil {
+		return "", err
+	}
+	newGr.Git.SetRepoPath(gr.Git.RepoPath)
+
+	opt, err := c.Choose("What do you want to do?", []string{"select", "merge"}, "m")
+	if err != nil {
+		return "", err
+	}
+
+	r, err := db.Init(dbPath)
+	if err != nil {
+		return "", err
+	}
+	if err := r.Init(); err != nil {
+		return "", fmt.Errorf("initializing database: %w", err)
+	}
+
+	return parseGitRepositoryOpt(c, opt, newGr)
+}
+
+func handleOptDrop(c *ui.Console, gr *Repository) (string, error) {
+	c.Warning("Dropping database\n").Flush()
+	if err := db.DropFromPath(gr.Loc.DBPath); err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+	return handleOptMerge(c, gr)
+}
+
+func handleOptMerge(c *ui.Console, gr *Repository) (string, error) {
+	c.Info("Merging database\n").Flush()
+	if err := mergeAndInsert(c, gr); err != nil {
+		return "", err
+	}
+	return gr.Loc.DBPath, nil
+}
+
+func handleOptSelect(c *ui.Console, gr *Repository) (string, error) {
+	if err := selectAndInsert(c, gr.Loc.DBPath, gr.Git.RepoPath); err != nil {
+		if errors.Is(err, menu.ErrFzfActionAborted) {
+			return "", nil
+		}
+		return "", err
+	}
+	return gr.Loc.DBPath, nil
+}
+
+func handleOptIgnore(c *ui.Console, gr *Repository) (string, error) {
+	repoName := files.StripSuffixes(filepath.Base(gr.Loc.DBPath))
+	c.ReplaceLine(c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset())
+	return "", nil
 }

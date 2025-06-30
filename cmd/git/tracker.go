@@ -1,26 +1,20 @@
-// git tracker tracks and untracks a database in git.
+// git tracker command
 package git
 
 import (
-	"errors"
 	"fmt"
-	"log/slog"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 type trackerFlagsType struct {
@@ -48,8 +42,7 @@ var (
 	}
 )
 
-//nolint:wrapcheck //ignore
-func trackerFunc(cmd *cobra.Command, args []string) error {
+func trackerFunc(cmd *cobra.Command, _ []string) error {
 	gr, err := git.NewRepo(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -62,89 +55,26 @@ func trackerFunc(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case tkFlags.status:
-		return trackedStatus(c, gr.Tracker.List)
+		return status(c, gr.Tracker.List)
 	case tkFlags.mgt:
 		return management(c)
 	case tkFlags.track:
-		return handler.GitTrackExportCommit(c, gr, "new tracking")
+		return track(c, gr)
 	case tkFlags.untrack:
-		return handler.GitUntrackDropCommit(c, gr)
+		return untrack(c, gr)
 	}
 
 	return cmd.Help()
 }
 
-func initGPGRepo(c *ui.Console, gr *git.Repository) error {
-	if files.Exists(gr.Loc.Path) {
-		slog.Debug("repo already exists", "path", gr.Loc.Path)
-		return nil
-	}
-
-	if err := gr.Export(); err != nil {
-		if errors.Is(err, git.ErrGitNothingToCommit) {
-			fmt.Print(c.WarningMesg(fmt.Sprintf("skipping %q, no bookmarks found\n", gr.Loc.DBName)))
-			return nil
-		}
-
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := gr.Commit("initializing encrypted repo"); err != nil {
-		if errors.Is(err, git.ErrGitNothingToCommit) {
-			return nil
-		}
-
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Print(c.SuccessMesg("GPG repository initialized\n"))
-
-	return nil
-}
-
-// initJSONRepo creates a JSON repo for a tracked database.
-func initJSONRepo(c *ui.Console, gr *git.Repository) error {
-	if err := gr.Export(); err != nil {
-		if errors.Is(err, git.ErrGitNothingToCommit) {
-			fmt.Print(c.WarningMesg(fmt.Sprintf("skipping %q, no bookmarks found\n", gr.Loc.DBName)))
-			return nil
-		}
-
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := gr.Commit("initializing repo"); err != nil {
-		if errors.Is(err, git.ErrGitNothingToCommit) {
-			return nil
-		}
-
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Print(c.SuccessMesg("JSON repository initialized\n"))
-
-	return nil
-}
-
-// initTracking initializes a tracked repo in the git repository.
-func initTracking(c *ui.Console, gr *git.Repository) error {
-	if gpg.IsInitialized(gr.Git.RepoPath) {
-		return initGPGRepo(c, gr)
-	}
-
-	return initJSONRepo(c, gr)
-}
-
 // managementSelect select which database to track in the git repository.
-func managementSelect(c *ui.Console) ([]string, error) {
+func managementSelect(c *ui.Console) error {
 	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
 	if err != nil {
-		return nil, fmt.Errorf("finding db files: %w", err)
+		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.F.Midln("Select which databases to track").Rowln().Flush()
-
-	tracked := make([]string, 0, len(dbFiles))
+	c.F.Rowln().Midln("Select which databases to track").Rowln().Flush()
 
 	var idx int
 	for i, f := range dbFiles {
@@ -157,10 +87,10 @@ func managementSelect(c *ui.Console) ([]string, error) {
 		dbFiles[0], dbFiles[idx] = dbFiles[idx], dbFiles[0]
 	}
 
-	for _, dbPath := range dbFiles {
+	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
-			return nil, fmt.Errorf("creating repo: %w", err)
+			return fmt.Errorf("creating repo: %w", err)
 		}
 
 		if gr.IsTracked() {
@@ -179,15 +109,16 @@ func managementSelect(c *ui.Console) ([]string, error) {
 		}
 
 		if err := gr.Track(); err != nil {
-			return nil, fmt.Errorf("tracking repo: %w", err)
+			return fmt.Errorf("tracking repo: %w", err)
 		}
 
-		tracked = append(tracked, gr.Loc.DBPath)
-
 		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", gr.Loc.Name)).String())
+		if i != len(dbFiles)-1 {
+			fmt.Println()
+		}
 	}
 
-	return tracked, nil
+	return nil
 }
 
 // management updates the tracked databases in the git repository.
@@ -197,30 +128,56 @@ func management(c *ui.Console) error {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.F.Headerln("Tracked database management\n").Flush()
+	c.F.Headerln("Tracked database management").Rowln().Flush()
 
-	for _, dbPath := range dbFiles {
-		newRepo, err := git.NewRepo(dbPath)
+	for i, dbPath := range dbFiles {
+		gr, err := git.NewRepo(dbPath)
 		if err != nil {
 			return fmt.Errorf("creating repo: %w", err)
 		}
 
-		if !newRepo.IsTracked() {
-			if err := handler.GitTrackExportCommit(c, newRepo, "new tracking"); err != nil {
+		if gr.IsTracked() {
+			q := color.Text(fmt.Sprintf("Untrack %q?", gr.Loc.Name)).Bold()
+			if !c.T.Confirm(c.Warning(q.String()).String(), "n") {
+				c.ReplaceLine(c.Info(fmt.Sprintf("Unchange database %q", gr.Loc.Name)).String())
+				continue
+			}
+
+			c.ReplaceLine(c.Warning(fmt.Sprintf("Untracking database %q", gr.Loc.Name)).String())
+
+			if err := gr.Untrack("untracked"); err != nil {
 				return err
 			}
+
+			fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q untracked\n", gr.Loc.DBName)))
+			if i != len(dbFiles)-1 {
+				fmt.Println()
+			}
+
 			continue
 		}
 
-		if err := handler.GitUntrackDropCommit(c, newRepo); err != nil {
+		if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
+			c.ReplaceLine(c.Info(fmt.Sprintf("Skipping database %q", gr.Loc.DBName)).String())
+
+			continue
+		}
+		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", gr.Loc.DBName)).String())
+
+		if err := gr.Track(); err != nil {
 			return err
+		}
+
+		fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Loc.DBName)))
+		if i != len(dbFiles)-1 {
+			fmt.Println()
 		}
 	}
 
 	return nil
 }
 
-func trackedStatus(c *ui.Console, tracked []string) error {
+func status(c *ui.Console, tracked []string) error {
 	if len(tracked) == 0 {
 		return nil
 	}
@@ -232,45 +189,49 @@ func trackedStatus(c *ui.Console, tracked []string) error {
 
 	c.F.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
 
-	repos := make([]*git.Repository, 0, len(tracked))
 	for _, dbPath := range dbFiles {
-		gr, err := git.NewRepo(dbPath)
+		s, err := git.Info(c, dbPath)
 		if err != nil {
-			return fmt.Errorf("creating repo: %w", err)
+			return err
 		}
-
-		repos = append(repos, gr)
+		fmt.Print(s)
 	}
 
-	dimmer := color.Gray
-	untracked := make([]*git.Repository, 0, len(repos))
+	return nil
+}
 
-	var sb strings.Builder
-	for _, gr := range repos {
-		sb.Reset()
-		if !gr.IsTracked() {
-			untracked = append(untracked, gr)
-			continue
-		}
-
-		var t string
-		if gpg.IsInitialized(gr.Git.RepoPath) {
-			t = color.Cyan("gpg ").String()
-		} else {
-			t = color.Cyan("json ").String()
-		}
-
-		s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
-		sb.WriteString(txt.PaddedLine(gr.Loc.Name, t+dimmer(s).Italic().String()))
-
-		c.Success(sb.String() + "\n").Flush()
+func untrack(c *ui.Console, gr *git.Repository) error {
+	if !gr.IsTracked() {
+		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.Loc.DBName)
 	}
 
-	for _, gr := range untracked {
-		sb.Reset()
-		sb.WriteString(txt.PaddedLine(gr.Loc.Name, dimmer("(not tracked)\n").Italic().String()))
-		c.Error(sb.String()).Flush()
+	if !c.Confirm(fmt.Sprintf("Untrack database %q?", gr.Loc.DBName), "n") {
+		return nil
 	}
+
+	if err := gr.Untrack("untracked"); err != nil {
+		return err
+	}
+
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q untracked\n", gr.Loc.DBName)))
+
+	return nil
+}
+
+func track(c *ui.Console, gr *git.Repository) error {
+	if gr.IsTracked() {
+		return fmt.Errorf("%w: %q", git.ErrGitTracked, gr.Loc.DBName)
+	}
+
+	if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
+		return nil
+	}
+
+	if err := gr.Track(); err != nil {
+		return err
+	}
+
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Loc.DBName)))
 
 	return nil
 }

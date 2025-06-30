@@ -254,62 +254,9 @@ func Update(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) erro
 	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", len(bs)))).Rowln().Flush()
 
 	for i, b := range bs {
-		updatedB := *b
-		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
-		su := txt.Shorten(updatedB.URL, 60)
-
-		sc := scraper.New(
-			updatedB.URL,
-			scraper.WithSpinner(c.Info(bid+" updating bookmark "+cbc(su)).String()),
-		)
-		if err := sc.Start(); err != nil {
-			slog.Error("scraping error", "error", err)
-		}
-
-		updatedB.Title, _ = sc.Title()
-		updatedB.Desc, _ = sc.Desc()
-		updatedB.FaviconURL, _ = sc.Favicon()
-		if bytes.Equal(b.Buffer(), updatedB.Buffer()) {
-			fmt.Print(c.Info(bid + " " + cbb(su) + " no changes found\n"))
-			continue
-		}
-
-		c.F.Reset().Warning(bid + " Found changes in " + cbb(su) + "\n").Flush()
-
-		if !bytes.Equal([]byte(b.Title), []byte(updatedB.Title)) {
-			c.F.Reset().Midln(cbc("Title:")).Flush()
-			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updatedB.Title))))
-		}
-
-		if !bytes.Equal([]byte(b.Desc), []byte(updatedB.Desc)) {
-			c.F.Reset().Midln(cbc("Description:")).Flush()
-			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updatedB.Desc))))
-		}
-
-		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
-		if err != nil {
-			return fmt.Errorf("choose: %w", err)
-		}
-
-		switch strings.ToLower(opt) {
-		case "y", "yes":
-			if err := handleEditedBookmark(c, r, &updatedB, b); err != nil {
-				return err
-			}
-			if i != len(bs)-1 {
-				fmt.Println()
-			}
-		case "n", "no":
-			c.ReplaceLine(c.F.Warning(bid + " skip...\n").String())
-		case "e", "edit":
-			te, err := files.NewEditor(config.App.Env.Editor)
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			if err := editSingleInteractive(c, r, te, &updatedB, i, len(bs)); err != nil &&
-				!errors.Is(err, sys.ErrActionAborted) {
-				return err
-			}
+		if err := updateSingleBookmark(c, r, b, i, len(bs)); err != nil &&
+			!errors.Is(err, sys.ErrActionAborted) {
+			return err
 		}
 	}
 
@@ -439,4 +386,86 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark
 	}
 
 	return nil
+}
+
+// updateSingleBookmark processes a single bookmark update including scraping,
+// diff display, and user interaction for saving changes.
+func updateSingleBookmark(
+	c *ui.Console,
+	r *db.SQLiteRepository,
+	b *bookmark.Bookmark,
+	index, total int,
+) error {
+	updatedB, err := updateBookmarkData(c, b)
+	if err != nil {
+		return err
+	}
+
+	su := txt.Shorten(updatedB.URL, 60)
+	bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
+
+	// Check if there are any changes
+	if bytes.Equal(b.Buffer(), updatedB.Buffer()) {
+		fmt.Print(c.Info(bid + " " + cbb(su) + " no changes found\n"))
+		return nil
+	}
+
+	// Display changes
+	c.F.Reset().Warning(bid + " Found changes in " + cbb(su) + "\n").Flush()
+	if !bytes.Equal([]byte(b.Title), []byte(updatedB.Title)) {
+		c.F.Reset().Midln(cbc("Title:")).Flush()
+		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updatedB.Title))))
+	}
+	if !bytes.Equal([]byte(b.Desc), []byte(updatedB.Desc)) {
+		c.F.Reset().Midln(cbc("Description:")).Flush()
+		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updatedB.Desc))))
+	}
+
+	// Handle user choice
+	opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+	if err != nil {
+		return fmt.Errorf("choose: %w", err)
+	}
+
+	switch strings.ToLower(opt) {
+	case "y", "yes":
+		if err := handleEditedBookmark(c, r, &updatedB, b); err != nil {
+			return err
+		}
+		if index != total-1 {
+			fmt.Println()
+		}
+	case "n", "no":
+		c.ReplaceLine(c.F.Warning(bid + " skip...\n").String())
+	case "e", "edit":
+		te, err := files.NewEditor(config.App.Env.Editor)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if err := editSingleInteractive(c, r, te, &updatedB, index, total); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func updateBookmarkData(c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark, error) {
+	updatedB := *b
+	su := txt.Shorten(updatedB.URL, 60)
+	bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
+
+	sc := scraper.New(
+		updatedB.URL,
+		scraper.WithSpinner(c.Info(bid+" updating bookmark "+cbc(su)).String()),
+	)
+
+	if err := sc.Start(); err != nil {
+		return updatedB, err
+	}
+
+	updatedB.Title, _ = sc.Title()
+	updatedB.Desc, _ = sc.Desc()
+	updatedB.FaviconURL, _ = sc.Favicon()
+	return updatedB, nil
 }

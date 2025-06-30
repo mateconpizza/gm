@@ -145,7 +145,7 @@ func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmar
 		return err
 	}
 
-	fmt.Print(c.SuccessMesg("bookmark/s removed\n"))
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
 
 	return nil
 }

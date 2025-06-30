@@ -81,7 +81,7 @@ Flags:
   -n, --name string     database name (default "bookmarks.db")
   -O, --oneline         output in formatted oneline (fzf)
   -o, --open            open bookmark in default browser
-  -q, --qr              generate qr-code
+      --qr              generate qr-code
   -r, --remove          remove a bookmarks by query or id
   -s, --status          check bookmarks status
   -t, --tag strings     list by tag

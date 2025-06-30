@@ -8,7 +8,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -43,7 +42,6 @@ var (
 		Short:             "Records management",
 		PersistentPreRunE: RequireDatabase,
 		RunE:              recordsCmdFunc,
-		PostRunE:          gitUpdate,
 	}
 
 	// tags flags.
@@ -55,11 +53,12 @@ var (
 		Aliases: []string{"t"},
 		Short:   "Tags management",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := config.App
 			switch {
-			case config.App.Flags.JSON:
-				return printer.TagsJSON(config.App.DBPath)
+			case cfg.Flags.JSON:
+				return printer.TagsJSON(cfg.DBPath)
 			case tagsFlags.list:
-				return printer.TagsList(config.App.DBPath)
+				return printer.TagsList(cfg.DBPath)
 			}
 
 			return cmd.Usage()
@@ -138,7 +137,7 @@ func initRecordFlags(cmd *cobra.Command) {
 	// Actions
 	f.BoolVarP(&cfg.Flags.Copy, "copy", "c", false, "copy bookmark to clipboard")
 	f.BoolVarP(&cfg.Flags.Open, "open", "o", false, "open bookmark in default browser")
-	f.BoolVarP(&cfg.Flags.QR, "qr", "q", false, "generate qr-code")
+	f.BoolVar(&cfg.Flags.QR, "qr", false, "generate qr-code")
 	f.BoolVarP(&cfg.Flags.Remove, "remove", "r", false, "remove a bookmarks by query or id")
 	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "list by tag")
 	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update a bookmarks")
@@ -175,65 +174,4 @@ func menuForRecords[T bookmark.Bookmark]() *menu.Menu[T] {
 	}
 
 	return menu.New[T](mo...)
-}
-
-// gitUpdate commits changes to git repository.
-func gitUpdate(cmd *cobra.Command, args []string) error {
-	cfg := config.App
-	if !git.IsInitialized(cfg.Path.Git) {
-		return nil
-	}
-
-	gr, err := git.NewRepo(cfg.DBPath)
-	if err != nil {
-		return err
-	}
-	if !gr.IsTracked() {
-		return nil
-	}
-
-	r, err := db.New(cfg.DBPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	defer r.Close()
-
-	bookmarks, err := r.AllPtr()
-	if err != nil {
-		return err
-	}
-
-	var mesg string
-	switch {
-	case cfg.Flags.Remove:
-		mesg = "remove bookmarks"
-	case cfg.Flags.Edit:
-		mesg = "edit bookmarks"
-	case cfg.Flags.Update:
-		mesg = "update bookmarks"
-	case cfg.Flags.Status:
-		mesg = "update bookmarks status"
-	default:
-		mesg = cmd.Short
-	}
-
-	updates, err := gr.Write(bookmarks)
-	if err != nil {
-		return err
-	}
-
-	if !updates {
-		return nil
-	}
-
-	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-	fmt.Print(c.InfoMesg("updating git repository...\n"))
-
-	if err := gr.Commit(mesg); err != nil {
-		return err
-	}
-
-	fmt.Print(c.SuccessMesg("repository updated\n"))
-
-	return nil
 }

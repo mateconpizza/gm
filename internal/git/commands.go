@@ -142,7 +142,6 @@ func status(repoPath string) (string, error) {
 	}
 
 	var added, modified, deleted int
-
 	lines := strings.SplitSeq(strings.TrimSpace(out.String()), "\n")
 	for line := range lines {
 		if line == "" {
@@ -150,7 +149,8 @@ func status(repoPath string) (string, error) {
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		// ignore summary.json modifications
+		if len(fields) < 2 || filepath.Base(fields[1]) == SummaryFileName {
 			continue
 		}
 

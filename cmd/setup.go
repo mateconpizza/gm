@@ -13,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -217,11 +216,22 @@ func initPostFunc(_ *cobra.Command, _ []string) error {
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
 	)
-	fmt.Print(c.InfoMesg("Git tracking enable\n"))
+
+	if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
+		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", gr.Loc.DBName)).String())
+		return nil
+	}
+	c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", gr.Loc.DBName)).String())
 
 	if err := files.MkdirAll(gr.Loc.Path); err != nil {
 		return fmt.Errorf("creating repo path: %w", err)
 	}
 
-	return handler.GitTrackExportCommit(c, gr, "new database")
+	if err := gr.Track(); err != nil {
+		return err
+	}
+
+	fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Loc.DBName)))
+
+	return nil
 }

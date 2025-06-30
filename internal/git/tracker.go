@@ -20,10 +20,11 @@ var (
 
 const filepathTracked = ".tracked.json"
 
+// Tracker manages a list of tracked repositories stored in a file.
 type Tracker struct {
-	List     []string
-	loaded   bool
-	Filename string
+	List     []string // List holds the paths of the tracked repositories.
+	loaded   bool     // loaded indicates if the tracker data has been loaded from the file.
+	Filename string   // Filename is the path to the file where the tracker data is stored.
 }
 
 // Load loads the repositories from the tracker file.

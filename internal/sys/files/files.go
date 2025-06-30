@@ -483,7 +483,7 @@ func RemoveFilepath(fname string) error {
 	}
 
 	if err := Remove(fname); err != nil {
-		return fmt.Errorf("removing file:%w", err)
+		return fmt.Errorf("%w", err)
 	}
 
 	// check if the directory is empty

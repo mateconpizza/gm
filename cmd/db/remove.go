@@ -95,9 +95,5 @@ func dbRemovePostFunc(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	if err := gr.Untrack(); err != nil {
-		return err
-	}
-
-	return gr.Drop("removed database")
+	return gr.Untrack("removed database")
 }

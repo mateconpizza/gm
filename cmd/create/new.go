@@ -10,6 +10,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -23,7 +24,8 @@ func init() {
 	newBookmarkCmd.Flags().StringVarP(&newRecordF.tags, "tags", "T", "", "bookmark tags")
 	newCmd.AddCommand(newBookmarkCmd)
 
-	newDatabaseCmd.Flags().StringVarP(&config.App.DBName, "name", "n", config.DefaultDBName, "new database name")
+	newDatabaseCmd.Flags().
+		StringVarP(&config.App.DBName, "name", "n", config.DefaultDBName, "new database name")
 	_ = newDatabaseCmd.MarkFlagRequired("name")
 	newCmd.AddCommand(newDatabaseCmd, newBackupCmd)
 
@@ -105,6 +107,23 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 
 	if err := handler.SaveNewBookmark(c, r, b); err != nil {
 		return err
+	}
+
+	gr, err := git.NewRepo(config.App.DBPath)
+	if err != nil {
+		return err
+	}
+
+	if gr.IsTracked() {
+		if err := gr.Add([]*bookmark.Bookmark{b}); err != nil {
+			return err
+		}
+		if err := gr.SummaryWrite(); err != nil {
+			return err
+		}
+		if err := gr.Commit("new bookmark"); err != nil {
+			return err
+		}
 	}
 
 	fmt.Print(c.SuccessMesg("bookmark added\n"))

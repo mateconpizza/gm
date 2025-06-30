@@ -187,9 +187,17 @@ func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	fmt.Print(c.SuccessMesg("database dropped\n"))
+
 	if !c.Confirm("Untrack database?", "n") {
 		return nil
 	}
 
-	return gr.Untrack()
+	if err := gr.Untrack("untracked"); err != nil {
+		return err
+	}
+
+	fmt.Print(c.SuccessMesg("database untracked\n"))
+
+	return nil
 }
