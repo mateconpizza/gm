@@ -11,7 +11,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/junegunn/fzf v0.62.0
+	github.com/junegunn/fzf v0.63.0
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
 	github.com/mateconpizza/rotato v0.1.12
 	github.com/muesli/go-app-paths v0.2.2
@@ -28,7 +28,7 @@ require (
 
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
-	github.com/charlievieth/fastwalk v1.0.10 // indirect
+	github.com/charlievieth/fastwalk v1.0.12 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/gdamore/tcell/v2 v2.8.1 // indirect
