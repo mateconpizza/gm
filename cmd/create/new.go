@@ -25,7 +25,7 @@ func init() {
 	newCmd.AddCommand(newBookmarkCmd)
 
 	newDatabaseCmd.Flags().
-		StringVarP(&config.App.DBName, "name", "n", config.DefaultDBName, "new database name")
+		StringVarP(&config.App.DBName, "name", "n", config.MainDBName, "new database name")
 	_ = newDatabaseCmd.MarkFlagRequired("name")
 	newCmd.AddCommand(newDatabaseCmd, newBackupCmd)
 

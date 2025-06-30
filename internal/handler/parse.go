@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
@@ -22,7 +23,7 @@ type bookmarkTemp struct {
 // NewBookmark fetch metadata and parses the new bookmark.
 func NewBookmark(
 	c *ui.Console,
-	r *db.SQLiteRepository,
+	r *db.SQLite,
 	b *bookmark.Bookmark,
 	title, tags string,
 	args []string,
@@ -186,4 +187,16 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	}
 
 	c.F.Flush()
+}
+
+// MoveFileToFront moves a file to the front of the list.
+func MoveFileToFront(files []string, name string) {
+	for i, f := range files {
+		if filepath.Base(f) == name {
+			if i != 0 {
+				files[0], files[i] = files[i], files[0]
+			}
+			break
+		}
+	}
 }

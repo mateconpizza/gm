@@ -24,7 +24,7 @@ func initRootFlags(cmd *cobra.Command) {
 	cfg := config.App
 	// global
 	pf := cmd.PersistentFlags()
-	pf.StringVarP(&cfg.DBName, "name", "n", config.DefaultDBName, "database name")
+	pf.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
 	pf.StringVar(&cfg.Flags.ColorStr, "color", "always", "output with pretty colors [always|never]")
 	pf.CountVarP(&cfg.Flags.Verbose, "verbose", "v", "Increase verbosity (-v, -vv, -vvv)")
 	pf.BoolVar(&cfg.Flags.Force, "force", false, "force action | don't ask confirmation")
@@ -87,7 +87,7 @@ func RequireDatabase(cmd *cobra.Command, args []string) error {
 	}
 
 	i := color.BrightYellow(config.App.Cmd, "init").Italic()
-	if config.App.DBName == config.DefaultDBName {
+	if config.App.DBName == config.MainDBName {
 		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
 	}
 

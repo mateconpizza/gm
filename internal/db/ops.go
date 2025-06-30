@@ -15,13 +15,13 @@ import (
 )
 
 // CountMainRecords returns the number of records in the main table.
-func CountMainRecords(r *SQLiteRepository) int {
+func CountMainRecords(r *SQLite) int {
 	slog.Debug("count main records", "database", r.Name())
 	return countRecords(r, schemaMain.name)
 }
 
 // CountTagsRecords returns the number of records in the tags table.
-func CountTagsRecords(r *SQLiteRepository) int {
+func CountTagsRecords(r *SQLite) int {
 	slog.Debug("count tags records", "database", r.Name())
 	return countRecords(r, schemaTags.name)
 }
@@ -47,7 +47,7 @@ func DropFromPath(dbPath string) error {
 }
 
 // CountFavorites returns the number of favorite records.
-func CountFavorites(r *SQLiteRepository) int {
+func CountFavorites(r *SQLite) int {
 	var n int
 	if err := r.DB.QueryRowx("SELECT COUNT(*) FROM bookmarks WHERE favorite = 1").Scan(&n); err != nil {
 		return 0
@@ -94,7 +94,7 @@ func HasURL(dbPath, bURL string) (*bookmark.Bookmark, bool) {
 }
 
 // count counts the number of rows in the specified table.
-func countRecords(r *SQLiteRepository, t Table) int {
+func countRecords(r *SQLite, t Table) int {
 	var n int
 	if err := r.DB.QueryRowx(fmt.Sprintf("SELECT COUNT(*) FROM %s", t)).Scan(&n); err != nil {
 		return 0
@@ -104,7 +104,7 @@ func countRecords(r *SQLiteRepository, t Table) int {
 }
 
 // newBackup creates a new backup from the given repository.
-func newBackup(r *SQLiteRepository) (string, error) {
+func newBackup(r *SQLite) (string, error) {
 	if err := files.MkdirAll(config.App.Path.Backup); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -161,7 +161,7 @@ func verifySQLiteIntegrity(path string) error {
 }
 
 // isInit returns true if the database is initialized.
-func isInit(r *SQLiteRepository) bool {
+func isInit(r *SQLite) bool {
 	allExist := true
 
 	for _, s := range tablesAndSchema() {
@@ -210,7 +210,7 @@ func IsInitialized(p string) (bool, error) {
 }
 
 // Drop removes all records database.
-func Drop(r *SQLiteRepository, ctx context.Context) error {
+func Drop(r *SQLite, ctx context.Context) error {
 	tts := tablesAndSchema()
 	tables := make([]Table, 0, len(tts))
 	for _, t := range tts {
@@ -231,7 +231,7 @@ func Drop(r *SQLiteRepository, ctx context.Context) error {
 	return r.Vacuum()
 }
 
-func vacuum(r *SQLiteRepository) error {
+func vacuum(r *SQLite) error {
 	slog.Debug("vacuuming database")
 
 	_, err := r.DB.Exec("VACUUM")

@@ -23,7 +23,7 @@ import (
 )
 
 // Browser imports bookmarks from a supported browser.
-func Browser(c *ui.Console, r *db.SQLiteRepository) error {
+func Browser(c *ui.Console, r *db.SQLite) error {
 	br, ok := getBrowser(selectBrowser(c))
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
@@ -52,7 +52,7 @@ func Browser(c *ui.Console, r *db.SQLiteRepository) error {
 }
 
 // Database imports bookmarks from a database.
-func Database(c *ui.Console, srcDB, destDB *db.SQLiteRepository) error {
+func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -101,7 +101,7 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLiteRepository) error {
 }
 
 // IntoRepo import records into the database.
-func IntoRepo(c *ui.Console, r *db.SQLiteRepository, records []*bookmark.Bookmark) error {
+func IntoRepo(c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
 	n := len(records)
 	if !config.App.Flags.Force && n > 1 {
 		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
@@ -127,7 +127,7 @@ func IntoRepo(c *ui.Console, r *db.SQLiteRepository, records []*bookmark.Bookmar
 }
 
 // FromBackup imports bookmarks from a backup.
-func FromBackup(c *ui.Console, destDB, srcDB *db.SQLiteRepository) error {
+func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
 	s := color.BrightYellow("Import bookmarks from backup: ").String()
 	c.F.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
 	m := menu.New[bookmark.Bookmark](
@@ -179,7 +179,7 @@ func ToJSON(data any) ([]byte, error) {
 }
 
 // Deduplicate removes duplicate bookmarks.
-func Deduplicate(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	originalLen := len(bs)
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
 
@@ -204,7 +204,7 @@ func Deduplicate(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark)
 // browser process.
 func parseFoundInBrowser(
 	c *ui.Console,
-	r *db.SQLiteRepository,
+	r *db.SQLite,
 	bs []*bookmark.Bookmark,
 ) ([]*bookmark.Bookmark, error) {
 	bs = Deduplicate(c, r, bs)

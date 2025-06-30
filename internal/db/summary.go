@@ -20,7 +20,7 @@ var (
 )
 
 // RepoSummary returns a summary of the repository.
-func RepoSummary(c *ui.Console, r *SQLiteRepository) string {
+func RepoSummary(c *ui.Console, r *SQLite) string {
 	var (
 		name    = r.Cfg.Name
 		path    = txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
@@ -28,8 +28,8 @@ func RepoSummary(c *ui.Console, r *SQLiteRepository) string {
 		tags    = txt.PaddedLine("tags:", CountTagsRecords(r))
 	)
 
-	if name == config.DefaultDBName {
-		name += cgi(" (default) ")
+	if name == config.MainDBName {
+		name += cgi(" (main) ")
 	}
 
 	return c.F.Headerln(color.Yellow(name).Italic().String()).
@@ -46,8 +46,8 @@ func RepoSummaryFromPath(c *ui.Console, p string) string {
 		s := cmi(filepath.Base(p))
 
 		var e string
-		if filepath.Base(p) == config.DefaultDBName {
-			e = "(default locked)"
+		if filepath.Base(p) == config.MainDBName {
+			e = "(main locked)"
 		} else {
 			e = "(locked)"
 		}
@@ -68,8 +68,8 @@ func RepoSummaryFromPath(c *ui.Console, p string) string {
 	tags := txt.PaddedLine("tags:", CountTagsRecords(r))
 	name := color.Yellow(r.Cfg.Name).Italic().String()
 
-	if r.Cfg.Name == config.DefaultDBName {
-		name = txt.PaddedLine(name, cgi("(default)"))
+	if r.Cfg.Name == config.MainDBName {
+		name = txt.PaddedLine(name, cgi("(main)"))
 	}
 
 	c.F.Headerln(name).Rowln(records).Rowln(tags)
@@ -86,7 +86,7 @@ func RepoSummaryFromPath(c *ui.Console, p string) string {
 // repository and bookmark.
 //
 //	repositoryName (main: n)
-func RepoSummaryRecords(r *SQLiteRepository) string {
+func RepoSummaryRecords(r *SQLite) string {
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
 	return r.Name() + " " + cgi(main)
 }
@@ -113,7 +113,7 @@ func RepoSummaryRecordsFromPath(p string) string {
 // SQLite repository.
 //
 //	repositoryName (main: n) (time)
-func BackupSummaryWithFmtDate(r *SQLiteRepository) string {
+func BackupSummaryWithFmtDate(r *SQLite) string {
 	main := fmt.Sprintf("(main: %d)", CountMainRecords(r))
 	t := strings.Split(r.Name(), "_")[0]
 
@@ -149,7 +149,7 @@ func BackupSummaryWithFmtDateFromPath(p string) string {
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(c *ui.Console, r *SQLiteRepository) string {
+func BackupListDetail(c *ui.Console, r *SQLite) string {
 	fs, err := r.ListBackups()
 	if len(fs) == 0 {
 		return ""
@@ -160,15 +160,8 @@ func BackupListDetail(c *ui.Console, r *SQLiteRepository) string {
 		return c.F.Row(txt.PaddedLine("found:", "n/a\n")).String()
 	}
 
-	n := len(fs)
 	for i := range fs {
-		if n == 1 {
-			c.F.Footer(BackupSummaryWithFmtDateFromPath(fs[i])).Ln()
-			continue
-		}
-
-		c.F.Row(BackupSummaryWithFmtDateFromPath(fs[i])).Ln()
-		n--
+		c.F.Rowln(BackupSummaryWithFmtDateFromPath(fs[i]))
 	}
 
 	return c.F.StringReset()
@@ -177,7 +170,7 @@ func BackupListDetail(c *ui.Console, r *SQLiteRepository) string {
 // BackupsSummary returns a summary of the backups.
 //
 // last, path and number of backups.
-func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
+func BackupsSummary(c *ui.Console, r *SQLite) string {
 	var (
 		empty          = "n/a"
 		backupsColor   = color.BrightMagenta("backups:").Italic()
@@ -186,13 +179,12 @@ func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 		lastBackupDate = empty
 	)
 
-	var n int
-
 	fs, err := r.ListBackups()
 	if len(fs) == 0 {
 		return ""
 	}
 
+	var n int
 	if err != nil {
 		n = 0
 	} else {
@@ -207,7 +199,7 @@ func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 		lastBackupDate = color.BrightGreen(s).Italic().String()
 	}
 
-	path := txt.PaddedLine("path:", config.App.Path.Backup)
+	path := txt.PaddedLine("path:", files.CollapseHomeDir(config.App.Path.Backup))
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
 
@@ -220,7 +212,7 @@ func BackupsSummary(c *ui.Console, r *SQLiteRepository) string {
 }
 
 // Info returns the repository info.
-func Info(c *ui.Console, r *SQLiteRepository) string {
+func Info(c *ui.Console, r *SQLite) string {
 	s := RepoSummary(c, r)
 	s += BackupsSummary(c, r)
 	s += BackupListDetail(c, r)

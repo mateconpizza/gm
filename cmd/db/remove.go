@@ -83,7 +83,7 @@ var (
 )
 
 func dbRemovePostFunc(_ *cobra.Command, _ []string) error {
-	if !git.IsInitialized(config.App.Path.Git) {
+	if !git.IsInitialized(config.App.Git.Path) {
 		return nil
 	}
 

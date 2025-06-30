@@ -25,7 +25,7 @@ func init() {
 	f.BoolVarP(&createConfFlag, "create", "c", false, "create config file")
 	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit config")
 	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-	f.StringVarP(&cfg.DBName, "name", "n", config.DefaultDBName, "database name")
+	f.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
 	_ = f.MarkHidden("name")
 
 	Root.AddCommand(configCmd)

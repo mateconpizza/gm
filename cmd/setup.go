@@ -37,6 +37,7 @@ func initConfig() {
 
 	// set app home
 	config.SetAppPaths(dataHomePath)
+
 	// set database path and name
 	cfg.DBName = files.EnsureSuffix(cfg.DBName, ".db")
 	cfg.DBPath = filepath.Join(dataHomePath, cfg.DBName)
@@ -46,6 +47,7 @@ func initConfig() {
 		slog.Error("loading config", "err", err)
 	}
 
+	// set menu
 	menu.SetConfig(config.Fzf)
 
 	// enable global color
@@ -54,6 +56,9 @@ func initConfig() {
 
 	// terminal interactive mode
 	terminal.NonInteractiveMode(cfg.Flags.Force)
+
+	// git config
+	git.Config(cfg)
 }
 
 // init sets the config for the root command.
@@ -174,7 +179,7 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	if cfg.DBName != config.DefaultDBName {
+	if cfg.DBName != config.MainDBName {
 		fmt.Println(c.SuccessMesg("initialized database " + cfg.DBName))
 
 		return nil
@@ -200,7 +205,7 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 // initPostFunc ask user to track new database if git is initialized.
 func initPostFunc(_ *cobra.Command, _ []string) error {
 	cfg := config.App
-	if !git.IsInitialized(cfg.Path.Git) {
+	if !git.IsInitialized(cfg.Git.Path) {
 		return nil
 	}
 	gr, err := git.NewRepo(cfg.DBPath)

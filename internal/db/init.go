@@ -23,7 +23,7 @@ func tablesAndSchema() []tableSchema {
 }
 
 // Init initializes a new database and creates the required tables.
-func (r *SQLiteRepository) Init() error {
+func (r *SQLite) Init() error {
 	return r.withTx(context.Background(), func(tx *sqlx.Tx) error {
 		for _, s := range tablesAndSchema() {
 			if err := r.tableCreate(tx, s.name, s.sql); err != nil {
@@ -50,7 +50,7 @@ func (r *SQLiteRepository) Init() error {
 }
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
-func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
+func (r *SQLite) tableExists(t Table) (bool, error) {
 	var count int
 
 	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
@@ -63,7 +63,7 @@ func (r *SQLiteRepository) tableExists(t Table) (bool, error) {
 }
 
 // tableRename renames the temporary table to the specified main table name.
-func (r *SQLiteRepository) tableRename(tx *sqlx.Tx, srcTable, destTable Table) error {
+func (r *SQLite) tableRename(tx *sqlx.Tx, srcTable, destTable Table) error {
 	slog.Info("renaming table", "from", srcTable, "to", destTable)
 
 	_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", srcTable, destTable))
@@ -75,7 +75,7 @@ func (r *SQLiteRepository) tableRename(tx *sqlx.Tx, srcTable, destTable Table) e
 }
 
 // tableCreate creates a new table with the specified name in the SQLite database.
-func (r *SQLiteRepository) tableCreate(tx *sqlx.Tx, name Table, schema string) error {
+func (r *SQLite) tableCreate(tx *sqlx.Tx, name Table, schema string) error {
 	slog.Debug("creating table", "name", name)
 
 	_, err := tx.Exec(schema)
@@ -87,7 +87,7 @@ func (r *SQLiteRepository) tableCreate(tx *sqlx.Tx, name Table, schema string) e
 }
 
 // tableDrop drops the specified table from the SQLite database.
-func (r *SQLiteRepository) tableDrop(tx *sqlx.Tx, t Table) error {
+func (r *SQLite) tableDrop(tx *sqlx.Tx, t Table) error {
 	_, err := tx.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
 	if err != nil {
 		return fmt.Errorf("%w: dropping table %q", err, t)
@@ -100,11 +100,11 @@ func (r *SQLiteRepository) tableDrop(tx *sqlx.Tx, t Table) error {
 
 // Vacuum rebuilds the database file, repacking it into a minimal amount of
 // disk space.
-func (r *SQLiteRepository) Vacuum() error {
+func (r *SQLite) Vacuum() error {
 	return vacuum(r)
 }
 
 // DropSecure removes all records database.
-func (r *SQLiteRepository) DropSecure(ctx context.Context) error {
+func (r *SQLite) DropSecure(ctx context.Context) error {
 	return Drop(r, ctx)
 }

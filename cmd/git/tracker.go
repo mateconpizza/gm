@@ -3,12 +3,12 @@ package git
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -76,17 +76,7 @@ func managementSelect(c *ui.Console) error {
 
 	c.F.Rowln().Midln("Select which databases to track").Rowln().Flush()
 
-	var idx int
-	for i, f := range dbFiles {
-		if filepath.Base(f) == config.DefaultDBName {
-			idx = i
-			break
-		}
-	}
-	if idx != 0 {
-		dbFiles[0], dbFiles[idx] = dbFiles[idx], dbFiles[0]
-	}
-
+	handler.MoveFileToFront(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
@@ -99,8 +89,8 @@ func managementSelect(c *ui.Console) error {
 		}
 
 		q := fmt.Sprintf("Track %q?", gr.Loc.Name)
-		if gr.Loc.DBName == config.DefaultDBName {
-			q = fmt.Sprintf("Track %q database?", "default")
+		if gr.Loc.DBName == config.MainDBName {
+			q = fmt.Sprintf("Track %q database?", "main")
 		}
 
 		if !c.Confirm(q, "n") {
@@ -129,7 +119,7 @@ func management(c *ui.Console) error {
 	}
 
 	c.F.Headerln("Tracked database management").Rowln().Flush()
-
+	handler.MoveFileToFront(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
@@ -138,6 +128,9 @@ func management(c *ui.Console) error {
 
 		if gr.IsTracked() {
 			q := color.Text(fmt.Sprintf("Untrack %q?", gr.Loc.Name)).Bold()
+			if gr.Loc.DBName == config.MainDBName {
+				q = color.Text("Untrack database \"" + "main\"").Bold()
+			}
 			if !c.T.Confirm(c.Warning(q.String()).String(), "n") {
 				c.ReplaceLine(c.Info(fmt.Sprintf("Unchange database %q", gr.Loc.Name)).String())
 				continue
@@ -188,9 +181,11 @@ func status(c *ui.Console, tracked []string) error {
 	}
 
 	c.F.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
+	handler.MoveFileToFront(dbFiles, config.MainDBName)
 
+	// move main database to the top
 	for _, dbPath := range dbFiles {
-		s, err := git.Info(c, dbPath)
+		s, err := git.StatusRepo(c, dbPath)
 		if err != nil {
 			return err
 		}

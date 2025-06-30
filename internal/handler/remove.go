@@ -35,8 +35,8 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, dbPath)
 	}
 
-	if filepath.Base(dbPath) == config.DefaultDBName && !config.App.Flags.Force {
-		return fmt.Errorf("%w: default database cannot be removed, use --force", terminal.ErrActionAborted)
+	if filepath.Base(dbPath) == config.MainDBName && !config.App.Flags.Force {
+		return fmt.Errorf("%w: main database cannot be removed, use --force", terminal.ErrActionAborted)
 	}
 
 	fmt.Print(db.RepoSummaryFromPath(c, dbPath))
@@ -58,8 +58,8 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 	}
 
 	dbName := filepath.Base(dbPath)
-	if dbName == config.DefaultDBName {
-		dbName = "default"
+	if dbName == config.MainDBName {
+		dbName = "main"
 	}
 
 	fmt.Print(c.SuccessMesg("database " + dbName + " removed\n"))
@@ -175,7 +175,7 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	defer r.Close()
 	if err := validateRemove(bs, config.App.Flags.Force); err != nil {
 		return err
@@ -209,7 +209,7 @@ func Remove(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) erro
 }
 
 // DroppingDB drops a database.
-func DroppingDB(c *ui.Console, r *db.SQLiteRepository) error {
+func DroppingDB(c *ui.Console, r *db.SQLite) error {
 	c.F.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
 	fmt.Print(db.Info(c, r))
 
@@ -217,8 +217,8 @@ func DroppingDB(c *ui.Console, r *db.SQLiteRepository) error {
 
 	if !config.App.Flags.Force {
 		var q string
-		if r.Cfg.Name == config.DefaultDBName {
-			q = c.WarningMesg("dropping 'default' database, continue?")
+		if r.Cfg.Name == config.MainDBName {
+			q = c.WarningMesg("dropping \"main\" database, continue?")
 		} else {
 			q = "continue?"
 		}

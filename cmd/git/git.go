@@ -148,8 +148,8 @@ func gitCloneAndImportFunc(command *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if !git.IsInitialized(config.App.Path.Git) {
-		slog.Warn("git import: repo not initialized", "path", config.App.Path.Git)
+	if !git.IsInitialized(config.App.Git.Path) {
+		slog.Warn("git import: repo not initialized", "path", config.App.Git.Path)
 		return nil
 	}
 
@@ -216,7 +216,7 @@ func ensureGitEnvironment(command *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	gm := git.NewGit(config.App.Path.Git, git.WithCmd(gitCmd))
+	gm := git.NewGit(config.App.Git.Path, git.WithCmd(gitCmd))
 
 	switch command.Name() {
 	case "init", "import":
@@ -247,7 +247,7 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 		args = append(args, "log", "--oneline")
 	}
 
-	g := git.NewGit(config.App.Path.Git, git.WithCmd(gitCmd))
+	g := git.NewGit(config.App.Git.Path, git.WithCmd(gitCmd))
 
 	return g.Exec(args...)
 }
@@ -330,7 +330,7 @@ func gitRemoteFunc(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("git commit: %w", err)
 	}
 
-	return git.SetUpstream(cfg.Path.Git)
+	return git.SetUpstream(cfg.Git.Path)
 }
 
 var gitTestCmd = &cobra.Command{

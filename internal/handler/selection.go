@@ -145,7 +145,7 @@ func SelectFileLocked(root, header string) ([]string, error) {
 	return selected, nil
 }
 
-func SelectDatabase(currentDBPath string) (*db.SQLiteRepository, error) {
+func SelectDatabase(currentDBPath string) (*db.SQLite, error) {
 	// build list of candidate .db files
 	dbFiles, err := files.FindByExtList(config.App.Path.Data, ".db")
 	if err != nil {

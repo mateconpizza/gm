@@ -26,7 +26,7 @@ var (
 )
 
 // records gets records based on user input and filtering criteria.
-func records(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
+func records(r *db.SQLite, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("records", "args", args)
 
 	if err := byIDs(r, bs, args); err != nil {
@@ -53,7 +53,7 @@ func records(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []
 // Data processes records based on user input and filtering criteria.
 func Data(
 	m *menu.Menu[bookmark.Bookmark],
-	r *db.SQLiteRepository,
+	r *db.SQLite,
 	args []string,
 ) ([]*bookmark.Bookmark, error) {
 	f := config.App.Flags
@@ -95,7 +95,7 @@ func Data(
 	return bs.ItemsPtr(), nil
 }
 
-func handleEditedBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *bookmark.Bookmark) error {
+func handleEditedBookmark(c *ui.Console, r *db.SQLite, newB, oldB *bookmark.Bookmark) error {
 	newBookmark := newB.ID == 0
 	if newBookmark {
 		return r.InsertOne(context.Background(), newB)
@@ -115,7 +115,7 @@ func handleEditedBookmark(c *ui.Console, r *db.SQLiteRepository, newB, oldB *boo
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+func removeRecords(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -174,7 +174,7 @@ func FindDB(p string) (string, error) {
 }
 
 // byTags returns a slice of bookmarks based on the provided tags.
-func byTags(r *db.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Bookmark]) error {
+func byTags(r *db.SQLite, tags []string, bs *slice.Slice[bookmark.Bookmark]) error {
 	slog.Debug("by tags", "tags", tags, "count", bs.Len())
 	// FIX: redo, simplify
 	// if the slice contains bookmarks, filter by tag.
@@ -217,7 +217,7 @@ func byTags(r *db.SQLiteRepository, tags []string, bs *slice.Slice[bookmark.Book
 
 // byQuery executes a search query on the given repository based on provided
 // arguments.
-func byQuery(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
+func byQuery(r *db.SQLite, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	// FIX: do i need this?
 	if bs.Len() != 0 || len(args) == 0 {
 		return nil
@@ -237,7 +237,7 @@ func byQuery(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []
 
 // byIDs retrieves records from the database based on either
 // an ID or a query string.
-func byIDs(r *db.SQLiteRepository, bs *slice.Slice[bookmark.Bookmark], args []string) error {
+func byIDs(r *db.SQLite, bs *slice.Slice[bookmark.Bookmark], args []string) error {
 	slog.Debug("getting by IDs")
 
 	ids, err := extractIDsFrom(args)

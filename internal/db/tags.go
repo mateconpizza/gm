@@ -12,7 +12,7 @@ import (
 )
 
 // getOrCreateTag returns the tag ID.
-func (r *SQLiteRepository) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
+func (r *SQLite) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
 	if s == "" {
 		// no tag to process
 		return 0, nil
@@ -34,7 +34,7 @@ func (r *SQLiteRepository) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) 
 }
 
 // associateTags associates tags to the given record.
-func (r *SQLiteRepository) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	slog.Debug("associating tags with URL", "tags", b.Tags, "url", b.URL)
 
 	tags := strings.SplitSeq(b.Tags, ",")
@@ -88,7 +88,7 @@ func createTag(tx *sqlx.Tx, tag string) (int64, error) {
 }
 
 // TagsCounter returns a map with tag as key and count as value.
-func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
+func TagsCounter(r *SQLite) (map[string]int, error) {
 	q := `
 		SELECT
       t.name,
@@ -118,7 +118,7 @@ func TagsCounter(r *SQLiteRepository) (map[string]int, error) {
 }
 
 // TagsList returns the list of tags.
-func TagsList(r *SQLiteRepository) ([]string, error) {
+func TagsList(r *SQLite) ([]string, error) {
 	var tags []string
 
 	err := r.DB.Select(&tags, `SELECT name FROM tags ORDER BY name ASC`)

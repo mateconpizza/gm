@@ -8,6 +8,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -164,7 +165,18 @@ func RepoInfo(c *ui.Console, p string, j bool) error {
 		return nil
 	}
 
-	fmt.Print(db.Info(c, r))
+	info := db.Info(c, r)
+
+	g, err := git.Info(c, p)
+	if err != nil {
+		return fmt.Errorf("git: %w", err)
+	}
+
+	if g != "" {
+		info += g
+	}
+
+	fmt.Print(info)
 
 	return nil
 }

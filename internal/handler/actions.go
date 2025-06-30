@@ -81,7 +81,7 @@ func Copy(bs []*bookmark.Bookmark) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 	n := len(bs)
 	// get user confirmation to procced
@@ -146,7 +146,7 @@ func Open(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error 
 }
 
 // Edit edits the bookmarks using a text editor.
-func Edit(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -250,7 +250,7 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // Update updates the bookmarks.
 //
 // It uses the scraper to update the title, description and favicon.
-func Update(c *ui.Console, r *db.SQLiteRepository, bs []*bookmark.Bookmark) error {
+func Update(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", len(bs)))).Rowln().Flush()
 
 	for i, b := range bs {
@@ -293,7 +293,7 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 // editBookmarks edits a slice of bookmarks.
 func editBookmarks(
 	c *ui.Console,
-	r *db.SQLiteRepository,
+	r *db.SQLite,
 	te *files.TextEditor,
 	bs []*bookmark.Bookmark,
 ) error {
@@ -314,7 +314,7 @@ func editBookmarks(
 // editSingleInteractive handles editing a single bookmark with confirmation and retry.
 func editSingleInteractive(
 	c *ui.Console,
-	r *db.SQLiteRepository,
+	r *db.SQLite,
 	te *files.TextEditor,
 	b *bookmark.Bookmark,
 	index, total int,
@@ -353,7 +353,7 @@ func editSingleInteractive(
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark) error {
+func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark) error {
 	if config.App.Flags.Force {
 		if err := r.InsertOne(context.Background(), b); err != nil {
 			return fmt.Errorf("%w", err)
@@ -390,12 +390,7 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLiteRepository, b *bookmark.Bookmark
 
 // updateSingleBookmark processes a single bookmark update including scraping,
 // diff display, and user interaction for saving changes.
-func updateSingleBookmark(
-	c *ui.Console,
-	r *db.SQLiteRepository,
-	b *bookmark.Bookmark,
-	index, total int,
-) error {
+func updateSingleBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, index, total int) error {
 	updatedB, err := updateBookmarkData(c, b)
 	if err != nil {
 		return err

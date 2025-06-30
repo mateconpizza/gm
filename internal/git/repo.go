@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -239,4 +240,11 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 // Status returns a prettify status of the repository.
 func (gr *Repository) Status(c *ui.Console) string {
 	return repoStatus(c, gr)
+}
+
+// Config sets the app git config.
+func Config(c *config.AppConfig) {
+	// FIX: keep this? replace all git.IsInitialized(path) calls?
+	c.Git.Enabled = IsInitialized(c.Git.Path)
+	c.Git.GPG = gpg.IsInitialized(c.Git.Path)
 }

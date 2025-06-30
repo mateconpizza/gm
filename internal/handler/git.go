@@ -8,7 +8,7 @@ import (
 
 // gitClean remove bookmarks files from git.
 func gitClean(dbPath string, bs []*bookmark.Bookmark) error {
-	repoPath := config.App.Path.Git
+	repoPath := config.App.Git.Path
 	if !git.IsInitialized(repoPath) {
 		return nil
 	}
@@ -29,7 +29,7 @@ func gitClean(dbPath string, bs []*bookmark.Bookmark) error {
 
 // gitUpdate update bookmarks files in git.
 func gitUpdate(dbPath string, oldB, newB *bookmark.Bookmark) error {
-	repoPath := config.App.Path.Git
+	repoPath := config.App.Git.Path
 	if !git.IsInitialized(repoPath) {
 		return nil
 	}

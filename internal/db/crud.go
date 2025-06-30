@@ -18,23 +18,23 @@ import (
 )
 
 // InsertOne creates a new record in the main table.
-func (r *SQLiteRepository) InsertOne(ctx context.Context, b *bookmark.Bookmark) error {
+func (r *SQLite) InsertOne(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		return r.insertIntoTx(tx, b)
 	})
 }
 
-func (r *SQLiteRepository) InsertMany(ctx context.Context, bs []*bookmark.Bookmark) error {
+func (r *SQLite) InsertMany(ctx context.Context, bs []*bookmark.Bookmark) error {
 	return r.insertBulkPtr(ctx, bs)
 }
 
 // DeleteOne deletes one record from the main table.
-func (r *SQLiteRepository) DeleteOne(ctx context.Context, bURL string) error {
+func (r *SQLite) DeleteOne(ctx context.Context, bURL string) error {
 	return r.delete(ctx, bURL)
 }
 
 // DeleteMany deletes multiple records from the main table.
-func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error {
+func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error {
 	n := len(bs)
 	if n == 0 {
 		return ErrRecordIDNotProvided
@@ -79,7 +79,7 @@ func (r *SQLiteRepository) DeleteMany(ctx context.Context, bs []*bookmark.Bookma
 }
 
 // Update updates an existing record in the relation table.
-func (r *SQLiteRepository) Update(
+func (r *SQLite) Update(
 	ctx context.Context,
 	newB, oldB *bookmark.Bookmark,
 ) (*bookmark.Bookmark, error) {
@@ -105,7 +105,7 @@ func (r *SQLiteRepository) Update(
 }
 
 // All returns all bookmarks.
-func (r *SQLiteRepository) All() ([]bookmark.Bookmark, error) {
+func (r *SQLite) All() ([]bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
@@ -134,7 +134,7 @@ func (r *SQLiteRepository) All() ([]bookmark.Bookmark, error) {
 }
 
 // AllPtr returns all bookmarks.
-func (r *SQLiteRepository) AllPtr() ([]*bookmark.Bookmark, error) {
+func (r *SQLite) AllPtr() ([]*bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
@@ -159,7 +159,7 @@ func (r *SQLiteRepository) AllPtr() ([]*bookmark.Bookmark, error) {
 }
 
 // ByID returns a record by its ID in the give table.
-func (r *SQLiteRepository) ByID(bID int) (*bookmark.Bookmark, error) {
+func (r *SQLite) ByID(bID int) (*bookmark.Bookmark, error) {
 	if bID > r.maxID() {
 		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, r.maxID())
 	}
@@ -197,7 +197,7 @@ func (r *SQLiteRepository) ByID(bID int) (*bookmark.Bookmark, error) {
 }
 
 // ByIDList returns a list of records by their IDs in the give table.
-func (r *SQLiteRepository) ByIDList(bIDs []int) ([]bookmark.Bookmark, error) {
+func (r *SQLite) ByIDList(bIDs []int) ([]bookmark.Bookmark, error) {
 	if len(bIDs) == 0 {
 		return nil, ErrRecordIDNotProvided
 	}
@@ -233,7 +233,7 @@ func (r *SQLiteRepository) ByIDList(bIDs []int) ([]bookmark.Bookmark, error) {
 }
 
 // ByURL returns a record by its URL in the give table.
-func (r *SQLiteRepository) ByURL(bURL string) (*bookmark.Bookmark, error) {
+func (r *SQLite) ByURL(bURL string) (*bookmark.Bookmark, error) {
 	row := r.DB.QueryRowx(`
     SELECT
       b.*,
@@ -263,7 +263,7 @@ func (r *SQLiteRepository) ByURL(bURL string) (*bookmark.Bookmark, error) {
 }
 
 // ByTag returns records filtered by tag, including all associated tags.
-func (r *SQLiteRepository) ByTag(ctx context.Context, tag string) ([]bookmark.Bookmark, error) {
+func (r *SQLite) ByTag(ctx context.Context, tag string) ([]bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
@@ -286,7 +286,7 @@ func (r *SQLiteRepository) ByTag(ctx context.Context, tag string) ([]bookmark.Bo
 }
 
 // ByQuery returns records by query in the give table.
-func (r *SQLiteRepository) ByQuery(query string) ([]bookmark.Bookmark, error) {
+func (r *SQLite) ByQuery(query string) ([]bookmark.Bookmark, error) {
 	slog.Info("getting records by query", "query", query)
 
 	q := `
@@ -318,7 +318,7 @@ func (r *SQLiteRepository) ByQuery(query string) ([]bookmark.Bookmark, error) {
 }
 
 // Has checks if a record exists in the main table.
-func (r *SQLiteRepository) Has(bURL string) (*bookmark.Bookmark, bool) {
+func (r *SQLite) Has(bURL string) (*bookmark.Bookmark, bool) {
 	var count int
 	if err := r.DB.QueryRowx("SELECT COUNT(*) FROM bookmarks WHERE url = ?", bURL).Scan(&count); err != nil {
 		slog.Error("error getting count", "error", err)
@@ -339,7 +339,7 @@ func (r *SQLiteRepository) Has(bURL string) (*bookmark.Bookmark, bool) {
 }
 
 // ReorderIDs reorders the IDs in the main table.
-func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
+func (r *SQLite) ReorderIDs(ctx context.Context) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		// check if last item has been deleted
 		if r.maxID() == 0 {
@@ -392,7 +392,7 @@ func (r *SQLiteRepository) ReorderIDs(ctx context.Context) error {
 }
 
 // bySQL retrieves records from the SQLite database based on the provided SQL query.
-func (r *SQLiteRepository) bySQL(q string, args ...any) ([]bookmark.Bookmark, error) {
+func (r *SQLite) bySQL(q string, args ...any) ([]bookmark.Bookmark, error) {
 	var bb []bookmark.Bookmark
 
 	err := r.DB.Select(&bb, q, args...)
@@ -412,7 +412,7 @@ func (r *SQLiteRepository) bySQL(q string, args ...any) ([]bookmark.Bookmark, er
 }
 
 // bySQL retrieves records from the SQLite database based on the provided SQL query.
-func (r *SQLiteRepository) bySQLPtr(q string, args ...any) ([]*bookmark.Bookmark, error) {
+func (r *SQLite) bySQLPtr(q string, args ...any) ([]*bookmark.Bookmark, error) {
 	var bb []*bookmark.Bookmark
 
 	err := r.DB.Select(&bb, q, args...)
@@ -432,7 +432,7 @@ func (r *SQLiteRepository) bySQLPtr(q string, args ...any) ([]*bookmark.Bookmark
 }
 
 // DeleteOne deletes one record from the relation table.
-func (r *SQLiteRepository) delete(ctx context.Context, bURL string) error {
+func (r *SQLite) delete(ctx context.Context, bURL string) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		_, err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_url = ?", bURL)
 		if err != nil {
@@ -444,7 +444,7 @@ func (r *SQLiteRepository) delete(ctx context.Context, bURL string) error {
 }
 
 // deleteOneTx deletes an single record in the given table.
-func (r *SQLiteRepository) deleteOneTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) deleteOneTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	slog.Debug("deleting record", "url", b.URL)
 	// remove tags relationships first
 	if _, err := tx.Exec(
@@ -474,7 +474,7 @@ func (r *SQLiteRepository) deleteOneTx(tx *sqlx.Tx, b *bookmark.Bookmark) error 
 }
 
 // deleteAll deletes all records in the give table.
-func (r *SQLiteRepository) deleteAll(ctx context.Context, ts ...Table) error {
+func (r *SQLite) deleteAll(ctx context.Context, ts ...Table) error {
 	if len(ts) == 0 {
 		slog.Debug("no tables to delete")
 		return nil
@@ -498,7 +498,7 @@ func (r *SQLiteRepository) deleteAll(ctx context.Context, ts ...Table) error {
 
 // hasTx checks if a record exists in the specified table and column in
 // a transaction.
-func (r *SQLiteRepository) hasTx(tx *sqlx.Tx, target any) (bool, error) {
+func (r *SQLite) hasTx(tx *sqlx.Tx, target any) (bool, error) {
 	var exists bool
 
 	err := tx.Get(&exists, "SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = ?)", target)
@@ -510,7 +510,7 @@ func (r *SQLiteRepository) hasTx(tx *sqlx.Tx, target any) (bool, error) {
 }
 
 // insertAtID inserts a new record at the given ID.
-func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	if err := bookmark.Validate(b); err != nil {
 		return fmt.Errorf("abort: %w", err)
 	}
@@ -534,7 +534,7 @@ func (r *SQLiteRepository) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	return nil
 }
 
-func (r *SQLiteRepository) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) error {
+func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) error {
 	slog.Info("inserting records into main table", "count", len(bs))
 	sort.Slice(bs, func(i, j int) bool {
 		return bs[i].ID < bs[j].ID
@@ -552,7 +552,7 @@ func (r *SQLiteRepository) insertBulkPtr(ctx context.Context, bs []*bookmark.Boo
 }
 
 // insertInto creates a new record in the given tables.
-func (r *SQLiteRepository) insertInto(ctx context.Context, b *bookmark.Bookmark) error {
+func (r *SQLite) insertInto(ctx context.Context, b *bookmark.Bookmark) error {
 	if err := bookmark.Validate(b); err != nil {
 		return fmt.Errorf("insert record: %w", err)
 	}
@@ -582,7 +582,7 @@ func (r *SQLiteRepository) insertInto(ctx context.Context, b *bookmark.Bookmark)
 }
 
 // insertIntoTx inserts a record inside an existing transaction.
-func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	if _, err := r.hasTx(tx, b.URL); err != nil {
 		return fmt.Errorf("duplicate record: %w, %q", err, b.URL)
 	}
@@ -602,7 +602,7 @@ func (r *SQLiteRepository) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) error
 }
 
 // insertManyIntoTempTable inserts multiple records into a temporary table.
-func (r *SQLiteRepository) insertManyIntoTempTable(
+func (r *SQLite) insertManyIntoTempTable(
 	ctx context.Context,
 	tx *sqlx.Tx,
 	bs []*bookmark.Bookmark,
@@ -675,7 +675,7 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 
 // maxID retrieves the maximum ID from the specified table in the SQLite
 // database.
-func (r *SQLiteRepository) maxID() int {
+func (r *SQLite) maxID() int {
 	var lastIndex int
 	if err := r.DB.QueryRowx("SELECT COALESCE(MAX(id), 0) FROM bookmarks").Scan(&lastIndex); err != nil {
 		return 0
@@ -685,7 +685,7 @@ func (r *SQLiteRepository) maxID() int {
 }
 
 // withTx executes a function within a transaction.
-func (r *SQLiteRepository) withTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
+func (r *SQLite) withTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 	tx, err := r.DB.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -712,13 +712,13 @@ func (r *SQLiteRepository) withTx(ctx context.Context, fn func(tx *sqlx.Tx) erro
 	return nil
 }
 
-func (r *SQLiteRepository) UpdateVisitDateAndCount(ctx context.Context, b *bookmark.Bookmark) error {
+func (r *SQLite) UpdateVisitDateAndCount(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		return updateVisit(tx, b)
 	})
 }
 
-func (r *SQLiteRepository) Favorite(ctx context.Context, b *bookmark.Bookmark) error {
+func (r *SQLite) Favorite(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		return updateFavorite(tx, b)
 	})

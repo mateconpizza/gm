@@ -28,7 +28,7 @@ type Flags struct {
 var App = &AppConfig{
 	Name:   appName,
 	Cmd:    command,
-	DBName: DefaultDBName,
+	DBName: MainDBName,
 	Flags:  &Flags{},
 	Info: information{
 		URL:     "https://github.com/mateconpizza/gm#readme",
@@ -48,5 +48,5 @@ func SetAppPaths(p string) {
 	App.Path.Data = p
 	App.Path.ConfigFile = filepath.Join(p, configFilename)
 	App.Path.Backup = filepath.Join(p, "backup")
-	App.Path.Git = filepath.Join(p, "git")
+	App.Git.Path = filepath.Join(p, "git")
 }

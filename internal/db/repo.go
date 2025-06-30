@@ -21,20 +21,20 @@ const (
 	defaultDateFormat = "20060102-150405"
 )
 
-// SQLiteRepository implements the Repository interface.
-type SQLiteRepository struct {
-	DB        *sqlx.DB   `json:"-"`
-	Cfg       *SQLiteCfg `json:"db"`
+// SQLite implements the Repository interface.
+type SQLite struct {
+	DB        *sqlx.DB `json:"-"`
+	Cfg       *Cfg     `json:"db"`
 	closeOnce sync.Once
 }
 
 // Name returns the name of the SQLite database.
-func (r *SQLiteRepository) Name() string {
+func (r *SQLite) Name() string {
 	return r.Cfg.Name
 }
 
 // Close closes the SQLite database connection and logs any errors encountered.
-func (r *SQLiteRepository) Close() {
+func (r *SQLite) Close() {
 	s := r.Name()
 	r.closeOnce.Do(func() {
 		if err := r.DB.Close(); err != nil {
@@ -46,31 +46,31 @@ func (r *SQLiteRepository) Close() {
 }
 
 // ListBackups returns a list of available backup files.
-func (r *SQLiteRepository) ListBackups() ([]string, error) {
+func (r *SQLite) ListBackups() ([]string, error) {
 	return ListBackups(r.Cfg.BackupDir, r.Cfg.Name)
 }
 
 // Backup creates a backup of the SQLite database and returns the path to the
 // backup filepath.
-func (r *SQLiteRepository) Backup() (string, error) {
+func (r *SQLite) Backup() (string, error) {
 	return newBackup(r)
 }
 
 // IsInitialized returns true if the database is initialized.
-func (r *SQLiteRepository) IsInitialized() bool {
+func (r *SQLite) IsInitialized() bool {
 	return isInit(r)
 }
 
 // newSQLiteRepository returns a new SQLiteRepository.
-func newSQLiteRepository(db *sqlx.DB, cfg *SQLiteCfg) *SQLiteRepository {
-	return &SQLiteRepository{
+func newSQLiteRepository(db *sqlx.DB, cfg *Cfg) *SQLite {
+	return &SQLite{
 		DB:  db,
 		Cfg: cfg,
 	}
 }
 
 // New returns a new SQLiteRepository from an existing database path.
-func New(p string) (*SQLiteRepository, error) {
+func New(p string) (*SQLite, error) {
 	return newRepository(p, func(path string) error {
 		slog.Debug("new repo: checking if database exists", "path", path)
 
@@ -83,7 +83,7 @@ func New(p string) (*SQLiteRepository, error) {
 }
 
 // Init initializes a new SQLiteRepository at the provided path.
-func Init(p string) (*SQLiteRepository, error) {
+func Init(p string) (*SQLite, error) {
 	return newRepository(p, func(path string) error {
 		slog.Debug("init repo: checking if database exists", "path", path)
 
@@ -96,7 +96,7 @@ func Init(p string) (*SQLiteRepository, error) {
 }
 
 // newRepository returns a new SQLiteRepository from the provided path.
-func newRepository(p string, validate func(string) error) (*SQLiteRepository, error) {
+func newRepository(p string, validate func(string) error) (*SQLite, error) {
 	if p == "" {
 		return nil, files.ErrPathEmpty
 	}
@@ -120,7 +120,7 @@ func newRepository(p string, validate func(string) error) (*SQLiteRepository, er
 }
 
 // NewFromBackup creates a SQLiteRepository from a backup file.
-func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
+func NewFromBackup(backupPath string) (*SQLite, error) {
 	if backupPath == "" {
 		return nil, files.ErrPathNotFound
 	}
@@ -138,7 +138,7 @@ func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
 	}
 
 	backupDir := filepath.Join(parentDir, "backup")
-	cfg := &SQLiteCfg{
+	cfg := &Cfg{
 		Path:      backupDir,
 		Name:      backupFile,
 		BackupDir: backupDir,
@@ -151,7 +151,7 @@ func NewFromBackup(backupPath string) (*SQLiteRepository, error) {
 		return nil, fmt.Errorf("opening backup database: %w", err)
 	}
 
-	return &SQLiteRepository{
+	return &SQLite{
 		DB:  db,
 		Cfg: cfg,
 	}, nil
@@ -174,8 +174,8 @@ func openDatabase(s string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-// SQLiteCfg represents the configuration for a SQLite database.
-type SQLiteCfg struct {
+// Cfg represents the configuration for a SQLite database.
+type Cfg struct {
 	Name        string   `json:"name"`         // Name of the SQLite database
 	Path        string   `json:"path"`         // Path to the SQLite database
 	BackupDir   string   `json:"backup_path"`  // Backup path
@@ -184,17 +184,17 @@ type SQLiteCfg struct {
 }
 
 // Fullpath returns the full path to the SQLite database.
-func (c *SQLiteCfg) Fullpath() string {
+func (c *Cfg) Fullpath() string {
 	return filepath.Join(c.Path, c.Name)
 }
 
 // Exists returns true if the SQLite database exists.
-func (c *SQLiteCfg) Exists() bool {
+func (c *Cfg) Exists() bool {
 	return files.Exists(c.Fullpath())
 }
 
 // newSQLiteCfg returns the default settings for the database.
-func newSQLiteCfg(p string) (*SQLiteCfg, error) {
+func newSQLiteCfg(p string) (*Cfg, error) {
 	abs, err := filepath.Abs(p)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %q: %w", p, err)
@@ -202,7 +202,7 @@ func newSQLiteCfg(p string) (*SQLiteCfg, error) {
 
 	baseDir := filepath.Dir(abs)
 
-	return &SQLiteCfg{
+	return &Cfg{
 		Path:       baseDir,
 		Name:       files.EnsureSuffix(filepath.Base(abs), ".db"),
 		BackupDir:  filepath.Join(baseDir, "backup"),

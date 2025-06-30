@@ -14,7 +14,7 @@ import (
 )
 
 // setupTestDB sets up a test database.
-func setupTestDB(t *testing.T) *SQLiteRepository {
+func setupTestDB(t *testing.T) *SQLite {
 	t.Helper()
 	c, _ := newSQLiteCfg("")
 	db, err := openDatabase("file:testdb?mode=memory&cache=shared")
@@ -58,7 +58,7 @@ func testSliceBookmarks(n int) *slice.Slice[bookmark.Bookmark] {
 	return s
 }
 
-func testPopulatedDB(t *testing.T, n int) *SQLiteRepository {
+func testPopulatedDB(t *testing.T, n int) *SQLite {
 	t.Helper()
 	r := setupTestDB(t)
 	bs := testSliceBookmarks(n)

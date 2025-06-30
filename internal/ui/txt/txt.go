@@ -24,6 +24,9 @@ const (
 	UnicodeSingleAngleMark  = "\u203A" // ›
 )
 
+// TimeLayout is the default layout for time formatting.
+const TimeLayout = "20060102-150405"
+
 // NBSP represents a non-breaking space character.
 const NBSP = "\u00A0"
 
@@ -250,9 +253,7 @@ func DiffColor(s string) string {
 //
 //	"today", "yesterday" or "X days ago"
 func RelativeTime(ts string) string {
-	const layout = "20060102-150405"
-
-	t, err := time.Parse(layout, ts)
+	t, err := time.Parse(TimeLayout, ts)
 	if err != nil {
 		return "invalid timestamp"
 	}
@@ -263,11 +264,9 @@ func RelativeTime(ts string) string {
 	// we assume the timestamp is in the past.
 	diff := now.Sub(t)
 	days := int(diff.Hours() / 24)
-
 	if days <= 0 {
 		return "today"
 	}
-
 	if days == 1 {
 		return "yesterday"
 	}

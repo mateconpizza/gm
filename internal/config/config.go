@@ -12,7 +12,7 @@ var version = "0.1.16"
 const (
 	appName         string = "gomarks"      // Default name of the application
 	command         string = "gm"           // Default name of the executable
-	DefaultDBName   string = "bookmarks.db" // Default name of the database
+	MainDBName      string = "bookmarks.db" // Default name of the main database
 	DefaultFilename string = "config.yml"   // Default config filename
 	configFilename  string = "config.yml"   // Default config filename
 )
@@ -28,6 +28,7 @@ type (
 		Path    path        `json:"path"`    // Application path
 		Flags   *Flags      `json:"-"`       // Command line flags
 		Verbose bool        `json:"-"`       // Logging level
+		Git     git         `json:"-"`       // Git configuration
 	}
 
 	path struct {
@@ -35,7 +36,12 @@ type (
 		Data       string `json:"data"`   // Path to store database
 		ConfigFile string `json:"config"` // Path to config file
 		Backup     string `json:"backup"` // Path to store backups
-		Git        string `json:"git"`    // Path to store git
+	}
+
+	git struct {
+		Path    string `json:"path"`    // Path to store git
+		Enabled bool   `json:"enabled"` // Enable git
+		GPG     bool   `json:"gpg"`     // Enable GPG
 	}
 
 	information struct {

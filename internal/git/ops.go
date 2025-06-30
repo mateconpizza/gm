@@ -28,6 +28,13 @@ import (
 
 const JSONFileExt = ".json"
 
+var (
+	cbc = func(s string) string { return color.BrightCyan(s).String() }
+	cbm = func(s string) string { return color.BrightMagenta(s).String() }
+	cgi = func(s string) string { return color.Gray(s).Italic().String() }
+	cri = func(s string) string { return color.BrightRed(s).Italic().String() }
+)
+
 // storeBookmarkAsJSON creates files structure.
 //
 //	root -> dbName -> domain
@@ -535,11 +542,8 @@ func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
 
 func repoStatus(c *ui.Console, gr *Repository) string {
 	var (
-		sb  strings.Builder
-		t   string
-		cbc = func(s string) string { return color.BrightCyan(s).String() }
-		cgi = func(s string) string { return color.Gray(s).Italic().String() }
-		cbm = func(s string) string { return color.BrightMagenta(s).String() }
+		sb strings.Builder
+		t  string
 	)
 
 	if !gr.IsTracked() {
@@ -553,21 +557,77 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 		t = cbc("json ")
 	}
 
+	name := gr.Loc.Name
+	if name == files.StripSuffixes(config.MainDBName) {
+		name = "main"
+	}
+
 	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
-	sb.WriteString(txt.PaddedLine(gr.Loc.Name, t+cgi(s)))
+	sb.WriteString(txt.PaddedLine(name, t+cgi(s)))
 
 	c.Success(sb.String() + "\n").Flush()
 
 	return ""
 }
 
-func Info(c *ui.Console, path string) (string, error) {
-	gr, err := NewRepo(path)
+func StatusRepo(c *ui.Console, dbPath string) (string, error) {
+	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err
 	}
 
 	return repoStatus(c, gr), nil
+}
+
+func Info(c *ui.Console, dbPath string) (string, error) {
+	cfg := config.App.Git
+	if !cfg.Enabled {
+		return "", nil
+	}
+
+	c.F.Reset().Headerln(cri("git:"))
+	c.F.Success(txt.PaddedLine("enabled:", cfg.Enabled)).Ln()
+
+	var t string
+	if cfg.GPG {
+		t = cbm("GPG")
+	} else {
+		t = cbc("JSON")
+	}
+	c.F.Rowln(txt.PaddedLine("type:", t))
+
+	gr, err := NewRepo(dbPath)
+	if err != nil {
+		return "", err
+	}
+
+	if !gr.IsTracked() {
+		return c.F.StringReset(), err
+	}
+
+	sum, err := gr.Summary()
+	if err != nil {
+		return c.F.StringReset(), err
+	}
+
+	remote := "n/a"
+	if sum.GitRemote != "" {
+		remote = sum.GitRemote
+	}
+	c.F.Rowln(txt.PaddedLine("remove", remote))
+
+	lastSync := "n/a"
+	if sum.LastSync != "" {
+		tt, err := time.Parse(time.RFC3339, sum.LastSync)
+		if err != nil {
+			return c.F.StringReset(), err
+		}
+
+		lastSync = sum.LastSync + cgi(" ("+txt.RelativeTime(tt.Format(txt.TimeLayout))+")")
+	}
+	c.F.Rowln(txt.PaddedLine("last sync:", lastSync))
+
+	return c.F.StringReset(), nil
 }
 
 func handleOptNew(c *ui.Console, gr *Repository) (string, error) {

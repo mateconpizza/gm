@@ -22,11 +22,11 @@ import (
 func init() {
 	cfg := config.App
 	f := dbRootCmd.Flags()
-	f.StringVarP(&cfg.DBName, "name", "n", config.DefaultDBName, "database name")
+	f.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
 	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
 
 	// new database
-	DatabaseNewCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.DefaultDBName, "new database name")
+	DatabaseNewCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "new database name")
 
 	// show database info
 	databaseInfoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
@@ -166,7 +166,7 @@ func dbDropFunc(_ *cobra.Command, _ []string) error {
 
 func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 	cfg := config.App
-	if !git.IsInitialized(cfg.Path.Git) {
+	if !git.IsInitialized(cfg.Git.Path) {
 		return nil
 	}
 
