@@ -118,7 +118,7 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 		if err := gr.Add([]*bookmark.Bookmark{b}); err != nil {
 			return err
 		}
-		if err := gr.SummaryWrite(); err != nil {
+		if err := gr.RepoStatsWrite(); err != nil {
 			return err
 		}
 		if err := gr.Commit("new bookmark"); err != nil {

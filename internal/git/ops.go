@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mateconpizza/rotato"
+
 	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
@@ -89,48 +91,6 @@ func resolveFileConflictErr(
 	return storeBookmarkAsJSON(rootPath, b, true)
 }
 
-// cleanGPGRepo removes the files from the git repo.
-func cleanGPGRepo(root string, bs []*bookmark.Bookmark) error {
-	slog.Debug("cleaning up git JSON files")
-
-	for _, b := range bs {
-		gpgPath, err := b.GPGPath()
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		fname := filepath.Join(root, gpgPath)
-		if err := files.RemoveFilepath(fname); err != nil {
-			if errors.Is(err, files.ErrFileNotFound) {
-				return nil
-			}
-
-			return fmt.Errorf("cleaning GPG: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// cleanJSONRepo removes the files from the git repo.
-func cleanJSONRepo(root string, bs []*bookmark.Bookmark) error {
-	slog.Debug("cleaning up git JSON files")
-
-	for _, b := range bs {
-		jsonPath, err := b.JSONPath()
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		fname := filepath.Join(root, jsonPath)
-		if err := files.RemoveFilepath(fname); err != nil {
-			return fmt.Errorf("cleaning JSON: %w", err)
-		}
-	}
-
-	return nil
-}
-
 // writeRepoStats updates the repo stats.
 func writeRepoStats(gr *Repository) error {
 	var (
@@ -166,15 +126,6 @@ func writeRepoStats(gr *Repository) error {
 	return nil
 }
 
-func readSummary(gr *Repository) (*SyncGitSummary, error) {
-	sum := NewSummary()
-	if err := files.JSONRead(filepath.Join(gr.Git.RepoPath, SummaryFileName), sum); err != nil {
-		return nil, fmt.Errorf("reading summary: %w", err)
-	}
-
-	return sum, nil
-}
-
 // repoStats returns a new RepoStats.
 func repoStats(dbPath string, summary *SyncGitSummary) error {
 	r, err := db.New(dbPath)
@@ -195,8 +146,73 @@ func repoStats(dbPath string, summary *SyncGitSummary) error {
 	return nil
 }
 
-// syncSummary returns a new SyncGitSummary.
-func syncSummary(gr *Repository) (*SyncGitSummary, error) {
+// commitIfChanged commits the bookmarks to the git repo if there are changes.
+func commitIfChanged(gr *Repository, actionMsg string) error {
+	err := writeRepoStats(gr)
+	if err != nil {
+		return err
+	}
+
+	gm := gr.Git
+	// check if any changes
+	changed, _ := gm.HasChanges()
+	if !changed {
+		return nil
+	}
+
+	if err := gm.AddAll(); err != nil {
+		return fmt.Errorf("git add: %w", err)
+	}
+
+	status, err := gm.Status()
+	if err != nil {
+		status = ""
+	}
+	if status != "" {
+		status = "(" + status + ")"
+	}
+
+	actionMsg = strings.ToLower(actionMsg)
+	msg := fmt.Sprintf("[%s] %s %s", gr.Loc.DBName, actionMsg, status)
+	if err := gm.Commit(msg); err != nil {
+		return fmt.Errorf("git commit: %w", err)
+	}
+
+	return nil
+}
+
+// summaryString returns a string representation of the repo summary.
+func summaryString(rs *RepoStats) string {
+	var parts []string
+	if rs.Bookmarks > 0 {
+		parts = append(parts, fmt.Sprintf("%d bookmarks", rs.Bookmarks))
+	}
+
+	if rs.Tags > 0 {
+		parts = append(parts, fmt.Sprintf("%d tags", rs.Tags))
+	}
+
+	if rs.Favorites > 0 {
+		parts = append(parts, fmt.Sprintf("%d favorites", rs.Favorites))
+	}
+
+	if len(parts) == 0 {
+		parts = append(parts, "no bookmarks")
+	}
+
+	return strings.Join(parts, ", ")
+}
+
+func summaryRead(gr *Repository) (*SyncGitSummary, error) {
+	sum := NewSummary()
+	if err := files.JSONRead(filepath.Join(gr.Loc.Path, SummaryFileName), sum); err != nil {
+		return nil, fmt.Errorf("reading summary: %w", err)
+	}
+
+	return sum, nil
+}
+
+func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
 	r, err := db.New(gr.Loc.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
@@ -242,63 +258,6 @@ func syncSummary(gr *Repository) (*SyncGitSummary, error) {
 	return summary, nil
 }
 
-// commitIfChanged commits the bookmarks to the git repo if there are changes.
-func commitIfChanged(gr *Repository, actionMsg string) error {
-	err := writeRepoStats(gr)
-	if err != nil {
-		return err
-	}
-
-	gm := gr.Git
-	// check if any changes
-	changed, _ := gm.HasChanges()
-	if !changed {
-		return nil
-	}
-
-	if err := gm.AddAll(); err != nil {
-		return fmt.Errorf("git add: %w", err)
-	}
-
-	status, err := gm.Status()
-	if err != nil {
-		status = ""
-	}
-	if status != "" {
-		status = "(" + status + ")"
-	}
-
-	actionMsg = strings.ToLower(actionMsg)
-	msg := fmt.Sprintf("[%s] %s %s", gr.Loc.DBName, actionMsg, status)
-	if err := gm.Commit(msg); err != nil {
-		return fmt.Errorf("git commit: %w", err)
-	}
-
-	return nil
-}
-
-// repoSummaryString returns a string representation of the repo summary.
-func repoSummaryString(rs *RepoStats) string {
-	var parts []string
-	if rs.Bookmarks > 0 {
-		parts = append(parts, fmt.Sprintf("%d bookmarks", rs.Bookmarks))
-	}
-
-	if rs.Tags > 0 {
-		parts = append(parts, fmt.Sprintf("%d tags", rs.Tags))
-	}
-
-	if rs.Favorites > 0 {
-		parts = append(parts, fmt.Sprintf("%d favorites", rs.Favorites))
-	}
-
-	if len(parts) == 0 {
-		parts = append(parts, "no bookmarks")
-	}
-
-	return strings.Join(parts, ", ")
-}
-
 // records gets all records from the database.
 func records(dbPath string) ([]*bookmark.Bookmark, error) {
 	r, err := db.New(dbPath)
@@ -312,8 +271,8 @@ func records(dbPath string) ([]*bookmark.Bookmark, error) {
 	return bs, nil
 }
 
-// parseGitRepository loads a git repo into a database.
-func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
+// parseGitRepo loads a git repo into a database.
+func parseGitRepo(c *ui.Console, root, repoName string) (string, error) {
 	c.F.Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
 
@@ -358,7 +317,7 @@ func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
 		gr.Git.SetRepoPath(repoPath)
 	}
 
-	resultPath, err := parseGitRepositoryOpt(c, opt, gr)
+	resultPath, err := parseGitRepoOpt(c, opt, gr)
 	if err != nil {
 		return "", err
 	}
@@ -366,8 +325,8 @@ func parseGitRepository(c *ui.Console, root, repoName string) (string, error) {
 	return resultPath, nil
 }
 
-// parseGitRepositoryOpt handles the options for parseGitRepository.
-func parseGitRepositoryOpt(c *ui.Console, opt string, gr *Repository) (string, error) {
+// parseGitRepoOpt handles the options for parseGitRepository.
+func parseGitRepoOpt(c *ui.Console, opt string, gr *Repository) (string, error) {
 	switch strings.ToLower(opt) {
 	case "new":
 		return handleOptNew(c, gr)
@@ -465,7 +424,7 @@ func dropRepo(gr *Repository, mesg string) error {
 		return err
 	}
 
-	if err := gr.SummaryWrite(); err != nil {
+	if err := gr.RepoStatsWrite(); err != nil {
 		return err
 	}
 
@@ -478,11 +437,21 @@ func dropRepo(gr *Repository, mesg string) error {
 
 // Read reads the repo and returns the bookmarks.
 func Read(c *ui.Console, path string) ([]*bookmark.Bookmark, error) {
+	loader := readJSONRepo
+	prefix := "Loading JSON bookmarks"
+
 	if gpg.IsInitialized(path) {
-		return readGPGRepo(c, path)
+		loader = readGPGRepo
+		prefix = "Decrypting GPG bookmarks"
 	}
 
-	return readJSONRepo(c, path)
+	sp := rotato.New(
+		rotato.WithPrefix(c.F.Mid(prefix).StringReset()),
+		rotato.WithMesgColor(rotato.ColorBrightBlue),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+	)
+
+	return loader(c, path, sp)
 }
 
 // selectAndInsert prompts the user to select records to import.
@@ -579,23 +548,8 @@ func StatusRepo(c *ui.Console, dbPath string) (string, error) {
 	return repoStatus(c, gr), nil
 }
 
+// Info returns a prettify info of the repository.
 func Info(c *ui.Console, dbPath string) (string, error) {
-	cfg := config.App.Git
-	if !cfg.Enabled {
-		return "", nil
-	}
-
-	c.F.Reset().Headerln(cri("git:"))
-	c.F.Success(txt.PaddedLine("enabled:", cfg.Enabled)).Ln()
-
-	var t string
-	if cfg.GPG {
-		t = cbm("GPG")
-	} else {
-		t = cbc("JSON")
-	}
-	c.F.Rowln(txt.PaddedLine("type:", t))
-
 	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err
@@ -605,27 +559,42 @@ func Info(c *ui.Console, dbPath string) (string, error) {
 		return c.F.StringReset(), err
 	}
 
+	cfg := config.App.Git
+	if !cfg.Enabled {
+		return "", nil
+	}
+
+	c.F.Reset().Headerln(cri("git:"))
+
 	sum, err := gr.Summary()
 	if err != nil {
 		return c.F.StringReset(), err
 	}
 
-	remote := "n/a"
+	// remote
 	if sum.GitRemote != "" {
-		remote = sum.GitRemote
+		c.F.Rowln(txt.PaddedLine("remote:", sum.GitRemote))
 	}
-	c.F.Rowln(txt.PaddedLine("remove", remote))
 
-	lastSync := "n/a"
+	// repo type
+	t := cbc("JSON")
+	if cfg.GPG {
+		t = cbm("GPG")
+	}
+	c.F.Rowln(txt.PaddedLine("type:", t))
+
 	if sum.LastSync != "" {
 		tt, err := time.Parse(time.RFC3339, sum.LastSync)
 		if err != nil {
 			return c.F.StringReset(), err
 		}
 
-		lastSync = sum.LastSync + cgi(" ("+txt.RelativeTime(tt.Format(txt.TimeLayout))+")")
+		lastSync := sum.LastSync + cgi(" ("+txt.RelativeTime(tt.Format(txt.TimeLayout))+")")
+		c.F.Rowln(txt.PaddedLine("last sync:", lastSync))
+		c.F.Success(txt.PaddedLine("sync:", true)).Ln()
+	} else {
+		c.F.Error(txt.PaddedLine("sync:", false)).Ln()
 	}
-	c.F.Rowln(txt.PaddedLine("last sync:", lastSync))
 
 	return c.F.StringReset(), nil
 }
@@ -663,7 +632,7 @@ func handleOptCreate(c *ui.Console, gr *Repository) (string, error) {
 		return "", fmt.Errorf("initializing database: %w", err)
 	}
 
-	return parseGitRepositoryOpt(c, opt, newGr)
+	return parseGitRepoOpt(c, opt, newGr)
 }
 
 func handleOptDrop(c *ui.Console, gr *Repository) (string, error) {
@@ -696,4 +665,61 @@ func handleOptIgnore(c *ui.Console, gr *Repository) (string, error) {
 	repoName := files.StripSuffixes(filepath.Base(gr.Loc.DBPath))
 	c.ReplaceLine(c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset())
 	return "", nil
+}
+
+// intoDBFromGit loads a git repo into a database.
+func intoDBFromGit(c *ui.Console, gr *Repository) error {
+	bookmarks, err := extractFromGitRepo(c, gr.Git.RepoPath)
+	if err != nil {
+		return fmt.Errorf("importing bookmarks: %w", err)
+	}
+
+	r, err := db.Init(gr.Loc.DBPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+	if err := r.Init(); err != nil {
+		return fmt.Errorf("initializing database: %w", err)
+	}
+
+	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	c.F.Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), gr.Loc.DBName)).Flush()
+
+	return nil
+}
+
+// mergeAndInsert merges non-duplicates records into database.
+func mergeAndInsert(c *ui.Console, gr *Repository) error {
+	r, err := db.New(gr.Loc.DBPath)
+	if err != nil {
+		return fmt.Errorf("creating repo: %w", err)
+	}
+	defer r.Close()
+
+	bookmarks, err := extractFromGitRepo(c, gr.Git.RepoPath)
+	if err != nil {
+		return fmt.Errorf("importing bookmarks: %w", err)
+	}
+
+	bookmarks = port.Deduplicate(c, r, bookmarks)
+	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	if err := gr.Export(); err != nil {
+		return err
+	}
+	if err := gr.Commit("imported bookmarks from git"); err != nil {
+		return err
+	}
+
+	n := len(bookmarks)
+	if n > 0 {
+		c.F.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, gr.Loc.DBName)).Flush()
+	}
+
+	return nil
 }

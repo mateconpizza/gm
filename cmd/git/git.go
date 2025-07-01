@@ -272,7 +272,7 @@ func gitPushFunc(_ *cobra.Command, args []string) error {
 		return git.ErrGitUpToDate
 	}
 
-	sum, err := gr.Summary()
+	sum, err := gr.SummaryUpdate()
 	if err != nil {
 		return err
 	}
@@ -312,7 +312,7 @@ func gitRemoteFunc(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("git remote add: %w", err)
 	}
 
-	sum, err := gr.Summary()
+	sum, err := gr.SummaryUpdate()
 	if err != nil {
 		return err
 	}

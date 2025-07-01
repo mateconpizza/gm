@@ -94,7 +94,7 @@ func createPaths(c *ui.Console, path string) error {
 	}
 
 	ci := color.StyleItalic
-	c.F.Headerln(PrettyVersion()).Rowln().
+	c.F.Headerln(prettyVersion()).Rowln().
 		Info(txt.PaddedLine("Create path:", ci(path).Italic().String())).Ln().
 		Info(txt.PaddedLine("Create db:", ci(config.App.DBPath).Italic().String())).Ln()
 
@@ -144,8 +144,8 @@ func loadDataPath() (string, error) {
 	return dataHome, nil
 }
 
-// PrettyVersion formats version in a pretty way.
-func PrettyVersion() string {
+// prettyVersion formats version in a pretty way.
+func prettyVersion() string {
 	name := color.BrightBlue(config.App.Name).Bold().String()
 	return fmt.Sprintf("%s v%s %s/%s", name, config.App.Info.Version, runtime.GOOS, runtime.GOARCH)
 }

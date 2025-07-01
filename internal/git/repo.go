@@ -80,15 +80,7 @@ func NewRepo(dbPath string) (*Repository, error) {
 
 // Add adds the bookmarks to the repo.
 func (gr *Repository) Add(bs []*bookmark.Bookmark) error {
-	if gr.IsEncrypted() {
-		if _, err := exportAsGPG(gr.Loc.Path, bs); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if _, err := exportAsJSON(gr.Loc.Path, bs); err != nil {
+	if _, err := gr.Write(bs); err != nil {
 		return err
 	}
 
@@ -136,17 +128,18 @@ func (gr *Repository) Stats() (*SyncGitSummary, error) {
 
 // Summary returns the repo summary.
 func (gr *Repository) Summary() (*SyncGitSummary, error) {
-	return syncSummary(gr)
+	return summaryRead(gr)
 }
 
-// SummaryWrite calculates, updates, and saves the repository's statistics to
+// SummaryUpdate returns a new SyncGitSummary.
+func (gr *Repository) SummaryUpdate() (*SyncGitSummary, error) {
+	return summaryUpdate(gr)
+}
+
+// RepoStatsWrite calculates, updates, and saves the repository's statistics to
 // its summary file.
-func (gr *Repository) SummaryWrite() error {
+func (gr *Repository) RepoStatsWrite() error {
 	return writeRepoStats(gr)
-}
-
-func (gr *Repository) SummaryRead() (*SyncGitSummary, error) {
-	return readSummary(gr)
 }
 
 // Write exports the provided bookmarks to the repository's file, encrypting if
@@ -162,11 +155,7 @@ func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
 // Read reads and decrypts the repository's bookmarks, handling encryption if
 // configured.
 func (gr *Repository) Read(c *ui.Console) ([]*bookmark.Bookmark, error) {
-	if gr.IsEncrypted() {
-		return readGPGRepo(c, gr.Loc.Path)
-	}
-
-	return readJSONRepo(c, gr.Loc.Path)
+	return Read(c, gr.Loc.Path)
 }
 
 // Track tracks a repository in Git, exporting its data and committing the
@@ -219,7 +208,7 @@ func (gr *Repository) String() string {
 		return ""
 	}
 
-	return repoSummaryString(sum.RepoStats)
+	return summaryString(sum.RepoStats)
 }
 
 // AskForEncryption prompts the user to enable GPG encryption for the

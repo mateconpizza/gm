@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -78,6 +79,24 @@ func List(root, pattern string) ([]string, error) {
 	}
 
 	slog.Debug("found files", "count", len(files), "path", root)
+
+	return files, nil
+}
+
+func ListRecursive(root, pattern string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Ext(path) == pattern {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	return files, nil
 }
@@ -498,6 +517,44 @@ func RemoveFilepath(fname string) error {
 		// remove empty path
 		if err := Remove(fdir); err != nil {
 			return fmt.Errorf("removing directory: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// RemoveEmptyDirs removes empty directories.
+func RemoveEmptyDirs(root string) error {
+	var dirs []string
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && path != root {
+			dirs = append(dirs, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// In reverse order (from children to parents)
+	for i := len(dirs) - 1; i >= 0; i-- {
+		path := dirs[i]
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return err
+		}
+
+		if len(entries) == 0 {
+			if err := os.Remove(path); err != nil {
+				slog.Debug("could not remove dir", "path", path, "err", err)
+				continue
+			}
+
+			slog.Debug("removed empty directory", "path", path)
 		}
 	}
 

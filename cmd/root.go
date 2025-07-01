@@ -45,7 +45,7 @@ var Root = &cobra.Command{
 	Use:               config.App.Cmd,
 	Short:             config.App.Info.Title,
 	Long:              config.App.Info.Desc,
-	Version:           PrettyVersion(),
+	Version:           prettyVersion(),
 	Args:              cobra.MinimumNArgs(0),
 	SilenceUsage:      true,
 	PersistentPreRunE: RequireDatabase,

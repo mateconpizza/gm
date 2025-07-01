@@ -42,7 +42,6 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 	m.SetItems(items)
 
 	var result []T
-
 	result, err := m.Select()
 	if err != nil {
 		if errors.Is(err, menu.ErrFzfActionAborted) {

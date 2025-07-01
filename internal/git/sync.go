@@ -6,18 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -26,83 +26,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 )
 
-type loadFileFn = func(path string) (*bookmark.Bookmark, error)
-
-// exportAsGPG export and encrypts the bookmarks and stores them in the git
-// repo.
-func exportAsGPG(root string, bs []*bookmark.Bookmark) (bool, error) {
-	if err := files.MkdirAll(root); err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
-	sp := rotato.New(
-		rotato.WithPrefix(f.Mid("Encrypting").String()),
-		rotato.WithMesg("bookmarks..."),
-		rotato.WithMesgColor(rotato.ColorYellow),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-		rotato.WithFailColorMesg(rotato.ColorBrightRed),
-	)
-
-	n := len(bs)
-	count := 0
-
-	for i := range n {
-		hashPath, err := bs[i].HashPath()
-		if err != nil {
-			return false, fmt.Errorf("hashing path: %w", err)
-		}
-
-		filePath := filepath.Join(root, hashPath+gpg.Extension)
-		if files.Exists(filePath) {
-			continue
-		}
-
-		dir := filepath.Dir(filePath)
-		if err := files.MkdirAll(dir); err != nil {
-			return false, fmt.Errorf("mkdir: %w", err)
-		}
-
-		data, err := json.MarshalIndent(bs[i].ToJSON(), "", "  ")
-		if err != nil {
-			return false, fmt.Errorf("json marshal: %w", err)
-		}
-
-		if err := gpg.Encrypt(filePath, data); err != nil {
-			return false, fmt.Errorf("%w", err)
-		}
-
-		sp.Start()
-		count++
-		sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", count, n)).String())
-	}
-
-	if count > 0 {
-		sp.UpdatePrefix(f.Reset().Success(fmt.Sprintf("Encrypted [%d/%d]", count, n)).String())
-		sp.Done("done")
-	} else {
-		sp.Done()
-	}
-
-	return count > 0, nil
-}
-
-// exportAsJSON creates the repository structure.
-func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
-	var hasUpdates bool
-	for _, b := range bs {
-		updated, err := storeBookmarkAsJSON(root, b, config.App.Flags.Force)
-		if err != nil {
-			return hasUpdates, err
-		}
-
-		if updated {
-			hasUpdates = true
-		}
-	}
-
-	return hasUpdates, nil
-}
+type loadFileFn func(path string) (*bookmark.Bookmark, error)
 
 // Import clones a Git repository, parses its bookmark files, and imports them
 // into the application.
@@ -124,7 +48,7 @@ func Import(c *ui.Console, gm *Manager, urlRepo string) ([]string, error) {
 
 	var imported []string
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepository(c, gm.RepoPath, repoName)
+		dbPath, err := parseGitRepo(c, gm.RepoPath, repoName)
 		if err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				s := color.Yellow("skipping")
@@ -154,27 +78,110 @@ func Import(c *ui.Console, gm *Manager, urlRepo string) ([]string, error) {
 	return imported, nil
 }
 
-func intoDBFromGit(c *ui.Console, gr *Repository) error {
-	bookmarks, err := extractFromGitRepo(c, gr.Git.RepoPath)
-	if err != nil {
-		return fmt.Errorf("importing bookmarks: %w", err)
+// exportAsGPG export and encrypts the bookmarks and stores them in the git
+// repo.
+//
+//nolint:funlen //ignore
+func exportAsGPG(root string, bs []*bookmark.Bookmark) (bool, error) {
+	if err := files.MkdirAll(root); err != nil {
+		return false, fmt.Errorf("%w", err)
 	}
 
-	r, err := db.Init(gr.Loc.DBPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	if err := r.Init(); err != nil {
-		return fmt.Errorf("initializing database: %w", err)
+	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	sp := rotato.New(
+		rotato.WithPrefix(f.Mid("Encrypting").String()),
+		rotato.WithMesg("bookmarks..."),
+		rotato.WithMesgColor(rotato.ColorYellow),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithFailColorMesg(rotato.ColorBrightRed),
+	)
+	sp.Start()
+
+	var count uint32
+	n := len(bs)
+
+	g, ctx := errgroup.WithContext(context.Background())
+	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
+
+	for i := range bs {
+		b := bs[i]
+
+		g.Go(func() error {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				return err
+			}
+			defer sem.Release(1)
+
+			hashPath, err := b.HashPath()
+			if err != nil {
+				return fmt.Errorf("hashing path: %w", err)
+			}
+
+			filePath := filepath.Join(root, hashPath+gpg.Extension)
+			if files.Exists(filePath) {
+				return nil // skip existing
+			}
+
+			if err := files.MkdirAll(filepath.Dir(filePath)); err != nil {
+				return fmt.Errorf("mkdir: %w", err)
+			}
+
+			data, err := json.MarshalIndent(b.ToJSON(), "", "  ")
+			if err != nil {
+				return fmt.Errorf("json marshal: %w", err)
+			}
+
+			if err := gpg.Encrypt(filePath, data); err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			cur := atomic.AddUint32(&count, 1)
+			sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", cur, n)).String())
+			return nil
+		})
 	}
 
-	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
-		return fmt.Errorf("%w", err)
+	if err := g.Wait(); err != nil {
+		sp.Fail("failed")
+		return false, err
 	}
 
-	c.F.Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), gr.Loc.DBName)).Flush()
+	total := atomic.LoadUint32(&count)
+	if total > 0 {
+		sp.UpdatePrefix(f.Reset().Success(fmt.Sprintf("Encrypted [%d/%d]", total, n)).String())
+		sp.Done("done")
+	} else {
+		sp.Done()
+	}
 
-	return nil
+	return total > 0, nil
+}
+
+// exportAsJSON creates the repository structure.
+func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
+	var hasUpdates uint32
+
+	g := new(errgroup.Group)
+
+	for i := range bs {
+		b := bs[i] // capture loop variable
+		g.Go(func() error {
+			updated, err := storeBookmarkAsJSON(root, b, config.App.Flags.Force)
+			if err != nil {
+				return err
+			}
+			if updated {
+				atomic.StoreUint32(&hasUpdates, 1)
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return false, err
+	}
+
+	return atomic.LoadUint32(&hasUpdates) == 1, nil
 }
 
 // extractFromGitRepo extracts records from a git repository.
@@ -184,58 +191,15 @@ func extractFromGitRepo(c *ui.Console, repoPath string) ([]*bookmark.Bookmark, e
 	}
 
 	rootDir := filepath.Dir(repoPath)
-	if !gpg.IsInitialized(rootDir) {
-		return readJSONRepo(c, repoPath)
-	}
-
-	return readGPGRepo(c, repoPath)
-}
-
-// mergeAndInsert merges non-duplicates records into database.
-func mergeAndInsert(c *ui.Console, gr *Repository) error {
-	r, err := db.New(gr.Loc.DBPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	defer r.Close()
-
-	bookmarks, err := extractFromGitRepo(c, gr.Git.RepoPath)
-	if err != nil {
-		return fmt.Errorf("importing bookmarks: %w", err)
-	}
-
-	bookmarks = port.Deduplicate(c, r, bookmarks)
-	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := gr.Export(); err != nil {
-		return err
-	}
-	if err := gr.Commit("imported bookmarks from git"); err != nil {
-		return err
-	}
-
-	n := len(bookmarks)
-	if n > 0 {
-		c.F.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, gr.Loc.DBName)).Flush()
-	}
-
-	return nil
+	return Read(c, rootDir)
 }
 
 // readJSONRepo extracts records from a JSON repository.
-func readJSONRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
+func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
 	var (
-		count     = 0
+		count     uint32
 		mu        sync.Mutex
 		bookmarks = []*bookmark.Bookmark{}
-	)
-
-	sp := rotato.New(
-		rotato.WithPrefix(c.F.Mid("Loading JSON bookmarks").String()),
-		rotato.WithMesgColor(rotato.ColorBrightBlue),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
 	)
 
 	loader := func(path string) (*bookmark.Bookmark, error) {
@@ -248,8 +212,8 @@ func readJSONRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
 		}
 
-		count++
-		sp.UpdateMesg(fmt.Sprintf("[%d] %s", count, filepath.Base(path)))
+		currentCount := atomic.AddUint32(&count, 1)
+		sp.UpdateMesg(fmt.Sprintf("[%d] %s", currentCount, filepath.Base(path)))
 
 		b := bookmark.NewFromJSON(bj)
 
@@ -281,18 +245,19 @@ func readJSONRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 }
 
 // readGPGRepo extracts records from a GPG repository.
-func readGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
+func readGPGRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
 	var (
-		count     = 0
-		mu        sync.Mutex
-		bookmarks = []*bookmark.Bookmark{}
+		count      uint32
+		totalFiles int
+		mu         sync.Mutex
+		bookmarks  = []*bookmark.Bookmark{}
 	)
 
-	sp := rotato.New(
-		rotato.WithPrefix(c.F.Mid("Decrypting bookmarks").StringReset()),
-		rotato.WithMesgColor(rotato.ColorBrightBlue),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-	)
+	gpgFiles, err := files.ListRecursive(root, ".gpg")
+	if err != nil {
+		return nil, err
+	}
+	totalFiles = len(gpgFiles)
 
 	loader := func(path string) (*bookmark.Bookmark, error) {
 		content, err := gpg.Decrypt(path)
@@ -309,8 +274,8 @@ func readGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
 		}
 
-		count++
-		sp.UpdateMesg(fmt.Sprintf("[%d] %s", count, filepath.Base(path)))
+		currentCount := atomic.AddUint32(&count, 1)
+		sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", currentCount, totalFiles, filepath.Base(path)))
 
 		b := bookmark.NewFromJSON(bj)
 		bookmarks = append(bookmarks, b)
@@ -323,7 +288,7 @@ func readGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 	// Create errgroup with context
 	g, ctx := errgroup.WithContext(context.Background())
 
-	err := filepath.WalkDir(root, parseGPGFile(ctx, g, &mu, loader))
+	err = filepath.WalkDir(root, parseGPGFile(ctx, g, &mu, loader))
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -340,10 +305,7 @@ func readGPGRepo(c *ui.Console, root string) ([]*bookmark.Bookmark, error) {
 
 // parseGPGFile is a WalkDirFunc that loads .gpg files concurrently using a
 // semaphore and prompts once for the GPG passphrase.
-// parseGPGFile is a WalkDirFunc that loads .gpg files concurrently using a semaphore.
 func parseGPGFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, loader loadFileFn) fs.WalkDirFunc {
-	// TODO:
-	// - [ ] replace `passphrasePrompted` with `sync.Once`? maybe? read more.
 	var (
 		bs                 []*bookmark.Bookmark
 		passphrasePrompted bool
@@ -354,7 +316,9 @@ func parseGPGFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, loader
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || filepath.Ext(path) != gpg.Extension || filepath.Base(path) == SummaryFileName {
+		if d.IsDir() ||
+			filepath.Ext(path) != gpg.Extension ||
+			filepath.Base(path) == SummaryFileName {
 			return nil
 		}
 
@@ -372,12 +336,9 @@ func parseGPGFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, loader
 	}
 }
 
-func parseJSONFile(
-	ctx context.Context,
-	g *errgroup.Group,
-	mu *sync.Mutex,
-	loader loadFileFn,
-) fs.WalkDirFunc {
+// parseJSONFile is a WalkDirFunc that loads .json files concurrently using a
+// semaphore.
+func parseJSONFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, l loadFileFn) fs.WalkDirFunc {
 	bs := []*bookmark.Bookmark{}
 	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
 
@@ -385,13 +346,87 @@ func parseJSONFile(
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || filepath.Ext(path) != JSONFileExt || filepath.Base(path) == SummaryFileName {
+		if d.IsDir() ||
+			filepath.Ext(path) != JSONFileExt ||
+			filepath.Base(path) == SummaryFileName {
 			return nil
 		}
 
-		loadConcurrently(ctx, path, &bs, g, mu, sem, loader)
+		loadConcurrently(ctx, path, &bs, g, mu, sem, l)
 		return nil
 	}
+}
+
+// cleanGPGRepo removes the files from the git repo concurrently.
+func cleanGPGRepo(root string, bs []*bookmark.Bookmark) error {
+	slog.Debug("cleaning up git GPG files")
+
+	g, ctx := errgroup.WithContext(context.Background())
+	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
+
+	for _, b := range bs {
+		g.Go(func() error {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				return err
+			}
+			defer sem.Release(1)
+
+			gpgPath, err := b.GPGPath()
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			fname := filepath.Join(root, gpgPath)
+			if err := files.Remove(fname); err != nil {
+				if errors.Is(err, files.ErrFileNotFound) {
+					return nil
+				}
+
+				return fmt.Errorf("cleaning GPG: %w", err)
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("cleaning GPG: %w", err)
+	}
+
+	return files.RemoveEmptyDirs(root)
+}
+
+// cleanJSONRepo removes the files from the git repo concurrently.
+func cleanJSONRepo(root string, bs []*bookmark.Bookmark) error {
+	slog.Debug("cleaning up git JSON files")
+
+	g, ctx := errgroup.WithContext(context.Background())
+	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
+
+	for _, b := range bs {
+		g.Go(func() error {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				return err
+			}
+			defer sem.Release(1)
+
+			jsonPath, err := b.JSONPath()
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			fname := filepath.Join(root, jsonPath)
+			if err := files.Remove(fname); err != nil {
+				return fmt.Errorf("cleaning JSON: %w", err)
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("cleaning GPG: %w", err)
+	}
+
+	return files.RemoveEmptyDirs(root)
 }
 
 // loadConcurrently processes a single file in a goroutine using errgroup.
