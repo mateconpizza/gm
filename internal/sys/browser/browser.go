@@ -1,3 +1,5 @@
+// Package browser defines an interface for interacting with web browsers to
+// import bookmarks.
 package browser
 
 import (

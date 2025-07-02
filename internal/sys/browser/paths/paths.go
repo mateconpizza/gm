@@ -1,3 +1,5 @@
+// Package browserpath provides functions to generate platform-specific paths
+// for browser profiles and bookmark files.
 package browserpath
 
 // GeckoBookmarkPath returns the path to the Gecko-based browser's bookmarks

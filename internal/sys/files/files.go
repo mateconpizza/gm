@@ -1,4 +1,4 @@
-// Package files provides utilities for working with files/directories.
+// Package files provides utilities for common file and directory operations.
 package files
 
 import (

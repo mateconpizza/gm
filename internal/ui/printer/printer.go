@@ -1,3 +1,5 @@
+// Package printer provides functions to format and print bookmark data,
+// including records, tags, and repository information.
 package printer
 
 import (

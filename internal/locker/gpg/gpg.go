@@ -1,3 +1,5 @@
+// Package gpg provides utilities for GPG encryption, decryption, and
+// integration with Git.
 package gpg
 
 import (

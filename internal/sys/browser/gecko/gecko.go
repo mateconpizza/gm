@@ -1,3 +1,5 @@
+// Package gecko provides functionalities for importing bookmarks from
+// Gecko-based web browsers like Firefox.
 package gecko
 
 import (

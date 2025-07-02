@@ -1,3 +1,5 @@
+// Package bookmark defines the Bookmark structure, its JSON representation,
+// and utility methods for validation, conversion, and path generation.
 package bookmark
 
 import (

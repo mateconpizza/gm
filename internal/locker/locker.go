@@ -1,3 +1,5 @@
+// Package locker provides AES-GCM encryption and decryption utilities for
+// files, including backup and restore logic.
 package locker
 
 import (

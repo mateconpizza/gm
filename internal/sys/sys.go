@@ -1,3 +1,5 @@
+// Package sys provides system-level utilities for command execution,
+// environment interaction, and clipboard operations.
 package sys
 
 import (

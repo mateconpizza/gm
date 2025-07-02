@@ -1,3 +1,5 @@
+// Package terminal provides utilities for interacting with the command-line
+// terminal.
 package terminal
 
 import (

@@ -1,3 +1,5 @@
+// Package blink provides functionalities for importing bookmarks from
+// Blink-based web browsers like Chromium, Chrome, and Edge.
 package blink
 
 import (

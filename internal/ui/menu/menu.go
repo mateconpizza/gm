@@ -1,3 +1,5 @@
+// Package menu provides a flexible wrapper for the fzf interactive filter,
+// enabling customizable selection menus.
 package menu
 
 import (

@@ -1,3 +1,5 @@
+// Package frame provides a customizable text framing and styling utility for
+// console output, including borders and icons.
 package frame
 
 import (
