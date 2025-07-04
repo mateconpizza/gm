@@ -143,7 +143,37 @@ func NormalizeSpace(s string) string {
 //
 //	https://example.org/title/some-title
 //	https://example.org > title > some-title
-func URLBreadCrumbs(s string, c color.ColorFn) string {
+func URLBreadCrumbs(s string) string {
+	u, err := url.Parse(s)
+	if err != nil {
+		return ""
+	}
+	if u.Host == "" || u.Path == "" {
+		return s
+	}
+
+	host := u.Host
+	pathSegments := strings.FieldsFunc(
+		strings.TrimLeft(u.Path, "/"),
+		func(r rune) bool { return r == '/' },
+	)
+
+	if len(pathSegments) == 0 {
+		return host
+	}
+
+	uc := UnicodeSingleAngleMark
+	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
+	pathSeg := uc + " " + segments
+
+	return fmt.Sprintf("%s %s", host, pathSeg)
+}
+
+// URLBreadCrumbsColor returns a prettified URL with color.
+//
+//	https://example.org/title/some-title
+//	https://example.org > title > some-title
+func URLBreadCrumbsColor(s string, c color.ColorFn) string {
 	u, err := url.Parse(s)
 	if err != nil {
 		return ""

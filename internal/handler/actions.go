@@ -137,7 +137,7 @@ func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	}
 
 	for _, b := range bs {
-		if err := r.UpdateVisitDateAndCount(ctx, b); err != nil {
+		if err := r.SetVisitDateAndCount(ctx, b); err != nil {
 			return err
 		}
 	}

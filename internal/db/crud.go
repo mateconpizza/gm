@@ -10,6 +10,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -308,6 +309,7 @@ func (r *SQLite) ByQuery(query string) ([]bookmark.Bookmark, error) {
 		return nil, err
 	}
 
+	// FIX: remove
 	if len(bs) == 0 {
 		return nil, ErrRecordNoMatch
 	}
@@ -414,7 +416,6 @@ func (r *SQLite) bySQL(q string, args ...any) ([]bookmark.Bookmark, error) {
 // bySQL retrieves records from the SQLite database based on the provided SQL query.
 func (r *SQLite) bySQLPtr(q string, args ...any) ([]*bookmark.Bookmark, error) {
 	var bb []*bookmark.Bookmark
-
 	err := r.DB.Select(&bb, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -712,16 +713,68 @@ func (r *SQLite) withTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 	return nil
 }
 
-func (r *SQLite) UpdateVisitDateAndCount(ctx context.Context, b *bookmark.Bookmark) error {
+func (r *SQLite) SetVisitDateAndCount(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		return updateVisit(tx, b)
 	})
 }
 
-func (r *SQLite) Favorite(ctx context.Context, b *bookmark.Bookmark) error {
+func (r *SQLite) SetFavorite(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		return updateFavorite(tx, b)
 	})
+}
+
+// FavoritesList returns the favorite bookmarks.
+func (r *SQLite) FavoritesList() ([]*bookmark.Bookmark, error) {
+	q := `
+    SELECT
+      b.*,
+      GROUP_CONCAT(t.name, ',') AS tags
+    FROM
+      bookmarks b
+      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN tags t ON bt.tag_id = t.id
+    WHERE
+      b.favorite = 1
+    GROUP BY
+      b.id
+    ORDER BY
+      b.id ASC;`
+
+	return r.bySQLPtr(q)
+}
+
+func (r *SQLite) ByOrder(column, sortBy string) ([]*bookmark.Bookmark, error) {
+	sortBy = strings.ToUpper(sortBy)
+	if sortBy != "ASC" && sortBy != "DESC" {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidSortBy, sortBy)
+	}
+
+	q := fmt.Sprintf(`
+    SELECT
+      b.*,
+      GROUP_CONCAT(t.name, ',') AS tags
+    FROM
+      bookmarks b
+      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN tags t ON bt.tag_id = t.id
+    GROUP BY
+      b.id
+    ORDER BY
+      b.%s %s;`, column, sortBy)
+
+	var bb []*bookmark.Bookmark
+	err := r.DB.Select(&bb, q)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	for _, b := range bb {
+		b.Tags = bookmark.ParseTags(b.Tags)
+	}
+
+	return bb, nil
 }
 
 // updateVisit updates the visit count and last visit date for a bookmark.

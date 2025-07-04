@@ -26,6 +26,7 @@ var (
 	ErrRecordNotFound         = errors.New("no record found")
 	ErrRecordQueryNotProvided = errors.New("no id or query provided")
 	ErrRecordScan             = errors.New("scan record")
+	ErrInvalidSortBy          = errors.New("invalid sort")
 )
 
 var (

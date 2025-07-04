@@ -65,7 +65,7 @@ func Multiline(b *Bookmark) string {
 	cs := color.DefaultColorScheme()
 	sb.WriteString(cs.BrightYellow(b.ID).Bold().String())
 	sb.WriteString(txt.NBSP)
-	sb.WriteString(txt.Shorten(txt.URLBreadCrumbs(b.URL, cs.BrightMagenta), w) + "\n")
+	sb.WriteString(txt.Shorten(txt.URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + "\n")
 
 	if b.Title != "" {
 		sb.WriteString(cs.Cyan(txt.Shorten(b.Title, w)).String() + "\n")
@@ -81,7 +81,7 @@ func FrameFormatted(b *Bookmark, c color.ColorFn) string {
 	w := terminal.MaxWidth - len(f.Border.Row)
 	// id + url
 	id := color.BrightYellow(b.ID).Bold().String()
-	urlColor := txt.Shorten(txt.URLBreadCrumbs(b.URL, color.BrightMagenta), w)
+	urlColor := txt.Shorten(txt.URLBreadCrumbsColor(b.URL, color.BrightMagenta), w)
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 	// title
 	if b.Title != "" {
@@ -111,7 +111,7 @@ func Frame(b *Bookmark) string {
 	w -= len(f.Border.Row)
 	// id + url
 	id := cs.BrightYellow(b.ID).Bold()
-	urlColor := txt.Shorten(txt.URLBreadCrumbs(b.URL, cs.BrightMagenta), w) + color.Reset()
+	urlColor := txt.Shorten(txt.URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + color.Reset()
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 	// title
 	if b.Title != "" {
