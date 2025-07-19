@@ -35,15 +35,3 @@ func TestDropRepository(t *testing.T) {
 		t.Errorf("expected error to contain %q, got %q", ErrRecordNotFound.Error(), err.Error())
 	}
 }
-
-func TestCountRecords(t *testing.T) {
-	t.Parallel()
-	const want = 12
-	r := testPopulatedDB(t, want)
-	defer teardownthewall(r.DB)
-
-	got := countRecords(r, schemaMain.name)
-	if want != got {
-		t.Errorf("expected %d records, got %d", want, got)
-	}
-}

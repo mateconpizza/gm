@@ -33,35 +33,6 @@ func DropFromPath(dbPath string) error {
 	return Drop(r, context.Background())
 }
 
-// ListBackups returns a filtered list of database backups.
-func ListBackups(dir, dbName string) ([]string, error) {
-	entries, err := filepath.Glob(filepath.Join(dir, "*_"+dbName+".db*"))
-	if err != nil {
-		return nil, fmt.Errorf("listing backups: %w", err)
-	}
-
-	return entries, nil
-}
-
-// HasURL checks if a record exists in the main table.
-func HasURL(dbPath, bURL string) (*BookmarkModel, bool) {
-	r, err := New(dbPath)
-	if err != nil {
-		return nil, false
-	}
-	return r.Has(bURL)
-}
-
-// count counts the number of rows in the specified table.
-func countRecords(r *SQLite, t Table) int {
-	var n int
-	if err := r.DB.QueryRowx(fmt.Sprintf("SELECT COUNT(*) FROM %s", t)).Scan(&n); err != nil {
-		return 0
-	}
-
-	return n
-}
-
 // newBackup creates a new backup from the given repository.
 func newBackup(r *SQLite) (string, error) {
 	// destDSN -> 20060102-150405_dbName.db

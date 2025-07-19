@@ -71,7 +71,8 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 
 // RemoveBackups removes backups.
 func RemoveBackups(c *ui.Console, p string) error {
-	fs, err := db.ListBackups(config.App.Path.Backup, files.StripSuffixes(filepath.Base(p)))
+	dbName := files.StripSuffixes(filepath.Base(p))
+	fs, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
