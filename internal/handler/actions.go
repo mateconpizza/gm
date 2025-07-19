@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
-	"github.com/mateconpizza/gm/internal/bookmark/scraper"
+	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/parser"
@@ -27,6 +27,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/repository"
+	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
 var (
@@ -175,7 +176,7 @@ func CheckStatus(c *ui.Console, bs []*bookmark.Bookmark) error {
 		return sys.ErrActionAborted
 	}
 
-	if err := scraper.Status(c, bs); err != nil {
+	if err := status.Check(c, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

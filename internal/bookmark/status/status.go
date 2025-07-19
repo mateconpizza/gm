@@ -1,4 +1,4 @@
-package scraper
+package status
 
 import (
 	"context"
@@ -46,8 +46,8 @@ func (r *Response) String() string {
 	return fmt.Sprintf("%s (%s %s) %s", id, colorCode, colorStatus, url)
 }
 
-// Status checks the status of a slice of bookmarks.
-func Status(c *ui.Console, bs []*bookmark.Bookmark) error {
+// Check checks the status of a slice of bookmarks.
+func Check(c *ui.Console, bs []*bookmark.Bookmark) error {
 	const maxConRequests = 25
 
 	var (

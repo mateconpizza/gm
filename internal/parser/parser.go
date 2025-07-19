@@ -11,9 +11,9 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/bookmark/scraper"
-	record "github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/hasher"
+	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 
 // ScrapeMissingDescription scrapes missing data from bookmarks found from the import
 // process.
-func ScrapeMissingDescription(bs []*record.Bookmark) error {
+func ScrapeMissingDescription(bs []*bookmark.Bookmark) error {
 	if len(bs) == 0 {
 		return nil
 	}
@@ -45,7 +45,7 @@ func ScrapeMissingDescription(bs []*record.Bookmark) error {
 	for _, b := range bs {
 		wg.Add(1)
 
-		go func(b *record.Bookmark) {
+		go func(b *bookmark.Bookmark) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			defer wg.Done()
@@ -68,17 +68,17 @@ func ScrapeMissingDescription(bs []*record.Bookmark) error {
 	return nil
 }
 
-func ValidateChecksumJSON(b *record.BookmarkJSON) bool {
-	tags := record.ParseTags(strings.Join(b.Tags, ","))
+func ValidateChecksumJSON(b *bookmark.BookmarkJSON) bool {
+	tags := bookmark.ParseTags(strings.Join(b.Tags, ","))
 	return b.Checksum == hasher.GenChecksum(b.URL, b.Title, b.Desc, tags)
 }
 
 // BookmarkContent parses the provided content into a bookmark struct.
-func BookmarkContent(lines []string) *record.Bookmark {
-	b := record.New()
+func BookmarkContent(lines []string) *bookmark.Bookmark {
+	b := bookmark.New()
 	b.URL = cleanLines(ExtractBlock(lines, "# URL:", "# Title:"))
 	b.Title = cleanLines(ExtractBlock(lines, "# Title:", "# Tags:"))
-	b.Tags = record.ParseTags(cleanLines(ExtractBlock(lines, "# Tags:", "# Description:")))
+	b.Tags = bookmark.ParseTags(cleanLines(ExtractBlock(lines, "# Tags:", "# Description:")))
 	b.Desc = cleanLines(ExtractBlock(lines, "# Description:", "# end"))
 
 	return b
