@@ -13,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 // PromptSuggester is a function that generates suggestions for a given prompt.
@@ -220,7 +219,7 @@ func getUserInputWithAttempts(
 
 		count++
 		if count <= attempts-1 {
-			ClearLine(txt.CountLines(p))
+			ClearLine(len(strings.Split(p, "\n")))
 		}
 	}
 

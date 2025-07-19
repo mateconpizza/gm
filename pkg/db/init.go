@@ -23,22 +23,22 @@ func tablesAndSchema() []tableSchema {
 }
 
 // Init initializes a new database and creates the required tables.
-func (r *SQLite) Init() error {
-	return r.withTx(context.Background(), func(tx *sqlx.Tx) error {
+func (r *SQLite) Init(ctx context.Context) error {
+	return r.withTx(ctx, func(tx *sqlx.Tx) error {
 		for _, s := range tablesAndSchema() {
-			if err := r.tableCreate(tx, s.name, s.sql); err != nil {
+			if err := r.tableCreate(ctx, tx, s.name, s.sql); err != nil {
 				return fmt.Errorf("creating %q table: %w", s.name, err)
 			}
 
 			if s.index != "" {
-				if _, err := tx.Exec(s.index); err != nil {
+				if _, err := tx.ExecContext(ctx, s.index); err != nil {
 					return fmt.Errorf("creating %q index: %w", s.name, err)
 				}
 			}
 
 			if len(s.trigger) > 0 {
 				for _, t := range s.trigger {
-					if _, err := tx.Exec(t); err != nil {
+					if _, err := tx.ExecContext(ctx, t); err != nil {
 						return fmt.Errorf("creating %q trigger: %w", s.name, err)
 					}
 				}
@@ -63,10 +63,10 @@ func (r *SQLite) tableExists(t Table) (bool, error) {
 }
 
 // tableRename renames the temporary table to the specified main table name.
-func (r *SQLite) tableRename(tx *sqlx.Tx, srcTable, destTable Table) error {
+func (r *SQLite) tableRename(ctx context.Context, tx *sqlx.Tx, srcTable, destTable Table) error {
 	slog.Info("renaming table", "from", srcTable, "to", destTable)
 
-	_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", srcTable, destTable))
+	_, err := tx.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s RENAME TO %s", srcTable, destTable))
 	if err != nil {
 		return fmt.Errorf("%w: renaming table from %q to %q", err, srcTable, destTable)
 	}
@@ -75,10 +75,10 @@ func (r *SQLite) tableRename(tx *sqlx.Tx, srcTable, destTable Table) error {
 }
 
 // tableCreate creates a new table with the specified name in the SQLite database.
-func (r *SQLite) tableCreate(tx *sqlx.Tx, name Table, schema string) error {
+func (r *SQLite) tableCreate(ctx context.Context, tx *sqlx.Tx, name Table, schema string) error {
 	slog.Debug("creating table", "name", name)
 
-	_, err := tx.Exec(schema)
+	_, err := tx.ExecContext(ctx, schema)
 	if err != nil {
 		return fmt.Errorf("error creating table: %w", err)
 	}
@@ -87,8 +87,8 @@ func (r *SQLite) tableCreate(tx *sqlx.Tx, name Table, schema string) error {
 }
 
 // tableDrop drops the specified table from the SQLite database.
-func (r *SQLite) tableDrop(tx *sqlx.Tx, t Table) error {
-	_, err := tx.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
+func (r *SQLite) tableDrop(ctx context.Context, tx *sqlx.Tx, t Table) error {
+	_, err := tx.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", t))
 	if err != nil {
 		return fmt.Errorf("%w: dropping table %q", err, t)
 	}
@@ -100,8 +100,8 @@ func (r *SQLite) tableDrop(tx *sqlx.Tx, t Table) error {
 
 // Vacuum rebuilds the database file, repacking it into a minimal amount of
 // disk space.
-func (r *SQLite) Vacuum() error {
-	return vacuum(r)
+func (r *SQLite) Vacuum(ctx context.Context) error {
+	return vacuum(ctx, r)
 }
 
 // DropSecure removes all records database.

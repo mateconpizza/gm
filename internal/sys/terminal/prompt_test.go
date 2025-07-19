@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTermGetUserInput(t *testing.T) {
@@ -16,10 +15,16 @@ func TestTermGetUserInput(t *testing.T) {
 		input := "yes\n"
 		mockInput := strings.NewReader(input)
 		mockOutput := &strings.Builder{}
+
 		result, err := getUserInputWithAttempts(mockInput, mockOutput, "Proceed?", opts, "no")
-		assert.NoError(t, err)
-		assert.Equal(t, "yes", result, "Expected 'yes' but got %s", result)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "yes" {
+			t.Errorf("expected result 'yes', got '%s'", result)
+		}
 	})
+
 	t.Run("default", func(t *testing.T) {
 		t.Parallel()
 
@@ -27,10 +32,16 @@ func TestTermGetUserInput(t *testing.T) {
 		input := "\n"
 		mockInput := strings.NewReader(input)
 		mockOutput := &strings.Builder{}
+
 		result, err := getUserInputWithAttempts(mockInput, mockOutput, "Proceed?", opts, "no")
-		assert.NoError(t, err)
-		assert.Equal(t, "no", result)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "no" {
+			t.Errorf("expected result 'no', got '%s'", result)
+		}
 	})
+
 	t.Run("invalid", func(t *testing.T) {
 		t.Parallel()
 
@@ -38,9 +49,14 @@ func TestTermGetUserInput(t *testing.T) {
 		input := "invalid\n"
 		mockInput := strings.NewReader(input)
 		mockOutput := &strings.Builder{}
+
 		result, err := getUserInputWithAttempts(mockInput, mockOutput, "Proceed?", opts, "no")
-		assert.Error(t, err)
-		assert.Empty(t, result)
+		if err == nil {
+			t.Fatal("expected error but got nil")
+		}
+		if result != "" {
+			t.Errorf("expected empty result, got '%s'", result)
+		}
 	})
 }
 
@@ -50,7 +66,9 @@ func TestTermGetQueryFromPipe(t *testing.T) {
 	input := "hello\n"
 	mockInput := strings.NewReader(input)
 	result := getQueryFromPipe(mockInput)
-	assert.Equal(t, input, result)
+	if input != result {
+		t.Fatalf("expected '%s', got '%s'", input, result)
+	}
 }
 
 func TestTermFmtChoicesWithDefault(t *testing.T) {
@@ -97,7 +115,14 @@ func TestTermFmtChoicesWithDefault(t *testing.T) {
 				result[i] = color.ANSICodeRemover(result[i])
 			}
 
-			assert.Equal(t, tt.want, result)
+			if len(result) != len(tt.want) {
+				t.Fatalf("expected %d elements, got %d", len(tt.want), len(result))
+			}
+			for i := range tt.want {
+				if result[i] != tt.want[i] {
+					t.Errorf("at index %d: expected %q, got %q", i, tt.want[i], result[i])
+				}
+			}
 		})
 	}
 }

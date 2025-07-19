@@ -304,6 +304,50 @@ func RelativeTime(ts string) string {
 	return fmt.Sprintf("%d days ago", days)
 }
 
+// RelativeISOTime takes a timestamp string in ISO 8601 format (e.g., "2025-02-27T05:03:28Z")
+// and returns a relative time description.
+func RelativeISOTime(ts string) string {
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return "invalid timestamp"
+	}
+
+	now := time.Now()
+	// Normalize to local date only (ignore hour/minute/second)
+	t = t.Local()
+	now = now.Local()
+
+	// Zero the time component for day comparison
+	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	now = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	diff := now.Sub(t)
+	days := int(diff.Hours() / 24)
+
+	switch {
+	case days < 0:
+		return "in the future"
+	case days == 0:
+		return "today"
+	case days == 1:
+		return "yesterday"
+	case days < 7:
+		return fmt.Sprintf("%d days ago", days)
+	case days < 14:
+		return "1 week ago"
+	case days < 28:
+		return fmt.Sprintf("%d weeks ago", days/7)
+	case days < 60:
+		return "1 month ago"
+	case days < 365:
+		return fmt.Sprintf("%d months ago", days/30)
+	case days < 730:
+		return "1 year ago"
+	default:
+		return fmt.Sprintf("%d years ago", days/365)
+	}
+}
+
 // TagsWithPound returns a prettified tags with #.
 //
 //	#tag1 #tag2 #tag3

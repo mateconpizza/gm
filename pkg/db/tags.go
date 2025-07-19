@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/mateconpizza/gm/internal/bookmark"
 )
 
 // getOrCreateTag returns the tag ID.
@@ -34,7 +33,7 @@ func (r *SQLite) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
 }
 
 // associateTags associates tags to the given record.
-func (r *SQLite) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) associateTags(tx *sqlx.Tx, b *BookmarkModel) error {
 	slog.Debug("associating tags with URL", "tags", b.Tags, "url", b.URL)
 
 	tags := strings.SplitSeq(b.Tags, ",")
@@ -88,7 +87,7 @@ func createTag(tx *sqlx.Tx, tag string) (int64, error) {
 }
 
 // TagsCounter returns a map with tag as key and count as value.
-func TagsCounter(r *SQLite) (map[string]int, error) {
+func (r *SQLite) TagsCounter() (map[string]int, error) {
 	q := `
 		SELECT
       t.name,

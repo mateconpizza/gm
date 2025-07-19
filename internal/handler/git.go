@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // gitClean remove bookmarks files from git.

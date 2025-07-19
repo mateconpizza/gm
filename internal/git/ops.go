@@ -16,16 +16,17 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 const JSONFileExt = ".json"
@@ -58,7 +59,7 @@ func storeBookmarkAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (boo
 	urlHash := b.HashURL()
 	filePathJSON := filepath.Join(domainPath, urlHash+JSONFileExt)
 
-	updated, err := files.JSONWrite(filePathJSON, b.ToJSON(), force)
+	updated, err := files.JSONWrite(filePathJSON, b.JSON(), force)
 	if err != nil {
 		return resolveFileConflictErr(rootPath, err, filePathJSON, b)
 	}
@@ -128,17 +129,19 @@ func writeRepoStats(gr *Repository) error {
 
 // repoStats returns a new RepoStats.
 func repoStats(dbPath string, summary *SyncGitSummary) error {
-	r, err := db.New(dbPath)
+	conn, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
-	defer r.Close()
+	defer conn.Close()
+
+	r := repository.New(conn)
 
 	summary.RepoStats = &RepoStats{
-		Name:      r.Cfg.Name,
-		Bookmarks: db.CountMainRecords(r),
-		Tags:      db.CountTagsRecords(r),
-		Favorites: db.CountFavorites(r),
+		Name:      r.Name(),
+		Bookmarks: r.Count("bookmarks"),
+		Tags:      r.Count("tags"),
+		Favorites: r.CountFavorites(),
 	}
 
 	summary.GenChecksum()
@@ -213,10 +216,12 @@ func summaryRead(gr *Repository) (*SyncGitSummary, error) {
 }
 
 func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
-	r, err := db.New(gr.Loc.DBPath)
+	conn, err := db.New(gr.Loc.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
+
+	r := repository.New(conn)
 
 	branch, err := gr.Git.Branch()
 	if err != nil {
@@ -246,10 +251,10 @@ func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
 			AppVersion: config.App.Info.Version,
 		},
 		RepoStats: &RepoStats{
-			Name:      r.Cfg.Name,
-			Bookmarks: db.CountMainRecords(r),
-			Tags:      db.CountTagsRecords(r),
-			Favorites: db.CountFavorites(r),
+			Name:      r.Name(),
+			Bookmarks: r.Count("bookmarks"),
+			Tags:      r.Count("tags"),
+			Favorites: r.CountFavorites(),
 		},
 	}
 
@@ -264,10 +269,13 @@ func records(dbPath string) ([]*bookmark.Bookmark, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
-	bs, err := r.AllPtr()
+
+	repo := repository.New(r)
+	bs, err := repo.All()
 	if err != nil {
 		return nil, fmt.Errorf("getting bookmarks: %w", err)
 	}
+
 	return bs, nil
 }
 
@@ -479,7 +487,7 @@ func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
 	})
 
 	m.SetItems(records)
-	m.SetPreprocessor(bookmark.Oneline)
+	m.SetPreprocessor(txt.Oneline)
 
 	selected, err := m.Select()
 	if err != nil {
@@ -491,13 +499,15 @@ func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
+	repo := repository.New(r)
+
 	bs := make([]*bookmark.Bookmark, 0, len(selected))
 	for i := range selected {
 		bs = append(bs, &selected[i])
 	}
 
-	debookmarks := port.Deduplicate(c, r, bs)
-	if err := r.InsertMany(context.Background(), debookmarks); err != nil {
+	debookmarks := port.Deduplicate(c, repo, bs)
+	if err := repo.InsertMany(context.Background(), debookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -628,7 +638,7 @@ func handleOptCreate(c *ui.Console, gr *Repository) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := r.Init(); err != nil {
+	if err := r.Init(context.Background()); err != nil {
 		return "", fmt.Errorf("initializing database: %w", err)
 	}
 
@@ -678,11 +688,12 @@ func intoDBFromGit(c *ui.Console, gr *Repository) error {
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
-	if err := r.Init(); err != nil {
+	if err := r.Init(context.Background()); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
+	repo := repository.New(r)
+	if err := repo.InsertMany(context.Background(), bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -704,8 +715,9 @@ func mergeAndInsert(c *ui.Console, gr *Repository) error {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
 
-	bookmarks = port.Deduplicate(c, r, bookmarks)
-	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
+	repo := repository.New(r)
+	bookmarks = port.Deduplicate(c, repo, bookmarks)
+	if err := repo.InsertMany(context.Background(), bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

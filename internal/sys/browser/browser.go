@@ -5,8 +5,8 @@ package browser
 import (
 	"errors"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var ErrBrowserUnsupported = errors.New("browser unsupported")

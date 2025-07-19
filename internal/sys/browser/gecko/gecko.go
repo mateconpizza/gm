@@ -13,12 +13,13 @@ import (
 	"github.com/mateconpizza/rotato"
 	ini "gopkg.in/ini.v1"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
+	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/slice"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var ignoredPrefixes = slice.New(
@@ -204,7 +205,7 @@ func queryBookmarks(db *sqlx.DB) ([]*geckoBookmark, error) {
 		}
 
 		gb.Tags += " " + getTodayFormatted()
-		gb.Tags = bookmark.ParseTags(gb.Tags)
+		gb.Tags = parser.Tags(gb.Tags)
 
 		return nil
 	}

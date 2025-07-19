@@ -78,7 +78,7 @@ Flags:
   -j, --json            output in JSON format
   -m, --menu            menu mode (fzf)
   -M, --multiline       output in formatted multiline (fzf)
-  -n, --name string     database name (default "bookmarks.db")
+  -n, --name string     database name (default "main.db")
   -O, --oneline         output in formatted oneline (fzf)
   -o, --open            open bookmark in default browser
       --qr              generate qr-code

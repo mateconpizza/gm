@@ -2,11 +2,8 @@
 package handler
 
 import (
-	"fmt"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func testSetupDBFiles(t *testing.T, tempDir string, n int) []string {
@@ -29,8 +26,7 @@ func TestRemoveRepo(t *testing.T) {
 	t.Skip("skipping for now")
 	t.Parallel()
 	fs := testSetupDBFiles(t, t.TempDir(), 10)
-	fmt.Printf("len(fs): %v\n", len(fs))
-	assert.Empty(t, fs)
+	_ = fs
 }
 
 func TestRemoveBackups(t *testing.T) {

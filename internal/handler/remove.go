@@ -10,10 +10,9 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -21,6 +20,9 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 var (
@@ -39,7 +41,7 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 		return fmt.Errorf("%w: main database cannot be removed, use --force", terminal.ErrActionAborted)
 	}
 
-	fmt.Print(db.RepoSummaryFromPath(c, dbPath))
+	fmt.Print(summary.RepoFromPath(c, dbPath))
 
 	if !config.App.Flags.Force {
 		if err := c.ConfirmErr(credB("remove")+" "+filepath.Base(dbPath)+"?", "n"); err != nil {
@@ -69,7 +71,7 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 
 // RemoveBackups removes backups.
 func RemoveBackups(c *ui.Console, p string) error {
-	fs, err := db.ListBackups(config.App.Path.Backup, filepath.Base(p))
+	fs, err := db.ListBackups(config.App.Path.Backup, files.StripSuffixes(filepath.Base(p)))
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -104,7 +106,7 @@ actionLoop:
 			c.SetWriter(os.Stdout)
 
 			selected, err := selection(fs,
-				func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
+				func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
 				menu.WithArgs("--cycle"),
 				menu.WithUseDefaults(),
 				menu.WithSettings(config.Fzf.Settings),
@@ -138,7 +140,7 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 
 	if n > 1 && !config.App.Flags.Force {
 		dbs.ForEach(func(r string) {
-			c.F.Midln(db.RepoSummaryRecordsFromPath(r))
+			c.F.Midln(summary.RepoRecordsFromPath(r))
 		})
 
 		c.F.Flush()
@@ -175,7 +177,7 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Remove(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 	defer r.Close()
 	if err := validateRemove(bs, config.App.Flags.Force); err != nil {
 		return err
@@ -211,7 +213,8 @@ func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 // DroppingDB drops a database.
 func DroppingDB(c *ui.Console, r *db.SQLite) error {
 	c.F.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
-	fmt.Print(db.Info(c, r))
+	repo := repository.New(r)
+	fmt.Print(summary.Info(c, repo))
 
 	c.F.Reset().Rowln().Flush()
 

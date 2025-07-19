@@ -7,9 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -17,6 +15,9 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 // confirmRemove prompts the user to confirm the action.
@@ -28,7 +29,7 @@ func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Sli
 		}
 
 		bs.ForEach(func(b bookmark.Bookmark) {
-			fmt.Println(bookmark.Frame(&b))
+			fmt.Println(txt.Frame(&b))
 		})
 
 		s := color.BrightRed("remove").Bold().String()
@@ -49,7 +50,7 @@ func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Sli
 		case "y", "yes":
 			return nil
 		case "s", "select":
-			items, err := selectionWithMenu(m, *bs.Items(), bookmark.Oneline)
+			items, err := selectionWithMenu(m, *bs.Items(), txt.Oneline)
 			if err != nil {
 				return err
 			}

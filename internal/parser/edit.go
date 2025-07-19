@@ -1,22 +1,28 @@
-package bookmark
+package parser
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"sort"
 	"strings"
+	"time"
 
+	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var ErrBufferUnchanged = errors.New("buffer unchanged")
 
 // BookmarkEdit holds information about a bookmark edit operation.
 type BookmarkEdit struct {
-	item   *Bookmark
+	item   *bookmark.Bookmark
 	header []byte
 	body   []byte
 	footer []byte
@@ -24,7 +30,7 @@ type BookmarkEdit struct {
 	total  int
 }
 
-func newBookmarkEdit(b *Bookmark) *BookmarkEdit {
+func newBookmarkEdit(b *bookmark.Bookmark) *BookmarkEdit {
 	return &BookmarkEdit{
 		item: b,
 		body: b.Buffer(),
@@ -41,7 +47,7 @@ func (be *BookmarkEdit) Buffer() []byte {
 }
 
 // Edit edits a bookmark and validates the resulting content.
-func Edit(te *files.TextEditor, b *Bookmark, idx, total int) (*Bookmark, error) {
+func Edit(te *files.TextEditor, b *bookmark.Bookmark, idx, total int) (*bookmark.Bookmark, error) {
 	be := newBookmarkEdit(b)
 	be.idx = idx
 	be.total = total
@@ -60,11 +66,11 @@ func Edit(te *files.TextEditor, b *Bookmark, idx, total int) (*Bookmark, error) 
 	}
 
 	lines := strings.Split(string(modifiedData), "\n") // bytes to lines
-	if err := validateBookmarkFormat(lines); err != nil {
+	if err := ValidateBookmarkFormat(lines); err != nil {
 		return nil, fmt.Errorf("invalid bookmark format: %w", err)
 	}
 
-	tb := parseBookmarkContent(lines)
+	tb := BookmarkContent(lines)
 	if be.item.Equals(tb) {
 		return nil, ErrBufferUnchanged
 	}
@@ -119,4 +125,90 @@ func prepareBufferForEdition(be *BookmarkEdit) {
 	// assemble
 	header = append(header, meta...)
 	be.header = append(be.header, header...)
+}
+
+// scrapeBookmark updates a Bookmark's title and description by scraping the
+// webpage if they are missing.
+func scrapeBookmark(b *bookmark.Bookmark) *bookmark.Bookmark {
+	if b.Title != "" {
+		return b
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	sc := scraper.New(b.URL, scraper.WithContext(ctx), scraper.WithSpinner("scraping webpage..."))
+	if err := sc.Start(); err != nil {
+		slog.Error("scraping error", "error", err)
+	}
+
+	if b.Title == "" {
+		t, _ := sc.Title()
+		b.Title = validateAttr(b.Title, t)
+	}
+
+	if b.Desc == "" {
+		d, _ := sc.Desc()
+		b.Desc = validateAttr(b.Desc, d)
+	}
+
+	f, _ := sc.Favicon()
+	b.FaviconURL = f
+
+	return b
+}
+
+// validateAttr validates bookmark attribute.
+func validateAttr(s, fallback string) string {
+	s = strings.TrimSpace(txt.NormalizeSpace(s))
+	if s == "" {
+		return strings.TrimSpace(fallback)
+	}
+
+	return s
+}
+
+// Tags normalizes a string of tags by separating them by commas, sorting
+// them and ensuring that the final string ends with a comma.
+//
+//	from: "tag1, tag2, tag3 tag"
+//	to: "tag,tag1,tag2,tag3,"
+func Tags(tags string) string {
+	if tags == "" {
+		return "notag"
+	}
+
+	split := strings.FieldsFunc(tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	})
+	sort.Strings(split)
+
+	tags = strings.Join(uniqueTags(split), ",")
+	if strings.HasSuffix(tags, ",") {
+		return tags
+	}
+
+	return tags + ","
+}
+
+// uniqueTags returns a slice of unique tags.
+func uniqueTags(t []string) []string {
+	var (
+		tags []string
+		seen = make(map[string]bool)
+	)
+
+	for _, tag := range t {
+		if tag == "" {
+			continue
+		}
+
+		if !seen[tag] {
+			seen[tag] = true
+
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags
 }

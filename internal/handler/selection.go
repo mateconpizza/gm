@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/slice"
+	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 // selection allows the user to select a record in a menu interface.
@@ -61,7 +62,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 // selectItem lets the user choose a repo from a list.
 func selectItem(fs []string, header string) (string, error) {
 	repos, err := selection(fs,
-		func(p *string) string { return db.RepoSummaryRecordsFromPath(*p) },
+		func(p *string) string { return summary.RepoRecordsFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
@@ -78,7 +79,7 @@ func selectItem(fs []string, header string) (string, error) {
 // needed.
 func SelectBackupOne(c *ui.Console, bks []string) (string, error) {
 	selected, err := selection(bks,
-		func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
+		func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
 		menu.WithArgs("--cycle"),
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -109,7 +110,7 @@ func SelectBackupMany(root, header string) ([]string, error) {
 	}
 
 	repos, err := selection(fs,
-		func(p *string) string { return db.RepoSummaryRecordsFromPath(*p) },
+		func(p *string) string { return summary.RepoRecordsFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -132,7 +133,7 @@ func SelectFileLocked(root, header string) ([]string, error) {
 	}
 
 	selected, err := selection(bks,
-		func(p *string) string { return db.BackupSummaryWithFmtDateFromPath(*p) },
+		func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),

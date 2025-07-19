@@ -1,4 +1,4 @@
-// Package repo provides the model of the configuration for a database.
+// Package db provides the model of the configuration for a database.
 package db
 
 import (
@@ -10,8 +10,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/mateconpizza/gm/internal/sys/files"
 )
 
 type Table string
@@ -45,11 +43,6 @@ func (r *SQLite) Close() {
 	})
 }
 
-// ListBackups returns a list of available backup files.
-func (r *SQLite) ListBackups() ([]string, error) {
-	return ListBackups(r.Cfg.BackupDir, r.Cfg.Name)
-}
-
 // Backup creates a backup of the SQLite database and returns the path to the
 // backup filepath.
 func (r *SQLite) Backup() (string, error) {
@@ -74,7 +67,7 @@ func New(p string) (*SQLite, error) {
 	return newRepository(p, func(path string) error {
 		slog.Debug("new repo: checking if database exists", "path", path)
 
-		if !files.Exists(path) {
+		if !fileExists(path) {
 			return fmt.Errorf("%w: %q", ErrDBNotFound, path)
 		}
 
@@ -87,7 +80,7 @@ func Init(p string) (*SQLite, error) {
 	return newRepository(p, func(path string) error {
 		slog.Debug("init repo: checking if database exists", "path", path)
 
-		if files.Exists(path) {
+		if fileExists(path) {
 			return fmt.Errorf("%w: %q", ErrDBExists, path)
 		}
 
@@ -98,7 +91,7 @@ func Init(p string) (*SQLite, error) {
 // newRepository returns a new SQLiteRepository from the provided path.
 func newRepository(p string, validate func(string) error) (*SQLite, error) {
 	if p == "" {
-		return nil, files.ErrPathEmpty
+		return nil, fmt.Errorf("%w: %q", ErrDBNotFound, p)
 	}
 
 	if err := validate(p); err != nil {
@@ -122,7 +115,7 @@ func newRepository(p string, validate func(string) error) (*SQLite, error) {
 // NewFromBackup creates a SQLiteRepository from a backup file.
 func NewFromBackup(backupPath string) (*SQLite, error) {
 	if backupPath == "" {
-		return nil, files.ErrPathNotFound
+		return nil, fmt.Errorf("%w: %q", ErrDBNotFound, backupPath)
 	}
 
 	var (
@@ -190,7 +183,7 @@ func (c *Cfg) Fullpath() string {
 
 // Exists returns true if the SQLite database exists.
 func (c *Cfg) Exists() bool {
-	return files.Exists(c.Fullpath())
+	return fileExists(c.Fullpath())
 }
 
 // newSQLiteCfg returns the default settings for the database.
@@ -204,7 +197,7 @@ func newSQLiteCfg(p string) (*Cfg, error) {
 
 	return &Cfg{
 		Path:       baseDir,
-		Name:       files.EnsureSuffix(filepath.Base(abs), ".db"),
+		Name:       ensureDBSuffix(filepath.Base(abs)),
 		BackupDir:  filepath.Join(baseDir, "backup"),
 		DateFormat: defaultDateFormat,
 	}, nil

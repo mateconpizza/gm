@@ -5,9 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -16,6 +14,9 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/printer"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 func init() {
@@ -68,11 +69,13 @@ var (
 
 // recordsCmd is the main command and entrypoint.
 func recordsCmdFunc(cmd *cobra.Command, args []string) error {
-	r, err := db.New(config.App.DBPath)
+	conn, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer r.Close()
+	defer conn.Close()
+
+	r := repository.New(conn)
 
 	terminal.ReadPipedInput(&args)
 

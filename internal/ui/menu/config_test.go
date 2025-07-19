@@ -1,9 +1,8 @@
 package menu
 
 import (
+	"errors"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func testValidConfig(t *testing.T) *Config {
@@ -41,27 +40,50 @@ func testValidConfig(t *testing.T) *Config {
 
 func TestValidateConfig(t *testing.T) {
 	t.Parallel()
+
 	t.Run("valid config", func(t *testing.T) {
 		t.Parallel()
 		cfg := testValidConfig(t)
-		assert.NoError(t, cfg.Validate())
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
 	})
+
 	t.Run("invalid config", func(t *testing.T) {
 		t.Parallel()
 		cfg := testValidConfig(t)
 		cfg.Keymaps.Edit.Bind = ""
-		assert.Error(t, cfg.Validate())
-		assert.ErrorIs(t, cfg.Validate(), ErrInvalidConfigKeymap)
+		err := cfg.Validate()
+		if err == nil {
+			t.Error("expected error, got nil")
+		} else if !errors.Is(err, ErrInvalidConfigKeymap) {
+			t.Errorf("expected ErrInvalidConfigKeymap, got %v", err)
+		}
 	})
+
 	t.Run("default prompt and header separator", func(t *testing.T) {
 		t.Parallel()
 		cfg := testValidConfig(t)
 		cfg.Prompt = ""
 		cfg.Header.Sep = ""
-		assert.Empty(t, cfg.Prompt)
-		assert.Empty(t, cfg.Header.Sep)
-		assert.NoError(t, cfg.Validate())
-		assert.NotEmpty(t, cfg.Prompt)
-		assert.NotEmpty(t, cfg.Header.Sep)
+
+		if cfg.Prompt != "" {
+			t.Errorf("expected empty prompt before validate, got %q", cfg.Prompt)
+		}
+		if cfg.Header.Sep != "" {
+			t.Errorf("expected empty separator before validate, got %q", cfg.Header.Sep)
+		}
+
+		err := cfg.Validate()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		if cfg.Prompt == "" {
+			t.Error("expected non-empty prompt after validate")
+		}
+		if cfg.Header.Sep == "" {
+			t.Error("expected non-empty header separator after validate")
+		}
 	})
 }

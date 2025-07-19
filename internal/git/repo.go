@@ -7,13 +7,13 @@ import (
 	"log/slog"
 	"path/filepath"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var (
@@ -25,8 +25,8 @@ var (
 // Location holds all path and naming information for a repository.
 type Location struct {
 	Name   string // Database name without extension (e.g., "bookmarks")
-	DBName string // Database base name (e.g., "bookmarks.db")
-	DBPath string // Database fullpath (e.g., "/home/user/.local/share/app/bookmarks.db")
+	DBName string // Database base name (e.g., "main.db")
+	DBPath string // Database fullpath (e.g., "/home/user/.local/share/app/main.db")
 	Git    string // Path to where to store the Git repository (e.g., "/home/user/.local/share/app/git")
 	Path   string // Path to where to store the associated Git files (e.g., "/home/user/.local/share/app/git/bookmarks")
 	Hash   string // Hash of the database fullpath (for internal lookups/storage)

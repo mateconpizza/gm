@@ -1,4 +1,4 @@
-package bookmark
+package txt
 
 import (
 	"fmt"
@@ -8,11 +8,11 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // Oneline formats a bookmark in a single line with the given colorscheme.
-func Oneline(b *Bookmark) string {
+func Oneline(b *bookmark.Bookmark) string {
 	w := terminal.MaxWidth
 
 	const (
@@ -39,12 +39,12 @@ func Oneline(b *Bookmark) string {
 	// Calculate long available for URL
 	const urlPadding = 3 // 3 = ' ' + '·' + ' '.
 	urlLen := w - idLen - urlPadding - tagsLen
-	shortURL := txt.Shorten(b.URL, urlLen)
+	shortURL := Shorten(b.URL, urlLen)
 	colorURL := cs.BrightWhite(shortURL).String()
 	urlLen += len(colorURL) - len(shortURL)
 
 	// tags
-	tagsColor := cs.Blue(txt.TagsWithUnicode(b.Tags)).Italic().String()
+	tagsColor := cs.Blue(TagsWithUnicode(b.Tags)).Italic().String()
 
 	var sb strings.Builder
 
@@ -57,53 +57,53 @@ func Oneline(b *Bookmark) string {
 }
 
 // Multiline formats a bookmark for fzf with max width.
-func Multiline(b *Bookmark) string {
+func Multiline(b *bookmark.Bookmark) string {
 	w := terminal.MaxWidth
 
 	var sb strings.Builder
 
 	cs := color.DefaultColorScheme()
 	sb.WriteString(cs.BrightYellow(b.ID).Bold().String())
-	sb.WriteString(txt.NBSP)
-	sb.WriteString(txt.Shorten(txt.URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + "\n")
+	sb.WriteString(NBSP)
+	sb.WriteString(Shorten(URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + "\n")
 
 	if b.Title != "" {
-		sb.WriteString(cs.Cyan(txt.Shorten(b.Title, w)).String() + "\n")
+		sb.WriteString(cs.Cyan(Shorten(b.Title, w)).String() + "\n")
 	}
 
-	sb.WriteString(cs.BrightWhite(txt.TagsWithUnicode(b.Tags)).Italic().String())
+	sb.WriteString(cs.BrightWhite(TagsWithUnicode(b.Tags)).Italic().String())
 
 	return sb.String()
 }
 
-func FrameFormatted(b *Bookmark, c color.ColorFn) string {
+func FrameFormatted(b *bookmark.Bookmark, c color.ColorFn) string {
 	f := frame.New(frame.WithColorBorder(c))
 	w := terminal.MaxWidth - len(f.Border.Row)
 	// id + url
 	id := color.BrightYellow(b.ID).Bold().String()
-	urlColor := txt.Shorten(txt.URLBreadCrumbsColor(b.URL, color.BrightMagenta), w)
+	urlColor := Shorten(URLBreadCrumbsColor(b.URL, color.BrightMagenta), w)
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 	// title
 	if b.Title != "" {
-		titleSplit := txt.SplitIntoChunks(b.Title, w)
+		titleSplit := SplitIntoChunks(b.Title, w)
 		title := color.ApplyMany(titleSplit, color.Cyan)
 		f.Mid(title...).Ln()
 	}
 	// description
 	if b.Desc != "" {
-		descSplit := txt.SplitIntoChunks(b.Desc, w)
+		descSplit := SplitIntoChunks(b.Desc, w)
 		desc := color.ApplyMany(descSplit, color.Gray)
 		f.Mid(desc...).Ln()
 	}
 	// tags
-	tags := color.Gray(txt.TagsWithPound(b.Tags)).Italic().String()
+	tags := color.Gray(TagsWithPound(b.Tags)).Italic().String()
 	f.Footer(tags).Ln()
 
 	return f.String()
 }
 
 // Frame formats a bookmark in a frame with min width.
-func Frame(b *Bookmark) string {
+func Frame(b *bookmark.Bookmark) string {
 	w := terminal.MinWidth
 	cs := color.DefaultColorScheme()
 	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
@@ -111,22 +111,22 @@ func Frame(b *Bookmark) string {
 	w -= len(f.Border.Row)
 	// id + url
 	id := cs.BrightYellow(b.ID).Bold()
-	urlColor := txt.Shorten(txt.URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + color.Reset()
+	urlColor := Shorten(URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + color.Reset()
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 	// title
 	if b.Title != "" {
-		titleSplit := txt.SplitIntoChunks(b.Title, w)
+		titleSplit := SplitIntoChunks(b.Title, w)
 		title := color.ApplyMany(titleSplit, cs.BrightCyan)
 		f.Mid(title...).Ln()
 	}
 	// description
 	if b.Desc != "" {
-		descSplit := txt.SplitIntoChunks(b.Desc, w)
+		descSplit := SplitIntoChunks(b.Desc, w)
 		desc := color.ApplyMany(descSplit, cs.White)
 		f.Mid(desc...).Ln()
 	}
 	// tags
-	tags := cs.BrightWhite(txt.TagsWithPound(b.Tags)).Italic().String()
+	tags := cs.BrightWhite(TagsWithPound(b.Tags)).Italic().String()
 	f.Footer(tags).Ln()
 
 	return f.String()

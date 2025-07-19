@@ -27,6 +27,10 @@ var (
 	ErrRecordQueryNotProvided = errors.New("no id or query provided")
 	ErrRecordScan             = errors.New("scan record")
 	ErrInvalidSortBy          = errors.New("invalid sort")
+	ErrTagsEmpty              = errors.New("tags cannot be empty")
+	ErrURLEmpty               = errors.New("URL cannot be empty")
+	ErrChecksumEmpty          = errors.New("checksum cannot be empty")
+	ErrChecksumEqual          = errors.New("checksum: equal")
 )
 
 var (

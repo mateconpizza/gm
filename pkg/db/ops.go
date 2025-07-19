@@ -4,27 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/mateconpizza/gm/internal/bookmark"
-	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/sys/files"
 )
-
-// CountMainRecords returns the number of records in the main table.
-func CountMainRecords(r *SQLite) int {
-	slog.Debug("count main records", "database", r.Name())
-	return countRecords(r, schemaMain.name)
-}
-
-// CountTagsRecords returns the number of records in the tags table.
-func CountTagsRecords(r *SQLite) int {
-	slog.Debug("count tags records", "database", r.Name())
-	return countRecords(r, schemaTags.name)
-}
 
 // TagsCounterFromPath returns a map with tag as key and count as value.
 func TagsCounterFromPath(dbPath string) (map[string]int, error) {
@@ -33,7 +20,7 @@ func TagsCounterFromPath(dbPath string) (map[string]int, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	return TagsCounter(r)
+	return r.TagsCounter()
 }
 
 // DropFromPath drops the database from the given path.
@@ -46,37 +33,9 @@ func DropFromPath(dbPath string) error {
 	return Drop(r, context.Background())
 }
 
-// CountFavorites returns the number of favorite records.
-func CountFavorites(r *SQLite) int {
-	var n int
-	if err := r.DB.QueryRowx("SELECT COUNT(*) FROM bookmarks WHERE favorite = 1").Scan(&n); err != nil {
-		return 0
-	}
-
-	return n
-}
-
-// List returns the list of databases.
-//
-// locked|unlocked databases.
-func List(root string) ([]string, error) {
-	fs, err := files.FindByExtList(root, ".db", ".enc")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	if len(fs) == 0 {
-		return nil, ErrDBsNotFound
-	}
-
-	return fs, nil
-}
-
 // ListBackups returns a filtered list of database backups.
 func ListBackups(dir, dbName string) ([]string, error) {
-	// remove .db|.enc extension for matching
-	baseName := files.StripSuffixes(dbName)
-	entries, err := filepath.Glob(filepath.Join(dir, "*_"+baseName+".db*"))
+	entries, err := filepath.Glob(filepath.Join(dir, "*_"+dbName+".db*"))
 	if err != nil {
 		return nil, fmt.Errorf("listing backups: %w", err)
 	}
@@ -85,7 +44,7 @@ func ListBackups(dir, dbName string) ([]string, error) {
 }
 
 // HasURL checks if a record exists in the main table.
-func HasURL(dbPath, bURL string) (*bookmark.Bookmark, bool) {
+func HasURL(dbPath, bURL string) (*BookmarkModel, bool) {
 	r, err := New(dbPath)
 	if err != nil {
 		return nil, false
@@ -105,9 +64,6 @@ func countRecords(r *SQLite, t Table) int {
 
 // newBackup creates a new backup from the given repository.
 func newBackup(r *SQLite) (string, error) {
-	if err := files.MkdirAll(config.App.Path.Backup); err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
 	// destDSN -> 20060102-150405_dbName.db
 	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(r.Cfg.DateFormat), r.Name())
 	destPath := filepath.Join(r.Cfg.BackupDir, destDSN)
@@ -116,7 +72,7 @@ func newBackup(r *SQLite) (string, error) {
 		"dest", destPath,
 	)
 
-	if files.Exists(destPath) {
+	if fileExists(destPath) {
 		return "", fmt.Errorf("%w: %q", ErrBackupExists, destPath)
 	}
 
@@ -145,8 +101,8 @@ func verifySQLiteIntegrity(path string) error {
 	}()
 
 	var result string
-
-	row := db.QueryRow("PRAGMA integrity_check;")
+	ctx := context.Background()
+	row := db.QueryRowContext(ctx, "PRAGMA integrity_check;")
 	if err := row.Scan(&result); err != nil {
 		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
 	}
@@ -222,19 +178,19 @@ func Drop(r *SQLite, ctx context.Context) error {
 			return fmt.Errorf("%w", err)
 		}
 
-		return resetSQLiteSequence(tx, tables...)
+		return resetSQLiteSequence(ctx, tx, tables...)
 	})
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	return r.Vacuum()
+	return r.Vacuum(ctx)
 }
 
-func vacuum(r *SQLite) error {
+func vacuum(ctx context.Context, r *SQLite) error {
 	slog.Debug("vacuuming database")
 
-	_, err := r.DB.Exec("VACUUM")
+	_, err := r.DB.ExecContext(ctx, "VACUUM")
 	if err != nil {
 		return fmt.Errorf("vacuum: %w", err)
 	}
@@ -243,7 +199,7 @@ func vacuum(r *SQLite) error {
 }
 
 // resetSQLiteSequence resets the SQLite sequence for the given table.
-func resetSQLiteSequence(tx *sqlx.Tx, tables ...Table) error {
+func resetSQLiteSequence(ctx context.Context, tx *sqlx.Tx, tables ...Table) error {
 	if len(tables) == 0 {
 		slog.Warn("no tables provided to reset sqlite sequence")
 		return nil
@@ -252,10 +208,107 @@ func resetSQLiteSequence(tx *sqlx.Tx, tables ...Table) error {
 	for _, t := range tables {
 		slog.Debug("resetting sqlite sequence", "table", t)
 
-		if _, err := tx.Exec("DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
 			return fmt.Errorf("resetting sqlite sequence: %w", err)
 		}
 	}
 
 	return nil
+}
+
+func RemoveReorder(ctx context.Context, r *SQLite, bs []*BookmarkModel) error {
+	// delete records from main table.
+	if err := r.DeleteMany(ctx, bs); err != nil {
+		return fmt.Errorf("deleting records: %w", err)
+	}
+	// reorder IDs from main table to avoid gaps.
+	if err := r.ReorderIDs(ctx); err != nil {
+		return fmt.Errorf("reordering IDs: %w", err)
+	}
+	// recover space after deletion.
+	if err := r.Vacuum(ctx); err != nil {
+		return fmt.Errorf("vacuum: %w", err)
+	}
+
+	return nil
+}
+
+// ParseTags normalizes a string of tags by separating them by commas, sorting
+// them and ensuring that the final string ends with a comma.
+//
+//	from: "tag1, tag2, tag3 tag"
+//	to: "tag,tag1,tag2,tag3,"
+func ParseTags(tags string) string {
+	if tags == "" {
+		return "notag"
+	}
+
+	split := strings.FieldsFunc(tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	})
+	sort.Strings(split)
+
+	tags = strings.Join(uniqueTags(split), ",")
+	if strings.HasSuffix(tags, ",") {
+		return tags
+	}
+
+	return tags + ","
+}
+
+// uniqueTags returns a slice of unique tags.
+func uniqueTags(t []string) []string {
+	var (
+		tags []string
+		seen = make(map[string]bool)
+	)
+
+	for _, tag := range t {
+		if tag == "" {
+			continue
+		}
+
+		if !seen[tag] {
+			seen[tag] = true
+
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags
+}
+
+// Validate validates the bookmark.
+func Validate(b *BookmarkModel) error {
+	if b.URL == "" {
+		slog.Error("bookmark is invalid. URL is empty")
+		return ErrURLEmpty
+	}
+
+	if b.Tags == "," || b.Tags == "" {
+		slog.Error("bookmark is invalid. Tags are empty")
+		return ErrTagsEmpty
+	}
+
+	return nil
+}
+
+// fileExists checks if a file exists.
+func fileExists(s string) bool {
+	_, err := os.Stat(s)
+	return !os.IsNotExist(err)
+}
+
+func ensureDBSuffix(s string) string {
+	const suffix = ".db"
+	if s == "" {
+		return s
+	}
+
+	e := filepath.Ext(s)
+	if e == suffix || e != "" {
+		return s
+	}
+
+	return fmt.Sprintf("%s%s", s, suffix)
 }

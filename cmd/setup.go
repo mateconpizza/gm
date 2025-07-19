@@ -9,10 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -21,6 +20,9 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 func initConfig() {
@@ -165,17 +167,17 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	r, err := db.Init(cfg.DBPath)
-	if r == nil {
+	store, err := db.Init(cfg.DBPath)
+	if store == nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer r.Close()
+	defer store.Close()
 
-	if r.IsInitialized() && !cfg.Flags.Force {
-		return fmt.Errorf("%q %w", r.Name(), db.ErrDBAlreadyInitialized)
+	if store.IsInitialized() && !cfg.Flags.Force {
+		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
-	if err := r.Init(); err != nil {
+	if err := store.Init(context.Background()); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
@@ -189,14 +191,16 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 	ib := bookmark.New()
 	ib.URL = cfg.Info.URL
 	ib.Title = cfg.Info.Title
-	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
+	ib.Tags = parser.Tags(cfg.Info.Tags)
 	ib.Desc = cfg.Info.Desc
+
+	r := repository.New(store)
 
 	if err := r.InsertOne(context.Background(), ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(bookmark.Frame(ib))
+	fmt.Print(txt.Frame(ib))
 	fmt.Print("\n" + c.SuccessMesg("initialized database "+cfg.DBName+"\n"))
 
 	return nil

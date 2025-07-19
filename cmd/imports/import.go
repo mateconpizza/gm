@@ -10,14 +10,16 @@ import (
 	cmdGit "github.com/mateconpizza/gm/cmd/git"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 var ErrImportSourceNotFound = errors.New("import source not found")
@@ -72,10 +74,11 @@ var (
 )
 
 func fromBrowserFunc(_ *cobra.Command, _ []string) error {
-	r, err := db.New(config.App.DBPath)
+	store, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	r := repository.New(store)
 	defer r.Close()
 
 	c := ui.NewConsole(
@@ -93,13 +96,15 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 }
 
 func fromBackupFunc(command *cobra.Command, args []string) error {
-	r, err := db.New(config.App.DBPath)
+	destStore, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer r.Close()
+	destRepo := repository.New(destStore)
+	defer destRepo.Close()
 
-	bks, err := r.ListBackups()
+	dbName := files.StripSuffixes(destStore.Name())
+	bks, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -111,7 +116,7 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
+			destRepo.Close()
 			sys.ErrAndExit(err)
 		}))),
 	)
@@ -121,19 +126,20 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	srcDB, err := db.New(backupPath)
+	srcStore, err := db.New(backupPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer srcDB.Close()
+	srcRepo := repository.New(srcStore)
+	defer srcRepo.Close()
 
 	c.T.SetInterruptFn(func(err error) {
-		r.Close()
-		srcDB.Close()
+		destRepo.Close()
+		srcRepo.Close()
 		sys.ErrAndExit(err)
 	})
 
-	if err := port.FromBackup(c, r, srcDB); err != nil {
+	if err := port.FromBackup(c, destRepo, srcRepo); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -141,28 +147,30 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 }
 
 func fromDatabaseFunc(command *cobra.Command, _ []string) error {
-	r, err := db.New(config.App.DBPath)
+	store, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	r := repository.New(store)
 	defer r.Close()
 
-	srcDB, err := handler.SelectDatabase(r.Cfg.Fullpath())
+	srcDB, err := handler.SelectDatabase(r.Fullpath())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer srcDB.Close()
+	rSrc := repository.New(srcDB)
+	defer rSrc.Close()
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
 			r.Close()
-			srcDB.Close()
+			rSrc.Close()
 			sys.ErrAndExit(err)
 		}))),
 	)
 
-	if err := port.Database(c, srcDB, r); err != nil {
+	if err := port.Database(c, rSrc, r); err != nil {
 		return fmt.Errorf("import from database: %w", err)
 	}
 

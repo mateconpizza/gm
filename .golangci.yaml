@@ -9,6 +9,7 @@ linters:
   enable:
     - asasalint
     - bidichk
+    - bodyclose
     - decorder
     - dogsled
     - dupl
@@ -115,7 +116,7 @@ linters:
         - name: bool-literal-in-expr
         - name: early-return
         - name: unexported-naming
-        - name: nested-structs
+        # - name: nested-structs
     # wsl:
     #   allow-trailing-comment: true
     staticcheck:

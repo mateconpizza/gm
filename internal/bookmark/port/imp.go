@@ -11,19 +11,21 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 // Browser imports bookmarks from a supported browser.
-func Browser(c *ui.Console, r *db.SQLite) error {
+func Browser(c *ui.Console, r repository.Repo) error {
 	br, ok := getBrowser(selectBrowser(c))
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
@@ -52,7 +54,7 @@ func Browser(c *ui.Console, r *db.SQLite) error {
 }
 
 // Database imports bookmarks from a database.
-func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
+func Database(c *ui.Console, srcDB, destDB repository.Repo) error {
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
@@ -71,8 +73,14 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	m.SetItems(items)
-	m.SetPreprocessor(bookmark.Oneline)
+	// BUG: fix!!!
+	rec := make([]bookmark.Bookmark, 0, len(items))
+	for i := range items {
+		rec = append(rec, *items[i])
+	}
+
+	m.SetItems(rec)
+	m.SetPreprocessor(txt.Oneline)
 
 	records, err := m.Select()
 	if err != nil {
@@ -101,7 +109,7 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 }
 
 // IntoRepo import records into the database.
-func IntoRepo(c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
+func IntoRepo(c *ui.Console, r repository.Repo, records []*bookmark.Bookmark) error {
 	n := len(records)
 	if !config.App.Flags.Force && n > 1 {
 		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
@@ -127,7 +135,7 @@ func IntoRepo(c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
 }
 
 // FromBackup imports bookmarks from a backup.
-func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
+func FromBackup(c *ui.Console, destDB, srcDB repository.Repo) error {
 	s := color.BrightYellow("Import bookmarks from backup: ").String()
 	c.F.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
 	m := menu.New[bookmark.Bookmark](
@@ -146,8 +154,13 @@ func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	m.SetItems(bookmarks)
-	m.SetPreprocessor(bookmark.Oneline)
+	rec := make([]bookmark.Bookmark, 0, len(bookmarks))
+	for i := range bookmarks {
+		rec = append(rec, *bookmarks[i])
+	}
+
+	m.SetItems(rec)
+	m.SetPreprocessor(txt.Oneline)
 
 	items, err := m.Select()
 	if err != nil {
@@ -179,7 +192,7 @@ func ToJSON(data any) ([]byte, error) {
 }
 
 // Deduplicate removes duplicate bookmarks.
-func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+func Deduplicate(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	originalLen := len(bs)
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
 
@@ -204,7 +217,7 @@ func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookma
 // browser process.
 func parseFoundInBrowser(
 	c *ui.Console,
-	r *db.SQLite,
+	r repository.Repo,
 	bs []*bookmark.Bookmark,
 ) ([]*bookmark.Bookmark, error) {
 	bs = Deduplicate(c, r, bs)
@@ -223,7 +236,7 @@ func parseFoundInBrowser(
 		}
 	}
 
-	if err := bookmark.ScrapeMissingDescription(bs); err != nil {
+	if err := parser.ScrapeMissingDescription(bs); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 

@@ -7,21 +7,24 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 // Records prints the bookmarks in a frame format with the given colorscheme.
 func Records(bs []*bookmark.Bookmark) error {
 	lastIdx := len(bs) - 1
 	for i := range bs {
-		fmt.Print(bookmark.Frame(bs[i]))
+		fmt.Print(txt.Frame(bs[i]))
 
 		if i != lastIdx {
 			fmt.Println()
@@ -52,7 +55,7 @@ func TagsList(p string) error {
 // Oneline formats the bookmarks in oneline.
 func Oneline(bs []*bookmark.Bookmark) error {
 	for i := range bs {
-		fmt.Print(bookmark.Oneline(bs[i]))
+		fmt.Print(txt.Oneline(bs[i]))
 	}
 
 	return nil
@@ -95,7 +98,7 @@ func DatabasesList(c *ui.Console, p string) error {
 	}
 
 	for _, fname := range fs {
-		fmt.Print(db.RepoSummaryFromPath(c, fname))
+		fmt.Print(summary.RepoFromPath(c, fname))
 	}
 
 	return nil
@@ -106,7 +109,7 @@ func RecordsJSON(bs []*bookmark.Bookmark) error {
 	slog.Debug("formatting bookmarks in JSON", "count", len(bs))
 	r := make([]*bookmark.BookmarkJSON, 0, len(bs))
 	for _, b := range bs {
-		r = append(r, b.ToJSON())
+		r = append(r, b.JSON())
 	}
 
 	j, err := port.ToJSON(r)
@@ -127,7 +130,7 @@ func TagsJSON(p string) error {
 	}
 	defer r.Close()
 
-	tags, err := db.TagsCounter(r)
+	tags, err := r.TagsCounter()
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -145,17 +148,19 @@ func TagsJSON(p string) error {
 // RepoInfo prints the database info.
 func RepoInfo(c *ui.Console, p string, j bool) error {
 	if err := locker.IsLocked(p); err != nil {
-		fmt.Print(db.RepoSummaryFromPath(c, p+".enc"))
+		fmt.Print(summary.RepoFromPath(c, p+".enc"))
 		return nil
 	}
 
-	r, err := db.New(p)
+	store, err := db.New(p)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
+	r := repository.New(store)
 	defer r.Close()
 
-	r.Cfg.BackupFiles, _ = r.ListBackups()
+	// FIX: Implement ListBackups
+	store.Cfg.BackupFiles = []string{"/home/void/dot/gomarks/.local/share/gomarks/backup/20250705-172325_bookmarks.db"}
 	if j {
 		b, err := port.ToJSON(r)
 		if err != nil {
@@ -167,7 +172,7 @@ func RepoInfo(c *ui.Console, p string, j bool) error {
 		return nil
 	}
 
-	info := db.Info(c, r)
+	info := summary.Info(c, r)
 
 	g, err := git.Info(c, p)
 	if err != nil {

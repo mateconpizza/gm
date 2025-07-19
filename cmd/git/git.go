@@ -2,17 +2,19 @@
 package git
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
@@ -20,6 +22,10 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 func init() {
@@ -95,13 +101,15 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	r, err := db.New(gr.Loc.DBPath)
+	conn, err := db.New(gr.Loc.DBPath)
 	if err != nil {
 		return fmt.Errorf("open repo: %w", err)
 	}
-	defer r.Close()
+	defer conn.Close()
 
-	bs, err := r.AllPtr()
+	r := repository.New(conn)
+
+	bs, err := r.All()
 	if err != nil {
 		return fmt.Errorf("load records: %w", err)
 	}
@@ -338,6 +346,69 @@ var gitTestCmd = &cobra.Command{
 	Short:  "test git commands",
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return nil
+		conn, err := db.New(config.App.DBPath)
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+
+		r := repository.New(conn)
+
+		bs, err := r.All()
+		if err != nil {
+			return err
+		}
+
+		b := bs[0]
+		te, err := files.NewEditor(config.App.Env.Editor)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		c := ui.NewConsole(
+			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightBlue))),
+		)
+
+		oldB := b.Bytes()
+		for {
+			newB, err := te.EditBytes(oldB, "json")
+			if err != nil {
+				return err
+			}
+			if bytes.Equal(newB, oldB) {
+				fmt.Println("no changes")
+				return nil
+			}
+
+			oldB = bytes.TrimRight(oldB, "\n")
+			newB = bytes.TrimRight(newB, "\n")
+
+			diff := txt.Diff(oldB, newB)
+			fmt.Println(txt.DiffColor(diff))
+
+			opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+			if err != nil {
+				return fmt.Errorf("choose: %w", err)
+			}
+
+			switch strings.ToLower(opt) {
+			case "y", "yes":
+				bm, err := bookmark.NewFromBuffer(newB)
+				if err != nil {
+					return err
+				}
+
+				if err := r.Update(context.Background(), bm, b); err != nil {
+					return fmt.Errorf("update: %w", err)
+				}
+
+				return nil
+			case "n", "no":
+				return sys.ErrActionAborted
+			case "e", "edit":
+				oldB = newB
+			}
+		}
 	},
 }

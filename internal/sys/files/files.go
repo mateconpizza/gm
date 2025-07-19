@@ -71,7 +71,7 @@ func size(s string) int64 {
 
 // List returns all files found in a given path.
 func List(root, pattern string) ([]string, error) {
-	query := root + "/*" + pattern
+	query := filepath.Join(root, pattern)
 
 	files, err := filepath.Glob(query)
 	if err != nil {

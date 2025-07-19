@@ -7,9 +7,7 @@ import (
 
 	"github.com/mateconpizza/gm/cmd"
 	dbCmd "github.com/mateconpizza/gm/cmd/db"
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -17,6 +15,9 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 func init() {
@@ -78,10 +79,11 @@ var (
 
 // newBookmarkCmd creates a new bookmark.
 func newBookmarkFunc(command *cobra.Command, args []string) error {
-	r, err := db.New(config.App.DBPath)
+	store, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	r := repository.New(store)
 	defer r.Close()
 
 	c := ui.NewConsole(
@@ -105,7 +107,7 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	if err := handler.SaveNewBookmark(c, r, b); err != nil {
+	if err := handler.SaveNewBookmark(c, r, b, config.App.Flags.Force); err != nil {
 		return err
 	}
 

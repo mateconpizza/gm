@@ -1,16 +1,21 @@
-// Package bookmark defines the Bookmark structure, its JSON representation,
-// and utility methods for validation, conversion, and path generation.
+// Package bookmark contains the bookmark record.
 package bookmark
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/pkg/hasher"
 )
+
+const defaultTag = "notag"
 
 var (
 	ErrDuplicate       = errors.New("bookmark already exists")
@@ -56,7 +61,7 @@ type BookmarkJSON struct {
 	Checksum   string   `json:"checksum"`
 }
 
-func (b *Bookmark) ToJSON() *BookmarkJSON {
+func (b *Bookmark) JSON() *BookmarkJSON {
 	t := func(s string) []string {
 		return strings.FieldsFunc(s, func(r rune) bool {
 			return r == ',' || r == ' '
@@ -77,6 +82,10 @@ func (b *Bookmark) ToJSON() *BookmarkJSON {
 		FaviconURL: b.FaviconURL,
 		Checksum:   b.Checksum,
 	}
+}
+
+func (b *Bookmark) Bytes() []byte {
+	return toBytes(b)
 }
 
 // Field returns the value of a field.
@@ -128,14 +137,19 @@ func (b *Bookmark) Buffer() []byte {
 }
 
 func (b *Bookmark) GenerateChecksum() {
-	b.Checksum = Checksum(b.URL, b.Title, b.Desc, b.Tags)
+	b.Checksum = hasher.GenChecksum(b.URL, b.Title, b.Desc, b.Tags)
 }
 
 // HashPath returns the hash path of a bookmark.
 //
 //	hashDomain + Checksum
 func (b *Bookmark) HashPath() (string, error) {
-	domain, err := hashDomain(b.URL)
+	s, err := domain(b.URL)
+	if err != nil {
+		return "", err
+	}
+
+	domain, err := hasher.Domain(s)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -148,8 +162,9 @@ func (b *Bookmark) Domain() (string, error) {
 	return domain(b.URL)
 }
 
+// HashURL returns the hash of a bookmark URL.
 func (b *Bookmark) HashURL() string {
-	return hashURL(b.URL)
+	return hasher.URL(b.URL)
 }
 
 // JSONPath returns the path to the JSON file.
@@ -161,7 +176,7 @@ func (b *Bookmark) JSONPath() (string, error) {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	urlHash := hashURL(b.URL)
+	urlHash := hasher.URL(b.URL)
 
 	return filepath.Join(domain, urlHash+".json"), nil
 }
@@ -169,13 +184,13 @@ func (b *Bookmark) JSONPath() (string, error) {
 // GPGPath returns the path to the GPG file.
 //
 //	domainHash -> urlHash.gpg
-func (b *Bookmark) GPGPath() (string, error) {
-	domain, err := hashDomain(b.URL)
+func (b *Bookmark) GPGPath(ext string) (string, error) {
+	domain, err := domain(b.URL)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	return filepath.Join(domain, b.Checksum+gpg.Extension), nil
+	return filepath.Join(domain, b.Checksum+ext), nil
 }
 
 // New creates a new bookmark.
@@ -183,20 +198,135 @@ func New() *Bookmark {
 	return &Bookmark{}
 }
 
-func NewFromJSON(json *BookmarkJSON) *Bookmark {
+func NewJSON() *BookmarkJSON {
+	return &BookmarkJSON{}
+}
+
+func (bj *BookmarkJSON) Buffer() []byte {
+	tags := strings.Join(bj.Tags, ",")
+	return fmt.Appendf(nil, `# URL: (required)
+%s
+# Title: (leave an empty line for web fetch)
+%s
+# Tags: (comma separated)
+%s
+# Description:
+%s
+
+# end ------------------------------------------------------------------`,
+		bj.URL, bj.Title, ParseTags(tags), bj.Desc)
+}
+
+func NewFromJSON(j *BookmarkJSON) *Bookmark {
 	b := New()
-	b.ID = json.ID
-	b.URL = json.URL
-	b.Title = json.Title
-	b.Desc = json.Desc
-	b.Tags = ParseTags(strings.Join(json.Tags, ","))
-	b.CreatedAt = json.CreatedAt
-	b.LastVisit = json.LastVisit
-	b.UpdatedAt = json.UpdatedAt
-	b.VisitCount = json.VisitCount
-	b.Favorite = json.Favorite
-	b.FaviconURL = json.FaviconURL
-	b.Checksum = json.Checksum
+	b.ID = j.ID
+	b.URL = j.URL
+	b.Title = j.Title
+	b.Desc = j.Desc
+	b.Tags = ParseTags(strings.Join(j.Tags, ","))
+	b.CreatedAt = j.CreatedAt
+	b.LastVisit = j.LastVisit
+	b.UpdatedAt = j.UpdatedAt
+	b.VisitCount = j.VisitCount
+	b.Favorite = j.Favorite
+	b.FaviconURL = j.FaviconURL
+	b.Checksum = j.Checksum
 
 	return b
+}
+
+func NewFromBuffer(buf []byte) (*Bookmark, error) {
+	return fromBytes(buf)
+}
+
+// fromBytes unmarshals a bookmark from bytes.
+func fromBytes(b []byte) (*Bookmark, error) {
+	bj := BookmarkJSON{}
+	if err := json.Unmarshal(b, &bj); err != nil {
+		return nil, err
+	}
+
+	return NewFromJSON(&bj), nil
+}
+
+func toBytes(b *Bookmark) []byte {
+	bj, err := json.MarshalIndent(b.JSON(), "", "  ")
+	if err != nil {
+		return nil
+	}
+
+	return bj
+}
+
+// ParseTags normalizes a string of tags by separating them by commas, sorting
+// them and ensuring that the final string ends with a comma.
+//
+//	from: "tag1, tag2, tag3 tag"
+//	to: "tag,tag1,tag2,tag3,"
+func ParseTags(tags string) string {
+	if tags == "" {
+		return defaultTag
+	}
+
+	split := strings.FieldsFunc(tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	})
+	sort.Strings(split)
+
+	tags = strings.Join(uniqueTags(split), ",")
+	if strings.HasSuffix(tags, ",") {
+		return tags
+	}
+
+	return tags + ","
+}
+
+// uniqueTags returns a slice of unique tags.
+func uniqueTags(t []string) []string {
+	var (
+		tags []string
+		seen = make(map[string]bool)
+	)
+
+	for _, tag := range t {
+		if tag == "" {
+			continue
+		}
+
+		if !seen[tag] {
+			seen[tag] = true
+
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags
+}
+
+// domain extracts the domain from a URL.
+func domain(rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing url: %w", err)
+	}
+
+	// normalize domain
+	domain := strings.ToLower(u.Hostname())
+
+	return strings.TrimPrefix(domain, "www."), nil
+}
+
+// Validate validates the bookmark.
+func Validate(b *Bookmark) error {
+	if b.URL == "" {
+		slog.Error("bookmark is invalid. URL is empty")
+		return ErrURLEmpty
+	}
+
+	if b.Tags == "," || b.Tags == "" {
+		slog.Error("bookmark is invalid. Tags are empty")
+		return ErrTagsEmpty
+	}
+
+	return nil
 }

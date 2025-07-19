@@ -9,14 +9,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 func init() {
@@ -150,7 +152,7 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
 
-	fmt.Print(db.Info(c, r))
+	fmt.Print(summary.Info(c, repository.New(r)))
 
 	c.F.Reset().Row("\n").Flush()
 
@@ -159,6 +161,10 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 		if err := c.ConfirmErr("create "+cgb("backup"), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
+	}
+
+	if err := files.MkdirAll(config.App.Path.Backup); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	newBkPath, err := r.Backup()
@@ -185,7 +191,7 @@ func backupPrettyPrint(cmd *cobra.Command, args []string) error {
 	defer r.Close()
 
 	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-	fmt.Print(db.Info(c, r))
+	fmt.Print(summary.Info(c, repository.New(r)))
 
 	return nil
 }

@@ -5,15 +5,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
+	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 type bookmarkTemp struct {
@@ -23,7 +25,7 @@ type bookmarkTemp struct {
 // NewBookmark fetch metadata and parses the new bookmark.
 func NewBookmark(
 	c *ui.Console,
-	r *db.SQLite,
+	r repository.Repo,
 	b *bookmark.Bookmark,
 	title, tags string,
 	args []string,
@@ -51,7 +53,7 @@ func NewBookmark(
 	b.URL = newURL
 	b.Title = bTemp.title
 	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
-	b.Tags = bookmark.ParseTags(bTemp.tags)
+	b.Tags = parser.Tags(bTemp.tags)
 	b.FaviconURL = bTemp.favicon
 
 	return nil
@@ -102,7 +104,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 
 	bURL := c.T.Input(" ")
 	if bURL == "" {
-		return bURL, bookmark.ErrURLEmpty
+		return bURL, parser.ErrURLEmpty
 	}
 
 	return bURL, nil
@@ -116,7 +118,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	c.F.Header(cb("Tags\t:"))
 
 	if b.tags != "" {
-		b.tags = bookmark.ParseTags(b.tags)
+		b.tags = parser.Tags(b.tags)
 		c.F.Textln(" " + cgi(b.tags)).Flush()
 
 		return
@@ -126,7 +128,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 
 	keywords, _ := sc.Keywords()
 	if keywords != "" {
-		tt := bookmark.ParseTags(keywords)
+		tt := parser.Tags(keywords)
 		b.tags = tt
 		c.F.Textln(" " + cgi(b.tags)).Flush()
 
@@ -144,7 +146,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	c.F.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
 	mTags, _ := db.TagsCounterFromPath(config.App.DBPath)
-	b.tags = bookmark.ParseTags(c.T.ChooseTags(c.F.Border.Mid, mTags))
+	b.tags = parser.Tags(c.T.ChooseTags(c.F.Border.Mid, mTags))
 
 	c.F.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))
 
@@ -189,8 +191,11 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	c.F.Flush()
 }
 
-// MoveFileToFront moves a file to the front of the list.
-func MoveFileToFront(files []string, name string) {
+// PromoteFileToFront moves a file to the front of the list.
+func PromoteFileToFront(files []string, name string) {
+	if len(files) == 0 {
+		return
+	}
 	for i, f := range files {
 		if filepath.Base(f) == name {
 			if i != 0 {

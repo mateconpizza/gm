@@ -13,18 +13,20 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/mateconpizza/gm/internal/bookmark"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/bookmark/scraper"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/db"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 var (
@@ -81,7 +83,7 @@ func Copy(bs []*bookmark.Bookmark) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Open(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 	n := len(bs)
 	// get user confirmation to procced
@@ -146,10 +148,14 @@ func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 }
 
 // Edit edits the bookmarks using a text editor.
-func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Edit(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
+	}
+
+	if config.App.Flags.JSON {
+		return editBookmarksJSON(c, r, te, bs)
 	}
 
 	return editBookmarks(c, r, te, bs)
@@ -169,7 +175,7 @@ func CheckStatus(c *ui.Console, bs []*bookmark.Bookmark) error {
 		return sys.ErrActionAborted
 	}
 
-	if err := bookmark.Status(c, bs); err != nil {
+	if err := scraper.Status(c, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -250,8 +256,10 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // Update updates the bookmarks.
 //
 // It uses the scraper to update the title, description and favicon.
-func Update(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
-	c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmark/s", len(bs)))).Rowln().Flush()
+func Update(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
+	if len(bs) > 1 {
+		c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", len(bs)))).Rowln().Flush()
+	}
 
 	for i, b := range bs {
 		if err := updateSingleBookmark(c, r, b, i, len(bs)); err != nil &&
@@ -293,7 +301,7 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 // editBookmarks edits a slice of bookmarks.
 func editBookmarks(
 	c *ui.Console,
-	r *db.SQLite,
+	r repository.Repo,
 	te *files.TextEditor,
 	bs []*bookmark.Bookmark,
 ) error {
@@ -311,10 +319,65 @@ func editBookmarks(
 	return nil
 }
 
+func editBookmarksJSON(
+	c *ui.Console,
+	r repository.Repo,
+	te *files.TextEditor,
+	bs []*bookmark.Bookmark,
+) error {
+	for i := range bs {
+		b := bs[i]
+		oldB := b.Bytes()
+
+	out:
+		for {
+			newB, err := te.EditBytes(oldB, "json")
+			if err != nil {
+				return err
+			}
+
+			oldB = bytes.TrimRight(oldB, "\n")
+			newB = bytes.TrimRight(newB, "\n")
+			if bytes.Equal(newB, oldB) {
+				break out
+			}
+
+			diff := txt.Diff(oldB, newB)
+			fmt.Println(txt.DiffColor(diff))
+			opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+			if err != nil {
+				return fmt.Errorf("choose: %w", err)
+			}
+
+			switch strings.ToLower(opt) {
+			case "y", "yes":
+				bm, err := bookmark.NewFromBuffer(newB)
+				if err != nil {
+					return err
+				}
+
+				if err := r.Update(context.Background(), bm, b); err != nil {
+					return fmt.Errorf("update: %w", err)
+				}
+
+				fmt.Print(c.SuccessMesg("bookmark updated\n"))
+
+				break out
+			case "n", "no":
+				return sys.ErrActionAborted
+			case "e", "edit":
+				oldB = newB
+			}
+		}
+	}
+
+	return nil
+}
+
 // editSingleInteractive handles editing a single bookmark with confirmation and retry.
 func editSingleInteractive(
 	c *ui.Console,
-	r *db.SQLite,
+	r repository.Repo,
 	te *files.TextEditor,
 	b *bookmark.Bookmark,
 	index, total int,
@@ -322,9 +385,9 @@ func editSingleInteractive(
 	current := *b
 
 	for {
-		editedB, err := bookmark.Edit(te, &current, index, total)
+		editedB, err := parser.Edit(te, &current, index, total)
 		if err != nil {
-			if errors.Is(err, bookmark.ErrBufferUnchanged) {
+			if errors.Is(err, parser.ErrBufferUnchanged) {
 				return nil
 			}
 
@@ -353,8 +416,8 @@ func editSingleInteractive(
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark) error {
-	if config.App.Flags.Force {
+func SaveNewBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, f bool) error {
+	if f {
 		if err := r.InsertOne(context.Background(), b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -390,7 +453,7 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark) error {
 
 // updateSingleBookmark processes a single bookmark update including scraping,
 // diff display, and user interaction for saving changes.
-func updateSingleBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, index, total int) error {
+func updateSingleBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, index, total int) error {
 	updatedB, err := updateBookmarkData(c, b)
 	if err != nil {
 		return err

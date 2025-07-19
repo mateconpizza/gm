@@ -11,11 +11,11 @@ import (
 var version = "0.1.16"
 
 const (
-	appName         string = "gomarks"      // Default name of the application
-	command         string = "gm"           // Default name of the executable
-	MainDBName      string = "bookmarks.db" // Default name of the main database
-	DefaultFilename string = "config.yml"   // Default config filename
-	configFilename  string = "config.yml"   // Default config filename
+	appName         string = "gomarks"    // Default name of the application
+	command         string = "gm"         // Default name of the executable
+	MainDBName      string = "main.db"    // Default name of the main database
+	DefaultFilename string = "config.yml" // Default config filename
+	configFilename  string = "config.yml" // Default config filename
 )
 
 type (

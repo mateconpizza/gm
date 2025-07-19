@@ -1,4 +1,4 @@
-package bookmark
+package scraper
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var ErrNetworkUnreachable = errors.New("network is unreachable")
@@ -46,7 +47,7 @@ func (r *Response) String() string {
 }
 
 // Status checks the status of a slice of bookmarks.
-func Status(c *ui.Console, bs []*Bookmark) error {
+func Status(c *ui.Console, bs []*bookmark.Bookmark) error {
 	const maxConRequests = 25
 
 	var (
@@ -61,7 +62,7 @@ func Status(c *ui.Console, bs []*Bookmark) error {
 	start = time.Now()
 	ctx := context.Background()
 
-	schedule := func(b *Bookmark) error {
+	schedule := func(b *bookmark.Bookmark) error {
 		wg.Add(1)
 
 		if err := sem.Acquire(ctx, 1); err != nil {
@@ -70,7 +71,7 @@ func Status(c *ui.Console, bs []*Bookmark) error {
 
 		time.Sleep(50 * time.Millisecond)
 
-		go func(b *Bookmark) {
+		go func(b *bookmark.Bookmark) {
 			defer wg.Done()
 
 			res := makeRequest(c, b, ctx, sem)
@@ -178,7 +179,7 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 }
 
 // buildResponse builds a Response from an HTTP response.
-func buildResponse(c *ui.Console, b *Bookmark, statusCode int, hasError bool) Response {
+func buildResponse(c *ui.Console, b *bookmark.Bookmark, statusCode int, hasError bool) Response {
 	result := Response{
 		URL:        b.URL,
 		bID:        b.ID,
@@ -205,7 +206,7 @@ func buildResponse(c *ui.Console, b *Bookmark, statusCode int, hasError bool) Re
 
 // handleRequestError handles errors from the HTTP request and determines the
 // appropriate status code.
-func handleRequestError(c *ui.Console, b *Bookmark, err error) Response {
+func handleRequestError(c *ui.Console, b *bookmark.Bookmark, err error) Response {
 	var statusCode int
 
 	switch {
@@ -227,7 +228,7 @@ func handleRequestError(c *ui.Console, b *Bookmark, err error) Response {
 //
 // The function uses a weighted semaphore to limit the number of concurrent
 // requests.
-func makeRequest(c *ui.Console, b *Bookmark, ctx context.Context, sem *semaphore.Weighted) Response {
+func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context, sem *semaphore.Weighted) Response {
 	// FIX: Split this function
 	defer sem.Release(1)
 

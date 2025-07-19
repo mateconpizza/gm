@@ -1,10 +1,11 @@
 package menu
 
 import (
+	"errors"
+	"reflect"
 	"testing"
 
 	fzf "github.com/junegunn/fzf/src"
-	"github.com/stretchr/testify/assert"
 )
 
 type fakeRunner struct {
@@ -24,7 +25,6 @@ func (f *fakeRunner) Run(opts *fzf.Options) (int, error) {
 //nolint:funlen //test
 func TestSelectReturnsSelectedItem(t *testing.T) {
 	t.Parallel()
-
 	tests := []struct {
 		name     string
 		items    []any
@@ -80,18 +80,32 @@ func TestSelectReturnsSelectedItem(t *testing.T) {
 			s := make([]any, len(tt.items))
 			copy(s, tt.items)
 
-			r := &fakeRunner{output: tt.output, retcode: tt.recode}
+			r := &fakeRunner{
+				output:  tt.output,
+				retcode: tt.recode,
+			}
 			m := New[any](WithRunner(r))
 			m.SetItems(s)
 			m.SetPreprocessor(defaultPreprocessor)
 			result, err := m.Select()
 
-			if tt.recode != 0 {
-				assert.Nil(t, result)
-				assert.ErrorIs(t, err, tt.err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, result)
+			if tt.recode == 0 {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if !reflect.DeepEqual(result, tt.expected) {
+					t.Errorf("expected result %v, got %v", tt.expected, result)
+				}
+				return
+			}
+
+			if result != nil {
+				t.Errorf("expected nil result, got: %v", result)
+			}
+			if err == nil {
+				t.Errorf("expected error %v, got nil", tt.err)
+			} else if !errors.Is(err, tt.err) {
+				t.Errorf("expected error %v, got %v", tt.err, err)
 			}
 		})
 	}
