@@ -24,7 +24,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/repository"
 )
 
@@ -101,13 +100,11 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	conn, err := db.New(gr.Loc.DBPath)
+	r, err := repository.New(gr.Loc.DBPath)
 	if err != nil {
 		return fmt.Errorf("open repo: %w", err)
 	}
-	defer conn.Close()
-
-	r := repository.New(conn)
+	defer r.Close()
 
 	bs, err := r.All()
 	if err != nil {
@@ -346,13 +343,11 @@ var gitTestCmd = &cobra.Command{
 	Short:  "test git commands",
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		conn, err := db.New(config.App.DBPath)
+		r, err := repository.New(config.App.DBPath)
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
-
-		r := repository.New(conn)
+		defer r.Close()
 
 		bs, err := r.All()
 		if err != nil {

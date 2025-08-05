@@ -30,7 +30,7 @@ func DropFromPath(dbPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	return Drop(r, context.Background())
+	return drop(r, context.Background())
 }
 
 // newBackup creates a new backup from the given repository.
@@ -49,15 +49,15 @@ func newBackup(r *SQLite) (string, error) {
 
 	_ = r.DB.MustExec("VACUUM INTO ?", destPath)
 
-	if err := verifySQLiteIntegrity(destPath); err != nil {
+	if err := VerifyIntegrity(destPath); err != nil {
 		return "", err
 	}
 
 	return destPath, nil
 }
 
-// verifySQLiteIntegrity checks the integrity of the SQLite database.
-func verifySQLiteIntegrity(path string) error {
+// VerifyIntegrity checks the integrity of the SQLite database.
+func VerifyIntegrity(path string) error {
 	slog.Debug("verifying SQLite integrity", "path", path)
 
 	db, err := openDatabase(path)
@@ -91,17 +91,17 @@ func verifySQLiteIntegrity(path string) error {
 func isInit(r *SQLite) bool {
 	allExist := true
 
-	for _, s := range tablesAndSchema() {
-		exists, err := r.tableExists(s.name)
+	for _, s := range tablesAndSchemas {
+		exists, err := tableExists(r, s.Name)
 		if err != nil {
-			slog.Error("checking if table exists", "name", s.name, "error", err)
+			slog.Error("checking if table exists", "name", s.Name, "error", err)
 			return false
 		}
 
 		if !exists {
 			allExist = false
 
-			slog.Warn("table does not exist", "name", s.name)
+			slog.Warn("table does not exist", "name", s.Name)
 		}
 	}
 
@@ -119,32 +119,31 @@ func IsInitialized(p string) (bool, error) {
 		return false, err
 	}
 
-	for _, s := range tablesAndSchema() {
-		exists, err := r.tableExists(s.name)
+	for _, s := range tablesAndSchemas {
+		exists, err := tableExists(r, s.Name)
 		if err != nil {
-			slog.Error("checking if table exists", "name", s.name, "error", err)
+			slog.Error("checking if table exists", "name", s.Name, "error", err)
 			return false, err
 		}
 
 		if !exists {
 			allExist = false
 
-			slog.Warn("table does not exist", "name", s.name)
+			slog.Warn("table does not exist", "name", s.Name)
 		}
 	}
 
 	return allExist, nil
 }
 
-// Drop removes all records database.
-func Drop(r *SQLite, ctx context.Context) error {
-	tts := tablesAndSchema()
-	tables := make([]Table, 0, len(tts))
-	for _, t := range tts {
-		tables = append(tables, t.name)
+// drop removes all records database.
+func drop(r *SQLite, ctx context.Context) error {
+	tables := make([]Table, 0, len(tablesAndSchemas))
+	for _, t := range tablesAndSchemas {
+		tables = append(tables, t.Name)
 	}
 
-	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.deleteAll(ctx, tables...); err != nil {
 			return fmt.Errorf("%w", err)
 		}

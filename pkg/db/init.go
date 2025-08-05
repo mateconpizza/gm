@@ -8,38 +8,31 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type tableSchema struct {
-	name    Table
-	sql     string
-	trigger []string
-	index   string
-}
-
-// tablesAnd returns all tables and their schema.
-func tablesAndSchema() []tableSchema {
-	return []tableSchema{
-		schemaMain, schemaTags, schemaRelation,
-	}
+// tablesAndSchemas all tables and their schema.
+var tablesAndSchemas = []Schema{
+	schemaMain,
+	schemaTags,
+	schemaRelation,
 }
 
 // Init initializes a new database and creates the required tables.
 func (r *SQLite) Init(ctx context.Context) error {
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
-		for _, s := range tablesAndSchema() {
-			if err := r.tableCreate(ctx, tx, s.name, s.sql); err != nil {
-				return fmt.Errorf("creating %q table: %w", s.name, err)
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		for _, s := range tablesAndSchemas {
+			if err := r.tableCreate(ctx, tx, s.Name, s.SQL); err != nil {
+				return fmt.Errorf("creating %q table: %w", s.Name, err)
 			}
 
-			if s.index != "" {
-				if _, err := tx.ExecContext(ctx, s.index); err != nil {
-					return fmt.Errorf("creating %q index: %w", s.name, err)
+			if s.Index != "" {
+				if _, err := tx.ExecContext(ctx, s.Index); err != nil {
+					return fmt.Errorf("creating %q index: %w", s.Name, err)
 				}
 			}
 
-			if len(s.trigger) > 0 {
-				for _, t := range s.trigger {
+			if len(s.Trigger) > 0 {
+				for _, t := range s.Trigger {
 					if _, err := tx.ExecContext(ctx, t); err != nil {
-						return fmt.Errorf("creating %q trigger: %w", s.name, err)
+						return fmt.Errorf("creating %q trigger: %w", s.Name, err)
 					}
 				}
 			}
@@ -50,7 +43,7 @@ func (r *SQLite) Init(ctx context.Context) error {
 }
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
-func (r *SQLite) tableExists(t Table) (bool, error) {
+func tableExists(r *SQLite, t Table) (bool, error) {
 	var count int
 
 	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
@@ -64,7 +57,7 @@ func (r *SQLite) tableExists(t Table) (bool, error) {
 
 // tableRename renames the temporary table to the specified main table name.
 func (r *SQLite) tableRename(ctx context.Context, tx *sqlx.Tx, srcTable, destTable Table) error {
-	slog.Info("renaming table", "from", srcTable, "to", destTable)
+	slog.Debug("renaming table", "from", srcTable, "to", destTable)
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s RENAME TO %s", srcTable, destTable))
 	if err != nil {
@@ -106,5 +99,5 @@ func (r *SQLite) Vacuum(ctx context.Context) error {
 
 // DropSecure removes all records database.
 func (r *SQLite) DropSecure(ctx context.Context) error {
-	return Drop(r, ctx)
+	return drop(r, ctx)
 }

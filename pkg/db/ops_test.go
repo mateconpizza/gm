@@ -19,7 +19,7 @@ func TestDropRepository(t *testing.T) {
 		t.Fatal("expected bookmark to exist, got nil")
 	}
 
-	err = Drop(r, t.Context())
+	err = drop(r, t.Context())
 	if err != nil {
 		t.Fatalf("failed to drop repository: %v", err)
 	}

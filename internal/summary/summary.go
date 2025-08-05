@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/repository"
 )
 
@@ -59,11 +58,10 @@ func RepoFromPath(c *ui.Console, p string) string {
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(p))
 
-	store, err := db.New(p)
+	r, err := repository.New(p)
 	if err != nil {
 		return c.F.Row(path).StringReset()
 	}
-	r := repository.New(store)
 	defer r.Close()
 
 	records := txt.PaddedLine("records:", r.Count("bookmarks"))
@@ -103,8 +101,7 @@ func RepoRecordsFromPath(p string) string {
 		return txt.PaddedLine(s, cgi("(locked)"))
 	}
 
-	store, _ := db.New(p)
-	r := repository.New(store)
+	r, _ := repository.New(p)
 	defer r.Close()
 
 	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
@@ -139,12 +136,11 @@ func BackupWithFmtDateFromPath(p string) string {
 		return name + bkTime
 	}
 
-	store, err := db.New(p)
+	r, err := repository.New(p)
 	if err != nil {
 		slog.Warn("creating repository from path", "path", p, "error", err)
 		return ""
 	}
-	r := repository.New(store)
 	defer r.Close()
 
 	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))

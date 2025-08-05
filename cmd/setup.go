@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -173,11 +174,13 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	if store.IsInitialized() && !cfg.Flags.Force {
+	// if store.IsInitialized() && !cfg.Flags.Force {
+	if dbtask.IsInitialized(store) && !cfg.Flags.Force {
 		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
-	if err := store.Init(context.Background()); err != nil {
+	// if err := store.Init(context.Background()); err != nil {
+	if err := dbtask.Init(context.Background(), store); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
@@ -189,14 +192,20 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 
 	// initial bookmark
 	ib := bookmark.New()
+	ib.ID = 1
 	ib.URL = cfg.Info.URL
 	ib.Title = cfg.Info.Title
 	ib.Tags = parser.Tags(cfg.Info.Tags)
 	ib.Desc = cfg.Info.Desc
 
-	r := repository.New(store)
+	// FIX: opening multiple conn
+	store.Close()
+	r, err := repository.New(store.Cfg.Fullpath())
+	if err != nil {
+		return err
+	}
 
-	if err := r.InsertOne(context.Background(), ib); err != nil {
+	if _, err := r.InsertOne(context.Background(), ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

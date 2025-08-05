@@ -69,13 +69,11 @@ var (
 
 // recordsCmd is the main command and entrypoint.
 func recordsCmdFunc(cmd *cobra.Command, args []string) error {
-	conn, err := db.New(config.App.DBPath)
+	r, err := repository.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	defer conn.Close()
-
-	r := repository.New(conn)
+	defer r.Close()
 
 	terminal.ReadPipedInput(&args)
 

@@ -85,14 +85,14 @@ func TestInit(t *testing.T) {
 	}
 	defer teardownthewall(r.DB)
 
-	for _, s := range tablesAndSchema() {
-		tExists, err := r.tableExists(s.name)
+	for _, s := range tablesAndSchemas {
+		tExists, err := tableExists(r, s.Name)
 		if err != nil {
-			t.Errorf("failed to check if table %s exists: %v", s.name, err)
+			t.Errorf("failed to check if table %s exists: %v", s.Name, err)
 			continue
 		}
 		if !tExists {
-			t.Errorf("expected table %s to exist, but it does not", s.name)
+			t.Errorf("expected table %s to exist, but it does not", s.Name)
 		}
 	}
 }
@@ -102,8 +102,8 @@ func TestDropTable(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 
-	tDrop := schemaMain.name
-	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
+	tDrop := schemaMain.Name
+	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableDrop(t.Context(), tx, tDrop)
 	})
 	if err != nil {
@@ -115,7 +115,7 @@ func TestDropTable(t *testing.T) {
 		t.Errorf("main table %s still exists after dropping", tDrop)
 	}
 
-	exists, err := r.tableExists(tDrop)
+	exists, err := tableExists(r, tDrop)
 	if err != nil {
 		t.Fatalf("failed to check table existence: %v", err)
 	}
@@ -130,14 +130,14 @@ func TestTableCreate(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	var newTable Table = "new_table"
-	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
+	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableCreate(t.Context(), tx, newTable, "CREATE TABLE new_table (id INTEGER PRIMARY KEY)")
 	})
 	if err != nil {
 		t.Fatalf("failed to create table %s: %v", newTable, err)
 	}
 
-	exists, err := r.tableExists(newTable)
+	exists, err := tableExists(r, newTable)
 	if err != nil {
 		t.Fatalf("failed to check if table exists: %v", err)
 	}
@@ -151,14 +151,14 @@ func TestTableExists(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	var tt Table = "test_table"
-	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
+	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableCreate(t.Context(), tx, tt, "CREATE TABLE test_table (id INTEGER PRIMARY KEY)")
 	})
 	if err != nil {
 		t.Fatalf("failed to create table %s: %v", tt, err)
 	}
 
-	exists, err := r.tableExists(tt)
+	exists, err := tableExists(r, tt)
 	if err != nil {
 		t.Fatalf("failed to check table %s existence: %v", tt, err)
 	}
@@ -166,7 +166,7 @@ func TestTableExists(t *testing.T) {
 		t.Errorf("expected table %s to exist, but it does not", tt)
 	}
 
-	exists, err = r.tableExists("non_existent_table")
+	exists, err = tableExists(r, "non_existent_table")
 	if err != nil {
 		t.Fatalf("failed to check non-existent table: %v", err)
 	}
@@ -180,17 +180,17 @@ func TestRenameTable(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 
-	srcTable := schemaMain.name
+	srcTable := schemaMain.Name
 	destTable := "new_" + srcTable
 
-	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
+	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
 		return r.tableRename(t.Context(), tx, srcTable, destTable)
 	})
 	if err != nil {
 		t.Fatalf("failed to rename table %s to %s: %v", srcTable, destTable, err)
 	}
 
-	srcExists, err := r.tableExists(srcTable)
+	srcExists, err := tableExists(r, srcTable)
 	if err != nil {
 		t.Fatalf("failed to check if source table exists: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestRenameTable(t *testing.T) {
 		t.Errorf("expected source table %s to not exist, but it does", srcTable)
 	}
 
-	destExists, err := r.tableExists(destTable)
+	destExists, err := tableExists(r, destTable)
 	if err != nil {
 		t.Fatalf("failed to check if destination table exists: %v", err)
 	}

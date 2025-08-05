@@ -15,11 +15,6 @@ var (
 	ErrTextEditorNotFound = errors.New("text editor not found")
 )
 
-const (
-	dirPerm  = 0o755 // Permissions for new directories.
-	FilePerm = 0o644 // Permissions for new files.
-)
-
 // Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
 var textEditors = []string{"vim", "nvim", "nano", "emacs"}
 

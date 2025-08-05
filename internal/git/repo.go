@@ -1,4 +1,4 @@
-// Package gitrepo provides the model and logic of a bookmarks Git repository.
+// Package git provides the model and logic of a bookmarks Git repository.
 package git
 
 import (
@@ -217,6 +217,16 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 	if gr.IsEncrypted() {
 		return nil
 	}
+
+	_, err := sys.Which(gpg.Command)
+	if err != nil {
+		//nolint:nilerr //test
+		return nil
+	}
+
+	c.F.Success("GPG command found").Ln()
+	c.F.Info(`It will use the first available key (at the moment) to encrypt bookmarks
+  for syncing with a remote Git repository.`).Ln().Flush()
 
 	if !c.Confirm("Use GPG for encryption?", "n") {
 		c.ReplaceLine(c.Info("Skipping GPG encryption").StringReset())

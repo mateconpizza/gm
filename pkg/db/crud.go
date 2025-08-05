@@ -18,25 +18,32 @@ import (
 )
 
 type BookmarkModel struct {
-	ID         int    `db:"id"`
-	URL        string `db:"url"`
-	Tags       string `db:"tags"`
-	Title      string `db:"title"`
-	Desc       string `db:"desc"`
-	CreatedAt  string `db:"created_at"`
-	LastVisit  string `db:"last_visit"`
-	UpdatedAt  string `db:"updated_at"`
-	VisitCount int    `db:"visit_count"`
-	Favorite   bool   `db:"favorite"`
-	FaviconURL string `db:"favicon_url"`
-	Checksum   string `db:"checksum"`
+	ID           int    `db:"id"`
+	URL          string `db:"url"`
+	Tags         string `db:"tags"`
+	Title        string `db:"title"`
+	Desc         string `db:"desc"`
+	CreatedAt    string `db:"created_at"`
+	LastVisit    string `db:"last_visit"`
+	UpdatedAt    string `db:"updated_at"`
+	VisitCount   int    `db:"visit_count"`
+	Favorite     bool   `db:"favorite"`
+	FaviconURL   string `db:"favicon_url"`
+	FaviconLocal string `db:"favicon_local"`
+	ArchiveURL   string `db:"archive_url"`
+	Checksum     string `db:"checksum"`
 }
 
 // InsertOne creates a new record in the main table.
-func (r *SQLite) InsertOne(ctx context.Context, b *BookmarkModel) error {
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, b)
+func (r *SQLite) InsertOne(ctx context.Context, b *BookmarkModel) (int64, error) {
+	var id int64
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		var err error
+		id, err = r.insertIntoTx(tx, b)
+		return err
 	})
+
+	return id, err
 }
 
 func (r *SQLite) InsertMany(ctx context.Context, bs []*BookmarkModel) error {
@@ -62,7 +69,7 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*BookmarkModel) error {
 		urls = append(urls, bs[i].URL)
 	}
 
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		// create query
 		q, args, err := sqlx.In("DELETE FROM bookmark_tags WHERE bookmark_url IN (?)", urls)
 		if err != nil {
@@ -95,7 +102,7 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*BookmarkModel) error {
 
 // Update updates an existing record in the relation table.
 func (r *SQLite) Update(ctx context.Context, newB, oldB *BookmarkModel) error {
-	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.delete(ctx, oldB.URL); err != nil {
 			return fmt.Errorf("delete old record: %w", err)
 		}
@@ -327,10 +334,10 @@ func (r *SQLite) Has(bURL string) (*BookmarkModel, bool) {
 
 // ReorderIDs reorders the IDs in the main table.
 func (r *SQLite) ReorderIDs(ctx context.Context) error {
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		// check if last item has been deleted
 		if r.MaxID() == 0 {
-			return resetSQLiteSequence(ctx, tx, schemaMain.name)
+			return resetSQLiteSequence(ctx, tx, schemaMain.Name)
 		}
 		// get all records
 		bs, err := r.All()
@@ -348,27 +355,27 @@ func (r *SQLite) ReorderIDs(ctx context.Context) error {
 			return fmt.Errorf("dropping trigger: %w", err)
 		}
 		// create temp table
-		if err := r.tableCreate(ctx, tx, schemaTemp.name, schemaTemp.sql); err != nil {
+		if err := r.tableCreate(ctx, tx, schemaTemp.Name, schemaTemp.SQL); err != nil {
 			return err
 		}
 		// populate temp table
 		if err := r.insertManyIntoTempTable(ctx, tx, bs); err != nil {
-			return fmt.Errorf("%w: insert many (table %q)", err, schemaTemp.name)
+			return fmt.Errorf("%w: insert many (table %q)", err, schemaTemp.Name)
 		}
 		// drop main table
-		if err := r.tableDrop(ctx, tx, schemaMain.name); err != nil {
+		if err := r.tableDrop(ctx, tx, schemaMain.Name); err != nil {
 			return err
 		}
 		// rename temp table to main table
-		if err := r.tableRename(ctx, tx, schemaTemp.name, schemaMain.name); err != nil {
+		if err := r.tableRename(ctx, tx, schemaTemp.Name, schemaMain.Name); err != nil {
 			return err
 		}
 		// create index
-		if _, err := tx.ExecContext(ctx, schemaTemp.index); err != nil {
+		if _, err := tx.ExecContext(ctx, schemaTemp.Index); err != nil {
 			return fmt.Errorf("creating index: %w", err)
 		}
 		// restore relational table trigger
-		for _, t := range schemaRelation.trigger {
+		for _, t := range schemaRelation.Trigger {
 			if _, err := tx.ExecContext(ctx, t); err != nil {
 				return fmt.Errorf("restoring trigger: %w", err)
 			}
@@ -419,7 +426,7 @@ func (r *SQLite) bySQLPtr(q string, args ...any) ([]*BookmarkModel, error) {
 
 // DeleteOne deletes one record from the relation table.
 func (r *SQLite) delete(ctx context.Context, bURL string) error {
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM bookmark_tags WHERE bookmark_url = ?", bURL)
 		if err != nil {
 			return fmt.Errorf("failed to delete record: %w", err)
@@ -435,7 +442,7 @@ func (r *SQLite) deleteOneTx(tx *sqlx.Tx, b *BookmarkModel) error {
 	ctx := context.Background()
 	// remove tags relationships first
 	if _, err := tx.ExecContext(ctx,
-		fmt.Sprintf("DELETE FROM %s WHERE bookmark_url = ?", schemaRelation.name),
+		fmt.Sprintf("DELETE FROM %s WHERE bookmark_url = ?", schemaRelation.Name),
 		b.URL,
 	); err != nil {
 		return fmt.Errorf("failed to delete tags: %w", err)
@@ -469,7 +476,7 @@ func (r *SQLite) deleteAll(ctx context.Context, ts ...Table) error {
 
 	slog.Debug("deleting all records from tables", "tables", ts)
 
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		for _, t := range ts {
 			slog.Debug("deleting records from table", "table", t)
 
@@ -502,12 +509,18 @@ func (r *SQLite) insertAtID(tx *sqlx.Tx, b *BookmarkModel) error {
 		return fmt.Errorf("abort: %w", err)
 	}
 
-	q := `
-    INSERT
-    OR IGNORE INTO bookmarks (
-			id, url, title, desc, created_at, updated_at, last_visit, visit_count, favorite, checksum, favicon_url)
-    VALUES
-			(:id, :url, :title, :desc, :created_at, :updated_at, :last_visit, :visit_count, :favorite, :checksum, :favicon_url)`
+	q := `INSERT OR IGNORE INTO bookmarks (
+			id, url, title, desc, created_at,
+			updated_at, last_visit, visit_count,
+			favorite, checksum, favicon_url,
+			archive_url, favicon_local
+
+		) VALUES (
+			:id, :url, :title, :desc, :created_at,
+			:updated_at, :last_visit, :visit_count,
+			:favorite, :checksum, :favicon_url,
+			:archive_url, :favicon_local
+		)`
 
 	_, err := tx.NamedExec(q, b)
 	if err != nil {
@@ -527,9 +540,9 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*BookmarkModel) error {
 		return bs[i].ID < bs[j].ID
 	})
 
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		for _, b := range bs {
-			if err := r.insertIntoTx(tx, b); err != nil {
+			if _, err := r.insertIntoTx(tx, b); err != nil {
 				return err
 			}
 		}
@@ -548,8 +561,8 @@ func (r *SQLite) insertInto(ctx context.Context, b *BookmarkModel) error {
 		return ErrRecordDuplicate
 	}
 	// create record and associate tags
-	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
-		if err := insertRecord(tx, b); err != nil {
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		if _, err := insertRecord(tx, b); err != nil {
 			return err
 		}
 
@@ -569,23 +582,25 @@ func (r *SQLite) insertInto(ctx context.Context, b *BookmarkModel) error {
 }
 
 // insertIntoTx inserts a record inside an existing transaction.
-func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *BookmarkModel) error {
+func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *BookmarkModel) (int64, error) {
+	b.URL = strings.TrimSuffix(b.URL, "/")
 	if _, err := r.hasTx(tx, b.URL); err != nil {
-		return fmt.Errorf("duplicate record: %w, %q", err, b.URL)
+		return 0, fmt.Errorf("duplicate record: %w, %q", err, b.URL)
 	}
 
 	// insert record and associate tags in the same transaction.
-	if err := insertRecord(tx, b); err != nil {
-		return err
+	bID, err := insertRecord(tx, b)
+	if err != nil {
+		return 0, err
 	}
 
 	if err := r.associateTags(tx, b); err != nil {
-		return fmt.Errorf("failed to associate tags: %w", err)
+		return 0, fmt.Errorf("failed to associate tags: %w", err)
 	}
 
 	slog.Debug("inserted record", "url", b.URL)
 
-	return nil
+	return bID, nil
 }
 
 // insertManyIntoTempTable inserts multiple records into a temporary table.
@@ -597,12 +612,14 @@ func (r *SQLite) insertManyIntoTempTable(
 	q := `
   INSERT INTO temp_bookmarks (
     url, title, desc, created_at, last_visit,
-    updated_at, visit_count, favorite, checksum, favicon_url
+    updated_at, visit_count, favorite, checksum,
+		favicon_url, archive_url, favicon_local
   )
   VALUES
     (
       :url, :title, :desc, :created_at, :last_visit,
-      :updated_at, :visit_count, :favorite, :checksum, :favicon_url
+      :updated_at, :visit_count, :favorite, :checksum,
+			:favicon_url, :archive_url, :favicon_local
     )
   `
 
@@ -627,9 +644,9 @@ func (r *SQLite) insertManyIntoTempTable(
 }
 
 // insertRecord inserts a new record into the table.
-func insertRecord(tx *sqlx.Tx, b *BookmarkModel) error {
+func insertRecord(tx *sqlx.Tx, b *BookmarkModel) (int64, error) {
 	if b.Checksum == "" {
-		return ErrChecksumEmpty
+		return 0, ErrChecksumEmpty
 	}
 
 	b.CreatedAt = time.Now().UTC().Format(time.RFC3339)
@@ -637,27 +654,29 @@ func insertRecord(tx *sqlx.Tx, b *BookmarkModel) error {
 	r, err := tx.NamedExec(
 		`INSERT INTO bookmarks (
     	url, title, desc, created_at, last_visit,
-    	updated_at, visit_count, favorite, checksum, favicon_url
+    	updated_at, visit_count, favorite, checksum,
+			favicon_url, favicon_local, archive_url
   )
   VALUES
     (
       :url, :title, :desc, :created_at, :last_visit,
-			:updated_at, :visit_count, :favorite, :checksum, :favicon_url
+			:updated_at, :visit_count, :favorite, :checksum,
+			:favicon_url, :favicon_local, :archive_url
     )`,
 		&b,
 	)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return 0, fmt.Errorf("%w", err)
 	}
 
 	bid, err := r.LastInsertId()
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return 0, fmt.Errorf("%w", err)
 	}
 
 	b.ID = int(bid)
 
-	return nil
+	return bid, nil
 }
 
 // MaxID retrieves the maximum ID from the specified table in the SQLite
@@ -671,8 +690,8 @@ func (r *SQLite) MaxID() int {
 	return lastIndex
 }
 
-// withTx executes a function within a transaction.
-func (r *SQLite) withTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
+// WithTx executes a function within a transaction.
+func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 	tx, err := r.DB.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -699,14 +718,14 @@ func (r *SQLite) withTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 	return nil
 }
 
-func (r *SQLite) SetVisitDateAndCount(ctx context.Context, b *BookmarkModel) error {
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
-		return updateVisit(tx, b)
+func (r *SQLite) AddVisitAndUpdateCount(ctx context.Context, bID int) error {
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		return updateVisit(tx, bID)
 	})
 }
 
 func (r *SQLite) SetFavorite(ctx context.Context, b *BookmarkModel) error {
-	return r.withTx(ctx, func(tx *sqlx.Tx) error {
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		return updateFavorite(tx, b)
 	})
 }
@@ -785,12 +804,13 @@ func (r *SQLite) CountFavorites() int {
 }
 
 // updateVisit updates the visit count and last visit date for a bookmark.
-func updateVisit(tx *sqlx.Tx, b *BookmarkModel) error {
+func updateVisit(tx *sqlx.Tx, bID int) error {
+	slog.Debug("updating visit count", "id", bID)
 	_, err := tx.ExecContext(
 		context.Background(),
-		"UPDATE bookmarks SET visit_count = visit_count + 1, last_visit = ? WHERE url = ?",
+		"UPDATE bookmarks SET visit_count = visit_count + 1, last_visit = ? WHERE id = ?",
 		time.Now().UTC().Format(time.RFC3339),
-		b.URL,
+		bID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update visit count: %w", err)

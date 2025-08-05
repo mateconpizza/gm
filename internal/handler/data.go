@@ -352,7 +352,12 @@ func applyMenuSelection(
 func handleEditedBookmark(c *ui.Console, r repository.Repo, newB, oldB *bookmark.Bookmark) error {
 	newBookmark := newB.ID == 0
 	if newBookmark {
-		return r.InsertOne(context.Background(), newB)
+		_, err := r.InsertOne(context.Background(), newB)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	if err := r.Update(context.Background(), newB, oldB); err != nil {

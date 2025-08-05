@@ -1,5 +1,4 @@
-// Package hasher provides a utility for generating hash values.
-package hasher
+package bookmark
 
 import (
 	"crypto/sha256"
@@ -7,16 +6,17 @@ import (
 	"fmt"
 )
 
-func Domain(domain string) (string, error) {
-	return Generate(domain, 12), nil
+// hashDomain generates a hash from a domain.
+func hashDomain(domain string) string {
+	return generateHash(domain, 12)
 }
 
-// URL generates a hash from a URL.
-func URL(rawURL string) string {
-	return Generate(rawURL, 12)
+// hashURL generates a hash from a hashURL.
+func hashURL(rawURL string) string {
+	return generateHash(rawURL, 12)
 }
 
-func Generate(s string, c int) string {
+func generateHash(s string, c int) string {
 	hash := sha256.Sum256([]byte(s))
 	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
 }
@@ -24,5 +24,5 @@ func Generate(s string, c int) string {
 // GenChecksum generates a checksum for the bookmark.
 func GenChecksum(rawURL, title, desc, tags string) string {
 	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s", rawURL, title, desc, tags)
-	return Generate(data, 8)
+	return generateHash(data, 8)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -129,7 +130,7 @@ func backupUnlockFunc(cmd *cobra.Command, args []string) error {
 
 // backupNewFunc create a new backup.
 func backupNewFunc(cmd *cobra.Command, args []string) error {
-	r, err := db.New(config.App.DBPath)
+	r, err := repository.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("backup: %w", err)
 	}
@@ -151,8 +152,7 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-
-	fmt.Print(summary.Info(c, repository.New(r)))
+	fmt.Print(summary.Info(c, r))
 
 	c.F.Reset().Row("\n").Flush()
 
@@ -167,7 +167,7 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	newBkPath, err := r.Backup()
+	newBkPath, err := dbtask.Backup(r.Fullpath())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -184,14 +184,14 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 
 // backupPrettyPrint pretty repo info.
 func backupPrettyPrint(cmd *cobra.Command, args []string) error {
-	r, err := db.New(config.App.DBPath)
+	r, err := repository.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("backup: %w", err)
 	}
 	defer r.Close()
 
 	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-	fmt.Print(summary.Info(c, repository.New(r)))
+	fmt.Print(summary.Info(c, r))
 
 	return nil
 }

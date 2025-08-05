@@ -26,9 +26,9 @@ import (
 )
 
 var (
-	cred  = func(s string) string { return color.BrightRed(s).String() }
-	credB = func(s string) string { return color.BrightRed(s).Bold().String() }
-	cyel  = func(s string) string { return color.BrightYellow(s).String() }
+	cred  = func(s string) string { return color.BrightRed(s).String() }        // BrightRed
+	credB = func(s string) string { return color.BrightRed(s).Bold().String() } // BrightRed/Bold
+	cyel  = func(s string) string { return color.BrightYellow(s).String() }     // BrightYellow
 )
 
 // RemoveRepo removes a repo.
@@ -212,16 +212,15 @@ func Remove(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 }
 
 // DroppingDB drops a database.
-func DroppingDB(c *ui.Console, r *db.SQLite) error {
+func DroppingDB(c *ui.Console, r repository.Repo) error {
 	c.F.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
-	repo := repository.New(r)
-	fmt.Print(summary.Info(c, repo))
+	fmt.Print(summary.Info(c, r))
 
 	c.F.Reset().Rowln().Flush()
 
 	if !config.App.Flags.Force {
 		var q string
-		if r.Cfg.Name == config.MainDBName {
+		if r.Name() == config.MainDBName {
 			q = c.WarningMesg("dropping \"main\" database, continue?")
 		} else {
 			q = "continue?"
@@ -232,7 +231,7 @@ func DroppingDB(c *ui.Console, r *db.SQLite) error {
 		}
 	}
 
-	if err := r.DropSecure(context.Background()); err != nil {
+	if err := r.Drop(context.Background()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

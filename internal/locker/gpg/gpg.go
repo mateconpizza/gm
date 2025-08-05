@@ -26,7 +26,7 @@ var recipient string
 const (
 	gitAttContent = "*.gpg diff=gpg"
 	FingerprintID = ".gpg-id"
-	gpgCommand    = "gpg"
+	Command       = "gpg"
 	Extension     = ".gpg"
 )
 
@@ -34,7 +34,7 @@ const (
 var GitDiffConf = map[string][]string{
 	"diff.gpg.binary": {"true"},
 	"diff.gpg.textconv": {
-		gpgCommand,
+		Command,
 		"-d",
 		"--quiet",
 		"--yes",
@@ -56,9 +56,9 @@ func IsInitialized(path string) bool {
 
 // Decrypt decrypts the provided encrypted file.
 func Decrypt(encryptedPath string) ([]byte, error) {
-	cmdPath, err := sys.Which(gpgCommand)
+	cmdPath, err := sys.Which(Command)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", err, gpgCommand)
+		return nil, fmt.Errorf("%w: %s", err, Command)
 	}
 
 	cmd := exec.Command(cmdPath, "--quiet", "-d", encryptedPath)
@@ -74,7 +74,7 @@ func Decrypt(encryptedPath string) ([]byte, error) {
 
 // Encrypt encrypts the provided data and saves it to the specified path.
 func Encrypt(path string, content []byte) error {
-	cmdPath, err := sys.Which(gpgCommand)
+	cmdPath, err := sys.Which(Command)
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, cmdPath)
 	}
@@ -94,7 +94,7 @@ func Encrypt(path string, content []byte) error {
 // extractFingerPrint will extract the gpg fingerprint from the output of `gpg
 // --list-keys --with-colons`.
 func extractFingerPrint() (string, error) {
-	cmdPath, err := sys.Which(gpgCommand)
+	cmdPath, err := sys.Which(Command)
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", err, cmdPath)
 	}
@@ -145,8 +145,8 @@ func loadFingerprint(path string) error {
 
 // Init will extract the gpg fingerprint and save it to .gpg-id.
 func Init(path, gitAttrFile string) error {
-	if _, err := sys.Which(gpgCommand); err != nil {
-		return fmt.Errorf("%w: %s", err, gpgCommand)
+	if _, err := sys.Which(Command); err != nil {
+		return fmt.Errorf("%w: %s", err, Command)
 	}
 
 	if err := files.MkdirAll(path); err != nil {

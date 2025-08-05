@@ -21,7 +21,7 @@ var ErrScrapeNotStarted = errors.New("scrape not started")
 
 const (
 	defaultTitle       string = "untitled (unfiled)"
-	defaultFaviconPath string = "/favicon.ico"
+	defaultFaviconPath string = "/static/favicon.png"
 )
 
 type OptFn func(*Options)

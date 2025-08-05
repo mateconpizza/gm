@@ -30,14 +30,16 @@ var App = &AppConfig{
 	Cmd:    command,
 	DBName: MainDBName,
 	Flags:  &Flags{},
-	Info: information{
+	Info: &Information{
 		URL:     "https://github.com/mateconpizza/gm#readme",
 		Title:   "Gomarks: A bookmark manager",
 		Tags:    "golang,awesome,bookmarks,cli",
 		Desc:    "Simple yet powerful bookmark manager for your terminal",
-		Version: version,
+		Version: Version,
 	},
-	Env: environment{
+	Path: &Path{},
+	Git:  &Git{},
+	Env: &Env{
 		Home:   "GOMARKS_HOME",
 		Editor: "GOMARKS_EDITOR",
 	},

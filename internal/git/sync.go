@@ -24,10 +24,10 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	record "github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-type loadFileFn func(path string) (*record.Bookmark, error)
+type loadFileFn func(path string) (*bookmark.Bookmark, error)
 
 // Import clones a Git repository, parses its bookmark files, and imports them
 // into the application.
@@ -83,7 +83,7 @@ func Import(c *ui.Console, gm *Manager, urlRepo string) ([]string, error) {
 // repo.
 //
 //nolint:funlen //ignore
-func exportAsGPG(root string, bs []*record.Bookmark) (bool, error) {
+func exportAsGPG(root string, bs []*bookmark.Bookmark) (bool, error) {
 	if err := files.MkdirAll(root); err != nil {
 		return false, fmt.Errorf("%w", err)
 	}
@@ -159,7 +159,7 @@ func exportAsGPG(root string, bs []*record.Bookmark) (bool, error) {
 }
 
 // exportAsJSON creates the repository structure.
-func exportAsJSON(root string, bs []*record.Bookmark) (bool, error) {
+func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
 	var hasUpdates uint32
 
 	g := new(errgroup.Group)
@@ -186,7 +186,7 @@ func exportAsJSON(root string, bs []*record.Bookmark) (bool, error) {
 }
 
 // extractFromGitRepo extracts records from a git repository.
-func extractFromGitRepo(c *ui.Console, repoPath string) ([]*record.Bookmark, error) {
+func extractFromGitRepo(c *ui.Console, repoPath string) ([]*bookmark.Bookmark, error) {
 	if !files.Exists(repoPath) {
 		return nil, fmt.Errorf("%w: %q", ErrGitRepoNotFound, repoPath)
 	}
@@ -196,27 +196,27 @@ func extractFromGitRepo(c *ui.Console, repoPath string) ([]*record.Bookmark, err
 }
 
 // readJSONRepo extracts records from a JSON repository.
-func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*record.Bookmark, error) {
+func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
 	var (
 		count     uint32
 		mu        sync.Mutex
-		bookmarks = []*record.Bookmark{}
+		bookmarks = []*bookmark.Bookmark{}
 	)
 
-	loader := func(path string) (*record.Bookmark, error) {
-		bj := &record.BookmarkJSON{}
+	loader := func(path string) (*bookmark.Bookmark, error) {
+		bj := &bookmark.BookmarkJSON{}
 		if err := files.JSONRead(path, bj); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
 
 		if !parser.ValidateChecksumJSON(bj) {
-			return nil, fmt.Errorf("%w: %s", record.ErrInvalidChecksum, path)
+			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
 		}
 
 		currentCount := atomic.AddUint32(&count, 1)
 		sp.UpdateMesg(fmt.Sprintf("[%d] %s", currentCount, filepath.Base(path)))
 
-		b := record.NewFromJSON(bj)
+		b := bookmark.NewFromJSON(bj)
 
 		mu.Lock()
 		bookmarks = append(bookmarks, b)
@@ -246,12 +246,12 @@ func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*record.Book
 }
 
 // readGPGRepo extracts records from a GPG repository.
-func readGPGRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*record.Bookmark, error) {
+func readGPGRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
 	var (
 		count      uint32
 		totalFiles int
 		mu         sync.Mutex
-		bookmarks  = []*record.Bookmark{}
+		bookmarks  = []*bookmark.Bookmark{}
 	)
 
 	gpgFiles, err := files.ListRecursive(root, ".gpg")
@@ -260,25 +260,25 @@ func readGPGRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*record.Bookm
 	}
 	totalFiles = len(gpgFiles)
 
-	loader := func(path string) (*record.Bookmark, error) {
+	loader := func(path string) (*bookmark.Bookmark, error) {
 		content, err := gpg.Decrypt(path)
 		if err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
 
-		bj := &record.BookmarkJSON{}
+		bj := &bookmark.BookmarkJSON{}
 		if err := json.Unmarshal(content, bj); err != nil {
 			return nil, fmt.Errorf("%w", err)
 		}
 
 		if !parser.ValidateChecksumJSON(bj) {
-			return nil, fmt.Errorf("%w: %s", record.ErrInvalidChecksum, path)
+			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
 		}
 
 		currentCount := atomic.AddUint32(&count, 1)
 		sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", currentCount, totalFiles, filepath.Base(path)))
 
-		b := record.NewFromJSON(bj)
+		b := bookmark.NewFromJSON(bj)
 		bookmarks = append(bookmarks, b)
 
 		return b, nil
@@ -308,7 +308,7 @@ func readGPGRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*record.Bookm
 // semaphore and prompts once for the GPG passphrase.
 func parseGPGFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, loader loadFileFn) fs.WalkDirFunc {
 	var (
-		bs                 []*record.Bookmark
+		bs                 []*bookmark.Bookmark
 		passphrasePrompted bool
 		sem                = semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
 	)
@@ -340,7 +340,7 @@ func parseGPGFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, loader
 // parseJSONFile is a WalkDirFunc that loads .json files concurrently using a
 // semaphore.
 func parseJSONFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, l loadFileFn) fs.WalkDirFunc {
-	bs := []*record.Bookmark{}
+	bs := []*bookmark.Bookmark{}
 	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
 
 	return func(path string, d fs.DirEntry, err error) error {
@@ -359,7 +359,7 @@ func parseJSONFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, l loa
 }
 
 // cleanGPGRepo removes the files from the git repo concurrently.
-func cleanGPGRepo(root string, bs []*record.Bookmark) error {
+func cleanGPGRepo(root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git GPG files")
 
 	g, ctx := errgroup.WithContext(context.Background())
@@ -397,7 +397,7 @@ func cleanGPGRepo(root string, bs []*record.Bookmark) error {
 }
 
 // cleanJSONRepo removes the files from the git repo concurrently.
-func cleanJSONRepo(root string, bs []*record.Bookmark) error {
+func cleanJSONRepo(root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git JSON files")
 
 	g, ctx := errgroup.WithContext(context.Background())
@@ -434,11 +434,11 @@ func cleanJSONRepo(root string, bs []*record.Bookmark) error {
 func loadConcurrently(
 	ctx context.Context,
 	path string,
-	bs *[]*record.Bookmark,
+	bs *[]*bookmark.Bookmark,
 	g *errgroup.Group,
 	mu *sync.Mutex,
 	sem *semaphore.Weighted,
-	loader func(path string) (*record.Bookmark, error),
+	loader func(path string) (*bookmark.Bookmark, error),
 ) {
 	// Use errgroup.Go instead of manual goroutine + WaitGroup management
 	g.Go(func() error {

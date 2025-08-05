@@ -48,8 +48,8 @@ func (gm *Manager) Init(force bool) error {
 	return initialize(gm.RepoPath, force)
 }
 
-// Branch returns the name of the current branch.
-func (gm *Manager) Branch() (string, error) {
+// branch returns the name of the current branch.
+func (gm *Manager) branch() (string, error) {
 	return branch(gm.RepoPath)
 }
 
@@ -58,8 +58,8 @@ func (gm *Manager) Remote() (string, error) {
 	return remote(gm.RepoPath)
 }
 
-// Status returns the status of the repository.
-func (gm *Manager) Status() (string, error) {
+// status returns the status of the repository.
+func (gm *Manager) status() (string, error) {
 	return status(gm.RepoPath)
 }
 
@@ -68,8 +68,8 @@ func (gm *Manager) HasUnpushedCommits() (bool, error) {
 	return hasUnpushedCommits(gm.RepoPath)
 }
 
-// HasChanges checks if there are any staged or unstaged changes in the repo.
-func (gm *Manager) HasChanges() (bool, error) {
+// hasChanges checks if there are any staged or unstaged changes in the repo.
+func (gm *Manager) hasChanges() (bool, error) {
 	return hasChanges(gm.RepoPath)
 }
 
@@ -104,8 +104,8 @@ func (gm *Manager) SetRepoPath(repoPath string) {
 	gm.RepoPath = repoPath
 }
 
-// SetConfigLocal sets a local config value.
-func (gm *Manager) SetConfigLocal(k, v string) error {
+// setConfigLocal sets a local config value.
+func (gm *Manager) setConfigLocal(k, v string) error {
 	return setConfigLocal(gm.RepoPath, k, v)
 }
 

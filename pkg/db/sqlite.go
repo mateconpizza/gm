@@ -43,17 +43,6 @@ func (r *SQLite) Close() {
 	})
 }
 
-// Backup creates a backup of the SQLite database and returns the path to the
-// backup filepath.
-func (r *SQLite) Backup() (string, error) {
-	return newBackup(r)
-}
-
-// IsInitialized returns true if the database is initialized.
-func (r *SQLite) IsInitialized() bool {
-	return isInit(r)
-}
-
 // newSQLiteRepository returns a new SQLiteRepository.
 func newSQLiteRepository(db *sqlx.DB, cfg *Cfg) *SQLite {
 	return &SQLite{

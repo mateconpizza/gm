@@ -1,5 +1,7 @@
 package db
 
+import "fmt"
+
 // tables.
 const (
 	tableMainName     = "bookmarks"
@@ -8,35 +10,56 @@ const (
 	tableTempName     = "temp_bookmarks"
 )
 
+type Schema struct {
+	Name    Table
+	SQL     string
+	Trigger []string
+	Index   string
+}
+
+type DatabaseSchemas struct {
+	Main     Schema
+	Tags     Schema
+	Relation Schema
+	Temp     Schema
+}
+
+var Schemas = DatabaseSchemas{
+	Main:     schemaMain,
+	Tags:     schemaTags,
+	Relation: schemaRelation,
+	Temp:     schemaTemp,
+}
+
 // schemaMain is the schema for the main table.
-var schemaMain = tableSchema{
-	name:    tableMainName,
-	sql:     tableMainSchema,
-	index:   tableMainIndex,
-	trigger: []string{tableMainTriggerUpdateAt},
+var schemaMain = Schema{
+	Name:    tableMainName,
+	SQL:     fmt.Sprintf(tableMainSchema, tableMainName),
+	Index:   tableMainIndex,
+	Trigger: []string{tableMainTriggerUpdateAt},
 }
 
 // schemaTags is the schema for the tags table.
-var schemaTags = tableSchema{
-	name:  tableTagsName,
-	sql:   tableTagsSchema,
-	index: tableTagsIndex,
+var schemaTags = Schema{
+	Name:  tableTagsName,
+	SQL:   tableTagsSchema,
+	Index: tableTagsIndex,
 }
 
 // schemaRelation is the schema for the relation table.
-var schemaRelation = tableSchema{
-	name:    tableRelationName,
-	sql:     tableRelationSchema,
-	index:   tableRelationIndex,
-	trigger: []string{tableRelationTriggerCleanup},
+var schemaRelation = Schema{
+	Name:    tableRelationName,
+	SQL:     tableRelationSchema,
+	Index:   tableRelationIndex,
+	Trigger: []string{tableRelationTriggerCleanup},
 }
 
 // schemaTemp is used for reordering the IDs in the main table.
-var schemaTemp = tableSchema{
-	name:    tableTempName,
-	sql:     tableTempSchema,
-	trigger: []string{tableRelationTriggerCleanup},
-	index:   tableMainIndex,
+var schemaTemp = Schema{
+	Name:    tableTempName,
+	SQL:     fmt.Sprintf(tableMainSchema, tableTempName),
+	Trigger: []string{tableRelationTriggerCleanup},
+	Index:   tableMainIndex,
 }
 
 // main table.
@@ -44,18 +67,20 @@ const (
 	tableMainSchema = `
     PRAGMA foreign_keys = ON;
 
-    CREATE TABLE IF NOT EXISTS bookmarks (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        url         TEXT    NOT NULL UNIQUE,
-        title       TEXT    DEFAULT "",
-        desc        TEXT    DEFAULT "",
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_visit  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        visit_count INTEGER DEFAULT 0,
-        favorite    BOOLEAN DEFAULT FALSE,
-        favicon_url TEXT    DEFAULT "",
-        checksum    TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS %s (
+        id          	INTEGER PRIMARY KEY AUTOINCREMENT,
+        url         	TEXT    NOT NULL UNIQUE,
+        title       	TEXT    DEFAULT "",
+        desc        	TEXT    DEFAULT "",
+        created_at  	TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_visit  	TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at  	TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        visit_count 	INTEGER DEFAULT 0,
+        favorite    	BOOLEAN DEFAULT FALSE,
+        favicon_url 	TEXT    DEFAULT "",
+				favicon_local TEXT DEFAULT "",
+        archive_url 	TEXT    DEFAULT "",
+        checksum    	TEXT NOT NULL
     );`
 
 	tableMainIndex = `
@@ -69,26 +94,6 @@ const (
 		BEGIN
 				UPDATE bookmarks SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
 		END;`
-)
-
-// temp table.
-const (
-	tableTempSchema = `
-    PRAGMA foreign_keys = ON;
-
-    CREATE TABLE IF NOT EXISTS temp_bookmarks (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        url         TEXT    NOT NULL UNIQUE,
-        title       TEXT    DEFAULT "",
-        desc        TEXT    DEFAULT "",
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_visit  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        visit_count INTEGER DEFAULT 0,
-        favorite    BOOLEAN DEFAULT FALSE,
-        favicon_url TEXT    DEFAULT "",
-        checksum    TEXT NOT NULL
-    );`
 )
 
 // tags table.

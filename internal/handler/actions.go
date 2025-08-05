@@ -140,7 +140,7 @@ func Open(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 	}
 
 	for _, b := range bs {
-		if err := r.SetVisitDateAndCount(ctx, b); err != nil {
+		if err := r.AddVisitAndUpdateCount(ctx, b.ID); err != nil {
 			return err
 		}
 	}
@@ -417,9 +417,9 @@ func editSingleInteractive(
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, f bool) error {
-	if f {
-		if err := r.InsertOne(context.Background(), b); err != nil {
+func SaveNewBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, force bool) error {
+	if force {
+		if err := r.InsertMany(context.Background(), []*bookmark.Bookmark{b}); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
@@ -444,7 +444,7 @@ func SaveNewBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, f b
 			return err
 		}
 	default:
-		if err := r.InsertOne(context.Background(), b); err != nil {
+		if _, err := r.InsertOne(context.Background(), b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}

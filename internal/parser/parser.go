@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/hasher"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -70,7 +69,7 @@ func ScrapeMissingDescription(bs []*bookmark.Bookmark) error {
 
 func ValidateChecksumJSON(b *bookmark.BookmarkJSON) bool {
 	tags := bookmark.ParseTags(strings.Join(b.Tags, ","))
-	return b.Checksum == hasher.GenChecksum(b.URL, b.Title, b.Desc, tags)
+	return b.Checksum == bookmark.GenChecksum(b.URL, b.Title, b.Desc, tags)
 }
 
 // BookmarkContent parses the provided content into a bookmark struct.

@@ -74,11 +74,10 @@ var (
 )
 
 func fromBrowserFunc(_ *cobra.Command, _ []string) error {
-	store, err := db.New(config.App.DBPath)
+	r, err := repository.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	r := repository.New(store)
 	defer r.Close()
 
 	c := ui.NewConsole(
@@ -96,14 +95,13 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 }
 
 func fromBackupFunc(command *cobra.Command, args []string) error {
-	destStore, err := db.New(config.App.DBPath)
+	destRepo, err := repository.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	destRepo := repository.New(destStore)
 	defer destRepo.Close()
 
-	dbName := files.StripSuffixes(destStore.Name())
+	dbName := files.StripSuffixes(destRepo.Name())
 	bks, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -126,11 +124,10 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	srcStore, err := db.New(backupPath)
+	srcRepo, err := repository.New(backupPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	srcRepo := repository.New(srcStore)
 	defer srcRepo.Close()
 
 	c.T.SetInterruptFn(func(err error) {
@@ -147,18 +144,21 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 }
 
 func fromDatabaseFunc(command *cobra.Command, _ []string) error {
-	store, err := db.New(config.App.DBPath)
+	r, err := repository.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	r := repository.New(store)
 	defer r.Close()
 
+	// FIX: refactor `SelectDatabase`, return a string (fullpath)
 	srcDB, err := handler.SelectDatabase(r.Fullpath())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	rSrc := repository.New(srcDB)
+	rSrc, err := repository.New(srcDB.Cfg.Fullpath())
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
 	defer rSrc.Close()
 
 	c := ui.NewConsole(

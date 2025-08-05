@@ -156,13 +156,11 @@ func RepoInfo(c *ui.Console, p string, j bool) error {
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
-	r := repository.New(store)
-	defer r.Close()
+	defer store.Close()
 
 	// FIX: Implement ListBackups
-	store.Cfg.BackupFiles = []string{"/home/void/dot/gomarks/.local/share/gomarks/backup/20250705-172325_bookmarks.db"}
 	if j {
-		b, err := port.ToJSON(r)
+		b, err := port.ToJSON(store)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -170,6 +168,11 @@ func RepoInfo(c *ui.Console, p string, j bool) error {
 		fmt.Println(string(b))
 
 		return nil
+	}
+
+	r, err := repository.New(store.Cfg.Fullpath())
+	if err != nil {
+		return err
 	}
 
 	info := summary.Info(c, r)

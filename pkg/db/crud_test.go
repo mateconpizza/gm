@@ -16,8 +16,8 @@ func TestInsertOne(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	// verify table exists
-	mainTable := schemaMain.name
-	tableExists, err := r.tableExists(mainTable)
+	mainTable := schemaMain.Name
+	tableExists, err := tableExists(r, mainTable)
 	if err != nil {
 		t.Fatalf("failed to check if table %s exists: %v", mainTable, err)
 	}
@@ -27,8 +27,9 @@ func TestInsertOne(t *testing.T) {
 
 	// insert a record
 	record := testSingleBookmark()
-	err = r.withTx(t.Context(), func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, record)
+	err = r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
+		_, err := r.insertIntoTx(tx, record)
+		return err
 	})
 	if err != nil {
 		t.Fatalf("failed to insert record into table %s: %v", mainTable, err)
@@ -152,7 +153,7 @@ func TestUpdateOne(t *testing.T) {
 
 	// Insert initial record
 	oldB := testSingleBookmark()
-	if err := r.InsertOne(t.Context(), oldB); err != nil {
+	if _, err := r.InsertOne(t.Context(), oldB); err != nil {
 		t.Fatalf("failed to insert bookmark: %v", err)
 	}
 
@@ -280,8 +281,9 @@ func TestByURL(t *testing.T) {
 
 	// Insert a test bookmark
 	b := testSingleBookmark()
-	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, b)
+	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
+		_, err := r.insertIntoTx(tx, b)
+		return err
 	})
 	if err != nil {
 		t.Fatalf("failed to insert bookmark: %v", err)
@@ -408,8 +410,9 @@ func TestRollback(t *testing.T) {
 	b := testSingleBookmark()
 
 	// Insert bookmark successfully
-	err := r.withTx(ctx, func(tx *sqlx.Tx) error {
-		return r.insertIntoTx(tx, b)
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		_, err := r.insertIntoTx(tx, b)
+		return err
 	})
 	if err != nil {
 		t.Fatalf("transaction failed: %v", err)
@@ -428,7 +431,7 @@ func TestRollback(t *testing.T) {
 	}
 
 	// Attempt transaction that should rollback
-	err = r.withTx(ctx, func(tx *sqlx.Tx) error {
+	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.deleteOneTx(tx, b); err != nil {
 			return err
 		}
@@ -455,9 +458,9 @@ func TestDeleteAll(t *testing.T) {
 
 	// Define tables to delete from
 	tables := []Table{
-		schemaMain.name,
-		schemaTags.name,
-		schemaRelation.name,
+		schemaMain.Name,
+		schemaTags.Name,
+		schemaRelation.Name,
 	}
 
 	// Insert test data

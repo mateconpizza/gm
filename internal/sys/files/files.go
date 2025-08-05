@@ -18,12 +18,15 @@ import (
 )
 
 var (
-	ErrFileNotFound    = errors.New("not found")
-	ErrPathNotFound    = errors.New("path not found")
-	ErrFileExists      = errors.New("file already exists")
-	ErrNotFile         = errors.New("not a file")
-	ErrPathEmpty       = errors.New("path is empty")
-	ErrNothingToRemove = errors.New("nothing to remove")
+	ErrFileNotFound = errors.New("file not found")
+	ErrPathNotFound = errors.New("path not found")
+	ErrFileExists   = errors.New("file already exists")
+	ErrPathEmpty    = errors.New("path is empty")
+)
+
+const (
+	dirPerm  = 0o755 // Permissions for new directories.
+	FilePerm = 0o644 // Permissions for new files.
 )
 
 // Exists checks if a file exists.

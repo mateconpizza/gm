@@ -102,7 +102,7 @@ func TestGetOrCreateTag(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	newTagName := "newtag"
-	err := r.withTx(t.Context(), func(tx *sqlx.Tx) error {
+	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
 		tagID, err := createTag(tx, newTagName)
 		if err != nil {
 			t.Errorf("failed to create tag: %v", err)

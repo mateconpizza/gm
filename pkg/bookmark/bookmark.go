@@ -11,8 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/mateconpizza/gm/pkg/hasher"
 )
 
 const defaultTag = "notag"
@@ -32,33 +30,37 @@ var (
 
 // Bookmark represents a bookmark.
 type Bookmark struct {
-	ID         int    `db:"id"          json:"id"          yaml:"id"`
-	URL        string `db:"url"         json:"url"         yaml:"url"`
-	Tags       string `db:"tags"        json:"-"           yaml:"-"`
-	Title      string `db:"title"       json:"title"       yaml:"title"`
-	Desc       string `db:"desc"        json:"desc"        yaml:"desc"`
-	CreatedAt  string `db:"created_at"  json:"created_at"  yaml:"created_at"`
-	LastVisit  string `db:"last_visit"  json:"last_visit"  yaml:"last_visit"`
-	UpdatedAt  string `db:"updated_at"  json:"updated_at"  yaml:"updated_at"`
-	VisitCount int    `db:"visit_count" json:"visit_count" yaml:"visit_count"`
-	Favorite   bool   `db:"favorite"    json:"favorite"    yaml:"favorite"`
-	FaviconURL string `db:"favicon_url" json:"favicon_url" yaml:"favicon_url"`
-	Checksum   string `db:"checksum"    json:"checksum"    yaml:"checksum"`
+	ID           int    `db:"id"            json:"id"`
+	URL          string `db:"url"           json:"url"`
+	Tags         string `db:"tags"          json:"tags"`
+	Title        string `db:"title"         json:"title"`
+	Desc         string `db:"desc"          json:"desc"`
+	CreatedAt    string `db:"created_at"    json:"created_at"`
+	LastVisit    string `db:"last_visit"    json:"last_visit"`
+	UpdatedAt    string `db:"updated_at"    json:"updated_at"`
+	VisitCount   int    `db:"visit_count"   json:"visit_count"`
+	Favorite     bool   `db:"favorite"      json:"favorite"`
+	FaviconURL   string `db:"favicon_url"   json:"favicon_url"`
+	FaviconLocal string `db:"favicon_local" json:"favicon_local"`
+	ArchiveURL   string `db:"archive_url"   json:"archive_url"`
+	Checksum     string `db:"checksum"      json:"checksum"`
 }
 
 type BookmarkJSON struct {
-	ID         int      `json:"id"`
-	URL        string   `json:"url"`
-	Tags       []string `json:"tags"`
-	Title      string   `json:"title"`
-	Desc       string   `json:"desc"`
-	CreatedAt  string   `json:"created_at"`
-	LastVisit  string   `json:"last_visit"`
-	UpdatedAt  string   `json:"updated_at"`
-	VisitCount int      `json:"visit_count"`
-	Favorite   bool     `json:"favorite"`
-	FaviconURL string   `json:"favicon_url"`
-	Checksum   string   `json:"checksum"`
+	ID           int      `json:"id"`
+	URL          string   `json:"url"`
+	Tags         []string `json:"tags"`
+	Title        string   `json:"title"`
+	Desc         string   `json:"desc"`
+	CreatedAt    string   `json:"created_at"`
+	LastVisit    string   `json:"last_visit"`
+	UpdatedAt    string   `json:"updated_at"`
+	VisitCount   int      `json:"visit_count"`
+	Favorite     bool     `json:"favorite"`
+	FaviconURL   string   `json:"favicon_url"`
+	FaviconLocal string   `json:"favicon_local"`
+	ArchiveURL   string   `json:"archive_url"`
+	Checksum     string   `json:"checksum"`
 }
 
 func (b *Bookmark) JSON() *BookmarkJSON {
@@ -80,6 +82,7 @@ func (b *Bookmark) JSON() *BookmarkJSON {
 		VisitCount: b.VisitCount,
 		Favorite:   b.Favorite,
 		FaviconURL: b.FaviconURL,
+		ArchiveURL: b.ArchiveURL,
 		Checksum:   b.Checksum,
 	}
 }
@@ -136,8 +139,11 @@ func (b *Bookmark) Buffer() []byte {
 		b.URL, b.Title, ParseTags(b.Tags), b.Desc)
 }
 
-func (b *Bookmark) GenerateChecksum() {
-	b.Checksum = hasher.GenChecksum(b.URL, b.Title, b.Desc, b.Tags)
+// GenChecksum generates a checksum for the bookmark.
+//
+// It uses the URL, Title, Description and Tags.
+func (b *Bookmark) GenChecksum() {
+	b.Checksum = GenChecksum(b.URL, b.Title, b.Desc, b.Tags)
 }
 
 // HashPath returns the hash path of a bookmark.
@@ -149,22 +155,17 @@ func (b *Bookmark) HashPath() (string, error) {
 		return "", err
 	}
 
-	domain, err := hasher.Domain(s)
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
+	return filepath.Join(hashDomain(s), b.Checksum), nil
+}
 
-	return filepath.Join(domain, b.Checksum), nil
+// HashURL returns the hash of a bookmark URL.
+func (b *Bookmark) HashURL() string {
+	return hashURL(b.URL)
 }
 
 // Domain returns the domain of a bookmark.
 func (b *Bookmark) Domain() (string, error) {
 	return domain(b.URL)
-}
-
-// HashURL returns the hash of a bookmark URL.
-func (b *Bookmark) HashURL() string {
-	return hasher.URL(b.URL)
 }
 
 // JSONPath returns the path to the JSON file.
@@ -176,7 +177,7 @@ func (b *Bookmark) JSONPath() (string, error) {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	urlHash := hasher.URL(b.URL)
+	urlHash := hashURL(b.URL)
 
 	return filepath.Join(domain, urlHash+".json"), nil
 }

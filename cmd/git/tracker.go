@@ -88,12 +88,7 @@ func managementSelect(c *ui.Console) error {
 			continue
 		}
 
-		q := fmt.Sprintf("Track %q?", gr.Loc.Name)
-		if gr.Loc.DBName == config.MainDBName {
-			q = fmt.Sprintf("Track %q database?", "main")
-		}
-
-		if !c.Confirm(q, "n") {
+		if !c.Confirm(fmt.Sprintf("Track %q?", gr.Loc.Name), "n") {
 			c.ReplaceLine(c.Warning(fmt.Sprintf("skipping %q", gr.Loc.Name)).String())
 			continue
 		}
