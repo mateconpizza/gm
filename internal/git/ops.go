@@ -18,6 +18,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -26,7 +27,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 const JSONFileExt = ".json"
@@ -129,7 +129,7 @@ func writeRepoStats(gr *Repository) error {
 
 // repoStats returns a new RepoStats.
 func repoStats(dbPath string, summary *SyncGitSummary) error {
-	r, err := repository.New(dbPath)
+	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -214,7 +214,7 @@ func summaryRead(gr *Repository) (*SyncGitSummary, error) {
 }
 
 func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
-	r, err := repository.New(gr.Loc.DBPath)
+	r, err := db.New(gr.Loc.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
@@ -261,7 +261,7 @@ func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
 
 // records gets all records from the database.
 func records(dbPath string) ([]*bookmark.Bookmark, error) {
-	r, err := repository.New(dbPath)
+	r, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
@@ -494,7 +494,7 @@ func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	r, err := repository.New(dbPath)
+	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -645,7 +645,7 @@ func handleOptCreate(c *ui.Console, gr *Repository) (string, error) {
 
 func handleOptDrop(c *ui.Console, gr *Repository) (string, error) {
 	c.Warning("Dropping database\n").Flush()
-	if err := db.DropFromPath(gr.Loc.DBPath); err != nil {
+	if err := dbtask.DropFromPath(gr.Loc.DBPath); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 	return handleOptMerge(c, gr)
@@ -691,7 +691,7 @@ func intoDBFromGit(c *ui.Console, gr *Repository) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	r, err := repository.New(store.Cfg.Fullpath())
+	r, err := db.New(store.Cfg.Fullpath())
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -706,7 +706,7 @@ func intoDBFromGit(c *ui.Console, gr *Repository) error {
 
 // mergeAndInsert merges non-duplicates records into database.
 func mergeAndInsert(c *ui.Console, gr *Repository) error {
-	r, err := repository.New(gr.Loc.DBPath)
+	r, err := db.New(gr.Loc.DBPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}

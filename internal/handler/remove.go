@@ -22,7 +22,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 var (
@@ -178,7 +177,7 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
+func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	defer r.Close()
 	if err := validateRemove(bs, config.App.Flags.Force); err != nil {
 		return err
@@ -212,7 +211,7 @@ func Remove(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 }
 
 // DroppingDB drops a database.
-func DroppingDB(c *ui.Console, r repository.Repo) error {
+func DroppingDB(c *ui.Console, r *db.SQLite) error {
 	c.F.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
 	fmt.Print(summary.Info(c, r))
 
@@ -231,7 +230,7 @@ func DroppingDB(c *ui.Console, r repository.Repo) error {
 		}
 	}
 
-	if err := r.Drop(context.Background()); err != nil {
+	if err := r.DropSecure(context.Background()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

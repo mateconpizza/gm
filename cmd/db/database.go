@@ -16,7 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
-	"github.com/mateconpizza/gm/pkg/repository"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func init() {
@@ -147,7 +147,7 @@ var (
 )
 
 func dbDropFunc(_ *cobra.Command, _ []string) error {
-	r, err := repository.New(config.App.DBPath)
+	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}

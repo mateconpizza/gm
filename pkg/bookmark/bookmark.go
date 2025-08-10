@@ -2,13 +2,10 @@
 package bookmark
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
-	"net/url"
 	"path/filepath"
-	"sort"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -30,61 +27,77 @@ var (
 
 // Bookmark represents a bookmark.
 type Bookmark struct {
-	ID           int    `db:"id"            json:"id"`
-	URL          string `db:"url"           json:"url"`
-	Tags         string `db:"tags"          json:"tags"`
-	Title        string `db:"title"         json:"title"`
-	Desc         string `db:"desc"          json:"desc"`
-	CreatedAt    string `db:"created_at"    json:"created_at"`
-	LastVisit    string `db:"last_visit"    json:"last_visit"`
-	UpdatedAt    string `db:"updated_at"    json:"updated_at"`
-	VisitCount   int    `db:"visit_count"   json:"visit_count"`
-	Favorite     bool   `db:"favorite"      json:"favorite"`
-	FaviconURL   string `db:"favicon_url"   json:"favicon_url"`
-	FaviconLocal string `db:"favicon_local" json:"favicon_local"`
-	ArchiveURL   string `db:"archive_url"   json:"archive_url"`
-	Checksum     string `db:"checksum"      json:"checksum"`
+	ID                int    `db:"id"                json:"id"`
+	URL               string `db:"url"               json:"url"`               // URL of the bookmark.
+	Tags              string `db:"tags"              json:"tags"`              // Tags for the bookmark, stored as a comma-separated string.
+	Title             string `db:"title"             json:"title"`             // Title of the bookmark, retrieved from the website's metadata.
+	Desc              string `db:"desc"              json:"desc"`              // Description of the bookmark.
+	CreatedAt         string `db:"created_at"        json:"created_at"`        // Timestamp when the bookmark was created.
+	LastVisit         string `db:"last_visit"        json:"last_visit"`        // Timestamp of the last time the bookmark was visited.
+	UpdatedAt         string `db:"updated_at"        json:"updated_at"`        // Timestamp of the last time the bookmark record was updated.
+	VisitCount        int    `db:"visit_count"       json:"visit_count"`       // The number of times the bookmark has been visited.
+	Favorite          bool   `db:"favorite"          json:"favorite"`          // Boolean indicating if the bookmark is marked as a favorite.
+	FaviconURL        string `db:"favicon_url"       json:"favicon_url"`       // URL for the bookmark's favicon.
+	FaviconLocal      string `db:"favicon_local"     json:"favicon_local"`     // Local path to the cached favicon file.
+	Checksum          string `db:"checksum"          json:"checksum"`          // Checksum or hash (URL, Title, Description and Tags)
+	ArchiveURL        string `db:"archive_url"       json:"archive_url"`       // Internet Archive URL
+	ArchiveTimestamp  string `db:"archive_timestamp" json:"archive_timestamp"` // Internet Archive timestamp
+	LastStatusChecked string `db:"last_checked"      json:"last_checked"`      // Last checked timestamp.
+	HTTPStatusCode    int    `db:"status_code"       json:"status_code"`       // HTTP status code (200, 404, etc.)
+	HTTPStatusText    string `db:"status_text"       json:"status_text"`       // OK, Not Found, etc
+	IsActive          bool   `db:"is_active"         json:"is_active"`         // true if the URL is active (200-299)
 }
 
 type BookmarkJSON struct {
-	ID           int      `json:"id"`
-	URL          string   `json:"url"`
-	Tags         []string `json:"tags"`
-	Title        string   `json:"title"`
-	Desc         string   `json:"desc"`
-	CreatedAt    string   `json:"created_at"`
-	LastVisit    string   `json:"last_visit"`
-	UpdatedAt    string   `json:"updated_at"`
-	VisitCount   int      `json:"visit_count"`
-	Favorite     bool     `json:"favorite"`
-	FaviconURL   string   `json:"favicon_url"`
-	FaviconLocal string   `json:"favicon_local"`
-	ArchiveURL   string   `json:"archive_url"`
-	Checksum     string   `json:"checksum"`
+	// FIX: remove this struct
+	ID                int      `json:"id"`
+	URL               string   `json:"url"`
+	Tags              []string `json:"tags"`
+	Title             string   `json:"title"`
+	Desc              string   `json:"desc"`
+	CreatedAt         string   `json:"created_at"`
+	LastVisit         string   `json:"last_visit"`
+	UpdatedAt         string   `json:"updated_at"`
+	VisitCount        int      `json:"visit_count"`
+	Favorite          bool     `json:"favorite"`
+	FaviconURL        string   `json:"favicon_url"`
+	FaviconLocal      string   `json:"favicon_local"`
+	Checksum          string   `json:"checksum"`
+	ArchiveURL        string   `json:"archive_url"`       // Internet Archive URL
+	ArchiveTimestamp  string   `json:"archive_timestamp"` // Internet Archive timestamp
+	LastStatusChecked string   `json:"last_checked"`      // Last checked timestamp.
+	HTTPStatusCode    int      `json:"status_code"`       // HTTP status code (200, 404, etc.)
+	HTTPStatusText    string   `json:"status_text"`       // OK, Not Found, etc
+	IsActive          bool     `json:"is_active"`         // true if the URL is active (200-299)
 }
 
 func (b *Bookmark) JSON() *BookmarkJSON {
+	bj := &BookmarkJSON{}
+
+	bVal := reflect.ValueOf(b).Elem()
+	jsonVal := reflect.ValueOf(bj).Elem()
+
+	for i := 0; i < bVal.NumField(); i++ {
+		field := bVal.Type().Field(i)
+		if field.Name == "Tags" {
+			continue
+		}
+
+		jsonField := jsonVal.FieldByName(field.Name)
+		if jsonField.IsValid() && jsonField.CanSet() {
+			jsonField.Set(bVal.Field(i))
+		}
+	}
+
 	t := func(s string) []string {
 		return strings.FieldsFunc(s, func(r rune) bool {
 			return r == ',' || r == ' '
 		})
 	}
 
-	return &BookmarkJSON{
-		ID:         b.ID,
-		URL:        b.URL,
-		Title:      b.Title,
-		Desc:       b.Desc,
-		Tags:       t(b.Tags),
-		CreatedAt:  b.CreatedAt,
-		LastVisit:  b.LastVisit,
-		UpdatedAt:  b.UpdatedAt,
-		VisitCount: b.VisitCount,
-		Favorite:   b.Favorite,
-		FaviconURL: b.FaviconURL,
-		ArchiveURL: b.ArchiveURL,
-		Checksum:   b.Checksum,
-	}
+	bj.Tags = t(b.Tags)
+
+	return bj
 }
 
 func (b *Bookmark) Bytes() []byte {
@@ -163,6 +176,16 @@ func (b *Bookmark) HashURL() string {
 	return hashURL(b.URL)
 }
 
+// HashDomain returns the hash domain of a bookmark.
+func (b *Bookmark) HashDomain() (string, error) {
+	domain, err := b.Domain()
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	return hashDomain(domain), nil
+}
+
 // Domain returns the domain of a bookmark.
 func (b *Bookmark) Domain() (string, error) {
 	return domain(b.URL)
@@ -232,102 +255,17 @@ func NewFromJSON(j *BookmarkJSON) *Bookmark {
 	b.Favorite = j.Favorite
 	b.FaviconURL = j.FaviconURL
 	b.Checksum = j.Checksum
+	b.FaviconLocal = j.FaviconLocal
+	b.ArchiveURL = j.ArchiveURL
+	b.ArchiveTimestamp = j.ArchiveTimestamp
+	b.LastStatusChecked = j.LastStatusChecked
+	b.HTTPStatusCode = j.HTTPStatusCode
+	b.HTTPStatusText = j.HTTPStatusText
+	b.IsActive = j.IsActive
 
 	return b
 }
 
 func NewFromBuffer(buf []byte) (*Bookmark, error) {
 	return fromBytes(buf)
-}
-
-// fromBytes unmarshals a bookmark from bytes.
-func fromBytes(b []byte) (*Bookmark, error) {
-	bj := BookmarkJSON{}
-	if err := json.Unmarshal(b, &bj); err != nil {
-		return nil, err
-	}
-
-	return NewFromJSON(&bj), nil
-}
-
-func toBytes(b *Bookmark) []byte {
-	bj, err := json.MarshalIndent(b.JSON(), "", "  ")
-	if err != nil {
-		return nil
-	}
-
-	return bj
-}
-
-// ParseTags normalizes a string of tags by separating them by commas, sorting
-// them and ensuring that the final string ends with a comma.
-//
-//	from: "tag1, tag2, tag3 tag"
-//	to: "tag,tag1,tag2,tag3,"
-func ParseTags(tags string) string {
-	if tags == "" {
-		return defaultTag
-	}
-
-	split := strings.FieldsFunc(tags, func(r rune) bool {
-		return r == ',' || r == ' '
-	})
-	sort.Strings(split)
-
-	tags = strings.Join(uniqueTags(split), ",")
-	if strings.HasSuffix(tags, ",") {
-		return tags
-	}
-
-	return tags + ","
-}
-
-// uniqueTags returns a slice of unique tags.
-func uniqueTags(t []string) []string {
-	var (
-		tags []string
-		seen = make(map[string]bool)
-	)
-
-	for _, tag := range t {
-		if tag == "" {
-			continue
-		}
-
-		if !seen[tag] {
-			seen[tag] = true
-
-			tags = append(tags, tag)
-		}
-	}
-
-	return tags
-}
-
-// domain extracts the domain from a URL.
-func domain(rawURL string) (string, error) {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "", fmt.Errorf("parsing url: %w", err)
-	}
-
-	// normalize domain
-	domain := strings.ToLower(u.Hostname())
-
-	return strings.TrimPrefix(domain, "www."), nil
-}
-
-// Validate validates the bookmark.
-func Validate(b *Bookmark) error {
-	if b.URL == "" {
-		slog.Error("bookmark is invalid. URL is empty")
-		return ErrURLEmpty
-	}
-
-	if b.Tags == "," || b.Tags == "" {
-		slog.Error("bookmark is invalid. Tags are empty")
-		return ErrTagsEmpty
-	}
-
-	return nil
 }

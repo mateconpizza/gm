@@ -19,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 var ErrImportSourceNotFound = errors.New("import source not found")
@@ -74,7 +73,7 @@ var (
 )
 
 func fromBrowserFunc(_ *cobra.Command, _ []string) error {
-	r, err := repository.New(config.App.DBPath)
+	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -95,7 +94,7 @@ func fromBrowserFunc(_ *cobra.Command, _ []string) error {
 }
 
 func fromBackupFunc(command *cobra.Command, args []string) error {
-	destRepo, err := repository.New(config.App.DBPath)
+	destRepo, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -124,7 +123,7 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	srcRepo, err := repository.New(backupPath)
+	srcRepo, err := db.New(backupPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -144,18 +143,18 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 }
 
 func fromDatabaseFunc(command *cobra.Command, _ []string) error {
-	r, err := repository.New(config.App.DBPath)
+	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer r.Close()
 
 	// FIX: refactor `SelectDatabase`, return a string (fullpath)
-	srcDB, err := handler.SelectDatabase(r.Fullpath())
+	srcDB, err := handler.SelectDatabase(r.Cfg.Fullpath())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	rSrc, err := repository.New(srcDB.Cfg.Fullpath())
+	rSrc, err := db.New(srcDB.Cfg.Fullpath())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

@@ -65,27 +65,33 @@ var schemaTemp = Schema{
 // main table.
 const (
 	tableMainSchema = `
-    PRAGMA foreign_keys = ON;
-
-    CREATE TABLE IF NOT EXISTS %s (
-        id          	INTEGER PRIMARY KEY AUTOINCREMENT,
-        url         	TEXT    NOT NULL UNIQUE,
-        title       	TEXT    DEFAULT "",
-        desc        	TEXT    DEFAULT "",
-        created_at  	TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_visit  	TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at  	TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        visit_count 	INTEGER DEFAULT 0,
-        favorite    	BOOLEAN DEFAULT FALSE,
-        favicon_url 	TEXT    DEFAULT "",
-				favicon_local TEXT DEFAULT "",
-        archive_url 	TEXT    DEFAULT "",
-        checksum    	TEXT NOT NULL
-    );`
+		CREATE TABLE IF NOT EXISTS %s (
+				id          				INTEGER PRIMARY KEY AUTOINCREMENT,
+				url         				TEXT    NOT NULL UNIQUE,
+				title       				TEXT    DEFAULT "",
+				desc        				TEXT    DEFAULT "",
+				created_at  				TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				last_visit  				TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				updated_at  				TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				visit_count 				INTEGER DEFAULT 0,
+				favorite    				BOOLEAN DEFAULT FALSE,
+				favicon_url 				TEXT    DEFAULT "",
+				favicon_local 			TEXT DEFAULT "",
+				archive_url 				TEXT DEFAULT "",
+				archive_timestamp 	TEXT DEFAULT "",
+				checksum    				TEXT NOT NULL,
+				last_checked  			TEXT DEFAULT "",
+				status_code  				INTEGER DEFAULT 0,
+				status_text  				TEXT DEFAULT "",
+				is_active  					BOOLEAN DEFAULT TRUE
+		);
+	`
 
 	tableMainIndex = `
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_bookmarks_url
-    ON bookmarks(url);`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_bookmarks_url ON bookmarks(url);
+		CREATE INDEX idx_bookmarks_status ON bookmarks(is_active, status_code);
+		CREATE INDEX idx_bookmarks_last_checked ON bookmarks(last_checked);
+	`
 
 	tableMainTriggerUpdateAt = `
 		CREATE TRIGGER IF NOT EXISTS update_bookmark_updated_at

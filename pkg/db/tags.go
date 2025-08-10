@@ -8,7 +8,51 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
+
+// TagsCounter returns a map with tag as key and count as value.
+func (r *SQLite) TagsCounter() (map[string]int, error) {
+	q := `
+		SELECT
+      t.name,
+      COUNT(bt.tag_id) AS tag_count
+    FROM
+      tags t
+      LEFT JOIN bookmark_tags bt ON t.id = bt.tag_id
+    GROUP BY
+      t.id,
+      t.name;`
+
+	var results []struct {
+		Name  string `db:"name"`
+		Count int    `db:"tag_count"`
+	}
+
+	if err := r.DB.Select(&results, q); err != nil {
+		return nil, fmt.Errorf("error querying tags count: %w", err)
+	}
+
+	tagCounts := make(map[string]int, len(results))
+	for _, row := range results {
+		tagCounts[row.Name] = row.Count
+	}
+
+	return tagCounts, nil
+}
+
+// TagsList returns the list of tags.
+func TagsList(r *SQLite) ([]string, error) {
+	var tags []string
+
+	err := r.DB.Select(&tags, `SELECT name FROM tags ORDER BY name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all tags: %w", err)
+	}
+
+	return tags, nil
+}
 
 // getOrCreateTag returns the tag ID.
 func (r *SQLite) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
@@ -33,7 +77,7 @@ func (r *SQLite) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
 }
 
 // associateTags associates tags to the given record.
-func (r *SQLite) associateTags(tx *sqlx.Tx, b *BookmarkModel) error {
+func (r *SQLite) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	slog.Debug("associating tags with URL", "tags", b.Tags, "url", b.URL)
 
 	tags := strings.SplitSeq(b.Tags, ",")
@@ -84,46 +128,4 @@ func createTag(tx *sqlx.Tx, tag string) (int64, error) {
 	}
 
 	return tagID, nil
-}
-
-// TagsCounter returns a map with tag as key and count as value.
-func (r *SQLite) TagsCounter() (map[string]int, error) {
-	q := `
-		SELECT
-      t.name,
-      COUNT(bt.tag_id) AS tag_count
-    FROM
-      tags t
-      LEFT JOIN bookmark_tags bt ON t.id = bt.tag_id
-    GROUP BY
-      t.id,
-      t.name;`
-
-	var results []struct {
-		Name  string `db:"name"`
-		Count int    `db:"tag_count"`
-	}
-
-	if err := r.DB.Select(&results, q); err != nil {
-		return nil, fmt.Errorf("error querying tags count: %w", err)
-	}
-
-	tagCounts := make(map[string]int, len(results))
-	for _, row := range results {
-		tagCounts[row.Name] = row.Count
-	}
-
-	return tagCounts, nil
-}
-
-// TagsList returns the list of tags.
-func TagsList(r *SQLite) ([]string, error) {
-	var tags []string
-
-	err := r.DB.Select(&tags, `SELECT name FROM tags ORDER BY name ASC`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all tags: %w", err)
-	}
-
-	return tags, nil
 }

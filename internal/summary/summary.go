@@ -12,7 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/repository"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 var (
@@ -21,7 +21,7 @@ var (
 )
 
 // Repo returns a summary of the repository.
-func Repo(c *ui.Console, r repository.Repo) string {
+func Repo(c *ui.Console, r *db.SQLite) string {
 	var (
 		name    = r.Name()
 		path    = txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
@@ -58,7 +58,7 @@ func RepoFromPath(c *ui.Console, p string) string {
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(p))
 
-	r, err := repository.New(p)
+	r, err := db.New(p)
 	if err != nil {
 		return c.F.Row(path).StringReset()
 	}
@@ -86,7 +86,7 @@ func RepoFromPath(c *ui.Console, p string) string {
 // repository and bookmark.
 //
 //	repositoryName (main: n)
-func RepoRecords(r repository.Repo) string {
+func RepoRecords(r *db.SQLite) string {
 	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
 	return r.Name() + " " + cgi(main)
 }
@@ -101,7 +101,7 @@ func RepoRecordsFromPath(p string) string {
 		return txt.PaddedLine(s, cgi("(locked)"))
 	}
 
-	r, _ := repository.New(p)
+	r, _ := db.New(p)
 	defer r.Close()
 
 	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
@@ -113,7 +113,7 @@ func RepoRecordsFromPath(p string) string {
 // SQLite repository.
 //
 //	repositoryName (main: n) (time)
-func BackupWithFmtDate(r repository.Repo) string {
+func BackupWithFmtDate(r *db.SQLite) string {
 	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
 	t := strings.Split(r.Name(), "_")[0]
 
@@ -136,7 +136,7 @@ func BackupWithFmtDateFromPath(p string) string {
 		return name + bkTime
 	}
 
-	r, err := repository.New(p)
+	r, err := db.New(p)
 	if err != nil {
 		slog.Warn("creating repository from path", "path", p, "error", err)
 		return ""
@@ -149,7 +149,7 @@ func BackupWithFmtDateFromPath(p string) string {
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(c *ui.Console, r repository.Repo) string {
+func BackupListDetail(c *ui.Console, r *db.SQLite) string {
 	dbName := files.StripSuffixes(r.Name())
 	fs, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
 	if len(fs) == 0 {
@@ -171,7 +171,7 @@ func BackupListDetail(c *ui.Console, r repository.Repo) string {
 // Backups returns a summary of the backups.
 //
 // last, path and number of backups.
-func Backups(c *ui.Console, r repository.Repo) string {
+func Backups(c *ui.Console, r *db.SQLite) string {
 	var (
 		empty          = "n/a"
 		backupsColor   = color.BrightMagenta("backups:").Italic()
@@ -214,7 +214,7 @@ func Backups(c *ui.Console, r repository.Repo) string {
 }
 
 // Info returns the repository info.
-func Info(c *ui.Console, r repository.Repo) string {
+func Info(c *ui.Console, r *db.SQLite) string {
 	s := Repo(c, r)
 	s += Backups(c, r)
 	s += BackupListDetail(c, r)

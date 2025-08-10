@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -14,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -25,7 +25,7 @@ type bookmarkTemp struct {
 // NewBookmark fetch metadata and parses the new bookmark.
 func NewBookmark(
 	c *ui.Console,
-	r repository.Repo,
+	r *db.SQLite,
 	b *bookmark.Bookmark,
 	title, tags string,
 	args []string,
@@ -145,7 +145,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	// prompt|take input for tags
 	c.F.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
-	mTags, _ := db.TagsCounterFromPath(config.App.DBPath)
+	mTags, _ := dbtask.TagsCounterFromPath(config.App.DBPath)
 	b.tags = parser.Tags(c.T.ChooseTags(c.F.Border.Mid, mTags))
 
 	c.F.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))

@@ -178,6 +178,10 @@ linters:
       disable:
         - require-error
   exclusions:
+    rules:
+      - path: "pkg/bookmark/bookmark.go"
+        linters:
+          - lll
     generated: lax
     presets:
       - common-false-positives

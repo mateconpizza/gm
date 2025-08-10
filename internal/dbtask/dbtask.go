@@ -12,11 +12,13 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-//nolint:unused //notimplementedyet
+// Default date format for timestamps.
 const defaultDateFormat = "20060102-150405"
 
 var (
@@ -32,8 +34,8 @@ func Backup(fullpath string) (string, error) {
 	}
 
 	// destDSN -> 20060102-150405_dbName.db
-	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(r.Cfg.DateFormat), r.Name())
-	destPath := filepath.Join(r.Cfg.BackupDir, destDSN)
+	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(defaultDateFormat), r.Name())
+	destPath := filepath.Join(config.App.Path.Backup, destDSN)
 	slog.Info("creating SQLite backup",
 		"src", r.Cfg.Fullpath(),
 		"dest", destPath,
@@ -45,7 +47,7 @@ func Backup(fullpath string) (string, error) {
 
 	_ = r.DB.MustExec("VACUUM INTO ?", destPath)
 
-	if err := db.VerifyIntegrity(destPath); err != nil {
+	if err := VerifyIntegrity(destPath); err != nil {
 		return "", err
 	}
 
@@ -154,8 +156,8 @@ func resetSQLiteSequence(ctx context.Context, tx *sqlx.Tx, tables ...db.Table) e
 	return nil
 }
 
-// ReorderIDs reorders the IDs in the main table.
-func ReorderIDs(ctx context.Context, r *db.SQLite) error {
+// DeleteAndReorder reorders the IDs in the main table.
+func DeleteAndReorder(ctx context.Context, r *db.SQLite) error {
 	schemaMain := db.Schemas.Main
 	schemaTemp := db.Schemas.Temp
 	schemaRelation := db.Schemas.Relation
@@ -212,7 +214,7 @@ func ReorderIDs(ctx context.Context, r *db.SQLite) error {
 }
 
 // insertManyIntoTempTable inserts multiple records into a temporary table.
-func insertManyIntoTempTable(ctx context.Context, tx *sqlx.Tx, bs []*db.BookmarkModel) error {
+func insertManyIntoTempTable(ctx context.Context, tx *sqlx.Tx, bs []*bookmark.Bookmark) error {
 	q := `
   INSERT INTO temp_bookmarks (
     url, title, desc, created_at, last_visit,
@@ -353,6 +355,10 @@ func Init(ctx context.Context, r *db.SQLite) error {
 	}
 
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		if _, err := tx.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+			return fmt.Errorf("enabling foreign keys: %w", err)
+		}
+
 		for _, s := range schemas {
 			if err := tableCreate(ctx, tx, s.Name, s.SQL); err != nil {
 				return fmt.Errorf("creating %q table: %w", s.Name, err)
@@ -375,4 +381,55 @@ func Init(ctx context.Context, r *db.SQLite) error {
 
 		return nil
 	})
+}
+
+// DropFromPath drops the database from the given path.
+func DropFromPath(dbPath string) error {
+	r, err := db.New(dbPath)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return r.DropSecure(context.Background())
+}
+
+// VerifyIntegrity checks the integrity of the SQLite database.
+func VerifyIntegrity(path string) error {
+	slog.Debug("verifying SQLite integrity", "path", path)
+
+	r, err := db.OpenDatabase(path)
+	if err != nil {
+		return fmt.Errorf("no se pudo abrir backup: %w", err)
+	}
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			slog.Error("error closing db", "error", err)
+		}
+	}()
+
+	var result string
+	ctx := context.Background()
+	row := r.QueryRowContext(ctx, "PRAGMA integrity_check;")
+	if err := row.Scan(&result); err != nil {
+		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
+	}
+
+	if result != "ok" {
+		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
+	}
+
+	slog.Debug("SQLite integrity verified", "result", result)
+
+	return nil
+}
+
+// TagsCounterFromPath returns a map with tag as key and count as value.
+func TagsCounterFromPath(dbPath string) (map[string]int, error) {
+	r, err := db.New(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+
+	return r.TagsCounter()
 }

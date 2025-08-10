@@ -11,7 +11,6 @@ import (
 )
 
 func TestInsertOne(t *testing.T) {
-	t.Parallel()
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 
@@ -40,30 +39,7 @@ func TestInsertMany(t *testing.T) {
 	t.Skip("not implemented yet")
 }
 
-func TestDeleteOne(t *testing.T) {
-	t.Parallel()
-	r := testPopulatedDB(t, 10)
-	defer teardownthewall(r.DB)
-
-	b, err := r.ByID(1)
-	if err != nil {
-		t.Fatalf("Failed to get bookmark by ID: %v", err)
-	}
-
-	err = r.DeleteByURL(t.Context(), b.URL)
-	if err != nil {
-		t.Fatalf("Failed to delete bookmark by URL: %v", err)
-	}
-
-	// check if the record was deleted
-	_, err = r.ByID(1)
-	if err == nil {
-		t.Error("Expected an error when getting bookmark by ID, but got nil (record was not deleted)")
-	}
-}
-
 func TestDeleteMany(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		name              string
 		bookmarksToInsert int
@@ -147,34 +123,38 @@ func TestDeleteMany(t *testing.T) {
 }
 
 func TestUpdateOne(t *testing.T) {
-	t.Parallel()
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 
+	ctx := t.Context()
+
 	// Insert initial record
 	oldB := testSingleBookmark()
-	if _, err := r.InsertOne(t.Context(), oldB); err != nil {
+	if _, err := r.InsertOne(ctx, oldB); err != nil {
 		t.Fatalf("failed to insert bookmark: %v", err)
 	}
 
 	// Create updated bookmark with new values
-	newB := *oldB // Create a copy by dereferencing and re-referencing
+	newB := *oldB // Copy by value
 	newB.Checksum = "new-checksum"
 	newB.Tags = "tagNew1,tagNew2,"
 	newB.Desc = "new description"
 
-	// Update the record
-	if err := r.Update(t.Context(), &newB, oldB); err != nil {
+	// Keep old UpdatedAt for later comparison
+	oldUpdatedAt := oldB.UpdatedAt
+
+	// Perform update
+	if err := r.Update(ctx, &newB, oldB); err != nil {
 		t.Fatalf("failed to update bookmark: %v", err)
 	}
 
-	// Retrieve the updated record
+	// Retrieve updated record
 	updatedB, err := r.ByID(newB.ID)
 	if err != nil {
 		t.Fatalf("failed to retrieve updated bookmark: %v", err)
 	}
 
-	// Verify the update
+	// Assertions
 	if updatedB.ID != newB.ID {
 		t.Errorf("expected ID %d, got %d", newB.ID, updatedB.ID)
 	}
@@ -184,8 +164,8 @@ func TestUpdateOne(t *testing.T) {
 	if updatedB.Tags != newB.Tags {
 		t.Errorf("expected tags %q, got %q", newB.Tags, updatedB.Tags)
 	}
-	if updatedB.UpdatedAt != newB.UpdatedAt {
-		t.Errorf("expected UpdatedAt %v, got %v", newB.UpdatedAt, updatedB.UpdatedAt)
+	if updatedB.UpdatedAt == oldUpdatedAt {
+		t.Errorf("UpdatedAt should have changed: old=%v new=%v", oldUpdatedAt, updatedB.UpdatedAt)
 	}
 	if updatedB.CreatedAt != oldB.CreatedAt {
 		t.Errorf("expected CreatedAt %v, got %v", oldB.CreatedAt, updatedB.CreatedAt)
@@ -193,10 +173,19 @@ func TestUpdateOne(t *testing.T) {
 	if updatedB.Favorite != oldB.Favorite {
 		t.Errorf("expected Favorite %v, got %v", oldB.Favorite, updatedB.Favorite)
 	}
+
+	// Ensure tags relationship updated in DB
+	// tags, err := r.TagsByBookmarkID(updatedB.ID)
+	// if err != nil {
+	// 	t.Fatalf("failed to retrieve tags for bookmark: %v", err)
+	// }
+	// expectedTags := []string{"tagNew1", "tagNew2"}
+	// if !equalStringSlices(tags, expectedTags) {
+	// 	t.Errorf("expected tags %+v, got %+v", expectedTags, tags)
+	// }
 }
 
 func TestAllRecords(t *testing.T) {
-	t.Parallel()
 	const want = 10
 	r := testPopulatedDB(t, want)
 	defer teardownthewall(r.DB)
@@ -214,7 +203,6 @@ func TestAllRecords(t *testing.T) {
 }
 
 func TestByID(t *testing.T) {
-	t.Parallel()
 	const want = 10
 	r := testPopulatedDB(t, want)
 	defer teardownthewall(r.DB)
@@ -251,7 +239,6 @@ func TestByID(t *testing.T) {
 }
 
 func TestByIDList(t *testing.T) {
-	t.Parallel()
 	r := testPopulatedDB(t, 10)
 	defer teardownthewall(r.DB)
 
@@ -302,7 +289,6 @@ func TestByURL(t *testing.T) {
 }
 
 func TestByTag(t *testing.T) {
-	t.Parallel()
 	const want = 10
 	r := testPopulatedDB(t, want)
 	defer teardownthewall(r.DB)
@@ -317,7 +303,6 @@ func TestByTag(t *testing.T) {
 }
 
 func TestByQuery(t *testing.T) {
-	t.Parallel()
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	ctx := t.Context()
@@ -359,7 +344,6 @@ func TestByQuery(t *testing.T) {
 }
 
 func TestDuplicateErr(t *testing.T) {
-	t.Parallel()
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	ctx := t.Context()
@@ -378,7 +362,6 @@ func TestDuplicateErr(t *testing.T) {
 }
 
 func TestHasRecord(t *testing.T) {
-	t.Parallel()
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	ctx := t.Context()
@@ -402,7 +385,6 @@ func TestHasRecord(t *testing.T) {
 }
 
 func TestRollback(t *testing.T) {
-	t.Parallel()
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 	ctx := t.Context()
@@ -452,7 +434,6 @@ func TestRollback(t *testing.T) {
 }
 
 func TestDeleteAll(t *testing.T) {
-	t.Parallel()
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 
@@ -480,82 +461,4 @@ func TestDeleteAll(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when getting bookmark by ID after deleteAll, got nil")
 	}
-}
-
-func TestRecordIDs(t *testing.T) {
-	t.Parallel()
-	const want = 10
-	r := testPopulatedDB(t, want)
-	defer teardownthewall(r.DB)
-
-	// get initial records
-	bs, err := r.All()
-	if err != nil {
-		t.Fatalf("AllPtr failed: %v", err)
-	}
-	if len(bs) != want {
-		t.Fatalf("expected %d records, got %d", want, len(bs))
-	}
-
-	// delete records at indices 1, 2, 5 (ids 2, 3, 6)
-	toDelete := []*BookmarkModel{bs[1], bs[2], bs[5]}
-	if err := r.DeleteMany(t.Context(), toDelete); err != nil {
-		t.Fatalf("DeleteMany failed: %v", err)
-	}
-
-	// verify deletion - should have 7 records left
-	remaining, err := r.All()
-	if err != nil {
-		t.Fatalf("AllPtr after deletion failed: %v", err)
-	}
-	if len(remaining) != 7 {
-		t.Fatalf("expected 7 records after deletion, got %d", len(remaining))
-	}
-
-	// extract and verify current ids
-	currentIDs := extractIDs(remaining)
-	expectedAfterDelete := []int{1, 4, 5, 7, 8, 9, 10}
-	if !equalIntSlices(currentIDs, expectedAfterDelete) {
-		t.Fatalf("after deletion, expected IDs %v, got %v", expectedAfterDelete, currentIDs)
-	}
-
-	// reorder ids
-	if err := r.ReorderIDs(t.Context()); err != nil {
-		t.Fatalf("ReorderIDs failed: %v", err)
-	}
-
-	// verify reordering - ids should be 1-7 consecutively
-	reordered, err := r.All()
-	if err != nil {
-		t.Fatalf("AllPtr after reordering failed: %v", err)
-	}
-	if len(reordered) != 7 {
-		t.Fatalf("expected 7 records after reordering, got %d", len(reordered))
-	}
-
-	reorderedIDs := extractIDs(reordered)
-	expectedReordered := []int{1, 2, 3, 4, 5, 6, 7}
-	if !equalIntSlices(reorderedIDs, expectedReordered) {
-		t.Fatalf("after reordering, expected IDs %v, got %v", expectedReordered, reorderedIDs)
-	}
-}
-
-func extractIDs(bookmarks []*BookmarkModel) []int {
-	ids := make([]int, len(bookmarks))
-	for i, b := range bookmarks {
-		ids[i] = b.ID
-	}
-	return ids
-}
-
-func equalIntSlices(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

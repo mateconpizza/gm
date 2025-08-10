@@ -17,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 // Records prints the bookmarks in a frame format with the given colorscheme.
@@ -170,7 +169,7 @@ func RepoInfo(c *ui.Console, p string, j bool) error {
 		return nil
 	}
 
-	r, err := repository.New(store.Cfg.Fullpath())
+	r, err := db.New(store.Cfg.Fullpath())
 	if err != nil {
 		return err
 	}

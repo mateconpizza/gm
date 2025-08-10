@@ -23,7 +23,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 func initConfig() {
@@ -200,7 +199,7 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 
 	// FIX: opening multiple conn
 	store.Close()
-	r, err := repository.New(store.Cfg.Fullpath())
+	r, err := db.New(store.Cfg.Fullpath())
 	if err != nil {
 		return err
 	}

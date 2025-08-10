@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 func init() {
@@ -69,7 +68,7 @@ var (
 
 // recordsCmd is the main command and entrypoint.
 func recordsCmdFunc(cmd *cobra.Command, args []string) error {
-	r, err := repository.New(config.App.DBPath)
+	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -107,6 +106,8 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		return handler.Update(c, r, bs)
 	case f.Copy:
 		return handler.Copy(bs)
+	case f.Reorder:
+		return handler.ReorderIDs(c, r)
 	case f.Open && !f.QR:
 		return handler.Open(c, r, bs)
 	}
@@ -147,6 +148,7 @@ func initRecordFlags(cmd *cobra.Command) {
 	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
 	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit with preferred text editor")
 	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check bookmarks status")
+	f.BoolVar(&cfg.Flags.Reorder, "reorder", false, "reorder bookmarks IDs")
 
 	// Modifiers
 	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "the <int> first part of bookmarks")

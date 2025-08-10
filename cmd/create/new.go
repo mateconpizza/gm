@@ -16,7 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/repository"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func init() {
@@ -78,7 +78,7 @@ var (
 
 // newBookmarkCmd creates a new bookmark.
 func newBookmarkFunc(command *cobra.Command, args []string) error {
-	r, err := repository.New(config.App.DBPath)
+	r, err := db.New(config.App.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

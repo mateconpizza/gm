@@ -8,13 +8,15 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // setupTestDB sets up a test database.
 func setupTestDB(t *testing.T) *SQLite {
 	t.Helper()
-	c, _ := newSQLiteCfg("")
-	db, err := openDatabase(fmt.Sprintf("file:testdb_%d?mode=memory&cache=shared", time.Now().UnixNano()))
+	c, _ := NewSQLiteCfg("")
+	db, err := OpenDatabase(fmt.Sprintf("file:testdb_%d?mode=memory&cache=shared", time.Now().UnixNano()))
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -31,8 +33,8 @@ func teardownthewall(db *sqlx.DB) {
 	}
 }
 
-func testSingleBookmark() *BookmarkModel {
-	return &BookmarkModel{
+func testSingleBookmark() *bookmark.Bookmark {
+	return &bookmark.Bookmark{
 		URL:       "https://www.example.com",
 		Title:     "Title",
 		Tags:      "test,tag1,go",
@@ -44,8 +46,8 @@ func testSingleBookmark() *BookmarkModel {
 	}
 }
 
-func testSliceBookmarks(n int) []*BookmarkModel {
-	bs := make([]*BookmarkModel, 0, n)
+func testSliceBookmarks(n int) []*bookmark.Bookmark {
+	bs := make([]*bookmark.Bookmark, 0, n)
 	for i := range n {
 		b := testSingleBookmark()
 		b.Title = fmt.Sprintf("Title %d", i)
@@ -73,8 +75,8 @@ func testPopulatedDB(t *testing.T, n int) *SQLite {
 
 func TestInit(t *testing.T) {
 	t.Parallel()
-	c, _ := newSQLiteCfg("")
-	db, err := openDatabase("file:testdb?mode=memory&cache=shared")
+	c, _ := NewSQLiteCfg("")
+	db, err := OpenDatabase("file:testdb?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

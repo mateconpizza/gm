@@ -42,19 +42,6 @@ func (r *SQLite) Init(ctx context.Context) error {
 	})
 }
 
-// tableExists checks whether a table with the specified name exists in the SQLite database.
-func tableExists(r *SQLite, t Table) (bool, error) {
-	var count int
-
-	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
-	if err != nil {
-		slog.Error("checking if table exists", "name", t, "error", err)
-		return false, fmt.Errorf("tableExists: %w", err)
-	}
-
-	return count > 0, nil
-}
-
 // tableRename renames the temporary table to the specified main table name.
 func (r *SQLite) tableRename(ctx context.Context, tx *sqlx.Tx, srcTable, destTable Table) error {
 	slog.Debug("renaming table", "from", srcTable, "to", destTable)
@@ -100,4 +87,17 @@ func (r *SQLite) Vacuum(ctx context.Context) error {
 // DropSecure removes all records database.
 func (r *SQLite) DropSecure(ctx context.Context) error {
 	return drop(r, ctx)
+}
+
+// tableExists checks whether a table with the specified name exists in the SQLite database.
+func tableExists(r *SQLite, t Table) (bool, error) {
+	var count int
+
+	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
+	if err != nil {
+		slog.Error("checking if table exists", "name", t, "error", err)
+		return false, fmt.Errorf("tableExists: %w", err)
+	}
+
+	return count > 0, nil
 }

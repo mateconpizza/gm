@@ -18,7 +18,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 )
 
 var (
@@ -29,7 +28,7 @@ var (
 // Data retrieves and filters bookmarks based on configuration and arguments.
 func Data(
 	m *menu.Menu[bookmark.Bookmark],
-	r repository.Repo,
+	r *db.SQLite,
 	args []string,
 ) ([]*bookmark.Bookmark, error) {
 	f := config.App.Flags
@@ -62,7 +61,7 @@ func Data(
 }
 
 // getRecords retrieves records based on user input and filtering criteria.
-func getRecords(r repository.Repo, args []string) ([]*bookmark.Bookmark, error) {
+func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("getRecords", "args", args)
 
 	// Try to get by IDs first
@@ -93,7 +92,7 @@ func getRecords(r repository.Repo, args []string) ([]*bookmark.Bookmark, error) 
 }
 
 // getByIDs retrieves records from the database based on IDs.
-func getByIDs(r repository.Repo, args []string) ([]*bookmark.Bookmark, error) {
+func getByIDs(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("getting by IDs")
 
 	ids, err := extractIDsFrom(args)
@@ -119,7 +118,7 @@ func getByIDs(r repository.Repo, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // getByQuery executes a search query on the given repository.
-func getByQuery(r repository.Repo, args []string) ([]*bookmark.Bookmark, error) {
+func getByQuery(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	if len(args) == 0 {
 		return []*bookmark.Bookmark{}, nil
 	}
@@ -134,7 +133,7 @@ func getByQuery(r repository.Repo, args []string) ([]*bookmark.Bookmark, error) 
 }
 
 // applyFilters applies tag and head/tail filters to the bookmark list.
-func applyFilters(r repository.Repo, bs []*bookmark.Bookmark, f *config.Flags) ([]*bookmark.Bookmark, error) {
+func applyFilters(r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) ([]*bookmark.Bookmark, error) {
 	var err error
 
 	// Filter by tags
@@ -157,7 +156,7 @@ func applyFilters(r repository.Repo, bs []*bookmark.Bookmark, f *config.Flags) (
 }
 
 // filterByTags returns a slice of bookmarks that contain ALL of the provided tags.
-func filterByTags(r repository.Repo, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func filterByTags(r *db.SQLite, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	n := len(bs)
 	slog.Debug("by tags", "tags", tags, "count", n)
 
@@ -349,7 +348,7 @@ func applyMenuSelection(
 	return result, nil
 }
 
-func handleEditedBookmark(c *ui.Console, r repository.Repo, newB, oldB *bookmark.Bookmark) error {
+func handleEditedBookmark(c *ui.Console, r *db.SQLite, newB, oldB *bookmark.Bookmark) error {
 	newBookmark := newB.ID == 0
 	if newBookmark {
 		_, err := r.InsertOne(context.Background(), newB)
@@ -364,7 +363,7 @@ func handleEditedBookmark(c *ui.Console, r repository.Repo, newB, oldB *bookmark
 		return fmt.Errorf("updating record: %w", err)
 	}
 
-	if err := gitUpdate(r.Fullpath(), oldB, newB); err != nil {
+	if err := gitUpdate(r.Cfg.Fullpath(), oldB, newB); err != nil {
 		return err
 	}
 
@@ -374,7 +373,7 @@ func handleEditedBookmark(c *ui.Console, r repository.Repo, newB, oldB *bookmark
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
+func removeRecords(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -382,13 +381,13 @@ func removeRecords(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) er
 	sp.Start()
 	defer sp.Done()
 
-	if err := r.DeleteReorder(context.Background(), bs); err != nil {
+	if err := r.DeleteMany(context.Background(), bs); err != nil {
 		return err
 	}
 
 	sp.Done()
 
-	if err := gitClean(r.Fullpath(), bs); err != nil {
+	if err := gitClean(r.Cfg.Fullpath(), bs); err != nil {
 		return err
 	}
 

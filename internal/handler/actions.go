@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -26,7 +27,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/repository"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -84,7 +84,7 @@ func Copy(bs []*bookmark.Bookmark) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
+func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 	n := len(bs)
 	// get user confirmation to procced
@@ -140,7 +140,7 @@ func Open(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 	}
 
 	for _, b := range bs {
-		if err := r.AddVisitAndUpdateCount(ctx, b.ID); err != nil {
+		if err := r.AddVisit(ctx, b.ID); err != nil {
 			return err
 		}
 	}
@@ -149,7 +149,7 @@ func Open(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
 }
 
 // Edit edits the bookmarks using a text editor.
-func Edit(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
+func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	te, err := files.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -257,7 +257,7 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // Update updates the bookmarks.
 //
 // It uses the scraper to update the title, description and favicon.
-func Update(c *ui.Console, r repository.Repo, bs []*bookmark.Bookmark) error {
+func Update(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	if len(bs) > 1 {
 		c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", len(bs)))).Rowln().Flush()
 	}
@@ -302,7 +302,7 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 // editBookmarks edits a slice of bookmarks.
 func editBookmarks(
 	c *ui.Console,
-	r repository.Repo,
+	r *db.SQLite,
 	te *files.TextEditor,
 	bs []*bookmark.Bookmark,
 ) error {
@@ -322,7 +322,7 @@ func editBookmarks(
 
 func editBookmarksJSON(
 	c *ui.Console,
-	r repository.Repo,
+	r *db.SQLite,
 	te *files.TextEditor,
 	bs []*bookmark.Bookmark,
 ) error {
@@ -378,7 +378,7 @@ func editBookmarksJSON(
 // editSingleInteractive handles editing a single bookmark with confirmation and retry.
 func editSingleInteractive(
 	c *ui.Console,
-	r repository.Repo,
+	r *db.SQLite,
 	te *files.TextEditor,
 	b *bookmark.Bookmark,
 	index, total int,
@@ -417,7 +417,7 @@ func editSingleInteractive(
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, force bool) error {
+func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, force bool) error {
 	if force {
 		if err := r.InsertMany(context.Background(), []*bookmark.Bookmark{b}); err != nil {
 			return fmt.Errorf("%w", err)
@@ -454,7 +454,7 @@ func SaveNewBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, for
 
 // updateSingleBookmark processes a single bookmark update including scraping,
 // diff display, and user interaction for saving changes.
-func updateSingleBookmark(c *ui.Console, r repository.Repo, b *bookmark.Bookmark, index, total int) error {
+func updateSingleBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, index, total int) error {
 	updatedB, err := updateBookmarkData(c, b)
 	if err != nil {
 		return err
@@ -527,4 +527,14 @@ func updateBookmarkData(c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark,
 	updatedB.Desc, _ = sc.Desc()
 	updatedB.FaviconURL, _ = sc.Favicon()
 	return updatedB, nil
+}
+
+func ReorderIDs(c *ui.Console, r *db.SQLite) error {
+	if err := dbtask.DeleteAndReorder(context.Background(), r); err != nil {
+		return err
+	}
+
+	fmt.Print(c.SuccessMesg("Reordered IDs\n"))
+
+	return nil
 }

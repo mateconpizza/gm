@@ -9,6 +9,7 @@ type Flags struct {
 	QR        bool     // QR code generator
 	Menu      bool     // Menu mode
 	Edit      bool     // Edit mode
+	Reorder   bool     // Reorder tables IDs
 	Head      int      // Head limit
 	Remove    bool     // Remove bookmarks
 	Update    bool     // Update bookmarks

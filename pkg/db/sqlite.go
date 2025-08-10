@@ -14,11 +14,6 @@ import (
 
 type Table string
 
-const (
-	// Default date format for timestamps.
-	defaultDateFormat = "20060102-150405"
-)
-
 // SQLite implements the Repository interface.
 type SQLite struct {
 	DB        *sqlx.DB `json:"-"`
@@ -54,7 +49,7 @@ func newSQLiteRepository(db *sqlx.DB, cfg *Cfg) *SQLite {
 // New returns a new SQLiteRepository from an existing database path.
 func New(p string) (*SQLite, error) {
 	return newRepository(p, func(path string) error {
-		slog.Debug("new repo: checking if database exists", "path", path)
+		slog.Debug("new repo: checking if database exists")
 
 		if !fileExists(path) {
 			return fmt.Errorf("%w: %q", ErrDBNotFound, path)
@@ -87,12 +82,12 @@ func newRepository(p string, validate func(string) error) (*SQLite, error) {
 		return nil, err
 	}
 
-	c, err := newSQLiteCfg(p)
+	c, err := NewSQLiteCfg(p)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	db, err := openDatabase(p)
+	db, err := OpenDatabase(p)
 	if err != nil {
 		slog.Error("NewRepo", "error", err, "path", p)
 		return nil, err
@@ -121,14 +116,13 @@ func NewFromBackup(backupPath string) (*SQLite, error) {
 
 	backupDir := filepath.Join(parentDir, "backup")
 	cfg := &Cfg{
-		Path:      backupDir,
-		Name:      backupFile,
-		BackupDir: backupDir,
+		Path: backupDir,
+		Name: backupFile,
 	}
 
 	slog.Debug("reading backup", "name", backupFile)
 
-	db, err := openDatabase(backupPath)
+	db, err := OpenDatabase(backupPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening backup database: %w", err)
 	}
@@ -139,9 +133,9 @@ func NewFromBackup(backupPath string) (*SQLite, error) {
 	}, nil
 }
 
-// openDatabase opens a SQLite database at the specified path and verifies
+// OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
-func openDatabase(s string) (*sqlx.DB, error) {
+func OpenDatabase(s string) (*sqlx.DB, error) {
 	slog.Debug("opening database", "path", s)
 
 	db, err := sqlx.Open("sqlite3", s)
@@ -160,9 +154,7 @@ func openDatabase(s string) (*sqlx.DB, error) {
 type Cfg struct {
 	Name        string   `json:"name"`         // Name of the SQLite database
 	Path        string   `json:"path"`         // Path to the SQLite database
-	BackupDir   string   `json:"backup_path"`  // Backup path
 	BackupFiles []string `json:"backup_files"` // Backup files
-	DateFormat  string   `json:"date_format"`  // Date format
 }
 
 // Fullpath returns the full path to the SQLite database.
@@ -175,8 +167,8 @@ func (c *Cfg) Exists() bool {
 	return fileExists(c.Fullpath())
 }
 
-// newSQLiteCfg returns the default settings for the database.
-func newSQLiteCfg(p string) (*Cfg, error) {
+// NewSQLiteCfg returns the default settings for the database.
+func NewSQLiteCfg(p string) (*Cfg, error) {
 	abs, err := filepath.Abs(p)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve %q: %w", p, err)
@@ -185,9 +177,7 @@ func newSQLiteCfg(p string) (*Cfg, error) {
 	baseDir := filepath.Dir(abs)
 
 	return &Cfg{
-		Path:       baseDir,
-		Name:       ensureDBSuffix(filepath.Base(abs)),
-		BackupDir:  filepath.Join(baseDir, "backup"),
-		DateFormat: defaultDateFormat,
+		Path: baseDir,
+		Name: ensureDBSuffix(filepath.Base(abs)),
 	}, nil
 }
