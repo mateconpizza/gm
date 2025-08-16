@@ -14,16 +14,14 @@ import (
 const defaultTag = "notag"
 
 var (
-	ErrDuplicate       = errors.New("bookmark already exists")
-	ErrInvalid         = errors.New("bookmark invalid")
-	ErrInvalidID       = errors.New("invalid bookmark id")
-	ErrInvalidInput    = errors.New("invalid input")
-	ErrNotFound        = errors.New("no bookmark found")
-	ErrNotSelected     = errors.New("no bookmark selected")
-	ErrTagsEmpty       = errors.New("tags cannot be empty")
-	ErrURLEmpty        = errors.New("URL cannot be empty")
-	ErrUnknownField    = errors.New("bookmark field unknown")
-	ErrInvalidChecksum = errors.New("invalid checksum")
+	ErrBookmarkDuplicate       = errors.New("bookmark already exists")
+	ErrBookmarkInvalidID       = errors.New("invalid bookmark id")
+	ErrBookmarkNotFound        = errors.New("no bookmark found")
+	ErrBookmarkTagsEmpty       = errors.New("tags cannot be empty")
+	ErrBookmarkURLEmpty        = errors.New("URL cannot be empty")
+	ErrBookmarkTitleRequired   = errors.New("title is required")
+	ErrBookmarkUnknownField    = errors.New("bookmark field unknown")
+	ErrBookmarkInvalidChecksum = errors.New("invalid checksum")
 )
 
 // Bookmark represents a bookmark.
@@ -121,7 +119,7 @@ func (b *Bookmark) Field(f string) (string, error) {
 	case "desc", "d", "5":
 		s = b.Desc
 	default:
-		return "", fmt.Errorf("%w: %q", ErrUnknownField, f)
+		return "", fmt.Errorf("%w: %q", ErrBookmarkUnknownField, f)
 	}
 
 	return s, nil
@@ -216,6 +214,11 @@ func (b *Bookmark) GPGPath(ext string) (string, error) {
 	}
 
 	return filepath.Join(domain, b.Checksum+ext), nil
+}
+
+// CheckStatus updates the bookmark's status fields.
+func (b *Bookmark) CheckStatus() error {
+	return checkStatus(b)
 }
 
 // New creates a new bookmark.

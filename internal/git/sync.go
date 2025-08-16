@@ -209,8 +209,10 @@ func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bo
 			return nil, fmt.Errorf("%w: %s", err, path)
 		}
 
-		if !parser.ValidateChecksumJSON(bj) {
-			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
+		if bj.Checksum != "" {
+			if !parser.ValidateChecksumJSON(bj) {
+				return nil, fmt.Errorf("%w: %s", bookmark.ErrBookmarkInvalidChecksum, path)
+			}
 		}
 
 		currentCount := atomic.AddUint32(&count, 1)
@@ -271,8 +273,10 @@ func readGPGRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Boo
 			return nil, fmt.Errorf("%w", err)
 		}
 
-		if !parser.ValidateChecksumJSON(bj) {
-			return nil, fmt.Errorf("%w: %s", bookmark.ErrInvalidChecksum, path)
+		if bj.Checksum != "" {
+			if !parser.ValidateChecksumJSON(bj) {
+				return nil, fmt.Errorf("%w: %s", bookmark.ErrBookmarkInvalidChecksum, path)
+			}
 		}
 
 		currentCount := atomic.AddUint32(&count, 1)

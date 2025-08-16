@@ -33,8 +33,8 @@ func TestRecordIsValid(t *testing.T) {
 	if err == nil {
 		t.Fatalf("unexpected error validating valid bookmark: %v", err)
 	}
-	if !errors.Is(err, ErrURLEmpty) {
-		t.Errorf("expected error to be %q, got %q", ErrURLEmpty.Error(), err.Error())
+	if !errors.Is(err, ErrBookmarkURLEmpty) {
+		t.Errorf("expected error to be %q, got %q", ErrBookmarkURLEmpty.Error(), err.Error())
 	}
 
 	// Tags err
@@ -44,7 +44,7 @@ func TestRecordIsValid(t *testing.T) {
 	if err == nil {
 		t.Fatalf("unexpected error validating valid bookmark: %v", err)
 	}
-	if !errors.Is(err, ErrTagsEmpty) {
-		t.Errorf("expected error to be %q, got %q", ErrTagsEmpty.Error(), err.Error())
+	if !errors.Is(err, ErrBookmarkTagsEmpty) {
+		t.Errorf("expected error to be %q, got %q", ErrBookmarkTagsEmpty.Error(), err.Error())
 	}
 }

@@ -67,7 +67,7 @@ func WaybackSnapshot(s string) (*SnapshotInfo, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: status: %d", ErrAPIRequestFail, resp.StatusCode)
+		return nil, fmt.Errorf("%w: status code %d", ErrAPIRequestFail, resp.StatusCode)
 	}
 
 	// Read response body

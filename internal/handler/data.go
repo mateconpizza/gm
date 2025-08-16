@@ -67,7 +67,7 @@ func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	// Try to get by IDs first
 	if bs, err := getByIDs(r, args); err != nil {
 		// If it's not an invalid ID error, return the error
-		if !errors.Is(err, bookmark.ErrInvalidID) {
+		if !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 			return nil, err
 		}
 		// If invalid ID, try query instead
@@ -97,10 +97,10 @@ func getByIDs(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 
 	ids, err := extractIDsFrom(args)
 	if len(ids) == 0 {
-		return nil, bookmark.ErrInvalidID // Signal that this isn't the right method
+		return nil, bookmark.ErrBookmarkInvalidID // Signal that this isn't the right method
 	}
 
-	if err != nil && !errors.Is(err, bookmark.ErrInvalidID) {
+	if err != nil && !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
 

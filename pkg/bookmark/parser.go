@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 )
 
 // hashDomain generates a hash from a domain.
@@ -113,13 +115,42 @@ func domain(rawURL string) (string, error) {
 func Validate(b *Bookmark) error {
 	if b.URL == "" {
 		slog.Error("bookmark is invalid. URL is empty")
-		return ErrURLEmpty
+		return ErrBookmarkURLEmpty
 	}
 
 	if b.Tags == "," || b.Tags == "" || b.Tags == "notag" {
 		slog.Error("bookmark is invalid. Tags are empty")
-		return ErrTagsEmpty
+		return ErrBookmarkTagsEmpty
 	}
+
+	return nil
+}
+
+func checkStatus(b *Bookmark) error {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	//nolint:bodyclose //closing
+	resp, err := client.Head(b.URL)
+	if err != nil {
+		// In case of network error, set status as inactive
+		b.HTTPStatusCode = resp.StatusCode
+		b.HTTPStatusText = http.StatusText(resp.StatusCode)
+		b.IsActive = false
+		b.LastStatusChecked = time.Now().Format("20060102150405")
+		return err
+	}
+	go func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("check status: closing body", "error", err)
+		}
+	}()
+
+	b.HTTPStatusCode = resp.StatusCode
+	b.HTTPStatusText = http.StatusText(resp.StatusCode)
+	b.IsActive = resp.StatusCode >= 200 && resp.StatusCode <= 299
+	b.LastStatusChecked = time.Now().Format("20060102150405")
 
 	return nil
 }

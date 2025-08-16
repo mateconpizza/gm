@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/semaphore"
@@ -200,6 +201,7 @@ func CheckStatus(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	const maxConRequests = 10
 	var (
+		count   uint32
 		sem     = semaphore.NewWeighted(int64(maxConRequests))
 		ctx     = context.Background()
 		wg      sync.WaitGroup
@@ -208,16 +210,26 @@ func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 		success = make(chan string, len(bs))
 	)
 
+	sp := rotato.New(
+		rotato.WithPrefix(c.F.Mid("Fetching snapshots").String()),
+		rotato.WithMesgColor(rotato.ColorYellow),
+		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithFailColorMesg(rotato.ColorBrightRed),
+	)
+	sp.Start()
+
+	n := len(bs)
 	for _, b := range bs {
+		if b.ArchiveURL != "" && b.ArchiveTimestamp != "" {
+			continue
+		}
+
 		if err := sem.Acquire(ctx, 1); err != nil {
 			return fmt.Errorf("acquire semaphore: %w", err)
 		}
 
-		id := fmt.Sprintf("ID %s", color.Text(fmt.Sprintf("%-3d", b.ID)).Bold())
-		d := id + " " + txt.Shorten(b.URL, 60)
-		c.Info(d).Ln().Flush()
-
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
 			defer sem.Release(1)
@@ -226,6 +238,10 @@ func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 			d := id + " " + txt.Shorten(b.URL, 60)
 
 			f := frame.New(frame.WithColorBorder(color.Gray))
+			currentCount := atomic.AddUint32(&count, 1)
+			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", currentCount, n, f.Info(txt.Shorten(b.URL, 80)).String()))
+			f.Reset()
+
 			s, err := scraper.WaybackSnapshot(b.URL)
 			if err != nil {
 				es := color.BrightGray(" (" + err.Error() + ")").Italic().String()
@@ -253,16 +269,28 @@ func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	close(errs)
 	close(success)
 
-	c.F.Reset().Rowln().Header(ctb(fmt.Sprintf("Summary %d bookmarks:\n", len(bs)))).Flush()
+	sp.Done()
 
-	for err := range errs {
-		fmt.Println(err)
-	}
-	for s := range success {
-		fmt.Println(s)
+	if count == 0 {
+		return nil
 	}
 
-	c.F.Flush()
+	c.F.Reset().Header(ctb(fmt.Sprintf("Summary %d bookmarks\n", count))).Rowln()
+
+	if len(success) > 0 {
+		c.F.Midln("Updated").Flush()
+		for s := range success {
+			c.F.Textln(s).Flush()
+		}
+		c.F.Rowln()
+	}
+
+	if len(errs) > 0 {
+		c.F.Midln("Failed").Flush()
+		for err := range errs {
+			c.F.Textln(err).Flush()
+		}
+	}
 
 	return nil
 }
@@ -389,7 +417,7 @@ func editBookmarks(
 ) error {
 	n := len(bs)
 	if n == 0 {
-		return bookmark.ErrNotFound
+		return bookmark.ErrBookmarkNotFound
 	}
 
 	for i := range bs {

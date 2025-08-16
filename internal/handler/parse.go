@@ -37,7 +37,7 @@ func NewBookmark(
 
 	newURL = strings.TrimRight(newURL, "/")
 	if b, exists := r.Has(context.Background(), newURL); exists {
-		return fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
+		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
 	bTemp := &bookmarkTemp{}
