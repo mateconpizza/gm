@@ -66,7 +66,7 @@ func selectItem(fs []string, header string) (string, error) {
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
-		menu.WithPreview(config.App.Cmd+" db -n {1} info"),
+		menu.WithPreview(config.App.Cmd+" db -n {1} -i"),
 	)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
@@ -145,11 +145,11 @@ func SelectFileLocked(root, header string) ([]string, error) {
 	return selected, nil
 }
 
-func SelectDatabase(currentDBPath string) (*db.SQLite, error) {
+func SelectDatabase(currentDBPath string) (string, error) {
 	// build list of candidate .db files
 	dbFiles, err := files.FindByExtList(config.App.Path.Data, ".db")
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return "", fmt.Errorf("%w", err)
 	}
 
 	dbs := slice.New(dbFiles...)
@@ -160,18 +160,12 @@ func SelectDatabase(currentDBPath string) (*db.SQLite, error) {
 	// ask the user which one to import from
 	s, err := selectItem(*dbs.Items(), "choose a database to import from")
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return "", fmt.Errorf("%w", err)
 	}
 
 	if !files.Exists(s) {
-		return nil, fmt.Errorf("%w: %q", db.ErrDBNotFound, s)
+		return "", fmt.Errorf("%w: %q", db.ErrDBNotFound, s)
 	}
 
-	// open source and destination
-	srcDB, err := db.New(s)
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return srcDB, nil
+	return s, nil
 }

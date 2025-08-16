@@ -25,7 +25,7 @@ func init() {
 	cfg := config.App
 	backupUnlockCmd.Flags().
 		BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
-	backupCmd.AddCommand(BackupNewCmd, backupListCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
+	backupCmd.AddCommand(BackupNewCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
 	dbRootCmd.AddCommand(backupCmd)
 }
 
@@ -59,14 +59,6 @@ var (
 		Use:   "unlock",
 		Short: "Unlock a database backup",
 		RunE:  backupUnlockFunc,
-	}
-
-	// backupListCmd list backups.
-	backupListCmd = &cobra.Command{
-		Use:     "list",
-		Short:   "List backups from a database",
-		Aliases: []string{"ls", "l", "i", "info"},
-		RunE:    backupPrettyPrint,
 	}
 
 	// backupCmd backup management.

@@ -444,3 +444,73 @@ func ExtractBlock(content []string, startMarker, endMarker string) string {
 
 	return strings.Join(cleanedBlock, "\n")
 }
+
+// CreateSimpleTable generates a simple ASCII table with basic borders.
+func CreateSimpleTable(headers []string, rows [][]string) string {
+	if len(headers) == 0 {
+		return ""
+	}
+
+	// Calculate column widths using ANSI-stripped content
+	colWidths := make([]int, len(headers))
+	for i, header := range headers {
+		colWidths[i] = len(color.ANSICodeRemover(header))
+	}
+
+	for _, row := range rows {
+		for i, cell := range row {
+			if i < len(colWidths) && len(color.ANSICodeRemover(cell)) > colWidths[i] {
+				colWidths[i] = len(color.ANSICodeRemover(cell))
+			}
+		}
+	}
+
+	var builder strings.Builder
+
+	// Create top border
+	builder.WriteString("+")
+	for _, width := range colWidths {
+		builder.WriteString(strings.Repeat("-", width+2) + "+")
+	}
+	builder.WriteString("\n")
+
+	// Create header row
+	builder.WriteString("|")
+	for i, header := range headers {
+		visibleLen := len(color.ANSICodeRemover(header))
+		padding := colWidths[i] - visibleLen
+		builder.WriteString(" " + header + strings.Repeat(" ", padding) + " |")
+	}
+	builder.WriteString("\n")
+
+	// Create header separator
+	builder.WriteString("+")
+	for _, width := range colWidths {
+		builder.WriteString(strings.Repeat("-", width+2) + "+")
+	}
+	builder.WriteString("\n")
+
+	// Create data rows
+	for _, row := range rows {
+		builder.WriteString("|")
+		for i, width := range colWidths {
+			cell := ""
+			if i < len(row) {
+				cell = row[i]
+			}
+			visibleLen := len(color.ANSICodeRemover(cell))
+			padding := width - visibleLen
+			builder.WriteString(" " + cell + strings.Repeat(" ", padding) + " |")
+		}
+		builder.WriteString("\n")
+	}
+
+	// Create bottom border
+	builder.WriteString("+")
+	for _, width := range colWidths {
+		builder.WriteString(strings.Repeat("-", width+2) + "+")
+	}
+	builder.WriteString("\n")
+
+	return builder.String()
+}

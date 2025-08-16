@@ -18,7 +18,7 @@ var (
 	ErrGitCurrentRepo    = errors.New("git: current repo not set")
 )
 
-const filepathTracked = ".tracked.json"
+const TrackerFilepath = ".tracked.json"
 
 // Tracker manages a list of tracked repositories stored in a file.
 type Tracker struct {
@@ -85,7 +85,7 @@ func (t *Tracker) Contains(s string) bool {
 
 func NewTracker(root string) *Tracker {
 	return &Tracker{
-		Filename: filepath.Join(root, filepathTracked),
+		Filename: filepath.Join(root, TrackerFilepath),
 	}
 }
 

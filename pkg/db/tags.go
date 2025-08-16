@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -13,7 +14,7 @@ import (
 )
 
 // TagsCounter returns a map with tag as key and count as value.
-func (r *SQLite) TagsCounter() (map[string]int, error) {
+func (r *SQLite) TagsCounter(ctx context.Context) (map[string]int, error) {
 	q := `
 		SELECT
       t.name,
@@ -30,7 +31,7 @@ func (r *SQLite) TagsCounter() (map[string]int, error) {
 		Count int    `db:"tag_count"`
 	}
 
-	if err := r.DB.Select(&results, q); err != nil {
+	if err := r.DB.SelectContext(ctx, &results, q); err != nil {
 		return nil, fmt.Errorf("error querying tags count: %w", err)
 	}
 
@@ -43,10 +44,9 @@ func (r *SQLite) TagsCounter() (map[string]int, error) {
 }
 
 // TagsList returns the list of tags.
-func TagsList(r *SQLite) ([]string, error) {
+func TagsList(ctx context.Context, r *SQLite) ([]string, error) {
 	var tags []string
-
-	err := r.DB.Select(&tags, `SELECT name FROM tags ORDER BY name ASC`)
+	err := r.DB.SelectContext(ctx, &tags, `SELECT name FROM tags ORDER BY name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all tags: %w", err)
 	}

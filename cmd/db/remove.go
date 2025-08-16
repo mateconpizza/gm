@@ -66,7 +66,17 @@ var (
 				),
 			)
 
-			return handler.RemoveRepo(c, config.App.DBPath)
+			dbPath := config.App.DBPath
+			if cfg.Flags.Menu {
+				s, err := handler.SelectDatabase(config.App.Path.Data)
+				if err != nil {
+					return err
+				}
+
+				dbPath = s
+			}
+
+			return handler.RemoveRepo(c, dbPath)
 		},
 		PostRunE: dbRemovePostFunc,
 	}

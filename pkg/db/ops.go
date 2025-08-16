@@ -39,7 +39,7 @@ func IsInitialized(p string) (bool, error) {
 }
 
 // drop removes all records database.
-func drop(r *SQLite, ctx context.Context) error {
+func drop(ctx context.Context, r *SQLite) error {
 	tables := make([]Table, 0, len(tablesAndSchemas))
 	for _, t := range tablesAndSchemas {
 		tables = append(tables, t.Name)

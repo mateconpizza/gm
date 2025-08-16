@@ -41,7 +41,6 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 	}
 
 	fmt.Print(summary.RepoFromPath(c, dbPath))
-
 	if !config.App.Flags.Force {
 		if err := c.ConfirmErr(credB("remove")+" "+filepath.Base(dbPath)+"?", "n"); err != nil {
 			return err

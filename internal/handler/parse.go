@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
@@ -36,7 +36,7 @@ func NewBookmark(
 	}
 
 	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := r.Has(newURL); exists {
+	if b, exists := r.Has(context.Background(), newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrDuplicate, b.ID)
 	}
 
@@ -189,19 +189,4 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	}
 
 	c.F.Flush()
-}
-
-// PromoteFileToFront moves a file to the front of the list.
-func PromoteFileToFront(files []string, name string) {
-	if len(files) == 0 {
-		return
-	}
-	for i, f := range files {
-		if filepath.Base(f) == name {
-			if i != 0 {
-				files[0], files[i] = files[i], files[0]
-			}
-			break
-		}
-	}
 }

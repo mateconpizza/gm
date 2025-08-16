@@ -8,7 +8,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -76,7 +75,7 @@ func managementSelect(c *ui.Console) error {
 
 	c.F.Rowln().Midln("Select which databases to track").Rowln().Flush()
 
-	handler.PromoteFileToFront(dbFiles, config.MainDBName)
+	files.PromoteFileToFront(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
@@ -114,7 +113,7 @@ func management(c *ui.Console) error {
 	}
 
 	c.F.Headerln("Tracked database management").Rowln().Flush()
-	handler.PromoteFileToFront(dbFiles, config.MainDBName)
+	files.PromoteFileToFront(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
@@ -176,7 +175,7 @@ func status(c *ui.Console, tracked []string) error {
 	}
 
 	c.F.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
-	handler.PromoteFileToFront(dbFiles, config.MainDBName)
+	files.PromoteFileToFront(dbFiles, config.MainDBName)
 
 	// move main database to the top
 	for _, dbPath := range dbFiles {

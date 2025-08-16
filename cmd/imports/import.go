@@ -154,7 +154,7 @@ func fromDatabaseFunc(command *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	rSrc, err := db.New(srcDB.Cfg.Fullpath())
+	rSrc, err := db.New(srcDB)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

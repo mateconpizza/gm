@@ -9,7 +9,6 @@ type Flags struct {
 	QR        bool     // QR code generator
 	Menu      bool     // Menu mode
 	Edit      bool     // Edit mode
-	Reorder   bool     // Reorder tables IDs
 	Head      int      // Head limit
 	Remove    bool     // Remove bookmarks
 	Update    bool     // Update bookmarks
@@ -22,6 +21,7 @@ type Flags struct {
 	Color     bool     // Application color enable
 	Force     bool     // Force action
 	Status    bool     // Status checks URLs status code
+	Snapshot  bool     // Fetches snapshot from Wayback Machine
 	Verbose   int      // Verbose flag
 }
 

@@ -68,7 +68,7 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 		}),
 	)
 
-	items, err := srcDB.All()
+	items, err := srcDB.All(context.Background())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -149,7 +149,7 @@ func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
 
 	defer c.T.CancelInterruptHandler()
 
-	bookmarks, err := srcDB.All()
+	bookmarks, err := srcDB.All(context.Background())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -197,7 +197,7 @@ func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookma
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
 
 	for _, b := range bs {
-		if _, exists := r.Has(b.URL); exists {
+		if _, exists := r.Has(context.Background(), b.URL); exists {
 			continue
 		}
 		filtered = append(filtered, b)

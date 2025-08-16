@@ -4,18 +4,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 const SummaryFileName = "summary.json"
-
-// RepoStats holds statistics about a bookmark repository.
-type RepoStats struct {
-	Name      string `json:"dbname"`    // Name is the database base name.
-	Bookmarks int    `json:"bookmarks"` // Bookmarks is the count of bookmarks.
-	Tags      int    `json:"tags"`      // Tags is the count of tags.
-	Favorites int    `json:"favorites"` // Favorites is the count of favorite bookmarks.
-}
 
 // ClientInfo holds information about the client machine and application.
 type ClientInfo struct {
@@ -27,14 +20,14 @@ type ClientInfo struct {
 
 // SyncGitSummary summarizes the state and metadata of a Git-synced repository.
 type SyncGitSummary struct {
-	GitBranch          string      `json:"git_branch"`          // GitBranch is the current Git branch.
-	GitRemote          string      `json:"git_remote"`          // GitRemote is the Git remote URL.
-	LastSync           string      `json:"last_sync"`           // LastSync is the timestamp of the last synchronization.
-	ConflictResolution string      `json:"conflict_resolution"` // Describes the strategy for resolving conflicts.
-	HashAlgorithm      string      `json:"hash_algorithm"`      // Specifies the algorithm used for checksums.
-	RepoStats          *RepoStats  `json:"stats"`               // RepoStats contains statistics for the repository.
-	ClientInfo         *ClientInfo `json:"client_info"`         // ClientInfo contains details about the client.
-	Checksum           string      `json:"checksum"`            // Checksum is the summary's generated checksum.
+	GitBranch          string            `json:"git_branch"`          // GitBranch is the current Git branch.
+	GitRemote          string            `json:"git_remote"`          // GitRemote is the Git remote URL.
+	LastSync           string            `json:"last_sync"`           // LastSync is the timestamp of the last sync.
+	ConflictResolution string            `json:"conflict_resolution"` // Describes the strategy for resolving conflicts.
+	HashAlgorithm      string            `json:"hash_algorithm"`      // Specifies the algorithm used for checksums.
+	RepoStats          *dbtask.RepoStats `json:"stats"`               // RepoStats contains statistics for the repository.
+	ClientInfo         *ClientInfo       `json:"client_info"`         // ClientInfo contains details about the client.
+	Checksum           string            `json:"checksum"`            // Checksum is the summary's generated checksum.
 }
 
 // GenChecksum generates a checksum for the SyncGitSummary.

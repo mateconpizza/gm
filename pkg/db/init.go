@@ -86,13 +86,12 @@ func (r *SQLite) Vacuum(ctx context.Context) error {
 
 // DropSecure removes all records database.
 func (r *SQLite) DropSecure(ctx context.Context) error {
-	return drop(r, ctx)
+	return drop(ctx, r)
 }
 
 // tableExists checks whether a table with the specified name exists in the SQLite database.
 func tableExists(r *SQLite, t Table) (bool, error) {
 	var count int
-
 	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
 	if err != nil {
 		slog.Error("checking if table exists", "name", t, "error", err)

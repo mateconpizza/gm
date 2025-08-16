@@ -2,6 +2,7 @@
 package bookmark
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -226,44 +227,15 @@ func NewJSON() *BookmarkJSON {
 	return &BookmarkJSON{}
 }
 
-func (bj *BookmarkJSON) Buffer() []byte {
-	tags := strings.Join(bj.Tags, ",")
-	return fmt.Appendf(nil, `# URL: (required)
-%s
-# Title: (leave an empty line for web fetch)
-%s
-# Tags: (comma separated)
-%s
-# Description:
-%s
-
-# end ------------------------------------------------------------------`,
-		bj.URL, bj.Title, ParseTags(tags), bj.Desc)
-}
-
 func NewFromJSON(j *BookmarkJSON) *Bookmark {
-	b := New()
-	b.ID = j.ID
-	b.URL = j.URL
-	b.Title = j.Title
-	b.Desc = j.Desc
-	b.Tags = ParseTags(strings.Join(j.Tags, ","))
-	b.CreatedAt = j.CreatedAt
-	b.LastVisit = j.LastVisit
-	b.UpdatedAt = j.UpdatedAt
-	b.VisitCount = j.VisitCount
-	b.Favorite = j.Favorite
-	b.FaviconURL = j.FaviconURL
-	b.Checksum = j.Checksum
-	b.FaviconLocal = j.FaviconLocal
-	b.ArchiveURL = j.ArchiveURL
-	b.ArchiveTimestamp = j.ArchiveTimestamp
-	b.LastStatusChecked = j.LastStatusChecked
-	b.HTTPStatusCode = j.HTTPStatusCode
-	b.HTTPStatusText = j.HTTPStatusText
-	b.IsActive = j.IsActive
+	var b Bookmark
+	data, _ := json.Marshal(j)
+	_ = json.Unmarshal(data, &b)
 
-	return b
+	// convert tags back to string
+	b.Tags = ParseTags(strings.Join(j.Tags, ","))
+
+	return &b
 }
 
 func NewFromBuffer(buf []byte) (*Bookmark, error) {

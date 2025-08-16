@@ -206,7 +206,7 @@ func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bo
 	loader := func(path string) (*bookmark.Bookmark, error) {
 		bj := &bookmark.BookmarkJSON{}
 		if err := files.JSONRead(path, bj); err != nil {
-			return nil, fmt.Errorf("%w", err)
+			return nil, fmt.Errorf("%w: %s", err, path)
 		}
 
 		if !parser.ValidateChecksumJSON(bj) {
@@ -349,7 +349,8 @@ func parseJSONFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, l loa
 		}
 		if d.IsDir() ||
 			filepath.Ext(path) != JSONFileExt ||
-			filepath.Base(path) == SummaryFileName {
+			filepath.Base(path) == SummaryFileName ||
+			filepath.Base(path) == TrackerFilepath {
 			return nil
 		}
 

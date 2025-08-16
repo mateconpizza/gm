@@ -1,6 +1,7 @@
 package summary
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -22,11 +23,12 @@ var (
 
 // Repo returns a summary of the repository.
 func Repo(c *ui.Console, r *db.SQLite) string {
+	ctx := context.Background()
 	var (
 		name    = r.Name()
 		path    = txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
-		records = txt.PaddedLine("records:", r.Count("bookmarks"))
-		tags    = txt.PaddedLine("tags:", r.Count("tags"))
+		records = txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
+		tags    = txt.PaddedLine("tags:", r.Count(ctx, "tags"))
 	)
 
 	if name == config.MainDBName {
@@ -64,8 +66,9 @@ func RepoFromPath(c *ui.Console, p string) string {
 	}
 	defer r.Close()
 
-	records := txt.PaddedLine("records:", r.Count("bookmarks"))
-	tags := txt.PaddedLine("tags:", r.Count("tags"))
+	ctx := context.Background()
+	records := txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
+	tags := txt.PaddedLine("tags:", r.Count(ctx, "tags"))
 	name := color.Yellow(r.Name()).Italic().String()
 
 	if r.Name() == config.MainDBName {
@@ -87,7 +90,7 @@ func RepoFromPath(c *ui.Console, p string) string {
 //
 //	repositoryName (main: n)
 func RepoRecords(r *db.SQLite) string {
-	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
+	main := fmt.Sprintf("(main: %d)", r.Count(context.Background(), "bookmarks"))
 	return r.Name() + " " + cgi(main)
 }
 
@@ -104,7 +107,7 @@ func RepoRecordsFromPath(p string) string {
 	r, _ := db.New(p)
 	defer r.Close()
 
-	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
+	main := fmt.Sprintf("(main: %d)", r.Count(context.Background(), "bookmarks"))
 
 	return txt.PaddedLine(r.Name(), cgi(main))
 }
@@ -114,7 +117,7 @@ func RepoRecordsFromPath(p string) string {
 //
 //	repositoryName (main: n) (time)
 func BackupWithFmtDate(r *db.SQLite) string {
-	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
+	main := fmt.Sprintf("(main: %d)", r.Count(context.Background(), "bookmarks"))
 	t := strings.Split(r.Name(), "_")[0]
 
 	return r.Name() + " " + cgi(main) + " " + cgi(txt.RelativeTime(t))
@@ -143,7 +146,7 @@ func BackupWithFmtDateFromPath(p string) string {
 	}
 	defer r.Close()
 
-	main := fmt.Sprintf("(main: %d)", r.Count("bookmarks"))
+	main := fmt.Sprintf("(main: %d)", r.Count(context.Background(), "bookmarks"))
 
 	return r.Name() + " " + cgi(main) + " " + bkTime
 }

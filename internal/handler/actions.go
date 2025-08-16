@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -24,6 +24,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -35,6 +36,7 @@ var (
 	cbb = func(s string) string { return color.BrightBlue(s).Italic().String() }
 	cbg = func(s string) string { return color.BrightGreen(s).Bold().String() }
 	cy  = func(s string) string { return color.Yellow(s).String() }
+	ctb = func(s string) string { return color.Text(s).Bold().String() }
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
@@ -163,7 +165,7 @@ func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 }
 
 // CheckStatus prints the status code of the bookmark URL.
-func CheckStatus(c *ui.Console, bs []*bookmark.Bookmark) error {
+func CheckStatus(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 
 	n := len(bs)
@@ -179,6 +181,88 @@ func CheckStatus(c *ui.Console, bs []*bookmark.Bookmark) error {
 	if err := status.Check(c, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	for i := range bs {
+		b := bs[i]
+		if b.HTTPStatusCode == http.StatusTooManyRequests {
+			continue
+		}
+
+		if err := r.Update(context.Background(), b, b); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+//nolint:funlen //i
+func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+	const maxConRequests = 10
+	var (
+		sem     = semaphore.NewWeighted(int64(maxConRequests))
+		ctx     = context.Background()
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		errs    = make(chan string, len(bs))
+		success = make(chan string, len(bs))
+	)
+
+	for _, b := range bs {
+		if err := sem.Acquire(ctx, 1); err != nil {
+			return fmt.Errorf("acquire semaphore: %w", err)
+		}
+
+		id := fmt.Sprintf("ID %s", color.Text(fmt.Sprintf("%-3d", b.ID)).Bold())
+		d := id + " " + txt.Shorten(b.URL, 60)
+		c.Info(d).Ln().Flush()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer sem.Release(1)
+
+			id := fmt.Sprintf("ID %s", color.Text(fmt.Sprintf("%-3d", b.ID)).Bold())
+			d := id + " " + txt.Shorten(b.URL, 60)
+
+			f := frame.New(frame.WithColorBorder(color.Gray))
+			s, err := scraper.WaybackSnapshot(b.URL)
+			if err != nil {
+				es := color.BrightGray(" (" + err.Error() + ")").Italic().String()
+				errs <- f.Error(d).Text(es).String()
+				return
+			}
+
+			b.ArchiveURL = s.URL
+			b.ArchiveTimestamp = s.Timestamp
+
+			mu.Lock()
+			if err := r.Update(ctx, b, b); err != nil {
+				mu.Unlock()
+				es := color.BrightGray(" (" + err.Error() + ")").Italic().String()
+				errs <- f.Error(d).Text(es).String()
+				return
+			}
+			mu.Unlock()
+
+			success <- f.Success(d).String()
+		}()
+	}
+
+	wg.Wait()
+	close(errs)
+	close(success)
+
+	c.F.Reset().Rowln().Header(ctb(fmt.Sprintf("Summary %d bookmarks:\n", len(bs)))).Flush()
+
+	for err := range errs {
+		fmt.Println(err)
+	}
+	for s := range success {
+		fmt.Println(s)
+	}
+
+	c.F.Flush()
 
 	return nil
 }
@@ -220,13 +304,10 @@ func LockRepo(c *ui.Console, rToLock string) error {
 // UnlockRepo unlocks the database.
 func UnlockRepo(c *ui.Console, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
-		return locker.ErrItemUnlocked
+		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
 	}
 
-	if !strings.HasSuffix(rToUnlock, ".enc") {
-		rToUnlock += ".enc"
-	}
-
+	rToUnlock = files.EnsureSuffix(rToUnlock, locker.Extension)
 	slog.Debug("unlocking database", "name", rToUnlock)
 
 	if !files.Exists(rToUnlock) {
@@ -527,14 +608,4 @@ func updateBookmarkData(c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark,
 	updatedB.Desc, _ = sc.Desc()
 	updatedB.FaviconURL, _ = sc.Favicon()
 	return updatedB, nil
-}
-
-func ReorderIDs(c *ui.Console, r *db.SQLite) error {
-	if err := dbtask.DeleteAndReorder(context.Background(), r); err != nil {
-		return err
-	}
-
-	fmt.Print(c.SuccessMesg("Reordered IDs\n"))
-
-	return nil
 }

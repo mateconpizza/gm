@@ -3,11 +3,16 @@
 package printer
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
@@ -41,7 +46,7 @@ func TagsList(p string) error {
 	}
 	defer r.Close()
 
-	tags, err := db.TagsList(r)
+	tags, err := db.TagsList(context.Background(), r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -103,6 +108,51 @@ func DatabasesList(c *ui.Console, p string) error {
 	return nil
 }
 
+// DatabasesTable shows a simple table in database information.
+func DatabasesTable(p string) error {
+	fs, err := files.FindByExtList(p, ".db", ".enc")
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	headers := []string{"Name", "Bookmarks", "Tags", "Size", "Path"}
+	rows := [][]string{}
+
+	t := strconv.Itoa
+
+	files.PromoteFileToFront(fs, config.MainDBName)
+
+	for _, fpath := range fs {
+		ext := filepath.Ext(fpath)
+		collapsePath := files.CollapseHomeDir(fpath)
+		cleanName := files.StripSuffixes(filepath.Base(fpath))
+		fsize := files.Size(fpath)
+
+		if ext == locker.Extension {
+			cleanName = color.BrightMagenta(cleanName).String()
+			cleanName += color.BrightGray(" (locked)").Italic().String()
+			rows = append(rows, []string{cleanName, "-", "-", fsize, collapsePath})
+			continue
+		}
+
+		s, err := dbtask.NewRepoStats(fpath)
+		if err != nil {
+			return err
+		}
+
+		if s.Name == config.MainDBName {
+			cleanName = color.BrightYellow(cleanName).String()
+			cleanName += color.BrightGray(" (default)").Italic().String()
+		}
+
+		rows = append(rows, []string{cleanName, t(s.Bookmarks), t(s.Tags), fsize, collapsePath})
+	}
+
+	fmt.Print(txt.CreateSimpleTable(headers, rows))
+
+	return nil
+}
+
 // RecordsJSON formats the bookmarks in RecordsJSON.
 func RecordsJSON(bs []*bookmark.Bookmark) error {
 	slog.Debug("formatting bookmarks in JSON", "count", len(bs))
@@ -129,7 +179,7 @@ func TagsJSON(p string) error {
 	}
 	defer r.Close()
 
-	tags, err := r.TagsCounter()
+	tags, err := r.TagsCounter(context.Background())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

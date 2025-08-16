@@ -135,11 +135,12 @@ func repoStats(dbPath string, summary *SyncGitSummary) error {
 	}
 	defer r.Close()
 
-	summary.RepoStats = &RepoStats{
+	ctx := context.Background()
+	summary.RepoStats = &dbtask.RepoStats{
 		Name:      r.Name(),
-		Bookmarks: r.Count("bookmarks"),
-		Tags:      r.Count("tags"),
-		Favorites: r.CountFavorites(),
+		Bookmarks: r.Count(ctx, "bookmarks"),
+		Tags:      r.Count(ctx, "tags"),
+		Favorites: r.CountFavorites(ctx),
 	}
 
 	summary.GenChecksum()
@@ -183,7 +184,7 @@ func commitIfChanged(gr *Repository, actionMsg string) error {
 }
 
 // summaryString returns a string representation of the repo summary.
-func summaryString(rs *RepoStats) string {
+func summaryString(rs *dbtask.RepoStats) string {
 	var parts []string
 	if rs.Bookmarks > 0 {
 		parts = append(parts, fmt.Sprintf("%d bookmarks", rs.Bookmarks))
@@ -234,6 +235,7 @@ func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
 		return nil, fmt.Errorf("getting hostname: %w", err)
 	}
 
+	ctx := context.Background()
 	summary := &SyncGitSummary{
 		GitBranch:          branch,
 		GitRemote:          remote,
@@ -246,11 +248,11 @@ func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
 			Architect:  runtime.GOARCH,
 			AppVersion: config.App.Info.Version,
 		},
-		RepoStats: &RepoStats{
+		RepoStats: &dbtask.RepoStats{
 			Name:      r.Name(),
-			Bookmarks: r.Count("bookmarks"),
-			Tags:      r.Count("tags"),
-			Favorites: r.CountFavorites(),
+			Bookmarks: r.Count(ctx, "bookmarks"),
+			Tags:      r.Count(ctx, "tags"),
+			Favorites: r.CountFavorites(ctx),
 		},
 	}
 
@@ -266,7 +268,7 @@ func records(dbPath string) ([]*bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
 
-	bs, err := r.All()
+	bs, err := r.All(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("getting bookmarks: %w", err)
 	}

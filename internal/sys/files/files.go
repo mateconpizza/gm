@@ -62,14 +62,36 @@ func IsFile(path string) bool {
 	return info.Mode().IsRegular()
 }
 
-// size returns the size of a file.
-func size(s string) int64 {
+// byteSize returns the byteSize of a file.
+func byteSize(s string) int64 {
 	fi, err := os.Stat(s)
 	if err != nil {
 		return 0
 	}
 
 	return fi.Size()
+}
+
+// humanSize converts bytes to KB or MB.
+func humanSize(b int64) string {
+	const (
+		kb = 1024
+		mb = kb * 1024
+	)
+
+	switch {
+	case b >= mb:
+		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
+	case b >= kb:
+		return fmt.Sprintf("%.0f KB", float64(b)/float64(kb))
+	default:
+		return fmt.Sprintf("%d B", b)
+	}
+}
+
+func Size(f string) string {
+	b := byteSize(f)
+	return humanSize(b)
 }
 
 // List returns all files found in a given path.
@@ -275,8 +297,7 @@ func EnsureSuffix(s, suffix string) string {
 		return s
 	}
 
-	e := filepath.Ext(s)
-	if e == suffix || e != "" {
+	if filepath.Ext(s) == suffix {
 		return s
 	}
 
@@ -294,7 +315,7 @@ func StripSuffixes(p string) string {
 
 // Empty returns true if the file at path s has non-zero size.
 func Empty(s string) bool {
-	return size(s) == 0
+	return byteSize(s) == 0
 }
 
 // ModTime returns the formatted modification time of the specified file.
@@ -562,4 +583,19 @@ func RemoveEmptyDirs(root string) error {
 	}
 
 	return nil
+}
+
+// PromoteFileToFront moves a file to the front of the list.
+func PromoteFileToFront(files []string, name string) {
+	if len(files) == 0 {
+		return
+	}
+	for i, f := range files {
+		if filepath.Base(f) == name {
+			if i != 0 {
+				files[0], files[i] = files[i], files[0]
+			}
+			break
+		}
+	}
 }

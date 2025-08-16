@@ -66,6 +66,11 @@ func RequireDatabase(cmd *cobra.Command, args []string) error {
 		slog.Debug("assert db exists", "command", cmd.Name())
 	}
 
+	unlockFlag, _ := cmd.Flags().GetBool("unlock")
+	if unlockFlag {
+		return nil
+	}
+
 	for c := cmd; c != nil; c = c.Parent() {
 		if v, ok := c.Annotations["skip-db-check"]; ok && v == "true" {
 			slog.Debug("skipping db check for", "command", c.Name())

@@ -148,7 +148,7 @@ func passwordConfirm(c *ui.Console) (string, error) {
 func CheckDBLocked(p string) error {
 	err := locker.IsLocked(p)
 	if err != nil {
-		if errors.Is(err, locker.ErrItemLocked) {
+		if errors.Is(err, locker.ErrFileLocked) {
 			return db.ErrDBUnlockFirst
 		}
 

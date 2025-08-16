@@ -89,7 +89,7 @@ func TestDeleteMany(t *testing.T) {
 
 			// check if the records were inserted
 			wantAfterInsert := tt.bookmarksToInsert
-			inserted, err := r.All()
+			inserted, err := r.All(t.Context())
 			if err != nil {
 				t.Fatalf("Failed to get all bookmarks after insertion: %v", err)
 			}
@@ -111,7 +111,7 @@ func TestDeleteMany(t *testing.T) {
 
 			// Check if the records were deleted
 			wantAfterDelete := 0 // For this specific test case, we expect all to be deleted
-			deleted, err := r.All()
+			deleted, err := r.All(t.Context())
 			if err != nil {
 				t.Fatalf("Failed to get all bookmarks after deletion: %v", err)
 			}
@@ -149,7 +149,7 @@ func TestUpdateOne(t *testing.T) {
 	}
 
 	// Retrieve updated record
-	updatedB, err := r.ByID(newB.ID)
+	updatedB, err := r.ByID(t.Context(), newB.ID)
 	if err != nil {
 		t.Fatalf("failed to retrieve updated bookmark: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestAllRecords(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	// get bs records
-	bs, err := r.All()
+	bs, err := r.All(t.Context())
 	got := len(bs)
 	if err != nil {
 		t.Fatalf("failed to get all bookmarks: %v", err)
@@ -208,7 +208,7 @@ func TestByID(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	// Get all records to verify setup
-	all, err := r.All()
+	all, err := r.All(t.Context())
 	if err != nil {
 		t.Fatalf("All() failed: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestByID(t *testing.T) {
 
 	// Test retrieving a specific record by ID
 	expected := all[0]
-	record, err := r.ByID(expected.ID)
+	record, err := r.ByID(t.Context(), expected.ID)
 	if err != nil {
 		t.Fatalf("ByID(%d) failed: %v", expected.ID, err)
 	}
@@ -244,7 +244,7 @@ func TestByIDList(t *testing.T) {
 
 	// Test retrieving multiple records by ID list
 	ids := []int{1, 4, 2, 5, 8}
-	bookmarks, err := r.ByIDList(ids)
+	bookmarks, err := r.ByIDList(t.Context(), ids)
 	if err != nil {
 		t.Fatalf("ByIDList(%v) failed: %v", ids, err)
 	}
@@ -277,7 +277,7 @@ func TestByURL(t *testing.T) {
 	}
 
 	// Retrieve bookmark by URL
-	record, err := r.ByURL(b.URL)
+	record, err := r.ByURL(t.Context(), b.URL)
 	if err != nil {
 		t.Fatalf("ByURL(%q) failed: %v", b.URL, err)
 	}
@@ -324,7 +324,7 @@ func TestByQuery(t *testing.T) {
 	}
 
 	// Search for bookmarks containing "example"
-	results, err := r.ByQuery("example")
+	results, err := r.ByQuery(t.Context(), "example")
 	if err != nil {
 		t.Fatalf("ByQuery failed: %v", err)
 	}
@@ -372,13 +372,13 @@ func TestHasRecord(t *testing.T) {
 	}
 
 	// Test existing record
-	_, exists := r.Has(b.URL)
+	_, exists := r.Has(t.Context(), b.URL)
 	if !exists {
 		t.Error("Has() returned false for an existing record")
 	}
 
 	// Test non-existent record
-	_, exists = r.Has("https://non_existent.com")
+	_, exists = r.Has(t.Context(), "https://non_existent.com")
 	if exists {
 		t.Error("Has() returned true for a non-existent record")
 	}
@@ -401,7 +401,7 @@ func TestRollback(t *testing.T) {
 	}
 
 	// Verify bookmark was inserted
-	insertedB, err := r.ByID(b.ID)
+	insertedB, err := r.ByID(t.Context(), b.ID)
 	if err != nil {
 		t.Fatalf("failed to retrieve bookmark: %v", err)
 	}
@@ -424,7 +424,7 @@ func TestRollback(t *testing.T) {
 	}
 
 	// Verify bookmark still exists (rollback worked)
-	stillExists, err := r.ByID(b.ID)
+	stillExists, err := r.ByID(t.Context(), b.ID)
 	if err != nil {
 		t.Fatalf("failed to retrieve bookmark after rollback: %v", err)
 	}
@@ -457,7 +457,7 @@ func TestDeleteAll(t *testing.T) {
 
 	// Verify records were deleted by trying to retrieve one
 	testBookmark := bookmarks[0]
-	_, err := r.ByID(testBookmark.ID)
+	_, err := r.ByID(t.Context(), testBookmark.ID)
 	if err == nil {
 		t.Error("expected error when getting bookmark by ID after deleteAll, got nil")
 	}

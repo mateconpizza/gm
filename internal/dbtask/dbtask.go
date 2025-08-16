@@ -27,6 +27,15 @@ var (
 	ErrRecordNotFound = errors.New("no record found")
 )
 
+// RepoStats holds statistics about a bookmark repository.
+type RepoStats struct {
+	Name      string `json:"dbname"`    // Name is the database base name.
+	Bookmarks int    `json:"bookmarks"` // Bookmarks is the count of bookmarks.
+	Tags      int    `json:"tags"`      // Tags is the count of tags.
+	Favorites int    `json:"favorites"` // Favorites is the count of favorite bookmarks.
+	Size      string `json:"size"`
+}
+
 func Backup(fullpath string) (string, error) {
 	r, err := db.New(fullpath)
 	if err != nil {
@@ -164,11 +173,11 @@ func DeleteAndReorder(ctx context.Context, r *db.SQLite) error {
 
 	return withTx(ctx, r, func(tx *sqlx.Tx) error {
 		// check if last item has been deleted
-		if r.MaxID() == 0 {
+		if r.MaxID(ctx) == 0 {
 			return resetSQLiteSequence(ctx, tx, schemaMain.Name)
 		}
 		// get all records
-		bs, err := r.All()
+		bs, err := r.All(context.Background())
 		if err != nil {
 			if !errors.Is(ErrRecordNotFound, err) {
 				return err
@@ -431,5 +440,23 @@ func TagsCounterFromPath(dbPath string) (map[string]int, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	return r.TagsCounter()
+	return r.TagsCounter(context.Background())
+}
+
+func NewRepoStats(dbPath string) (*RepoStats, error) {
+	r, err := db.New(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("creating repo: %w", err)
+	}
+	defer r.Close()
+
+	ctx := context.Background()
+
+	return &RepoStats{
+		Name:      r.Name(),
+		Bookmarks: r.Count(ctx, "bookmarks"),
+		Tags:      r.Count(ctx, "tags"),
+		Favorites: r.CountFavorites(ctx),
+		Size:      files.Size(r.Cfg.Fullpath()),
+	}, nil
 }

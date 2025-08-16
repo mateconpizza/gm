@@ -84,7 +84,7 @@ func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 
 	// If no args provided or nothing found, get all records
 	if len(args) == 0 {
-		return r.All()
+		return r.All(context.Background())
 	}
 
 	// No results found
@@ -104,7 +104,7 @@ func getByIDs(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
 
-	bs, err := r.ByIDList(ids)
+	bs, err := r.ByIDList(context.Background(), ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
@@ -124,7 +124,7 @@ func getByQuery(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	}
 
 	q := strings.Join(args, "%")
-	bs, err := r.ByQuery(q)
+	bs, err := r.ByQuery(context.Background(), q)
 	if err != nil {
 		return nil, fmt.Errorf("query failed for %q: %w", strings.Join(args, " "), err)
 	}

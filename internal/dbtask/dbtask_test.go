@@ -86,7 +86,7 @@ func TestRecordIDs(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	// get initial records
-	bs, err := r.All()
+	bs, err := r.All(t.Context())
 	if err != nil {
 		t.Fatalf("AllPtr failed: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestRecordIDs(t *testing.T) {
 	}
 
 	// verify deletion - should have 7 records left
-	remaining, err := r.All()
+	remaining, err := r.All(t.Context())
 	if err != nil {
 		t.Fatalf("AllPtr after deletion failed: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestRecordIDs(t *testing.T) {
 	}
 
 	// verify reordering - ids should be 1-7 consecutively
-	reordered, err := r.All()
+	reordered, err := r.All(t.Context())
 	if err != nil {
 		t.Fatalf("AllPtr after reordering failed: %v", err)
 	}

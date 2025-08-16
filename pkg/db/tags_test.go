@@ -69,7 +69,7 @@ func TestTagsCounter(t *testing.T) {
 		}
 	}
 
-	tagCounts, err := r.TagsCounter()
+	tagCounts, err := r.TagsCounter(t.Context())
 	if err != nil {
 		t.Fatalf("failed to count tags: %v", err)
 	}

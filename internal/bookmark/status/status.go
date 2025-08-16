@@ -187,6 +187,11 @@ func buildResponse(c *ui.Console, b *bookmark.Bookmark, statusCode int, hasError
 		hasError:   hasError,
 	}
 
+	b.HTTPStatusCode = statusCode
+	b.HTTPStatusText = http.StatusText(statusCode)
+	b.IsActive = statusCode >= 200 && statusCode <= 299
+	b.LastStatusChecked = time.Now().Format("20060102150405")
+
 	statusCategory := statusCode / 100
 	switch statusCategory {
 	case 2: // 2xx status codes

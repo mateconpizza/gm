@@ -99,7 +99,7 @@ func (r *SQLite) Update(ctx context.Context, newB, oldB *bookmark.Bookmark) erro
 }
 
 // All returns all bookmarks.
-func (r *SQLite) All() ([]*bookmark.Bookmark, error) {
+func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
@@ -113,7 +113,7 @@ func (r *SQLite) All() ([]*bookmark.Bookmark, error) {
     ORDER BY
       b.id ASC;`
 
-	bs, err := r.bySQL(q)
+	bs, err := r.bySQL(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -124,9 +124,9 @@ func (r *SQLite) All() ([]*bookmark.Bookmark, error) {
 }
 
 // ByID returns a record by its ID in the give table.
-func (r *SQLite) ByID(bID int) (*bookmark.Bookmark, error) {
-	if bID > r.MaxID() {
-		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, r.MaxID())
+func (r *SQLite) ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error) {
+	if bID > r.MaxID(ctx) {
+		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, r.MaxID(ctx))
 	}
 
 	slog.Info("getting record by ID", "id", bID)
@@ -146,8 +146,7 @@ func (r *SQLite) ByID(bID int) (*bookmark.Bookmark, error) {
       b.id = ?`
 
 	var b bookmark.Bookmark
-
-	err := r.DB.Get(&b, q, bID)
+	err := r.DB.GetContext(ctx, &b, q, bID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, bID)
@@ -162,7 +161,7 @@ func (r *SQLite) ByID(bID int) (*bookmark.Bookmark, error) {
 }
 
 // ByIDList returns a list of records by their IDs in the give table.
-func (r *SQLite) ByIDList(bIDs []int) ([]*bookmark.Bookmark, error) {
+func (r *SQLite) ByIDList(ctx context.Context, bIDs []int) ([]*bookmark.Bookmark, error) {
 	if len(bIDs) == 0 {
 		return nil, ErrRecordIDNotProvided
 	}
@@ -189,7 +188,7 @@ func (r *SQLite) ByIDList(bIDs []int) ([]*bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	bs, err := r.bySQL(r.DB.Rebind(q), args...)
+	bs, err := r.bySQL(ctx, r.DB.Rebind(q), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -198,8 +197,8 @@ func (r *SQLite) ByIDList(bIDs []int) ([]*bookmark.Bookmark, error) {
 }
 
 // ByURL returns a record by its URL in the give table.
-func (r *SQLite) ByURL(bURL string) (*bookmark.Bookmark, error) {
-	row := r.DB.QueryRowx(`
+func (r *SQLite) ByURL(ctx context.Context, bURL string) (*bookmark.Bookmark, error) {
+	row := r.DB.QueryRowxContext(ctx, `
     SELECT
       b.*,
       COALESCE(
@@ -214,7 +213,6 @@ func (r *SQLite) ByURL(bURL string) (*bookmark.Bookmark, error) {
       b.url = ?`, bURL)
 
 	var b bookmark.Bookmark
-
 	err := row.StructScan(&b)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -242,7 +240,7 @@ func (r *SQLite) ByTag(ctx context.Context, tag string) ([]*bookmark.Bookmark, e
     GROUP BY b.id
     ORDER BY b.id ASC;`
 
-	bs, err := r.bySQL(q, "%"+tag+"%")
+	bs, err := r.bySQL(ctx, q, "%"+tag+"%")
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +249,7 @@ func (r *SQLite) ByTag(ctx context.Context, tag string) ([]*bookmark.Bookmark, e
 }
 
 // ByQuery returns records by query in the give table.
-func (r *SQLite) ByQuery(query string) ([]*bookmark.Bookmark, error) {
+func (r *SQLite) ByQuery(ctx context.Context, query string) ([]*bookmark.Bookmark, error) {
 	slog.Info("getting records by query", "query", query)
 
 	q := `
@@ -268,7 +266,7 @@ func (r *SQLite) ByQuery(query string) ([]*bookmark.Bookmark, error) {
       ORDER BY b.id ASC;`
 	queryValue := "%" + query + "%"
 
-	bs, err := r.bySQL(q, queryValue, queryValue)
+	bs, err := r.bySQL(ctx, q, queryValue, queryValue)
 	if err != nil {
 		return nil, err
 	}
@@ -285,9 +283,9 @@ func (r *SQLite) ByQuery(query string) ([]*bookmark.Bookmark, error) {
 
 // MaxID retrieves the maximum ID from the specified table in the SQLite
 // database.
-func (r *SQLite) MaxID() int {
+func (r *SQLite) MaxID(ctx context.Context) int {
 	var lastIndex int
-	if err := r.DB.QueryRowx("SELECT COALESCE(MAX(id), 0) FROM bookmarks").Scan(&lastIndex); err != nil {
+	if err := r.DB.QueryRowxContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM bookmarks").Scan(&lastIndex); err != nil {
 		return 0
 	}
 
@@ -296,6 +294,10 @@ func (r *SQLite) MaxID() int {
 
 // WithTx executes a function within a transaction.
 func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	tx, err := r.DB.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -335,7 +337,7 @@ func (r *SQLite) SetFavorite(ctx context.Context, b *bookmark.Bookmark) error {
 }
 
 // FavoritesList returns the favorite bookmarks.
-func (r *SQLite) FavoritesList() ([]*bookmark.Bookmark, error) {
+func (r *SQLite) FavoritesList(ctx context.Context) ([]*bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
@@ -351,10 +353,10 @@ func (r *SQLite) FavoritesList() ([]*bookmark.Bookmark, error) {
     ORDER BY
       b.id ASC;`
 
-	return r.bySQL(q)
+	return r.bySQL(ctx, q)
 }
 
-func (r *SQLite) ByOrder(column, sortBy string) ([]*bookmark.Bookmark, error) {
+func (r *SQLite) ByOrder(ctx context.Context, column, sortBy string) ([]*bookmark.Bookmark, error) {
 	sortBy = strings.ToUpper(sortBy)
 	if sortBy != "ASC" && sortBy != "DESC" {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidSortBy, sortBy)
@@ -374,7 +376,7 @@ func (r *SQLite) ByOrder(column, sortBy string) ([]*bookmark.Bookmark, error) {
       b.%s %s;`, column, sortBy)
 
 	var bb []*bookmark.Bookmark
-	err := r.DB.Select(&bb, q)
+	err := r.DB.SelectContext(ctx, &bb, q)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -387,10 +389,10 @@ func (r *SQLite) ByOrder(column, sortBy string) ([]*bookmark.Bookmark, error) {
 }
 
 // Count returns the number of records in the given table.
-func (r *SQLite) Count(table string) int {
+func (r *SQLite) Count(ctx context.Context, table string) int {
 	var n int
 	q := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
-	if err := r.DB.QueryRowx(q).Scan(&n); err != nil {
+	if err := r.DB.QueryRowxContext(ctx, q).Scan(&n); err != nil {
 		return 0
 	}
 
@@ -398,9 +400,9 @@ func (r *SQLite) Count(table string) int {
 }
 
 // CountFavorites returns the number of favorite records.
-func (r *SQLite) CountFavorites() int {
+func (r *SQLite) CountFavorites(ctx context.Context) int {
 	var n int
-	if err := r.DB.QueryRowx("SELECT COUNT(*) FROM bookmarks WHERE favorite = 1").Scan(&n); err != nil {
+	if err := r.DB.QueryRowxContext(ctx, "SELECT COUNT(*) FROM bookmarks WHERE favorite = 1").Scan(&n); err != nil {
 		return 0
 	}
 
@@ -408,9 +410,9 @@ func (r *SQLite) CountFavorites() int {
 }
 
 // Has checks if a record exists in the main table.
-func (r *SQLite) Has(bURL string) (*bookmark.Bookmark, bool) {
+func (r *SQLite) Has(ctx context.Context, bURL string) (*bookmark.Bookmark, bool) {
 	var count int
-	if err := r.DB.QueryRowx("SELECT COUNT(*) FROM bookmarks WHERE url = ?", bURL).Scan(&count); err != nil {
+	if err := r.DB.QueryRowxContext(ctx, "SELECT COUNT(*) FROM bookmarks WHERE url = ?", bURL).Scan(&count); err != nil {
 		slog.Error("error getting count", "error", err)
 		r.Close()
 		os.Exit(1)
@@ -420,7 +422,7 @@ func (r *SQLite) Has(bURL string) (*bookmark.Bookmark, bool) {
 		return nil, false
 	}
 
-	item, err := r.ByURL(bURL)
+	item, err := r.ByURL(ctx, bURL)
 	if err != nil {
 		return nil, false
 	}
@@ -429,9 +431,9 @@ func (r *SQLite) Has(bURL string) (*bookmark.Bookmark, bool) {
 }
 
 // bySQL retrieves records from the SQLite database based on the provided SQL query.
-func (r *SQLite) bySQL(q string, args ...any) ([]*bookmark.Bookmark, error) {
+func (r *SQLite) bySQL(ctx context.Context, q string, args ...any) ([]*bookmark.Bookmark, error) {
 	var bb []*bookmark.Bookmark
-	err := r.DB.Select(&bb, q, args...)
+	err := r.DB.SelectContext(ctx, &bb, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -513,18 +515,46 @@ func (r *SQLite) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 		return fmt.Errorf("abort: %w", err)
 	}
 
-	q := `INSERT OR IGNORE INTO bookmarks (
-			id, url, title, desc, created_at,
-			updated_at, last_visit, visit_count,
-			favorite, checksum, favicon_url,
-			archive_url, archive_timestamp, favicon_local
-
-		) VALUES (
-			:id, :url, :title, :desc, :created_at,
-			:updated_at, :last_visit, :visit_count,
-			:favorite, :checksum, :favicon_url,
-			:archive_url, :archive_timestamp,:favicon_local
-		)`
+	q := `
+	INSERT OR IGNORE INTO bookmarks (
+		id,
+		url,
+		title,
+		desc,
+		created_at,
+		updated_at,
+		last_visit,
+		visit_count,
+		favorite,
+		checksum,
+		favicon_url,
+		archive_url,
+		archive_timestamp,
+		favicon_local,
+		status_code,
+		status_text,
+		is_active,
+		last_checked
+	) VALUES (
+		:id,
+		:url,
+		:title,
+		:desc,
+		:created_at,
+		:updated_at,
+		:last_visit,
+		:visit_count,
+		:favorite,
+		:checksum,
+		:favicon_url,
+		:archive_url,
+		:archive_timestamp,
+		:favicon_local,
+		:status_code,
+		:status_text,
+		:is_active,
+		:last_checked
+	)`
 
 	_, err := tx.NamedExec(q, b)
 	if err != nil {
@@ -561,7 +591,7 @@ func (r *SQLite) insertInto(ctx context.Context, b *bookmark.Bookmark) error {
 		return fmt.Errorf("insert record: %w", err)
 	}
 
-	if _, exists := r.Has(b.URL); exists {
+	if _, exists := r.Has(ctx, b.URL); exists {
 		return ErrRecordDuplicate
 	}
 	// create record and associate tags

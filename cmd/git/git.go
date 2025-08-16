@@ -106,7 +106,7 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 	}
 	defer r.Close()
 
-	bs, err := r.All()
+	bs, err := r.All(context.Background())
 	if err != nil {
 		return fmt.Errorf("load records: %w", err)
 	}
@@ -349,7 +349,7 @@ var gitTestCmd = &cobra.Command{
 		}
 		defer r.Close()
 
-		bs, err := r.All()
+		bs, err := r.All(context.Background())
 		if err != nil {
 			return err
 		}

@@ -66,7 +66,7 @@ var (
 	}
 )
 
-// recordsCmd is the main command and entrypoint.
+// recordsCmdFunc is the main command and entrypoint.
 func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 	r, err := db.New(config.App.DBPath)
 	if err != nil {
@@ -97,7 +97,9 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case f.Status:
-		return handler.CheckStatus(c, bs)
+		return handler.CheckStatus(c, r, bs)
+	case f.Snapshot:
+		return handler.Snapshot(c, r, bs)
 	case f.Remove:
 		return handler.Remove(c, r, bs)
 	case f.Edit:
@@ -106,8 +108,6 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		return handler.Update(c, r, bs)
 	case f.Copy:
 		return handler.Copy(bs)
-	case f.Reorder:
-		return handler.ReorderIDs(c, r)
 	case f.Open && !f.QR:
 		return handler.Open(c, r, bs)
 	}
@@ -148,7 +148,7 @@ func initRecordFlags(cmd *cobra.Command) {
 	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
 	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit with preferred text editor")
 	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check bookmarks status")
-	f.BoolVar(&cfg.Flags.Reorder, "reorder", false, "reorder bookmarks IDs")
+	f.BoolVarP(&cfg.Flags.Snapshot, "snapshot", "S", false, "metadata from Wayback Machine")
 
 	// Modifiers
 	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "the <int> first part of bookmarks")
