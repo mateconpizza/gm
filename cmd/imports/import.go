@@ -234,7 +234,6 @@ func fromHTMLNetscapeFunc(_ *cobra.Command, args []string) error {
 			sys.ErrAndExit(err)
 		}))),
 	)
-
 	c.F.Success(fmt.Sprintf("Found %d bookmarks from %q\n", len(nbs), file.Name())).Flush()
 
 	deduplicated := port.Deduplicate(c, r, bs)
@@ -273,7 +272,6 @@ func fromHTMLNetscapeFunc(_ *cobra.Command, args []string) error {
 	if err := r.InsertMany(context.Background(), deduplicated); err != nil {
 		return err
 	}
-
 	fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d bookmarks", n)))
 
 	return nil

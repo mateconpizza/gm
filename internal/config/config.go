@@ -8,7 +8,7 @@ import (
 )
 
 // Version of the application.
-var Version = "0.1.21"
+var Version = "0.1.22"
 
 const (
 	appName         string = "gomarks"    // Default name of the application
