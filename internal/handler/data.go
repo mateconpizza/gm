@@ -349,6 +349,7 @@ func applyMenuSelection(
 }
 
 func handleEditedBookmark(c *ui.Console, r *db.SQLite, newB, oldB *bookmark.Bookmark) error {
+	// is a new bookmark
 	newBookmark := newB.ID == 0
 	if newBookmark {
 		_, err := r.InsertOne(context.Background(), newB)

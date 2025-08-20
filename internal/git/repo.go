@@ -27,8 +27,8 @@ type Location struct {
 	Name   string // Database name without extension (e.g., "bookmarks")
 	DBName string // Database base name (e.g., "main.db")
 	DBPath string // Database fullpath (e.g., "/home/user/.local/share/app/main.db")
-	Git    string // Path to where to store the Git repository (e.g., "/home/user/.local/share/app/git")
-	Path   string // Path to where to store the associated Git files (e.g., "/home/user/.local/share/app/git/bookmarks")
+	Git    string // Path to where to store the Git repository (e.g., "~/.local/share/gomarks/git")
+	Path   string // Path to where to store the associated Git files (e.g., "~/.local/share/gomarks/git/bookmarks")
 	Hash   string // Hash of the database fullpath (for internal lookups/storage)
 }
 

@@ -40,7 +40,7 @@ func ExistsErr(p string) error {
 			return ErrFileNotFound
 		}
 
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	return nil

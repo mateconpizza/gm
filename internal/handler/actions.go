@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -382,6 +384,10 @@ func Update(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	return nil
 }
 
+func Export(bs []*bookmark.Bookmark) error {
+	return bookio.ExportToNetscapeHTML(bs, os.Stdout)
+}
+
 // openQR opens a QR-Code image in the system default image viewer.
 func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	const maxLabelLen = 55
@@ -505,7 +511,7 @@ func editSingleInteractive(
 			return fmt.Errorf("edit: %w", err)
 		}
 
-		c.F.Reset().Header(cy("Edit Bookmark:\n\n")).Flush()
+		c.F.Reset().Header(cy("Edit Bookmark:\n")).Flush()
 
 		diff := txt.Diff(current.Buffer(), editedB.Buffer())
 		fmt.Println(txt.DiffColor(diff))
@@ -515,9 +521,15 @@ func editSingleInteractive(
 			return fmt.Errorf("choose: %w", err)
 		}
 
+		b.URL = editedB.URL
+		b.Title = editedB.Title
+		b.Desc = editedB.Desc
+		b.Tags = editedB.Tags
+		b.FaviconURL = editedB.FaviconURL
+
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			return handleEditedBookmark(c, r, editedB, b)
+			return handleEditedBookmark(c, r, b, editedB)
 		case "n", "no":
 			return sys.ErrActionAborted
 		case "e", "edit":

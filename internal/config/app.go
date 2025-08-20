@@ -22,6 +22,7 @@ type Flags struct {
 	Force     bool     // Force action
 	Status    bool     // Status checks URLs status code
 	Snapshot  bool     // Fetches snapshot from Wayback Machine
+	Export    bool     // Exports the bookmarks into a Netscape HTML file
 	Verbose   int      // Verbose flag
 }
 

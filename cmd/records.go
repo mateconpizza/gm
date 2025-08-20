@@ -102,6 +102,8 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		return handler.Snapshot(c, r, bs)
 	case f.Remove:
 		return handler.Remove(c, r, bs)
+	case f.Export:
+		return handler.Export(bs)
 	case f.Edit:
 		return handler.Edit(c, r, bs)
 	case f.Update:
@@ -149,6 +151,7 @@ func initRecordFlags(cmd *cobra.Command) {
 	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit with preferred text editor")
 	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check bookmarks status")
 	f.BoolVarP(&cfg.Flags.Snapshot, "snapshot", "S", false, "metadata from Wayback Machine")
+	f.BoolVarP(&cfg.Flags.Export, "export", "E", false, "export as HTML file")
 
 	// Modifiers
 	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "the <int> first part of bookmarks")

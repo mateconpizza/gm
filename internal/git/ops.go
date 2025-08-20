@@ -40,7 +40,7 @@ var (
 
 // storeBookmarkAsJSON creates files structure.
 //
-//	root -> dbName -> domain
+//	root -> dbName -> domain -> urlHash.json
 //
 // Returns true if the file was created or updated, false if no changes were made.
 func storeBookmarkAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error) {

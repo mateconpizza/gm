@@ -354,7 +354,7 @@ func parseJSONFile(ctx context.Context, g *errgroup.Group, mu *sync.Mutex, l loa
 		if d.IsDir() ||
 			filepath.Ext(path) != JSONFileExt ||
 			filepath.Base(path) == SummaryFileName ||
-			filepath.Base(path) == TrackerFilepath {
+			filepath.Base(path) == trackerFilepath {
 			return nil
 		}
 

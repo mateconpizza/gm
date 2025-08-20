@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/mateconpizza/rotato"
 
@@ -198,6 +199,7 @@ func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookma
 
 	for _, b := range bs {
 		if _, exists := r.Has(context.Background(), b.URL); exists {
+			slog.Warn("deduplicate", "url", b.URL)
 			continue
 		}
 		filtered = append(filtered, b)
