@@ -4,16 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/spf13/cobra"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/editor"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 // createConfFlag is the flag for creating a new config file.
@@ -65,7 +68,7 @@ func createConfig(p string) error {
 		return nil
 	}
 
-	if err := files.YamlWrite(p, config.Defaults, config.App.Flags.Force); err != nil {
+	if err := writeYAML(p, config.Defaults, config.App.Flags.Force); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -80,7 +83,7 @@ func editConfig(p string) error {
 		return files.ErrFileNotFound
 	}
 
-	te, err := files.NewEditor(config.App.Env.Editor)
+	te, err := editor.New(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -99,7 +102,7 @@ func getConfig(p string) (*config.ConfigFile, error) {
 	}
 
 	var cfg *config.ConfigFile
-	if err := files.YamlRead(p, &cfg); err != nil {
+	if err := readYAML(p, &cfg); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
@@ -144,6 +147,55 @@ func printConfigJSON(p string) error {
 	}
 
 	fmt.Println(string(j))
+
+	return nil
+}
+
+// writeYAML writes the provided YAML data to the specified file.
+func writeYAML[T any](p string, v *T, force bool) error {
+	f, err := files.Touch(p, force)
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+
+	defer func() {
+		if err := f.Close(); err != nil {
+			slog.Error("Yaml closing file", "file", p, "error", err)
+		}
+	}()
+
+	data, err := yaml.Marshal(&v)
+	if err != nil {
+		return fmt.Errorf("error marshalling YAML: %w", err)
+	}
+
+	_, err = f.Write(data)
+	if err != nil {
+		return fmt.Errorf("error writing to file: %w", err)
+	}
+
+	slog.Info("YamlWrite success", "path", p)
+
+	return nil
+}
+
+// readYAML unmarshals the YAML data from the specified file.
+func readYAML[T any](p string, v *T) error {
+	if !files.Exists(p) {
+		return fmt.Errorf("%w: %q", files.ErrFileNotFound, p)
+	}
+
+	content, err := os.ReadFile(p)
+	if err != nil {
+		return fmt.Errorf("error reading config file: %w", err)
+	}
+
+	err = yaml.Unmarshal(content, &v)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling YAML: %w", err)
+	}
+
+	slog.Debug("YamlRead", "path", p)
 
 	return nil
 }

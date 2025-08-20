@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (

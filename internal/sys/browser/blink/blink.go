@@ -14,11 +14,11 @@ import (
 
 	"github.com/mateconpizza/gm/internal/parser"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
-	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (

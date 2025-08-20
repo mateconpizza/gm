@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 const Extension = ".enc"

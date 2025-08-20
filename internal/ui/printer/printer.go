@@ -16,12 +16,12 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
-	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 // Records prints the bookmarks in a frame format with the given colorscheme.
@@ -120,7 +120,7 @@ func DatabasesTable(p string) error {
 
 	t := strconv.Itoa
 
-	files.PromoteFileToFront(fs, config.MainDBName)
+	files.PrioritizeFile(fs, config.MainDBName)
 
 	for _, fpath := range fs {
 		ext := filepath.Ext(fpath)

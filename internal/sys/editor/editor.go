@@ -1,4 +1,4 @@
-package files
+package editor
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -30,11 +31,11 @@ func (te *TextEditor) EditBytes(content []byte, extension string) ([]byte, error
 		return nil, ErrCommandNotFound
 	}
 
-	f, err := createTempFileWithData(content, extension)
+	f, err := files.CreateTempFileWithData(content, extension)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
-	defer closeAndClean(f)
+	defer files.CloseAndClean(f)
 
 	slog.Debug("editing file", "name", f.Name(), "editor", te.name)
 
@@ -56,8 +57,8 @@ func (te *TextEditor) EditFile(p string) error {
 		return ErrCommandNotFound
 	}
 
-	if !Exists(p) {
-		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
+	if !files.Exists(p) {
+		return fmt.Errorf("%w: %q", files.ErrFileNotFound, p)
 	}
 
 	if err := sys.RunCmd(te.cmd, append(te.args, p)...); err != nil {
@@ -67,14 +68,14 @@ func (te *TextEditor) EditFile(p string) error {
 	return nil
 }
 
-// NewEditor retrieves the preferred editor to use for editing
+// New retrieves the preferred editor to use for editing
 //
 // If env variable `GOMARKS_EDITOR` is not set, uses the `EDITOR`.
 // If env variable `EDITOR` is not set, uses the first available
 // `TextEditors`
 //
 // # fallbackEditors: `"vim", "nvim", "nano", "emacs"`.
-func NewEditor(s string) (*TextEditor, error) {
+func New(s string) (*TextEditor, error) {
 	envs := []string{s, "EDITOR"}
 	// find $EDITOR and $GOMARKS_EDITOR
 	for _, e := range envs {
@@ -127,31 +128,6 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 	}
 
 	return nil, false
-}
-
-// saveBytestToFile Writes the provided data to a temporary file.
-func saveBytestToFile(f *os.File, d []byte) error {
-	err := os.WriteFile(f.Name(), d, FilePerm)
-	if err != nil {
-		return fmt.Errorf("error writing to temp file: %w", err)
-	}
-
-	return nil
-}
-
-// createTempFileWithData creates a temporary file and writes the provided data
-// to it.
-func createTempFileWithData(d []byte, extension string) (*os.File, error) {
-	tf, err := CreateTemp("edit", extension)
-	if err != nil {
-		return nil, fmt.Errorf("error creating temp file: %w", err)
-	}
-
-	if err := saveBytestToFile(tf, d); err != nil {
-		return nil, err
-	}
-
-	return tf, nil
 }
 
 func newTextEditor(c, n string, arg []string) *TextEditor {

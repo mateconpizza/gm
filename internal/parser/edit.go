@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/editor"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -20,8 +20,8 @@ import (
 
 var ErrBufferUnchanged = errors.New("buffer unchanged")
 
-// BookmarkEdit holds information about a bookmark edit operation.
-type BookmarkEdit struct {
+// BookmarkEditOps holds information about a bookmark edit operation.
+type BookmarkEditOps struct {
 	item   *bookmark.Bookmark
 	header []byte
 	body   []byte
@@ -30,14 +30,14 @@ type BookmarkEdit struct {
 	total  int
 }
 
-func newBookmarkEdit(b *bookmark.Bookmark) *BookmarkEdit {
-	return &BookmarkEdit{
+func newBookmarkEditOps(b *bookmark.Bookmark) *BookmarkEditOps {
+	return &BookmarkEditOps{
 		item: b,
 		body: b.Buffer(),
 	}
 }
 
-func (be *BookmarkEdit) Buffer() []byte {
+func (be *BookmarkEditOps) Buffer() []byte {
 	buf := make([]byte, 0, len(be.header)+len(be.body)+len(be.footer))
 	buf = append(buf, be.header...)
 	buf = append(buf, be.body...)
@@ -47,8 +47,8 @@ func (be *BookmarkEdit) Buffer() []byte {
 }
 
 // Edit edits a bookmark and validates the resulting content.
-func Edit(te *files.TextEditor, b *bookmark.Bookmark, idx, total int) (*bookmark.Bookmark, error) {
-	be := newBookmarkEdit(b)
+func Edit(te *editor.TextEditor, b *bookmark.Bookmark, idx, total int) (*bookmark.Bookmark, error) {
+	be := newBookmarkEditOps(b)
 	be.idx = idx
 	be.total = total
 
@@ -87,7 +87,7 @@ func Edit(te *files.TextEditor, b *bookmark.Bookmark, idx, total int) (*bookmark
 }
 
 // prepareBufferForEdition prepares the buffer for edition.
-func prepareBufferForEdition(be *BookmarkEdit) {
+func prepareBufferForEdition(be *BookmarkEditOps) {
 	const spaces = 10
 
 	newBookmark := be.item.ID == 0

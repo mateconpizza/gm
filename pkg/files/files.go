@@ -13,8 +13,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-
-	yaml "gopkg.in/yaml.v3"
 )
 
 var (
@@ -25,7 +23,7 @@ var (
 )
 
 const (
-	dirPerm  = 0o755 // Permissions for new directories.
+	DirPerm  = 0o755 // Permissions for new directories.
 	FilePerm = 0o644 // Permissions for new files.
 )
 
@@ -134,7 +132,7 @@ func mkdir(s string) error {
 
 	slog.Debug("creating path", "path", s)
 
-	if err := os.MkdirAll(s, dirPerm); err != nil {
+	if err := os.MkdirAll(s, DirPerm); err != nil {
 		return fmt.Errorf("creating %s: %w", s, err)
 	}
 
@@ -231,8 +229,8 @@ func cleanupTemp(s string) error {
 	return nil
 }
 
-// closeAndClean closes the provided file and deletes the associated temporary file.
-func closeAndClean(f *os.File) {
+// CloseAndClean closes the provided file and deletes the associated temporary file.
+func CloseAndClean(f *os.File) {
 	if err := f.Close(); err != nil {
 		slog.Error("closing temp file", "file", f.Name(), "error", err)
 	}
@@ -371,55 +369,6 @@ func CollapseHomeDir(p string) string {
 	}
 
 	return "~" + p[len(home):]
-}
-
-// YamlWrite writes the provided YAML data to the specified file.
-func YamlWrite[T any](p string, v *T, force bool) error {
-	f, err := Touch(p, force)
-	if err != nil {
-		return fmt.Errorf("error creating file: %w", err)
-	}
-
-	defer func() {
-		if err := f.Close(); err != nil {
-			slog.Error("Yaml closing file", "file", p, "error", err)
-		}
-	}()
-
-	data, err := yaml.Marshal(&v)
-	if err != nil {
-		return fmt.Errorf("error marshalling YAML: %w", err)
-	}
-
-	_, err = f.Write(data)
-	if err != nil {
-		return fmt.Errorf("error writing to file: %w", err)
-	}
-
-	slog.Info("YamlWrite success", "path", p)
-
-	return nil
-}
-
-// YamlRead unmarshals the YAML data from the specified file.
-func YamlRead[T any](p string, v *T) error {
-	if !Exists(p) {
-		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
-	}
-
-	content, err := os.ReadFile(p)
-	if err != nil {
-		return fmt.Errorf("error reading config file: %w", err)
-	}
-
-	err = yaml.Unmarshal(content, &v)
-	if err != nil {
-		return fmt.Errorf("error unmarshalling YAML: %w", err)
-	}
-
-	slog.Debug("YamlRead", "path", p)
-
-	return nil
 }
 
 // JSONWrite writes the provided data as JSON to the specified file.
@@ -585,8 +534,8 @@ func RemoveEmptyDirs(root string) error {
 	return nil
 }
 
-// PromoteFileToFront moves a file to the front of the list.
-func PromoteFileToFront(files []string, name string) {
+// PrioritizeFile moves a file to the front of the list.
+func PrioritizeFile(files []string, name string) {
 	if len(files) == 0 {
 		return
 	}
@@ -598,4 +547,40 @@ func PromoteFileToFront(files []string, name string) {
 			break
 		}
 	}
+}
+
+// CreateTempFileWithData creates a temporary file and writes the provided data
+// to it.
+func CreateTempFileWithData(d []byte, extension string) (*os.File, error) {
+	tf, err := CreateTemp("edit", extension)
+	if err != nil {
+		return nil, fmt.Errorf("error creating temp file: %w", err)
+	}
+
+	if err := saveBytestToFile(tf, d); err != nil {
+		return nil, err
+	}
+
+	return tf, nil
+}
+
+// saveBytestToFile Writes the provided data to a temporary file.
+func saveBytestToFile(f *os.File, d []byte) error {
+	err := os.WriteFile(f.Name(), d, FilePerm)
+	if err != nil {
+		return fmt.Errorf("error writing to temp file: %w", err)
+	}
+
+	return nil
+}
+
+func Rename(oldPath, newName string) error {
+	if !Exists(oldPath) {
+		return fmt.Errorf("%w: %q", ErrFileNotFound, oldPath)
+	}
+
+	basePath := filepath.Dir(oldPath)
+	newPath := filepath.Join(basePath, newName)
+
+	return os.Rename(oldPath, newPath)
 }

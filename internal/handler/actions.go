@@ -21,7 +21,7 @@ import (
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/internal/sys/editor"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -29,6 +29,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -153,7 +154,7 @@ func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 
 // Edit edits the bookmarks using a text editor.
 func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
-	te, err := files.NewEditor(config.App.Env.Editor)
+	te, err := editor.New(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -412,7 +413,7 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 func editBookmarks(
 	c *ui.Console,
 	r *db.SQLite,
-	te *files.TextEditor,
+	te *editor.TextEditor,
 	bs []*bookmark.Bookmark,
 ) error {
 	n := len(bs)
@@ -432,7 +433,7 @@ func editBookmarks(
 func editBookmarksJSON(
 	c *ui.Console,
 	r *db.SQLite,
-	te *files.TextEditor,
+	te *editor.TextEditor,
 	bs []*bookmark.Bookmark,
 ) error {
 	for i := range bs {
@@ -488,7 +489,7 @@ func editBookmarksJSON(
 func editSingleInteractive(
 	c *ui.Console,
 	r *db.SQLite,
-	te *files.TextEditor,
+	te *editor.TextEditor,
 	b *bookmark.Bookmark,
 	index, total int,
 ) error {
@@ -544,7 +545,7 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, force bo
 	case "n", "no":
 		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
-		te, err := files.NewEditor(config.App.Env.Editor)
+		te, err := editor.New(config.App.Env.Editor)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -606,7 +607,7 @@ func updateSingleBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, ind
 	case "n", "no":
 		c.ReplaceLine(c.F.Warning(bid + " skip...\n").String())
 	case "e", "edit":
-		te, err := files.NewEditor(config.App.Env.Editor)
+		te, err := editor.New(config.App.Env.Editor)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

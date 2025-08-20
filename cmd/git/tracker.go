@@ -9,11 +9,11 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 type trackerFlagsType struct {
@@ -75,7 +75,7 @@ func managementSelect(c *ui.Console) error {
 
 	c.F.Rowln().Midln("Select which databases to track").Rowln().Flush()
 
-	files.PromoteFileToFront(dbFiles, config.MainDBName)
+	files.PrioritizeFile(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
@@ -113,7 +113,7 @@ func management(c *ui.Console) error {
 	}
 
 	c.F.Headerln("Tracked database management").Rowln().Flush()
-	files.PromoteFileToFront(dbFiles, config.MainDBName)
+	files.PrioritizeFile(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
@@ -175,7 +175,7 @@ func status(c *ui.Console, tracked []string) error {
 	}
 
 	c.F.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
-	files.PromoteFileToFront(dbFiles, config.MainDBName)
+	files.PrioritizeFile(dbFiles, config.MainDBName)
 
 	// move main database to the top
 	for _, dbPath := range dbFiles {

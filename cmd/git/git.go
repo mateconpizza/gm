@@ -2,14 +2,12 @@
 package git
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -17,14 +15,12 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/files"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func init() {
@@ -343,67 +339,6 @@ var gitTestCmd = &cobra.Command{
 	Short:  "test git commands",
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := db.New(config.App.DBPath)
-		if err != nil {
-			return err
-		}
-		defer r.Close()
-
-		bs, err := r.All(context.Background())
-		if err != nil {
-			return err
-		}
-
-		b := bs[0]
-		te, err := files.NewEditor(config.App.Env.Editor)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		c := ui.NewConsole(
-			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
-			ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightBlue))),
-		)
-
-		oldB := b.Bytes()
-		for {
-			newB, err := te.EditBytes(oldB, "json")
-			if err != nil {
-				return err
-			}
-			if bytes.Equal(newB, oldB) {
-				fmt.Println("no changes")
-				return nil
-			}
-
-			oldB = bytes.TrimRight(oldB, "\n")
-			newB = bytes.TrimRight(newB, "\n")
-
-			diff := txt.Diff(oldB, newB)
-			fmt.Println(txt.DiffColor(diff))
-
-			opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
-			if err != nil {
-				return fmt.Errorf("choose: %w", err)
-			}
-
-			switch strings.ToLower(opt) {
-			case "y", "yes":
-				bm, err := bookmark.NewFromBuffer(newB)
-				if err != nil {
-					return err
-				}
-
-				if err := r.Update(context.Background(), bm, b); err != nil {
-					return fmt.Errorf("update: %w", err)
-				}
-
-				return nil
-			case "n", "no":
-				return sys.ErrActionAborted
-			case "e", "edit":
-				oldB = newB
-			}
-		}
+		return nil
 	},
 }

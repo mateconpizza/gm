@@ -15,7 +15,7 @@ import (
 	"golang.org/x/image/font/inconsolata"
 	"golang.org/x/image/math/fixed"
 
-	"github.com/mateconpizza/gm/internal/sys/files"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 // position is a position on an image.
