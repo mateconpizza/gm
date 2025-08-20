@@ -107,3 +107,27 @@ func ensureDBSuffix(s string) string {
 
 	return fmt.Sprintf("%s%s", s, suffix)
 }
+
+// CleanupOrphanTags elimina todos los tags que no estén asociados a ningún bookmark.
+func (r *SQLite) CleanupOrphanTags(ctx context.Context) error {
+	_, err := r.DB.ExecContext(ctx, `
+		DELETE FROM tags
+		WHERE id NOT IN (
+			SELECT DISTINCT tag_id FROM bookmark_tags
+		);
+	`)
+	return err
+}
+
+func (r *SQLite) cleanOrphanTagsTx(tx *sqlx.Tx) error {
+	_, err := tx.Exec(`
+		DELETE FROM tags
+		WHERE id NOT IN (
+			SELECT DISTINCT tag_id FROM bookmark_tags
+		);`)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -190,7 +190,7 @@ func CheckStatus(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 			continue
 		}
 
-		if err := r.Update(context.Background(), b, b); err != nil {
+		if err := r.UpdateOne(context.Background(), b); err != nil {
 			return err
 		}
 	}
@@ -254,7 +254,7 @@ func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 			b.ArchiveTimestamp = s.Timestamp
 
 			mu.Lock()
-			if err := r.Update(ctx, b, b); err != nil {
+			if err := r.UpdateOne(ctx, b); err != nil {
 				mu.Unlock()
 				es := color.BrightGray(" (" + err.Error() + ")").Italic().String()
 				errs <- f.Error(d).Text(es).String()
@@ -467,7 +467,7 @@ func editBookmarksJSON(
 					return err
 				}
 
-				if err := r.Update(context.Background(), bm, b); err != nil {
+				if err := r.UpdateOne(context.Background(), bm); err != nil {
 					return fmt.Errorf("update: %w", err)
 				}
 

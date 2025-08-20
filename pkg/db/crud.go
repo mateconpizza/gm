@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -82,21 +81,90 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 	})
 }
 
-// Update updates an existing record in the relation table.
-func (r *SQLite) Update(ctx context.Context, newB, oldB *bookmark.Bookmark) error {
+// UpdateOne updates an existing bookmark by ID (or URL).
+func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		if err := r.deleteOneTx(tx, oldB); err != nil {
-			return fmt.Errorf("delete old record: %w", err)
+		// Generate checksum before saving
+		b.GenChecksum()
+
+		// Update record
+		if err := r.updateRecordTx(tx, b); err != nil {
+			return fmt.Errorf("update record: %w", err)
 		}
 
-		newB.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-		if err := r.insertAtID(tx, newB); err != nil {
-			return fmt.Errorf("insert new record: %w", err)
+		// Temporarily disable trigger
+		if _, err := tx.Exec("DROP TRIGGER IF EXISTS cleanup_bookmark_and_tags"); err != nil {
+			return fmt.Errorf("drop trigger: %w", err)
 		}
 
-		return nil
+		// Remove old tag associations
+		if _, err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_url = ?", b.URL); err != nil {
+			return fmt.Errorf("clear tags: %w", err)
+		}
+
+		// Recreate trigger
+		if _, err := tx.Exec(tableRelationTriggerCleanup); err != nil {
+			return fmt.Errorf("recreate trigger: %w", err)
+		}
+
+		// Re-associate tags
+		if err := r.associateTags(tx, b); err != nil {
+			return fmt.Errorf("associate tags: %w", err)
+		}
+
+		return r.cleanOrphanTagsTx(tx)
 	})
 }
+
+// updateRecordTx updates a bookmark inside a transaction.
+func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+	b.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+	query := `
+	UPDATE bookmarks
+	SET
+		url = :url,
+		title = :title,
+		desc = :desc,
+		last_visit = :last_visit,
+		updated_at = :updated_at,
+		visit_count = :visit_count,
+		favorite = :favorite,
+		checksum = :checksum,
+		favicon_url = :favicon_url,
+		favicon_local = :favicon_local,
+		archive_url = :archive_url,
+		archive_timestamp = :archive_timestamp,
+		last_checked = :last_checked,
+		status_code = :status_code,
+		status_text = :status_text,
+		is_active = :is_active
+	WHERE id = :id OR url = :url
+	`
+
+	if _, err := tx.NamedExec(query, b); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return nil
+}
+
+// // Update updates an existing record in the relation table.
+// func (r *SQLite) Update(ctx context.Context, newB, oldB *bookmark.Bookmark) error {
+// 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+// 		if err := r.deleteOneTx(tx, oldB); err != nil {
+// 			return fmt.Errorf("delete old record: %w", err)
+// 		}
+//
+// 		newB.GenChecksum()
+// 		newB.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+// 		if err := r.insertAtID(tx, newB); err != nil {
+// 			return fmt.Errorf("insert new record: %w", err)
+// 		}
+//
+// 		return nil
+// 	})
+// }
 
 // All returns all bookmarks.
 func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
@@ -411,14 +479,16 @@ func (r *SQLite) CountFavorites(ctx context.Context) int {
 
 // Has checks if a record exists in the main table.
 func (r *SQLite) Has(ctx context.Context, bURL string) (*bookmark.Bookmark, bool) {
-	var count int
-	if err := r.DB.QueryRowxContext(ctx, "SELECT COUNT(*) FROM bookmarks WHERE url = ?", bURL).Scan(&count); err != nil {
-		slog.Error("error getting count", "error", err)
-		r.Close()
-		os.Exit(1)
+	var exists bool
+	bURL = strings.TrimSuffix(bURL, "/")
+	err := r.DB.QueryRowxContext(ctx, "SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = ?)", bURL).
+		Scan(&exists)
+	if err != nil {
+		slog.Error("error checking existence", "error", err)
+		return nil, false
 	}
 
-	if count == 0 {
+	if !exists {
 		return nil, false
 	}
 
@@ -500,7 +570,6 @@ func (r *SQLite) deleteAll(ctx context.Context, ts ...Table) error {
 // a transaction.
 func (r *SQLite) hasTx(tx *sqlx.Tx, target any) (bool, error) {
 	var exists bool
-
 	err := tx.Get(&exists, "SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = ?)", target)
 	if err != nil {
 		return false, fmt.Errorf("%w", err)
@@ -622,9 +691,7 @@ func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) 
 		return 0, fmt.Errorf("duplicate record: %w, %q", err, b.URL)
 	}
 
-	if b.Checksum == "" {
-		b.GenChecksum()
-	}
+	b.GenChecksum()
 
 	// insert record and associate tags in the same transaction.
 	bID, err := insertRecord(tx, b)

@@ -144,7 +144,7 @@ func TestUpdateOne(t *testing.T) {
 	oldUpdatedAt := oldB.UpdatedAt
 
 	// Perform update
-	if err := r.Update(ctx, &newB, oldB); err != nil {
+	if err := r.UpdateOne(ctx, &newB); err != nil {
 		t.Fatalf("failed to update bookmark: %v", err)
 	}
 

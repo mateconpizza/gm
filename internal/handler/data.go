@@ -359,7 +359,7 @@ func handleEditedBookmark(c *ui.Console, r *db.SQLite, newB, oldB *bookmark.Book
 		return nil
 	}
 
-	if err := r.Update(context.Background(), newB, oldB); err != nil {
+	if err := r.UpdateOne(context.Background(), newB); err != nil {
 		return fmt.Errorf("updating record: %w", err)
 	}
 
