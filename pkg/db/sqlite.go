@@ -6,10 +6,18 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+)
+
+const (
+	MaxOpenConns    = 25              // Maximum number of open connections
+	MaxIdleConns    = 5               // Maximum number of idle connections
+	MaxLifetimeConn = 5 * time.Minute // Maximum connection lifetime
 )
 
 type Table string
@@ -96,52 +104,28 @@ func newRepository(p string, validate func(string) error) (*SQLite, error) {
 	return newSQLiteRepository(db, c), nil
 }
 
-// NewFromBackup creates a SQLiteRepository from a backup file.
-func NewFromBackup(backupPath string) (*SQLite, error) {
-	if backupPath == "" {
-		return nil, fmt.Errorf("%w: %q", ErrDBNotFound, backupPath)
-	}
-
-	var (
-		backupFile = filepath.Base(backupPath)
-		parentDir  = filepath.Dir(backupPath)
-	)
-
-	// check if we're already in a backup directory
-	if filepath.Base(parentDir) == "backup" {
-		parentDir = filepath.Dir(filepath.Dir(backupPath))
-	} else {
-		parentDir = filepath.Dir(backupPath)
-	}
-
-	backupDir := filepath.Join(parentDir, "backup")
-	cfg := &Cfg{
-		Path: backupDir,
-		Name: backupFile,
-	}
-
-	slog.Debug("reading backup", "name", backupFile)
-
-	db, err := OpenDatabase(backupPath)
-	if err != nil {
-		return nil, fmt.Errorf("opening backup database: %w", err)
-	}
-
-	return &SQLite{
-		DB:  db,
-		Cfg: cfg,
-	}, nil
-}
-
 // OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
-func OpenDatabase(s string) (*sqlx.DB, error) {
-	slog.Debug("opening database", "path", s)
+func OpenDatabase(path string) (*sqlx.DB, error) {
+	slog.Debug("opening database", "path", path)
+	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
-	db, err := sqlx.Open("sqlite3", s)
+	// enable multi-thread safe mode with wal
+	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL&_mutex=full&_foreign_keys=on", path)
+	// testing mode
+	if isTestingMode {
+		dsn = path
+	}
+
+	db, err := sqlx.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
+
+	// Connection pool tuning
+	db.SetMaxOpenConns(MaxOpenConns)
+	db.SetMaxIdleConns(MaxIdleConns)
+	db.SetConnMaxLifetime(MaxLifetimeConn)
 
 	if err := db.PingContext(context.Background()); err != nil {
 		return nil, fmt.Errorf("%w: on ping context", err)
@@ -152,9 +136,8 @@ func OpenDatabase(s string) (*sqlx.DB, error) {
 
 // Cfg represents the configuration for a SQLite database.
 type Cfg struct {
-	Name        string   `json:"name"`         // Name of the SQLite database
-	Path        string   `json:"path"`         // Path to the SQLite database
-	BackupFiles []string `json:"backup_files"` // Backup files
+	Name string `json:"name"` // Name of the SQLite database
+	Path string `json:"path"` // Path to the SQLite database
 }
 
 // Fullpath returns the full path to the SQLite database.
