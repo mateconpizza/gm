@@ -48,18 +48,16 @@ var schemaTags = Schema{
 
 // schemaRelation is the schema for the relation table.
 var schemaRelation = Schema{
-	Name:    tableRelationName,
-	SQL:     tableRelationSchema,
-	Index:   tableRelationIndex,
-	Trigger: []string{tableRelationTriggerCleanup},
+	Name:  tableRelationName,
+	SQL:   tableRelationSchema,
+	Index: tableRelationIndex,
 }
 
 // schemaTemp is used for reordering the IDs in the main table.
 var schemaTemp = Schema{
-	Name:    tableTempName,
-	SQL:     fmt.Sprintf(tableMainSchema, tableTempName),
-	Trigger: []string{tableRelationTriggerCleanup},
-	Index:   tableMainIndex,
+	Name:  tableTempName,
+	SQL:   fmt.Sprintf(tableMainSchema, tableTempName),
+	Index: tableMainIndex,
 }
 
 // main table.
@@ -129,22 +127,4 @@ const (
 	tableRelationIndex = `
     CREATE INDEX IF NOT EXISTS idx_bookmark_tags
     ON bookmark_tags(bookmark_url, tag_id);`
-
-	tableRelationTriggerCleanup = `
-  CREATE TRIGGER IF NOT EXISTS cleanup_bookmark_and_tags
-  AFTER DELETE ON bookmark_tags
-  BEGIN
-      -- Eliminate the bookmark if you no longer have associations in bookmark_tags.
-      DELETE FROM bookmarks
-      WHERE url = OLD.bookmark_url
-        AND NOT EXISTS (
-            SELECT 1 FROM bookmark_tags WHERE bookmark_url = OLD.bookmark_url
-        );
-
-      -- Clean the tags that are no longer associated with any bookmark.
-      DELETE FROM tags
-      WHERE id NOT IN (
-          SELECT DISTINCT tag_id FROM bookmark_tags
-      );
-  END;`
 )

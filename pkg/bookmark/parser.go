@@ -1,6 +1,7 @@
 package bookmark
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -68,7 +69,7 @@ func ParseTags(tags string) string {
 	})
 	sort.Strings(split)
 
-	tags = strings.Join(uniqueTags(split), ",")
+	tags = strings.Join(UniqueTags(split), ",")
 	if strings.HasSuffix(tags, ",") {
 		return tags
 	}
@@ -76,8 +77,8 @@ func ParseTags(tags string) string {
 	return tags + ","
 }
 
-// uniqueTags returns a slice of unique tags.
-func uniqueTags(t []string) []string {
+// UniqueTags returns a slice of unique tags.
+func UniqueTags(t []string) []string {
 	var (
 		tags []string
 		seen = make(map[string]bool)
@@ -126,21 +127,28 @@ func Validate(b *Bookmark) error {
 	return nil
 }
 
-func checkStatus(b *Bookmark) error {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
+func makeReq(ctx context.Context, b *Bookmark) error {
+	timeout := 5 * time.Second
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
+	if err != nil {
+		return err
 	}
 
+	client := http.DefaultClient
 	//nolint:bodyclose //closing
-	resp, err := client.Head(b.URL)
+	resp, err := client.Do(req)
 	if err != nil {
-		// In case of network error, set status as inactive
-		b.HTTPStatusCode = resp.StatusCode
-		b.HTTPStatusText = http.StatusText(resp.StatusCode)
+		slog.Error("creating request", slog.String("url", b.URL), slog.String("error", err.Error()))
+		b.HTTPStatusCode = 0
+		b.HTTPStatusText = "Network error"
 		b.IsActive = false
 		b.LastStatusChecked = time.Now().Format("20060102150405")
 		return err
 	}
+
 	go func() {
 		if err := resp.Body.Close(); err != nil {
 			slog.Error("check status: closing body", "error", err)

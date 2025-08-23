@@ -4,11 +4,23 @@ package db
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+func extractTags(t *testing.T, bs []*bookmark.Bookmark) []string {
+	t.Helper()
+	allTags := make([]string, 0, len(bs))
+	for _, b := range bs {
+		allTags = append(allTags, strings.Split(b.Tags, ",")...)
+	}
+
+	return bookmark.UniqueTags(allTags)
+}
 
 func TestInsertOne(t *testing.T) {
 	r := setupTestDB(t)
@@ -39,6 +51,7 @@ func TestInsertMany(t *testing.T) {
 	t.Skip("not implemented yet")
 }
 
+//nolint:gocognit //test
 func TestDeleteMany(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -77,7 +90,6 @@ func TestDeleteMany(t *testing.T) {
 			defer teardownthewall(r.DB)
 
 			bsToInsert := testSliceBookmarks(tt.bookmarksToInsert)
-
 			err := r.InsertMany(t.Context(), bsToInsert)
 			if (err != nil) != tt.expectErrOnInsert {
 				t.Errorf("InsertMany() error = %v, expectErrOnInsert %v", err, tt.expectErrOnInsert)
@@ -85,6 +97,16 @@ func TestDeleteMany(t *testing.T) {
 			}
 			if tt.expectErrOnInsert {
 				return
+			}
+
+			tags, err := r.TagsCounter(t.Context())
+			if err != nil {
+				t.Fatalf("unexpected error getting tags counter: %v", err)
+			}
+			gotTags := len(tags)
+			wantTags := extractTags(t, bsToInsert)
+			if gotTags != len(wantTags) {
+				t.Fatalf("got %d, want %d, %v", gotTags, len(wantTags), wantTags)
 			}
 
 			// check if the records were inserted
@@ -126,11 +148,9 @@ func TestUpdateOne(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 
-	ctx := t.Context()
-
 	// Insert initial record
 	oldB := testSingleBookmark()
-	if _, err := r.InsertOne(ctx, oldB); err != nil {
+	if _, err := r.InsertOne(t.Context(), oldB); err != nil {
 		t.Fatalf("failed to insert bookmark: %v", err)
 	}
 
@@ -139,13 +159,23 @@ func TestUpdateOne(t *testing.T) {
 	newB.Checksum = "new-checksum"
 	newB.Tags = "tagNew1,tagNew2,"
 	newB.Desc = "new description"
+	wantTags := len(extractTags(t, []*bookmark.Bookmark{&newB}))
 
 	// Keep old UpdatedAt for later comparison
 	oldUpdatedAt := oldB.UpdatedAt
 
 	// Perform update
-	if err := r.UpdateOne(ctx, &newB); err != nil {
+	if err := r.UpdateOne(t.Context(), &newB); err != nil {
 		t.Fatalf("failed to update bookmark: %v", err)
+	}
+
+	updatedTags, err := r.TagsCounter(t.Context())
+	if err != nil {
+		t.Fatalf("unexpected error getting tags counter: %v", err)
+	}
+	gotTags := len(updatedTags)
+	if gotTags != wantTags {
+		t.Fatalf("after updating bookmark tags dont match, got %d, want %d", gotTags, wantTags)
 	}
 
 	// Retrieve updated record
@@ -239,7 +269,8 @@ func TestByID(t *testing.T) {
 }
 
 func TestByIDList(t *testing.T) {
-	r := testPopulatedDB(t, 10)
+	want := 11
+	r := testPopulatedDB(t, want)
 	defer teardownthewall(r.DB)
 
 	// Test retrieving multiple records by ID list

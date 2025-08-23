@@ -2,6 +2,7 @@
 package bookmark
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -217,8 +218,8 @@ func (b *Bookmark) GPGPath(ext string) (string, error) {
 }
 
 // CheckStatus updates the bookmark's status fields.
-func (b *Bookmark) CheckStatus() error {
-	return checkStatus(b)
+func (b *Bookmark) CheckStatus(ctx context.Context) error {
+	return makeReq(ctx, b)
 }
 
 // New creates a new bookmark.

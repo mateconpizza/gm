@@ -238,7 +238,6 @@ func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context, sem *
 	defer sem.Release(1)
 
 	timeout := 5 * time.Second
-
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -249,7 +248,6 @@ func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context, sem *
 	}
 
 	client := http.DefaultClient
-
 	resp, err := client.Do(req)
 	if err != nil {
 		return handleRequestError(c, b, err)

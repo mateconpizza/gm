@@ -40,8 +40,7 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
-
-	slog.Debug("deleting many records from the relation table", "count", n)
+	slog.Debug("deleting many records", "count", n)
 
 	urls := make([]string, 0, len(bs))
 	for i := range bs {
@@ -49,35 +48,28 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 	}
 
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		// create query
-		q, args, err := sqlx.In("DELETE FROM bookmark_tags WHERE bookmark_url IN (?)", urls)
+		// Delete from bookmark_tags first (foreign key constraint)
+		q1, args1, err := sqlx.In("DELETE FROM bookmark_tags WHERE bookmark_url IN (?)", urls)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return fmt.Errorf("preparing bookmark_tags delete: %w", err)
 		}
-
-		// prepare statement
-		stmt, err := tx.Preparex(q)
+		_, err = tx.ExecContext(ctx, q1, args1...)
 		if err != nil {
-			return fmt.Errorf("delete many: %w: prepared statement", err)
+			return fmt.Errorf("deleting from bookmark_tags: %w", err)
 		}
 
-		defer func() {
-			if err := stmt.Close(); err != nil {
-				slog.Error("delete many: closing stmt", "error", err)
-			}
-		}()
-
-		// execute statement
-		_, err = stmt.ExecContext(ctx, args...)
+		// Delete from bookmarks table
+		q2, args2, err := sqlx.In("DELETE FROM bookmarks WHERE url IN (?)", urls)
 		if err != nil {
-			return fmt.Errorf("delete many: %w: getting the result", err)
+			return fmt.Errorf("preparing bookmarks delete: %w", err)
+		}
+		_, err = tx.ExecContext(ctx, q2, args2...)
+		if err != nil {
+			return fmt.Errorf("deleting from bookmarks: %w", err)
 		}
 
-		if err := stmt.Close(); err != nil {
-			return fmt.Errorf("delete many: %w: closing stmt", err)
-		}
-
-		return nil
+		// Clean up orphaned tags
+		return r.cleanOrphanTagsTx(tx)
 	})
 }
 
@@ -92,19 +84,9 @@ func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 			return fmt.Errorf("update record: %w", err)
 		}
 
-		// Temporarily disable trigger
-		if _, err := tx.Exec("DROP TRIGGER IF EXISTS cleanup_bookmark_and_tags"); err != nil {
-			return fmt.Errorf("drop trigger: %w", err)
-		}
-
 		// Remove old tag associations
 		if _, err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_url = ?", b.URL); err != nil {
 			return fmt.Errorf("clear tags: %w", err)
-		}
-
-		// Recreate trigger
-		if _, err := tx.Exec(tableRelationTriggerCleanup); err != nil {
-			return fmt.Errorf("recreate trigger: %w", err)
 		}
 
 		// Re-associate tags
@@ -148,23 +130,6 @@ func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 
 	return nil
 }
-
-// // Update updates an existing record in the relation table.
-// func (r *SQLite) Update(ctx context.Context, newB, oldB *bookmark.Bookmark) error {
-// 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-// 		if err := r.deleteOneTx(tx, oldB); err != nil {
-// 			return fmt.Errorf("delete old record: %w", err)
-// 		}
-//
-// 		newB.GenChecksum()
-// 		newB.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-// 		if err := r.insertAtID(tx, newB); err != nil {
-// 			return fmt.Errorf("insert new record: %w", err)
-// 		}
-//
-// 		return nil
-// 	})
-// }
 
 // All returns all bookmarks.
 func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
@@ -576,65 +541,6 @@ func (r *SQLite) hasTx(tx *sqlx.Tx, target any) (bool, error) {
 	}
 
 	return exists, nil
-}
-
-// insertAtID inserts a new record at the given ID.
-func (r *SQLite) insertAtID(tx *sqlx.Tx, b *bookmark.Bookmark) error {
-	if err := bookmark.Validate(b); err != nil {
-		return fmt.Errorf("abort: %w", err)
-	}
-
-	q := `
-	INSERT OR IGNORE INTO bookmarks (
-		id,
-		url,
-		title,
-		desc,
-		created_at,
-		updated_at,
-		last_visit,
-		visit_count,
-		favorite,
-		checksum,
-		favicon_url,
-		archive_url,
-		archive_timestamp,
-		favicon_local,
-		status_code,
-		status_text,
-		is_active,
-		last_checked
-	) VALUES (
-		:id,
-		:url,
-		:title,
-		:desc,
-		:created_at,
-		:updated_at,
-		:last_visit,
-		:visit_count,
-		:favorite,
-		:checksum,
-		:favicon_url,
-		:archive_url,
-		:archive_timestamp,
-		:favicon_local,
-		:status_code,
-		:status_text,
-		:is_active,
-		:last_checked
-	)`
-
-	_, err := tx.NamedExec(q, b)
-	if err != nil {
-		return fmt.Errorf("%w: %q", err, b.URL)
-	}
-
-	if err := r.associateTags(tx, b); err != nil {
-		return fmt.Errorf("failed to associate tags: %w", err)
-	}
-
-	return nil
 }
 
 func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) error {

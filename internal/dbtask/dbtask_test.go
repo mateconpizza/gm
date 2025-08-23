@@ -103,7 +103,7 @@ func TestRecordIDs(t *testing.T) {
 	// verify deletion - should have 7 records left
 	remaining, err := r.All(t.Context())
 	if err != nil {
-		t.Fatalf("AllPtr after deletion failed: %v", err)
+		t.Fatalf("All after deletion failed: %v", err)
 	}
 	if len(remaining) != 7 {
 		t.Fatalf("expected 7 records after deletion, got %d", len(remaining))

@@ -174,15 +174,15 @@ func backupNewFunc(cmd *cobra.Command, args []string) error {
 }
 
 // backupPrettyPrint pretty repo info.
-func backupPrettyPrint(cmd *cobra.Command, args []string) error {
-	r, err := db.New(config.App.DBPath)
-	if err != nil {
-		return fmt.Errorf("backup: %w", err)
-	}
-	defer r.Close()
-
-	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-	fmt.Print(summary.Info(c, r))
-
-	return nil
-}
+// func backupPrettyPrint(cmd *cobra.Command, args []string) error {
+// 	r, err := db.New(config.App.DBPath)
+// 	if err != nil {
+// 		return fmt.Errorf("backup: %w", err)
+// 	}
+// 	defer r.Close()
+//
+// 	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
+// 	fmt.Print(summary.Info(c, r))
+//
+// 	return nil
+// }
