@@ -445,7 +445,7 @@ func TestRollback(t *testing.T) {
 
 	// Attempt transaction that should rollback
 	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		if err := r.deleteOneTx(tx, b); err != nil {
+		if err := r.deleteOneTx(ctx, tx, b); err != nil {
 			return err
 		}
 		return ErrCommit // Force rollback

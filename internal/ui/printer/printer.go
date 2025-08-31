@@ -126,7 +126,7 @@ func DatabasesTable(p string) error {
 		ext := filepath.Ext(fpath)
 		collapsePath := files.CollapseHomeDir(fpath)
 		cleanName := files.StripSuffixes(filepath.Base(fpath))
-		fsize := files.Size(fpath)
+		fsize := files.SizeFormatted(fpath)
 
 		if ext == locker.Extension {
 			cleanName = color.BrightMagenta(cleanName).String()

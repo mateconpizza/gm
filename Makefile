@@ -35,7 +35,7 @@ test:
 # Run tests with gotestsum
 testsum:
 	@echo '>> Testing $(BINARY_NAME)'
-	@gotestsum --hide-summary=skipped
+	@gotestsum --format pkgname --hide-summary=skipped --format-icons codicons
 
 # Run tests with verbose mode on
 vtest:

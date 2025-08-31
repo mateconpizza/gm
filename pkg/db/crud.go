@@ -359,13 +359,13 @@ func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 
 func (r *SQLite) AddVisit(ctx context.Context, bID int) error {
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		return updateVisit(tx, bID)
+		return updateVisit(ctx, tx, bID)
 	})
 }
 
 func (r *SQLite) SetFavorite(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		return updateFavorite(tx, b)
+		return updateFavorite(ctx, tx, b)
 	})
 }
 
@@ -485,9 +485,8 @@ func (r *SQLite) bySQL(ctx context.Context, q string, args ...any) ([]*bookmark.
 }
 
 // deleteOneTx deletes an single record in the given table.
-func (r *SQLite) deleteOneTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	slog.Debug("deleting record", "url", b.URL)
-	ctx := context.Background()
 
 	// remove tags relationships first
 	if _, err := tx.ExecContext(ctx,
@@ -668,10 +667,10 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 }
 
 // updateVisit updates the visit count and last visit date for a bookmark.
-func updateVisit(tx *sqlx.Tx, bID int) error {
+func updateVisit(ctx context.Context, tx *sqlx.Tx, bID int) error {
 	slog.Debug("updating visit count", "id", bID)
 	_, err := tx.ExecContext(
-		context.Background(),
+		ctx,
 		"UPDATE bookmarks SET visit_count = visit_count + 1, last_visit = ? WHERE id = ?",
 		time.Now().UTC().Format(time.RFC3339),
 		bID,
@@ -683,9 +682,9 @@ func updateVisit(tx *sqlx.Tx, bID int) error {
 	return nil
 }
 
-func updateFavorite(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func updateFavorite(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	_, err := tx.ExecContext(
-		context.Background(),
+		ctx,
 		"UPDATE bookmarks SET favorite = ? WHERE url = ?",
 		b.Favorite,
 		b.URL,

@@ -60,8 +60,8 @@ func IsFile(path string) bool {
 	return info.Mode().IsRegular()
 }
 
-// byteSize returns the byteSize of a file.
-func byteSize(s string) int64 {
+// SizeBytes returns the SizeBytes of a file.
+func SizeBytes(s string) int64 {
 	fi, err := os.Stat(s)
 	if err != nil {
 		return 0
@@ -87,8 +87,8 @@ func humanSize(b int64) string {
 	}
 }
 
-func Size(f string) string {
-	b := byteSize(f)
+func SizeFormatted(f string) string {
+	b := SizeBytes(f)
 	return humanSize(b)
 }
 
@@ -313,7 +313,7 @@ func StripSuffixes(p string) string {
 
 // Empty returns true if the file at path s has non-zero size.
 func Empty(s string) bool {
-	return byteSize(s) == 0
+	return SizeBytes(s) == 0
 }
 
 // ModTime returns the formatted modification time of the specified file.

@@ -457,6 +457,6 @@ func NewRepoStats(dbPath string) (*RepoStats, error) {
 		Bookmarks: r.Count(ctx, "bookmarks"),
 		Tags:      r.Count(ctx, "tags"),
 		Favorites: r.CountFavorites(ctx),
-		Size:      files.Size(r.Cfg.Fullpath()),
+		Size:      files.SizeFormatted(r.Cfg.Fullpath()),
 	}, nil
 }
