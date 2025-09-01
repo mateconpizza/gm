@@ -106,3 +106,69 @@ func TestNewRepository(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildSQLiteDSN(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		path   string
+		params map[string]string
+		want   string
+	}{
+		{
+			name:   "no params, plain path",
+			path:   "file:test.db",
+			params: map[string]string{},
+			want:   "file:test.db",
+		},
+		{
+			name: "single param, plain path",
+			path: "file:test.db",
+			params: map[string]string{
+				"_foreign_keys": "on",
+			},
+			want: "file:test.db?_foreign_keys=on",
+		},
+		{
+			name: "multiple params, plain path",
+			path: "file:test.db",
+			params: map[string]string{
+				"_foreign_keys": "on",
+				"_journal_mode": "WAL",
+			},
+			// Note: map iteration order is random, so we can’t guarantee ordering.
+			// Instead, we’ll check with Contains in assertions.
+			want: "",
+		},
+		{
+			name: "path with existing query",
+			path: "file:test.db?mode=memory&cache=shared",
+			params: map[string]string{
+				"_foreign_keys": "on",
+			},
+			want: "file:test.db?mode=memory&cache=shared&_foreign_keys=on",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := buildSQLiteDSN(tt.path, tt.params)
+
+			if tt.want != "" {
+				if got != tt.want {
+					t.Errorf("got %q, want %q", got, tt.want)
+				}
+			} else {
+				// For multi-param tests where order is not guaranteed,
+				// check all expected substrings.
+				for k, v := range tt.params {
+					needle := k + "=" + v
+					if !strings.Contains(got, needle) {
+						t.Errorf("got %q, missing expected param %q", got, needle)
+					}
+				}
+			}
+		})
+	}
+}

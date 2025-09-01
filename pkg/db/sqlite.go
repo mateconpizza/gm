@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -15,9 +16,9 @@ import (
 )
 
 const (
-	MaxOpenConns    = 25              // Maximum number of open connections
-	MaxIdleConns    = 5               // Maximum number of idle connections
-	MaxLifetimeConn = 5 * time.Minute // Maximum connection lifetime
+	MaxOpenConns    = 10        // Maximum number of open connections
+	MaxIdleConns    = 5         // Maximum number of idle connections
+	MaxLifetimeConn = time.Hour // Maximum connection lifetime
 )
 
 type Table string
@@ -104,17 +105,43 @@ func newRepository(p string, validate func(string) error) (*SQLite, error) {
 	return newSQLiteRepository(db, c), nil
 }
 
+// buildSQLiteDSN constructs a SQLite Data Source Name from a file path and
+// optional parameters.
+func buildSQLiteDSN(path string, params map[string]string) string {
+	queryParams := url.Values{}
+	for key, value := range params {
+		queryParams.Add(key, value)
+	}
+
+	if len(queryParams) == 0 {
+		return path
+	}
+
+	separator := "?"
+	if strings.Contains(path, "?") {
+		separator = "&"
+	}
+
+	return fmt.Sprintf("%s%s%s", path, separator, queryParams.Encode())
+}
+
 // OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
 func OpenDatabase(path string) (*sqlx.DB, error) {
 	slog.Debug("opening database", "path", path)
 	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
-	// enable multi-thread safe mode with wal
-	dsn := fmt.Sprintf("file:%s?_journal_mode=WAL&_mutex=full&_foreign_keys=on", path)
+	dbParams := map[string]string{
+		"_journal_mode": "WAL",    // enable multi-thread safe mode with wal
+		"_foreign_keys": "on",     // enforce foreign key constraints
+		"_synchronous":  "NORMAL", // balance performance and durability
+		"_busy_timeout": "5000",   // set a timeout for a busy database
+	}
+
+	dsn := buildSQLiteDSN(path, dbParams)
 	// testing mode
 	if isTestingMode {
-		dsn = path
+		dsn = buildSQLiteDSN(path, map[string]string{"_foreign_keys": "on"})
 	}
 
 	db, err := sqlx.Open("sqlite", dsn)
