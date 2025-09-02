@@ -16,7 +16,7 @@ import (
 func setupTestDB(t *testing.T) *SQLite {
 	t.Helper()
 	c, _ := NewSQLiteCfg("")
-	db, err := OpenDatabase(fmt.Sprintf("file:testdb_%d?mode=memory&cache=shared", time.Now().UnixNano()))
+	db, err := OpenDatabase(fmt.Sprintf("file:testdb_%d?mode=memory", time.Now().UnixNano()))
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

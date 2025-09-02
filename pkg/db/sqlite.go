@@ -15,10 +15,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const (
-	MaxOpenConns    = 10        // Maximum number of open connections
-	MaxIdleConns    = 5         // Maximum number of idle connections
-	MaxLifetimeConn = time.Hour // Maximum connection lifetime
+var (
+	MaxOpenConns    = 1
+	MaxIdleConns    = 1
+	MaxLifetimeConn = time.Hour
 )
 
 type Table string
@@ -141,7 +141,13 @@ func OpenDatabase(path string) (*sqlx.DB, error) {
 	dsn := buildSQLiteDSN(path, dbParams)
 	// testing mode
 	if isTestingMode {
-		dsn = buildSQLiteDSN(path, map[string]string{"_foreign_keys": "on"})
+		dsn = buildSQLiteDSN(path, map[string]string{
+			"_foreign_keys": "on",     // enforce foreign key constraints
+			"_synchronous":  "NORMAL", // wait for I/O operations to finish, but not for the file system to sync
+			"cache":         "shared", // allow multiple connections to share the same in-memory cache
+		})
+		// add more open conns for t.Parallel(), without this, tests will hang.
+		MaxOpenConns = 10
 	}
 
 	db, err := sqlx.Open("sqlite", dsn)
