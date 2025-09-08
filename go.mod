@@ -1,6 +1,6 @@
 module github.com/mateconpizza/gm
 
-go 1.24
+go 1.24.0
 
 toolchain go1.24.1
 
@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/image v0.28.0
 	golang.org/x/net v0.41.0
-	golang.org/x/sync v0.15.0
+	golang.org/x/sync v0.17.0
 	golang.org/x/term v0.32.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
