@@ -32,6 +32,7 @@ type Bookmark struct {
 	Tags              string `db:"tags"              json:"tags"`              // Tags for the bookmark, stored as a comma-separated string.
 	Title             string `db:"title"             json:"title"`             // Title of the bookmark, retrieved from the website's metadata.
 	Desc              string `db:"desc"              json:"desc"`              // Description of the bookmark.
+	Notes             string `db:"notes"             json:"notes"`             // Notes
 	CreatedAt         string `db:"created_at"        json:"created_at"`        // Timestamp when the bookmark was created.
 	LastVisit         string `db:"last_visit"        json:"last_visit"`        // Timestamp of the last time the bookmark was visited.
 	UpdatedAt         string `db:"updated_at"        json:"updated_at"`        // Timestamp of the last time the bookmark record was updated.
@@ -55,6 +56,7 @@ type BookmarkJSON struct {
 	Tags              []string `json:"tags"`
 	Title             string   `json:"title"`
 	Desc              string   `json:"desc"`
+	Notes             string   `json:"notes"`
 	CreatedAt         string   `json:"created_at"`
 	LastVisit         string   `json:"last_visit"`
 	UpdatedAt         string   `json:"updated_at"`
@@ -147,7 +149,6 @@ func (b *Bookmark) Buffer() []byte {
 %s
 # Description:
 %s
-
 # end ------------------------------------------------------------------`,
 		b.URL, b.Title, ParseTags(b.Tags), b.Desc)
 }

@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -90,7 +90,10 @@ var (
 				}
 				defer r.Close()
 
-				return dbtask.DeleteAndReorder(context.Background(), r)
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
+				return r.ReorderIDs(ctx)
 
 			case dbFlags.lock:
 				return databaseLockCmd.RunE(cmd, args)

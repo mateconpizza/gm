@@ -121,6 +121,8 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		return handler.QR(bs, f.Open)
 	case f.JSON:
 		return printer.RecordsJSON(bs)
+	case f.Notes:
+		return printer.Notes(bs)
 	case f.Oneline:
 		return printer.Oneline(bs)
 	default:
@@ -137,6 +139,7 @@ func initRecordFlags(cmd *cobra.Command) {
 	f.BoolVarP(&cfg.Flags.Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
 	f.BoolVarP(&cfg.Flags.Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
 	f.StringVarP(&cfg.Flags.Field, "field", "f", "", "output by field [id|url|title|tags]")
+	f.BoolVarP(&cfg.Flags.Notes, "notes", "N", false, "notes")
 
 	// Actions
 	f.BoolVarP(&cfg.Flags.Copy, "copy", "c", false, "copy bookmark to clipboard")

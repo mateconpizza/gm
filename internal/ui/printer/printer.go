@@ -65,6 +65,22 @@ func Oneline(bs []*bookmark.Bookmark) error {
 	return nil
 }
 
+func Notes(bs []*bookmark.Bookmark) error {
+	lastIdx := len(bs) - 1
+	for i := range bs {
+		if bs[i].Notes == "" {
+			continue
+		}
+		fmt.Print(txt.Notes(bs[i]))
+
+		if i != lastIdx {
+			fmt.Println()
+		}
+	}
+
+	return nil
+}
+
 // ByField prints the selected field.
 func ByField(bs []*bookmark.Bookmark, f string) error {
 	printer := func(b *bookmark.Bookmark) error {

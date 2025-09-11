@@ -8,6 +8,7 @@ type Flags struct {
 	Tags      []string // Tags list to filter bookmarks
 	QR        bool     // QR code generator
 	Menu      bool     // Menu mode
+	Notes     bool     // Record notes
 	Edit      bool     // Edit mode
 	Head      int      // Head limit
 	Remove    bool     // Remove bookmarks

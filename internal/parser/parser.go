@@ -105,39 +105,43 @@ func cleanLines(s string) string {
 	return strings.Join(result, "\n")
 }
 
-// ExtractBlock extracts a block of text from a string, delimited by the
-// specified start and end markers.
+// ExtractBlock extracts a block of text starting from the first line
+// that has the startMarker until either the endMarker is found or EOF.
+// If endMarker is empty, it extracts until EOF.
 func ExtractBlock(content []string, startMarker, endMarker string) string {
-	startIndex := -1
-	endIndex := -1
-	isInBlock := false
+	block := make([]string, 0, len(content))
+	inBlock := false
 
-	var cleanedBlock []string
-
-	for i, line := range content {
-		if strings.HasPrefix(line, startMarker) {
-			startIndex = i
-			isInBlock = true
-
+	for _, line := range content {
+		if !inBlock {
+			if strings.HasPrefix(line, startMarker) {
+				inBlock = true
+			}
 			continue
 		}
 
-		if strings.HasPrefix(line, endMarker) && isInBlock {
-			endIndex = i
-
-			break // Found end marker line
+		if endMarker != "" && strings.HasPrefix(line, endMarker) {
+			break
 		}
 
-		if isInBlock {
-			cleanedBlock = append(cleanedBlock, line)
-		}
+		block = append(block, line)
 	}
 
-	if startIndex == -1 || endIndex == -1 {
+	// Trim leading/trailing blank lines
+	start := 0
+	for start < len(block) && strings.TrimSpace(block[start]) == "" {
+		start++
+	}
+	end := len(block)
+	for end > start && strings.TrimSpace(block[end-1]) == "" {
+		end--
+	}
+
+	if start >= end {
 		return ""
 	}
 
-	return strings.Join(cleanedBlock, "\n")
+	return strings.Join(block[start:end], "\n")
 }
 
 // ValidateBookmarkFormat checks if the URL and Tags are in the content.

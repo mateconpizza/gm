@@ -8,8 +8,9 @@ import (
 	"testing"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 	_ "github.com/mattn/go-sqlite3"
+
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 func extractTags(t *testing.T, bs []*bookmark.Bookmark) []string {
@@ -481,14 +482,17 @@ func TestDeleteAll(t *testing.T) {
 		t.Fatalf("failed to insert bulk bookmarks: %v", err)
 	}
 
-	// Delete all records from tables
-	if err := r.deleteAll(t.Context(), tables...); err != nil {
+	// Run deleteAll inside a transaction
+	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
+		return r.deleteAll(t.Context(), tx, tables...)
+	})
+	if err != nil {
 		t.Fatalf("deleteAll failed: %v", err)
 	}
 
 	// Verify records were deleted by trying to retrieve one
 	testBookmark := bookmarks[0]
-	_, err := r.ByID(t.Context(), testBookmark.ID)
+	_, err = r.ByID(t.Context(), testBookmark.ID)
 	if err == nil {
 		t.Error("expected error when getting bookmark by ID after deleteAll, got nil")
 	}

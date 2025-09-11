@@ -98,6 +98,22 @@ func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 	})
 }
 
+// UpdateNotes updates the bookmak's notes.
+func (r *SQLite) UpdateNotes(ctx context.Context, bID int, notes string) error {
+	slog.Debug("updating notes", "id", bID)
+
+	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		_, err := tx.ExecContext(ctx,
+			"UPDATE bookmarks SET notes = ? WHERE id = ?",
+			notes, bID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update notes (id=%d): %w", bID, err)
+		}
+		return nil
+	})
+}
+
 // updateRecordTx updates a bookmark inside a transaction.
 func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	b.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
@@ -108,6 +124,7 @@ func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 		url = :url,
 		title = :title,
 		desc = :desc,
+		notes = :notes,
 		last_visit = :last_visit,
 		updated_at = :updated_at,
 		visit_count = :visit_count,
@@ -336,21 +353,25 @@ func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 
+	// Handle rollback only on failure.
 	defer func() {
 		if p := recover(); p != nil {
 			_ = tx.Rollback() // ensure rollback on panic
-
-			panic(p) // re-throw the panic after rollback
-		} else if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-			slog.Error("rollback error", "error", err)
+			panic(p)          // re-throw the panic
+		} else if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				slog.Error("transaction rollback failed", "original_error", err, "rollback_error", rollbackErr)
+			}
 		}
 	}()
 
-	if err := fn(tx); err != nil {
+	// Assign to the named return value 'err'.
+	if err = fn(tx); err != nil {
 		return fmt.Errorf("fn transaction: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
+	// Assign to the named return value 'err'.
+	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("commit failed: %w", err)
 	}
 
@@ -508,7 +529,7 @@ func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookm
 }
 
 // deleteAll deletes all records in the give table.
-func (r *SQLite) deleteAll(ctx context.Context, ts ...Table) error {
+func (r *SQLite) deleteAll(ctx context.Context, tx *sqlx.Tx, ts ...Table) error {
 	if len(ts) == 0 {
 		slog.Debug("no tables to delete")
 		return nil
@@ -516,18 +537,16 @@ func (r *SQLite) deleteAll(ctx context.Context, ts ...Table) error {
 
 	slog.Debug("deleting all records from tables", "tables", ts)
 
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		for _, t := range ts {
-			slog.Debug("deleting records from table", "table", t)
+	for _, t := range ts {
+		slog.Debug("deleting records from table", "table", t)
 
-			_, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", t))
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
+		_, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", t))
+		if err != nil {
+			return fmt.Errorf("failed to delete from %s: %w", t, err)
 		}
+	}
 
-		return nil
-	})
+	return nil
 }
 
 // hasTx checks if a record exists in the specified table and column in
@@ -626,6 +645,7 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 		url,
 		title,
 		desc,
+		notes,
 		created_at,
 		last_visit,
 		updated_at,
@@ -641,6 +661,7 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 		:url,
 		:title,
 		:desc,
+		:notes,
 		:created_at,
 		:last_visit,
 		:updated_at,

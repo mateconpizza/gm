@@ -131,3 +131,20 @@ func Frame(b *bookmark.Bookmark) string {
 
 	return f.String()
 }
+
+func Notes(b *bookmark.Bookmark) string {
+	w := terminal.MinWidth
+	cs := color.DefaultColorScheme()
+	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
+
+	// id + url
+	id := cs.BrightYellow(b.ID).Bold()
+	urlColor := Shorten(URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + color.Reset()
+	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
+
+	// notes
+	notes := SplitIntoChunks(b.Notes, w)
+	f.Footerln(color.ApplyMany(notes, cs.White)...)
+
+	return f.String()
+}

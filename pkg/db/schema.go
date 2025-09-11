@@ -68,6 +68,7 @@ const (
 				url         				TEXT    NOT NULL UNIQUE,
 				title       				TEXT    DEFAULT "",
 				desc        				TEXT    DEFAULT "",
+				notes        				TEXT    DEFAULT "",
 				created_at  				TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 				last_visit  				TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 				updated_at  				TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

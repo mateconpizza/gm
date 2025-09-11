@@ -22,37 +22,37 @@ var ErrBufferUnchanged = errors.New("buffer unchanged")
 
 // BookmarkEditOps holds information about a bookmark edit operation.
 type BookmarkEditOps struct {
-	item   *bookmark.Bookmark
-	header []byte
-	body   []byte
-	footer []byte
-	idx    int
-	total  int
+	Item   *bookmark.Bookmark
+	Header []byte
+	Body   []byte
+	Footer []byte
+	Idx    int
+	Total  int
 }
 
-func newBookmarkEditOps(b *bookmark.Bookmark) *BookmarkEditOps {
+func NewBookmarkEditOps(b *bookmark.Bookmark) *BookmarkEditOps {
 	return &BookmarkEditOps{
-		item: b,
-		body: b.Buffer(),
+		Item: b,
+		Body: b.Buffer(),
 	}
 }
 
 func (be *BookmarkEditOps) Buffer() []byte {
-	buf := make([]byte, 0, len(be.header)+len(be.body)+len(be.footer))
-	buf = append(buf, be.header...)
-	buf = append(buf, be.body...)
-	buf = append(buf, be.footer...)
+	buf := make([]byte, 0, len(be.Header)+len(be.Body)+len(be.Footer))
+	buf = append(buf, be.Header...)
+	buf = append(buf, be.Body...)
+	buf = append(buf, be.Footer...)
 
 	return buf
 }
 
 // Edit edits a bookmark and validates the resulting content.
 func Edit(te *editor.TextEditor, b *bookmark.Bookmark, idx, total int) (*bookmark.Bookmark, error) {
-	be := newBookmarkEditOps(b)
-	be.idx = idx
-	be.total = total
+	be := NewBookmarkEditOps(b)
+	be.Idx = idx
+	be.Total = total
 
-	original := bytes.Clone(be.body)
+	original := bytes.Clone(be.Body)
 
 	prepareBufferForEdition(be)
 
@@ -71,17 +71,17 @@ func Edit(te *editor.TextEditor, b *bookmark.Bookmark, idx, total int) (*bookmar
 	}
 
 	tb := BookmarkContent(lines)
-	if be.item.Equals(tb) {
+	if be.Item.Equals(tb) {
 		return nil, ErrBufferUnchanged
 	}
 
 	tb = scrapeBookmark(tb)
-	tb.ID = be.item.ID
-	tb.CreatedAt = be.item.CreatedAt
-	tb.Favorite = be.item.Favorite
-	tb.LastVisit = be.item.LastVisit
-	tb.VisitCount = be.item.VisitCount
-	tb.FaviconURL = be.item.FaviconURL
+	tb.ID = be.Item.ID
+	tb.CreatedAt = be.Item.CreatedAt
+	tb.Favorite = be.Item.Favorite
+	tb.LastVisit = be.Item.LastVisit
+	tb.VisitCount = be.Item.VisitCount
+	tb.FaviconURL = be.Item.FaviconURL
 
 	return tb, nil
 }
@@ -90,12 +90,12 @@ func Edit(te *editor.TextEditor, b *bookmark.Bookmark, idx, total int) (*bookmar
 func prepareBufferForEdition(be *BookmarkEditOps) {
 	const spaces = 10
 
-	newBookmark := be.item.ID == 0
+	newBookmark := be.Item.ID == 0
 
 	// header
-	shortTitle := txt.Shorten(be.item.Title, terminal.MinWidth-spaces-6)
+	shortTitle := txt.Shorten(be.Item.Title, terminal.MinWidth-spaces-6)
 
-	header := fmt.Appendf(nil, "# %d %s\n#\n", be.item.ID, shortTitle)
+	header := fmt.Appendf(nil, "# %d %s\n#\n", be.Item.ID, shortTitle)
 	if newBookmark {
 		header = fmt.Appendf(nil, "# %s\n#\n", shortTitle)
 	}
@@ -117,14 +117,14 @@ func prepareBufferForEdition(be *BookmarkEditOps) {
 	)
 
 	// footer
-	be.footer = fmt.Appendf(nil, " [%d/%d]", be.idx+1, be.total)
+	be.Footer = fmt.Appendf(nil, " [%d/%d]", be.Idx+1, be.Total)
 	if newBookmark {
-		be.footer = fmt.Appendf(nil, " [New]")
+		be.Footer = fmt.Appendf(nil, " [New]")
 	}
 
 	// assemble
 	header = append(header, meta...)
-	be.header = append(be.header, header...)
+	be.Header = append(be.Header, header...)
 }
 
 // scrapeBookmark updates a Bookmark's title and description by scraping the

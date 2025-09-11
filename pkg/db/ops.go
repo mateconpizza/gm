@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -46,8 +47,8 @@ func drop(ctx context.Context, r *SQLite) error {
 	}
 
 	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		if err := r.deleteAll(ctx, tables...); err != nil {
-			return fmt.Errorf("%w", err)
+		if err := r.deleteAll(ctx, tx, tables...); err != nil {
+			return err
 		}
 
 		return resetSQLiteSequence(ctx, tx, tables...)
@@ -130,4 +131,34 @@ func (r *SQLite) cleanOrphanTagsTx(tx *sqlx.Tx) error {
 	}
 
 	return nil
+}
+
+func (r *SQLite) ReorderIDs(ctx context.Context) error {
+	slog.Debug("Reordering bookmark IDs")
+
+	// Get all bookmarks in memory
+	bs, err := r.All(ctx)
+	if err != nil && !errors.Is(err, ErrRecordNotFound) {
+		return err
+	}
+	if len(bs) == 0 {
+		return nil
+	}
+
+	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		for _, tbl := range []Table{schemaMain.Name, schemaTags.Name, schemaRelation.Name} {
+			slog.Debug("Deleting records from", "table", tbl)
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tbl)); err != nil {
+				return fmt.Errorf("clearing table %q: %w", tbl, err)
+			}
+		}
+
+		return resetSQLiteSequence(ctx, tx, schemaMain.Name, schemaTags.Name, schemaRelation.Name)
+	})
+	if err != nil {
+		return err
+	}
+
+	// Reinsert bookmarks with new IDs
+	return r.InsertMany(ctx, bs)
 }

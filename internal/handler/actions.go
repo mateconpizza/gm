@@ -161,11 +161,17 @@ func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
+	be := NewBookmarkEditor(c, te, r)
+
 	if config.App.Flags.JSON {
-		return editBookmarksJSON(c, r, te, bs)
+		return be.EditJSON(bs)
 	}
 
-	return editBookmarks(c, r, te, bs)
+	if config.App.Flags.Notes {
+		return be.EditNotes(bs)
+	}
+
+	return be.EditBookmarks(bs)
 }
 
 // CheckStatus prints the status code of the bookmark URL.
@@ -415,82 +421,6 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
 	return nil
 }
 
-// editBookmarks edits a slice of bookmarks.
-func editBookmarks(
-	c *ui.Console,
-	r *db.SQLite,
-	te *editor.TextEditor,
-	bs []*bookmark.Bookmark,
-) error {
-	n := len(bs)
-	if n == 0 {
-		return bookmark.ErrBookmarkNotFound
-	}
-
-	for i := range bs {
-		if err := editSingleInteractive(c, r, te, bs[i], i, n); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func editBookmarksJSON(
-	c *ui.Console,
-	r *db.SQLite,
-	te *editor.TextEditor,
-	bs []*bookmark.Bookmark,
-) error {
-	for i := range bs {
-		b := bs[i]
-		oldB := b.Bytes()
-
-	out:
-		for {
-			newB, err := te.EditBytes(oldB, "json")
-			if err != nil {
-				return err
-			}
-
-			oldB = bytes.TrimRight(oldB, "\n")
-			newB = bytes.TrimRight(newB, "\n")
-			if bytes.Equal(newB, oldB) {
-				break out
-			}
-
-			diff := txt.Diff(oldB, newB)
-			fmt.Println(txt.DiffColor(diff))
-			opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
-			if err != nil {
-				return fmt.Errorf("choose: %w", err)
-			}
-
-			switch strings.ToLower(opt) {
-			case "y", "yes":
-				bm, err := bookmark.NewFromBuffer(newB)
-				if err != nil {
-					return err
-				}
-
-				if err := r.UpdateOne(context.Background(), bm); err != nil {
-					return fmt.Errorf("update: %w", err)
-				}
-
-				fmt.Print(c.SuccessMesg("bookmark updated\n"))
-
-				break out
-			case "n", "no":
-				return sys.ErrActionAborted
-			case "e", "edit":
-				oldB = newB
-			}
-		}
-	}
-
-	return nil
-}
-
 // editSingleInteractive handles editing a single bookmark with confirmation and retry.
 func editSingleInteractive(
 	c *ui.Console,
@@ -499,6 +429,7 @@ func editSingleInteractive(
 	b *bookmark.Bookmark,
 	index, total int,
 ) error {
+	// FIX: use BookmarkEditor struct
 	current := *b
 
 	for {
@@ -526,6 +457,7 @@ func editSingleInteractive(
 		b.Desc = editedB.Desc
 		b.Tags = editedB.Tags
 		b.FaviconURL = editedB.FaviconURL
+		b.Notes = editedB.Notes
 
 		switch strings.ToLower(opt) {
 		case "y", "yes":
@@ -562,7 +494,8 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, force bo
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := editBookmarks(c, r, te, []*bookmark.Bookmark{b}); err != nil {
+		be := NewBookmarkEditor(c, te, r)
+		if err := be.EditBookmarks([]*bookmark.Bookmark{b}); err != nil {
 			return err
 		}
 	default:
