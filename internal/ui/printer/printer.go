@@ -66,18 +66,17 @@ func Oneline(bs []*bookmark.Bookmark) error {
 }
 
 func Notes(bs []*bookmark.Bookmark) error {
-	lastIdx := len(bs) - 1
-	for i := range bs {
-		if bs[i].Notes == "" {
+	printed := false
+	for _, b := range bs {
+		if b.Notes == "" {
 			continue
 		}
-		fmt.Print(txt.Notes(bs[i]))
-
-		if i != lastIdx {
+		if printed {
 			fmt.Println()
 		}
+		fmt.Print(txt.Notes(b))
+		printed = true
 	}
-
 	return nil
 }
 
