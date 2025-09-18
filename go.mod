@@ -4,7 +4,7 @@ go 1.24.0
 
 toolchain go1.24.1
 
-require github.com/mattn/go-sqlite3 v1.14.28
+require github.com/mattn/go-sqlite3 v1.14.32
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
