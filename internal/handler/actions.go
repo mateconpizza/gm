@@ -1,3 +1,4 @@
+// Package handler handles parsing and processing of bookmark data operations.
 package handler
 
 import (
