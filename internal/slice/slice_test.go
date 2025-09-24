@@ -1,11 +1,11 @@
-//nolint:wsl //test
+//nolint:gocognit,err113,funlen //test
 package slice
 
 import (
 	"errors"
+	"reflect"
+	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -21,7 +21,9 @@ func TestForEach(t *testing.T) {
 	s.ForEach(func(i int) {
 		sum += i
 	})
-	assert.Equal(t, result, sum, "expected %v, got %v", result, sum)
+	if sum != result {
+		t.Errorf("expected %v, got %v", result, sum)
+	}
 }
 
 func TestForEachMut(t *testing.T) {
@@ -83,12 +85,13 @@ func TestForEachMut(t *testing.T) {
 			t.Parallel()
 			s := &Slice[int]{items: tt.input}
 			s.ForEachMut(tt.transform)
-			assert.Equal(t, tt.expected, s.items)
+			if !reflect.DeepEqual(s.items, tt.expected) {
+				t.Errorf("expected %v, got %v", tt.expected, s.items)
+			}
 		})
 	}
 }
 
-//nolint:funlen,err113 //test
 func TestForEachErr(t *testing.T) {
 	t.Parallel()
 	var (
@@ -158,17 +161,23 @@ func TestForEachErr(t *testing.T) {
 			err := s.ForEachErr(tt.fn)
 
 			if tt.expectedErr != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedErr)
+				if err == nil {
+					t.Errorf("expected error containing %q, got nil", tt.expectedErr)
+				} else if !strings.Contains(err.Error(), tt.expectedErr) {
+					t.Errorf("expected error containing %q, got %q", tt.expectedErr, err.Error())
+				}
 			} else {
-				assert.NoError(t, err)
+				if err != nil {
+					t.Errorf("expected no error, got %v", err)
+				}
 			}
-			assert.Equal(t, tt.expected, s.items)
+			if !reflect.DeepEqual(s.items, tt.expected) {
+				t.Errorf("expected %v, got %v", tt.expected, s.items)
+			}
 		})
 	}
 }
 
-//nolint:funlen,err113 //test
 func TestForEachMutErr(t *testing.T) {
 	t.Parallel()
 	t.Run("mutates all elements successfully", func(t *testing.T) {
@@ -179,9 +188,14 @@ func TestForEachMutErr(t *testing.T) {
 
 			return nil
 		})
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
 
-		assert.NoError(t, err)
-		assert.Equal(t, []int{2, 3, 4}, s.items)
+		expected := []int{2, 3, 4}
+		if !reflect.DeepEqual(s.items, expected) {
+			t.Errorf("expected %v, got %v", expected, s.items)
+		}
 	})
 
 	t.Run("Stops on error and returns partial mutations", func(t *testing.T) {
@@ -199,9 +213,16 @@ func TestForEachMutErr(t *testing.T) {
 			return nil
 		})
 
-		assert.ErrorContains(t, err, "custom error")
-		assert.Equal(t, 3, callCount)
-		assert.Equal(t, []int{2, 4, 3, 4}, s.items)
+		if err == nil || !strings.Contains(err.Error(), "custom error") {
+			t.Errorf("expected error containing 'custom error', got %v", err)
+		}
+		if callCount != 3 {
+			t.Errorf("expected 3 calls, got %d", callCount)
+		}
+		expected := []int{2, 4, 3, 4}
+		if !reflect.DeepEqual(s.items, expected) {
+			t.Errorf("expected %v, got %v", expected, s.items)
+		}
 	})
 
 	t.Run("handles struct mutations with errors", func(t *testing.T) {
@@ -224,12 +245,17 @@ func TestForEachMutErr(t *testing.T) {
 			return nil
 		})
 
-		assert.Error(t, err)
-		assert.Equal(t, []Person{
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+		expected := []Person{
 			{"Alice (modified)", 30},
 			{"Bob (modified)", 25},
 			{"Charlie", 35},
-		}, s.items)
+		}
+		if !reflect.DeepEqual(s.items, expected) {
+			t.Errorf("expected %v, got %v", expected, s.items)
+		}
 	})
 
 	t.Run("returns nil error for empty slice", func(t *testing.T) {
@@ -238,9 +264,12 @@ func TestForEachMutErr(t *testing.T) {
 		err := s.ForEachMutErr(func(s *string) error {
 			return errors.New("should never be called")
 		})
-
-		assert.NoError(t, err)
-		assert.Empty(t, s.items)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if len(s.items) != 0 {
+			t.Errorf("expected empty slice, got %v", s.items)
+		}
 	})
 
 	t.Run("mutation with pointer types", func(t *testing.T) {
@@ -259,11 +288,18 @@ func TestForEachMutErr(t *testing.T) {
 			(*c).Value *= 10
 			return nil
 		})
-
-		assert.NoError(t, err)
-		assert.Equal(t, 10, (s.items)[0].Value)
-		assert.Equal(t, 20, (s.items)[1].Value)
-		assert.Equal(t, 30, (s.items)[2].Value)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if (s.items)[0].Value != 10 {
+			t.Errorf("expected first value to be 10, got %d", (s.items)[0].Value)
+		}
+		if (s.items)[1].Value != 20 {
+			t.Errorf("expected second value to be 20, got %d", (s.items)[1].Value)
+		}
+		if (s.items)[2].Value != 30 {
+			t.Errorf("expected third value to be 30, got %d", (s.items)[2].Value)
+		}
 	})
 }
 
@@ -300,15 +336,12 @@ func TestFilterInt(t *testing.T) {
 			t.Parallel()
 			s := New(test.input...)
 			f := s.Filter(test.fn)
-			assert.Len(t, f.items, len(test.expected))
-			assert.Equal(
-				t,
-				test.expected,
-				f.items,
-				"expected %v, got %v",
-				test.expected,
-				f.items,
-			)
+			if len(f.items) != len(test.expected) {
+				t.Errorf("expected length %d, got %d", len(test.expected), len(f.items))
+			}
+			if !reflect.DeepEqual(f.items, test.expected) {
+				t.Errorf("expected %v, got %v", test.expected, f.items)
+			}
 		})
 	}
 }
@@ -340,20 +373,16 @@ func TestFilterStrings(t *testing.T) {
 			t.Parallel()
 			s := New(test.input...)
 			f := s.Filter(test.fn)
-			assert.Len(t, f.items, len(test.expected))
-			assert.Equal(
-				t,
-				test.expected,
-				f.items,
-				"expected %v, got %v",
-				test.expected,
-				f.items,
-			)
+			if len(f.items) != len(test.expected) {
+				t.Errorf("expected length %d, got %d", len(test.expected), len(f.items))
+			}
+			if !reflect.DeepEqual(f.items, test.expected) {
+				t.Errorf("expected %v, got %v", test.expected, f.items)
+			}
 		})
 	}
 }
 
-//nolint:funlen //test
 func TestFilterInPlace(t *testing.T) {
 	t.Run("basic filtering with integers", func(t *testing.T) {
 		t.Parallel()
@@ -364,29 +393,43 @@ func TestFilterInPlace(t *testing.T) {
 			return *n%2 == 0
 		})
 
-		assert.Equal(t, []int{2, 4}, s.items)
-		assert.Len(t, s.items, 2)
-		assert.Equal(t, originalCap, cap(s.items), "capacity should be preserved")
+		expected := []int{2, 4}
+		if !reflect.DeepEqual(s.items, expected) {
+			t.Errorf("expected %v, got %v", expected, s.items)
+		}
+		if len(s.items) != 2 {
+			t.Errorf("expected length 2, got %d", len(s.items))
+		}
+		if cap(s.items) != originalCap {
+			t.Errorf("expected capacity %d, got %d (capacity should be preserved)", originalCap, cap(s.items))
+		}
 	})
 
 	t.Run("empty slice", func(t *testing.T) {
 		t.Parallel()
 		s := New[int]()
 		s.FilterInPlace(func(n *int) bool { return true })
-		assert.Empty(t, s.items)
+		if len(s.items) != 0 {
+			t.Errorf("expected empty slice, got %v", s.items)
+		}
 	})
 
 	t.Run("no elements filtered", func(t *testing.T) {
 		t.Parallel()
 		s := New("apple", "banana", "cherry")
-		original := s.items
+		original := make([]string, len(s.items))
+		copy(original, s.items)
 
 		s.FilterInPlace(func(s *string) bool {
 			return true // Keep all
 		})
 
-		assert.Equal(t, original, s.items)
-		assert.Len(t, s.items, 3)
+		if !reflect.DeepEqual(s.items, original) {
+			t.Errorf("expected %v, got %v", original, s.items)
+		}
+		if len(s.items) != 3 {
+			t.Errorf("expected length 3, got %d", len(s.items))
+		}
 	})
 
 	t.Run("all elements filtered", func(t *testing.T) {
@@ -396,7 +439,9 @@ func TestFilterInPlace(t *testing.T) {
 			return *f > 10.0 // None match
 		})
 
-		assert.Empty(t, s.items)
+		if len(s.items) != 0 {
+			t.Errorf("expected empty slice, got %v", s.items)
+		}
 	})
 
 	t.Run("struct filtering", func(t *testing.T) {
@@ -416,9 +461,21 @@ func TestFilterInPlace(t *testing.T) {
 			return p.Age >= 30
 		})
 
-		assert.Len(t, s.items, 2)
-		assert.Contains(t, s.items, Person{"Alice", 30})
-		assert.Contains(t, s.items, Person{"Charlie", 35})
+		if len(s.items) != 2 {
+			t.Errorf("expected length 2, got %d", len(s.items))
+		}
+
+		found := make(map[Person]bool)
+		for _, person := range s.items {
+			found[person] = true
+		}
+
+		expected := []Person{{"Alice", 30}, {"Charlie", 35}}
+		for _, person := range expected {
+			if !found[person] {
+				t.Errorf("expected to find %v in result", person)
+			}
+		}
 	})
 
 	t.Run("pointer elements", func(t *testing.T) {
@@ -430,9 +487,15 @@ func TestFilterInPlace(t *testing.T) {
 			return **n > 2
 		})
 
-		assert.Len(t, s.items, 2)
-		assert.Equal(t, 3, *(s.items)[0])
-		assert.Equal(t, 4, *(s.items)[1])
+		if len(s.items) != 2 {
+			t.Errorf("expected length 2, got %d", len(s.items))
+		}
+		if *(s.items)[0] != 3 {
+			t.Errorf("expected first element to be 3, got %d", *(s.items)[0])
+		}
+		if *(s.items)[1] != 4 {
+			t.Errorf("expected second element to be 4, got %d", *(s.items)[1])
+		}
 	})
 
 	t.Run("capacity management", func(t *testing.T) {
@@ -446,9 +509,16 @@ func TestFilterInPlace(t *testing.T) {
 			return *n > 3
 		})
 
-		assert.Equal(t, []int{4, 5}, s.items)
-		assert.Len(t, s.items, 2)
-		assert.Equal(t, 5, cap(s.items), "capacity should remain unchanged")
+		expected := []int{4, 5}
+		if !reflect.DeepEqual(s.items, expected) {
+			t.Errorf("expected %v, got %v", expected, s.items)
+		}
+		if len(s.items) != 2 {
+			t.Errorf("expected length 2, got %d", len(s.items))
+		}
+		if cap(s.items) != 5 {
+			t.Errorf("expected capacity 5, got %d (capacity should remain unchanged)", cap(s.items))
+		}
 	})
 
 	t.Run("mutation check", func(t *testing.T) {
@@ -461,8 +531,13 @@ func TestFilterInPlace(t *testing.T) {
 			return *n > 15
 		})
 
-		assert.Equal(t, []int{20, 30}, s.items)
-		assert.Same(t, originalPtr, &(s.items)[0], "underlying array should be the same")
+		expected := []int{20, 30}
+		if !reflect.DeepEqual(s.items, expected) {
+			t.Errorf("expected %v, got %v", expected, s.items)
+		}
+		if originalPtr != &(s.items)[0] {
+			t.Error("underlying array should be the same")
+		}
 	})
 }
 
@@ -495,9 +570,15 @@ func TestIndexString(t *testing.T) {
 			t.Parallel()
 			s := New(test.input...)
 			idx := s.Index(test.name)
-			assert.NotEqual(t, idx, -1)
-			assert.Equal(t, s.items[idx], test.name)
-			assert.Equal(t, test.expected, idx, "expected %v, got %v", test.expected, idx)
+			if idx == -1 {
+				t.Errorf("expected to find %q, but got -1", test.name)
+			}
+			if s.items[idx] != test.name {
+				t.Errorf("expected %q at index %d, got %q", test.name, idx, s.items[idx])
+			}
+			if idx != test.expected {
+				t.Errorf("expected index %v, got %v", test.expected, idx)
+			}
 		})
 	}
 }
@@ -529,8 +610,12 @@ func TestDelete(t *testing.T) {
 	for _, test := range testDeleteStr {
 		s := New(test.input...)
 		s.Del(test.name)
-		assert.Len(t, s.items, len(test.expected))
-		assert.Equal(t, test.expected, s.items, "expected %v, got %v", test.expected, s.items)
+		if len(s.items) != len(test.expected) {
+			t.Errorf("expected length %d, got %d", len(test.expected), len(s.items))
+		}
+		if !reflect.DeepEqual(s.items, test.expected) {
+			t.Errorf("expected %v, got %v", test.expected, s.items)
+		}
 	}
 }
 
@@ -561,7 +646,9 @@ func TestAppendLoop(t *testing.T) {
 	for _, test := range testAddStr {
 		s := New(test.input...)
 		s.Append(test.name)
-		assert.Equal(t, test.expected, s.items, "expected %v, got %v", test.expected, s.items)
+		if !reflect.DeepEqual(s.items, test.expected) {
+			t.Errorf("expected %v, got %v", test.expected, s.items)
+		}
 	}
 }
 
@@ -609,7 +696,10 @@ func TestAny(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			s := &Slice[int]{items: tt.items}
-			assert.Equal(t, tt.expected, s.Any(tt.predicate))
+			result := s.Any(tt.predicate)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
 		})
 	}
 }

@@ -1,9 +1,8 @@
 package color
 
 import (
+	"errors"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func setupInvalidColorScheme(t *testing.T) *Scheme {
@@ -24,19 +23,42 @@ func TestValidateColorScheme(t *testing.T) {
 
 	cs := setupInvalidColorScheme(t)
 	// err on empty name
-	assert.ErrorIs(t, cs.Validate(), ErrColorSchemeName)
+	err := cs.Validate()
+	if err == nil || !errors.Is(err, ErrColorSchemeName) {
+		t.Errorf("Expected ErrColorSchemeName, got %v", err)
+	}
+
 	cs.Name = "testing-color-scheme"
 	// err on missing colors (3 & 4)
-	assert.Error(t, cs.Validate())
-	assert.ErrorIs(t, cs.Validate(), ErrColorSchemeColorValue)
+	err = cs.Validate()
+	if err == nil {
+		t.Error("Expected error for missing colors, got nil")
+	}
+
+	if !errors.Is(err, ErrColorSchemeColorValue) {
+		t.Errorf("Expected ErrColorSchemeColorValue, got %v", err)
+	}
+
 	// err on missing palette
 	cs.Palette = nil
-	assert.Nil(t, cs.Palette)
-	assert.Error(t, cs.Validate())
-	assert.ErrorIs(t, cs.Validate(), ErrColorSchemePalette)
+	if cs.Palette != nil {
+		t.Error("Expected Palette to be nil")
+	}
+	err = cs.Validate()
+	if err == nil {
+		t.Error("Expected error for missing palette, got nil")
+	}
+	if !errors.Is(err, ErrColorSchemePalette) {
+		t.Errorf("Expected ErrColorSchemePalette, got %v", err)
+	}
+
 	// err on nil colorscheme
 	cs = nil
-	assert.Nil(t, cs)
-	assert.Error(t, cs.Validate())
-	assert.ErrorIs(t, cs.Validate(), ErrColorSchemeInvalid)
+	err = cs.Validate()
+	if err == nil {
+		t.Error("Expected error for nil colorscheme, got nil")
+	}
+	if !errors.Is(err, ErrColorSchemeInvalid) {
+		t.Errorf("Expected ErrColorSchemeInvalid, got %v", err)
+	}
 }

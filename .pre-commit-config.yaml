@@ -11,11 +11,35 @@ repos:
     hooks:
       - id: golangci-lint
         args: ["--config=.golangci.yaml"]
-  - repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.1
+  - repo: local
     hooks:
       - id: go-vet
+        name: go vet
+        entry: go vet ./...
+        language: system
+        pass_filenames: false
+
       - id: go-build
+        name: go build
+        entry: go build ./...
+        language: system
+        pass_filenames: false
+
       - id: go-unit-tests
+        name: go test
+        entry: go test ./...
+        language: system
+        pass_filenames: false
+
       - id: go-mod-tidy
-      - id: no-go-testing
+        name: go mod tidy
+        entry: go mod tidy
+        language: system
+        pass_filenames: false
+
+        # Makefile
+      - id: make-build
+        name: make build
+        entry: make build
+        language: system
+        pass_filenames: false
