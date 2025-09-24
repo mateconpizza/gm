@@ -11,6 +11,7 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
@@ -75,10 +76,10 @@ func ValidateChecksumJSON(b *bookmark.BookmarkJSON) bool {
 // BookmarkContent parses the provided content into a bookmark struct.
 func BookmarkContent(lines []string) *bookmark.Bookmark {
 	b := bookmark.New()
-	b.URL = cleanLines(ExtractBlock(lines, "# URL:", "# Title:"))
-	b.Title = cleanLines(ExtractBlock(lines, "# Title:", "# Tags:"))
-	b.Tags = bookmark.ParseTags(cleanLines(ExtractBlock(lines, "# Tags:", "# Description:")))
-	b.Desc = cleanLines(ExtractBlock(lines, "# Description:", "# end"))
+	b.URL = cleanLines(txt.ExtractBlock(lines, "# URL:", "# Title:"))
+	b.Title = cleanLines(txt.ExtractBlock(lines, "# Title:", "# Tags:"))
+	b.Tags = bookmark.ParseTags(cleanLines(txt.ExtractBlock(lines, "# Tags:", "# Description:")))
+	b.Desc = cleanLines(txt.ExtractBlock(lines, "# Description:", "# end"))
 
 	return b
 }
@@ -105,45 +106,6 @@ func cleanLines(s string) string {
 	return strings.Join(result, "\n")
 }
 
-// ExtractBlock extracts a block of text starting from the first line
-// that has the startMarker until either the endMarker is found or EOF.
-// If endMarker is empty, it extracts until EOF.
-func ExtractBlock(content []string, startMarker, endMarker string) string {
-	block := make([]string, 0, len(content))
-	inBlock := false
-
-	for _, line := range content {
-		if !inBlock {
-			if strings.HasPrefix(line, startMarker) {
-				inBlock = true
-			}
-			continue
-		}
-
-		if endMarker != "" && strings.HasPrefix(line, endMarker) {
-			break
-		}
-
-		block = append(block, line)
-	}
-
-	// Trim leading/trailing blank lines
-	start := 0
-	for start < len(block) && strings.TrimSpace(block[start]) == "" {
-		start++
-	}
-	end := len(block)
-	for end > start && strings.TrimSpace(block[end-1]) == "" {
-		end--
-	}
-
-	if start >= end {
-		return ""
-	}
-
-	return strings.Join(block[start:end], "\n")
-}
-
 // ValidateBookmarkFormat checks if the URL and Tags are in the content.
 func ValidateBookmarkFormat(b []string) error {
 	if err := validateURLBuffer(b); err != nil {
@@ -155,7 +117,7 @@ func ValidateBookmarkFormat(b []string) error {
 
 // validateURLBuffer validates url in the buffer.
 func validateURLBuffer(content []string) error {
-	u := ExtractBlock(content, "# URL:", "# Title:")
+	u := txt.ExtractBlock(content, "# URL:", "# Title:")
 	if strings.TrimSpace(u) == "" {
 		return fmt.Errorf("%w: URL", ErrLineNotFound)
 	}
@@ -165,7 +127,7 @@ func validateURLBuffer(content []string) error {
 
 // validateTagsBuffer validates tags in the buffer.
 func validateTagsBuffer(content []string) error {
-	t := ExtractBlock(content, "# Tags:", "# Description:")
+	t := txt.ExtractBlock(content, "# Tags:", "# Description:")
 	if strings.TrimSpace(t) == "" {
 		return fmt.Errorf("%w: Tags", ErrLineNotFound)
 	}

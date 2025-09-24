@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestExists(t *testing.T) {
@@ -163,7 +161,9 @@ func TestStripSuffixes(t *testing.T) {
 		want := "somefile"
 		p := want + ".db.enc"
 		got := StripSuffixes(p)
-		assert.Equal(t, want, got)
+		if got != want {
+			t.Errorf("StripSuffixes(%q) = %q, want %q", p, got, want)
+		}
 	})
 
 	t.Run("no suffixes", func(t *testing.T) {
@@ -171,6 +171,8 @@ func TestStripSuffixes(t *testing.T) {
 
 		want := "somefile"
 		got := StripSuffixes(want)
-		assert.Equal(t, want, got)
+		if got != want {
+			t.Errorf("StripSuffixes(%q) = %q, want %q", want, got, want)
+		}
 	})
 }

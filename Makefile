@@ -92,4 +92,7 @@ uninstall:
 	rm -rf $(INSTALL_DIR)/$(BINARY_NAME)
 	@echo '>> $(BINARY_NAME) has been removed from your device'
 
+tidy:
+	go mod tidy
+
 .PHONY: all build debug test clean full check lint testfn
