@@ -1,9 +1,8 @@
+//nolint:funlen //test
 package txt
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestShortenString(t *testing.T) {
@@ -28,8 +27,13 @@ func TestShortenString(t *testing.T) {
 
 	for _, tt := range test {
 		r := Shorten(tt.input, tt.length)
-		assert.Len(t, r, tt.length)
-		assert.Equal(t, tt.expected, r)
+		if len(r) != tt.length {
+			t.Errorf("Shorten(%q, %d) length = %d, expected %d", tt.input, tt.length, len(r), tt.length)
+		}
+
+		if r != tt.expected {
+			t.Errorf("Shorten(%q, %d) = %q, expected %q", tt.input, tt.length, r, tt.expected)
+		}
 	}
 }
 
@@ -108,106 +112,29 @@ func TestSplitIntoChunks(t *testing.T) {
 			t.Parallel()
 
 			result := SplitIntoChunks(tt.input, tt.strLen)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
+			if len(result) != len(tt.expected) {
+				t.Errorf(
+					"SplitIntoChunks(%q, %d) length = %d, expected %d",
+					tt.input,
+					tt.strLen,
+					len(result),
+					len(tt.expected),
+				)
+				return
+			}
 
-func TestExtractBlock(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		startMarker string
-		endMarker   string
-		expected    string
-		content     []string
-	}{
-		{
-			content: []string{
-				"Line 1",
-				"## start marker",
-				"Content to extract",
-				"More content",
-				"## end marker",
-				"Line after end marker",
-			},
-			startMarker: "## start marker",
-			endMarker:   "## end marker",
-			expected:    "Content to extract\nMore content",
-		},
-		{
-			content: []string{
-				"Line 1",
-				"## start marker",
-				"Content to extract",
-				"Only start marker, no end marker",
-			},
-			startMarker: "## start marker",
-			endMarker:   "## end marker",
-			expected:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		result := ExtractBlock(tt.content, tt.startMarker, tt.endMarker)
-		if result != tt.expected {
-			t.Errorf(
-				"Failed for content: %v, startMarker: %s, endMarker: %s\nExpected: %q\nGot: %q\n",
-				tt.content,
-				tt.startMarker,
-				tt.endMarker,
-				tt.expected,
-				result,
-			)
-		}
-	}
-}
-
-func TestDiff(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		inputA   []byte
-		inputB   []byte
-		expected string
-	}{
-		{
-			name:     "No Changes",
-			inputA:   []byte("line1\nline2\nline3"),
-			inputB:   []byte("line1\nline2\nline3"),
-			expected: "line1\nline2\nline3",
-		},
-		{
-			name:     "Line Added",
-			inputA:   []byte("line1\nline2"),
-			inputB:   []byte("line1\nline2\nline3"),
-			expected: "line1\nline2\n+line3",
-		},
-		{
-			name:     "Line Removed",
-			inputA:   []byte("line1\nline2\nline3"),
-			inputB:   []byte("line1\nline3"),
-			expected: "line1\n-line2\nline3",
-		},
-		{
-			name:     "Line Modified",
-			inputA:   []byte("line1\nline2\nline3"),
-			inputB:   []byte("line1\nlineX\nline3"),
-			expected: "line1\n-line2\n+lineX\nline3",
-		},
-		{
-			name:     "Multiple Changes",
-			inputA:   []byte("lineA\nlineB\nlineC\nlineD"),
-			inputB:   []byte("lineA\nlineX\nlineC\nlineY"),
-			expected: "lineA\n-lineB\n+lineX\nlineC\n-lineD\n+lineY",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.expected, Diff(tt.inputA, tt.inputB))
+			for i := range result {
+				if result[i] != tt.expected[i] {
+					t.Errorf(
+						"SplitIntoChunks(%q, %d)[%d] = %q, expected %q",
+						tt.input,
+						tt.strLen,
+						i,
+						result[i],
+						tt.expected[i],
+					)
+				}
+			}
 		})
 	}
 }

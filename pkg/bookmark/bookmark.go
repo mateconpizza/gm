@@ -153,6 +153,12 @@ func (b *Bookmark) Buffer() []byte {
 		b.URL, b.Title, ParseTags(b.Tags), b.Desc)
 }
 
+func (b *Bookmark) BufferNotes() []byte {
+	return fmt.Appendf(nil, `# Notes: (lines starting with # will be ignored)
+%s
+`, b.Notes)
+}
+
 // GenChecksum generates a checksum for the bookmark.
 //
 // It uses the URL, Title, Description and Tags.
