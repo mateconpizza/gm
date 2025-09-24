@@ -22,6 +22,7 @@ const (
 	UnicodePathSmallSegment = "\u25B8" // ▸
 	UnicodeRightDoubleAngle = "\u00BB" // »
 	UnicodeSingleAngleMark  = "\u203A" // ›
+	UnicodeNotes            = "\U0001F4DD"
 )
 
 // TimeLayout is the default layout for time formatting.
@@ -67,7 +68,7 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 
 	separator := strings.Repeat(" ", indentation)
 
-	for _, word := range strings.Fields(s) {
+	for word := range strings.FieldsSeq(s) {
 		if currentLine.Len()+len(word)+1 > lineLength {
 			result.WriteString(currentLine.String())
 			result.WriteString("\n")
@@ -98,7 +99,7 @@ func SplitIntoChunks(s string, strLen int) []string {
 	// Remember if the original string ended with a newline.
 	endsWithNewline := strings.HasSuffix(s, "\n")
 
-	for _, word := range strings.Fields(s) {
+	for word := range strings.FieldsSeq(s) {
 		// If currentLine is empty, write the word directly.
 		if currentLine.Len() == 0 {
 			currentLine.WriteString(word)

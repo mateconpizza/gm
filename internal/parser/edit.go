@@ -93,7 +93,8 @@ func prepareBufferForEdition(be *BookmarkEditOps) {
 	newBookmark := be.Item.ID == 0
 
 	// header
-	shortTitle := txt.Shorten(be.Item.Title, terminal.MinWidth-spaces-6)
+	titleSplit := txt.SplitIntoChunks(be.Item.Title, terminal.MinWidth-spaces-6)
+	shortTitle := strings.Join(titleSplit, "\n# ")
 
 	header := fmt.Appendf(nil, "# %d %s\n#\n", be.Item.ID, shortTitle)
 	if newBookmark {

@@ -46,11 +46,15 @@ func Oneline(b *bookmark.Bookmark) string {
 	// tags
 	tagsColor := cs.Blue(TagsWithUnicode(b.Tags)).Italic().String()
 
-	var sb strings.Builder
+	sep := " " + UnicodeMiddleDot + " "
+	if b.Notes != "" {
+		sep = cs.BrightMagenta(" " + UnicodeBulletPoint + " ").Bold().String()
+	}
 
+	var sb strings.Builder
 	sb.Grow(w + 20)
 	sb.WriteString(coloredID)
-	sb.WriteString(" · ")
+	sb.WriteString(sep)
 	sb.WriteString(fmt.Sprintf("%-*s %-*s\n", urlLen, colorURL, tagsLen, tagsColor))
 
 	return sb.String()
@@ -107,27 +111,38 @@ func Frame(b *bookmark.Bookmark) string {
 	w := terminal.MinWidth
 	cs := color.DefaultColorScheme()
 	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
+
 	// indentation
 	w -= len(f.Border.Row)
+
 	// id + url
 	id := cs.BrightYellow(b.ID).Bold()
 	urlColor := Shorten(URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + color.Reset()
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
+
 	// title
 	if b.Title != "" {
 		titleSplit := SplitIntoChunks(b.Title, w)
 		title := color.ApplyMany(titleSplit, cs.BrightCyan)
-		f.Mid(title...).Ln()
+		f.Midln(title...)
 	}
+
 	// description
 	if b.Desc != "" {
 		descSplit := SplitIntoChunks(b.Desc, w)
 		desc := color.ApplyMany(descSplit, cs.White)
 		f.Mid(desc...).Ln()
 	}
+
 	// tags
 	tags := cs.BrightWhite(TagsWithPound(b.Tags)).Italic().String()
-	f.Footer(tags).Ln()
+	f.Mid(tags).Ln()
+
+	// notes
+	if b.Notes != "" {
+		notes := color.ApplyMany(SplitIntoChunks(b.Notes, w), color.StyleDim)
+		f.Footerln(notes...)
+	}
 
 	return f.String()
 }

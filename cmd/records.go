@@ -1,8 +1,7 @@
+// Package cmd implements the command-line interface the bookmark manager.
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
@@ -70,17 +69,17 @@ var (
 func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 	r, err := db.New(config.App.DBPath)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 	defer r.Close()
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(menuForRecords(), r, args)
+	cfg := config.App
+	bs, err := handler.Data(menuForRecords(cfg), r, args)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
-
 	if len(bs) == 0 {
 		return db.ErrRecordNotFound
 	}
@@ -93,8 +92,41 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 		}))),
 	)
 
-	f := config.App.Flags
+	return runRecords(c, r, bs, cfg.Flags)
+}
 
+func initRecordFlags(cmd *cobra.Command) {
+	cfg := config.App
+	f := cmd.Flags()
+
+	// Prints
+	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.BoolVarP(&cfg.Flags.Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
+	f.BoolVarP(&cfg.Flags.Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
+	f.StringVarP(&cfg.Flags.Field, "field", "f", "", "output by field [id|url|title|tags]")
+	f.BoolVarP(&cfg.Flags.Notes, "notes", "N", false, "notes")
+
+	// Actions
+	f.BoolVarP(&cfg.Flags.Copy, "copy", "c", false, "copy bookmark to clipboard")
+	f.BoolVarP(&cfg.Flags.Open, "open", "o", false, "open bookmark in default browser")
+	f.BoolVar(&cfg.Flags.QR, "qr", false, "generate qr-code")
+	f.BoolVarP(&cfg.Flags.Remove, "remove", "r", false, "remove a bookmarks by query or id")
+	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "list by tag")
+	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update a bookmarks")
+
+	// Experimental
+	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
+	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit with preferred text editor")
+	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check bookmarks status")
+	f.BoolVarP(&cfg.Flags.Snapshot, "snapshot", "S", false, "metadata from Wayback Machine")
+	f.BoolVarP(&cfg.Flags.Export, "export", "E", false, "export as HTML file")
+
+	// Modifiers
+	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "the <int> first part of bookmarks")
+	f.IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+}
+
+func runRecords(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) error {
 	switch {
 	case f.Status:
 		return handler.CheckStatus(c, r, bs)
@@ -130,47 +162,20 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func initRecordFlags(cmd *cobra.Command) {
-	cfg := config.App
-	f := cmd.Flags()
-
-	// Prints
-	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-	f.BoolVarP(&cfg.Flags.Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
-	f.BoolVarP(&cfg.Flags.Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
-	f.StringVarP(&cfg.Flags.Field, "field", "f", "", "output by field [id|url|title|tags]")
-	f.BoolVarP(&cfg.Flags.Notes, "notes", "N", false, "notes")
-
-	// Actions
-	f.BoolVarP(&cfg.Flags.Copy, "copy", "c", false, "copy bookmark to clipboard")
-	f.BoolVarP(&cfg.Flags.Open, "open", "o", false, "open bookmark in default browser")
-	f.BoolVar(&cfg.Flags.QR, "qr", false, "generate qr-code")
-	f.BoolVarP(&cfg.Flags.Remove, "remove", "r", false, "remove a bookmarks by query or id")
-	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "list by tag")
-	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update a bookmarks")
-
-	// Experimental
-	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
-	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit with preferred text editor")
-	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check bookmarks status")
-	f.BoolVarP(&cfg.Flags.Snapshot, "snapshot", "S", false, "metadata from Wayback Machine")
-	f.BoolVarP(&cfg.Flags.Export, "export", "E", false, "export as HTML file")
-
-	// Modifiers
-	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "the <int> first part of bookmarks")
-	f.IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "the <int> last part of bookmarks")
-}
-
 // menuForRecords returns a FZF menu for showing records.
-func menuForRecords[T bookmark.Bookmark]() *menu.Menu[T] {
-	cfg := config.App
+func menuForRecords[T bookmark.Bookmark](cfg *config.AppConfig) *menu.Menu[T] {
+	var keybindsArgs []string
+	if cfg.Flags.Notes {
+		keybindsArgs = append(keybindsArgs, "--notes")
+	}
+
 	mo := []menu.OptFn{
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithKeybinds(
-			config.FzfKeybindEdit(),
+			config.FzfKeybindEdit(keybindsArgs...),
 			config.FzfKeybindOpen(),
 			config.FzfKeybindQR(),
 			config.FzfKeybindOpenQR(),

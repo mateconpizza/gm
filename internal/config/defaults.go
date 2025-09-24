@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
@@ -56,11 +57,17 @@ func fmtKeybindCmd(s string) string {
 }
 
 // FzfKeybindEdit keybind to edit the selected record.
-func FzfKeybindEdit() menu.Keymap {
+func FzfKeybindEdit(args ...string) menu.Keymap {
+	cmd := "--edit "
+	if len(args) > 0 {
+		cmd += strings.Join(args, " ") + " "
+	}
+	cmd += "{+1})"
+
 	return menu.Keymap{
 		Bind:    Fzf.Keymaps.Edit.Bind,
 		Desc:    Fzf.Keymaps.Edit.Desc,
-		Action:  fmtKeybindCmd("--edit {+1})"),
+		Action:  fmtKeybindCmd(cmd),
 		Enabled: Fzf.Keymaps.Edit.Enabled,
 		Hidden:  Fzf.Keymaps.Edit.Hidden,
 	}

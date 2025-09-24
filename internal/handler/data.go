@@ -66,7 +66,6 @@ func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 
 	// Try to get by IDs first
 	if bs, err := getByIDs(r, args); err != nil {
-		// If it's not an invalid ID error, return the error
 		if !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 			return nil, err
 		}
@@ -135,6 +134,11 @@ func getByQuery(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 // applyFilters applies tag and head/tail filters to the bookmark list.
 func applyFilters(r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) ([]*bookmark.Bookmark, error) {
 	var err error
+
+	// Filter only notes
+	if f.Notes {
+		bs = filterByNotes(bs)
+	}
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
@@ -266,6 +270,24 @@ func filterByHeadAndTail(bs []*bookmark.Bookmark, h, t int) ([]*bookmark.Bookmar
 	}
 
 	return result, nil
+}
+
+func filterByNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+	n := len(bs)
+	if n == 0 {
+		return bs
+	}
+
+	filtered := make([]*bookmark.Bookmark, 0, n)
+	for i := range bs {
+		if bs[i].Notes == "" {
+			continue
+		}
+
+		filtered = append(filtered, bs[i])
+	}
+
+	return filtered
 }
 
 // getFlagOrder determines the order of head/tail flags from command line.

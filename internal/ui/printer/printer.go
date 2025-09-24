@@ -65,12 +65,10 @@ func Oneline(bs []*bookmark.Bookmark) error {
 	return nil
 }
 
+// Notes formats the bookmarks notes.
 func Notes(bs []*bookmark.Bookmark) error {
 	printed := false
 	for _, b := range bs {
-		if b.Notes == "" {
-			continue
-		}
 		if printed {
 			fmt.Println()
 		}
