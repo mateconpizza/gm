@@ -39,6 +39,11 @@ func Data(
 		return nil, fmt.Errorf("failed to get records: %w", err)
 	}
 
+	// Filter by Notes
+	if !f.Edit && f.Notes {
+		bs = filterByNotes(bs)
+	}
+
 	// Apply filters
 	bs, err = applyFilters(r, bs, f)
 	if err != nil {
@@ -134,11 +139,6 @@ func getByQuery(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 // applyFilters applies tag and head/tail filters to the bookmark list.
 func applyFilters(r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) ([]*bookmark.Bookmark, error) {
 	var err error
-
-	// Filter only notes
-	if f.Notes {
-		bs = filterByNotes(bs)
-	}
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
