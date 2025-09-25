@@ -12,8 +12,8 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
+	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -238,7 +238,7 @@ func parseFoundInBrowser(
 		}
 	}
 
-	if err := parser.ScrapeMissingDescription(bs); err != nil {
+	if err := metadata.ScrapeDescriptions(bs); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 

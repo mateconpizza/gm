@@ -1,3 +1,4 @@
+//nolint:funlen,gocognit //test
 package locker
 
 import (
@@ -140,7 +141,6 @@ func TestLockAndUnlocked(t *testing.T) {
 	}
 }
 
-//nolint:funlen //test
 func TestWriteAndReplaceFile(t *testing.T) {
 	t.Parallel()
 	// Helper function to create and write to a file for testing

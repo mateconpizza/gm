@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
-	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -53,7 +53,7 @@ func NewBookmark(
 	b.URL = newURL
 	b.Title = bTemp.title
 	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
-	b.Tags = parser.Tags(bTemp.tags)
+	b.Tags = bookmark.ParseTags(bTemp.tags)
 	b.FaviconURL = bTemp.favicon
 
 	return nil
@@ -104,7 +104,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 
 	bURL := c.T.Input(" ")
 	if bURL == "" {
-		return bURL, parser.ErrURLEmpty
+		return bURL, metadata.ErrURLEmpty
 	}
 
 	return bURL, nil
@@ -118,7 +118,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	c.F.Header(cb("Tags\t:"))
 
 	if b.tags != "" {
-		b.tags = parser.Tags(b.tags)
+		b.tags = bookmark.ParseTags(b.tags)
 		c.F.Textln(" " + cgi(b.tags)).Flush()
 
 		return
@@ -128,7 +128,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 
 	keywords, _ := sc.Keywords()
 	if keywords != "" {
-		tt := parser.Tags(keywords)
+		tt := bookmark.ParseTags(keywords)
 		b.tags = tt
 		c.F.Textln(" " + cgi(b.tags)).Flush()
 
@@ -146,7 +146,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	c.F.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
 	mTags, _ := dbtask.TagsCounterFromPath(config.App.DBPath)
-	b.tags = parser.Tags(c.T.ChooseTags(c.F.Border.Mid, mTags))
+	b.tags = bookmark.ParseTags(c.T.ChooseTags(c.F.Border.Mid, mTags))
 
 	c.F.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -73,7 +74,7 @@ func (baseBookmarkStrategy) ParseBuffer(buf []byte, original *Record, idx, total
 		return nil, ErrBufferUnchanged
 	}
 
-	edited = scrapeBookmark(edited)
+	edited = metadata.EnrichBookmark(edited)
 	edited.ID = original.ID
 	edited.CreatedAt = original.CreatedAt
 	edited.Favorite = original.Favorite

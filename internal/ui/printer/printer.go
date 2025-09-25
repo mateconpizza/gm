@@ -89,6 +89,10 @@ func ByField(bs []*bookmark.Bookmark, f string) error {
 			return fmt.Errorf("%w", err)
 		}
 
+		if f == "" {
+			return nil
+		}
+
 		fmt.Println(f)
 
 		return nil

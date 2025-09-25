@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -21,7 +20,7 @@ func (JSONStrategy) ParseBuffer(buf []byte, original *Record, idx, total int) (*
 	newB := bytes.TrimRight(buf, "\n")
 
 	if bytes.Equal(old, newB) {
-		return nil, parser.ErrBufferUnchanged
+		return nil, ErrBufferUnchanged
 	}
 
 	bm, err := bookmark.NewFromBuffer(newB)

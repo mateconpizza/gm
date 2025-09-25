@@ -121,6 +121,8 @@ func (b *Bookmark) Field(f string) (string, error) {
 		s = b.Tags
 	case "desc", "d", "5":
 		s = b.Desc
+	case "notes", "n", "6":
+		s = b.Notes
 	default:
 		return "", fmt.Errorf("%w: %q", ErrBookmarkUnknownField, f)
 	}
@@ -163,7 +165,7 @@ func (b *Bookmark) BufferNotes() []byte {
 //
 // It uses the URL, Title, Description and Tags.
 func (b *Bookmark) GenChecksum() {
-	b.Checksum = GenChecksum(b.URL, b.Title, b.Desc, b.Tags)
+	b.Checksum = genChecksum(b.URL, b.Title, b.Desc, b.Tags)
 }
 
 // HashPath returns the hash path of a bookmark.

@@ -18,7 +18,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -210,7 +209,7 @@ func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bo
 		}
 
 		if bj.Checksum != "" {
-			if !parser.ValidateChecksumJSON(bj) {
+			if !bookmark.ValidateChecksumJSON(bj) {
 				return nil, fmt.Errorf("%w: %s", bookmark.ErrBookmarkInvalidChecksum, path)
 			}
 		}
@@ -274,7 +273,7 @@ func readGPGRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Boo
 		}
 
 		if bj.Checksum != "" {
-			if !parser.ValidateChecksumJSON(bj) {
+			if !bookmark.ValidateChecksumJSON(bj) {
 				return nil, fmt.Errorf("%w: %s", bookmark.ErrBookmarkInvalidChecksum, path)
 			}
 		}

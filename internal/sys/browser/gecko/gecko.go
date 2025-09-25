@@ -13,7 +13,6 @@ import (
 	"github.com/mateconpizza/rotato"
 	ini "gopkg.in/ini.v1"
 
-	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/slice"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -140,7 +139,7 @@ type geckoBookmark struct {
 func openSQLite(dbPath string) (*sqlx.DB, error) {
 	f := fmt.Sprintf("file:%s?cache=shared", dbPath)
 
-	db, err := sqlx.Open("sqlite3", f)
+	db, err := sqlx.Open("sqlite", f)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -205,7 +204,7 @@ func queryBookmarks(db *sqlx.DB) ([]*geckoBookmark, error) {
 		}
 
 		gb.Tags += " " + getTodayFormatted()
-		gb.Tags = parser.Tags(gb.Tags)
+		gb.Tags = bookmark.ParseTags(gb.Tags)
 
 		return nil
 	}

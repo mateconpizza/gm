@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -64,7 +63,7 @@ func testJSONParseBufferUnchanged(t *testing.T) {
 	buf := original.Bytes()
 
 	_, err := s.ParseBuffer(buf, original, 0, 1)
-	if !errors.Is(err, parser.ErrBufferUnchanged) {
+	if !errors.Is(err, ErrBufferUnchanged) {
 		t.Errorf("expected parser.ErrBufferUnchanged, got %v", err)
 	}
 }

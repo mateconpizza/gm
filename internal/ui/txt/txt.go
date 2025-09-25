@@ -411,3 +411,22 @@ func CreateSimpleTable(headers []string, rows [][]string) string {
 
 	return builder.String()
 }
+
+// CleanLines removes empty lines and trims whitespace from each line.
+func CleanLines(s string) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) == 1 {
+		return strings.TrimSpace(s)
+	}
+
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+
+	return strings.Join(result, "\n")
+}

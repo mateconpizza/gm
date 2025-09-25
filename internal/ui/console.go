@@ -1,3 +1,5 @@
+// Package ui provides console interaction utilities with styled output.
+// It wraps terminal operations with colored frames and user prompts.
 package ui
 
 import (

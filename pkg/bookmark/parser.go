@@ -29,8 +29,8 @@ func generateHash(s string, c int) string {
 	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
 }
 
-// GenChecksum generates a checksum for the bookmark.
-func GenChecksum(rawURL, title, desc, tags string) string {
+// genChecksum generates a checksum for the bookmark.
+func genChecksum(rawURL, title, desc, tags string) string {
 	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s", rawURL, title, desc, tags)
 	return generateHash(data, 8)
 }
@@ -125,6 +125,11 @@ func Validate(b *Bookmark) error {
 	}
 
 	return nil
+}
+
+func ValidateChecksumJSON(b *BookmarkJSON) bool {
+	tags := ParseTags(strings.Join(b.Tags, ","))
+	return b.Checksum == genChecksum(b.URL, b.Title, b.Desc, tags)
 }
 
 func makeReq(ctx context.Context, b *Bookmark) error {

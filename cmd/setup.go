@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/parser"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -194,7 +193,7 @@ func initAppFunc(_ *cobra.Command, _ []string) error {
 	ib.ID = 1
 	ib.URL = cfg.Info.URL
 	ib.Title = cfg.Info.Title
-	ib.Tags = parser.Tags(cfg.Info.Tags)
+	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
 	ib.Desc = cfg.Info.Desc
 
 	// FIX: opening multiple conn

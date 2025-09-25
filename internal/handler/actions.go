@@ -428,13 +428,11 @@ func Update(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 			return fmt.Errorf("choose: %w", err)
 		}
 
-		successMesg := c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID))
 		switch strings.ToLower(opt) {
 		case "y", "yes":
 			if err := r.UpdateOne(context.Background(), &updated); err != nil {
 				return fmt.Errorf("updating record: %w", err)
 			}
-			fmt.Print(successMesg)
 			if i != n-1 {
 				fmt.Println()
 			}
@@ -444,7 +442,7 @@ func Update(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 			if err := e.Run([]*bookmark.Bookmark{&updated}, editor.BookmarkStrategy{}); err != nil {
 				return err
 			}
-			fmt.Print(successMesg)
+			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 		}
 	}
 

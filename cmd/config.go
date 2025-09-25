@@ -11,7 +11,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/sys/editor"
+	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -83,7 +83,7 @@ func editConfig(p string) error {
 		return files.ErrFileNotFound
 	}
 
-	te, err := editor.New(config.App.Env.Editor)
+	te, err := editor.NewEditor(config.App.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

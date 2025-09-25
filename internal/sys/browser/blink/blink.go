@@ -12,7 +12,6 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/parser"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -265,7 +264,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 		b := bookmark.New()
 		b.Title = c.title
 		b.URL = c.url
-		b.Tags = parser.Tags(strings.Join(c.tags, ","))
+		b.Tags = bookmark.ParseTags(strings.Join(c.tags, ","))
 
 		// deduplicate by URL
 		duplicate := false

@@ -310,7 +310,7 @@ func (r *SQLite) ByQuery(ctx context.Context, query string) ([]*bookmark.Bookmar
     LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
     LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
-        (LOWER(b.id || b.title || b.url || b.desc) LIKE LOWER(?) OR
+        (LOWER(b.id || b.title || b.url || b.desc || b.notes) LIKE LOWER(?) OR
         LOWER(t.name) LIKE LOWER(?))
       GROUP BY b.id
       ORDER BY b.id ASC;`
