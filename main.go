@@ -5,7 +5,7 @@ import (
 	_ "github.com/mateconpizza/gm/cmd/create"
 	_ "github.com/mateconpizza/gm/cmd/db"
 	_ "github.com/mateconpizza/gm/cmd/git"
-	_ "github.com/mateconpizza/gm/cmd/imports"
+	_ "github.com/mateconpizza/gm/cmd/io"
 )
 
 func main() {

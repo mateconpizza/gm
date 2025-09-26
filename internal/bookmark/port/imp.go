@@ -194,12 +194,15 @@ func ToJSON(data any) ([]byte, error) {
 
 // Deduplicate removes duplicate bookmarks.
 func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+	const maxItemsToShow = 20
 	originalLen := len(bs)
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
+	discarted := make([]*bookmark.Bookmark, 0, len(bs))
 
 	for _, b := range bs {
 		if _, exists := r.Has(context.Background(), b.URL); exists {
 			slog.Warn("deduplicate", "url", b.URL)
+			discarted = append(discarted, b)
 			continue
 		}
 		filtered = append(filtered, b)
@@ -210,6 +213,15 @@ func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookma
 		skip := color.BrightYellow("skipping")
 		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-n)
 		c.Warning(s + "\n").Flush()
+
+		// show discarted bookmarks
+		if len(discarted) <= maxItemsToShow && n != 0 {
+			for _, b := range discarted {
+				c.F.Midln(color.Text(txt.Shorten(b.URL, terminal.MinWidth)).Italic().String())
+			}
+
+			c.F.Flush()
+		}
 	}
 
 	return filtered

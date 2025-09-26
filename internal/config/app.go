@@ -2,31 +2,6 @@ package config
 
 import "path/filepath"
 
-type Flags struct {
-	Copy      bool     // Copy URL into clipboard
-	Open      bool     // Open URL in default browser
-	Tags      []string // Tags list to filter bookmarks
-	QR        bool     // QR code generator
-	Menu      bool     // Menu mode
-	Notes     bool     // Record notes
-	Edit      bool     // Edit mode
-	Head      int      // Head limit
-	Remove    bool     // Remove bookmarks
-	Update    bool     // Update bookmarks
-	Tail      int      // Tail limit
-	Field     string   // Field to print
-	JSON      bool     // JSON output
-	Oneline   bool     // Oneline output
-	Multiline bool     // Multiline output
-	ColorStr  string   // WithColor enable color output
-	Color     bool     // Application color enable
-	Force     bool     // Force action
-	Status    bool     // Status checks URLs status code
-	Snapshot  bool     // Fetches snapshot from Wayback Machine
-	Export    bool     // Exports the bookmarks into a Netscape HTML file
-	Verbose   int      // Verbose flag
-}
-
 // App is the default application configuration.
 var App = &AppConfig{
 	Name:   appName,

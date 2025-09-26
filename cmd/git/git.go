@@ -23,21 +23,19 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
+var gitFlags *config.Flags
+
 func init() {
-	gitInitCmd.Flags().BoolVar(&gitFlags.redo, "redo", false, "reinitialize")
+	gitFlags = config.NewFlags()
+	gitInitCmd.Flags().BoolVar(&gitFlags.Redo, "redo", false, "reinitialize")
+	GitImportCmd.Flags().StringVarP(&gitFlags.Path, "uri", "i", "", "repo URI to import")
 	gitCmd.AddCommand(GitImportCmd) // public
 	gitCmd.AddCommand(gitCommitCmd, gitInitCmd, gitTrackerCmd, gitPushCmd, gitRemoteCmd, gitRawCmd)
 	gitCmd.AddCommand(gitTestCmd)
 	cmd.Root.AddCommand(gitCmd)
 }
 
-type gitFlagsType struct {
-	redo bool
-}
-
 var (
-	gitFlags = gitFlagsType{}
-
 	gitCmd = &cobra.Command{
 		Use:                "git",
 		Short:              "Git commands",
@@ -72,7 +70,9 @@ var (
 		Use:                "import",
 		Short:              "import bookmarks from git",
 		DisableFlagParsing: false,
-		RunE:               gitCloneAndImportFunc,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return CloneAndImport(cmd.Short, gitFlags.Path)
+		},
 	}
 
 	gitPushCmd = &cobra.Command{
@@ -114,26 +114,23 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 	return gr.Commit("update")
 }
 
-// gitCloneAndImportFunc clones a git repo and imports its bookmarks.
-func gitCloneAndImportFunc(command *cobra.Command, args []string) error {
-	if len(args) == 0 {
+// CloneAndImport clones a git repo and imports its bookmarks.
+func CloneAndImport(description, repoPathToClone string) error {
+	if repoPathToClone == "" {
 		return git.ErrGitRepoURLEmpty
 	}
-	repoPathToClone := args[0]
+
 	tmpPath := filepath.Join(os.TempDir(), config.App.Name+"-clone")
 	if files.Exists(tmpPath) {
 		_ = files.RemoveAll(tmpPath)
 	}
-	go func() {
-		_ = files.RemoveAll(tmpPath)
-	}()
+	defer func() { _ = files.RemoveAll(tmpPath) }()
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
 			slog.Debug("cleaning up temp dir", "path", tmpPath)
 			_ = files.RemoveAll(tmpPath)
-
 			sys.ErrAndExit(err)
 		}))),
 	)
@@ -164,7 +161,7 @@ func gitCloneAndImportFunc(command *cobra.Command, args []string) error {
 			if err := gr.Export(); err != nil {
 				return err
 			}
-			if err := gr.Commit(command.Short); err != nil {
+			if err := gr.Commit(description); err != nil {
 				return err
 			}
 			continue
@@ -186,7 +183,7 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if err := gr.Git.Init(gitFlags.redo); err != nil {
+	if err := gr.Git.Init(gitFlags.Redo); err != nil {
 		return fmt.Errorf("init repo: %w", err)
 	}
 
@@ -207,8 +204,8 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 }
 
 // ensureGitEnvironment checks if the environment is ready for git commands.
-func ensureGitEnvironment(command *cobra.Command, args []string) error {
-	if err := cmd.RequireDatabase(command, args); err != nil {
+func ensureGitEnvironment(c *cobra.Command, args []string) error {
+	if err := cmd.RequireDatabase(c, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -219,12 +216,14 @@ func ensureGitEnvironment(command *cobra.Command, args []string) error {
 
 	gm := git.NewGit(config.App.Git.Path, git.WithCmd(gitCmd))
 
-	switch command.Name() {
+	switch c.Name() {
 	case "init", "import":
 		return nil
 	}
 
 	if !gm.IsInitialized() {
+		// BUG: when using `config.App.Cmd git -h` must show help.
+		// The user doesn't want to initialize git
 		return git.ErrGitNotInitialized
 	}
 
@@ -233,6 +232,7 @@ func ensureGitEnvironment(command *cobra.Command, args []string) error {
 
 // gitCmd represents the git command.
 func gitCommandFunc(command *cobra.Command, args []string) error {
+	// FIX: what is this :|
 	if slices.ContainsFunc([]string{"-h", "--help", "help"}, func(x string) bool {
 		return slices.Contains(args, x)
 	}) {

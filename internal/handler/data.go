@@ -30,9 +30,8 @@ func Data(
 	m *menu.Menu[bookmark.Bookmark],
 	r *db.SQLite,
 	args []string,
+	f *config.Flags,
 ) ([]*bookmark.Bookmark, error) {
-	f := config.App.Flags
-
 	// Get initial records
 	bs, err := getRecords(r, args)
 	if err != nil {

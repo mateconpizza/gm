@@ -76,7 +76,7 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 	terminal.ReadPipedInput(&args)
 
 	cfg := config.App
-	bs, err := handler.Data(menuForRecords(cfg), r, args)
+	bs, err := handler.Data(menuForRecords(cfg), r, args, cfg.Flags)
 	if err != nil {
 		return err
 	}
