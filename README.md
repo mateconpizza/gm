@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 ### Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
-- [x] Track `bookmarks` with `git`
+- [x] Track `bookmarks` with `git` <sub> experimental </sub>
   - [x] Sync `bookmarks` as `JSON` files
   - [x] Encrypt `bookmarks` with `GPG` and push to remote
 - [x] Encrypt local database with `AES-GCM`
@@ -71,6 +71,7 @@ Flags:
       --color string    output with pretty colors [always|never] (default "always")
   -c, --copy            copy bookmark to clipboard
   -e, --edit            edit with preferred text editor
+  -E, --export          export as HTML file
   -f, --field string    output by field [id|url|title|tags]
       --force           force action | don't ask confirmation
   -H, --head int        the <int> first part of bookmarks
@@ -79,10 +80,12 @@ Flags:
   -m, --menu            menu mode (fzf)
   -M, --multiline       output in formatted multiline (fzf)
   -n, --name string     database name (default "main.db")
+  -N, --notes           bookmark's notes
   -O, --oneline         output in formatted oneline (fzf)
   -o, --open            open bookmark in default browser
       --qr              generate qr-code
   -r, --remove          remove a bookmarks by query or id
+  -S, --snapshot        metadata from Wayback Machine
   -s, --status          check bookmarks status
   -t, --tag strings     list by tag
   -T, --tail int        the <int> last part of bookmarks
@@ -189,9 +192,9 @@ keymaps:
 
 ### ❗ Priority
 
-- [ ] Use a ORM
+- ~~Use a ORM <sub>discontinued</sub>~~
   - [x] Add multiple databases option _(default.db, work.db, client.db)_
-- [ ] Add `Sync` to remote repo???
+- [x] Add `Sync` to remote repo???
 
 #### XDG
 
@@ -211,12 +214,12 @@ keymaps:
 
 ### ⛓️ Import
 
-- [ ] From firefox
-- [ ] From ~~chrome~~ chromium
+- [x] From firefox
+- [x] From ~~chrome~~ chromium
 
 ### ♻️ Misc
 
-- [ ] Add a logging library
+- ~~Add a logging library~~
 - [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
 
 </details>
