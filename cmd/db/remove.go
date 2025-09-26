@@ -18,11 +18,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func init() {
-	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
-	dbRootCmd.AddCommand(removeCmd)
-}
-
 var (
 	// bkRemoveOtroCmd removes backups.
 	bkRemoveCmd = &cobra.Command{

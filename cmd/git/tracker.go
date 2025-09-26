@@ -1,4 +1,4 @@
-// git tracker command
+// Package git...
 package git
 
 import (
@@ -16,30 +16,23 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-type trackerFlagsType struct {
-	status  bool // pretty tracked databases status
-	mgt     bool // repos management in git
-	track   bool // track database in git
-	untrack bool // untrack database in git
-}
+var trackerFlags *config.Flags
 
 func init() {
+	trackerFlags := config.NewFlags()
+
 	tfb := gitTrackerCmd.Flags().BoolVarP
-	tfb(&tkFlags.track, "track", "t", false, "track database in git")
-	tfb(&tkFlags.untrack, "untrack", "u", false, "untrack database in git")
-	tfb(&tkFlags.status, "status", "s", false, "status tracked databases")
-	tfb(&tkFlags.mgt, "manage", "m", false, "repos management in git")
+	tfb(&trackerFlags.Track, "track", "t", false, "track database in git")
+	tfb(&trackerFlags.Untrack, "untrack", "u", false, "untrack database in git")
+	tfb(&trackerFlags.Status, "status", "s", false, "status tracked databases")
+	tfb(&trackerFlags.Management, "manage", "m", false, "repos management in git")
 }
 
-var (
-	tkFlags = trackerFlagsType{}
-
-	gitTrackerCmd = &cobra.Command{
-		Use:   "tracker",
-		Short: "Track database in git",
-		RunE:  trackerFunc,
-	}
-)
+var gitTrackerCmd = &cobra.Command{
+	Use:   "tracker",
+	Short: "Track database in git",
+	RunE:  trackerFunc,
+}
 
 func trackerFunc(cmd *cobra.Command, _ []string) error {
 	gr, err := git.NewRepo(config.App.DBPath)
@@ -53,13 +46,13 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 	)
 
 	switch {
-	case tkFlags.status:
+	case trackerFlags.Status:
 		return status(c, gr.Tracker.List)
-	case tkFlags.mgt:
+	case trackerFlags.Management:
 		return management(c)
-	case tkFlags.track:
+	case trackerFlags.Track:
 		return track(c, gr)
-	case tkFlags.untrack:
+	case trackerFlags.Untrack:
 		return untrack(c, gr)
 	}
 

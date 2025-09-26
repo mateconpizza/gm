@@ -22,38 +22,38 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-type dbFlagsType struct {
-	reorder bool // reorder tables IDs
-	list    bool // list items
-	lock    bool // lock a database
-	unlock  bool // unlock a database
-	vacuum  bool // rebuilds the database file
-	info    bool // item info
-}
-
-var dbFlags = &dbFlagsType{}
+var dbFlags *config.Flags
 
 func init() {
+	dbFlags = config.NewFlags()
 	cfg := config.App
 	f := dbRootCmd.Flags()
 	f.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
 	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
 
-	f.BoolVarP(&dbFlags.vacuum, "vacuum", "X", false, "rebuilds the database file")
-	f.BoolVarP(&dbFlags.reorder, "reorder", "R", false, "reorder IDs")
-	f.BoolVarP(&dbFlags.lock, "lock", "L", false, "lock a database")
-	f.BoolVarP(&dbFlags.unlock, "unlock", "U", false, "unlock a database")
-	f.BoolVarP(&dbFlags.list, "list", "l", false, "list databases")
-	f.BoolVarP(&dbFlags.info, "info", "i", false, "database information")
+	f.BoolVarP(&dbFlags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
+	f.BoolVarP(&dbFlags.Reorder, "reorder", "R", false, "reorder IDs")
+	f.BoolVarP(&dbFlags.Lock, "lock", "L", false, "lock a database")
+	f.BoolVarP(&dbFlags.Unlock, "unlock", "U", false, "unlock a database")
+	f.BoolVarP(&dbFlags.List, "list", "l", false, "list databases")
+	f.BoolVarP(&dbFlags.Info, "info", "i", false, "database information")
 
 	// new database
 	DatabaseNewCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "new database name")
-
 	// show database info
 	databaseInfoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-
 	// remove database
 	databaseRmCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select database to remove (fzf)")
+
+	// backup
+	backupUnlockCmd.Flags().
+		BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
+	backupCmd.AddCommand(BackupNewCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
+	dbRootCmd.AddCommand(backupCmd)
+
+	// remove
+	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
+	dbRootCmd.AddCommand(removeCmd)
 
 	dbRootCmd.AddCommand(databaseDropCmd, DatabaseNewCmd, databaseRmCmd)
 	cmd.Root.AddCommand(dbRootCmd)
@@ -72,7 +72,7 @@ var (
 				c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
 				return printer.RepoInfo(c, config.App.DBPath, config.App.Flags.JSON)
 
-			case dbFlags.vacuum:
+			case dbFlags.Vacuum:
 				slog.Debug("database:", "vacuum", config.App.DBName)
 				r, err := db.New(config.App.DBPath)
 				if err != nil {
@@ -82,7 +82,7 @@ var (
 
 				return r.Vacuum(context.Background())
 
-			case dbFlags.reorder:
+			case dbFlags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
 				r, err := db.New(config.App.DBPath)
 				if err != nil {
@@ -95,13 +95,13 @@ var (
 
 				return r.ReorderIDs(ctx)
 
-			case dbFlags.lock:
+			case dbFlags.Lock:
 				return databaseLockCmd.RunE(cmd, args)
-			case dbFlags.unlock:
+			case dbFlags.Unlock:
 				return databaseUnlockCmd.RunE(cmd, args)
-			case dbFlags.list:
+			case dbFlags.List:
 				return printer.DatabasesTable(config.App.Path.Data)
-			case dbFlags.info:
+			case dbFlags.Info:
 				return databaseInfoCmd.RunE(cmd, args)
 			}
 

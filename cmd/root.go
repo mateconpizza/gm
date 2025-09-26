@@ -22,6 +22,7 @@ var databaseChecked bool = false
 
 func initRootFlags(cmd *cobra.Command) {
 	cfg := config.App
+
 	// global
 	pf := cmd.PersistentFlags()
 	pf.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")

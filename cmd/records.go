@@ -17,19 +17,19 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
+var tagsFlags *config.Flags
+
 func init() {
 	initRecordFlags(recordsCmd)
 
+	tagsFlags = config.NewFlags()
+
 	recordsTagsCmd.Flags().
 		BoolVarP(&config.App.Flags.JSON, "json", "j", false, "output tags+count in JSON format")
-	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.list, "list", "l", false, "list all tags")
+	recordsTagsCmd.Flags().BoolVarP(&tagsFlags.List, "list", "l", false, "list all tags")
 
 	recordsCmd.AddCommand(recordsTagsCmd)
 	Root.AddCommand(recordsCmd)
-}
-
-type tagsFlagType struct {
-	list bool
 }
 
 var (
@@ -43,9 +43,6 @@ var (
 		RunE:              recordsCmdFunc,
 	}
 
-	// tags flags.
-	tagsFlags = tagsFlagType{}
-
 	// recordsTagsCmd tags management.
 	recordsTagsCmd = &cobra.Command{
 		Use:     "tags",
@@ -56,7 +53,7 @@ var (
 			switch {
 			case cfg.Flags.JSON:
 				return printer.TagsJSON(cfg.DBPath)
-			case tagsFlags.list:
+			case tagsFlags.List:
 				return printer.TagsList(cfg.DBPath)
 			}
 
@@ -96,34 +93,34 @@ func recordsCmdFunc(cmd *cobra.Command, args []string) error {
 }
 
 func initRecordFlags(cmd *cobra.Command) {
-	cfg := config.App
+	flag := config.App.Flags
 	f := cmd.Flags()
+	f.SortFlags = false
 
-	// Prints
-	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-	f.BoolVarP(&cfg.Flags.Multiline, "multiline", "M", false, "output in formatted multiline (fzf)")
-	f.BoolVarP(&cfg.Flags.Oneline, "oneline", "O", false, "output in formatted oneline (fzf)")
-	f.StringVarP(&cfg.Flags.Field, "field", "f", "", "output by field [id|url|title|tags]")
-	f.BoolVarP(&cfg.Flags.Notes, "notes", "N", false, "notes")
+	// Primary actions
+	f.BoolVarP(&flag.Copy, "copy", "c", false, "copy bookmark URL to clipboard")
+	f.BoolVarP(&flag.Edit, "edit", "e", false, "edit bookmark with preferred text editor")
+	f.BoolVarP(&flag.Menu, "menu", "m", false, "interactive menu mode using fzf")
+	f.BoolVarP(&flag.Notes, "notes", "N", false, "display bookmark notes")
+	f.BoolVarP(&flag.Open, "open", "o", false, "open bookmark in default browser")
+	f.BoolVarP(&flag.QR, "qr", "q", false, "generate QR code for bookmark URL")
+	f.BoolVarP(&flag.Remove, "remove", "r", false, "remove bookmark by query or ID")
 
-	// Actions
-	f.BoolVarP(&cfg.Flags.Copy, "copy", "c", false, "copy bookmark to clipboard")
-	f.BoolVarP(&cfg.Flags.Open, "open", "o", false, "open bookmark in default browser")
-	f.BoolVar(&cfg.Flags.QR, "qr", false, "generate qr-code")
-	f.BoolVarP(&cfg.Flags.Remove, "remove", "r", false, "remove a bookmarks by query or id")
-	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "list by tag")
-	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update a bookmarks")
+	// Output format
+	f.StringVarP(&flag.Field, "field", "f", "", "output specific field [id|url|title|tags|notes]")
+	f.BoolVarP(&flag.JSON, "json", "j", false, "output results in JSON format")
+	f.BoolVarP(&flag.Multiline, "multiline", "M", false, "output in multiline format (fzf compatible)")
+	f.BoolVarP(&flag.Oneline, "oneline", "O", false, "output in single line format (fzf compatible)")
 
-	// Experimental
-	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
-	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit with preferred text editor")
-	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check bookmarks status")
-	f.BoolVarP(&cfg.Flags.Snapshot, "snapshot", "S", false, "metadata from Wayback Machine")
-	f.BoolVarP(&cfg.Flags.Export, "export", "E", false, "export as HTML file")
+	// Filtering and pagination
+	f.IntVarP(&flag.Head, "head", "H", 0, "show first N bookmarks")
+	f.StringSliceVarP(&flag.Tags, "tag", "t", nil, "filter bookmarks by tag(s)")
+	f.IntVarP(&flag.Tail, "tail", "T", 0, "show last N bookmarks")
 
-	// Modifiers
-	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "the <int> first part of bookmarks")
-	f.IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "the <int> last part of bookmarks")
+	// Maintenance operations
+	f.BoolVarP(&flag.Snapshot, "snapshot", "S", false, "fetch metadata from Wayback Machine")
+	f.BoolVarP(&flag.Status, "status", "s", false, "check HTTP status of bookmark URLs")
+	f.BoolVarP(&flag.Update, "update", "u", false, "update bookmark metadata")
 }
 
 func runRecords(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) error {

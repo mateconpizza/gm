@@ -21,14 +21,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func init() {
-	cfg := config.App
-	backupUnlockCmd.Flags().
-		BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
-	backupCmd.AddCommand(BackupNewCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
-	dbRootCmd.AddCommand(backupCmd)
-}
-
 // backupCmd backup management.
 var (
 	backupCmd = &cobra.Command{
