@@ -104,6 +104,7 @@ type Keymap struct {
 // Keymaps holds the keymaps for FZF.
 type Keymaps struct {
 	Edit      Keymap `yaml:"edit"`
+	EditNotes Keymap `yaml:"edit_notes"`
 	Open      Keymap `yaml:"open"`
 	Preview   Keymap `yaml:"preview"`
 	QR        Keymap `yaml:"qr"`

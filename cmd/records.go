@@ -173,6 +173,7 @@ func menuForRecords[T bookmark.Bookmark](cfg *config.AppConfig) *menu.Menu[T] {
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithKeybinds(
 			config.FzfKeybindEdit(keybindsArgs...),
+			config.FzfKeybindEditNotes(),
 			config.FzfKeybindOpen(),
 			config.FzfKeybindQR(),
 			config.FzfKeybindOpenQR(),

@@ -140,7 +140,7 @@ func Frame(b *bookmark.Bookmark) string {
 
 	// notes
 	if b.Notes != "" {
-		notes := color.ApplyMany(SplitIntoChunks(b.Notes, w), color.StyleDim)
+		notes := color.ApplyMany(SplitIntoChunks(b.Notes, w), color.StyleDim, color.StyleItalic)
 		f.Footerln(notes...)
 	}
 
