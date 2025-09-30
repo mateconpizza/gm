@@ -26,7 +26,7 @@ func Repo(c *ui.Console, r *db.SQLite) string {
 	ctx := context.Background()
 	var (
 		name    = r.Name()
-		path    = txt.PaddedLine("path:", files.CollapseHomeDir(config.App.DBPath))
+		path    = txt.PaddedLine("path:", files.CollapseHomeDir(r.Cfg.Fullpath()))
 		records = txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
 		tags    = txt.PaddedLine("tags:", r.Count(ctx, "tags"))
 	)
@@ -43,13 +43,13 @@ func Repo(c *ui.Console, r *db.SQLite) string {
 }
 
 // RepoFromPath returns a summary of the repository.
-func RepoFromPath(c *ui.Console, p string) string {
-	if strings.HasSuffix(p, ".enc") {
-		p = strings.TrimSuffix(p, ".enc")
-		s := cmi(filepath.Base(p))
+func RepoFromPath(c *ui.Console, dbPath, backupPath string) string {
+	if strings.HasSuffix(dbPath, ".enc") {
+		dbPath = strings.TrimSuffix(dbPath, ".enc")
+		s := cmi(filepath.Base(dbPath))
 
 		var e string
-		if filepath.Base(p) == config.MainDBName {
+		if filepath.Base(dbPath) == config.MainDBName {
 			e = "(main locked)"
 		} else {
 			e = "(locked)"
@@ -58,9 +58,9 @@ func RepoFromPath(c *ui.Console, p string) string {
 		return c.F.Mid(txt.PaddedLine(s, cgi(e))).Ln().StringReset()
 	}
 
-	path := txt.PaddedLine("path:", files.CollapseHomeDir(p))
+	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
 
-	r, err := db.New(p)
+	r, err := db.New(dbPath)
 	if err != nil {
 		return c.F.Row(path).StringReset()
 	}
@@ -77,7 +77,7 @@ func RepoFromPath(c *ui.Console, p string) string {
 
 	c.F.Headerln(name).Rowln(records).Rowln(tags)
 	dbName := files.StripSuffixes(r.Name())
-	backups, _ := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
+	backups, _ := files.List(backupPath, "*_"+dbName+".db*")
 	if len(backups) > 0 {
 		c.F.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
 	}
@@ -152,9 +152,9 @@ func BackupWithFmtDateFromPath(p string) string {
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(c *ui.Console, r *db.SQLite) string {
+func BackupListDetail(c *ui.Console, r *db.SQLite, backupPath string) string {
 	dbName := files.StripSuffixes(r.Name())
-	fs, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
+	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
 		return ""
 	}
@@ -174,7 +174,7 @@ func BackupListDetail(c *ui.Console, r *db.SQLite) string {
 // Backups returns a summary of the backups.
 //
 // last, path and number of backups.
-func Backups(c *ui.Console, r *db.SQLite) string {
+func Backups(c *ui.Console, r *db.SQLite, backupPath string) string {
 	var (
 		empty          = "n/a"
 		backupsColor   = color.BrightMagenta("backups:").Italic()
@@ -184,7 +184,7 @@ func Backups(c *ui.Console, r *db.SQLite) string {
 	)
 
 	dbName := files.StripSuffixes(r.Name())
-	fs, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
+	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
 		return ""
 	}
@@ -204,7 +204,7 @@ func Backups(c *ui.Console, r *db.SQLite) string {
 		lastBackupDate = color.BrightGreen(s).Italic().String()
 	}
 
-	path := txt.PaddedLine("path:", files.CollapseHomeDir(config.App.Path.Backup))
+	path := txt.PaddedLine("path:", files.CollapseHomeDir(backupPath))
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
 
@@ -217,10 +217,10 @@ func Backups(c *ui.Console, r *db.SQLite) string {
 }
 
 // Info returns the repository info.
-func Info(c *ui.Console, r *db.SQLite) string {
+func Info(c *ui.Console, r *db.SQLite, p string) string {
 	s := Repo(c, r)
-	s += Backups(c, r)
-	s += BackupListDetail(c, r)
+	s += Backups(c, r, p)
+	s += BackupListDetail(c, r, p)
 
 	return s
 }

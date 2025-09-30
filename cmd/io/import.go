@@ -39,20 +39,21 @@ var (
 		Short:   cmdGit.GitImportCmd.Short,
 		Aliases: []string{"g"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdGit.CloneAndImport(cmd.Short, ioFlags.Path)
+			return cmdGit.CloneAndImport(cmd.Short, config.New())
 		},
 	}
 )
 
 func fromBackupFunc(command *cobra.Command, args []string) error {
-	destRepo, err := db.New(config.App.DBPath)
+	app := config.New()
+	destRepo, err := db.New(app.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer destRepo.Close()
 
 	dbName := files.StripSuffixes(destRepo.Name())
-	bks, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
+	bks, err := files.List(app.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -94,7 +95,8 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 }
 
 func fromDatabaseFunc(command *cobra.Command, _ []string) error {
-	rDest, err := db.New(config.App.DBPath)
+	app := config.New()
+	rDest, err := db.New(app.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

@@ -11,7 +11,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -34,7 +33,7 @@ type RepoStats struct {
 	Size      string `json:"size"`
 }
 
-func Backup(fullpath string) (string, error) {
+func Backup(fullpath, backupPath string) (string, error) {
 	r, err := db.New(fullpath)
 	if err != nil {
 		return "", err
@@ -42,7 +41,7 @@ func Backup(fullpath string) (string, error) {
 
 	// destDSN -> 20060102-150405_dbName.db
 	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(defaultDateFormat), r.Name())
-	destPath := filepath.Join(config.App.Path.Backup, destDSN)
+	destPath := filepath.Join(backupPath, destDSN)
 	slog.Info("creating SQLite backup",
 		"src", r.Cfg.Fullpath(),
 		"dest", destPath,

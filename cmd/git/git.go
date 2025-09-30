@@ -7,11 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -23,28 +22,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-var gitFlags *config.Flags
-
-func init() {
-	gitFlags = config.NewFlags()
-	gitInitCmd.Flags().BoolVar(&gitFlags.Redo, "redo", false, "reinitialize")
-	GitImportCmd.Flags().StringVarP(&gitFlags.Path, "uri", "i", "", "repo URI to import")
-	gitCmd.AddCommand(GitImportCmd) // public
-	gitCmd.AddCommand(gitCommitCmd, gitInitCmd, gitTrackerCmd, gitPushCmd, gitRemoteCmd, gitRawCmd)
-	gitCmd.AddCommand(gitTestCmd)
-	cmd.Root.AddCommand(gitCmd)
-}
-
 var (
-	gitCmd = &cobra.Command{
-		Use:                "git",
-		Short:              "Git commands",
-		Aliases:            []string{"g"},
-		DisableFlagParsing: true,
-		PersistentPreRunE:  ensureGitEnvironment,
-		RunE:               gitCommandFunc,
-	}
-
+	// gitRawCmd proxies raw Git commands directly to the underlying git binary.
 	gitRawCmd = &cobra.Command{
 		Use:                "raw",
 		Short:              "raw git commands",
@@ -52,6 +31,7 @@ var (
 		RunE:               gitCommandFunc,
 	}
 
+	// gitInitCmd initializes a new, empty Git repository.
 	gitInitCmd = &cobra.Command{
 		Use:                "init",
 		Short:              "create empty Git repository",
@@ -59,6 +39,7 @@ var (
 		RunE:               gitInitFunc,
 	}
 
+	// gitCommitCmd records staged changes in the repository.
 	gitCommitCmd = &cobra.Command{
 		Use:                "commit",
 		Short:              "record changes to the repository",
@@ -66,15 +47,17 @@ var (
 		RunE:               gitCommitFunc,
 	}
 
+	// GitImportCmd clones a Git repository and imports bookmarks.
 	GitImportCmd = &cobra.Command{
 		Use:                "import",
 		Short:              "import bookmarks from git",
 		DisableFlagParsing: false,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return CloneAndImport(cmd.Short, gitFlags.Path)
+			return CloneAndImport(cmd.Short, config.New())
 		},
 	}
 
+	// gitPushCmd pushes local changes to the remote repository.
 	gitPushCmd = &cobra.Command{
 		Use:                "push",
 		Short:              "push changes to the repository",
@@ -82,6 +65,7 @@ var (
 		RunE:               gitPushFunc,
 	}
 
+	// gitRemoteCmd adds or updates the remote origin URL.
 	gitRemoteCmd = &cobra.Command{
 		Use:                "remote",
 		Short:              "add remote origin",
@@ -91,7 +75,8 @@ var (
 )
 
 func gitCommitFunc(_ *cobra.Command, _ []string) error {
-	gr, err := git.NewRepo(config.App.DBPath)
+	app := config.New()
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -115,25 +100,26 @@ func gitCommitFunc(_ *cobra.Command, _ []string) error {
 }
 
 // CloneAndImport clones a git repo and imports its bookmarks.
-func CloneAndImport(description, repoPathToClone string) error {
-	if repoPathToClone == "" {
+func CloneAndImport(description string, app *config.Config) error {
+	if app.Flags.Path == "" {
 		return git.ErrGitRepoURLEmpty
 	}
 
-	tmpPath := filepath.Join(os.TempDir(), config.App.Name+"-clone")
+	tmpPath := filepath.Join(os.TempDir(), app.Name+"-clone")
 	if files.Exists(tmpPath) {
 		_ = files.RemoveAll(tmpPath)
 	}
 	defer func() { _ = files.RemoveAll(tmpPath) }()
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-			slog.Debug("cleaning up temp dir", "path", tmpPath)
-			_ = files.RemoveAll(tmpPath)
-			sys.ErrAndExit(err)
-		}))),
-	)
+	c := ui.NewDefaultConsole(func(err error) {
+		slog.Debug("cleaning up temp dir", "path", tmpPath)
+
+		if err := files.RemoveAll(tmpPath); err != nil {
+			slog.Error("cleaning up temp dir", "path", tmpPath)
+		}
+
+		sys.ErrAndExit(err)
+	})
 
 	// Set path with the temp dir
 	gitCmd, err := sys.Which("git")
@@ -142,12 +128,12 @@ func CloneAndImport(description, repoPathToClone string) error {
 	}
 
 	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
-	imported, err := git.Import(c, gm, repoPathToClone)
+	imported, err := git.Import(c, gm, app)
 	if err != nil {
 		return err
 	}
-	if !git.IsInitialized(config.App.Git.Path) {
-		slog.Warn("git import: repo not initialized", "path", config.App.Git.Path)
+	if !git.IsInitialized(app.Git.Path) {
+		slog.Warn("git import: repo not initialized", "path", app.Git.Path)
 		return nil
 	}
 
@@ -178,12 +164,13 @@ func CloneAndImport(description, repoPathToClone string) error {
 
 // gitInitFunc creates a new Git repository.
 func gitInitFunc(_ *cobra.Command, _ []string) error {
-	gr, err := git.NewRepo(config.App.DBPath)
+	app := config.New()
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
 
-	if err := gr.Git.Init(gitFlags.Redo); err != nil {
+	if err := gr.Git.Init(app.Flags.Redo); err != nil {
 		return fmt.Errorf("init repo: %w", err)
 	}
 
@@ -196,25 +183,22 @@ func gitInitFunc(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if err := managementSelect(c); err != nil {
+	if err := managementSelect(c, app); err != nil {
 		return fmt.Errorf("select tracked: %w", err)
 	}
 
 	return nil
 }
 
-// ensureGitEnvironment checks if the environment is ready for git commands.
-func ensureGitEnvironment(c *cobra.Command, args []string) error {
-	if err := cmd.RequireDatabase(c, args); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
+// ensureGitEnvironmentHook checks if the environment is ready for git commands.
+func ensureGitEnvironmentHook(c *cobra.Command, args []string) error {
 	gitCmd, err := sys.Which("git")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	gm := git.NewGit(config.App.Git.Path, git.WithCmd(gitCmd))
+	app := config.New()
+	gm := git.NewGit(app.Git.Path, git.WithCmd(gitCmd))
 
 	switch c.Name() {
 	case "init", "import":
@@ -222,8 +206,7 @@ func ensureGitEnvironment(c *cobra.Command, args []string) error {
 	}
 
 	if !gm.IsInitialized() {
-		// BUG: when using `config.App.Cmd git -h` must show help.
-		// The user doesn't want to initialize git
+		cobra.CheckErr(c.Help())
 		return git.ErrGitNotInitialized
 	}
 
@@ -232,13 +215,6 @@ func ensureGitEnvironment(c *cobra.Command, args []string) error {
 
 // gitCmd represents the git command.
 func gitCommandFunc(command *cobra.Command, args []string) error {
-	// FIX: what is this :|
-	if slices.ContainsFunc([]string{"-h", "--help", "help"}, func(x string) bool {
-		return slices.Contains(args, x)
-	}) {
-		return command.Help()
-	}
-
 	gitCmd, err := sys.Which("git")
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -248,13 +224,15 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 		args = append(args, "log", "--oneline")
 	}
 
-	g := git.NewGit(config.App.Git.Path, git.WithCmd(gitCmd))
+	app := config.New()
+	g := git.NewGit(app.Git.Path, git.WithCmd(gitCmd))
 
 	return g.Exec(args...)
 }
 
 func gitPushFunc(_ *cobra.Command, args []string) error {
-	gr, err := git.NewRepo(config.App.DBPath)
+	app := config.New()
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -273,7 +251,7 @@ func gitPushFunc(_ *cobra.Command, args []string) error {
 		return git.ErrGitUpToDate
 	}
 
-	sum, err := gr.SummaryUpdate()
+	sum, err := gr.SummaryUpdate(app.Info.Version)
 	if err != nil {
 		return err
 	}
@@ -303,17 +281,17 @@ func gitRemoteFunc(_ *cobra.Command, args []string) error {
 		return git.ErrGitRepoURLEmpty
 	}
 
-	cfg := config.App
-	gr, err := git.NewRepo(config.App.DBPath)
+	app := config.New()
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
 
-	if err := gr.Git.AddRemote(args[0]); err != nil {
+	if err := gr.Git.AddRemote(args[0], app.Flags.Force); err != nil {
 		return fmt.Errorf("git remote add: %w", err)
 	}
 
-	sum, err := gr.SummaryUpdate()
+	sum, err := gr.SummaryUpdate(app.Info.Version)
 	if err != nil {
 		return err
 	}
@@ -331,7 +309,7 @@ func gitRemoteFunc(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("git commit: %w", err)
 	}
 
-	return git.SetUpstream(cfg.Git.Path)
+	return git.SetUpstream(app.Git.Path)
 }
 
 var gitTestCmd = &cobra.Command{
@@ -341,4 +319,43 @@ var gitTestCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return nil
 	},
+}
+
+func NewCmd() *cobra.Command {
+	gitCmd := &cobra.Command{
+		Use:                "git",
+		Short:              "Git commands",
+		Aliases:            []string{"g"},
+		DisableFlagParsing: false,
+		PersistentPreRunE:  cli.ChainHooks(cli.HookEnsureDatabase, ensureGitEnvironmentHook),
+		RunE:               cli.HookHelp,
+	}
+
+	app := config.New()
+
+	// git tracker
+	gitTrackerCmd.Flags().SortFlags = false
+	gitTrackerCmd.Flags().BoolVarP(&app.Flags.Status, "status", "s", false,
+		"status tracked databases")
+	gitTrackerCmd.Flags().BoolVarP(&app.Flags.Track, "track", "t", false,
+		"track database in git")
+	gitTrackerCmd.Flags().BoolVarP(&app.Flags.Untrack, "untrack", "u", false,
+		"untrack database in git")
+	gitTrackerCmd.Flags().BoolVarP(&app.Flags.Management, "manage", "m", false,
+		"repos management in git")
+	gitCmd.AddCommand(gitTrackerCmd)
+
+	// git initializer
+	gitInitCmd.Flags().BoolVar(&app.Flags.Redo, "redo", false,
+		"reinitialize")
+	gitCmd.AddCommand(gitInitCmd)
+
+	GitImportCmd.Flags().StringVarP(&app.Flags.Path, "uri", "i", "",
+		"repo URI to import")
+	gitCmd.AddCommand(GitImportCmd) // public
+
+	gitCmd.AddCommand(gitCommitCmd, gitPushCmd, gitRemoteCmd, gitRawCmd)
+	gitCmd.AddCommand(gitTestCmd)
+
+	return gitCmd
 }

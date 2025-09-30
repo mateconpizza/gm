@@ -30,7 +30,8 @@ type loadFileFn func(path string) (*bookmark.Bookmark, error)
 
 // Import clones a Git repository, parses its bookmark files, and imports them
 // into the application.
-func Import(c *ui.Console, gm *Manager, urlRepo string) ([]string, error) {
+func Import(c *ui.Console, gm *Manager, app *config.Config) ([]string, error) {
+	urlRepo := app.Flags.Path
 	if err := gm.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -48,7 +49,7 @@ func Import(c *ui.Console, gm *Manager, urlRepo string) ([]string, error) {
 
 	var imported []string
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepo(c, gm.RepoPath, repoName)
+		dbPath, err := parseGitRepo(c, gm.RepoPath, repoName, app.Path.Data)
 		if err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				s := color.Yellow("skipping")
@@ -159,14 +160,17 @@ func exportAsGPG(root string, bs []*bookmark.Bookmark) (bool, error) {
 
 // exportAsJSON creates the repository structure.
 func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
-	var hasUpdates uint32
+	var (
+		app        = config.New()
+		hasUpdates uint32
+	)
 
 	g := new(errgroup.Group)
 
 	for i := range bs {
 		b := bs[i] // capture loop variable
 		g.Go(func() error {
-			updated, err := storeBookmarkAsJSON(root, b, config.App.Flags.Force)
+			updated, err := storeBookmarkAsJSON(root, b, app.Flags.Force)
 			if err != nil {
 				return err
 			}
@@ -208,11 +212,12 @@ func readJSONRepo(c *ui.Console, root string, sp *rotato.Rotato) ([]*bookmark.Bo
 			return nil, fmt.Errorf("%w: %s", err, path)
 		}
 
-		if bj.Checksum != "" {
-			if !bookmark.ValidateChecksumJSON(bj) {
-				return nil, fmt.Errorf("%w: %s", bookmark.ErrBookmarkInvalidChecksum, path)
-			}
-		}
+		// FIX: do i need to check for checksum?
+		// if bj.Checksum != "" {
+		// 	if !bookmark.ValidateChecksumJSON(bj) {
+		// 		return nil, fmt.Errorf("%w: %s", bookmark.ErrBookmarkInvalidChecksum, path)
+		// 	}
+		// }
 
 		currentCount := atomic.AddUint32(&count, 1)
 		sp.UpdateMesg(fmt.Sprintf("[%d] %s", currentCount, filepath.Base(path)))

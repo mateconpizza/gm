@@ -2,12 +2,24 @@ package editor
 
 import (
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
+
+func TestMain(m *testing.M) {
+	config.SetDefault(&config.Config{
+		DBName: "test.db",
+		DBPath: "/tmp/testpath",
+		Info:   &config.Information{Version: "1.2.3"},
+	})
+
+	code := m.Run()
+	os.Exit(code)
+}
 
 func TestNotesStrategy(t *testing.T) {
 	t.Parallel()
@@ -32,8 +44,6 @@ func TestNotesStrategy(t *testing.T) {
 
 func testBuildBuffer(t *testing.T) {
 	t.Helper()
-	config.App.DBName = "test.db"
-	config.App.Info.Version = "1.2.3"
 
 	b := &bookmark.Bookmark{
 		ID:    42,

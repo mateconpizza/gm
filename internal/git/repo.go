@@ -132,8 +132,8 @@ func (gr *Repository) Summary() (*SyncGitSummary, error) {
 }
 
 // SummaryUpdate returns a new SyncGitSummary.
-func (gr *Repository) SummaryUpdate() (*SyncGitSummary, error) {
-	return summaryUpdate(gr)
+func (gr *Repository) SummaryUpdate(version string) (*SyncGitSummary, error) {
+	return summaryUpdate(gr, version)
 }
 
 // RepoStatsWrite calculates, updates, and saves the repository's statistics to
@@ -242,7 +242,7 @@ func (gr *Repository) Status(c *ui.Console) string {
 }
 
 // Config sets the app git config.
-func Config(c *config.AppConfig) {
+func Config(c *config.Config) {
 	// FIX: keep this? replace all git.IsInitialized(path) calls?
 	c.Git.Enabled = IsInitialized(c.Git.Path)
 	c.Git.GPG = gpg.IsInitialized(c.Git.Path)

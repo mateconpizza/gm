@@ -26,7 +26,7 @@ import (
 )
 
 // Browser imports bookmarks from a supported browser.
-func Browser(c *ui.Console, r *db.SQLite) error {
+func Browser(c *ui.Console, r *db.SQLite, force bool) error {
 	br, ok := getBrowser(selectBrowser(c))
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
@@ -35,14 +35,15 @@ func Browser(c *ui.Console, r *db.SQLite) error {
 	if err := br.LoadPaths(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
 	// find bookmarks
-	bs, err := br.Import(c, config.App.Flags.Force)
+	bs, err := br.Import(c, force)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
 
 	// clean and process found bookmarks
-	bs, err = parseFoundInBrowser(c, r, bs)
+	bs, err = parseFoundInBrowser(c, r, bs, force)
 	if err != nil {
 		return err
 	}
@@ -56,12 +57,13 @@ func Browser(c *ui.Console, r *db.SQLite) error {
 
 // Database imports bookmarks from a database.
 func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
+	app := config.New()
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import", false),
-		menu.WithPreview(config.App.Cmd+" -n "+srcDB.Name()+" records {1}"),
+		menu.WithPreview(app.Cmd+" -n "+srcDB.Name()+" records {1}"),
 		menu.WithInterruptFn(func(err error) { // build interrupt cleanup
 			destDB.Close()
 			srcDB.Close()
@@ -111,8 +113,9 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 
 // IntoRepo import records into the database.
 func IntoRepo(c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
+	app := config.New()
 	n := len(records)
-	if !config.App.Flags.Force && n > 1 {
+	if !app.Flags.Force && n > 1 {
 		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -137,13 +140,14 @@ func IntoRepo(c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
 
 // FromBackup imports bookmarks from a backup.
 func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
+	app := config.New()
 	s := color.BrightYellow("Import bookmarks from backup: ").String()
 	c.F.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
 	m := menu.New[bookmark.Bookmark](
 		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
-		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", config.App.Cmd, srcDB.Name())),
+		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", app.Cmd, srcDB.Name())),
 		menu.WithInterruptFn(c.T.InterruptFn),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'", false),
 	)
@@ -233,6 +237,7 @@ func parseFoundInBrowser(
 	c *ui.Console,
 	r *db.SQLite,
 	bs []*bookmark.Bookmark,
+	force bool,
 ) ([]*bookmark.Bookmark, error) {
 	bs = Deduplicate(c, r, bs)
 	if len(bs) == 0 {
@@ -240,7 +245,7 @@ func parseFoundInBrowser(
 		return bs, nil
 	}
 
-	if !config.App.Flags.Force {
+	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y"); err != nil {
 			if errors.Is(err, terminal.ErrActionAborted) {
 				return bs, nil

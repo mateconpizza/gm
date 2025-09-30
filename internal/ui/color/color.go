@@ -1,5 +1,6 @@
 // Package color provides utilities for formatting and coloring text output in the terminal
-//nolint:staticcheck,gofumpt,goimports //ignore
+//
+//nolint:staticcheck // ignore
 package color
 
 import (
@@ -11,12 +12,12 @@ import (
 
 type ColorFn func(arg ...any) *Color
 
-var colorEnabled bool = true
+var IsEnabled bool = true
 
 // Enable enables color support.
 func Enable(b bool) {
-	colorEnabled = b
-	slog.Debug("color enabled", "bool", colorEnabled)
+	IsEnabled = b
+	slog.Debug("color enabled", "bool", IsEnabled)
 }
 
 const (
@@ -32,6 +33,7 @@ const (
 	red     = "\x1b[31m"
 	white   = "\x1b[37m"
 	yellow  = "\x1b[93m"
+
 	// bright colors.
 	brightBlack   = "\x1b[90m"
 	brightBlue    = "\x1b[94m"
@@ -44,6 +46,7 @@ const (
 	brightRed     = "\x1b[91m"
 	brightWhite   = "\x1b[97m"
 	brightYellow  = "\x1b[93m"
+
 	// styles.
 	bold          = "\x1b[1m"
 	dim           = "\x1b[2m"
@@ -52,6 +55,7 @@ const (
 	strikethrough = "\x1b[9m"
 	underline     = "\x1b[4m"
 	undercurl     = "\x1b[4:3m"
+
 	// reset colors.
 	reset = "\x1b[0m"
 )
@@ -69,7 +73,7 @@ func (c *Color) applyStyle(styles ...string) *Color {
 }
 
 func (c *Color) String() string {
-	if !colorEnabled {
+	if !IsEnabled {
 		return c.text
 	}
 	// apply styles

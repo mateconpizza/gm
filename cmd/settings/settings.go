@@ -1,7 +1,9 @@
-package cmd
+// Package settings manages the application's configuration, including
+// reading from and writing to configuration files (e.g., YAML), and
+// providing helper functions for command-line configuration logic.
+package settings
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -19,44 +21,41 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-// createConfFlag is the flag for creating a new config file.
-var createConfFlag bool
+func NewCmd() *cobra.Command {
+	app := config.New()
 
-func init() {
-	cfg := config.App
+	configCmd := &cobra.Command{
+		Use:     "conf",
+		Aliases: []string{"c", "config"},
+		Short:   "Configuration management",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			switch {
+			case app.Flags.Create:
+				return createConfig(app)
+			case app.Flags.Edit:
+				return editConfig(app)
+			case app.Flags.JSON:
+				return printConfigJSON(app.Path.ConfigFile)
+			}
+
+			return cmd.Usage()
+		},
+	}
+
 	f := configCmd.Flags()
-	f.BoolVarP(&createConfFlag, "create", "c", false, "create config file")
-	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit config")
-	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-	f.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
+	f.BoolVarP(&app.Flags.Create, "create", "c", false, "create config file")
+	f.BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit config")
+	f.BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.StringVarP(&app.DBName, "name", "n", config.MainDBName, "database name")
 	_ = f.MarkHidden("name")
 
-	Root.AddCommand(configCmd)
-}
-
-// configCmd configuration management.
-var configCmd = &cobra.Command{
-	Use:     "conf",
-	Aliases: []string{"c", "config"},
-	Short:   "Configuration management",
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		cfg := config.App
-		switch {
-		case createConfFlag:
-			return createConfig(cfg.Path.ConfigFile)
-		case cfg.Flags.Edit:
-			return editConfig(cfg.Path.ConfigFile)
-		case cfg.Flags.JSON:
-			return printConfigJSON(cfg.Path.ConfigFile)
-		}
-
-		return cmd.Usage()
-	},
+	return configCmd
 }
 
 // createConfig dumps the app configuration to a YAML file.
-func createConfig(p string) error {
-	if files.Exists(p) && !config.App.Flags.Force {
+func createConfig(app *config.Config) error {
+	p := app.Path.ConfigFile
+	if files.Exists(p) && !app.Flags.Force {
 		f := color.BrightYellow("--force").Italic().String()
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
@@ -68,22 +67,23 @@ func createConfig(p string) error {
 		return nil
 	}
 
-	if err := writeYAML(p, config.Defaults, config.App.Flags.Force); err != nil {
+	if err := writeYAML(p, config.Defaults, app.Flags.Force); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Printf("%s: file saved %q\n", config.App.Name, p)
+	fmt.Printf("%s: file saved %q\n", app.Name, p)
 
 	return nil
 }
 
 // editConfig edits the config file.
-func editConfig(p string) error {
+func editConfig(app *config.Config) error {
+	p := app.Path.ConfigFile
 	if !files.Exists(p) {
 		return files.ErrFileNotFound
 	}
 
-	te, err := editor.NewEditor(config.App.Env.Editor)
+	te, err := editor.NewEditor(app.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -115,23 +115,6 @@ func getConfig(p string) (*config.ConfigFile, error) {
 	}
 
 	return cfg, nil
-}
-
-// loadConfig loads the menu configuration YAML file.
-func loadConfig(p string) error {
-	cfg, err := getConfig(p)
-	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
-		return fmt.Errorf("%w", err)
-	}
-
-	if cfg == nil {
-		slog.Debug("configfile is empty or not found. loading defaults")
-		return nil
-	}
-
-	config.Fzf = cfg.Menu
-
-	return nil
 }
 
 // printConfigJSON prints the config file as JSON.

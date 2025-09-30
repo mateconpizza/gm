@@ -26,13 +26,9 @@ func (NotesStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
 	header := fmt.Appendf(nil, "# %d %s\n#\n", b.ID, shortTitle)
 
 	// metadata
+	app := config.New()
 	sep := txt.CenteredLine(w, "bookmark notes")
-	meta := fmt.Appendf(nil,
-		"# database:\t%q\n# version:\tv%s\n# %s\n\n",
-		config.App.DBName,
-		config.App.Info.Version,
-		sep,
-	)
+	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", app.DBName, app.Info.Version, sep)
 
 	buf.Header = append(buf.Header, header...)
 	buf.Header = append(buf.Header, meta...)
@@ -60,5 +56,5 @@ func (NotesStrategy) Save(ctx context.Context, r *db.SQLite, bm *Record) error {
 }
 
 func (NotesStrategy) EditType() string {
-	return config.App.Name
+	return config.New().Name
 }

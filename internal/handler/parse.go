@@ -46,9 +46,10 @@ func NewBookmark(
 
 	sc := scraper.New(newURL, scraper.WithSpinner("scraping webpage..."))
 
+	app := config.New()
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)
-	tagsFromArgs(c, sc, bTemp)
+	tagsFromArgs(c, sc, app, bTemp)
 
 	b.URL = newURL
 	b.Title = bTemp.title
@@ -111,7 +112,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 }
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
-func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
+func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, app *config.Config, b *bookmarkTemp) {
 	cb := func(s string) string { return color.BrightBlue(s).String() }
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 
@@ -135,7 +136,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 		return
 	}
 
-	if config.App.Flags.Force {
+	if app.Flags.Force {
 		b.tags = "notag"
 		c.F.Textln(" " + cgi(b.tags)).Flush()
 
@@ -145,7 +146,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	// prompt|take input for tags
 	c.F.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
-	mTags, _ := dbtask.TagsCounterFromPath(config.App.DBPath)
+	mTags, _ := dbtask.TagsCounterFromPath(app.DBPath)
 	b.tags = bookmark.ParseTags(c.T.ChooseTags(c.F.Border.Mid, mTags))
 
 	c.F.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))

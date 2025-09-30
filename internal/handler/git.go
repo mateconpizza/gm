@@ -7,11 +7,11 @@ import (
 )
 
 // gitClean remove bookmarks files from git.
-func gitClean(dbPath string, bs []*bookmark.Bookmark) error {
-	repoPath := config.App.Git.Path
+func gitClean(dbPath, repoPath string, bs []*bookmark.Bookmark) error {
 	if !git.IsInitialized(repoPath) {
 		return nil
 	}
+
 	gr, err := git.NewRepo(dbPath)
 	if err != nil {
 		return err
@@ -29,7 +29,8 @@ func gitClean(dbPath string, bs []*bookmark.Bookmark) error {
 
 // gitUpdate update bookmarks files in git.
 func gitUpdate(dbPath string, oldB, newB *bookmark.Bookmark) error {
-	repoPath := config.App.Git.Path
+	app := config.New()
+	repoPath := app.Git.Path
 	if !git.IsInitialized(repoPath) {
 		return nil
 	}

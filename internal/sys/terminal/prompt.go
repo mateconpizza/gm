@@ -10,7 +10,6 @@ import (
 
 	prompt "github.com/c-bata/go-prompt"
 
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
@@ -96,7 +95,7 @@ func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 	}
 
 	// opts
-	o = promptOptions(config.App.Flags.Color)
+	o = promptOptions(color.IsEnabled)
 	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
 
 	// restores term state

@@ -108,26 +108,6 @@ func ByField(bs []*bookmark.Bookmark, f string) error {
 	return nil
 }
 
-// DatabasesList lists the available databases.
-func DatabasesList(c *ui.Console, p string) error {
-	fs, err := files.FindByExtList(p, ".db", ".enc")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	n := len(fs)
-	if n > 1 {
-		nColor := color.BrightCyan(n).Bold().String()
-		c.F.Header(nColor + " database/s found\n").Row("\n").Flush()
-	}
-
-	for _, fname := range fs {
-		fmt.Print(summary.RepoFromPath(c, fname))
-	}
-
-	return nil
-}
-
 // DatabasesTable shows a simple table in database information.
 func DatabasesTable(p string) error {
 	fs, err := files.FindByExtList(p, ".db", ".enc")
@@ -215,20 +195,20 @@ func TagsJSON(p string) error {
 }
 
 // RepoInfo prints the database info.
-func RepoInfo(c *ui.Console, p string, j bool) error {
-	if err := locker.IsLocked(p); err != nil {
-		fmt.Print(summary.RepoFromPath(c, p+".enc"))
+func RepoInfo(c *ui.Console, app *config.Config) error {
+	if err := locker.IsLocked(app.DBPath); err != nil {
+		fmt.Print(summary.RepoFromPath(c, app.DBPath+".enc", app.Path.Backup))
 		return nil
 	}
 
-	store, err := db.New(p)
+	store, err := db.New(app.DBPath)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
 	defer store.Close()
 
 	// FIX: Implement ListBackups
-	if j {
+	if app.Flags.JSON {
 		b, err := port.ToJSON(store)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -244,9 +224,9 @@ func RepoInfo(c *ui.Console, p string, j bool) error {
 		return err
 	}
 
-	info := summary.Info(c, r)
+	info := summary.Info(c, r, app.Path.Backup)
 
-	g, err := git.Info(c, p)
+	g, err := git.Info(c, app.DBPath, app.Git)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}

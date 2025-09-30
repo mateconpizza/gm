@@ -214,7 +214,7 @@ func summaryRead(gr *Repository) (*SyncGitSummary, error) {
 	return sum, nil
 }
 
-func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
+func summaryUpdate(gr *Repository, version string) (*SyncGitSummary, error) {
 	r, err := db.New(gr.Loc.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
@@ -246,7 +246,7 @@ func summaryUpdate(gr *Repository) (*SyncGitSummary, error) {
 			Hostname:   hostname,
 			Platform:   runtime.GOOS,
 			Architect:  runtime.GOARCH,
-			AppVersion: config.App.Info.Version,
+			AppVersion: version,
 		},
 		RepoStats: &dbtask.RepoStats{
 			Name:      r.Name(),
@@ -277,7 +277,7 @@ func records(dbPath string) ([]*bookmark.Bookmark, error) {
 }
 
 // parseGitRepo loads a git repo into a database.
-func parseGitRepo(c *ui.Console, root, repoName string) (string, error) {
+func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error) {
 	c.F.Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
 
@@ -300,13 +300,18 @@ func parseGitRepo(c *ui.Console, root, repoName string) (string, error) {
 		choices = []string{"merge", "drop", "create", "select", "ignore"}
 	)
 
-	dbPath := filepath.Join(config.App.Path.Data, sum.RepoStats.Name)
+	dbPath := filepath.Join(pathData, sum.RepoStats.Name)
 	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err
 	}
 
 	if c.Confirm(fmt.Sprintf("Import into %q database?", gr.Loc.DBName), "y") {
+		// FIX:
+		// - Limit options to:
+		// 		- Current database (flag `--name`)?
+		// 		- New database
+		// 		- on "no/cancel", abort all process?
 		fmt.Printf("repoPath: %v\n", repoPath)
 	}
 
@@ -559,7 +564,7 @@ func StatusRepo(c *ui.Console, dbPath string) (string, error) {
 }
 
 // Info returns a prettify info of the repository.
-func Info(c *ui.Console, dbPath string) (string, error) {
+func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err
@@ -569,7 +574,6 @@ func Info(c *ui.Console, dbPath string) (string, error) {
 		return c.F.StringReset(), err
 	}
 
-	cfg := config.App.Git
 	if !cfg.Enabled {
 		return "", nil
 	}

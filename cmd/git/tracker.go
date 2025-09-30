@@ -16,18 +16,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-var trackerFlags *config.Flags
-
-func init() {
-	trackerFlags := config.NewFlags()
-
-	tfb := gitTrackerCmd.Flags().BoolVarP
-	tfb(&trackerFlags.Track, "track", "t", false, "track database in git")
-	tfb(&trackerFlags.Untrack, "untrack", "u", false, "untrack database in git")
-	tfb(&trackerFlags.Status, "status", "s", false, "status tracked databases")
-	tfb(&trackerFlags.Management, "manage", "m", false, "repos management in git")
-}
-
 var gitTrackerCmd = &cobra.Command{
 	Use:   "tracker",
 	Short: "Track database in git",
@@ -35,7 +23,8 @@ var gitTrackerCmd = &cobra.Command{
 }
 
 func trackerFunc(cmd *cobra.Command, _ []string) error {
-	gr, err := git.NewRepo(config.App.DBPath)
+	app := config.New()
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -46,13 +35,13 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 	)
 
 	switch {
-	case trackerFlags.Status:
-		return status(c, gr.Tracker.List)
-	case trackerFlags.Management:
-		return management(c)
-	case trackerFlags.Track:
+	case app.Flags.Status:
+		return status(c, app, gr.Tracker.List)
+	case app.Flags.Management:
+		return management(c, app)
+	case app.Flags.Track:
 		return track(c, gr)
-	case trackerFlags.Untrack:
+	case app.Flags.Untrack:
 		return untrack(c, gr)
 	}
 
@@ -60,8 +49,8 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 }
 
 // managementSelect select which database to track in the git repository.
-func managementSelect(c *ui.Console) error {
-	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
+func managementSelect(c *ui.Console, app *config.Config) error {
+	dbFiles, err := files.Find(app.Path.Data, "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
@@ -99,8 +88,8 @@ func managementSelect(c *ui.Console) error {
 }
 
 // management updates the tracked databases in the git repository.
-func management(c *ui.Console) error {
-	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
+func management(c *ui.Console, app *config.Config) error {
+	dbFiles, err := files.Find(app.Path.Data, "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
@@ -157,12 +146,12 @@ func management(c *ui.Console) error {
 	return nil
 }
 
-func status(c *ui.Console, tracked []string) error {
+func status(c *ui.Console, app *config.Config, tracked []string) error {
 	if len(tracked) == 0 {
 		return nil
 	}
 
-	dbFiles, err := files.Find(config.App.Path.Data, "*.db")
+	dbFiles, err := files.Find(app.Path.Data, "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}

@@ -44,12 +44,8 @@ func (baseBookmarkStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, erro
 	sep := txt.CenteredLine(width-rightMargin, s)
 
 	// metadata
-	meta := fmt.Appendf(nil,
-		"# database:\t%q\n# version:\tv%s\n# %s\n\n",
-		config.App.DBName,
-		config.App.Info.Version,
-		sep,
-	)
+	app := config.New()
+	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", app.DBName, app.Info.Version, sep)
 
 	// footer
 	buf.Footer = fmt.Appendf(nil, " [%d/%d]", buf.Idx+1, buf.Total)
@@ -90,7 +86,7 @@ func (baseBookmarkStrategy) Diff(oldB, newB *Record) string {
 }
 
 func (baseBookmarkStrategy) EditType() string {
-	return config.App.Name
+	return config.New().Name
 }
 
 // BookmarkStrategy implements the Strategy interface for editing

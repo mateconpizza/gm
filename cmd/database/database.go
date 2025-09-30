@@ -1,3 +1,4 @@
+// Package database handles bookmarks database management operations.
 package database
 
 import (
@@ -8,7 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd"
+	"github.com/mateconpizza/gm/cmd/setup"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -22,59 +24,24 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-var dbFlags *config.Flags
-
-func init() {
-	dbFlags = config.NewFlags()
-	cfg := config.App
-	f := dbRootCmd.Flags()
-	f.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
-	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-
-	f.BoolVarP(&dbFlags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
-	f.BoolVarP(&dbFlags.Reorder, "reorder", "R", false, "reorder IDs")
-	f.BoolVarP(&dbFlags.Lock, "lock", "L", false, "lock a database")
-	f.BoolVarP(&dbFlags.Unlock, "unlock", "U", false, "unlock a database")
-	f.BoolVarP(&dbFlags.List, "list", "l", false, "list databases")
-	f.BoolVarP(&dbFlags.Info, "info", "i", false, "database information")
-
-	// new database
-	DatabaseNewCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "new database name")
-	// show database info
-	databaseInfoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-	// remove database
-	databaseRmCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select database to remove (fzf)")
-
-	// backup
-	backupUnlockCmd.Flags().
-		BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select a backup to lock|unlock (fzf)")
-	backupCmd.AddCommand(BackupNewCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
-	dbRootCmd.AddCommand(backupCmd)
-
-	// remove
-	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
-	dbRootCmd.AddCommand(removeCmd)
-
-	dbRootCmd.AddCommand(databaseDropCmd, DatabaseNewCmd, databaseRmCmd)
-	cmd.Root.AddCommand(dbRootCmd)
-}
-
 var (
 	// dbRootCmd database management.
 	dbRootCmd = &cobra.Command{
 		Use:               "db",
 		Aliases:           []string{"database", "d"},
 		Short:             "Database management",
-		PersistentPreRunE: cmd.RequireDatabase,
+		PersistentPreRunE: cli.HookEnsureDatabase,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			switch {
-			case config.App.Flags.JSON:
-				c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-				return printer.RepoInfo(c, config.App.DBPath, config.App.Flags.JSON)
+			app := config.New()
 
-			case dbFlags.Vacuum:
-				slog.Debug("database:", "vacuum", config.App.DBName)
-				r, err := db.New(config.App.DBPath)
+			switch {
+			case app.Flags.JSON:
+				c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
+				return printer.RepoInfo(c, app)
+
+			case app.Flags.Vacuum:
+				slog.Debug("database:", "vacuum", app.DBName)
+				r, err := db.New(app.DBPath)
 				if err != nil {
 					return fmt.Errorf("backup: %w", err)
 				}
@@ -82,9 +49,9 @@ var (
 
 				return r.Vacuum(context.Background())
 
-			case dbFlags.Reorder:
+			case app.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
-				r, err := db.New(config.App.DBPath)
+				r, err := db.New(app.DBPath)
 				if err != nil {
 					return fmt.Errorf("backup: %w", err)
 				}
@@ -95,55 +62,55 @@ var (
 
 				return r.ReorderIDs(ctx)
 
-			case dbFlags.Lock:
-				return databaseLockCmd.RunE(cmd, args)
-			case dbFlags.Unlock:
-				return databaseUnlockCmd.RunE(cmd, args)
-			case dbFlags.List:
-				return printer.DatabasesTable(config.App.Path.Data)
-			case dbFlags.Info:
-				return databaseInfoCmd.RunE(cmd, args)
+			case app.Flags.Lock:
+				return lockCmd.RunE(cmd, args)
+			case app.Flags.Unlock:
+				return unlockCmd.RunE(cmd, args)
+			case app.Flags.List:
+				return printer.DatabasesTable(app.Path.Data)
+			case app.Flags.Info:
+				return infoCmd.RunE(cmd, args)
 			}
 
 			return cmd.Usage()
 		},
 	}
 
-	// DatabaseNewCmd initialize a new bookmarks database.
-	DatabaseNewCmd = &cobra.Command{
+	// newCmd initialize a new bookmarks database.
+	newCmd = &cobra.Command{
 		Use:               "new",
-		Short:             cmd.InitCmd.Short,
+		Short:             "Initialize a new bookmarks database",
 		Example:           `  gm db new -n newDBName`,
-		Annotations:       cmd.SkipDBCheckAnnotation,
-		PersistentPreRunE: cmd.InitCmd.PersistentPreRunE,
-		RunE:              cmd.InitCmd.RunE,
-		PostRunE:          cmd.InitCmd.PostRunE,
+		Annotations:       cli.SkipDBCheckAnnotation,
+		PersistentPreRunE: setup.InitCmd.PersistentPreRunE,
+		RunE:              setup.InitCmd.RunE,
+		PostRunE:          setup.InitCmd.PostRunE,
 	}
 
-	// databaseDropCmd drops a database.
-	databaseDropCmd = &cobra.Command{
+	// dropCmd drops a database.
+	dropCmd = &cobra.Command{
 		Use:      "drop",
 		Short:    "Drop a database",
 		RunE:     dbDropFunc,
 		PostRunE: dbDropPostFunc,
 	}
 
-	// databaseInfoCmd shows information about a database.
-	databaseInfoCmd = &cobra.Command{
+	// infoCmd shows information about a database.
+	infoCmd = &cobra.Command{
 		Use:     "info",
 		Short:   "Show information about a database",
 		Aliases: []string{"i", "show"},
 		RunE: func(_ *cobra.Command, _ []string) error {
+			app := config.New()
 			return printer.RepoInfo(
 				ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray)))),
-				config.App.DBPath,
-				config.App.Flags.JSON,
+				app,
 			)
 		},
 	}
 
-	// databaseRmCmd remove a database.
-	databaseRmCmd = &cobra.Command{
+	// rmCmd remove a database.
+	rmCmd = &cobra.Command{
 		Use:      "rm",
 		Short:    dbRemoveCmd.Short,
 		Aliases:  []string{"r", "remove"},
@@ -152,7 +119,7 @@ var (
 		PostRunE: dbRemoveCmd.PostRunE,
 	}
 
-	databaseLockCmd = &cobra.Command{
+	lockCmd = &cobra.Command{
 		Use:   "lock",
 		Short: "Lock a database",
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -163,14 +130,16 @@ var (
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 			)
 
-			return handler.LockRepo(c, config.App.DBPath)
+			app := config.New()
+
+			return handler.LockRepo(c, app.DBPath)
 		},
 	}
 
-	databaseUnlockCmd = &cobra.Command{
+	unlockCmd = &cobra.Command{
 		Use:         "unlock",
 		Short:       "Unlock a database",
-		Annotations: cmd.SkipDBCheckAnnotation,
+		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := ui.NewConsole(
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Purple))),
@@ -179,13 +148,16 @@ var (
 				),
 			)
 
-			return handler.UnlockRepo(c, config.App.DBPath)
+			app := config.New()
+
+			return handler.UnlockRepo(c, app.DBPath)
 		},
 	}
 )
 
 func dbDropFunc(_ *cobra.Command, _ []string) error {
-	r, err := db.New(config.App.DBPath)
+	app := config.New()
+	r, err := db.New(app.DBPath)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
@@ -199,16 +171,16 @@ func dbDropFunc(_ *cobra.Command, _ []string) error {
 		}))),
 	)
 
-	return handler.DroppingDB(c, r)
+	return handler.DroppingDB(c, r, app.Path.Backup, app.Flags.Force)
 }
 
 func dbDropPostFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.App
-	if !git.IsInitialized(cfg.Git.Path) {
+	app := config.New()
+	if !git.IsInitialized(app.Git.Path) {
 		return nil
 	}
 
-	gr, err := git.NewRepo(cfg.DBPath)
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -238,4 +210,41 @@ func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 	fmt.Print(c.SuccessMesg("database untracked\n"))
 
 	return nil
+}
+
+func NewCmd() *cobra.Command {
+	app := config.New()
+	f := dbRootCmd.Flags()
+	f.SortFlags = false
+
+	f.StringVarP(&app.DBName, "name", "n", config.MainDBName, "database name")
+	f.BoolVarP(&app.Flags.List, "list", "l", false, "list databases")
+	f.BoolVarP(&app.Flags.Info, "info", "i", false, "database information")
+	f.BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
+	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false, "reorder IDs")
+	f.BoolVarP(&app.Flags.Lock, "lock", "L", false, "lock a database")
+	f.BoolVarP(&app.Flags.Unlock, "unlock", "U", false, "unlock a database")
+
+	// new database
+	newCmd.Flags().StringVarP(&app.DBName, "name", "n", config.MainDBName, "new database name")
+	dbRootCmd.AddCommand(newCmd)
+	// show database info
+	infoCmd.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
+	// remove database
+	rmCmd.Flags().BoolVarP(&app.Flags.Menu, "menu", "m", false, "select database to remove (fzf compatible)")
+
+	// backup
+	backupUnlockCmd.Flags().BoolVarP(&app.Flags.Menu, "menu", "m", false,
+		"select a backup to lock|unlock (fzf compatible)")
+	backupCmd.AddCommand(BackupNewCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
+	dbRootCmd.AddCommand(backupCmd)
+
+	// remove
+	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
+	dbRootCmd.AddCommand(removeCmd)
+
+	dbRootCmd.AddCommand(dropCmd, rmCmd)
+
+	return dbRootCmd
 }

@@ -31,33 +31,33 @@ var (
 )
 
 // RemoveRepo removes a repo.
-func RemoveRepo(c *ui.Console, dbPath string) error {
-	if !files.Exists(dbPath) {
-		return fmt.Errorf("%w: %q", db.ErrDBNotFound, dbPath)
+func RemoveRepo(c *ui.Console, app *config.Config) error {
+	if !files.Exists(app.DBPath) {
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, app.DBPath)
 	}
 
-	if filepath.Base(dbPath) == config.MainDBName && !config.App.Flags.Force {
+	if filepath.Base(app.DBPath) == config.MainDBName && !app.Flags.Force {
 		return fmt.Errorf("%w: main database cannot be removed, use --force", terminal.ErrActionAborted)
 	}
 
-	fmt.Print(summary.RepoFromPath(c, dbPath))
-	if !config.App.Flags.Force {
-		if err := c.ConfirmErr(credB("remove")+" "+filepath.Base(dbPath)+"?", "n"); err != nil {
+	fmt.Print(summary.RepoFromPath(c, app.DBPath, app.Path.Backup))
+	if !app.Flags.Force {
+		if err := c.ConfirmErr(credB("remove")+" "+filepath.Base(app.DBPath)+"?", "n"); err != nil {
 			return err
 		}
 	}
 
-	if err := RemoveBackups(c, dbPath); err != nil {
+	if err := RemoveBackups(c, app); err != nil {
 		if !errors.Is(err, db.ErrBackupNotFound) {
 			return fmt.Errorf("%w", err)
 		}
 	}
 
-	if err := files.Remove(dbPath); err != nil {
+	if err := files.Remove(app.DBPath); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	dbName := filepath.Base(dbPath)
+	dbName := filepath.Base(app.DBPath)
 	if dbName == config.MainDBName {
 		dbName = "main"
 	}
@@ -68,9 +68,10 @@ func RemoveRepo(c *ui.Console, dbPath string) error {
 }
 
 // RemoveBackups removes backups.
-func RemoveBackups(c *ui.Console, p string) error {
+func RemoveBackups(c *ui.Console, app *config.Config) error {
+	p := app.DBPath
 	dbName := files.StripSuffixes(filepath.Base(p))
-	fs, err := files.List(config.App.Path.Backup, "*_"+dbName+".db*")
+	fs, err := files.List(app.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -81,9 +82,9 @@ func RemoveBackups(c *ui.Console, p string) error {
 
 	filesToRemove := slice.New[string]()
 
-	if config.App.Flags.Force {
+	if app.Flags.Force {
 		filesToRemove.Append(fs...)
-		return removeSlicePath(c, filesToRemove)
+		return removeSlicePath(c, filesToRemove, app.Flags.Force)
 	}
 
 actionLoop:
@@ -111,7 +112,7 @@ actionLoop:
 				menu.WithSettings(config.Fzf.Settings),
 				menu.WithMultiSelection(),
 				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p)), false),
-				menu.WithPreview(config.App.Cmd+" db -n ./backup/{1} info"),
+				menu.WithPreview(app.Cmd+" db -n ./backup/{1} info"),
 			)
 
 			if errors.Is(err, sys.ErrActionAborted) {
@@ -127,17 +128,17 @@ actionLoop:
 		}
 	}
 
-	return removeSlicePath(c, filesToRemove)
+	return removeSlicePath(c, filesToRemove, app.Flags.Force)
 }
 
 // removeSlicePath removes a slice of paths.
-func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
+func removeSlicePath(c *ui.Console, dbs *slice.Slice[string], force bool) error {
 	n := dbs.Len()
 	if n == 0 {
 		return slice.ErrSliceEmpty
 	}
 
-	if n > 1 && !config.App.Flags.Force {
+	if n > 1 && !force {
 		dbs.ForEach(func(r string) {
 			c.F.Midln(summary.RepoRecordsFromPath(r))
 		})
@@ -176,14 +177,14 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string]) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark, app *config.Config) error {
 	defer r.Close()
-	if err := validateRemove(bs, config.App.Flags.Force); err != nil {
+	if err := validateRemove(bs, app.Flags.Force); err != nil {
 		return err
 	}
 
-	if config.App.Flags.Force {
-		return removeRecords(c, r, bs)
+	if app.Flags.Force {
+		return removeRecords(c, r, app, bs)
 	}
 
 	f := frame.New(frame.WithColorBorder(color.Gray))
@@ -206,17 +207,17 @@ func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
-	return removeRecords(c, r, bs)
+	return removeRecords(c, r, app, bs)
 }
 
 // DroppingDB drops a database.
-func DroppingDB(c *ui.Console, r *db.SQLite) error {
+func DroppingDB(c *ui.Console, r *db.SQLite, backupPath string, force bool) error {
 	c.F.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
-	fmt.Print(summary.Info(c, r))
+	fmt.Print(summary.Info(c, r, backupPath))
 
 	c.F.Reset().Rowln().Flush()
 
-	if !config.App.Flags.Force {
+	if !force {
 		var q string
 		if r.Name() == config.MainDBName {
 			q = c.WarningMesg("dropping \"main\" database, continue?")

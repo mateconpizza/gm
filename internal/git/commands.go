@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -38,8 +37,8 @@ func addAll(repoPath string) error {
 }
 
 // addRemote adds a remote repository.
-func addRemote(repoPath, repoURL string) error {
-	if config.App.Flags.Force {
+func addRemote(repoPath, repoURL string, force bool) error {
+	if force {
 		return runGitCmd(repoPath, "remote", "set-url", "origin", repoURL)
 	}
 

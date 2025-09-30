@@ -1,37 +1,50 @@
 package cmd
 
 import (
-	"fmt"
 	"log/slog"
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/records"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
-// SkipDBCheckAnnotation is used in subcmds declarations to skip the database
-// existence check.
-var SkipDBCheckAnnotation = map[string]string{"skip-db-check": "true"}
+// NewRootCmd is the root command.
+func NewRootCmd(app *config.Config) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               app.Cmd,
+		Short:             app.Info.Title,
+		Long:              app.Info.Desc,
+		Args:              cobra.MinimumNArgs(0),
+		SilenceUsage:      true,
+		PersistentPreRunE: cli.HookEnsureDatabase,
+		RunE:              records.CmdFunc,
+		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
+	}
 
-var databaseChecked bool = false
+	// Global flags
+	cmd.PersistentFlags().StringVarP(&app.DBName, "name", "n", config.MainDBName,
+		"database name")
+	cmd.PersistentFlags().StringVar(&app.Flags.ColorStr, "color", "always",
+		"output with pretty colors [always|never]")
+	cmd.PersistentFlags().CountVarP(&app.Flags.Verbose, "verbose", "v",
+		"increase verbosity (-v, -vv, -vvv)")
+	cmd.PersistentFlags().BoolVar(&app.Flags.Force, "force", false,
+		"force action | don't ask confirmation")
+	_ = cmd.PersistentFlags().MarkHidden("help")
 
-func initRootFlags(cmd *cobra.Command) {
-	cfg := config.App
+	// Initialize flags for records commands
+	records.InitFlags(cmd, app)
 
-	// global
-	pf := cmd.PersistentFlags()
-	pf.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
-	pf.StringVar(&cfg.Flags.ColorStr, "color", "always", "output with pretty colors [always|never]")
-	pf.CountVarP(&cfg.Flags.Verbose, "verbose", "v", "Increase verbosity (-v, -vv, -vvv)")
-	pf.BoolVar(&cfg.Flags.Force, "force", false, "force action | don't ask confirmation")
-	_ = pf.MarkHidden("help")
-
-	initRecordFlags(cmd)
+	cobra.OnInitialize(func() {
+		app.Initialize()
+		initConfig(app)
+	})
 
 	// cmd settings
 	cmd.CompletionOptions.HiddenDefaultCmd = true
@@ -39,63 +52,32 @@ func initRootFlags(cmd *cobra.Command) {
 	cmd.DisableSuggestions = true
 	cmd.SuggestionsMinimumDistance = 1
 	cobra.EnableCommandSorting = false
+
+	return cmd
 }
 
-// Root represents the base command when called without any subcommands.
-var Root = &cobra.Command{
-	Use:               config.App.Cmd,
-	Short:             config.App.Info.Title,
-	Long:              config.App.Info.Desc,
-	Version:           prettyVersion(),
-	Args:              cobra.MinimumNArgs(0),
-	SilenceUsage:      true,
-	PersistentPreRunE: RequireDatabase,
-	RunE:              recordsCmdFunc,
-}
+func initConfig(cfg *config.Config) {
+	cfg.Flags.Color = cfg.Flags.ColorStr == "always" &&
+		!terminal.IsPiped() &&
+		!terminal.NoColorEnv()
 
-func Execute() {
-	if err := Root.Execute(); err != nil {
-		sys.ErrAndExit(err)
-	}
-}
+	config.SetVerbosity(cfg.Flags.Verbose)
 
-// RequireDatabase checks if the database exists.
-func RequireDatabase(cmd *cobra.Command, args []string) error {
-	if cmd.HasParent() {
-		slog.Debug("assert db exists", "command", cmd.Name(), "parent", cmd.Parent().Name())
-	} else {
-		slog.Debug("assert db exists", "command", cmd.Name())
+	// load config from YAML
+	if err := config.Load(cfg.Path.ConfigFile); err != nil {
+		slog.Error("loading config", "err", err)
 	}
 
-	unlockFlag, _ := cmd.Flags().GetBool("unlock")
-	if unlockFlag {
-		return nil
-	}
+	// set menu
+	menu.SetConfig(config.Fzf)
 
-	for c := cmd; c != nil; c = c.Parent() {
-		if v, ok := c.Annotations["skip-db-check"]; ok && v == "true" {
-			slog.Debug("skipping db check for", "command", c.Name())
-			return nil
-		}
-	}
+	// enable global color
+	menu.ColorEnable(cfg.Flags.Color)
+	color.Enable(cfg.Flags.Color)
 
-	if databaseChecked {
-		return nil
-	}
+	// terminal interactive mode
+	terminal.NonInteractiveMode(cfg.Flags.Force)
 
-	if files.Exists(config.App.DBPath) {
-		databaseChecked = true
-		return nil
-	}
-
-	if err := handler.CheckDBLocked(config.App.DBPath); err != nil {
-		return err
-	}
-
-	i := color.BrightYellow(config.App.Cmd, "init").Italic()
-	if config.App.DBName == config.MainDBName {
-		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
-	}
-
-	return fmt.Errorf("%w %q: use '%s' to initialize", db.ErrDBNotFound, config.App.DBName, i)
+	// git config
+	git.Config(cfg)
 }

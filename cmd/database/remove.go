@@ -36,7 +36,7 @@ var (
 
 			c.F.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
 
-			return handler.RemoveBackups(c, config.App.DBPath)
+			return handler.RemoveBackups(c, config.New())
 		},
 	}
 
@@ -48,10 +48,10 @@ var (
 		Example: `  gm rm db -n dbName
   gm rm db -n dbName --force`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := config.App
+			app := config.New()
 			if len(args) > 0 {
-				cfg.DBName = files.EnsureSuffix(args[0], ".db")
-				cfg.DBPath = filepath.Join(cfg.Path.Data, cfg.DBName)
+				app.DBName = files.EnsureSuffix(args[0], ".db")
+				app.DBPath = filepath.Join(app.Path.Data, app.DBName)
 			}
 
 			c := ui.NewConsole(
@@ -61,17 +61,16 @@ var (
 				),
 			)
 
-			dbPath := config.App.DBPath
-			if cfg.Flags.Menu {
-				s, err := handler.SelectDatabase(config.App.Path.Data)
+			if app.Flags.Menu {
+				s, err := handler.SelectDatabase(app.Path.Data)
 				if err != nil {
 					return err
 				}
 
-				dbPath = s
+				app.DBPath = s
 			}
 
-			return handler.RemoveRepo(c, dbPath)
+			return handler.RemoveRepo(c, app)
 		},
 		PostRunE: dbRemovePostFunc,
 	}
@@ -88,11 +87,12 @@ var (
 )
 
 func dbRemovePostFunc(_ *cobra.Command, _ []string) error {
-	if !git.IsInitialized(config.App.Git.Path) {
+	app := config.New()
+	if !git.IsInitialized(app.Git.Path) {
 		return nil
 	}
 
-	gr, err := git.NewRepo(config.App.DBPath)
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}

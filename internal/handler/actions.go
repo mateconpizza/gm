@@ -45,7 +45,7 @@ var (
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(bs []*bookmark.Bookmark, open bool) error {
+func QR(bs []*bookmark.Bookmark, open bool, appName string) error {
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
@@ -53,7 +53,7 @@ func QR(bs []*bookmark.Bookmark, open bool) error {
 		}
 
 		if open {
-			return openQR(qrcode, b)
+			return openQR(qrcode, b, appName)
 		}
 
 		var sb strings.Builder
@@ -156,11 +156,10 @@ func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 }
 
 // Edit edits the bookmarks using a text editor.
-func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Edit(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookmark.Bookmark) error {
 	const maxItems = 10
-	cfg := config.App
 
-	te, err := editor.NewEditor(cfg.Env.Editor)
+	te, err := editor.NewEditor(app.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -172,9 +171,9 @@ func Edit(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 
 	var s editor.EditStrategy
 	switch {
-	case cfg.Flags.Notes:
+	case app.Flags.Notes:
 		s = editor.NotesStrategy{}
-	case cfg.Flags.JSON:
+	case app.Flags.JSON:
 		s = editor.JSONStrategy{}
 	default:
 		s = editor.BookmarkStrategy{}
@@ -315,8 +314,6 @@ func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 
 // LockRepo locks the database.
 func LockRepo(c *ui.Console, rToLock string) error {
-	slog.Debug("locking database", "name", config.App.DBName)
-
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -384,13 +381,13 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // Update updates the bookmarks.
 //
 // It uses the scraper to update the title, description and favicon.
-func Update(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Update(c *ui.Console, r *db.SQLite, env string, bs []*bookmark.Bookmark) error {
 	n := len(bs)
 	if n > 1 {
 		c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", len(bs)))).Rowln().Flush()
 	}
 
-	te, err := editor.NewEditor(config.App.Env.Editor)
+	te, err := editor.NewEditor(env)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -454,40 +451,28 @@ func Export(bs []*bookmark.Bookmark) error {
 }
 
 // openQR opens a QR-Code image in the system default image viewer.
-func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark) error {
+func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
 	const maxLabelLen = 55
 
-	var title, burl string
-
-	if err := qrcode.GenerateImg(config.App.Name); err != nil {
+	if err := qrcode.GenerateImg(appName); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	title = txt.Shorten(b.Title, maxLabelLen)
-	if err := qrcode.Label(title, "top"); err != nil {
+	trunc := func(s string) string { return txt.Shorten(s, maxLabelLen) }
+	if err := qrcode.Label(trunc(b.Title), "top"); err != nil {
 		return fmt.Errorf("%w: adding top label", err)
 	}
-
-	burl = txt.Shorten(b.URL, maxLabelLen)
-	if err := qrcode.Label(burl, "bottom"); err != nil {
+	if err := qrcode.Label(trunc(b.URL), "bottom"); err != nil {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
 
-	if err := qrcode.Open(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
+	return qrcode.Open()
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, force bool) error {
-	if force {
-		if err := r.InsertMany(context.Background(), []*bookmark.Bookmark{b}); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return nil
+func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, a *config.Config) error {
+	if a.Flags.Force {
+		return r.InsertMany(context.Background(), []*bookmark.Bookmark{b})
 	}
 
 	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
@@ -499,7 +484,7 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, force bo
 	case "n", "no":
 		return fmt.Errorf("%w", sys.ErrActionAborted)
 	case "e", "edit":
-		te, err := editor.NewEditor(config.App.Env.Editor)
+		te, err := editor.NewEditor(a.Env.Editor)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

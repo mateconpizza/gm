@@ -395,7 +395,7 @@ func handleEditedBookmark(c *ui.Console, r *db.SQLite, newB, oldB *bookmark.Book
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func removeRecords(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -409,7 +409,7 @@ func removeRecords(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 
 	sp.Done()
 
-	if err := gitClean(r.Cfg.Fullpath(), bs); err != nil {
+	if err := gitClean(r.Cfg.Fullpath(), app.Git.Path, bs); err != nil {
 		return err
 	}
 

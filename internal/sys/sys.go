@@ -169,7 +169,7 @@ func ErrAndExit(err error) {
 
 	if err != nil {
 		slog.Warn("exit", "error", err)
-		fmt.Fprintf(os.Stderr, "%s: %s\n", config.App.Name, err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", config.AppName, err)
 		os.Exit(1)
 	}
 }

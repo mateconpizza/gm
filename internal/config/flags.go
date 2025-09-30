@@ -1,5 +1,11 @@
 package config
 
+import (
+	"log/slog"
+	"os"
+	"path/filepath"
+)
+
 type Flags struct {
 	// Actions
 	Copy   bool // Copy URL into clipboard
@@ -10,6 +16,7 @@ type Flags struct {
 	QR     bool // QR code generator
 	Remove bool // Remove bookmarks
 	List   bool // List items
+	Create bool // Action create
 
 	// Output format
 	Field     string // Field to print
@@ -23,10 +30,12 @@ type Flags struct {
 	Tail int      // Tail limit
 
 	// Bookmark operations
-	Export   bool // Exports the bookmarks into a Netscape HTML file
-	Snapshot bool // Fetches snapshot from Wayback Machine
-	Update   bool // Update bookmarks
-	Status   bool // Status checks URLs status code
+	Export   bool   // Exports the bookmarks into a Netscape HTML file
+	Snapshot bool   // Fetches snapshot from Wayback Machine
+	Update   bool   // Update bookmarks
+	Status   bool   // Status checks URLs status code
+	Title    string // Bookmark's title
+	TagsStr  string // Bookmark's tags (tag1,tag2,...)
 
 	// Configuration and behavior
 	Color    bool   // Application color enable
@@ -59,6 +68,34 @@ type GitFlags struct {
 	Untrack    bool // Untrack database in git
 }
 
-func NewFlags() *Flags {
-	return &Flags{}
+func SetVerbosity(verbose int) {
+	levels := []slog.Level{
+		slog.LevelError,
+		slog.LevelWarn,
+		slog.LevelInfo,
+		slog.LevelDebug,
+	}
+	level := levels[min(verbose, len(levels)-1)]
+
+	logger := slog.New(
+		slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			AddSource: true,
+			Level:     level,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == "source" {
+					if source, ok := a.Value.Any().(*slog.Source); ok {
+						dir, file := filepath.Split(source.File)
+						source.File = filepath.Join(filepath.Base(filepath.Clean(dir)), file)
+
+						return slog.Attr{Key: "source", Value: slog.AnyValue(source)}
+					}
+				}
+
+				return a
+			},
+		}),
+	)
+	slog.SetDefault(logger)
+
+	slog.Debug("logging", "level", level)
 }

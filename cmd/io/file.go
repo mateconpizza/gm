@@ -27,18 +27,19 @@ var htmlCmd = &cobra.Command{
 	Use:   "html",
 	Short: "Import from HTML Netscape file",
 	RunE: func(_ *cobra.Command, _ []string) error {
-		if ioFlags.Path == "" {
+		app := config.New()
+		if app.Flags.Path == "" {
 			return fmt.Errorf("%w: %q", ErrMissingArg, "filename")
 		}
 
-		file, err := os.Open(ioFlags.Path)
+		file, err := os.Open(app.Flags.Path)
 		if err != nil {
-			log.Printf("Error opening file: %v, %q\n", err, ioFlags.Path)
+			log.Printf("Error opening file: %v, %q\n", err, app.Flags.Path)
 			return err
 		}
 		defer func() {
 			if err := file.Close(); err != nil {
-				slog.Error("Err closing file", "file", ioFlags.Path)
+				slog.Error("Err closing file", "file", app.Flags.Path)
 			}
 		}()
 
@@ -57,7 +58,7 @@ var htmlCmd = &cobra.Command{
 			bs = append(bs, bookio.FromNetscape(&nbs[i]))
 		}
 
-		r, err := db.New(config.App.DBPath)
+		r, err := db.New(app.DBPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

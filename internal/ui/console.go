@@ -36,6 +36,13 @@ func NewConsole(opts ...ConsoleOpt) *Console {
 	return c
 }
 
+func NewDefaultConsole(f func(error)) *Console {
+	return NewConsole(
+		WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		WithDefaultTerminal(f),
+	)
+}
+
 // WithTerminal sets a custom terminal.
 func WithTerminal(t *terminal.Term) ConsoleOpt {
 	return func(c *Console) {
@@ -48,6 +55,10 @@ func WithFrame(f *frame.Frame) ConsoleOpt {
 	return func(c *Console) {
 		c.F = f
 	}
+}
+
+func WithDefaultTerminal(f func(error)) ConsoleOpt {
+	return WithTerminal(terminal.New(terminal.WithInterruptFn(f)))
 }
 
 // ConfirmErr prompts the user with a question and options.

@@ -78,8 +78,8 @@ func (gm *Manager) AddAll() error {
 }
 
 // AddRemote adds a remote repository.
-func (gm *Manager) AddRemote(repoURL string) error {
-	return addRemote(gm.RepoPath, repoURL)
+func (gm *Manager) AddRemote(repoURL string, force bool) error {
+	return addRemote(gm.RepoPath, repoURL, force)
 }
 
 // Clone clones a repository.
