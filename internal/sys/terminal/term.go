@@ -236,7 +236,13 @@ func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string
 
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 
-	return getUserInputWithAttempts(t.reader, t.writer, p, opts, def)
+	return getUserInputWithAttempts(&PromptInput{
+		Reader:  t.reader,
+		Writer:  t.writer,
+		Prompt:  p,
+		Options: opts,
+		Default: def,
+	})
 }
 
 // ClearLine deletes n lines in the console.

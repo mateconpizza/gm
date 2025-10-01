@@ -30,6 +30,15 @@ const (
 	GoToStart         = "\r"
 )
 
+// PromptInput contains all the information needed for a user prompt.
+type PromptInput struct {
+	Reader  io.Reader
+	Writer  io.Writer
+	Prompt  string
+	Options []string
+	Default string
+}
+
 // PromptSuggester is a function that generates suggestions for a given prompt.
 type PromptSuggester = func(in prompt.Document) []prompt.Suggest
 
@@ -201,46 +210,41 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 
 // getUserInputWithAttempts reads user input and validates against the options,
 // with a limited number of attempts (3).
-func getUserInputWithAttempts(
-	rd io.Reader,
-	w io.Writer,
-	p string,
-	opts []string,
-	def string,
-) (string, error) {
-	r := bufio.NewReader(rd)
+func getUserInputWithAttempts(pi *PromptInput) (string, error) {
+	r := bufio.NewReader(pi.Reader)
 
 	const attempts = 3
 
 	var count int
 
 	for count < attempts {
-		_, _ = fmt.Fprint(w, p)
+		_, _ = fmt.Fprint(pi.Writer, pi.Prompt)
 
-		input, err := r.ReadString('\n')
+		userInput, err := r.ReadString('\n')
 		if err != nil {
 			slog.Error("error reading input", "error", err)
 			return "", fmt.Errorf("%w", err)
 		}
 
-		input = strings.ToLower(strings.TrimSpace(input))
-		if input == "" && def != "" || input == def {
-			highlightOptSelected(w, p, def, opts, ghl)
-			return def, nil
+		userInput = strings.ToLower(strings.TrimSpace(userInput))
+
+		if userInput == "" && pi.Default != "" || userInput == pi.Default {
+			redrawPromptWithSelection(pi.Writer, pi.Prompt, pi.Default, pi.Options, ghl)
+			return pi.Default, nil
 		}
 
-		if isValidOption(input, opts) {
-			highlightOptSelected(w, p, input, opts, mhl)
-			return input, nil
+		if isValidOption(userInput, pi.Options) {
+			redrawPromptWithSelection(pi.Writer, pi.Prompt, userInput, pi.Options, mhl)
+			return userInput, nil
 		}
 
 		count++
 		if count <= attempts-1 {
-			ClearLine(len(strings.Split(p, "\n")))
+			ClearLine(len(strings.Split(pi.Prompt, "\n")))
 		}
 	}
 
-	highlightOptSelected(w, p, "error", []string{"error"}, rhl)
+	redrawPromptWithSelection(pi.Writer, pi.Prompt, "error", []string{"error"}, rhl)
 
 	return "", fmt.Errorf("%d %w", attempts, ErrIncorrectAttempts)
 }
@@ -372,9 +376,9 @@ func WaitForEnter() {
 	_, _ = fmt.Scanln(&input)
 }
 
-// highlightOptSelected replaces the prompt line with the given prompt `q`
+// redrawPromptWithSelection replaces the prompt line with the given prompt `q`
 // and highlights the selected option with the given color.
-func highlightOptSelected(w io.Writer, q, selected string, opts []string, c color.ColorFn) {
+func redrawPromptWithSelection(w io.Writer, q, selected string, opts []string, c color.ColorFn) {
 	var result string
 	selected = strings.TrimSpace(selected)
 
