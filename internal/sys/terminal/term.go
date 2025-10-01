@@ -24,7 +24,6 @@ import (
 // - [ ] check `IsPiped` implementation
 
 var (
-	hl     = color.MkColorFn(color.BrightRed, color.StyleBold)
 	dim    = color.BrightGray
 	dimmer = color.Gray
 )

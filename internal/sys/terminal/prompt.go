@@ -14,6 +14,22 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
+var (
+	rhl = color.MkColorFn(color.BrightRed, color.StyleBold)     // BrightRed Bold
+	ghl = color.MkColorFn(color.BrightGreen, color.StyleBold)   // BrightGreen Bold
+	mhl = color.MkColorFn(color.BrightMagenta, color.StyleBold) // BrightMagenta Bold
+)
+
+const (
+	EraseLine         = "\x1b[2K"
+	EraseToEndOfLine  = "\x1b[0K"
+	MoveToStartOfLine = "\x1b[1G"
+	MoveToEndOfLine   = "\x1b[999C"
+	MoveUp            = "\x1b[1A"
+	MoveDown          = "\x1b[1B"
+	GoToStart         = "\r"
+)
+
 // PromptSuggester is a function that generates suggestions for a given prompt.
 type PromptSuggester = func(in prompt.Document) []prompt.Suggest
 
@@ -208,11 +224,13 @@ func getUserInputWithAttempts(
 		}
 
 		input = strings.ToLower(strings.TrimSpace(input))
-		if input == "" && def != "" {
+		if input == "" && def != "" || input == def {
+			highlightOptSelected(w, p, def, opts, ghl)
 			return def, nil
 		}
 
 		if isValidOption(input, opts) {
+			highlightOptSelected(w, p, input, opts, mhl)
 			return input, nil
 		}
 
@@ -221,6 +239,8 @@ func getUserInputWithAttempts(
 			ClearLine(len(strings.Split(p, "\n")))
 		}
 	}
+
+	highlightOptSelected(w, p, "error", []string{"error"}, rhl)
 
 	return "", fmt.Errorf("%d %w", attempts, ErrIncorrectAttempts)
 }
@@ -244,11 +264,11 @@ func fmtChoicesWithDefaultColor(opts []string, def string) []string {
 	for _, opt := range opts {
 		if strings.HasPrefix(opt, def) {
 			// Capitalize and color the first letter of the default
-			colored := hl(strings.ToUpper(opt[:1])).String() + dim(opt[1:]).String()
+			colored := rhl(strings.ToUpper(opt[:1])).String() + dim(opt[1:]).String()
 			defaultOpt = colored
 		} else {
 			// Highlight first letter of non-default
-			colored := hl(opt[:1]).String() + dim(opt[1:]).String()
+			colored := rhl(opt[:1]).String() + dim(opt[1:]).String()
 			formatted = append(formatted, colored)
 		}
 	}
@@ -350,4 +370,30 @@ func WaitForEnter() {
 
 	var input string
 	_, _ = fmt.Scanln(&input)
+}
+
+// highlightOptSelected replaces the prompt line with the given prompt `q`
+// and highlights the selected option with the given color.
+func highlightOptSelected(w io.Writer, q, selected string, opts []string, c color.ColorFn) {
+	var result string
+	selected = strings.TrimSpace(selected)
+
+	for _, o := range opts {
+		o = color.ANSICodeRemover(o)
+		if strings.EqualFold(selected, o) || strings.EqualFold(selected, o[:1]) {
+			result = strings.Title(strings.ToLower(o))
+			break
+		}
+	}
+
+	// Fallback if no match found
+	if result == "" {
+		result = strings.Title(strings.ToLower(selected))
+	}
+
+	// Redraw line
+	_, _ = fmt.Fprint(w, MoveUp, GoToStart)
+	_, _ = fmt.Fprint(w, q)
+	_, _ = fmt.Fprint(w, EraseToEndOfLine)
+	_, _ = fmt.Fprintln(w, c(result))
 }
