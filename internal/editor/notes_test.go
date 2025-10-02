@@ -11,7 +11,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	config.SetDefault(&config.Config{
+	config.Set(&config.Config{
 		DBName: "test.db",
 		DBPath: "/tmp/testpath",
 		Info:   &config.Information{Version: "1.2.3"},

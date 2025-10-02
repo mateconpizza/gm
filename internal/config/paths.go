@@ -18,8 +18,8 @@ func (c *Config) CreatePaths() error {
 }
 
 // dataPath returns the data path for the application.
-func dataPath() (string, error) {
-	scope := gap.NewScope(gap.User, AppName)
+func dataPath(appName string) (string, error) {
+	scope := gap.NewScope(gap.User, appName)
 
 	dataDir, err := scope.DataPath("")
 	if err != nil {
@@ -33,15 +33,15 @@ func dataPath() (string, error) {
 //
 // If environment variable GOMARKS_HOME is not set, uses the data user
 // directory.
-func loadDataPath(envVar string) (string, error) {
+func loadDataPath(appName, envVar string) (string, error) {
 	envDataHome := os.Getenv(envVar)
 	if envDataHome != "" {
 		slog.Debug("reading home env", envVar, envDataHome)
 
-		return filepath.Join(envDataHome, AppName), nil
+		return filepath.Join(envDataHome, appName), nil
 	}
 
-	dataHome, err := dataPath()
+	dataHome, err := dataPath(appName)
 	if err != nil {
 		return "", fmt.Errorf("loading paths: %w", err)
 	}
@@ -52,23 +52,23 @@ func loadDataPath(envVar string) (string, error) {
 }
 
 // LoadPath initializes and sets all relevant filesystem paths.
-func LoadPath(cfg *Config) {
-	dataHomePath, err := loadDataPath(cfg.Env.Home)
+func (c *Config) LoadPath() {
+	dataHomePath, err := loadDataPath(c.Name, c.Env.Home)
 	if err != nil {
 		panic(err)
 	}
 
 	// set app home
-	cfg.Path.Data = dataHomePath
-	cfg.Path.ConfigFile = filepath.Join(dataHomePath, ConfigFilename)
-	cfg.Path.Backup = filepath.Join(dataHomePath, "backup")
-	cfg.Git.Path = filepath.Join(dataHomePath, "git")
+	c.Path.Data = dataHomePath
+	c.Path.ConfigFile = filepath.Join(dataHomePath, ConfigFilename)
+	c.Path.Backup = filepath.Join(dataHomePath, "backup")
+	c.Git.Path = filepath.Join(dataHomePath, "git")
 
 	// set main database path and name
-	if filepath.Ext(cfg.DBName) != ".db" {
-		cfg.DBName += ".db"
+	if filepath.Ext(c.DBName) != ".db" {
+		c.DBName += ".db"
 	}
-	cfg.DBPath = filepath.Join(dataHomePath, cfg.DBName)
+	c.DBPath = filepath.Join(dataHomePath, c.DBName)
 }
 
 // Load loads the user configurations file.

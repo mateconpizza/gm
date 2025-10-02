@@ -10,7 +10,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -42,13 +41,6 @@ func Register(cmd ...*cobra.Command) {
 // AttachTo attaches all registered subcommands to the given root command.
 func AttachTo(cmd *cobra.Command) {
 	cmd.AddCommand(subCommands...)
-}
-
-// Execute executes the provided root command and exits on error.
-func Execute(cmd *cobra.Command) {
-	if err := cmd.Execute(); err != nil {
-		sys.ErrAndExit(err)
-	}
 }
 
 // ChainHooks chains multiple Hook functions into a single PersistentPreRunE.

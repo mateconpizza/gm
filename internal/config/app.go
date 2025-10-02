@@ -2,8 +2,8 @@ package config
 
 var app *Config
 
-// SetDefault assigns the given config as the global application config.
-func SetDefault(a *Config) {
+// Set assigns the given config as the global application config.
+func Set(a *Config) {
 	app = a
 }
 

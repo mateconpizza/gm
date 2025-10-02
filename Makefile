@@ -5,7 +5,6 @@ PROJECT_NAME	:= gomarks
 BINARY_NAME 	:= gm
 BIN_DIR		:= $(CURDIR)/bin
 BIN_PATH	:= $(BIN_DIR)/$(BINARY_NAME)
-MAIN_SRC	:= $(CURDIR)/main.go
 INSTALL_DIR	:= /usr/local/bin
 LDFLAGS		:= -s -w
 FN		?= .
@@ -18,13 +17,13 @@ all: lint check test build
 # Build the binary
 build:
 	@echo '>> Building $(PROJECT_NAME)'
-	@go build -ldflags='$(LDFLAGS)' -o $(BIN_PATH) $(MAIN_SRC)
+	@go build -ldflags='$(LDFLAGS)' -o $(BIN_PATH) $(CURDIR)
 	@echo '>> Binary built at $(BIN_PATH)'
 
 # Build the binary with debugger
 debug: test
 	@echo '>> Building $(BINARY_NAME) with debugger'
-	@go build -gcflags='all=-N -l' -o $(BIN_PATH)-debug $(MAIN_SRC)
+	@go build -gcflags='all=-N -l' -o $(BIN_PATH)-debug $(CURDIR)
 
 # Run tests
 test:
@@ -35,7 +34,7 @@ test:
 # Run tests with gotestsum
 testsum:
 	@echo '>> Testing $(BINARY_NAME)'
-	@gotestsum --format pkgname --hide-summary=skipped --format-icons codicons
+	@gotestsum --format=pkgname-and-test-fails --hide-summary=skipped
 
 # Run tests with verbose mode on
 vtest:
