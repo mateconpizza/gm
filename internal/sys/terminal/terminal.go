@@ -22,7 +22,6 @@ var (
 	ErrNoStateToRestore    = errors.New("no term state to restore")
 	ErrNotInteractive      = errors.New("not an interactive terminal")
 	ErrIncorrectAttempts   = errors.New("incorrect attempts")
-	ErrActionAborted       = errors.New("action aborted")
 	ErrCannotBeEmpty       = errors.New("cannot be empty")
 )
 

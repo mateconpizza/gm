@@ -14,10 +14,8 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -29,13 +27,17 @@ func NewCmd() *cobra.Command {
 		Aliases: []string{"c", "config"},
 		Short:   "Configuration management",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			c := ui.NewDefaultConsole(nil)
+
 			switch {
 			case app.Flags.Create:
-				return createConfig(app)
+				return createConfig(c, app)
 			case app.Flags.Edit:
 				return editConfig(app)
 			case app.Flags.JSON:
 				return printConfigJSON(app.Path.ConfigFile)
+			case app.Flags.List:
+				return showPathFile(app.Path.ConfigFile)
 			}
 
 			return cmd.Usage()
@@ -47,23 +49,22 @@ func NewCmd() *cobra.Command {
 	f.BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit config")
 	f.BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
 	f.StringVarP(&app.DBName, "name", "n", config.MainDBName, "database name")
+	f.BoolVarP(&app.Flags.List, "show", "l", false, "current config filepath")
+
 	_ = f.MarkHidden("name")
 
 	return configCmd
 }
 
 // createConfig dumps the app configuration to a YAML file.
-func createConfig(app *config.Config) error {
+func createConfig(c *ui.Console, app *config.Config) error {
 	p := app.Path.ConfigFile
 	if files.Exists(p) && !app.Flags.Force {
 		f := color.BrightYellow("--force").Italic().String()
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Info(txt.PaddedLine("File:", color.Text(p).Italic()) + "\n").Row("\n")
-
-	if !terminal.Confirm(f.Question("create?").String(), "y") {
+	if !c.Confirm(fmt.Sprintf("create configfile %q", p), "y") {
 		return nil
 	}
 
@@ -80,7 +81,7 @@ func createConfig(app *config.Config) error {
 func editConfig(app *config.Config) error {
 	p := app.Path.ConfigFile
 	if !files.Exists(p) {
-		return files.ErrFileNotFound
+		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
 	te, err := editor.NewEditor(app.Env.Editor)
@@ -103,7 +104,7 @@ func getConfig(p string) (*config.ConfigFile, error) {
 
 	var cfg *config.ConfigFile
 	if err := readYAML(p, &cfg); err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("reading configile: %w", err)
 	}
 
 	if cfg == nil {
@@ -121,12 +122,12 @@ func getConfig(p string) (*config.ConfigFile, error) {
 func printConfigJSON(p string) error {
 	cfg, err := getConfig(p)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	j, err := port.ToJSON(cfg)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	fmt.Println(string(j))
@@ -179,6 +180,16 @@ func readYAML[T any](p string, v *T) error {
 	}
 
 	slog.Debug("YamlRead", "path", p)
+
+	return nil
+}
+
+func showPathFile(p string) error {
+	if !files.Exists(p) {
+		return fmt.Errorf("config %w", files.ErrFileNotFound)
+	}
+
+	fmt.Println(p)
 
 	return nil
 }

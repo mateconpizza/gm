@@ -51,8 +51,8 @@ func loadDataPath(appName, envVar string) (string, error) {
 	return dataHome, nil
 }
 
-// LoadPath initializes and sets all relevant filesystem paths.
-func (c *Config) LoadPath() {
+// InitPaths initializes all filesystem paths for the application.
+func (c *Config) InitPaths() {
 	dataHomePath, err := loadDataPath(c.Name, c.Env.Home)
 	if err != nil {
 		panic(err)

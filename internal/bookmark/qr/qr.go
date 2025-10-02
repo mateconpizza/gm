@@ -42,7 +42,6 @@ func (q *QRCode) GenerateImg(s string) error {
 	}
 
 	var err error
-
 	q.file, err = generatePNG(q.QR, s)
 	if err != nil {
 		return fmt.Errorf("creating temp file: %w", err)

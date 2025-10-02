@@ -221,5 +221,6 @@ keymaps:
 
 - ~~Add a logging library~~
 - [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
+- [x] Drop `ErrActionAborted` in package `terminal` (use `sys.ErrActionAborted`)
 
 </details>

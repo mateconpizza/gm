@@ -80,7 +80,7 @@ func backupLockFunc(_ *cobra.Command, _ []string) error {
 
 	for _, r := range fs {
 		if err := handler.LockRepo(c, r); err != nil {
-			if errors.Is(err, terminal.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
+			if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
 				c.F.Warning(cgi("skipped: " + err.Error() + "\n")).Flush()
 				continue
 			}

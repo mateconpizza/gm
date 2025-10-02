@@ -245,7 +245,7 @@ func parseFoundInBrowser(
 
 	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y"); err != nil {
-			if errors.Is(err, terminal.ErrActionAborted) {
+			if errors.Is(err, sys.ErrActionAborted) {
 				return bs, nil
 			}
 

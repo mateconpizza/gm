@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/mateconpizza/gm/internal/sys"
 )
 
 //nolint:paralleltest //test
@@ -102,7 +104,7 @@ func TestTestConfirmErr(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, ErrActionAborted) {
+		if !errors.Is(err, sys.ErrActionAborted) {
 			t.Errorf("expected ErrActionAborted, got: %v", err)
 		}
 	})

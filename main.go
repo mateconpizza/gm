@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	app.LoadPath()
+	app.InitPaths()
 	config.Set(app)
 
 	root := cmd.NewRootCmd(app)

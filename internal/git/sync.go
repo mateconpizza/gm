@@ -18,7 +18,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -51,7 +51,7 @@ func Import(c *ui.Console, gm *Manager, app *config.Config) ([]string, error) {
 	for _, repoName := range repos {
 		dbPath, err := parseGitRepo(c, gm.RepoPath, repoName, app.Path.Data)
 		if err != nil {
-			if errors.Is(err, terminal.ErrActionAborted) {
+			if errors.Is(err, sys.ErrActionAborted) {
 				s := color.Yellow("skipping")
 				c.ReplaceLine(c.Warning(fmt.Sprintf("%s repo %q", s, repoName)).StringReset())
 				n--
@@ -67,7 +67,7 @@ func Import(c *ui.Console, gm *Manager, app *config.Config) ([]string, error) {
 	}
 
 	if len(imported) == 0 {
-		return nil, terminal.ErrActionAborted
+		return nil, sys.ErrActionAborted
 	}
 
 	if err := files.RemoveAll(gm.RepoPath); err != nil {

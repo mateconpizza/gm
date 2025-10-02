@@ -323,7 +323,7 @@ func LockRepo(c *ui.Console, rToLock string) error {
 	}
 
 	if err := c.ConfirmErr(fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "y"); err != nil {
-		if errors.Is(err, terminal.ErrActionAborted) {
+		if errors.Is(err, sys.ErrActionAborted) {
 			return nil
 		}
 

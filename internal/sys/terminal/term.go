@@ -206,7 +206,7 @@ func (t *Term) ConfirmErr(q, def string) error {
 	}
 
 	if !strings.EqualFold(chosen, "y") {
-		return ErrActionAborted
+		return sys.ErrActionAborted
 	}
 
 	return nil

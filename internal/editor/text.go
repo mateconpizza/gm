@@ -11,6 +11,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
+const DefTextEditorEnv = "EDITOR"
+
 var (
 	ErrCommandNotFound    = errors.New("command not found")
 	ErrTextEditorNotFound = errors.New("text editor not found")
@@ -76,7 +78,7 @@ func (te *TextEditor) EditFile(p string) error {
 //
 // # fallbackEditors: `"vim", "nvim", "nano", "emacs"`.
 func NewEditor(s string) (*TextEditor, error) {
-	envs := []string{s, "EDITOR"}
+	envs := []string{s, DefTextEditorEnv}
 	// find $EDITOR and $GOMARKS_EDITOR
 	for _, e := range envs {
 		if editor, found := getEditorFromEnv(e); found {

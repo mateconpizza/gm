@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -37,7 +36,7 @@ func RemoveRepo(c *ui.Console, app *config.Config) error {
 	}
 
 	if filepath.Base(app.DBPath) == config.MainDBName && !app.Flags.Force {
-		return fmt.Errorf("%w: main database cannot be removed, use --force", terminal.ErrActionAborted)
+		return fmt.Errorf("%w: main database cannot be removed, use --force", sys.ErrActionAborted)
 	}
 
 	fmt.Print(summary.RepoFromPath(c, app.DBPath, app.Path.Backup))
