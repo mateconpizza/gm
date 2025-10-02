@@ -47,7 +47,7 @@ var Fzf = &menu.Config{
 }
 
 func fmtKeybindCmd(s string) string {
-	return fmt.Sprintf("execute(%s --name=%s records %s", app.Cmd, app.DBName, s)
+	return fmt.Sprintf("%s --name=%s records %s", app.Cmd, app.DBName, s)
 }
 
 // FzfKeybindEdit keybind to edit the selected record.
@@ -56,69 +56,33 @@ func FzfKeybindEdit(args ...string) menu.Keymap {
 	if len(args) > 0 {
 		cmd += strings.Join(args, " ") + " "
 	}
-	cmd += "{+1})"
+	cmd += "{+1}"
 
-	return menu.Keymap{
-		Bind:    Fzf.Keymaps.Edit.Bind,
-		Desc:    Fzf.Keymaps.Edit.Desc,
-		Action:  fmtKeybindCmd(cmd),
-		Enabled: Fzf.Keymaps.Edit.Enabled,
-		Hidden:  Fzf.Keymaps.Edit.Hidden,
-	}
+	return Fzf.Keymaps.Edit.WithAction(fmtKeybindCmd(cmd))
 }
 
 // FzfKeybindEditNotes keybind to edit the selected record.
 func FzfKeybindEditNotes() menu.Keymap {
-	return menu.Keymap{
-		Bind:    Fzf.Keymaps.EditNotes.Bind,
-		Desc:    Fzf.Keymaps.EditNotes.Desc,
-		Action:  fmtKeybindCmd("--edit --notes {+1})"),
-		Enabled: Fzf.Keymaps.EditNotes.Enabled,
-		Hidden:  Fzf.Keymaps.EditNotes.Hidden,
-	}
+	return Fzf.Keymaps.EditNotes.WithAction(fmtKeybindCmd("--edit --notes {+1}"))
 }
 
 // FzfKeybindOpen keybind to open the selected record in the default browser.
 func FzfKeybindOpen() menu.Keymap {
-	return menu.Keymap{
-		Bind:    Fzf.Keymaps.Open.Bind,
-		Desc:    Fzf.Keymaps.Open.Desc,
-		Action:  fmtKeybindCmd("--open {+1})"),
-		Enabled: Fzf.Keymaps.Open.Enabled,
-		Hidden:  Fzf.Keymaps.Open.Hidden,
-	}
+	return Fzf.Keymaps.Open.WithAction(fmtKeybindCmd("--open {+1}"))
 }
 
 // FzfKeybindQR keybind to show the QR code of the selected record.
 func FzfKeybindQR() menu.Keymap {
-	return menu.Keymap{
-		Bind:    Fzf.Keymaps.QR.Bind,
-		Desc:    Fzf.Keymaps.QR.Desc,
-		Action:  fmtKeybindCmd("--qr {+1})"),
-		Enabled: Fzf.Keymaps.QR.Enabled,
-		Hidden:  Fzf.Keymaps.QR.Hidden,
-	}
+	return Fzf.Keymaps.QR.WithAction(fmtKeybindCmd("--qr {+1}"))
 }
 
 // FzfKeybindOpenQR keybind to open the QR code of the selected record in the
 // default image viewer.
 func FzfKeybindOpenQR() menu.Keymap {
-	return menu.Keymap{
-		Bind:    Fzf.Keymaps.OpenQR.Bind,
-		Desc:    Fzf.Keymaps.OpenQR.Desc,
-		Action:  fmtKeybindCmd("--qr --open {+1})"),
-		Enabled: Fzf.Keymaps.OpenQR.Enabled,
-		Hidden:  Fzf.Keymaps.OpenQR.Hidden,
-	}
+	return Fzf.Keymaps.OpenQR.WithAction(fmtKeybindCmd("--qr --open {+1}"))
 }
 
 // FzfKeybindYank keybind to copy the selected record to the system clipboard.
 func FzfKeybindYank() menu.Keymap {
-	return menu.Keymap{
-		Bind:    Fzf.Keymaps.Yank.Bind,
-		Desc:    Fzf.Keymaps.Yank.Desc,
-		Action:  fmtKeybindCmd("--copy {+1})"),
-		Enabled: Fzf.Keymaps.Yank.Enabled,
-		Hidden:  Fzf.Keymaps.Yank.Hidden,
-	}
+	return Fzf.Keymaps.Yank.WithAction(fmtKeybindCmd("--copy {+1}"))
 }

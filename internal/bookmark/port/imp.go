@@ -59,7 +59,6 @@ func Browser(c *ui.Console, r *db.SQLite, force bool) error {
 func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 	app := config.New()
 	m := menu.New[bookmark.Bookmark](
-		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import", false),
@@ -144,7 +143,6 @@ func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
 	s := color.BrightYellow("Import bookmarks from backup: ").String()
 	c.F.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
 	m := menu.New[bookmark.Bookmark](
-		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", app.Cmd, srcDB.Name())),

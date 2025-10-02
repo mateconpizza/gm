@@ -122,14 +122,6 @@ func WithSettings(settings FzfSettings) OptFn {
 	}
 }
 
-// WithUseDefaults whether to load defaults ($FZF_DEFAULT_OPTS_FILE and
-// $FZF_DEFAULT_OPTS).
-func WithUseDefaults() OptFn {
-	return func(o *Options) {
-		o.defaults = true
-	}
-}
-
 // WithKeybinds adds a keybind to Fzf.
 func WithKeybinds(keys ...Keymap) OptFn {
 	return func(o *Options) {

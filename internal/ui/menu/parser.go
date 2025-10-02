@@ -81,7 +81,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 	go processOutput(m.items, m.preprocessor, outputChan, resultChan)
 
 	// Build Fzf.Options
-	options, err := m.runner.Parse(m.defaults, m.settings)
+	options, err := m.runner.Parse(menuConfig.Defaults, m.settings)
 	if err != nil {
 		return nil, fmt.Errorf("fzf: %w", err)
 	}

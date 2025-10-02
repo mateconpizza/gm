@@ -478,7 +478,6 @@ func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
 
 	m := menu.New[bookmark.Bookmark](
 		menu.WithArgs("--cycle"),
-		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import", false),

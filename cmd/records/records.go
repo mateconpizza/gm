@@ -170,7 +170,6 @@ func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
 	}
 
 	mo := []menu.OptFn{
-		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),

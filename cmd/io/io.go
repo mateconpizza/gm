@@ -50,7 +50,6 @@ var ioCmd = &cobra.Command{
 func menuSelect[T bookmark.Bookmark]() *menu.Menu[T] {
 	app := config.New()
 	mo := []menu.OptFn{
-		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithPreview(app.Cmd + " --name " + app.DBName + " records {1}"),

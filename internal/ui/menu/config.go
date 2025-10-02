@@ -12,13 +12,10 @@ var (
 )
 
 const (
-	unicodeMiddleDot      = "\u00b7" // ·
 	unicodePathBigSegment = "\u25B6" // ▶
-)
-
-const (
-	DefaultPrompt    = unicodePathBigSegment + " "
-	DefaultHeaderSep = " " + unicodeMiddleDot + " "
+	unicodeMiddleDot      = "\u00b7" // ·
+	DefaultPrompt         = unicodePathBigSegment + " "
+	DefaultHeaderSep      = " " + unicodeMiddleDot + " "
 )
 
 // colorEnabled is a flag to enable color support.
@@ -34,12 +31,18 @@ type FzfSettings []string
 type Config struct {
 	// TODO: complete `Defaults` option. This will be used to load fzf's users
 	// configuration
-	Defaults bool        `json:"defaults" yaml:"defaults"` // Fzf use fzf defaults
+	Defaults bool        `json:"defaults" yaml:"defaults"` // Use defaults ($FZF_DEFAULT_OPTS_FILE and $FZF_DEFAULT_OPTS)
 	Prompt   string      `json:"prompt"   yaml:"prompt"`   // Fzf prompt
 	Preview  bool        `json:"preview"  yaml:"preview"`  // Fzf enable preview
 	Header   FzfHeader   `json:"header"   yaml:"header"`   // Fzf header
 	Keymaps  Keymaps     `json:"keymaps"  yaml:"keymaps"`  // Fzf keymaps
 	Settings FzfSettings `json:"settings" yaml:"settings"` // Fzf settings
+}
+
+// FzfHeader holds the header configuration for FZF.
+type FzfHeader struct {
+	Enabled bool   `yaml:"enabled"`
+	Sep     string `yaml:"separator"`
 }
 
 // Validate validates the menu configuration.
@@ -84,33 +87,6 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
-}
-
-// FzfHeader holds the header configuration for FZF.
-type FzfHeader struct {
-	Enabled bool   `yaml:"enabled"`
-	Sep     string `yaml:"separator"`
-}
-
-// Keymap holds the keymap configuration.
-type Keymap struct {
-	Bind    string `yaml:"bind"`        // keybind combination.
-	Desc    string `yaml:"description"` // keybind description
-	Action  string `yaml:"-"`           // action to execute.
-	Enabled bool   `yaml:"enabled"`     // keybind enabled.
-	Hidden  bool   `yaml:"hidden"`      // keybind hidden.
-}
-
-// Keymaps holds the keymaps for FZF.
-type Keymaps struct {
-	Edit      Keymap `yaml:"edit"`
-	EditNotes Keymap `yaml:"edit_notes"`
-	Open      Keymap `yaml:"open"`
-	Preview   Keymap `yaml:"preview"`
-	QR        Keymap `yaml:"qr"`
-	OpenQR    Keymap `yaml:"open_qr"`
-	ToggleAll Keymap `yaml:"toggle_all"`
-	Yank      Keymap `yaml:"yank"`
 }
 
 // SetConfig sets menu configuration.

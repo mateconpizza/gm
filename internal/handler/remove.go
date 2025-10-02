@@ -108,7 +108,6 @@ actionLoop:
 			selected, err := selection(fs,
 				func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
 				menu.WithArgs("--cycle"),
-				menu.WithUseDefaults(),
 				menu.WithSettings(config.Fzf.Settings),
 				menu.WithMultiSelection(),
 				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p)), false),

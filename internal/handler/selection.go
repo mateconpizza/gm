@@ -65,7 +65,6 @@ func selectItem(fs []string, header string) (string, error) {
 	app := config.New()
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(*p) },
-		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
 		menu.WithPreview(app.Cmd+" db -n {1} -i"),
@@ -85,7 +84,6 @@ func SelectBackupOne(c *ui.Console, bks []string) (string, error) {
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
 		menu.WithArgs("--cycle"),
-		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithPreview(app.Cmd+" db -n ./backup/{1} info"),
 		menu.WithHeader("choose a backup to import from", false))
@@ -118,7 +116,6 @@ func SelectBackupMany(root, header string) ([]string, error) {
 
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(*p) },
-		menu.WithUseDefaults(),
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
@@ -141,7 +138,6 @@ func SelectFileLocked(root, header string) ([]string, error) {
 
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
-		menu.WithUseDefaults(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
 	)
