@@ -3,6 +3,8 @@ package menu
 import (
 	"fmt"
 	"log/slog"
+
+	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
 // handleFzfErr returns an error based on the exit code of fzf.
@@ -73,12 +75,21 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 
 	slog.Debug("menu args", "args", m.settings)
 
+	// Pre-process all items once for better performance
+	formattedItems := make([]string, len(m.items))
+	itemMap := make(map[string]T, len(m.items))
+	for i, item := range m.items {
+		ti := item
+		formatted := m.preprocessor(&ti)
+		formattedItems[i] = formatted
+		itemMap[color.ANSICodeRemover(formatted)] = item
+	}
+
 	// channels
-	inputChan := formatItems(m.items, m.preprocessor)
+	inputChan := formatItemsPreprocessed(formattedItems)
 	outputChan := make(chan string)
 	resultChan := make(chan []T)
-
-	go processOutput(m.items, m.preprocessor, outputChan, resultChan)
+	go processOutputPreprocessed(itemMap, outputChan, resultChan)
 
 	// Build Fzf.Options
 	options, err := m.runner.Parse(menuConfig.Defaults, m.settings)

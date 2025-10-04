@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	shellwords "github.com/junegunn/go-shellwords"
-
-	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
 // appendKeytoHeader appends a key:desc string to the header slice.
@@ -22,47 +20,32 @@ func defaultPreprocessor[T any](item *T) string {
 	return fmt.Sprintf("%+v", *item)
 }
 
-// formatItems formats each item in the slice using the preprocessor function
+// formatItemsPreprocessed formats each item in the slice using the preprocessor function
 // and returns a channel of formatted strings.
-func formatItems[T any](items []T, preprocessor func(*T) string) chan string {
+func formatItemsPreprocessed(formattedItems []string) chan string {
 	inputChan := make(chan string)
+
 	go func() {
-		for _, item := range items {
-			ti := item
-			formatted := preprocessor(&ti)
+		for _, formatted := range formattedItems {
 			inputChan <- formatted
 		}
-
 		close(inputChan)
 	}()
 
 	return inputChan
 }
 
-// processOutput formats items, maps them to their original values, and sends
+// processOutputPreprocessed formats items, maps them to their original values, and sends
 // the filtered results to resultChan.
-func processOutput[T any](
-	items []T,
-	preprocessor func(*T) string,
-	outputChan <-chan string,
-	resultChan chan<- []T,
-) {
-	var (
-		result []T
-		ogItem = make(map[string]T)
-	)
-
-	for _, item := range items {
-		ti := item
-		formatted := color.ANSICodeRemover(preprocessor(&ti))
-		ogItem[formatted] = item
-	}
+func processOutputPreprocessed[T any](itemMap map[string]T, outputChan <-chan string, resultChan chan<- []T) {
+	var result []T
 
 	for s := range outputChan {
-		if item, exists := ogItem[s]; exists {
+		if item, exists := itemMap[s]; exists {
 			result = append(result, item)
 		}
 	}
+
 	resultChan <- result
 }
 
