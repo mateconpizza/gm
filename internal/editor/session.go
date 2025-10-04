@@ -28,69 +28,83 @@ func WithPostEditionRun(fn postRunEditionFunc) EditSessionOption {
 	}
 }
 
+// Run processes records for editing using the specified strategy.
 func (e *EditSession) Run(bs []*Record, strategy EditStrategy) error {
-	total := len(bs)
-
-	for idx, original := range bs {
-	out:
-		for {
-			// Build buffer for current bookmark
-			buf, err := strategy.BuildBuffer(original, idx, total)
-			if err != nil {
-				return err
-			}
-
-			// Edit buffer
-			editedBuf, err := e.Editor.Bytes(buf, strategy.EditType())
-			if err != nil {
-				return err
-			}
-
-			// Parse updated bookmark
-			updated, err := strategy.ParseBuffer(editedBuf, original, idx, total)
-			if errors.Is(err, ErrBufferUnchanged) {
-				break out // nothing changed
-			}
-			if err != nil {
-				return err
-			}
-
-			// Show diff
-			e.Console.F.Reset().Header("Diff:\n").Flush()
-			fmt.Println(strategy.Diff(original, updated))
-
-			// Confirm action
-			opt, err := e.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
-			if err != nil {
-				return err
-			}
-
-			switch strings.ToLower(opt) {
-			case "y", "yes":
-				if err := strategy.Save(context.Background(), e.DB, updated); err != nil {
-					return err
-				}
-
-				if e.postEdition != nil {
-					if err := e.postEdition(original, updated); err != nil {
-						return err
-					}
-				}
-
-				fmt.Print(e.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID)))
-				break out
-
-			case "n", "no":
-				break out // Skip and continue
-
-			case "e", "edit":
-				original = updated // Retry
-			}
+	n := len(bs)
+	for i, b := range bs {
+		if err := e.processSingleRecord(b, i, n, strategy); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
+// processSingleRecord handles the edit loop for a single record.
+func (e *EditSession) processSingleRecord(original *Record, idx, total int, strategy EditStrategy) error {
+	currentRecord := original
+
+	// Loop to handle the "retry" action for a single record.
+	for {
+		editedBuf, err := e.buildAndEdit(currentRecord, idx, total, strategy)
+		if err != nil {
+			return err
+		}
+
+		updated, err := strategy.ParseBuffer(editedBuf, currentRecord, idx, total)
+		if errors.Is(err, ErrBufferUnchanged) {
+			return nil // Success: nothing changed, move to the next record.
+		}
+		if err != nil {
+			return err
+		}
+
+		e.Console.F.Reset().Header("Diff:\n").Flush()
+		fmt.Println(strategy.Diff(original, updated))
+
+		opt, err := e.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+		if err != nil {
+			return err
+		}
+
+		switch strings.ToLower(opt) {
+		case "y", "yes":
+			return e.saveRecordChanges(strategy, original, updated)
+		case "n", "no":
+			// Skip and continue
+			return nil
+		case "e", "edit":
+			// Retry
+			currentRecord = updated
+		}
+	}
+}
+
+// buildAndEdit prepares record for editing and launches editor.
+func (e *EditSession) buildAndEdit(r *Record, idx, total int, s EditStrategy) ([]byte, error) {
+	buf, err := s.BuildBuffer(r, idx, total)
+	if err != nil {
+		return nil, err
+	}
+	return e.Editor.Bytes(buf, s.EditType())
+}
+
+// saveRecordChanges persists updated record to database.
+func (e *EditSession) saveRecordChanges(strategy EditStrategy, original, updated *Record) error {
+	if err := strategy.Save(context.Background(), e.DB, updated); err != nil {
+		return err
+	}
+
+	if e.postEdition != nil {
+		if err := e.postEdition(original, updated); err != nil {
+			return err
+		}
+	}
+
+	fmt.Print(e.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID)))
+	return nil
+}
+
+// NewEditSession creates a new editing session.
 func NewEditSession(c *ui.Console, e *TextEditor, r *db.SQLite, opts ...EditSessionOption) *EditSession {
 	s := &EditSession{
 		Console: c,
