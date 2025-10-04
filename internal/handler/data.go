@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -369,31 +370,6 @@ func applyMenuSelection(
 	return result, nil
 }
 
-func handleEditedBookmark(c *ui.Console, r *db.SQLite, newB, oldB *bookmark.Bookmark) error {
-	// is a new bookmark
-	newBookmark := newB.ID == 0
-	if newBookmark {
-		_, err := r.InsertOne(context.Background(), newB)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if err := r.UpdateOne(context.Background(), newB); err != nil {
-		return fmt.Errorf("updating record: %w", err)
-	}
-
-	if err := gitUpdate(r.Cfg.Fullpath(), oldB, newB); err != nil {
-		return err
-	}
-
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", newB.ID)))
-
-	return nil
-}
-
 // removeRecords removes the records from the database.
 func removeRecords(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
@@ -409,7 +385,7 @@ func removeRecords(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookma
 
 	sp.Done()
 
-	if err := gitClean(r.Cfg.Fullpath(), app.Git.Path, bs); err != nil {
+	if err := git.RemoveBookmarks(app, bs); err != nil {
 		return err
 	}
 

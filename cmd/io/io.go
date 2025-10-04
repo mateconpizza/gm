@@ -42,9 +42,10 @@ func NewCmd() *cobra.Command {
 }
 
 var ioCmd = &cobra.Command{
-	Use:   "io",
-	Short: "Export/Import bookmarks",
-	RunE:  cli.HookHelp,
+	Use:                "io",
+	Short:              "Export/Import bookmarks",
+	RunE:               cli.HookHelp,
+	PersistentPostRunE: cli.HookGitSync,
 }
 
 func menuSelect[T bookmark.Bookmark]() *menu.Menu[T] {

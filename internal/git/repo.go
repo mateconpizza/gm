@@ -241,8 +241,8 @@ func (gr *Repository) Status(c *ui.Console) string {
 	return repoStatus(c, gr)
 }
 
-// Config sets the app git config.
-func Config(c *config.Config) {
+// SetConfig sets the app git config.
+func SetConfig(c *config.Config) {
 	// FIX: keep this? replace all git.IsInitialized(path) calls?
 	c.Git.Enabled = IsInitialized(c.Git.Path)
 	c.Git.GPG = gpg.IsInitialized(c.Git.Path)

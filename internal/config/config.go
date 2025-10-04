@@ -3,6 +3,8 @@ package config
 
 import (
 	"path/filepath"
+
+	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
 const (
@@ -24,6 +26,7 @@ type (
 		Flags       *Flags       `json:"-"`       // Command line flags
 		Verbose     bool         `json:"-"`       // Logging level
 		Git         *Git         `json:"-"`       // Git configuration
+		Menu        *menu.Config `json:"-"`       // Menu configuration
 		initialized bool
 	}
 
@@ -35,9 +38,10 @@ type (
 	}
 
 	Git struct {
-		Path    string `json:"path"`    // Path to store git
-		Enabled bool   `json:"enabled"` // Enable git
-		GPG     bool   `json:"gpg"`     // Enable GPG
+		Path    string `json:"path"    yaml:"path"`    // Path to store git
+		Log     bool   `json:"logging" yaml:"logging"` // Enable logging
+		Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
+		GPG     bool   `json:"-"       yaml:"-"`       // Enable GPG
 	}
 
 	Information struct {

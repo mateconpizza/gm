@@ -88,7 +88,7 @@ func initConfig(cfg *config.Config) {
 	terminal.NonInteractiveMode(cfg.Flags.Force)
 
 	// git config
-	git.Config(cfg)
+	git.SetConfig(cfg)
 }
 
 // Setup registers all application commands with the CLI.

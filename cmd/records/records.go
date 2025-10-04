@@ -5,7 +5,6 @@ package records
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -21,11 +20,10 @@ var (
 	// records is the root "records" command.
 	// It provides entrypoints for listing, filtering, and operating on bookmarks.
 	records = &cobra.Command{
-		Use:               "rec",
-		Aliases:           []string{"r", "records"},
-		Short:             "Records management",
-		PersistentPreRunE: cli.HookEnsureDatabase,
-		RunE:              CmdFunc,
+		Use:     "rec",
+		Aliases: []string{"r", "records"},
+		Short:   "Records management",
+		RunE:    CmdFunc,
 	}
 
 	// tagsCmd manages bookmark tags (list, JSON export, etc.).
@@ -139,7 +137,7 @@ func exec(c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark
 	case f.Edit:
 		return handler.Edit(c, r, a, bs)
 	case f.Update:
-		return handler.Update(c, r, a.Env.Editor, bs)
+		return handler.Update(c, r, a, bs)
 	case f.Copy:
 		return handler.Copy(bs)
 	case f.Open && !f.QR:

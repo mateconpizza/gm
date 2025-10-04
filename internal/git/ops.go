@@ -175,8 +175,8 @@ func commitIfChanged(gr *Repository, actionMsg string) error {
 	}
 
 	actionMsg = strings.ToLower(actionMsg)
-	msg := fmt.Sprintf("[%s] %s %s", gr.Loc.DBName, actionMsg, status)
-	if err := gm.Commit(msg); err != nil {
+	dbName := files.StripSuffixes(gr.Loc.DBName)
+	if err := gm.Commit(fmt.Sprintf("[%s] %s %s", dbName, actionMsg, status)); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 

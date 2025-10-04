@@ -19,7 +19,9 @@ var app = &config.Config{
 		Version: version,
 	},
 	Path: &config.Path{},
-	Git:  &config.Git{},
+	Git: &config.Git{
+		Log: true, // FIX: not implemented yet
+	},
 	Env: &config.Env{
 		Home:   "GOMARKS_HOME",
 		Editor: "GOMARKS_EDITOR",

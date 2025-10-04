@@ -10,11 +10,22 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
+type postRunEditionFunc func(original, updated *Record) error
+
+type EditSessionOption func(*EditSession)
+
 // EditSession build -> edit -> parse -> confirm -> save.
 type EditSession struct {
-	Console *ui.Console
-	Editor  *TextEditor
-	DB      *db.SQLite
+	Console     *ui.Console
+	Editor      *TextEditor
+	DB          *db.SQLite
+	postEdition postRunEditionFunc
+}
+
+func WithPostEditionRun(fn postRunEditionFunc) EditSessionOption {
+	return func(s *EditSession) {
+		s.postEdition = fn
+	}
 }
 
 func (e *EditSession) Run(bs []*Record, strategy EditStrategy) error {
@@ -59,6 +70,13 @@ func (e *EditSession) Run(bs []*Record, strategy EditStrategy) error {
 				if err := strategy.Save(context.Background(), e.DB, updated); err != nil {
 					return err
 				}
+
+				if e.postEdition != nil {
+					if err := e.postEdition(original, updated); err != nil {
+						return err
+					}
+				}
+
 				fmt.Print(e.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID)))
 				break out
 
@@ -73,10 +91,16 @@ func (e *EditSession) Run(bs []*Record, strategy EditStrategy) error {
 	return nil
 }
 
-func NewEditSession(c *ui.Console, e *TextEditor, r *db.SQLite) *EditSession {
-	return &EditSession{
+func NewEditSession(c *ui.Console, e *TextEditor, r *db.SQLite, opts ...EditSessionOption) *EditSession {
+	s := &EditSession{
 		Console: c,
 		Editor:  e,
 		DB:      r,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }

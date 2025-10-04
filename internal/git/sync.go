@@ -174,9 +174,11 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
 			if err != nil {
 				return err
 			}
+
 			if updated {
 				atomic.StoreUint32(&hasUpdates, 1)
 			}
+
 			return nil
 		})
 	}
@@ -428,6 +430,7 @@ func cleanJSONRepo(root string, bs []*bookmark.Bookmark) error {
 			if err := files.Remove(fname); err != nil {
 				return fmt.Errorf("cleaning JSON: %w", err)
 			}
+
 			return nil
 		})
 	}

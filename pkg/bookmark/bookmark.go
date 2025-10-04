@@ -165,7 +165,7 @@ func (b *Bookmark) BufferNotes() []byte {
 //
 // It uses the URL, Title, Description and Tags.
 func (b *Bookmark) GenChecksum() {
-	b.Checksum = genChecksum(b.URL, b.Title, b.Desc, b.Tags)
+	b.Checksum = genChecksum(b.URL, b.Title, b.Desc, b.Tags, b.Notes)
 }
 
 // HashPath returns the hash path of a bookmark.

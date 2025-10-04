@@ -30,8 +30,8 @@ func generateHash(s string, c int) string {
 }
 
 // genChecksum generates a checksum for the bookmark.
-func genChecksum(rawURL, title, desc, tags string) string {
-	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s", rawURL, title, desc, tags)
+func genChecksum(rawURL, title, desc, tags, notes string) string {
+	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s|notes:%s", rawURL, title, desc, tags, notes)
 	return generateHash(data, 8)
 }
 
@@ -129,7 +129,7 @@ func Validate(b *Bookmark) error {
 
 func ValidateChecksumJSON(b *BookmarkJSON) bool {
 	tags := ParseTags(strings.Join(b.Tags, ","))
-	return b.Checksum == genChecksum(b.URL, b.Title, b.Desc, tags)
+	return b.Checksum == genChecksum(b.URL, b.Title, b.Desc, tags, b.Notes)
 }
 
 func makeReq(ctx context.Context, b *Bookmark) error {

@@ -127,10 +127,9 @@ func management(c *ui.Console, app *config.Config) error {
 		}
 
 		if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
-			c.ReplaceLine(c.Info(fmt.Sprintf("Skipping database %q", gr.Loc.DBName)).String())
-
 			continue
 		}
+
 		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", gr.Loc.DBName)).String())
 
 		if err := gr.Track(); err != nil {

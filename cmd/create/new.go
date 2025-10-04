@@ -9,7 +9,6 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/database"
 	"github.com/mateconpizza/gm/cmd/setup"
-	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -30,8 +29,7 @@ var (
 		Example: `  gm new db -n newDBName
   gm new r --title='Some title' --tags='tag1 tag2'
   gm new bk`,
-		RunE:              newBookmarkCmd.RunE,
-		PersistentPreRunE: cli.HookEnsureDatabase,
+		RunE: newBookmarkCmd.RunE,
 	}
 
 	// newDatabaseCmd creates a new database.
@@ -95,21 +93,8 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 		return err
 	}
 
-	gr, err := git.NewRepo(app.DBPath)
-	if err != nil {
+	if err := git.AddBookmark(app, b); err != nil {
 		return err
-	}
-
-	if gr.IsTracked() {
-		if err := gr.Add([]*bookmark.Bookmark{b}); err != nil {
-			return err
-		}
-		if err := gr.RepoStatsWrite(); err != nil {
-			return err
-		}
-		if err := gr.Commit("new bookmark"); err != nil {
-			return err
-		}
 	}
 
 	fmt.Print(c.SuccessMesg("bookmark added\n"))

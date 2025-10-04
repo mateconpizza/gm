@@ -36,11 +36,9 @@ var (
 
 	gitCmd = &cobra.Command{
 		Use:     "git",
-		Short:   cmdGit.GitImportCmd.Short,
+		Short:   cmdGit.ImportCmd.Short,
 		Aliases: []string{"g"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdGit.CloneAndImport(cmd.Short, config.New())
-		},
+		RunE:    cmdGit.ImportCmd.RunE,
 	}
 )
 

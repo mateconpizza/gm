@@ -166,15 +166,15 @@ func status(repoPath string) (string, error) {
 
 	var parts []string
 	if added > 0 {
-		parts = append(parts, fmt.Sprintf("add:%d", added))
+		parts = append(parts, fmt.Sprintf("+add:%d", added))
 	}
 
 	if deleted > 0 {
-		parts = append(parts, fmt.Sprintf("del:%d", deleted))
+		parts = append(parts, fmt.Sprintf("-del:%d", deleted))
 	}
 
 	if modified > 0 {
-		parts = append(parts, fmt.Sprintf("mod:%d", modified))
+		parts = append(parts, fmt.Sprintf("~mod:%d", modified))
 	}
 
 	return strings.TrimSpace(strings.Join(parts, " ")), nil

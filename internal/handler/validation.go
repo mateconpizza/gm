@@ -148,20 +148,6 @@ func passwordConfirm(c *ui.Console) (string, error) {
 	return s, nil
 }
 
-// CheckDBLocked checks if the database is locked.
-func CheckDBLocked(p string) error {
-	err := locker.IsLocked(p)
-	if err != nil {
-		if errors.Is(err, locker.ErrFileLocked) {
-			return db.ErrDBUnlockFirst
-		}
-
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
-
 // validURL checks if a string is a valid URL.
 func validURL(s string) bool {
 	parsedURL, err := url.Parse(s)

@@ -21,6 +21,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -179,7 +180,13 @@ func Edit(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookmark.Bookma
 		s = editor.BookmarkStrategy{}
 	}
 
-	return editor.NewEditSession(c, te, r).Run(bs, s)
+	session := editor.NewEditSession(c, te, r,
+		editor.WithPostEditionRun(func(o, u *editor.Record) error {
+			return git.UpdateBookmark(app, o, u)
+		}),
+	)
+
+	return session.Run(bs, s)
 }
 
 // CheckStatus prints the status code of the bookmark URL.
@@ -381,17 +388,21 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // Update updates the bookmarks.
 //
 // It uses the scraper to update the title, description and favicon.
-func Update(c *ui.Console, r *db.SQLite, env string, bs []*bookmark.Bookmark) error {
+func Update(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookmark.Bookmark) error {
 	n := len(bs)
 	if n > 1 {
-		c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", len(bs)))).Rowln().Flush()
+		c.F.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
 	}
 
-	te, err := editor.NewEditor(env)
+	te, err := editor.NewEditor(app.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	e := editor.NewEditSession(c, te, r)
+	session := editor.NewEditSession(c, te, r,
+		editor.WithPostEditionRun(func(o, u *editor.Record) error {
+			return git.UpdateBookmark(app, o, u)
+		}),
+	)
 
 	for i, b := range bs {
 		updated, err := updateBookmarkData(c, b)
@@ -401,13 +412,11 @@ func Update(c *ui.Console, r *db.SQLite, env string, bs []*bookmark.Bookmark) er
 
 		su := txt.Shorten(updated.URL, 60)
 		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
-
 		// Check if there are any changes
 		if bytes.Equal(b.Buffer(), updated.Buffer()) {
 			fmt.Print(c.Info(bid + " " + cd(su) + " no changes found\n"))
 			continue
 		}
-
 		// Display changes
 		c.F.Reset().Warning(bid + " Found changes in " + cbb(su) + "\n").Flush()
 		if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
@@ -424,7 +433,6 @@ func Update(c *ui.Console, r *db.SQLite, env string, bs []*bookmark.Bookmark) er
 		if err != nil {
 			return fmt.Errorf("choose: %w", err)
 		}
-
 		switch strings.ToLower(opt) {
 		case "y", "yes":
 			if err := r.UpdateOne(context.Background(), &updated); err != nil {
@@ -436,7 +444,7 @@ func Update(c *ui.Console, r *db.SQLite, env string, bs []*bookmark.Bookmark) er
 		case "n", "no":
 			c.ReplaceLine(c.F.Warning(bid + " " + cd(su) + " skipping update\n").String())
 		case "e", "edit":
-			if err := e.Run([]*bookmark.Bookmark{&updated}, editor.BookmarkStrategy{}); err != nil {
+			if err := session.Run([]*bookmark.Bookmark{&updated}, editor.BookmarkStrategy{}); err != nil {
 				return err
 			}
 			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
@@ -489,8 +497,7 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, a *confi
 			return fmt.Errorf("%w", err)
 		}
 
-		e := editor.NewEditSession(c, te, r)
-		if err := e.Run([]*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{}); err != nil {
+		if err := editor.NewEditSession(c, te, r).Run([]*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{}); err != nil {
 			return err
 		}
 	default:
