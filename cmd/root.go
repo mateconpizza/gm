@@ -14,6 +14,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/records"
 	"github.com/mateconpizza/gm/cmd/settings"
 	"github.com/mateconpizza/gm/cmd/setup"
+	"github.com/mateconpizza/gm/cmd/tags"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
@@ -32,7 +33,7 @@ func NewRootCmd(app *config.Config) *cobra.Command {
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
 		PersistentPreRunE: cli.HookEnsureDatabase,
-		RunE:              records.CmdFunc,
+		RunE:              records.Cmd,
 		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
 	}
 
@@ -94,11 +95,12 @@ func initConfig(cfg *config.Config) {
 // Setup registers all application commands with the CLI.
 func Setup(root *cobra.Command) {
 	cli.Register(
+		records.NewCmd(),
+		tags.NewCmd(),
 		create.NewCmd(),
 		database.NewCmd(),
 		gitCmd.NewCmd(),
 		io.NewCmd(),
-		records.NewCmd(),
 		settings.NewCmd(),
 		setup.NewCmd(),
 	)

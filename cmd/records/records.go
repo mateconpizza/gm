@@ -16,37 +16,24 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-var (
-	// records is the root "records" command.
-	// It provides entrypoints for listing, filtering, and operating on bookmarks.
-	records = &cobra.Command{
+// NewCmd is the root "records" command.
+// It provides entrypoints for listing, filtering, and operating on bookmarks.
+func NewCmd() *cobra.Command {
+	app := config.New()
+	records := &cobra.Command{
 		Use:     "rec",
 		Aliases: []string{"r", "records"},
 		Short:   "Records management",
-		RunE:    CmdFunc,
+		RunE:    Cmd,
 	}
 
-	// tagsCmd manages bookmark tags (list, JSON export, etc.).
-	tagsCmd = &cobra.Command{
-		Use:     "tags",
-		Aliases: []string{"t"},
-		Short:   "Tags management",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			app := config.New()
-			switch {
-			case app.Flags.JSON:
-				return printer.TagsJSON(app.DBPath)
-			case app.Flags.List:
-				return printer.TagsList(app.DBPath)
-			}
+	InitFlags(records, app)
 
-			return cmd.Usage()
-		},
-	}
-)
+	return records
+}
 
-// CmdFunc is the main command and entrypoint.
-func CmdFunc(cmd *cobra.Command, args []string) error {
+// Cmd is the main command and entrypoint.
+func Cmd(cmd *cobra.Command, args []string) error {
 	app := config.New()
 	r, err := db.New(app.DBPath)
 	if err != nil {
@@ -186,20 +173,4 @@ func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
 	}
 
 	return menu.New[T](mo...)
-}
-
-// NewCmd creates and returns the top-level "records" Cobra command, including
-// all subcommands and flags.
-func NewCmd() *cobra.Command {
-	app := config.New()
-	InitFlags(records, app)
-
-	tagsCmd.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false,
-		"output tags+count in JSON format")
-	tagsCmd.Flags().BoolVarP(&app.Flags.List, "list", "l", false,
-		"list all tags")
-
-	records.AddCommand(tagsCmd)
-
-	return records
 }
