@@ -31,6 +31,12 @@ test:
 	@go test ./...
 	@echo
 
+testcover:
+	@echo '>> Testing $(BINARY_NAME)'
+	@go test ./... -coverprofile=coverage.out
+	@go tool cover -html=coverage.out -o coverage.html
+	@xdg-open coverage.html
+
 # Run tests with gotestsum
 testsum:
 	@echo '>> Testing $(BINARY_NAME)'
