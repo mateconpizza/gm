@@ -26,14 +26,15 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 ### Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
-- [x] Track `bookmarks` with `git` <sub> experimental </sub>
+- [x] Track `bookmarks` with `git` <sub> wip </sub>
   - [x] Sync `bookmarks` as `JSON` files
   - [x] Encrypt `bookmarks` with `GPG` and push to remote
 - [x] Encrypt local database with `AES-GCM`
 - [x] Support multiple `databases`
 - [x] Import `bookmarks` from `firefox` based browsers
 - [x] Import `bookmarks` from `chromium` based browsers
-- [x] Fetch `title` and `description` from added URL
+- [x] Import `bookmarks` from `git` <sub> wip </sub>
+- [x] Fetch `title` and `description` from new bookmark
 - [x] Check bookmark `status` _(http status)_
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
@@ -59,38 +60,38 @@ Usage:
   gm [command]
 
 Available Commands:
-  conf        Configuration management
-  rec         Records management
-  db          Database management
   new         New bookmark, database, backup
+  rec         Records management
+  tags        Tags management
+  db          Database management
   git         Git commands
-  imp         Import from various sources
+  io          Export/Import bookmarks
+  conf        Configuration management
   help        Help about any command
 
 Flags:
-      --color string    output with pretty colors [always|never] (default "always")
-  -c, --copy            copy bookmark to clipboard
-  -e, --edit            edit with preferred text editor
-  -E, --export          export as HTML file
-  -f, --field string    output by field [id|url|title|tags]
-      --force           force action | don't ask confirmation
-  -H, --head int        the <int> first part of bookmarks
-  -h, --help            help for gm
-  -j, --json            output in JSON format
-  -m, --menu            menu mode (fzf)
-  -M, --multiline       output in formatted multiline (fzf)
-  -n, --name string     database name (default "main.db")
-  -N, --notes           bookmark's notes
-  -O, --oneline         output in formatted oneline (fzf)
+  -c, --copy            copy bookmark URL to clipboard
+  -e, --edit            edit bookmark with preferred text editor
+  -m, --menu            interactive menu mode using fzf
+  -N, --notes           display bookmark notes
   -o, --open            open bookmark in default browser
-      --qr              generate qr-code
-  -r, --remove          remove a bookmarks by query or id
-  -S, --snapshot        metadata from Wayback Machine
-  -s, --status          check bookmarks status
-  -t, --tag strings     list by tag
-  -T, --tail int        the <int> last part of bookmarks
-  -u, --update          update a bookmarks
-  -v, --verbose count   Increase verbosity (-v, -vv, -vvv)
+  -q, --qr              generate QR code for bookmark URL
+  -r, --remove          remove bookmark by query or ID
+  -f, --field string    output specific field [id|url|title|tags|notes]
+  -j, --json            output results in JSON format
+  -M, --multiline       output in multiline format (fzf compatible)
+  -O, --oneline         output in single line format (fzf compatible)
+  -H, --head int        show first N bookmarks
+  -t, --tag strings     filter bookmarks by tag(s)
+  -T, --tail int        show last N bookmarks
+  -S, --snapshot        fetch metadata from Wayback Machine
+  -s, --status          check HTTP status of bookmark URLs
+  -u, --update          update bookmark metadata
+      --color string    output with pretty colors [always|never] (default "always")
+      --force           force action | don't ask confirmation
+  -n, --name string     database name (default "main.db")
+  -v, --verbose count   increase verbosity (-v, -vv, -vvv)
+  -h, --help            help for gm
       --version         version for gm
 ```
 
@@ -194,7 +195,13 @@ keymaps:
 
 - ~~Use a ORM <sub>discontinued</sub>~~
   - [x] Add multiple databases option _(default.db, work.db, client.db)_
-- [x] Add `Sync` to remote repo???
+
+### Refactor
+
+- [~] Add `Sync` to remote repo??? (WIP)
+- [x] Drop `ErrActionAborted` in package `terminal` (use `sys.ErrActionAborted`)
+- [ ] Move `config/menu` to package `menu`
+  - [ ] Drop global `Fzf`
 
 #### XDG
 
@@ -215,12 +222,18 @@ keymaps:
 ### ⛓️ Import
 
 - [x] From firefox
+  - [ ] If `database` is locked <sub>(SQLITE_BUSY)</sub>, ask user confirmation
+        to copy file to `tmp` directory and read from there.
 - [x] From ~~chrome~~ chromium
 
 ### ♻️ Misc
 
 - ~~Add a logging library~~
 - [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
-- [x] Drop `ErrActionAborted` in package `terminal` (use `sys.ErrActionAborted`)
+- [ ] Create a `rm` subcommand
+  - [ ] Add `rm` database, backup
+  - [ ] Add `rm` records
+  - [ ] Add `rm` misc...
+  - [ ] Remove `db rm`
 
 </details>

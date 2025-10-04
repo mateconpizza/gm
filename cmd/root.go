@@ -95,9 +95,9 @@ func initConfig(cfg *config.Config) {
 // Setup registers all application commands with the CLI.
 func Setup(root *cobra.Command) {
 	cli.Register(
+		create.NewCmd(),
 		records.NewCmd(),
 		tags.NewCmd(),
-		create.NewCmd(),
 		database.NewCmd(),
 		gitCmd.NewCmd(),
 		io.NewCmd(),
