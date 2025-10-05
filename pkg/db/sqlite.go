@@ -61,7 +61,7 @@ func New(p string) (*SQLite, error) {
 		slog.Debug("new repo: checking if database exists")
 
 		if !fileExists(path) {
-			return fmt.Errorf("%w: %q", ErrDBNotFound, path)
+			return fmt.Errorf("%w: %q", ErrDBNotFound, filepath.Base(path))
 		}
 
 		return nil

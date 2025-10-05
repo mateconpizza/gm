@@ -148,7 +148,7 @@ func SelectFileLocked(root, header string) ([]string, error) {
 	return selected, nil
 }
 
-func SelectDatabase(currentDBPath string) (string, error) {
+func SelectDatabase(ignoreDBPath string) (string, error) {
 	// FIX: inject `app`
 	app := config.New()
 
@@ -160,7 +160,7 @@ func SelectDatabase(currentDBPath string) (string, error) {
 
 	dbs := slice.New(dbFiles...)
 	dbs = dbs.Filter(func(r string) bool {
-		return r != currentDBPath
+		return r != ignoreDBPath
 	})
 
 	// ask the user which one to import from

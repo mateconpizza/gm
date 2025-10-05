@@ -219,7 +219,7 @@ func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookma
 		// show discarted bookmarks
 		if len(discarted) <= maxItemsToShow && n != 0 {
 			for _, b := range discarted {
-				c.F.Midln(color.Text(txt.Shorten(b.URL, terminal.MinWidth)).Italic().String())
+				c.F.Midln(color.Text(" " + txt.Shorten(b.URL, terminal.MinWidth)).Italic().String())
 			}
 
 			c.F.Flush()

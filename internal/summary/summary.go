@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	cmi = func(s string) string { return color.BrightMagenta(s).Italic().String() }
-	cgi = func(s string) string { return color.Gray(s).Italic().String() }
+	cmi = func(s string) string { return color.BrightMagenta(s).Italic().String() } // Color BrightMagenta Italic
+	cgi = func(s string) string { return color.Gray(s).Italic().String() }          // Color Gray Italic
 )
 
 // Repo returns a summary of the repository.
@@ -48,11 +48,9 @@ func RepoFromPath(c *ui.Console, dbPath, backupPath string) string {
 		dbPath = strings.TrimSuffix(dbPath, ".enc")
 		s := cmi(filepath.Base(dbPath))
 
-		var e string
+		e := "(locked)"
 		if filepath.Base(dbPath) == config.MainDBName {
 			e = "(main locked)"
-		} else {
-			e = "(locked)"
 		}
 
 		return c.F.Mid(txt.PaddedLine(s, cgi(e))).Ln().StringReset()

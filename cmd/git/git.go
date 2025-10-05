@@ -27,7 +27,7 @@ func NewCmd() *cobra.Command {
 		Use:                "git",
 		Short:              "Git commands",
 		Aliases:            []string{"g"},
-		PersistentPreRunE:  cli.ChainHooks(cli.HookEnsureDatabase, cli.HookEnsureGitEnv),
+		PersistentPreRunE:  cli.HookEnsureGitEnv,
 		RunE:               gitCommandFunc,
 		DisableFlagParsing: true,
 	}

@@ -48,10 +48,7 @@ func NewCmd() *cobra.Command {
 	f.BoolVarP(&app.Flags.Create, "create", "c", false, "create config file")
 	f.BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit config")
 	f.BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
-	f.StringVarP(&app.DBName, "name", "n", config.MainDBName, "database name")
 	f.BoolVarP(&app.Flags.List, "show", "l", false, "current config filepath")
-
-	_ = f.MarkHidden("name")
 
 	return configCmd
 }

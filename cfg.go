@@ -23,7 +23,9 @@ var app = &config.Config{
 	},
 	Path: &config.Path{},
 	Git: &config.Git{
-		Log: true, // FIX: not implemented yet
+		Enabled: false,
+		GPG:     false,
+		Log:     true, // FIX: not implemented yet
 	},
 	Menu: &menu.Config{},
 	Env: &config.Env{

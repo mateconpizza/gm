@@ -216,11 +216,9 @@ func DroppingDB(c *ui.Console, r *db.SQLite, backupPath string, force bool) erro
 	c.F.Reset().Rowln().Flush()
 
 	if !force {
-		var q string
+		q := "continue?"
 		if r.Name() == config.MainDBName {
 			q = c.WarningMesg("dropping \"main\" database, continue?")
-		} else {
-			q = "continue?"
 		}
 
 		if err := c.ConfirmErr(q, "n"); err != nil {

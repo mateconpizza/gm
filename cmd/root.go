@@ -62,6 +62,7 @@ func NewRootCmd(app *config.Config) *cobra.Command {
 	cmd.DisableSuggestions = true
 	cmd.SuggestionsMinimumDistance = 1
 	cobra.EnableCommandSorting = false
+	cobra.EnableTraverseRunHooks = true
 
 	return cmd
 }

@@ -44,10 +44,9 @@ func ChainHooks(hooks ...Hook) Hook {
 // Returns an error if database is missing, locked, or needs initialization.
 func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 	if cmd.HasParent() {
-		slog.Debug("assert db exists", "command", cmd.Name(), "parent", cmd.Parent().Name())
-	} else {
-		slog.Debug("assert db exists", "command", cmd.Name())
+		slog.Debug("assert db exists", "parent", cmd.Parent().Name())
 	}
+	slog.Debug("assert db exists", "command", cmd.Name())
 
 	// Skip DB check if explicitly unlocking
 	unlockFlag, _ := cmd.Flags().GetBool("unlock")

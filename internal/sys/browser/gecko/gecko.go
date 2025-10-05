@@ -147,13 +147,15 @@ func openSQLite(dbPath string) (*sqlx.DB, error) {
 	s := rotato.New(
 		rotato.WithMesg(color.BrightBlue("connecting to database...").String()),
 		rotato.WithSpinnerColor(rotato.ColorGray),
+		rotato.WithFailColorMesg(rotato.ColorBrightRed),
 	)
 	s.Start()
 
 	defer s.Done()
 	// check if the database is reachable
 	if err = db.Ping(); err != nil {
-		slog.Error("failed to ping database", "err", err)
+		s.Fail("failed to ping database: " + err.Error())
+		slog.Debug("failed to ping database", "err", err)
 
 		if err.Error() == "database is locked" {
 			return nil, ErrBrowserIsOpen

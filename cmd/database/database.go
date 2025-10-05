@@ -27,10 +27,9 @@ import (
 var (
 	// dbRootCmd database management.
 	dbRootCmd = &cobra.Command{
-		Use:               "db",
-		Aliases:           []string{"database", "d"},
-		Short:             "Database management",
-		PersistentPreRunE: cli.HookEnsureDatabase,
+		Use:     "db",
+		Aliases: []string{"database", "d"},
+		Short:   "Database management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app := config.New()
 
