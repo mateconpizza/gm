@@ -15,12 +15,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var (
-	MaxOpenConns    = 1
-	MaxIdleConns    = 1
-	MaxLifetimeConn = time.Hour
-)
-
 type Table string
 
 // SQLite implements the Repository interface.
@@ -96,13 +90,17 @@ func newRepository(p string, validate func(string) error) (*SQLite, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	db, err := OpenDatabase(p)
+	db, err := OpenDatabase(p, c)
 	if err != nil {
 		slog.Error("NewRepo", "error", err, "path", p)
 		return nil, err
 	}
 
-	return newSQLiteRepository(db, c), nil
+	r := newSQLiteRepository(db, c)
+
+	Mgr.Register(c.Name, r)
+
+	return r, nil
 }
 
 // buildSQLiteDSN constructs a SQLite Data Source Name from a file path and
@@ -127,7 +125,7 @@ func buildSQLiteDSN(path string, params map[string]string) string {
 
 // OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
-func OpenDatabase(path string) (*sqlx.DB, error) {
+func OpenDatabase(path string, cfg *Cfg) (*sqlx.DB, error) {
 	slog.Debug("opening database", "path", path)
 	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
@@ -139,6 +137,7 @@ func OpenDatabase(path string) (*sqlx.DB, error) {
 	}
 
 	dsn := buildSQLiteDSN(path, dbParams)
+
 	// testing mode
 	if isTestingMode {
 		dsn = buildSQLiteDSN(path, map[string]string{
@@ -146,8 +145,9 @@ func OpenDatabase(path string) (*sqlx.DB, error) {
 			"_synchronous":  "NORMAL", // wait for I/O operations to finish, but not for the file system to sync
 			"cache":         "shared", // allow multiple connections to share the same in-memory cache
 		})
+
 		// add more open conns for t.Parallel(), without this, tests will hang.
-		MaxOpenConns = 10
+		cfg.MaxOpenConns = 10
 	}
 
 	db, err := sqlx.Open("sqlite", dsn)
@@ -156,9 +156,9 @@ func OpenDatabase(path string) (*sqlx.DB, error) {
 	}
 
 	// Connection pool tuning
-	db.SetMaxOpenConns(MaxOpenConns)
-	db.SetMaxIdleConns(MaxIdleConns)
-	db.SetConnMaxLifetime(MaxLifetimeConn)
+	db.SetMaxOpenConns(cfg.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.MaxIdleConns)
+	db.SetConnMaxLifetime(cfg.MaxLifetimeConn)
 
 	if err := db.PingContext(context.Background()); err != nil {
 		return nil, fmt.Errorf("%w: on ping context", err)
@@ -169,8 +169,11 @@ func OpenDatabase(path string) (*sqlx.DB, error) {
 
 // Cfg represents the configuration for a SQLite database.
 type Cfg struct {
-	Name string `json:"name"` // Name of the SQLite database
-	Path string `json:"path"` // Path to the SQLite database
+	Name            string `json:"name"` // Name of the SQLite database
+	Path            string `json:"path"` // Path to the SQLite database
+	MaxOpenConns    int
+	MaxIdleConns    int
+	MaxLifetimeConn time.Duration
 }
 
 // Fullpath returns the full path to the SQLite database.
@@ -193,7 +196,10 @@ func NewSQLiteCfg(p string) (*Cfg, error) {
 	baseDir := filepath.Dir(abs)
 
 	return &Cfg{
-		Path: baseDir,
-		Name: ensureDBSuffix(filepath.Base(abs)),
+		Path:            baseDir,
+		Name:            ensureDBSuffix(filepath.Base(abs)),
+		MaxOpenConns:    1,
+		MaxIdleConns:    1,
+		MaxLifetimeConn: time.Hour,
 	}, nil
 }

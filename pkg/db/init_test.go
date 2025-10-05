@@ -16,7 +16,7 @@ import (
 func setupTestDB(t *testing.T) *SQLite {
 	t.Helper()
 	c, _ := NewSQLiteCfg("")
-	db, err := OpenDatabase(fmt.Sprintf("file:testdb_%d?mode=memory", time.Now().UnixNano()))
+	db, err := OpenDatabase(fmt.Sprintf("file:testdb_%d?mode=memory", time.Now().UnixNano()), c)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -76,7 +76,7 @@ func testPopulatedDB(t *testing.T, n int) *SQLite {
 func TestInit(t *testing.T) {
 	t.Parallel()
 	c, _ := NewSQLiteCfg("")
-	db, err := OpenDatabase("file:testdb?mode=memory&cache=shared")
+	db, err := OpenDatabase("file:testdb?mode=memory&cache=shared", c)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

@@ -161,7 +161,12 @@ func DropFromPath(dbPath string) error {
 func VerifyIntegrity(path string) error {
 	slog.Debug("verifying SQLite integrity", "path", path)
 
-	r, err := db.OpenDatabase(path)
+	c, err := db.NewSQLiteCfg(path)
+	if err != nil {
+		return err
+	}
+
+	r, err := db.OpenDatabase(path, c)
 	if err != nil {
 		return fmt.Errorf("no se pudo abrir backup: %w", err)
 	}

@@ -31,6 +31,11 @@ test:
 	@go test ./...
 	@echo
 
+testrace:
+	@echo '>> Testing $(BINARY_NAME)'
+	@go test ./... -race
+	@echo
+
 testcover:
 	@echo '>> Testing $(BINARY_NAME)'
 	@go test ./... -coverprofile=coverage.out
