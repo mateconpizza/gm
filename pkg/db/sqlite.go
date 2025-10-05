@@ -33,11 +33,13 @@ func (r *SQLite) Name() string {
 func (r *SQLite) Close() {
 	s := r.Name()
 	r.closeOnce.Do(func() {
+		slog.Debug("database closed", "name", s)
+
 		if err := r.DB.Close(); err != nil {
 			slog.Error("closing database", "name", s, "error", err)
-		} else {
-			slog.Debug("database closed", "name", s)
 		}
+
+		manager.Unregister(s)
 	})
 }
 
@@ -98,7 +100,7 @@ func newRepository(p string, validate func(string) error) (*SQLite, error) {
 
 	r := newSQLiteRepository(db, c)
 
-	Mgr.Register(c.Name, r)
+	manager.Register(c.Name, r)
 
 	return r, nil
 }
