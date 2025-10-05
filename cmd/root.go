@@ -78,6 +78,9 @@ func initConfig(cfg *config.Config) {
 		slog.Error("loading config", "err", err)
 	}
 
+	// FIX: remove usage from global `Fzf`.
+	cfg.Menu = config.Fzf
+
 	// set menu
 	menu.SetConfig(config.Fzf)
 

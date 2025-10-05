@@ -9,7 +9,7 @@ import (
 
 // fzfSettings are the options for FZF.
 var fzfSettings = menu.FzfSettings{
-	// TODO: maybe, put it in `menu.go`
+	// FIX: Move to package `menu`
 	"--ansi",                            // Enable processing of ANSI color codes
 	"--reverse",                         // A synonym for --layout=reverse
 	"--sync",                            // Synchronous search for multi-staged filtering
@@ -26,6 +26,7 @@ var fzfSettings = menu.FzfSettings{
 
 // Fzf holds the default menu configuration.
 var Fzf = &menu.Config{
+	// FIX: Move to package `menu`
 	Defaults: true,
 	Prompt:   menu.DefaultPrompt,
 	Preview:  true,

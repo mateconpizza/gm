@@ -148,16 +148,16 @@ func exec(c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark
 }
 
 // menuForRecords builds the interactive FZF menu for selecting records.
-func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
+func menuForRecords[T bookmark.Bookmark](app *config.Config) *menu.Menu[T] {
 	var keybindsArgs []string
-	if cfg.Flags.Notes {
+	if app.Flags.Notes {
 		keybindsArgs = append(keybindsArgs, "--notes")
 	}
 
 	mo := []menu.OptFn{
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
-		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
+		menu.WithPreview(app.Cmd + " --name " + app.DBName + " records {1}"),
 		menu.WithKeybinds(
 			config.FzfKeybindEdit(keybindsArgs...),
 			config.FzfKeybindEditNotes(),
@@ -168,7 +168,7 @@ func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
 		),
 	}
 
-	if cfg.Flags.Multiline {
+	if app.Flags.Multiline {
 		mo = append(mo, menu.WithMultilineView())
 	}
 

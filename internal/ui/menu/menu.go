@@ -31,7 +31,6 @@ type Options struct {
 	keybind     []string
 	header      []string
 	settings    FzfSettings
-	defaults    bool
 	interruptFn func(error)
 	runner      MenuRunner
 }
@@ -216,9 +215,8 @@ func New[T comparable](opts ...OptFn) *Menu[T] {
 			"--info=inline-right",
 			"--prompt=" + menuConfig.Prompt,
 		},
-		defaults: false,
-		header:   make([]string, 0),
-		runner:   &defaultRunner{},
+		header: make([]string, 0),
+		runner: &defaultRunner{},
 	}
 
 	for _, fn := range opts {

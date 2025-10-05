@@ -1,6 +1,9 @@
 package main
 
-import "github.com/mateconpizza/gm/internal/config"
+import (
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/ui/menu"
+)
 
 // version of the application.
 var version = "0.1.29"
@@ -22,6 +25,7 @@ var app = &config.Config{
 	Git: &config.Git{
 		Log: true, // FIX: not implemented yet
 	},
+	Menu: &menu.Config{},
 	Env: &config.Env{
 		Home:   "GOMARKS_HOME",
 		Editor: "GOMARKS_EDITOR",

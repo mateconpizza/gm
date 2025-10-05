@@ -43,13 +43,13 @@ func buildPreviewOpts(cmd string) OptFn {
 	if !colorEnabled {
 		opts = append(opts, "--no-color")
 	}
-
 	opts = append(opts, "--preview="+cmd)
+
+	prevWindowCmd := "--preview-window=~4,+{2}+4/3,<80(up)"
 	if !menuConfig.Preview {
-		opts = append(opts, "--preview-window=hidden,up")
-	} else {
-		opts = append(opts, "--preview-window=~4,+{2}+4/3,<80(up)")
+		prevWindowCmd = "--preview-window=hidden,up"
 	}
+	opts = append(opts, prevWindowCmd)
 
 	return func(o *Options) {
 		o.settings = append(o.settings, opts...)
