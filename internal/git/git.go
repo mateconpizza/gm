@@ -2,6 +2,12 @@
 // interact with the bookmark's Git repositorie.
 package git
 
+import (
+	"fmt"
+
+	"github.com/mateconpizza/gm/internal/sys"
+)
+
 const (
 	gitCmd         = "git"
 	AttributesFile = ".gitattributes"
@@ -54,7 +60,7 @@ func (gm *Manager) branch() (string, error) {
 
 // Remote returns the origin of the repository.
 func (gm *Manager) Remote() (string, error) {
-	return remote(gm.RepoPath)
+	return Remote(gm.RepoPath)
 }
 
 // status returns the status of the repository.
@@ -124,4 +130,15 @@ func NewGit(repoPath string, opts ...GitOptFn) *Manager {
 		RepoPath: repoPath,
 		GitOpts:  *o,
 	}
+}
+
+func NewManager(path string) (*Manager, error) {
+	gitCmd, err := sys.Which("git")
+	if err != nil {
+		return nil, fmt.Errorf("%w: %q", err, "git")
+	}
+
+	gm := NewGit(path, WithCmd(gitCmd))
+
+	return gm, nil
 }

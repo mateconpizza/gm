@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -116,20 +115,18 @@ func HookEnsureGitEnv(c *cobra.Command, args []string) error {
 		}
 	}
 
-	gitCmd, err := sys.Which("git")
+	app := config.New()
+	_, err := git.NewManager(app.Git.Path)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("hook git: %w", err)
 	}
 
-	app := config.New()
-	gm := git.NewGit(app.Git.Path, git.WithCmd(gitCmd))
-
 	switch c.Name() {
-	case "init", "import":
+	case "init", "import", "clone":
 		return nil
 	}
 
-	if !gm.IsInitialized() {
+	if !app.Git.Enabled {
 		return git.ErrGitNotInitialized
 	}
 

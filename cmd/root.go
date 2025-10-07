@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/appcfg"
 	"github.com/mateconpizza/gm/cmd/create"
 	"github.com/mateconpizza/gm/cmd/database"
 	gitCmd "github.com/mateconpizza/gm/cmd/git"
 	"github.com/mateconpizza/gm/cmd/io"
 	"github.com/mateconpizza/gm/cmd/records"
-	"github.com/mateconpizza/gm/cmd/settings"
 	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/cmd/tags"
 	"github.com/mateconpizza/gm/internal/cli"
@@ -105,7 +105,7 @@ func Setup(root *cobra.Command) {
 		database.NewCmd(),
 		gitCmd.NewCmd(),
 		io.NewCmd(),
-		settings.NewCmd(),
+		appcfg.NewCmd(),
 		setup.NewCmd(),
 	)
 

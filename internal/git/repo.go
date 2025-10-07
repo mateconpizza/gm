@@ -11,7 +11,6 @@ import (
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -51,7 +50,7 @@ func newLocation(dbPath string) *Location {
 		DBPath: dbPath,
 		Git:    git,
 		Path:   filepath.Join(git, name),
-		Hash:   txt.GenHashPath(dbPath),
+		Hash:   name,
 	}
 }
 
@@ -243,7 +242,9 @@ func (gr *Repository) Status(c *ui.Console) string {
 
 // SetConfig sets the app git config.
 func SetConfig(c *config.Config) {
-	// FIX: keep this? replace all git.IsInitialized(path) calls?
+	c.Git.Path = filepath.Join(c.Path.Data, "git")
 	c.Git.Enabled = IsInitialized(c.Git.Path)
 	c.Git.GPG = gpg.IsInitialized(c.Git.Path)
+	remote, _ := Remote(c.Git.Path)
+	c.Git.Remote = remote
 }

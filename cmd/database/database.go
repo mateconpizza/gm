@@ -175,7 +175,7 @@ func dbDropFunc(_ *cobra.Command, _ []string) error {
 
 func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 	app := config.New()
-	if !git.IsInitialized(app.Git.Path) {
+	if !app.Git.Enabled {
 		return nil
 	}
 

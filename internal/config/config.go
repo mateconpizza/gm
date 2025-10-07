@@ -38,10 +38,11 @@ type (
 	}
 
 	Git struct {
+		Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
 		Path    string `json:"path"    yaml:"path"`    // Path to store git
 		Log     bool   `json:"logging" yaml:"logging"` // Enable logging
-		Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
-		GPG     bool   `json:"-"       yaml:"-"`       // Enable GPG
+		GPG     bool   `json:"gpg"     yaml:"gpg"`     // Enable GPG
+		Remote  string `json:"remote"  yaml:"remote"`  // Remote repo
 	}
 
 	Information struct {

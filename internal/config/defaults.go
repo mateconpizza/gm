@@ -9,8 +9,9 @@ import (
 
 // ConfigFile represents the configuration file.
 type ConfigFile struct {
-	Colorscheme string       `json:"colorscheme" yaml:"colorscheme"` // App colorscheme
-	Menu        *menu.Config `json:"menu"        yaml:"menu"`        // Menu configuration
+	Colorscheme string       `json:"colorscheme" yaml:"colorscheme"`   // App colorscheme
+	Menu        *menu.Config `json:"menu"        yaml:"menu"`          // Menu configuration
+	Git         *Git         `json:"git"         yaml:"git,omitempty"` // Git status
 }
 
 // Defaults holds the default configuration.

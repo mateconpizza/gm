@@ -166,7 +166,7 @@ func cloneAndImport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if !git.IsInitialized(app.Git.Path) {
+	if !app.Git.Enabled {
 		slog.Warn("git import: repo not initialized", "path", app.Git.Path)
 		return nil
 	}

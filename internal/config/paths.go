@@ -60,9 +60,8 @@ func (c *Config) InitPaths() {
 
 	// set app home
 	c.Path.Data = dataHomePath
-	c.Path.ConfigFile = filepath.Join(dataHomePath, ConfigFilename)
-	c.Path.Backup = filepath.Join(dataHomePath, "backup")
-	c.Git.Path = filepath.Join(dataHomePath, "git")
+	c.Path.ConfigFile = filepath.Join(c.Path.Data, ConfigFilename)
+	c.Path.Backup = filepath.Join(c.Path.Data, "backup")
 
 	// set main database path and name
 	if filepath.Ext(c.DBName) != ".db" {

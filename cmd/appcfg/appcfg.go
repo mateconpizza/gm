@@ -1,7 +1,7 @@
-// Package settings manages the application's configuration, including
+// Package appcfg manages the application's configuration, including
 // reading from and writing to configuration files (e.g., YAML), and
 // providing helper functions for command-line configuration logic.
-package settings
+package appcfg
 
 import (
 	"fmt"
@@ -63,6 +63,10 @@ func createConfig(c *ui.Console, app *config.Config) error {
 
 	if !c.Confirm(fmt.Sprintf("create configfile %q", p), "y") {
 		return nil
+	}
+
+	if app.Git.Enabled {
+		config.Defaults.Git = app.Git
 	}
 
 	if err := writeYAML(p, config.Defaults, app.Flags.Force); err != nil {

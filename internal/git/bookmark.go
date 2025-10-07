@@ -8,7 +8,7 @@ import (
 // UpdateBookmark updates a bookmark in Git version control.
 // Only proceeds if Git repository is initialized and tracking the database.
 func UpdateBookmark(app *config.Config, oldB, newB *bookmark.Bookmark) error {
-	if !IsInitialized(app.Git.Path) {
+	if !app.Git.Enabled {
 		return nil
 	}
 
@@ -52,7 +52,7 @@ func AddBookmark(app *config.Config, b *bookmark.Bookmark) error {
 }
 
 func RemoveBookmarks(app *config.Config, bs []*bookmark.Bookmark) error {
-	if !IsInitialized(app.Git.Path) {
+	if !app.Git.Enabled {
 		return nil
 	}
 

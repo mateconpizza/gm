@@ -185,8 +185,8 @@ func branch(repoPath string) (string, error) {
 	return runWithOutput(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 }
 
-// remote returns the origin of the repository.
-func remote(repoPath string) (string, error) {
+// Remote returns the origin of the repository.
+func Remote(repoPath string) (string, error) {
 	return runWithOutput(repoPath, "config", "--get", "remote.origin.url")
 }
 
