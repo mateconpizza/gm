@@ -339,10 +339,15 @@ func trackRepo(gr *Repository) error {
 	return gr.Commit("new tracking")
 }
 
-func initGPG(c *ui.Console, gr *Repository) error {
-	if err := gpg.Init(gr.Git.RepoPath, AttributesFile); err != nil {
+func initGPG(c *ui.Console, gr *Repository, k *gpg.Fingerprint) error {
+	if !k.IsTrusted() {
+		return fmt.Errorf("%w: %s", gpg.ErrKeyNotTrusted, k.UserID)
+	}
+
+	if err := gpg.Init(gr.Git.RepoPath, AttributesFile, k); err != nil {
 		return fmt.Errorf("gpg init: %w", err)
 	}
+
 	// add diff to git config
 	for k, v := range gpg.GitDiffConf {
 		if err := gr.Git.setConfigLocal(k, strings.Join(v, " ")); err != nil {
@@ -355,7 +360,8 @@ func initGPG(c *ui.Console, gr *Repository) error {
 	}
 
 	if c != nil {
-		fmt.Print(c.SuccessMesg("GPG repo initialized\n"))
+		s := fmt.Sprintf("GPG repo initialized with key %q\n", k.UserID)
+		fmt.Print(c.SuccessMesg(s))
 	}
 
 	return nil

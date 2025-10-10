@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -145,7 +148,8 @@ func (gr *Repository) RepoStatsWrite() error {
 // configured.
 func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
 	if gr.IsEncrypted() {
-		return exportAsGPG(gr.Loc.Path, bs)
+		fingerprintPath := gpg.GPGIDPath(gr.Loc.Git)
+		return exportAsGPG(fingerprintPath, gr.Loc.Path, bs)
 	}
 
 	return exportAsJSON(gr.Loc.Path, bs)
@@ -220,19 +224,27 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 
 	_, err := sys.Which(gpg.Command)
 	if err != nil {
+		slog.Debug("git repo with GPG, command not found", "command", gpg.Command)
 		//nolint:nilerr //test
 		return nil
 	}
 
-	c.F.Success("GPG command found").Ln()
-	c.F.Info(`It will use the first available key (at the moment) to encrypt bookmarks
-  for syncing with a remote Git repository.`).Ln().Flush()
-
+	c.F.Success("GPG command found").Ln().Flush()
 	if !c.Confirm("Use GPG for encryption?", "n") {
 		return nil
 	}
 
-	return initGPG(c, gr)
+	fps, err := gpg.ListFingerprints()
+	if err != nil {
+		return err
+	}
+
+	key, err := selectFingerprint(fps)
+	if err != nil {
+		return err
+	}
+
+	return initGPG(c, gr, key)
 }
 
 // Status returns a prettify status of the repository.
@@ -247,4 +259,50 @@ func SetConfig(c *config.Config) {
 	c.Git.GPG = gpg.IsInitialized(c.Git.Path)
 	remote, _ := Remote(c.Git.Path)
 	c.Git.Remote = remote
+}
+
+func selectFingerprint(fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
+	trustColor := func(key *gpg.Fingerprint) string {
+		t := key.TrustLevelString()
+		if key.IsTrusted() {
+			return color.BrightGreen(strings.ToUpper(t)).String()
+		}
+
+		switch t {
+		case "marginal":
+			return color.BrightOrange(strings.ToUpper(t)).String()
+		default:
+			return color.BrightRed(strings.ToUpper(t)).String()
+		}
+	}
+
+	m := menu.New[*gpg.Fingerprint](
+		menu.WithMultilineView(),
+		menu.WithHeader("select a fingerprint", false),
+		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
+		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
+	)
+	m.SetItems(fps)
+	m.SetPreprocessor(func(f **gpg.Fingerprint) string {
+		fp := *f
+		return fmt.Sprintf(
+			"[Trusted: %s %s: %s %s: %s\n%s: %s",
+			trustColor(fp),
+			color.BrightBlue("KeyID").Bold(),
+			fp.KeyID,
+			color.BrightMagenta("UserID").Bold(),
+			fp.UserID,
+			color.BrightYellow("Fingerprint").Bold(),
+			fp.Fingerprint,
+		)
+	})
+
+	keys, err := m.Select()
+	if err != nil {
+		return nil, err
+	}
+
+	key := keys[0]
+
+	return key, nil
 }

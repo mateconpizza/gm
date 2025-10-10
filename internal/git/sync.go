@@ -77,7 +77,7 @@ func Import(c *ui.Console, gm *Manager, app *config.Config) ([]string, error) {
 // repo.
 //
 //nolint:funlen //ignore
-func exportAsGPG(root string, bs []*bookmark.Bookmark) (bool, error) {
+func exportAsGPG(fingerprintPath, root string, bs []*bookmark.Bookmark) (bool, error) {
 	if err := files.MkdirAll(root); err != nil {
 		return false, fmt.Errorf("%w", err)
 	}
@@ -126,7 +126,7 @@ func exportAsGPG(root string, bs []*bookmark.Bookmark) (bool, error) {
 				return fmt.Errorf("json marshal: %w", err)
 			}
 
-			if err := gpg.Encrypt(filePath, data); err != nil {
+			if err := gpg.Encrypt(fingerprintPath, filePath, data); err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
