@@ -7,14 +7,10 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
@@ -183,84 +179,6 @@ func commitIfChanged(gr *Repository, actionMsg string) error {
 	return nil
 }
 
-// summaryString returns a string representation of the repo summary.
-func summaryString(rs *dbtask.RepoStats) string {
-	var parts []string
-	if rs.Bookmarks > 0 {
-		parts = append(parts, fmt.Sprintf("%d bookmarks", rs.Bookmarks))
-	}
-
-	if rs.Tags > 0 {
-		parts = append(parts, fmt.Sprintf("%d tags", rs.Tags))
-	}
-
-	if rs.Favorites > 0 {
-		parts = append(parts, fmt.Sprintf("%d favorites", rs.Favorites))
-	}
-
-	if len(parts) == 0 {
-		parts = append(parts, "no bookmarks")
-	}
-
-	return strings.Join(parts, ", ")
-}
-
-func summaryRead(gr *Repository) (*SyncGitSummary, error) {
-	sum := NewSummary()
-	if err := files.JSONRead(filepath.Join(gr.Loc.Path, SummaryFileName), sum); err != nil {
-		return nil, fmt.Errorf("reading summary: %w", err)
-	}
-
-	return sum, nil
-}
-
-func summaryUpdate(gr *Repository, version string) (*SyncGitSummary, error) {
-	r, err := db.New(gr.Loc.DBPath)
-	if err != nil {
-		return nil, fmt.Errorf("creating repo: %w", err)
-	}
-
-	branch, err := gr.Git.branch()
-	if err != nil {
-		return nil, fmt.Errorf("getting branch: %w", err)
-	}
-
-	remote, err := gr.Git.Remote()
-	if err != nil {
-		remote = ""
-	}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("getting hostname: %w", err)
-	}
-
-	ctx := context.Background()
-	summary := &SyncGitSummary{
-		GitBranch:          branch,
-		GitRemote:          remote,
-		LastSync:           time.Now().Format(time.RFC3339),
-		ConflictResolution: "timestamp",
-		HashAlgorithm:      "SHA-256",
-		ClientInfo: &ClientInfo{
-			Hostname:   hostname,
-			Platform:   runtime.GOOS,
-			Architect:  runtime.GOARCH,
-			AppVersion: version,
-		},
-		RepoStats: &dbtask.RepoStats{
-			Name:      r.Name(),
-			Bookmarks: r.Count(ctx, "bookmarks"),
-			Tags:      r.Count(ctx, "tags"),
-			Favorites: r.CountFavorites(ctx),
-		},
-	}
-
-	summary.GenChecksum()
-
-	return summary, nil
-}
-
 // records gets all records from the database.
 func records(dbPath string) ([]*bookmark.Bookmark, error) {
 	r, err := db.New(dbPath)
@@ -290,7 +208,8 @@ func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error
 	c.F.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
 		Midln(txt.PaddedLine("tags:", sum.RepoStats.Tags)).
 		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
-	if err := c.ConfirmErr("Import records from this repo?", "y"); err != nil {
+
+	if err := c.ConfirmErr("Continue?", "y"); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
@@ -306,13 +225,13 @@ func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error
 		return "", err
 	}
 
-	if c.Confirm(fmt.Sprintf("Import into %q database?", gr.Loc.DBName), "y") {
+	if !c.Confirm(fmt.Sprintf("Import into %q database?", gr.Loc.DBName), "y") {
 		// FIX:
 		// - Limit options to:
 		// 		- Current database (flag `--name`)?
 		// 		- New database
 		// 		- on "no/cancel", abort all process?
-		fmt.Printf("repoPath: %v\n", repoPath)
+		return "", nil
 	}
 
 	gr.Git.SetRepoPath(repoPath)
@@ -381,7 +300,11 @@ func untrackRemoveRepo(gr *Repository, mesg string) error {
 		return ErrGitNotTracked
 	}
 
-	if err := gr.Tracker.Untrack(gr.Loc.Hash).Save(); err != nil {
+	if err := gr.Tracker.Untrack(gr.Loc.Hash); err != nil {
+		return err
+	}
+
+	if err := gr.Tracker.Save(); err != nil {
 		return err
 	}
 
@@ -393,7 +316,7 @@ func untrackRemoveRepo(gr *Repository, mesg string) error {
 		return err
 	}
 
-	return gr.Git.Commit(fmt.Sprintf("[%s] %s", gr.Loc.DBName, mesg))
+	return gr.Commit(mesg)
 }
 
 func trackRepo(gr *Repository) error {
@@ -405,7 +328,11 @@ func trackRepo(gr *Repository) error {
 		return err
 	}
 
-	if err := gr.Tracker.Track(gr.Loc.Hash).Save(); err != nil {
+	if err := gr.Tracker.Track(gr.Loc.Hash); err != nil {
+		return err
+	}
+
+	if err := gr.Tracker.Save(); err != nil {
 		return err
 	}
 
@@ -450,28 +377,9 @@ func dropRepo(gr *Repository, mesg string) error {
 	return gr.Commit(mesg)
 }
 
-// Read reads the repo and returns the bookmarks.
-func Read(c *ui.Console, path string) ([]*bookmark.Bookmark, error) {
-	loader := readJSONRepo
-	prefix := "Loading JSON bookmarks"
-
-	if gpg.IsInitialized(path) {
-		loader = readGPGRepo
-		prefix = "Decrypting GPG bookmarks"
-	}
-
-	sp := rotato.New(
-		rotato.WithPrefix(c.F.Mid(prefix).StringReset()),
-		rotato.WithMesgColor(rotato.ColorBrightBlue),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-	)
-
-	return loader(c, path, sp)
-}
-
 // selectAndInsert prompts the user to select records to import.
 func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
-	bookmarks, err := extractFromGitRepo(c, repoPath)
+	bookmarks, err := readBookmarks(filepath.Dir(dbPath), repoPath)
 	if err != nil {
 		return err
 	}
@@ -682,7 +590,7 @@ func handleOptIgnore(c *ui.Console, gr *Repository) (string, error) {
 
 // intoDBFromGit loads a git repo into a database.
 func intoDBFromGit(c *ui.Console, gr *Repository) error {
-	bookmarks, err := extractFromGitRepo(c, gr.Git.RepoPath)
+	bookmarks, err := readBookmarks(gr.Loc.Git, gr.Git.RepoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
@@ -717,7 +625,7 @@ func mergeAndInsert(c *ui.Console, gr *Repository) error {
 	}
 	defer r.Close()
 
-	bookmarks, err := extractFromGitRepo(c, gr.Git.RepoPath)
+	bookmarks, err := readBookmarks(gr.Loc.Git, gr.Git.RepoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}

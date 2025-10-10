@@ -39,9 +39,9 @@ type (
 
 	Git struct {
 		Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
-		Path    string `json:"path"    yaml:"path"`    // Path to store git
 		Log     bool   `json:"logging" yaml:"logging"` // Enable logging
 		GPG     bool   `json:"gpg"     yaml:"gpg"`     // Enable GPG
+		Path    string `json:"path"    yaml:"path"`    // Path to store git
 		Remote  string `json:"remote"  yaml:"remote"`  // Remote repo
 	}
 

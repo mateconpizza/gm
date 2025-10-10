@@ -137,7 +137,7 @@ func HookEnsureGitEnv(c *cobra.Command, args []string) error {
 func HookGitSync(c *cobra.Command, args []string) error {
 	app := config.New()
 
-	if !git.IsInitialized(app.Git.Path) {
+	if !app.Git.Enabled {
 		return nil
 	}
 
@@ -154,6 +154,7 @@ func HookGitSync(c *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	defer r.Close()
 
 	bs, err := r.All(context.Background())
 	if err != nil {

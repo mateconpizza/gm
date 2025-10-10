@@ -18,92 +18,110 @@ var (
 	ErrGitCurrentRepo    = errors.New("git: current repo not set")
 )
 
-const trackerFilepath = ".tracked.json"
+const trackerFile = ".tracked.json"
 
 // Tracker manages a list of tracked repositories stored in a file.
 type Tracker struct {
-	List     []string // List holds the paths of the tracked repositories.
-	loaded   bool     // loaded indicates if the tracker data has been loaded from the file.
-	Filename string   // Filename is the path to the file where the tracker data is stored.
+	Repos    []string // Repos holds tracked repository names or paths.
+	Filename string   // Filename is the path to the JSON file.
+	loaded   bool
 }
 
-// Load loads the repositories from the tracker file.
+// NewTracker returns a new Tracker for the given root directory.
+func NewTracker(root string) *Tracker {
+	return &Tracker{
+		Filename: filepath.Join(root, trackerFile),
+	}
+}
+
+// Load loads the tracked repositories from the file (if exists).
 func (t *Tracker) Load() error {
 	if t.loaded {
 		return nil
 	}
 
 	if files.Exists(t.Filename) {
-		if err := files.JSONRead(t.Filename, &t.List); err != nil {
-			return fmt.Errorf("%w", err)
+		if err := files.JSONRead(t.Filename, &t.Repos); err != nil {
+			return fmt.Errorf("load tracker: %w", err)
 		}
 	}
 
 	t.loaded = true
-
 	return nil
 }
 
-// Track adds the repo to the tracker.
-func (t *Tracker) Track(s string) *Tracker {
-	t.List = append(t.List, s)
-	return t
-}
-
-// Untrack removes the repo from the tracker.
-func (t *Tracker) Untrack(s string) *Tracker {
-	t.List = slices.DeleteFunc(t.List, func(r string) bool {
-		return r == s
-	})
-
-	return t
-}
-
-// Save saves the tracker.
+// Save writes the tracked repositories to the file.
 func (t *Tracker) Save() error {
 	if !t.loaded {
 		return ErrGitTrackNotLoaded
 	}
 
-	t.List = slices.Compact(t.List)
-
-	if _, err := files.JSONWrite(t.Filename, &t.List, true); err != nil {
-		return fmt.Errorf("%w: %q", err, t.Filename)
+	t.Repos = slices.Compact(t.Repos)
+	if _, err := files.JSONWrite(t.Filename, &t.Repos, true); err != nil {
+		return fmt.Errorf("save tracker: %w", err)
 	}
 
 	return nil
 }
 
-// Contains returns true if the repo is tracked.
-func (t *Tracker) Contains(s string) bool {
+// Sync loads and then saves, ensuring file consistency.
+func (t *Tracker) Sync() error {
+	if err := t.Load(); err != nil {
+		return err
+	}
+	return t.Save()
+}
+
+// Track adds a new repository to the tracker.
+func (t *Tracker) Track(name string) error {
+	if name == "" {
+		return ErrGitRepoNameEmpty
+	}
 	if !t.loaded {
-		panic(ErrGitTrackNotLoaded)
+		return ErrGitTrackNotLoaded
 	}
-
-	return slices.Contains(t.List, s)
+	if slices.Contains(t.Repos, name) {
+		return ErrGitTracked
+	}
+	t.Repos = append(t.Repos, name)
+	return nil
 }
 
-func NewTracker(root string) *Tracker {
-	return &Tracker{
-		Filename: filepath.Join(root, trackerFilepath),
+// Untrack removes a repository from the tracker.
+func (t *Tracker) Untrack(name string) error {
+	if name == "" {
+		return ErrGitRepoNameEmpty
 	}
+	if !t.loaded {
+		return ErrGitTrackNotLoaded
+	}
+	if !slices.Contains(t.Repos, name) {
+		return ErrGitNotTracked
+	}
+	t.Repos = slices.DeleteFunc(t.Repos, func(r string) bool { return r == name })
+	return nil
 }
 
-// Tracked returns the tracked repositories.
-func Tracked(trackerFile string) ([]string, error) {
-	tracked := make([]string, 0)
+// Contains checks if a repository is tracked.
+func (t *Tracker) Contains(name string) (bool, error) {
+	if !t.loaded {
+		return false, ErrGitTrackNotLoaded
+	}
 
-	if !files.Exists(trackerFile) {
-		if _, err := files.JSONWrite(trackerFile, &tracked, true); err != nil {
-			return nil, fmt.Errorf("%w", err)
+	return slices.Contains(t.Repos, name), nil
+}
+
+// Tracked returns the currently tracked repositories.
+func Tracked(path string) ([]string, error) {
+	tracked := []string{}
+	if !files.Exists(path) {
+		if _, err := files.JSONWrite(path, &tracked, true); err != nil {
+			return nil, fmt.Errorf("create tracker: %w", err)
 		}
-
 		return tracked, nil
 	}
-
-	if err := files.JSONRead(trackerFile, &tracked); err != nil {
-		return nil, fmt.Errorf("%w", err)
+	if err := files.JSONRead(path, &tracked); err != nil {
+		return nil, fmt.Errorf("read tracker: %w", err)
 	}
-
 	return tracked, nil
 }

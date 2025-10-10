@@ -35,13 +35,15 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 	)
 
 	switch {
-	case app.Flags.Status:
-		return status(c, app, gr.Tracker.List)
+	case app.Flags.List:
+		return status(c, app, gr.Tracker.Repos)
 	case app.Flags.Management:
 		return management(c, app)
 	case app.Flags.Track:
+		terminal.NonInteractiveMode(true) // don't ask confirmation
 		return track(c, gr)
 	case app.Flags.Untrack:
+		terminal.NonInteractiveMode(true)
 		return untrack(c, gr)
 	}
 
@@ -108,7 +110,6 @@ func management(c *ui.Console, app *config.Config) error {
 				q = color.Text("Untrack database \"" + "main\"").Bold()
 			}
 			if !c.T.Confirm(c.Warning(q.String()).String(), "n") {
-				c.ReplaceLine(c.Info(fmt.Sprintf("Unchange database %q", gr.Loc.Name)).String())
 				continue
 			}
 
@@ -156,9 +157,10 @@ func status(c *ui.Console, app *config.Config, tracked []string) error {
 	}
 
 	c.F.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
-	files.PrioritizeFile(dbFiles, config.MainDBName)
 
 	// move main database to the top
+	files.PrioritizeFile(dbFiles, config.MainDBName)
+
 	for _, dbPath := range dbFiles {
 		s, err := git.StatusRepo(c, dbPath)
 		if err != nil {

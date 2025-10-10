@@ -101,7 +101,7 @@ func InitAppFunc(_ *cobra.Command, _ []string) error {
 // InitAppPostFunc ask user to track new database if git is initialized.
 func InitAppPostFunc(_ *cobra.Command, _ []string) error {
 	app := config.New()
-	if !git.IsInitialized(app.Git.Path) {
+	if !app.Git.Enabled {
 		return nil
 	}
 	gr, err := git.NewRepo(app.DBPath)

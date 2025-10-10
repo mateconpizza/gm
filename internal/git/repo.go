@@ -153,9 +153,9 @@ func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
 
 // Read reads and decrypts the repository's bookmarks, handling encryption if
 // configured.
-func (gr *Repository) Read(c *ui.Console) ([]*bookmark.Bookmark, error) {
-	return Read(c, gr.Loc.Path)
-}
+// func (gr *Repository) Read(c *ui.Console) ([]*bookmark.Bookmark, error) {
+// 	return Read(c, gr.Loc.Path)
+// }
 
 // Track tracks a repository in Git, exporting its data and committing the
 // changes.
@@ -176,7 +176,8 @@ func (gr *Repository) IsEncrypted() bool {
 
 // IsTracked returns whether the repo is tracked.
 func (gr *Repository) IsTracked() bool {
-	return gr.Tracker.Contains(gr.Loc.Hash)
+	ok, _ := gr.Tracker.Contains(gr.Loc.Hash)
+	return ok
 }
 
 // Export exports the repository's bookmarks to Git, handling encryption if
@@ -207,7 +208,7 @@ func (gr *Repository) String() string {
 		return ""
 	}
 
-	return summaryString(sum.RepoStats)
+	return sum.RepoStats.String()
 }
 
 // AskForEncryption prompts the user to enable GPG encryption for the
@@ -228,7 +229,6 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
   for syncing with a remote Git repository.`).Ln().Flush()
 
 	if !c.Confirm("Use GPG for encryption?", "n") {
-		c.ReplaceLine(c.Info("Skipping GPG encryption").StringReset())
 		return nil
 	}
 

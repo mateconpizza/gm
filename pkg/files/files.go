@@ -20,6 +20,7 @@ var (
 	ErrPathNotFound = errors.New("path not found")
 	ErrFileExists   = errors.New("file already exists")
 	ErrPathEmpty    = errors.New("path is empty")
+	ErrPathExists   = errors.New("path already exists")
 )
 
 const (
@@ -423,7 +424,7 @@ func JSONRead[T any](p string, v *T) error {
 
 	content, err := os.ReadFile(p)
 	if err != nil {
-		return fmt.Errorf("error reading config file: %w", err)
+		return err
 	}
 
 	err = json.Unmarshal(content, &v)

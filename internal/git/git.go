@@ -90,7 +90,7 @@ func (gm *Manager) AddRemote(repoURL string, force bool) error {
 
 // Clone clones a repository.
 func (gm *Manager) Clone(repoURL string) error {
-	return Clone(gm.RepoPath, repoURL)
+	return cloneRepo(gm.RepoPath, repoURL)
 }
 
 // Push pushes changes to the remote repository.

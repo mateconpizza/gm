@@ -88,8 +88,8 @@ const (
 
 	tableMainIndex = `
     CREATE UNIQUE INDEX IF NOT EXISTS idx_bookmarks_url ON bookmarks(url);
-		CREATE INDEX idx_bookmarks_status ON bookmarks(is_active, status_code);
-		CREATE INDEX idx_bookmarks_last_checked ON bookmarks(last_checked);
+		CREATE INDEX IF NOT EXISTS idx_bookmarks_status ON bookmarks(is_active, status_code);
+		CREATE INDEX IF NOT EXISTS idx_bookmarks_last_checked ON bookmarks(last_checked);
 	`
 
 	tableMainTriggerUpdateAt = `

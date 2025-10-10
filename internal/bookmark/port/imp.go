@@ -213,7 +213,7 @@ func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookma
 	n := len(filtered)
 	if originalLen != n {
 		skip := color.BrightYellow("skipping")
-		s := fmt.Sprintf("%s %d duplicate bookmarks", skip, originalLen-n)
+		s := fmt.Sprintf("%s %d/%d duplicate bookmarks", skip, originalLen-n, originalLen)
 		c.Warning(s + "\n").Flush()
 
 		// show discarted bookmarks

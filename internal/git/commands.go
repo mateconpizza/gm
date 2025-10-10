@@ -20,14 +20,15 @@ var (
 	ErrGitInitialized     = errors.New("git: is initialized")
 	ErrGitNotInitialized  = errors.New("git: is not initialized")
 	ErrGitNoCommits       = errors.New("git: no commits found")
-	ErrGitNoRemote        = errors.New("git: no upstream configured")
+	ErrGitNoUpstream      = errors.New("git: no upstream configured")
+	ErrGitUpstreamExists  = errors.New("git: remote origin already exists")
 	ErrGitNothingToCommit = errors.New("git: nothing to commit, working tree clean")
 	ErrGitUpToDate        = errors.New("git: everything up-to-date")
 	ErrGitRepoNotFound    = errors.New("git: repo not found")
 	ErrGitRepoURLEmpty    = errors.New("git: repo url is empty")
 )
 
-func Clone(destRepoPath, repoURL string) error {
+func cloneRepo(destRepoPath, repoURL string) error {
 	return runGitCmd("", "clone", repoURL, destRepoPath)
 }
 
@@ -47,6 +48,11 @@ func addRemote(repoPath, repoURL string, force bool) error {
 
 // SetUpstream sets the upstream for the current branch.
 func SetUpstream(repoPath string) error {
+	err := HasUpstream(repoPath)
+	if err == nil {
+		return ErrGitUpstreamExists
+	}
+
 	b, err := branch(repoPath)
 	if err != nil {
 		return err
@@ -57,17 +63,39 @@ func SetUpstream(repoPath string) error {
 
 // hasUnpushedCommits checks if there are any unpushed commits.
 func hasUnpushedCommits(repoPath string) (bool, error) {
-	err := runWithWriter(io.Discard, repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
-	if err != nil {
-		return false, err
-	}
-
 	s, err := runWithOutput(repoPath, "rev-list", "--count", "HEAD", "^@{u}")
 	if err != nil {
 		return false, err
 	}
 
 	return s != "0", nil
+}
+
+// HasUnpulledCommits checks if there are commits on the upstream
+// branch that have not yet been pulled locally.
+func HasUnpulledCommits(repoPath string) (bool, error) {
+	// FIX: not implemented yet
+	if err := HasUpstream(repoPath); err != nil {
+		return false, err
+	}
+
+	// Count commits present in the upstream but not locally
+	out, err := runWithOutput(repoPath, "rev-list", "--count", "@{u}", "^HEAD")
+	if err != nil {
+		return false, fmt.Errorf("checking unpulled commits: %w", err)
+	}
+
+	return strings.TrimSpace(out) != "0", nil
+}
+
+// HasUpstream checks whether the current branch has an upstream (remote tracking branch) configured.
+func HasUpstream(repoPath string) error {
+	err := runWithWriter(io.Discard, repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	if err != nil {
+		return ErrGitNoUpstream
+	}
+
+	return nil
 }
 
 // commitChanges commits local changes.
@@ -107,7 +135,7 @@ func push(repoPath string) error {
 	}
 
 	if strings.TrimSpace(remotes) == "" {
-		return ErrGitNoRemote
+		return ErrGitNoUpstream
 	}
 
 	branch, err := branch(repoPath)
@@ -230,7 +258,7 @@ func runWithWriter(stdout io.Writer, repoPath string, s ...string) error {
 	o := strings.TrimSpace(string(output))
 
 	if err != nil {
-		//nolint:err113 //notneeded
+		//nolint:err113 //ignore
 		return fmt.Errorf("%s", o)
 	}
 
@@ -248,7 +276,7 @@ func runGitCmd(repoPath string, commands ...string) error {
 		return fmt.Errorf("%w: %s", err, gitCommand)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Orange))
+	f := frame.New(frame.WithColorBorder(color.MkColorFn(color.Orange, color.StyleBold)))
 	defer f.Flush()
 
 	commands = append([]string{gitCommand, "-C", repoPath}, commands...)
@@ -258,7 +286,7 @@ func runGitCmd(repoPath string, commands ...string) error {
 	err = sys.ExecCmdWithWriter(f, commands...)
 	if err != nil {
 		f.Error("")
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	return nil

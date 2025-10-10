@@ -42,7 +42,6 @@ type Flags struct {
 	ColorStr string // WithColor enable color output
 	Force    bool   // Force action without confirmation
 	Path     string // Custom database path
-	Redo     bool   // Redo last action
 	Verbose  int    // Verbose output level
 
 	// Subcmds
@@ -63,7 +62,6 @@ type Database struct {
 // GitFlags tracking operations.
 type GitFlags struct {
 	Management bool // Git repository management
-	Status     bool // Show tracked databases status
 	Track      bool // Track database in git
 	Untrack    bool // Untrack database in git
 }
