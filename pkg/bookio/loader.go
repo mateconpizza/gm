@@ -14,10 +14,10 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-type loadFileFn func(path string) (*bookmark.Bookmark, error)
+type loadFileFn func(ctx context.Context, path string) (*bookmark.Bookmark, error)
 
 type FileLoader struct {
-	ctx     context.Context
+	Context context.Context
 	count   uint32
 	g       *errgroup.Group
 	mu      *sync.Mutex
@@ -27,7 +27,9 @@ type FileLoader struct {
 	Spinner *rotato.Rotato
 }
 
-func (f *FileLoader) WithLoader(loader func(string) (*bookmark.Bookmark, error)) *FileLoader {
+func (f *FileLoader) WithLoader(
+	loader func(context.Context, string) (*bookmark.Bookmark, error),
+) *FileLoader {
 	f.Loader = loader
 	return f
 }
@@ -39,12 +41,12 @@ func (f *FileLoader) WithSpinner(sp *rotato.Rotato) *FileLoader {
 
 func (f *FileLoader) LoadAsync(path string) {
 	f.g.Go(func() error {
-		if err := f.sem.Acquire(f.ctx, 1); err != nil {
+		if err := f.sem.Acquire(f.Context, 1); err != nil {
 			return err
 		}
 		defer f.sem.Release(1)
 
-		b, err := f.Loader(path)
+		b, err := f.Loader(f.Context, path)
 		currentCount := atomic.AddUint32(&f.count, 1)
 		f.Spinner.UpdateMesg(fmt.Sprintf("[%d] %s", currentCount, filepath.Base(path)))
 		if err != nil {
@@ -77,10 +79,10 @@ func (f *FileLoader) Results() ([]*bookmark.Bookmark, error) {
 func NewFileLoader(ctx context.Context) *FileLoader {
 	g, ctx := errgroup.WithContext(ctx)
 	return &FileLoader{
-		ctx: ctx,
-		g:   g,
-		mu:  &sync.Mutex{},
-		sem: semaphore.NewWeighted(1),
+		Context: ctx,
+		g:       g,
+		mu:      &sync.Mutex{},
+		sem:     semaphore.NewWeighted(1),
 		Spinner: rotato.New(
 			rotato.WithMesgColor(rotato.ColorBrightBlue),
 			rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),

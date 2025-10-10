@@ -126,7 +126,7 @@ func exportAsGPG(fingerprintPath, root string, bs []*bookmark.Bookmark) (bool, e
 				return fmt.Errorf("json marshal: %w", err)
 			}
 
-			if err := gpg.Encrypt(fingerprintPath, filePath, data); err != nil {
+			if err := gpg.Encrypt(ctx, fingerprintPath, filePath, data); err != nil {
 				return fmt.Errorf("%w", err)
 			}
 

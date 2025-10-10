@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"time"
 
 	"github.com/mateconpizza/rotato"
 
@@ -65,10 +66,10 @@ var GPGStrategy = &bookio.RepositoryLoader{
 	),
 }
 
-func gpgLoader(path string) (*bookmark.Bookmark, error) {
+func gpgLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 	app := config.New()
 	fingerprintPath := gpg.GPGIDPath(app.Git.Path)
-	content, err := gpg.Decrypt(fingerprintPath, path)
+	content, err := gpg.Decrypt(ctx, fingerprintPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("decrypting %w", err)
 	}
@@ -86,7 +87,10 @@ func gpgLoader(path string) (*bookmark.Bookmark, error) {
 // ReadRepo is the unified function that uses the Strategy Pattern.
 // It accepts a specific RepositoryLoader to delegate file loading and filtering.
 func ReadRepo(root string, st *bookio.RepositoryLoader, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
-	f := bookio.NewFileLoader(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	f := bookio.NewFileLoader(ctx)
 	f.WithLoader(st.LoaderFn)
 	if sp != nil {
 		f.WithSpinner(sp)
@@ -109,8 +113,7 @@ func ReadRepo(root string, st *bookio.RepositoryLoader, sp *rotato.Rotato) ([]*b
 		// Prompt for GPG passphrase on the first valid file
 		if st == GPGStrategy && !passphrasePrompted {
 			f.Spinner.UpdateMesg("waiting for GPG passphrase")
-
-			if _, err := f.Loader(path); err != nil {
+			if _, err := f.Loader(f.Context, path); err != nil {
 				return err
 			}
 

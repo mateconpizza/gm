@@ -198,7 +198,7 @@ func TestGPGEncryptNoRecipient(t *testing.T) {
 		BinPath:   "/usr/bin/gpg",
 	}
 
-	err := g.Encrypt(context.Background(), "test.gpg", []byte("data"))
+	err := g.Encrypt(t.Context(), "test.gpg", []byte("data"))
 	if !errors.Is(err, ErrNoGPGRecipient) {
 		t.Errorf("expected ErrNoGPGRecipient, got %v", err)
 	}
@@ -265,7 +265,7 @@ func TestGPG_Encrypt_Success(t *testing.T) {
 	execCommand = mockExecSuccess("encrypted ok")
 
 	g := &GPG{Recipient: "user@example.com", BinPath: "/usr/bin/gpg"}
-	err := g.Encrypt(context.Background(), "output.gpg", []byte("hello"))
+	err := g.Encrypt(t.Context(), "output.gpg", []byte("hello"))
 	if err != nil {
 		t.Fatalf("Encrypt failed unexpectedly: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestGPG_Encrypt_Success(t *testing.T) {
 func TestGPG_Encrypt_NoRecipient(t *testing.T) {
 	t.Parallel()
 	g := &GPG{}
-	err := g.Encrypt(context.Background(), "file", []byte("data"))
+	err := g.Encrypt(t.Context(), "file", []byte("data"))
 	if !errors.Is(err, ErrNoGPGRecipient) {
 		t.Fatalf("expected ErrNoGPGRecipient, got %v", err)
 	}
@@ -286,7 +286,7 @@ func TestGPG_Encrypt_CommandFails(t *testing.T) {
 
 	g := &GPG{Recipient: "user@example.com", BinPath: "/usr/bin/gpg"}
 
-	err := g.Encrypt(context.Background(), "output.gpg", []byte("hello"))
+	err := g.Encrypt(t.Context(), "output.gpg", []byte("hello"))
 	if err == nil {
 		t.Fatal("expected error from Encrypt, got nil")
 	}
@@ -300,7 +300,7 @@ func TestGPG_Decrypt_Success(t *testing.T) {
 	execCommand = mockExecSuccess("decrypted text")
 
 	g := &GPG{BinPath: "/usr/bin/gpg"}
-	out, err := g.Decrypt(context.Background(), "file.gpg")
+	out, err := g.Decrypt(t.Context(), "file.gpg")
 	if err != nil {
 		t.Fatalf("Decrypt failed unexpectedly: %v", err)
 	}
@@ -314,7 +314,7 @@ func TestGPG_Decrypt_CommandFails(t *testing.T) {
 	execCommand = mockExecFail("bad decrypt")
 
 	g := &GPG{BinPath: "/usr/bin/gpg"}
-	_, err := g.Decrypt(context.Background(), "file.gpg")
+	_, err := g.Decrypt(t.Context(), "file.gpg")
 	if err == nil {
 		t.Fatal("expected error from Decrypt, got nil")
 	}

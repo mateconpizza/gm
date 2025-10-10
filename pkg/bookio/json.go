@@ -1,6 +1,7 @@
 package bookio
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -27,7 +28,7 @@ var JSONStrategy = &RepositoryLoader{
 	),
 }
 
-func jsonLoader(path string) (*bookmark.Bookmark, error) {
+func jsonLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 	bj := &bookmark.BookmarkJSON{}
 	if err := files.JSONRead(path, bj); err != nil {
 		return nil, fmt.Errorf("%w: %s", err, path)

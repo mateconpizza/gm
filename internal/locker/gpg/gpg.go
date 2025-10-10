@@ -118,7 +118,7 @@ func IsInitialized(path string) bool {
 }
 
 // Decrypt decrypts the provided encrypted file.
-func Decrypt(fingerprintPath, encryptedPath string) ([]byte, error) {
+func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte, error) {
 	recipientKey, err := loadFingerprint(fingerprintPath)
 	if err != nil {
 		return nil, err
@@ -129,11 +129,11 @@ func Decrypt(fingerprintPath, encryptedPath string) ([]byte, error) {
 		return nil, err
 	}
 
-	return g.Decrypt(context.Background(), encryptedPath)
+	return g.Decrypt(ctx, encryptedPath)
 }
 
 // Encrypt encrypts the provided data and saves it to the specified path.
-func Encrypt(fingerprintPath, path string, content []byte) error {
+func Encrypt(ctx context.Context, fingerprintPath, path string, content []byte) error {
 	recipientKey, err := loadFingerprint(fingerprintPath)
 	if err != nil {
 		return err
@@ -144,7 +144,7 @@ func Encrypt(fingerprintPath, path string, content []byte) error {
 		return err
 	}
 
-	return g.Encrypt(context.Background(), path, content)
+	return g.Encrypt(ctx, path, content)
 }
 
 // loadFingerprint loads fingerprint from the .gpg-id file.
