@@ -57,7 +57,7 @@ func managementSelect(c *ui.Console, app *config.Config) error {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.F.Rowln().Midln("Select which databases to track").Rowln().Flush()
+	c.F.Rowln().Midln("Select which databases to track").Flush()
 
 	files.PrioritizeFile(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
@@ -72,7 +72,6 @@ func managementSelect(c *ui.Console, app *config.Config) error {
 		}
 
 		if !c.Confirm(fmt.Sprintf("Track %q?", gr.Loc.Name), "n") {
-			c.ReplaceLine(c.Warning(fmt.Sprintf("skipping %q", gr.Loc.Name)).String())
 			continue
 		}
 

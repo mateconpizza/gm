@@ -45,10 +45,12 @@ func NewCmd() *cobra.Command {
 	}
 
 	f := configCmd.Flags()
+	f.SortFlags = false
 	f.BoolVarP(&app.Flags.Create, "create", "c", false, "create config file")
 	f.BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit config")
-	f.BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
 	f.BoolVarP(&app.Flags.List, "show", "l", false, "current config filepath")
+	f.BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.BoolVar(&app.Flags.Force, "force", false, "force action")
 
 	return configCmd
 }

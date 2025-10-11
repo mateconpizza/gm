@@ -40,7 +40,7 @@ func buildPreviewOpts(cmd string) OptFn {
 	}
 
 	var opts []string
-	if !colorEnabled {
+	if !color.IsEnabled {
 		opts = append(opts, "--no-color")
 	}
 	opts = append(opts, "--preview="+cmd)

@@ -105,6 +105,58 @@ func TestSplitIntoChunks(t *testing.T) {
 				"y z",
 			},
 		},
+		{
+			name: "preserves empty lines",
+			input: `Line one
+Line two
+
+Line four`,
+			strLen: 50,
+			expected: []string{
+				"Line one",
+				"Line two",
+				"",
+				"Line four",
+			},
+		},
+		{
+			name: "preserves multiple empty lines",
+			input: `First
+
+
+Third`,
+			strLen: 50,
+			expected: []string{
+				"First",
+				"",
+				"",
+				"Third",
+			},
+		},
+		{
+			name: "wraps long paragraphs",
+			input: `A utility library based on Go 1.18+ generics that makes it easier to work with slices.
+
+See also samber/do`,
+			strLen: 40,
+			expected: []string{
+				"A utility library based on Go 1.18+",
+				"generics that makes it easier to work",
+				"with slices.",
+				"",
+				"See also samber/do",
+			},
+		},
+		{
+			name:   "handles trailing newline",
+			input:  "Line one\nLine two\n",
+			strLen: 50,
+			expected: []string{
+				"Line one",
+				"Line two",
+				"",
+			},
+		},
 	}
 
 	for _, tt := range tests {

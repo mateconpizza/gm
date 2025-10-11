@@ -84,6 +84,7 @@ func ExecuteCmd(arg ...string) error {
 // ExecCmdWithWriter runs a command with the given arguments and writes the
 // output to the writer.
 func ExecCmdWithWriter(w io.Writer, s ...string) error {
+	slog.Debug("ExecCmdWithWriter", "cmds", s)
 	cmd := exec.CommandContext(context.Background(), s[0], s[1:]...)
 	cmd.Stdout = w
 	cmd.Stderr = w

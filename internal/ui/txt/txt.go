@@ -47,6 +47,14 @@ func PaddedLine(s, v any) string {
 	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
 }
 
+func PaddedLineWithPad(s, v any, pad int) string {
+	str := fmt.Sprint(s)
+	visibleLen := len(color.ANSICodeRemover(str))
+	padding := max(pad-visibleLen, 0)
+
+	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
+}
+
 // Shorten shortens a string to a maximum length.
 //
 //	string...
@@ -89,46 +97,64 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 	return result.String()
 }
 
-// SplitIntoChunks splits strings lines into chunks of a given length.
-func SplitIntoChunks(s string, strLen int) []string {
-	var (
-		lines       []string
-		currentLine strings.Builder
-	)
+// SplitIntoChunks splits text into lines of maximum length while preserving paragraphs.
+func SplitIntoChunks(s string, maxLen int) []string {
+	var result []string
 
-	// Remember if the original string ended with a newline.
-	endsWithNewline := strings.HasSuffix(s, "\n")
+	// Split into paragraphs (preserve empty lines)
+	paragraphs := strings.Split(s, "\n")
 
-	for word := range strings.FieldsSeq(s) {
-		// If currentLine is empty, write the word directly.
+	for i, para := range paragraphs {
+		// Empty line = preserve it
+		if strings.TrimSpace(para) == "" {
+			result = append(result, "")
+			continue
+		}
+
+		// Wrap the paragraph into lines
+		lines := wrapParagraph(para, maxLen)
+		result = append(result, lines...)
+
+		// Don't add extra empty line after last paragraph
+		if i < len(paragraphs)-1 {
+			// Check if next paragraph is also empty (consecutive empty lines)
+			if i+1 < len(paragraphs) && strings.TrimSpace(paragraphs[i+1]) == "" {
+				continue // The next iteration will handle the empty line
+			}
+		}
+	}
+
+	return result
+}
+
+// wrapParagraph wraps a single paragraph (no newlines) into multiple lines.
+func wrapParagraph(para string, maxLen int) []string {
+	var lines []string
+	var currentLine strings.Builder
+
+	words := strings.Fields(para) // Remove extra spaces within paragraph
+
+	for _, word := range words {
+		// First word in line
 		if currentLine.Len() == 0 {
 			currentLine.WriteString(word)
 			continue
 		}
-		// Check if adding the new word would exceed the line length
-		if currentLine.Len()+len(word)+1 > strLen {
-			// Add the current line to the result and start a new line
+
+		// Check if adding word exceeds max length
+		if currentLine.Len()+1+len(word) > maxLen {
 			lines = append(lines, currentLine.String())
 			currentLine.Reset()
 			currentLine.WriteString(word)
 		} else {
-			// Add the word to the current line
-			if currentLine.Len() != 0 {
-				currentLine.WriteString(" ")
-			}
-
+			currentLine.WriteString(" ")
 			currentLine.WriteString(word)
 		}
 	}
 
-	// Add the last line if it's not empty
+	// Add last line
 	if currentLine.Len() > 0 {
 		lines = append(lines, currentLine.String())
-	}
-
-	// If the original string ended with a newline, add an extra empty string.
-	if endsWithNewline {
-		lines = append(lines, "")
 	}
 
 	return lines

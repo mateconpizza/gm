@@ -8,7 +8,7 @@ func Set(a *Config) {
 }
 
 // New returns the global application config.
-// It panics if the database path has not been set.
+// It panics if the database path or name has not been set.
 func New() *Config {
 	if app.DBName == "" {
 		panic("repo name not set")

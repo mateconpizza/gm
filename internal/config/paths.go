@@ -71,18 +71,20 @@ func (c *Config) InitPaths() {
 }
 
 // Load loads the user configurations file.
-func Load(path string) error {
-	cfg, err := getConfig(path)
+func Load(app *Config) error {
+	cfgFile, err := getConfig(app.Path.ConfigFile)
 	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
 		return fmt.Errorf("%w", err)
 	}
 
-	if cfg == nil {
+	if cfgFile == nil {
 		slog.Debug("configfile is empty or not found. loading defaults")
 		return nil
 	}
 
-	Fzf = cfg.Menu
+	app.Menu = cfgFile.Menu
+
+	Fzf = cfgFile.Menu
 
 	return nil
 }

@@ -8,15 +8,16 @@ import (
 
 type Flags struct {
 	// Actions
-	Copy   bool // Copy URL into clipboard
-	Edit   bool // Edit mode
-	Menu   bool // Menu mode
-	Notes  bool // Record notes
-	Open   bool // Open URL in default browser
-	QR     bool // QR code generator
-	Remove bool // Remove bookmarks
-	List   bool // List items
-	Create bool // Action create
+	Copy   bool   // Copy URL into clipboard
+	Edit   bool   // Edit mode
+	Menu   bool   // Menu mode
+	Notes  bool   // Record notes
+	Open   bool   // Open URL in default browser
+	QR     bool   // QR code generator
+	Remove bool   // Remove bookmarks
+	List   bool   // List items
+	Create bool   // Action create
+	Yes    string // Assume "yes" on most questions
 
 	// Output format
 	Field     string // Field to print
@@ -64,6 +65,7 @@ type GitFlags struct {
 	Management bool // Git repository management
 	Track      bool // Track database in git
 	Untrack    bool // Untrack database in git
+	Redo       bool // Redo
 }
 
 func SetVerbosity(verbose int) {

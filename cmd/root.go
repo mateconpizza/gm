@@ -53,7 +53,7 @@ func NewRootCmd(app *config.Config) *cobra.Command {
 
 	cobra.OnInitialize(func() {
 		app.Initialize()
-		initConfig(app)
+		initAppConfig(app)
 	})
 
 	// cmd settings
@@ -67,33 +67,29 @@ func NewRootCmd(app *config.Config) *cobra.Command {
 	return cmd
 }
 
-func initConfig(cfg *config.Config) {
-	cfg.Flags.Color = cfg.Flags.ColorStr == "always" &&
+func initAppConfig(app *config.Config) {
+	app.Flags.Color = app.Flags.ColorStr == "always" &&
 		!terminal.IsPiped() &&
 		!terminal.NoColorEnv()
 
-	config.SetVerbosity(cfg.Flags.Verbose)
+	config.SetVerbosity(app.Flags.Verbose)
 
 	// load config from YAML
-	if err := config.Load(cfg.Path.ConfigFile); err != nil {
+	if err := config.Load(app); err != nil {
 		slog.Error("loading config", "err", err)
 	}
-
-	// FIX: remove usage from global `Fzf`.
-	cfg.Menu = config.Fzf
 
 	// set menu
 	menu.SetConfig(config.Fzf)
 
 	// enable global color
-	menu.ColorEnable(cfg.Flags.Color)
-	color.Enable(cfg.Flags.Color)
+	color.Enable(app.Flags.Color)
 
 	// terminal interactive mode
-	terminal.NonInteractiveMode(cfg.Flags.Force)
+	terminal.NonInteractiveMode(app.Flags.Force)
 
 	// git config
-	git.SetConfig(cfg)
+	git.SetConfig(app)
 }
 
 // Setup registers all application commands with the CLI.

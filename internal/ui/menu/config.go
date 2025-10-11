@@ -18,9 +18,6 @@ const (
 	DefaultHeaderSep      = " " + unicodeMiddleDot + " "
 )
 
-// colorEnabled is a flag to enable color support.
-var colorEnabled bool = false
-
 // menuConfig holds the menu configuration.
 var menuConfig *Config = &Config{}
 
@@ -92,9 +89,4 @@ func (c *Config) Validate() error {
 // SetConfig sets menu configuration.
 func SetConfig(cfg *Config) {
 	menuConfig = cfg
-}
-
-// ColorEnable enables color support.
-func ColorEnable(b bool) {
-	colorEnabled = b
 }
