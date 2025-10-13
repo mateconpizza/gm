@@ -4,6 +4,7 @@ package printer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -23,6 +24,22 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
+
+var (
+	ErrInvalidFormat = errors.New("invalid format")
+	ErrUnknownFormat = errors.New("unknown format")
+)
+
+var ValidFormats = []string{
+	"oneline",
+	"json",
+	"id",
+	"url",
+	"title",
+	"tags",
+	"desc",
+	"notes",
+}
 
 // Records prints the bookmarks in a frame format with the given colorscheme.
 func Records(bs []*bookmark.Bookmark) error {
@@ -238,4 +255,41 @@ func RepoInfo(c *ui.Console, app *config.Config) error {
 	fmt.Print(info)
 
 	return nil
+}
+
+func parseDisplayFormat(format string) (formatType, field string, err error) {
+	switch format {
+	case "o", "oneline", "one":
+		return "oneline", "", nil
+	case "j", "json":
+		return "json", "", nil
+	case "id", "i", "1", "url", "u", "2", "title", "t", "3",
+		"tags", "T", "4", "desc", "d", "5", "notes", "n", "6":
+		return "field", format, nil
+	default:
+		return "", "", fmt.Errorf(
+			"%w: %q (use: %s)",
+			ErrInvalidFormat,
+			format,
+			strings.Join(ValidFormats, "|"),
+		)
+	}
+}
+
+func Display(format string, bs []*bookmark.Bookmark) error {
+	formatType, field, err := parseDisplayFormat(format)
+	if err != nil {
+		return err
+	}
+
+	switch formatType {
+	case "oneline":
+		return Oneline(bs)
+	case "json":
+		return RecordsJSON(bs)
+	case "field":
+		return ByField(bs, field)
+	default:
+		return fmt.Errorf("%w: %s", ErrUnknownFormat, formatType)
+	}
 }

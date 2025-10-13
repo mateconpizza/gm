@@ -39,6 +39,8 @@ var (
 	cbb = func(s string) string { return color.BrightBlue(s).Italic().String() } // Color BrightBlue Italic
 	cbg = func(s string) string { return color.BrightGreen(s).Bold().String() }  // Color BrightGreen Bold
 	cy  = func(s string) string { return color.Yellow(s).String() }              // Color Yellow
+	ctb = func(s string) string { return color.Text(s).Bold().String() }         // Style Bold
+	cti = func(s string) string { return color.Text(s).Italic().String() }       // Style Italic
 	cd  = func(s string) string { return color.Text(s).Dim().String() }          // Style Dim
 )
 
@@ -55,8 +57,8 @@ func QR(bs []*bookmark.Bookmark, open bool, appName string) error {
 		}
 
 		var sb strings.Builder
-		sb.WriteString(b.Title + "\n")
-		sb.WriteString(b.URL + "\n")
+		sb.WriteString(ctb(b.Title) + "\n")
+		sb.WriteString(cti(b.URL) + "\n")
 		sb.WriteString(qrcode.String())
 		fmt.Print(sb.String())
 

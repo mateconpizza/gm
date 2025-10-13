@@ -3,6 +3,9 @@
 package records
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
@@ -76,10 +79,8 @@ func InitFlags(cmd *cobra.Command, cfg *config.Config) {
 	f.BoolVar(&flag.Multiline, "multiline", false, "output in multiline format (fzf)")
 
 	// Display
-	f.BoolVarP(&flag.JSON, "json", "j", false, "output results in JSON format")
-	f.StringVarP(&flag.Field, "field", "F", "", "output specific field [id|url|title|tags|notes]")
-	f.BoolVar(&flag.Oneline, "oneline", false, "output in single line format")
-	f.StringVarP(&flag.Format, "format", "f", "frame", "output format (frame|oneline|multiline|json|<field>)")
+	f.StringVarP(&cfg.Flags.Format, "format", "f", "",
+		fmt.Sprintf("output format [%s]", strings.Join(printer.ValidFormats, "|")))
 
 	// Filters
 	InitFilterFlags(cmd, cfg)
@@ -110,16 +111,12 @@ func exec(c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark
 	}
 
 	switch {
-	case f.Field != "":
-		return printer.ByField(bs, f.Field)
+	case f.Format != "":
+		return printer.Display(f.Format, bs)
 	case f.QR:
 		return handler.QR(bs, f.Open, a.Name)
-	case f.JSON:
-		return printer.RecordsJSON(bs)
 	case f.Notes:
 		return printer.Notes(bs)
-	case f.Oneline:
-		return printer.Oneline(bs)
 	default:
 		return printer.Records(bs)
 	}

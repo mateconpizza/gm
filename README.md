@@ -63,6 +63,7 @@ Available Commands:
   new         New bookmark, database, backup
   rec         Records management
   tags        Tags management
+  health      Bookmark health
   db          Database management
   git         Git commands
   io          Export/Import bookmarks
@@ -70,26 +71,22 @@ Available Commands:
   help        Help about any command
 
 Flags:
-  -c, --copy            copy bookmark URL to clipboard
-  -e, --edit            edit bookmark with preferred text editor
-  -m, --menu            interactive menu mode using fzf
-  -N, --notes           display bookmark notes
   -o, --open            open bookmark in default browser
-  -q, --qr              generate QR code for bookmark URL
+  -e, --edit            edit bookmark with preferred text editor
   -r, --remove          remove bookmark by query or ID
-  -f, --field string    output specific field [id|url|title|tags|notes]
-  -j, --json            output results in JSON format
-  -M, --multiline       output in multiline format (fzf compatible)
-  -O, --oneline         output in single line format (fzf compatible)
-  -H, --head int        show first N bookmarks
+  -c, --copy            copy bookmark URL to clipboard
+  -q, --qr              generate QR code for bookmark URL
+  -N, --notes           display bookmark notes
+  -m, --menu            interactive menu mode using fzf
+      --multiline       output in multiline format (fzf)
+  -f, --format string   output format [oneline|json|id|url|title|tags|desc|notes]
   -t, --tag strings     filter bookmarks by tag(s)
+  -H, --head int        show first N bookmarks
   -T, --tail int        show last N bookmarks
-  -S, --snapshot        fetch metadata from Wayback Machine
-  -s, --status          check HTTP status of bookmark URLs
-  -u, --update          update bookmark metadata
-      --color string    output with pretty colors [always|never] (default "always")
-      --force           force action | don't ask confirmation
   -n, --name string     database name (default "main.db")
+      --color string    output with pretty colors [always|never] (default "always")
+      --force           force action
+  -y, --yes             assume "yes" on most questions
   -v, --verbose count   increase verbosity (-v, -vv, -vvv)
   -h, --help            help for gm
       --version         version for gm

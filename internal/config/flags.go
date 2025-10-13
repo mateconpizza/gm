@@ -19,11 +19,9 @@ type Flags struct {
 	Create bool // Action create
 
 	// Output format
-	Field     string // Field to print
+	Format    string // Format
 	JSON      bool   // JSON output
-	Oneline   bool   // Oneline output
 	Multiline bool   // Multiline output
-	Format    string
 
 	// Filtering and pagination
 	Head int      // Head limit
