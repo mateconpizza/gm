@@ -212,7 +212,7 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 		return git.ErrGitNotInitialized
 	}
 
-	gm, err := git.NewManager(app.Git.Path)
+	gm, err := git.NewManager(command.Context(), app.Git.Path)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -224,7 +224,7 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 	return gm.Exec(args...)
 }
 
-func pushFunc(_ *cobra.Command, args []string) error {
+func pushFunc(cmd *cobra.Command, args []string) error {
 	app := config.New()
 	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
@@ -236,7 +236,7 @@ func pushFunc(_ *cobra.Command, args []string) error {
 	}
 
 	// SetUpstream will push changes if upstream doesn't exist
-	if err := git.SetUpstream(app.Git.Path); err != nil {
+	if err := git.SetUpstream(cmd.Context(), app.Git.Path); err != nil {
 		if !errors.Is(err, git.ErrGitUpstreamExists) {
 			return err
 		}
@@ -288,7 +288,7 @@ func cloneFunc(cmd *cobra.Command, args []string) error {
 
 	app.Git.Remote = args[0]
 
-	g, err := git.NewManager(app.Git.Path)
+	g, err := git.NewManager(cmd.Context(), app.Git.Path)
 	if err != nil {
 		return err
 	}

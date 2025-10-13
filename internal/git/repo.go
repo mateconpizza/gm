@@ -2,6 +2,7 @@
 package git
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -257,7 +258,7 @@ func SetConfig(c *config.Config) {
 	c.Git.Path = filepath.Join(c.Path.Data, "git")
 	c.Git.Enabled = IsInitialized(c.Git.Path)
 	c.Git.GPG = gpg.IsInitialized(c.Git.Path)
-	remote, _ := Remote(c.Git.Path)
+	remote, _ := Remote(context.Background(), c.Git.Path)
 	c.Git.Remote = remote
 }
 

@@ -2,6 +2,7 @@
 package qr
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -51,7 +52,7 @@ func (q *QRCode) GenerateImg(s string) error {
 }
 
 // Open opens a QR-Code image in the system default image viewer.
-func (q *QRCode) Open() error {
+func (q *QRCode) Open(ctx context.Context) error {
 	if q.file == nil {
 		return ErrQRFileNotFound
 	}
@@ -65,7 +66,7 @@ func (q *QRCode) Open() error {
 		args = append(sys.OSArgs(), q.file.Name())
 	}
 
-	if err := sys.ExecuteCmd(args...); err != nil {
+	if err := sys.ExecuteCmd(ctx, args...); err != nil {
 		return fmt.Errorf("%w: opening QR", err)
 	}
 

@@ -375,7 +375,7 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
 
-	return qrcode.Open()
+	return qrcode.Open(context.Background())
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.

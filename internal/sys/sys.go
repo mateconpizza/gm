@@ -10,9 +10,11 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/atotto/clipboard"
 	"github.com/pkg/browser"
@@ -68,7 +70,7 @@ func BinPath(s string) string {
 
 // BinExists checks if the binary exists in $PATH.
 func BinExists(s string) bool {
-	return ExecuteCmd("which", s) == nil
+	return ExecuteCmd(context.Background(), "which", s) == nil
 }
 
 // Which checks if the command exists in $PATH.
@@ -85,8 +87,8 @@ func Which(cmd string) (string, error) {
 
 // ExecuteCmd runs a command with the given arguments and returns an error if
 // the command fails.
-func ExecuteCmd(arg ...string) error {
-	cmd := exec.CommandContext(context.Background(), arg[0], arg[1:]...)
+func ExecuteCmd(ctx context.Context, arg ...string) error {
+	cmd := exec.CommandContext(ctx, arg[0], arg[1:]...)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("running command: %w", err)
 	}
@@ -96,9 +98,9 @@ func ExecuteCmd(arg ...string) error {
 
 // ExecCmdWithWriter runs a command with the given arguments and writes the
 // output to the writer.
-func ExecCmdWithWriter(w io.Writer, s ...string) error {
+func ExecCmdWithWriter(ctx context.Context, w io.Writer, s ...string) error {
 	slog.Debug("ExecCmdWithWriter", "cmds", s)
-	cmd := exec.CommandContext(context.Background(), s[0], s[1:]...)
+	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
 	cmd.Stdout = w
 	cmd.Stderr = w
 
@@ -189,4 +191,16 @@ func ErrAndExit(err error) {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", config.AppName, err)
 		os.Exit(ExitFailure)
 	}
+}
+
+// WithSignalContext returns a context that is canceled when an interrupt or termination signal is received.
+// The returned stop function should always be deferred to release resources.
+func WithSignalContext(parent context.Context) (context.Context, context.CancelFunc) {
+	ctx, stop := signal.NotifyContext(
+		parent,
+		os.Interrupt,    // Ctrl+C (SIGINT)
+		syscall.SIGTERM, // Process termination
+		syscall.SIGHUP,  // Terminal closed
+	)
+	return ctx, stop
 }

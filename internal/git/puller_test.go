@@ -68,7 +68,7 @@ func setupRepoProcessor(t *testing.T) *RepoProcessor {
 			terminal.WithWriter(io.Discard), // send output to null, show no prompt
 		)),
 	)
-	g, _ := NewManager("")
+	g, _ := NewManager(t.Context(), "")
 	a := &config.Config{
 		DBName: "test.db",
 		DBPath: "/tmp/testpath",

@@ -3,6 +3,7 @@
 package cmd
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/spf13/cobra"
@@ -114,8 +115,9 @@ func Setup(root *cobra.Command) {
 }
 
 // Execute executes the provided root command and exits on error.
-func Execute(r *cobra.Command) {
-	if err := r.Execute(); err != nil {
-		sys.ErrAndExit(err)
-	}
+func Execute(r *cobra.Command) error {
+	ctx, stop := sys.WithSignalContext(context.Background())
+	defer stop()
+
+	return r.ExecuteContext(ctx)
 }

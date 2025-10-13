@@ -3,6 +3,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mateconpizza/gm/internal/sys"
@@ -17,6 +18,7 @@ type GitOptFn func(*GitOpts)
 
 type GitOpts struct {
 	cmd string
+	ctx context.Context
 }
 
 // Manager represents a Git repository manager.
@@ -39,6 +41,12 @@ func WithCmd(cmd string) GitOptFn {
 	}
 }
 
+func WithContext(ctx context.Context) GitOptFn {
+	return func(o *GitOpts) {
+		o.ctx = ctx
+	}
+}
+
 // IsInitialized returns true if the Git repository is initialized.
 func (gm *Manager) IsInitialized() bool {
 	if !gm.isInitialized {
@@ -50,57 +58,57 @@ func (gm *Manager) IsInitialized() bool {
 
 // Init creates a new Git repository.
 func (gm *Manager) Init(force bool) error {
-	return initialize(gm.RepoPath, force)
+	return initialize(gm.ctx, gm.RepoPath, force)
 }
 
 // branch returns the name of the current branch.
 func (gm *Manager) branch() (string, error) {
-	return branch(gm.RepoPath)
+	return branch(gm.ctx, gm.RepoPath)
 }
 
 // Remote returns the origin of the repository.
 func (gm *Manager) Remote() (string, error) {
-	return Remote(gm.RepoPath)
+	return Remote(gm.ctx, gm.RepoPath)
 }
 
 // status returns the status of the repository.
 func (gm *Manager) status() (string, error) {
-	return status(gm.RepoPath)
+	return status(gm.ctx, gm.RepoPath)
 }
 
 // HasUnpushedCommits checks if there are any unpushed commits in the repo.
 func (gm *Manager) HasUnpushedCommits() (bool, error) {
-	return hasUnpushedCommits(gm.RepoPath)
+	return hasUnpushedCommits(gm.ctx, gm.RepoPath)
 }
 
 // hasChanges checks if there are any staged or unstaged changes in the repo.
 func (gm *Manager) hasChanges() (bool, error) {
-	return hasChanges(gm.RepoPath)
+	return hasChanges(gm.ctx, gm.RepoPath)
 }
 
 // AddAll adds all local changes.
 func (gm *Manager) AddAll() error {
-	return addAll(gm.RepoPath)
+	return addAll(gm.ctx, gm.RepoPath)
 }
 
 // AddRemote adds a remote repository.
 func (gm *Manager) AddRemote(repoURL string, force bool) error {
-	return addRemote(gm.RepoPath, repoURL, force)
+	return addRemote(gm.ctx, gm.RepoPath, repoURL, force)
 }
 
 // Clone clones a repository.
 func (gm *Manager) Clone(repoURL string) error {
-	return cloneRepo(gm.RepoPath, repoURL)
+	return cloneRepo(gm.ctx, gm.RepoPath, repoURL)
 }
 
 // Push pushes changes to the remote repository.
 func (gm *Manager) Push() error {
-	return push(gm.RepoPath)
+	return push(gm.ctx, gm.RepoPath)
 }
 
 // Commit commits changes to the repository.
 func (gm *Manager) Commit(msg string) error {
-	return commitChanges(gm.RepoPath, msg)
+	return commitChanges(gm.ctx, gm.RepoPath, msg)
 }
 
 // SetRepoPath sets the repository path.
@@ -111,12 +119,12 @@ func (gm *Manager) SetRepoPath(repoPath string) {
 
 // setConfigLocal sets a local config value.
 func (gm *Manager) setConfigLocal(k, v string) error {
-	return setConfigLocal(gm.RepoPath, k, v)
+	return setConfigLocal(gm.ctx, gm.RepoPath, k, v)
 }
 
 // Exec executes a command in the repository.
 func (gm *Manager) Exec(commands ...string) error {
-	return runGitCmd(gm.RepoPath, commands...)
+	return runGitCmd(gm.ctx, gm.RepoPath, commands...)
 }
 
 // NewGit creates a new GitManager.
@@ -126,19 +134,24 @@ func NewGit(repoPath string, opts ...GitOptFn) *Manager {
 		fn(o)
 	}
 
+	// Ensure context always exists
+	if o.ctx == nil {
+		o.ctx = context.Background()
+	}
+
 	return &Manager{
 		RepoPath: repoPath,
 		GitOpts:  *o,
 	}
 }
 
-func NewManager(path string) (*Manager, error) {
+func NewManager(ctx context.Context, path string) (*Manager, error) {
 	gitCmd, err := sys.Which("git")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", err, "git")
 	}
 
-	gm := NewGit(path, WithCmd(gitCmd))
+	gm := NewGit(path, WithCmd(gitCmd), WithContext(ctx))
 
 	return gm, nil
 }

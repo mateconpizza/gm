@@ -116,7 +116,7 @@ func HookEnsureGitEnv(c *cobra.Command, args []string) error {
 	}
 
 	app := config.New()
-	_, err := git.NewManager(app.Git.Path)
+	_, err := git.NewManager(c.Context(), app.Git.Path)
 	if err != nil {
 		return fmt.Errorf("hook git: %w", err)
 	}
