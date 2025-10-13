@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/semaphore"
@@ -27,7 +26,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -37,12 +35,11 @@ import (
 )
 
 var (
-	cbc = func(s string) string { return color.BrightCyan(s).Italic().String() } // BrightCyan Italic
-	cbb = func(s string) string { return color.BrightBlue(s).Italic().String() } // BrightBlue Italic
-	cbg = func(s string) string { return color.BrightGreen(s).Bold().String() }  // BrightGreen Bold
-	cy  = func(s string) string { return color.Yellow(s).String() }              // Yellow
-	ctb = func(s string) string { return color.Text(s).Bold().String() }         // Bold
-	cd  = func(s string) string { return color.Text(s).Dim().String() }          // Dim
+	cbc = func(s string) string { return color.BrightCyan(s).Italic().String() } // Color BrightCyan Italic
+	cbb = func(s string) string { return color.BrightBlue(s).Italic().String() } // Color BrightBlue Italic
+	cbg = func(s string) string { return color.BrightGreen(s).Bold().String() }  // Color BrightGreen Bold
+	cy  = func(s string) string { return color.Yellow(s).String() }              // Color Yellow
+	cd  = func(s string) string { return color.Text(s).Dim().String() }          // Style Dim
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
@@ -215,104 +212,6 @@ func CheckStatus(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 
 		if err := r.UpdateOne(context.Background(), b); err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-//nolint:funlen //i
-func Snapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
-	const maxConRequests = 10
-	var (
-		count   uint32
-		sem     = semaphore.NewWeighted(int64(maxConRequests))
-		ctx     = context.Background()
-		wg      sync.WaitGroup
-		mu      sync.Mutex
-		errs    = make(chan string, len(bs))
-		success = make(chan string, len(bs))
-	)
-
-	sp := rotato.New(
-		rotato.WithPrefix(c.F.Mid("Fetching snapshots").String()),
-		rotato.WithMesgColor(rotato.ColorYellow),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-		rotato.WithFailColorMesg(rotato.ColorBrightRed),
-	)
-	sp.Start()
-
-	n := len(bs)
-	for _, b := range bs {
-		if b.ArchiveURL != "" && b.ArchiveTimestamp != "" {
-			continue
-		}
-
-		if err := sem.Acquire(ctx, 1); err != nil {
-			return fmt.Errorf("acquire semaphore: %w", err)
-		}
-
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			defer sem.Release(1)
-
-			id := fmt.Sprintf("ID %s", color.Text(fmt.Sprintf("%-3d", b.ID)).Bold())
-			d := id + " " + txt.Shorten(b.URL, 60)
-
-			f := frame.New(frame.WithColorBorder(color.Gray))
-			currentCount := atomic.AddUint32(&count, 1)
-			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", currentCount, n, f.Info(txt.Shorten(b.URL, 80)).String()))
-			f.Reset()
-
-			s, err := scraper.WaybackSnapshot(b.URL)
-			if err != nil {
-				es := color.BrightGray(" (" + err.Error() + ")").Italic().String()
-				errs <- f.Error(d).Text(es).String()
-				return
-			}
-
-			b.ArchiveURL = s.URL
-			b.ArchiveTimestamp = s.Timestamp
-
-			mu.Lock()
-			if err := r.UpdateOne(ctx, b); err != nil {
-				mu.Unlock()
-				es := color.BrightGray(" (" + err.Error() + ")").Italic().String()
-				errs <- f.Error(d).Text(es).String()
-				return
-			}
-			mu.Unlock()
-
-			success <- f.Success(d).String()
-		}()
-	}
-
-	wg.Wait()
-	close(errs)
-	close(success)
-
-	sp.Done()
-
-	if count == 0 {
-		return nil
-	}
-
-	c.F.Reset().Header(ctb(fmt.Sprintf("Summary %d bookmarks\n", count))).Rowln()
-
-	if len(success) > 0 {
-		c.F.Midln("Updated").Flush()
-		for s := range success {
-			c.F.Textln(s).Flush()
-		}
-		c.F.Rowln()
-	}
-
-	if len(errs) > 0 {
-		c.F.Midln("Failed").Flush()
-		for err := range errs {
-			c.F.Textln(err).Flush()
 		}
 	}
 

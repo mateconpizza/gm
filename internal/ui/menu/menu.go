@@ -31,7 +31,7 @@ type Options struct {
 	keybind     []string
 	header      []string
 	settings    FzfSettings
-	interruptFn func(error)
+	interruptFn func(error) // interruptFn handles fzf cancellation (Ctrl-C, ESC, etc.)
 	runner      MenuRunner
 }
 
@@ -70,7 +70,7 @@ func (m *Menu[T]) AddOpts(opts ...OptFn) {
 	}
 }
 
-// callInterruptFn calls the interrupt function.
+// callInterruptFn safely executes the interrupt callback if set.
 func (m *Menu[T]) callInterruptFn(err error) {
 	if m.interruptFn != nil {
 		slog.Debug("calling interruptFn with err", "err", err)
@@ -96,11 +96,13 @@ func (m *Menu[T]) SetItems(items []T) {
 	m.items = items
 }
 
+// SetPreprocessor sets a function to format items for display in fzf.
 func (m *Menu[T]) SetPreprocessor(preprocessor func(*T) string) {
 	m.preprocessor = preprocessor
 }
 
-// WithInterruptFn sets the interrupt function for the menu.
+// WithInterruptFn sets a callback that executes on fzf interruption.
+// Use for cleanup or custom error handling when user cancels selection.
 func WithInterruptFn(fn func(error)) OptFn {
 	return func(o *Options) {
 		o.interruptFn = fn

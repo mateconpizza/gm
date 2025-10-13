@@ -39,11 +39,6 @@ func Data(
 		return nil, fmt.Errorf("failed to get records: %w", err)
 	}
 
-	// Filter by Notes
-	if !f.Edit && f.Notes {
-		bs = filterByNotes(bs)
-	}
-
 	// Apply filters
 	bs, err = applyFilters(r, bs, f)
 	if err != nil {
@@ -154,6 +149,11 @@ func applyFilters(r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) ([]*bo
 		if err != nil {
 			return nil, fmt.Errorf("failed to filter by head/tail: %w", err)
 		}
+	}
+
+	// Filter by Notes
+	if !f.Edit && f.Notes {
+		bs = filterByNotes(bs)
 	}
 
 	return bs, nil

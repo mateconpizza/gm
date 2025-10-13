@@ -8,22 +8,22 @@ import (
 
 type Flags struct {
 	// Actions
-	Copy   bool   // Copy URL into clipboard
-	Edit   bool   // Edit mode
-	Menu   bool   // Menu mode
-	Notes  bool   // Record notes
-	Open   bool   // Open URL in default browser
-	QR     bool   // QR code generator
-	Remove bool   // Remove bookmarks
-	List   bool   // List items
-	Create bool   // Action create
-	Yes    string // Assume "yes" on most questions
+	Copy   bool // Copy URL into clipboard
+	Edit   bool // Edit mode
+	Menu   bool // Menu mode
+	Notes  bool // Record notes
+	Open   bool // Open URL in default browser
+	QR     bool // QR code generator
+	Remove bool // Remove bookmarks
+	List   bool // List items
+	Create bool // Action create
 
 	// Output format
 	Field     string // Field to print
 	JSON      bool   // JSON output
 	Oneline   bool   // Oneline output
 	Multiline bool   // Multiline output
+	Format    string
 
 	// Filtering and pagination
 	Head int      // Head limit
@@ -32,7 +32,9 @@ type Flags struct {
 
 	// Bookmark operations
 	Export   bool   // Exports the bookmarks into a Netscape HTML file
-	Snapshot bool   // Fetches snapshot from Wayback Machine
+	Snapshot bool   // Fetches lastets snapshot from Wayback Machine
+	Limit    int    // Limit to N
+	Year     int    // Year
 	Update   bool   // Update bookmarks
 	Status   bool   // Status checks URLs status code
 	Title    string // Bookmark's title
@@ -42,6 +44,7 @@ type Flags struct {
 	Color    bool   // Application color enable
 	ColorStr string // WithColor enable color output
 	Force    bool   // Force action without confirmation
+	Yes      bool   // Assume "yes" on most questions
 	Path     string // Custom database path
 	Verbose  int    // Verbose output level
 

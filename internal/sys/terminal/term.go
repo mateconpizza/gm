@@ -41,7 +41,7 @@ type Options struct {
 	reader      io.Reader
 	writer      io.Writer
 	PromptStr   string
-	InterruptFn func(error)
+	InterruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
 }
 
 // Term is a struct that represents a terminal.
@@ -73,7 +73,7 @@ func WithWriter(w io.Writer) TermOptFn {
 	}
 }
 
-// WithInterruptFn sets the interrupt function for the terminal.
+// WithInterruptFn sets a callback that executes on terminal interruption.
 func WithInterruptFn(fn func(error)) TermOptFn {
 	return func(o *Options) {
 		o.InterruptFn = fn

@@ -65,47 +65,31 @@ func InitFlags(cmd *cobra.Command, cfg *config.Config) {
 	f := cmd.Flags()
 	f.SortFlags = false
 
-	// Primary actions
-	f.BoolVarP(&flag.Copy, "copy", "c", false,
-		"copy bookmark URL to clipboard")
-	f.BoolVarP(&flag.Edit, "edit", "e", false,
-		"edit bookmark with preferred text editor")
-	f.BoolVarP(&flag.Menu, "menu", "m", false,
-		"interactive menu mode using fzf")
-	f.BoolVarP(&flag.Notes, "notes", "N", false,
-		"display bookmark notes")
-	f.BoolVarP(&flag.Open, "open", "o", false,
-		"open bookmark in default browser")
-	f.BoolVarP(&flag.QR, "qr", "q", false,
-		"generate QR code for bookmark URL")
-	f.BoolVarP(&flag.Remove, "remove", "r", false,
-		"remove bookmark by query or ID")
+	// Actions
+	f.BoolVarP(&flag.Open, "open", "o", false, "open bookmark in default browser")
+	f.BoolVarP(&flag.Edit, "edit", "e", false, "edit bookmark with preferred text editor")
+	f.BoolVarP(&flag.Remove, "remove", "r", false, "remove bookmark by query or ID")
+	f.BoolVarP(&flag.Copy, "copy", "c", false, "copy bookmark URL to clipboard")
+	f.BoolVarP(&flag.QR, "qr", "q", false, "generate QR code for bookmark URL")
+	f.BoolVarP(&flag.Notes, "notes", "N", false, "display bookmark notes")
+	f.BoolVarP(&flag.Menu, "menu", "m", false, "interactive menu mode using fzf")
+	f.BoolVar(&flag.Multiline, "multiline", false, "output in multiline format (fzf)")
 
-	// Output format
-	f.StringVarP(&flag.Field, "field", "f", "",
-		"output specific field [id|url|title|tags|notes]")
-	f.BoolVarP(&flag.JSON, "json", "j", false,
-		"output results in JSON format")
-	f.BoolVarP(&flag.Multiline, "multiline", "M", false,
-		"output in multiline format (fzf compatible)")
-	f.BoolVarP(&flag.Oneline, "oneline", "O", false,
-		"output in single line format (fzf compatible)")
+	// Display
+	f.BoolVarP(&flag.JSON, "json", "j", false, "output results in JSON format")
+	f.StringVarP(&flag.Field, "field", "F", "", "output specific field [id|url|title|tags|notes]")
+	f.BoolVar(&flag.Oneline, "oneline", false, "output in single line format")
+	f.StringVarP(&flag.Format, "format", "f", "frame", "output format (frame|oneline|multiline|json|<field>)")
 
-	// Filtering and pagination
-	f.IntVarP(&flag.Head, "head", "H", 0,
-		"show first N bookmarks")
-	f.StringSliceVarP(&flag.Tags, "tag", "t", nil,
-		"filter bookmarks by tag(s)")
-	f.IntVarP(&flag.Tail, "tail", "T", 0,
-		"show last N bookmarks")
+	// Filters
+	InitFilterFlags(cmd, cfg)
+}
 
-	// Maintenance operations
-	f.BoolVarP(&flag.Snapshot, "snapshot", "S", false,
-		"fetch metadata from Wayback Machine")
-	f.BoolVarP(&flag.Status, "status", "s", false,
-		"check HTTP status of bookmark URLs")
-	f.BoolVarP(&flag.Update, "update", "u", false,
-		"update bookmark metadata")
+func InitFilterFlags(cmd *cobra.Command, app *config.Config) {
+	f := cmd.Flags()
+	f.StringSliceVarP(&app.Flags.Tags, "tag", "t", nil, "filter bookmarks by tag(s)")
+	f.IntVarP(&app.Flags.Head, "head", "H", 0, "show first N bookmarks")
+	f.IntVarP(&app.Flags.Tail, "tail", "T", 0, "show last N bookmarks")
 }
 
 // exec handles the bookmark actions and output selection according to the
@@ -113,18 +97,12 @@ func InitFlags(cmd *cobra.Command, cfg *config.Config) {
 func exec(c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark) error {
 	f := a.Flags
 	switch {
-	case f.Status:
-		return handler.CheckStatus(c, r, bs)
-	case f.Snapshot:
-		return handler.Snapshot(c, r, bs)
 	case f.Remove:
 		return handler.Remove(c, r, bs, a)
 	case f.Export:
 		return handler.Export(bs)
 	case f.Edit:
 		return handler.Edit(c, r, a, bs)
-	case f.Update:
-		return handler.Update(c, r, a, bs)
 	case f.Copy:
 		return handler.Copy(bs)
 	case f.Open && !f.QR:

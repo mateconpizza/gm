@@ -46,7 +46,7 @@ func NewCmd() *cobra.Command {
 	gitCmd.AddCommand(gitTrackerCmd)
 
 	// git initializer
-	initCmd.Flags().BoolVar(&app.Flags.Force, "force", false,
+	initCmd.Flags().BoolVar(&app.Flags.Redo, "redo", false,
 		"reinitialize")
 	gitCmd.AddCommand(initCmd)
 
@@ -182,7 +182,7 @@ func initFunc(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if err := gr.Git.Init(app.Flags.Force); err != nil {
+	if err := gr.Git.Init(app.Flags.Redo); err != nil {
 		return fmt.Errorf("init repo: %w", err)
 	}
 

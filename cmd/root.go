@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/create"
 	"github.com/mateconpizza/gm/cmd/database"
 	gitCmd "github.com/mateconpizza/gm/cmd/git"
+	"github.com/mateconpizza/gm/cmd/health"
 	"github.com/mateconpizza/gm/cmd/io"
 	"github.com/mateconpizza/gm/cmd/records"
 	"github.com/mateconpizza/gm/cmd/setup"
@@ -37,16 +38,19 @@ func NewRootCmd(app *config.Config) *cobra.Command {
 		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
 	}
 
+	cmd.PersistentFlags().SortFlags = false
+
 	// Global flags
 	cmd.PersistentFlags().StringVarP(&app.DBName, "name", "n", config.MainDBName,
 		"database name")
 	cmd.PersistentFlags().StringVar(&app.Flags.ColorStr, "color", "always",
 		"output with pretty colors [always|never]")
+	cmd.PersistentFlags().BoolVar(&app.Flags.Force, "force", false,
+		"force action")
+	cmd.PersistentFlags().BoolVarP(&app.Flags.Yes, "yes", "y", false,
+		"assume \"yes\" on most questions")
 	cmd.PersistentFlags().CountVarP(&app.Flags.Verbose, "verbose", "v",
 		"increase verbosity (-v, -vv, -vvv)")
-	cmd.PersistentFlags().BoolVar(&app.Flags.Force, "force", false,
-		"force action | don't ask confirmation")
-	_ = cmd.PersistentFlags().MarkHidden("help")
 
 	// Initialize flags for records commands
 	records.InitFlags(cmd, app)
@@ -86,7 +90,7 @@ func initAppConfig(app *config.Config) {
 	color.Enable(app.Flags.Color)
 
 	// terminal interactive mode
-	terminal.NonInteractiveMode(app.Flags.Force)
+	terminal.NonInteractiveMode(app.Flags.Yes)
 
 	// git config
 	git.SetConfig(app)
@@ -98,6 +102,7 @@ func Setup(root *cobra.Command) {
 		create.NewCmd(),
 		records.NewCmd(),
 		tags.NewCmd(),
+		health.NewCmd(),
 		database.NewCmd(),
 		gitCmd.NewCmd(),
 		io.NewCmd(),

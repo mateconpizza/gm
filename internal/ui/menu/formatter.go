@@ -16,6 +16,7 @@ func appendKeytoHeader(opts []string, key, desc string) []string {
 	return append(opts, fmt.Sprintf("%s:%s", key, desc))
 }
 
+// defaultPreprocessor provides fallback formatting item for display in fzf.
 func defaultPreprocessor[T any](item *T) string {
 	return fmt.Sprintf("%+v", *item)
 }
