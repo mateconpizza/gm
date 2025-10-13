@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/mateconpizza/gm/cmd"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -13,5 +14,8 @@ func main() {
 
 	root := cmd.NewRootCmd(app)
 	cmd.Setup(root)
-	cmd.Execute(root)
+
+	if err := cmd.Execute(root); err != nil {
+		sys.ErrAndExit(err)
+	}
 }

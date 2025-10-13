@@ -27,7 +27,7 @@ func NewCmd() *cobra.Command {
 		Aliases: []string{"c", "config"},
 		Short:   "Configuration management",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c := ui.NewDefaultConsole(nil)
+			c := ui.NewDefaultConsole(cmd.Context(), nil)
 
 			switch {
 			case app.Flags.Create:

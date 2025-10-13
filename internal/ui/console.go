@@ -3,6 +3,7 @@
 package ui
 
 import (
+	"context"
 	"io"
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -36,10 +37,10 @@ func NewConsole(opts ...ConsoleOpt) *Console {
 	return c
 }
 
-func NewDefaultConsole(f func(error)) *Console {
+func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 	return NewConsole(
 		WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		WithDefaultTerminal(f),
+		WithDefaultTerminal(ctx, f),
 	)
 }
 
@@ -57,8 +58,11 @@ func WithFrame(f *frame.Frame) ConsoleOpt {
 	}
 }
 
-func WithDefaultTerminal(f func(error)) ConsoleOpt {
-	return WithTerminal(terminal.New(terminal.WithInterruptFn(f)))
+func WithDefaultTerminal(ctx context.Context, f func(error)) ConsoleOpt {
+	return WithTerminal(terminal.New(
+		terminal.WithContext(ctx),
+		terminal.WithInterruptFn(f),
+	))
 }
 
 // ConfirmErr prompts the user with a question and options.

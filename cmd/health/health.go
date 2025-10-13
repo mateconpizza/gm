@@ -61,7 +61,7 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 		return db.ErrRecordNotFound
 	}
 
-	c := ui.NewDefaultConsole(func(err error) {
+	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
 	})

@@ -120,7 +120,6 @@ func (t *Term) InputPassword() (string, error) {
 	// Replace the interrupt function temporarily
 	prevInterruptFn := t.InterruptFn
 	t.SetInterruptFn(func(err error) {
-		// Just restore visibility if needed, and cancel
 		t.cancelFn()
 	})
 	defer t.SetInterruptFn(prevInterruptFn)

@@ -64,7 +64,7 @@ func waybackFunc(command *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: %d", wayback.ErrTooManyRecords, n)
 	}
 
-	c := ui.NewDefaultConsole(func(err error) {
+	c := ui.NewDefaultConsole(command.Context(), func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
 	})

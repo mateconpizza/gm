@@ -123,7 +123,7 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 	}
 	defer func() { _ = files.RemoveAll(tmpPath) }()
 
-	c := ui.NewDefaultConsole(func(err error) {
+	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
 		slog.Debug("cleaning up temp dir", "path", tmpPath)
 
 		if err := files.RemoveAll(tmpPath); err != nil {
@@ -268,7 +268,7 @@ func cloneFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	app := config.New()
-	c := ui.NewDefaultConsole(func(err error) { sys.ErrAndExit(err) })
+	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 	c.Warning(fmt.Sprintf("This will clone into %q\n", app.Git.Path)).
 		Warning("Recreate the databases and import all bookmarks\n").
 		Warning("Set as remote origin\n").
