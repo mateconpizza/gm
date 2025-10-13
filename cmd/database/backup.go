@@ -62,7 +62,7 @@ var (
 )
 
 // backupLockFunc lock backups.
-func backupLockFunc(_ *cobra.Command, _ []string) error {
+func backupLockFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 	fs, err := handler.SelectBackupMany(app.Path.Backup, "select backup/s to lock")
 	if err != nil {
@@ -71,7 +71,10 @@ func backupLockFunc(_ *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
+		),
 	)
 
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
@@ -93,7 +96,7 @@ func backupLockFunc(_ *cobra.Command, _ []string) error {
 }
 
 // backupUnlockFunc unlock backups.
-func backupUnlockFunc(_ *cobra.Command, _ []string) error {
+func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 	p := app.Path.Backup
 
@@ -108,14 +111,17 @@ func backupUnlockFunc(_ *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
+		),
 	)
 
 	return handler.UnlockRepo(c, repos[0])
 }
 
 // backupNewFunc create a new backup.
-func backupNewFunc(_ *cobra.Command, _ []string) error {
+func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 
 	r, err := db.New(app.DBPath)
@@ -126,10 +132,12 @@ func backupNewFunc(_ *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) {
+				r.Close()
+				sys.ErrAndExit(err)
+			}))),
 	)
 
 	srcPath := app.DBPath

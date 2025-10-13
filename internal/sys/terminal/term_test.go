@@ -104,7 +104,7 @@ func TestTestConfirmErr(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, sys.ErrActionAborted) {
+		if !errors.Is(err, sys.ErrExitFailure) {
 			t.Errorf("expected ErrActionAborted, got: %v", err)
 		}
 	})

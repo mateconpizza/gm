@@ -62,10 +62,13 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-			destRepo.Close()
-			sys.ErrAndExit(err)
-		}))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(command.Context()),
+			terminal.WithInterruptFn(func(err error) {
+				destRepo.Close()
+				sys.ErrAndExit(err)
+			})),
+		),
 	)
 
 	backupPath, err := handler.SelectBackupOne(c, bks)
@@ -113,11 +116,14 @@ func fromDatabaseFunc(command *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-			rDest.Close()
-			rSrc.Close()
-			sys.ErrAndExit(err)
-		}))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(command.Context()),
+			terminal.WithInterruptFn(func(err error) {
+				rDest.Close()
+				rSrc.Close()
+				sys.ErrAndExit(err)
+			})),
+		),
 	)
 
 	if err := port.Database(c, rSrc, rDest); err != nil {

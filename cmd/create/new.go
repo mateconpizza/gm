@@ -70,7 +70,9 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(command.Context()),
+			terminal.WithInterruptFn(func(err error) {
 			r.Close()
 			sys.ErrAndExit(err)
 		}))),

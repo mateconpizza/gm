@@ -37,13 +37,15 @@ func NewCmd() *cobra.Command {
 	return InitCmd
 }
 
-func InitAppFunc(_ *cobra.Command, _ []string) error {
+func InitAppFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-			sys.ErrAndExit(sys.ErrActionAborted)
-		})),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) {
+				sys.ErrAndExit(sys.ErrActionAborted)
+			})),
 		),
 	)
 
@@ -99,7 +101,7 @@ func InitAppFunc(_ *cobra.Command, _ []string) error {
 }
 
 // InitAppPostFunc ask user to track new database if git is initialized.
-func InitAppPostFunc(_ *cobra.Command, _ []string) error {
+func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 	if !app.Git.Enabled {
 		return nil
@@ -115,7 +117,10 @@ func InitAppPostFunc(_ *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
+		)),
 	)
 
 	if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {

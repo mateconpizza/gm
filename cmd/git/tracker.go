@@ -31,7 +31,10 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
+		)),
 	)
 
 	switch {

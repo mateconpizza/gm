@@ -26,7 +26,7 @@ import (
 var htmlCmd = &cobra.Command{
 	Use:   "html",
 	Short: "Import from HTML Netscape file",
-	RunE: func(_ *cobra.Command, _ []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		app := config.New()
 		if app.Flags.Path == "" {
 			return fmt.Errorf("%w: %q", ErrMissingArg, "filename")
@@ -65,10 +65,12 @@ var htmlCmd = &cobra.Command{
 		defer r.Close()
 
 		c := ui.NewConsole(
-			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-				r.Close()
-				sys.ErrAndExit(err)
-			}))),
+			ui.WithTerminal(terminal.New(
+				terminal.WithContext(cmd.Context()),
+				terminal.WithInterruptFn(func(err error) {
+					r.Close()
+					sys.ErrAndExit(err)
+				}))),
 		)
 
 		s := color.Text("Found %d bookmarks from %q\n").Italic().String()

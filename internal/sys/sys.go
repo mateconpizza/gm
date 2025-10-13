@@ -24,7 +24,20 @@ var (
 	ErrCopyToClipboard   = errors.New("copy to clipboard")
 	ErrNotImplementedYet = errors.New("not implemented yet")
 	ErrActionAborted     = errors.New("action aborted")
+	ErrExitFailure       = errors.New("exit failure")
 	ErrSysCmdNotFound    = errors.New("command not found")
+)
+
+// Exit codes used by the application.
+const (
+	// ExitSuccess indicates normal termination.
+	ExitSuccess = 0
+
+	// ExitInterrupted is the conventional exit code for Ctrl+C (SIGINT).
+	ExitInterrupted = 130
+
+	// ExitFailure indicates a general failure or unhandled error.
+	ExitFailure = 1
 )
 
 // Env retrieves an environment variable.
@@ -163,14 +176,17 @@ func ReadClipboard() string {
 
 // ErrAndExit logs the error and exits the program.
 func ErrAndExit(err error) {
-	if errors.Is(err, ErrActionAborted) {
-		slog.Debug("action aborted")
-		os.Exit(1)
-	}
+	switch {
+	case err == nil:
+		os.Exit(ExitSuccess)
 
-	if err != nil {
+	case errors.Is(err, ErrActionAborted):
+		slog.Info("interrupted by user")
+		os.Exit(ExitInterrupted)
+
+	default:
 		slog.Warn("exit", "error", err)
 		fmt.Fprintf(os.Stderr, "%s: %s\n", config.AppName, err)
-		os.Exit(1)
+		os.Exit(ExitFailure)
 	}
 }

@@ -25,10 +25,12 @@ var browserCmd = &cobra.Command{
 		defer r.Close()
 
 		c := ui.NewConsole(
-			ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-				r.Close()
-				sys.ErrAndExit(err)
-			}))),
+			ui.WithTerminal(terminal.New(
+				terminal.WithContext(cmd.Context()),
+				terminal.WithInterruptFn(func(err error) {
+					r.Close()
+					sys.ErrAndExit(err)
+				}))),
 		)
 
 		return port.Browser(c, r, app.Flags.Force)

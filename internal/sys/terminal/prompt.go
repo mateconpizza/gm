@@ -223,7 +223,7 @@ func getUserInputWithAttempts(pi *PromptInput) (string, error) {
 		userInput, err := r.ReadString('\n')
 		if err != nil {
 			slog.Error("error reading input", "error", err)
-			return "", fmt.Errorf("%w", err)
+			return "", err
 		}
 
 		userInput = strings.ToLower(strings.TrimSpace(userInput))
@@ -370,7 +370,7 @@ func buildPrompt(q, opts string) string {
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
 func WaitForEnter() {
-	fmt.Print("Press ENTER to continue...")
+	fmt.Print(color.Text("Press ENTER to continue...").Italic())
 
 	var input string
 	_, _ = fmt.Scanln(&input)

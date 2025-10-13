@@ -175,7 +175,7 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 }
 
 // initFunc creates a new Git repository.
-func initFunc(_ *cobra.Command, _ []string) error {
+func initFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
@@ -187,7 +187,10 @@ func initFunc(_ *cobra.Command, _ []string) error {
 	}
 
 	c := ui.NewConsole(
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
+		),
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightBlue))),
 	)
 

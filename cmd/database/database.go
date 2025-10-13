@@ -121,10 +121,13 @@ var (
 	lockCmd = &cobra.Command{
 		Use:   "lock",
 		Short: "Lock a database",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			c := ui.NewConsole(
 				ui.WithTerminal(
-					terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
+					terminal.New(
+						terminal.WithContext(cmd.Context()),
+						terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
+					),
 				),
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 			)
@@ -143,7 +146,9 @@ var (
 			c := ui.NewConsole(
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Purple))),
 				ui.WithTerminal(
-					terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
+					terminal.New(
+						terminal.WithContext(cmd.Context()),
+						terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
 				),
 			)
 
@@ -154,7 +159,7 @@ var (
 	}
 )
 
-func dbDropFunc(_ *cobra.Command, _ []string) error {
+func dbDropFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 	r, err := db.New(app.DBPath)
 	if err != nil {
@@ -164,16 +169,18 @@ func dbDropFunc(_ *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) {
+				r.Close()
+				sys.ErrAndExit(err)
+			}))),
 	)
 
 	return handler.DroppingDB(c, r, app.Path.Backup, app.Flags.Force)
 }
 
-func dbDropPostFunc(_ *cobra.Command, _ []string) error {
+func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
 	app := config.New()
 	if !app.Git.Enabled {
 		return nil
@@ -189,7 +196,9 @@ func dbDropPostFunc(_ *cobra.Command, _ []string) error {
 
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
+		ui.WithTerminal(terminal.New(
+			terminal.WithContext(cmd.Context()),
+			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
 	)
 
 	if err := gr.Drop("dropped"); err != nil {

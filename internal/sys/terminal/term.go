@@ -41,6 +41,7 @@ type Options struct {
 	reader      io.Reader
 	writer      io.Writer
 	PromptStr   string
+	ctx         context.Context
 	InterruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
 }
 
@@ -80,6 +81,12 @@ func WithInterruptFn(fn func(error)) TermOptFn {
 	}
 }
 
+func WithContext(ctx context.Context) TermOptFn {
+	return func(o *Options) {
+		o.ctx = ctx
+	}
+}
+
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
 	t.reader = r
@@ -101,40 +108,33 @@ func (t *Term) Input(p string) string {
 }
 
 func (t *Term) InputPassword() (string, error) {
-	// if not a terminal (testing or piped input) - read from configured reader
+	// If not a terminal (piped or test), read plain input
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		var password string
 		if _, err := fmt.Fscanln(t.reader, &password); err != nil {
 			return "", fmt.Errorf("reading password: %w", err)
 		}
-
 		return password, nil
 	}
 
-	if err := saveState(); err != nil {
-		return "", err
-	}
-
+	// Replace the interrupt function temporarily
+	prevInterruptFn := t.InterruptFn
 	t.SetInterruptFn(func(err error) {
-		if err := restoreState(); err != nil {
-			slog.Error("restoring state", "error", err)
-		}
-
-		sys.ErrAndExit(err)
+		// Just restore visibility if needed, and cancel
+		t.cancelFn()
 	})
+	defer t.SetInterruptFn(prevInterruptFn)
 
-	defer func() {
-		if err := restoreState(); err != nil {
-			slog.Error("restoring state", "error", err)
-		}
-	}()
-
-	// Use stdin file descriptor for reading password securely
 	fd := int(os.Stdin.Fd())
-
 	p, err := term.ReadPassword(fd)
 	if err != nil {
-		return "", fmt.Errorf("reading password: %w", err)
+		// Handle cancellation or read errors
+		select {
+		case <-t.ctx.Done():
+			return "", sys.ErrActionAborted
+		default:
+			return "", fmt.Errorf("reading password: %w", err)
+		}
 	}
 
 	return string(p), nil
@@ -206,7 +206,7 @@ func (t *Term) ConfirmErr(q, def string) error {
 	}
 
 	if !strings.EqualFold(chosen, "y") {
-		return sys.ErrActionAborted
+		return sys.ErrExitFailure
 	}
 
 	return nil
@@ -349,7 +349,7 @@ func (t *Term) PipedInput(input *[]string) {
 	*input = append(*input, split...)
 }
 
-// New returns a new terminal.
+// New returns a new terminal with the provided options.
 func New(opts ...TermOptFn) *Term {
 	t := &Term{
 		Options: defaultOpts(),
@@ -359,14 +359,26 @@ func New(opts ...TermOptFn) *Term {
 		opt(&t.Options)
 	}
 
-	// set up the interrupt handler
+	// Set default interrupt handler if not provided
 	if t.InterruptFn == nil {
 		t.InterruptFn = defaultInterruptFn
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// Ensure context always exists
+	if t.ctx == nil {
+		t.ctx = context.Background()
+	}
+
+	// Create a cancelable context tied to the one passed in
+	ctx, cancel := context.WithCancel(t.ctx)
 	t.cancelFn = cancel
-	setupInterruptHandler(ctx, t.InterruptFn)
+
+	// React to external cancellation (instead of managing signals internally)
+	go func() {
+		<-ctx.Done()
+		slog.Debug("terminal context canceled")
+		t.InterruptFn(sys.ErrActionAborted)
+	}()
 
 	return t
 }

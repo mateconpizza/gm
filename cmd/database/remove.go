@@ -24,11 +24,12 @@ var (
 		Use:     "bk",
 		Short:   "Remove one or more backups from local storage",
 		Aliases: []string{"backup", "b", "backups"},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			input := "s\n" // input for prompt, this will show menu to select brackups.
 			c := ui.NewConsole(
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
 				ui.WithTerminal(terminal.New(
+					terminal.WithContext(cmd.Context()),
 					terminal.WithReader(strings.NewReader(input)),
 					terminal.WithWriter(io.Discard), // send output to null, show no prompt
 				)),
@@ -57,7 +58,10 @@ var (
 			c := ui.NewConsole(
 				ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 				ui.WithTerminal(
-					terminal.New(terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
+					terminal.New(
+						terminal.WithContext(cmd.Context()),
+						terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
+					),
 				),
 			)
 
