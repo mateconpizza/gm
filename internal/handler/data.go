@@ -371,7 +371,7 @@ func applyMenuSelection(
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookmark.Bookmark) error {
+func removeRecords(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -385,7 +385,7 @@ func removeRecords(c *ui.Console, r *db.SQLite, app *config.Config, bs []*bookma
 
 	sp.Done()
 
-	if err := git.RemoveBookmarks(app, bs); err != nil {
+	if err := git.RemoveBookmarks(cfg, bs); err != nil {
 		return err
 	}
 

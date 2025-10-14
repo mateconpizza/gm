@@ -53,7 +53,7 @@ func (rp *RepoProcessor) processRepositories() error {
 func (rp *RepoProcessor) processRepository(repoName string) (int, error) {
 	repoPath := filepath.Join(rp.Root, repoName)
 
-	rp.Console.F.Rowln().Info(
+	rp.Console.Frame.Rowln().Info(
 		fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName),
 	)
 
@@ -87,15 +87,15 @@ func (rp *RepoProcessor) readSummary(repoPath string) (*SyncGitSummary, error) {
 
 // displaySummary shows repository statistics.
 func (rp *RepoProcessor) displaySummary(sum *SyncGitSummary) {
-	rp.Console.F.
+	rp.Console.Frame.
 		Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
 		Midln(txt.PaddedLine(color.BrightBlue("tags:"), sum.RepoStats.Tags))
 
 	if sum.RepoStats.Favorites > 0 {
-		rp.Console.F.Midln(txt.PaddedLine(color.BrightRed("favorites:"), sum.RepoStats.Favorites))
+		rp.Console.Frame.Midln(txt.PaddedLine(color.BrightRed("favorites:"), sum.RepoStats.Favorites))
 	}
 
-	rp.Console.F.Flush()
+	rp.Console.Frame.Flush()
 }
 
 // insertBookmarks inserts bookmarks into the local database.
@@ -141,7 +141,7 @@ func (rp *RepoProcessor) openDatabase(repoName string) (*db.SQLite, error) {
 
 // displaySummary shows the final summary of the pull operation.
 func (rp *RepoProcessor) displayPullSummary() {
-	f := rp.Console.F
+	f := rp.Console.Frame
 	r := rp.result
 	pad := txt.PaddedLine
 

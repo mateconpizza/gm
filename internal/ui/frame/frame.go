@@ -93,25 +93,47 @@ func (f *Frame) applyStyle(s string) string {
 	return s
 }
 
-// applyBorder applies the border to the first element. The rest elements are
-// Row.
-func (f *Frame) applyBorder(border string, s []string) *Frame {
+// applyBorderGeneric applies a border to the first element,
+// renders intermediate lines as Row, and optionally the last one as footer.
+func (f *Frame) applyBorderGeneric(border string, s []string, footer bool) *Frame {
 	n := len(s)
 	if n == 0 {
 		return f.Text(border, "")
 	}
-	// append first element
+
+	// first line
 	f.Text(border, s[0])
 
 	if n == 1 {
 		return f
 	}
-	// the rest as Row
-	for _, line := range s[1:] {
+
+	// middle lines
+	limit := n
+	if footer {
+		limit = n - 1
+	}
+	for _, line := range s[1:limit] {
 		f.Ln().Row(line)
 	}
 
+	// last line
+	if footer {
+		f.Ln().Mid(s[n-1])
+	}
+
 	return f
+}
+
+// applyBorder applies the border to the first element. The rest elements are Row.
+func (f *Frame) applyBorder(border string, s []string) *Frame {
+	return f.applyBorderGeneric(border, s, false)
+}
+
+// applyFooterBorder applies the border to the first element,
+// and centers the last line.
+func (f *Frame) applyFooterBorder(border string, s []string) *Frame {
+	return f.applyBorderGeneric(border, s, true)
 }
 
 func (f *Frame) Header(s ...string) *Frame {
@@ -143,7 +165,7 @@ func (f *Frame) Midln(s ...string) *Frame {
 
 func (f *Frame) Footer(s ...string) *Frame {
 	foo := f.applyStyle(f.Border.Footer)
-	return f.applyBorder(foo, s)
+	return f.applyFooterBorder(foo, s)
 }
 
 func (f *Frame) Footerln(s ...string) *Frame {

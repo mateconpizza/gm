@@ -17,8 +17,8 @@ var browserCmd = &cobra.Command{
 	Use:   "browser",
 	Short: "Import from browser",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app := config.New()
-		r, err := db.New(app.DBPath)
+		cfg := config.New()
+		r, err := db.New(cfg.DBPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -33,6 +33,6 @@ var browserCmd = &cobra.Command{
 				}))),
 		)
 
-		return port.Browser(c, r, app.Flags.Force)
+		return port.Browser(c, r, cfg.Flags.Force)
 	},
 }

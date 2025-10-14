@@ -71,8 +71,8 @@ func (c *Config) InitPaths() {
 }
 
 // Load loads the user configurations file.
-func Load(app *Config) error {
-	cfgFile, err := getConfig(app.Path.ConfigFile)
+func Load(cfg *Config) error {
+	cfgFile, err := getConfig(cfg.Path.ConfigFile)
 	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
 		return fmt.Errorf("%w", err)
 	}
@@ -82,7 +82,7 @@ func Load(app *Config) error {
 		return nil
 	}
 
-	app.Menu = cfgFile.Menu
+	cfg.Menu = cfgFile.Menu
 
 	Fzf = cfgFile.Menu
 

@@ -3,11 +3,13 @@ package terminal
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mateconpizza/gm/internal/sys"
 )
@@ -189,4 +191,30 @@ func TestInputPassword(t *testing.T) {
 			t.Errorf("expected passwords to differ, got same value: %q", s1)
 		}
 	})
+}
+
+func TestTerm_UsesProvidedContext(t *testing.T) {
+	t.Parallel()
+
+	called := make(chan error, 1)
+	ctx, cancel := context.WithCancel(t.Context())
+
+	_ = New(
+		WithContext(ctx),
+		WithInterruptFn(func(err error) {
+			called <- err
+		}),
+	)
+
+	// Cancel the context — this should trigger the InterruptFn
+	cancel()
+
+	select {
+	case err := <-called:
+		if !errors.Is(err, sys.ErrActionAborted) {
+			t.Errorf("expected sys.ErrActionAborted, got %v", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected InterruptFn to be called when context is canceled")
+	}
 }

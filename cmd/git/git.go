@@ -31,32 +31,32 @@ func NewCmd() *cobra.Command {
 		DisableFlagParsing: true,
 	}
 
-	app := config.New()
+	cfg := config.New()
 
 	// git tracker
 	gitTrackerCmd.Flags().SortFlags = false
-	gitTrackerCmd.Flags().BoolVarP(&app.Flags.List, "list", "l", false,
+	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.List, "list", "l", false,
 		"status tracked databases")
-	gitTrackerCmd.Flags().BoolVarP(&app.Flags.Track, "track", "t", false,
+	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.Track, "track", "t", false,
 		"track database in git")
-	gitTrackerCmd.Flags().BoolVarP(&app.Flags.Untrack, "untrack", "u", false,
+	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.Untrack, "untrack", "u", false,
 		"untrack database in git")
-	gitTrackerCmd.Flags().BoolVarP(&app.Flags.Management, "manage", "m", false,
+	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.Management, "manage", "m", false,
 		"repos management in git")
 	gitCmd.AddCommand(gitTrackerCmd)
 
 	// git initializer
-	initCmd.Flags().BoolVar(&app.Flags.Redo, "redo", false,
+	initCmd.Flags().BoolVar(&cfg.Flags.Redo, "redo", false,
 		"reinitialize")
 	gitCmd.AddCommand(initCmd)
 
 	// git import from repo
-	ImportCmd.Flags().StringVarP(&app.Flags.Path, "uri", "i", "",
+	ImportCmd.Flags().StringVarP(&cfg.Flags.Path, "uri", "i", "",
 		"repo URI to import")
 	gitCmd.AddCommand(ImportCmd) // public
 
 	// git clone
-	cloneCmd.Flags().BoolVar(&app.Flags.Force, "force", false,
+	cloneCmd.Flags().BoolVar(&cfg.Flags.Force, "force", false,
 		"force clone")
 	gitCmd.AddCommand(cloneCmd)
 
@@ -112,12 +112,12 @@ var (
 
 // importFromClone clones a git repo and imports its bookmarks.
 func importFromClone(cmd *cobra.Command, args []string) error {
-	app := config.New()
-	if app.Flags.Path == "" {
+	cfg := config.New()
+	if cfg.Flags.Path == "" {
 		return git.ErrGitRepoURLEmpty
 	}
 
-	tmpPath := filepath.Join(os.TempDir(), app.Name+"-clone")
+	tmpPath := filepath.Join(os.TempDir(), cfg.Name+"-clone")
 	if files.Exists(tmpPath) {
 		_ = files.RemoveAll(tmpPath)
 	}
@@ -140,12 +140,12 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 	}
 
 	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
-	imported, err := git.Import(c, gm, app)
+	imported, err := git.Import(c, gm, cfg)
 	if err != nil {
 		return err
 	}
-	if !app.Git.Enabled {
-		slog.Warn("git import: repo not initialized", "path", app.Git.Path)
+	if !cfg.Git.Enabled {
+		slog.Warn("git import: repo not initialized", "path", cfg.Git.Path)
 		return nil
 	}
 
@@ -176,13 +176,13 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 
 // initFunc creates a new Git repository.
 func initFunc(cmd *cobra.Command, _ []string) error {
-	app := config.New()
-	gr, err := git.NewRepo(app.DBPath)
+	cfg := config.New()
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}
 
-	if err := gr.Git.Init(app.Flags.Redo); err != nil {
+	if err := gr.Git.Init(cfg.Flags.Redo); err != nil {
 		return fmt.Errorf("init repo: %w", err)
 	}
 
@@ -198,7 +198,7 @@ func initFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if err := managementSelect(c, app); err != nil {
+	if err := managementSelect(c, cfg); err != nil {
 		return fmt.Errorf("select tracked: %w", err)
 	}
 
@@ -206,13 +206,13 @@ func initFunc(cmd *cobra.Command, _ []string) error {
 }
 
 // gitCmd represents the git command.
-func gitCommandFunc(command *cobra.Command, args []string) error {
-	app := config.New()
-	if !files.Exists(app.Git.Path) {
+func gitCommandFunc(cmd *cobra.Command, args []string) error {
+	cfg := config.New()
+	if !files.Exists(cfg.Git.Path) {
 		return git.ErrGitNotInitialized
 	}
 
-	gm, err := git.NewManager(command.Context(), app.Git.Path)
+	gm, err := git.NewManager(cmd.Context(), cfg.Git.Path)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -225,8 +225,8 @@ func gitCommandFunc(command *cobra.Command, args []string) error {
 }
 
 func pushFunc(cmd *cobra.Command, args []string) error {
-	app := config.New()
-	gr, err := git.NewRepo(app.DBPath)
+	cfg := config.New()
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func pushFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// SetUpstream will push changes if upstream doesn't exist
-	if err := git.SetUpstream(cmd.Context(), app.Git.Path); err != nil {
+	if err := git.SetUpstream(cmd.Context(), cfg.Git.Path); err != nil {
 		if !errors.Is(err, git.ErrGitUpstreamExists) {
 			return err
 		}
@@ -252,7 +252,7 @@ func pushFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// Update summary and push
-	if err := git.UpdateSummaryAndCommit(gr, app.Info.Version); err != nil {
+	if err := git.UpdateSummaryAndCommit(gr, cfg.Info.Version); err != nil {
 		return err
 	}
 	if err := gr.Git.Push(); err != nil {
@@ -267,9 +267,9 @@ func cloneFunc(cmd *cobra.Command, args []string) error {
 		return git.ErrGitRepoURLEmpty
 	}
 
-	app := config.New()
+	cfg := config.New()
 	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-	c.Warning(fmt.Sprintf("This will clone into %q\n", app.Git.Path)).
+	c.Warning(fmt.Sprintf("This will clone into %q\n", cfg.Git.Path)).
 		Warning("Recreate the databases and import all bookmarks\n").
 		Warning("Set as remote origin\n").
 		Flush()
@@ -278,26 +278,26 @@ func cloneFunc(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if app.Flags.Force {
-		_ = files.RemoveAll(app.Git.Path)
+	if cfg.Flags.Force {
+		_ = files.RemoveAll(cfg.Git.Path)
 	}
 
-	if files.Exists(app.Git.Path) {
-		return fmt.Errorf("%w: %q", files.ErrPathExists, app.Git.Path)
+	if files.Exists(cfg.Git.Path) {
+		return fmt.Errorf("%w: %q", files.ErrPathExists, cfg.Git.Path)
 	}
 
-	app.Git.Remote = args[0]
+	cfg.Git.Remote = args[0]
 
-	g, err := git.NewManager(cmd.Context(), app.Git.Path)
+	g, err := git.NewManager(cmd.Context(), cfg.Git.Path)
 	if err != nil {
 		return err
 	}
 
-	if err := g.Clone(app.Git.Remote); err != nil {
+	if err := g.Clone(cfg.Git.Remote); err != nil {
 		return fmt.Errorf("cloning remote repo: %w", err)
 	}
 
-	rp := git.NewRepoProcessor(c, g, app)
+	rp := git.NewRepoProcessor(c, g, cfg)
 
 	return rp.Pull()
 }

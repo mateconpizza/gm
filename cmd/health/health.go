@@ -31,12 +31,14 @@ func NewCmd() *cobra.Command {
 		RunE: checkerFunc,
 	}
 
-	app := config.New()
+	cfg := config.New()
 	f := healthCmd.Flags()
-	f.BoolVarP(&app.Flags.Status, "status", "s", false, "check HTTP status of bookmark URLs")
-	f.BoolVarP(&app.Flags.Update, "update", "u", false, "update bookmark metadata")
+	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check HTTP status of bookmark URLs")
+	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update bookmark metadata")
+	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "interactive menu mode using fzf")
+	f.BoolVar(&cfg.Flags.Multiline, "multiline", false, "output in multiline format (fzf)")
 
-	records.InitFilterFlags(healthCmd, app)
+	records.InitFilterFlags(healthCmd, cfg)
 
 	healthCmd.AddCommand(wayback.NewCmd())
 
@@ -44,8 +46,8 @@ func NewCmd() *cobra.Command {
 }
 
 func checkerFunc(cmd *cobra.Command, args []string) error {
-	app := config.New()
-	r, err := db.New(app.DBPath)
+	cfg := config.New()
+	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err
 	}
@@ -53,7 +55,7 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(menuForRecords(app), r, args, app.Flags)
+	bs, err := handler.Data(menuForRecords(cfg), r, args, cfg.Flags)
 	if err != nil {
 		return err
 	}
@@ -66,20 +68,20 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 		sys.ErrAndExit(err)
 	})
 
-	f := app.Flags
+	f := cfg.Flags
 	switch {
 	case f.Status: // FIX: remove
 		return handler.CheckStatus(c, r, bs)
 	case f.Update:
-		return handler.Update(c, r, app, bs)
+		return handler.Update(c, r, cfg, bs)
 	}
 
 	return handler.CheckStatus(c, r, bs)
 }
 
-func menuForRecords[T bookmark.Bookmark](app *config.Config) *menu.Menu[T] {
+func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
 	return menu.New[T](
-		menu.WithSettings(app.Menu.Settings),
-		menu.WithPreview(app.Cmd+" --name "+app.DBName+" records {1}"),
+		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithPreview(cfg.Cmd+" --name "+cfg.DBName+" records {1}"),
 	)
 }

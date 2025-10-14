@@ -67,8 +67,8 @@ var GPGStrategy = &bookio.RepositoryLoader{
 }
 
 func gpgLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
-	app := config.New()
-	fingerprintPath := gpg.GPGIDPath(app.Git.Path)
+	cfg := config.New()
+	fingerprintPath := gpg.GPGIDPath(cfg.Git.Path)
 	content, err := gpg.Decrypt(ctx, fingerprintPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("decrypting %w", err)

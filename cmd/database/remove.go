@@ -35,7 +35,7 @@ var (
 				)),
 			)
 
-			c.F.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
+			c.Frame.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
 
 			return handler.RemoveBackups(c, config.New())
 		},
@@ -49,10 +49,10 @@ var (
 		Example: `  gm rm db -n dbName
   gm rm db -n dbName --force`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			app := config.New()
+			cfg := config.New()
 			if len(args) > 0 {
-				app.DBName = files.EnsureSuffix(args[0], ".db")
-				app.DBPath = filepath.Join(app.Path.Data, app.DBName)
+				cfg.DBName = files.EnsureSuffix(args[0], ".db")
+				cfg.DBPath = filepath.Join(cfg.Path.Data, cfg.DBName)
 			}
 
 			c := ui.NewConsole(
@@ -65,16 +65,16 @@ var (
 				),
 			)
 
-			if app.Flags.Menu {
-				s, err := handler.SelectDatabase(app.Path.Data)
+			if cfg.Flags.Menu {
+				s, err := handler.SelectDatabase(cfg.Path.Data)
 				if err != nil {
 					return err
 				}
 
-				app.DBPath = s
+				cfg.DBPath = s
 			}
 
-			return handler.RemoveRepo(c, app)
+			return handler.RemoveRepo(c, cfg)
 		},
 		PostRunE: dbRemovePostFunc,
 	}
@@ -91,12 +91,12 @@ var (
 )
 
 func dbRemovePostFunc(_ *cobra.Command, _ []string) error {
-	app := config.New()
-	if !app.Git.Enabled {
+	cfg := config.New()
+	if !cfg.Git.Enabled {
 		return nil
 	}
 
-	gr, err := git.NewRepo(app.DBPath)
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}

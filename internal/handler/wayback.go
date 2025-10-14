@@ -36,7 +36,7 @@ func newResult(u, s, m string) SnapshotResult {
 }
 
 func WaybackLatestSnapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
-	app := config.New()
+	cfg := config.New()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	sem := semaphore.NewWeighted(1)
 	var (
@@ -46,7 +46,7 @@ func WaybackLatestSnapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark)
 
 	results := make(chan SnapshotResult, len(bs))
 	sp := rotato.New(
-		rotato.WithPrefix(c.F.Mid("Fetching snapshots").String()),
+		rotato.WithPrefix(c.Frame.Mid("Fetching snapshots").String()),
 		rotato.WithMesgColor(rotato.ColorYellow),
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
 		rotato.WithFailColorMesg(rotato.ColorBrightRed),
@@ -69,7 +69,7 @@ func WaybackLatestSnapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark)
 			f := frame.New(frame.WithColorBorder(color.Gray))
 			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", idx, len(bs), f.Info(txt.Shorten(b.URL, 80)).String()))
 
-			res := processBookmark(ctx, r, b, app.Flags.Force)
+			res := processBookmark(ctx, r, b, cfg.Flags.Force)
 			cancel()
 			results <- res
 		}(b)
@@ -107,7 +107,7 @@ func processBookmark(ctx context.Context, r *db.SQLite, b *bookmark.Bookmark, fo
 }
 
 func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
-	c.F.Reset()
+	c.Frame.Reset()
 	var skipped, failed, success []SnapshotResult
 	for r := range results {
 		switch r.State {
@@ -122,25 +122,25 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 
 	if len(skipped) > 0 {
 		msg := color.BrightYellow("Skipped", len(skipped), "bookmarks").String()
-		c.F.Warning(msg + dimmer(wayback.ErrAlreadyArchived.Error())).Ln().Flush()
+		c.Frame.Warning(msg + dimmer(wayback.ErrAlreadyArchived.Error())).Ln().Flush()
 		for _, r := range skipped {
-			c.F.Midln(r.URL).Flush()
+			c.Frame.Midln(r.URL).Flush()
 		}
 	}
 
 	if len(failed) > 0 {
 		msg := color.BrightRed("Failed", len(failed), "bookmarks").String()
-		c.F.Error(msg).Ln().Flush()
+		c.Frame.Error(msg).Ln().Flush()
 		for _, r := range failed {
-			c.F.Midln(r.URL + dimmer(r.Msg)).Flush()
+			c.Frame.Midln(r.URL + dimmer(r.Msg)).Flush()
 		}
 	}
 
 	if len(success) > 0 {
 		msg := color.BrightGreen("Updated", len(success), "bookmarks").String()
-		c.F.Success(msg).Ln().Flush()
+		c.Frame.Success(msg).Ln().Flush()
 		for _, r := range success {
-			c.F.Midln(r.URL).Flush()
+			c.Frame.Midln(r.URL).Flush()
 		}
 	}
 
@@ -188,11 +188,11 @@ func formatTime(label, ts string) string {
 }
 
 func WaybackSnapshots(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
-	app := config.New()
+	cfg := config.New()
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
 	m := waybackMenu()
 
-	ct := wayback.New(wayback.WithByYear(app.Flags.Year), wayback.WithLimit(app.Flags.Limit))
+	ct := wayback.New(wayback.WithByYear(cfg.Flags.Year), wayback.WithLimit(cfg.Flags.Limit))
 	for _, b := range bs {
 		sp.Start()
 
@@ -211,7 +211,7 @@ func WaybackSnapshots(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) erro
 
 		sp.Done(fmt.Sprintf("%d snapshots from %q", len(snapshots), u))
 		if b.ArchiveURL != "" {
-			c.F.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
+			c.Frame.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
 		}
 
 		m.SetItems(snapshots)
@@ -227,8 +227,8 @@ func WaybackSnapshots(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) erro
 		b.ArchiveURL = snap.ArchiveURL
 		b.ArchiveTimestamp = snap.ArchiveTimestamp
 
-		if app.Flags.Open {
-			c.F.Midln(formatTime("Open:", b.ArchiveTimestamp)).Flush()
+		if cfg.Flags.Open {
+			c.Frame.Midln(formatTime("Open:", b.ArchiveTimestamp)).Flush()
 			return sys.OpenInBrowser(snap.ArchiveURL)
 		}
 
@@ -239,7 +239,7 @@ func WaybackSnapshots(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) erro
 			return err
 		}
 
-		c.F.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
+		c.Frame.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
 		fmt.Print(c.SuccessMesg("bookmark updated\n"))
 	}
 

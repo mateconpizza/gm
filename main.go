@@ -9,10 +9,10 @@ import (
 
 func main() {
 	defer db.Shutdown()
-	app.InitPaths()
-	config.Set(app)
+	cfg.InitPaths()
+	config.Set(cfg)
 
-	root := cmd.NewRootCmd(app)
+	root := cmd.NewRootCmd(cfg)
 	cmd.Setup(root)
 
 	if err := cmd.Execute(root); err != nil {

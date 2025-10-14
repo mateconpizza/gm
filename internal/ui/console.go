@@ -12,26 +12,26 @@ import (
 )
 
 type Console struct {
-	T *terminal.Term
-	F *frame.Frame
+	Term  *terminal.Term
+	Frame *frame.Frame
 }
 
-// ConsoleOpt is a function type for configuring Console.
-type ConsoleOpt func(*Console)
+// Option is a function type for configuring Console.
+type Option func(*Console)
 
 // NewConsole creates a new Console with the given options.
-func NewConsole(opts ...ConsoleOpt) *Console {
+func NewConsole(opts ...Option) *Console {
 	c := &Console{}
 	for _, opt := range opts {
 		opt(c)
 	}
 
-	if c.T == nil {
-		c.T = terminal.New()
+	if c.Term == nil {
+		c.Term = terminal.New()
 	}
 
-	if c.F == nil {
-		c.F = frame.New()
+	if c.Frame == nil {
+		c.Frame = frame.New()
 	}
 
 	return c
@@ -45,20 +45,20 @@ func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 }
 
 // WithTerminal sets a custom terminal.
-func WithTerminal(t *terminal.Term) ConsoleOpt {
+func WithTerminal(t *terminal.Term) Option {
 	return func(c *Console) {
-		c.T = t
+		c.Term = t
 	}
 }
 
 // WithFrame sets a custom frame.
-func WithFrame(f *frame.Frame) ConsoleOpt {
+func WithFrame(f *frame.Frame) Option {
 	return func(c *Console) {
-		c.F = f
+		c.Frame = f
 	}
 }
 
-func WithDefaultTerminal(ctx context.Context, f func(error)) ConsoleOpt {
+func WithDefaultTerminal(ctx context.Context, f func(error)) Option {
 	return WithTerminal(terminal.New(
 		terminal.WithContext(ctx),
 		terminal.WithInterruptFn(f),
@@ -67,53 +67,53 @@ func WithDefaultTerminal(ctx context.Context, f func(error)) ConsoleOpt {
 
 // ConfirmErr prompts the user with a question and options.
 func (c *Console) ConfirmErr(q, def string) error {
-	return c.T.ConfirmErr(c.F.Reset().Question(q).StringReset(), def)
+	return c.Term.ConfirmErr(c.Frame.Reset().Question(q).StringReset(), def)
 }
 
 func (c *Console) Confirm(q, def string) bool {
-	return c.T.Confirm(c.F.Reset().Question(q).StringReset(), def)
+	return c.Term.Confirm(c.Frame.Reset().Question(q).StringReset(), def)
 }
 
 func (c *Console) Choose(q string, opts []string, def string) (string, error) {
-	return c.T.Choose(c.F.Reset().Question(q).StringReset(), opts, def)
+	return c.Term.Choose(c.Frame.Reset().Question(q).StringReset(), opts, def)
 }
 
 func (c *Console) Input(p string) string {
-	return c.T.Input(c.F.Reset().Info(p).StringReset())
+	return c.Term.Input(c.Frame.Reset().Info(p).StringReset())
 }
 
 func (c *Console) InputPassword(s string) (string, error) {
-	c.F.Reset().Question(s).Flush()
-	return c.T.InputPassword()
+	c.Frame.Reset().Question(s).Flush()
+	return c.Term.InputPassword()
 }
 
 // Prompt get the input data from the user and return it.
 func (c *Console) Prompt(p string) string {
-	return c.T.Prompt(c.F.Reset().Question(p).StringReset())
+	return c.Term.Prompt(c.Frame.Reset().Question(p).StringReset())
 }
 
 func (c *Console) PromptWithSuggestions(p string, items []string) string {
-	return c.T.PromptWithSuggestions(p, items)
+	return c.Term.PromptWithSuggestions(p, items)
 }
 
 func (c *Console) ReplaceLine(s string) {
-	c.T.ReplaceLine(1, s)
+	c.Term.ReplaceLine(1, s)
 }
 
 func (c *Console) ReplaceLines(n int, s string) {
-	c.T.ReplaceLine(n, s)
+	c.Term.ReplaceLine(n, s)
 }
 
 func (c *Console) ClearLine(n int) {
-	c.T.ClearLine(n)
+	c.Term.ClearLine(n)
 }
 
 func (c *Console) SetReader(r io.Reader) {
-	c.T.SetReader(r)
+	c.Term.SetReader(r)
 }
 
 func (c *Console) SetWriter(w io.Writer) {
-	c.T.SetWriter(w)
+	c.Term.SetWriter(w)
 }
 
 // SuccessMesg returns a prettified success message.
@@ -121,11 +121,11 @@ func (c *Console) SuccessMesg(s string) string {
 	success := color.BrightGreen("Successfully ").Italic().String()
 	message := success + color.Text(s).Italic().String()
 
-	return c.F.Reset().Success(message).StringReset()
+	return c.Frame.Reset().Success(message).StringReset()
 }
 
 func (c *Console) Success(s string) *frame.Frame {
-	return c.F.Reset().Success(s)
+	return c.Frame.Reset().Success(s)
 }
 
 // ErrorMesg returns a prettified error message.
@@ -133,11 +133,11 @@ func (c *Console) ErrorMesg(s string) string {
 	err := color.BrightRed("Error ").Italic().String()
 	message := err + color.Text(s).Italic().String()
 
-	return c.F.Reset().Error(message).StringReset()
+	return c.Frame.Reset().Error(message).StringReset()
 }
 
 func (c *Console) Error(s string) *frame.Frame {
-	return c.F.Reset().Error(s)
+	return c.Frame.Reset().Error(s)
 }
 
 // WarningMesg returns a prettified warning message.
@@ -145,11 +145,11 @@ func (c *Console) WarningMesg(s string) string {
 	warning := color.BrightYellow("Warning ").Italic().String()
 	message := warning + color.Text(s).Italic().String()
 
-	return c.F.Reset().Warning(message).StringReset()
+	return c.Frame.Reset().Warning(message).StringReset()
 }
 
 func (c *Console) Warning(s string) *frame.Frame {
-	return c.F.Reset().Warning(s)
+	return c.Frame.Reset().Warning(s)
 }
 
 // InfoMesg returns a prettified info message.
@@ -157,9 +157,9 @@ func (c *Console) InfoMesg(s string) string {
 	info := color.BrightBlue("Info ").Italic().String()
 	message := info + color.Text(s).Italic().String()
 
-	return c.F.Reset().Info(message).StringReset()
+	return c.Frame.Reset().Info(message).StringReset()
 }
 
 func (c *Console) Info(s string) *frame.Frame {
-	return c.F.Reset().Info(s)
+	return c.Frame.Reset().Info(s)
 }

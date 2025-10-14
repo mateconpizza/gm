@@ -27,19 +27,19 @@ var htmlCmd = &cobra.Command{
 	Use:   "html",
 	Short: "Import from HTML Netscape file",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		app := config.New()
-		if app.Flags.Path == "" {
+		cfg := config.New()
+		if cfg.Flags.Path == "" {
 			return fmt.Errorf("%w: %q", ErrMissingArg, "filename")
 		}
 
-		file, err := os.Open(app.Flags.Path)
+		file, err := os.Open(cfg.Flags.Path)
 		if err != nil {
-			log.Printf("Error opening file: %v, %q\n", err, app.Flags.Path)
+			log.Printf("Error opening file: %v, %q\n", err, cfg.Flags.Path)
 			return err
 		}
 		defer func() {
 			if err := file.Close(); err != nil {
-				slog.Error("Err closing file", "file", app.Flags.Path)
+				slog.Error("Err closing file", "file", cfg.Flags.Path)
 			}
 		}()
 
@@ -58,7 +58,7 @@ var htmlCmd = &cobra.Command{
 			bs = append(bs, bookio.FromNetscape(&nbs[i]))
 		}
 
-		r, err := db.New(app.DBPath)
+		r, err := db.New(cfg.DBPath)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -74,7 +74,7 @@ var htmlCmd = &cobra.Command{
 		)
 
 		s := color.Text("Found %d bookmarks from %q\n").Italic().String()
-		c.F.Success(fmt.Sprintf(s, len(nbs), file.Name())).Flush()
+		c.Frame.Success(fmt.Sprintf(s, len(nbs), file.Name())).Flush()
 
 		deduplicated := port.Deduplicate(c, r, bs)
 		n := len(deduplicated)
@@ -92,7 +92,7 @@ var htmlCmd = &cobra.Command{
 			return sys.ErrActionAborted
 		case "s", "select":
 			m := menu.New[*bookmark.Bookmark](
-				menu.WithInterruptFn(c.T.InterruptFn),
+				menu.WithInterruptFn(c.Term.InterruptFn),
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s to import", false),
 			)

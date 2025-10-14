@@ -139,10 +139,10 @@ func Frame(b *bookmark.Bookmark) string {
 	f.Mid(tags).Ln()
 
 	// notes
-	if b.Notes != "" {
-		notes := color.ApplyMany(SplitIntoChunks(b.Notes, w), color.StyleDim, color.StyleItalic)
-		f.Footerln(notes...)
-	}
+	// if b.Notes != "" {
+	// 	notes := SplitIntoChunks(b.Notes, w)
+	// 	f.Footerln(color.ApplyMany(notes, cs.White)...)
+	// }
 
 	return f.String()
 }

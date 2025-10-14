@@ -140,7 +140,7 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 	codes := make(map[int][]Response)
 
-	c.F.Rowln().Header(ctb("Summary URLs status:\n"))
+	c.Frame.Rowln().Header(ctb("Summary URLs status:\n"))
 
 	for _, res := range r {
 		codes[res.statusCode] = append(codes[res.statusCode], *res)
@@ -152,15 +152,15 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 		statusCategory := statusCode / 100
 		switch statusCategory {
 		case 2: // 2xx status codes
-			c.F.Midln(fmtSummary(n, statusCode, color.BrightGreen))
+			c.Frame.Midln(fmtSummary(n, statusCode, color.BrightGreen))
 		case 3: // 3xx status codes
-			c.F.Midln(fmtSummary(n, statusCode, color.Yellow))
+			c.Frame.Midln(fmtSummary(n, statusCode, color.Yellow))
 		case 4: // 4xx status codes
-			c.F.Midln(fmtSummary(n, statusCode, color.BrightRed))
+			c.Frame.Midln(fmtSummary(n, statusCode, color.BrightRed))
 		case 5: // 5xx status codes
-			c.F.Midln(fmtSummary(n, statusCode, color.Red))
+			c.Frame.Midln(fmtSummary(n, statusCode, color.Red))
 		default: // Other status codes
-			c.F.Midln(fmtSummary(n, statusCode, color.Yellow))
+			c.Frame.Midln(fmtSummary(n, statusCode, color.Yellow))
 		}
 
 		// adds URLs detail
@@ -169,13 +169,13 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 			if r.statusCode == http.StatusOK {
 				continue
 			}
-			c.F.Rowln(fmt.Sprintf(" > %-3d %s", r.bID, txt.Shorten(r.URL, terminal.MinWidth)))
+			c.Frame.Rowln(fmt.Sprintf(" > %-3d %s", r.bID, txt.Shorten(r.URL, terminal.MinWidth)))
 		}
 	}
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
 	total := fmt.Sprintf("Total %s checked,", cb(len(r)))
-	c.F.Rowln().Footerln(total + " took " + cb(took)).Flush()
+	c.Frame.Rowln().Footerln(total + " took " + cb(took)).Flush()
 }
 
 // buildResponse builds a Response from an HTTP response.
@@ -195,15 +195,15 @@ func buildResponse(c *ui.Console, b *bookmark.Bookmark, statusCode int, hasError
 	statusCategory := statusCode / 100
 	switch statusCategory {
 	case 2: // 2xx status codes
-		c.F.Success(result.String() + "\n").Flush()
+		c.Frame.Success(result.String() + "\n").Flush()
 	case 3: // 3xx status codes
-		c.F.Warning(result.String() + "\n").Flush()
+		c.Frame.Warning(result.String() + "\n").Flush()
 	case 4: // 4xx status codes
-		c.F.Error(result.String() + "\n").Flush()
+		c.Frame.Error(result.String() + "\n").Flush()
 	case 5: // 5xx status codes
-		c.F.Error(result.String() + "\n").Flush()
+		c.Frame.Error(result.String() + "\n").Flush()
 	default: // Other status codes
-		c.F.Midln(result.String()).Flush()
+		c.Frame.Midln(result.String()).Flush()
 	}
 
 	return result

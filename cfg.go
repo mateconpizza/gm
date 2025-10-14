@@ -8,8 +8,8 @@ import (
 // version of the application.
 var version = "0.1.29"
 
-// Default app configuration.
-var app = &config.Config{
+// Default configuration.
+var cfg = &config.Config{
 	Name:   config.AppName,
 	Cmd:    config.AppCommand,
 	DBName: config.MainDBName,

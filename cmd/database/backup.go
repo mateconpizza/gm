@@ -63,8 +63,8 @@ var (
 
 // backupLockFunc lock backups.
 func backupLockFunc(cmd *cobra.Command, _ []string) error {
-	app := config.New()
-	fs, err := handler.SelectBackupMany(app.Path.Backup, "select backup/s to lock")
+	cfg := config.New()
+	fs, err := handler.SelectBackupMany(cfg.Path.Backup, "select backup/s to lock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -79,12 +79,12 @@ func backupLockFunc(cmd *cobra.Command, _ []string) error {
 
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 
-	c.F.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
+	c.Frame.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 	for _, r := range fs {
 		if err := handler.LockRepo(c, r); err != nil {
 			if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
-				c.F.Warning(cgi("skipped: " + err.Error() + "\n")).Flush()
+				c.Frame.Warning(cgi("skipped: " + err.Error() + "\n")).Flush()
 				continue
 			}
 
@@ -97,8 +97,8 @@ func backupLockFunc(cmd *cobra.Command, _ []string) error {
 
 // backupUnlockFunc unlock backups.
 func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
-	app := config.New()
-	p := app.Path.Backup
+	cfg := config.New()
+	p := cfg.Path.Backup
 
 	if !files.Exists(p) {
 		return fmt.Errorf("%w", db.ErrBackupNotFound)
@@ -122,9 +122,8 @@ func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
 
 // backupNewFunc create a new backup.
 func backupNewFunc(cmd *cobra.Command, _ []string) error {
-	app := config.New()
-
-	r, err := db.New(app.DBPath)
+	cfg := config.New()
+	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("backup: %w", err)
 	}
@@ -140,7 +139,7 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 			}))),
 	)
 
-	srcPath := app.DBPath
+	srcPath := cfg.DBPath
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
 	}
@@ -148,46 +147,32 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	fmt.Print(summary.Info(c, r, app.Path.Backup))
+	fmt.Print(summary.Info(c, r, cfg.Path.Backup))
 
-	c.F.Reset().Row("\n").Flush()
+	c.Frame.Reset().Row("\n").Flush()
 
 	cgb := func(s string) string { return color.BrightGreen(s).Italic().String() }
-	if !app.Flags.Force {
+	if !cfg.Flags.Force {
 		if err := c.ConfirmErr("create "+cgb("backup"), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
 
-	if err := files.MkdirAll(app.Path.Backup); err != nil {
+	if err := files.MkdirAll(cfg.Path.Backup); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	newBkPath, err := dbtask.Backup(r.Cfg.Fullpath(), app.Path.Backup)
+	newBkPath, err := dbtask.Backup(r.Cfg.Fullpath(), cfg.Path.Backup)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	fmt.Print(c.SuccessMesg(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))))
 
-	if app.Flags.Force {
+	if cfg.Flags.Force {
 		slog.Debug("skipping lock", "path", newBkPath)
 		return nil
 	}
 
 	return handler.LockRepo(c, newBkPath)
 }
-
-// backupPrettyPrint pretty repo info.
-// func backupPrettyPrint(cmd *cobra.Command, args []string) error {
-// 	r, err := db.New(config.App.DBPath)
-// 	if err != nil {
-// 		return fmt.Errorf("backup: %w", err)
-// 	}
-// 	defer r.Close()
-//
-// 	c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-// 	fmt.Print(summary.Info(c, r))
-//
-// 	return nil
-// }

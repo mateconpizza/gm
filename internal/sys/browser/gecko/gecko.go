@@ -107,8 +107,8 @@ func (b *GeckoBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 		return nil, err
 	}
 
-	c.F.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
-	c.F.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
+	c.Frame.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
+	c.Frame.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
 
 	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
@@ -246,7 +246,7 @@ func allProfiles(p string) (map[string]string, error) {
 //
 //nolint:funlen,wsl //ignored
 func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
-	c.F.Rowln().Flush()
+	c.Frame.Rowln().Flush()
 
 	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {

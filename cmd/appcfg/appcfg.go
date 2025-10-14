@@ -20,7 +20,7 @@ import (
 )
 
 func NewCmd() *cobra.Command {
-	app := config.New()
+	cfg := config.New()
 
 	configCmd := &cobra.Command{
 		Use:     "conf",
@@ -30,14 +30,14 @@ func NewCmd() *cobra.Command {
 			c := ui.NewDefaultConsole(cmd.Context(), nil)
 
 			switch {
-			case app.Flags.Create:
-				return createConfig(c, app)
-			case app.Flags.Edit:
-				return editConfig(app)
-			case app.Flags.JSON:
-				return printConfigJSON(app.Path.ConfigFile)
-			case app.Flags.List:
-				return showPathFile(app.Path.ConfigFile)
+			case cfg.Flags.Create:
+				return createConfig(c, cfg)
+			case cfg.Flags.Edit:
+				return editConfig(cfg)
+			case cfg.Flags.JSON:
+				return printConfigJSON(cfg.Path.ConfigFile)
+			case cfg.Flags.List:
+				return showPathFile(cfg.Path.ConfigFile)
 			}
 
 			return cmd.Usage()
@@ -46,19 +46,19 @@ func NewCmd() *cobra.Command {
 
 	f := configCmd.Flags()
 	f.SortFlags = false
-	f.BoolVarP(&app.Flags.Create, "create", "c", false, "create config file")
-	f.BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit config")
-	f.BoolVarP(&app.Flags.List, "show", "l", false, "current config filepath")
-	f.BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
-	f.BoolVar(&app.Flags.Force, "force", false, "force action")
+	f.BoolVarP(&cfg.Flags.Create, "create", "c", false, "create config file")
+	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit config")
+	f.BoolVarP(&cfg.Flags.List, "show", "l", false, "current config filepath")
+	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.BoolVar(&cfg.Flags.Force, "force", false, "force action")
 
 	return configCmd
 }
 
 // createConfig dumps the app configuration to a YAML file.
-func createConfig(c *ui.Console, app *config.Config) error {
-	p := app.Path.ConfigFile
-	if files.Exists(p) && !app.Flags.Force {
+func createConfig(c *ui.Console, cfg *config.Config) error {
+	p := cfg.Path.ConfigFile
+	if files.Exists(p) && !cfg.Flags.Force {
 		f := color.BrightYellow("--force").Italic().String()
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
@@ -67,27 +67,27 @@ func createConfig(c *ui.Console, app *config.Config) error {
 		return nil
 	}
 
-	if app.Git.Enabled {
-		config.Defaults.Git = app.Git
+	if cfg.Git.Enabled {
+		config.Defaults.Git = cfg.Git
 	}
 
-	if err := writeYAML(p, config.Defaults, app.Flags.Force); err != nil {
+	if err := writeYAML(p, config.Defaults, cfg.Flags.Force); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Printf("%s: file saved %q\n", app.Name, p)
+	fmt.Printf("%s: file saved %q\n", cfg.Name, p)
 
 	return nil
 }
 
 // editConfig edits the config file.
-func editConfig(app *config.Config) error {
-	p := app.Path.ConfigFile
+func editConfig(cfg *config.Config) error {
+	p := cfg.Path.ConfigFile
 	if !files.Exists(p) {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	te, err := editor.NewEditor(app.Env.Editor)
+	te, err := editor.NewEditor(cfg.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

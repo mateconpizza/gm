@@ -38,7 +38,7 @@ func NewCmd() *cobra.Command {
 }
 
 func InitAppFunc(cmd *cobra.Command, _ []string) error {
-	app := config.New()
+	cfg := config.New()
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(
@@ -49,18 +49,18 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 		),
 	)
 
-	if err := createPaths(c, app); err != nil {
+	if err := createPaths(c, cfg); err != nil {
 		return err
 	}
 
-	store, err := db.Init(app.DBPath)
+	store, err := db.Init(cfg.DBPath)
 	if store == nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer store.Close()
 
 	// if store.IsInitialized() && !cfg.Flags.Force {
-	if dbtask.IsInitialized(store) && !app.Flags.Force {
+	if dbtask.IsInitialized(store) && !cfg.Flags.Force {
 		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
@@ -69,8 +69,8 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	if app.DBName != config.MainDBName {
-		fmt.Println(c.SuccessMesg("initialized database " + app.DBName))
+	if cfg.DBName != config.MainDBName {
+		fmt.Println(c.SuccessMesg("initialized database " + cfg.DBName))
 
 		return nil
 	}
@@ -78,10 +78,10 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 	// initial bookmark
 	ib := bookmark.New()
 	ib.ID = 1
-	ib.URL = app.Info.URL
-	ib.Title = app.Info.Title
-	ib.Tags = bookmark.ParseTags(app.Info.Tags)
-	ib.Desc = app.Info.Desc
+	ib.URL = cfg.Info.URL
+	ib.Title = cfg.Info.Title
+	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
+	ib.Desc = cfg.Info.Desc
 
 	// FIX: opening multiple conn
 	store.Close()
@@ -95,18 +95,18 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 	}
 
 	fmt.Print(txt.Frame(ib))
-	fmt.Print("\n" + c.SuccessMesg("initialized database "+app.DBName+"\n"))
+	fmt.Print("\n" + c.SuccessMesg("initialized database "+cfg.DBName+"\n"))
 
 	return nil
 }
 
 // InitAppPostFunc ask user to track new database if git is initialized.
 func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
-	app := config.New()
-	if !app.Git.Enabled {
+	cfg := config.New()
+	if !cfg.Git.Enabled {
 		return nil
 	}
-	gr, err := git.NewRepo(app.DBPath)
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}
@@ -143,18 +143,18 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 }
 
 // createPaths creates the paths for the application.
-func createPaths(c *ui.Console, app *config.Config) error {
-	if files.Exists(app.Path.Data) {
+func createPaths(c *ui.Console, cfg *config.Config) error {
+	if files.Exists(cfg.Path.Data) {
 		return nil
 	}
 
 	ci := color.StyleItalic
-	c.F.Headerln(cli.PrettyVersion(app.Name, app.Info.Version)).Rowln().
-		Info(txt.PaddedLine("Create path:", ci(app.Path.Data).Italic().String())).Ln().
-		Info(txt.PaddedLine("Create db:", ci(app.DBPath).Italic().String())).Ln()
+	c.Frame.Headerln(cli.PrettyVersion(cfg.Name, cfg.Info.Version)).Rowln().
+		Info(txt.PaddedLine("Create path:", ci(cfg.Path.Data).Italic().String())).Ln().
+		Info(txt.PaddedLine("Create db:", ci(cfg.DBPath).Italic().String())).Ln()
 
-	lines := txt.CountLines(c.F.String()) + 1
-	c.F.Rowln().Flush()
+	lines := txt.CountLines(c.Frame.String()) + 1
+	c.Frame.Rowln().Flush()
 
 	if err := c.ConfirmErr("continue?", "y"); err != nil {
 		return fmt.Errorf("%w", err)
@@ -162,14 +162,14 @@ func createPaths(c *ui.Console, app *config.Config) error {
 
 	// clean terminal keeping header+row
 	headerN := 3
-	lines += txt.CountLines(c.F.String()) - headerN
+	lines += txt.CountLines(c.Frame.String()) - headerN
 	c.ClearLine(lines)
 
-	if err := app.CreatePaths(); err != nil {
+	if err := cfg.CreatePaths(); err != nil {
 		sys.ErrAndExit(err)
 	}
 
-	c.Success(fmt.Sprintf("Created directory path %q\n", app.Path.Data)).Flush()
+	c.Success(fmt.Sprintf("Created directory path %q\n", cfg.Path.Data)).Flush()
 	c.Success("Inserted initial bookmark\n").Row("\n").Flush()
 
 	return nil

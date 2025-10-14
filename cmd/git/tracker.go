@@ -23,8 +23,8 @@ var gitTrackerCmd = &cobra.Command{
 }
 
 func trackerFunc(cmd *cobra.Command, _ []string) error {
-	app := config.New()
-	gr, err := git.NewRepo(app.DBPath)
+	cfg := config.New()
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -38,14 +38,14 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 	)
 
 	switch {
-	case app.Flags.List:
-		return status(c, app, gr.Tracker.Repos)
-	case app.Flags.Management:
-		return management(c, app)
-	case app.Flags.Track:
+	case cfg.Flags.List:
+		return status(c, cfg, gr.Tracker.Repos)
+	case cfg.Flags.Management:
+		return management(c, cfg)
+	case cfg.Flags.Track:
 		terminal.NonInteractiveMode(true) // don't ask confirmation
 		return track(c, gr)
-	case app.Flags.Untrack:
+	case cfg.Flags.Untrack:
 		terminal.NonInteractiveMode(true)
 		return untrack(c, gr)
 	}
@@ -54,13 +54,13 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 }
 
 // managementSelect select which database to track in the git repository.
-func managementSelect(c *ui.Console, app *config.Config) error {
-	dbFiles, err := files.Find(app.Path.Data, "*.db")
+func managementSelect(c *ui.Console, cfg *config.Config) error {
+	dbFiles, err := files.Find(cfg.Path.Data, "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.F.Rowln().Midln("Select which databases to track").Flush()
+	c.Frame.Rowln().Midln("Select which databases to track").Flush()
 
 	files.PrioritizeFile(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
@@ -92,13 +92,13 @@ func managementSelect(c *ui.Console, app *config.Config) error {
 }
 
 // management updates the tracked databases in the git repository.
-func management(c *ui.Console, app *config.Config) error {
-	dbFiles, err := files.Find(app.Path.Data, "*.db")
+func management(c *ui.Console, cfg *config.Config) error {
+	dbFiles, err := files.Find(cfg.Path.Data, "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.F.Headerln("Tracked database management").Rowln().Flush()
+	c.Frame.Headerln("Tracked database management").Rowln().Flush()
 	files.PrioritizeFile(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
@@ -111,7 +111,7 @@ func management(c *ui.Console, app *config.Config) error {
 			if gr.Loc.DBName == config.MainDBName {
 				q = color.Text("Untrack database \"" + "main\"").Bold()
 			}
-			if !c.T.Confirm(c.Warning(q.String()).String(), "n") {
+			if !c.Term.Confirm(c.Warning(q.String()).String(), "n") {
 				continue
 			}
 
@@ -148,17 +148,17 @@ func management(c *ui.Console, app *config.Config) error {
 	return nil
 }
 
-func status(c *ui.Console, app *config.Config, tracked []string) error {
+func status(c *ui.Console, cfg *config.Config, tracked []string) error {
 	if len(tracked) == 0 {
 		return nil
 	}
 
-	dbFiles, err := files.Find(app.Path.Data, "*.db")
+	dbFiles, err := files.Find(cfg.Path.Data, "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.F.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
+	c.Frame.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
 
 	// move main database to the top
 	files.PrioritizeFile(dbFiles, config.MainDBName)

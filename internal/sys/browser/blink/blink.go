@@ -234,15 +234,15 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
 	skip := color.BrightYellow("skipping").String()
 	if !files.Exists(path) {
-		c.F.Rowln().Headerln(skip + " profile...'" + profile + "', bookmarks file not found").Flush()
+		c.Frame.Rowln().Headerln(skip + " profile...'" + profile + "', bookmarks file not found").Flush()
 		return
 	}
 
-	c.F.Rowln().Flush()
+	c.Frame.Rowln().Flush()
 
 	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
-			c.ReplaceLine(c.F.Row(skip + " profile...'" + profile + "'").String())
+			c.ReplaceLine(c.Frame.Row(skip + " profile...'" + profile + "'").String())
 			return
 		}
 	} else {

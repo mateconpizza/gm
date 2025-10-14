@@ -17,7 +17,7 @@ import (
 )
 
 func NewCmd() *cobra.Command {
-	app := config.New()
+	cfg := config.New()
 	waybackCmd := &cobra.Command{
 		Use:     "wayback",
 		Aliases: []string{"w", "wm", "wb"},
@@ -27,29 +27,31 @@ func NewCmd() *cobra.Command {
 
 	f := waybackCmd.Flags()
 	f.SortFlags = false
-	f.BoolVarP(&app.Flags.Snapshot, "latest", "c", false,
+	f.BoolVarP(&cfg.Flags.Snapshot, "latest", "c", false,
 		"fetches lastets snapshot from Wayback Machine")
-	f.IntVarP(&app.Flags.Limit, "limit", "L", 0,
+	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0,
 		"limit the number of snapshots returned")
-	f.IntVarP(&app.Flags.Year, "year", "Y", 0,
+	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0,
 		"fetches the last N snapshots from a specific year")
-	f.BoolVarP(&app.Flags.Menu, "menu", "m", false,
+	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
 		"interactive menu mode using fzf (select bookmarks)")
+	f.BoolVar(&cfg.Flags.Multiline, "multiline", false,
+		"output in multiline format (fzf)")
 
 	return waybackCmd
 }
 
-func waybackFunc(command *cobra.Command, args []string) error {
-	app := config.New()
-	r, err := db.New(app.DBPath)
+func waybackFunc(cmd *cobra.Command, args []string) error {
+	cfg := config.New()
+	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 
 	terminal.ReadPipedInput(&args)
 
-	defer r.Close()
-	bs, err := handler.Data(menuForRecords(app), r, args, app.Flags)
+	bs, err := handler.Data(menuForRecords(cfg), r, args, cfg.Flags)
 	if err != nil {
 		return err
 	}
@@ -59,12 +61,12 @@ func waybackFunc(command *cobra.Command, args []string) error {
 		return db.ErrRecordNotFound
 	}
 
-	f := app.Flags
+	f := cfg.Flags
 	if n > wayback.MaxItems && !f.Force {
 		return fmt.Errorf("%w: %d", wayback.ErrTooManyRecords, n)
 	}
 
-	c := ui.NewDefaultConsole(command.Context(), func(err error) {
+	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
 	})
@@ -76,12 +78,12 @@ func waybackFunc(command *cobra.Command, args []string) error {
 		return handler.WaybackSnapshots(c, r, bs)
 	}
 
-	return command.Help()
+	return cmd.Help()
 }
 
-func menuForRecords[T bookmark.Bookmark](app *config.Config) *menu.Menu[T] {
+func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
 	return menu.New[T](
-		menu.WithSettings(app.Menu.Settings),
-		menu.WithPreview(app.Cmd+" --name "+app.DBName+" records {1}"),
+		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithPreview(cfg.Cmd+" --name "+cfg.DBName+" records {1}"),
 	)
 }

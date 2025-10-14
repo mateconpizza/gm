@@ -22,7 +22,7 @@ import (
 // NewCmd is the root "records" command.
 // It provides entrypoints for listing, filtering, and operating on bookmarks.
 func NewCmd() *cobra.Command {
-	app := config.New()
+	cfg := config.New()
 	records := &cobra.Command{
 		Use:     "rec",
 		Aliases: []string{"r", "records"},
@@ -30,15 +30,15 @@ func NewCmd() *cobra.Command {
 		RunE:    Cmd,
 	}
 
-	InitFlags(records, app)
+	InitFlags(records, cfg)
 
 	return records
 }
 
 // Cmd is the main command and entrypoint.
 func Cmd(cmd *cobra.Command, args []string) error {
-	app := config.New()
-	r, err := db.New(app.DBPath)
+	cfg := config.New()
+	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func Cmd(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(menuForRecords(app), r, args, app.Flags)
+	bs, err := handler.Data(menuForRecords(cfg), r, args, cfg.Flags)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func Cmd(cmd *cobra.Command, args []string) error {
 		sys.ErrAndExit(err)
 	})
 
-	return exec(c, r, app, bs)
+	return exec(c, r, cfg, bs)
 }
 
 // InitFlags initializes CLI flags for the records command.
@@ -86,11 +86,11 @@ func InitFlags(cmd *cobra.Command, cfg *config.Config) {
 	InitFilterFlags(cmd, cfg)
 }
 
-func InitFilterFlags(cmd *cobra.Command, app *config.Config) {
+func InitFilterFlags(cmd *cobra.Command, cfg *config.Config) {
 	f := cmd.Flags()
-	f.StringSliceVarP(&app.Flags.Tags, "tag", "t", nil, "filter bookmarks by tag(s)")
-	f.IntVarP(&app.Flags.Head, "head", "H", 0, "show first N bookmarks")
-	f.IntVarP(&app.Flags.Tail, "tail", "T", 0, "show last N bookmarks")
+	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "filter bookmarks by tag(s)")
+	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "show first N bookmarks")
+	f.IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "show last N bookmarks")
 }
 
 // exec handles the bookmark actions and output selection according to the
@@ -123,16 +123,16 @@ func exec(c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark
 }
 
 // menuForRecords builds the interactive FZF menu for selecting records.
-func menuForRecords[T bookmark.Bookmark](app *config.Config) *menu.Menu[T] {
+func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
 	var keybindsArgs []string
-	if app.Flags.Notes {
+	if cfg.Flags.Notes {
 		keybindsArgs = append(keybindsArgs, "--notes")
 	}
 
 	mo := []menu.OptFn{
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
-		menu.WithPreview(app.Cmd + " --name " + app.DBName + " records {1}"),
+		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithKeybinds(
 			config.FzfKeybindEdit(keybindsArgs...),
 			config.FzfKeybindEditNotes(),
@@ -143,7 +143,7 @@ func menuForRecords[T bookmark.Bookmark](app *config.Config) *menu.Menu[T] {
 		),
 	}
 
-	if app.Flags.Multiline {
+	if cfg.Flags.Multiline {
 		mo = append(mo, menu.WithMultilineView())
 	}
 

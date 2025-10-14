@@ -48,7 +48,7 @@ var Fzf = &menu.Config{
 }
 
 func fmtKeybindCmd(s string) string {
-	return fmt.Sprintf("%s --name=%s records %s", app.Cmd, app.DBName, s)
+	return fmt.Sprintf("%s --name=%s records %s", cfg.Cmd, cfg.DBName, s)
 }
 
 // FzfKeybindEdit keybind to edit the selected record.

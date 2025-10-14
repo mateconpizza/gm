@@ -60,9 +60,9 @@ var (
 )
 
 // newBookmarkCmd creates a new bookmark.
-func newBookmarkFunc(command *cobra.Command, args []string) error {
-	app := config.New()
-	r, err := db.New(app.DBPath)
+func newBookmarkFunc(cmd *cobra.Command, args []string) error {
+	cfg := config.New()
+	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -71,19 +71,19 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(
-			terminal.WithContext(command.Context()),
+			terminal.WithContext(cmd.Context()),
 			terminal.WithInterruptFn(func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		}))),
+				r.Close()
+				sys.ErrAndExit(err)
+			}))),
 	)
 
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 	cy := func(s string) string { return color.BrightYellow(s).String() }
-	c.F.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
+	c.Frame.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
 
 	b := bookmark.New()
-	if err := handler.NewBookmark(c, r, b, app.Flags.Title, app.Flags.TagsStr, args); err != nil {
+	if err := handler.NewBookmark(c, r, b, cfg.Flags.Title, cfg.Flags.TagsStr, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -91,11 +91,11 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	if err := handler.SaveNewBookmark(c, r, b, app); err != nil {
+	if err := handler.SaveNewBookmark(c, r, b, cfg); err != nil {
 		return err
 	}
 
-	if err := git.AddBookmark(app, b); err != nil {
+	if err := git.AddBookmark(cfg, b); err != nil {
 		return err
 	}
 
@@ -105,10 +105,10 @@ func newBookmarkFunc(command *cobra.Command, args []string) error {
 }
 
 func NewCmd() *cobra.Command {
-	app := config.New()
-	newBookmarkCmd.Flags().StringVarP(&app.Flags.Title, "title", "t", "", "bookmark title")
-	newBookmarkCmd.Flags().StringVarP(&app.Flags.TagsStr, "tags", "T", "", "bookmark tags")
-	newDatabaseCmd.Flags().StringVarP(&app.DBName, "name", "n", config.MainDBName,
+	cfg := config.New()
+	newBookmarkCmd.Flags().StringVarP(&cfg.Flags.Title, "title", "t", "", "bookmark title")
+	newBookmarkCmd.Flags().StringVarP(&cfg.Flags.TagsStr, "tags", "T", "", "bookmark tags")
+	newDatabaseCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName,
 		"database name")
 	newCmd.AddCommand(newBookmarkCmd, newDatabaseCmd, newBackupCmd)
 	_ = newDatabaseCmd.Flags().MarkHidden("help")

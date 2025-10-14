@@ -66,22 +66,22 @@ func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	app := config.New()
-	if files.Exists(app.DBPath) {
+	cfg := config.New()
+	if files.Exists(cfg.DBPath) {
 		databaseChecked = true
 		return nil
 	}
 
-	if err := checkDatabaseLocked(app.DBPath); err != nil {
+	if err := checkDatabaseLocked(cfg.DBPath); err != nil {
 		return err
 	}
 
-	i := color.BrightYellow(app.Cmd, "init").Italic()
-	if app.DBName == config.MainDBName {
+	i := color.BrightYellow(cfg.Cmd, "init").Italic()
+	if cfg.DBName == config.MainDBName {
 		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
 	}
 
-	return fmt.Errorf("%w %q: use '%s' to initialize", db.ErrDBNotFound, app.DBName, i)
+	return fmt.Errorf("%w %q: use '%s' to initialize", db.ErrDBNotFound, cfg.DBName, i)
 }
 
 func HookHelp(cmd *cobra.Command, _ []string) error {
@@ -91,13 +91,13 @@ func HookHelp(cmd *cobra.Command, _ []string) error {
 // HookCheckIfDatabaseInitialized checks if database file exists and is initialized.
 // Returns error if database already exists to prevent accidental re-initialization.
 func HookCheckIfDatabaseInitialized(_ *cobra.Command, _ []string) error {
-	app := config.New()
-	if files.Exists(app.DBPath) {
-		if ok, _ := db.IsInitialized(app.DBPath); ok {
-			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, app.DBName)
+	cfg := config.New()
+	if files.Exists(cfg.DBPath) {
+		if ok, _ := db.IsInitialized(cfg.DBPath); ok {
+			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, cfg.DBName)
 		}
 
-		return fmt.Errorf("%q %w", app.DBName, db.ErrDBExists)
+		return fmt.Errorf("%q %w", cfg.DBName, db.ErrDBExists)
 	}
 
 	return nil
@@ -115,8 +115,8 @@ func HookEnsureGitEnv(c *cobra.Command, args []string) error {
 		}
 	}
 
-	app := config.New()
-	_, err := git.NewManager(c.Context(), app.Git.Path)
+	cfg := config.New()
+	_, err := git.NewManager(c.Context(), cfg.Git.Path)
 	if err != nil {
 		return fmt.Errorf("hook git: %w", err)
 	}
@@ -126,7 +126,7 @@ func HookEnsureGitEnv(c *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if !app.Git.Enabled {
+	if !cfg.Git.Enabled {
 		return git.ErrGitNotInitialized
 	}
 
@@ -135,13 +135,12 @@ func HookEnsureGitEnv(c *cobra.Command, args []string) error {
 
 // HookGitSync synchronizes Git repository with current database state.
 func HookGitSync(c *cobra.Command, args []string) error {
-	app := config.New()
-
-	if !app.Git.Enabled {
+	cfg := config.New()
+	if !cfg.Git.Enabled {
 		return nil
 	}
 
-	gr, err := git.NewRepo(app.DBPath)
+	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
 	}
@@ -150,7 +149,7 @@ func HookGitSync(c *cobra.Command, args []string) error {
 		return nil
 	}
 
-	r, err := db.New(app.DBPath)
+	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

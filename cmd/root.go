@@ -27,38 +27,38 @@ import (
 )
 
 // NewRootCmd is the main command.
-func NewRootCmd(app *config.Config) *cobra.Command {
+func NewRootCmd(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               app.Cmd,
-		Short:             app.Info.Title,
-		Long:              app.Info.Desc,
+		Use:               cfg.Cmd,
+		Short:             cfg.Info.Title,
+		Long:              cfg.Info.Desc,
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
 		PersistentPreRunE: cli.HookEnsureDatabase,
 		RunE:              records.Cmd,
-		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
+		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
 	}
 
 	cmd.PersistentFlags().SortFlags = false
 
 	// Global flags
-	cmd.PersistentFlags().StringVarP(&app.DBName, "name", "n", config.MainDBName,
+	cmd.PersistentFlags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName,
 		"database name")
-	cmd.PersistentFlags().StringVar(&app.Flags.ColorStr, "color", "always",
+	cmd.PersistentFlags().StringVar(&cfg.Flags.ColorStr, "color", "always",
 		"output with pretty colors [always|never]")
-	cmd.PersistentFlags().BoolVar(&app.Flags.Force, "force", false,
+	cmd.PersistentFlags().BoolVar(&cfg.Flags.Force, "force", false,
 		"force action")
-	cmd.PersistentFlags().BoolVarP(&app.Flags.Yes, "yes", "y", false,
+	cmd.PersistentFlags().BoolVarP(&cfg.Flags.Yes, "yes", "y", false,
 		"assume \"yes\" on most questions")
-	cmd.PersistentFlags().CountVarP(&app.Flags.Verbose, "verbose", "v",
+	cmd.PersistentFlags().CountVarP(&cfg.Flags.Verbose, "verbose", "v",
 		"increase verbosity (-v, -vv, -vvv)")
 
 	// Initialize flags for records commands
-	records.InitFlags(cmd, app)
+	records.InitFlags(cmd, cfg)
 
 	cobra.OnInitialize(func() {
-		app.Initialize()
-		initAppConfig(app)
+		cfg.Initialize()
+		initAppConfig(cfg)
 	})
 
 	// cmd settings
@@ -72,15 +72,15 @@ func NewRootCmd(app *config.Config) *cobra.Command {
 	return cmd
 }
 
-func initAppConfig(app *config.Config) {
-	app.Flags.Color = app.Flags.ColorStr == "always" &&
+func initAppConfig(cfg *config.Config) {
+	cfg.Flags.Color = cfg.Flags.ColorStr == "always" &&
 		!terminal.IsPiped() &&
 		!terminal.NoColorEnv()
 
-	config.SetVerbosity(app.Flags.Verbose)
+	config.SetVerbosity(cfg.Flags.Verbose)
 
 	// load config from YAML
-	if err := config.Load(app); err != nil {
+	if err := config.Load(cfg); err != nil {
 		slog.Error("loading config", "err", err)
 	}
 
@@ -88,13 +88,13 @@ func initAppConfig(app *config.Config) {
 	menu.SetConfig(config.Fzf)
 
 	// enable global color
-	color.Enable(app.Flags.Color)
+	color.Enable(cfg.Flags.Color)
 
 	// terminal interactive mode
-	terminal.NonInteractiveMode(app.Flags.Yes)
+	terminal.NonInteractiveMode(cfg.Flags.Yes)
 
 	// git config
-	git.SetConfig(app)
+	git.SetConfig(cfg)
 }
 
 // Setup registers all application commands with the CLI.

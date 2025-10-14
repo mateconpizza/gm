@@ -26,9 +26,9 @@ func (NotesStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
 	header := fmt.Appendf(nil, "# %d %s\n#\n", b.ID, shortTitle)
 
 	// metadata
-	app := config.New()
-	sep := txt.CenteredLine(w, "bookmark notes")
-	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", app.DBName, app.Info.Version, sep)
+	cfg := config.New()
+	sep := txt.CenteredLine(w, "bookmark notes", "-")
+	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", cfg.DBName, cfg.Info.Version, sep)
 
 	buf.Header = append(buf.Header, header...)
 	buf.Header = append(buf.Header, meta...)

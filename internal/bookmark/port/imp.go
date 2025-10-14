@@ -57,12 +57,12 @@ func Browser(c *ui.Console, r *db.SQLite, force bool) error {
 
 // Database imports bookmarks from a database.
 func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
-	app := config.New()
+	cfg := config.New()
 	m := menu.New[bookmark.Bookmark](
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import", false),
-		menu.WithPreview(app.Cmd+" -n "+srcDB.Name()+" records {1}"),
+		menu.WithPreview(cfg.Cmd+" -n "+srcDB.Name()+" records {1}"),
 		menu.WithInterruptFn(func(err error) { // build interrupt cleanup
 			destDB.Close()
 			srcDB.Close()
@@ -97,7 +97,7 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 	bookmarks = Deduplicate(c, destDB, bookmarks)
 	n := len(bookmarks)
 	if n == 0 {
-		c.F.Midln("no new bookmark found, skipping import").Flush()
+		c.Frame.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
@@ -112,9 +112,9 @@ func Database(c *ui.Console, srcDB, destDB *db.SQLite) error {
 
 // IntoRepo import records into the database.
 func IntoRepo(c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
-	app := config.New()
+	cfg := config.New()
 	n := len(records)
-	if !app.Flags.Force && n > 1 {
+	if !cfg.Flags.Force && n > 1 {
 		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -139,18 +139,18 @@ func IntoRepo(c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
 
 // FromBackup imports bookmarks from a backup.
 func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
-	app := config.New()
+	cfg := config.New()
 	s := color.BrightYellow("Import bookmarks from backup: ").String()
-	c.F.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
+	c.Frame.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
 	m := menu.New[bookmark.Bookmark](
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
-		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", app.Cmd, srcDB.Name())),
-		menu.WithInterruptFn(c.T.InterruptFn),
+		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", cfg.Cmd, srcDB.Name())),
+		menu.WithInterruptFn(c.Term.InterruptFn),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'", false),
 	)
 
-	defer c.T.CancelInterruptHandler()
+	defer c.Term.CancelInterruptHandler()
 
 	bookmarks, err := srcDB.All(context.Background())
 	if err != nil {
@@ -177,7 +177,7 @@ func FromBackup(c *ui.Console, destDB, srcDB *db.SQLite) error {
 
 	dRecords := Deduplicate(c, destDB, result)
 	if len(dRecords) == 0 {
-		c.F.Midln("no new bookmark found, skipping import").Flush()
+		c.Frame.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
@@ -219,10 +219,10 @@ func Deduplicate(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookma
 		// show discarted bookmarks
 		if len(discarted) <= maxItemsToShow && n != 0 {
 			for _, b := range discarted {
-				c.F.Midln(color.Text(" " + txt.Shorten(b.URL, terminal.MinWidth)).Italic().String())
+				c.Frame.Midln(color.Text(" " + txt.Shorten(b.URL, terminal.MinWidth)).Italic().String())
 			}
 
-			c.F.Flush()
+			c.Frame.Flush()
 		}
 	}
 
@@ -239,7 +239,7 @@ func parseFoundInBrowser(
 ) ([]*bookmark.Bookmark, error) {
 	bs = Deduplicate(c, r, bs)
 	if len(bs) == 0 {
-		c.F.Midln("no new bookmark found, skipping import").Flush()
+		c.Frame.Midln("no new bookmark found, skipping import").Flush()
 		return bs, nil
 	}
 

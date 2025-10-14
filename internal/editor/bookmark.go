@@ -41,11 +41,11 @@ func (baseBookmarkStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, erro
 		s = "bookmark addition"
 	}
 
-	sep := txt.CenteredLine(width-rightMargin, s)
+	sep := txt.CenteredLine(width-rightMargin, s, "-")
 
 	// metadata
-	app := config.New()
-	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", app.DBName, app.Info.Version, sep)
+	cfg := config.New()
+	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", cfg.DBName, cfg.Info.Version, sep)
 
 	// footer
 	buf.Footer = fmt.Appendf(nil, " [%d/%d]", buf.Idx+1, buf.Total)

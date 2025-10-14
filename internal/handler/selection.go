@@ -61,13 +61,13 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 
 // selectItem lets the user choose a repo from a list.
 func selectItem(fs []string, header string) (string, error) {
-	// FIX: inject `app`
-	app := config.New()
+	// FIX: inject `cfg`
+	cfg := config.New()
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(*p) },
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
-		menu.WithPreview(app.Cmd+" db -n {1} -i"),
+		menu.WithPreview(cfg.Cmd+" db -n {1} -i"),
 	)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
@@ -79,13 +79,13 @@ func selectItem(fs []string, header string) (string, error) {
 // SelectBackupOne lets the user choose a backup and handles decryption if
 // needed.
 func SelectBackupOne(c *ui.Console, bks []string) (string, error) {
-	// FIX: inject `app`
-	app := config.New()
+	// FIX: inject `cfg`
+	cfg := config.New()
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
 		menu.WithArgs("--cycle"),
 		menu.WithSettings(config.Fzf.Settings),
-		menu.WithPreview(app.Cmd+" db -n ./backup/{1} info"),
+		menu.WithPreview(cfg.Cmd+" db -n ./backup/{1} info"),
 		menu.WithHeader("choose a backup to import from", false))
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
@@ -111,15 +111,15 @@ func SelectBackupMany(root, header string) ([]string, error) {
 		return fs, fmt.Errorf("%w", err)
 	}
 
-	// FIX: inject `app`
-	app := config.New()
+	// FIX: inject `cfg`
+	cfg := config.New()
 
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(*p) },
 		menu.WithMultiSelection(),
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithHeader(header, false),
-		menu.WithPreview(app.Cmd+" db -n ./backup/{1} info"),
+		menu.WithPreview(cfg.Cmd+" db -n ./backup/{1} info"),
 	)
 	if err != nil {
 		return repos, fmt.Errorf("%w", err)
@@ -149,11 +149,11 @@ func SelectFileLocked(root, header string) ([]string, error) {
 }
 
 func SelectDatabase(ignoreDBPath string) (string, error) {
-	// FIX: inject `app`
-	app := config.New()
+	// FIX: inject `cfg`
+	cfg := config.New()
 
 	// build list of candidate .db files
-	dbFiles, err := files.FindByExtList(app.Path.Data, ".db")
+	dbFiles, err := files.FindByExtList(cfg.Path.Data, ".db")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}

@@ -18,16 +18,16 @@ var (
 )
 
 func NewCmd() *cobra.Command {
-	app := config.New()
+	cfg := config.New()
 
-	ioCmd.Flags().BoolVarP(&app.Flags.Export, "export", "e", false, "export selected bookmarks")
-	ioCmd.Flags().BoolVarP(&app.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
+	ioCmd.Flags().BoolVarP(&cfg.Flags.Export, "export", "e", false, "export selected bookmarks")
+	ioCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
 
 	// browser
 	ioCmd.AddCommand(browserCmd)
 
 	// netscape html
-	htmlCmd.Flags().StringVarP(&app.Flags.Path, "filename", "f", "", "filename path")
+	htmlCmd.Flags().StringVarP(&cfg.Flags.Path, "filename", "f", "", "filename path")
 	ioCmd.AddCommand(htmlCmd)
 
 	// databases
@@ -35,7 +35,7 @@ func NewCmd() *cobra.Command {
 	ioCmd.AddCommand(importFromDatabaseCmd)
 
 	// git
-	gitCmd.Flags().StringVarP(&app.Flags.Path, "uri", "i", "", "repo URI to import")
+	gitCmd.Flags().StringVarP(&cfg.Flags.Path, "uri", "i", "", "repo URI to import")
 	ioCmd.AddCommand(gitCmd)
 
 	return ioCmd
@@ -49,15 +49,15 @@ var ioCmd = &cobra.Command{
 }
 
 func menuSelect[T bookmark.Bookmark]() *menu.Menu[T] {
-	app := config.New()
+	cfg := config.New()
 	mo := []menu.OptFn{
 		menu.WithSettings(config.Fzf.Settings),
 		menu.WithMultiSelection(),
-		menu.WithPreview(app.Cmd + " --name " + app.DBName + " records {1}"),
+		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithHeader("Select records for import/export", false),
 	}
 
-	if app.Flags.Multiline {
+	if cfg.Flags.Multiline {
 		mo = append(mo, menu.WithMultilineView())
 	}
 

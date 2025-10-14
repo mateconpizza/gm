@@ -35,7 +35,7 @@ func Repo(c *ui.Console, r *db.SQLite) string {
 		name += cgi(" (main) ")
 	}
 
-	return c.F.Headerln(color.Yellow(name).Italic().String()).
+	return c.Frame.Headerln(color.Yellow(name).Italic().String()).
 		Rowln(records).
 		Rowln(tags).
 		Rowln(path).
@@ -53,14 +53,14 @@ func RepoFromPath(c *ui.Console, dbPath, backupPath string) string {
 			e = "(main locked)"
 		}
 
-		return c.F.Mid(txt.PaddedLine(s, cgi(e))).Ln().StringReset()
+		return c.Frame.Mid(txt.PaddedLine(s, cgi(e))).Ln().StringReset()
 	}
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
 
 	r, err := db.New(dbPath)
 	if err != nil {
-		return c.F.Row(path).StringReset()
+		return c.Frame.Row(path).StringReset()
 	}
 	defer r.Close()
 
@@ -73,14 +73,14 @@ func RepoFromPath(c *ui.Console, dbPath, backupPath string) string {
 		name = txt.PaddedLine(name, cgi("(main)"))
 	}
 
-	c.F.Headerln(name).Rowln(records).Rowln(tags)
+	c.Frame.Headerln(name).Rowln(records).Rowln(tags)
 	dbName := files.StripSuffixes(r.Name())
 	backups, _ := files.List(backupPath, "*_"+dbName+".db*")
 	if len(backups) > 0 {
-		c.F.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
+		c.Frame.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
 	}
 
-	return c.F.Rowln(path).StringReset()
+	return c.Frame.Rowln(path).StringReset()
 }
 
 // RepoRecords generates a summary of record counts for a given SQLite
@@ -157,16 +157,16 @@ func BackupListDetail(c *ui.Console, r *db.SQLite, backupPath string) string {
 		return ""
 	}
 
-	c.F.Header(color.BrightCyan("summary:\n").Italic().String())
+	c.Frame.Header(color.BrightCyan("summary:\n").Italic().String())
 	if err != nil {
-		return c.F.Row(txt.PaddedLine("found:", "n/a\n")).String()
+		return c.Frame.Row(txt.PaddedLine("found:", "n/a\n")).String()
 	}
 
 	for i := range fs {
-		c.F.Rowln(BackupWithFmtDateFromPath(fs[i]))
+		c.Frame.Rowln(BackupWithFmtDateFromPath(fs[i]))
 	}
 
-	return c.F.StringReset()
+	return c.Frame.StringReset()
 }
 
 // Backups returns a summary of the backups.
@@ -206,7 +206,7 @@ func Backups(c *ui.Console, r *db.SQLite, backupPath string) string {
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
 
-	return c.F.Headerln(backupsColor.String()).
+	return c.Frame.Headerln(backupsColor.String()).
 		Rowln(path).
 		Rowln(last).
 		Rowln(lastDate).

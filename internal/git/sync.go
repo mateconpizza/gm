@@ -26,8 +26,8 @@ import (
 
 // Import clones a Git repository, parses its bookmark files, and imports them
 // into the application.
-func Import(c *ui.Console, gm *Manager, app *config.Config) ([]string, error) {
-	urlRepo := app.Flags.Path
+func Import(c *ui.Console, gm *Manager, cfg *config.Config) ([]string, error) {
+	urlRepo := cfg.Flags.Path
 	if err := gm.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -41,11 +41,11 @@ func Import(c *ui.Console, gm *Manager, app *config.Config) ([]string, error) {
 		return nil, ErrGitRepoNotFound
 	}
 
-	c.F.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
+	c.Frame.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	var imported []string
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepo(c, gm.RepoPath, repoName, app.Path.Data)
+		dbPath, err := parseGitRepo(c, gm.RepoPath, repoName, cfg.Path.Data)
 		if err != nil {
 			if errors.Is(err, sys.ErrActionAborted) {
 				n--
@@ -155,7 +155,7 @@ func exportAsGPG(fingerprintPath, root string, bs []*bookmark.Bookmark) (bool, e
 // exportAsJSON creates the repository structure.
 func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
 	var (
-		app        = config.New()
+		cfg        = config.New()
 		hasUpdates uint32
 	)
 
@@ -164,7 +164,7 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
 	for i := range bs {
 		b := bs[i] // capture loop variable
 		g.Go(func() error {
-			updated, err := storeBookmarkAsJSON(root, b, app.Flags.Force)
+			updated, err := storeBookmarkAsJSON(root, b, cfg.Flags.Force)
 			if err != nil {
 				return err
 			}

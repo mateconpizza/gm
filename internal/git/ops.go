@@ -196,7 +196,7 @@ func records(dbPath string) ([]*bookmark.Bookmark, error) {
 
 // parseGitRepo loads a git repo into a database.
 func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error) {
-	c.F.Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
+	c.Frame.Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
 
 	// read summary.json
@@ -205,7 +205,7 @@ func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error
 		return "", fmt.Errorf("reading summary: %w", err)
 	}
 
-	c.F.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
+	c.Frame.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
 		Midln(txt.PaddedLine("tags:", sum.RepoStats.Tags)).
 		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
 
@@ -431,7 +431,7 @@ func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
 
 	n := len(debookmarks)
 	if n > 0 {
-		c.F.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
+		c.Frame.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
 	}
 
 	return nil
@@ -484,23 +484,23 @@ func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 	}
 
 	if !gr.IsTracked() {
-		return c.F.StringReset(), err
+		return c.Frame.StringReset(), err
 	}
 
 	if !cfg.Enabled {
 		return "", nil
 	}
 
-	c.F.Reset().Headerln(cri("git:"))
+	c.Frame.Reset().Headerln(cri("git:"))
 
 	sum, err := gr.Summary()
 	if err != nil {
-		return c.F.StringReset(), err
+		return c.Frame.StringReset(), err
 	}
 
 	// remote
 	if sum.GitRemote != "" {
-		c.F.Rowln(txt.PaddedLine("remote:", sum.GitRemote))
+		c.Frame.Rowln(txt.PaddedLine("remote:", sum.GitRemote))
 	}
 
 	// repo type
@@ -508,22 +508,22 @@ func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 	if cfg.GPG {
 		t = cbm("GPG")
 	}
-	c.F.Rowln(txt.PaddedLine("type:", t))
+	c.Frame.Rowln(txt.PaddedLine("type:", t))
 
 	if sum.LastSync != "" {
 		tt, err := time.Parse(time.RFC3339, sum.LastSync)
 		if err != nil {
-			return c.F.StringReset(), err
+			return c.Frame.StringReset(), err
 		}
 
 		lastSync := sum.LastSync + cgi(" ("+txt.RelativeTime(tt.Format(txt.TimeLayout))+")")
-		c.F.Rowln(txt.PaddedLine("last sync:", lastSync))
-		c.F.Success(txt.PaddedLine("sync:", true)).Ln()
+		c.Frame.Rowln(txt.PaddedLine("last sync:", lastSync))
+		c.Frame.Success(txt.PaddedLine("sync:", true)).Ln()
 	} else {
-		c.F.Error(txt.PaddedLine("sync:", false)).Ln()
+		c.Frame.Error(txt.PaddedLine("sync:", false)).Ln()
 	}
 
-	return c.F.StringReset(), nil
+	return c.Frame.StringReset(), nil
 }
 
 func handleOptNew(c *ui.Console, gr *Repository) (string, error) {
@@ -618,7 +618,7 @@ func intoDBFromGit(c *ui.Console, gr *Repository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	c.F.Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), gr.Loc.DBName)).Flush()
+	c.Frame.Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), gr.Loc.DBName)).Flush()
 
 	return nil
 }
@@ -650,7 +650,7 @@ func mergeAndInsert(c *ui.Console, gr *Repository) error {
 
 	n := len(bookmarks)
 	if n > 0 {
-		c.F.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, gr.Loc.DBName)).Flush()
+		c.Frame.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, gr.Loc.DBName)).Flush()
 	}
 
 	return nil

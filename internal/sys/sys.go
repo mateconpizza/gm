@@ -13,7 +13,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 
 	"github.com/atotto/clipboard"
@@ -55,22 +54,19 @@ func Env(s, def string) string {
 
 // BinPath returns the path of the binary.
 func BinPath(s string) string {
-	cmd := exec.CommandContext(context.Background(), "which", s)
-
-	out, err := cmd.Output()
+	path, err := exec.LookPath(s)
 	if err != nil {
+		slog.Debug("binary not found", "which", s, "error", err)
 		return ""
 	}
 
-	c := strings.TrimRight(string(out), "\n")
-	slog.Debug("binary path", "which", s, "found", c)
-
-	return c
+	slog.Debug("binary path", "which", s, "found", path)
+	return path
 }
 
 // BinExists checks if the binary exists in $PATH.
 func BinExists(s string) bool {
-	return ExecuteCmd(context.Background(), "which", s) == nil
+	return BinPath(s) != ""
 }
 
 // Which checks if the command exists in $PATH.
@@ -183,7 +179,7 @@ func ErrAndExit(err error) {
 		os.Exit(ExitSuccess)
 
 	case errors.Is(err, ErrActionAborted):
-		slog.Info("interrupted by user")
+		slog.Debug("interrupted by user")
 		os.Exit(ExitInterrupted)
 
 	default:

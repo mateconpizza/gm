@@ -9,27 +9,26 @@ import (
 
 // NewCmd manages bookmark tags (list, JSON export, etc.).
 func NewCmd() *cobra.Command {
-	app := config.New()
-
+	cfg := config.New()
 	cmd := &cobra.Command{
 		Use:     "tags",
 		Aliases: []string{"t"},
 		Short:   "Tags management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
-			case app.Flags.JSON:
-				return printer.TagsJSON(app.DBPath)
-			case app.Flags.List:
-				return printer.TagsList(app.DBPath)
+			case cfg.Flags.JSON:
+				return printer.TagsJSON(cfg.DBPath)
+			case cfg.Flags.List:
+				return printer.TagsList(cfg.DBPath)
 			}
 
 			return cmd.Usage()
 		},
 	}
 
-	cmd.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false,
+	cmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false,
 		"output tags+count in JSON format")
-	cmd.Flags().BoolVarP(&app.Flags.List, "list", "l", false,
+	cmd.Flags().BoolVarP(&cfg.Flags.List, "list", "l", false,
 		"list all tags")
 
 	return cmd

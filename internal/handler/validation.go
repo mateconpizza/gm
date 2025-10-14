@@ -22,9 +22,9 @@ import (
 
 // confirmRemove prompts the user to confirm the action.
 func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Slice[bookmark.Bookmark]) error {
-	// FIX: inject `app`
-	app := config.New()
-	for !app.Flags.Force {
+	// FIX: inject `cfg`
+	cfg := config.New()
+	for !cfg.Flags.Force {
 		n := bs.Len()
 		if n == 0 {
 			return db.ErrRecordNotFound
@@ -71,9 +71,9 @@ func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Sli
 
 // confirmUserLimit prompts the user to confirm the exceeding limit.
 func confirmUserLimit(c *ui.Console, count, maxItems int, q string) error {
-	// FIX: inject `app`
-	app := config.New()
-	if app.Flags.Force || count < maxItems {
+	// FIX: inject `cfg`
+	cfg := config.New()
+	if cfg.Flags.Force || count < maxItems {
 		return nil
 	}
 
@@ -81,7 +81,7 @@ func confirmUserLimit(c *ui.Console, count, maxItems int, q string) error {
 		return sys.ErrActionAborted
 	}
 
-	c.ReplaceLine(c.F.Midln(q).StringReset())
+	c.ReplaceLine(c.Frame.Midln(q).StringReset())
 
 	return nil
 }

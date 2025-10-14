@@ -58,7 +58,7 @@ func (e *EditSession) processSingleRecord(original *Record, idx, total int, stra
 			return err
 		}
 
-		e.Console.F.Reset().Header("Diff:\n").Flush()
+		e.Console.Frame.Reset().Header("Diff:\n").Flush()
 		fmt.Println(strategy.Diff(original, updated))
 
 		opt, err := e.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
@@ -105,7 +105,7 @@ func (e *EditSession) saveRecordChanges(strategy EditStrategy, original, updated
 }
 
 // NewEditSession creates a new editing session.
-func NewEditSession(c *ui.Console, e *TextEditor, r *db.SQLite, opts ...EditSessionOption) *EditSession {
+func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...EditSessionOption) *EditSession {
 	s := &EditSession{
 		Console: c,
 		Editor:  e,

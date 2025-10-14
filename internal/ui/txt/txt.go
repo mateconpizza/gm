@@ -132,9 +132,9 @@ func wrapParagraph(para string, maxLen int) []string {
 	var lines []string
 	var currentLine strings.Builder
 
-	words := strings.Fields(para) // Remove extra spaces within paragraph
+	words := strings.FieldsSeq(para) // Remove extra spaces within paragraph
 
-	for _, word := range words {
+	for word := range words {
 		// First word in line
 		if currentLine.Len() == 0 {
 			currentLine.WriteString(word)
@@ -359,7 +359,7 @@ func TagsWithUnicode(s string) string {
 // centering the label between dashes.
 //
 //	-------- label --------
-func CenteredLine(width int, label string) string {
+func CenteredLine(width int, label, char string) string {
 	const spaces = 2
 	if width < len(label)+spaces {
 		return label
@@ -369,7 +369,7 @@ func CenteredLine(width int, label string) string {
 	left := dashCount / 2
 	right := dashCount - left
 
-	return strings.Repeat("-", left) + " " + label + " " + strings.Repeat("-", right)
+	return strings.Repeat(char, left) + " " + label + " " + strings.Repeat(char, right)
 }
 
 // GenHash generates a hash from a string with the given length.

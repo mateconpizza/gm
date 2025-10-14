@@ -42,16 +42,16 @@ var (
 	}
 )
 
-func fromBackupFunc(command *cobra.Command, args []string) error {
-	app := config.New()
-	destRepo, err := db.New(app.DBPath)
+func fromBackupFunc(cmd *cobra.Command, args []string) error {
+	cfg := config.New()
+	destRepo, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer destRepo.Close()
 
 	dbName := files.StripSuffixes(destRepo.Name())
-	bks, err := files.List(app.Path.Backup, "*_"+dbName+".db*")
+	bks, err := files.List(cfg.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -63,7 +63,7 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(
-			terminal.WithContext(command.Context()),
+			terminal.WithContext(cmd.Context()),
 			terminal.WithInterruptFn(func(err error) {
 				destRepo.Close()
 				sys.ErrAndExit(err)
@@ -82,7 +82,7 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 	}
 	defer srcRepo.Close()
 
-	c.T.SetInterruptFn(func(err error) {
+	c.Term.SetInterruptFn(func(err error) {
 		destRepo.Close()
 		srcRepo.Close()
 		sys.ErrAndExit(err)
@@ -95,9 +95,9 @@ func fromBackupFunc(command *cobra.Command, args []string) error {
 	return nil
 }
 
-func fromDatabaseFunc(command *cobra.Command, _ []string) error {
-	app := config.New()
-	rDest, err := db.New(app.DBPath)
+func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
+	cfg := config.New()
+	rDest, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -117,7 +117,7 @@ func fromDatabaseFunc(command *cobra.Command, _ []string) error {
 	c := ui.NewConsole(
 		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
 		ui.WithTerminal(terminal.New(
-			terminal.WithContext(command.Context()),
+			terminal.WithContext(cmd.Context()),
 			terminal.WithInterruptFn(func(err error) {
 				rDest.Close()
 				rSrc.Close()

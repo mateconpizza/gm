@@ -243,13 +243,12 @@ func CloseAndClean(f *os.File) {
 
 // CreateTemp Creates a temporary file with the provided prefix.
 func CreateTemp(prefix, ext string) (*os.File, error) {
-	fileName := fmt.Sprintf("%s-*.%s", prefix, ext)
-	slog.Debug("creating temp file", "name", fileName)
-
-	tempFile, err := os.CreateTemp("", fileName)
+	tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.%s", prefix, ext))
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}
+
+	slog.Debug("created temp file", "name", tempFile.Name())
 
 	return tempFile, nil
 }

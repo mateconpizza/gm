@@ -212,20 +212,20 @@ func TagsJSON(p string) error {
 }
 
 // RepoInfo prints the database info.
-func RepoInfo(c *ui.Console, app *config.Config) error {
-	if err := locker.IsLocked(app.DBPath); err != nil {
-		fmt.Print(summary.RepoFromPath(c, app.DBPath+".enc", app.Path.Backup))
+func RepoInfo(c *ui.Console, cfg *config.Config) error {
+	if err := locker.IsLocked(cfg.DBPath); err != nil {
+		fmt.Print(summary.RepoFromPath(c, cfg.DBPath+".enc", cfg.Path.Backup))
 		return nil
 	}
 
-	store, err := db.New(app.DBPath)
+	store, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
 	defer store.Close()
 
 	// FIX: Implement ListBackups
-	if app.Flags.JSON {
+	if cfg.Flags.JSON {
 		b, err := port.ToJSON(store)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -241,9 +241,9 @@ func RepoInfo(c *ui.Console, app *config.Config) error {
 		return err
 	}
 
-	info := summary.Info(c, r, app.Path.Backup)
+	info := summary.Info(c, r, cfg.Path.Backup)
 
-	g, err := git.Info(c, app.DBPath, app.Git)
+	g, err := git.Info(c, cfg.DBPath, cfg.Git)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}
