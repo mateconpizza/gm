@@ -190,13 +190,29 @@ func ErrAndExit(err error) {
 }
 
 // WithSignalContext returns a context that is canceled when an interrupt or termination signal is received.
-// The returned stop function should always be deferred to release resources.
 func WithSignalContext(parent context.Context) (context.Context, context.CancelFunc) {
-	ctx, stop := signal.NotifyContext(
-		parent,
+	ctx, cancelCause := context.WithCancelCause(parent)
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals,
 		os.Interrupt,    // Ctrl+C (SIGINT)
 		syscall.SIGTERM, // Process termination
 		syscall.SIGHUP,  // Terminal closed
 	)
-	return ctx, stop
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			return // parent canceled
+		case s := <-signals:
+			slog.Debug("received signal", "signal", s)
+			fmt.Println()
+			cancelCause(fmt.Errorf("%w with signal %s", ErrActionAborted, s))
+		}
+	}()
+
+	return ctx, func() {
+		signal.Stop(signals)
+		cancelCause(nil) // normal cancel
+	}
 }
