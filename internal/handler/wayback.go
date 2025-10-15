@@ -35,9 +35,10 @@ func newResult(u, s, m string) SnapshotResult {
 	return SnapshotResult{URL: u, State: s, Msg: m}
 }
 
-func WaybackLatestSnapshot(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func WaybackLatestSnapshot(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+	// FIX: updateSpinnerWithDeadline
 	cfg := config.New()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	sem := semaphore.NewWeighted(1)
 	var (
 		count uint32
@@ -187,7 +188,7 @@ func formatTime(label, ts string) string {
 	return txt.PaddedLine(label, absolute+dimmer(relative))
 }
 
-func WaybackSnapshots(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func WaybackSnapshots(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	cfg := config.New()
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
 	m := waybackMenu()
@@ -196,7 +197,7 @@ func WaybackSnapshots(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) erro
 	for _, b := range bs {
 		sp.Start()
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		deadline, _ := ctx.Deadline()
 
 		u := txt.Shorten(b.URL, 60)
@@ -232,7 +233,7 @@ func WaybackSnapshots(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) erro
 			return sys.OpenInBrowser(snap.ArchiveURL)
 		}
 
-		ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
 		err = r.UpdateOne(ctx, b)
 		cancel()
 		if err != nil {

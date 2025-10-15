@@ -51,7 +51,7 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(menuForRecords(cfg), r, args, cfg.Flags)
+	bs, err := handler.Data(cmd.Context(), menuForRecords(cfg), r, args, cfg.Flags)
 	if err != nil {
 		return err
 	}
@@ -73,9 +73,9 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case f.Snapshot:
-		return handler.WaybackLatestSnapshot(c, r, bs)
+		return handler.WaybackLatestSnapshot(cmd.Context(), c, r, bs)
 	case f.Limit > 0:
-		return handler.WaybackSnapshots(c, r, bs)
+		return handler.WaybackSnapshots(cmd.Context(), c, r, bs)
 	}
 
 	return cmd.Help()

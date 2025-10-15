@@ -56,14 +56,14 @@ func Records(bs []*bookmark.Bookmark) error {
 }
 
 // TagsList lists the tags.
-func TagsList(p string) error {
+func TagsList(ctx context.Context, p string) error {
 	r, err := db.New(p)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer r.Close()
 
-	tags, err := db.TagsList(context.Background(), r)
+	tags, err := db.TagsList(ctx, r)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -126,7 +126,7 @@ func ByField(bs []*bookmark.Bookmark, f string) error {
 }
 
 // DatabasesTable shows a simple table in database information.
-func DatabasesTable(p string) error {
+func DatabasesTable(ctx context.Context, p string) error {
 	fs, err := files.FindByExtList(p, ".db", ".enc")
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -152,7 +152,7 @@ func DatabasesTable(p string) error {
 			continue
 		}
 
-		s, err := dbtask.NewRepoStats(fpath)
+		s, err := dbtask.NewRepoStats(ctx, fpath)
 		if err != nil {
 			return err
 		}
@@ -189,14 +189,14 @@ func RecordsJSON(bs []*bookmark.Bookmark) error {
 }
 
 // TagsJSON formats the tags counter in JSON.
-func TagsJSON(p string) error {
+func TagsJSON(ctx context.Context, p string) error {
 	r, err := db.New(p)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer r.Close()
 
-	tags, err := r.TagsCounter(context.Background())
+	tags, err := r.TagsCounter(ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -212,9 +212,9 @@ func TagsJSON(p string) error {
 }
 
 // RepoInfo prints the database info.
-func RepoInfo(c *ui.Console, cfg *config.Config) error {
+func RepoInfo(ctx context.Context, c *ui.Console, cfg *config.Config) error {
 	if err := locker.IsLocked(cfg.DBPath); err != nil {
-		fmt.Print(summary.RepoFromPath(c, cfg.DBPath+".enc", cfg.Path.Backup))
+		fmt.Print(summary.RepoFromPath(ctx, c, cfg.DBPath+".enc", cfg.Path.Backup))
 		return nil
 	}
 
@@ -241,7 +241,7 @@ func RepoInfo(c *ui.Console, cfg *config.Config) error {
 		return err
 	}
 
-	info := summary.Info(c, r, cfg.Path.Backup)
+	info := summary.Info(ctx, c, r, cfg.Path.Backup)
 
 	g, err := git.Info(c, cfg.DBPath, cfg.Git)
 	if err != nil {

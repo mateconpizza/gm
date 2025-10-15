@@ -15,7 +15,7 @@ type EditStrategy interface {
 	BuildBuffer(b *Record, idx, total int) ([]byte, error)
 
 	// Parses buffer back into a bookmark
-	ParseBuffer(buf []byte, original *Record, idx, total int) (*Record, error)
+	ParseBuffer(ctx context.Context, buf []byte, original *Record, idx, total int) (*Record, error)
 
 	// Compares old/new for diff display
 	Diff(oldB, newB *Record) string

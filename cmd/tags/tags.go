@@ -17,9 +17,9 @@ func NewCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case cfg.Flags.JSON:
-				return printer.TagsJSON(cfg.DBPath)
+				return printer.TagsJSON(cmd.Context(), cfg.DBPath)
 			case cfg.Flags.List:
-				return printer.TagsList(cfg.DBPath)
+				return printer.TagsList(cmd.Context(), cfg.DBPath)
 			}
 
 			return cmd.Usage()

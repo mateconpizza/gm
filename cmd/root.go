@@ -58,7 +58,7 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 
 	cobra.OnInitialize(func() {
 		cfg.Initialize()
-		initAppConfig(cfg)
+		initAppConfig(cmd.Context(), cfg)
 	})
 
 	// cmd settings
@@ -72,7 +72,7 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 	return cmd
 }
 
-func initAppConfig(cfg *config.Config) {
+func initAppConfig(ctx context.Context, cfg *config.Config) {
 	cfg.Flags.Color = cfg.Flags.ColorStr == "always" &&
 		!terminal.IsPiped() &&
 		!terminal.NoColorEnv()
@@ -94,7 +94,7 @@ func initAppConfig(cfg *config.Config) {
 	terminal.NonInteractiveMode(cfg.Flags.Yes)
 
 	// git config
-	git.SetConfig(cfg)
+	git.SetConfig(ctx, cfg)
 }
 
 // Setup registers all application commands with the CLI.

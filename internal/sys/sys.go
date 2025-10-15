@@ -108,8 +108,8 @@ func ExecCmdWithWriter(ctx context.Context, w io.Writer, s ...string) error {
 }
 
 // RunCmd returns an *exec.Cmd with the given arguments.
-func RunCmd(s string, arg ...string) error {
-	cmd := exec.CommandContext(context.Background(), s, arg...)
+func RunCmd(ctx context.Context, s string, arg ...string) error {
+	cmd := exec.CommandContext(ctx, s, arg...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -37,7 +37,7 @@ var (
 
 			c.Frame.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
 
-			return handler.RemoveBackups(c, config.New())
+			return handler.RemoveBackups(cmd.Context(), c, config.New())
 		},
 	}
 
@@ -66,7 +66,7 @@ var (
 			)
 
 			if cfg.Flags.Menu {
-				s, err := handler.SelectDatabase(cfg.Path.Data)
+				s, err := handler.SelectDatabase(cmd.Context(), cfg.Path.Data)
 				if err != nil {
 					return err
 				}
@@ -74,7 +74,7 @@ var (
 				cfg.DBPath = s
 			}
 
-			return handler.RemoveRepo(c, cfg)
+			return handler.RemoveRepo(cmd.Context(), c, cfg)
 		},
 		PostRunE: dbRemovePostFunc,
 	}

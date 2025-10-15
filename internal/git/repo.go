@@ -102,10 +102,10 @@ func (gr *Repository) UpdateOne(oldB, newB *bookmark.Bookmark) error {
 // Remove removes the bookmarks from the repo.
 func (gr *Repository) Remove(bs []*bookmark.Bookmark) error {
 	if gr.IsEncrypted() {
-		return cleanGPGRepo(gr.Loc.Path, bs)
+		return cleanGPGRepo(gr.Git.ctx, gr.Loc.Path, bs)
 	}
 
-	return cleanJSONRepo(gr.Loc.Path, bs)
+	return cleanJSONRepo(gr.Git.ctx, gr.Loc.Path, bs)
 }
 
 // Drop removes a repository's files, updates its summary, and commits the
@@ -116,13 +116,13 @@ func (gr *Repository) Drop(mesg string) error {
 
 // Commit commits the bookmarks to the git repo.
 func (gr *Repository) Commit(msg string) error {
-	return commitIfChanged(gr, msg)
+	return commitIfChanged(gr.Git.ctx, gr, msg)
 }
 
 // Stats returns the repo stats.
 func (gr *Repository) Stats() (*SyncGitSummary, error) {
 	sum := NewSummary()
-	if err := repoStats(gr.Loc.DBPath, sum); err != nil {
+	if err := repoStats(gr.Git.ctx, gr.Loc.DBPath, sum); err != nil {
 		return nil, err
 	}
 
@@ -136,13 +136,13 @@ func (gr *Repository) Summary() (*SyncGitSummary, error) {
 
 // SummaryUpdate returns a new SyncGitSummary.
 func (gr *Repository) SummaryUpdate(version string) (*SyncGitSummary, error) {
-	return summaryUpdate(gr, version)
+	return summaryUpdate(gr.Git.ctx, gr, version)
 }
 
 // RepoStatsWrite calculates, updates, and saves the repository's statistics to
 // its summary file.
 func (gr *Repository) RepoStatsWrite() error {
-	return writeRepoStats(gr)
+	return writeRepoStats(gr.Git.ctx, gr)
 }
 
 // Write exports the provided bookmarks to the repository's file, encrypting if
@@ -150,7 +150,7 @@ func (gr *Repository) RepoStatsWrite() error {
 func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
 	if gr.IsEncrypted() {
 		fingerprintPath := gpg.GPGIDPath(gr.Loc.Git)
-		return exportAsGPG(fingerprintPath, gr.Loc.Path, bs)
+		return exportAsGPG(gr.Git.ctx, fingerprintPath, gr.Loc.Path, bs)
 	}
 
 	return exportAsJSON(gr.Loc.Path, bs)
@@ -188,7 +188,7 @@ func (gr *Repository) IsTracked() bool {
 // Export exports the repository's bookmarks to Git, handling encryption if
 // configured.
 func (gr *Repository) Export() error {
-	bs, err := records(gr.Loc.DBPath)
+	bs, err := records(gr.Git.ctx, gr.Loc.DBPath)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (gr *Repository) Export() error {
 
 // Records retrieves all bookmarks from the repository's database.
 func (gr *Repository) Records() ([]*bookmark.Bookmark, error) {
-	return records(gr.Loc.DBPath)
+	return records(gr.Git.ctx, gr.Loc.DBPath)
 }
 
 // String returns the repo summary.
@@ -254,11 +254,11 @@ func (gr *Repository) Status(c *ui.Console) string {
 }
 
 // SetConfig sets the app git config.
-func SetConfig(c *config.Config) {
+func SetConfig(ctx context.Context, c *config.Config) {
 	c.Git.Path = filepath.Join(c.Path.Data, "git")
 	c.Git.Enabled = IsInitialized(c.Git.Path)
 	c.Git.GPG = gpg.IsInitialized(c.Git.Path)
-	remote, _ := Remote(context.Background(), c.Git.Path)
+	remote, _ := Remote(ctx, c.Git.Path)
 	c.Git.Remote = remote
 }
 

@@ -20,11 +20,18 @@ type EditSession struct {
 	Editor      *TextEditor
 	DB          *db.SQLite
 	postEdition postRunEditionFunc
+	ctx         context.Context
 }
 
 func WithPostEditionRun(fn postRunEditionFunc) EditSessionOption {
 	return func(s *EditSession) {
 		s.postEdition = fn
+	}
+}
+
+func WithContext(ctx context.Context) EditSessionOption {
+	return func(s *EditSession) {
+		s.ctx = ctx
 	}
 }
 
@@ -50,7 +57,7 @@ func (e *EditSession) processSingleRecord(original *Record, idx, total int, stra
 			return err
 		}
 
-		updated, err := strategy.ParseBuffer(editedBuf, currentRecord, idx, total)
+		updated, err := strategy.ParseBuffer(e.ctx, editedBuf, currentRecord, idx, total)
 		if errors.Is(err, ErrBufferUnchanged) {
 			return nil // Success: nothing changed, move to the next record.
 		}
@@ -85,12 +92,12 @@ func (e *EditSession) buildAndEdit(r *Record, idx, total int, s EditStrategy) ([
 	if err != nil {
 		return nil, err
 	}
-	return e.Editor.Bytes(buf, s.EditType())
+	return e.Editor.Bytes(e.ctx, buf, s.EditType())
 }
 
 // saveRecordChanges persists updated record to database.
 func (e *EditSession) saveRecordChanges(strategy EditStrategy, original, updated *Record) error {
-	if err := strategy.Save(context.Background(), e.DB, updated); err != nil {
+	if err := strategy.Save(e.ctx, e.DB, updated); err != nil {
 		return err
 	}
 
@@ -114,6 +121,10 @@ func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...EditSess
 
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	if s.ctx == nil {
+		s.ctx = context.Background()
 	}
 
 	return s

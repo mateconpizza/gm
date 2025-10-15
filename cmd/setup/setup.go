@@ -3,7 +3,6 @@
 package setup
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -64,8 +63,7 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
-	// if err := store.Init(context.Background()); err != nil {
-	if err := dbtask.Init(context.Background(), store); err != nil {
+	if err := dbtask.Init(cmd.Context(), store); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
@@ -90,7 +88,7 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if _, err := r.InsertOne(context.Background(), ib); err != nil {
+	if _, err := r.InsertOne(cmd.Context(), ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

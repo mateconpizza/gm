@@ -71,7 +71,7 @@ func fromBackupFunc(cmd *cobra.Command, args []string) error {
 		),
 	)
 
-	backupPath, err := handler.SelectBackupOne(c, bks)
+	backupPath, err := handler.SelectBackupOne(cmd.Context(), c, bks)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -88,7 +88,7 @@ func fromBackupFunc(cmd *cobra.Command, args []string) error {
 		sys.ErrAndExit(err)
 	})
 
-	if err := port.FromBackup(c, destRepo, srcRepo); err != nil {
+	if err := port.FromBackup(cmd.Context(), c, destRepo, srcRepo); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -104,7 +104,7 @@ func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
 	defer rDest.Close()
 
 	// FIX: refactor `SelectDatabase`, return a string (fullpath)
-	srcDB, err := handler.SelectDatabase(rDest.Cfg.Fullpath())
+	srcDB, err := handler.SelectDatabase(cmd.Context(), rDest.Cfg.Fullpath())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -126,7 +126,7 @@ func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
 		),
 	)
 
-	if err := port.Database(c, rSrc, rDest); err != nil {
+	if err := port.Database(cmd.Context(), c, rSrc, rDest); err != nil {
 		return fmt.Errorf("import from database: %w", err)
 	}
 

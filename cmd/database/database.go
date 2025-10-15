@@ -36,7 +36,7 @@ var (
 			switch {
 			case cfg.Flags.JSON:
 				c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-				return printer.RepoInfo(c, cfg)
+				return printer.RepoInfo(cmd.Context(), c, cfg)
 
 			case cfg.Flags.Vacuum:
 				slog.Debug("database:", "vacuum", cfg.DBName)
@@ -46,7 +46,7 @@ var (
 				}
 				defer r.Close()
 
-				return r.Vacuum(context.Background())
+				return r.Vacuum(cmd.Context())
 
 			case cfg.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
@@ -56,7 +56,7 @@ var (
 				}
 				defer r.Close()
 
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 				defer cancel()
 
 				return r.ReorderIDs(ctx)
@@ -66,7 +66,7 @@ var (
 			case cfg.Flags.Unlock:
 				return unlockCmd.RunE(cmd, args)
 			case cfg.Flags.List:
-				return printer.DatabasesTable(cfg.Path.Data)
+				return printer.DatabasesTable(cmd.Context(), cfg.Path.Data)
 			case cfg.Flags.Info:
 				return infoCmd.RunE(cmd, args)
 			}
@@ -99,8 +99,9 @@ var (
 		Use:     "info",
 		Short:   "Show information about a database",
 		Aliases: []string{"i", "show"},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return printer.RepoInfo(
+				cmd.Context(),
 				ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray)))),
 				config.New(),
 			)
@@ -176,7 +177,7 @@ func dbDropFunc(cmd *cobra.Command, _ []string) error {
 			}))),
 	)
 
-	return handler.DroppingDB(c, r, cfg.Path.Backup, cfg.Flags.Force)
+	return handler.DroppingDB(cmd.Context(), c, r, cfg.Path.Backup, cfg.Flags.Force)
 }
 
 func dbDropPostFunc(cmd *cobra.Command, _ []string) error {

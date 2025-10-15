@@ -1,7 +1,6 @@
 package io
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -76,7 +75,7 @@ var htmlCmd = &cobra.Command{
 		s := color.Text("Found %d bookmarks from %q\n").Italic().String()
 		c.Frame.Success(fmt.Sprintf(s, len(nbs), file.Name())).Flush()
 
-		deduplicated := port.Deduplicate(c, r, bs)
+		deduplicated := port.Deduplicate(cmd.Context(), c, r, bs)
 		n := len(deduplicated)
 		if n == 0 {
 			return bookmark.ErrBookmarkNotFound
@@ -108,7 +107,7 @@ var htmlCmd = &cobra.Command{
 			fmt.Println("importing items")
 		}
 
-		if err := r.InsertMany(context.Background(), deduplicated); err != nil {
+		if err := r.InsertMany(cmd.Context(), deduplicated); err != nil {
 			return err
 		}
 		fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d bookmarks", n)))

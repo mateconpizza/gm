@@ -83,7 +83,7 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 	c.Frame.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
 
 	b := bookmark.New()
-	if err := handler.NewBookmark(c, r, b, cfg.Flags.Title, cfg.Flags.TagsStr, args); err != nil {
+	if err := handler.NewBookmark(cmd.Context(), c, r, b, cfg.Flags.Title, cfg.Flags.TagsStr, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -91,7 +91,7 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	if err := handler.SaveNewBookmark(c, r, b, cfg); err != nil {
+	if err := handler.SaveNewBookmark(cmd.Context(), c, r, b, cfg); err != nil {
 		return err
 	}
 

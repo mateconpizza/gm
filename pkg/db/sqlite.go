@@ -162,7 +162,8 @@ func OpenDatabase(path string, cfg *Cfg) (*sqlx.DB, error) {
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.MaxLifetimeConn)
 
-	if err := db.PingContext(context.Background()); err != nil {
+	// FIX: Change func signature to receive a context.
+	if err := db.PingContext(context.TODO()); err != nil {
 		return nil, fmt.Errorf("%w: on ping context", err)
 	}
 

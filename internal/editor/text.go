@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -28,7 +29,7 @@ type TextEditor struct {
 }
 
 // Bytes edits a byte slice with a text editor.
-func (te *TextEditor) Bytes(content []byte, extension string) ([]byte, error) {
+func (te *TextEditor) Bytes(ctx context.Context, content []byte, extension string) ([]byte, error) {
 	if te.cmd == "" {
 		return nil, ErrCommandNotFound
 	}
@@ -41,7 +42,7 @@ func (te *TextEditor) Bytes(content []byte, extension string) ([]byte, error) {
 
 	slog.Debug("editing file", "name", f.Name(), "editor", te.name)
 
-	if err := sys.RunCmd(te.cmd, append(te.args, f.Name())...); err != nil {
+	if err := sys.RunCmd(ctx, te.cmd, append(te.args, f.Name())...); err != nil {
 		return nil, fmt.Errorf("error running editor: %w", err)
 	}
 
@@ -54,7 +55,7 @@ func (te *TextEditor) Bytes(content []byte, extension string) ([]byte, error) {
 }
 
 // EditFile edits a file with a text editor.
-func (te *TextEditor) EditFile(p string) error {
+func (te *TextEditor) EditFile(ctx context.Context, p string) error {
 	if te.cmd == "" {
 		return ErrCommandNotFound
 	}
@@ -63,7 +64,7 @@ func (te *TextEditor) EditFile(p string) error {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, p)
 	}
 
-	if err := sys.RunCmd(te.cmd, append(te.args, p)...); err != nil {
+	if err := sys.RunCmd(ctx, te.cmd, append(te.args, p)...); err != nil {
 		return fmt.Errorf("error running editor: %w", err)
 	}
 

@@ -15,7 +15,7 @@ func (JSONStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (JSONStrategy) ParseBuffer(buf []byte, original *Record, idx, total int) (*Record, error) {
+func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *Record, idx, total int) (*Record, error) {
 	old := bytes.TrimRight(original.Bytes(), "\n")
 	newB := bytes.TrimRight(buf, "\n")
 

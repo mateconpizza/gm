@@ -30,7 +30,7 @@ var (
 )
 
 // RemoveRepo removes a repo.
-func RemoveRepo(c *ui.Console, cfg *config.Config) error {
+func RemoveRepo(ctx context.Context, c *ui.Console, cfg *config.Config) error {
 	if !files.Exists(cfg.DBPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, cfg.DBPath)
 	}
@@ -39,14 +39,14 @@ func RemoveRepo(c *ui.Console, cfg *config.Config) error {
 		return fmt.Errorf("%w: main database cannot be removed, use --force", sys.ErrActionAborted)
 	}
 
-	fmt.Print(summary.RepoFromPath(c, cfg.DBPath, cfg.Path.Backup))
+	fmt.Print(summary.RepoFromPath(ctx, c, cfg.DBPath, cfg.Path.Backup))
 	if !cfg.Flags.Force {
 		if err := c.ConfirmErr(credB("remove")+" "+filepath.Base(cfg.DBPath)+"?", "n"); err != nil {
 			return err
 		}
 	}
 
-	if err := RemoveBackups(c, cfg); err != nil {
+	if err := RemoveBackups(ctx, c, cfg); err != nil {
 		if !errors.Is(err, db.ErrBackupNotFound) {
 			return fmt.Errorf("%w", err)
 		}
@@ -67,7 +67,7 @@ func RemoveRepo(c *ui.Console, cfg *config.Config) error {
 }
 
 // RemoveBackups removes backups.
-func RemoveBackups(c *ui.Console, cfg *config.Config) error {
+func RemoveBackups(ctx context.Context, c *ui.Console, cfg *config.Config) error {
 	p := cfg.DBPath
 	dbName := files.StripSuffixes(filepath.Base(p))
 	fs, err := files.List(cfg.Path.Backup, "*_"+dbName+".db*")
@@ -83,7 +83,7 @@ func RemoveBackups(c *ui.Console, cfg *config.Config) error {
 
 	if cfg.Flags.Force {
 		filesToRemove.Append(fs...)
-		return removeSlicePath(c, filesToRemove, cfg.Flags.Force)
+		return removeSlicePath(ctx, c, filesToRemove, cfg.Flags.Force)
 	}
 
 actionLoop:
@@ -105,7 +105,7 @@ actionLoop:
 			c.SetWriter(os.Stdout)
 
 			selected, err := selection(fs,
-				func(p *string) string { return summary.BackupWithFmtDateFromPath(*p) },
+				func(p *string) string { return summary.BackupWithFmtDateFromPath(ctx, *p) },
 				menu.WithArgs("--cycle"),
 				menu.WithSettings(config.Fzf.Settings),
 				menu.WithMultiSelection(),
@@ -126,11 +126,11 @@ actionLoop:
 		}
 	}
 
-	return removeSlicePath(c, filesToRemove, cfg.Flags.Force)
+	return removeSlicePath(ctx, c, filesToRemove, cfg.Flags.Force)
 }
 
 // removeSlicePath removes a slice of paths.
-func removeSlicePath(c *ui.Console, dbs *slice.Slice[string], force bool) error {
+func removeSlicePath(ctx context.Context, c *ui.Console, dbs *slice.Slice[string], force bool) error {
 	n := dbs.Len()
 	if n == 0 {
 		return slice.ErrSliceEmpty
@@ -138,7 +138,7 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string], force bool) error 
 
 	if n > 1 && !force {
 		dbs.ForEach(func(r string) {
-			c.Frame.Midln(summary.RepoRecordsFromPath(r))
+			c.Frame.Midln(summary.RepoRecordsFromPath(ctx, r))
 		})
 
 		c.Frame.Flush()
@@ -175,14 +175,14 @@ func removeSlicePath(c *ui.Console, dbs *slice.Slice[string], force bool) error 
 }
 
 // Remove prompts the user the records to remove.
-func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark, cfg *config.Config) error {
+func Remove(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark, cfg *config.Config) error {
 	defer r.Close()
 	if err := validateRemove(bs, cfg.Flags.Force); err != nil {
 		return err
 	}
 
 	if cfg.Flags.Force {
-		return removeRecords(c, r, cfg, bs)
+		return removeRecords(ctx, c, r, cfg, bs)
 	}
 
 	f := frame.New(frame.WithColorBorder(color.Gray))
@@ -205,13 +205,13 @@ func Remove(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark, cfg *config.Co
 		return err
 	}
 
-	return removeRecords(c, r, cfg, bs)
+	return removeRecords(ctx, c, r, cfg, bs)
 }
 
 // DroppingDB drops a database.
-func DroppingDB(c *ui.Console, r *db.SQLite, backupPath string, force bool) error {
+func DroppingDB(ctx context.Context, c *ui.Console, r *db.SQLite, backupPath string, force bool) error {
 	c.Frame.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
-	fmt.Print(summary.Info(c, r, backupPath))
+	fmt.Print(summary.Info(ctx, c, r, backupPath))
 
 	c.Frame.Reset().Rowln().Flush()
 
@@ -226,7 +226,7 @@ func DroppingDB(c *ui.Console, r *db.SQLite, backupPath string, force bool) erro
 		}
 	}
 
-	if err := r.DropSecure(context.Background()); err != nil {
+	if err := r.DropSecure(ctx); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

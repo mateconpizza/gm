@@ -26,11 +26,18 @@ type RepositoryReaderOptFn func(*RepositoryReaderOpts)
 
 type RepositoryReaderOpts struct {
 	spinner *rotato.Rotato
+	ctx     context.Context
 }
 
-func WithSpinner(sp *rotato.Rotato) RepositoryReaderOptFn {
+func WithRepositoryReaderSpinner(sp *rotato.Rotato) RepositoryReaderOptFn {
 	return func(o *RepositoryReaderOpts) {
 		o.spinner = sp
+	}
+}
+
+func WithRepositoryReaderContext(ctx context.Context) RepositoryReaderOptFn {
+	return func(o *RepositoryReaderOpts) {
+		o.ctx = ctx
 	}
 }
 
@@ -40,13 +47,17 @@ func (r *RepositoryReader) Read() ([]*bookmark.Bookmark, error) {
 		loader = readGPGRepo
 	}
 
-	return loader(r.Path, r.spinner)
+	return loader(r.ctx, r.Path, r.spinner)
 }
 
 func NewReader(repoPath string, opts ...RepositoryReaderOptFn) *RepositoryReader {
 	opt := RepositoryReaderOpts{}
 	for _, fn := range opts {
 		fn(&opt)
+	}
+
+	if opt.ctx == nil {
+		opt.ctx = context.Background()
 	}
 
 	return &RepositoryReader{
@@ -86,8 +97,13 @@ func gpgLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 
 // ReadRepo is the unified function that uses the Strategy Pattern.
 // It accepts a specific RepositoryLoader to delegate file loading and filtering.
-func ReadRepo(root string, st *bookio.RepositoryLoader, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func ReadRepo(
+	ctx context.Context,
+	root string,
+	st *bookio.RepositoryLoader,
+	sp *rotato.Rotato,
+) ([]*bookmark.Bookmark, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	f := bookio.NewFileLoader(ctx)
@@ -134,19 +150,19 @@ func ReadRepo(root string, st *bookio.RepositoryLoader, sp *rotato.Rotato) ([]*b
 	return f.Results()
 }
 
-func readJSONRepo(root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
-	return ReadRepo(root, bookio.JSONStrategy, sp)
+func readJSONRepo(ctx context.Context, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
+	return ReadRepo(ctx, root, bookio.JSONStrategy, sp)
 }
 
-func readGPGRepo(root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
-	return ReadRepo(root, GPGStrategy, sp)
+func readGPGRepo(ctx context.Context, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
+	return ReadRepo(ctx, root, GPGStrategy, sp)
 }
 
-func readBookmarks(root, repoPath string) ([]*bookmark.Bookmark, error) {
+func readBookmarks(ctx context.Context, root, repoPath string) ([]*bookmark.Bookmark, error) {
 	loader := readJSONRepo
 	if gpg.IsInitialized(root) {
 		loader = readGPGRepo
 	}
 
-	return loader(repoPath, nil)
+	return loader(ctx, repoPath, nil)
 }

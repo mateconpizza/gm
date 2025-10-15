@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -155,7 +154,7 @@ func HookGitSync(c *cobra.Command, args []string) error {
 	}
 	defer r.Close()
 
-	bs, err := r.All(context.Background())
+	bs, err := r.All(c.Context())
 	if err != nil {
 		return err
 	}

@@ -55,7 +55,7 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(menuForRecords(cfg), r, args, cfg.Flags)
+	bs, err := handler.Data(cmd.Context(), menuForRecords(cfg), r, args, cfg.Flags)
 	if err != nil {
 		return err
 	}
@@ -71,12 +71,12 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 	f := cfg.Flags
 	switch {
 	case f.Status: // FIX: remove
-		return handler.CheckStatus(c, r, bs)
+		return handler.CheckStatus(cmd.Context(), c, r, bs)
 	case f.Update:
-		return handler.Update(c, r, cfg, bs)
+		return handler.Update(cmd.Context(), c, r, cfg, bs)
 	}
 
-	return handler.CheckStatus(c, r, bs)
+	return handler.CheckStatus(cmd.Context(), c, r, bs)
 }
 
 func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {

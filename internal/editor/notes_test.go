@@ -79,7 +79,7 @@ func testParseBufferUnchanged(t *testing.T) {
 	s := NotesStrategy{}
 	buf := []byte("# Notes\nabc")
 
-	_, err := s.ParseBuffer(buf, orig, 0, 1)
+	_, err := s.ParseBuffer(t.Context(), buf, orig, 0, 1)
 	if !errors.Is(err, ErrBufferUnchanged) {
 		t.Errorf("expected ErrBufferUnchanged, got %v", err)
 	}
@@ -91,7 +91,7 @@ func testParseBufferChanged(t *testing.T) {
 	s := NotesStrategy{}
 	buf := []byte("# Notes\nxyz")
 
-	rec, err := s.ParseBuffer(buf, orig, 0, 1)
+	rec, err := s.ParseBuffer(t.Context(), buf, orig, 0, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -28,19 +28,20 @@ var (
 
 // Data retrieves and filters bookmarks based on configuration and arguments.
 func Data(
+	ctx context.Context,
 	m *menu.Menu[bookmark.Bookmark],
 	r *db.SQLite,
 	args []string,
 	f *config.Flags,
 ) ([]*bookmark.Bookmark, error) {
 	// Get initial records
-	bs, err := getRecords(r, args)
+	bs, err := getRecords(ctx, r, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records: %w", err)
 	}
 
 	// Apply filters
-	bs, err = applyFilters(r, bs, f)
+	bs, err = applyFilters(ctx, r, bs, f)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply filters: %w", err)
 	}
@@ -61,11 +62,11 @@ func Data(
 }
 
 // getRecords retrieves records based on user input and filtering criteria.
-func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
+func getRecords(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("getRecords", "args", args)
 
 	// Try to get by IDs first
-	if bs, err := getByIDs(r, args); err != nil {
+	if bs, err := getByIDs(ctx, r, args); err != nil {
 		if !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 			return nil, err
 		}
@@ -75,7 +76,7 @@ func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	}
 
 	// Try to get by query
-	if bs, err := getByQuery(r, args); err != nil {
+	if bs, err := getByQuery(ctx, r, args); err != nil {
 		return nil, err
 	} else if len(bs) > 0 {
 		return bs, nil
@@ -83,7 +84,7 @@ func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 
 	// If no args provided or nothing found, get all records
 	if len(args) == 0 {
-		return r.All(context.Background())
+		return r.All(ctx)
 	}
 
 	// No results found
@@ -91,7 +92,7 @@ func getRecords(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // getByIDs retrieves records from the database based on IDs.
-func getByIDs(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
+func getByIDs(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("getting by IDs")
 
 	ids, err := extractIDsFrom(args)
@@ -103,7 +104,7 @@ func getByIDs(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
 
-	bs, err := r.ByIDList(context.Background(), ids)
+	bs, err := r.ByIDList(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
@@ -117,13 +118,13 @@ func getByIDs(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // getByQuery executes a search query on the given repository.
-func getByQuery(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
+func getByQuery(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 	if len(args) == 0 {
 		return []*bookmark.Bookmark{}, nil
 	}
 
 	q := strings.Join(args, "%")
-	bs, err := r.ByQuery(context.Background(), q)
+	bs, err := r.ByQuery(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("query failed for %q: %w", strings.Join(args, " "), err)
 	}
@@ -132,12 +133,17 @@ func getByQuery(r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // applyFilters applies tag and head/tail filters to the bookmark list.
-func applyFilters(r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) ([]*bookmark.Bookmark, error) {
+func applyFilters(
+	ctx context.Context,
+	r *db.SQLite,
+	bs []*bookmark.Bookmark,
+	f *config.Flags,
+) ([]*bookmark.Bookmark, error) {
 	var err error
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
-		bs, err = filterByTags(r, f.Tags, bs)
+		bs, err = filterByTags(ctx, r, f.Tags, bs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to filter by tags: %w", err)
 		}
@@ -160,7 +166,12 @@ func applyFilters(r *db.SQLite, bs []*bookmark.Bookmark, f *config.Flags) ([]*bo
 }
 
 // filterByTags returns a slice of bookmarks that contain ALL of the provided tags.
-func filterByTags(r *db.SQLite, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func filterByTags(
+	ctx context.Context,
+	r *db.SQLite,
+	tags []string,
+	bs []*bookmark.Bookmark,
+) ([]*bookmark.Bookmark, error) {
 	n := len(bs)
 	slog.Debug("by tags", "tags", tags, "count", n)
 
@@ -188,7 +199,7 @@ func filterByTags(r *db.SQLite, tags []string, bs []*bookmark.Bookmark) ([]*book
 		return []*bookmark.Bookmark{}, nil
 	}
 
-	candidates, err := r.ByTag(context.Background(), firstTag)
+	candidates, err := r.ByTag(ctx, firstTag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bookmarks by tag %q: %w", firstTag, err)
 	}
@@ -371,7 +382,13 @@ func applyMenuSelection(
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
+func removeRecords(
+	ctx context.Context,
+	c *ui.Console,
+	r *db.SQLite,
+	cfg *config.Config,
+	bs []*bookmark.Bookmark,
+) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -379,7 +396,7 @@ func removeRecords(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookma
 	sp.Start()
 	defer sp.Done()
 
-	if err := r.DeleteMany(context.Background(), bs); err != nil {
+	if err := r.DeleteMany(ctx, bs); err != nil {
 		return err
 	}
 

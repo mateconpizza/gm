@@ -37,7 +37,7 @@ func (NotesStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
 	return buf.Buffer(), nil
 }
 
-func (NotesStrategy) ParseBuffer(buf []byte, original *Record, idx, total int) (*Record, error) {
+func (NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, original *Record, idx, total int) (*Record, error) {
 	editedNotes := txt.ExtractBlockBytes(buf, "# Notes", "")
 	if bytes.Equal([]byte(original.Notes), editedNotes) {
 		return nil, ErrBufferUnchanged

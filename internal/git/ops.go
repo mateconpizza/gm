@@ -89,7 +89,7 @@ func resolveFileConflictErr(
 }
 
 // writeRepoStats updates the repo stats.
-func writeRepoStats(gr *Repository) error {
+func writeRepoStats(ctx context.Context, gr *Repository) error {
 	var (
 		summary     *SyncGitSummary
 		summaryPath = filepath.Join(gr.Loc.Path, SummaryFileName)
@@ -99,7 +99,7 @@ func writeRepoStats(gr *Repository) error {
 		slog.Debug("creating new summary", "db", gr.Loc.DBPath)
 		// Create new summary with only RepoStats
 		summary = NewSummary()
-		if err := repoStats(gr.Loc.DBPath, summary); err != nil {
+		if err := repoStats(ctx, gr.Loc.DBPath, summary); err != nil {
 			return fmt.Errorf("creating repo stats: %w", err)
 		}
 	} else {
@@ -110,7 +110,7 @@ func writeRepoStats(gr *Repository) error {
 			return fmt.Errorf("reading summary: %w", err)
 		}
 		// Update only RepoStats
-		if err := repoStats(gr.Loc.DBPath, summary); err != nil {
+		if err := repoStats(ctx, gr.Loc.DBPath, summary); err != nil {
 			return fmt.Errorf("updating repo stats: %w", err)
 		}
 	}
@@ -124,14 +124,13 @@ func writeRepoStats(gr *Repository) error {
 }
 
 // repoStats returns a new RepoStats.
-func repoStats(dbPath string, summary *SyncGitSummary) error {
+func repoStats(ctx context.Context, dbPath string, summary *SyncGitSummary) error {
 	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
 	defer r.Close()
 
-	ctx := context.Background()
 	summary.RepoStats = &dbtask.RepoStats{
 		Name:      r.Name(),
 		Bookmarks: r.Count(ctx, "bookmarks"),
@@ -145,8 +144,8 @@ func repoStats(dbPath string, summary *SyncGitSummary) error {
 }
 
 // commitIfChanged commits the bookmarks to the git repo if there are changes.
-func commitIfChanged(gr *Repository, actionMsg string) error {
-	err := writeRepoStats(gr)
+func commitIfChanged(ctx context.Context, gr *Repository, actionMsg string) error {
+	err := writeRepoStats(ctx, gr)
 	if err != nil {
 		return err
 	}
@@ -180,13 +179,13 @@ func commitIfChanged(gr *Repository, actionMsg string) error {
 }
 
 // records gets all records from the database.
-func records(dbPath string) ([]*bookmark.Bookmark, error) {
+func records(ctx context.Context, dbPath string) ([]*bookmark.Bookmark, error) {
 	r, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
 
-	bs, err := r.All(context.Background())
+	bs, err := r.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting bookmarks: %w", err)
 	}
@@ -195,7 +194,7 @@ func records(dbPath string) ([]*bookmark.Bookmark, error) {
 }
 
 // parseGitRepo loads a git repo into a database.
-func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error) {
+func parseGitRepo(ctx context.Context, c *ui.Console, root, repoName, pathData string) (string, error) {
 	c.Frame.Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
 	repoPath := filepath.Join(root, repoName)
 
@@ -251,7 +250,7 @@ func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error
 		gr.Git.SetRepoPath(repoPath)
 	}
 
-	resultPath, err := parseGitRepoOpt(c, opt, gr)
+	resultPath, err := parseGitRepoOpt(ctx, c, opt, gr)
 	if err != nil {
 		return "", err
 	}
@@ -260,18 +259,18 @@ func parseGitRepo(c *ui.Console, root, repoName, pathData string) (string, error
 }
 
 // parseGitRepoOpt handles the options for parseGitRepository.
-func parseGitRepoOpt(c *ui.Console, opt string, gr *Repository) (string, error) {
+func parseGitRepoOpt(ctx context.Context, c *ui.Console, opt string, gr *Repository) (string, error) {
 	switch strings.ToLower(opt) {
 	case "new":
-		return handleOptNew(c, gr)
+		return handleOptNew(ctx, c, gr)
 	case "c", "create":
-		return handleOptCreate(c, gr)
+		return handleOptCreate(ctx, c, gr)
 	case "d", "drop":
-		return handleOptDrop(c, gr)
+		return handleOptDrop(ctx, c, gr)
 	case "m", "merge":
-		return handleOptMerge(c, gr)
+		return handleOptMerge(ctx, c, gr)
 	case "s", "select":
-		return handleOptSelect(c, gr)
+		return handleOptSelect(ctx, c, gr)
 	case "i", "ignore":
 		return handleOptIgnore(c, gr)
 	default:
@@ -384,8 +383,8 @@ func dropRepo(gr *Repository, mesg string) error {
 }
 
 // selectAndInsert prompts the user to select records to import.
-func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
-	bookmarks, err := readBookmarks(filepath.Dir(dbPath), repoPath)
+func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string) error {
+	bookmarks, err := readBookmarks(ctx, filepath.Dir(dbPath), repoPath)
 	if err != nil {
 		return err
 	}
@@ -424,8 +423,8 @@ func selectAndInsert(c *ui.Console, dbPath, repoPath string) error {
 		bs = append(bs, &selected[i])
 	}
 
-	debookmarks := port.Deduplicate(c, r, bs)
-	if err := r.InsertMany(context.Background(), debookmarks); err != nil {
+	debookmarks := port.Deduplicate(ctx, c, r, bs)
+	if err := r.InsertMany(ctx, debookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -526,14 +525,14 @@ func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 	return c.Frame.StringReset(), nil
 }
 
-func handleOptNew(c *ui.Console, gr *Repository) (string, error) {
-	if err := intoDBFromGit(c, gr); err != nil {
+func handleOptNew(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
+	if err := intoDBFromGit(ctx, c, gr); err != nil {
 		return "", err
 	}
 	return gr.Loc.DBPath, nil
 }
 
-func handleOptCreate(c *ui.Console, gr *Repository) (string, error) {
+func handleOptCreate(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
 	var dbName string
 	for dbName == "" {
 		dbName = files.EnsureSuffix(c.Prompt("Enter new name: "), ".db")
@@ -555,31 +554,31 @@ func handleOptCreate(c *ui.Console, gr *Repository) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := r.Init(context.Background()); err != nil {
+	if err := r.Init(ctx); err != nil {
 		return "", fmt.Errorf("initializing database: %w", err)
 	}
 
-	return parseGitRepoOpt(c, opt, newGr)
+	return parseGitRepoOpt(ctx, c, opt, newGr)
 }
 
-func handleOptDrop(c *ui.Console, gr *Repository) (string, error) {
+func handleOptDrop(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
 	c.Warning("Dropping database\n").Flush()
-	if err := dbtask.DropFromPath(gr.Loc.DBPath); err != nil {
+	if err := dbtask.DropFromPath(ctx, gr.Loc.DBPath); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-	return handleOptMerge(c, gr)
+	return handleOptMerge(ctx, c, gr)
 }
 
-func handleOptMerge(c *ui.Console, gr *Repository) (string, error) {
+func handleOptMerge(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
 	c.Info("Merging database\n").Flush()
-	if err := mergeAndInsert(c, gr); err != nil {
+	if err := mergeAndInsert(ctx, c, gr); err != nil {
 		return "", err
 	}
 	return gr.Loc.DBPath, nil
 }
 
-func handleOptSelect(c *ui.Console, gr *Repository) (string, error) {
-	if err := selectAndInsert(c, gr.Loc.DBPath, gr.Git.RepoPath); err != nil {
+func handleOptSelect(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
+	if err := selectAndInsert(ctx, c, gr.Loc.DBPath, gr.Git.RepoPath); err != nil {
 		if errors.Is(err, menu.ErrFzfActionAborted) {
 			return "", nil
 		}
@@ -595,8 +594,8 @@ func handleOptIgnore(c *ui.Console, gr *Repository) (string, error) {
 }
 
 // intoDBFromGit loads a git repo into a database.
-func intoDBFromGit(c *ui.Console, gr *Repository) error {
-	bookmarks, err := readBookmarks(gr.Loc.Git, gr.Git.RepoPath)
+func intoDBFromGit(ctx context.Context, c *ui.Console, gr *Repository) error {
+	bookmarks, err := readBookmarks(ctx, gr.Loc.Git, gr.Git.RepoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
@@ -606,7 +605,7 @@ func intoDBFromGit(c *ui.Console, gr *Repository) error {
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
-	if err := store.Init(context.Background()); err != nil {
+	if err := store.Init(ctx); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
@@ -614,7 +613,7 @@ func intoDBFromGit(c *ui.Console, gr *Repository) error {
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
-	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
+	if err := r.InsertMany(ctx, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -624,20 +623,20 @@ func intoDBFromGit(c *ui.Console, gr *Repository) error {
 }
 
 // mergeAndInsert merges non-duplicates records into database.
-func mergeAndInsert(c *ui.Console, gr *Repository) error {
+func mergeAndInsert(ctx context.Context, c *ui.Console, gr *Repository) error {
 	r, err := db.New(gr.Loc.DBPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
 	defer r.Close()
 
-	bookmarks, err := readBookmarks(gr.Loc.Git, gr.Git.RepoPath)
+	bookmarks, err := readBookmarks(ctx, gr.Loc.Git, gr.Git.RepoPath)
 	if err != nil {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
 
-	bookmarks = port.Deduplicate(c, r, bookmarks)
-	if err := r.InsertMany(context.Background(), bookmarks); err != nil {
+	bookmarks = port.Deduplicate(ctx, c, r, bookmarks)
+	if err := r.InsertMany(ctx, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

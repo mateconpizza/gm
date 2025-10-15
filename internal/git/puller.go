@@ -16,6 +16,12 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
+type RepoProcessorOption func(*RepoProcessorOptions)
+
+type RepoProcessorOptions struct {
+	ctx context.Context
+}
+
 // RepoProcessor handles the processing of a single repository.
 type RepoProcessor struct {
 	Console  *ui.Console
@@ -23,6 +29,13 @@ type RepoProcessor struct {
 	DestPath string
 	Repos    []string
 	result   *PullResult
+	*RepoProcessorOptions
+}
+
+func WithRPContext(ctx context.Context) RepoProcessorOption {
+	return func(o *RepoProcessorOptions) {
+		o.ctx = ctx
+	}
 }
 
 // PullResult tracks the results of a pull operation.
@@ -65,7 +78,7 @@ func (rp *RepoProcessor) processRepository(repoName string) (int, error) {
 	rp.displaySummary(sum)
 
 	// Read bookmarks from git
-	bookmarks, err := readBookmarks(rp.Root, repoPath)
+	bookmarks, err := readBookmarks(rp.ctx, rp.Root, repoPath)
 	if err != nil {
 		return 0, err
 	}
@@ -108,20 +121,19 @@ func (rp *RepoProcessor) insertBookmarks(repoName string, bookmarks []*bookmark.
 	defer r.Close()
 
 	// Initialize database if needed
-	ctx := context.Background()
-	if err := dbtask.Init(ctx, r); err != nil {
+	if err := dbtask.Init(rp.ctx, r); err != nil {
 		return 0, fmt.Errorf("initializing database: %w", err)
 	}
 
 	// Deduplicate and insert
-	deduped := port.Deduplicate(rp.Console, r, bookmarks)
+	deduped := port.Deduplicate(rp.ctx, rp.Console, r, bookmarks)
 	if len(deduped) == 0 {
 		rp.result.TotalSkipped += len(bookmarks)
 		return 0, nil
 	}
 
 	rp.result.TotalSkipped += len(bookmarks) - len(deduped)
-	if err := r.InsertMany(ctx, deduped); err != nil {
+	if err := r.InsertMany(rp.ctx, deduped); err != nil {
 		return 0, err
 	}
 
@@ -195,11 +207,21 @@ func (rp *RepoProcessor) Pull() error {
 	return nil
 }
 
-func NewRepoProcessor(c *ui.Console, g *Manager, a *config.Config) *RepoProcessor {
+func NewRepoProcessor(c *ui.Console, g *Manager, a *config.Config, opts ...RepoProcessorOption) *RepoProcessor {
+	o := &RepoProcessorOptions{}
+	for _, fn := range opts {
+		fn(o)
+	}
+
+	if o.ctx == nil {
+		o.ctx = context.Background()
+	}
+
 	return &RepoProcessor{
-		Console:  c,
-		Root:     g.RepoPath,
-		DestPath: a.Path.Data,
-		result:   &PullResult{},
+		Console:              c,
+		Root:                 g.RepoPath,
+		DestPath:             a.Path.Data,
+		result:               &PullResult{},
+		RepoProcessorOptions: o,
 	}
 }

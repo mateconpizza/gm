@@ -64,7 +64,7 @@ var (
 // backupLockFunc lock backups.
 func backupLockFunc(cmd *cobra.Command, _ []string) error {
 	cfg := config.New()
-	fs, err := handler.SelectBackupMany(cfg.Path.Backup, "select backup/s to lock")
+	fs, err := handler.SelectBackupMany(cmd.Context(), cfg.Path.Backup, "select backup/s to lock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -104,7 +104,7 @@ func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", db.ErrBackupNotFound)
 	}
 
-	repos, err := handler.SelectFileLocked(p, "select backup to unlock")
+	repos, err := handler.SelectFileLocked(cmd.Context(), p, "select backup to unlock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -147,7 +147,7 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	fmt.Print(summary.Info(c, r, cfg.Path.Backup))
+	fmt.Print(summary.Info(cmd.Context(), c, r, cfg.Path.Backup))
 
 	c.Frame.Reset().Row("\n").Flush()
 
@@ -162,7 +162,7 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	newBkPath, err := dbtask.Backup(r.Cfg.Fullpath(), cfg.Path.Backup)
+	newBkPath, err := dbtask.Backup(cmd.Context(), r.Cfg.Fullpath(), cfg.Path.Backup)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

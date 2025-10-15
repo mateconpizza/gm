@@ -26,7 +26,7 @@ import (
 
 // Import clones a Git repository, parses its bookmark files, and imports them
 // into the application.
-func Import(c *ui.Console, gm *Manager, cfg *config.Config) ([]string, error) {
+func Import(ctx context.Context, c *ui.Console, gm *Manager, cfg *config.Config) ([]string, error) {
 	urlRepo := cfg.Flags.Path
 	if err := gm.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
@@ -45,7 +45,7 @@ func Import(c *ui.Console, gm *Manager, cfg *config.Config) ([]string, error) {
 
 	var imported []string
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepo(c, gm.RepoPath, repoName, cfg.Path.Data)
+		dbPath, err := parseGitRepo(ctx, c, gm.RepoPath, repoName, cfg.Path.Data)
 		if err != nil {
 			if errors.Is(err, sys.ErrActionAborted) {
 				n--
@@ -77,7 +77,7 @@ func Import(c *ui.Console, gm *Manager, cfg *config.Config) ([]string, error) {
 // repo.
 //
 //nolint:funlen //ignore
-func exportAsGPG(fingerprintPath, root string, bs []*bookmark.Bookmark) (bool, error) {
+func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookmark.Bookmark) (bool, error) {
 	if err := files.MkdirAll(root); err != nil {
 		return false, fmt.Errorf("%w", err)
 	}
@@ -95,7 +95,7 @@ func exportAsGPG(fingerprintPath, root string, bs []*bookmark.Bookmark) (bool, e
 	var count uint32
 	n := len(bs)
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
 	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
 
 	for i := range bs {
@@ -185,10 +185,10 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
 }
 
 // cleanGPGRepo removes the files from the git repo concurrently.
-func cleanGPGRepo(root string, bs []*bookmark.Bookmark) error {
+func cleanGPGRepo(ctx context.Context, root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git GPG files")
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
 	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
 
 	for _, b := range bs {
@@ -223,10 +223,10 @@ func cleanGPGRepo(root string, bs []*bookmark.Bookmark) error {
 }
 
 // cleanJSONRepo removes the files from the git repo concurrently.
-func cleanJSONRepo(root string, bs []*bookmark.Bookmark) error {
+func cleanJSONRepo(ctx context.Context, root string, bs []*bookmark.Bookmark) error {
 	slog.Debug("cleaning up git JSON files")
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
 	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
 
 	for _, b := range bs {

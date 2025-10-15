@@ -24,6 +24,7 @@ type bookmarkTemp struct {
 
 // NewBookmark fetch metadata and parses the new bookmark.
 func NewBookmark(
+	ctx context.Context,
 	c *ui.Console,
 	r *db.SQLite,
 	b *bookmark.Bookmark,
@@ -36,7 +37,7 @@ func NewBookmark(
 	}
 
 	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := r.Has(context.Background(), newURL); exists {
+	if b, exists := r.Has(ctx, newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
@@ -44,12 +45,12 @@ func NewBookmark(
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithSpinner("scraping webpage..."))
+	sc := scraper.New(newURL, scraper.WithContext(ctx), scraper.WithSpinner("scraping webpage..."))
 
 	cfg := config.New()
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)
-	tagsFromArgs(c, sc, cfg, bTemp)
+	tagsFromArgs(ctx, c, sc, cfg, bTemp)
 
 	b.URL = newURL
 	b.Title = bTemp.title
@@ -112,7 +113,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 }
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
-func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, cfg *config.Config, b *bookmarkTemp) {
+func tagsFromArgs(ctx context.Context, c *ui.Console, sc *scraper.Scraper, cfg *config.Config, b *bookmarkTemp) {
 	cb := func(s string) string { return color.BrightBlue(s).String() }
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 
@@ -146,7 +147,7 @@ func tagsFromArgs(c *ui.Console, sc *scraper.Scraper, cfg *config.Config, b *boo
 	// prompt|take input for tags
 	c.Frame.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
-	mTags, _ := dbtask.TagsCounterFromPath(cfg.DBPath)
+	mTags, _ := dbtask.TagsCounterFromPath(ctx, cfg.DBPath)
 	b.tags = bookmark.ParseTags(c.Term.ChooseTags(c.Frame.Border.Mid, mTags))
 
 	c.Frame.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))

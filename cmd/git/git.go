@@ -140,7 +140,7 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 	}
 
 	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
-	imported, err := git.Import(c, gm, cfg)
+	imported, err := git.Import(cmd.Context(), c, gm, cfg)
 	if err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func cloneFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cloning remote repo: %w", err)
 	}
 
-	rp := git.NewRepoProcessor(c, g, cfg)
+	rp := git.NewRepoProcessor(c, g, cfg, git.WithRPContext(cmd.Context()))
 
 	return rp.Pull()
 }

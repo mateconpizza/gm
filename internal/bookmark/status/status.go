@@ -47,7 +47,7 @@ func (r *Response) String() string {
 }
 
 // Check checks the status of a slice of bookmarks.
-func Check(c *ui.Console, bs []*bookmark.Bookmark) error {
+func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 	const maxConRequests = 25
 
 	var (
@@ -60,7 +60,6 @@ func Check(c *ui.Console, bs []*bookmark.Bookmark) error {
 
 	sem = semaphore.NewWeighted(int64(maxConRequests))
 	start = time.Now()
-	ctx := context.Background()
 
 	schedule := func(b *bookmark.Bookmark) error {
 		wg.Add(1)

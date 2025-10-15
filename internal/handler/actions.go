@@ -45,7 +45,7 @@ var (
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(bs []*bookmark.Bookmark, open bool, appName string) error {
+func QR(ctx context.Context, bs []*bookmark.Bookmark, open bool, appName string) error {
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
@@ -53,7 +53,7 @@ func QR(bs []*bookmark.Bookmark, open bool, appName string) error {
 		}
 
 		if open {
-			return openQR(qrcode, b, appName)
+			return openQR(ctx, qrcode, b, appName)
 		}
 
 		var sb strings.Builder
@@ -91,7 +91,7 @@ func Copy(bs []*bookmark.Bookmark) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Open(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 	n := len(bs)
 	// get user confirmation to procced
@@ -112,7 +112,6 @@ func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 		wg    sync.WaitGroup
 		sem   = semaphore.NewWeighted(maxGoroutines)
 		errCh = make(chan error, n)
-		ctx   = context.Background()
 	)
 
 	actionFn := func(b *bookmark.Bookmark) error {
@@ -156,7 +155,7 @@ func Open(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 }
 
 // Edit edits the bookmarks using a text editor.
-func Edit(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
+func Edit(ctx context.Context, c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
 	const maxItems = 10
 
 	te, err := editor.NewEditor(cfg.Env.Editor)
@@ -180,6 +179,7 @@ func Edit(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookma
 	}
 
 	session := editor.NewEditSession(c, r, te,
+		editor.WithContext(ctx),
 		editor.WithPostEditionRun(func(o, u *editor.Record) error {
 			return git.UpdateBookmark(cfg, o, u)
 		}),
@@ -189,7 +189,7 @@ func Edit(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookma
 }
 
 // CheckStatus prints the status code of the bookmark URL.
-func CheckStatus(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func CheckStatus(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 
 	n := len(bs)
@@ -202,7 +202,7 @@ func CheckStatus(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 		return sys.ErrActionAborted
 	}
 
-	if err := status.Check(c, bs); err != nil {
+	if err := status.Check(ctx, c, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -212,7 +212,7 @@ func CheckStatus(c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
 			continue
 		}
 
-		if err := r.UpdateOne(context.Background(), b); err != nil {
+		if err := r.UpdateOne(ctx, b); err != nil {
 			return err
 		}
 	}
@@ -289,7 +289,7 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // Update updates the bookmarks.
 //
 // It uses the scraper to update the title, description and favicon.
-func Update(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
+func Update(ctx context.Context, c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
 	n := len(bs)
 	if n > 1 {
 		c.Frame.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
@@ -300,34 +300,21 @@ func Update(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Book
 		return fmt.Errorf("%w", err)
 	}
 	session := editor.NewEditSession(c, r, te,
+		editor.WithContext(ctx),
 		editor.WithPostEditionRun(func(o, u *editor.Record) error {
 			return git.UpdateBookmark(cfg, o, u)
 		}),
 	)
 
 	for i, b := range bs {
-		updated, err := updateBookmarkData(c, b)
+		updated, err := updateBookmarkData(ctx, c, b)
 		if err != nil {
 			return err
 		}
 
-		su := txt.Shorten(updated.URL, 60)
 		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
-		// Check if there are any changes
-		if bytes.Equal(b.Buffer(), updated.Buffer()) {
-			fmt.Print(c.Info(bid + " " + cd(su) + " no changes found\n"))
-			continue
-		}
-		// Display changes
-		c.Frame.Reset().Warning(bid + " Found changes in " + cbb(su) + "\n").Flush()
-		if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
-			c.Frame.Reset().Midln(cbc("Title:")).Flush()
-			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updated.Title))))
-		}
-		if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
-			c.Frame.Reset().Midln(cbc("Description:")).Flush()
-			fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
-		}
+		su := txt.Shorten(updated.URL, 60)
+		displayBookmarkChanges(c, b, &updated)
 
 		// Handle user choice
 		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
@@ -336,7 +323,7 @@ func Update(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Book
 		}
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			if err := r.UpdateOne(context.Background(), &updated); err != nil {
+			if err := r.UpdateOne(ctx, &updated); err != nil {
 				return fmt.Errorf("updating record: %w", err)
 			}
 			if i != n-1 {
@@ -355,12 +342,30 @@ func Update(c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Book
 	return nil
 }
 
+// displayBookmarkChanges shows the differences between original and updated bookmarks.
+func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
+	bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
+	su := txt.Shorten(updated.URL, 60)
+
+	c.Frame.Reset().Warning(bid + " Found changes in " + cbb(su) + "\n").Flush()
+
+	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
+		c.Frame.Reset().Midln(cbc("Title:")).Flush()
+		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updated.Title))))
+	}
+
+	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
+		c.Frame.Reset().Midln(cbc("Description:")).Flush()
+		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
+	}
+}
+
 func Export(bs []*bookmark.Bookmark) error {
 	return bookio.ExportToNetscapeHTML(bs, os.Stdout)
 }
 
 // openQR opens a QR-Code image in the system default image viewer.
-func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
+func openQR(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
 	const maxLabelLen = 55
 
 	if err := qrcode.GenerateImg(appName); err != nil {
@@ -375,13 +380,13 @@ func openQR(qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
 
-	return qrcode.Open(context.Background())
+	return qrcode.Open(ctx)
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, a *config.Config) error {
+func SaveNewBookmark(ctx context.Context, c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, a *config.Config) error {
 	if a.Flags.Force {
-		return r.InsertMany(context.Background(), []*bookmark.Bookmark{b})
+		return r.InsertMany(ctx, []*bookmark.Bookmark{b})
 	}
 
 	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
@@ -398,11 +403,12 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, a *confi
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := editor.NewEditSession(c, r, te).Run([]*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{}); err != nil {
+		e := editor.NewEditSession(c, r, te, editor.WithContext(ctx))
+		if err := e.Run([]*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{}); err != nil {
 			return err
 		}
 	default:
-		if _, err := r.InsertOne(context.Background(), b); err != nil {
+		if _, err := r.InsertOne(ctx, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -410,13 +416,14 @@ func SaveNewBookmark(c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, a *confi
 	return nil
 }
 
-func updateBookmarkData(c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark, error) {
+func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark, error) {
 	updatedB := *b
 	su := txt.Shorten(updatedB.URL, 60)
 	bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
 
 	sc := scraper.New(
 		updatedB.URL,
+		scraper.WithContext(ctx),
 		scraper.WithSpinner(c.Info(bid+" updating bookmark "+cbc(su)).String()),
 	)
 

@@ -24,12 +24,12 @@ var (
 
 // ScrapeDescriptions scrapes missing data from bookmarks found from the import
 // process.
-func ScrapeDescriptions(bs []*bookmark.Bookmark) error {
+func ScrapeDescriptions(ctx context.Context, bs []*bookmark.Bookmark) error {
 	if len(bs) == 0 {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
 	return scrapeDescriptionsConcurrent(ctx, bs)
@@ -75,12 +75,12 @@ func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) 
 
 // EnrichBookmark updates a Bookmark's title and description by scraping the
 // webpage if they are missing.
-func EnrichBookmark(b *bookmark.Bookmark) *bookmark.Bookmark {
+func EnrichBookmark(ctx context.Context, b *bookmark.Bookmark) *bookmark.Bookmark {
 	if b.Title != "" {
 		return b
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	sc := scraper.New(b.URL, scraper.WithContext(ctx), scraper.WithSpinner("scraping webpage..."))

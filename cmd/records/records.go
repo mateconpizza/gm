@@ -3,6 +3,7 @@
 package records
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -46,7 +47,7 @@ func Cmd(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(menuForRecords(cfg), r, args, cfg.Flags)
+	bs, err := handler.Data(cmd.Context(), menuForRecords(cfg), r, args, cfg.Flags)
 	if err != nil {
 		return err
 	}
@@ -59,7 +60,7 @@ func Cmd(cmd *cobra.Command, args []string) error {
 		sys.ErrAndExit(err)
 	})
 
-	return exec(c, r, cfg, bs)
+	return exec(cmd.Context(), c, r, cfg, bs)
 }
 
 // InitFlags initializes CLI flags for the records command.
@@ -95,26 +96,26 @@ func InitFilterFlags(cmd *cobra.Command, cfg *config.Config) {
 
 // exec handles the bookmark actions and output selection according to the
 // provided flags.
-func exec(c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark) error {
+func exec(ctx context.Context, c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark) error {
 	f := a.Flags
 	switch {
 	case f.Remove:
-		return handler.Remove(c, r, bs, a)
+		return handler.Remove(ctx, c, r, bs, a)
 	case f.Export:
 		return handler.Export(bs)
 	case f.Edit:
-		return handler.Edit(c, r, a, bs)
+		return handler.Edit(ctx, c, r, a, bs)
 	case f.Copy:
 		return handler.Copy(bs)
 	case f.Open && !f.QR:
-		return handler.Open(c, r, bs)
+		return handler.Open(ctx, c, r, bs)
 	}
 
 	switch {
 	case f.Format != "":
 		return printer.Display(f.Format, bs)
 	case f.QR:
-		return handler.QR(bs, f.Open, a.Name)
+		return handler.QR(ctx, bs, f.Open, a.Name)
 	case f.Notes:
 		return printer.Notes(bs)
 	default:

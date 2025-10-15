@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -98,7 +99,7 @@ func summaryRead(gr *Repository) (*SyncGitSummary, error) {
 	return sum, nil
 }
 
-func summaryUpdate(gr *Repository, version string) (*SyncGitSummary, error) {
+func summaryUpdate(ctx context.Context, gr *Repository, version string) (*SyncGitSummary, error) {
 	branch, err := gr.Git.branch()
 	if err != nil {
 		return nil, fmt.Errorf("getting branch: %w", err)
@@ -114,7 +115,7 @@ func summaryUpdate(gr *Repository, version string) (*SyncGitSummary, error) {
 		return nil, fmt.Errorf("getting hostname: %w", err)
 	}
 
-	stats, err := dbtask.NewRepoStats(gr.Loc.DBPath)
+	stats, err := dbtask.NewRepoStats(ctx, gr.Loc.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("crating stats: %w", err)
 	}

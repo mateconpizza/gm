@@ -60,7 +60,12 @@ func (baseBookmarkStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, erro
 	return buf.Buffer(), nil
 }
 
-func (baseBookmarkStrategy) ParseBuffer(buf []byte, original *Record, idx, total int) (*Record, error) {
+func (baseBookmarkStrategy) ParseBuffer(
+	ctx context.Context,
+	buf []byte,
+	original *Record,
+	idx, total int,
+) (*Record, error) {
 	edited := bookmarkFromBytes(buf)
 	if err := bookmark.Validate(edited); err != nil {
 		return nil, err
@@ -70,7 +75,7 @@ func (baseBookmarkStrategy) ParseBuffer(buf []byte, original *Record, idx, total
 		return nil, ErrBufferUnchanged
 	}
 
-	edited = metadata.EnrichBookmark(edited)
+	edited = metadata.EnrichBookmark(ctx, edited)
 	edited.ID = original.ID
 	edited.CreatedAt = original.CreatedAt
 	edited.Favorite = original.Favorite

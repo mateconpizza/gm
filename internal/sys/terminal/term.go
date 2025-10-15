@@ -108,8 +108,10 @@ func (t *Term) Input(p string) string {
 }
 
 func (t *Term) InputPassword() (string, error) {
+	fd := int(os.Stdin.Fd())
+
 	// If not a terminal (piped or test), read plain input
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
+	if !term.IsTerminal(fd) {
 		var password string
 		if _, err := fmt.Fscanln(t.reader, &password); err != nil {
 			return "", fmt.Errorf("reading password: %w", err)
@@ -117,26 +119,48 @@ func (t *Term) InputPassword() (string, error) {
 		return password, nil
 	}
 
-	// Replace the interrupt function temporarily
-	prevInterruptFn := t.InterruptFn
-	t.SetInterruptFn(func(err error) {
-		t.cancelFn()
-	})
-	defer t.SetInterruptFn(prevInterruptFn)
+	// Save and restore terminal state
+	if err := saveState(); err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := restoreState(); err != nil {
+			slog.Error("restoring terminal state", "error", err)
+		}
+	}()
 
-	fd := int(os.Stdin.Fd())
-	p, err := term.ReadPassword(fd)
-	if err != nil {
-		// Handle cancellation or read errors
+	// Context that listens to the global signal-aware context
+	ctx, cancel := context.WithCancel(t.ctx)
+	defer cancel()
+
+	// Handle Ctrl+C safely (only local cancel + restore)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	go func() {
 		select {
-		case <-t.ctx.Done():
-			return "", sys.ErrActionAborted
-		default:
+		case <-ctx.Done():
+			return
+		case <-sig:
+			slog.Debug("received interrupt during password input")
+			_ = restoreState()
+			cancel()
+		}
+	}()
+	defer signal.Stop(sig)
+
+	// Read password (puts terminal into no-echo mode)
+	p, err := term.ReadPassword(fd)
+
+	// Respect cancellation or read errors
+	select {
+	case <-ctx.Done():
+		return "", sys.ErrActionAborted
+	default:
+		if err != nil {
 			return "", fmt.Errorf("reading password: %w", err)
 		}
+		return string(p), nil
 	}
-
-	return string(p), nil
 }
 
 // Prompt get the input data from the user and return it.

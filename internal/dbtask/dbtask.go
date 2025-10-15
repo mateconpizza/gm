@@ -56,7 +56,7 @@ func (rs *RepoStats) String() string {
 	return strings.Join(parts, ", ")
 }
 
-func Backup(fullpath, backupPath string) (string, error) {
+func Backup(ctx context.Context, fullpath, backupPath string) (string, error) {
 	r, err := db.New(fullpath)
 	if err != nil {
 		return "", err
@@ -76,7 +76,7 @@ func Backup(fullpath, backupPath string) (string, error) {
 
 	_ = r.DB.MustExec("VACUUM INTO ?", destPath)
 
-	if err := VerifyIntegrity(destPath); err != nil {
+	if err := VerifyIntegrity(ctx, destPath); err != nil {
 		return "", err
 	}
 
@@ -171,17 +171,17 @@ func Init(ctx context.Context, r *db.SQLite) error {
 }
 
 // DropFromPath drops the database from the given path.
-func DropFromPath(dbPath string) error {
+func DropFromPath(ctx context.Context, dbPath string) error {
 	r, err := db.New(dbPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	return r.DropSecure(context.Background())
+	return r.DropSecure(ctx)
 }
 
 // VerifyIntegrity checks the integrity of the SQLite database.
-func VerifyIntegrity(path string) error {
+func VerifyIntegrity(ctx context.Context, path string) error {
 	slog.Debug("verifying SQLite integrity", "path", path)
 
 	c, err := db.NewSQLiteCfg(path)
@@ -201,7 +201,6 @@ func VerifyIntegrity(path string) error {
 	}()
 
 	var result string
-	ctx := context.Background()
 	row := r.QueryRowContext(ctx, "PRAGMA integrity_check;")
 	if err := row.Scan(&result); err != nil {
 		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
@@ -217,23 +216,21 @@ func VerifyIntegrity(path string) error {
 }
 
 // TagsCounterFromPath returns a map with tag as key and count as value.
-func TagsCounterFromPath(dbPath string) (map[string]int, error) {
+func TagsCounterFromPath(ctx context.Context, dbPath string) (map[string]int, error) {
 	r, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	return r.TagsCounter(context.Background())
+	return r.TagsCounter(ctx)
 }
 
-func NewRepoStats(dbPath string) (*RepoStats, error) {
+func NewRepoStats(ctx context.Context, dbPath string) (*RepoStats, error) {
 	r, err := db.New(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
 	defer r.Close()
-
-	ctx := context.Background()
 
 	return &RepoStats{
 		Name:      r.Name(),

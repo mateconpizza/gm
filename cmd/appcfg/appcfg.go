@@ -4,6 +4,7 @@
 package appcfg
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -33,7 +34,7 @@ func NewCmd() *cobra.Command {
 			case cfg.Flags.Create:
 				return createConfig(c, cfg)
 			case cfg.Flags.Edit:
-				return editConfig(cfg)
+				return editConfig(cmd.Context(), cfg)
 			case cfg.Flags.JSON:
 				return printConfigJSON(cfg.Path.ConfigFile)
 			case cfg.Flags.List:
@@ -81,7 +82,7 @@ func createConfig(c *ui.Console, cfg *config.Config) error {
 }
 
 // editConfig edits the config file.
-func editConfig(cfg *config.Config) error {
+func editConfig(ctx context.Context, cfg *config.Config) error {
 	p := cfg.Path.ConfigFile
 	if !files.Exists(p) {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
@@ -92,7 +93,7 @@ func editConfig(cfg *config.Config) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	if err := te.EditFile(p); err != nil {
+	if err := te.EditFile(ctx, p); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

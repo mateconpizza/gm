@@ -33,6 +33,6 @@ var browserCmd = &cobra.Command{
 				}))),
 		)
 
-		return port.Browser(c, r, cfg.Flags.Force)
+		return port.Browser(cmd.Context(), c, r, cfg.Flags.Force)
 	},
 }
