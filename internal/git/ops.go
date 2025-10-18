@@ -35,60 +35,6 @@ var (
 	cri = func(s string) string { return color.BrightRed(s).Italic().String() }
 )
 
-// storeBookmarkAsJSON creates files structure.
-//
-//	root -> dbName -> domain -> urlHash.json
-//
-// Returns true if the file was created or updated, false if no changes were made.
-func storeBookmarkAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error) {
-	domain, err := b.Domain()
-	if err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	// domainPath: root -> dbName -> domain
-	domainPath := filepath.Join(rootPath, domain)
-	if err := files.MkdirAll(domainPath); err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	// urlHash := domainPath -> urlHash.json
-	urlHash := b.HashURL()
-	filePathJSON := filepath.Join(domainPath, urlHash+JSONFileExt)
-
-	updated, err := files.JSONWrite(filePathJSON, b.JSON(), force)
-	if err != nil {
-		return resolveFileConflictErr(rootPath, err, filePathJSON, b)
-	}
-
-	return updated, nil
-}
-
-// resolveFileConflictErr resolves a file conflict error.
-// Returns true if the file was updated, false if no update was needed.
-func resolveFileConflictErr(
-	rootPath string,
-	err error,
-	filePathJSON string,
-	b *bookmark.Bookmark,
-) (bool, error) {
-	if !errors.Is(err, files.ErrFileExists) {
-		return false, err
-	}
-
-	bj := bookmark.BookmarkJSON{}
-	if err := files.JSONRead(filePathJSON, &bj); err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	// no need to update
-	if bj.Checksum == b.Checksum {
-		return false, nil
-	}
-
-	return storeBookmarkAsJSON(rootPath, b, true)
-}
-
 // writeRepoStats updates the repo stats.
 func writeRepoStats(ctx context.Context, gr *Repository) error {
 	var (

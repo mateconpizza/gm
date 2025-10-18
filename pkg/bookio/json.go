@@ -37,56 +37,45 @@ func jsonLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 	return bookmark.NewFromJSON(bj), nil
 }
 
-// storeBookmarkAsJSON creates files structure.
+// SaveAsJSON creates files structure.
 //
 //	root -> dbName -> domain -> urlHash.json
 //
 // Returns true if the file was created or updated, false if no changes were made.
-func storeBookmarkAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error) {
+func SaveAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error) {
 	domain, err := b.Domain()
 	if err != nil {
 		return false, fmt.Errorf("%w", err)
 	}
 
-	// domainPath: root -> dbName -> domain
 	domainPath := filepath.Join(rootPath, domain)
 	if err := files.MkdirAll(domainPath); err != nil {
 		return false, fmt.Errorf("%w", err)
 	}
 
-	// urlHash := domainPath -> urlHash.json
 	urlHash := b.HashURL()
 	filePathJSON := filepath.Join(domainPath, urlHash+jsonExt)
-
 	updated, err := files.JSONWrite(filePathJSON, b.JSON(), force)
-	if err != nil {
-		return resolveFileConflictErr(rootPath, err, filePathJSON, b)
+
+	// Handle file conflict
+	if errors.Is(err, files.ErrFileExists) {
+		bj := bookmark.BookmarkJSON{}
+		if err := files.JSONRead(filePathJSON, &bj); err != nil {
+			return false, fmt.Errorf("%w", err)
+		}
+
+		// No need to update if checksums match
+		if bj.Checksum == b.Checksum {
+			return false, nil
+		}
+
+		// Checksums differ, force update
+		return SaveAsJSON(rootPath, b, true)
 	}
 
-	return updated, nil
-}
-
-// resolveFileConflictErr resolves a file conflict error.
-// Returns true if the file was updated, false if no update was needed.
-func resolveFileConflictErr(
-	rootPath string,
-	err error,
-	filePathJSON string,
-	b *bookmark.Bookmark,
-) (bool, error) {
-	if !errors.Is(err, files.ErrFileExists) {
+	if err != nil {
 		return false, err
 	}
 
-	bj := bookmark.BookmarkJSON{}
-	if err := files.JSONRead(filePathJSON, &bj); err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	// no need to update
-	if bj.Checksum == b.Checksum {
-		return false, nil
-	}
-
-	return storeBookmarkAsJSON(rootPath, b, true)
+	return updated, nil
 }

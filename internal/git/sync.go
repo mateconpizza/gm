@@ -20,6 +20,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -164,7 +165,7 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
 	for i := range bs {
 		b := bs[i] // capture loop variable
 		g.Go(func() error {
-			updated, err := storeBookmarkAsJSON(root, b, cfg.Flags.Force)
+			updated, err := bookio.SaveAsJSON(root, b, cfg.Flags.Force)
 			if err != nil {
 				return err
 			}
