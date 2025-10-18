@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,9 +10,9 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -27,21 +26,13 @@ var (
 )
 
 // Data retrieves and filters bookmarks based on configuration and arguments.
-func Data(
-	ctx context.Context,
-	m *menu.Menu[bookmark.Bookmark],
-	r *db.SQLite,
-	args []string,
-	f *config.Flags,
-) ([]*bookmark.Bookmark, error) {
-	// Get initial records
-	bs, err := getRecords(ctx, r, args)
+func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
+	bs, err := getRecords(a, args)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get records: %w", err)
+		return nil, err
 	}
 
-	// Apply filters
-	bs, err = applyFilters(ctx, r, bs, f)
+	bs, err = applyFilters(a, bs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply filters: %w", err)
 	}
@@ -50,9 +41,8 @@ func Data(
 		return nil, ErrNoItems
 	}
 
-	// Apply menu selection if needed
-	if f.Menu || f.Multiline {
-		bs, err = applyMenuSelection(m, bs, f)
+	if a.Cfg.Flags.Menu || a.Cfg.Flags.Multiline {
+		bs, err = applyMenuSelection(m, bs, a.Cfg.Flags)
 		if err != nil {
 			return nil, fmt.Errorf("failed to apply menu selection: %w", err)
 		}
@@ -62,11 +52,11 @@ func Data(
 }
 
 // getRecords retrieves records based on user input and filtering criteria.
-func getRecords(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
+func getRecords(a *app.Context, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("getRecords", "args", args)
 
 	// Try to get by IDs first
-	if bs, err := getByIDs(ctx, r, args); err != nil {
+	if bs, err := getByIDs(a, args); err != nil {
 		if !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 			return nil, err
 		}
@@ -76,7 +66,7 @@ func getRecords(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.B
 	}
 
 	// Try to get by query
-	if bs, err := getByQuery(ctx, r, args); err != nil {
+	if bs, err := getByQuery(a, args); err != nil {
 		return nil, err
 	} else if len(bs) > 0 {
 		return bs, nil
@@ -84,7 +74,7 @@ func getRecords(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.B
 
 	// If no args provided or nothing found, get all records
 	if len(args) == 0 {
-		return r.All(ctx)
+		return a.DB.All(a.Ctx)
 	}
 
 	// No results found
@@ -92,7 +82,7 @@ func getRecords(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.B
 }
 
 // getByIDs retrieves records from the database based on IDs.
-func getByIDs(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
+func getByIDs(a *app.Context, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("getting by IDs")
 
 	ids, err := extractIDsFrom(args)
@@ -104,46 +94,42 @@ func getByIDs(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.Boo
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
 
-	bs, err := r.ByIDList(ctx, ids)
+	bs, err := a.DB.ByIDList(a.Ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
 
 	if len(bs) == 0 {
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
-		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, r.Name())
+		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, a.DB.Name())
 	}
 
 	return bs, nil
 }
 
 // getByQuery executes a search query on the given repository.
-func getByQuery(ctx context.Context, r *db.SQLite, args []string) ([]*bookmark.Bookmark, error) {
+func getByQuery(a *app.Context, args []string) ([]*bookmark.Bookmark, error) {
 	if len(args) == 0 {
 		return []*bookmark.Bookmark{}, nil
 	}
 
 	q := strings.Join(args, "%")
-	bs, err := r.ByQuery(ctx, q)
+	bs, err := a.DB.ByQuery(a.Ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("query failed for %q: %w", strings.Join(args, " "), err)
+		return nil, fmt.Errorf("%w %q", err, strings.Join(args, " "))
 	}
 
 	return bs, nil
 }
 
 // applyFilters applies tag and head/tail filters to the bookmark list.
-func applyFilters(
-	ctx context.Context,
-	r *db.SQLite,
-	bs []*bookmark.Bookmark,
-	f *config.Flags,
-) ([]*bookmark.Bookmark, error) {
+func applyFilters(a *app.Context, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	var err error
+	f := a.Cfg.Flags
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
-		bs, err = filterByTags(ctx, r, f.Tags, bs)
+		bs, err = filterByTags(a, f.Tags, bs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to filter by tags: %w", err)
 		}
@@ -166,12 +152,7 @@ func applyFilters(
 }
 
 // filterByTags returns a slice of bookmarks that contain ALL of the provided tags.
-func filterByTags(
-	ctx context.Context,
-	r *db.SQLite,
-	tags []string,
-	bs []*bookmark.Bookmark,
-) ([]*bookmark.Bookmark, error) {
+func filterByTags(a *app.Context, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	n := len(bs)
 	slog.Debug("by tags", "tags", tags, "count", n)
 
@@ -199,7 +180,7 @@ func filterByTags(
 		return []*bookmark.Bookmark{}, nil
 	}
 
-	candidates, err := r.ByTag(ctx, firstTag)
+	candidates, err := a.DB.ByTag(a.Ctx, firstTag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bookmarks by tag %q: %w", firstTag, err)
 	}
@@ -382,13 +363,7 @@ func applyMenuSelection(
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(
-	ctx context.Context,
-	c *ui.Console,
-	r *db.SQLite,
-	cfg *config.Config,
-	bs []*bookmark.Bookmark,
-) error {
+func removeRecords(a *app.Context, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
 		rotato.WithMesg("removing record/s..."),
 		rotato.WithMesgColor(rotato.ColorGray),
@@ -396,18 +371,18 @@ func removeRecords(
 	sp.Start()
 	defer sp.Done()
 
-	if err := r.DeleteMany(ctx, bs); err != nil {
+	if err := a.DB.DeleteMany(a.Ctx, bs); err != nil {
 		return err
 	}
 
 	sp.Done()
 
-	if err := git.RemoveBookmarks(cfg, bs); err != nil {
+	if err := git.RemoveBookmarks(a.Cfg, bs); err != nil {
 		return err
 	}
 
-	if c != nil {
-		fmt.Print(c.SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
+	if a.Console != nil {
+		fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
 	}
 
 	return nil

@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -19,7 +20,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
 
@@ -35,10 +35,9 @@ func newResult(u, s, m string) SnapshotResult {
 	return SnapshotResult{URL: u, State: s, Msg: m}
 }
 
-func WaybackLatestSnapshot(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 	// FIX: updateSpinnerWithDeadline
-	cfg := config.New()
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(a.Ctx, 30*time.Second)
 	sem := semaphore.NewWeighted(1)
 	var (
 		count uint32
@@ -47,7 +46,7 @@ func WaybackLatestSnapshot(ctx context.Context, c *ui.Console, r *db.SQLite, bs 
 
 	results := make(chan SnapshotResult, len(bs))
 	sp := rotato.New(
-		rotato.WithPrefix(c.Frame.Mid("Fetching snapshots").String()),
+		rotato.WithPrefix(a.Console.Frame.Mid("Fetching snapshots").String()),
 		rotato.WithMesgColor(rotato.ColorYellow),
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
 		rotato.WithFailColorMesg(rotato.ColorBrightRed),
@@ -70,7 +69,7 @@ func WaybackLatestSnapshot(ctx context.Context, c *ui.Console, r *db.SQLite, bs 
 			f := frame.New(frame.WithColorBorder(color.Gray))
 			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", idx, len(bs), f.Info(txt.Shorten(b.URL, 80)).String()))
 
-			res := processBookmark(ctx, r, b, cfg.Flags.Force)
+			res := processBookmark(a, b)
 			cancel()
 			results <- res
 		}(b)
@@ -82,25 +81,25 @@ func WaybackLatestSnapshot(ctx context.Context, c *ui.Console, r *db.SQLite, bs 
 
 	cancel()
 
-	return printSummary(c, results)
+	return printSummary(a.Console, results)
 }
 
-func processBookmark(ctx context.Context, r *db.SQLite, b *bookmark.Bookmark, force bool) SnapshotResult {
+func processBookmark(a *app.Context, b *bookmark.Bookmark) SnapshotResult {
 	u := txt.Shorten(b.URL, 60)
 
-	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !force {
+	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !a.Cfg.Flags.Force {
 		return newResult(u, "skipped", wayback.ErrAlreadyArchived.Error())
 	}
 
 	ct := wayback.New()
-	s, err := ct.ClosestSnapshot(ctx, b.URL)
+	s, err := ct.ClosestSnapshot(a.Ctx, b.URL)
 	if err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
 	b.ArchiveURL = s.ArchiveURL
 	b.ArchiveTimestamp = s.ArchiveTimestamp
-	if err := r.UpdateOne(ctx, b); err != nil {
+	if err := a.DB.UpdateOne(a.Ctx, b); err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
@@ -188,7 +187,7 @@ func formatTime(label, ts string) string {
 	return txt.PaddedLine(label, absolute+dimmer(relative))
 }
 
-func WaybackSnapshots(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 	cfg := config.New()
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
 	m := waybackMenu()
@@ -197,7 +196,7 @@ func WaybackSnapshots(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bo
 	for _, b := range bs {
 		sp.Start()
 
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		ctx, cancel := context.WithTimeout(a.Ctx, 30*time.Second)
 		deadline, _ := ctx.Deadline()
 
 		u := txt.Shorten(b.URL, 60)
@@ -212,7 +211,7 @@ func WaybackSnapshots(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bo
 
 		sp.Done(fmt.Sprintf("%d snapshots from %q", len(snapshots), u))
 		if b.ArchiveURL != "" {
-			c.Frame.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
+			a.Console.Frame.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
 		}
 
 		m.SetItems(snapshots)
@@ -229,19 +228,19 @@ func WaybackSnapshots(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bo
 		b.ArchiveTimestamp = snap.ArchiveTimestamp
 
 		if cfg.Flags.Open {
-			c.Frame.Midln(formatTime("Open:", b.ArchiveTimestamp)).Flush()
+			a.Console.Frame.Midln(formatTime("Open:", b.ArchiveTimestamp)).Flush()
 			return sys.OpenInBrowser(snap.ArchiveURL)
 		}
 
 		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
-		err = r.UpdateOne(ctx, b)
+		err = a.DB.UpdateOne(ctx, b)
 		cancel()
 		if err != nil {
 			return err
 		}
 
-		c.Frame.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
-		fmt.Print(c.SuccessMesg("bookmark updated\n"))
+		a.Console.Frame.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
+		fmt.Print(a.Console.SuccessMesg("bookmark updated\n"))
 	}
 
 	return nil

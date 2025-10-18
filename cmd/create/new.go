@@ -9,14 +9,13 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/database"
 	"github.com/mateconpizza/gm/cmd/setup"
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -68,22 +67,21 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer r.Close()
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) {
-				r.Close()
-				sys.ErrAndExit(err)
-			}))),
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithDB(r),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			db.Shutdown()
+			sys.ErrAndExit(err)
+		})),
 	)
 
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 	cy := func(s string) string { return color.BrightYellow(s).String() }
-	c.Frame.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
+	a.Console.Frame.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
 
 	b := bookmark.New()
-	if err := handler.NewBookmark(cmd.Context(), c, r, b, cfg.Flags.Title, cfg.Flags.TagsStr, args); err != nil {
+	if err := handler.NewBookmark(a, b, args); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -91,7 +89,7 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	if err := handler.SaveNewBookmark(cmd.Context(), c, r, b, cfg); err != nil {
+	if err := handler.SaveNewBookmark(a, b); err != nil {
 		return err
 	}
 
@@ -99,7 +97,7 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Print(c.SuccessMesg("bookmark added\n"))
+	fmt.Print(a.Console.SuccessMesg("bookmark added\n"))
 
 	return nil
 }

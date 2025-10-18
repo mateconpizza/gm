@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
@@ -129,14 +130,18 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	}
 	defer r.Close()
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) {
-				r.Close()
-				sys.ErrAndExit(err)
-			}))),
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithDB(r),
+		app.WithConsole(ui.NewConsole(
+			ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+			ui.WithTerminal(terminal.New(
+				terminal.WithContext(cmd.Context()),
+				terminal.WithInterruptFn(func(err error) {
+					r.Close()
+					sys.ErrAndExit(err)
+				}))),
+		)),
 	)
 
 	srcPath := cfg.DBPath
@@ -147,13 +152,13 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	fmt.Print(summary.Info(cmd.Context(), c, r, cfg.Path.Backup))
+	fmt.Print(summary.Info(a))
 
-	c.Frame.Reset().Row("\n").Flush()
+	a.Console.Frame.Reset().Row("\n").Flush()
 
 	cgb := func(s string) string { return color.BrightGreen(s).Italic().String() }
-	if !cfg.Flags.Force {
-		if err := c.ConfirmErr("create "+cgb("backup"), "y"); err != nil {
+	if !cfg.Flags.Yes {
+		if err := a.Console.ConfirmErr("create "+cgb("backup"), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -167,12 +172,12 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))))
+	fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))))
 
 	if cfg.Flags.Force {
 		slog.Debug("skipping lock", "path", newBkPath)
 		return nil
 	}
 
-	return handler.LockRepo(c, newBkPath)
+	return handler.LockRepo(a.Console, newBkPath)
 }

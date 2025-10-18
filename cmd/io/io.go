@@ -8,8 +8,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var (
@@ -46,20 +44,4 @@ var ioCmd = &cobra.Command{
 	Short:              "Export/Import bookmarks",
 	RunE:               cli.HookHelp,
 	PersistentPostRunE: cli.HookGitSync,
-}
-
-func menuSelect[T bookmark.Bookmark]() *menu.Menu[T] {
-	cfg := config.New()
-	mo := []menu.OptFn{
-		menu.WithSettings(config.Fzf.Settings),
-		menu.WithMultiSelection(),
-		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
-		menu.WithHeader("Select records for import/export", false),
-	}
-
-	if cfg.Flags.Multiline {
-		mo = append(mo, menu.WithMultilineView())
-	}
-
-	return menu.New[T](mo...)
 }

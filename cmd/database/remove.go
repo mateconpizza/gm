@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -15,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -25,19 +27,26 @@ var (
 		Short:   "Remove one or more backups from local storage",
 		Aliases: []string{"backup", "b", "backups"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			input := "s\n" // input for prompt, this will show menu to select brackups.
-			c := ui.NewConsole(
-				ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
-				ui.WithTerminal(terminal.New(
-					terminal.WithContext(cmd.Context()),
-					terminal.WithReader(strings.NewReader(input)),
-					terminal.WithWriter(io.Discard), // send output to null, show no prompt
+			input := "s\n" // input for prompt, this will show menu to select backups.
+			a := app.New(cmd.Context(),
+				app.WithConfig(config.New()),
+				app.WithConsole(ui.NewConsole(
+					ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
+					ui.WithTerminal(terminal.New(
+						terminal.WithContext(cmd.Context()),
+						terminal.WithInterruptFn(func(err error) {
+							db.Shutdown()
+							sys.ErrAndExit(err)
+						}),
+						terminal.WithReader(strings.NewReader(input)),
+						terminal.WithWriter(io.Discard), // send output to null, show no prompt
+					)),
 				)),
 			)
 
-			c.Frame.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
+			a.Console.Frame.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
 
-			return handler.RemoveBackups(cmd.Context(), c, config.New())
+			return handler.RemoveBackups(a)
 		},
 	}
 
@@ -55,14 +64,12 @@ var (
 				cfg.DBPath = filepath.Join(cfg.Path.Data, cfg.DBName)
 			}
 
-			c := ui.NewConsole(
-				ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-				ui.WithTerminal(
-					terminal.New(
-						terminal.WithContext(cmd.Context()),
-						terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
-					),
-				),
+			a := app.New(cmd.Context(),
+				app.WithConfig(cfg),
+				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+					db.Shutdown()
+					sys.ErrAndExit(err)
+				})),
 			)
 
 			if cfg.Flags.Menu {
@@ -74,7 +81,7 @@ var (
 				cfg.DBPath = s
 			}
 
-			return handler.RemoveRepo(cmd.Context(), c, cfg)
+			return handler.RemoveRepo(a)
 		},
 		PostRunE: dbRemovePostFunc,
 	}

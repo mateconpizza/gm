@@ -5,12 +5,12 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
@@ -51,7 +51,17 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(cmd.Context(), menuForRecords(cfg), r, args, cfg.Flags)
+	a := app.New(cmd.Context(),
+		app.WithDB(r),
+		app.WithConfig(cfg),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		})),
+	)
+
+	m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+	bs, err := handler.Data(a, m, args)
 	if err != nil {
 		return err
 	}
@@ -66,24 +76,12 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w: %d", wayback.ErrTooManyRecords, n)
 	}
 
-	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	})
-
 	switch {
 	case f.Snapshot:
-		return handler.WaybackLatestSnapshot(cmd.Context(), c, r, bs)
+		return handler.WaybackLatestSnapshot(a, bs)
 	case f.Limit > 0:
-		return handler.WaybackSnapshots(cmd.Context(), c, r, bs)
+		return handler.WaybackSnapshots(a, bs)
 	}
 
 	return cmd.Help()
-}
-
-func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
-	return menu.New[T](
-		menu.WithSettings(cfg.Menu.Settings),
-		menu.WithPreview(cfg.Cmd+" --name "+cfg.DBName+" records {1}"),
-	)
 }

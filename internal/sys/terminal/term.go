@@ -31,7 +31,7 @@ var (
 const termPromptPrefix = "> "
 
 // defaultInterruptFn is the default interrupt function for the terminal.
-func defaultInterruptFn(err error) {}
+func defaultInterruptFn(err error) { slog.Debug("InterruptFn not set") }
 
 // TermOptFn is an option function for the terminal.
 type TermOptFn func(*Options)

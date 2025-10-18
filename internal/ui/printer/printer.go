@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -65,7 +65,7 @@ func TagsList(ctx context.Context, p string) error {
 
 	tags, err := db.TagsList(ctx, r)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("tagslist: %w", err)
 	}
 
 	fmt.Println(strings.Join(tags, "\n"))
@@ -212,21 +212,16 @@ func TagsJSON(ctx context.Context, p string) error {
 }
 
 // RepoInfo prints the database info.
-func RepoInfo(ctx context.Context, c *ui.Console, cfg *config.Config) error {
-	if err := locker.IsLocked(cfg.DBPath); err != nil {
-		fmt.Print(summary.RepoFromPath(ctx, c, cfg.DBPath+".enc", cfg.Path.Backup))
+func RepoInfo(a *app.Context) error {
+	// FIX: Test RepoInfo()
+	if err := locker.IsLocked(a.Cfg.DBPath); err != nil {
+		fmt.Print(summary.RepoFromPath(a, a.Cfg.DBPath+".enc", a.Cfg.Path.Backup))
 		return nil
 	}
 
-	store, err := db.New(cfg.DBPath)
-	if err != nil {
-		return fmt.Errorf("database: %w", err)
-	}
-	defer store.Close()
-
 	// FIX: Implement ListBackups
-	if cfg.Flags.JSON {
-		b, err := port.ToJSON(store)
+	if a.Cfg.Flags.JSON {
+		b, err := port.ToJSON(a.DB)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -236,14 +231,9 @@ func RepoInfo(ctx context.Context, c *ui.Console, cfg *config.Config) error {
 		return nil
 	}
 
-	r, err := db.New(store.Cfg.Fullpath())
-	if err != nil {
-		return err
-	}
+	info := summary.Info(a)
 
-	info := summary.Info(ctx, c, r, cfg.Path.Backup)
-
-	g, err := git.Info(c, cfg.DBPath, cfg.Git)
+	g, err := git.Info(a.Console, a.Cfg.DBPath, a.Cfg.Git)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}

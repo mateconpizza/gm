@@ -16,9 +16,9 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
@@ -91,12 +91,12 @@ func Copy(bs []*bookmark.Bookmark) error {
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
-func Open(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 	n := len(bs)
 	// get user confirmation to procced
 	s := fmt.Sprintf("%s %d bookmarks", cbg("open"), n)
-	if err := confirmUserLimit(c, n, maxGoroutines, s); err != nil {
+	if err := confirmUserLimit(a.Console, n, maxGoroutines, s); err != nil {
 		return err
 	}
 
@@ -115,7 +115,7 @@ func Open(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookm
 	)
 
 	actionFn := func(b *bookmark.Bookmark) error {
-		if err := sem.Acquire(ctx, 1); err != nil {
+		if err := sem.Acquire(a.Ctx, 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
 		defer sem.Release(1)
@@ -146,7 +146,7 @@ func Open(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookm
 	}
 
 	for _, b := range bs {
-		if err := r.AddVisit(ctx, b.ID); err != nil {
+		if err := a.DB.AddVisit(a.Ctx, b.ID); err != nil {
 			return err
 		}
 	}
@@ -155,33 +155,33 @@ func Open(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookm
 }
 
 // Edit edits the bookmarks using a text editor.
-func Edit(ctx context.Context, c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
+func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxItems = 10
 
-	te, err := editor.NewEditor(cfg.Env.Editor)
+	te, err := editor.NewEditor(a.Cfg.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	q := fmt.Sprintf("%s %d bookmarks", cbg("edit"), len(bs))
-	if err := confirmUserLimit(c, len(bs), maxItems, q); err != nil {
+	if err := confirmUserLimit(a.Console, len(bs), maxItems, q); err != nil {
 		return err
 	}
 
 	var s editor.EditStrategy
 	switch {
-	case cfg.Flags.Notes:
+	case a.Cfg.Flags.Notes:
 		s = editor.NotesStrategy{}
-	case cfg.Flags.JSON:
+	case a.Cfg.Flags.JSON:
 		s = editor.JSONStrategy{}
 	default:
 		s = editor.BookmarkStrategy{}
 	}
 
-	session := editor.NewEditSession(c, r, te,
-		editor.WithContext(ctx),
+	session := editor.NewEditSession(a.Console, a.DB, te,
+		editor.WithContext(a.Ctx),
 		editor.WithPostEditionRun(func(o, u *editor.Record) error {
-			return git.UpdateBookmark(cfg, o, u)
+			return git.UpdateBookmark(a.Cfg, o, u)
 		}),
 	)
 
@@ -189,7 +189,7 @@ func Edit(ctx context.Context, c *ui.Console, r *db.SQLite, cfg *config.Config, 
 }
 
 // CheckStatus prints the status code of the bookmark URL.
-func CheckStatus(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) error {
+func CheckStatus(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 
 	n := len(bs)
@@ -198,11 +198,11 @@ func CheckStatus(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmar
 	}
 
 	s := fmt.Sprintf("checking status of %d bookmarks", n)
-	if err := confirmUserLimit(c, n, maxGoroutines, s); err != nil {
+	if err := confirmUserLimit(a.Console, n, maxGoroutines, s); err != nil {
 		return sys.ErrActionAborted
 	}
 
-	if err := status.Check(ctx, c, bs); err != nil {
+	if err := status.Check(a.Ctx, a.Console, bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -212,7 +212,7 @@ func CheckStatus(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmar
 			continue
 		}
 
-		if err := r.UpdateOne(ctx, b); err != nil {
+		if err := a.DB.UpdateOne(a.Ctx, b); err != nil {
 			return err
 		}
 	}
@@ -289,53 +289,53 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 // Update updates the bookmarks.
 //
 // It uses the scraper to update the title, description and favicon.
-func Update(ctx context.Context, c *ui.Console, r *db.SQLite, cfg *config.Config, bs []*bookmark.Bookmark) error {
+func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 	n := len(bs)
 	if n > 1 {
-		c.Frame.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
+		a.Console.Frame.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
 	}
 
-	te, err := editor.NewEditor(cfg.Env.Editor)
+	te, err := editor.NewEditor(a.Cfg.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	session := editor.NewEditSession(c, r, te,
-		editor.WithContext(ctx),
+	session := editor.NewEditSession(a.Console, a.DB, te,
+		editor.WithContext(a.Ctx),
 		editor.WithPostEditionRun(func(o, u *editor.Record) error {
-			return git.UpdateBookmark(cfg, o, u)
+			return git.UpdateBookmark(a.Cfg, o, u)
 		}),
 	)
 
 	for i, b := range bs {
-		updated, err := updateBookmarkData(ctx, c, b)
+		updated, err := updateBookmarkData(a.Ctx, a.Console, b)
 		if err != nil {
 			return err
 		}
 
 		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
 		su := txt.Shorten(updated.URL, 60)
-		displayBookmarkChanges(c, b, &updated)
+		displayBookmarkChanges(a.Console, b, &updated)
 
 		// Handle user choice
-		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+		opt, err := a.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
 			return fmt.Errorf("choose: %w", err)
 		}
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			if err := r.UpdateOne(ctx, &updated); err != nil {
+			if err := a.DB.UpdateOne(a.Ctx, &updated); err != nil {
 				return fmt.Errorf("updating record: %w", err)
 			}
 			if i != n-1 {
 				fmt.Println()
 			}
 		case "n", "no":
-			c.ReplaceLine(c.Frame.Warning(bid + " " + cd(su) + " skipping update\n").String())
+			a.Console.ReplaceLine(a.Console.Frame.Warning(bid + " " + cd(su) + " skipping update\n").String())
 		case "e", "edit":
 			if err := session.Run([]*bookmark.Bookmark{&updated}, editor.BookmarkStrategy{}); err != nil {
 				return err
 			}
-			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+			fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 		}
 	}
 
@@ -384,12 +384,12 @@ func openQR(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appNam
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(ctx context.Context, c *ui.Console, r *db.SQLite, b *bookmark.Bookmark, a *config.Config) error {
-	if a.Flags.Force {
-		return r.InsertMany(ctx, []*bookmark.Bookmark{b})
+func SaveNewBookmark(a *app.Context, b *bookmark.Bookmark) error {
+	if a.Cfg.Flags.Force {
+		return a.DB.InsertMany(a.Ctx, []*bookmark.Bookmark{b})
 	}
 
-	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
+	opt, err := a.Console.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -398,17 +398,17 @@ func SaveNewBookmark(ctx context.Context, c *ui.Console, r *db.SQLite, b *bookma
 	case "n", "no":
 		return sys.ErrActionAborted
 	case "e", "edit":
-		te, err := editor.NewEditor(a.Env.Editor)
+		te, err := editor.NewEditor(a.Cfg.Env.Editor)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		e := editor.NewEditSession(c, r, te, editor.WithContext(ctx))
+		e := editor.NewEditSession(a.Console, a.DB, te, editor.WithContext(a.Ctx))
 		if err := e.Run([]*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{}); err != nil {
 			return err
 		}
 	default:
-		if _, err := r.InsertOne(ctx, b); err != nil {
+		if _, err := a.DB.InsertOne(a.Ctx, b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}

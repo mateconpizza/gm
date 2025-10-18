@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/setup"
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
@@ -32,15 +33,26 @@ var (
 		Short:   "Database management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg := config.New()
+			r, err := db.New(cfg.DBPath)
+			if err != nil {
+				return err
+			}
+
+			a := app.New(cmd.Context(),
+				app.WithConfig(cfg),
+				app.WithDB(r),
+				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+					db.Shutdown()
+				})),
+			)
 
 			switch {
-			case cfg.Flags.JSON:
-				c := ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))))
-				return printer.RepoInfo(cmd.Context(), c, cfg)
+			case a.Cfg.Flags.JSON:
+				return printer.RepoInfo(a)
 
-			case cfg.Flags.Vacuum:
-				slog.Debug("database:", "vacuum", cfg.DBName)
-				r, err := db.New(cfg.DBPath)
+			case a.Cfg.Flags.Vacuum:
+				slog.Debug("database:", "vacuum", a.Cfg.DBName)
+				r, err := db.New(a.Cfg.DBPath)
 				if err != nil {
 					return fmt.Errorf("backup: %w", err)
 				}
@@ -48,9 +60,9 @@ var (
 
 				return r.Vacuum(cmd.Context())
 
-			case cfg.Flags.Reorder:
+			case a.Cfg.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
-				r, err := db.New(cfg.DBPath)
+				r, err := db.New(a.Cfg.DBPath)
 				if err != nil {
 					return fmt.Errorf("backup: %w", err)
 				}
@@ -61,13 +73,13 @@ var (
 
 				return r.ReorderIDs(ctx)
 
-			case cfg.Flags.Lock:
+			case a.Cfg.Flags.Lock:
 				return lockCmd.RunE(cmd, args)
-			case cfg.Flags.Unlock:
+			case a.Cfg.Flags.Unlock:
 				return unlockCmd.RunE(cmd, args)
-			case cfg.Flags.List:
-				return printer.DatabasesTable(cmd.Context(), cfg.Path.Data)
-			case cfg.Flags.Info:
+			case a.Cfg.Flags.List:
+				return printer.DatabasesTable(cmd.Context(), a.Cfg.Path.Data)
+			case a.Cfg.Flags.Info:
 				return infoCmd.RunE(cmd, args)
 			}
 
@@ -100,11 +112,21 @@ var (
 		Short:   "Show information about a database",
 		Aliases: []string{"i", "show"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return printer.RepoInfo(
-				cmd.Context(),
-				ui.NewConsole(ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray)))),
-				config.New(),
+			cfg := config.New()
+			r, err := db.New(cfg.DBPath)
+			if err != nil {
+				return err
+			}
+
+			a := app.New(cmd.Context(),
+				app.WithConfig(cfg),
+				app.WithDB(r),
+				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+					db.Shutdown()
+				})),
 			)
+
+			return printer.RepoInfo(a)
 		},
 	}
 
@@ -167,17 +189,16 @@ func dbDropFunc(cmd *cobra.Command, _ []string) error {
 	}
 	defer r.Close()
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) {
-				r.Close()
-				sys.ErrAndExit(err)
-			}))),
+	a := app.New(cmd.Context(),
+		app.WithDB(r),
+		app.WithConfig(cfg),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		})),
 	)
 
-	return handler.DroppingDB(cmd.Context(), c, r, cfg.Path.Backup, cfg.Flags.Force)
+	return handler.DroppingDB(a)
 }
 
 func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
@@ -194,12 +215,7 @@ func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }))),
-	)
+	c := ui.NewConsole(ui.WithDefaultTerminal(cmd.Context(), func(err error) { sys.ErrAndExit(err) }))
 
 	if err := gr.Drop("dropped"); err != nil {
 		return err
@@ -235,12 +251,15 @@ func NewCmd() *cobra.Command {
 	f.BoolVarP(&cfg.Flags.Unlock, "unlock", "U", false, "unlock a database")
 
 	// new database
-	newCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "new database name")
+	newCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName,
+		"new database name")
 	dbRootCmd.AddCommand(newCmd)
 	// show database info
-	infoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	infoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false,
+		"output in JSON format")
 	// remove database
-	rmCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select database to remove (fzf compatible)")
+	rmCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
+		"select database to remove (fzf compatible)")
 
 	// backup
 	backupUnlockCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false,

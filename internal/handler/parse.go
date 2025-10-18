@@ -1,12 +1,11 @@
 package handler
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -14,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -23,21 +21,16 @@ type bookmarkTemp struct {
 }
 
 // NewBookmark fetch metadata and parses the new bookmark.
-func NewBookmark(
-	ctx context.Context,
-	c *ui.Console,
-	r *db.SQLite,
-	b *bookmark.Bookmark,
-	title, tags string,
-	args []string,
-) error {
-	newURL, err := newURLFromArgs(c, args)
+func NewBookmark(a *app.Context, b *bookmark.Bookmark, args []string) error {
+	title := a.Cfg.Flags.Title
+	tags := a.Cfg.Flags.TagsStr
+	newURL, err := newURLFromArgs(a.Console, args)
 	if err != nil {
 		return err
 	}
 
 	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := r.Has(ctx, newURL); exists {
+	if b, exists := a.DB.Has(a.Ctx, newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
@@ -45,12 +38,11 @@ func NewBookmark(
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithContext(ctx), scraper.WithSpinner("scraping webpage..."))
+	sc := scraper.New(newURL, scraper.WithContext(a.Ctx), scraper.WithSpinner("scraping webpage..."))
 
-	cfg := config.New()
 	// fetch title, description and tags
-	fetchTitleAndDesc(c, sc, bTemp)
-	tagsFromArgs(ctx, c, sc, cfg, bTemp)
+	fetchTitleAndDesc(a.Console, sc, bTemp)
+	tagsFromArgs(a, sc, bTemp)
 
 	b.URL = newURL
 	b.Title = bTemp.title
@@ -113,15 +105,15 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 }
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
-func tagsFromArgs(ctx context.Context, c *ui.Console, sc *scraper.Scraper, cfg *config.Config, b *bookmarkTemp) {
+func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 	cb := func(s string) string { return color.BrightBlue(s).String() }
 	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
 
-	c.Frame.Header(cb("Tags\t:"))
+	a.Console.Frame.Header(cb("Tags\t:"))
 
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
-		c.Frame.Textln(" " + cgi(b.tags)).Flush()
+		a.Console.Frame.Textln(" " + cgi(b.tags)).Flush()
 
 		return
 	}
@@ -132,28 +124,28 @@ func tagsFromArgs(ctx context.Context, c *ui.Console, sc *scraper.Scraper, cfg *
 	if keywords != "" {
 		tt := bookmark.ParseTags(keywords)
 		b.tags = tt
-		c.Frame.Textln(" " + cgi(b.tags)).Flush()
+		a.Console.Frame.Textln(" " + cgi(b.tags)).Flush()
 
 		return
 	}
 
-	if cfg.Flags.Force {
+	if a.Cfg.Flags.Force {
 		b.tags = "notag"
-		c.Frame.Textln(" " + cgi(b.tags)).Flush()
+		a.Console.Frame.Textln(" " + cgi(b.tags)).Flush()
 
 		return
 	}
 
 	// prompt|take input for tags
-	c.Frame.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
+	a.Console.Frame.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
 
-	mTags, _ := dbtask.TagsCounterFromPath(ctx, cfg.DBPath)
-	b.tags = bookmark.ParseTags(c.Term.ChooseTags(c.Frame.Border.Mid, mTags))
+	mTags, _ := dbtask.TagsCounterFromPath(a.Ctx, a.Cfg.DBPath)
+	b.tags = bookmark.ParseTags(a.Console.Term.ChooseTags(a.Console.Frame.Border.Mid, mTags))
 
-	c.Frame.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))
+	a.Console.Frame.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))
 
-	c.Term.ClearLine(txt.CountLines(c.Frame.String()))
-	c.Frame.Flush()
+	a.Console.ClearLine(txt.CountLines(a.Console.Frame.String()))
+	a.Console.Frame.Flush()
 }
 
 // fetchTitleAndDesc fetch and display title and description.

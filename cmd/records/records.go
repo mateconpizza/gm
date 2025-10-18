@@ -3,18 +3,17 @@
 package records
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -47,7 +46,17 @@ func Cmd(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(cmd.Context(), menuForRecords(cfg), r, args, cfg.Flags)
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithDB(r),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		})),
+	)
+
+	m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+	bs, err := handler.Data(a, m, args)
 	if err != nil {
 		return err
 	}
@@ -55,12 +64,7 @@ func Cmd(cmd *cobra.Command, args []string) error {
 		return db.ErrRecordNotFound
 	}
 
-	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	})
-
-	return exec(cmd.Context(), c, r, cfg, bs)
+	return exec(a, bs)
 }
 
 // InitFlags initializes CLI flags for the records command.
@@ -96,57 +100,29 @@ func InitFilterFlags(cmd *cobra.Command, cfg *config.Config) {
 
 // exec handles the bookmark actions and output selection according to the
 // provided flags.
-func exec(ctx context.Context, c *ui.Console, r *db.SQLite, a *config.Config, bs []*bookmark.Bookmark) error {
-	f := a.Flags
+func exec(a *app.Context, bs []*bookmark.Bookmark) error {
+	f := a.Cfg.Flags
 	switch {
 	case f.Remove:
-		return handler.Remove(ctx, c, r, bs, a)
+		return handler.Remove(a, bs)
 	case f.Export:
 		return handler.Export(bs)
 	case f.Edit:
-		return handler.Edit(ctx, c, r, a, bs)
+		return handler.Edit(a, bs)
 	case f.Copy:
 		return handler.Copy(bs)
 	case f.Open && !f.QR:
-		return handler.Open(ctx, c, r, bs)
+		return handler.Open(a, bs)
 	}
 
 	switch {
 	case f.Format != "":
 		return printer.Display(f.Format, bs)
 	case f.QR:
-		return handler.QR(ctx, bs, f.Open, a.Name)
+		return handler.QR(a.Ctx, bs, f.Open, a.Cfg.Name)
 	case f.Notes:
 		return printer.Notes(bs)
 	default:
 		return printer.Records(bs)
 	}
-}
-
-// menuForRecords builds the interactive FZF menu for selecting records.
-func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
-	var keybindsArgs []string
-	if cfg.Flags.Notes {
-		keybindsArgs = append(keybindsArgs, "--notes")
-	}
-
-	mo := []menu.OptFn{
-		menu.WithSettings(config.Fzf.Settings),
-		menu.WithMultiSelection(),
-		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
-		menu.WithKeybinds(
-			config.FzfKeybindEdit(keybindsArgs...),
-			config.FzfKeybindEditNotes(),
-			config.FzfKeybindOpen(),
-			config.FzfKeybindQR(),
-			config.FzfKeybindOpenQR(),
-			config.FzfKeybindYank(),
-		),
-	}
-
-	if cfg.Flags.Multiline {
-		mo = append(mo, menu.WithMultilineView())
-	}
-
-	return menu.New[T](mo...)
 }

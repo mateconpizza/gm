@@ -13,9 +13,67 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
+
+// MenuMainForRecords builds the interactive FZF menu for selecting records.
+func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
+	var keybindsArgs []string
+	if cfg.Flags.Notes {
+		keybindsArgs = append(keybindsArgs, "--notes")
+	}
+
+	mo := []menu.OptFn{
+		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithMultiSelection(),
+		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
+		menu.WithKeybinds(
+			config.FzfKeybindEdit(keybindsArgs...),
+			config.FzfKeybindEditNotes(),
+			config.FzfKeybindOpen(),
+			config.FzfKeybindQR(),
+			config.FzfKeybindOpenQR(),
+			config.FzfKeybindYank(),
+		),
+	}
+
+	if cfg.Flags.Multiline {
+		mo = append(mo, menu.WithMultilineView())
+	}
+
+	return menu.New[T](mo...)
+}
+
+// MenuSimpleForRecords builds a simpler menu without all keybindings.
+func MenuSimpleForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
+	opts := []menu.OptFn{
+		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
+	}
+
+	if cfg.Flags.Multiline {
+		opts = append(opts, menu.WithMultilineView())
+	}
+
+	return menu.New[T](opts...)
+}
+
+// MenuSimpleMultiRecords builds a simpler menu without all keybindings.
+func MenuSimpleMultiRecords(cfg *config.Config) *menu.Menu[bookmark.Bookmark] {
+	opts := []menu.OptFn{
+		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
+		menu.WithMultiSelection(),
+	}
+
+	if cfg.Flags.Multiline {
+		opts = append(opts, menu.WithMultilineView())
+	}
+
+	return menu.New[bookmark.Bookmark](opts...)
+}
 
 // selection allows the user to select a record in a menu interface.
 func selection[T comparable](items []T, fmtFn func(*T) string, opts ...menu.OptFn) ([]T, error) {
@@ -66,7 +124,7 @@ func selectItem(ctx context.Context, fs []string, header string) (string, error)
 	cfg := config.New()
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(ctx, *p) },
-		menu.WithSettings(config.Fzf.Settings),
+		menu.WithSettings(cfg.Menu.Settings),
 		menu.WithHeader(header, false),
 		menu.WithPreview(cfg.Cmd+" db -n {1} -i"),
 	)
@@ -85,7 +143,7 @@ func SelectBackupOne(ctx context.Context, c *ui.Console, bks []string) (string, 
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(ctx, *p) },
 		menu.WithArgs("--cycle"),
-		menu.WithSettings(config.Fzf.Settings),
+		menu.WithSettings(cfg.Menu.Settings),
 		menu.WithPreview(cfg.Cmd+" db -n ./backup/{1} info"),
 		menu.WithHeader("choose a backup to import from", false))
 	if err != nil {
@@ -118,7 +176,7 @@ func SelectBackupMany(ctx context.Context, root, header string) ([]string, error
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(ctx, *p) },
 		menu.WithMultiSelection(),
-		menu.WithSettings(config.Fzf.Settings),
+		menu.WithSettings(cfg.Menu.Settings),
 		menu.WithHeader(header, false),
 		menu.WithPreview(cfg.Cmd+" db -n ./backup/{1} info"),
 	)
@@ -137,9 +195,10 @@ func SelectFileLocked(ctx context.Context, root, header string) ([]string, error
 		return bks, fmt.Errorf("%w", err)
 	}
 
+	cfg := config.New()
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(ctx, *p) },
-		menu.WithSettings(config.Fzf.Settings),
+		menu.WithSettings(cfg.Menu.Settings),
 		menu.WithHeader(header, false),
 	)
 	if err != nil {

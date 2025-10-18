@@ -6,12 +6,12 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/health/wayback"
 	"github.com/mateconpizza/gm/cmd/records"
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -55,7 +55,17 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 
 	terminal.ReadPipedInput(&args)
 
-	bs, err := handler.Data(cmd.Context(), menuForRecords(cfg), r, args, cfg.Flags)
+	a := app.New(cmd.Context(),
+		app.WithDB(r),
+		app.WithConfig(cfg),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		})),
+	)
+
+	m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+	bs, err := handler.Data(a, m, args)
 	if err != nil {
 		return err
 	}
@@ -63,25 +73,13 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 		return db.ErrRecordNotFound
 	}
 
-	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
-		r.Close()
-		sys.ErrAndExit(err)
-	})
-
-	f := cfg.Flags
+	f := a.Cfg.Flags
 	switch {
 	case f.Status: // FIX: remove
-		return handler.CheckStatus(cmd.Context(), c, r, bs)
+		return handler.CheckStatus(a, bs)
 	case f.Update:
-		return handler.Update(cmd.Context(), c, r, cfg, bs)
+		return handler.Update(a, bs)
 	}
 
-	return handler.CheckStatus(cmd.Context(), c, r, bs)
-}
-
-func menuForRecords[T bookmark.Bookmark](cfg *config.Config) *menu.Menu[T] {
-	return menu.New[T](
-		menu.WithSettings(cfg.Menu.Settings),
-		menu.WithPreview(cfg.Cmd+" --name "+cfg.DBName+" records {1}"),
-	)
+	return handler.CheckStatus(a, bs)
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -26,8 +27,8 @@ import (
 )
 
 // Browser imports bookmarks from a supported browser.
-func Browser(ctx context.Context, c *ui.Console, r *db.SQLite, force bool) error {
-	br, ok := getBrowser(selectBrowser(c))
+func Browser(a *app.Context) error {
+	br, ok := getBrowser(selectBrowser(a.Console))
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
 	}
@@ -37,13 +38,13 @@ func Browser(ctx context.Context, c *ui.Console, r *db.SQLite, force bool) error
 	}
 
 	// find bookmarks
-	bs, err := br.Import(c, force)
+	bs, err := br.Import(a.Console, a.Cfg.Flags.Yes)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
 
 	// clean and process found bookmarks
-	bs, err = parseFoundInBrowser(ctx, c, r, bs, force)
+	bs, err = parseFoundInBrowser(a, bs)
 	if err != nil {
 		return err
 	}
@@ -52,14 +53,14 @@ func Browser(ctx context.Context, c *ui.Console, r *db.SQLite, force bool) error
 		return nil
 	}
 
-	return IntoRepo(ctx, c, r, bs)
+	return IntoRepo(a, bs)
 }
 
 // Database imports bookmarks from a database.
-func Database(ctx context.Context, c *ui.Console, srcDB, destDB *db.SQLite) error {
+func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
 	cfg := config.New()
 	m := menu.New[bookmark.Bookmark](
-		menu.WithSettings(config.Fzf.Settings),
+		menu.WithSettings(cfg.Menu.Settings),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import", false),
 		menu.WithPreview(cfg.Cmd+" -n "+srcDB.Name()+" records {1}"),
@@ -70,7 +71,7 @@ func Database(ctx context.Context, c *ui.Console, srcDB, destDB *db.SQLite) erro
 		}),
 	)
 
-	items, err := srcDB.All(ctx)
+	items, err := srcDB.All(a.Ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -94,28 +95,30 @@ func Database(ctx context.Context, c *ui.Console, srcDB, destDB *db.SQLite) erro
 		bookmarks = append(bookmarks, &records[i])
 	}
 
-	bookmarks = Deduplicate(ctx, c, destDB, bookmarks)
+	a.SetDatabase(destDB)
+
+	bookmarks = Deduplicate(a.Ctx, a.Console, a.DB, bookmarks)
 	n := len(bookmarks)
 	if n == 0 {
-		c.Frame.Midln("no new bookmark found, skipping import").Flush()
+		a.Console.Frame.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	if err := destDB.InsertMany(ctx, bookmarks); err != nil {
+	if err := a.DB.InsertMany(a.Ctx, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s from %s\n", n, srcDB.Name())))
+	fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("imported %d record/s from %s\n", n, srcDB.Name())))
 
 	return nil
 }
 
 // IntoRepo import records into the database.
-func IntoRepo(ctx context.Context, c *ui.Console, r *db.SQLite, records []*bookmark.Bookmark) error {
+func IntoRepo(a *app.Context, records []*bookmark.Bookmark) error {
 	cfg := config.New()
 	n := len(records)
 	if !cfg.Flags.Force && n > 1 {
-		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
+		if err := a.Console.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -126,33 +129,33 @@ func IntoRepo(ctx context.Context, c *ui.Console, r *db.SQLite, records []*bookm
 	)
 	sp.Start()
 
-	if err := r.InsertMany(ctx, records); err != nil {
+	if err := a.DB.InsertMany(a.Ctx, records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	sp.Done()
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", n)))
+	fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("imported %d record/s\n", n)))
 
 	return nil
 }
 
 // FromBackup imports bookmarks from a backup.
-func FromBackup(ctx context.Context, c *ui.Console, destDB, srcDB *db.SQLite) error {
+func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 	cfg := config.New()
 	s := color.BrightYellow("Import bookmarks from backup: ").String()
-	c.Frame.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
+	a.Console.Frame.Headerln(s + color.Gray(srcDB.Name()).Italic().String()).Flush()
 	m := menu.New[bookmark.Bookmark](
 		menu.WithMultiSelection(),
-		menu.WithSettings(config.Fzf.Settings),
+		menu.WithSettings(cfg.Menu.Settings),
 		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", cfg.Cmd, srcDB.Name())),
-		menu.WithInterruptFn(c.Term.InterruptFn),
+		menu.WithInterruptFn(a.Console.Term.InterruptFn),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'", false),
 	)
 
-	defer c.Term.CancelInterruptHandler()
+	defer a.Console.Term.CancelInterruptHandler()
 
-	bookmarks, err := srcDB.All(ctx)
+	bookmarks, err := srcDB.All(a.Ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -175,13 +178,16 @@ func FromBackup(ctx context.Context, c *ui.Console, destDB, srcDB *db.SQLite) er
 		result = append(result, &items[i])
 	}
 
-	dRecords := Deduplicate(ctx, c, destDB, result)
+	// update which repo to insert
+	a.SetDatabase(destDB)
+
+	dRecords := Deduplicate(a.Ctx, a.Console, a.DB, result)
 	if len(dRecords) == 0 {
-		c.Frame.Midln("no new bookmark found, skipping import").Flush()
+		a.Console.Frame.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	return IntoRepo(ctx, c, destDB, dRecords)
+	return IntoRepo(a, dRecords)
 }
 
 // ToJSON converts an interface to JSON.
@@ -231,21 +237,16 @@ func Deduplicate(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmar
 
 // parseFoundInBrowser processes the bookmarks found from the import
 // browser process.
-func parseFoundInBrowser(
-	ctx context.Context,
-	c *ui.Console,
-	r *db.SQLite,
-	bs []*bookmark.Bookmark,
-	force bool,
-) ([]*bookmark.Bookmark, error) {
-	bs = Deduplicate(ctx, c, r, bs)
+func parseFoundInBrowser(a *app.Context, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+	bs = Deduplicate(a.Ctx, a.Console, a.DB, bs)
 	if len(bs) == 0 {
-		c.Frame.Midln("no new bookmark found, skipping import").Flush()
+		a.Console.Frame.Midln("no new bookmark found, skipping import").Flush()
 		return bs, nil
 	}
 
-	if !force {
-		if err := c.ConfirmErr(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y"); err != nil {
+	if !a.Cfg.Flags.Yes {
+		q := fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs))
+		if err := a.Console.ConfirmErr(q, "y"); err != nil {
 			if errors.Is(err, sys.ErrActionAborted) {
 				return bs, nil
 			}
@@ -254,7 +255,7 @@ func parseFoundInBrowser(
 		}
 	}
 
-	if err := metadata.ScrapeDescriptions(ctx, bs); err != nil {
+	if err := metadata.ScrapeDescriptions(a.Ctx, bs); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 

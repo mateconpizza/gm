@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
@@ -140,7 +141,13 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 	}
 
 	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
-	imported, err := git.Import(cmd.Context(), c, gm, cfg)
+
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithConsole(c),
+	)
+
+	imported, err := git.Import(a, gm)
 	if err != nil {
 		return err
 	}

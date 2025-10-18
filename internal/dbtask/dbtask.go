@@ -221,6 +221,7 @@ func TagsCounterFromPath(ctx context.Context, dbPath string) (map[string]int, er
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
+	defer r.Close()
 
 	return r.TagsCounter(ctx)
 }

@@ -6,14 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdGit "github.com/mateconpizza/gm/cmd/git"
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -60,18 +58,15 @@ func fromBackupFunc(cmd *cobra.Command, args []string) error {
 		return db.ErrBackupNotFound
 	}
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) {
-				destRepo.Close()
-				sys.ErrAndExit(err)
-			})),
-		),
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			db.Shutdown()
+			sys.ErrAndExit(err)
+		})),
 	)
 
-	backupPath, err := handler.SelectBackupOne(cmd.Context(), c, bks)
+	backupPath, err := handler.SelectBackupOne(cmd.Context(), a.Console, bks)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -82,13 +77,7 @@ func fromBackupFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer srcRepo.Close()
 
-	c.Term.SetInterruptFn(func(err error) {
-		destRepo.Close()
-		srcRepo.Close()
-		sys.ErrAndExit(err)
-	})
-
-	if err := port.FromBackup(cmd.Context(), c, destRepo, srcRepo); err != nil {
+	if err := port.FromBackup(a, destRepo, srcRepo); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -114,19 +103,15 @@ func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
 	}
 	defer rSrc.Close()
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) {
-				rDest.Close()
-				rSrc.Close()
-				sys.ErrAndExit(err)
-			})),
-		),
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			db.Shutdown()
+			sys.ErrAndExit(err)
+		})),
 	)
 
-	if err := port.Database(cmd.Context(), c, rSrc, rDest); err != nil {
+	if err := port.Database(a, rSrc, rDest); err != nil {
 		return fmt.Errorf("import from database: %w", err)
 	}
 

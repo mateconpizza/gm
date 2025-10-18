@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/slice"
@@ -21,10 +22,8 @@ import (
 )
 
 // confirmRemove prompts the user to confirm the action.
-func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Slice[bookmark.Bookmark]) error {
-	// FIX: inject `cfg`
-	cfg := config.New()
-	for !cfg.Flags.Force {
+func confirmRemove(a *app.Context, m *menu.Menu[bookmark.Bookmark], bs *slice.Slice[bookmark.Bookmark]) error {
+	for !a.Cfg.Flags.Yes {
 		n := bs.Len()
 		if n == 0 {
 			return db.ErrRecordNotFound
@@ -41,9 +40,9 @@ func confirmRemove(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs *slice.Sli
 			opts = append(opts, "select")
 		}
 
-		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", s, n), opts, "n")
+		opt, err := a.Console.Choose(fmt.Sprintf("%s %d bookmark/s?", s, n), opts, "n")
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 
 		switch strings.ToLower(opt) {
@@ -93,7 +92,7 @@ func extractIDsFrom(args []string) ([]int, error) {
 		return ids, nil
 	}
 
-	for _, arg := range strings.Fields(strings.Join(args, " ")) {
+	for arg := range strings.FieldsSeq(strings.Join(args, " ")) {
 		id, err := strconv.Atoi(arg)
 		if err != nil {
 			if errors.Is(err, strconv.ErrSyntax) {

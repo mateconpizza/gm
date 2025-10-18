@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -22,19 +22,19 @@ var (
 )
 
 // Repo returns a summary of the repository.
-func Repo(ctx context.Context, c *ui.Console, r *db.SQLite) string {
+func Repo(a *app.Context) string {
 	var (
-		name    = r.Name()
-		path    = txt.PaddedLine("path:", files.CollapseHomeDir(r.Cfg.Fullpath()))
-		records = txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
-		tags    = txt.PaddedLine("tags:", r.Count(ctx, "tags"))
+		name    = a.DB.Name()
+		path    = txt.PaddedLine("path:", files.CollapseHomeDir(a.DB.Cfg.Fullpath()))
+		records = txt.PaddedLine("records:", a.DB.Count(a.Ctx, "bookmarks"))
+		tags    = txt.PaddedLine("tags:", a.DB.Count(a.Ctx, "tags"))
 	)
 
 	if name == config.MainDBName {
 		name += cgi(" (main) ")
 	}
 
-	return c.Frame.Headerln(color.Yellow(name).Italic().String()).
+	return a.Console.Frame.Headerln(color.Yellow(name).Italic().String()).
 		Rowln(records).
 		Rowln(tags).
 		Rowln(path).
@@ -42,7 +42,7 @@ func Repo(ctx context.Context, c *ui.Console, r *db.SQLite) string {
 }
 
 // RepoFromPath returns a summary of the repository.
-func RepoFromPath(ctx context.Context, c *ui.Console, dbPath, backupPath string) string {
+func RepoFromPath(a *app.Context, dbPath, backupPath string) string {
 	if strings.HasSuffix(dbPath, ".enc") {
 		dbPath = strings.TrimSuffix(dbPath, ".enc")
 		s := cmi(filepath.Base(dbPath))
@@ -52,33 +52,33 @@ func RepoFromPath(ctx context.Context, c *ui.Console, dbPath, backupPath string)
 			e = "(main locked)"
 		}
 
-		return c.Frame.Mid(txt.PaddedLine(s, cgi(e))).Ln().StringReset()
+		return a.Console.Frame.Mid(txt.PaddedLine(s, cgi(e))).Ln().StringReset()
 	}
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
 
 	r, err := db.New(dbPath)
 	if err != nil {
-		return c.Frame.Row(path).StringReset()
+		return a.Console.Frame.Row(path).StringReset()
 	}
 	defer r.Close()
 
-	records := txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
-	tags := txt.PaddedLine("tags:", r.Count(ctx, "tags"))
+	records := txt.PaddedLine("records:", r.Count(a.Ctx, "bookmarks"))
+	tags := txt.PaddedLine("tags:", r.Count(a.Ctx, "tags"))
 	name := color.Yellow(r.Name()).Italic().String()
 
 	if r.Name() == config.MainDBName {
 		name = txt.PaddedLine(name, cgi("(main)"))
 	}
 
-	c.Frame.Headerln(name).Rowln(records).Rowln(tags)
+	a.Console.Frame.Headerln(name).Rowln(records).Rowln(tags)
 	dbName := files.StripSuffixes(r.Name())
 	backups, _ := files.List(backupPath, "*_"+dbName+".db*")
 	if len(backups) > 0 {
-		c.Frame.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
+		a.Console.Frame.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
 	}
 
-	return c.Frame.Rowln(path).StringReset()
+	return a.Console.Frame.Rowln(path).StringReset()
 }
 
 // RepoRecords generates a summary of record counts for a given SQLite
@@ -148,29 +148,31 @@ func BackupWithFmtDateFromPath(ctx context.Context, p string) string {
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(ctx context.Context, c *ui.Console, r *db.SQLite, backupPath string) string {
-	dbName := files.StripSuffixes(r.Name())
+func BackupListDetail(a *app.Context) string {
+	backupPath := a.Cfg.Path.Backup
+	dbName := files.StripSuffixes(a.DB.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
 		return ""
 	}
 
-	c.Frame.Header(color.BrightCyan("summary:\n").Italic().String())
+	a.Console.Frame.Header(color.BrightCyan("summary:\n").Italic().String())
 	if err != nil {
-		return c.Frame.Row(txt.PaddedLine("found:", "n/a\n")).String()
+		return a.Console.Frame.Row(txt.PaddedLine("found:", "n/a\n")).String()
 	}
 
 	for i := range fs {
-		c.Frame.Rowln(BackupWithFmtDateFromPath(ctx, fs[i]))
+		a.Console.Frame.Rowln(BackupWithFmtDateFromPath(a.Ctx, fs[i]))
 	}
 
-	return c.Frame.StringReset()
+	return a.Console.Frame.StringReset()
 }
 
 // Backups returns a summary of the backups.
 //
 // last, path and number of backups.
-func Backups(ctx context.Context, c *ui.Console, r *db.SQLite, backupPath string) string {
+func Backups(a *app.Context) string {
+	backupPath := a.Cfg.Path.Backup
 	var (
 		empty          = "n/a"
 		backupsColor   = color.BrightMagenta("backups:").Italic()
@@ -179,7 +181,7 @@ func Backups(ctx context.Context, c *ui.Console, r *db.SQLite, backupPath string
 		lastBackupDate = empty
 	)
 
-	dbName := files.StripSuffixes(r.Name())
+	dbName := files.StripSuffixes(a.DB.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
 		return ""
@@ -195,7 +197,7 @@ func Backups(ctx context.Context, c *ui.Console, r *db.SQLite, backupPath string
 	if n > 0 {
 		backupsInfo = txt.PaddedLine("found:", strconv.Itoa(n)+" backups found")
 		lastItem := fs[n-1]
-		lastBackup = RepoRecordsFromPath(ctx, lastItem)
+		lastBackup = RepoRecordsFromPath(a.Ctx, lastItem)
 		s := txt.RelativeTime(strings.Split(filepath.Base(lastBackup), "_")[0])
 		lastBackupDate = color.BrightGreen(s).Italic().String()
 	}
@@ -204,7 +206,7 @@ func Backups(ctx context.Context, c *ui.Console, r *db.SQLite, backupPath string
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
 
-	return c.Frame.Headerln(backupsColor.String()).
+	return a.Console.Frame.Headerln(backupsColor.String()).
 		Rowln(path).
 		Rowln(last).
 		Rowln(lastDate).
@@ -213,10 +215,10 @@ func Backups(ctx context.Context, c *ui.Console, r *db.SQLite, backupPath string
 }
 
 // Info returns the repository info.
-func Info(ctx context.Context, c *ui.Console, r *db.SQLite, p string) string {
-	s := Repo(ctx, c, r)
-	s += Backups(ctx, c, r, p)
-	s += BackupListDetail(ctx, c, r, p)
+func Info(a *app.Context) string {
+	s := Repo(a)
+	s += Backups(a)
+	s += BackupListDetail(a)
 
 	return s
 }

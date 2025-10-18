@@ -14,10 +14,10 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -26,8 +26,8 @@ import (
 
 // Import clones a Git repository, parses its bookmark files, and imports them
 // into the application.
-func Import(ctx context.Context, c *ui.Console, gm *Manager, cfg *config.Config) ([]string, error) {
-	urlRepo := cfg.Flags.Path
+func Import(a *app.Context, gm *Manager) ([]string, error) {
+	urlRepo := a.Cfg.Flags.Path
 	if err := gm.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
@@ -41,11 +41,11 @@ func Import(ctx context.Context, c *ui.Console, gm *Manager, cfg *config.Config)
 		return nil, ErrGitRepoNotFound
 	}
 
-	c.Frame.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
+	a.Console.Frame.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	var imported []string
 	for _, repoName := range repos {
-		dbPath, err := parseGitRepo(ctx, c, gm.RepoPath, repoName, cfg.Path.Data)
+		dbPath, err := parseGitRepo(a, gm.RepoPath, repoName)
 		if err != nil {
 			if errors.Is(err, sys.ErrActionAborted) {
 				n--
@@ -68,7 +68,7 @@ func Import(ctx context.Context, c *ui.Console, gm *Manager, cfg *config.Config)
 		return nil, fmt.Errorf("removing temp repo: %w", err)
 	}
 
-	fmt.Print(c.SuccessMesg("imported bookmarks from git\n"))
+	fmt.Print(a.Console.SuccessMesg("imported bookmarks from git\n"))
 
 	return imported, nil
 }

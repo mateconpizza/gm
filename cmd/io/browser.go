@@ -5,10 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -24,15 +24,15 @@ var browserCmd = &cobra.Command{
 		}
 		defer r.Close()
 
-		c := ui.NewConsole(
-			ui.WithTerminal(terminal.New(
-				terminal.WithContext(cmd.Context()),
-				terminal.WithInterruptFn(func(err error) {
-					r.Close()
-					sys.ErrAndExit(err)
-				}))),
+		a := app.New(cmd.Context(),
+			app.WithDB(r),
+			app.WithConfig(cfg),
+			app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+				db.Shutdown()
+				sys.ErrAndExit(err)
+			})),
 		)
 
-		return port.Browser(cmd.Context(), c, r, cfg.Flags.Force)
+		return port.Browser(a)
 	},
 }
