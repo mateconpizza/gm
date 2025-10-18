@@ -24,6 +24,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 // NewRootCmd is the main command.
@@ -68,6 +69,9 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 	cmd.SuggestionsMinimumDistance = 1
 	cobra.EnableCommandSorting = false
 	cobra.EnableTraverseRunHooks = true
+
+	// close all open connections
+	sys.RegisterCleanup(db.Shutdown)
 
 	return cmd
 }
