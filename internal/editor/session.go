@@ -65,7 +65,7 @@ func (e *EditSession) processSingleRecord(original *Record, idx, total int, stra
 			return err
 		}
 
-		e.Console.Frame.Reset().Header("Diff:\n").Flush()
+		e.Console.Frame().Reset().Header("Diff:\n").Flush()
 		fmt.Println(strategy.Diff(original, updated))
 
 		opt, err := e.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")

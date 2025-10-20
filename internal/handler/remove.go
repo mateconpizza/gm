@@ -14,18 +14,11 @@ import (
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
-)
-
-var (
-	cred  = func(s string) string { return color.BrightRed(s).String() }        // BrightRed
-	credB = func(s string) string { return color.BrightRed(s).Bold().String() } // BrightRed/Bold
-	cyel  = func(s string) string { return color.BrightYellow(s).String() }     // BrightYellow
 )
 
 // RemoveRepo removes a repo.
@@ -38,9 +31,10 @@ func RemoveRepo(a *app.Context) error {
 		return fmt.Errorf("%w: main database cannot be removed, use --force", sys.ErrActionAborted)
 	}
 
+	c := a.Console()
 	fmt.Print(summary.RepoFromPath(a, a.Cfg.DBPath, a.Cfg.Path.Backup))
 	if !a.Cfg.Flags.Force {
-		if err := a.Console.ConfirmErr(credB("remove")+" "+filepath.Base(a.Cfg.DBPath)+"?", "n"); err != nil {
+		if err := c.ConfirmErr(c.Palette().BrightRedBold("remove")+" "+filepath.Base(a.Cfg.DBPath)+"?", "n"); err != nil {
 			return err
 		}
 	}
@@ -60,7 +54,7 @@ func RemoveRepo(a *app.Context) error {
 		dbName = "main"
 	}
 
-	fmt.Print(a.Console.SuccessMesg("database " + dbName + " removed\n"))
+	fmt.Println(c.SuccessMesg("database " + dbName + " removed"))
 
 	return nil
 }
@@ -71,7 +65,7 @@ func RemoveBackups(a *app.Context) error {
 	dbName := files.StripSuffixes(filepath.Base(p))
 	fs, err := files.List(a.Cfg.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	if len(fs) == 0 {
@@ -79,32 +73,33 @@ func RemoveBackups(a *app.Context) error {
 	}
 
 	filesToRemove := slice.New[string]()
-
-	if a.Cfg.Flags.Force {
+	if a.Cfg.Flags.Yes {
 		filesToRemove.Append(fs...)
 		return removeSlicePath(a, filesToRemove)
 	}
 
+	c := a.Console()
+
 actionLoop:
 	for {
-		opt, err := a.Console.Choose(credB("remove")+" backups?", []string{"all", "no", "select"}, "n")
+		opt, err := c.Choose(c.Palette().BrightRedBold("remove")+" backups?", []string{"all", "no", "select"}, "n")
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 
 		switch strings.ToLower(opt) {
 		case "n", "no":
-			a.Console.ReplaceLine(a.Console.Warning(cyel("skipping") + " backup/s").StringReset())
+			c.ReplaceLine(c.Warning(c.Palette().BrightYellow("skipping") + " backup/s").StringReset())
 			break actionLoop
 		case "a", "all":
 			filesToRemove.Append(fs...)
 			break actionLoop
 		case "s", "select":
-			a.Console.SetReader(os.Stdin)
-			a.Console.SetWriter(os.Stdout)
+			c.SetReader(os.Stdin)
+			c.SetWriter(os.Stdout)
 
 			selected, err := selection(fs,
-				func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, *p) },
+				func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, a.Console(), *p) },
 				menu.WithArgs("--cycle"),
 				menu.WithSettings(a.Cfg.Menu.Settings),
 				menu.WithMultiSelection(),
@@ -119,7 +114,7 @@ actionLoop:
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			a.Console.ClearLine(1)
+			c.ClearLine(1)
 			filesToRemove.Append(selected...)
 			break actionLoop
 		}
@@ -130,6 +125,8 @@ actionLoop:
 
 // removeSlicePath removes a slice of paths.
 func removeSlicePath(a *app.Context, dbs *slice.Slice[string]) error {
+	c := a.Console()
+	f := c.Frame()
 	n := dbs.Len()
 	if n == 0 {
 		return slice.ErrSliceEmpty
@@ -137,13 +134,13 @@ func removeSlicePath(a *app.Context, dbs *slice.Slice[string]) error {
 
 	if n > 1 && !a.Cfg.Flags.Yes {
 		dbs.ForEach(func(r string) {
-			a.Console.Frame.Midln(summary.RepoRecordsFromPath(a.Ctx, r))
+			f.Midln(summary.RepoRecordsFromPath(a.Ctx, a.Console(), r))
 		})
 
-		a.Console.Frame.Flush()
+		f.Flush()
 
-		msg := fmt.Sprintf("%s %d item/s", cred("removing"), n)
-		if err := a.Console.ConfirmErr(msg+", continue?", "n"); err != nil {
+		msg := fmt.Sprintf("%s %d item/s", c.Palette().BrightRed("removing"), n)
+		if err := c.ConfirmErr(msg+", continue?", "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -168,7 +165,7 @@ func removeSlicePath(a *app.Context, dbs *slice.Slice[string]) error {
 
 	sp.Done()
 
-	fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("%d item/s removed\n", dbs.Len())))
+	fmt.Println(c.SuccessMesg(fmt.Sprintf("%d item/s removed", dbs.Len())))
 
 	return nil
 }
@@ -184,13 +181,15 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 		return removeRecords(a, bs)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.Gray))
-	f.Header(cred("Removing Bookmarks\n\n")).Flush()
+	c := a.Console()
+	f := frame.New(frame.WithColorBorder(frame.ColorGray))
+	f.Header(c.Palette().BrightRed("Removing Bookmarks\n\n")).Flush()
 
-	defer a.Console.Term.CancelInterruptHandler()
+	t := a.Console().Term()
+	defer t.CancelInterruptHandler()
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithInterruptFn(a.Console.Term.InterruptFn),
+		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithMultiSelection(),
 	)
 
@@ -209,18 +208,20 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 
 // DroppingDB drops a database.
 func DroppingDB(a *app.Context) error {
-	a.Console.Frame.Header(cred("Dropping") + " all records\n").Row("\n").Flush()
+	c := a.Console()
+	f := c.Frame()
+	f.Header(c.Palette().BrightRed("Dropping") + " all records\n").Row("\n").Flush()
 	fmt.Print(summary.Info(a))
 
-	a.Console.Frame.Reset().Rowln().Flush()
+	f.Reset().Rowln().Flush()
 
 	if !a.Cfg.Flags.Yes {
 		q := "continue?"
 		if a.DB.Name() == config.MainDBName {
-			q = a.Console.WarningMesg("dropping \"main\" database, continue?")
+			q = c.WarningMesg("dropping \"main\" database, continue?")
 		}
 
-		if err := a.Console.ConfirmErr(q, "n"); err != nil {
+		if err := c.ConfirmErr(q, "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -229,7 +230,7 @@ func DroppingDB(a *app.Context) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(a.Console.SuccessMesg("database dropped\n"))
+	fmt.Println(c.SuccessMesg("database dropped"))
 
 	return nil
 }

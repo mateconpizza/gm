@@ -11,7 +11,6 @@ import (
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -62,7 +61,7 @@ func setupRepoProcessor(t *testing.T) *RepoProcessor {
 	t.Helper()
 
 	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
+		ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
 		ui.WithTerminal(terminal.New(
 			terminal.WithReader(strings.NewReader("y\n")),
 			terminal.WithWriter(io.Discard), // send output to null, show no prompt

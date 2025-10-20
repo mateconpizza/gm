@@ -12,7 +12,6 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/internal/app"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -23,7 +22,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
 
-var dimmer = func(s string) string { return color.BrightGray(" (" + s + ")").Italic().String() }
+var dimmer = func(s string) string { return color.NewPalette().BrightGrayItalic(" (" + s + ")") }
 
 type SnapshotResult struct {
 	URL   string
@@ -44,9 +43,11 @@ func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 		wg    sync.WaitGroup
 	)
 
+	c := a.Console()
+	f := c.Frame()
 	results := make(chan SnapshotResult, len(bs))
 	sp := rotato.New(
-		rotato.WithPrefix(a.Console.Frame.Mid("Fetching snapshots").String()),
+		rotato.WithPrefix(f.Mid("Fetching snapshots").String()),
 		rotato.WithMesgColor(rotato.ColorYellow),
 		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
 		rotato.WithFailColorMesg(rotato.ColorBrightRed),
@@ -66,7 +67,7 @@ func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 			defer sem.Release(1)
 
 			idx := atomic.AddUint32(&count, 1)
-			f := frame.New(frame.WithColorBorder(color.Gray))
+			f := frame.New(frame.WithColorBorder(frame.ColorGray))
 			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", idx, len(bs), f.Info(txt.Shorten(b.URL, 80)).String()))
 
 			res := processBookmark(a, b)
@@ -81,7 +82,7 @@ func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 
 	cancel()
 
-	return printSummary(a.Console, results)
+	return printSummary(c, results)
 }
 
 func processBookmark(a *app.Context, b *bookmark.Bookmark) SnapshotResult {
@@ -107,7 +108,7 @@ func processBookmark(a *app.Context, b *bookmark.Bookmark) SnapshotResult {
 }
 
 func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
-	c.Frame.Reset()
+	f := c.Frame().Reset()
 	var skipped, failed, success []SnapshotResult
 	for r := range results {
 		switch r.State {
@@ -120,27 +121,28 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 		}
 	}
 
+	p := c.Palette()
 	if len(skipped) > 0 {
-		msg := color.BrightYellow("Skipped", len(skipped), "bookmarks").String()
-		c.Frame.Warning(msg + dimmer(wayback.ErrAlreadyArchived.Error())).Ln().Flush()
+		msg := p.BrightYellow("Skipped", len(skipped), "bookmarks")
+		f.Warning(msg + dimmer(wayback.ErrAlreadyArchived.Error())).Ln().Flush()
 		for _, r := range skipped {
-			c.Frame.Midln(r.URL).Flush()
+			f.Midln(r.URL).Flush()
 		}
 	}
 
 	if len(failed) > 0 {
-		msg := color.BrightRed("Failed", len(failed), "bookmarks").String()
-		c.Frame.Error(msg).Ln().Flush()
+		msg := p.BrightRed("Failed", len(failed), "bookmarks")
+		f.Error(msg).Ln().Flush()
 		for _, r := range failed {
-			c.Frame.Midln(r.URL + dimmer(r.Msg)).Flush()
+			f.Midln(r.URL + dimmer(r.Msg)).Flush()
 		}
 	}
 
 	if len(success) > 0 {
-		msg := color.BrightGreen("Updated", len(success), "bookmarks").String()
-		c.Frame.Success(msg).Ln().Flush()
+		msg := p.BrightGreen("Updated", len(success), "bookmarks")
+		f.Success(msg).Ln().Flush()
 		for _, r := range success {
-			c.Frame.Midln(r.URL).Flush()
+			f.Midln(r.URL).Flush()
 		}
 	}
 
@@ -163,8 +165,8 @@ func updateSpinnerWithDeadline(ctx context.Context, sp *rotato.Rotato, prefix st
 	}
 }
 
-func waybackMenu[T wayback.SnapshotInfo]() *menu.Menu[wayback.SnapshotInfo] {
-	donate := color.BrightRed("donate <3 ").Bold().String()
+func waybackMenu[T wayback.SnapshotInfo](c *ui.Console) *menu.Menu[wayback.SnapshotInfo] {
+	donate := c.Palette().BrightRedBold("donate <3 ")
 	u := "https://archive.org/donate"
 
 	m := menu.New[wayback.SnapshotInfo](
@@ -188,11 +190,11 @@ func formatTime(label, ts string) string {
 }
 
 func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
-	cfg := config.New()
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
-	m := waybackMenu()
+	c := a.Console()
+	m := waybackMenu(c)
 
-	ct := wayback.New(wayback.WithByYear(cfg.Flags.Year), wayback.WithLimit(cfg.Flags.Limit))
+	ct := wayback.New(wayback.WithByYear(a.Cfg.Flags.Year), wayback.WithLimit(a.Cfg.Flags.Limit))
 	for _, b := range bs {
 		sp.Start()
 
@@ -200,7 +202,7 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 		deadline, _ := ctx.Deadline()
 
 		u := txt.Shorten(b.URL, 60)
-		prefix := "Fetching " + color.Text(u).Italic().String() + " snapshots"
+		prefix := "Fetching " + a.Console().Palette().Italic(u) + " snapshots"
 		go updateSpinnerWithDeadline(ctx, sp, prefix, deadline)
 		snapshots, err := ct.Snapshots(ctx, b.URL)
 		cancel()
@@ -209,9 +211,10 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 			return err
 		}
 
+		f := c.Frame()
 		sp.Done(fmt.Sprintf("%d snapshots from %q", len(snapshots), u))
 		if b.ArchiveURL != "" {
-			a.Console.Frame.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
+			f.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
 		}
 
 		m.SetItems(snapshots)
@@ -227,8 +230,8 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 		b.ArchiveURL = snap.ArchiveURL
 		b.ArchiveTimestamp = snap.ArchiveTimestamp
 
-		if cfg.Flags.Open {
-			a.Console.Frame.Midln(formatTime("Open:", b.ArchiveTimestamp)).Flush()
+		if a.Cfg.Flags.Open {
+			f.Midln(formatTime("Open:", b.ArchiveTimestamp)).Flush()
 			return sys.OpenInBrowser(snap.ArchiveURL)
 		}
 
@@ -239,8 +242,8 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 			return err
 		}
 
-		a.Console.Frame.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
-		fmt.Print(a.Console.SuccessMesg("bookmark updated\n"))
+		f.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
+		fmt.Println(c.SuccessMesg("bookmark updated"))
 	}
 
 	return nil

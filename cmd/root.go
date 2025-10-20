@@ -92,7 +92,9 @@ func initAppConfig(ctx context.Context, cfg *config.Config) {
 	menu.SetConfig(config.Fzf)
 
 	// enable global color
-	color.Enable(cfg.Flags.Color)
+	if !cfg.Flags.Color {
+		color.Disable()
+	}
 
 	// terminal interactive mode
 	terminal.NonInteractiveMode(cfg.Flags.Yes)

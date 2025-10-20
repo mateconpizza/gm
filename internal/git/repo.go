@@ -13,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -230,7 +229,7 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 		return nil
 	}
 
-	c.Frame.Success("GPG command found").Ln().Flush()
+	c.Frame().Success("GPG command found").Ln().Flush()
 	if !c.Confirm("Use GPG for encryption?", "n") {
 		return nil
 	}
@@ -240,7 +239,7 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 		return err
 	}
 
-	key, err := selectFingerprint(fps)
+	key, err := selectFingerprint(c, fps)
 	if err != nil {
 		return err
 	}
@@ -262,18 +261,19 @@ func SetConfig(ctx context.Context, c *config.Config) {
 	c.Git.Remote = remote
 }
 
-func selectFingerprint(fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
+func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
+	p := c.Palette()
 	trustColor := func(key *gpg.Fingerprint) string {
 		t := key.TrustLevelString()
 		if key.IsTrusted() {
-			return color.BrightGreen(strings.ToUpper(t)).String()
+			return p.BrightGreen(strings.ToUpper(t))
 		}
 
 		switch t {
 		case "marginal":
-			return color.BrightOrange(strings.ToUpper(t)).String()
+			return p.BrightOrange(strings.ToUpper(t))
 		default:
-			return color.BrightRed(strings.ToUpper(t)).String()
+			return p.BrightRed(strings.ToUpper(t))
 		}
 	}
 
@@ -289,11 +289,11 @@ func selectFingerprint(fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
 		return fmt.Sprintf(
 			"[Trusted: %s %s: %s %s: %s\n%s: %s",
 			trustColor(fp),
-			color.BrightBlue("KeyID").Bold(),
+			p.BrightBlueBold("KeyID"),
 			fp.KeyID,
-			color.BrightMagenta("UserID").Bold(),
+			p.BrightMagentaBold("UserID"),
 			fp.UserID,
-			color.BrightYellow("Fingerprint").Bold(),
+			p.BrightYellowBold("Fingerprint"),
 			fp.Fingerprint,
 		)
 	})

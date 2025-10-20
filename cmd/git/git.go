@@ -14,10 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -126,11 +123,9 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 
 	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
 		slog.Debug("cleaning up temp dir", "path", tmpPath)
-
 		if err := files.RemoveAll(tmpPath); err != nil {
 			slog.Error("cleaning up temp dir", "path", tmpPath)
 		}
-
 		sys.ErrAndExit(err)
 	})
 
@@ -141,12 +136,10 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 	}
 
 	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
-
 	a := app.New(cmd.Context(),
 		app.WithConfig(cfg),
 		app.WithConsole(c),
 	)
-
 	imported, err := git.Import(a, gm)
 	if err != nil {
 		return err
@@ -161,7 +154,6 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-
 		if gr.IsTracked() {
 			if err := gr.Export(); err != nil {
 				return err
@@ -193,14 +185,7 @@ func initFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("init repo: %w", err)
 	}
 
-	c := ui.NewConsole(
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
-		),
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightBlue))),
-	)
-
+	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 	if err := gr.AskForEncryption(c); err != nil {
 		return err
 	}

@@ -18,7 +18,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -78,7 +77,7 @@ var (
 			case a.Cfg.Flags.Unlock:
 				return unlockCmd.RunE(cmd, args)
 			case a.Cfg.Flags.List:
-				return printer.DatabasesTable(cmd.Context(), a.Cfg.Path.Data)
+				return printer.DatabasesTable(cmd.Context(), a.Console(), a.Cfg.Path.Data)
 			case a.Cfg.Flags.Info:
 				return infoCmd.RunE(cmd, args)
 			}
@@ -144,17 +143,8 @@ var (
 		Use:   "lock",
 		Short: "Lock a database",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c := ui.NewConsole(
-				ui.WithTerminal(
-					terminal.New(
-						terminal.WithContext(cmd.Context()),
-						terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
-					),
-				),
-				ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-			)
-
 			cfg := config.New()
+			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 
 			return handler.LockRepo(c, cfg.DBPath)
 		},
@@ -166,7 +156,7 @@ var (
 		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := ui.NewConsole(
-				ui.WithFrame(frame.New(frame.WithColorBorder(color.Purple))),
+				ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorPurple))),
 				ui.WithTerminal(
 					terminal.New(
 						terminal.WithContext(cmd.Context()),
@@ -221,7 +211,7 @@ func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	fmt.Print(c.SuccessMesg("database dropped\n"))
+	fmt.Println(c.SuccessMesg("database dropped"))
 
 	if !c.Confirm("Untrack database?", "n") {
 		return nil
@@ -231,7 +221,7 @@ func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	fmt.Print(c.SuccessMesg("database untracked\n"))
+	fmt.Println(c.SuccessMesg("database untracked"))
 
 	return nil
 }

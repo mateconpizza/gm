@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -60,8 +59,7 @@ func NewCmd() *cobra.Command {
 func createConfig(c *ui.Console, cfg *config.Config) error {
 	p := cfg.Path.ConfigFile
 	if files.Exists(p) && !cfg.Flags.Force {
-		f := color.BrightYellow("--force").Italic().String()
-		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
+		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, c.Palette().BrightYellowItalic("--force"))
 	}
 
 	if !c.Confirm(fmt.Sprintf("create configfile %q", p), "y") {

@@ -59,16 +59,17 @@ func Diff(a, b []byte) string {
 
 // DiffColor colorizes the diff output.
 func DiffColor(s string) string {
+	p := color.NewPalette()
 	var r []string
 
 	for l := range strings.SplitSeq(s, "\n") {
 		switch {
 		case strings.HasPrefix(l, "+"):
-			r = append(r, "  "+color.BrightGreen(l).String())
+			r = append(r, "  "+p.BrightGreen(l))
 		case strings.HasPrefix(l, "-"):
-			r = append(r, "  "+color.BrightRed(l).String())
+			r = append(r, "  "+p.BrightRed(l))
 		default:
-			r = append(r, "  "+color.BrightGray(l).Italic().String())
+			r = append(r, "  "+p.BrightGrayItalic(l))
 		}
 	}
 

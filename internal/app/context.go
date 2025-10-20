@@ -15,7 +15,7 @@ type Option func(*Context)
 type Context struct {
 	Cfg     *config.Config
 	DB      *db.SQLite
-	Console *ui.Console
+	console *ui.Console
 	Ctx     context.Context
 }
 
@@ -27,7 +27,7 @@ func WithConfig(a *config.Config) Option {
 
 func WithConsole(s *ui.Console) Option {
 	return func(c *Context) {
-		c.Console = s
+		c.console = s
 	}
 }
 
@@ -39,6 +39,10 @@ func WithDB(r *db.SQLite) Option {
 
 func (c *Context) SetDatabase(r *db.SQLite) {
 	c.DB = r
+}
+
+func (c *Context) Console() *ui.Console {
+	return c.console
 }
 
 func New(ctx context.Context, opts ...Option) *Context {

@@ -107,8 +107,10 @@ func (b *GeckoBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 		return nil, err
 	}
 
-	c.Frame.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
-	c.Frame.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
+	f := c.Frame()
+
+	f.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
+	f.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
 
 	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
@@ -136,7 +138,7 @@ type geckoBookmark struct {
 }
 
 // openSQLite opens the SQLite database and returns a *sql.DB object.
-func openSQLite(dbPath string) (*sqlx.DB, error) {
+func openSQLite(c *ui.Console, dbPath string) (*sqlx.DB, error) {
 	f := fmt.Sprintf("file:%s?cache=shared", dbPath)
 
 	db, err := sqlx.Open("sqlite", f)
@@ -145,7 +147,7 @@ func openSQLite(dbPath string) (*sqlx.DB, error) {
 	}
 
 	s := rotato.New(
-		rotato.WithMesg(color.BrightBlue("connecting to database...").String()),
+		rotato.WithMesg(c.Palette().BrightBlue("connecting to database...")),
 		rotato.WithSpinnerColor(rotato.ColorGray),
 		rotato.WithFailColorMesg(rotato.ColorBrightRed),
 	)
@@ -246,7 +248,8 @@ func allProfiles(p string) (map[string]string, error) {
 //
 //nolint:funlen,wsl //ignored
 func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
-	c.Frame.Rowln().Flush()
+	p := c.Palette()
+	c.Frame().Rowln().Flush()
 
 	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
@@ -258,7 +261,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 	}
 
 	path = files.ExpandHomeDir(path)
-	db, err := openSQLite(path)
+	db, err := openSQLite(c, path)
 	defer func() {
 		if db == nil {
 			return
@@ -270,8 +273,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 	if err != nil {
 		slog.Error("opening database for profile", "profile", profile, "err", err)
 		if errors.Is(err, ErrBrowserIsOpen) {
-			l := color.BrightRed("locked").String()
-			c.Error("database is " + l + ", maybe firefox is open?\n").Flush()
+			c.Error("database is " + p.BrightRed("locked") + ", maybe firefox is open?\n").Flush()
 			return
 		}
 		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
@@ -315,7 +317,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 		slog.Error("closing rows", "err", err)
 	}
 
-	found := color.BrightBlue("found")
+	found := p.BrightBlue("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-skipped)).Flush()
 }
 

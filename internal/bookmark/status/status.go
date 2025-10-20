@@ -15,21 +15,11 @@ import (
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var ErrNetworkUnreachable = errors.New("network is unreachable")
-
-var (
-	cb  = func(s any) string { return color.Blue(s).Bold().String() }
-	cbg = func(s any) string { return color.BrightGreen(s).String() }
-	cr  = func(s any) string { return color.Red(s).String() }
-	cbr = func(s any) string { return color.BrightRed(s).String() }
-	cy  = func(s any) string { return color.Yellow(s).String() }
-	ctb = func(s string) string { return color.Text(s).Bold().String() }
-)
 
 type Response struct {
 	URL        string
@@ -39,11 +29,16 @@ type Response struct {
 }
 
 func (r *Response) String() string {
-	id := fmt.Sprintf("ID %s", color.Text(fmt.Sprintf("%-3d", r.bID)).Bold())
-	colorStatus, colorCode := prettifyURLStatus(r.statusCode)
-	url := txt.Shorten(r.URL, terminal.MinWidth)
+	c := ui.NewConsole()
+	colorStatus, colorCode := prettifyURLStatus(c, r.statusCode)
 
-	return fmt.Sprintf("%s (%s %s) %s", id, colorCode, colorStatus, url)
+	return fmt.Sprintf(
+		"ID %s (%s %s) %s",
+		c.Palette().Bold(fmt.Sprintf("%-3d", r.bID)),
+		colorCode,
+		colorStatus,
+		txt.Shorten(r.URL, terminal.MinWidth),
+	)
 }
 
 // Check checks the status of a slice of bookmarks.
@@ -97,38 +92,40 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 }
 
 // prettifyURLStatus formats HTTP status codes into colored.
-func prettifyURLStatus(code int) (status, statusCode string) {
+func prettifyURLStatus(c *ui.Console, code int) (status, statusCode string) {
+	p := c.Palette()
 	statusCategory := code / 100
 
 	switch statusCategory {
 	case 2: // 2xx status codes
-		status = cbg("OK")
-		statusCode = cbg(code)
+		status = p.BrightGreen("OK")
+		statusCode = p.BrightGreen(code)
 	case 3: // 3xx status codes
-		status = cy("WA")
-		statusCode = cy(code)
+		status = p.BrightYellow("WA")
+		statusCode = p.BrightYellow(code)
 	case 4: // 4xx status codes
-		status = cbr("ER")
-		statusCode = cbr(code)
+		status = p.BrightRed("ER")
+		statusCode = p.BrightRed(code)
 	case 5: // 5xx status codes
-		status = cr("ER")
-		statusCode = cr(code)
+		status = p.Red("ER")
+		statusCode = p.Red(code)
 	default: // Other status codes
-		status = cy("WA")
-		statusCode = cy(code)
+		status = p.Yellow("WA")
+		statusCode = p.Yellow(code)
 	}
 	return status, statusCode
 }
 
 // fmtSummary formats the summary of the status codes.
-func fmtSummary(n, statusCode int, c color.ColorFn) string {
-	total := fmt.Sprintf(c("%-3d").Bold().String(), n)
-	code := c(statusCode).String()
+func fmtSummary(c *ui.Console, n, statusCode int, colorFn func(...any) string) string {
+	total := fmt.Sprintf(colorFn("%-3d"), n)
+	code := colorFn(statusCode)
 	s := http.StatusText(statusCode)
 
-	statusText := color.Text(s).Italic().String()
+	p := c.Palette()
+	statusText := p.Italic(s)
 	if s == "" {
-		statusText = color.Text("non-standard code").Italic().String()
+		statusText = p.Italic("non-standard code")
 	}
 
 	return total + " URLs returned '" + statusText + "' (" + code + ")"
@@ -137,9 +134,10 @@ func fmtSummary(n, statusCode int, c color.ColorFn) string {
 // printSummaryStatus prints a summary of HTTP status codes and their
 // corresponding URLs.
 func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
+	p := c.Palette()
 	codes := make(map[int][]Response)
-
-	c.Frame.Rowln().Header(ctb("Summary URLs status:\n"))
+	f := c.Frame()
+	f.Rowln().Header(p.Bold("Summary URLs status:\n"))
 
 	for _, res := range r {
 		codes[res.statusCode] = append(codes[res.statusCode], *res)
@@ -151,15 +149,15 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 		statusCategory := statusCode / 100
 		switch statusCategory {
 		case 2: // 2xx status codes
-			c.Frame.Midln(fmtSummary(n, statusCode, color.BrightGreen))
+			f.Midln(fmtSummary(c, n, statusCode, p.BrightGreenBold))
 		case 3: // 3xx status codes
-			c.Frame.Midln(fmtSummary(n, statusCode, color.Yellow))
+			f.Midln(fmtSummary(c, n, statusCode, p.YellowBold))
 		case 4: // 4xx status codes
-			c.Frame.Midln(fmtSummary(n, statusCode, color.BrightRed))
+			f.Midln(fmtSummary(c, n, statusCode, p.BrightRedBold))
 		case 5: // 5xx status codes
-			c.Frame.Midln(fmtSummary(n, statusCode, color.Red))
+			f.Midln(fmtSummary(c, n, statusCode, p.RedBold))
 		default: // Other status codes
-			c.Frame.Midln(fmtSummary(n, statusCode, color.Yellow))
+			f.Midln(fmtSummary(c, n, statusCode, p.YellowBold))
 		}
 
 		// adds URLs detail
@@ -168,13 +166,13 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 			if r.statusCode == http.StatusOK {
 				continue
 			}
-			c.Frame.Rowln(fmt.Sprintf(" > %-3d %s", r.bID, txt.Shorten(r.URL, terminal.MinWidth)))
+			f.Rowln(fmt.Sprintf(" > %-3d %s", r.bID, txt.Shorten(r.URL, terminal.MinWidth)))
 		}
 	}
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
-	total := fmt.Sprintf("Total %s checked,", cb(len(r)))
-	c.Frame.Rowln().Footerln(total + " took " + cb(took)).Flush()
+	total := fmt.Sprintf("Total %s checked,", p.Blue(len(r)))
+	f.Rowln().Footerln(total + " took " + p.Blue(took)).Flush()
 }
 
 // buildResponse builds a Response from an HTTP response.
@@ -191,18 +189,20 @@ func buildResponse(c *ui.Console, b *bookmark.Bookmark, statusCode int, hasError
 	b.IsActive = statusCode >= 200 && statusCode <= 299
 	b.LastStatusChecked = time.Now().Format("20060102150405")
 
+	f := c.Frame()
+
 	statusCategory := statusCode / 100
 	switch statusCategory {
 	case 2: // 2xx status codes
-		c.Frame.Success(result.String() + "\n").Flush()
+		f.Success(result.String() + "\n").Flush()
 	case 3: // 3xx status codes
-		c.Frame.Warning(result.String() + "\n").Flush()
+		f.Warning(result.String() + "\n").Flush()
 	case 4: // 4xx status codes
-		c.Frame.Error(result.String() + "\n").Flush()
+		f.Error(result.String() + "\n").Flush()
 	case 5: // 5xx status codes
-		c.Frame.Error(result.String() + "\n").Flush()
+		f.Error(result.String() + "\n").Flush()
 	default: // Other status codes
-		c.Frame.Midln(result.String()).Flush()
+		f.Midln(result.String()).Flush()
 	}
 
 	return result

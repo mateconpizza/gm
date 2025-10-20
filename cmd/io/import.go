@@ -66,7 +66,7 @@ func fromBackupFunc(cmd *cobra.Command, args []string) error {
 		})),
 	)
 
-	backupPath, err := handler.SelectBackupOne(cmd.Context(), a.Console, bks)
+	backupPath, err := handler.SelectBackupOne(a, bks)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -92,8 +92,16 @@ func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
 	}
 	defer rDest.Close()
 
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			db.Shutdown()
+			sys.ErrAndExit(err)
+		})),
+	)
+
 	// FIX: refactor `SelectDatabase`, return a string (fullpath)
-	srcDB, err := handler.SelectDatabase(cmd.Context(), rDest.Cfg.Fullpath())
+	srcDB, err := handler.SelectDatabase(a, rDest.Cfg.Fullpath())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -102,14 +110,6 @@ func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 	defer rSrc.Close()
-
-	a := app.New(cmd.Context(),
-		app.WithConfig(cfg),
-		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
-			db.Shutdown()
-			sys.ErrAndExit(err)
-		})),
-	)
 
 	if err := port.Database(a, rSrc, rDest); err != nil {
 		return fmt.Errorf("import from database: %w", err)

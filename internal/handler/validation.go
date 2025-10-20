@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -30,17 +29,16 @@ func confirmRemove(a *app.Context, m *menu.Menu[bookmark.Bookmark], bs *slice.Sl
 		}
 
 		bs.ForEach(func(b bookmark.Bookmark) {
-			fmt.Println(txt.Frame(&b))
+			fmt.Println(txt.Frame(a.Console(), &b))
 		})
-
-		s := color.BrightRed("remove").Bold().String()
 
 		opts := []string{"yes", "no"}
 		if bs.Len() > 1 {
 			opts = append(opts, "select")
 		}
 
-		opt, err := a.Console.Choose(fmt.Sprintf("%s %d bookmark/s?", s, n), opts, "n")
+		c := a.Console()
+		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", c.Palette().BrightRedBold("remove"), n), opts, "n")
 		if err != nil {
 			return err
 		}
@@ -51,7 +49,9 @@ func confirmRemove(a *app.Context, m *menu.Menu[bookmark.Bookmark], bs *slice.Sl
 		case "y", "yes":
 			return nil
 		case "s", "select":
-			items, err := selectionWithMenu(m, *bs.Items(), txt.Oneline)
+			items, err := selectionWithMenu(m, *bs.Items(), func(b *bookmark.Bookmark) string {
+				return txt.Oneline(a.Console(), b)
+			})
 			if err != nil {
 				return err
 			}
@@ -80,7 +80,7 @@ func confirmUserLimit(c *ui.Console, count, maxItems int, q string) error {
 		return sys.ErrActionAborted
 	}
 
-	c.ReplaceLine(c.Frame.Midln(q).StringReset())
+	c.ReplaceLine(c.Frame().Midln(q).StringReset())
 
 	return nil
 }

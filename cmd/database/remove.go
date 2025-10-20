@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -27,11 +26,11 @@ var (
 		Short:   "Remove one or more backups from local storage",
 		Aliases: []string{"backup", "b", "backups"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			input := "s\n" // input for prompt, this will show menu to select backups.
+			input := "s\n" // input for prompt, this will show the menu to select backups files.
 			a := app.New(cmd.Context(),
 				app.WithConfig(config.New()),
 				app.WithConsole(ui.NewConsole(
-					ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
+					ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
 					ui.WithTerminal(terminal.New(
 						terminal.WithContext(cmd.Context()),
 						terminal.WithInterruptFn(func(err error) {
@@ -44,7 +43,8 @@ var (
 				)),
 			)
 
-			a.Console.Frame.Headerln(color.BrightRed("Removing").String() + " backups").Rowln().Flush()
+			c := a.Console()
+			c.Frame().Headerln(c.Palette().BrightRed("Removing") + " backups").Rowln().Flush()
 
 			return handler.RemoveBackups(a)
 		},
@@ -73,7 +73,7 @@ var (
 			)
 
 			if cfg.Flags.Menu {
-				s, err := handler.SelectDatabase(cmd.Context(), cfg.Path.Data)
+				s, err := handler.SelectDatabase(a, cfg.Path.Data)
 				if err != nil {
 					return err
 				}

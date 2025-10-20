@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/spf13/cobra"
-
 	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -35,6 +34,11 @@ func AttachTo(cmd *cobra.Command) {
 
 // PrettyVersion formats version in a pretty way.
 func PrettyVersion(appName, version string) string {
-	name := color.BrightBlue(appName).Bold().String()
-	return fmt.Sprintf("%s v%s %s/%s", name, version, runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf(
+		"%s v%s %s/%s",
+		color.NewPalette().BrightBlueBold(appName),
+		version,
+		runtime.GOOS,
+		runtime.GOARCH,
+	)
 }

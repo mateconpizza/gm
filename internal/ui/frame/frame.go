@@ -5,8 +5,48 @@ package frame
 import (
 	"fmt"
 	"strings"
+)
 
-	"github.com/mateconpizza/gm/internal/ui/color"
+type color string
+
+var (
+	// normal colors.
+	ColorBlack   color = "\x1b[30m"
+	ColorBlue    color = "\x1b[34m"
+	ColorCyan    color = "\x1b[36m"
+	ColorGray    color = "\x1b[90m"
+	ColorGreen   color = "\x1b[32m"
+	ColorMagenta color = "\x1b[95m"
+	ColorOrange  color = "\x1b[33m"
+	ColorPurple  color = "\x1b[35m"
+	ColorRed     color = "\x1b[31m"
+	ColorWhite   color = "\x1b[37m"
+	ColorYellow  color = "\x1b[93m"
+
+	// bright colors.
+	ColorBrightBlack   color = "\x1b[90m"
+	ColorBrightBlue    color = "\x1b[94m"
+	ColorBrightCyan    color = "\x1b[96m"
+	ColorBrightGray    color = "\x1b[37m"
+	ColorBrightGreen   color = "\x1b[92m"
+	ColorBrightMagenta color = "\x1b[95m"
+	ColorBrightOrange  color = "\x1b[38;5;214m"
+	ColorBrightPurple  color = "\x1b[38;5;135m"
+	ColorBrightRed     color = "\x1b[91m"
+	ColorBrightWhite   color = "\x1b[97m"
+	ColorBrightYellow  color = "\x1b[93m"
+
+	// styles.
+	StyleBold          color = "\x1b[1m"
+	StyleDim           color = "\x1b[2m"
+	StyleInverse       color = "\x1b[7m"
+	StyleItalic        color = "\x1b[3m"
+	StyleStrikethrough color = "\x1b[9m"
+	StyleUnderline     color = "\x1b[4m"
+	StyleBlink         color = "\x1b[5m"
+
+	// reset.
+	reset color = "\x1b[0m"
 )
 
 var defaultBorders = &FrameBorders{
@@ -25,7 +65,7 @@ type FrameBorders struct {
 
 type Options struct {
 	Border *FrameBorders
-	color  color.ColorFn
+	color  color
 	text   []string
 	icon   *icon
 }
@@ -46,7 +86,7 @@ type icon struct {
 func defaultOpts() Options {
 	return Options{
 		Border: defaultBorders,
-		color:  nil,
+		color:  "",
 		text:   make([]string, 0),
 		icon: &icon{
 			error:    "✗",
@@ -58,9 +98,13 @@ func defaultOpts() Options {
 	}
 }
 
-func WithColorBorder(c color.ColorFn) OptFn {
+func WithColorBorder(c ...color) OptFn {
 	return func(o *Options) {
-		o.color = c
+		var sb strings.Builder
+		for _, clr := range c {
+			sb.WriteString(string(clr))
+		}
+		o.color = color(sb.String())
 	}
 }
 
@@ -86,8 +130,8 @@ func (f *Frame) Ln() *Frame {
 }
 
 func (f *Frame) applyStyle(s string) string {
-	if f.color != nil {
-		return f.color(s).String()
+	if f.color != "" {
+		return string(f.color) + s + string(reset)
 	}
 
 	return s
@@ -184,38 +228,28 @@ func (f *Frame) Reset() *Frame {
 }
 
 func (f *Frame) Error(s ...string) *Frame {
-	e := color.BrightRed(f.icon.error + " ").Bold().String()
-	mid := f.applyStyle(e)
-
+	mid := f.applyStyle(fmtWithColor(ColorBrightRed, f.icon.error))
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Warning(s ...string) *Frame {
-	e := color.BrightYellow(f.icon.warning + " ").Bold().String()
-	mid := f.applyStyle(e)
-
+	mid := f.applyStyle(fmtWithColor(ColorBrightYellow, f.icon.warning))
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Success(s ...string) *Frame {
-	e := color.BrightGreen(f.icon.success + " ").Bold().String()
-	mid := f.applyStyle(e)
-
+	mid := f.applyStyle(fmtWithColor(ColorBrightGreen, f.icon.success))
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Info(s ...string) *Frame {
-	e := color.BrightBlue(f.icon.info + " ").Bold().String()
-	mid := f.applyStyle(e)
-
+	mid := f.applyStyle(fmtWithColor(ColorBrightBlue, f.icon.info))
 	return f.applyBorder(mid, s)
 }
 
-func (f *Frame) Question(s ...string) *Frame {
-	q := color.BrightGreen(f.icon.question + " ").Bold().String()
-	mid := f.applyStyle(q)
-
-	return f.applyBorder(mid, color.ApplyMany(s, color.StyleBold))
+func (f *Frame) Question(s string) *Frame {
+	mid := f.applyStyle(fmtWithColor(ColorBrightGreen, f.icon.question))
+	return f.applyBorder(mid, []string{string(StyleBold) + s + string(reset)})
 }
 
 func (f *Frame) String() string {
@@ -272,4 +306,9 @@ func New(opts ...OptFn) *Frame {
 	return &Frame{
 		Options: o,
 	}
+}
+
+func fmtWithColor(c color, s ...string) string {
+	f := strings.Join(s, " ")
+	return fmt.Sprintf("%s%s%s %s", StyleBold, c, f, reset)
 }

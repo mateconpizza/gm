@@ -12,8 +12,9 @@ import (
 )
 
 type Console struct {
-	Term  *terminal.Term
-	Frame *frame.Frame
+	term    *terminal.Term
+	frame   *frame.Frame
+	palette *color.Palette
 }
 
 // Option is a function type for configuring Console.
@@ -21,17 +22,17 @@ type Option func(*Console)
 
 // NewConsole creates a new Console with the given options.
 func NewConsole(opts ...Option) *Console {
-	c := &Console{}
+	c := &Console{palette: color.NewPalette()}
 	for _, opt := range opts {
 		opt(c)
 	}
 
-	if c.Term == nil {
-		c.Term = terminal.New()
+	if c.term == nil {
+		c.term = terminal.New()
 	}
 
-	if c.Frame == nil {
-		c.Frame = frame.New()
+	if c.frame == nil {
+		c.frame = frame.New()
 	}
 
 	return c
@@ -39,7 +40,7 @@ func NewConsole(opts ...Option) *Console {
 
 func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 	return NewConsole(
-		WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
 		WithDefaultTerminal(ctx, f),
 	)
 }
@@ -47,14 +48,14 @@ func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 // WithTerminal sets a custom terminal.
 func WithTerminal(t *terminal.Term) Option {
 	return func(c *Console) {
-		c.Term = t
+		c.term = t
 	}
 }
 
 // WithFrame sets a custom frame.
 func WithFrame(f *frame.Frame) Option {
 	return func(c *Console) {
-		c.Frame = f
+		c.frame = f
 	}
 }
 
@@ -65,101 +66,73 @@ func WithDefaultTerminal(ctx context.Context, f func(error)) Option {
 	))
 }
 
+func (c *Console) Term() *terminal.Term         { return c.term }
+func (c *Console) Frame() *frame.Frame          { return c.frame }
+func (c *Console) Palette() *color.Palette      { return c.palette }
+func (c *Console) ClearLine(n int)              { c.term.ClearLine(n) }
+func (c *Console) ReplaceLine(s string)         { c.term.ReplaceLine(1, s) }
+func (c *Console) ReplaceLines(n int, s string) { c.term.ReplaceLine(n, s) }
+func (c *Console) SetReader(r io.Reader)        { c.term.SetReader(r) }
+func (c *Console) SetWriter(w io.Writer)        { c.term.SetWriter(w) }
+
 // ConfirmErr prompts the user with a question and options.
 func (c *Console) ConfirmErr(q, def string) error {
-	return c.Term.ConfirmErr(c.Frame.Reset().Question(q).StringReset(), def)
+	return c.term.ConfirmErr(c.frame.Reset().Question(q).StringReset(), def)
 }
 
 func (c *Console) Confirm(q, def string) bool {
-	return c.Term.Confirm(c.Frame.Reset().Question(q).StringReset(), def)
+	return c.term.Confirm(c.frame.Reset().Question(q).StringReset(), def)
 }
 
 func (c *Console) Choose(q string, opts []string, def string) (string, error) {
-	return c.Term.Choose(c.Frame.Reset().Question(q).StringReset(), opts, def)
+	return c.term.Choose(c.frame.Reset().Question(q).StringReset(), opts, def)
 }
 
 func (c *Console) Input(p string) string {
-	return c.Term.Input(c.Frame.Reset().Info(p).StringReset())
+	return c.term.Input(c.frame.Reset().Info(p).StringReset())
 }
 
 func (c *Console) InputPassword(s string) (string, error) {
-	c.Frame.Reset().Question(s).Flush()
-	return c.Term.InputPassword()
+	c.frame.Reset().Question(s).Flush()
+	return c.term.InputPassword()
 }
 
 // Prompt get the input data from the user and return it.
 func (c *Console) Prompt(p string) string {
-	return c.Term.Prompt(c.Frame.Reset().Question(p).StringReset())
+	return c.term.Prompt(c.frame.Reset().Question(p).StringReset())
 }
 
 func (c *Console) PromptWithSuggestions(p string, items []string) string {
-	return c.Term.PromptWithSuggestions(p, items)
-}
-
-func (c *Console) ReplaceLine(s string) {
-	c.Term.ReplaceLine(1, s)
-}
-
-func (c *Console) ReplaceLines(n int, s string) {
-	c.Term.ReplaceLine(n, s)
-}
-
-func (c *Console) ClearLine(n int) {
-	c.Term.ClearLine(n)
-}
-
-func (c *Console) SetReader(r io.Reader) {
-	c.Term.SetReader(r)
-}
-
-func (c *Console) SetWriter(w io.Writer) {
-	c.Term.SetWriter(w)
+	return c.term.PromptWithSuggestions(p, items)
 }
 
 // SuccessMesg returns a prettified success message.
-func (c *Console) SuccessMesg(s string) string {
-	success := color.BrightGreen("Successfully ").Italic().String()
-	message := success + color.Text(s).Italic().String()
-
-	return c.Frame.Reset().Success(message).StringReset()
-}
-
-func (c *Console) Success(s string) *frame.Frame {
-	return c.Frame.Reset().Success(s)
+func (c *Console) SuccessMesg(a ...any) string {
+	s := c.palette.BrightGreenItalic("Successfully ") + c.palette.Italic(a...)
+	return c.frame.Reset().Success(s).StringReset()
 }
 
 // ErrorMesg returns a prettified error message.
-func (c *Console) ErrorMesg(s string) string {
-	err := color.BrightRed("Error ").Italic().String()
-	message := err + color.Text(s).Italic().String()
-
-	return c.Frame.Reset().Error(message).StringReset()
-}
-
-func (c *Console) Error(s string) *frame.Frame {
-	return c.Frame.Reset().Error(s)
+func (c *Console) ErrorMesg(a ...any) string {
+	s := c.palette.BrightRedItalic("Error ") + c.palette.Italic(a...)
+	return c.frame.Reset().Error(s).StringReset()
 }
 
 // WarningMesg returns a prettified warning message.
-func (c *Console) WarningMesg(s string) string {
-	warning := color.BrightYellow("Warning ").Italic().String()
-	message := warning + color.Text(s).Italic().String()
-
-	return c.Frame.Reset().Warning(message).StringReset()
-}
-
-func (c *Console) Warning(s string) *frame.Frame {
-	return c.Frame.Reset().Warning(s)
+func (c *Console) WarningMesg(a ...any) string {
+	s := c.palette.BrightYellowItalic("Warning ") + c.palette.Italic(a...)
+	return c.frame.Reset().Warning(s).StringReset()
 }
 
 // InfoMesg returns a prettified info message.
-func (c *Console) InfoMesg(s string) string {
-	info := color.BrightBlue("Info ").Italic().String()
-	message := info + color.Text(s).Italic().String()
-
-	return c.Frame.Reset().Info(message).StringReset()
+func (c *Console) InfoMesg(a ...any) string {
+	s := c.palette.BrightBlueItalic("Info ") + c.palette.Italic(a...)
+	return c.frame.Reset().Info(s).StringReset()
 }
 
-func (c *Console) Info(s string) *frame.Frame {
-	return c.Frame.Reset().Info(s)
-}
+func (c *Console) Error(s string) *frame.Frame   { return c.frame.Reset().Error(s) }
+func (c *Console) Info(s string) *frame.Frame    { return c.frame.Reset().Info(s) }
+func (c *Console) Success(s string) *frame.Frame { return c.frame.Reset().Success(s) }
+func (c *Console) Warning(s string) *frame.Frame { return c.frame.Reset().Warning(s) }
+func (c *Console) Flush() *frame.Frame           { return c.frame.Flush() }
+func (c *Console) Reset() *frame.Frame           { return c.frame.Reset() }

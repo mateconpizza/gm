@@ -277,11 +277,11 @@ func runGitCmd(ctx context.Context, repoPath string, commands ...string) error {
 		return fmt.Errorf("%w: %s", err, gitCommand)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.MkColorFn(color.Orange, color.StyleBold)))
+	f := frame.New(frame.WithColorBorder(frame.ColorBrightOrange))
 	defer f.Flush()
 
 	commands = append([]string{gitCommand, "-C", repoPath}, commands...)
-	cmdColors := color.ApplyMany(slices.Clone(commands), color.Gray, color.StyleItalic)
+	cmdColors := color.ApplyMany(slices.Clone(commands), color.BrightOrange, color.StyleItalic)
 	f.Midln(strings.Join(cmdColors, " ")).Flush()
 
 	err = sys.ExecCmdWithWriter(ctx, f, commands...)

@@ -104,7 +104,7 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 		return nil, err
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f := frame.New(frame.WithColorBorder(frame.ColorGray))
 	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
 	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Flush()
 
@@ -232,17 +232,18 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 
 // processProfile extracts profile system names and user names.
 func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
-	skip := color.BrightYellow("skipping").String()
+	f, p := c.Frame(), c.Palette()
+	skip := p.BrightYellow("skipping")
 	if !files.Exists(path) {
-		c.Frame.Rowln().Headerln(skip + " profile...'" + profile + "', bookmarks file not found").Flush()
+		f.Headerln(skip + " profile...'" + profile + "', bookmarks file not found").Flush()
 		return
 	}
 
-	c.Frame.Rowln().Flush()
+	f.Rowln().Flush()
 
 	if !force {
 		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
-			c.ReplaceLine(c.Frame.Row(skip + " profile...'" + profile + "'").String())
+			c.ReplaceLine(f.Row(skip + " profile...'" + profile + "'").String())
 			return
 		}
 	} else {
@@ -281,15 +282,12 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 		*bs = append(*bs, b)
 	}
 
-	found := color.BrightBlue("found")
+	found := p.BrightBlue("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-ogSize)).Flush()
 }
 
 // Define the main function to load the Chrome database.
-func loadChromeDatabase(
-	path, uniqueTag string,
-	addParentFolderAsTag bool,
-) ([]blinkBookmark, error) {
+func loadChromeDatabase(path, uniqueTag string, addParentFolderAsTag bool) ([]blinkBookmark, error) {
 	byteValue, _ := os.ReadFile(path)
 
 	s := rotato.New(

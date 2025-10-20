@@ -1,6 +1,4 @@
 // Package color provides utilities for formatting and coloring text output in the terminal
-//
-//nolint:staticcheck // ignore
 package color
 
 import (
@@ -14,10 +12,9 @@ type ColorFn func(arg ...any) *Color
 
 var IsEnabled bool = true
 
-// Enable enables color support.
-func Enable(b bool) {
-	IsEnabled = b
-	slog.Debug("color enabled", "bool", IsEnabled)
+func Disable() {
+	slog.Debug("color: disabled")
+	IsEnabled = false
 }
 
 const (
@@ -83,12 +80,13 @@ func (c *Color) String() string {
 }
 
 // Normal.
-func Text(s ...string) *Color   { return &Color{text: strings.Join(s, " ")} }
-func Reset() string             { return reset }
-func Default(arg ...any) *Color { return Text(join(arg...)) }
-func Normal(arg ...any) *Color  { return Text(join(arg...)) }
+
+func Text(s string) *Color     { return &Color{text: s} }
+func Reset() string            { return reset }
+func Normal(arg ...any) *Color { return Text(join(arg...)) }
 
 // Styles.
+
 func (c *Color) Bold() *Color          { return c.applyStyle(bold) }
 func (c *Color) Dim() *Color           { return c.applyStyle(dim) }
 func (c *Color) Inverse() *Color       { return c.applyStyle(inverse) }
@@ -98,6 +96,7 @@ func (c *Color) Underline() *Color     { return c.applyStyle(underline) }
 func (c *Color) Undercurl() *Color     { return c.applyStyle(undercurl) }
 
 // Normal Colors.
+
 func Black(arg ...any) *Color   { return addColor(black, arg...) }
 func Blue(arg ...any) *Color    { return addColor(blue, arg...) }
 func Cyan(arg ...any) *Color    { return addColor(cyan, arg...) }
@@ -111,6 +110,7 @@ func White(arg ...any) *Color   { return addColor(white, arg...) }
 func Yellow(arg ...any) *Color  { return addColor(yellow, arg...) }
 
 // Bright Colors.
+
 func BrightBlack(arg ...any) *Color   { return addColor(brightBlack, arg...) }
 func BrightBlue(arg ...any) *Color    { return addColor(brightBlue, arg...) }
 func BrightCyan(arg ...any) *Color    { return addColor(brightCyan, arg...) }
@@ -124,6 +124,7 @@ func BrightWhite(arg ...any) *Color   { return addColor(brightWhite, arg...) }
 func BrightYellow(arg ...any) *Color  { return addColor(brightYellow, arg...) }
 
 // Styles.
+
 func StyleBold(arg ...any) *Color          { return Text(join(arg...)).Bold() }
 func StyleDim(arg ...any) *Color           { return Text(join(arg...)).Dim() }
 func StyleItalic(arg ...any) *Color        { return Text(join(arg...)).Italic() }
@@ -132,9 +133,7 @@ func StyleUndercurl(arg ...any) *Color     { return Text(join(arg...)).Undercurl
 func StyleStrikethrough(arg ...any) *Color { return Text(join(arg...)).Strikethrough() }
 func StyleInverse(arg ...any) *Color       { return Text(join(arg...)).Inverse() }
 
-func addColor(c string, arg ...any) *Color {
-	return &Color{text: join(arg...), color: c}
-}
+func addColor(c string, arg ...any) *Color { return &Color{text: join(arg...), color: c} }
 
 func join(text ...any) string {
 	str := make([]string, 0, len(text))

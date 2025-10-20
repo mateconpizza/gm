@@ -18,7 +18,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -42,10 +42,10 @@ var ValidFormats = []string{
 }
 
 // Records prints the bookmarks in a frame format with the given colorscheme.
-func Records(bs []*bookmark.Bookmark) error {
+func Records(c *ui.Console, bs []*bookmark.Bookmark) error {
 	lastIdx := len(bs) - 1
 	for i := range bs {
-		fmt.Print(txt.Frame(bs[i]))
+		fmt.Print(txt.Frame(c, bs[i]))
 
 		if i != lastIdx {
 			fmt.Println()
@@ -74,16 +74,16 @@ func TagsList(ctx context.Context, p string) error {
 }
 
 // Oneline formats the bookmarks in oneline.
-func Oneline(bs []*bookmark.Bookmark) error {
+func Oneline(c *ui.Console, bs []*bookmark.Bookmark) error {
 	for i := range bs {
-		fmt.Print(txt.Oneline(bs[i]))
+		fmt.Print(txt.Oneline(c, bs[i]))
 	}
 
 	return nil
 }
 
 // Notes formats the bookmarks notes.
-func Notes(bs []*bookmark.Bookmark) error {
+func Notes(c *ui.Console, bs []*bookmark.Bookmark) error {
 	printed := false
 	for _, b := range bs {
 		if b.Notes == "" {
@@ -92,7 +92,7 @@ func Notes(bs []*bookmark.Bookmark) error {
 		if printed {
 			fmt.Println()
 		}
-		fmt.Print(txt.Notes(b))
+		fmt.Print(txt.Notes(c, b))
 		printed = true
 	}
 	return nil
@@ -126,8 +126,8 @@ func ByField(bs []*bookmark.Bookmark, f string) error {
 }
 
 // DatabasesTable shows a simple table in database information.
-func DatabasesTable(ctx context.Context, p string) error {
-	fs, err := files.FindByExtList(p, ".db", ".enc")
+func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
+	fs, err := files.FindByExtList(fp, ".db", ".enc")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -136,7 +136,7 @@ func DatabasesTable(ctx context.Context, p string) error {
 	rows := [][]string{}
 
 	t := strconv.Itoa
-
+	p := c.Palette()
 	files.PrioritizeFile(fs, config.MainDBName)
 
 	for _, fpath := range fs {
@@ -146,8 +146,8 @@ func DatabasesTable(ctx context.Context, p string) error {
 		fsize := files.SizeFormatted(fpath)
 
 		if ext == locker.Extension {
-			cleanName = color.BrightMagenta(cleanName).String()
-			cleanName += color.BrightGray(" (locked)").Italic().String()
+			cleanName = p.BrightMagenta(cleanName)
+			cleanName += p.BrightGrayItalic(" (locked)")
 			rows = append(rows, []string{cleanName, "-", "-", fsize, collapsePath})
 			continue
 		}
@@ -158,8 +158,8 @@ func DatabasesTable(ctx context.Context, p string) error {
 		}
 
 		if s.Name == config.MainDBName {
-			cleanName = color.BrightYellow(cleanName).String()
-			cleanName += color.BrightGray(" (default)").Italic().String()
+			cleanName = p.BrightYellow(cleanName)
+			cleanName += p.BrightGrayItalic(" (default)")
 		}
 
 		rows = append(rows, []string{cleanName, t(s.Bookmarks), t(s.Tags), fsize, collapsePath})
@@ -233,7 +233,7 @@ func RepoInfo(a *app.Context) error {
 
 	info := summary.Info(a)
 
-	g, err := git.Info(a.Console, a.Cfg.DBPath, a.Cfg.Git)
+	g, err := git.Info(a.Console(), a.Cfg.DBPath, a.Cfg.Git)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}
@@ -266,7 +266,7 @@ func parseDisplayFormat(format string) (formatType, field string, err error) {
 	}
 }
 
-func Display(format string, bs []*bookmark.Bookmark) error {
+func Display(c *ui.Console, format string, bs []*bookmark.Bookmark) error {
 	formatType, field, err := parseDisplayFormat(format)
 	if err != nil {
 		return err
@@ -274,7 +274,7 @@ func Display(format string, bs []*bookmark.Bookmark) error {
 
 	switch formatType {
 	case "oneline":
-		return Oneline(bs)
+		return Oneline(c, bs)
 	case "json":
 		return RecordsJSON(bs)
 	case "field":

@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // Oneline formats a bookmark in a single line with the given colorscheme.
-func Oneline(b *bookmark.Bookmark) string {
+func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 	w := terminal.MaxWidth
 
 	const (
@@ -25,8 +26,8 @@ func Oneline(b *bookmark.Bookmark) string {
 	idLen := idPadding
 	tagsLen := minTagsLen
 
-	cs := color.DefaultColorScheme()
-	if cs.Enabled {
+	p := c.Palette()
+	if !p.Disable() {
 		idLen = idWithColor
 		tagsLen = defaultTagsLen
 	}
@@ -34,21 +35,21 @@ func Oneline(b *bookmark.Bookmark) string {
 	// ID padding con color sin romper el formato
 	idStr := strconv.Itoa(b.ID)
 	paddedID := fmt.Sprintf("%*s", idLen, idStr)
-	coloredID := strings.Replace(paddedID, idStr, cs.BrightYellow(idStr).Bold().String(), 1)
+	coloredID := strings.Replace(paddedID, idStr, p.BrightYellowBold(idStr), 1)
 
 	// Calculate long available for URL
 	const urlPadding = 3 // 3 = ' ' + '·' + ' '.
 	urlLen := w - idLen - urlPadding - tagsLen
 	shortURL := Shorten(b.URL, urlLen)
-	colorURL := cs.BrightWhite(shortURL).String()
+	colorURL := p.BrightWhite(shortURL)
 	urlLen += len(colorURL) - len(shortURL)
 
 	// tags
-	tagsColor := cs.Blue(TagsWithUnicode(b.Tags)).Italic().String()
+	tagsColor := p.BlueItalic(TagsWithUnicode(b.Tags))
 
 	sep := " " + UnicodeMiddleDot + " "
 	if b.Notes != "" {
-		sep = cs.BrightMagenta(" " + UnicodeBulletPoint + " ").Bold().String()
+		sep = p.BrightMagentaBold(" " + UnicodeBulletPoint + " ")
 	}
 
 	var sb strings.Builder
@@ -61,105 +62,102 @@ func Oneline(b *bookmark.Bookmark) string {
 }
 
 // Multiline formats a bookmark for fzf with max width.
-func Multiline(b *bookmark.Bookmark) string {
+func Multiline(c *ui.Console, b *bookmark.Bookmark) string {
+	p := c.Palette()
 	w := terminal.MaxWidth
 
 	var sb strings.Builder
-
-	cs := color.DefaultColorScheme()
-	sb.WriteString(cs.BrightYellow(b.ID).Bold().String())
+	sb.WriteString(p.BrightYellowBold(b.ID))
 	sb.WriteString(NBSP)
-	sb.WriteString(Shorten(URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + "\n")
+	sb.WriteString(Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w) + "\n")
 
 	if b.Title != "" {
-		sb.WriteString(cs.Cyan(Shorten(b.Title, w)).String() + "\n")
+		sb.WriteString(p.Cyan(Shorten(b.Title, w)) + "\n")
 	}
 
-	sb.WriteString(cs.BrightWhite(TagsWithUnicode(b.Tags)).Italic().String())
+	sb.WriteString(p.BrightWhiteItalic(TagsWithUnicode(b.Tags)))
 
 	return sb.String()
 }
 
-func FrameFormatted(b *bookmark.Bookmark, c color.ColorFn) string {
-	f := frame.New(frame.WithColorBorder(c))
+func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
+	p := c.Palette()
+	f := frame.New(frame.WithColorBorder(frame.ColorGray))
 	w := terminal.MaxWidth - len(f.Border.Row)
+
 	// id + url
-	id := color.BrightYellow(b.ID).Bold().String()
-	urlColor := Shorten(URLBreadCrumbsColor(b.URL, color.BrightMagenta), w)
+	id := p.BrightYellowBold(b.ID)
+	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w)
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
+
 	// title
 	if b.Title != "" {
 		titleSplit := SplitIntoChunks(b.Title, w)
 		title := color.ApplyMany(titleSplit, color.Cyan)
 		f.Mid(title...).Ln()
 	}
+
 	// description
 	if b.Desc != "" {
 		descSplit := SplitIntoChunks(b.Desc, w)
 		desc := color.ApplyMany(descSplit, color.Gray)
 		f.Mid(desc...).Ln()
 	}
+
 	// tags
-	tags := color.Gray(TagsWithPound(b.Tags)).Italic().String()
+	tags := p.GrayItalic(TagsWithPound(b.Tags))
 	f.Footer(tags).Ln()
 
 	return f.String()
 }
 
 // Frame formats a bookmark in a frame with min width.
-func Frame(b *bookmark.Bookmark) string {
+func Frame(c *ui.Console, b *bookmark.Bookmark) string {
 	w := terminal.MinWidth
-	cs := color.DefaultColorScheme()
-	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
+	p := c.Palette()
+	f := c.Frame()
 
 	// indentation
 	w -= len(f.Border.Row)
 
 	// id + url
-	id := cs.BrightYellow(b.ID).Bold()
-	urlColor := Shorten(URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + color.Reset()
+	id := p.BrightYellowBold(b.ID)
+	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w) + color.Reset()
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 
 	// title
 	if b.Title != "" {
 		titleSplit := SplitIntoChunks(b.Title, w)
-		title := color.ApplyMany(titleSplit, cs.BrightCyan)
+		title := color.ApplyMany(titleSplit, color.BrightCyan)
 		f.Midln(title...)
 	}
 
 	// description
 	if b.Desc != "" {
 		descSplit := SplitIntoChunks(b.Desc, w)
-		desc := color.ApplyMany(descSplit, cs.White)
+		desc := color.ApplyMany(descSplit, color.White)
 		f.Mid(desc...).Ln()
 	}
 
 	// tags
-	tags := cs.BrightWhite(TagsWithPound(b.Tags)).Italic().String()
-	f.Mid(tags).Ln()
+	f.Mid(TagsWithColorPound(c, b.Tags)).Ln()
 
-	// notes
-	// if b.Notes != "" {
-	// 	notes := SplitIntoChunks(b.Notes, w)
-	// 	f.Footerln(color.ApplyMany(notes, cs.White)...)
-	// }
-
-	return f.String()
+	return f.StringReset()
 }
 
-func Notes(b *bookmark.Bookmark) string {
+func Notes(c *ui.Console, b *bookmark.Bookmark) string {
 	w := terminal.MinWidth
-	cs := color.DefaultColorScheme()
-	f := frame.New(frame.WithColorBorder(cs.BrightBlack))
+	p := c.Palette()
+	f := frame.New(frame.WithColorBorder(frame.ColorBrightBlack))
 
 	// id + url
-	id := cs.BrightYellow(b.ID).Bold()
-	urlColor := Shorten(URLBreadCrumbsColor(b.URL, cs.BrightMagenta), w) + color.Reset()
+	id := p.BrightYellowBold(b.ID)
+	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w) + color.Reset()
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 
 	// notes
 	notes := SplitIntoChunks(b.Notes, w)
-	f.Footerln(color.ApplyMany(notes, cs.White)...)
+	f.Footerln(color.ApplyMany(notes, color.White)...)
 
 	return f.String()
 }

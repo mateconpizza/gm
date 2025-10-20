@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -42,7 +43,7 @@ func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bo
 	}
 
 	if a.Cfg.Flags.Menu || a.Cfg.Flags.Multiline {
-		bs, err = applyMenuSelection(m, bs, a.Cfg.Flags)
+		bs, err = applyMenuSelection(a.Console(), m, bs, a.Cfg.Flags)
 		if err != nil {
 			return nil, fmt.Errorf("failed to apply menu selection: %w", err)
 		}
@@ -332,6 +333,7 @@ func tail(bs []*bookmark.Bookmark, n int) []*bookmark.Bookmark {
 
 // applyMenuSelection applies menu selection to bookmarks.
 func applyMenuSelection(
+	c *ui.Console,
 	m *menu.Menu[bookmark.Bookmark],
 	bs []*bookmark.Bookmark,
 	f *config.Flags,
@@ -345,9 +347,9 @@ func applyMenuSelection(
 	// Select with menu
 	items, err := selectionWithMenu(m, bsCopy, func(b *bookmark.Bookmark) string {
 		if f.Multiline {
-			return txt.Multiline(b)
+			return txt.Multiline(c, b)
 		}
-		return txt.Oneline(b)
+		return txt.Oneline(c, b)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("menu selection failed: %w", err)
@@ -381,8 +383,8 @@ func removeRecords(a *app.Context, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
-	if a.Console != nil {
-		fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
+	if a.Console() != nil {
+		fmt.Print(a.Console().SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
 	}
 
 	return nil

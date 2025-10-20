@@ -6,11 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
@@ -200,21 +202,17 @@ func URLBreadCrumbs(s string) string {
 //
 //	https://example.org/title/some-title
 //	https://example.org > title > some-title
-func URLBreadCrumbsColor(s string, c color.ColorFn) string {
+func URLBreadCrumbsColor(p *color.Palette, s, uc string) string {
 	u, err := url.Parse(s)
 	if err != nil {
 		return ""
 	}
-	// default color
-	if c == nil {
-		c = color.Default
-	}
 
 	if u.Host == "" || u.Path == "" {
-		return c(s).Bold().String()
+		return p.BrightMagentaBold(s)
 	}
 
-	host := c(u.Host).Bold().String()
+	host := p.BrightMagentaBold(u.Host)
 	pathSegments := strings.FieldsFunc(
 		strings.TrimLeft(u.Path, "/"),
 		func(r rune) bool { return r == '/' },
@@ -224,9 +222,8 @@ func URLBreadCrumbsColor(s string, c color.ColorFn) string {
 		return host
 	}
 
-	uc := UnicodeSingleAngleMark
 	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
-	pathSeg := color.Text(uc, segments).Italic()
+	pathSeg := p.Italic(fmt.Sprintf("%s %s", uc, segments))
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }
@@ -337,6 +334,37 @@ func TagsWithPound(s string) string {
 		}
 
 		sb.WriteString(fmt.Sprintf("#%s ", t))
+	}
+
+	return sb.String()
+}
+
+// TagsWithColorPound returns a prettified tags with #.
+//
+//	#tag1 #tag2 #tag3
+func TagsWithColorPound(c *ui.Console, s string) string {
+	p := c.Palette()
+	colors := []func(...any) string{
+		p.BrightGreenItalic,
+		p.BrightMagentaItalic,
+		p.BrightCyanItalic,
+		p.BrightBlackItalic,
+		p.BrightBlueItalic,
+		p.BrightWhiteItalic,
+		p.BrightGrayItalic,
+	}
+
+	tagsSplit := strings.Split(s, ",")
+	sort.Strings(tagsSplit)
+
+	var sb strings.Builder
+	for _, t := range tagsSplit {
+		if t == "" {
+			continue
+		}
+
+		rc := colors[rand.Intn(len(colors))] //nolint:gosec //unnecessary
+		sb.WriteString(fmt.Sprintf("%s%s ", rc("#"), p.Italic(t)))
 	}
 
 	return sb.String()

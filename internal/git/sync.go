@@ -18,7 +18,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -42,7 +41,8 @@ func Import(a *app.Context, gm *Manager) ([]string, error) {
 		return nil, ErrGitRepoNotFound
 	}
 
-	a.Console.Frame.Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
+	c := a.Console()
+	c.Frame().Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
 
 	var imported []string
 	for _, repoName := range repos {
@@ -69,7 +69,7 @@ func Import(a *app.Context, gm *Manager) ([]string, error) {
 		return nil, fmt.Errorf("removing temp repo: %w", err)
 	}
 
-	fmt.Print(a.Console.SuccessMesg("imported bookmarks from git\n"))
+	fmt.Println(c.SuccessMesg("imported bookmarks from git"))
 
 	return imported, nil
 }
@@ -83,7 +83,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 		return false, fmt.Errorf("%w", err)
 	}
 
-	f := frame.New(frame.WithColorBorder(color.BrightGray))
+	f := frame.New(frame.WithColorBorder(frame.ColorGray))
 	sp := rotato.New(
 		rotato.WithPrefix(f.Mid("Encrypting").String()),
 		rotato.WithMesg("bookmarks..."),

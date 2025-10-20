@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -72,8 +71,8 @@ var htmlCmd = &cobra.Command{
 				}))),
 		)
 
-		s := color.Text("Found %d bookmarks from %q\n").Italic().String()
-		c.Frame.Success(fmt.Sprintf(s, len(nbs), file.Name())).Flush()
+		s := fmt.Sprintf("Found %d bookmarks from %q\n", len(nbs), file.Name())
+		c.Frame().Success(c.Palette().Italic(s)).Flush()
 
 		deduplicated := port.Deduplicate(cmd.Context(), c, r, bs)
 		n := len(deduplicated)
@@ -91,13 +90,13 @@ var htmlCmd = &cobra.Command{
 			return sys.ErrActionAborted
 		case "s", "select":
 			m := menu.New[*bookmark.Bookmark](
-				menu.WithInterruptFn(c.Term.InterruptFn),
+				menu.WithInterruptFn(c.Term().InterruptFn),
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s to import", false),
 			)
 
 			m.SetItems(deduplicated)
-			m.SetPreprocessor(func(b **bookmark.Bookmark) string { return txt.Oneline(*b) })
+			m.SetPreprocessor(func(b **bookmark.Bookmark) string { return txt.Oneline(c, *b) })
 			deduplicated, err = m.Select()
 			if err != nil {
 				return err

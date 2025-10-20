@@ -10,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper"
@@ -24,7 +23,8 @@ type bookmarkTemp struct {
 func NewBookmark(a *app.Context, b *bookmark.Bookmark, args []string) error {
 	title := a.Cfg.Flags.Title
 	tags := a.Cfg.Flags.TagsStr
-	newURL, err := newURLFromArgs(a.Console, args)
+	c := a.Console()
+	newURL, err := newURLFromArgs(c, args)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func NewBookmark(a *app.Context, b *bookmark.Bookmark, args []string) error {
 	sc := scraper.New(newURL, scraper.WithContext(a.Ctx), scraper.WithSpinner("scraping webpage..."))
 
 	// fetch title, description and tags
-	fetchTitleAndDesc(a.Console, sc, bTemp)
+	fetchTitleAndDesc(c, sc, bTemp)
 	tagsFromArgs(a, sc, bTemp)
 
 	b.URL = newURL
@@ -60,30 +60,32 @@ func readURLFromClipboard(c *ui.Console) string {
 		return ""
 	}
 
-	c.Frame.Mid(color.BrightMagenta("URL\t:").String()).
-		Textln(" " + color.Gray(cb).String())
+	f := c.Frame()
+	f.Mid(c.Palette().BrightMagenta("URL\t:")).Textln(" " + c.Palette().Gray(cb))
 
-	lines := txt.CountLines(c.Frame.String())
-	c.Frame.Flush()
+	lines := txt.CountLines(f.String())
+	f.Flush()
 
+	t := c.Term()
 	if err := c.ConfirmErr("found valid URL in clipboard, use URL?", "y"); err != nil {
-		c.Term.ClearLine(lines)
+		t.ClearLine(lines)
 		return ""
 	}
 
-	c.Term.ClearLine(1)
+	t.ClearLine(1)
 
 	return cb
 }
 
 // newURLFromArgs parse URL from args.
 func newURLFromArgs(c *ui.Console, args []string) (string, error) {
-	cm := func(s string) string { return color.BrightMagenta(s).String() }
+	f, t, p := c.Frame(), c.Term(), c.Palette()
+
 	// checks if url is provided
 	if len(args) > 0 {
 		bURL := strings.TrimRight((args)[0], "\n")
-		c.Frame.Header(cm("URL\t:")).
-			Text(" " + color.Gray(bURL).String()).Ln().Flush()
+		f.Header(p.BrightMagenta("URL\t:")).
+			Text(" " + p.Gray(bURL)).Ln().Flush()
 
 		return bURL, nil
 	}
@@ -94,9 +96,9 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 		return cb, nil
 	}
 
-	c.Frame.Header(cm("URL\t:")).Flush()
+	f.Header(p.BrightMagenta("URL\t:")).Flush()
 
-	bURL := c.Term.Input(" ")
+	bURL := t.Input(" ")
 	if bURL == "" {
 		return bURL, metadata.ErrURLEmpty
 	}
@@ -106,61 +108,52 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
 func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
-	cb := func(s string) string { return color.BrightBlue(s).String() }
-	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
+	c := a.Console()
+	f, p := c.Frame(), c.Palette()
 
-	a.Console.Frame.Header(cb("Tags\t:"))
+	f.Header(p.BrightBlue("Tags\t:"))
 
+	// Use existing tags if provided
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
-		a.Console.Frame.Textln(" " + cgi(b.tags)).Flush()
-
+		f.Textln(" " + p.BrightGrayItalic(b.tags)).Flush()
 		return
 	}
 
+	// Try to get keywords from scraper
 	_ = sc.Start()
-
-	keywords, _ := sc.Keywords()
-	if keywords != "" {
-		tt := bookmark.ParseTags(keywords)
-		b.tags = tt
-		a.Console.Frame.Textln(" " + cgi(b.tags)).Flush()
-
+	if keywords, _ := sc.Keywords(); keywords != "" {
+		b.tags = bookmark.ParseTags(keywords)
+		f.Textln(" " + p.BrightGrayItalic(b.tags)).Flush()
 		return
 	}
 
+	// Use default if force flag is set
 	if a.Cfg.Flags.Force {
 		b.tags = "notag"
-		a.Console.Frame.Textln(" " + cgi(b.tags)).Flush()
-
+		f.Textln(" " + p.BrightGrayItalic(b.tags)).Flush()
 		return
 	}
 
-	// prompt|take input for tags
-	a.Console.Frame.Text(color.Gray(" (spaces|comma separated)").Italic().String()).Ln().Flush()
-
+	// Prompt user for tags
+	f.Text(p.Gray(" (spaces|comma separated)")).Ln().Flush()
 	mTags, _ := dbtask.TagsCounterFromPath(a.Ctx, a.Cfg.DBPath)
-	b.tags = bookmark.ParseTags(a.Console.Term.ChooseTags(a.Console.Frame.Border.Mid, mTags))
-
-	a.Console.Frame.Reset().Mid(cb("Tags\t:")).Textln(" " + cgi(b.tags))
-
-	a.Console.ClearLine(txt.CountLines(a.Console.Frame.String()))
-	a.Console.Frame.Flush()
+	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))
+	f.Reset().Mid(p.BrightBlue("Tags\t:")).Textln(" " + p.BrightGrayItalic(b.tags))
+	c.ClearLine(txt.CountLines(f.String()))
+	f.Flush()
 }
 
 // fetchTitleAndDesc fetch and display title and description.
 func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
+	f, p := c.Frame(), c.Palette()
 	const indentation int = 10
 
-	width := terminal.MinWidth - len(c.Frame.Border.Row)
-
-	cc := func(s string) string { return color.BrightCyan(s).String() }
-	cg := func(s string) string { return color.BrightGray(s).String() }
-	co := func(s string) string { return color.BrightOrange(s).String() }
+	width := terminal.MinWidth - len(f.Border.Row)
 
 	if b.title != "" {
-		t := cg(txt.SplitAndAlign(b.title, width, indentation))
-		c.Frame.Mid(cc("Title\t: ")).Textln(t).Flush()
+		t := p.BrightGray(txt.SplitAndAlign(b.title, width, indentation))
+		f.Mid(p.BrightCyan("Title\t: ")).Textln(t).Flush()
 
 		return
 	}
@@ -173,14 +166,14 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	b.favicon, _ = sc.Favicon()
 
 	// title
-	t := cg(txt.SplitAndAlign(b.title, width, indentation))
-	c.Frame.Mid(cc("Title\t: ")).Textln(t)
+	t := p.BrightGray(txt.SplitAndAlign(b.title, width, indentation))
+	f.Mid(p.BrightCyan("Title\t: ")).Textln(t)
 
 	// description
 	if b.desc != "" {
-		descColor := cg(txt.SplitAndAlign(b.desc, width, indentation))
-		c.Frame.Mid(co("Desc\t: ")).Textln(descColor)
+		descColor := p.BrightGray(txt.SplitAndAlign(b.desc, width, indentation))
+		f.Mid(p.BrightOrange("Desc\t: ")).Textln(descColor)
 	}
 
-	c.Frame.Flush()
+	f.Flush()
 }

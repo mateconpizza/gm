@@ -11,8 +11,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -29,13 +27,7 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
-		)),
-	)
+	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 
 	switch {
 	case cfg.Flags.List:
@@ -60,7 +52,7 @@ func managementSelect(c *ui.Console, cfg *config.Config) error {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.Frame.Rowln().Midln("Select which databases to track").Flush()
+	c.Frame().Rowln().Midln("Select which databases to track").Flush()
 
 	files.PrioritizeFile(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
@@ -98,7 +90,8 @@ func management(c *ui.Console, cfg *config.Config) error {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.Frame.Headerln("Tracked database management").Rowln().Flush()
+	f, t, p := c.Frame(), c.Term(), c.Palette()
+	f.Headerln("Tracked database management").Rowln().Flush()
 	files.PrioritizeFile(dbFiles, config.MainDBName)
 	for i, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
@@ -107,11 +100,11 @@ func management(c *ui.Console, cfg *config.Config) error {
 		}
 
 		if gr.IsTracked() {
-			q := color.Text(fmt.Sprintf("Untrack %q?", gr.Loc.Name)).Bold()
+			q := p.Bold(fmt.Sprintf("Untrack %q?", gr.Loc.Name))
 			if gr.Loc.DBName == config.MainDBName {
-				q = color.Text("Untrack database \"" + "main\"").Bold()
+				q = p.Bold("Untrack database \"" + "main\"")
 			}
-			if !c.Term.Confirm(c.Warning(q.String()).String(), "n") {
+			if !t.Confirm(c.Warning(q).String(), "n") {
 				continue
 			}
 
@@ -121,7 +114,7 @@ func management(c *ui.Console, cfg *config.Config) error {
 				return err
 			}
 
-			fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q untracked\n", gr.Loc.DBName)))
+			fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q untracked", gr.Loc.DBName)))
 			if i != len(dbFiles)-1 {
 				fmt.Println()
 			}
@@ -139,7 +132,7 @@ func management(c *ui.Console, cfg *config.Config) error {
 			return err
 		}
 
-		fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Loc.DBName)))
+		fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
 		if i != len(dbFiles)-1 {
 			fmt.Println()
 		}
@@ -158,7 +151,7 @@ func status(c *ui.Console, cfg *config.Config, tracked []string) error {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.Frame.Header("Databases tracked in " + color.Orange("git\n").Italic().String()).Rowln().Flush()
+	c.Frame().Header("Databases tracked in " + c.Palette().OrangeBold("git\n")).Rowln().Flush()
 
 	// move main database to the top
 	files.PrioritizeFile(dbFiles, config.MainDBName)
@@ -187,7 +180,7 @@ func untrack(c *ui.Console, gr *git.Repository) error {
 		return err
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q untracked\n", gr.Loc.DBName)))
+	fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q untracked", gr.Loc.DBName)))
 
 	return nil
 }
@@ -205,7 +198,7 @@ func track(c *ui.Console, gr *git.Repository) error {
 		return err
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Loc.DBName)))
+	fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
 
 	return nil
 }

@@ -50,15 +50,16 @@ func getBrowser(key string) (browser.Browser, bool) {
 
 // selectBrowser returns the key of the browser selected by the user.
 func selectBrowser(c *ui.Console) string {
-	c.Frame.Header("Supported Browsers\n").Rowln()
+	f := c.Frame()
+	f.Header("Supported Browsers\n").Rowln()
 
 	for _, browser := range registeredBrowser {
 		b := browser.browser
-		c.Frame.Midln(b.Color(b.Short()) + " " + b.Name())
+		f.Midln(b.Color(b.Short()) + " " + b.Name())
 	}
 
-	defer c.ClearLine(txt.CountLines(c.Frame.String()) + 1)
-	c.Frame.Rowln().Flush()
+	defer c.ClearLine(txt.CountLines(f.String()) + 1)
+	f.Rowln().Flush()
 
 	return c.Prompt("which browser do you use? ")
 }

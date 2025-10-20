@@ -34,18 +34,9 @@ import (
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
-var (
-	cbc = func(s string) string { return color.BrightCyan(s).Italic().String() } // Color BrightCyan Italic
-	cbb = func(s string) string { return color.BrightBlue(s).Italic().String() } // Color BrightBlue Italic
-	cbg = func(s string) string { return color.BrightGreen(s).Bold().String() }  // Color BrightGreen Bold
-	cy  = func(s string) string { return color.Yellow(s).String() }              // Color Yellow
-	ctb = func(s string) string { return color.Text(s).Bold().String() }         // Style Bold
-	cti = func(s string) string { return color.Text(s).Italic().String() }       // Style Italic
-	cd  = func(s string) string { return color.Text(s).Dim().String() }          // Style Dim
-)
-
 // QR handles creation, rendering or opening of QR-Codes.
 func QR(ctx context.Context, bs []*bookmark.Bookmark, open bool, appName string) error {
+	p := color.NewPalette()
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
@@ -57,8 +48,8 @@ func QR(ctx context.Context, bs []*bookmark.Bookmark, open bool, appName string)
 		}
 
 		var sb strings.Builder
-		sb.WriteString(ctb(b.Title) + "\n")
-		sb.WriteString(cti(b.URL) + "\n")
+		sb.WriteString(p.Bold(b.Title) + "\n")
+		sb.WriteString(p.Italic(b.URL) + "\n")
 		sb.WriteString(qrcode.String())
 		fmt.Print(sb.String())
 
@@ -95,8 +86,8 @@ func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 	n := len(bs)
 	// get user confirmation to procced
-	s := fmt.Sprintf("%s %d bookmarks", cbg("open"), n)
-	if err := confirmUserLimit(a.Console, n, maxGoroutines, s); err != nil {
+	s := fmt.Sprintf("%s %d bookmarks", a.Console().Palette().BrightGreenBold("open"), n)
+	if err := confirmUserLimit(a.Console(), n, maxGoroutines, s); err != nil {
 		return err
 	}
 
@@ -163,8 +154,9 @@ func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	q := fmt.Sprintf("%s %d bookmarks", cbg("edit"), len(bs))
-	if err := confirmUserLimit(a.Console, len(bs), maxItems, q); err != nil {
+	c := a.Console()
+	q := fmt.Sprintf("%s %d bookmarks", c.Palette().BrightGreenBold("edit"), len(bs))
+	if err := confirmUserLimit(c, len(bs), maxItems, q); err != nil {
 		return err
 	}
 
@@ -178,7 +170,7 @@ func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
 		s = editor.BookmarkStrategy{}
 	}
 
-	session := editor.NewEditSession(a.Console, a.DB, te,
+	session := editor.NewEditSession(c, a.DB, te,
 		editor.WithContext(a.Ctx),
 		editor.WithPostEditionRun(func(o, u *editor.Record) error {
 			return git.UpdateBookmark(a.Cfg, o, u)
@@ -198,11 +190,11 @@ func CheckStatus(a *app.Context, bs []*bookmark.Bookmark) error {
 	}
 
 	s := fmt.Sprintf("checking status of %d bookmarks", n)
-	if err := confirmUserLimit(a.Console, n, maxGoroutines, s); err != nil {
+	if err := confirmUserLimit(a.Console(), n, maxGoroutines, s); err != nil {
 		return sys.ErrActionAborted
 	}
 
-	if err := status.Check(a.Ctx, a.Console, bs); err != nil {
+	if err := status.Check(a.Ctx, a.Console(), bs); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -247,7 +239,7 @@ func LockRepo(c *ui.Console, rToLock string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("database locked: %q\n", filepath.Base(rToLock))))
+	fmt.Println(c.SuccessMesg(fmt.Sprintf("database locked: %q", filepath.Base(rToLock))))
 
 	return nil
 }
@@ -281,7 +273,7 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 	}
 
 	fmt.Println()
-	fmt.Print(c.SuccessMesg("database unlocked\n"))
+	fmt.Println(c.SuccessMesg("database unlocked"))
 
 	return nil
 }
@@ -290,16 +282,18 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 //
 // It uses the scraper to update the title, description and favicon.
 func Update(a *app.Context, bs []*bookmark.Bookmark) error {
+	c := a.Console()
+	f := c.Frame()
 	n := len(bs)
 	if n > 1 {
-		a.Console.Frame.Reset().Headerln(cy(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
+		f.Reset().Headerln(c.Palette().Yellow(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
 	}
 
 	te, err := editor.NewEditor(a.Cfg.Env.Editor)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	session := editor.NewEditSession(a.Console, a.DB, te,
+	session := editor.NewEditSession(c, a.DB, te,
 		editor.WithContext(a.Ctx),
 		editor.WithPostEditionRun(func(o, u *editor.Record) error {
 			return git.UpdateBookmark(a.Cfg, o, u)
@@ -307,17 +301,21 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 	)
 
 	for i, b := range bs {
-		updated, err := updateBookmarkData(a.Ctx, a.Console, b)
+		updated, err := updateBookmarkData(a.Ctx, c, b)
 		if err != nil {
 			return err
 		}
 
+		if bytes.Equal([]byte(b.Title), []byte(updated.Title)) && bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
+			return nil
+		}
+
 		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
 		su := txt.Shorten(updated.URL, 60)
-		displayBookmarkChanges(a.Console, b, &updated)
+		displayBookmarkChanges(c, b, &updated)
 
 		// Handle user choice
-		opt, err := a.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
 			return fmt.Errorf("choose: %w", err)
 		}
@@ -329,13 +327,14 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 			if i != n-1 {
 				fmt.Println()
 			}
+			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 		case "n", "no":
-			a.Console.ReplaceLine(a.Console.Frame.Warning(bid + " " + cd(su) + " skipping update\n").String())
+			c.ReplaceLine(f.Warning(bid + " " + c.Palette().Dim(su) + " skipping update\n").String())
 		case "e", "edit":
 			if err := session.Run([]*bookmark.Bookmark{&updated}, editor.BookmarkStrategy{}); err != nil {
 				return err
 			}
-			fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 		}
 	}
 
@@ -344,18 +343,20 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 
 // displayBookmarkChanges shows the differences between original and updated bookmarks.
 func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
-	bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
+	p := c.Palette()
+	bid := p.Bold(fmt.Sprintf("[%d]", b.ID))
 	su := txt.Shorten(updated.URL, 60)
+	f := c.Frame()
 
-	c.Frame.Reset().Warning(bid + " Found changes in " + cbb(su) + "\n").Flush()
+	f.Reset().Warning(bid + " Found changes in " + p.BrightBlueItalic(su) + "\n").Flush()
 
 	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
-		c.Frame.Reset().Midln(cbc("Title:")).Flush()
+		f.Reset().Midln(p.BrightCyanItalic("Title:")).Flush()
 		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updated.Title))))
 	}
 
 	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
-		c.Frame.Reset().Midln(cbc("Description:")).Flush()
+		f.Reset().Midln(p.BrightCyanItalic("Description:")).Flush()
 		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
 }
@@ -389,7 +390,8 @@ func SaveNewBookmark(a *app.Context, b *bookmark.Bookmark) error {
 		return a.DB.InsertMany(a.Ctx, []*bookmark.Bookmark{b})
 	}
 
-	opt, err := a.Console.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
+	c := a.Console()
+	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -403,7 +405,7 @@ func SaveNewBookmark(a *app.Context, b *bookmark.Bookmark) error {
 			return fmt.Errorf("%w", err)
 		}
 
-		e := editor.NewEditSession(a.Console, a.DB, te, editor.WithContext(a.Ctx))
+		e := editor.NewEditSession(c, a.DB, te, editor.WithContext(a.Ctx))
 		if err := e.Run([]*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{}); err != nil {
 			return err
 		}
@@ -424,7 +426,7 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 	sc := scraper.New(
 		updatedB.URL,
 		scraper.WithContext(ctx),
-		scraper.WithSpinner(c.Info(bid+" updating bookmark "+cbc(su)).String()),
+		scraper.WithSpinner(c.Info(bid+" updating bookmark "+c.Palette().BrightCyanItalic(su)).String()),
 	)
 
 	if err := sc.Start(); err != nil {

@@ -115,14 +115,15 @@ func exec(a *app.Context, bs []*bookmark.Bookmark) error {
 		return handler.Open(a, bs)
 	}
 
+	c := a.Console()
 	switch {
 	case f.Format != "":
-		return printer.Display(f.Format, bs)
+		return printer.Display(c, f.Format, bs)
 	case f.QR:
 		return handler.QR(a.Ctx, bs, f.Open, a.Cfg.Name)
 	case f.Notes:
-		return printer.Notes(bs)
+		return printer.Notes(c, bs)
 	default:
-		return printer.Records(bs)
+		return printer.Records(c, bs)
 	}
 }

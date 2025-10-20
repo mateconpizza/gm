@@ -15,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -76,9 +75,9 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 		})),
 	)
 
-	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
-	cy := func(s string) string { return color.BrightYellow(s).String() }
-	a.Console.Frame.Headerln(cy("Add Bookmark" + cgi(" (ctrl+c to exit)"))).Rowln().Flush()
+	c := a.Console()
+	s := c.Palette().BrightYellow("Add Bookmark" + c.Palette().BrightGrayItalic(" (ctrl+c to exit)"))
+	c.Frame().Headerln(s).Rowln().Flush()
 
 	b := bookmark.New()
 	if err := handler.NewBookmark(a, b, args); err != nil {
@@ -97,7 +96,7 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Print(a.Console.SuccessMesg("bookmark added\n"))
+	fmt.Println(c.SuccessMesg("bookmark added"))
 
 	return nil
 }

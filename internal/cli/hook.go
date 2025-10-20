@@ -75,7 +75,7 @@ func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	i := color.BrightYellow(cfg.Cmd, "init").Italic()
+	i := color.NewPalette().BrightYellowItalic(cfg.Cmd, "init")
 	if cfg.DBName == config.MainDBName {
 		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
 	}

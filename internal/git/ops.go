@@ -18,7 +18,6 @@ import (
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -27,13 +26,6 @@ import (
 )
 
 const JSONFileExt = ".json"
-
-var (
-	cbc = func(s string) string { return color.BrightCyan(s).String() }
-	cbm = func(s string) string { return color.BrightMagenta(s).String() }
-	cgi = func(s string) string { return color.Gray(s).Italic().String() }
-	cri = func(s string) string { return color.BrightRed(s).Italic().String() }
-)
 
 // writeRepoStats updates the repo stats.
 func writeRepoStats(ctx context.Context, gr *Repository) error {
@@ -142,7 +134,9 @@ func records(ctx context.Context, dbPath string) ([]*bookmark.Bookmark, error) {
 
 // parseGitRepo loads a git repo into a database.
 func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
-	a.Console.Frame.Rowln().Info(fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName))
+	c := a.Console()
+	f := c.Frame()
+	f.Rowln().Info(c.Palette().Bold(fmt.Sprintf("Repository %q\n", repoName)))
 	repoPath := filepath.Join(root, repoName)
 
 	// read summary.json
@@ -151,11 +145,11 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 		return "", fmt.Errorf("reading summary: %w", err)
 	}
 
-	a.Console.Frame.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
+	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
 		Midln(txt.PaddedLine("tags:", sum.RepoStats.Tags)).
 		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
 
-	if err := a.Console.ConfirmErr("Continue?", "y"); err != nil {
+	if err := c.ConfirmErr("Continue?", "y"); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
@@ -171,7 +165,7 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 		return "", err
 	}
 
-	if !a.Console.Confirm(fmt.Sprintf("Import into %q database?", gr.Loc.DBName), "y") {
+	if !c.Confirm(fmt.Sprintf("Import into %q database?", gr.Loc.DBName), "y") {
 		// FIX:
 		// - Limit options to:
 		// 		- Current database (flag `--name`)?
@@ -183,8 +177,8 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 	gr.Git.SetRepoPath(repoPath)
 
 	if files.Exists(dbPath) {
-		a.Console.Warning(fmt.Sprintf("Database %q already exists\n", gr.Loc.DBName)).Flush()
-		opt, err = a.Console.Choose("What do you want to do?", choices, "m")
+		c.Warning(fmt.Sprintf("Database %q already exists\n", gr.Loc.DBName)).Flush()
+		opt, err = c.Choose("What do you want to do?", choices, "m")
 		if err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
@@ -207,7 +201,7 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 
 // parseGitRepoOpt handles the options for parseGitRepository.
 func parseGitRepoOpt(a *app.Context, opt string, gr *Repository) (string, error) {
-	ctx, c := a.Ctx, a.Console
+	ctx, c := a.Ctx, a.Console()
 
 	switch strings.ToLower(opt) {
 	case "new":
@@ -308,8 +302,7 @@ func initGPG(c *ui.Console, gr *Repository, k *gpg.Fingerprint) error {
 	}
 
 	if c != nil {
-		s := fmt.Sprintf("GPG repo initialized with key %q\n", k.UserID)
-		fmt.Print(c.SuccessMesg(s))
+		fmt.Println(c.SuccessMesg(fmt.Sprintf("GPG repo initialized with key %q", k.UserID)))
 	}
 
 	return nil
@@ -355,7 +348,9 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 	})
 
 	m.SetItems(records)
-	m.SetPreprocessor(txt.Oneline)
+	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
+		return txt.Oneline(c, b)
+	})
 
 	selected, err := m.Select()
 	if err != nil {
@@ -379,7 +374,7 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 
 	n := len(debookmarks)
 	if n > 0 {
-		c.Frame.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
+		c.Frame().Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
 	}
 
 	return nil
@@ -389,17 +384,18 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	var (
 		sb strings.Builder
 		t  string
+		p  = c.Palette()
 	)
 
 	if !gr.IsTracked() {
-		sb.WriteString(txt.PaddedLine(gr.Loc.Name, cgi("(not tracked)\n")))
+		sb.WriteString(txt.PaddedLine(gr.Loc.Name, p.GrayItalic("(not tracked)\n")))
 		return c.Error(sb.String()).StringReset()
 	}
 
 	if gr.IsEncrypted() {
-		t = cbm("gpg ")
+		t = p.BrightMagentaBold("gpg ")
 	} else {
-		t = cbc("json ")
+		t = p.BrightMagentaBold("json ")
 	}
 
 	name := gr.Loc.Name
@@ -408,7 +404,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	}
 
 	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
-	sb.WriteString(txt.PaddedLine(name, t+cgi(s)))
+	sb.WriteString(txt.PaddedLine(name, t+p.GrayItalic(s)))
 
 	c.Success(sb.String() + "\n").Flush()
 
@@ -426,52 +422,53 @@ func StatusRepo(c *ui.Console, dbPath string) (string, error) {
 
 // Info returns a prettify info of the repository.
 func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
+	f, p := c.Frame(), c.Palette()
 	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err
 	}
 
 	if !gr.IsTracked() {
-		return c.Frame.StringReset(), err
+		return f.StringReset(), err
 	}
 
 	if !cfg.Enabled {
 		return "", nil
 	}
 
-	c.Frame.Reset().Headerln(cri("git:"))
+	f.Reset().Headerln(p.BrightRedItalic("git:"))
 
 	sum, err := gr.Summary()
 	if err != nil {
-		return c.Frame.StringReset(), err
+		return f.StringReset(), err
 	}
 
 	// remote
 	if sum.GitRemote != "" {
-		c.Frame.Rowln(txt.PaddedLine("remote:", sum.GitRemote))
+		f.Rowln(txt.PaddedLine("remote:", sum.GitRemote))
 	}
 
 	// repo type
-	t := cbc("JSON")
+	t := p.BrightCyanBold("JSON")
 	if cfg.GPG {
-		t = cbm("GPG")
+		t = p.BrightMagentaBold("GPG")
 	}
-	c.Frame.Rowln(txt.PaddedLine("type:", t))
+	f.Rowln(txt.PaddedLine("type:", t))
 
 	if sum.LastSync != "" {
 		tt, err := time.Parse(time.RFC3339, sum.LastSync)
 		if err != nil {
-			return c.Frame.StringReset(), err
+			return f.StringReset(), err
 		}
 
-		lastSync := sum.LastSync + cgi(" ("+txt.RelativeTime(tt.Format(txt.TimeLayout))+")")
-		c.Frame.Rowln(txt.PaddedLine("last sync:", lastSync))
-		c.Frame.Success(txt.PaddedLine("sync:", true)).Ln()
+		lastSync := sum.LastSync + p.GrayItalic(" ("+txt.RelativeTime(tt.Format(txt.TimeLayout))+")")
+		f.Rowln(txt.PaddedLine("last sync:", lastSync))
+		f.Success(txt.PaddedLine("sync:", true)).Ln()
 	} else {
-		c.Frame.Error(txt.PaddedLine("sync:", false)).Ln()
+		f.Error(txt.PaddedLine("sync:", false)).Ln()
 	}
 
-	return c.Frame.StringReset(), nil
+	return f.StringReset(), nil
 }
 
 func handleOptNew(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
@@ -538,7 +535,7 @@ func handleOptSelect(ctx context.Context, c *ui.Console, gr *Repository) (string
 
 func handleOptIgnore(_ context.Context, c *ui.Console, gr *Repository) (string, error) {
 	repoName := files.StripSuffixes(filepath.Base(gr.Loc.DBPath))
-	c.ReplaceLine(c.Warning(fmt.Sprintf("%s repo %q", color.Yellow("skipping"), repoName)).StringReset())
+	c.ReplaceLine(c.Warning(fmt.Sprintf("%s repo %q", c.Palette().Yellow("skipping"), repoName)).StringReset())
 	return "", nil
 }
 
@@ -566,7 +563,7 @@ func intoDBFromGit(ctx context.Context, c *ui.Console, gr *Repository) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	c.Frame.Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), gr.Loc.DBName)).Flush()
+	c.Frame().Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), gr.Loc.DBName)).Flush()
 
 	return nil
 }
@@ -598,7 +595,7 @@ func mergeAndInsert(ctx context.Context, c *ui.Console, gr *Repository) error {
 
 	n := len(bookmarks)
 	if n > 0 {
-		c.Frame.Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, gr.Loc.DBName)).Flush()
+		c.Frame().Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, gr.Loc.DBName)).Flush()
 	}
 
 	return nil

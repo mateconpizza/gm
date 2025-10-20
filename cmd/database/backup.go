@@ -17,8 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -64,28 +62,23 @@ var (
 
 // backupLockFunc lock backups.
 func backupLockFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
-	fs, err := handler.SelectBackupMany(cmd.Context(), cfg.Path.Backup, "select backup/s to lock")
+	a := app.New(cmd.Context(),
+		app.WithConfig(config.New()),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
+	)
+	fs, err := handler.SelectBackupMany(a, a.Cfg.Path.Backup, "select backup/s to lock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
-		),
-	)
-
-	cgi := func(s string) string { return color.BrightGray(s).Italic().String() }
-
-	c.Frame.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
+	c := a.Console()
+	f := c.Frame()
+	f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 	for _, r := range fs {
 		if err := handler.LockRepo(c, r); err != nil {
 			if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
-				c.Frame.Warning(cgi("skipped: " + err.Error() + "\n")).Flush()
+				f.Warning(c.Palette().BrightGrayItalic("skipped: " + err.Error() + "\n")).Flush()
 				continue
 			}
 
@@ -98,27 +91,22 @@ func backupLockFunc(cmd *cobra.Command, _ []string) error {
 
 // backupUnlockFunc unlock backups.
 func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
-	p := cfg.Path.Backup
+	a := app.New(cmd.Context(),
+		app.WithConfig(config.New()),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
+	)
 
+	p := a.Cfg.Path.Backup
 	if !files.Exists(p) {
 		return fmt.Errorf("%w", db.ErrBackupNotFound)
 	}
 
-	repos, err := handler.SelectFileLocked(cmd.Context(), p, "select backup to unlock")
+	repos, err := handler.SelectFileLocked(a, p, "select backup to unlock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.BrightGray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
-		),
-	)
-
-	return handler.UnlockRepo(c, repos[0])
+	return handler.UnlockRepo(a.Console(), repos[0])
 }
 
 // backupNewFunc create a new backup.
@@ -133,15 +121,10 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	a := app.New(cmd.Context(),
 		app.WithConfig(cfg),
 		app.WithDB(r),
-		app.WithConsole(ui.NewConsole(
-			ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
-			ui.WithTerminal(terminal.New(
-				terminal.WithContext(cmd.Context()),
-				terminal.WithInterruptFn(func(err error) {
-					r.Close()
-					sys.ErrAndExit(err)
-				}))),
-		)),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			r.Close()
+			sys.ErrAndExit(err)
+		})),
 	)
 
 	srcPath := cfg.DBPath
@@ -154,11 +137,12 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	}
 	fmt.Print(summary.Info(a))
 
-	a.Console.Frame.Reset().Row("\n").Flush()
+	c := a.Console()
+	f := c.Frame()
+	f.Reset().Row("\n").Flush()
 
-	cgb := func(s string) string { return color.BrightGreen(s).Italic().String() }
 	if !cfg.Flags.Yes {
-		if err := a.Console.ConfirmErr("create "+cgb("backup"), "y"); err != nil {
+		if err := c.ConfirmErr("create "+c.Palette().BrightGreenItalic("backup"), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -172,12 +156,12 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(a.Console.SuccessMesg(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))))
+	fmt.Println(c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
 
 	if cfg.Flags.Force {
 		slog.Debug("skipping lock", "path", newBkPath)
 		return nil
 	}
 
-	return handler.LockRepo(a.Console, newBkPath)
+	return handler.LockRepo(c, newBkPath)
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -66,9 +65,7 @@ func (rp *RepoProcessor) processRepositories() error {
 func (rp *RepoProcessor) processRepository(repoName string) (int, error) {
 	repoPath := filepath.Join(rp.Root, repoName)
 
-	rp.Console.Frame.Rowln().Info(
-		fmt.Sprintf(color.Text("Repository %q\n").Bold().String(), repoName),
-	)
+	rp.Console.Frame().Rowln().Info(rp.Console.Palette().Bold(fmt.Sprintf("Repository %q\n", repoName)))
 
 	// Read and display summary
 	sum, err := rp.readSummary(repoPath)
@@ -100,15 +97,15 @@ func (rp *RepoProcessor) readSummary(repoPath string) (*SyncGitSummary, error) {
 
 // displaySummary shows repository statistics.
 func (rp *RepoProcessor) displaySummary(sum *SyncGitSummary) {
-	rp.Console.Frame.
-		Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
-		Midln(txt.PaddedLine(color.BrightBlue("tags:"), sum.RepoStats.Tags))
+	f := rp.Console.Frame()
+	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
+		Midln(txt.PaddedLine(rp.Console.Palette().BrightBlue("tags:"), sum.RepoStats.Tags))
 
 	if sum.RepoStats.Favorites > 0 {
-		rp.Console.Frame.Midln(txt.PaddedLine(color.BrightRed("favorites:"), sum.RepoStats.Favorites))
+		f.Midln(txt.PaddedLine(rp.Console.Palette().BrightRed("favorites:"), sum.RepoStats.Favorites))
 	}
 
-	rp.Console.Frame.Flush()
+	f.Flush()
 }
 
 // insertBookmarks inserts bookmarks into the local database.
@@ -153,25 +150,25 @@ func (rp *RepoProcessor) openDatabase(repoName string) (*db.SQLite, error) {
 
 // displaySummary shows the final summary of the pull operation.
 func (rp *RepoProcessor) displayPullSummary() {
-	f := rp.Console.Frame
+	f, p := rp.Console.Frame(), rp.Console.Palette()
 	r := rp.result
 	pad := txt.PaddedLine
 
-	f.Ln().Headerln(color.Text("Summary:").Bold().String()).
+	f.Ln().Headerln(p.Bold("Summary:")).
 		Midln(pad("Repos:", fmt.Sprintf("%d found", len(rp.Repos))))
 
 	if r.TotalReposProcessed > 0 {
-		f.Midln(pad(color.BrightRed("Processed:"), r.TotalReposProcessed))
+		f.Midln(pad(p.BrightRed("Processed:"), r.TotalReposProcessed))
 	}
 	if r.TotalSkipped > 0 {
-		f.Midln(pad(color.BrightYellow("Skipped:"), r.TotalSkipped))
+		f.Midln(pad(p.BrightYellow("Skipped:"), r.TotalSkipped))
 	}
 
 	message := fmt.Sprintf("%d bookmarks", r.TotalBookmarks)
 	if r.TotalBookmarks == 0 {
 		message = "No bookmark added"
 	}
-	f.Midln(pad(color.BrightBlue("Added:"), message))
+	f.Midln(pad(p.BrightBlue("Added:"), message))
 
 	f.Flush()
 }

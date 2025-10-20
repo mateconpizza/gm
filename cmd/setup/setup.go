@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -39,7 +38,7 @@ func NewCmd() *cobra.Command {
 func InitAppFunc(cmd *cobra.Command, _ []string) error {
 	cfg := config.New()
 	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
 		ui.WithTerminal(terminal.New(
 			terminal.WithContext(cmd.Context()),
 			terminal.WithInterruptFn(func(err error) {
@@ -92,8 +91,8 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.Frame(ib))
-	fmt.Print("\n" + c.SuccessMesg("initialized database "+cfg.DBName+"\n"))
+	fmt.Print(txt.Frame(c, ib))
+	fmt.Println("\n" + c.SuccessMesg("initialized database "+cfg.DBName))
 
 	return nil
 }
@@ -114,7 +113,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	}
 
 	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(color.Gray))),
+		ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
 		ui.WithTerminal(terminal.New(
 			terminal.WithContext(cmd.Context()),
 			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
@@ -135,7 +134,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	fmt.Print(c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Loc.DBName)))
+	fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
 
 	return nil
 }
@@ -146,13 +145,14 @@ func createPaths(c *ui.Console, cfg *config.Config) error {
 		return nil
 	}
 
-	ci := color.StyleItalic
-	c.Frame.Headerln(cli.PrettyVersion(cfg.Name, cfg.Info.Version)).Rowln().
-		Info(txt.PaddedLine("Create path:", ci(cfg.Path.Data).Italic().String())).Ln().
-		Info(txt.PaddedLine("Create db:", ci(cfg.DBPath).Italic().String())).Ln()
+	p := c.Palette()
+	f := c.Frame()
+	f.Headerln(cli.PrettyVersion(cfg.Name, cfg.Info.Version)).Rowln().
+		Info(txt.PaddedLine("Create path:", p.Italic(cfg.Path.Data))).Ln().
+		Info(txt.PaddedLine("Create db:", p.Italic(cfg.DBPath))).Ln()
 
-	lines := txt.CountLines(c.Frame.String()) + 1
-	c.Frame.Rowln().Flush()
+	lines := txt.CountLines(f.String()) + 1
+	f.Rowln().Flush()
 
 	if err := c.ConfirmErr("continue?", "y"); err != nil {
 		return fmt.Errorf("%w", err)
@@ -160,7 +160,7 @@ func createPaths(c *ui.Console, cfg *config.Config) error {
 
 	// clean terminal keeping header+row
 	headerN := 3
-	lines += txt.CountLines(c.Frame.String()) - headerN
+	lines += txt.CountLines(f.String()) - headerN
 	c.ClearLine(lines)
 
 	if err := cfg.CreatePaths(); err != nil {
