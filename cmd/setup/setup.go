@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -27,26 +27,21 @@ var InitCmd = &cobra.Command{
 	Hidden:            true,
 	Annotations:       cli.SkipDBCheckAnnotation,
 	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,
-	RunE:              InitAppFunc,
-	PostRunE:          InitAppPostFunc,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return initializeAction(app.New(cmd.Context(),
+			app.WithConfig(config.New()),
+			app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
+		))
+	},
+	PostRunE: InitAppPostFunc,
 }
 
 func NewCmd() *cobra.Command {
 	return InitCmd
 }
 
-func InitAppFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) {
-				sys.ErrAndExit(sys.ErrActionAborted)
-			})),
-		),
-	)
-
+func initializeAction(a *app.Context) error {
+	c, cfg := a.Console(), a.Cfg
 	if err := createPaths(c, cfg); err != nil {
 		return err
 	}
@@ -57,18 +52,16 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 	}
 	defer store.Close()
 
-	// if store.IsInitialized() && !cfg.Flags.Force {
-	if dbtask.IsInitialized(store) && !cfg.Flags.Force {
+	if ok := store.IsInitialized(a.Ctx); ok && !cfg.Flags.Force {
 		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
-	if err := dbtask.Init(cmd.Context(), store); err != nil {
+	if err := store.Init(a.Ctx); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
 	if cfg.DBName != config.MainDBName {
-		fmt.Println(c.SuccessMesg("initialized database " + cfg.DBName))
-
+		fmt.Fprintln(a.Writer(), c.SuccessMesg("initialized database "+cfg.DBName))
 		return nil
 	}
 
@@ -80,19 +73,12 @@ func InitAppFunc(cmd *cobra.Command, _ []string) error {
 	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
 	ib.Desc = cfg.Info.Desc
 
-	// FIX: opening multiple conn
-	store.Close()
-	r, err := db.New(store.Cfg.Fullpath())
-	if err != nil {
-		return err
-	}
-
-	if _, err := r.InsertOne(cmd.Context(), ib); err != nil {
+	if _, err := store.InsertOne(a.Ctx, ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Print(txt.Frame(c, ib))
-	fmt.Println("\n" + c.SuccessMesg("initialized database "+cfg.DBName))
+	fmt.Fprint(a.Writer(), txt.Frame(c, ib))
+	fmt.Fprintln(a.Writer(), "\n"+c.SuccessMesg("initialized database "+cfg.DBName))
 
 	return nil
 }

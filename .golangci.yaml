@@ -72,6 +72,13 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: false
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
     errorlint:
       errorf: true
       asserts: false

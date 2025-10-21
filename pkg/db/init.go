@@ -89,10 +89,35 @@ func (r *SQLite) DropSecure(ctx context.Context) error {
 	return drop(ctx, r)
 }
 
+// IsInitialized checks if the database is initialized.
+func (r *SQLite) IsInitialized(ctx context.Context) bool {
+	schemas := []Schema{
+		Schemas.Main,
+		Schemas.Tags,
+		Schemas.Relation,
+	}
+
+	allExist := true
+	for _, s := range schemas {
+		exists, err := tableExists(ctx, r, s.Name)
+		if err != nil {
+			slog.Error("checking if table exists", "name", s.Name, "error", err)
+			return false
+		}
+
+		if !exists {
+			allExist = false
+			slog.Warn("table does not exist", "name", s.Name)
+		}
+	}
+
+	return allExist
+}
+
 // tableExists checks whether a table with the specified name exists in the SQLite database.
-func tableExists(r *SQLite, t Table) (bool, error) {
+func tableExists(ctx context.Context, r *SQLite, t Table) (bool, error) {
 	var count int
-	err := r.DB.Get(&count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
+	err := r.DB.GetContext(ctx, &count, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?", t)
 	if err != nil {
 		slog.Error("checking if table exists", "name", t, "error", err)
 		return false, fmt.Errorf("tableExists: %w", err)

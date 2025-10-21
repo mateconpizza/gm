@@ -6,7 +6,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -137,7 +136,7 @@ func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 
 	// Prompt user for tags
 	f.Text(p.Gray(" (spaces|comma separated)")).Ln().Flush()
-	mTags, _ := dbtask.TagsCounterFromPath(a.Ctx, a.Cfg.DBPath)
+	mTags, _ := a.DB.TagsCounter(a.Ctx)
 	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))
 	f.Reset().Mid(p.BrightBlue("Tags\t:")).Textln(" " + p.BrightGrayItalic(b.tags))
 	c.ClearLine(txt.CountLines(f.String()))

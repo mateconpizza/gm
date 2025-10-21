@@ -11,8 +11,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// IsInitialized checks if the database is initialized.
-func IsInitialized(p string) (bool, error) {
+// IsInitializedFromPath checks if the database is initialized.
+func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
 	slog.Debug("checking if database is initialized", "path", p)
 
 	allExist := true
@@ -23,7 +23,7 @@ func IsInitialized(p string) (bool, error) {
 	}
 
 	for _, s := range tablesAndSchemas {
-		exists, err := tableExists(r, s.Name)
+		exists, err := tableExists(ctx, r, s.Name)
 		if err != nil {
 			slog.Error("checking if table exists", "name", s.Name, "error", err)
 			return false, err

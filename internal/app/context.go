@@ -3,6 +3,8 @@ package app
 
 import (
 	"context"
+	"io"
+	"os"
 
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -17,6 +19,7 @@ type Context struct {
 	DB      *db.SQLite
 	console *ui.Console
 	Ctx     context.Context
+	writer  io.Writer
 }
 
 func WithConfig(a *config.Config) Option {
@@ -37,18 +40,25 @@ func WithDB(r *db.SQLite) Option {
 	}
 }
 
-func (c *Context) SetDatabase(r *db.SQLite) {
-	c.DB = r
+func WithWriter(w io.Writer) Option {
+	return func(c *Context) {
+		c.writer = w
+	}
 }
 
-func (c *Context) Console() *ui.Console {
-	return c.console
-}
+func (c *Context) SetDatabase(r *db.SQLite) { c.DB = r }
+func (c *Context) SetWriter(w io.Writer)    { c.writer = w }
+func (c *Context) Console() *ui.Console     { return c.console }
+func (c *Context) Writer() io.Writer        { return c.writer }
 
 func New(ctx context.Context, opts ...Option) *Context {
 	c := &Context{Ctx: ctx}
 	for _, opt := range opts {
 		opt(c)
+	}
+
+	if c.writer == nil {
+		c.writer = os.Stdout
 	}
 
 	return c

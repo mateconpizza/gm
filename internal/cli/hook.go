@@ -89,10 +89,10 @@ func HookHelp(cmd *cobra.Command, _ []string) error {
 
 // HookCheckIfDatabaseInitialized checks if database file exists and is initialized.
 // Returns error if database already exists to prevent accidental re-initialization.
-func HookCheckIfDatabaseInitialized(_ *cobra.Command, _ []string) error {
+func HookCheckIfDatabaseInitialized(c *cobra.Command, _ []string) error {
 	cfg := config.New()
 	if files.Exists(cfg.DBPath) {
-		if ok, _ := db.IsInitialized(cfg.DBPath); ok {
+		if ok, _ := db.IsInitializedFromPath(c.Context(), cfg.DBPath); ok {
 			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, cfg.DBName)
 		}
 

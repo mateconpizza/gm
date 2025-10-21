@@ -20,6 +20,10 @@ import (
 
 // InsertOne creates a new record in the main table.
 func (r *SQLite) InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error) {
+	if err := bookmark.Validate(b); err != nil {
+		return 0, err
+	}
+
 	var id int64
 	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		var err error

@@ -88,7 +88,7 @@ func TestInit(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	for _, s := range tablesAndSchemas {
-		tExists, err := tableExists(r, s.Name)
+		tExists, err := tableExists(t.Context(), r, s.Name)
 		if err != nil {
 			t.Errorf("failed to check if table %s exists: %v", s.Name, err)
 			continue
@@ -117,7 +117,7 @@ func TestDropTable(t *testing.T) {
 		t.Errorf("main table %s still exists after dropping", tDrop)
 	}
 
-	exists, err := tableExists(r, tDrop)
+	exists, err := tableExists(t.Context(), r, tDrop)
 	if err != nil {
 		t.Fatalf("failed to check table existence: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestTableCreate(t *testing.T) {
 		t.Fatalf("failed to create table %s: %v", newTable, err)
 	}
 
-	exists, err := tableExists(r, newTable)
+	exists, err := tableExists(t.Context(), r, newTable)
 	if err != nil {
 		t.Fatalf("failed to check if table exists: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestTableExists(t *testing.T) {
 		t.Fatalf("failed to create table %s: %v", tt, err)
 	}
 
-	exists, err := tableExists(r, tt)
+	exists, err := tableExists(t.Context(), r, tt)
 	if err != nil {
 		t.Fatalf("failed to check table %s existence: %v", tt, err)
 	}
@@ -168,7 +168,7 @@ func TestTableExists(t *testing.T) {
 		t.Errorf("expected table %s to exist, but it does not", tt)
 	}
 
-	exists, err = tableExists(r, "non_existent_table")
+	exists, err = tableExists(t.Context(), r, "non_existent_table")
 	if err != nil {
 		t.Fatalf("failed to check non-existent table: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestRenameTable(t *testing.T) {
 		t.Fatalf("failed to rename table %s to %s: %v", srcTable, destTable, err)
 	}
 
-	srcExists, err := tableExists(r, srcTable)
+	srcExists, err := tableExists(t.Context(), r, srcTable)
 	if err != nil {
 		t.Fatalf("failed to check if source table exists: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestRenameTable(t *testing.T) {
 		t.Errorf("expected source table %s to not exist, but it does", srcTable)
 	}
 
-	destExists, err := tableExists(r, destTable)
+	destExists, err := tableExists(t.Context(), r, destTable)
 	if err != nil {
 		t.Fatalf("failed to check if destination table exists: %v", err)
 	}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -118,7 +117,7 @@ func (rp *RepoProcessor) insertBookmarks(repoName string, bookmarks []*bookmark.
 	defer r.Close()
 
 	// Initialize database if needed
-	if err := dbtask.Init(rp.ctx, r); err != nil {
+	if err := r.Init(rp.ctx); err != nil {
 		return 0, fmt.Errorf("initializing database: %w", err)
 	}
 

@@ -29,7 +29,7 @@ func TestInsertOne(t *testing.T) {
 
 	// verify table exists
 	mainTable := schemaMain.Name
-	tableExists, err := tableExists(r, mainTable)
+	tableExists, err := tableExists(t.Context(), r, mainTable)
 	if err != nil {
 		t.Fatalf("failed to check if table %s exists: %v", mainTable, err)
 	}
