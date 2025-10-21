@@ -11,7 +11,6 @@ import (
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -151,7 +150,7 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	newBkPath, err := dbtask.Backup(cmd.Context(), r.Cfg.Fullpath(), cfg.Path.Backup)
+	newBkPath, err := r.Backup(cmd.Context(), cfg.Path.Backup)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

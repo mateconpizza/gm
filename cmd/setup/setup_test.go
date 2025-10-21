@@ -4,66 +4,16 @@ package setup
 import (
 	"bytes"
 	"errors"
-	"io"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/app"
-	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func setup(t *testing.T) *app.Context {
-	t.Helper()
-
-	cfg := &config.Config{
-		Name:   config.AppName,
-		Cmd:    config.AppCommand,
-		DBName: config.MainDBName,
-		Path:   &config.Path{},
-		Flags: &config.Flags{
-			ColorStr: "never",
-			Color:    false,
-		},
-		Info: &config.Information{
-			URL:     "https://github.com/mateconpizza/gm#readme",
-			Title:   "Gomarks: A bookmark manager",
-			Tags:    "golang,awesome,bookmarks,cli",
-			Desc:    "Simple yet powerful bookmark manager for your terminal",
-			Version: "0.0.1",
-		},
-		Env: &config.Env{
-			Home:   "GOMARKS_HOME",
-			Editor: "GOMARKS_EDITOR",
-		},
-	}
-
-	temp := t.TempDir()
-	t.Setenv(cfg.Env.Home, temp)
-
-	cfg.DBPath = filepath.Join(temp, cfg.DBName)
-	cfg.Path.Data = temp
-
-	tm := terminal.New(
-		terminal.WithContext(t.Context()),
-		terminal.WithWriter(io.Discard),
-	)
-
-	return app.New(t.Context(),
-		app.WithConfig(cfg),
-		app.WithConsole(ui.NewConsole(
-			ui.WithTerminal(tm),
-			ui.WithFrame(frame.New()),
-		)),
-	)
-}
-
 func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
-	a := setup(t)
+	a := testutil.SetupApp(t)
 	var buf bytes.Buffer
 	a.SetWriter(&buf)
 
@@ -105,7 +55,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 }
 
 func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
-	a := setup(t)
+	a := testutil.SetupApp(t)
 	a.Cfg.DBName = "test-db"
 	a.Cfg.DBPath = filepath.Join(a.Cfg.Path.Data, a.Cfg.DBName)
 	var buf bytes.Buffer
@@ -128,7 +78,7 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 
 func TestFailsWhenDatabaseAlreadyInitializedWithoutForceFlag(t *testing.T) {
 	t.Skip("Update database initialization")
-	a := setup(t)
+	a := testutil.SetupApp(t)
 
 	// Initialize database first time
 	err := initializeAction(a)
@@ -148,7 +98,7 @@ func TestFailsWhenDatabaseAlreadyInitializedWithoutForceFlag(t *testing.T) {
 
 func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 	t.Skip("Update database initialization")
-	a := setup(t)
+	a := testutil.SetupApp(t)
 
 	// Initialize database first time
 	err := initializeAction(a)
@@ -165,7 +115,7 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 }
 
 func TestFailsWhenInitReturnsErr(t *testing.T) {
-	a := setup(t)
+	a := testutil.SetupApp(t)
 	// Set invalid DB path
 	a.Cfg.DBPath = "/invalid/path/\x00/db"
 
@@ -177,7 +127,7 @@ func TestFailsWhenInitReturnsErr(t *testing.T) {
 }
 
 func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
-	a := setup(t)
+	a := testutil.SetupApp(t)
 	// Set invalid bookmark data that would cause insertion to fail
 	a.Cfg.Info.URL = "" // Invalid bookmark
 
@@ -188,7 +138,7 @@ func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
 }
 
 func TestParseAndStoreBookmarkTags(t *testing.T) {
-	a := setup(t)
+	a := testutil.SetupApp(t)
 	var buf bytes.Buffer
 	a.SetWriter(&buf)
 

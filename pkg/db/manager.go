@@ -21,6 +21,7 @@ func NewManager() *Manager {
 
 // Register adds a connection to the manager.
 func (m *Manager) Register(s string, conn *SQLite) {
+	slog.Debug("db manager register", "path", s)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.conns[s] = conn

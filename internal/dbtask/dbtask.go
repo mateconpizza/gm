@@ -5,17 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
-
-// Default date format for timestamps.
-const defaultDateFormat = "20060102-150405"
 
 var (
 	ErrBackupExists   = errors.New("backup already exists")
@@ -54,76 +48,13 @@ func (rs *RepoStats) String() string {
 	return strings.Join(parts, ", ")
 }
 
-func Backup(ctx context.Context, fullpath, backupPath string) (string, error) {
-	r, err := db.New(fullpath)
-	if err != nil {
-		return "", err
-	}
-
-	// destDSN -> 20060102-150405_dbName.db
-	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(defaultDateFormat), r.Name())
-	destPath := filepath.Join(backupPath, destDSN)
-	slog.Info("creating SQLite backup",
-		"src", r.Cfg.Fullpath(),
-		"dest", destPath,
-	)
-
-	if files.Exists(destPath) {
-		return "", fmt.Errorf("%w: %q", ErrBackupExists, destPath)
-	}
-
-	_ = r.DB.MustExec("VACUUM INTO ?", destPath)
-
-	if err := VerifyIntegrity(ctx, destPath); err != nil {
-		return "", err
-	}
-
-	return destPath, nil
-}
-
 // DropFromPath drops the database from the given path.
 func DropFromPath(ctx context.Context, dbPath string) error {
 	r, err := db.New(dbPath)
 	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return r.DropSecure(ctx)
-}
-
-// VerifyIntegrity checks the integrity of the SQLite database.
-func VerifyIntegrity(ctx context.Context, path string) error {
-	slog.Debug("verifying SQLite integrity", "path", path)
-
-	c, err := db.NewSQLiteCfg(path)
-	if err != nil {
 		return err
 	}
-
-	r, err := db.OpenDatabase(path, c)
-	if err != nil {
-		return fmt.Errorf("no se pudo abrir backup: %w", err)
-	}
-
-	defer func() {
-		if err := r.Close(); err != nil {
-			slog.Error("error closing db", "error", err)
-		}
-	}()
-
-	var result string
-	row := r.QueryRowContext(ctx, "PRAGMA integrity_check;")
-	if err := row.Scan(&result); err != nil {
-		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
-	}
-
-	if result != "ok" {
-		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
-	}
-
-	slog.Debug("SQLite integrity verified", "result", result)
-
-	return nil
+	return r.DropSecure(ctx)
 }
 
 // TagsCounterFromPath returns a map with tag as key and count as value.

@@ -7,9 +7,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
+
+// Default date format for timestamps.
+const defaultDateFormat = "20060102-150405"
 
 // IsInitializedFromPath checks if the database is initialized.
 func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
@@ -161,4 +165,48 @@ func (r *SQLite) ReorderIDs(ctx context.Context) error {
 
 	// Reinsert bookmarks with new IDs
 	return r.InsertMany(ctx, bs)
+}
+
+// Backup creates a timestamped backup of the SQLite database at the specified destination.
+// The backup filename follows the format: YYYYMMDD-HHMMSS_dbname.db.
+func (r *SQLite) Backup(ctx context.Context, destRoot string) (string, error) {
+	// destDSN -> 20060102-150405_dbName.db
+	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(defaultDateFormat), r.Name())
+	destPath := filepath.Join(destRoot, destDSN)
+	slog.Info("creating SQLite backup", "src", r.Cfg.Fullpath(), "dest", destPath)
+
+	_, err := os.Stat(destPath)
+	if !os.IsNotExist(err) {
+		return "", fmt.Errorf("%w: %q", ErrBackupExists, destPath)
+	}
+
+	_ = r.DB.MustExecContext(ctx, "VACUUM INTO ?", destPath)
+
+	backup, err := New(destPath)
+	if err != nil {
+		return "", err
+	}
+
+	if err := backup.CheckIntegrity(ctx); err != nil {
+		return "", err
+	}
+
+	return destPath, nil
+}
+
+// CheckIntegrity performs a PRAGMA integrity_check on the SQLite database.
+func (r *SQLite) CheckIntegrity(ctx context.Context) error {
+	var result string
+	row := r.DB.QueryRowContext(ctx, "PRAGMA integrity_check;")
+	if err := row.Scan(&result); err != nil {
+		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
+	}
+
+	if result != "ok" {
+		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
+	}
+
+	slog.Debug("SQLite integrity verified", "result", result)
+
+	return nil
 }
