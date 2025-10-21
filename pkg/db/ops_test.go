@@ -2,8 +2,11 @@ package db
 
 import (
 	"errors"
+	"fmt"
+	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -102,4 +105,21 @@ func extractIDs(bookmarks []*bookmark.Bookmark) []int {
 		ids[i] = b.ID
 	}
 	return ids
+}
+
+func TestBackupRepo(t *testing.T) {
+	t.Parallel()
+	r := testPopulatedDB(t, 5)
+	defer teardownthewall(r.DB)
+
+	tempDir := t.TempDir()
+	newBackupPath, err := r.Backup(t.Context(), tempDir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := filepath.Join(tempDir, fmt.Sprintf("%s_%s", time.Now().Format(defaultDateFormat), r.Name()))
+	if want != newBackupPath {
+		t.Fatalf("want: %q, got: %q", want, newBackupPath)
+	}
 }

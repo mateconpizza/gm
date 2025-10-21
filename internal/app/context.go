@@ -48,6 +48,7 @@ func WithWriter(w io.Writer) Option {
 
 func (c *Context) SetDatabase(r *db.SQLite) { c.DB = r }
 func (c *Context) SetWriter(w io.Writer)    { c.writer = w }
+func (c *Context) SetConsole(uc *ui.Console) { c.console = uc }
 func (c *Context) Console() *ui.Console     { return c.console }
 func (c *Context) Writer() io.Writer        { return c.writer }
 

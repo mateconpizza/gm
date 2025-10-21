@@ -55,7 +55,23 @@ var (
 		Use:     "new",
 		Short:   "Create a new backup",
 		Aliases: []string{"create", "add"},
-		RunE:    backupNewFunc,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg := config.New()
+			r, err := db.New(cfg.DBPath)
+			if err != nil {
+				return fmt.Errorf("backup: %w", err)
+			}
+			defer r.Close()
+
+			return backupNewFunc(app.New(cmd.Context(),
+				app.WithConfig(cfg),
+				app.WithDB(r),
+				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+					r.Close()
+					sys.ErrAndExit(err)
+				})),
+			))
+		},
 	}
 )
 
@@ -109,23 +125,8 @@ func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
 }
 
 // backupNewFunc create a new backup.
-func backupNewFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
-	r, err := db.New(cfg.DBPath)
-	if err != nil {
-		return fmt.Errorf("backup: %w", err)
-	}
-	defer r.Close()
-
-	a := app.New(cmd.Context(),
-		app.WithConfig(cfg),
-		app.WithDB(r),
-		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		})),
-	)
-
+func backupNewFunc(a *app.Context) error {
+	r, cfg := a.DB, a.Cfg
 	srcPath := cfg.DBPath
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
@@ -134,7 +135,7 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	fmt.Print(summary.Info(a))
+	fmt.Fprint(a.Writer(), summary.Info(a))
 
 	c := a.Console()
 	f := c.Frame()
@@ -142,20 +143,20 @@ func backupNewFunc(cmd *cobra.Command, _ []string) error {
 
 	if !cfg.Flags.Yes {
 		if err := c.ConfirmErr("create "+c.Palette().BrightGreenItalic("backup"), "y"); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 	}
 
 	if err := files.MkdirAll(cfg.Path.Backup); err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
-	newBkPath, err := r.Backup(cmd.Context(), cfg.Path.Backup)
+	newBkPath, err := r.Backup(a.Ctx, cfg.Path.Backup)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
+	fmt.Fprintln(a.Writer(), c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
 
 	if cfg.Flags.Force {
 		slog.Debug("skipping lock", "path", newBkPath)

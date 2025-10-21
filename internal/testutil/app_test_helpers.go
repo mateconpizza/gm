@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"fmt"
 	"io"
 	"path/filepath"
 	"testing"
@@ -10,6 +11,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func SetupApp(t *testing.T) *app.Context {
@@ -55,4 +58,56 @@ func SetupApp(t *testing.T) *app.Context {
 			ui.WithFrame(frame.New()),
 		)),
 	)
+}
+
+func SetupInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {
+	t.Helper()
+
+	r, err := db.Init(dbPath)
+	if err != nil {
+		t.Fatalf("failed to init DB: %v", err)
+	}
+
+	if err := r.Init(t.Context()); err != nil {
+		t.Fatalf("failed to initialize schema: %v", err)
+	}
+
+	return r
+}
+
+func SetupInitializedDBWithBookmarks(t *testing.T, dbPath string) *db.SQLite {
+	t.Helper()
+	r := SetupInitializedEmptyDB(t, dbPath)
+
+	if err := r.InsertMany(t.Context(), BookmarkSlice(5)); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	return r
+}
+
+func Bookmark() *bookmark.Bookmark {
+	return &bookmark.Bookmark{
+		URL:       "https://www.example.com",
+		Title:     "Title",
+		Tags:      "test,tag1,go",
+		Desc:      "Description",
+		CreatedAt: "2023-01-01T12:00:00Z",
+		LastVisit: "2023-01-01T12:00:00Z",
+		Favorite:  true,
+	}
+}
+
+func BookmarkSlice(n int) []*bookmark.Bookmark {
+	bs := make([]*bookmark.Bookmark, 0, n)
+	for i := range n {
+		b := Bookmark()
+		b.Title = fmt.Sprintf("Title %d", i)
+		b.URL = fmt.Sprintf("https://www.example%d.com", i)
+		b.Tags = fmt.Sprintf("test,tag%d,go", i)
+		b.Desc = fmt.Sprintf("Description %d", i)
+		bs = append(bs, b)
+	}
+
+	return bs
 }
