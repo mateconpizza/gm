@@ -56,7 +56,7 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 	a.Cfg.Flags.Yes = true
 	a.Cfg.Flags.Force = true
 
-	r := testutil.SetupInitializedDBWithBookmarks(t, a.Cfg.DBPath)
+	r := testutil.SetupInitializedDBWithBookmarks(t, a.Cfg.DBPath, 5)
 	a.SetDatabase(r)
 
 	var buf bytes.Buffer
@@ -83,7 +83,7 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 
 func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 	a := testutil.SetupApp(t)
-	r := testutil.SetupInitializedDBWithBookmarks(t, a.Cfg.DBPath)
+	r := testutil.SetupInitializedDBWithBookmarks(t, a.Cfg.DBPath, 5)
 	a.SetDatabase(r)
 
 	// Update terminal for reject confirmation prompt.

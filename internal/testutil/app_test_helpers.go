@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/app"
@@ -45,7 +46,6 @@ func SetupApp(t *testing.T) *app.Context {
 
 	cfg.DBPath = filepath.Join(temp, cfg.DBName)
 	cfg.Path.Data = temp
-
 	tm := terminal.New(
 		terminal.WithContext(t.Context()),
 		terminal.WithWriter(io.Discard),
@@ -75,18 +75,18 @@ func SetupInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {
 	return r
 }
 
-func SetupInitializedDBWithBookmarks(t *testing.T, dbPath string) *db.SQLite {
+func SetupInitializedDBWithBookmarks(t *testing.T, dbPath string, n int) *db.SQLite {
 	t.Helper()
 	r := SetupInitializedEmptyDB(t, dbPath)
 
-	if err := r.InsertMany(t.Context(), BookmarkSlice(5)); err != nil {
+	if err := r.InsertMany(t.Context(), sliceBookmark(n)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	return r
 }
 
-func Bookmark() *bookmark.Bookmark {
+func singleBookmark() *bookmark.Bookmark {
 	return &bookmark.Bookmark{
 		URL:       "https://www.example.com",
 		Title:     "Title",
@@ -98,10 +98,10 @@ func Bookmark() *bookmark.Bookmark {
 	}
 }
 
-func BookmarkSlice(n int) []*bookmark.Bookmark {
+func sliceBookmark(n int) []*bookmark.Bookmark {
 	bs := make([]*bookmark.Bookmark, 0, n)
 	for i := range n {
-		b := Bookmark()
+		b := singleBookmark()
 		b.Title = fmt.Sprintf("Title %d", i)
 		b.URL = fmt.Sprintf("https://www.example%d.com", i)
 		b.Tags = fmt.Sprintf("test,tag%d,go", i)
@@ -110,4 +110,10 @@ func BookmarkSlice(n int) []*bookmark.Bookmark {
 	}
 
 	return bs
+}
+
+func ConsoleWithInput(t *testing.T, input string) *ui.Console {
+	t.Helper()
+	term := terminal.New(terminal.WithContext(t.Context()), terminal.WithReader(strings.NewReader(input)))
+	return ui.NewConsole(ui.WithTerminal(term))
 }

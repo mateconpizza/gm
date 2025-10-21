@@ -32,7 +32,7 @@ func RemoveRepo(a *app.Context) error {
 	}
 
 	c := a.Console()
-	fmt.Print(summary.RepoFromPath(a, a.Cfg.DBPath, a.Cfg.Path.Backup))
+	fmt.Fprint(a.Writer(), summary.RepoFromPath(a, a.Cfg.DBPath, a.Cfg.Path.Backup))
 	if !a.Cfg.Flags.Force {
 		if err := c.ConfirmErr(c.Palette().BrightRedBold("remove")+" "+filepath.Base(a.Cfg.DBPath)+"?", "n"); err != nil {
 			return err
@@ -41,12 +41,12 @@ func RemoveRepo(a *app.Context) error {
 
 	if err := RemoveBackups(a); err != nil {
 		if !errors.Is(err, db.ErrBackupNotFound) {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 	}
 
 	if err := files.Remove(a.Cfg.DBPath); err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	dbName := filepath.Base(a.Cfg.DBPath)
@@ -54,7 +54,7 @@ func RemoveRepo(a *app.Context) error {
 		dbName = "main"
 	}
 
-	fmt.Println(c.SuccessMesg("database " + dbName + " removed"))
+	fmt.Fprintln(a.Writer(), c.SuccessMesg("database "+dbName+" removed"))
 
 	return nil
 }

@@ -1,9 +1,19 @@
-//nolint:wsl //test
+//nolint:paralleltest //using t.Setenv
 package handler
 
 import (
+	"bytes"
+	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/testutil"
+	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func testSetupDBFiles(t *testing.T, tempDir string, n int) []string {
@@ -32,4 +42,116 @@ func TestRemoveRepo(t *testing.T) {
 func TestRemoveBackups(t *testing.T) {
 	t.Parallel()
 	t.Skip("skipping for now")
+}
+
+func TestDatabase_Drop(t *testing.T) {
+	a := testutil.SetupApp(t)
+	want := 10
+	r := testutil.SetupInitializedDBWithBookmarks(t, a.Cfg.DBPath, want)
+	a.SetDatabase(r)
+	c := testutil.ConsoleWithInput(t, "y\n")
+	a.SetConsole(c)
+
+	got, err := r.All(t.Context())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != want {
+		t.Fatalf("expected %d bookmarks, got: %d", want, len(got))
+	}
+
+	err = DroppingDB(a)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err = r.All(t.Context())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("expected 0 bookmarks, got: %d", len(got))
+	}
+}
+
+func TestRemoveRepo_Success(t *testing.T) {
+	color.Disable()
+
+	t.Run("successfully remove main database", func(t *testing.T) {
+		a := testutil.SetupApp(t)
+		a.Cfg.Flags.Force = true
+		r := testutil.SetupInitializedEmptyDB(t, a.Cfg.DBPath)
+		a.SetDatabase(r)
+		var buf bytes.Buffer
+		a.SetWriter(&buf)
+
+		err := RemoveRepo(a)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, "Successfully database main removed") {
+			t.Fatalf("%v", output)
+		}
+
+		if files.Exists(a.Cfg.DBPath) {
+			t.Fatalf("file %q was not deleted", a.Cfg.DBPath)
+		}
+	})
+
+	t.Run("successfully remove a database", func(t *testing.T) {
+		a := testutil.SetupApp(t)
+		a.Cfg.DBName = "somedatabase.db"
+		a.Cfg.DBPath = filepath.Join(a.Cfg.Path.Data, a.Cfg.DBName)
+		a.Cfg.Flags.Force = true
+		r := testutil.SetupInitializedEmptyDB(t, a.Cfg.DBPath)
+		a.SetDatabase(r)
+		var buf bytes.Buffer
+		a.SetWriter(&buf)
+
+		err := RemoveRepo(a)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		output := buf.String()
+		if !strings.Contains(output, "Successfully database "+a.Cfg.DBName+" removed") {
+			t.Fatalf("%v", output)
+		}
+
+		if files.Exists(a.Cfg.DBPath) {
+			t.Fatalf("file %q was not deleted", a.Cfg.DBPath)
+		}
+	})
+}
+
+func TestRemoveRepo_Fail(t *testing.T) {
+	t.Run("fails with database not found", func(t *testing.T) {
+		a := testutil.SetupApp(t)
+		a.Cfg.DBPath = filepath.Join(a.Cfg.Path.Data, "nonexistent.db")
+
+		err := RemoveRepo(a)
+		if !errors.Is(err, db.ErrDBNotFound) {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
+		a := testutil.SetupApp(t)
+		r := testutil.SetupInitializedEmptyDB(t, a.Cfg.DBPath)
+		a.SetDatabase(r)
+
+		err := RemoveRepo(a)
+		if !errors.Is(err, sys.ErrActionAborted) {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		gotOutput := err.Error()
+		wantOutput := "main database cannot be removed"
+		if !strings.Contains(gotOutput, wantOutput) {
+			t.Fatalf("want: %q, got: %q", wantOutput, gotOutput)
+		}
+	})
 }
