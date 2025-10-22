@@ -16,10 +16,10 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func SetupApp(t *testing.T) *app.Context {
+func SetupConfig(t *testing.T) *config.Config {
 	t.Helper()
 
-	cfg := &config.Config{
+	return &config.Config{
 		Name:   config.AppName,
 		Cmd:    config.AppCommand,
 		DBName: config.MainDBName,
@@ -36,11 +36,16 @@ func SetupApp(t *testing.T) *app.Context {
 			Version: "0.0.1",
 		},
 		Env: &config.Env{
-			Home:   "GOMARKS_HOME",
-			Editor: "GOMARKS_EDITOR",
+			Home:   config.EnvHome,
+			Editor: config.EnvEditor,
 		},
 	}
+}
 
+func SetupApp(t *testing.T) *app.Context {
+	t.Helper()
+
+	cfg := SetupConfig(t)
 	temp := t.TempDir()
 	t.Setenv(cfg.Env.Home, temp)
 

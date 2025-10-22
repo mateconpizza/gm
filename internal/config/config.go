@@ -8,10 +8,12 @@ import (
 )
 
 const (
-	AppName        string = "gomarks"    // Default name of the application
-	AppCommand     string = "gm"         // Default name of the executable
-	MainDBName     string = "main.db"    // Default name of the main database
-	ConfigFilename string = "config.yml" // Default config filename
+	AppName        string = "gomarks"        // Default name of the application
+	AppCommand     string = "gm"             // Default name of the executable
+	MainDBName     string = "main.db"        // Default name of the main database
+	ConfigFilename string = "config.yml"     // Default config filename
+	EnvHome        string = "GOMARKS_HOME"   // Default Environment variable for app home
+	EnvEditor      string = "GOMARKS_EDITOR" // Default Environment variable for app editor
 )
 
 type (
