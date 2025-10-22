@@ -262,9 +262,13 @@ func mockExecFail(stderr string) func(ctx context.Context, name string, args ...
 
 func TestGPG_Encrypt_Success(t *testing.T) {
 	t.Parallel()
-	execCommand = mockExecSuccess("encrypted ok")
 
-	g := &GPG{Recipient: "user@example.com", BinPath: "/usr/bin/gpg"}
+	g := &GPG{
+		Recipient: "user@example.com",
+		BinPath:   "/usr/bin/gpg",
+		exec:      mockExecSuccess("encrypted ok"),
+	}
+
 	err := g.Encrypt(t.Context(), "output.gpg", []byte("hello"))
 	if err != nil {
 		t.Fatalf("Encrypt failed unexpectedly: %v", err)
@@ -282,9 +286,12 @@ func TestGPG_Encrypt_NoRecipient(t *testing.T) {
 
 func TestGPG_Encrypt_CommandFails(t *testing.T) {
 	t.Parallel()
-	execCommand = mockExecFail("some gpg error")
 
-	g := &GPG{Recipient: "user@example.com", BinPath: "/usr/bin/gpg"}
+	g := &GPG{
+		Recipient: "user@example.com",
+		BinPath:   "/usr/bin/gpg",
+		exec:      mockExecFail("some gpg error"),
+	}
 
 	err := g.Encrypt(t.Context(), "output.gpg", []byte("hello"))
 	if err == nil {
@@ -297,9 +304,12 @@ func TestGPG_Encrypt_CommandFails(t *testing.T) {
 
 func TestGPG_Decrypt_Success(t *testing.T) {
 	t.Parallel()
-	execCommand = mockExecSuccess("decrypted text")
 
-	g := &GPG{BinPath: "/usr/bin/gpg"}
+	g := &GPG{
+		BinPath: "/usr/bin/gpg",
+		exec:    mockExecSuccess("decrypted text"),
+	}
+
 	out, err := g.Decrypt(t.Context(), "file.gpg")
 	if err != nil {
 		t.Fatalf("Decrypt failed unexpectedly: %v", err)
@@ -311,9 +321,12 @@ func TestGPG_Decrypt_Success(t *testing.T) {
 
 func TestGPG_Decrypt_CommandFails(t *testing.T) {
 	t.Parallel()
-	execCommand = mockExecFail("bad decrypt")
 
-	g := &GPG{BinPath: "/usr/bin/gpg"}
+	g := &GPG{
+		BinPath: "/usr/bin/gpg",
+		exec:    mockExecFail("bad decrypt"),
+	}
+
 	_, err := g.Decrypt(t.Context(), "file.gpg")
 	if err == nil {
 		t.Fatal("expected error from Decrypt, got nil")

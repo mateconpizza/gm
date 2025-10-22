@@ -17,10 +17,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-var execCommand = exec.CommandContext
-
 var (
-	ErrKeyNotTrusted  = errors.New("GPG key is not trusted")
+	ErrKeyNotTrusted  = errors.New("gpg: key is not trusted")
 	ErrNoFingerprint  = errors.New("gpg: no fingerprint found")
 	ErrNoGPGIDFile    = errors.New("gpg: no .gpg-id file found")
 	ErrNoGPGRecipient = errors.New("gpg: no GPG recipient configured")
@@ -52,11 +50,12 @@ var GitDiffConf = map[string][]string{
 type GPG struct {
 	Recipient string
 	BinPath   string
+	exec      func(context.Context, string, ...string) *exec.Cmd
 }
 
 // Decrypt decrypts a file using the configured GPG binary.
 func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error) {
-	cmd := execCommand(ctx, g.BinPath, flags.quiet, flags.decrypt, encryptedPath)
+	cmd := g.exec(ctx, g.BinPath, flags.quiet, flags.decrypt, encryptedPath)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -73,7 +72,7 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 		return ErrNoGPGRecipient
 	}
 
-	cmd := execCommand(
+	cmd := g.exec(
 		ctx,
 		g.BinPath,
 		flags.yes,
@@ -103,6 +102,7 @@ func New(recipient string) (*GPG, error) {
 	return &GPG{
 		Recipient: recipient,
 		BinPath:   binPath,
+		exec:      exec.CommandContext,
 	}, nil
 }
 
