@@ -144,9 +144,12 @@ var (
 		Short: "Lock a database",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg := config.New()
-			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
+			a := app.New(cmd.Context(),
+				app.WithConfig(cfg),
+				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
+			)
 
-			return handler.LockRepo(c, cfg.DBPath)
+			return handler.LockRepo(a, cfg.DBPath)
 		},
 	}
 
@@ -155,18 +158,20 @@ var (
 		Short:       "Unlock a database",
 		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c := ui.NewConsole(
-				ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorPurple))),
-				ui.WithTerminal(
-					terminal.New(
-						terminal.WithContext(cmd.Context()),
-						terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
-				),
+			cfg := config.New()
+			a := app.New(cmd.Context(),
+				app.WithConfig(cfg),
+				app.WithConsole(ui.NewConsole(
+					ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorPurple))),
+					ui.WithTerminal(
+						terminal.New(
+							terminal.WithContext(cmd.Context()),
+							terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
+					),
+				)),
 			)
 
-			cfg := config.New()
-
-			return handler.UnlockRepo(c, cfg.DBPath)
+			return handler.UnlockRepo(a, cfg.DBPath)
 		},
 	}
 )

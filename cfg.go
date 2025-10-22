@@ -29,7 +29,7 @@ var cfg = &config.Config{
 	},
 	Menu: &menu.Config{},
 	Env: &config.Env{
-		Home:   "GOMARKS_HOME",
-		Editor: "GOMARKS_EDITOR",
+		Home:   config.EnvHome,
+		Editor: config.EnvEditor,
 	},
 }

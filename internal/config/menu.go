@@ -26,7 +26,7 @@ var fzfSettings = menu.FzfSettings{
 
 // Fzf holds the default menu configuration.
 var Fzf = &menu.Config{
-	// FIX: Move to package `menu`
+	// FIX: Move to package `menu`?
 	Defaults: true,
 	Prompt:   menu.DefaultPrompt,
 	Preview:  true,

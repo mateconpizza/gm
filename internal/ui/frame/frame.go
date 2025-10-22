@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var colorEnabled bool = false
+
 type color string
 
 var (
@@ -99,6 +101,8 @@ func defaultOpts() Options {
 }
 
 func WithColorBorder(c ...color) OptFn {
+	colorEnabled = true
+
 	return func(o *Options) {
 		var sb strings.Builder
 		for _, clr := range c {
@@ -228,27 +232,27 @@ func (f *Frame) Reset() *Frame {
 }
 
 func (f *Frame) Error(s ...string) *Frame {
-	mid := f.applyStyle(fmtWithColor(ColorBrightRed, f.icon.error))
+	mid := f.applyStyle(applyColorAndBold(ColorBrightRed, f.icon.error))
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Warning(s ...string) *Frame {
-	mid := f.applyStyle(fmtWithColor(ColorBrightYellow, f.icon.warning))
+	mid := f.applyStyle(applyColorAndBold(ColorBrightYellow, f.icon.warning))
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Success(s ...string) *Frame {
-	mid := f.applyStyle(fmtWithColor(ColorBrightGreen, f.icon.success))
+	mid := f.applyStyle(applyColorAndBold(ColorBrightGreen, f.icon.success))
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Info(s ...string) *Frame {
-	mid := f.applyStyle(fmtWithColor(ColorBrightBlue, f.icon.info))
+	mid := f.applyStyle(applyColorAndBold(ColorBrightBlue, f.icon.info))
 	return f.applyBorder(mid, s)
 }
 
 func (f *Frame) Question(s string) *Frame {
-	mid := f.applyStyle(fmtWithColor(ColorBrightGreen, f.icon.question))
+	mid := f.applyStyle(applyColorAndBold(ColorBrightGreen, f.icon.question))
 	return f.applyBorder(mid, []string{string(StyleBold) + s + string(reset)})
 }
 
@@ -308,7 +312,10 @@ func New(opts ...OptFn) *Frame {
 	}
 }
 
-func fmtWithColor(c color, s ...string) string {
+func applyColorAndBold(c color, s ...string) string {
 	f := strings.Join(s, " ")
+	if !colorEnabled {
+		return f + " "
+	}
 	return fmt.Sprintf("%s%s%s %s", StyleBold, c, f, reset)
 }

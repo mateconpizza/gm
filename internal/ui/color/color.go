@@ -73,6 +73,7 @@ func (c *Color) String() string {
 	if !IsEnabled {
 		return c.text
 	}
+
 	// apply styles
 	styles := strings.Join(c.styles, "")
 

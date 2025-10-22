@@ -150,7 +150,7 @@ func SelectBackupOne(a *app.Context, bks []string) (string, error) {
 
 	// Handle locked backups
 	if err := locker.IsLocked(backupPath); err != nil {
-		if err := UnlockRepo(c, backupPath); err != nil {
+		if err := UnlockRepo(a, backupPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
 

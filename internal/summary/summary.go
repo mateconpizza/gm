@@ -1,3 +1,5 @@
+// Package summary provides repository and backup summary generation.
+// It formats database metadata, statistics, and backup information for display.
 package summary
 
 import (

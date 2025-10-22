@@ -7,6 +7,8 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
+const ExitSuccess = 0
+
 // handleFzfErr returns an error based on the exit code of fzf.
 //
 //	0      Normal exit
@@ -103,7 +105,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 
 	// Run Fzf
 	retcode, err := m.runner.Run(options)
-	if retcode != 0 {
+	if retcode != ExitSuccess {
 		// regardless of what kind of error, always call `callInterruptFn`
 		err = handleFzfErr(retcode)
 		m.callInterruptFn(err)

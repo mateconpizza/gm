@@ -213,7 +213,8 @@ func CheckStatus(a *app.Context, bs []*bookmark.Bookmark) error {
 }
 
 // LockRepo locks the database.
-func LockRepo(c *ui.Console, rToLock string) error {
+func LockRepo(a *app.Context, rToLock string) error {
+	c := a.Console()
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -226,8 +227,7 @@ func LockRepo(c *ui.Console, rToLock string) error {
 		if errors.Is(err, sys.ErrActionAborted) {
 			return nil
 		}
-
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	pass, err := passwordConfirm(c)
@@ -236,16 +236,16 @@ func LockRepo(c *ui.Console, rToLock string) error {
 	}
 
 	if err := locker.Lock(rToLock, pass); err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("database locked: %q", filepath.Base(rToLock))))
+	fmt.Fprintln(a.Writer(), c.SuccessMesg(fmt.Sprintf("database locked: %q", filepath.Base(rToLock))))
 
 	return nil
 }
 
 // UnlockRepo unlocks the database.
-func UnlockRepo(c *ui.Console, rToUnlock string) error {
+func UnlockRepo(a *app.Context, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
 		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
 	}
@@ -258,6 +258,7 @@ func UnlockRepo(c *ui.Console, rToUnlock string) error {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, s)
 	}
 
+	c := a.Console()
 	if err := c.ConfirmErr(fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}

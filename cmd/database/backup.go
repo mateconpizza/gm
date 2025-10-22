@@ -91,7 +91,7 @@ func backupLockFunc(cmd *cobra.Command, _ []string) error {
 	f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 	for _, r := range fs {
-		if err := handler.LockRepo(c, r); err != nil {
+		if err := handler.LockRepo(a, r); err != nil {
 			if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
 				f.Warning(c.Palette().BrightGrayItalic("skipped: " + err.Error() + "\n")).Flush()
 				continue
@@ -121,7 +121,7 @@ func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	return handler.UnlockRepo(a.Console(), repos[0])
+	return handler.UnlockRepo(a, repos[0])
 }
 
 // backupNewFunc create a new backup.
@@ -163,5 +163,5 @@ func backupNewFunc(a *app.Context) error {
 		return nil
 	}
 
-	return handler.LockRepo(c, newBkPath)
+	return handler.LockRepo(a, newBkPath)
 }

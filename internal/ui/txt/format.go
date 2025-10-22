@@ -122,7 +122,7 @@ func Frame(c *ui.Console, b *bookmark.Bookmark) string {
 
 	// id + url
 	id := p.BrightYellowBold(b.ID)
-	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w) + color.Reset()
+	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w)
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 
 	// title
@@ -152,7 +152,7 @@ func Notes(c *ui.Console, b *bookmark.Bookmark) string {
 
 	// id + url
 	id := p.BrightYellowBold(b.ID)
-	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w) + color.Reset()
+	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w)
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 
 	// notes

@@ -71,7 +71,7 @@ func (s *Scraper) Start() error {
 		defer s.sp.Done()
 	}
 
-	s.doc = scrapeURL(s.uri, s.ctx)
+	s.doc = scrapeURL(s.ctx, s.uri)
 	s.started = true
 
 	return nil
@@ -210,7 +210,7 @@ func setHeaders(r *http.Request) {
 }
 
 // scrapeURL fetches and parses the HTML content from a URL.
-func scrapeURL(s string, ctx context.Context) *goquery.Document {
+func scrapeURL(ctx context.Context, s string) *goquery.Document {
 	s = normalizeURL(s)
 	if !isSupportedScheme(s) {
 		slog.Warn("unsupported scheme", "url", s)

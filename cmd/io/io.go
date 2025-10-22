@@ -18,6 +18,13 @@ var (
 func NewCmd() *cobra.Command {
 	cfg := config.New()
 
+	ioCmd := &cobra.Command{
+		Use:                "io",
+		Short:              "Export/Import bookmarks",
+		RunE:               cli.HookHelp,
+		PersistentPostRunE: cli.HookGitSync,
+	}
+
 	ioCmd.Flags().BoolVarP(&cfg.Flags.Export, "export", "e", false, "export selected bookmarks")
 	ioCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
 
@@ -37,11 +44,4 @@ func NewCmd() *cobra.Command {
 	ioCmd.AddCommand(gitCmd)
 
 	return ioCmd
-}
-
-var ioCmd = &cobra.Command{
-	Use:                "io",
-	Short:              "Export/Import bookmarks",
-	RunE:               cli.HookHelp,
-	PersistentPostRunE: cli.HookGitSync,
 }

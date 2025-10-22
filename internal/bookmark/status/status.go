@@ -1,3 +1,5 @@
+// Package status provides concurrent HTTP status checking for bookmarks.
+// It performs bulk URL validation with rate limiting and colored output.
 package status
 
 import (
