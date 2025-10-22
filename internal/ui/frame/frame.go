@@ -4,10 +4,12 @@ package frame
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 )
 
-var colorEnabled bool = false
+var colorEnabled bool = true
 
 type color string
 
@@ -70,10 +72,12 @@ type Options struct {
 	color  color
 	text   []string
 	icon   *icon
+	writer io.Writer
 }
 
 type Frame struct {
 	Options
+	buf string
 }
 
 type icon struct {
@@ -101,7 +105,9 @@ func defaultOpts() Options {
 }
 
 func WithColorBorder(c ...color) OptFn {
-	colorEnabled = true
+	if !colorEnabled {
+		return func(o *Options) { o.color = color("") }
+	}
 
 	return func(o *Options) {
 		var sb strings.Builder
@@ -109,6 +115,12 @@ func WithColorBorder(c ...color) OptFn {
 			sb.WriteString(string(clr))
 		}
 		o.color = color(sb.String())
+	}
+}
+
+func WithWriter(w io.Writer) OptFn {
+	return func(o *Options) {
+		o.writer = w
 	}
 }
 
@@ -134,10 +146,9 @@ func (f *Frame) Ln() *Frame {
 }
 
 func (f *Frame) applyStyle(s string) string {
-	if f.color != "" {
+	if colorEnabled && f.color != "" {
 		return string(f.color) + s + string(reset)
 	}
-
 	return s
 }
 
@@ -221,8 +232,14 @@ func (f *Frame) Footerln(s ...string) *Frame {
 }
 
 func (f *Frame) Flush() *Frame {
-	fmt.Print(strings.Join(f.text, ""))
-	return f.Reset()
+	// if something is left in the buffer, print it now as footer
+	if strings.TrimSpace(f.buf) != "" {
+		f.Footerln(strings.TrimSpace(f.buf))
+		f.buf = ""
+	}
+	fmt.Fprint(f.writer, strings.Join(f.text, ""))
+	f.text = nil
+	return f
 }
 
 // Reset clears the frame.
@@ -253,6 +270,10 @@ func (f *Frame) Info(s ...string) *Frame {
 
 func (f *Frame) Question(s string) *Frame {
 	mid := f.applyStyle(applyColorAndBold(ColorBrightGreen, f.icon.question))
+	if !colorEnabled {
+		return f.applyBorder(mid, []string{s})
+	}
+
 	return f.applyBorder(mid, []string{string(StyleBold) + s + string(reset)})
 }
 
@@ -269,32 +290,19 @@ func (f *Frame) StringReset() string {
 
 // Write implements the io.Writer interface.
 func (f *Frame) Write(p []byte) (int, error) {
-	defer f.Flush()
+	content := f.buf + string(p)
+	lines := strings.Split(content, "\n")
 
-	content := string(p)
-	// Handle carriage returns by splitting on \r and taking the last part
-	if strings.Contains(content, "\r") {
-		lines := strings.Split(content, "\r")
-		// Only process the last line after \r (this simulates overwriting)
-		content = lines[len(lines)-1]
-	}
+	// last element may be incomplete
+	f.buf = lines[len(lines)-1]
+	lines = lines[:len(lines)-1]
 
-	// Collect all non-empty lines first
-	var lines []string
-
-	for line := range strings.SplitSeq(content, "\n") {
+	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line != "" {
-			lines = append(lines, line)
+		if line == "" {
+			continue
 		}
-	}
-
-	for i, line := range lines {
-		if i == len(lines)-1 {
-			f.Footerln(line)
-		} else {
-			f.Rowln(line)
-		}
+		f.Rowln(line)
 	}
 
 	return len(p), nil
@@ -307,6 +315,10 @@ func New(opts ...OptFn) *Frame {
 		fn(&o)
 	}
 
+	if o.writer == nil {
+		o.writer = os.Stdout
+	}
+
 	return &Frame{
 		Options: o,
 	}
@@ -317,5 +329,10 @@ func applyColorAndBold(c color, s ...string) string {
 	if !colorEnabled {
 		return f + " "
 	}
+
 	return fmt.Sprintf("%s%s%s %s", StyleBold, c, f, reset)
+}
+
+func DisableColor() {
+	colorEnabled = false
 }

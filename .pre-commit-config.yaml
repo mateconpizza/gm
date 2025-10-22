@@ -43,3 +43,9 @@ repos:
         entry: make build
         language: system
         pass_filenames: false
+
+      - id: make-race
+        name: make testrace
+        entry: make testrace
+        language: system
+        pass_filenames: false

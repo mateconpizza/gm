@@ -23,6 +23,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -94,6 +95,7 @@ func initAppConfig(ctx context.Context, cfg *config.Config) {
 	// enable global color
 	if !cfg.Flags.Color {
 		color.Disable()
+		frame.DisableColor()
 	}
 
 	// terminal interactive mode
