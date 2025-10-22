@@ -5,6 +5,7 @@ package ui
 import (
 	"context"
 	"io"
+	"os"
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
@@ -15,6 +16,7 @@ type Console struct {
 	term    *terminal.Term
 	frame   *frame.Frame
 	palette *color.Palette
+	writer  io.Writer
 }
 
 // Option is a function type for configuring Console.
@@ -33,6 +35,10 @@ func NewConsole(opts ...Option) *Console {
 
 	if c.frame == nil {
 		c.frame = frame.New()
+	}
+
+	if c.writer == nil {
+		c.writer = os.Stdout
 	}
 
 	return c
@@ -59,6 +65,12 @@ func WithFrame(f *frame.Frame) Option {
 	}
 }
 
+func WithWriter(w io.Writer) Option {
+	return func(c *Console) {
+		c.writer = w
+	}
+}
+
 func WithDefaultTerminal(ctx context.Context, f func(error)) Option {
 	return WithTerminal(terminal.New(
 		terminal.WithContext(ctx),
@@ -69,6 +81,7 @@ func WithDefaultTerminal(ctx context.Context, f func(error)) Option {
 func (c *Console) Term() *terminal.Term         { return c.term }
 func (c *Console) Frame() *frame.Frame          { return c.frame }
 func (c *Console) Palette() *color.Palette      { return c.palette }
+func (c *Console) Writer() io.Writer            { return c.writer }
 func (c *Console) ClearLine(n int)              { c.term.ClearLine(n) }
 func (c *Console) ReplaceLine(s string)         { c.term.ReplaceLine(1, s) }
 func (c *Console) ReplaceLines(n int, s string) { c.term.ReplaceLine(n, s) }

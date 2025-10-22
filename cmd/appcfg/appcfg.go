@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -24,7 +25,7 @@ func NewCmd() *cobra.Command {
 		Aliases: []string{"c", "config"},
 		Short:   "Configuration management",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c := ui.NewDefaultConsole(cmd.Context(), nil)
+			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 
 			switch {
 			case cfg.Flags.Create:
@@ -32,7 +33,7 @@ func NewCmd() *cobra.Command {
 			case cfg.Flags.Edit:
 				return editConfig(cmd.Context(), cfg)
 			case cfg.Flags.JSON:
-				return printConfigJSON(cfg.Path.ConfigFile)
+				return printConfigJSON(c, cfg.Path.ConfigFile)
 			case cfg.Flags.List:
 				return showPathFile(cfg.Path.ConfigFile)
 			}
@@ -45,9 +46,8 @@ func NewCmd() *cobra.Command {
 	f.SortFlags = false
 	f.BoolVarP(&cfg.Flags.Create, "create", "c", false, "create config file")
 	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit config")
-	f.BoolVarP(&cfg.Flags.List, "show", "l", false, "current config filepath")
+	f.BoolVarP(&cfg.Flags.List, "show-path", "s", false, "display config file location")
 	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
-	f.BoolVar(&cfg.Flags.Force, "force", false, "force action")
 
 	return configCmd
 }
@@ -60,7 +60,7 @@ func createConfig(c *ui.Console, cfg *config.Config) error {
 	}
 
 	if !c.Confirm(fmt.Sprintf("create configfile %q", p), "y") {
-		return nil
+		return sys.ErrActionAborted
 	}
 
 	if cfg.Git.Enabled {
@@ -68,10 +68,10 @@ func createConfig(c *ui.Console, cfg *config.Config) error {
 	}
 
 	if err := config.Write(p, config.Defaults, cfg.Flags.Force); err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
-	fmt.Printf("%s: file saved %q\n", cfg.Name, p)
+	fmt.Fprintf(c.Writer(), "%s: file saved %q\n", cfg.Name, p)
 
 	return nil
 }
@@ -118,7 +118,7 @@ func getConfig(p string) (*config.ConfigFile, error) {
 }
 
 // printConfigJSON prints the config file as JSON.
-func printConfigJSON(p string) error {
+func printConfigJSON(c *ui.Console, p string) error {
 	cfg, err := getConfig(p)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func printConfigJSON(p string) error {
 		return err
 	}
 
-	fmt.Println(string(j))
+	fmt.Fprintln(c.Writer(), string(j))
 
 	return nil
 }

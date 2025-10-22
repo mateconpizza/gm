@@ -28,6 +28,7 @@ func SetupConfig(t *testing.T) *config.Config {
 			ColorStr: "never",
 			Color:    false,
 		},
+		Git: &config.Git{},
 		Info: &config.Information{
 			URL:     "https://github.com/mateconpizza/gm#readme",
 			Title:   "Gomarks: A bookmark manager",
