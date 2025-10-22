@@ -411,7 +411,7 @@ func JSONWrite[T any](p string, v *T, force bool) (bool, error) {
 		return false, fmt.Errorf("error writing to file: %w", err)
 	}
 
-	slog.Info("JsonWrite success", "path", p)
+	slog.Debug("JsonWrite success", "path", p)
 	return true, nil
 }
 
