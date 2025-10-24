@@ -170,7 +170,7 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console) *menu.Menu[wayback.Snaps
 	u := "https://archive.org/donate"
 
 	m := menu.New[wayback.SnapshotInfo](
-		menu.WithHeader(donate+u, false),
+		menu.WithHeader(donate+u),
 		menu.WithArgs("--cycle"),
 	)
 

@@ -101,9 +101,9 @@ actionLoop:
 			selected, err := selection(fs,
 				func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, a.Console(), *p) },
 				menu.WithArgs("--cycle"),
-				menu.WithSettings(a.Cfg.Menu.Settings),
+				menu.WithConfig(a.Cfg.Menu),
 				menu.WithMultiSelection(),
-				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p)), false),
+				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p))),
 				menu.WithPreview(a.Cfg.Cmd+" db --name=./backup/{1} --info"),
 			)
 

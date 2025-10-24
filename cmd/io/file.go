@@ -92,7 +92,7 @@ var htmlCmd = &cobra.Command{
 			m := menu.New[*bookmark.Bookmark](
 				menu.WithInterruptFn(c.Term().InterruptFn),
 				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s to import", false),
+				menu.WithHeader("select record/s to import"),
 			)
 
 			m.SetItems(deduplicated)

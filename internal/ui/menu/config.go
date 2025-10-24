@@ -11,47 +11,35 @@ var (
 	ErrInvalidConfigSettings = errors.New("invalid settings")
 )
 
-const (
-	unicodePathBigSegment = "\u25B6" // ▶
-	unicodeMiddleDot      = "\u00b7" // ·
-	DefaultPrompt         = unicodePathBigSegment + " "
-	DefaultHeaderSep      = " " + unicodeMiddleDot + " "
-)
-
-// menuConfig holds the menu configuration.
-var menuConfig *Config = &Config{}
-
-// FzfSettings holds the FZF settings.
-type FzfSettings []string
+// Args holds the FZF arguments.
+type Args []string
 
 // Config holds the menu configuration.
 type Config struct {
-	// TODO: complete `Defaults` option. This will be used to load fzf's users
-	// configuration
-	Defaults bool        `json:"defaults" yaml:"defaults"` // Use defaults ($FZF_DEFAULT_OPTS_FILE and $FZF_DEFAULT_OPTS)
-	Prompt   string      `json:"prompt"   yaml:"prompt"`   // Fzf prompt
-	Preview  bool        `json:"preview"  yaml:"preview"`  // Fzf enable preview
-	Header   FzfHeader   `json:"header"   yaml:"header"`   // Fzf header
-	Keymaps  Keymaps     `json:"keymaps"  yaml:"keymaps"`  // Fzf keymaps
-	Settings FzfSettings `json:"settings" yaml:"settings"` // Fzf settings
+	Defaults       bool     `json:"defaults"  yaml:"defaults"`  // Use ($FZF_DEFAULT_OPTS_FILE and $FZF_DEFAULT_OPTS)
+	Prompt         string   `json:"prompt"    yaml:"prompt"`    // Fzf prompt
+	Preview        bool     `json:"preview"   yaml:"preview"`   // Fzf enable preview
+	Header         Header   `json:"header"    yaml:"header"`    // Fzf header
+	BuiltinKeymaps *Keymaps `json:"keymaps"   yaml:"keymaps"`   // Fzf keymaps
+	Arguments      Args     `json:"arguments" yaml:"arguments"` // Fzf arguments
 }
 
-// FzfHeader holds the header configuration for FZF.
-type FzfHeader struct {
+// Header holds the header configuration for FZF.
+type Header struct {
 	Enabled bool   `yaml:"enabled"`
 	Sep     string `yaml:"separator"`
 }
 
 // Validate validates the menu configuration.
 func (c *Config) Validate() error {
-	keymaps := []Keymap{
-		c.Keymaps.Edit,
-		c.Keymaps.Open,
-		c.Keymaps.QR,
-		c.Keymaps.OpenQR,
-		c.Keymaps.Yank,
-		c.Keymaps.Preview,
-		c.Keymaps.ToggleAll,
+	keymaps := []*Keymap{
+		c.BuiltinKeymaps.Edit,
+		c.BuiltinKeymaps.Open,
+		c.BuiltinKeymaps.QR,
+		c.BuiltinKeymaps.OpenQR,
+		c.BuiltinKeymaps.Yank,
+		c.BuiltinKeymaps.Preview,
+		c.BuiltinKeymaps.ToggleAll,
 	}
 
 	for _, k := range keymaps {
@@ -79,14 +67,9 @@ func (c *Config) Validate() error {
 	}
 
 	// set default settings
-	if len(c.Settings) == 0 {
+	if len(c.Arguments) == 0 {
 		slog.Warn("empty settings, loading default settings")
 	}
 
 	return nil
-}
-
-// SetConfig sets menu configuration.
-func SetConfig(cfg *Config) {
-	menuConfig = cfg
 }

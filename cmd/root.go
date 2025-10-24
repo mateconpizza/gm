@@ -24,7 +24,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -88,9 +87,6 @@ func initAppConfig(ctx context.Context, cfg *config.Config) {
 	if err := config.Load(cfg); err != nil {
 		slog.Error("loading config", "err", err)
 	}
-
-	// set menu
-	menu.SetConfig(config.Fzf)
 
 	// enable global color
 	if !cfg.Flags.Color {

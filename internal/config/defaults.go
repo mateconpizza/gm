@@ -1,30 +1,8 @@
 package config
 
 import (
-	"fmt"
-
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
-
-// ConfigFile represents the configuration file.
-type ConfigFile struct {
-	Menu *menu.Config `json:"menu" yaml:"menu"`          // Menu configuration
-	Git  *Git         `json:"git"  yaml:"git,omitempty"` // Git status
-}
-
-// Defaults holds the default configuration.
-var Defaults = &ConfigFile{
-	Menu: Fzf,
-}
-
-// Validate validates the configuration file.
-func Validate(cfg *ConfigFile) error {
-	if err := cfg.Menu.Validate(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
-}
 
 func NewDefaultConfig(version string) *Config {
 	return &Config{
@@ -49,5 +27,6 @@ func NewDefaultConfig(version string) *Config {
 			Home:   EnvHome,
 			Editor: EnvEditor,
 		},
+		Menu: menu.NewDefaultConfig(),
 	}
 }

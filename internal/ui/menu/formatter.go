@@ -2,19 +2,7 @@ package menu
 
 import (
 	"fmt"
-	"strings"
-
-	shellwords "github.com/junegunn/go-shellwords"
 )
-
-// appendKeytoHeader appends a key:desc string to the header slice.
-func appendKeytoHeader(opts []string, key, desc string) []string {
-	if !menuConfig.Header.Enabled {
-		return opts
-	}
-
-	return append(opts, fmt.Sprintf("%s:%s", key, desc))
-}
 
 // defaultPreprocessor provides fallback formatting item for display in fzf.
 func defaultPreprocessor[T any](item *T) string {
@@ -48,32 +36,4 @@ func processOutputPreprocessed[T any](itemMap map[string]T, outputChan <-chan st
 	}
 
 	resultChan <- result
-}
-
-// loadHeader appends a formatted header string to args.
-func loadHeader(header []string, args *FzfSettings) {
-	if len(header) == 0 {
-		return
-	}
-
-	h := strings.Join(header, menuConfig.Header.Sep)
-	*args = append(*args, "--header="+h)
-}
-
-// loadKeybind appends a comma-separated keybind string to args.
-func loadKeybind(keybind []string, args *FzfSettings) error {
-	if len(keybind) == 0 {
-		return nil
-	}
-
-	keys := strings.Join(keybind, ",")
-
-	a, err := shellwords.Parse(fmt.Sprintf("%s=%q", "--bind", keys))
-	if err != nil {
-		return fmt.Errorf("parsing keybinds args: %w", err)
-	}
-
-	*args = append(*args, a...)
-
-	return nil
 }

@@ -25,16 +25,16 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 	}
 
 	mo := []menu.OptFn{
-		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithConfig(cfg.Menu),
 		menu.WithMultiSelection(),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithKeybinds(
-			config.FzfKeybindEdit(keybindsArgs...),
-			config.FzfKeybindEditNotes(),
-			config.FzfKeybindOpen(),
-			config.FzfKeybindQR(),
-			config.FzfKeybindOpenQR(),
-			config.FzfKeybindYank(),
+			config.MenuKeybindEdit(keybindsArgs...),
+			config.MenuKeybindEditNotes(),
+			config.MenuKeybindOpen(),
+			config.MenuKeybindQR(),
+			config.MenuKeybindOpenQR(),
+			config.MenuKeybindYank(),
 		),
 	}
 
@@ -48,7 +48,7 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 // MenuSimpleForRecords builds a simpler menu without all keybindings.
 func MenuSimpleForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 	opts := []menu.OptFn{
-		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithConfig(cfg.Menu),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 	}
 
@@ -62,7 +62,7 @@ func MenuSimpleForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 // MenuSimpleMultiRecords builds a simpler menu without all keybindings.
 func MenuSimpleMultiRecords(cfg *config.Config) *menu.Menu[bookmark.Bookmark] {
 	opts := []menu.OptFn{
-		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithConfig(cfg.Menu),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithMultiSelection(),
 	}
@@ -121,8 +121,8 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 func selectItem(a *app.Context, fs []string, header string) (string, error) {
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(a.Ctx, a.Console(), *p) },
-		menu.WithSettings(a.Cfg.Menu.Settings),
-		menu.WithHeader(header, false),
+		menu.WithConfig(a.Cfg.Menu),
+		menu.WithHeader(header),
 		menu.WithPreview(a.Cfg.Cmd+" db -n {1} -i"),
 	)
 	if err != nil {
@@ -139,9 +139,9 @@ func SelectBackupOne(a *app.Context, bks []string) (string, error) {
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, c, *p) },
 		menu.WithArgs("--cycle"),
-		menu.WithSettings(a.Cfg.Menu.Settings),
+		menu.WithConfig(a.Cfg.Menu),
 		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"),
-		menu.WithHeader("choose a backup to import from", false))
+		menu.WithHeader("choose a backup to import from"))
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -169,8 +169,8 @@ func SelectBackupMany(a *app.Context, root, header string) ([]string, error) {
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(a.Ctx, a.Console(), *p) },
 		menu.WithMultiSelection(),
-		menu.WithSettings(a.Cfg.Menu.Settings),
-		menu.WithHeader(header, false),
+		menu.WithConfig(a.Cfg.Menu),
+		menu.WithHeader(header),
 		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"),
 	)
 	if err != nil {
@@ -190,8 +190,8 @@ func SelectFileLocked(a *app.Context, root, header string) ([]string, error) {
 
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, a.Console(), *p) },
-		menu.WithSettings(a.Cfg.Menu.Settings),
-		menu.WithHeader(header, false),
+		menu.WithConfig(a.Cfg.Menu),
+		menu.WithHeader(header),
 	)
 	if err != nil {
 		return bks, fmt.Errorf("%w", err)

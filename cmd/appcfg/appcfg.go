@@ -33,7 +33,7 @@ func NewCmd() *cobra.Command {
 			case cfg.Flags.Edit:
 				return editConfig(cmd.Context(), cfg)
 			case cfg.Flags.JSON:
-				return printConfigJSON(c, cfg.Path.ConfigFile)
+				return printConfigJSON(c, cfg)
 			case cfg.Flags.List:
 				return showPathFile(cfg.Path.ConfigFile)
 			}
@@ -63,11 +63,7 @@ func createConfig(c *ui.Console, cfg *config.Config) error {
 		return sys.ErrActionAborted
 	}
 
-	if cfg.Git.Enabled {
-		config.Defaults.Git = cfg.Git
-	}
-
-	if err := config.Write(p, config.Defaults, cfg.Flags.Force); err != nil {
+	if err := config.WriteYAML(p, cfg, cfg.Flags.Force); err != nil {
 		return err
 	}
 
@@ -95,35 +91,8 @@ func editConfig(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-// getConfig loads the config file.
-func getConfig(p string) (*config.ConfigFile, error) {
-	if !files.Exists(p) {
-		return nil, fmt.Errorf("config %w", files.ErrFileNotFound)
-	}
-
-	var cfg *config.ConfigFile
-	if err := config.Read(p, &cfg); err != nil {
-		return nil, fmt.Errorf("reading configile: %w", err)
-	}
-
-	if cfg == nil {
-		return nil, fmt.Errorf("config %w", files.ErrFileNotFound)
-	}
-
-	if err := config.Validate(cfg); err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return cfg, nil
-}
-
 // printConfigJSON prints the config file as JSON.
-func printConfigJSON(c *ui.Console, p string) error {
-	cfg, err := getConfig(p)
-	if err != nil {
-		return err
-	}
-
+func printConfigJSON(c *ui.Console, cfg *config.Config) error {
 	j, err := port.ToJSON(cfg)
 	if err != nil {
 		return err

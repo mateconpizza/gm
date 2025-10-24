@@ -4,7 +4,6 @@ package menu
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 
 	fzf "github.com/junegunn/fzf/src"
@@ -28,15 +27,48 @@ var (
 type OptFn func(*Options)
 
 type Options struct {
-	keybind     []string
-	header      []string
-	settings    FzfSettings
-	interruptFn func(error) // interruptFn handles fzf cancellation (Ctrl-C, ESC, etc.)
-	runner      MenuRunner
+	// header contains header lines displayed in the FZF interface.
+	// When customHeaderOnly is false, keymap descriptions are appended.
+	header []string
+
+	// customHeaderOnly indicates whether to use only custom headers.
+	// When true, keymap descriptions are excluded from the header.
+	customHeaderOnly bool
+
+	// arguments holds the command-line arguments passed to FZF.
+	// These are built from various options and configurations.
+	arguments Args
+
+	// interruptFn handles FZF cancellation signals (Ctrl-C, ESC, etc.).
+	interruptFn func(error)
+
+	// runner executes the FZF command and handles I/O.
+	// Can be customized for testing or different execution environments.
+	runner MenuRunner
+
+	// keymaps manages the keyboard shortcuts and their actions.
+	// Provides methods to register and manage keybindings.
+	keymaps *keyManager
+
+	// cfg contains the menu configuration and styling options.
+	// Provides defaults and behavioral settings for the menu.
+	cfg *Config
+
+	// previewCmd specifies the command for FZF's preview window.
+	// This command is executed for each item to generate preview content.
+	// Example: "bat --color=always {}"
+	previewCmd string
 }
 
+// Items holds the data and transformation logic for menu items.
 type Items[T comparable] struct {
-	items        []T
+	// items contains the original data items to be displayed in the menu.
+	// These are transformed by the preprocessor for display in FZF.
+	items []T
+
+	// preprocessor converts items to display strings for FZF.
+	// If nil, a default preprocessor will be used that calls String() method.
+	// The function should return ANSI-formatted strings for rich display.
 	preprocessor func(*T) string
 }
 
@@ -47,7 +79,7 @@ type Menu[T comparable] struct {
 
 // Select executes Fzf with the set elements and returns the selected item/s.
 func (m *Menu[T]) Select() ([]T, error) {
-	if err := m.setup(); err != nil {
+	if err := m.buildArgs(); err != nil {
 		return nil, err
 	}
 
@@ -80,12 +112,6 @@ func (m *Menu[T]) callInterruptFn(err error) {
 	slog.Debug("interruptFn is nil")
 }
 
-// setup loads header, keybind and args from Options.
-func (m *Menu[T]) setup() error {
-	loadHeader(m.header, &m.settings)
-	return loadKeybind(m.keybind, &m.settings)
-}
-
 // SetInterruptFn sets the interrupt function for the menu.
 func (m *Menu[T]) SetInterruptFn(fn func(error)) {
 	m.interruptFn = fn
@@ -112,53 +138,44 @@ func WithInterruptFn(fn func(error)) OptFn {
 // WithArgs adds new args to Fzf.
 func WithArgs(args ...string) OptFn {
 	return func(o *Options) {
-		o.settings = append(o.settings, args...)
+		o.arguments = append(o.arguments, args...)
 	}
 }
 
-// WithSettings adds new settings to Fzf.
-func WithSettings(settings FzfSettings) OptFn {
+func WithConfig(c *Config) OptFn {
 	return func(o *Options) {
-		o.settings = append(o.settings, settings...)
+		o.cfg = c
+		o.arguments = append(o.arguments, c.Arguments...)
 	}
 }
 
 // WithKeybinds adds a keybind to Fzf.
-func WithKeybinds(keys ...Keymap) OptFn {
+func WithKeybinds(keys ...*Keymap) OptFn {
 	return func(o *Options) {
-		for _, k := range keys {
-			if !k.Enabled {
-				continue
-			}
-
-			if !k.Hidden {
-				o.header = appendKeytoHeader(o.header, k.Bind, k.Desc)
-			}
-
-			o.keybind = append(o.keybind, fmt.Sprintf("%s:%s", k.Bind, k.Action))
-		}
+		o.keymaps.register(keys...)
 	}
 }
 
 // WithMultiSelection adds a keybind to select multiple records.
 func WithMultiSelection() OptFn {
-	opts := []string{"--highlight-line", "--multi"}
+	args := []string{
+		// Highlight the whole current line
+		"--highlight-line",
 
-	if !menuConfig.Keymaps.ToggleAll.Enabled {
-		return func(o *Options) {
-			o.settings = append(o.settings, opts...)
-		}
+		// Enable multi-select with tab/shift-tab. It optionally takes an integer
+		// argument which denotes the maximum number of items that can be selected.
+		"--multi",
 	}
 
 	return func(o *Options) {
-		o.settings = append(o.settings, opts...)
-
-		if !menuConfig.Keymaps.ToggleAll.Hidden {
-			h := appendKeytoHeader(make([]string, 0), "ctrl-a", "toggle-all")
-			o.header = append(o.header, h...)
-		}
-
-		o.keybind = append(o.keybind, "ctrl-a:toggle-all")
+		o.keymaps.register(&Keymap{
+			Bind:    o.cfg.BuiltinKeymaps.ToggleAll.Bind,
+			Desc:    "toggle-all",
+			Action:  "toggle-all",
+			Enabled: o.cfg.BuiltinKeymaps.ToggleAll.Enabled,
+			Hidden:  o.cfg.BuiltinKeymaps.ToggleAll.Hidden,
+		})
+		o.arguments = append(o.arguments, args...)
 	}
 }
 
@@ -171,78 +188,81 @@ func WithRunner(r MenuRunner) OptFn {
 
 // WithPreview adds preview with a custom command.
 func WithPreview(cmd string) OptFn {
-	return buildPreviewOpts(cmd)
+	return func(o *Options) {
+		o.previewCmd = cmd
+	}
 }
 
 // WithMultilineView adds multiline view and highlights the entire current line
 // in Fzf.
 func WithMultilineView() OptFn {
 	opts := []string{
-		"--highlight-line", // Highlight the whole current line
-		"--read0",          // Read input delimited by ASCII NUL characters instead of newline characters
+		// Highlight the whole current line
+		"--highlight-line",
+
+		// Read input delimited by ASCII NUL characters instead of newline characters
+		"--read0",
 	}
 
 	return func(o *Options) {
-		o.settings = append(o.settings, opts...)
+		o.arguments = append(o.arguments, opts...)
 	}
 }
 
-// WithHeader adds a header to Fzf.
-func WithHeader(header string, replace bool) OptFn {
+// WithHeader adds a header to FZF, appending to existing headers.
+func WithHeader(header string) OptFn {
 	return func(o *Options) {
-		if replace {
-			o.header = []string{header}
-			return
-		}
-
 		o.header = append([]string{header}, o.header...)
 	}
 }
 
-// WithPrompt adds a prompt to Fzf.
-func WithPrompt(prompt string) OptFn {
+// WithHeaderOnly sets a single header, replacing all existing ones.
+func WithHeaderOnly(header string) OptFn {
 	return func(o *Options) {
-		o.settings = append(o.settings, "--prompt="+prompt)
+		o.header = []string{header}
+		o.customHeaderOnly = true
+	}
+}
+
+// WithPrompt adds a prompt to Fzf.
+func WithPrompt(s string) OptFn {
+	return func(o *Options) {
+		o.arguments = append(o.arguments, "--prompt="+s)
 	}
 }
 
 // New returns a new Menu.
 func New[T comparable](opts ...OptFn) *Menu[T] {
-	defaults := Options{
-		settings: []string{
-			"--ansi",
-			"--reverse",
-			"--tac",
-			"--height=95%",
-			"--info=inline-right",
-			"--prompt=" + menuConfig.Prompt,
-		},
-		header: make([]string, 0),
-		runner: &defaultRunner{},
+	o := Options{
+		header:  make([]string, 0),
+		runner:  &defaultRunner{},
+		keymaps: &keyManager{},
 	}
 
 	for _, fn := range opts {
-		fn(&defaults)
+		fn(&o)
+	}
+
+	if o.cfg == nil {
+		o.cfg = NewDefaultConfig()
 	}
 
 	return &Menu[T]{
-		Options: defaults,
+		Options: o,
 	}
 }
 
 type MenuRunner interface {
 	Run(options *fzf.Options) (int, error)
-	Parse(defaults bool, settings FzfSettings) (*fzf.Options, error)
+	Parse(defaults bool, args Args) (*fzf.Options, error)
 }
 
 type defaultRunner struct{}
 
-//nolint:wrapcheck //notneeded
 func (d *defaultRunner) Run(options *fzf.Options) (int, error) {
 	return fzf.Run(options)
 }
 
-//nolint:wrapcheck //notneeded
-func (d *defaultRunner) Parse(def bool, s FzfSettings) (*fzf.Options, error) {
+func (d *defaultRunner) Parse(def bool, s Args) (*fzf.Options, error) {
 	return fzf.ParseOptions(def, s)
 }

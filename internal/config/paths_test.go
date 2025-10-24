@@ -95,27 +95,41 @@ func TestWriteRead_Successfully_Reads_And_Unmarshals_Valid_YAML(t *testing.T) {
 	tempDir := t.TempDir()
 	fn := filepath.Join(tempDir, "config.yaml")
 	conf := &Config{
-		Name:   AppName,
-		Cmd:    AppCommand,
-		DBName: MainDBName,
+		Git: &Git{
+			Enabled: true,
+			Log:     false,
+			GPG:     true,
+			Path:    "/some/path",
+			Remote:  "git@github.com:ponzipalandri/bookmarks.git",
+		},
 	}
 
-	if err := Write(fn, conf, false); err != nil {
+	if err := WriteYAML(fn, conf, false); err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	err := Read(fn, &cfg)
+	var cfg *Config
+	err := ReadYAML(fn, &cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Name != AppName {
-		t.Errorf("expected Name=test, got %q", cfg.Name)
+
+	want := conf.Git
+	got := cfg.Git
+	if want.Enabled != got.Enabled {
+		t.Fatalf("git enabled, want :%v, got: %v", want.Enabled, got.Enabled)
 	}
-	if cfg.DBName != MainDBName {
-		t.Errorf("expected %q, got %q", MainDBName, cfg.DBName)
+	if want.GPG != got.GPG {
+		t.Fatalf("GPG enabled, want: %v, got: %v", want.GPG, got.GPG)
 	}
-	if cfg.Cmd != AppCommand {
-		t.Errorf("expected %q, got %q", AppCommand, cfg.Cmd)
+	if want.Log != got.Log {
+		t.Fatalf("want: %v, got: %v", want.Log, got.Log)
+	}
+	if want.Path != got.Path {
+		t.Fatalf("want: %v, got: %v", want.Path, got.Path)
+	}
+	if want.Remote != got.Remote {
+		t.Fatalf("want: %v, got: %v", want.Remote, got.Remote)
 	}
 }
 
@@ -125,7 +139,7 @@ func TestRead_Fails_When_File_Does_Not_Exist(t *testing.T) {
 	fn := filepath.Join(tempDir, "nonexistent.yaml")
 
 	var cfg Config
-	err := Read(fn, &cfg)
+	err := ReadYAML(fn, &cfg)
 
 	if err == nil {
 		t.Fatal("expected error for non-existent file")
@@ -152,7 +166,7 @@ version: 1.0
 	}
 
 	var cfg Config
-	err := Read(fn, &cfg)
+	err := ReadYAML(fn, &cfg)
 
 	if err == nil {
 		t.Fatal("expected error for invalid YAML")
@@ -180,7 +194,7 @@ enabled: "not a boolean"`
 	}
 
 	var cfg StrictConfig
-	err := Read(fn, &cfg)
+	err := ReadYAML(fn, &cfg)
 	if err == nil {
 		t.Logf("YAML was permissive: Name=%v, Enabled=%v", cfg.Name, cfg.Enabled)
 	}
@@ -196,7 +210,7 @@ func TestRead_Handles_Empty_YAML_File(t *testing.T) {
 	}
 
 	var cfg Config
-	err := Read(fn, &cfg)
+	err := ReadYAML(fn, &cfg)
 	if err != nil {
 		t.Errorf("unexpected error for empty file: %v", err)
 	}

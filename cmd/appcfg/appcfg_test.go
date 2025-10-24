@@ -106,7 +106,7 @@ func TestConfig_PrintJSON(t *testing.T) {
 		Log:     false,
 		GPG:     true,
 		Path:    "/some/path",
-		Remote:  "git@github.com:someremote/bookmarks.git",
+		Remote:  "git@github.com:ponzipalandri/bookmarks.git",
 	}
 
 	fn := filepath.Join(t.TempDir(), config.ConfigFilename)
@@ -128,7 +128,7 @@ func TestConfig_PrintJSON(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	err = printConfigJSON(c, cfg.Path.ConfigFile)
+	err = printConfigJSON(c, cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

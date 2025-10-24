@@ -7,83 +7,43 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
-// fzfSettings are the options for FZF.
-var fzfSettings = menu.FzfSettings{
-	// FIX: Move to package `menu`
-	"--ansi",                            // Enable processing of ANSI color codes
-	"--reverse",                         // A synonym for --layout=reverse
-	"--sync",                            // Synchronous search for multi-staged filtering
-	"--info=inline-right",               // Determines the display style of the finder info.
-	"--tac",                             // Reverse the order of the input
-	"--layout=default",                  // Choose the layout (default: default)
-	"--color=prompt:bold",               // Prompt style
-	"--color=header:italic:bright-blue", // Header style
-	"--height=100%",                     // Set the height of the menu
-	"--no-scrollbar",                    // Remove scrollbar
-	"--border-label= GoMarks ",          // Label to print on the horizontal border line
-	"--border",                          // Border around the window
-}
-
-// Fzf holds the default menu configuration.
-var Fzf = &menu.Config{
-	// FIX: Move to package `menu`?
-	Defaults: true,
-	Prompt:   menu.DefaultPrompt,
-	Preview:  true,
-	Header: menu.FzfHeader{
-		Enabled: true,
-		Sep:     menu.DefaultHeaderSep,
-	},
-	Keymaps: menu.Keymaps{
-		Edit:      menu.Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
-		EditNotes: menu.Keymap{Bind: "ctrl-w", Desc: "edit notes", Enabled: true, Hidden: false},
-		Open:      menu.Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
-		OpenQR:    menu.Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
-		Preview:   menu.Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
-		QR:        menu.Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
-		ToggleAll: menu.Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
-		Yank:      menu.Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
-	},
-	Settings: fzfSettings,
-}
-
 func fmtKeybindCmd(s string) string {
 	return fmt.Sprintf("%s --name=%s records %s", cfg.Cmd, cfg.DBName, s)
 }
 
-// FzfKeybindEdit keybind to edit the selected record.
-func FzfKeybindEdit(args ...string) menu.Keymap {
+// MenuKeybindEdit keybind to edit the selected record.
+func MenuKeybindEdit(args ...string) *menu.Keymap {
 	cmd := "--edit "
 	if len(args) > 0 {
 		cmd += strings.Join(args, " ") + " "
 	}
 	cmd += "{+1}"
 
-	return Fzf.Keymaps.Edit.WithAction(fmtKeybindCmd(cmd))
+	return cfg.Menu.BuiltinKeymaps.Edit.WithAction(fmtKeybindCmd(cmd))
 }
 
-// FzfKeybindEditNotes keybind to edit the selected record.
-func FzfKeybindEditNotes() menu.Keymap {
-	return Fzf.Keymaps.EditNotes.WithAction(fmtKeybindCmd("--edit --notes {+1}"))
+// MenuKeybindEditNotes keybind to edit the selected record.
+func MenuKeybindEditNotes() *menu.Keymap {
+	return cfg.Menu.BuiltinKeymaps.EditNotes.WithAction(fmtKeybindCmd("--edit --notes {+1}"))
 }
 
-// FzfKeybindOpen keybind to open the selected record in the default browser.
-func FzfKeybindOpen() menu.Keymap {
-	return Fzf.Keymaps.Open.WithAction(fmtKeybindCmd("--open {+1}"))
+// MenuKeybindOpen keybind to open the selected record in the default browser.
+func MenuKeybindOpen() *menu.Keymap {
+	return cfg.Menu.BuiltinKeymaps.Open.WithAction(fmtKeybindCmd("--open {+1}"))
 }
 
-// FzfKeybindQR keybind to show the QR code of the selected record.
-func FzfKeybindQR() menu.Keymap {
-	return Fzf.Keymaps.QR.WithAction(fmtKeybindCmd("--qr {+1}"))
+// MenuKeybindQR keybind to show the QR code of the selected record.
+func MenuKeybindQR() *menu.Keymap {
+	return cfg.Menu.BuiltinKeymaps.QR.WithAction(fmtKeybindCmd("--qr {+1}"))
 }
 
-// FzfKeybindOpenQR keybind to open the QR code of the selected record in the
+// MenuKeybindOpenQR keybind to open the QR code of the selected record in the
 // default image viewer.
-func FzfKeybindOpenQR() menu.Keymap {
-	return Fzf.Keymaps.OpenQR.WithAction(fmtKeybindCmd("--qr --open {+1}"))
+func MenuKeybindOpenQR() *menu.Keymap {
+	return cfg.Menu.BuiltinKeymaps.OpenQR.WithAction(fmtKeybindCmd("--qr --open {+1}"))
 }
 
-// FzfKeybindYank keybind to copy the selected record to the system clipboard.
-func FzfKeybindYank() menu.Keymap {
-	return Fzf.Keymaps.Yank.WithAction(fmtKeybindCmd("--copy {+1}"))
+// MenuKeybindYank keybind to copy the selected record to the system clipboard.
+func MenuKeybindYank() *menu.Keymap {
+	return cfg.Menu.BuiltinKeymaps.Yank.WithAction(fmtKeybindCmd("--copy {+1}"))
 }

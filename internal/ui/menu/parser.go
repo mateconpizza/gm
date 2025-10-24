@@ -3,8 +3,7 @@ package menu
 import (
 	"fmt"
 	"log/slog"
-
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"regexp"
 )
 
 const ExitSuccess = 0
@@ -34,35 +33,6 @@ func handleFzfErr(retcode int) error {
 	return nil
 }
 
-// buildPreviewOpts builds the preview options.
-func buildPreviewOpts(cmd string) OptFn {
-	preview := menuConfig.Keymaps.Preview
-	if !preview.Enabled {
-		return func(o *Options) {}
-	}
-
-	var opts []string
-	if !color.IsEnabled {
-		opts = append(opts, "--no-color")
-	}
-	opts = append(opts, "--preview="+cmd)
-
-	prevWindowCmd := "--preview-window=~4,+{2}+4/3,<80(up)"
-	if !menuConfig.Preview {
-		prevWindowCmd = "--preview-window=hidden,up"
-	}
-	opts = append(opts, prevWindowCmd)
-
-	return func(o *Options) {
-		o.settings = append(o.settings, opts...)
-		if !preview.Hidden && menuConfig.Preview {
-			o.header = appendKeytoHeader(o.header, preview.Bind, "toggle-preview")
-		}
-
-		o.keybind = append(o.keybind, preview.Bind+":toggle-preview")
-	}
-}
-
 // selectFromItems runs Fzf with the given items and returns the selected item/s.
 func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 	if len(m.items) == 0 {
@@ -75,7 +45,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 		m.preprocessor = defaultPreprocessor
 	}
 
-	slog.Debug("menu args", "args", m.settings)
+	slog.Debug("menu args", "args", m.arguments)
 
 	// Pre-process all items once for better performance
 	formattedItems := make([]string, len(m.items))
@@ -84,7 +54,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 		ti := item
 		formatted := m.preprocessor(&ti)
 		formattedItems[i] = formatted
-		itemMap[color.ANSICodeRemover(formatted)] = item
+		itemMap[ansiCodeRemover(formatted)] = item
 	}
 
 	// channels
@@ -94,7 +64,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 	go processOutputPreprocessed(itemMap, outputChan, resultChan)
 
 	// Build Fzf.Options
-	options, err := m.runner.Parse(menuConfig.Defaults, m.settings)
+	options, err := m.runner.Parse(m.cfg.Defaults, m.arguments)
 	if err != nil {
 		return nil, fmt.Errorf("fzf: %w", err)
 	}
@@ -122,4 +92,10 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 	}
 
 	return result, nil
+}
+
+// ansiCodeRemover removes ANSI codes from a given string.
+func ansiCodeRemover(s string) string {
+	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return re.ReplaceAllString(s, "")
 }

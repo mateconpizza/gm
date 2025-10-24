@@ -333,9 +333,9 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 
 	m := menu.New[bookmark.Bookmark](
 		menu.WithArgs("--cycle"),
-		menu.WithSettings(config.New().Menu.Settings),
+		menu.WithConfig(config.New().Menu),
 		menu.WithMultiSelection(),
-		menu.WithHeader("select record/s to import", false),
+		menu.WithHeader("select record/s to import"),
 	)
 
 	records := make([]bookmark.Bookmark, 0, len(bookmarks))

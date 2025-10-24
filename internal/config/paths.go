@@ -72,47 +72,33 @@ func (c *Config) InitPaths() {
 
 // Load loads the user configurations file.
 func Load(cfg *Config) error {
-	cfgFile, err := getConfig(cfg.Path.ConfigFile)
+	err := getConfig(cfg.Path.ConfigFile, cfg)
 	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
-		return fmt.Errorf("%w", err)
+		return err
 	}
-
-	if cfgFile == nil {
-		slog.Debug("configfile is empty or not found. loading defaults")
-		return nil
-	}
-
-	cfg.Menu = cfgFile.Menu
-
-	Fzf = cfgFile.Menu
 
 	return nil
 }
 
 // getConfig loads the config file.
-func getConfig(p string) (*ConfigFile, error) {
+func getConfig(p string, cfg *Config) error {
 	if !files.Exists(p) {
-		return nil, fmt.Errorf("config %w", files.ErrFileNotFound)
+		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	var cfg *ConfigFile
-	if err := Read(p, &cfg); err != nil {
-		return nil, fmt.Errorf("%w", err)
+	if err := ReadYAML(p, &cfg); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
 	if cfg == nil {
-		return nil, fmt.Errorf("config %w", files.ErrFileNotFound)
+		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	if err := Validate(cfg); err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	return cfg, nil
+	return cfg.validate()
 }
 
-// Read unmarshals the YAML data from the specified file.
-func Read[T any](p string, v *T) error {
+// ReadYAML unmarshals the YAML data from the specified file.
+func ReadYAML[T any](p string, v *T) error {
 	if !files.Exists(p) {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, p)
 	}
@@ -132,8 +118,8 @@ func Read[T any](p string, v *T) error {
 	return nil
 }
 
-// Write writes the provided YAML data to the specified file.
-func Write[T any](p string, v *T, force bool) error {
+// WriteYAML writes the provided YAML data to the specified file.
+func WriteYAML[T any](p string, v *T, force bool) error {
 	f, err := files.Touch(p, force)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)

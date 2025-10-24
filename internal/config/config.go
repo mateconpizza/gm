@@ -18,17 +18,17 @@ const (
 
 type (
 	Config struct {
-		Name        string       `json:"name"`    // Name of the application
-		Cmd         string       `json:"cmd"`     // Name of the executable
-		DBName      string       `json:"db"`      // Database name
-		DBPath      string       `json:"db_path"` // Database path
-		Info        *Information `json:"data"`    // Application information
-		Env         *Env         `json:"env"`     // Application environment variables
-		Path        *Path        `json:"path"`    // Application path
-		Flags       *Flags       `json:"-"`       // Command line flags
-		Verbose     bool         `json:"-"`       // Logging level
-		Git         *Git         `json:"-"`       // Git configuration
-		Menu        *menu.Config `json:"-"`       // Menu configuration
+		Name        string       `json:"name"          yaml:"-"`             // Name of the application
+		Cmd         string       `json:"cmd"           yaml:"-"`             // Name of the executable
+		DBName      string       `json:"db"            yaml:"-"`             // Database name
+		DBPath      string       `json:"db_path"       yaml:"-"`             // Database path
+		Info        *Information `json:"data"          yaml:"-"`             // Application information
+		Env         *Env         `json:"env"           yaml:"-"`             // Application environment variables
+		Path        *Path        `json:"path"          yaml:"-"`             // Application path
+		Flags       *Flags       `json:"-"             yaml:"-"`             // Command line flags
+		Verbose     bool         `json:"-"             yaml:"-"`             // Logging level
+		Menu        *menu.Config `json:"menu"          yaml:"menu"`          // Menu configuration
+		Git         *Git         `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
 		initialized bool
 	}
 
@@ -36,7 +36,6 @@ type (
 		Data       string `json:"data"`   // Path to store database
 		ConfigFile string `json:"config"` // Path to config file
 		Backup     string `json:"backup"` // Path to store backups
-		Git        string `json:"git"`    // Path to store git
 	}
 
 	Git struct {
@@ -72,4 +71,9 @@ func (c *Config) Initialize() {
 	}
 	c.DBPath = filepath.Join(c.Path.Data, c.DBName)
 	c.initialized = true
+}
+
+// Validate validates the configuration file.
+func (c *Config) validate() error {
+	return c.Menu.Validate()
 }

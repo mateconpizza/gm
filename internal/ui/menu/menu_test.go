@@ -13,7 +13,7 @@ type fakeRunner struct {
 	output  string
 }
 
-func (f *fakeRunner) Parse(defaults bool, settings FzfSettings) (*fzf.Options, error) {
+func (f *fakeRunner) Parse(defaults bool, settings Args) (*fzf.Options, error) {
 	return &fzf.Options{}, nil
 }
 

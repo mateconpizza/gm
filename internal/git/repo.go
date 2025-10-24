@@ -279,7 +279,7 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 
 	m := menu.New[*gpg.Fingerprint](
 		menu.WithMultilineView(),
-		menu.WithHeader("select a fingerprint", false),
+		menu.WithHeader("select a fingerprint"),
 		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
 		menu.WithArgs("--no-bold"),
 		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),

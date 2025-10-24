@@ -59,9 +59,9 @@ func Browser(a *app.Context) error {
 func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
 	cfg := config.New()
 	m := menu.New[bookmark.Bookmark](
-		menu.WithSettings(cfg.Menu.Settings),
+		menu.WithConfig(a.Cfg.Menu),
 		menu.WithMultiSelection(),
-		menu.WithHeader("select record/s to import", false),
+		menu.WithHeader("select record/s to import"),
 		menu.WithPreview(cfg.Cmd+" -n "+srcDB.Name()+" records {1}"),
 		menu.WithInterruptFn(func(err error) { // build interrupt cleanup
 			destDB.Close()
@@ -151,10 +151,10 @@ func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 
 	m := menu.New[bookmark.Bookmark](
 		menu.WithMultiSelection(),
-		menu.WithSettings(a.Cfg.Menu.Settings),
+		menu.WithConfig(a.Cfg.Menu),
 		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", a.Cfg.Cmd, srcDB.Name())),
 		menu.WithInterruptFn(t.InterruptFn),
-		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'", false),
+		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 	)
 
 	defer t.CancelInterruptHandler()
