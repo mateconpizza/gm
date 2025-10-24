@@ -23,8 +23,8 @@ func Repo(a *app.Context) string {
 	var (
 		name    = a.DB.Name()
 		path    = txt.PaddedLine("path:", files.CollapseHomeDir(a.DB.Cfg.Fullpath()))
-		records = txt.PaddedLine("records:", a.DB.Count(a.Ctx, "bookmarks"))
-		tags    = txt.PaddedLine("tags:", a.DB.Count(a.Ctx, "tags"))
+		records = txt.PaddedLine("records:", a.DB.Count(a.Context(), "bookmarks"))
+		tags    = txt.PaddedLine("tags:", a.DB.Count(a.Context(), "tags"))
 		p       = a.Console().Palette()
 	)
 
@@ -62,8 +62,8 @@ func RepoFromPath(a *app.Context, dbPath, backupPath string) string {
 	}
 	defer r.Close()
 
-	records := txt.PaddedLine("records:", r.Count(a.Ctx, "bookmarks"))
-	tags := txt.PaddedLine("tags:", r.Count(a.Ctx, "tags"))
+	records := txt.PaddedLine("records:", r.Count(a.Context(), "bookmarks"))
+	tags := txt.PaddedLine("tags:", r.Count(a.Context(), "tags"))
 	name := p.YellowItalic(r.Name())
 
 	if r.Name() == config.MainDBName {
@@ -168,7 +168,7 @@ func BackupListDetail(a *app.Context) string {
 	}
 
 	for i := range fs {
-		f.Rowln(BackupWithFmtDateFromPath(a.Ctx, a.Console(), fs[i]))
+		f.Rowln(BackupWithFmtDateFromPath(a.Context(), a.Console(), fs[i]))
 	}
 
 	return f.StringReset()
@@ -204,7 +204,7 @@ func Backups(a *app.Context) string {
 	if n > 0 {
 		backupsInfo = txt.PaddedLine("found:", strconv.Itoa(n)+" backups found")
 		lastItem := fs[n-1]
-		lastBackup = RepoRecordsFromPath(a.Ctx, a.Console(), lastItem)
+		lastBackup = RepoRecordsFromPath(a.Context(), a.Console(), lastItem)
 		s := txt.RelativeTime(strings.Split(filepath.Base(lastBackup), "_")[0])
 		lastBackupDate = p.BrightGreenItalic(s)
 	}

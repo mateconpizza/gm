@@ -25,7 +25,11 @@ var htmlCmd = &cobra.Command{
 	Use:   "html",
 	Short: "Import from HTML Netscape file",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		cfg := config.New()
+		cfg, err := config.FromContext(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("failed to get config: %w", err)
+		}
+
 		if cfg.Flags.Path == "" {
 			return fmt.Errorf("%w: %q", ErrMissingArg, "filename")
 		}

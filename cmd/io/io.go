@@ -15,9 +15,7 @@ var (
 	ErrMissingArg           = errors.New("missing argument")
 )
 
-func NewCmd() *cobra.Command {
-	cfg := config.New()
-
+func NewCmd(cfg *config.Config) *cobra.Command {
 	ioCmd := &cobra.Command{
 		Use:                "io",
 		Short:              "Export/Import bookmarks",

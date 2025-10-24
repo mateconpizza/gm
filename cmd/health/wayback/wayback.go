@@ -16,8 +16,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
 
-func NewCmd() *cobra.Command {
-	cfg := config.New()
+func NewCmd(cfg *config.Config) *cobra.Command {
 	waybackCmd := &cobra.Command{
 		Use:     "wayback",
 		Aliases: []string{"w", "wm", "wb"},
@@ -42,7 +41,11 @@ func NewCmd() *cobra.Command {
 }
 
 func waybackFunc(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err

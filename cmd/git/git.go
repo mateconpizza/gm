@@ -19,7 +19,7 @@ import (
 )
 
 // NewCmd is the git command.
-func NewCmd() *cobra.Command {
+func NewCmd(cfg *config.Config) *cobra.Command {
 	gitCmd := &cobra.Command{
 		Use:                "git",
 		Short:              "Git commands",
@@ -28,8 +28,6 @@ func NewCmd() *cobra.Command {
 		RunE:               gitCommandFunc,
 		DisableFlagParsing: true,
 	}
-
-	cfg := config.New()
 
 	// git tracker
 	gitTrackerCmd.Flags().SortFlags = false
@@ -82,7 +80,7 @@ var (
 	// commitCmd records staged changes in the repository.
 	commitCmd = &cobra.Command{
 		Use:   "commit",
-		Short: "record changes to the repository",
+		Short: "commit changes to the repository",
 		RunE:  cli.HookGitSync,
 	}
 
@@ -110,7 +108,11 @@ var (
 
 // importFromClone clones a git repo and imports its bookmarks.
 func importFromClone(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	if cfg.Flags.Path == "" {
 		return git.ErrGitRepoURLEmpty
 	}
@@ -175,7 +177,11 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 
 // initFunc creates a new Git repository.
 func initFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
@@ -199,7 +205,11 @@ func initFunc(cmd *cobra.Command, _ []string) error {
 
 // gitCmd represents the git command.
 func gitCommandFunc(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	if !files.Exists(cfg.Git.Path) {
 		return git.ErrGitNotInitialized
 	}
@@ -217,7 +227,11 @@ func gitCommandFunc(cmd *cobra.Command, args []string) error {
 }
 
 func pushFunc(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
@@ -259,7 +273,11 @@ func cloneFunc(cmd *cobra.Command, args []string) error {
 		return git.ErrGitRepoURLEmpty
 	}
 
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 	c.Warning(fmt.Sprintf("This will clone into %q\n", cfg.Git.Path)).
 		Warning("Recreate the databases and import all bookmarks\n").

@@ -35,7 +35,7 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 		Long:              cfg.Info.Desc,
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
-		PersistentPreRunE: cli.HookEnsureDatabase,
+		PersistentPreRunE: cli.ChainHooks(cli.HookInjectConfig(cfg), cli.HookEnsureDatabase),
 		RunE:              records.Cmd,
 		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
 	}
@@ -102,20 +102,18 @@ func initAppConfig(ctx context.Context, cfg *config.Config) {
 }
 
 // Setup registers all application commands with the CLI.
-func Setup(root *cobra.Command) {
-	cli.Register(
-		create.NewCmd(),
-		records.NewCmd(),
-		tags.NewCmd(),
-		health.NewCmd(),
-		database.NewCmd(),
-		gitCmd.NewCmd(),
-		io.NewCmd(),
-		appcfg.NewCmd(),
+func Setup(root *cobra.Command, cfg *config.Config) {
+	root.AddCommand(
+		create.NewCmd(cfg),
+		records.NewCmd(cfg),
+		tags.NewCmd(cfg),
+		health.NewCmd(cfg),
+		database.NewCmd(cfg),
+		gitCmd.NewCmd(cfg),
+		io.NewCmd(cfg),
+		appcfg.NewCmd(cfg),
 		setup.NewCmd(),
 	)
-
-	cli.AttachTo(root)
 }
 
 // Execute executes the provided root command and exits on error.

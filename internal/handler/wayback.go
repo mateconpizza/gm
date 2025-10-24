@@ -36,7 +36,7 @@ func newResult(u, s, m string) SnapshotResult {
 
 func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 	// FIX: updateSpinnerWithDeadline
-	ctx, cancel := context.WithTimeout(a.Ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(a.Context(), 30*time.Second)
 	sem := semaphore.NewWeighted(1)
 	var (
 		count uint32
@@ -93,14 +93,14 @@ func processBookmark(a *app.Context, b *bookmark.Bookmark) SnapshotResult {
 	}
 
 	ct := wayback.New()
-	s, err := ct.ClosestSnapshot(a.Ctx, b.URL)
+	s, err := ct.ClosestSnapshot(a.Context(), b.URL)
 	if err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
 	b.ArchiveURL = s.ArchiveURL
 	b.ArchiveTimestamp = s.ArchiveTimestamp
-	if err := a.DB.UpdateOne(a.Ctx, b); err != nil {
+	if err := a.DB.UpdateOne(a.Context(), b); err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
@@ -198,7 +198,7 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 	for _, b := range bs {
 		sp.Start()
 
-		ctx, cancel := context.WithTimeout(a.Ctx, 30*time.Second)
+		ctx, cancel := context.WithTimeout(a.Context(), 30*time.Second)
 		deadline, _ := ctx.Deadline()
 
 		u := txt.Shorten(b.URL, 60)

@@ -59,7 +59,11 @@ var (
 
 // newBookmarkCmd creates a new bookmark.
 func newBookmarkFunc(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -101,8 +105,7 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func NewCmd() *cobra.Command {
-	cfg := config.New()
+func NewCmd(cfg *config.Config) *cobra.Command {
 	newBookmarkCmd.Flags().StringVarP(&cfg.Flags.Title, "title", "t", "", "bookmark title")
 	newBookmarkCmd.Flags().StringVarP(&cfg.Flags.TagsStr, "tags", "T", "", "bookmark tags")
 	newDatabaseCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName,

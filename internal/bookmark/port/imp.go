@@ -14,7 +14,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -57,20 +56,24 @@ func Browser(a *app.Context) error {
 
 // Database imports bookmarks from a database.
 func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
-	cfg := config.New()
+	cfg, err := a.Config()
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	m := menu.New[bookmark.Bookmark](
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import"),
 		menu.WithPreview(cfg.Cmd+" -n "+srcDB.Name()+" records {1}"),
-		menu.WithInterruptFn(func(err error) { // build interrupt cleanup
+		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
 			srcDB.Close()
 			sys.ErrAndExit(err)
 		}),
 	)
 
-	items, err := srcDB.All(a.Ctx)
+	items, err := srcDB.All(a.Context())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -100,14 +103,14 @@ func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
 
 	c := a.Console()
 	f := c.Frame()
-	bookmarks = Deduplicate(a.Ctx, c, a.DB, bookmarks)
+	bookmarks = Deduplicate(a.Context(), c, a.DB, bookmarks)
 	n := len(bookmarks)
 	if n == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	if err := a.DB.InsertMany(a.Ctx, bookmarks); err != nil {
+	if err := a.DB.InsertMany(a.Context(), bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -132,7 +135,7 @@ func IntoRepo(a *app.Context, records []*bookmark.Bookmark) error {
 	)
 	sp.Start()
 
-	if err := a.DB.InsertMany(a.Ctx, records); err != nil {
+	if err := a.DB.InsertMany(a.Context(), records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -159,7 +162,7 @@ func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 
 	defer t.CancelInterruptHandler()
 
-	bookmarks, err := srcDB.All(a.Ctx)
+	bookmarks, err := srcDB.All(a.Context())
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -187,7 +190,7 @@ func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 	// update which repo to insert
 	a.SetDatabase(destDB)
 
-	dRecords := Deduplicate(a.Ctx, c, a.DB, result)
+	dRecords := Deduplicate(a.Context(), c, a.DB, result)
 	if len(dRecords) == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return nil
@@ -247,7 +250,7 @@ func Deduplicate(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmar
 func parseFoundInBrowser(a *app.Context, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	c := a.Console()
 	f := c.Frame()
-	bs = Deduplicate(a.Ctx, c, a.DB, bs)
+	bs = Deduplicate(a.Context(), c, a.DB, bs)
 	if len(bs) == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return bs, nil
@@ -264,7 +267,7 @@ func parseFoundInBrowser(a *app.Context, bs []*bookmark.Bookmark) ([]*bookmark.B
 		}
 	}
 
-	if err := metadata.ScrapeDescriptions(a.Ctx, bs); err != nil {
+	if err := metadata.ScrapeDescriptions(a.Context(), bs); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 

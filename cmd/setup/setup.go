@@ -28,8 +28,13 @@ var InitCmd = &cobra.Command{
 	Annotations:       cli.SkipDBCheckAnnotation,
 	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.FromContext(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("failed to get config: %w", err)
+		}
+
 		return initializeAction(app.New(cmd.Context(),
-			app.WithConfig(config.New()),
+			app.WithConfig(cfg),
 			app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 		))
 	},
@@ -52,11 +57,11 @@ func initializeAction(a *app.Context) error {
 	}
 	defer store.Close()
 
-	if ok := store.IsInitialized(a.Ctx); ok && !cfg.Flags.Force {
+	if ok := store.IsInitialized(a.Context()); ok && !cfg.Flags.Force {
 		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
-	if err := store.Init(a.Ctx); err != nil {
+	if err := store.Init(a.Context()); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
@@ -73,7 +78,7 @@ func initializeAction(a *app.Context) error {
 	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
 	ib.Desc = cfg.Info.Desc
 
-	if _, err := store.InsertOne(a.Ctx, ib); err != nil {
+	if _, err := store.InsertOne(a.Context(), ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -85,7 +90,11 @@ func initializeAction(a *app.Context) error {
 
 // InitAppPostFunc ask user to track new database if git is initialized.
 func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	if !cfg.Git.Enabled {
 		return nil
 	}

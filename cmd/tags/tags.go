@@ -8,8 +8,7 @@ import (
 )
 
 // NewCmd manages bookmark tags (list, JSON export, etc.).
-func NewCmd() *cobra.Command {
-	cfg := config.New()
+func NewCmd(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "tags",
 		Aliases: []string{"t"},

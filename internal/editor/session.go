@@ -21,6 +21,7 @@ type EditSession struct {
 	DB          *db.SQLite
 	postEdition postRunEditionFunc
 	ctx         context.Context
+	filetype    string
 }
 
 func WithPostEditionRun(fn postRunEditionFunc) EditSessionOption {
@@ -32,6 +33,12 @@ func WithPostEditionRun(fn postRunEditionFunc) EditSessionOption {
 func WithContext(ctx context.Context) EditSessionOption {
 	return func(s *EditSession) {
 		s.ctx = ctx
+	}
+}
+
+func WithFileType(ft string) EditSessionOption {
+	return func(s *EditSession) {
+		s.filetype = ft
 	}
 }
 
@@ -92,7 +99,7 @@ func (e *EditSession) buildAndEdit(r *Record, idx, total int, s EditStrategy) ([
 	if err != nil {
 		return nil, err
 	}
-	return e.Editor.Bytes(e.ctx, buf, s.EditType())
+	return e.Editor.Bytes(e.ctx, buf, e.filetype)
 }
 
 // saveRecordChanges persists updated record to database.

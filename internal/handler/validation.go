@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/app"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -69,10 +68,8 @@ func confirmRemove(a *app.Context, m *menu.Menu[bookmark.Bookmark], bs *slice.Sl
 }
 
 // confirmUserLimit prompts the user to confirm the exceeding limit.
-func confirmUserLimit(c *ui.Console, count, maxItems int, q string) error {
-	// FIX: inject `cfg`
-	cfg := config.New()
-	if cfg.Flags.Force || count < maxItems {
+func confirmUserLimit(c *ui.Console, count, maxItems int, q string, force bool) error {
+	if force || count < maxItems {
 		return nil
 	}
 

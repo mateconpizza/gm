@@ -17,14 +17,16 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func NewCmd() *cobra.Command {
-	cfg := config.New()
-
+func NewCmd(cfg *config.Config) *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:     "conf",
 		Aliases: []string{"c", "config"},
 		Short:   "Configuration management",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if err := cfg.Validate(); err != nil {
+				return err
+			}
+
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 
 			switch {

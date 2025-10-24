@@ -15,7 +15,7 @@ func main() {
 	config.Set(cfg)
 
 	root := cmd.NewRootCmd(cfg)
-	cmd.Setup(root)
+	cmd.Setup(root, cfg)
 
 	if err := cmd.Execute(root); err != nil {
 		sys.ErrAndExit(err)

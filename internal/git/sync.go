@@ -160,6 +160,10 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
 		hasUpdates uint32
 	)
 
+	if err := cfg.Validate(); err != nil {
+		return false, err
+	}
+
 	g := new(errgroup.Group)
 
 	for i := range bs {

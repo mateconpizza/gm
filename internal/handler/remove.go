@@ -99,7 +99,7 @@ actionLoop:
 			c.SetWriter(os.Stdout)
 
 			selected, err := selection(fs,
-				func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, a.Console(), *p) },
+				func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Context(), a.Console(), *p) },
 				menu.WithArgs("--cycle"),
 				menu.WithConfig(a.Cfg.Menu),
 				menu.WithMultiSelection(),
@@ -134,7 +134,7 @@ func removeSlicePath(a *app.Context, dbs *slice.Slice[string]) error {
 
 	if n > 1 && !a.Cfg.Flags.Yes {
 		dbs.ForEach(func(r string) {
-			f.Midln(summary.RepoRecordsFromPath(a.Ctx, a.Console(), r))
+			f.Midln(summary.RepoRecordsFromPath(a.Context(), a.Console(), r))
 		})
 
 		f.Flush()
@@ -226,7 +226,7 @@ func DroppingDB(a *app.Context) error {
 		}
 	}
 
-	if err := a.DB.DropSecure(a.Ctx); err != nil {
+	if err := a.DB.DropSecure(a.Context()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

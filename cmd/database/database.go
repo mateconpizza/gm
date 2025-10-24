@@ -31,7 +31,11 @@ var (
 		Aliases: []string{"database", "d"},
 		Short:   "Database management",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := config.New()
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+
 			r, err := db.New(cfg.DBPath)
 			if err != nil {
 				return err
@@ -111,7 +115,11 @@ var (
 		Short:   "Show information about a database",
 		Aliases: []string{"i", "show"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg := config.New()
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+
 			r, err := db.New(cfg.DBPath)
 			if err != nil {
 				return err
@@ -143,7 +151,11 @@ var (
 		Use:   "lock",
 		Short: "Lock a database",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg := config.New()
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+
 			a := app.New(cmd.Context(),
 				app.WithConfig(cfg),
 				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
@@ -158,7 +170,11 @@ var (
 		Short:       "Unlock a database",
 		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := config.New()
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+
 			a := app.New(cmd.Context(),
 				app.WithConfig(cfg),
 				app.WithConsole(ui.NewConsole(
@@ -177,7 +193,11 @@ var (
 )
 
 func dbDropFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
@@ -197,7 +217,11 @@ func dbDropFunc(cmd *cobra.Command, _ []string) error {
 }
 
 func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	if !cfg.Git.Enabled {
 		return nil
 	}
@@ -231,8 +255,7 @@ func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func NewCmd() *cobra.Command {
-	cfg := config.New()
+func NewCmd(cfg *config.Config) *cobra.Command {
 	f := dbRootCmd.Flags()
 	f.SortFlags = false
 

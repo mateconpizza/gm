@@ -27,6 +27,10 @@ func (NotesStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
 
 	// metadata
 	cfg := config.New()
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	sep := txt.CenteredLine(w, "bookmark notes", "-")
 	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", cfg.DBName, cfg.Info.Version, sep)
 

@@ -2,9 +2,15 @@
 package config
 
 import (
+	"errors"
 	"path/filepath"
 
 	"github.com/mateconpizza/gm/internal/ui/menu"
+)
+
+var (
+	ErrDatabaseNameNotSet = errors.New("database name not set")
+	ErrDatabasePathNotSet = errors.New("database path not set")
 )
 
 const (
@@ -74,6 +80,17 @@ func (c *Config) Initialize() {
 }
 
 // Validate validates the configuration file.
-func (c *Config) validate() error {
-	return c.Menu.Validate()
+func (c *Config) Validate() error {
+	if c.DBName == "" {
+		return ErrDatabaseNameNotSet
+	}
+	if c.DBPath == "" {
+		return ErrDatabasePathNotSet
+	}
+
+	if c.Menu != nil {
+		return c.Menu.Validate()
+	}
+
+	return nil
 }

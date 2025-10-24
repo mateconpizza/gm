@@ -94,7 +94,7 @@ func getConfig(p string, cfg *Config) error {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	return cfg.validate()
+	return cfg.Validate()
 }
 
 // ReadYAML unmarshals the YAML data from the specified file.

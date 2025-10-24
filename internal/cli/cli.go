@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/spf13/cobra"
+
+	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
 var (
-	// subCommands holds all registered CLI subcommands.
-	subCommands []*cobra.Command
-
 	// SkipDBCheckAnnotation is used in subcmds declarations to skip the database
 	// existence check.
 	SkipDBCheckAnnotation = map[string]string{"skip-db-check": "true"}
@@ -21,16 +20,6 @@ var (
 	// performed in the current process.
 	databaseChecked bool = false
 )
-
-// Register appends one or more subcommands to the global registry.
-func Register(cmd ...*cobra.Command) {
-	subCommands = append(subCommands, cmd...)
-}
-
-// AttachTo attaches all registered subcommands to the given root command.
-func AttachTo(cmd *cobra.Command) {
-	cmd.AddCommand(subCommands...)
-}
 
 // PrettyVersion formats version in a pretty way.
 func PrettyVersion(appName, version string) string {
@@ -41,4 +30,9 @@ func PrettyVersion(appName, version string) string {
 		runtime.GOOS,
 		runtime.GOARCH,
 	)
+}
+
+// Config returns the Config from the command's context.
+func Config(cmd *cobra.Command) (*config.Config, error) {
+	return config.FromContext(cmd.Context())
 }

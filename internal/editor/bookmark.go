@@ -45,6 +45,9 @@ func (baseBookmarkStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, erro
 
 	// metadata
 	cfg := config.New()
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
 	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", cfg.DBName, cfg.Info.Version, sep)
 
 	// footer

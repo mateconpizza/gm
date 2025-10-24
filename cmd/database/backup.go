@@ -56,7 +56,11 @@ var (
 		Short:   "Create a new backup",
 		Aliases: []string{"create", "add"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := config.New()
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+
 			r, err := db.New(cfg.DBPath)
 			if err != nil {
 				return fmt.Errorf("backup: %w", err)
@@ -77,8 +81,13 @@ var (
 
 // backupLockFunc lock backups.
 func backupLockFunc(cmd *cobra.Command, _ []string) error {
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	a := app.New(cmd.Context(),
-		app.WithConfig(config.New()),
+		app.WithConfig(cfg),
 		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 	)
 	fs, err := handler.SelectBackupMany(a, a.Cfg.Path.Backup, "select backup/s to lock")
@@ -106,8 +115,13 @@ func backupLockFunc(cmd *cobra.Command, _ []string) error {
 
 // backupUnlockFunc unlock backups.
 func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	a := app.New(cmd.Context(),
-		app.WithConfig(config.New()),
+		app.WithConfig(cfg),
 		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 	)
 
@@ -151,7 +165,7 @@ func backupNewFunc(a *app.Context) error {
 		return err
 	}
 
-	newBkPath, err := r.Backup(a.Ctx, cfg.Path.Backup)
+	newBkPath, err := r.Backup(a.Context(), cfg.Path.Backup)
 	if err != nil {
 		return err
 	}

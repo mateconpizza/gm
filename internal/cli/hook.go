@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -65,7 +66,11 @@ func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cfg := config.New()
+	cfg, err := Config(cmd)
+	if err != nil {
+		return err
+	}
+
 	if files.Exists(cfg.DBPath) {
 		databaseChecked = true
 		return nil
@@ -89,10 +94,14 @@ func HookHelp(cmd *cobra.Command, _ []string) error {
 
 // HookCheckIfDatabaseInitialized checks if database file exists and is initialized.
 // Returns error if database already exists to prevent accidental re-initialization.
-func HookCheckIfDatabaseInitialized(c *cobra.Command, _ []string) error {
-	cfg := config.New()
+func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	if files.Exists(cfg.DBPath) {
-		if ok, _ := db.IsInitializedFromPath(c.Context(), cfg.DBPath); ok {
+		if ok, _ := db.IsInitializedFromPath(cmd.Context(), cfg.DBPath); ok {
 			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, cfg.DBName)
 		}
 
@@ -105,22 +114,26 @@ func HookCheckIfDatabaseInitialized(c *cobra.Command, _ []string) error {
 // HookEnsureGitEnv ensures Git environment is properly set up.
 // Shows help if help flags are present, verifies Git is installed,
 // and checks if repository is initialized (except for init/import commands).
-func HookEnsureGitEnv(c *cobra.Command, args []string) error {
+func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 	// This will handle when the `c.DisableFlagParsing` is true and show help command.
 	for _, arg := range args {
 		if arg == "-h" || arg == "--help" || arg == "help" {
-			_ = c.Help()
+			_ = cmd.Help()
 			os.Exit(0)
 		}
 	}
 
-	cfg := config.New()
-	_, err := git.NewManager(c.Context(), cfg.Git.Path)
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
+	_, err = git.NewManager(cmd.Context(), cfg.Git.Path)
 	if err != nil {
 		return fmt.Errorf("hook git: %w", err)
 	}
 
-	switch c.Name() {
+	switch cmd.Name() {
 	case "init", "import", "clone":
 		return nil
 	}
@@ -133,8 +146,12 @@ func HookEnsureGitEnv(c *cobra.Command, args []string) error {
 }
 
 // HookGitSync synchronizes Git repository with current database state.
-func HookGitSync(c *cobra.Command, args []string) error {
-	cfg := config.New()
+func HookGitSync(cmd *cobra.Command, args []string) error {
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	if !cfg.Git.Enabled {
 		return nil
 	}
@@ -154,7 +171,7 @@ func HookGitSync(c *cobra.Command, args []string) error {
 	}
 	defer r.Close()
 
-	bs, err := r.All(c.Context())
+	bs, err := r.All(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -168,7 +185,29 @@ func HookGitSync(c *cobra.Command, args []string) error {
 		return nil
 	}
 
-	return gr.Commit(c.Short)
+	return gr.Commit(cmd.Short)
+}
+
+// HookInjectConfig returns a hook that injects the config into the command context.
+func HookInjectConfig(cfg *config.Config) Hook {
+	return func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+
+		// If context is nil, create a new one
+		if ctx == nil {
+			ctx = context.Background()
+		}
+
+		// Check if config already exists
+		if _, err := config.FromContext(ctx); err == nil {
+			// Config already injected, skip
+			return nil
+		}
+
+		// Inject config into context
+		cmd.SetContext(config.ToContext(ctx, cfg))
+		return nil
+	}
 }
 
 // checkDatabaseLocked checks if the database is locked.

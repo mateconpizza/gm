@@ -41,7 +41,11 @@ var (
 )
 
 func fromBackupFunc(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	destRepo, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -85,7 +89,11 @@ func fromBackupFunc(cmd *cobra.Command, args []string) error {
 }
 
 func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	rDest, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)

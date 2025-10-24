@@ -201,7 +201,7 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 
 // parseGitRepoOpt handles the options for parseGitRepository.
 func parseGitRepoOpt(a *app.Context, opt string, gr *Repository) (string, error) {
-	ctx, c := a.Ctx, a.Console()
+	ctx, c := a.Context(), a.Console()
 
 	switch strings.ToLower(opt) {
 	case "new":
@@ -331,9 +331,14 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		return err
 	}
 
+	cfg, err := config.FromContext(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	m := menu.New[bookmark.Bookmark](
 		menu.WithArgs("--cycle"),
-		menu.WithConfig(config.New().Menu),
+		menu.WithConfig(cfg.Menu),
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import"),
 	)

@@ -2,6 +2,8 @@
 package health
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/health/wayback"
@@ -16,7 +18,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func NewCmd() *cobra.Command {
+func NewCmd(cfg *config.Config) *cobra.Command {
 	healthCmd := &cobra.Command{
 		Use:     "health [query]",
 		Aliases: []string{"h", "check", "verify"},
@@ -31,7 +33,6 @@ func NewCmd() *cobra.Command {
 		RunE: checkerFunc,
 	}
 
-	cfg := config.New()
 	f := healthCmd.Flags()
 	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check HTTP status of bookmark URLs")
 	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update bookmark metadata")
@@ -40,13 +41,17 @@ func NewCmd() *cobra.Command {
 
 	records.InitFilterFlags(healthCmd, cfg)
 
-	healthCmd.AddCommand(wayback.NewCmd())
+	healthCmd.AddCommand(wayback.NewCmd(cfg))
 
 	return healthCmd
 }
 
 func checkerFunc(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err

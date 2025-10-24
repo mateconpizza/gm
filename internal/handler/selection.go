@@ -120,7 +120,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 // selectItem lets the user choose a repo from a list.
 func selectItem(a *app.Context, fs []string, header string) (string, error) {
 	repos, err := selection(fs,
-		func(p *string) string { return summary.RepoRecordsFromPath(a.Ctx, a.Console(), *p) },
+		func(p *string) string { return summary.RepoRecordsFromPath(a.Context(), a.Console(), *p) },
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
 		menu.WithPreview(a.Cfg.Cmd+" db -n {1} -i"),
@@ -137,7 +137,7 @@ func selectItem(a *app.Context, fs []string, header string) (string, error) {
 func SelectBackupOne(a *app.Context, bks []string) (string, error) {
 	c := a.Console()
 	selected, err := selection(bks,
-		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, c, *p) },
+		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Context(), c, *p) },
 		menu.WithArgs("--cycle"),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"),
@@ -167,7 +167,7 @@ func SelectBackupMany(a *app.Context, root, header string) ([]string, error) {
 	}
 
 	repos, err := selection(fs,
-		func(p *string) string { return summary.RepoRecordsFromPath(a.Ctx, a.Console(), *p) },
+		func(p *string) string { return summary.RepoRecordsFromPath(a.Context(), a.Console(), *p) },
 		menu.WithMultiSelection(),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
@@ -189,7 +189,7 @@ func SelectFileLocked(a *app.Context, root, header string) ([]string, error) {
 	}
 
 	selected, err := selection(bks,
-		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Ctx, a.Console(), *p) },
+		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Context(), a.Console(), *p) },
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
 	)

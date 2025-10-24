@@ -29,7 +29,7 @@ func NewBookmark(a *app.Context, b *bookmark.Bookmark, args []string) error {
 	}
 
 	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := a.DB.Has(a.Ctx, newURL); exists {
+	if b, exists := a.DB.Has(a.Context(), newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
@@ -37,7 +37,7 @@ func NewBookmark(a *app.Context, b *bookmark.Bookmark, args []string) error {
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithContext(a.Ctx), scraper.WithSpinner("scraping webpage..."))
+	sc := scraper.New(newURL, scraper.WithContext(a.Context()), scraper.WithSpinner("scraping webpage..."))
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)
@@ -136,7 +136,7 @@ func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 
 	// Prompt user for tags
 	f.Text(p.Gray(" (spaces|comma separated)")).Ln().Flush()
-	mTags, _ := a.DB.TagsCounter(a.Ctx)
+	mTags, _ := a.DB.TagsCounter(a.Context())
 	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))
 	f.Reset().Mid(p.BrightBlue("Tags\t:")).Textln(" " + p.BrightGrayItalic(b.tags))
 	c.ClearLine(txt.CountLines(f.String()))

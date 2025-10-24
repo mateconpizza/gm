@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -26,9 +27,14 @@ var (
 		Short:   "Remove one or more backups from local storage",
 		Aliases: []string{"backup", "b", "backups"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+
 			input := "s\n" // input for prompt, this will show the menu to select backups files.
 			a := app.New(cmd.Context(),
-				app.WithConfig(config.New()),
+				app.WithConfig(cfg),
 				app.WithConsole(ui.NewConsole(
 					ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
 					ui.WithTerminal(terminal.New(
@@ -58,7 +64,11 @@ var (
 		Example: `  gm rm db -n dbName
   gm rm db -n dbName --force`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := config.New()
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+
 			if len(args) > 0 {
 				cfg.DBName = files.EnsureSuffix(args[0], ".db")
 				cfg.DBPath = filepath.Join(cfg.Path.Data, cfg.DBName)
@@ -97,8 +107,12 @@ var (
 	}
 )
 
-func dbRemovePostFunc(_ *cobra.Command, _ []string) error {
-	cfg := config.New()
+func dbRemovePostFunc(cmd *cobra.Command, _ []string) error {
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	if !cfg.Git.Enabled {
 		return nil
 	}

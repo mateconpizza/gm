@@ -42,7 +42,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	}
 
 	// Verify initial bookmark was inserted
-	bm, err := store.ByID(a.Ctx, 1)
+	bm, err := store.ByID(a.Context(), 1)
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 	}
 	defer store.Close()
 
-	bm, err := store.ByID(a.Ctx, 1)
+	bm, err := store.ByID(a.Context(), 1)
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}

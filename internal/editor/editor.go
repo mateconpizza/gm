@@ -22,7 +22,4 @@ type EditStrategy interface {
 
 	// Saves changes (to repository)
 	Save(ctx context.Context, db *db.SQLite, b *Record) error
-
-	// EditType type for the tempfile
-	EditType() string
 }

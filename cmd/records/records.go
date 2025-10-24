@@ -21,8 +21,7 @@ import (
 
 // NewCmd is the root "records" command.
 // It provides entrypoints for listing, filtering, and operating on bookmarks.
-func NewCmd() *cobra.Command {
-	cfg := config.New()
+func NewCmd(cfg *config.Config) *cobra.Command {
 	records := &cobra.Command{
 		Use:     "rec",
 		Aliases: []string{"r", "records"},
@@ -37,7 +36,11 @@ func NewCmd() *cobra.Command {
 
 // Cmd is the main command and entrypoint.
 func Cmd(cmd *cobra.Command, args []string) error {
-	cfg := config.New()
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err
@@ -120,7 +123,7 @@ func exec(a *app.Context, bs []*bookmark.Bookmark) error {
 	case f.Format != "":
 		return printer.Display(c, f.Format, bs)
 	case f.QR:
-		return handler.QR(a.Ctx, bs, f.Open, a.Cfg.Name)
+		return handler.QR(a.Context(), bs, f.Open, a.Cfg.Name)
 	case f.Notes:
 		return printer.Notes(c, bs)
 	default:

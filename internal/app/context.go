@@ -18,7 +18,7 @@ type Context struct {
 	Cfg     *config.Config
 	DB      *db.SQLite
 	console *ui.Console
-	Ctx     context.Context
+	ctx     context.Context
 	writer  io.Writer
 }
 
@@ -46,14 +46,24 @@ func WithWriter(w io.Writer) Option {
 	}
 }
 
-func (c *Context) SetDatabase(r *db.SQLite) { c.DB = r }
-func (c *Context) SetWriter(w io.Writer)    { c.writer = w }
+// Context returns the underlying context.Context.
+func (c *Context) Context() context.Context {
+	return c.ctx
+}
+
+// Config retrieves config from context.
+func (c *Context) Config() (*config.Config, error) {
+	return config.FromContext(c.ctx)
+}
+
+func (c *Context) SetDatabase(r *db.SQLite)  { c.DB = r }
+func (c *Context) SetWriter(w io.Writer)     { c.writer = w }
 func (c *Context) SetConsole(uc *ui.Console) { c.console = uc }
-func (c *Context) Console() *ui.Console     { return c.console }
-func (c *Context) Writer() io.Writer        { return c.writer }
+func (c *Context) Console() *ui.Console      { return c.console }
+func (c *Context) Writer() io.Writer         { return c.writer }
 
 func New(ctx context.Context, opts ...Option) *Context {
-	c := &Context{Ctx: ctx}
+	c := &Context{ctx: ctx}
 	for _, opt := range opts {
 		opt(c)
 	}
