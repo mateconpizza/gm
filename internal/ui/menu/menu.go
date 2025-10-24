@@ -58,6 +58,9 @@ type Options struct {
 	// This command is executed for each item to generate preview content.
 	// Example: "bat --color=always {}"
 	previewCmd string
+
+	// enable output color
+	withColor bool
 }
 
 // Items holds the data and transformation logic for menu items.
@@ -228,6 +231,12 @@ func WithHeaderOnly(header string) OptFn {
 func WithPrompt(s string) OptFn {
 	return func(o *Options) {
 		o.arguments = append(o.arguments, "--prompt="+s)
+	}
+}
+
+func WithColor(b bool) OptFn {
+	return func(o *Options) {
+		o.withColor = b
 	}
 }
 

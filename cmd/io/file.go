@@ -94,9 +94,10 @@ var htmlCmd = &cobra.Command{
 			return sys.ErrActionAborted
 		case "s", "select":
 			m := menu.New[*bookmark.Bookmark](
+				menu.WithColor(cfg.Flags.Color),
+				menu.WithHeader("select record/s to import"),
 				menu.WithInterruptFn(c.Term().InterruptFn),
 				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s to import"),
 			)
 
 			m.SetItems(deduplicated)

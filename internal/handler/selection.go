@@ -25,6 +25,7 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 	}
 
 	mo := []menu.OptFn{
+		menu.WithColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
 		menu.WithMultiSelection(),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
@@ -48,6 +49,7 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 // MenuSimpleForRecords builds a simpler menu without all keybindings.
 func MenuSimpleForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 	opts := []menu.OptFn{
+		menu.WithColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 	}
@@ -62,9 +64,10 @@ func MenuSimpleForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 // MenuSimpleMultiRecords builds a simpler menu without all keybindings.
 func MenuSimpleMultiRecords(cfg *config.Config) *menu.Menu[bookmark.Bookmark] {
 	opts := []menu.OptFn{
+		menu.WithColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
-		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithMultiSelection(),
+		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 	}
 
 	if cfg.Flags.Multiline {
@@ -121,6 +124,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 func selectItem(a *app.Context, fs []string, header string) (string, error) {
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(a.Context(), a.Console(), *p) },
+		menu.WithColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
 		menu.WithPreview(a.Cfg.Cmd+" db -n {1} -i"),
@@ -139,9 +143,10 @@ func SelectBackupOne(a *app.Context, bks []string) (string, error) {
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Context(), c, *p) },
 		menu.WithArgs("--cycle"),
+		menu.WithColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
-		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"),
-		menu.WithHeader("choose a backup to import from"))
+		menu.WithHeader("choose a backup to import from"),
+		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"))
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -168,9 +173,10 @@ func SelectBackupMany(a *app.Context, root, header string) ([]string, error) {
 
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(a.Context(), a.Console(), *p) },
-		menu.WithMultiSelection(),
+		menu.WithColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
+		menu.WithMultiSelection(),
 		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"),
 	)
 	if err != nil {
@@ -190,6 +196,7 @@ func SelectFileLocked(a *app.Context, root, header string) ([]string, error) {
 
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Context(), a.Console(), *p) },
+		menu.WithColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
 	)

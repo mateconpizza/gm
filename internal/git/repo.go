@@ -278,11 +278,12 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 	}
 
 	m := menu.New[*gpg.Fingerprint](
-		menu.WithMultilineView(),
-		menu.WithHeader("select a fingerprint"),
-		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
 		menu.WithArgs("--no-bold"),
+		menu.WithColor(p.Enabled()),
+		menu.WithHeader("select a fingerprint"),
 		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
+		menu.WithMultilineView(),
+		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
 	)
 	m.SetItems(fps)
 	m.SetPreprocessor(func(f **gpg.Fingerprint) string {

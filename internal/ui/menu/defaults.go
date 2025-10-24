@@ -16,7 +16,7 @@ func NewDefaultConfig() *Config {
 			Enabled: true,
 			Sep:     DefaultHeaderSep,
 		},
-		BuiltinKeymaps: &Keymaps{
+		BuiltinKeymaps: &BuiltinKeymaps{
 			Edit:      &Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
 			EditNotes: &Keymap{Bind: "ctrl-w", Desc: "edit notes", Enabled: true, Hidden: false},
 			Open:      &Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},

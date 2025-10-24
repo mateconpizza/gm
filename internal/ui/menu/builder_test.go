@@ -148,16 +148,16 @@ func TestBuildPreview(t *testing.T) {
 
 			m := &Menu[any]{
 				Options: Options{
+					withColor:  true,
 					previewCmd: tc.previewCmd,
 					cfg: &Config{
-						BuiltinKeymaps: &Keymaps{Preview: tc.previewKey},
+						BuiltinKeymaps: &BuiltinKeymaps{Preview: tc.previewKey},
 					},
 					keymaps: &keyManager{},
 				},
 			}
 
 			err := m.buildPreviewArgs()
-
 			if tc.wantError && err == nil {
 				t.Fatal("expected error, got nil")
 			}

@@ -34,8 +34,8 @@ func (k *Keymap) WithAction(cmd string) *Keymap {
 	return k
 }
 
-// Keymaps holds the keymaps for FZF.
-type Keymaps struct {
+// BuiltinKeymaps holds the keymaps for FZF.
+type BuiltinKeymaps struct {
 	Edit      *Keymap `json:"edit"       yaml:"edit"`
 	EditNotes *Keymap `json:"notes"      yaml:"notes"`
 	Open      *Keymap `json:"open"       yaml:"open"`

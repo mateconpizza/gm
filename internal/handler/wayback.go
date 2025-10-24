@@ -166,11 +166,10 @@ func updateSpinnerWithDeadline(ctx context.Context, sp *rotato.Rotato, prefix st
 }
 
 func waybackMenu[T wayback.SnapshotInfo](c *ui.Console) *menu.Menu[wayback.SnapshotInfo] {
-	donate := c.Palette().BrightRedBold("donate <3 ")
-	u := "https://archive.org/donate"
-
 	m := menu.New[wayback.SnapshotInfo](
-		menu.WithHeader(donate+u),
+		menu.WithArgs("--color=header:italic:bold:bright-red"),
+		menu.WithColor(c.Palette().Enabled()),
+		menu.WithHeaderOnly("donate <3 https://archive.org/donate"),
 		menu.WithArgs("--cycle"),
 	)
 

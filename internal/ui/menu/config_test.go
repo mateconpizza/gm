@@ -15,7 +15,7 @@ func testValidConfig(t *testing.T) *Config {
 			Enabled: false,
 			Sep:     " ",
 		},
-		BuiltinKeymaps: &Keymaps{
+		BuiltinKeymaps: &BuiltinKeymaps{
 			Edit:   &Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
 			Open:   &Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
 			QR:     &Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},

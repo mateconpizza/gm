@@ -16,12 +16,12 @@ type Args []string
 
 // Config holds the menu configuration.
 type Config struct {
-	Defaults       bool     `json:"defaults"  yaml:"defaults"`  // Use ($FZF_DEFAULT_OPTS_FILE and $FZF_DEFAULT_OPTS)
-	Prompt         string   `json:"prompt"    yaml:"prompt"`    // Fzf prompt
-	Preview        bool     `json:"preview"   yaml:"preview"`   // Fzf enable preview
-	Header         Header   `json:"header"    yaml:"header"`    // Fzf header
-	BuiltinKeymaps *Keymaps `json:"keymaps"   yaml:"keymaps"`   // Fzf keymaps
-	Arguments      Args     `json:"arguments" yaml:"arguments"` // Fzf arguments
+	Defaults       bool            `json:"defaults"  yaml:"defaults"`  // Use $FZF_DEFAULT_OPTS_FILE n $FZF_DEFAULT_OPTS
+	Prompt         string          `json:"prompt"    yaml:"prompt"`    // Fzf prompt
+	Preview        bool            `json:"preview"   yaml:"preview"`   // Fzf enable preview
+	Header         Header          `json:"header"    yaml:"header"`    // Fzf header
+	BuiltinKeymaps *BuiltinKeymaps `json:"keymaps"   yaml:"keymaps"`   // Fzf keymaps
+	Arguments      Args            `json:"arguments" yaml:"arguments"` // Fzf arguments
 }
 
 // Header holds the header configuration for FZF.

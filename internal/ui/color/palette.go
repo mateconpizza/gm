@@ -104,7 +104,7 @@ func anyToString(s ...any) string {
 	return b.String()
 }
 
-func (p *Palette) Disable() bool { return IsEnabled }
+func (p *Palette) Enabled() bool { return IsEnabled }
 
 func NewPalette() *Palette {
 	return &Palette{}

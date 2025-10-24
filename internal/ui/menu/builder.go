@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	shellwords "github.com/junegunn/go-shellwords"
-
-	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
 var ErrInvalidHeaderArg = errors.New("invalid header argument")
@@ -176,7 +174,7 @@ func (m *Menu[T]) buildPreviewArgs() error {
 func (m *Menu[T]) previewArgs() ([]string, error) {
 	args := make([]string, 0, 3)
 
-	if !color.IsEnabled {
+	if !m.withColor {
 		args = append(args, "--no-color")
 	}
 

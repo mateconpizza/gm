@@ -62,9 +62,10 @@ func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
 	}
 
 	m := menu.New[bookmark.Bookmark](
+		menu.WithColor(cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
-		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s to import"),
+		menu.WithMultiSelection(),
 		menu.WithPreview(cfg.Cmd+" -n "+srcDB.Name()+" records {1}"),
 		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
@@ -77,7 +78,6 @@ func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
 	// BUG: fix!!!
 	rec := make([]bookmark.Bookmark, 0, len(items))
 	for i := range items {
@@ -153,11 +153,12 @@ func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 	f.Headerln(p.BrightYellow("Import bookmarks from backup: ") + p.GrayItalic(srcDB.Name())).Flush()
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithMultiSelection(),
+		menu.WithColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
-		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", a.Cfg.Cmd, srcDB.Name())),
-		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
+		menu.WithInterruptFn(t.InterruptFn),
+		menu.WithMultiSelection(),
+		menu.WithPreview(fmt.Sprintf("%s -n ./backup/%s {1}", a.Cfg.Cmd, srcDB.Name())),
 	)
 
 	defer t.CancelInterruptHandler()

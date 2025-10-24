@@ -27,7 +27,7 @@ func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 	tagsLen := minTagsLen
 
 	p := c.Palette()
-	if !p.Disable() {
+	if !p.Enabled() {
 		idLen = idWithColor
 		tagsLen = defaultTagsLen
 	}
