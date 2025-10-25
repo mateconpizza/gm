@@ -18,6 +18,10 @@ func (m *Menu[T]) buildArgs() error {
 		return err
 	}
 
+	if err := m.buildMultiselectionKey(); err != nil {
+		return err
+	}
+
 	if err := m.buildHeaderArgs(); err != nil {
 		return err
 	}
@@ -168,6 +172,32 @@ func (m *Menu[T]) buildPreviewArgs() error {
 	}
 
 	m.arguments = append(m.arguments, args...)
+	return nil
+}
+
+func (m *Menu[T]) buildMultiselectionKey() error {
+	if !m.multi {
+		return nil
+	}
+
+	args := []string{
+		// Highlight the whole current line
+		"--highlight-line",
+
+		// Enable multi-select with tab/shift-tab. It optionally takes an integer
+		// argument which denotes the maximum number of items that can be selected.
+		"--multi",
+	}
+
+	m.keymaps.register(&Keymap{
+		Bind:    m.cfg.BuiltinKeymaps.ToggleAll.Bind,
+		Desc:    "toggle-all",
+		Action:  "toggle-all",
+		Enabled: m.cfg.BuiltinKeymaps.ToggleAll.Enabled,
+		Hidden:  m.cfg.BuiltinKeymaps.ToggleAll.Hidden,
+	})
+	m.arguments = append(m.arguments, args...)
+
 	return nil
 }
 

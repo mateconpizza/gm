@@ -61,6 +61,9 @@ type Options struct {
 
 	// enable output color
 	withColor bool
+
+	// multi enable multi-select with tab/shift-tab.
+	multi bool
 }
 
 // Items holds the data and transformation logic for menu items.
@@ -161,24 +164,8 @@ func WithKeybinds(keys ...*Keymap) OptFn {
 
 // WithMultiSelection adds a keybind to select multiple records.
 func WithMultiSelection() OptFn {
-	args := []string{
-		// Highlight the whole current line
-		"--highlight-line",
-
-		// Enable multi-select with tab/shift-tab. It optionally takes an integer
-		// argument which denotes the maximum number of items that can be selected.
-		"--multi",
-	}
-
 	return func(o *Options) {
-		o.keymaps.register(&Keymap{
-			Bind:    o.cfg.BuiltinKeymaps.ToggleAll.Bind,
-			Desc:    "toggle-all",
-			Action:  "toggle-all",
-			Enabled: o.cfg.BuiltinKeymaps.ToggleAll.Enabled,
-			Hidden:  o.cfg.BuiltinKeymaps.ToggleAll.Hidden,
-		})
-		o.arguments = append(o.arguments, args...)
+		o.multi = true
 	}
 }
 
