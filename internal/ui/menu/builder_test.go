@@ -10,19 +10,12 @@ func TestBuildHeaderStrings(t *testing.T) {
 
 	t.Run("success with visible keybinds", func(t *testing.T) {
 		t.Parallel()
-		m := &Menu[any]{
-			Options: Options{
-				cfg: &Config{
-					Header: Header{Sep: " | ", Enabled: true},
-				},
-				keymaps: &keyManager{},
-			},
-		}
+		m := New[any]()
 
 		keys := []*Keymap{
-			{Bind: "a", Desc: "Add", Enabled: true},
-			{Bind: "x", Desc: "Hidden", Enabled: true, Hidden: true},
-			{Bind: "d", Desc: "Delete", Enabled: true},
+			{Bind: "a", Action: "Add", Desc: "Add", Enabled: true},
+			{Bind: "x", Action: "Hidden", Desc: "Hidden", Enabled: true, Hidden: true},
+			{Bind: "d", Action: "Delete", Desc: "Delete", Enabled: true},
 		}
 		m.keymaps.register(keys...)
 
@@ -78,20 +71,16 @@ func TestFormatHeaderArg(t *testing.T) {
 
 func TestBuildHeader_Integration(t *testing.T) {
 	t.Parallel()
-	m := &Menu[any]{
-		Options: Options{
-			keymaps: &keyManager{},
-			cfg: &Config{
-				Header: Header{Sep: " | ", Enabled: true},
-			},
-		},
-	}
+	m := New[any]()
+	m.cfg.Header = Header{Sep: " | ", Enabled: true}
 
 	keys := []*Keymap{
-		{Bind: "a", Desc: "Add", Enabled: true},
-		{Bind: "d", Desc: "Delete", Enabled: true},
+		{Bind: "a", Action: "Add", Desc: "Add", Enabled: true},
+		{Bind: "d", Action: "Delete", Desc: "Delete", Enabled: true},
 	}
-	m.keymaps.register(keys...)
+
+	m.keymaps.register(keys[0])
+	m.keymaps.register(keys[1])
 
 	err := m.buildHeaderArgs()
 	if err != nil {
@@ -130,7 +119,7 @@ func TestBuildPreview(t *testing.T) {
 		},
 		{
 			name:       "returns empty args for disabled preview keymap",
-			previewCmd: "echo {1}",
+			previewCmd: "",
 			previewKey: &Keymap{},
 			wantArgs:   0,
 		},
@@ -151,9 +140,9 @@ func TestBuildPreview(t *testing.T) {
 					withColor:  true,
 					previewCmd: tc.previewCmd,
 					cfg: &Config{
-						BuiltinKeymaps: &BuiltinKeymaps{Preview: tc.previewKey},
+						DefaultKeymaps: &BuiltinKeymaps{Preview: tc.previewKey},
 					},
-					keymaps: &keyManager{},
+					keymaps: newKeyManager(),
 				},
 			}
 

@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -24,18 +23,21 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 		keybindsArgs = append(keybindsArgs, "--notes")
 	}
 
-	mo := []menu.OptFn{
+	kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
+	mo := []menu.Option{
 		menu.WithColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
 		menu.WithMultiSelection(),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithKeybinds(
-			config.MenuKeybindEdit(keybindsArgs...),
-			config.MenuKeybindEditNotes(),
-			config.MenuKeybindOpen(),
-			config.MenuKeybindQR(),
-			config.MenuKeybindOpenQR(),
-			config.MenuKeybindYank(),
+			kb.Edit(cfg.Menu.DefaultKeymaps.Edit, keybindsArgs...),
+			kb.EditNotes(cfg.Menu.DefaultKeymaps.EditNotes),
+			kb.Open(cfg.Menu.DefaultKeymaps.Open),
+			kb.QR(cfg.Menu.DefaultKeymaps.QR),
+			kb.OpenQR(cfg.Menu.DefaultKeymaps.OpenQR),
+			kb.Yank(cfg.Menu.DefaultKeymaps.Yank),
+			kb.ToggleAll(cfg.Menu.DefaultKeymaps.ToggleAll),
+			kb.Preview(cfg.Menu.DefaultKeymaps.Preview),
 		),
 	}
 
@@ -47,12 +49,12 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 }
 
 // MenuSimpleForRecords builds a simpler menu without all keybindings.
-func MenuSimpleForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
-	opts := []menu.OptFn{
+func MenuSimpleForRecords[T comparable](cfg *config.Config, opts ...menu.Option) *menu.Menu[T] {
+	opts = append(opts,
 		menu.WithColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
-		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
-	}
+		menu.WithPreview(cfg.Cmd+" --name "+cfg.DBName+" records {1}"),
+	)
 
 	if cfg.Flags.Multiline {
 		opts = append(opts, menu.WithMultilineView())
@@ -61,24 +63,8 @@ func MenuSimpleForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 	return menu.New[T](opts...)
 }
 
-// MenuSimpleMultiRecords builds a simpler menu without all keybindings.
-func MenuSimpleMultiRecords(cfg *config.Config) *menu.Menu[bookmark.Bookmark] {
-	opts := []menu.OptFn{
-		menu.WithColor(cfg.Flags.Color),
-		menu.WithConfig(cfg.Menu),
-		menu.WithMultiSelection(),
-		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
-	}
-
-	if cfg.Flags.Multiline {
-		opts = append(opts, menu.WithMultilineView())
-	}
-
-	return menu.New[bookmark.Bookmark](opts...)
-}
-
 // selection allows the user to select a record in a menu interface.
-func selection[T comparable](items []T, fmtFn func(*T) string, opts ...menu.OptFn) ([]T, error) {
+func selection[T comparable](items []T, fmtFn func(*T) string, opts ...menu.Option) ([]T, error) {
 	if len(items) == 0 {
 		return nil, menu.ErrFzfNoItems
 	}

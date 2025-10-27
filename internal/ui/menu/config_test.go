@@ -9,30 +9,20 @@ func testValidConfig(t *testing.T) *Config {
 	t.Helper()
 
 	return &Config{
-		Prompt:  "> ",
+		Prompt:  defaultPrompt,
 		Preview: false,
 		Header: Header{
 			Enabled: false,
 			Sep:     " ",
 		},
-		BuiltinKeymaps: &BuiltinKeymaps{
-			Edit:   &Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
-			Open:   &Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
-			QR:     &Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
-			OpenQR: &Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
-			Yank:   &Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
-			Preview: &Keymap{
-				Bind:    "ctrl-/",
-				Desc:    "toggle-preview",
-				Enabled: true,
-				Hidden:  false,
-			},
-			ToggleAll: &Keymap{
-				Bind:    "ctrl-a",
-				Desc:    "toggle-all",
-				Enabled: true,
-				Hidden:  false,
-			},
+		DefaultKeymaps: &BuiltinKeymaps{
+			Edit:      &Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
+			Open:      &Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
+			QR:        &Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
+			OpenQR:    &Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
+			Yank:      &Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
+			Preview:   &Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
+			ToggleAll: &Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
 		},
 		Arguments: []string{"--ansi", "--reverse", "--tac", "--height=95%"},
 	}
@@ -52,7 +42,7 @@ func TestValidateConfig(t *testing.T) {
 	t.Run("invalid config", func(t *testing.T) {
 		t.Parallel()
 		cfg := testValidConfig(t)
-		cfg.BuiltinKeymaps.Edit.Bind = ""
+		cfg.DefaultKeymaps.Edit.Bind = ""
 		err := cfg.Validate()
 		if err == nil {
 			t.Error("expected error, got nil")

@@ -17,15 +17,12 @@ func (m *Menu[T]) buildArgs() error {
 	if err := m.buildPreviewArgs(); err != nil {
 		return err
 	}
-
 	if err := m.buildMultiselectionKey(); err != nil {
 		return err
 	}
-
 	if err := m.buildHeaderArgs(); err != nil {
 		return err
 	}
-
 	if err := m.buildPromptArgs(); err != nil {
 		return err
 	}
@@ -44,7 +41,7 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 		return m.header
 	}
 
-	headers := make([]string, 0, len(m.header))
+	headers := make([]string, 0, len(m.header)+len(m.keymaps.keymaps))
 	headers = append(headers, m.header...)
 
 	for _, k := range m.keymaps.list() {
@@ -153,18 +150,24 @@ func (m *Menu[T]) buildPromptArgs() error {
 	return nil
 }
 
+// buildPreviewArgs configures preview settings and registers the preview
+// toggle keybinding.
 func (m *Menu[T]) buildPreviewArgs() error {
 	if m.previewCmd == "" {
 		return nil
 	}
 
-	k := m.cfg.BuiltinKeymaps.Preview
-	if !k.Enabled {
-		return nil
+	togglePreview := builtinKeymaps["toggle-preview"]
+	previewKey := m.keymaps.find(togglePreview)
+	if previewKey != nil {
+		if !previewKey.Enabled {
+			return nil
+		}
+
+		togglePreview.Bind = previewKey.Bind
 	}
 
-	k.Action = "toggle-preview"
-	m.keymaps.register(k)
+	m.keymaps.register(togglePreview)
 
 	args, err := m.previewArgs()
 	if err != nil {
@@ -180,39 +183,27 @@ func (m *Menu[T]) buildMultiselectionKey() error {
 		return nil
 	}
 
-	args := []string{
-		// Highlight the whole current line
-		"--highlight-line",
-
-		// Enable multi-select with tab/shift-tab. It optionally takes an integer
-		// argument which denotes the maximum number of items that can be selected.
-		"--multi",
+	toggleAll := builtinKeymaps["toggle-all"]
+	cfgKeybind := m.keymaps.find(toggleAll)
+	if cfgKeybind != nil {
+		toggleAll.Bind = cfgKeybind.Bind
+		toggleAll.Enabled = cfgKeybind.Enabled
+		toggleAll.Hidden = cfgKeybind.Hidden
 	}
 
-	m.keymaps.register(&Keymap{
-		Bind:    m.cfg.BuiltinKeymaps.ToggleAll.Bind,
-		Desc:    "toggle-all",
-		Action:  "toggle-all",
-		Enabled: m.cfg.BuiltinKeymaps.ToggleAll.Enabled,
-		Hidden:  m.cfg.BuiltinKeymaps.ToggleAll.Hidden,
-	})
-	m.arguments = append(m.arguments, args...)
+	m.keymaps.register(toggleAll)
+	m.arguments = append(m.arguments, toggleAll.Args...)
 
 	return nil
 }
 
 func (m *Menu[T]) previewArgs() ([]string, error) {
-	args := make([]string, 0, 3)
-
-	if !m.withColor {
-		args = append(args, "--no-color")
-	}
-
 	cmd, err := shellwords.Parse(fmt.Sprintf("%s=%q", "--preview", m.previewCmd))
 	if err != nil {
 		return nil, err
 	}
 
+	args := make([]string, 0, 2)
 	args = append(args, cmd...)
 	args = append(args, previewWindowArg(m.cfg.Preview))
 
