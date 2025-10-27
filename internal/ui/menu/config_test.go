@@ -7,7 +7,6 @@ import (
 
 func testValidConfig(t *testing.T) *Config {
 	t.Helper()
-
 	return &Config{
 		Prompt:  defaultPrompt,
 		Preview: false,
@@ -24,7 +23,10 @@ func testValidConfig(t *testing.T) *Config {
 			Preview:   &Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
 			ToggleAll: &Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
 		},
-		Arguments: []string{"--ansi", "--reverse", "--tac", "--height=95%"},
+		Arguments: newArgsBuilder().withAnsi().
+			withLayout("default").
+			withTac().
+			withHeight("95%").build(),
 	}
 }
 

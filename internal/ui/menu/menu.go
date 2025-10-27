@@ -34,9 +34,9 @@ type Options struct {
 	// When true, keymap descriptions are excluded from the header.
 	customHeaderOnly bool
 
-	// arguments holds the command-line arguments passed to FZF.
+	// arg holds the command-line arguments passed to FZF.
 	// These are built from various options and configurations.
-	arguments Args
+	args *ArgsBuilder
 
 	// interruptFn handles FZF cancellation signals (Ctrl-C, ESC, etc.).
 	interruptFn func(error)
@@ -143,14 +143,14 @@ func WithInterruptFn(fn func(error)) Option {
 // WithArgs adds new args to Fzf.
 func WithArgs(args ...string) Option {
 	return func(o *Options) {
-		o.arguments = append(o.arguments, args...)
+		o.args.add(args...)
 	}
 }
 
 func WithConfig(c *Config) Option {
 	return func(o *Options) {
 		o.cfg = c
-		o.arguments = append(o.arguments, c.Arguments...)
+		o.args.add(c.Arguments...)
 	}
 }
 
@@ -179,23 +179,14 @@ func WithRunner(r MenuRunner) Option {
 func WithPreview(cmd string) Option {
 	return func(o *Options) {
 		o.previewCmd = cmd
-		o.keymaps.register(builtinKeymaps["toggle-preview"])
 	}
 }
 
 // WithMultilineView adds multiline view and highlights the entire current line
 // in Fzf.
 func WithMultilineView() Option {
-	opts := []string{
-		// Highlight the whole current line
-		"--highlight-line",
-
-		// Read input delimited by ASCII NUL characters instead of newline characters
-		"--read0",
-	}
-
 	return func(o *Options) {
-		o.arguments = append(o.arguments, opts...)
+		o.args.add(o.args.highlightLine, o.args.read0)
 	}
 }
 
@@ -214,10 +205,16 @@ func WithHeaderOnly(header string) Option {
 	}
 }
 
+func WithFooter(footer string) Option {
+	return func(o *Options) {
+		o.args.add(o.args.footer + "=" + footer)
+	}
+}
+
 // WithPrompt adds a prompt to Fzf.
 func WithPrompt(s string) Option {
 	return func(o *Options) {
-		o.arguments = append(o.arguments, "--prompt="+s)
+		o.args.withPrompt(s)
 	}
 }
 
@@ -227,12 +224,25 @@ func WithColor(b bool) Option {
 	}
 }
 
+func WithBorderLabel(s string) Option {
+	return func(o *Options) {
+		o.args.withBorderLabel(s)
+	}
+}
+
+func WithPointer(s string) Option {
+	return func(o *Options) {
+		o.args.withPointer(s)
+	}
+}
+
 // New returns a new Menu.
 func New[T comparable](opts ...Option) *Menu[T] {
 	o := Options{
 		header:  make([]string, 0),
 		runner:  &defaultRunner{},
 		keymaps: newKeyManager(),
+		args:    newArgsBuilder(),
 	}
 
 	for _, fn := range opts {

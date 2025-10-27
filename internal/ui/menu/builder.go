@@ -26,6 +26,9 @@ func (m *Menu[T]) buildArgs() error {
 	if err := m.buildPromptArgs(); err != nil {
 		return err
 	}
+	if !m.withColor {
+		m.args.withNoColor()
+	}
 
 	return m.buildKeybindArgs()
 }
@@ -43,6 +46,7 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 
 	headers := make([]string, 0, len(m.header)+len(m.keymaps.keymaps))
 	headers = append(headers, m.header...)
+	m.args.add(m.header...)
 
 	for _, k := range m.keymaps.list() {
 		if !k.Enabled || k.Hidden {
@@ -62,7 +66,7 @@ func (m *Menu[T]) formatHeaderArgs(headers []string) (string, error) {
 		return "", nil
 	}
 
-	s := fmt.Sprintf("%s=%q", "--header", strings.Join(headers, m.cfg.Header.Sep))
+	s := fmt.Sprintf("%s=%q", m.args.header, strings.Join(headers, m.cfg.Header.Sep))
 	args, err := shellwords.Parse(s)
 	if err != nil {
 		return "", err
@@ -87,7 +91,7 @@ func (m *Menu[T]) buildHeaderArgs() error {
 		return nil
 	}
 
-	m.arguments = append(m.arguments, headerArg)
+	m.args.add(headerArg)
 
 	return nil
 }
@@ -121,31 +125,33 @@ func (m *Menu[T]) buildKeybindArgs() error {
 		return nil
 	}
 
-	bindArg := fmt.Sprintf("--bind=%q", keybindStr)
+	bindArg := fmt.Sprintf("%s=%q", m.args.bind, keybindStr)
 	binds, err := shellwords.Parse(bindArg)
 	if err != nil {
 		return fmt.Errorf("parse keybinds %q: %w", keybindStr, err)
 	}
 
-	m.arguments = append(m.arguments, binds...)
+	m.args.add(binds...)
+
 	return nil
 }
 
+// buildPromptArgs adds the prompt argument if not already set.
 func (m *Menu[T]) buildPromptArgs() error {
 	// check if prompt already set with `WithPrompt` OptFn
-	hasPrompt := slices.ContainsFunc(m.arguments, func(a string) bool {
-		return strings.HasPrefix(a, "--prompt")
+	hasPrompt := slices.ContainsFunc(m.args.list, func(a string) bool {
+		return strings.HasPrefix(a, m.args.prompt)
 	})
 	if hasPrompt {
 		return nil
 	}
 
-	prompt, err := shellwords.Parse(fmt.Sprintf("%s=%q", "--prompt", m.cfg.Prompt))
+	prompt, err := shellwords.Parse(fmt.Sprintf("%s=%q", m.args.prompt, m.cfg.Prompt))
 	if err != nil {
 		return fmt.Errorf("parse prompt %w", err)
 	}
 
-	m.arguments = append(m.arguments, prompt...)
+	m.args.add(prompt...)
 
 	return nil
 }
@@ -157,7 +163,7 @@ func (m *Menu[T]) buildPreviewArgs() error {
 		return nil
 	}
 
-	togglePreview := builtinKeymaps["toggle-preview"]
+	togglePreview := builtinKeymaps(m.args, "toggle-preview")
 	previewKey := m.keymaps.find(togglePreview)
 	if previewKey != nil {
 		if !previewKey.Enabled {
@@ -174,16 +180,19 @@ func (m *Menu[T]) buildPreviewArgs() error {
 		return fmt.Errorf("parsing preview command: %w", err)
 	}
 
-	m.arguments = append(m.arguments, args...)
+	m.args.add(args...)
+
 	return nil
 }
 
+// buildMultiselectionKey configures multi-selection support by registering
+// the toggle-all keybinding and adding multi-select arguments to FZF options.
 func (m *Menu[T]) buildMultiselectionKey() error {
 	if !m.multi {
 		return nil
 	}
 
-	toggleAll := builtinKeymaps["toggle-all"]
+	toggleAll := builtinKeymaps(m.args, "toggle-all")
 	cfgKeybind := m.keymaps.find(toggleAll)
 	if cfgKeybind != nil {
 		toggleAll.Bind = cfgKeybind.Bind
@@ -192,28 +201,28 @@ func (m *Menu[T]) buildMultiselectionKey() error {
 	}
 
 	m.keymaps.register(toggleAll)
-	m.arguments = append(m.arguments, toggleAll.Args...)
+	m.args.add(toggleAll.Args...)
 
 	return nil
 }
 
 func (m *Menu[T]) previewArgs() ([]string, error) {
-	cmd, err := shellwords.Parse(fmt.Sprintf("%s=%q", "--preview", m.previewCmd))
+	cmd, err := shellwords.Parse(fmt.Sprintf("%s=%q", m.args.preview, m.previewCmd))
 	if err != nil {
 		return nil, err
 	}
 
 	args := make([]string, 0, 2)
 	args = append(args, cmd...)
-	args = append(args, previewWindowArg(m.cfg.Preview))
+	args = append(args, previewWindowArg(m.args.previewWindow, m.cfg.Preview))
 
 	return args, nil
 }
 
-func previewWindowArg(show bool) string {
+func previewWindowArg(previewWindow string, show bool) string {
+	s := "hidden,up"
 	if show {
-		return "--preview-window=~4,+{2}+4/3,<80(up)"
+		s = "~4,+{2}+4/3,<80(up)"
 	}
-
-	return "--preview-window=hidden,up"
+	return fmt.Sprintf("%s=%s", previewWindow, s)
 }

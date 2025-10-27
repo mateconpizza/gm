@@ -45,7 +45,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 		m.preprocessor = defaultPreprocessor
 	}
 
-	slog.Debug("menu args", "args", m.arguments)
+	slog.Debug("menu args", "args", m.args.list)
 
 	// Pre-process all items once for better performance
 	formattedItems := make([]string, len(m.items))
@@ -64,7 +64,7 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 	go processOutputPreprocessed(itemMap, outputChan, resultChan)
 
 	// Build Fzf.Options
-	options, err := m.runner.Parse(m.cfg.Defaults, m.arguments)
+	options, err := m.runner.Parse(m.cfg.Defaults, m.args.build())
 	if err != nil {
 		return nil, fmt.Errorf("fzf: %w", err)
 	}

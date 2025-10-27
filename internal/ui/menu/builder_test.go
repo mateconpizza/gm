@@ -49,14 +49,8 @@ func TestBuildHeaderStrings(t *testing.T) {
 
 func TestFormatHeaderArg(t *testing.T) {
 	t.Parallel()
-	m := &Menu[any]{
-		Options: Options{
-			cfg: &Config{
-				Header: Header{Sep: " | "},
-			},
-		},
-	}
-
+	m := New[any]()
+	m.cfg.Header = Header{Sep: " | "}
 	headers := []string{"a:Add", "d:Delete"}
 	got, err := m.formatHeaderArgs(headers)
 	if err != nil {
@@ -88,7 +82,7 @@ func TestBuildHeader_Integration(t *testing.T) {
 	}
 
 	want := []string{`--header=a:Add | d:Delete`}
-	got := m.arguments
+	got := m.args.build()
 
 	if len(got) != len(want) {
 		t.Fatalf("length mismatch: want %d, got %d", len(want), len(got))
@@ -135,16 +129,8 @@ func TestBuildPreview(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := &Menu[any]{
-				Options: Options{
-					withColor:  true,
-					previewCmd: tc.previewCmd,
-					cfg: &Config{
-						DefaultKeymaps: &BuiltinKeymaps{Preview: tc.previewKey},
-					},
-					keymaps: newKeyManager(),
-				},
-			}
+			m := New[any](WithColor(true), WithPreview(tc.previewCmd))
+			m.cfg.DefaultKeymaps.Preview = tc.previewKey
 
 			err := m.buildPreviewArgs()
 			if tc.wantError && err == nil {
@@ -154,8 +140,10 @@ func TestBuildPreview(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if got := len(m.arguments); got != tc.wantArgs {
-				t.Fatalf("want %d args, got %d, args: %v", tc.wantArgs, got, m.arguments)
+			args := m.args.build()
+
+			if got := len(args); got != tc.wantArgs {
+				t.Fatalf("want %d args, got %d, args: %v", tc.wantArgs, got, args)
 			}
 		})
 	}
