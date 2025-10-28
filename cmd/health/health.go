@@ -14,6 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -69,7 +70,9 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 		})),
 	)
 
-	m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+	m := handler.MenuSimple[bookmark.Bookmark](cfg,
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s for checking status"))
 	bs, err := handler.Data(a, m, args)
 	if err != nil {
 		return err

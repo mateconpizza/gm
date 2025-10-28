@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
@@ -45,7 +46,6 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
-
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err
@@ -53,7 +53,6 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 	defer r.Close()
 
 	terminal.ReadPipedInput(&args)
-
 	a := app.New(cmd.Context(),
 		app.WithDB(r),
 		app.WithConfig(cfg),
@@ -63,7 +62,8 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 		})),
 	)
 
-	m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+	m := handler.MenuSimple[bookmark.Bookmark](cfg, menu.WithMultiSelection(),
+		menu.WithHeader("select record/s"))
 	bs, err := handler.Data(a, m, args)
 	if err != nil {
 		return err
@@ -74,15 +74,30 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 		return db.ErrRecordNotFound
 	}
 
-	f := cfg.Flags
-	if n > wayback.MaxItems && !f.Force {
+	flags := cfg.Flags
+	if n > wayback.MaxItems && !flags.Force {
 		return fmt.Errorf("%w: %d", wayback.ErrTooManyRecords, n)
 	}
 
+	f, p := a.Console().Frame(), a.Console().Palette()
+	f.Headerln(p.BrightRedBold("Bookmarks", fmt.Sprintf("(%d)", n))).Rowln()
+	for i := range bs {
+		if i >= wayback.MaxItems {
+			f.Midln(p.GrayItalic(n-i, "more...")).Rowln()
+			break
+		}
+		f.Midln(bs[i].URL)
+	}
+	f.Flush()
+
+	if !a.Console().Confirm("continue?", "n") {
+		return sys.ErrExitFailure
+	}
+
 	switch {
-	case f.Snapshot:
+	case flags.Snapshot:
 		return handler.WaybackLatestSnapshot(a, bs)
-	case f.Limit > 0:
+	case flags.Limit > 0:
 		return handler.WaybackSnapshots(a, bs)
 	}
 

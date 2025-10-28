@@ -234,9 +234,9 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 			return sys.OpenInBrowser(snap.ArchiveURL)
 		}
 
-		ctx, cancel = context.WithTimeout(ctx, 3*time.Second)
-		err = a.DB.UpdateOne(ctx, b)
-		cancel()
+		updateCtx, updateCancel := context.WithTimeout(a.Context(), 3*time.Second)
+		err = a.DB.UpdateOne(updateCtx, b)
+		updateCancel()
 		if err != nil {
 			return err
 		}

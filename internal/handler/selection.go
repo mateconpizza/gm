@@ -48,8 +48,8 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 	return menu.New[T](mo...)
 }
 
-// MenuSimpleForRecords builds a simpler menu without all keybindings.
-func MenuSimpleForRecords[T comparable](cfg *config.Config, opts ...menu.Option) *menu.Menu[T] {
+// MenuSimple builds a simpler menu without all keybindings.
+func MenuSimple[T comparable](cfg *config.Config, opts ...menu.Option) *menu.Menu[T] {
 	opts = append(opts,
 		menu.WithColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
