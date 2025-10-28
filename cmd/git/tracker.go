@@ -46,7 +46,7 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 		return untrack(c, gr)
 	}
 
-	return cmd.Help()
+	return status(c, cfg, gr.Tracker.Repos)
 }
 
 // managementSelect select which database to track in the git repository.

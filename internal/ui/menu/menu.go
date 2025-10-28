@@ -59,7 +59,7 @@ type Options struct {
 	previewCmd string
 
 	// enable output color
-	withColor bool
+	withOutputColor bool
 
 	// multi enable multi-select with tab/shift-tab.
 	multi bool
@@ -218,9 +218,9 @@ func WithPrompt(s string) Option {
 	}
 }
 
-func WithColor(b bool) Option {
+func WithOutputColor(b bool) Option {
 	return func(o *Options) {
-		o.withColor = b
+		o.withOutputColor = b
 	}
 }
 

@@ -65,11 +65,11 @@ func DiffColor(s string) string {
 	for l := range strings.SplitSeq(s, "\n") {
 		switch {
 		case strings.HasPrefix(l, "+"):
-			r = append(r, "  "+p.BrightGreen(l))
+			r = append(r, " "+p.BrightGreen(l))
 		case strings.HasPrefix(l, "-"):
-			r = append(r, "  "+p.BrightRed(l))
+			r = append(r, " "+p.BrightRed(l))
 		default:
-			r = append(r, "  "+p.BrightGrayItalic(l))
+			r = append(r, " "+p.Dim(l))
 		}
 	}
 

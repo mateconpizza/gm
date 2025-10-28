@@ -45,7 +45,7 @@ func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bo
 	if a.Cfg.Flags.Menu || a.Cfg.Flags.Multiline {
 		bs, err = applyMenuSelection(a.Console(), m, bs, a.Cfg.Flags)
 		if err != nil {
-			return nil, fmt.Errorf("failed to apply menu selection: %w", err)
+			return nil, err
 		}
 	}
 
@@ -352,7 +352,7 @@ func applyMenuSelection(
 		return txt.Oneline(c, b)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("menu selection failed: %w", err)
+		return nil, err
 	}
 
 	// Convert selected items back to pointers

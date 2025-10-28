@@ -338,7 +338,7 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 
 	m := menu.New[bookmark.Bookmark](
 		menu.WithArgs("--cycle"),
-		menu.WithColor(cfg.Flags.Color),
+		menu.WithOutputColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),

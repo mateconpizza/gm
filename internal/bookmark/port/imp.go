@@ -62,7 +62,7 @@ func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
 	}
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithColor(cfg.Flags.Color),
+		menu.WithOutputColor(cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
@@ -153,7 +153,7 @@ func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 	f.Headerln(p.BrightYellow("Import bookmarks from backup: ") + p.GrayItalic(srcDB.Name())).Flush()
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithColor(a.Cfg.Flags.Color),
+		menu.WithOutputColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 		menu.WithInterruptFn(t.InterruptFn),

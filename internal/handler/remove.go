@@ -189,7 +189,7 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 	defer t.CancelInterruptHandler()
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithColor(a.Cfg.Flags.Color),
+		menu.WithOutputColor(a.Cfg.Flags.Color),
 		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithMultiSelection(),
 	)

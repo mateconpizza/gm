@@ -142,6 +142,7 @@ func join(text ...any) string {
 		str = append(str, fmt.Sprint(t))
 	}
 
+	// FIX: remove space?
 	return strings.Join(str, " ")
 }
 

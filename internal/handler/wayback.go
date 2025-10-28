@@ -168,7 +168,7 @@ func updateSpinnerWithDeadline(ctx context.Context, sp *rotato.Rotato, prefix st
 func waybackMenu[T wayback.SnapshotInfo](c *ui.Console) *menu.Menu[wayback.SnapshotInfo] {
 	m := menu.New[wayback.SnapshotInfo](
 		menu.WithArgs("--color=header:italic:bold:bright-red"),
-		menu.WithColor(c.Palette().Enabled()),
+		menu.WithOutputColor(c.Palette().Enabled()),
 		menu.WithHeaderOnly("donate <3 https://archive.org/donate"),
 		menu.WithArgs("--cycle"),
 	)
@@ -238,7 +238,7 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 		err = a.DB.UpdateOne(updateCtx, b)
 		updateCancel()
 		if err != nil {
-			return err
+			return fmt.Errorf("updating: %w", err)
 		}
 
 		f.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()

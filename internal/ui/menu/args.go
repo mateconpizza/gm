@@ -54,6 +54,7 @@ func (a *ArgsBuilder) withBorderLabel(s string) *ArgsBuilder {
 }
 
 func (a *ArgsBuilder) withColor(target string, styles ...string) *ArgsBuilder {
+	// TODO: expose this as `Menu Option`
 	color := a.color + "=" + target
 	if len(styles) > 0 {
 		color += ":" + strings.Join(styles, ":")

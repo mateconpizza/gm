@@ -26,7 +26,7 @@ func (m *Menu[T]) buildArgs() error {
 	if err := m.buildPromptArgs(); err != nil {
 		return err
 	}
-	if !m.withColor {
+	if !m.withOutputColor {
 		m.args.withNoColor()
 	}
 

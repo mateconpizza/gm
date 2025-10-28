@@ -129,7 +129,7 @@ func TestBuildPreview(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := New[any](WithColor(true), WithPreview(tc.previewCmd))
+			m := New[any](WithOutputColor(true), WithPreview(tc.previewCmd))
 			m.cfg.DefaultKeymaps.Preview = tc.previewKey
 
 			err := m.buildPreviewArgs()

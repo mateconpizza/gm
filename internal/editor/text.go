@@ -119,8 +119,6 @@ func getEditorFromEnv(e string) (*TextEditor, bool) {
 
 // getFallbackEditor finds a fallback editor.
 func getFallbackEditor(editors []string) (*TextEditor, bool) {
-	// FIX: use `exec.LookPath`
-	// This will replace `sys.BinExists` and `sys.BinPath`
 	for _, e := range editors {
 		if sys.BinExists(e) {
 			editor := newTextEditor(sys.BinPath(e), e, []string{})

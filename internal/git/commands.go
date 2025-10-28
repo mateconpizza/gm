@@ -272,21 +272,22 @@ func runWithWriter(ctx context.Context, stdout io.Writer, repoPath string, s ...
 
 // runGitCmd executes a Git command.
 func runGitCmd(ctx context.Context, repoPath string, commands ...string) error {
-	gitCommand, err := sys.Which(gitCmd)
+	// FIX: inject `io.Writer`
+	g, err := sys.Which(gitCmd)
 	if err != nil {
-		return fmt.Errorf("%w: %s", err, gitCommand)
+		return fmt.Errorf("%w: %s", err, g)
 	}
 
-	f := frame.New(frame.WithColorBorder(frame.ColorOrange))
-	defer f.Flush()
+	w := frame.New(frame.WithColorBorder(frame.ColorOrange))
+	defer w.Flush()
 
-	commands = append([]string{gitCommand, "-C", repoPath}, commands...)
+	commands = append([]string{g, "-C", repoPath}, commands...)
 	cmdColors := color.ApplyMany(slices.Clone(commands), color.Orange, color.StyleItalic)
-	f.Midln(strings.Join(cmdColors, " ")).Flush()
+	w.Midln(strings.Join(cmdColors, " ")).Flush()
 
-	err = sys.ExecCmdWithWriter(ctx, f, commands...)
+	err = sys.ExecCmdWithWriter(ctx, w, commands...)
 	if err != nil {
-		f.Error("")
+		w.Error("")
 		return err
 	}
 
