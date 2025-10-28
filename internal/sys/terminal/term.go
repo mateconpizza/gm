@@ -313,16 +313,9 @@ func (t *Term) Clear() {
 //
 // If fn is nil, the interrupt handler is disabled.
 func (t *Term) SetInterruptFn(fn func(error)) {
+	// FIX: remove
 	slog.Info("setting interrupt function")
-
-	if t.InterruptFn != nil {
-		t.CancelInterruptHandler()
-	}
-
 	t.InterruptFn = fn
-	ctx, cancel := context.WithCancel(context.Background())
-	t.cancelFn = cancel
-	setupInterruptHandler(ctx, t.InterruptFn)
 }
 
 // CancelInterruptHandler cancels the interrupt handler.
@@ -404,27 +397,4 @@ func New(opts ...TermOptFn) *Term {
 	}()
 
 	return t
-}
-
-// setupInterruptHandler handles interruptions.
-func setupInterruptHandler(ctx context.Context, onInterrupt func(error)) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan,
-		os.Interrupt,    // Ctrl+C (SIGINT)
-		syscall.SIGTERM, // Process termination
-		syscall.SIGHUP,  // Terminal closed
-	)
-
-	go func() {
-		select {
-		case sig := <-sigChan:
-			fmt.Println()
-			slog.Debug("interrupt handler called", "signal", sig)
-			onInterrupt(sys.ErrActionAborted)
-			os.Exit(1)
-		case <-ctx.Done():
-			slog.Warn("interrupt handler cancelled")
-			return
-		}
-	}()
 }
