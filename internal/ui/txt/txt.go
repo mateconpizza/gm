@@ -24,6 +24,7 @@ const (
 	UnicodePathSmallSegment = "\u25B8" // ▸
 	UnicodeRightDoubleAngle = "\u00BB" // »
 	UnicodeSingleAngleMark  = "\u203A" // ›
+	UnicodeBlackSquare      = "\u25A0" // ■
 	UnicodeNotes            = "\U0001F4DD"
 )
 
@@ -413,12 +414,15 @@ func GenHashPath(fullPath string) string {
 }
 
 // CreateSimpleTable generates a simple ASCII table with basic borders.
-func CreateSimpleTable(headers []string, rows [][]string) string {
+//
+//nolint:funlen //ignore
+func CreateSimpleTable(headers []string, rows [][]string, footer ...string) string {
+	// FIX: refactor and use builder pattern???
 	if len(headers) == 0 {
 		return ""
 	}
 
-	// Calculate column widths using ANSI-stripped content
+	// Compute column widths ignoring ANSI sequences
 	colWidths := make([]int, len(headers))
 	for i, header := range headers {
 		colWidths[i] = len(color.ANSICodeRemover(header))
@@ -426,40 +430,41 @@ func CreateSimpleTable(headers []string, rows [][]string) string {
 
 	for _, row := range rows {
 		for i, cell := range row {
-			if i < len(colWidths) && len(color.ANSICodeRemover(cell)) > colWidths[i] {
-				colWidths[i] = len(color.ANSICodeRemover(cell))
+			if i < len(colWidths) {
+				w := len(color.ANSICodeRemover(cell))
+				if w > colWidths[i] {
+					colWidths[i] = w
+				}
 			}
 		}
 	}
 
-	var builder strings.Builder
+	var b strings.Builder
 
-	// Create top border
-	builder.WriteString("+")
-	for _, width := range colWidths {
-		builder.WriteString(strings.Repeat("-", width+2) + "+")
+	writeBorder := func() {
+		b.WriteString("+")
+		for _, width := range colWidths {
+			b.WriteString(strings.Repeat("-", width+2) + "+")
+		}
+		b.WriteString("\n")
 	}
-	builder.WriteString("\n")
 
-	// Create header row
-	builder.WriteString("|")
+	writeBorder()
+
+	// Header
+	b.WriteString("|")
 	for i, header := range headers {
 		visibleLen := len(color.ANSICodeRemover(header))
 		padding := colWidths[i] - visibleLen
-		builder.WriteString(" " + header + strings.Repeat(" ", padding) + " |")
+		b.WriteString(" " + header + strings.Repeat(" ", padding) + " |")
 	}
-	builder.WriteString("\n")
+	b.WriteString("\n")
 
-	// Create header separator
-	builder.WriteString("+")
-	for _, width := range colWidths {
-		builder.WriteString(strings.Repeat("-", width+2) + "+")
-	}
-	builder.WriteString("\n")
+	writeBorder()
 
-	// Create data rows
+	// Rows
 	for _, row := range rows {
-		builder.WriteString("|")
+		b.WriteString("|")
 		for i, width := range colWidths {
 			cell := ""
 			if i < len(row) {
@@ -467,19 +472,32 @@ func CreateSimpleTable(headers []string, rows [][]string) string {
 			}
 			visibleLen := len(color.ANSICodeRemover(cell))
 			padding := width - visibleLen
-			builder.WriteString(" " + cell + strings.Repeat(" ", padding) + " |")
+			b.WriteString(" " + cell + strings.Repeat(" ", padding) + " |")
 		}
-		builder.WriteString("\n")
+		b.WriteString("\n")
 	}
 
-	// Create bottom border
-	builder.WriteString("+")
-	for _, width := range colWidths {
-		builder.WriteString(strings.Repeat("-", width+2) + "+")
-	}
-	builder.WriteString("\n")
+	writeBorder()
 
-	return builder.String()
+	// Footer (centered, no borders)
+	if len(footer) > 0 {
+		totalWidth := 1 // start with first "+"
+		for _, w := range colWidths {
+			totalWidth += w + 3 // "-" * width + 2 padding + "+"
+		}
+
+		totalWidth-- // remove last "+"
+		for _, line := range footer {
+			lineStripped := color.ANSICodeRemover(line)
+			lineLen := min(len(lineStripped), totalWidth)
+			leftPad := (totalWidth - lineLen) / 2
+			b.WriteString(strings.Repeat(" ", leftPad))
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+	}
+
+	return b.String()
 }
 
 // CleanLines removes empty lines and trims whitespace from each line.

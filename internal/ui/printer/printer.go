@@ -134,21 +134,29 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 
 	headers := []string{"Name", "Bookmarks", "Tags", "Size", "Path"}
 	rows := [][]string{}
+	footer := []string{}
 
 	t := strconv.Itoa
 	p := c.Palette()
 	files.PrioritizeFile(fs, config.MainDBName)
 
 	for _, fpath := range fs {
-		ext := filepath.Ext(fpath)
-		collapsePath := files.CollapseHomeDir(fpath)
-		cleanName := files.StripSuffixes(filepath.Base(fpath))
+		dir, fname, ext := filepath.Dir(fpath), filepath.Base(fpath), filepath.Ext(fpath)
+		collapsePath := files.CollapseHomeDir(dir)
+		cleanName := files.StripSuffixes(fname)
 		fsize := files.SizeFormatted(fpath)
 
+		fnameColor := p.BrightBlue
+
 		if ext == locker.Extension {
-			cleanName = p.BrightMagenta(cleanName)
-			cleanName += p.BrightGrayItalic(" (locked)")
-			rows = append(rows, []string{cleanName, "-", "-", fsize, collapsePath})
+			fnameColor = p.BrightMagenta
+			cleanName = fnameColor(cleanName)
+			cleanName += p.GrayItalic(" (locked)")
+			rows = append(
+				rows,
+				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
+			)
+			footer = append(footer, fnameColor(txt.UnicodeBlackSquare)+" locked")
 			continue
 		}
 
@@ -158,14 +166,19 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 		}
 
 		if s.Name == config.MainDBName {
-			cleanName = p.BrightYellow(cleanName)
-			cleanName += p.BrightGrayItalic(" (default)")
+			fnameColor = p.BrightYellowBold
+			cleanName = fnameColor(cleanName)
+			cleanName += p.GrayItalic(" (default)")
+			footer = append(footer, fnameColor(txt.UnicodeBlackSquare)+" main")
 		}
 
-		rows = append(rows, []string{cleanName, t(s.Bookmarks), t(s.Tags), fsize, collapsePath})
+		rows = append(
+			rows,
+			[]string{cleanName, t(s.Bookmarks), t(s.Tags), fsize, filepath.Join(collapsePath, fnameColor(fname))},
+		)
 	}
 
-	fmt.Print(txt.CreateSimpleTable(headers, rows))
+	fmt.Print(txt.CreateSimpleTable(headers, rows, strings.Join(footer, " ")))
 
 	return nil
 }
