@@ -94,3 +94,7 @@ func (c *Config) Validate() error {
 
 	return nil
 }
+
+func New() *Config {
+	return &Config{}
+}

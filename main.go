@@ -12,7 +12,6 @@ var version = "0.1.29"
 func main() {
 	cfg := config.NewDefaultConfig(version)
 	cfg.InitPaths()
-	config.Set(cfg)
 
 	root := cmd.NewRootCmd(cfg)
 	cmd.Setup(root, cfg)
