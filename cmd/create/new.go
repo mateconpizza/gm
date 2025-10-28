@@ -64,6 +64,8 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
+	cfg.Flags.Create = true
+
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)

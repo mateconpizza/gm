@@ -148,43 +148,17 @@ func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 // Edit edits the bookmarks using a text editor.
 func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxItems = 10
-	te, err := editor.NewEditor(a.Cfg.Env.Editor)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
 	c := a.Console()
 	q := fmt.Sprintf("%s %d bookmarks", c.Palette().BrightGreenBold("edit"), len(bs))
 	if err := confirmUserLimit(c, len(bs), maxItems, q, a.Cfg.Flags.Force); err != nil {
 		return err
 	}
 
-	var (
-		es editor.EditStrategy
-		ft string
-	)
-
-	switch {
-	case a.Cfg.Flags.Notes:
-		es = editor.NotesStrategy{}
-		ft = a.Cfg.Name
-	case a.Cfg.Flags.Format == "j" || a.Cfg.Flags.Format == "json":
-		es = editor.JSONStrategy{}
-		ft = "json"
-	default:
-		es = editor.BookmarkStrategy{}
-		ft = a.Cfg.Name
-	}
-
-	session := editor.NewEditSession(c, a.DB, te,
-		editor.WithFileType(ft),
-		editor.WithContext(a.Context()),
-		editor.WithPostEditionRun(func(o, u *editor.Record) error {
+	return runEditSession(a, bs,
+		editor.WithPostEditionRunE(func(o, u *editor.Record) error {
 			return git.UpdateBookmark(a.Cfg, o, u)
 		}),
 	)
-
-	return session.Run(bs, es)
 }
 
 // CheckStatus prints the status code of the bookmark URL.
@@ -297,17 +271,6 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 		f.Reset().Headerln(c.Palette().Yellow(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
 	}
 
-	te, err := editor.NewEditor(a.Cfg.Env.Editor)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	session := editor.NewEditSession(c, a.DB, te,
-		editor.WithContext(a.Context()),
-		editor.WithPostEditionRun(func(o, u *editor.Record) error {
-			return git.UpdateBookmark(a.Cfg, o, u)
-		}),
-	)
-
 	for i, b := range bs {
 		updated, err := updateBookmarkData(a.Context(), c, b)
 		if err != nil {
@@ -339,7 +302,11 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 		case "n", "no":
 			c.ReplaceLine(f.Warning(bid + " " + c.Palette().Dim(su) + " skipping update\n").String())
 		case "e", "edit":
-			if err := session.Run([]*bookmark.Bookmark{&updated}, editor.BookmarkStrategy{}); err != nil {
+			if err := runEditSession(a, []*bookmark.Bookmark{&updated},
+				editor.WithPostEditionRunE(func(o, u *editor.Record) error {
+					return git.UpdateBookmark(a.Cfg, o, u)
+				}),
+			); err != nil {
 				return err
 			}
 			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
@@ -408,15 +375,7 @@ func SaveNewBookmark(a *app.Context, b *bookmark.Bookmark) error {
 	case "n", "no":
 		return sys.ErrActionAborted
 	case "e", "edit":
-		te, err := editor.NewEditor(a.Cfg.Env.Editor)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		e := editor.NewEditSession(c, a.DB, te, editor.WithContext(a.Context()))
-		if err := e.Run([]*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{}); err != nil {
-			return err
-		}
+		return runEditSession(a, []*bookmark.Bookmark{b})
 	default:
 		if _, err := a.DB.InsertOne(a.Context(), b); err != nil {
 			return fmt.Errorf("%w", err)
@@ -445,4 +404,31 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 	updatedB.Desc, _ = sc.Desc()
 	updatedB.FaviconURL, _ = sc.Favicon()
 	return updatedB, nil
+}
+
+func runEditSession(a *app.Context, bs []*bookmark.Bookmark, opts ...editor.SessionOption) error {
+	te, err := editor.NewEditor(a.Cfg.Env.Editor)
+	if err != nil {
+		return fmt.Errorf("init editor: %w", err)
+	}
+
+	m := editor.NewMeta()
+	m.DBName = a.Cfg.DBName
+	m.Version = a.Cfg.Info.Version
+
+	es, ft := editor.Strategy(a.Cfg)
+	opts = append(opts,
+		editor.WithFileType(ft),
+		editor.WithContext(a.Context()),
+		editor.WithMeta(m),
+	)
+
+	session := editor.NewEditSession(
+		a.Console(),
+		a.DB,
+		te,
+		opts...,
+	)
+
+	return session.Run(bs, es)
 }

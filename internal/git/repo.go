@@ -82,7 +82,7 @@ func NewRepo(dbPath string) (*Repository, error) {
 
 // Add adds the bookmarks to the repo.
 func (gr *Repository) Add(bs []*bookmark.Bookmark) error {
-	if _, err := gr.Write(bs); err != nil {
+	if _, err := gr.Write(bs, false); err != nil {
 		return err
 	}
 
@@ -146,13 +146,13 @@ func (gr *Repository) RepoStatsWrite() error {
 
 // Write exports the provided bookmarks to the repository's file, encrypting if
 // configured.
-func (gr *Repository) Write(bs []*bookmark.Bookmark) (bool, error) {
+func (gr *Repository) Write(bs []*bookmark.Bookmark, force bool) (bool, error) {
 	if gr.IsEncrypted() {
 		fingerprintPath := gpg.GPGIDPath(gr.Loc.Git)
 		return exportAsGPG(gr.Git.ctx, fingerprintPath, gr.Loc.Path, bs)
 	}
 
-	return exportAsJSON(gr.Loc.Path, bs)
+	return exportAsJSON(gr.Loc.Path, bs, force)
 }
 
 // Read reads and decrypts the repository's bookmarks, handling encryption if
@@ -192,7 +192,7 @@ func (gr *Repository) Export() error {
 		return err
 	}
 
-	if _, err := gr.Write(bs); err != nil {
+	if _, err := gr.Write(bs, false); err != nil {
 		return err
 	}
 

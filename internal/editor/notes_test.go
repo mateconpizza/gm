@@ -2,24 +2,11 @@ package editor
 
 import (
 	"errors"
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
-
-func TestMain(m *testing.M) {
-	config.Set(&config.Config{
-		DBName: "test.db",
-		DBPath: "/tmp/testpath",
-		Info:   &config.Information{Version: "1.2.3"},
-	})
-
-	code := m.Run()
-	os.Exit(code)
-}
 
 func TestNotesStrategy(t *testing.T) {
 	t.Parallel()
@@ -53,7 +40,8 @@ func testBuildBuffer(t *testing.T) {
 	}
 
 	s := NotesStrategy{}
-	buf, err := s.BuildBuffer(b, 1, 1)
+	m := &Meta{DBName: "main.db", Version: "1.0.0"}
+	buf, err := s.BuildBuffer(m, b, 1, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

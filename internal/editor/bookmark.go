@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -22,7 +21,7 @@ const (
 
 type baseBookmarkStrategy struct{}
 
-func (baseBookmarkStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
+func (baseBookmarkStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]byte, error) {
 	buf := NewBufferBuilder(b)
 	buf.Idx, buf.Total = idx, total
 
@@ -44,11 +43,7 @@ func (baseBookmarkStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, erro
 	sep := txt.CenteredLine(width-rightMargin, s, "-")
 
 	// metadata
-	cfg := config.New()
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", cfg.DBName, cfg.Info.Version, sep)
+	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", m.DBName, m.Version, sep)
 
 	// footer
 	buf.Footer = fmt.Appendf(nil, " [%d/%d]", buf.Idx+1, buf.Total)
@@ -91,10 +86,6 @@ func (baseBookmarkStrategy) ParseBuffer(
 
 func (baseBookmarkStrategy) Diff(oldB, newB *Record) string {
 	return txt.DiffColor(txt.Diff(oldB.Buffer(), newB.Buffer()))
-}
-
-func (baseBookmarkStrategy) EditType() string {
-	return config.New().Name
 }
 
 // BookmarkStrategy implements the Strategy interface for editing

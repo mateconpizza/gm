@@ -176,7 +176,7 @@ func HookGitSync(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	updated, err := gr.Write(bs)
+	updated, err := gr.Write(bs, cfg.Flags.Force)
 	if err != nil {
 		return err
 	}

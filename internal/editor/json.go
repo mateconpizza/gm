@@ -11,7 +11,7 @@ import (
 
 type JSONStrategy struct{}
 
-func (JSONStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
+func (JSONStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
@@ -36,8 +36,4 @@ func (JSONStrategy) Diff(oldB, newB *Record) string {
 
 func (JSONStrategy) Save(ctx context.Context, r *db.SQLite, bm *Record) error {
 	return r.UpdateOne(ctx, bm)
-}
-
-func (JSONStrategy) EditType() string {
-	return "json"
 }

@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
 type NotesStrategy struct{}
 
-func (NotesStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
+func (NotesStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]byte, error) {
 	w := width - rightMargin
 
 	buf := NewBufferBuilder(b)
@@ -26,13 +25,8 @@ func (NotesStrategy) BuildBuffer(b *Record, idx, total int) ([]byte, error) {
 	header := fmt.Appendf(nil, "# %d %s\n#\n", b.ID, shortTitle)
 
 	// metadata
-	cfg := config.New()
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-
 	sep := txt.CenteredLine(w, "bookmark notes", "-")
-	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", cfg.DBName, cfg.Info.Version, sep)
+	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", m.DBName, m.Version, sep)
 
 	buf.Header = append(buf.Header, header...)
 	buf.Header = append(buf.Header, meta...)
@@ -57,8 +51,4 @@ func (NotesStrategy) Diff(oldB, newB *Record) string {
 
 func (NotesStrategy) Save(ctx context.Context, r *db.SQLite, bm *Record) error {
 	return r.UpdateOne(ctx, bm)
-}
-
-func (NotesStrategy) EditType() string {
-	return config.New().Name
 }

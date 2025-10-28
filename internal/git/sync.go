@@ -15,7 +15,6 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/internal/app"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -154,22 +153,14 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 }
 
 // exportAsJSON creates the repository structure.
-func exportAsJSON(root string, bs []*bookmark.Bookmark) (bool, error) {
-	var (
-		cfg        = config.New()
-		hasUpdates uint32
-	)
-
-	if err := cfg.Validate(); err != nil {
-		return false, err
-	}
-
+func exportAsJSON(root string, bs []*bookmark.Bookmark, force bool) (bool, error) {
+	var hasUpdates uint32
 	g := new(errgroup.Group)
 
 	for i := range bs {
 		b := bs[i] // capture loop variable
 		g.Go(func() error {
-			updated, err := bookio.SaveAsJSON(root, b, cfg.Flags.Force)
+			updated, err := bookio.SaveAsJSON(root, b, force)
 			if err != nil {
 				return err
 			}

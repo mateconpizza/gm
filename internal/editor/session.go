@@ -10,9 +10,14 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
+type Meta struct {
+	DBName  string
+	Version string
+}
+
 type postRunEditionFunc func(original, updated *Record) error
 
-type EditSessionOption func(*EditSession)
+type SessionOption func(*EditSession)
 
 // EditSession build -> edit -> parse -> confirm -> save.
 type EditSession struct {
@@ -22,23 +27,30 @@ type EditSession struct {
 	postEdition postRunEditionFunc
 	ctx         context.Context
 	filetype    string
+	meta        *Meta
 }
 
-func WithPostEditionRun(fn postRunEditionFunc) EditSessionOption {
-	return func(s *EditSession) {
-		s.postEdition = fn
+func WithPostEditionRunE(fn postRunEditionFunc) SessionOption {
+	return func(es *EditSession) {
+		es.postEdition = fn
 	}
 }
 
-func WithContext(ctx context.Context) EditSessionOption {
-	return func(s *EditSession) {
-		s.ctx = ctx
+func WithContext(ctx context.Context) SessionOption {
+	return func(es *EditSession) {
+		es.ctx = ctx
 	}
 }
 
-func WithFileType(ft string) EditSessionOption {
-	return func(s *EditSession) {
-		s.filetype = ft
+func WithFileType(ft string) SessionOption {
+	return func(es *EditSession) {
+		es.filetype = ft
+	}
+}
+
+func WithMeta(m *Meta) SessionOption {
+	return func(es *EditSession) {
+		es.meta = m
 	}
 }
 
@@ -95,7 +107,7 @@ func (e *EditSession) processSingleRecord(original *Record, idx, total int, stra
 
 // buildAndEdit prepares record for editing and launches editor.
 func (e *EditSession) buildAndEdit(r *Record, idx, total int, s EditStrategy) ([]byte, error) {
-	buf, err := s.BuildBuffer(r, idx, total)
+	buf, err := s.BuildBuffer(e.meta, r, idx, total)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +130,12 @@ func (e *EditSession) saveRecordChanges(strategy EditStrategy, original, updated
 	return nil
 }
 
+func NewMeta() *Meta {
+	return &Meta{}
+}
+
 // NewEditSession creates a new editing session.
-func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...EditSessionOption) *EditSession {
+func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...SessionOption) *EditSession {
 	s := &EditSession{
 		Console: c,
 		Editor:  e,
@@ -128,6 +144,10 @@ func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...EditSess
 
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	if s.meta == nil {
+		s.meta = NewMeta()
 	}
 
 	if s.ctx == nil {
