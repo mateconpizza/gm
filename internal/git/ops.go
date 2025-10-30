@@ -64,19 +64,12 @@ func writeRepoStats(ctx context.Context, gr *Repository) error {
 
 // repoStats returns a new RepoStats.
 func repoStats(ctx context.Context, dbPath string, summary *SyncGitSummary) error {
-	r, err := db.New(dbPath)
+	rs, err := db.NewStats(ctx, dbPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
-	defer r.Close()
 
-	summary.RepoStats = &dbtask.RepoStats{
-		Name:      r.Name(),
-		Bookmarks: r.Count(ctx, "bookmarks"),
-		Tags:      r.Count(ctx, "tags"),
-		Favorites: r.CountFavorites(ctx),
-	}
-
+	summary.RepoStats = rs
 	summary.GenChecksum()
 
 	return nil

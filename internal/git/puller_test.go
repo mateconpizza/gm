@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -25,7 +25,7 @@ func setupRepoSummary(t *testing.T) *SyncGitSummary {
 		ConflictResolution: "timestamp",
 		HashAlgorithm:      "SHA-256",
 
-		RepoStats: &dbtask.RepoStats{
+		RepoStats: &db.RepoStats{
 			Name:      "test_pepe",
 			Bookmarks: 10,
 			Tags:      20,

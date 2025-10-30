@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -27,14 +27,14 @@ type ClientInfo struct {
 
 // SyncGitSummary summarizes the state and metadata of a Git-synced repository.
 type SyncGitSummary struct {
-	GitBranch          string            `json:"git_branch"`          // GitBranch is the current Git branch.
-	GitRemote          string            `json:"git_remote"`          // GitRemote is the Git remote URL.
-	LastSync           string            `json:"last_sync"`           // LastSync is the timestamp of the last sync.
-	ConflictResolution string            `json:"conflict_resolution"` // Describes the strategy for resolving conflicts.
-	HashAlgorithm      string            `json:"hash_algorithm"`      // Specifies the algorithm used for checksums.
-	RepoStats          *dbtask.RepoStats `json:"stats"`               // RepoStats contains statistics for the repository.
-	ClientInfo         *ClientInfo       `json:"client_info"`         // ClientInfo contains details about the client.
-	Checksum           string            `json:"checksum"`            // Checksum is the summary's generated checksum.
+	GitBranch          string        `json:"git_branch"`          // GitBranch is the current Git branch.
+	GitRemote          string        `json:"git_remote"`          // GitRemote is the Git remote URL.
+	LastSync           string        `json:"last_sync"`           // LastSync is the timestamp of the last sync.
+	ConflictResolution string        `json:"conflict_resolution"` // Describes the strategy for resolving conflicts.
+	HashAlgorithm      string        `json:"hash_algorithm"`      // Specifies the algorithm used for checksums.
+	RepoStats          *db.RepoStats `json:"stats"`               // RepoStats contains statistics for the repository.
+	ClientInfo         *ClientInfo   `json:"client_info"`         // ClientInfo contains details about the client.
+	Checksum           string        `json:"checksum"`            // Checksum is the summary's generated checksum.
 }
 
 // GenChecksum generates a checksum for the SyncGitSummary.
@@ -115,7 +115,7 @@ func summaryUpdate(ctx context.Context, gr *Repository, version string) (*SyncGi
 		return nil, fmt.Errorf("getting hostname: %w", err)
 	}
 
-	stats, err := dbtask.NewRepoStats(ctx, gr.Loc.DBPath)
+	stats, err := db.NewStats(ctx, gr.Loc.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("crating stats: %w", err)
 	}

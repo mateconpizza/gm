@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
@@ -160,7 +159,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 			continue
 		}
 
-		s, err := dbtask.NewRepoStats(ctx, fpath)
+		s, err := db.NewStats(ctx, fpath)
 		if err != nil {
 			return err
 		}
