@@ -42,8 +42,8 @@ func Repo(a *app.Context) string {
 // RepoFromPath returns a summary of the repository.
 func RepoFromPath(a *app.Context, dbPath, backupPath string) string {
 	f, p := a.Console().Frame(), a.Console().Palette()
-	if strings.HasSuffix(dbPath, ".enc") {
-		dbPath = strings.TrimSuffix(dbPath, ".enc")
+	if base, found := strings.CutSuffix(dbPath, ".enc"); found {
+		dbPath = base
 		s := p.BrightMagentaItalic(filepath.Base(dbPath))
 
 		e := "(locked)"
@@ -130,10 +130,8 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 	t := strings.Split(name, "_")[0]
 	bkTime := p.GrayItalic(txt.RelativeTime(t))
 
-	if strings.HasSuffix(name, ".enc") {
-		name = strings.TrimSuffix(name, ".enc")
-		name += p.GrayItalic(" (locked) ")
-
+	if base, found := strings.CutSuffix(name, ".enc"); found {
+		name = base + p.GrayItalic(" (locked) ")
 		return name + bkTime
 	}
 

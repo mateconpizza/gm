@@ -70,11 +70,11 @@ func QR(ctx context.Context, bs []*bookmark.Bookmark, open bool, appName string)
 
 // Copy copies the URLs to the system clipboard.
 func Copy(bs []*bookmark.Bookmark) error {
-	var urls string
+	var sb strings.Builder
 	for i := range bs {
-		urls += bs[i].URL + "\n"
+		sb.WriteString(bs[i].URL + "\n")
 	}
-	if err := sys.CopyClipboard(urls); err != nil {
+	if err := sys.CopyClipboard(sb.String()); err != nil {
 		return fmt.Errorf("copy error: %w", err)
 	}
 

@@ -19,10 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/color"
 )
 
-// TODO:
-// - [ ] check `CancelInterruptHandler` implementation.
-// - [ ] check `IsPiped` implementation
-
 var (
 	dim    = color.BrightGray
 	dimmer = color.Gray
