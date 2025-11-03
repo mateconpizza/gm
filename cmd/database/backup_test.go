@@ -1,4 +1,3 @@
-//nolint:paralleltest //using t.Setenv
 package database
 
 import (

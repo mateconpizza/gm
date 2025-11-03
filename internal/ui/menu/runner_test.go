@@ -22,7 +22,6 @@ func (f *fakeRunner) Run(opts *fzf.Options) (int, error) {
 	return f.retcode, nil
 }
 
-//nolint:funlen //test
 func TestSelectReturnsSelectedItem(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

@@ -1,4 +1,3 @@
-//nolint:funlen,gocognit,gocyclo //test
 package locker
 
 import (
@@ -98,7 +97,6 @@ func TestBackupFile(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	//nolint:paralleltest //fails
 	t.Run("valid filepath", func(t *testing.T) {
 		_, err := backupFile(tf.Name())
 		if err != nil {

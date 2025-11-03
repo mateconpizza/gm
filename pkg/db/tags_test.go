@@ -1,4 +1,3 @@
-//nolint:wsl,funlen //test
 package db
 
 import (

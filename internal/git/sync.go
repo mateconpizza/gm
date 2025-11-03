@@ -75,8 +75,6 @@ func Import(a *app.Context, gm *Manager) ([]string, error) {
 
 // exportAsGPG export and encrypts the bookmarks and stores them in the git
 // repo.
-//
-//nolint:funlen //ignore
 func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookmark.Bookmark) (bool, error) {
 	if err := files.MkdirAll(root); err != nil {
 		return false, fmt.Errorf("%w", err)

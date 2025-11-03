@@ -1,4 +1,3 @@
-//nolint:funlen //test
 package txt
 
 import (

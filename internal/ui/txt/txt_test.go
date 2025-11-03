@@ -1,4 +1,3 @@
-//nolint:funlen //test
 package txt
 
 import (
@@ -37,7 +36,6 @@ func TestShortenString(t *testing.T) {
 	}
 }
 
-//nolint:funlen //test
 func TestSplitIntoChunks(t *testing.T) {
 	t.Parallel()
 

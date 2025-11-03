@@ -1,4 +1,3 @@
-//nolint:paralleltest,funlen //using global colorEnabled
 package frame
 
 import (
@@ -31,10 +30,14 @@ func setupFrame(t *testing.T, opts []OptFn) *Frame {
 
 func TestFrame_String_ColorHandling(t *testing.T) {
 	t.Run("color disabled excludes ANSI codes", func(t *testing.T) {
+		t.Parallel()
+
 		DisableColor()
-		defer func() {
+		t.Cleanup(func() {
+			colorMutex.Lock()
 			colorEnabled = true
-		}()
+			colorMutex.Unlock()
+		})
 
 		f := setupFrame(t, []OptFn{WithColorBorder(ColorBrightOrange)})
 		output := f.String()
@@ -49,6 +52,8 @@ func TestFrame_String_ColorHandling(t *testing.T) {
 	})
 
 	t.Run("color enabled includes ANSI codes", func(t *testing.T) {
+		t.Parallel()
+
 		f := setupFrame(t, []OptFn{WithColorBorder(ColorBrightBlue)})
 		output := f.String()
 
@@ -59,6 +64,8 @@ func TestFrame_String_ColorHandling(t *testing.T) {
 }
 
 func TestFrame_Writer(t *testing.T) {
+	t.Parallel()
+
 	lines20 := `create mode 100644 somerepo/1.1.1.1/3HrYD_Ea5i4t.json
 create mode 100644 somerepo/127.0.0.1/Iufqgcux-9RK.json
 create mode 100644 somerepo/12factor.net/DKt21z9U73iw.json
@@ -112,6 +119,8 @@ create mode 100644 somerepo/atlassian.com/wxMO5eY45hTo.json`
 }
 
 func TestFrame_Write(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		writes   [][]byte
@@ -178,6 +187,8 @@ func TestFrame_Write(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			DisableColor()
 			f := New()
 

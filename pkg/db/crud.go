@@ -1,4 +1,3 @@
-//nolint:perfsprint //ignore
 package db
 
 import (
@@ -447,10 +446,9 @@ func (r *SQLite) ByOrder(ctx context.Context, column, sortBy string) ([]*bookmar
 }
 
 // Count returns the number of records in the given table.
-func (r *SQLite) Count(ctx context.Context, table string) int {
+func (r *SQLite) Count(ctx context.Context, table Table) int {
 	var n int
-	q := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
-	if err := r.DB.QueryRowxContext(ctx, q).Scan(&n); err != nil {
+	if err := r.DB.QueryRowxContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&n); err != nil {
 		return 0
 	}
 

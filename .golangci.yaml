@@ -19,23 +19,26 @@ linters:
     - errcheck
     - errname
     - errorlint
-    # - fatcontext tls: failed to verify certificate
+    - fatcontext
     - forcetypeassert
     - funlen
     # - goconst
     - gocognit
     - gocritic
     - gocyclo
+    - goheader
     - godot
     - gosec
     - govet
     - iface
+    # - ireturn
     - ineffassign
     - interfacebloat
     - lll
     - maintidx
     - makezero
     - misspell
+    - modernize
     - musttag
     - nakedret
     - nestif
@@ -56,7 +59,6 @@ linters:
     - sqlclosecheck
     - staticcheck
     - tagalign
-    - testifylint
     - thelper
     - unconvert
     - unparam
@@ -182,24 +184,84 @@ linters:
         # Redundant type in variable declaration.
         # https://staticcheck.dev/docs/checks/#ST1023
         - ST1023
-    testifylint:
-      enable-all: true
-      disable:
-        - require-error
   exclusions:
     rules:
-      - path: "pkg/bookmark/bookmark.go"
+      - path: "cmd/appcfg/appcfg_test.go"
         linters:
-          - lll
+          - paralleltest # using t.Setenv from `testutil.SetupApp`
+      - path: "cmd/database/backup_test.go"
+        linters:
+          - paralleltest # using t.Setenv from `testutil.SetupApp`
+      - path: "cmd/setup/setup_test.go"
+        linters:
+          - paralleltest # using t.Setenv from `testutil.SetupApp`
+      - path: "internal/cli/hook_test.go"
+        linters:
+          - gocritic
+        text: "dupOption:"
+      - path: "internal/git/repo.go"
+        linters:
+          - nilerr
+      - path: "internal/git/sync.go"
+        linters:
+          - funlen
+      - path: "internal/handler/remove_test.go"
+        linters:
+          - paralleltest # using t.Setenv from `testutil.SetupApp`
+      - path: "internal/locker/locker_test.go"
+        linters:
+          - paralleltest # using t.Setenv from `testutil.SetupApp`
+      - path: "internal/sys/sys_test.go"
+        linters:
+          - paralleltest # using t.Setenv
+      - path: "internal/ui/printer/printer.go"
+        linters:
+          - nilerr
+      - path: "internal/ui/txt/txt.go"
+        linters:
+          - funlen
+          - gocyclo
+          - gosec
+      - path: "internal/ui/txt/tools.go"
+        linters:
+          - gocyclo
       - path: "pkg/bookio/htmlexp.go"
         linters:
           - gocyclo
       - path: "pkg/bookio/htmlimp.go"
         linters:
           - gocyclo
-      - path: "internal/ui/txt/txt.go"
+      - path: "pkg/bookmark/bookmark.go"
         linters:
+          - lll
+      - path: "pkg/bookmark/parser.go"
+        linters:
+          - bodyclose
+      - path: "pkg/db/crud_test.go"
+        linters:
+          - paralleltest
+      - path: "pkg/db/ops_test.go"
+        linters:
+          - paralleltest
+      - path: "pkg/files/files_test.go"
+        linters:
+          - gocritic
+          - thelper
+      - path: "pkg/scraper/scraper.go"
+        linters:
+          - nilerr
+      - path: "pkg/scraper/scraper_test.go"
+        linters:
+          - lll
+      - path: _test\.go
+        linters:
+          - dupl
+          - err113
+          - errcheck
+          - funlen
+          - gocognit
           - gocyclo
+          - gosec
     generated: lax
     presets:
       - common-false-positives

@@ -364,7 +364,7 @@ func TagsWithColorPound(c *ui.Console, s string) string {
 			continue
 		}
 
-		rc := colors[rand.Intn(len(colors))] //nolint:gosec //unnecessary
+		rc := colors[rand.Intn(len(colors))]
 		sb.WriteString(fmt.Sprintf("%s%s ", rc("#"), p.Italic(t)))
 	}
 
@@ -414,8 +414,6 @@ func GenHashPath(fullPath string) string {
 }
 
 // CreateSimpleTable generates a simple ASCII table with basic borders.
-//
-//nolint:funlen //ignore
 func CreateSimpleTable(headers []string, rows [][]string, footer ...string) string {
 	// FIX: refactor and use builder pattern???
 	if len(headers) == 0 {

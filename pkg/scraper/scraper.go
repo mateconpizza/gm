@@ -160,7 +160,6 @@ func (s *Scraper) Favicon() (string, error) {
 	}
 
 	base, err := url.Parse(s.uri)
-	//nolint:nilerr //ignore
 	if err != nil {
 		return "", nil
 	}

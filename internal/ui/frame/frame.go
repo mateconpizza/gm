@@ -7,9 +7,13 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 )
 
-var colorEnabled bool = true
+var (
+	colorMutex   sync.Mutex
+	colorEnabled bool = true
+)
 
 type color string
 
@@ -105,6 +109,8 @@ func defaultOpts() Options {
 }
 
 func WithColorBorder(c ...color) OptFn {
+	colorMutex.Lock()
+	defer colorMutex.Unlock()
 	if !colorEnabled {
 		return func(o *Options) { o.color = color("") }
 	}
@@ -146,6 +152,9 @@ func (f *Frame) Ln() *Frame {
 }
 
 func (f *Frame) applyStyle(s string) string {
+	colorMutex.Lock()
+	defer colorMutex.Unlock()
+
 	if colorEnabled && f.color != "" {
 		return string(f.color) + s + string(reset)
 	}
@@ -270,6 +279,9 @@ func (f *Frame) Info(s ...string) *Frame {
 
 func (f *Frame) Question(s string) *Frame {
 	mid := f.applyStyle(applyColorAndBold(ColorBrightGreen, f.icon.question))
+
+	colorMutex.Lock()
+	defer colorMutex.Unlock()
 	if !colorEnabled {
 		return f.applyBorder(mid, []string{s})
 	}
@@ -326,6 +338,8 @@ func New(opts ...OptFn) *Frame {
 
 func applyColorAndBold(c color, s ...string) string {
 	f := strings.Join(s, " ")
+	colorMutex.Lock()
+	defer colorMutex.Unlock()
 	if !colorEnabled {
 		return f + " "
 	}
@@ -334,5 +348,7 @@ func applyColorAndBold(c color, s ...string) string {
 }
 
 func DisableColor() {
+	colorMutex.Lock()
+	defer colorMutex.Unlock()
 	colorEnabled = false
 }

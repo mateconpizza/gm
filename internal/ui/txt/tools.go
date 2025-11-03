@@ -7,8 +7,6 @@ import (
 )
 
 // Diff Take two []byte and return a string with the complete diff.
-//
-//nolint:gocyclo //ignore
 func Diff(a, b []byte) string {
 	linesA := strings.Split(string(a), "\n")
 	linesB := strings.Split(string(b), "\n")

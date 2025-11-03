@@ -143,7 +143,6 @@ func makeReq(ctx context.Context, b *Bookmark) error {
 	}
 
 	client := http.DefaultClient
-	//nolint:bodyclose //closing
 	resp, err := client.Do(req)
 	if err != nil {
 		slog.Error("creating request", slog.String("url", b.URL), slog.String("error", err.Error()))

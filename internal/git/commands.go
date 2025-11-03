@@ -263,7 +263,7 @@ func runWithWriter(ctx context.Context, stdout io.Writer, repoPath string, s ...
 	o := strings.TrimSpace(string(output))
 
 	if err != nil {
-		//nolint:err113 //ignore
+		//nolint:err113 //dynamic error is fine for command output
 		return fmt.Errorf("%s", o)
 	}
 

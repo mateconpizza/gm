@@ -1,4 +1,3 @@
-//nolint:paralleltest,wsl,funlen,gocyclo //test
 package db
 
 import (
@@ -52,7 +51,6 @@ func TestInsertMany(t *testing.T) {
 	t.Skip("not implemented yet")
 }
 
-//nolint:gocognit //test
 func TestDeleteMany(t *testing.T) {
 	tests := []struct {
 		name              string

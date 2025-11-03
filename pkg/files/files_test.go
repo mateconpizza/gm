@@ -1,4 +1,3 @@
-//nolint:thelper,gocyclo //unnecessary
 package files
 
 import (
@@ -181,7 +180,6 @@ func TestStripSuffixes(t *testing.T) {
 	})
 }
 
-//nolint:gocognit,funlen //testing
 func TestTouch(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -279,7 +277,6 @@ func TestTouch(t *testing.T) {
 		{
 			name: "fails with invalid path characters",
 			setup: func(t *testing.T, dir string) string {
-				//nolint:gocritic //testing
 				return filepath.Join(dir, "invalid\x00name.txt")
 			},
 			existsOK: false,

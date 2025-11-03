@@ -225,7 +225,6 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 	_, err := sys.Which(gpg.Command)
 	if err != nil {
 		slog.Debug("git repo with GPG, command not found", "command", gpg.Command)
-		//nolint:nilerr //test
 		return nil
 	}
 

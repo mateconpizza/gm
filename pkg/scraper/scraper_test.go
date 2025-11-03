@@ -1,4 +1,3 @@
-//nolint:wsl //test
 package scraper
 
 import (
@@ -87,7 +86,6 @@ func TestTitle(t *testing.T) {
 	}, tests)
 }
 
-//nolint:funlen //test
 func TestDesc(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -124,7 +122,6 @@ func TestDesc(t *testing.T) {
 			name: "MultipleDescriptionMetaTags",
 			url:  "http://example.com",
 			server: createTestServer(
-				//nolint:lll //test
 				`<html><head><meta name="description" content="First Description"><meta property="description" content="Second Description"></head></html>`,
 			),
 			expected: "First Description",

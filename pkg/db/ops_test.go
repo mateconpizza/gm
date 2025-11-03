@@ -108,7 +108,6 @@ func extractIDs(bookmarks []*bookmark.Bookmark) []int {
 }
 
 func TestBackupRepo(t *testing.T) {
-	t.Parallel()
 	r := testPopulatedDB(t, 5)
 	defer teardownthewall(r.DB)
 

@@ -1,4 +1,3 @@
-//nolint:funlen //testing
 package appcfg
 
 import (
@@ -99,7 +98,6 @@ func TestConfig_Create(t *testing.T) {
 	})
 }
 
-//nolint:paralleltest //using t.Setenv from `testutil.SetupConfig`
 func TestConfig_PrintJSON(t *testing.T) {
 	gitCfg := &config.Git{
 		Enabled: true,

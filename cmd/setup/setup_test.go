@@ -1,4 +1,3 @@
-//nolint:paralleltest //unnecessary
 package setup
 
 import (

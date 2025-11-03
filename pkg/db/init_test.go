@@ -1,4 +1,3 @@
-//nolint:paralleltest,wsl //test
 package db
 
 import (
@@ -149,6 +148,8 @@ func TestTableCreate(t *testing.T) {
 }
 
 func TestTableExists(t *testing.T) {
+	t.Parallel()
+
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
 

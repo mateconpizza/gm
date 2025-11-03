@@ -1,4 +1,3 @@
-//nolint:wsl,funlen,gocyclo //test
 package db
 
 import (
@@ -11,7 +10,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-//nolint:errcheck //test
 func createTestSQLiteDB(t *testing.T, dir, dbName string) string {
 	t.Helper()
 	dbPath := filepath.Join(dir, dbName)

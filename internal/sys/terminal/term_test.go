@@ -1,4 +1,3 @@
-//nolint:wsl //test
 package terminal
 
 import (
@@ -14,8 +13,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 )
 
-//nolint:paralleltest //test
 func TestHelper(t *testing.T) {
+	t.Parallel()
 	t.Helper()
 	NoColorEnv()
 }
