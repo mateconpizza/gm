@@ -197,11 +197,13 @@ func parseGPGOutput(output []byte) ([]*Fingerprint, error) {
 		fprFieldIndex   = 9
 		uidFieldIndex   = 9
 	)
+
 	var (
 		keys    []*Fingerprint
 		current *Fingerprint
 		lastTag string
 	)
+
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -210,44 +212,58 @@ func parseGPGOutput(output []byte) ([]*Fingerprint, error) {
 			continue
 		}
 		tag := fields[0]
+
 		switch tag {
 		case "pub":
-			k := &Fingerprint{
-				KeyID:        fields[keyIDFieldIndex],
-				TrustLevel:   fields[trustFieldIndex], // Add this
-				IsPrimaryKey: true,
-			}
-			keys = append(keys, k)
-			current = keys[len(keys)-1]
-			lastTag = tag
+			current = handlePub(fields, trustFieldIndex, keyIDFieldIndex)
+			keys = append(keys, current)
 		case "uid":
-			if current != nil && current.UserID == "" {
-				current.UserID = strings.TrimSpace(fields[uidFieldIndex])
-			}
-			lastTag = tag
+			handleUID(current, fields, uidFieldIndex)
 		case "fpr":
-			fp := strings.TrimSpace(fields[fprFieldIndex])
-			if current == nil {
-				continue
-			}
-			switch lastTag {
-			case "pub":
-				current.Fingerprint = fp
-			case "sub":
-				current.Subkeys = append(current.Subkeys, fp)
-			}
-			lastTag = tag
+			handleFPR(current, fields, fprFieldIndex, lastTag)
 		case "sub":
-			if current != nil {
-				current.SubkeyIDs = append(current.SubkeyIDs, fields[keyIDFieldIndex])
-			}
-			lastTag = tag
+			handleSub(current, fields, keyIDFieldIndex)
 		}
+		lastTag = tag
 	}
+
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scanner error during parsing: %w", err)
 	}
 	return keys, nil
+}
+
+func handlePub(fields []string, trustIdx, keyIdx int) *Fingerprint {
+	return &Fingerprint{
+		KeyID:        fields[keyIdx],
+		TrustLevel:   fields[trustIdx],
+		IsPrimaryKey: true,
+	}
+}
+
+func handleUID(current *Fingerprint, fields []string, uidIdx int) {
+	if current != nil && current.UserID == "" {
+		current.UserID = strings.TrimSpace(fields[uidIdx])
+	}
+}
+
+func handleFPR(current *Fingerprint, fields []string, fprIdx int, lastTag string) {
+	if current == nil {
+		return
+	}
+	fp := strings.TrimSpace(fields[fprIdx])
+	switch lastTag {
+	case "pub":
+		current.Fingerprint = fp
+	case "sub":
+		current.Subkeys = append(current.Subkeys, fp)
+	}
+}
+
+func handleSub(current *Fingerprint, fields []string, keyIdx int) {
+	if current != nil {
+		current.SubkeyIDs = append(current.SubkeyIDs, fields[keyIdx])
+	}
 }
 
 // ListFingerprints lists all public GPG keys with their fingerprints and subkeys.

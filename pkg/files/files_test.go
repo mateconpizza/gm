@@ -1,4 +1,4 @@
-//nolint:thelper //unnecessary
+//nolint:thelper,gocyclo //unnecessary
 package files
 
 import (

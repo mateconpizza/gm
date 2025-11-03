@@ -1,4 +1,4 @@
-//nolint:funlen,err113 //testing
+//nolint:funlen,err113,gocyclo //testing
 package cli
 
 import (
@@ -200,6 +200,7 @@ func TestChainHooks(t *testing.T) {
 			return nil
 		}
 
+		//nolint:gocritic //testing
 		chained := ChainHooks(hook1, nil, hook2, nil)
 		cmd := &cobra.Command{Use: "test"}
 

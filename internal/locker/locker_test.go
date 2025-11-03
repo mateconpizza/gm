@@ -1,4 +1,4 @@
-//nolint:funlen,gocognit //test
+//nolint:funlen,gocognit,gocyclo //test
 package locker
 
 import (

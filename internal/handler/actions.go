@@ -271,46 +271,51 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 		f.Reset().Headerln(c.Palette().Yellow(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
 	}
 
-	for i, b := range bs {
-		updated, err := updateBookmarkData(a.Context(), c, b)
-		if err != nil {
+	for _, b := range bs {
+		if err := processBookmarkUpdate(a, b); err != nil {
 			return err
 		}
+	}
 
-		if bytes.Equal([]byte(b.Title), []byte(updated.Title)) && bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
-			return nil
-		}
+	return nil
+}
 
-		bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
-		su := txt.Shorten(updated.URL, 60)
-		displayBookmarkChanges(c, b, &updated)
+func processBookmarkUpdate(a *app.Context, b *bookmark.Bookmark) error {
+	c := a.Console()
+	updated, err := updateBookmarkData(a.Context(), c, b)
+	if err != nil {
+		return err
+	}
 
-		// Handle user choice
-		opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
-		if err != nil {
-			return fmt.Errorf("choose: %w", err)
+	if bytes.Equal([]byte(b.Title), []byte(updated.Title)) &&
+		bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
+		return nil
+	}
+
+	displayBookmarkChanges(c, b, &updated)
+
+	// Handle user choice
+	opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+	if err != nil {
+		return fmt.Errorf("choose: %w", err)
+	}
+	switch strings.ToLower(opt) {
+	case "y", "yes":
+		if err := a.DB.UpdateOne(a.Context(), &updated); err != nil {
+			return fmt.Errorf("updating record: %w", err)
 		}
-		switch strings.ToLower(opt) {
-		case "y", "yes":
-			if err := a.DB.UpdateOne(a.Context(), &updated); err != nil {
-				return fmt.Errorf("updating record: %w", err)
-			}
-			if i != n-1 {
-				fmt.Println()
-			}
-			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
-		case "n", "no":
-			c.ReplaceLine(f.Warning(bid + " " + c.Palette().Dim(su) + " skipping update\n").String())
-		case "e", "edit":
-			if err := runEditSession(a, []*bookmark.Bookmark{&updated},
-				editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-					return git.UpdateBookmark(a.Cfg, o, u)
-				}),
-			); err != nil {
-				return err
-			}
-			fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+		fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+	case "n", "no":
+		return nil
+	case "e", "edit":
+		if err := runEditSession(a, []*bookmark.Bookmark{&updated},
+			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
+				return git.UpdateBookmark(a.Cfg, o, u)
+			}),
+		); err != nil {
+			return err
 		}
+		fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 	}
 
 	return nil

@@ -93,6 +93,8 @@ linters:
         - opinionated
         - performance
         - style
+    gocyclo:
+      min-complexity: 12
     gosec:
       excludes:
         - G115
@@ -189,6 +191,15 @@ linters:
       - path: "pkg/bookmark/bookmark.go"
         linters:
           - lll
+      - path: "pkg/bookio/htmlexp.go"
+        linters:
+          - gocyclo
+      - path: "pkg/bookio/htmlimp.go"
+        linters:
+          - gocyclo
+      - path: "internal/ui/txt/txt.go"
+        linters:
+          - gocyclo
     generated: lax
     presets:
       - common-false-positives

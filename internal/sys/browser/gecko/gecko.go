@@ -35,6 +35,7 @@ var (
 	ErrBrowserIsOpen           = errors.New("browser is open")
 	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
 	ErrBrowserUnsupported      = errors.New("browser is unsupported")
+	ErrDatabaseLocked          = errors.New("database is locked")
 )
 
 func getTodayFormatted() string {
@@ -139,9 +140,7 @@ type geckoBookmark struct {
 
 // openSQLite opens the SQLite database and returns a *sql.DB object.
 func openSQLite(c *ui.Console, dbPath string) (*sqlx.DB, error) {
-	f := fmt.Sprintf("file:%s?cache=shared", dbPath)
-
-	db, err := sqlx.Open("sqlite", f)
+	db, err := sqlx.Open("sqlite", fmt.Sprintf("file:%s?cache=shared", dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -152,18 +151,18 @@ func openSQLite(c *ui.Console, dbPath string) (*sqlx.DB, error) {
 		rotato.WithFailColorMesg(rotato.ColorBrightRed),
 	)
 	s.Start()
-
 	defer s.Done()
+
 	// check if the database is reachable
 	if err = db.Ping(); err != nil {
-		s.Fail("failed to ping database: " + err.Error())
-		slog.Debug("failed to ping database", "err", err)
+		s.Fail("failed to ping: " + err.Error())
+		slog.Debug("failed to ping", "err", err)
 
-		if err.Error() == "database is locked" {
+		if strings.Contains(err.Error(), ErrDatabaseLocked.Error()) {
 			return nil, ErrBrowserIsOpen
 		}
 
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return nil, fmt.Errorf("failed to ping: %w", err)
 	}
 
 	return db, nil
@@ -245,23 +244,21 @@ func allProfiles(p string) (map[string]string, error) {
 }
 
 // processProfile processes a single profile and extracts bookmarks.
-//
-//nolint:funlen,wsl //ignored
 func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
 	p := c.Palette()
 	c.Frame().Rowln().Flush()
 
-	if !force {
-		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
-			c.Warning("skipping profile...'" + profile + "'\n").Flush()
-			return
-		}
-	} else {
-		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
+	if !confirmImport(c, profile, force) {
+		return
 	}
 
 	path = files.ExpandHomeDir(path)
 	db, err := openSQLite(c, path)
+	if err != nil {
+		handleDBError(c, p, profile, err)
+		return
+	}
+
 	defer func() {
 		if db == nil {
 			return
@@ -270,55 +267,69 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 		slog.Debug("database for profile closed", "profile", profile)
 	}()
 
-	if err != nil {
-		slog.Error("opening database for profile", "profile", profile, "err", err)
-		if errors.Is(err, ErrBrowserIsOpen) {
-			c.Error("database is " + p.BrightRed("locked") + ", maybe firefox is open?\n").Flush()
-			return
-		}
-		fmt.Printf("err opening database for profile %q: %v\n", profile, err)
-		return
-	}
-
 	gmarks, err := queryBookmarks(db)
 	if err != nil {
 		fmt.Printf("err querying bookmarks for profile %q: %v\n", profile, err)
 		return
 	}
 
-	skipped := 0
-	for _, gb := range gmarks {
-		if gb.URL == "" {
-			continue
-		}
-
-		b := bookmark.New()
-		b.Title = gb.Title
-		b.URL = gb.URL
-		b.Tags = gb.Tags
-
-		// dedup
-		duplicate := false
-		for _, existing := range *bs {
-			if existing.URL == b.URL {
-				duplicate = true
-				break
-			}
-		}
-		if duplicate {
-			skipped++
-			continue
-		}
-
-		*bs = append(*bs, b)
-	}
-
+	skipped := importBookmarks(bs, gmarks)
 	if err := db.Close(); err != nil {
 		slog.Error("closing rows", "err", err)
 	}
 
 	found := p.BrightBlue("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-skipped)).Flush()
+}
+
+func confirmImport(c *ui.Console, profile string, force bool) bool {
+	if force {
+		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
+		return true
+	}
+	if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
+		c.Warning("skipping profile...'" + profile + "'\n").Flush()
+		return false
+	}
+	return true
+}
+
+func handleDBError(c *ui.Console, p *color.Palette, profile string, err error) {
+	slog.Error("opening database for profile", "profile", profile, "err", err)
+	if errors.Is(err, ErrBrowserIsOpen) {
+		c.Error("database is " + p.BrightRed("locked") + ", maybe firefox is open?\n").Flush()
+		return
+	}
+	fmt.Printf("err opening database for profile %q: %v\n", profile, err)
+}
+
+func importBookmarks(bs *[]*bookmark.Bookmark, gmarks []*geckoBookmark) int {
+	skipped := 0
+	for _, gb := range gmarks {
+		if gb.URL == "" {
+			continue
+		}
+		b := bookmark.New()
+		b.Title = gb.Title
+		b.URL = gb.URL
+		b.Tags = gb.Tags
+
+		if isDuplicate(*bs, b.URL) {
+			skipped++
+			continue
+		}
+		*bs = append(*bs, b)
+	}
+	return skipped
+}
+
+func isDuplicate(existing []*bookmark.Bookmark, url string) bool {
+	for _, b := range existing {
+		if b.URL == url {
+			return true
+		}
+	}
+	return false
 }
 
 // processTags processes the tags for a single bookmark.

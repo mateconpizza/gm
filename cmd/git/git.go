@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -88,7 +89,18 @@ var (
 	ImportCmd = &cobra.Command{
 		Use:   "import",
 		Short: "import bookmarks from git",
-		RunE:  importFromClone,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+			if cfg.Flags.Path == "" {
+				return git.ErrGitRepoURLEmpty
+			}
+			a := app.New(cmd.Context(), app.WithConfig(cfg))
+
+			return importFromClone(a, cmd.Short)
+		},
 	}
 
 	// pushCmd pushes local changes to the remote repository.
@@ -96,7 +108,13 @@ var (
 		Use:                "push",
 		Short:              "push changes to the repository",
 		DisableFlagParsing: true,
-		RunE:               pushFunc,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.FromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
+			return pushFunc(cmd.Context(), cfg)
+		},
 	}
 
 	cloneCmd = &cobra.Command{
@@ -107,41 +125,27 @@ var (
 )
 
 // importFromClone clones a git repo and imports its bookmarks.
-func importFromClone(cmd *cobra.Command, args []string) error {
-	cfg, err := config.FromContext(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
-	}
-
-	if cfg.Flags.Path == "" {
-		return git.ErrGitRepoURLEmpty
-	}
-
+func importFromClone(a *app.Context, commitMesg string) error {
+	cfg := a.Cfg
 	tmpPath := filepath.Join(os.TempDir(), cfg.Name+"-clone")
 	if files.Exists(tmpPath) {
 		_ = files.RemoveAll(tmpPath)
 	}
 	defer func() { _ = files.RemoveAll(tmpPath) }()
 
-	c := ui.NewDefaultConsole(cmd.Context(), func(err error) {
-		slog.Debug("cleaning up temp dir", "path", tmpPath)
+	a.SetConsole(ui.NewDefaultConsole(a.Context(), func(err error) {
+		fmt.Println("cleaning up temp files...")
 		if err := files.RemoveAll(tmpPath); err != nil {
 			slog.Error("cleaning up temp dir", "path", tmpPath)
 		}
 		sys.ErrAndExit(err)
-	})
+	}))
 
-	// Set path with the temp dir
-	gitCmd, err := sys.Which("git")
+	gm, err := git.NewManager(a.Context(), tmpPath)
 	if err != nil {
-		return fmt.Errorf("%w: %q", err, "git")
+		return err
 	}
 
-	gm := git.NewGit(tmpPath, git.WithCmd(gitCmd))
-	a := app.New(cmd.Context(),
-		app.WithConfig(cfg),
-		app.WithConsole(c),
-	)
 	imported, err := git.Import(a, gm)
 	if err != nil {
 		return err
@@ -151,22 +155,27 @@ func importFromClone(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	return processImported(a.Console(), imported, commitMesg)
+}
+
+func processImported(c *ui.Console, imported []string, commitMesg string) error {
 	for _, dbPath := range imported {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
 			return err
 		}
+
 		if gr.IsTracked() {
 			if err := gr.Export(); err != nil {
 				return err
 			}
-			if err := gr.Commit(cmd.Short); err != nil {
+			if err := gr.Commit(commitMesg); err != nil {
 				return err
 			}
 			continue
 		}
-		fmt.Println()
 
+		fmt.Println()
 		if err := track(c, gr); err != nil {
 			return err
 		}
@@ -226,12 +235,7 @@ func gitCommandFunc(cmd *cobra.Command, args []string) error {
 	return gm.Exec(args...)
 }
 
-func pushFunc(cmd *cobra.Command, args []string) error {
-	cfg, err := config.FromContext(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
-	}
-
+func pushFunc(ctx context.Context, cfg *config.Config) error {
 	gr, err := git.NewRepo(cfg.DBPath)
 	if err != nil {
 		return err
@@ -242,7 +246,7 @@ func pushFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// SetUpstream will push changes if upstream doesn't exist
-	if err := git.SetUpstream(cmd.Context(), cfg.Git.Path); err != nil {
+	if err := git.SetUpstream(ctx, cfg.Git.Path); err != nil {
 		if !errors.Is(err, git.ErrGitUpstreamExists) {
 			return err
 		}

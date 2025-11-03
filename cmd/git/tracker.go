@@ -94,21 +94,18 @@ func management(c *ui.Console, cfg *config.Config) error {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	f, t, p := c.Frame(), c.Term(), c.Palette()
+	f, p := c.Frame(), c.Palette()
 	f.Headerln("Tracked database management").Rowln().Flush()
+
 	files.PrioritizeFile(dbFiles, config.MainDBName)
-	for i, dbPath := range dbFiles {
+	for _, dbPath := range dbFiles {
 		gr, err := git.NewRepo(dbPath)
 		if err != nil {
 			return fmt.Errorf("creating repo: %w", err)
 		}
 
 		if gr.IsTracked() {
-			q := p.Bold(fmt.Sprintf("Untrack %q?", gr.Loc.Name))
-			if gr.Loc.DBName == config.MainDBName {
-				q = p.Bold("Untrack database \"" + "main\"")
-			}
-			if !t.Confirm(c.Warning(q).String(), "n") {
+			if !c.Confirm(p.Bold(fmt.Sprintf("Untrack %q?", gr.Loc.Name)), "n") {
 				continue
 			}
 
@@ -119,10 +116,6 @@ func management(c *ui.Console, cfg *config.Config) error {
 			}
 
 			fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q untracked", gr.Loc.DBName)))
-			if i != len(dbFiles)-1 {
-				fmt.Println()
-			}
-
 			continue
 		}
 
@@ -137,9 +130,6 @@ func management(c *ui.Console, cfg *config.Config) error {
 		}
 
 		fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
-		if i != len(dbFiles)-1 {
-			fmt.Println()
-		}
 	}
 
 	return nil
@@ -176,7 +166,12 @@ func untrack(c *ui.Console, gr *git.Repository) error {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.Loc.DBName)
 	}
 
-	if !c.Confirm(fmt.Sprintf("Untrack database %q?", gr.Loc.DBName), "n") {
+	p := c.Palette()
+	q := p.Bold(fmt.Sprintf("Untrack %q?", gr.Loc.Name))
+	if gr.Loc.DBName == config.MainDBName {
+		q = p.Bold("Untrack database \"" + "main\"")
+	}
+	if !c.Confirm(c.Warning(q).String(), "n") {
 		return nil
 	}
 

@@ -159,31 +159,35 @@ func status(ctx context.Context, repoPath string) (string, error) {
 		return "", ErrGitNoCommits
 	}
 
-	var out bytes.Buffer
+	added, modified, deleted, err := countStagedChanges(repoPath)
+	if err != nil {
+		return "", err
+	}
 
+	return formatStatus(added, modified, deleted), nil
+}
+
+func countStagedChanges(repoPath string) (added, modified, deleted int, err error) {
+	var out bytes.Buffer
 	cmd := exec.Command(gitCmd, "diff", "--cached", "--name-status")
 	cmd.Stdout = &out
 	cmd.Dir = repoPath
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to run git diff-tree: %w", err)
+		return 0, 0, 0, fmt.Errorf("failed to run git diff-tree: %w", err)
 	}
 
-	var added, modified, deleted int
-	lines := strings.SplitSeq(strings.TrimSpace(out.String()), "\n")
-	for line := range lines {
+	for line := range strings.SplitSeq(strings.TrimSpace(out.String()), "\n") {
 		if line == "" {
 			continue
 		}
 
 		fields := strings.Fields(line)
-		// ignore summary.json modifications
 		if len(fields) < 2 || filepath.Base(fields[1]) == SummaryFileName {
 			continue
 		}
 
-		status := fields[0]
-		switch status {
+		switch fields[0] {
 		case "A":
 			added++
 		case "M":
@@ -192,21 +196,21 @@ func status(ctx context.Context, repoPath string) (string, error) {
 			deleted++
 		}
 	}
+	return added, modified, deleted, nil
+}
 
+func formatStatus(added, modified, deleted int) string {
 	var parts []string
 	if added > 0 {
 		parts = append(parts, fmt.Sprintf("+add:%d", added))
 	}
-
 	if deleted > 0 {
 		parts = append(parts, fmt.Sprintf("-del:%d", deleted))
 	}
-
 	if modified > 0 {
 		parts = append(parts, fmt.Sprintf("~mod:%d", modified))
 	}
-
-	return strings.TrimSpace(strings.Join(parts, " ")), nil
+	return strings.Join(parts, " ")
 }
 
 // branch returns the current branch.

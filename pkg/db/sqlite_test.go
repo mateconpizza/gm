@@ -1,4 +1,4 @@
-//nolint:wsl,funlen //test
+//nolint:wsl,funlen,gocyclo //test
 package db
 
 import (

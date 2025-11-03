@@ -46,6 +46,7 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
+
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
 		return err
@@ -64,6 +65,11 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 
 	m := handler.MenuSimple[bookmark.Bookmark](cfg, menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"))
+
+	return processWayback(a, m, args)
+}
+
+func processWayback(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) error {
 	bs, err := handler.Data(a, m, args)
 	if err != nil {
 		return err
@@ -74,9 +80,9 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 		return db.ErrRecordNotFound
 	}
 
-	flags := cfg.Flags
+	flags := a.Cfg.Flags
 	if n > wayback.MaxItems && !flags.Force {
-		return fmt.Errorf("%w: %d", wayback.ErrTooManyRecords, n)
+		return wayback.ErrTooManyRecords
 	}
 
 	f, p := a.Console().Frame(), a.Console().Palette()
@@ -101,5 +107,5 @@ func waybackFunc(cmd *cobra.Command, args []string) error {
 		return handler.WaybackSnapshots(a, bs)
 	}
 
-	return cmd.Help()
+	return nil
 }

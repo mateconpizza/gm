@@ -1,4 +1,4 @@
-//nolint:gocognit,err113,funlen //test
+//nolint:gocognit,err113,funlen,gocyclo //test
 package slice
 
 import (
