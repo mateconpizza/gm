@@ -8,12 +8,11 @@ import (
 	"io"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -282,12 +281,11 @@ func runGitCmd(ctx context.Context, repoPath string, commands ...string) error {
 		return fmt.Errorf("%w: %s", err, g)
 	}
 
-	w := frame.New(frame.WithColorBorder(frame.ColorOrange))
+	w := frame.New(frame.WithColorBorder(ansi.Yellow))
 	defer w.Flush()
 
 	commands = append([]string{g, "-C", repoPath}, commands...)
-	cmdColors := color.ApplyMany(slices.Clone(commands), color.Orange, color.StyleItalic)
-	w.Midln(strings.Join(cmdColors, " ")).Flush()
+	w.Midln(ansi.Yellow.With(ansi.Italic).Sprint(strings.Join(commands, " "))).Flush()
 
 	err = sys.ExecCmdWithWriter(ctx, w, commands...)
 	if err != nil {

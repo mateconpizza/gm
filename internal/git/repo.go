@@ -265,14 +265,14 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 	trustColor := func(key *gpg.Fingerprint) string {
 		t := key.TrustLevelString()
 		if key.IsTrusted() {
-			return p.BrightGreen(strings.ToUpper(t))
+			return p.BrightGreen.Sprint(strings.ToUpper(t))
 		}
 
 		switch t {
 		case "marginal":
-			return p.BrightOrange(strings.ToUpper(t))
+			return p.BrightYellow.Sprint(strings.ToUpper(t))
 		default:
-			return p.BrightRed(strings.ToUpper(t))
+			return p.BrightRed.Sprint(strings.ToUpper(t))
 		}
 	}
 
@@ -290,11 +290,11 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 		return fmt.Sprintf(
 			"[Trusted: %s] %s: %s %s: %s\n%s: %s",
 			trustColor(fp),
-			p.BrightBlueBold("KeyID"),
+			p.BrightBlue.Wrap("KeyID", p.Bold),
 			fp.KeyID,
-			p.BrightMagentaBold("UserID"),
+			p.BrightMagenta.Wrap("UserID", p.Bold),
 			fp.UserID,
-			p.BrightYellowBold("Fingerprint"),
+			p.BrightYellow.Wrap("Fingerprint", p.Bold),
 			fp.Fingerprint,
 		)
 	})

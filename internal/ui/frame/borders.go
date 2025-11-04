@@ -1,9 +1,5 @@
 package frame
 
-func SetDefaultBorders(b *FrameBorders) {
-	defaultBorders = b
-}
-
 func NewBorders(header, row, mid, footer string) *FrameBorders {
 	return &FrameBorders{
 		Header: header,
@@ -299,13 +295,6 @@ func WithBordersPlusSign() OptFn {
 			Mid:    "+ ",
 			Footer: "+ ",
 		}
-	}
-}
-
-// WithDefaultBorders sets default borders.
-func WithDefaultBorders() OptFn {
-	return func(o *Options) {
-		o.Border = defaultBorders
 	}
 }
 

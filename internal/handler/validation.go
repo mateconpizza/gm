@@ -36,8 +36,8 @@ func confirmRemove(a *app.Context, m *menu.Menu[bookmark.Bookmark], bs *slice.Sl
 			opts = append(opts, "select")
 		}
 
-		c := a.Console()
-		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", c.Palette().BrightRedBold("remove"), n), opts, "n")
+		c, p := a.Console(), a.Console().Palette()
+		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", p.BrightRed.Wrap("remove", p.Bold), n), opts, "n")
 		if err != nil {
 			return err
 		}

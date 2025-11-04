@@ -64,7 +64,8 @@ func (rp *RepoProcessor) processRepositories() error {
 func (rp *RepoProcessor) processRepository(repoName string) (int, error) {
 	repoPath := filepath.Join(rp.Root, repoName)
 
-	rp.Console.Frame().Rowln().Info(rp.Console.Palette().Bold(fmt.Sprintf("Repository %q\n", repoName)))
+	f := rp.Console.Frame().Rowln()
+	f.Info(rp.Console.Palette().Bold.Sprintf("Repository %q\n", repoName))
 
 	// Read and display summary
 	sum, err := rp.readSummary(repoPath)
@@ -96,12 +97,12 @@ func (rp *RepoProcessor) readSummary(repoPath string) (*SyncGitSummary, error) {
 
 // displaySummary shows repository statistics.
 func (rp *RepoProcessor) displaySummary(sum *SyncGitSummary) {
-	f := rp.Console.Frame()
+	f, p := rp.Console.Frame(), rp.Console.Palette()
 	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
-		Midln(txt.PaddedLine(rp.Console.Palette().BrightBlue("tags:"), sum.RepoStats.Tags))
+		Midln(txt.PaddedLine(p.BrightBlue.Sprint("tags:"), sum.RepoStats.Tags))
 
 	if sum.RepoStats.Favorites > 0 {
-		f.Midln(txt.PaddedLine(rp.Console.Palette().BrightRed("favorites:"), sum.RepoStats.Favorites))
+		f.Midln(txt.PaddedLine(p.BrightRed.Sprint("favorites:"), sum.RepoStats.Favorites))
 	}
 
 	f.Flush()
@@ -153,21 +154,21 @@ func (rp *RepoProcessor) displayPullSummary() {
 	r := rp.result
 	pad := txt.PaddedLine
 
-	f.Ln().Headerln(p.Bold("Summary:")).
+	f.Ln().Headerln(p.Bold.Sprint("Summary:")).
 		Midln(pad("Repos:", fmt.Sprintf("%d found", len(rp.Repos))))
 
 	if r.TotalReposProcessed > 0 {
-		f.Midln(pad(p.BrightRed("Processed:"), r.TotalReposProcessed))
+		f.Midln(pad(p.BrightRed.Sprint("Processed:"), r.TotalReposProcessed))
 	}
 	if r.TotalSkipped > 0 {
-		f.Midln(pad(p.BrightYellow("Skipped:"), r.TotalSkipped))
+		f.Midln(pad(p.BrightYellow.Sprint("Skipped:"), r.TotalSkipped))
 	}
 
 	message := fmt.Sprintf("%d bookmarks", r.TotalBookmarks)
 	if r.TotalBookmarks == 0 {
 		message = "No bookmark added"
 	}
-	f.Midln(pad(p.BrightBlue("Added:"), message))
+	f.Midln(pad(p.BrightBlue.Sprint("Added:"), message))
 
 	f.Flush()
 }

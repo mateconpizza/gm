@@ -59,8 +59,8 @@ func readURLFromClipboard(c *ui.Console) string {
 		return ""
 	}
 
-	f := c.Frame()
-	f.Mid(c.Palette().BrightMagenta("URL\t:")).Textln(" " + c.Palette().Gray(cb))
+	f, p := c.Frame(), c.Palette()
+	f.Mid(p.BrightMagenta.Sprint("URL\t:")).Textln(" " + p.BrightBlack.Sprint(cb))
 
 	lines := txt.CountLines(f.String())
 	f.Flush()
@@ -83,8 +83,8 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 	// checks if url is provided
 	if len(args) > 0 {
 		bURL := strings.TrimRight((args)[0], "\n")
-		f.Header(p.BrightMagenta("URL\t:")).
-			Text(" " + p.Gray(bURL)).Ln().Flush()
+		f.Header(p.BrightMagenta.Sprint("URL\t:")).
+			Text(" " + p.BrightBlack.Sprint(bURL)).Ln().Flush()
 
 		return bURL, nil
 	}
@@ -95,7 +95,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 		return cb, nil
 	}
 
-	f.Header(p.BrightMagenta("URL\t:")).Flush()
+	f.Header(p.BrightMagenta.Sprint("URL\t:")).Flush()
 
 	bURL := t.Input(" ")
 	if bURL == "" {
@@ -110,12 +110,12 @@ func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 	c := a.Console()
 	f, p := c.Frame(), c.Palette()
 
-	f.Header(p.BrightBlue("Tags\t:"))
+	f.Header(p.BrightBlue.Sprint("Tags\t:"))
 
 	// Use existing tags if provided
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
-		f.Textln(" " + p.BrightGrayItalic(b.tags)).Flush()
+		f.Textln(" " + p.BrightBlack.Wrap(b.tags, p.Italic)).Flush()
 		return
 	}
 
@@ -123,22 +123,30 @@ func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 	_ = sc.Start()
 	if keywords, _ := sc.Keywords(); keywords != "" {
 		b.tags = bookmark.ParseTags(keywords)
-		f.Textln(" " + p.BrightGrayItalic(b.tags)).Flush()
+		f.Textln(" " + p.BrightBlack.Wrap(b.tags, p.Italic)).Flush()
 		return
 	}
 
 	// Use default if force flag is set
 	if a.Cfg.Flags.Force {
 		b.tags = "notag"
-		f.Textln(" " + p.BrightGrayItalic(b.tags)).Flush()
+		f.Textln(" " + p.BrightBlack.Wrap(b.tags, p.Italic)).Flush()
 		return
 	}
 
-	// Prompt user for tags
-	f.Text(p.Gray(" (spaces|comma separated)")).Ln().Flush()
+	// Display prompt for tag input format
+	f.Text(p.BrightBlack.Sprint(" (spaces|comma separated)\n")).Flush()
+
+	// Get existing tags from database with their usage counts
 	mTags, _ := a.DB.TagsCounter(a.Context())
+
+	// Let user select tags and parse them into proper format
 	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))
-	f.Reset().Mid(p.BrightBlue("Tags\t:")).Textln(" " + p.BrightGrayItalic(b.tags))
+
+	// Clear and display the selected tags
+	f.Reset().Mid(p.BrightBlue.Sprint("Tags\t:")).Textln(" " + p.BrightBlack.Wrap(b.tags, p.Italic))
+
+	// Clear previous input lines from terminal
 	c.ClearLine(txt.CountLines(f.String()))
 	f.Flush()
 }
@@ -151,8 +159,8 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	width := terminal.MinWidth - len(f.Border.Row)
 
 	if b.title != "" {
-		t := p.BrightGray(txt.SplitAndAlign(b.title, width, indentation))
-		f.Mid(p.BrightCyan("Title\t: ")).Textln(t).Flush()
+		t := p.BrightBlack.Sprint(txt.SplitAndAlign(b.title, width, indentation))
+		f.Mid(p.BrightCyan.Sprint("Title\t: ")).Textln(t).Flush()
 
 		return
 	}
@@ -165,13 +173,13 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	b.favicon, _ = sc.Favicon()
 
 	// title
-	t := p.BrightGray(txt.SplitAndAlign(b.title, width, indentation))
-	f.Mid(p.BrightCyan("Title\t: ")).Textln(t)
+	t := p.BrightBlack.Sprint(txt.SplitAndAlign(b.title, width, indentation))
+	f.Mid(p.BrightCyan.Sprint("Title\t: ")).Textln(t)
 
 	// description
 	if b.desc != "" {
-		descColor := p.BrightGray(txt.SplitAndAlign(b.desc, width, indentation))
-		f.Mid(p.BrightOrange("Desc\t: ")).Textln(descColor)
+		descColor := p.BrightBlack.Sprint(txt.SplitAndAlign(b.desc, width, indentation))
+		f.Mid(p.BrightYellow.Sprint("Desc\t: ")).Textln(descColor)
 	}
 
 	f.Flush()

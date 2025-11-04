@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 var (
@@ -25,7 +25,7 @@ var (
 func PrettyVersion(appName, version string) string {
 	return fmt.Sprintf(
 		"%s v%s %s/%s",
-		color.NewPalette().BrightBlueBold(appName),
+		ansi.BrightBlue.Wrap(appName, ansi.Bold),
 		version,
 		runtime.GOOS,
 		runtime.GOARCH,

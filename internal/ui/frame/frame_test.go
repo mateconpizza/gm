@@ -2,9 +2,18 @@ package frame
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
+
+type mockANSIColor struct {
+	code string
+}
+
+func (m *mockANSIColor) Sprint(args ...any) string {
+	return m.code + fmt.Sprint(args...) + "\x1b[0m" // code + text + reset
+}
 
 func containsANSICodes(t *testing.T, s string) bool {
 	t.Helper()
@@ -30,8 +39,6 @@ func setupFrame(t *testing.T, opts []OptFn) *Frame {
 
 func TestFrame_String_ColorHandling(t *testing.T) {
 	t.Run("color disabled excludes ANSI codes", func(t *testing.T) {
-		t.Parallel()
-
 		DisableColor()
 		t.Cleanup(func() {
 			colorMutex.Lock()
@@ -39,7 +46,8 @@ func TestFrame_String_ColorHandling(t *testing.T) {
 			colorMutex.Unlock()
 		})
 
-		f := setupFrame(t, []OptFn{WithColorBorder(ColorBrightOrange)})
+		mockColor := &mockANSIColor{code: "\x1b[38;5;208m"}
+		f := setupFrame(t, []OptFn{WithColorBorder(mockColor)})
 		output := f.String()
 
 		if output == "" {
@@ -52,9 +60,8 @@ func TestFrame_String_ColorHandling(t *testing.T) {
 	})
 
 	t.Run("color enabled includes ANSI codes", func(t *testing.T) {
-		t.Parallel()
-
-		f := setupFrame(t, []OptFn{WithColorBorder(ColorBrightBlue)})
+		mockColor := &mockANSIColor{code: "\x1b[38;5;208m"}
+		f := setupFrame(t, []OptFn{WithColorBorder(mockColor)})
 		output := f.String()
 
 		if !containsANSICodes(t, output) {
@@ -64,8 +71,6 @@ func TestFrame_String_ColorHandling(t *testing.T) {
 }
 
 func TestFrame_Writer(t *testing.T) {
-	t.Parallel()
-
 	lines20 := `create mode 100644 somerepo/1.1.1.1/3HrYD_Ea5i4t.json
 create mode 100644 somerepo/127.0.0.1/Iufqgcux-9RK.json
 create mode 100644 somerepo/12factor.net/DKt21z9U73iw.json
@@ -90,9 +95,10 @@ create mode 100644 somerepo/atlassian.com/wxMO5eY45hTo.json`
 	wantLines := 20
 	lines := strings.Split(lines20, "\n")
 
+	mockColor := &mockANSIColor{code: "\x1b[38;5;208m"}
 	for range 100 {
 		var buf bytes.Buffer
-		f := New(WithColorBorder(ColorBrightBlue), WithWriter(&buf))
+		f := New(WithColorBorder(mockColor), WithWriter(&buf))
 		f.Reset()
 
 		for _, l := range lines {
@@ -119,8 +125,6 @@ create mode 100644 somerepo/atlassian.com/wxMO5eY45hTo.json`
 }
 
 func TestFrame_Write(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name     string
 		writes   [][]byte
@@ -187,8 +191,6 @@ func TestFrame_Write(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			DisableColor()
 			f := New()
 

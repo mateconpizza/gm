@@ -16,7 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/slice"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -66,7 +66,7 @@ type Paths struct {
 type GeckoBrowser struct {
 	name  string
 	short string
-	color color.ColorFn
+	color ansi.SGR
 	paths Paths
 }
 
@@ -79,7 +79,7 @@ func (b *GeckoBrowser) Short() string {
 }
 
 func (b *GeckoBrowser) Color(s string) string {
-	return b.color(s).Bold().String()
+	return b.color.Sprint(s)
 }
 
 func (b *GeckoBrowser) LoadPaths() error {
@@ -122,7 +122,7 @@ func (b *GeckoBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 	return bs, nil
 }
 
-func New(name string, c color.ColorFn) *GeckoBrowser {
+func New(name string, c ansi.SGR) *GeckoBrowser {
 	return &GeckoBrowser{
 		name:  name,
 		short: strings.ToLower(string(name[0])),
@@ -146,7 +146,7 @@ func openSQLite(c *ui.Console, dbPath string) (*sqlx.DB, error) {
 	}
 
 	s := rotato.New(
-		rotato.WithMesg(c.Palette().BrightBlue("connecting to database...")),
+		rotato.WithMesg(c.Palette().BrightBlue.Sprint("connecting to database...")),
 		rotato.WithSpinnerColor(rotato.ColorGray),
 		rotato.WithFailColorMesg(rotato.ColorBrightRed),
 	)
@@ -278,7 +278,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 		slog.Error("closing rows", "err", err)
 	}
 
-	found := p.BrightBlue("found")
+	found := p.BrightBlue.Sprint("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-skipped)).Flush()
 }
 
@@ -294,10 +294,10 @@ func confirmImport(c *ui.Console, profile string, force bool) bool {
 	return true
 }
 
-func handleDBError(c *ui.Console, p *color.Palette, profile string, err error) {
+func handleDBError(c *ui.Console, p *ansi.Palette, profile string, err error) {
 	slog.Error("opening database for profile", "profile", profile, "err", err)
 	if errors.Is(err, ErrBrowserIsOpen) {
-		c.Error("database is " + p.BrightRed("locked") + ", maybe firefox is open?\n").Flush()
+		c.Error("database is " + p.BrightRed.Sprint("locked") + ", maybe firefox is open?\n").Flush()
 		return
 	}
 	fmt.Printf("err opening database for profile %q: %v\n", profile, err)

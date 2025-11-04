@@ -16,9 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -177,14 +175,7 @@ var (
 
 			a := app.New(cmd.Context(),
 				app.WithConfig(cfg),
-				app.WithConsole(ui.NewConsole(
-					ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorPurple))),
-					ui.WithTerminal(
-						terminal.New(
-							terminal.WithContext(cmd.Context()),
-							terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) })),
-					),
-				)),
+				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
 			return handler.UnlockRepo(a, cfg.DBPath)

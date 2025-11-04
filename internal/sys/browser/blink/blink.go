@@ -14,8 +14,8 @@ import (
 
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -56,7 +56,7 @@ type Paths struct {
 type BlinkBrowser struct {
 	name  string
 	short string
-	color color.ColorFn
+	color ansi.SGR
 	paths Paths
 }
 
@@ -69,7 +69,7 @@ func (b *BlinkBrowser) Short() string {
 }
 
 func (b *BlinkBrowser) Color(s string) string {
-	return b.color(s).Bold().String()
+	return b.color.Sprint(s)
 }
 
 func (b *BlinkBrowser) LoadPaths() error {
@@ -104,7 +104,7 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 		return nil, err
 	}
 
-	f := frame.New(frame.WithColorBorder(frame.ColorGray))
+	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
 	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
 	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Flush()
 
@@ -117,7 +117,7 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 	return bs, nil
 }
 
-func New(name string, c color.ColorFn) *BlinkBrowser {
+func New(name string, c ansi.SGR) *BlinkBrowser {
 	return &BlinkBrowser{
 		name:  name,
 		short: strings.ToLower(string(name[0])),
@@ -233,7 +233,7 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 // processProfile extracts profile system names and user names.
 func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
 	f, p := c.Frame(), c.Palette()
-	skip := p.BrightYellow("skipping")
+	skip := p.BrightYellow.Sprint("skipping")
 	if !files.Exists(path) {
 		f.Headerln(skip + " profile...'" + profile + "', bookmarks file not found").Flush()
 		return
@@ -282,7 +282,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 		*bs = append(*bs, b)
 	}
 
-	found := p.BrightBlue("found")
+	found := p.BrightBlue.Sprint("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-ogSize)).Flush()
 }
 

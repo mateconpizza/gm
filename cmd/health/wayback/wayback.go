@@ -86,10 +86,10 @@ func processWayback(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []stri
 	}
 
 	f, p := a.Console().Frame(), a.Console().Palette()
-	f.Headerln(p.BrightRedBold("Bookmarks", fmt.Sprintf("(%d)", n))).Rowln()
+	f.Headerln(p.BrightRed.With(p.Bold).Sprintf("Bookmarks (%d)", n)).Rowln()
 	for i := range bs {
 		if i >= wayback.MaxItems {
-			f.Midln(p.GrayItalic(n-i, "more...")).Rowln()
+			f.Midln(p.BrightBlack.With(p.Italic).Sprintf("%d more ...", n-i)).Rowln()
 			break
 		}
 		f.Midln(bs[i].URL)

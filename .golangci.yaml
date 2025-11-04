@@ -214,6 +214,9 @@ linters:
       - path: "internal/sys/sys_test.go"
         linters:
           - paralleltest # using t.Setenv
+      - path: "internal/ui/frame/frame_test.go"
+        linters:
+          - paralleltest # using global variables
       - path: "internal/ui/printer/printer.go"
         linters:
           - nilerr
