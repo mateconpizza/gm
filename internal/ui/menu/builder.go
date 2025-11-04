@@ -46,7 +46,6 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 
 	headers := make([]string, 0, len(m.header)+len(m.keymaps.keymaps))
 	headers = append(headers, m.header...)
-	m.args.add(m.header...)
 
 	for _, k := range m.keymaps.list() {
 		if !k.Enabled || k.Hidden {
