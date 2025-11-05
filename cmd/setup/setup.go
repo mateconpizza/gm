@@ -12,9 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -107,14 +105,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithContext(cmd.Context()),
-			terminal.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
-		)),
-	)
-
+	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 	if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
 		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", gr.Loc.DBName)).String())
 		return nil
@@ -140,11 +131,10 @@ func createPaths(c *ui.Console, cfg *config.Config) error {
 		return nil
 	}
 
-	p := c.Palette()
-	f := c.Frame()
+	p, f := c.Palette(), c.Frame()
 	f.Headerln(cli.PrettyVersion(cfg.Name, cfg.Info.Version)).Rowln().
-		Info(txt.PaddedLine("Create path:", p.Italic(cfg.Path.Data))).Ln().
-		Info(txt.PaddedLine("Create db:", p.Italic(cfg.DBPath))).Ln()
+		Info(txt.PaddedLine("Create path:", p.Italic.Sprint(cfg.Path.Data))).Ln().
+		Info(txt.PaddedLine("Create db:", p.Italic.Sprint(cfg.DBPath))).Ln()
 
 	lines := txt.CountLines(f.String()) + 1
 	f.Rowln().Flush()

@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -31,10 +32,10 @@ func RemoveRepo(a *app.Context) error {
 		return fmt.Errorf("%w: main database cannot be removed, use --force", sys.ErrActionAborted)
 	}
 
-	c := a.Console()
+	c, p := a.Console(), a.Console().Palette()
 	fmt.Fprint(a.Writer(), summary.RepoFromPath(a, a.Cfg.DBPath, a.Cfg.Path.Backup))
 	if !a.Cfg.Flags.Force {
-		if err := c.ConfirmErr(c.Palette().BrightRedBold("remove")+" "+filepath.Base(a.Cfg.DBPath)+"?", "n"); err != nil {
+		if err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(a.Cfg.DBPath)+"?", "n"); err != nil {
 			return err
 		}
 	}
@@ -61,8 +62,8 @@ func RemoveRepo(a *app.Context) error {
 
 // RemoveBackups removes backups.
 func RemoveBackups(a *app.Context) error {
-	p := a.Cfg.DBPath
-	dbName := files.StripSuffixes(filepath.Base(p))
+	fn := a.Cfg.DBPath
+	dbName := files.StripSuffixes(filepath.Base(fn))
 	fs, err := files.List(a.Cfg.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return err
@@ -78,18 +79,18 @@ func RemoveBackups(a *app.Context) error {
 		return removeSlicePath(a, filesToRemove)
 	}
 
-	c := a.Console()
+	c, p := a.Console(), a.Console().Palette()
 
 actionLoop:
 	for {
-		opt, err := c.Choose(c.Palette().BrightRedBold("remove")+" backups?", []string{"all", "no", "select"}, "n")
+		opt, err := c.Choose(p.BrightRed.Wrap("remove", p.Bold)+" backups?", []string{"all", "no", "select"}, "n")
 		if err != nil {
 			return err
 		}
 
 		switch strings.ToLower(opt) {
 		case "n", "no":
-			c.ReplaceLine(c.Warning(c.Palette().BrightYellow("skipping") + " backup/s").StringReset())
+			c.ReplaceLine(c.Warning(p.BrightYellow.Sprint("skipping") + " backup/s").StringReset())
 			break actionLoop
 		case "a", "all":
 			filesToRemove.Append(fs...)
@@ -103,7 +104,7 @@ actionLoop:
 				menu.WithArgs("--cycle"),
 				menu.WithConfig(a.Cfg.Menu),
 				menu.WithMultiSelection(),
-				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(p))),
+				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(fn))),
 				menu.WithPreview(a.Cfg.Cmd+" db --name=./backup/{1} --info"),
 			)
 
@@ -139,7 +140,7 @@ func removeSlicePath(a *app.Context, dbs *slice.Slice[string]) error {
 
 		f.Flush()
 
-		msg := fmt.Sprintf("%s %d item/s", c.Palette().BrightRed("removing"), n)
+		msg := fmt.Sprintf("%s %d item/s", c.Palette().BrightRed.Sprint("removing"), n)
 		if err := c.ConfirmErr(msg+", continue?", "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -182,8 +183,8 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 	}
 
 	c := a.Console()
-	f := frame.New(frame.WithColorBorder(frame.ColorGray))
-	f.Header(c.Palette().BrightRed("Removing Bookmarks\n\n")).Flush()
+	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
+	f.Header(c.Palette().BrightRed.Sprint("Removing Bookmarks\n\n")).Flush()
 
 	t := a.Console().Term()
 	defer t.CancelInterruptHandler()
@@ -211,7 +212,7 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 func DroppingDB(a *app.Context) error {
 	c := a.Console()
 	f := c.Frame()
-	f.Header(c.Palette().BrightRed("Dropping") + " all records\n").Row("\n").Flush()
+	f.Header(c.Palette().BrightRed.Sprint("Dropping") + " all records\n").Row("\n").Flush()
 	fmt.Print(summary.Info(a))
 
 	f.Reset().Rowln().Flush()

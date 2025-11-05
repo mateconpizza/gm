@@ -14,15 +14,15 @@ import (
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
 
-var dimmer = func(s string) string { return color.NewPalette().BrightGrayItalic(" (" + s + ")") }
+var dimmer = func(s string) string { return ansi.BrightBlack.Wrap(" ("+s+")", ansi.Italic) }
 
 type SnapshotResult struct {
 	URL   string
@@ -67,7 +67,7 @@ func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 			defer sem.Release(1)
 
 			idx := atomic.AddUint32(&count, 1)
-			f := frame.New(frame.WithColorBorder(frame.ColorGray))
+			f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
 			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", idx, len(bs), f.Info(txt.Shorten(b.URL, 80)).String()))
 
 			res := processBookmark(a, b)
@@ -123,7 +123,7 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 
 	p := c.Palette()
 	if len(skipped) > 0 {
-		msg := p.BrightYellow("Skipped", len(skipped), "bookmarks")
+		msg := p.BrightYellow.Sprintf("Skipped %d bookmarks", len(skipped))
 		f.Warning(msg + dimmer(wayback.ErrAlreadyArchived.Error())).Ln().Flush()
 		for _, r := range skipped {
 			f.Midln(r.URL).Flush()
@@ -131,7 +131,7 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 	}
 
 	if len(failed) > 0 {
-		msg := p.BrightRed("Failed", len(failed), "bookmarks")
+		msg := p.BrightRed.Sprintf("Failed %d bookmarks", len(failed))
 		f.Error(msg).Ln().Flush()
 		for _, r := range failed {
 			f.Midln(r.URL + dimmer(r.Msg)).Flush()
@@ -139,7 +139,7 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 	}
 
 	if len(success) > 0 {
-		msg := p.BrightGreen("Updated", len(success), "bookmarks")
+		msg := p.BrightGreen.Sprintf("Updated %d bookmarks", len(success))
 		f.Success(msg).Ln().Flush()
 		for _, r := range success {
 			f.Midln(r.URL).Flush()
@@ -190,7 +190,7 @@ func formatTime(label, ts string) string {
 
 func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
-	c := a.Console()
+	c, p := a.Console(), a.Console().Palette()
 	m := waybackMenu(c)
 
 	ct := wayback.New(wayback.WithByYear(a.Cfg.Flags.Year), wayback.WithLimit(a.Cfg.Flags.Limit))
@@ -201,7 +201,7 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 		deadline, _ := ctx.Deadline()
 
 		u := txt.Shorten(b.URL, 60)
-		prefix := "Fetching " + a.Console().Palette().Italic(u) + " snapshots"
+		prefix := "Fetching " + p.Italic.Sprint(u) + " snapshots"
 		go updateSpinnerWithDeadline(ctx, sp, prefix, deadline)
 		snapshots, err := ct.Snapshots(ctx, b.URL)
 		cancel()

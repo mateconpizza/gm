@@ -16,12 +16,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/color"
-)
-
-var (
-	dim    = color.BrightGray
-	dimmer = color.Gray
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 const termPromptPrefix = "> "
@@ -214,9 +209,10 @@ func (t *Term) ConfirmErr(q, def string) error {
 		def = "n"
 	}
 
+	h := &highlighter{}
 	choices := fmtChoicesWithDefault(opts, def)
 	for i := range len(choices) {
-		choices[i] = dim(choices[i]).String()
+		choices[i] = h.brightBlack(choices[i])
 	}
 
 	chosen, err := t.promptWithChoicesErr(q, choices, def)
@@ -249,9 +245,11 @@ func (t *Term) Choose(q string, opts []string, def string) (string, error) {
 
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string, error) {
-	sep := dimmer("/").String()
-	s := dimmer("[").String()
-	e := dimmer("]:").String()
+	h := &highlighter{}
+	dimmer := h.brightBlack
+	sep := dimmer("/")
+	s := dimmer("[")
+	e := dimmer("]:")
 
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 
@@ -359,6 +357,18 @@ func (t *Term) PipedInput(input *[]string) {
 
 	split := strings.Split(s, " ")
 	*input = append(*input, split...)
+}
+
+// HideCursor hides cursor.
+func (t *Term) HideCursor() error {
+	_, err := fmt.Fprint(t.writer, ansi.CursorHide)
+	return err
+}
+
+// ShowCursor unhide cursor.
+func (t *Term) ShowCursor() error {
+	_, err := fmt.Fprint(t.writer, ansi.CursorShow)
+	return err
 }
 
 // New returns a new terminal with the provided options.

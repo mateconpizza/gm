@@ -8,14 +8,14 @@ import (
 	"os"
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 type Console struct {
 	term    *terminal.Term
 	frame   *frame.Frame
-	palette *color.Palette
+	palette *ansi.Palette
 	writer  io.Writer
 }
 
@@ -24,7 +24,7 @@ type Option func(*Console)
 
 // NewConsole creates a new Console with the given options.
 func NewConsole(opts ...Option) *Console {
-	c := &Console{palette: color.NewPalette()}
+	c := &Console{palette: ansi.NewPalette()}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -46,7 +46,16 @@ func NewConsole(opts ...Option) *Console {
 
 func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 	return NewConsole(
-		WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
+		WithFrame(frame.New(
+			frame.WithColorBorder(ansi.BrightBlack),
+			frame.WithIcons(&frame.Icons{
+				Error:    frame.IconStyle{Symbol: "✗", Color: ansi.BrightRed.With(ansi.Bold)},
+				Warning:  frame.IconStyle{Symbol: "!", Color: ansi.BrightYellow.With(ansi.Bold)},
+				Info:     frame.IconStyle{Symbol: "i", Color: ansi.BrightBlue.With(ansi.Bold)},
+				Question: frame.IconStyle{Symbol: "?", Color: ansi.BrightGreen.With(ansi.Bold)},
+				Success:  frame.IconStyle{Symbol: "✓", Color: ansi.BrightGreen.With(ansi.Bold)},
+			}),
+		)),
 		WithDefaultTerminal(ctx, f),
 	)
 }
@@ -80,7 +89,7 @@ func WithDefaultTerminal(ctx context.Context, f func(error)) Option {
 
 func (c *Console) Term() *terminal.Term         { return c.term }
 func (c *Console) Frame() *frame.Frame          { return c.frame }
-func (c *Console) Palette() *color.Palette      { return c.palette }
+func (c *Console) Palette() *ansi.Palette       { return c.palette }
 func (c *Console) Writer() io.Writer            { return c.writer }
 func (c *Console) ClearLine(n int)              { c.term.ClearLine(n) }
 func (c *Console) ReplaceLine(s string)         { c.term.ReplaceLine(1, s) }
@@ -121,26 +130,30 @@ func (c *Console) PromptWithSuggestions(p string, items []string) string {
 
 // SuccessMesg returns a prettified success message.
 func (c *Console) SuccessMesg(a ...any) string {
-	s := c.palette.BrightGreenItalic("Successfully ") + c.palette.Italic(a...)
-	return c.frame.Reset().Success(s).StringReset()
+	success := c.palette.BrightGreen.Wrap("Successfully ", c.palette.Italic)
+	mesg := c.palette.Italic.Sprint(a...)
+	return c.frame.Reset().Success(success + mesg).StringReset()
 }
 
 // ErrorMesg returns a prettified error message.
 func (c *Console) ErrorMesg(a ...any) string {
-	s := c.palette.BrightRedItalic("Error ") + c.palette.Italic(a...)
-	return c.frame.Reset().Error(s).StringReset()
+	err := c.palette.BrightRed.Wrap("Error ", c.palette.Italic)
+	mesg := c.palette.Italic.Sprint(a...)
+	return c.frame.Reset().Error(err + mesg).StringReset()
 }
 
 // WarningMesg returns a prettified warning message.
 func (c *Console) WarningMesg(a ...any) string {
-	s := c.palette.BrightYellowItalic("Warning ") + c.palette.Italic(a...)
-	return c.frame.Reset().Warning(s).StringReset()
+	wanr := c.palette.BrightYellow.Wrap("Warning ", c.palette.Italic)
+	mesg := c.palette.Italic.Sprint(a...)
+	return c.frame.Reset().Warning(wanr + mesg).StringReset()
 }
 
 // InfoMesg returns a prettified info message.
 func (c *Console) InfoMesg(a ...any) string {
-	s := c.palette.BrightBlueItalic("Info ") + c.palette.Italic(a...)
-	return c.frame.Reset().Info(s).StringReset()
+	info := c.palette.BrightBlue.Wrap("Info ", c.palette.Italic)
+	mesg := c.palette.Italic.Sprint(a...)
+	return c.frame.Reset().Info(info + mesg).StringReset()
 }
 
 func (c *Console) Error(s string) *frame.Frame   { return c.frame.Reset().Error(s) }

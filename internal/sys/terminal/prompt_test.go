@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 func TestTermGetUserInput(t *testing.T) {
@@ -189,7 +189,7 @@ func TestTermFmtChoicesWithDefault(t *testing.T) {
 
 			result := fmtChoicesWithDefaultColor(tt.opts, tt.def)
 			for i := range len(result) {
-				result[i] = color.ANSICodeRemover(result[i])
+				result[i] = ansi.Remover(result[i])
 			}
 
 			if len(result) != len(tt.want) {

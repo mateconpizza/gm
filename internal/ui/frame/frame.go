@@ -15,53 +15,22 @@ var (
 	colorEnabled bool = true
 )
 
-type color string
+// Color defines the minimal interface for coloring text.
+type Color interface {
+	Sprint(args ...any) string
+}
 
-var (
-	// normal colors.
-	ColorBlack   color = "\x1b[30m"
-	ColorBlue    color = "\x1b[34m"
-	ColorCyan    color = "\x1b[36m"
-	ColorGray    color = "\x1b[90m"
-	ColorGreen   color = "\x1b[32m"
-	ColorMagenta color = "\x1b[95m"
-	ColorOrange  color = "\x1b[33m"
-	ColorPurple  color = "\x1b[35m"
-	ColorRed     color = "\x1b[31m"
-	ColorWhite   color = "\x1b[37m"
-	ColorYellow  color = "\x1b[93m"
+type IconStyle struct {
+	Symbol string
+	Color  Color // Applies color/style
+}
 
-	// bright colors.
-	ColorBrightBlack   color = "\x1b[90m"
-	ColorBrightBlue    color = "\x1b[94m"
-	ColorBrightCyan    color = "\x1b[96m"
-	ColorBrightGray    color = "\x1b[37m"
-	ColorBrightGreen   color = "\x1b[92m"
-	ColorBrightMagenta color = "\x1b[95m"
-	ColorBrightOrange  color = "\x1b[38;5;214m"
-	ColorBrightPurple  color = "\x1b[38;5;135m"
-	ColorBrightRed     color = "\x1b[91m"
-	ColorBrightWhite   color = "\x1b[97m"
-	ColorBrightYellow  color = "\x1b[93m"
-
-	// styles.
-	StyleBold          color = "\x1b[1m"
-	StyleDim           color = "\x1b[2m"
-	StyleInverse       color = "\x1b[7m"
-	StyleItalic        color = "\x1b[3m"
-	StyleStrikethrough color = "\x1b[9m"
-	StyleUnderline     color = "\x1b[4m"
-	StyleBlink         color = "\x1b[5m"
-
-	// reset.
-	reset color = "\x1b[0m"
-)
-
-var defaultBorders = &FrameBorders{
-	Header: "+ ",
-	Row:    "| ",
-	Mid:    "+ ",
-	Footer: "+ ",
+type Icons struct {
+	Error    IconStyle
+	Info     IconStyle
+	Question IconStyle
+	Success  IconStyle
+	Warning  IconStyle
 }
 
 // OptFn is an option function for the frame.
@@ -71,11 +40,12 @@ type FrameBorders struct {
 	Header, Row, Mid, Footer string
 }
 
+// Options represents the configuration options for a Frame.
 type Options struct {
 	Border *FrameBorders
-	color  color
+	color  Color
 	text   []string
-	icon   *icon
+	Icons  *Icons
 	writer io.Writer
 }
 
@@ -84,43 +54,35 @@ type Frame struct {
 	buf string
 }
 
-type icon struct {
-	error    string
-	info     string
-	question string
-	success  string
-	warning  string
-}
-
-// defaultOpts returns the default frame options.
+// defaultOpts returns the default configuration options.
 func defaultOpts() Options {
 	return Options{
-		Border: defaultBorders,
-		color:  "",
-		text:   make([]string, 0),
-		icon: &icon{
-			error:    "✗",
-			info:     "i",
-			question: "?",
-			success:  "✓",
-			warning:  "!",
+		Border: &FrameBorders{
+			Header: "+ ",
+			Row:    "| ",
+			Mid:    "+ ",
+			Footer: "+ ",
+		},
+		color: nil,
+		text:  make([]string, 0),
+		Icons: &Icons{
+			Error:    IconStyle{Symbol: "✗"},
+			Info:     IconStyle{Symbol: "i"},
+			Question: IconStyle{Symbol: "?"},
+			Success:  IconStyle{Symbol: "✓"},
+			Warning:  IconStyle{Symbol: "!"},
 		},
 	}
 }
 
-func WithColorBorder(c ...color) OptFn {
-	colorMutex.Lock()
-	defer colorMutex.Unlock()
-	if !colorEnabled {
-		return func(o *Options) { o.color = color("") }
-	}
-
+func WithColorBorder(c Color) OptFn {
 	return func(o *Options) {
-		var sb strings.Builder
-		for _, clr := range c {
-			sb.WriteString(string(clr))
+		if !colorEnabled {
+			o.color = nil
+			return
 		}
-		o.color = color(sb.String())
+
+		o.color = c
 	}
 }
 
@@ -130,9 +92,10 @@ func WithWriter(w io.Writer) OptFn {
 	}
 }
 
-func WithIconSuccess(i string) OptFn {
+// WithIcons creates an option function to customize icons in the Frame.
+func WithIcons(i *Icons) OptFn {
 	return func(o *Options) {
-		o.icon.success = i
+		o.Icons = i
 	}
 }
 
@@ -155,8 +118,8 @@ func (f *Frame) applyStyle(s string) string {
 	colorMutex.Lock()
 	defer colorMutex.Unlock()
 
-	if colorEnabled && f.color != "" {
-		return string(f.color) + s + string(reset)
+	if colorEnabled && f.color != nil {
+		return f.color.Sprint(s)
 	}
 	return s
 }
@@ -204,42 +167,52 @@ func (f *Frame) applyFooterBorder(border string, s []string) *Frame {
 	return f.applyBorderGeneric(border, s, true)
 }
 
+// Header adds a styled header row to the Frame.
 func (f *Frame) Header(s ...string) *Frame {
 	header := f.applyStyle(f.Border.Header)
 	return f.applyBorder(header, s)
 }
 
+// Headerln adds a styled header row with a newline to the Frame.
 func (f *Frame) Headerln(s ...string) *Frame {
 	return f.Header(s...).Ln()
 }
 
+// Row adds a styled row to the Frame.
 func (f *Frame) Row(s ...string) *Frame {
 	row := f.applyStyle(f.Border.Row)
 	return f.applyBorder(row, s)
 }
 
+// Rowln adds a styled row with a newline to the Frame.
 func (f *Frame) Rowln(s ...string) *Frame {
 	return f.Row(s...).Ln()
 }
 
+// Mid adds a styled mid-row to the Frame.
 func (f *Frame) Mid(s ...string) *Frame {
 	mid := f.applyStyle(f.Border.Mid)
 	return f.applyBorder(mid, s)
 }
 
+// Midln adds a styled mid-row with a newline to the Frame.
 func (f *Frame) Midln(s ...string) *Frame {
 	return f.Mid(s...).Ln()
 }
 
+// Footer adds a styled footer row to the Frame.
 func (f *Frame) Footer(s ...string) *Frame {
 	foo := f.applyStyle(f.Border.Footer)
 	return f.applyFooterBorder(foo, s)
 }
 
+// Footerln adds a styled footer row with a newline to the Frame.
 func (f *Frame) Footerln(s ...string) *Frame {
 	return f.Footer(s...).Ln()
 }
 
+// Flush writes the current text content of the Frame to the writer and resets
+// it.
 func (f *Frame) Flush() *Frame {
 	// if something is left in the buffer, print it now as footer
 	if strings.TrimSpace(f.buf) != "" {
@@ -257,42 +230,54 @@ func (f *Frame) Reset() *Frame {
 	return f
 }
 
-func (f *Frame) Error(s ...string) *Frame {
-	mid := f.applyStyle(applyColorAndBold(ColorBrightRed, f.icon.error))
-	return f.applyBorder(mid, s)
-}
-
-func (f *Frame) Warning(s ...string) *Frame {
-	mid := f.applyStyle(applyColorAndBold(ColorBrightYellow, f.icon.warning))
-	return f.applyBorder(mid, s)
-}
-
-func (f *Frame) Success(s ...string) *Frame {
-	mid := f.applyStyle(applyColorAndBold(ColorBrightGreen, f.icon.success))
-	return f.applyBorder(mid, s)
-}
-
-func (f *Frame) Info(s ...string) *Frame {
-	mid := f.applyStyle(applyColorAndBold(ColorBrightBlue, f.icon.info))
-	return f.applyBorder(mid, s)
-}
-
-func (f *Frame) Question(s string) *Frame {
-	mid := f.applyStyle(applyColorAndBold(ColorBrightGreen, f.icon.question))
-
+// Helper method to format an icon with its color.
+func (f *Frame) formatIcon(style IconStyle) string {
 	colorMutex.Lock()
 	defer colorMutex.Unlock()
-	if !colorEnabled {
-		return f.applyBorder(mid, []string{s})
+
+	if !colorEnabled || style.Color == nil {
+		return style.Symbol + " "
 	}
 
-	return f.applyBorder(mid, []string{string(StyleBold) + s + string(reset)})
+	return style.Color.Sprint(style.Symbol) + " "
 }
 
+// Error logs styled error messages with custom icons.
+func (f *Frame) Error(s ...string) *Frame {
+	mid := f.applyStyle(f.formatIcon(f.Icons.Error))
+	return f.applyBorder(mid, s)
+}
+
+// Warning logs styled warning messages with custom icons.
+func (f *Frame) Warning(s ...string) *Frame {
+	mid := f.applyStyle(f.formatIcon(f.Icons.Warning))
+	return f.applyBorder(mid, s)
+}
+
+// Success logs styled success messages with custom icons.
+func (f *Frame) Success(s ...string) *Frame {
+	mid := f.applyStyle(f.formatIcon(f.Icons.Success))
+	return f.applyBorder(mid, s)
+}
+
+// Info logs styled informational messages with custom icons.
+func (f *Frame) Info(s ...string) *Frame {
+	mid := f.applyStyle(f.formatIcon(f.Icons.Info))
+	return f.applyBorder(mid, s)
+}
+
+// Question logs styled question messages with custom icons.
+func (f *Frame) Question(s string) *Frame {
+	mid := f.applyStyle(f.formatIcon(f.Icons.Question))
+	return f.applyBorder(mid, []string{s})
+}
+
+// String returns the current text content of the Frame.
 func (f *Frame) String() string {
 	return strings.Join(f.text, "")
 }
 
+// StringReset returns the current text content and resets the Frame.
 func (f *Frame) StringReset() string {
 	s := f.String()
 	f.Reset()
@@ -320,7 +305,7 @@ func (f *Frame) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// New returns a new frame.
+// New creates a new Frame instance with the provided options.
 func New(opts ...OptFn) *Frame {
 	o := defaultOpts()
 	for _, fn := range opts {
@@ -336,17 +321,12 @@ func New(opts ...OptFn) *Frame {
 	}
 }
 
-func applyColorAndBold(c color, s ...string) string {
-	f := strings.Join(s, " ")
-	colorMutex.Lock()
-	defer colorMutex.Unlock()
-	if !colorEnabled {
-		return f + " "
-	}
-
-	return fmt.Sprintf("%s%s%s %s", StyleBold, c, f, reset)
+// NewIcons creates a new Icons instance with custom icon values.
+func NewIcons() *Icons {
+	return &Icons{}
 }
 
+// DisableColor disables text coloring globally.
 func DisableColor() {
 	colorMutex.Lock()
 	defer colorMutex.Unlock()

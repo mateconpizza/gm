@@ -105,7 +105,7 @@ func management(c *ui.Console, cfg *config.Config) error {
 		}
 
 		if gr.IsTracked() {
-			if !c.Confirm(p.Bold(fmt.Sprintf("Untrack %q?", gr.Loc.Name)), "n") {
+			if !c.Confirm(p.Bold.Sprintf("Untrack %q?", gr.Loc.Name), "n") {
 				continue
 			}
 
@@ -144,8 +144,8 @@ func status(c *ui.Console, cfg *config.Config, tracked []string) error {
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
-
-	c.Frame().Header("Databases tracked in " + c.Palette().OrangeBold("git\n")).Rowln().Flush()
+	p := c.Palette()
+	c.Frame().Header("Databases tracked in " + p.Yellow.Wrap("git\n", p.Bold)).Rowln().Flush()
 
 	// move main database to the top
 	files.PrioritizeFile(dbFiles, config.MainDBName)
@@ -167,9 +167,9 @@ func untrack(c *ui.Console, gr *git.Repository) error {
 	}
 
 	p := c.Palette()
-	q := p.Bold(fmt.Sprintf("Untrack %q?", gr.Loc.Name))
+	q := p.Bold.Sprintf("Untrack %q?", gr.Loc.Name)
 	if gr.Loc.DBName == config.MainDBName {
-		q = p.Bold("Untrack database \"" + "main\"")
+		q = p.Bold.Sprint("Untrack database \"" + "main\"")
 	}
 	if !c.Confirm(c.Warning(q).String(), "n") {
 		return nil

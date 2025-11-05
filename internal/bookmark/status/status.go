@@ -18,6 +18,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -31,12 +32,12 @@ type Response struct {
 }
 
 func (r *Response) String() string {
-	c := ui.NewConsole()
-	colorStatus, colorCode := prettifyURLStatus(c, r.statusCode)
+	p := ansi.NewPalette()
+	colorStatus, colorCode := prettifyURLStatus(p, r.statusCode)
 
 	return fmt.Sprintf(
 		"ID %s (%s %s) %s",
-		c.Palette().Bold(fmt.Sprintf("%-3d", r.bID)),
+		p.Bold.Sprintf("%-3d", r.bID),
 		colorCode,
 		colorStatus,
 		txt.Shorten(r.URL, terminal.MinWidth),
@@ -94,26 +95,25 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 }
 
 // prettifyURLStatus formats HTTP status codes into colored.
-func prettifyURLStatus(c *ui.Console, code int) (status, statusCode string) {
-	p := c.Palette()
+func prettifyURLStatus(p *ansi.Palette, code int) (status, statusCode string) {
 	statusCategory := code / 100
 
 	switch statusCategory {
 	case 2: // 2xx status codes
-		status = p.BrightGreen("OK")
-		statusCode = p.BrightGreen(code)
+		status = p.BrightGreen.Sprint("OK")
+		statusCode = p.BrightGreen.Sprint(code)
 	case 3: // 3xx status codes
-		status = p.BrightYellow("WA")
-		statusCode = p.BrightYellow(code)
+		status = p.BrightYellow.Sprint("WA")
+		statusCode = p.BrightYellow.Sprint(code)
 	case 4: // 4xx status codes
-		status = p.BrightRed("ER")
-		statusCode = p.BrightRed(code)
+		status = p.BrightRed.Sprint("ER")
+		statusCode = p.BrightRed.Sprint(code)
 	case 5: // 5xx status codes
-		status = p.Red("ER")
-		statusCode = p.Red(code)
+		status = p.Red.Sprint("ER")
+		statusCode = p.Red.Sprint(code)
 	default: // Other status codes
-		status = p.Yellow("WA")
-		statusCode = p.Yellow(code)
+		status = p.Yellow.Sprint("WA")
+		statusCode = p.Yellow.Sprint(code)
 	}
 	return status, statusCode
 }
@@ -125,9 +125,9 @@ func fmtSummary(c *ui.Console, n, statusCode int, colorFn func(...any) string) s
 	s := http.StatusText(statusCode)
 
 	p := c.Palette()
-	statusText := p.Italic(s)
+	statusText := p.Italic.Sprint(s)
 	if s == "" {
-		statusText = p.Italic("non-standard code")
+		statusText = p.Italic.Sprint("non-standard code")
 	}
 
 	return total + " URLs returned '" + statusText + "' (" + code + ")"
@@ -139,7 +139,7 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 	p := c.Palette()
 	codes := make(map[int][]Response)
 	f := c.Frame()
-	f.Rowln().Header(p.Bold("Summary URLs status:\n"))
+	f.Rowln().Header(p.Bold.Sprint("Summary URLs status:\n"))
 
 	for _, res := range r {
 		codes[res.statusCode] = append(codes[res.statusCode], *res)
@@ -151,15 +151,15 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 		statusCategory := statusCode / 100
 		switch statusCategory {
 		case 2: // 2xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.BrightGreenBold))
+			f.Midln(fmtSummary(c, n, statusCode, p.BrightGreen.With(p.Bold).Sprint))
 		case 3: // 3xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.YellowBold))
+			f.Midln(fmtSummary(c, n, statusCode, p.Yellow.With(p.Bold).Sprint))
 		case 4: // 4xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.BrightRedBold))
+			f.Midln(fmtSummary(c, n, statusCode, p.BrightRed.With(p.Bold).Sprint))
 		case 5: // 5xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.RedBold))
+			f.Midln(fmtSummary(c, n, statusCode, p.Red.With(p.Bold).Sprint))
 		default: // Other status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.YellowBold))
+			f.Midln(fmtSummary(c, n, statusCode, p.Yellow.With(p.Bold).Sprint))
 		}
 
 		// adds URLs detail
@@ -173,8 +173,8 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 	}
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
-	total := fmt.Sprintf("Total %s checked,", p.Blue(len(r)))
-	f.Rowln().Footerln(total + " took " + p.Blue(took)).Flush()
+	total := fmt.Sprintf("Total %s checked,", p.Blue.Sprint(len(r)))
+	f.Rowln().Footerln(total + " took " + p.Blue.Sprint(took)).Flush()
 }
 
 // buildResponse builds a Response from an HTTP response.

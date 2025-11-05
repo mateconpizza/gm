@@ -76,7 +76,7 @@ var htmlCmd = &cobra.Command{
 		)
 
 		s := fmt.Sprintf("Found %d bookmarks from %q\n", len(nbs), file.Name())
-		c.Frame().Success(c.Palette().Italic(s)).Flush()
+		c.Frame().Success(c.Palette().Italic.Sprint(s)).Flush()
 
 		deduplicated := port.Deduplicate(cmd.Context(), c, r, bs)
 		n := len(deduplicated)

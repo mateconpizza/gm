@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -36,7 +37,7 @@ var (
 			a := app.New(cmd.Context(),
 				app.WithConfig(cfg),
 				app.WithConsole(ui.NewConsole(
-					ui.WithFrame(frame.New(frame.WithColorBorder(frame.ColorGray))),
+					ui.WithFrame(frame.New(frame.WithColorBorder(ansi.BrightBlack))),
 					ui.WithTerminal(terminal.New(
 						terminal.WithContext(cmd.Context()),
 						terminal.WithInterruptFn(func(err error) {
@@ -50,7 +51,7 @@ var (
 			)
 
 			c := a.Console()
-			c.Frame().Headerln(c.Palette().BrightRed("Removing") + " backups").Rowln().Flush()
+			c.Frame().Headerln(c.Palette().BrightRed.Sprint("Removing") + " backups").Rowln().Flush()
 
 			return handler.RemoveBackups(a)
 		},

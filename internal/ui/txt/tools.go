@@ -3,7 +3,7 @@ package txt
 import (
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 // Diff Take two []byte and return a string with the complete diff.
@@ -59,17 +59,17 @@ func Diff(a, b []byte) string {
 
 // DiffColor colorizes the diff output.
 func DiffColor(s string) string {
-	p := color.NewPalette()
+	p := ansi.NewPalette()
 	var r []string
 
 	for l := range strings.SplitSeq(s, "\n") {
 		switch {
 		case strings.HasPrefix(l, "+"):
-			r = append(r, " "+p.BrightGreen(l))
+			r = append(r, " "+p.BrightGreen.Sprint(l))
 		case strings.HasPrefix(l, "-"):
-			r = append(r, " "+p.BrightRed(l))
+			r = append(r, " "+p.BrightRed.Sprint(l))
 		default:
-			r = append(r, " "+p.Dim(l))
+			r = append(r, " "+p.Dim.Sprint(l))
 		}
 	}
 

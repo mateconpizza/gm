@@ -56,20 +56,22 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 // createConfig dumps the app configuration to a YAML file.
 func createConfig(c *ui.Console, cfg *config.Config) error {
-	p := cfg.Path.ConfigFile
-	if files.Exists(p) && !cfg.Flags.Force {
-		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, c.Palette().BrightYellowItalic("--force"))
+	fn := cfg.Path.ConfigFile
+	if files.Exists(fn) && !cfg.Flags.Force {
+		p := c.Palette()
+		f := p.BrightYellow.Wrap("--force", p.Italic, p.Bold)
+		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
 
-	if !c.Confirm(fmt.Sprintf("create configfile %q", p), "y") {
+	if !c.Confirm(fmt.Sprintf("create configfile %q", fn), "y") {
 		return sys.ErrActionAborted
 	}
 
-	if err := config.WriteYAML(p, cfg, cfg.Flags.Force); err != nil {
+	if err := config.WriteYAML(fn, cfg, cfg.Flags.Force); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(c.Writer(), "%s: file saved %q\n", cfg.Name, p)
+	fmt.Fprintf(c.Writer(), "%s: file saved %q\n", cfg.Name, fn)
 
 	return nil
 }

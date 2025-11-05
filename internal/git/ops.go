@@ -129,7 +129,7 @@ func records(ctx context.Context, dbPath string) ([]*bookmark.Bookmark, error) {
 func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 	c := a.Console()
 	f := c.Frame()
-	f.Rowln().Info(c.Palette().Bold(fmt.Sprintf("Repository %q\n", repoName)))
+	f.Rowln().Info(c.Palette().Bold.Sprintf("Repository %q\n", repoName))
 	repoPath := filepath.Join(root, repoName)
 
 	// read summary.json
@@ -387,14 +387,13 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	)
 
 	if !gr.IsTracked() {
-		sb.WriteString(txt.PaddedLine(gr.Loc.Name, p.GrayItalic("(not tracked)\n")))
+		sb.WriteString(txt.PaddedLine(gr.Loc.Name, p.BrightBlack.Wrap("(not tracked)\n", p.Italic)))
 		return c.Error(sb.String()).StringReset()
 	}
 
+	t = p.BrightMagenta.Wrap("json ", p.Bold)
 	if gr.IsEncrypted() {
-		t = p.BrightMagentaBold("gpg ")
-	} else {
-		t = p.BrightMagentaBold("json ")
+		t = p.BrightMagenta.Wrap("gpg ", p.Bold)
 	}
 
 	name := gr.Loc.Name
@@ -403,7 +402,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	}
 
 	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
-	sb.WriteString(txt.PaddedLine(name, t+p.GrayItalic(s)))
+	sb.WriteString(txt.PaddedLine(name, t+p.BrightBlack.Wrap(s, p.Italic)))
 
 	c.Success(sb.String() + "\n").Flush()
 
@@ -435,7 +434,7 @@ func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 		return "", nil
 	}
 
-	f.Reset().Headerln(p.BrightRedItalic("git:"))
+	f.Reset().Headerln(p.BrightRed.Wrap("git:", p.Italic))
 
 	sum, err := gr.Summary()
 	if err != nil {
@@ -448,9 +447,9 @@ func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 	}
 
 	// repo type
-	t := p.BrightCyanBold("JSON")
+	t := p.BrightCyan.Wrap("JSON", p.Bold)
 	if cfg.GPG {
-		t = p.BrightMagentaBold("GPG")
+		t = p.BrightMagenta.Wrap("GPG", p.Bold)
 	}
 	f.Rowln(txt.PaddedLine("type:", t))
 
@@ -460,7 +459,8 @@ func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 			return f.StringReset(), err
 		}
 
-		lastSync := sum.LastSync + p.GrayItalic(" ("+txt.RelativeTime(tt.Format(txt.TimeLayout))+")")
+		lastSync := sum.LastSync + p.BrightBlack.With(p.Italic).
+			Sprintf(" (%s)", txt.RelativeTime(tt.Format(txt.TimeLayout)))
 		f.Rowln(txt.PaddedLine("last sync:", lastSync))
 		f.Success(txt.PaddedLine("sync:", true)).Ln()
 	} else {
@@ -533,8 +533,8 @@ func handleOptSelect(ctx context.Context, c *ui.Console, gr *Repository) (string
 }
 
 func handleOptIgnore(_ context.Context, c *ui.Console, gr *Repository) (string, error) {
-	repoName := files.StripSuffixes(filepath.Base(gr.Loc.DBPath))
-	c.ReplaceLine(c.Warning(fmt.Sprintf("%s repo %q", c.Palette().Yellow("skipping"), repoName)).StringReset())
+	s := fmt.Sprintf("%s repo %q", c.Palette().Yellow.Sprint("skipping"), gr.Loc.Name)
+	c.ReplaceLine(c.Warning(s).StringReset())
 	return "", nil
 }
 

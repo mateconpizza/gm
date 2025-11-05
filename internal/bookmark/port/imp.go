@@ -150,7 +150,6 @@ func IntoRepo(a *app.Context, records []*bookmark.Bookmark) error {
 func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 	c := a.Console()
 	f, t, p := c.Frame(), c.Term(), c.Palette()
-	f.Headerln(p.BrightYellow("Import bookmarks from backup: ") + p.GrayItalic(srcDB.Name())).Flush()
 
 	m := menu.New[bookmark.Bookmark](
 		menu.WithOutputColor(a.Cfg.Flags.Color),
@@ -182,6 +181,9 @@ func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+
+	h := p.BrightYellow.Sprint("Import bookmarks from backup: ")
+	f.Headerln(h + p.BrightBlack.Wrap(srcDB.Name(), p.Italic)).Flush()
 
 	result := make([]*bookmark.Bookmark, 0, len(items))
 	for i := range items {
@@ -229,14 +231,15 @@ func Deduplicate(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmar
 	p := c.Palette()
 	n := len(filtered)
 	if originalLen != n {
-		s := fmt.Sprintf("%s %d/%d duplicate bookmarks", p.BrightYellow("skipping"), originalLen-n, originalLen)
+		skip := p.BrightYellow.Sprint("skipping")
+		s := fmt.Sprintf("%s %d/%d duplicate bookmarks", skip, originalLen-n, originalLen)
 		c.Warning(s + "\n").Flush()
 
 		f := c.Frame()
 		// show discarted bookmarks
 		if len(discarted) <= maxItemsToShow && n != 0 {
 			for _, b := range discarted {
-				f.Midln(p.Italic(" " + txt.Shorten(b.URL, terminal.MinWidth)))
+				f.Midln(p.Italic.Sprint(" " + txt.Shorten(b.URL, terminal.MinWidth)))
 			}
 
 			f.Flush()

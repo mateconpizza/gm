@@ -96,13 +96,13 @@ func backupLockFunc(cmd *cobra.Command, _ []string) error {
 	}
 
 	c := a.Console()
-	f := c.Frame()
+	f, p := c.Frame(), c.Palette()
 	f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 	for _, r := range fs {
 		if err := handler.LockRepo(a, r); err != nil {
 			if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
-				f.Warning(c.Palette().BrightGrayItalic("skipped: " + err.Error() + "\n")).Flush()
+				f.Warning(p.BrightBlack.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
 				continue
 			}
 
@@ -152,11 +152,11 @@ func backupNewFunc(a *app.Context) error {
 	fmt.Fprint(a.Writer(), summary.Info(a))
 
 	c := a.Console()
-	f := c.Frame()
+	f, p := c.Frame(), c.Palette()
 	f.Reset().Row("\n").Flush()
 
 	if !cfg.Flags.Yes {
-		if err := c.ConfirmErr("create "+c.Palette().BrightGreenItalic("backup"), "y"); err != nil {
+		if err := c.ConfirmErr("create "+p.BrightGreen.Wrap("backup", p.Italic), "y"); err != nil {
 			return err
 		}
 	}

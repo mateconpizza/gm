@@ -123,7 +123,7 @@ func exec(a *app.Context, bs []*bookmark.Bookmark) error {
 	case f.Format != "":
 		return printer.Display(c, f.Format, bs)
 	case f.QR:
-		return handler.QR(a.Context(), bs, f.Open, a.Cfg.Name)
+		return handler.QR(a, bs, f.Open, a.Cfg.Name)
 	case f.Notes:
 		return printer.Notes(c, bs)
 	default:

@@ -18,6 +18,7 @@ import (
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -80,7 +81,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 		return false, fmt.Errorf("%w", err)
 	}
 
-	f := frame.New(frame.WithColorBorder(frame.ColorGray))
+	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
 	sp := rotato.New(
 		rotato.WithPrefix(f.Mid("Encrypting").String()),
 		rotato.WithMesg("bookmarks..."),

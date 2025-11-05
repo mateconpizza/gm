@@ -11,24 +11,20 @@ import (
 	prompt "github.com/c-bata/go-prompt"
 
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-var (
-	rhl = color.MkColorFn(color.BrightRed, color.StyleBold)     // BrightRed Bold
-	ghl = color.MkColorFn(color.BrightGreen, color.StyleBold)   // BrightGreen Bold
-	mhl = color.MkColorFn(color.BrightMagenta, color.StyleBold) // BrightMagenta Bold
-)
+// maxRetries specifies the maximum number of retries allowed for user input.
+const maxRetries = 3
 
-const (
-	EraseLine         = "\x1b[2K"
-	EraseToEndOfLine  = "\x1b[0K"
-	MoveToStartOfLine = "\x1b[1G"
-	MoveToEndOfLine   = "\x1b[999C"
-	MoveUp            = "\x1b[1A"
-	MoveDown          = "\x1b[1B"
-	GoToStart         = "\r"
-)
+type highlightFn func(string) string
+
+type highlighter struct{}
+
+func (h *highlighter) red(s string) string         { return ansi.BrightRed.Wrap(s, ansi.Bold) }
+func (h *highlighter) green(s string) string       { return ansi.BrightGreen.Wrap(s, ansi.Bold) }
+func (h *highlighter) magenta(s string) string     { return ansi.BrightMagenta.Wrap(s, ansi.Bold) }
+func (h *highlighter) brightBlack(s string) string { return ansi.BrightBlack.Wrap(s) }
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
@@ -120,7 +116,7 @@ func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 	}
 
 	// opts
-	o = promptOptions(color.IsEnabled)
+	o = promptOptions(ansi.ColorEnabled)
 	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
 
 	// restores term state
@@ -212,12 +208,10 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 // with a limited number of attempts (3).
 func getUserInputWithAttempts(pi *PromptInput) (string, error) {
 	r := bufio.NewReader(pi.Reader)
-
-	const attempts = 3
-
 	var count int
+	h := &highlighter{}
 
-	for count < attempts {
+	for count < maxRetries {
 		_, _ = fmt.Fprint(pi.Writer, pi.Prompt)
 
 		userInput, err := r.ReadString('\n')
@@ -229,32 +223,33 @@ func getUserInputWithAttempts(pi *PromptInput) (string, error) {
 		userInput = strings.ToLower(strings.TrimSpace(userInput))
 
 		if userInput == "" && pi.Default != "" || userInput == pi.Default {
-			redrawPromptWithSelection(pi.Writer, pi.Prompt, pi.Default, pi.Options, ghl)
+			redrawPromptWithSelection(pi.Writer, pi.Prompt, pi.Default, pi.Options, h.green)
 			return pi.Default, nil
 		}
 
 		if isValidOption(userInput, pi.Options) {
-			redrawPromptWithSelection(pi.Writer, pi.Prompt, userInput, pi.Options, mhl)
+			redrawPromptWithSelection(pi.Writer, pi.Prompt, userInput, pi.Options, h.magenta)
 			return userInput, nil
 		}
 
 		count++
-		if count <= attempts-1 {
+		if count <= maxRetries-1 {
 			ClearLine(len(strings.Split(pi.Prompt, "\n")))
 		}
 	}
 
-	redrawPromptWithSelection(pi.Writer, pi.Prompt, "error", []string{"error"}, rhl)
+	redrawPromptWithSelection(pi.Writer, pi.Prompt, "error", []string{"error"}, h.red)
 
-	return "", fmt.Errorf("%d %w", attempts, ErrIncorrectAttempts)
+	return "", fmt.Errorf("%d %w", maxRetries, ErrIncorrectAttempts)
 }
 
 // fmtChoicesWithDefaultColor capitalizes and highlights the default option,
 // and highlights the first letter of each option in red.
 func fmtChoicesWithDefaultColor(opts []string, def string) []string {
+	h := &highlighter{}
 	if def == "" {
 		for i := range len(opts) {
-			opts[i] = dim(opts[i]).String()
+			opts[i] = h.brightBlack(opts[i])
 		}
 
 		return opts
@@ -268,11 +263,11 @@ func fmtChoicesWithDefaultColor(opts []string, def string) []string {
 	for _, opt := range opts {
 		if strings.HasPrefix(opt, def) {
 			// Capitalize and color the first letter of the default
-			colored := rhl(strings.ToUpper(opt[:1])).String() + dim(opt[1:]).String()
+			colored := h.red(strings.ToUpper(opt[:1])) + h.brightBlack(opt[1:])
 			defaultOpt = colored
 		} else {
 			// Highlight first letter of non-default
-			colored := rhl(opt[:1]).String() + dim(opt[1:]).String()
+			colored := h.red(opt[:1]) + h.brightBlack(opt[1:])
 			formatted = append(formatted, colored)
 		}
 	}
@@ -343,7 +338,7 @@ func quitKeybind(f func(err error)) prompt.KeyBind {
 // isValidOption checks if input is a valid choice.
 func isValidOption(input string, opts []string) bool {
 	for i := range len(opts) {
-		opts[i] = color.ANSICodeRemover(opts[i])
+		opts[i] = ansi.Remover(opts[i])
 	}
 
 	for _, opt := range opts {
@@ -370,20 +365,19 @@ func buildPrompt(q, opts string) string {
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
 func WaitForEnter() {
-	fmt.Print(color.Text("Press ENTER to continue...").Italic())
-
+	fmt.Print("Press ENTER to continue...")
 	var input string
 	_, _ = fmt.Scanln(&input)
 }
 
 // redrawPromptWithSelection replaces the prompt line with the given prompt `q`
 // and highlights the selected option with the given color.
-func redrawPromptWithSelection(w io.Writer, q, selected string, opts []string, c color.ColorFn) {
+func redrawPromptWithSelection(w io.Writer, q, selected string, opts []string, c highlightFn) {
 	var result string
 	selected = strings.TrimSpace(selected)
 
 	for _, o := range opts {
-		o = color.ANSICodeRemover(o)
+		o = ansi.Remover(o)
 		if strings.EqualFold(selected, o) || strings.EqualFold(selected, o[:1]) {
 			result = strings.Title(strings.ToLower(o))
 			break
@@ -396,8 +390,8 @@ func redrawPromptWithSelection(w io.Writer, q, selected string, opts []string, c
 	}
 
 	// Redraw line
-	_, _ = fmt.Fprint(w, MoveUp, GoToStart)
+	_, _ = fmt.Fprint(w, ansi.CursorUp, ansi.CursorReturn)
 	_, _ = fmt.Fprint(w, q)
-	_, _ = fmt.Fprint(w, EraseToEndOfLine)
+	_, _ = fmt.Fprint(w, ansi.EraseLineToEnd)
 	_, _ = fmt.Fprintln(w, c(result))
 }

@@ -6,14 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 const (
@@ -44,7 +43,7 @@ func PaddedLine(s, v any) string {
 	const pad = 15
 
 	str := fmt.Sprint(s)
-	visibleLen := len(color.ANSICodeRemover(str))
+	visibleLen := len(ansi.Remover(str))
 	padding := max(pad-visibleLen, 0)
 
 	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
@@ -52,7 +51,7 @@ func PaddedLine(s, v any) string {
 
 func PaddedLineWithPad(s, v any, pad int) string {
 	str := fmt.Sprint(s)
-	visibleLen := len(color.ANSICodeRemover(str))
+	visibleLen := len(ansi.Remover(str))
 	padding := max(pad-visibleLen, 0)
 
 	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
@@ -203,17 +202,17 @@ func URLBreadCrumbs(s string) string {
 //
 //	https://example.org/title/some-title
 //	https://example.org > title > some-title
-func URLBreadCrumbsColor(p *color.Palette, s, uc string) string {
+func URLBreadCrumbsColor(p *ansi.Palette, s, uc string) string {
 	u, err := url.Parse(s)
 	if err != nil {
 		return ""
 	}
 
 	if u.Host == "" || u.Path == "" {
-		return p.BrightMagentaBold(s)
+		return p.BrightMagenta.With(p.Bold).Sprint(s)
 	}
 
-	host := p.BrightMagentaBold(u.Host)
+	host := p.BrightMagenta.With(p.Bold).Sprint(u.Host)
 	pathSegments := strings.FieldsFunc(
 		strings.TrimLeft(u.Path, "/"),
 		func(r rune) bool { return r == '/' },
@@ -224,7 +223,7 @@ func URLBreadCrumbsColor(p *color.Palette, s, uc string) string {
 	}
 
 	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
-	pathSeg := p.Italic(fmt.Sprintf("%s %s", uc, segments))
+	pathSeg := p.Italic.Sprintf("%s %s", uc, segments)
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }
@@ -345,16 +344,6 @@ func TagsWithPound(s string) string {
 //	#tag1 #tag2 #tag3
 func TagsWithColorPound(c *ui.Console, s string) string {
 	p := c.Palette()
-	colors := []func(...any) string{
-		p.BrightGreenItalic,
-		p.BrightMagentaItalic,
-		p.BrightCyanItalic,
-		p.BrightBlackItalic,
-		p.BrightBlueItalic,
-		p.BrightWhiteItalic,
-		p.BrightGrayItalic,
-	}
-
 	tagsSplit := strings.Split(s, ",")
 	sort.Strings(tagsSplit)
 
@@ -364,8 +353,8 @@ func TagsWithColorPound(c *ui.Console, s string) string {
 			continue
 		}
 
-		rc := colors[rand.Intn(len(colors))]
-		sb.WriteString(fmt.Sprintf("%s%s ", rc("#"), p.Italic(t)))
+		rc := p.Random(p.Italic)
+		sb.WriteString(fmt.Sprintf("%s%s ", rc.Sprint("#"), p.Italic.Sprint(t)))
 	}
 
 	return sb.String()
@@ -423,13 +412,13 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 	// Compute column widths ignoring ANSI sequences
 	colWidths := make([]int, len(headers))
 	for i, header := range headers {
-		colWidths[i] = len(color.ANSICodeRemover(header))
+		colWidths[i] = len(ansi.Remover(header))
 	}
 
 	for _, row := range rows {
 		for i, cell := range row {
 			if i < len(colWidths) {
-				w := len(color.ANSICodeRemover(cell))
+				w := len(ansi.Remover(cell))
 				if w > colWidths[i] {
 					colWidths[i] = w
 				}
@@ -452,7 +441,7 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 	// Header
 	b.WriteString("|")
 	for i, header := range headers {
-		visibleLen := len(color.ANSICodeRemover(header))
+		visibleLen := len(ansi.Remover(header))
 		padding := colWidths[i] - visibleLen
 		b.WriteString(" " + header + strings.Repeat(" ", padding) + " |")
 	}
@@ -468,7 +457,7 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 			if i < len(row) {
 				cell = row[i]
 			}
-			visibleLen := len(color.ANSICodeRemover(cell))
+			visibleLen := len(ansi.Remover(cell))
 			padding := width - visibleLen
 			b.WriteString(" " + cell + strings.Repeat(" ", padding) + " |")
 		}
@@ -486,7 +475,7 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 
 		totalWidth-- // remove last "+"
 		for _, line := range footer {
-			lineStripped := color.ANSICodeRemover(line)
+			lineStripped := ansi.Remover(line)
 			lineLen := min(len(lineStripped), totalWidth)
 			leftPad := (totalWidth - lineLen) / 2
 			b.WriteString(strings.Repeat(" ", leftPad))

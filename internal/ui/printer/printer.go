@@ -145,12 +145,12 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 		cleanName := files.StripSuffixes(fname)
 		fsize := files.SizeFormatted(fpath)
 
-		fnameColor := p.BrightBlue
+		fnameColor := p.BrightBlue.Sprint
 
 		if ext == locker.Extension {
-			fnameColor = p.BrightMagenta
+			fnameColor = p.BrightMagenta.Sprint
 			cleanName = fnameColor(cleanName)
-			cleanName += p.GrayItalic(" (locked)")
+			cleanName += p.BrightBlack.Wrap(" (locked)", p.Italic)
 			rows = append(
 				rows,
 				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
@@ -165,9 +165,9 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 		}
 
 		if s.Name == config.MainDBName {
-			fnameColor = p.BrightYellowBold
+			fnameColor = p.BrightYellow.With(p.Bold).Sprint
 			cleanName = fnameColor(cleanName)
-			cleanName += p.GrayItalic(" (default)")
+			cleanName += p.BrightBlack.Wrap(" (default)", p.Italic)
 			footer = append(footer, fnameColor(txt.UnicodeBlackSquare)+" main")
 		}
 

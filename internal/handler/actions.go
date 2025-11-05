@@ -25,7 +25,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -35,8 +34,7 @@ import (
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(ctx context.Context, bs []*bookmark.Bookmark, open bool, appName string) error {
-	p := color.NewPalette()
+func QR(a *app.Context, bs []*bookmark.Bookmark, open bool, appName string) error {
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
@@ -44,12 +42,13 @@ func QR(ctx context.Context, bs []*bookmark.Bookmark, open bool, appName string)
 		}
 
 		if open {
-			return openQR(ctx, qrcode, b, appName)
+			return openQR(a.Context(), qrcode, b, appName)
 		}
 
+		p := a.Console().Palette()
 		var sb strings.Builder
-		sb.WriteString(p.Bold(b.Title) + "\n")
-		sb.WriteString(p.Italic(b.URL) + "\n")
+		sb.WriteString(p.Bold.Sprint(b.Title + "\n"))
+		sb.WriteString(p.Italic.Sprint(b.URL + "\n"))
 		sb.WriteString(qrcode.String())
 		fmt.Print(sb.String())
 
@@ -85,8 +84,10 @@ func Copy(bs []*bookmark.Bookmark) error {
 func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 15
 	n := len(bs)
+	p := a.Console().Palette()
+
 	// get user confirmation to procced
-	s := fmt.Sprintf("%s %d bookmarks", a.Console().Palette().BrightGreenBold("open"), n)
+	s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
 	if err := confirmUserLimit(a.Console(), n, maxGoroutines, s, a.Cfg.Flags.Force); err != nil {
 		return err
 	}
@@ -104,7 +105,6 @@ func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 		sem   = semaphore.NewWeighted(maxGoroutines)
 		errCh = make(chan error, n)
 	)
-
 	actionFn := func(b *bookmark.Bookmark) error {
 		if err := sem.Acquire(a.Context(), 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
@@ -148,8 +148,8 @@ func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 // Edit edits the bookmarks using a text editor.
 func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxItems = 10
-	c := a.Console()
-	q := fmt.Sprintf("%s %d bookmarks", c.Palette().BrightGreenBold("edit"), len(bs))
+	c, p := a.Console(), a.Console().Palette()
+	q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
 	if err := confirmUserLimit(c, len(bs), maxItems, q, a.Cfg.Flags.Force); err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 	f := c.Frame()
 	n := len(bs)
 	if n > 1 {
-		f.Reset().Headerln(c.Palette().Yellow(fmt.Sprintf("Updating %d bookmarks", n))).Rowln().Flush()
+		f.Reset().Headerln(c.Palette().Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
 	}
 
 	for _, b := range bs {
@@ -324,19 +324,19 @@ func processBookmarkUpdate(a *app.Context, b *bookmark.Bookmark) error {
 // displayBookmarkChanges shows the differences between original and updated bookmarks.
 func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 	p := c.Palette()
-	bid := p.Bold(fmt.Sprintf("[%d]", b.ID))
+	bid := p.Bold.Sprintf("[%d]", b.ID)
 	su := txt.Shorten(updated.URL, 60)
 	f := c.Frame()
 
-	f.Reset().Warning(bid + " Found changes in " + p.BrightBlueItalic(su) + "\n").Flush()
+	f.Reset().Warning(bid + " Found changes in " + p.BrightBlue.Wrap(su, p.Italic) + "\n").Flush()
 
 	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
-		f.Reset().Midln(p.BrightCyanItalic("Title:")).Flush()
+		f.Reset().Midln(p.BrightCyan.Wrap("Title:", p.Italic)).Flush()
 		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updated.Title))))
 	}
 
 	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
-		f.Reset().Midln(p.BrightCyanItalic("Description:")).Flush()
+		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
 		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
 }
@@ -393,12 +393,13 @@ func SaveNewBookmark(a *app.Context, b *bookmark.Bookmark) error {
 func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark, error) {
 	updatedB := *b
 	su := txt.Shorten(updatedB.URL, 60)
-	bid := color.Text(fmt.Sprintf("[%d]", b.ID)).Bold().String()
+	p := c.Palette()
+	bid := p.Bold.With(p.BgBlue).Sprintf("[%d]", b.ID)
 
 	sc := scraper.New(
 		updatedB.URL,
 		scraper.WithContext(ctx),
-		scraper.WithSpinner(c.Info(bid+" updating bookmark "+c.Palette().BrightCyanItalic(su)).String()),
+		scraper.WithSpinner(c.Info(bid+" updating bookmark "+p.BrightCyan.Wrap(su, p.Italic)).String()),
 	)
 
 	if err := sc.Start(); err != nil {

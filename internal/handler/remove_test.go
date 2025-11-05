@@ -10,7 +10,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/testutil"
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -75,7 +75,7 @@ func TestDatabase_Drop(t *testing.T) {
 }
 
 func TestRemoveRepo_Success(t *testing.T) {
-	color.Disable()
+	ansi.DisableColor()
 
 	t.Run("successfully remove main database", func(t *testing.T) {
 		a := testutil.SetupApp(t)

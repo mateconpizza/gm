@@ -12,7 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/ui/color"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -80,12 +80,12 @@ func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	i := color.NewPalette().BrightYellowItalic(cfg.Cmd, "init")
+	i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s init", cfg.Cmd)
 	if cfg.DBName == config.MainDBName {
-		return fmt.Errorf("%w: use '%s' to initialize", db.ErrDBMainNotFound, i)
+		return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
 	}
 
-	return fmt.Errorf("%w %q: use '%s' to initialize", db.ErrDBNotFound, cfg.DBName, i)
+	return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, cfg.DBName, i)
 }
 
 func HookHelp(cmd *cobra.Command, _ []string) error {

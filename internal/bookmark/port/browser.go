@@ -5,8 +5,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/browser/blink"
 	"github.com/mateconpizza/gm/internal/sys/browser/gecko"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/color"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 // supportedBrowser represents a supported browser.
@@ -17,14 +17,14 @@ type supportedBrowser struct {
 
 // registeredBrowser the list of supported browsers.
 var registeredBrowser = []supportedBrowser{
-	{"f", gecko.New("Firefox", color.BrightOrange)},
-	{"z", gecko.New("Zen", color.BrightBlack)},
-	{"w", gecko.New("Waterfox", color.BrightBlue)},
-	{"c", blink.New("Chromium", color.BrightBlue)},
-	{"g", blink.New("Google Chrome", color.BrightYellow)},
-	{"b", blink.New("Brave", color.BrightOrange)},
-	{"v", blink.New("Vivaldi", color.BrightRed)},
-	{"e", blink.New("Edge", color.BrightCyan)},
+	{"f", gecko.New("Firefox", ansi.BrightYellow.With(ansi.Bold))},
+	{"z", gecko.New("Zen", ansi.Red.With(ansi.Bold))},
+	{"w", gecko.New("Waterfox", ansi.BrightBlue.With(ansi.Bold))},
+	{"c", blink.New("Chromium", ansi.BrightBlue.With(ansi.Bold))},
+	{"g", blink.New("Google Chrome", ansi.BrightYellow.With(ansi.Bold))},
+	{"b", blink.New("Brave", ansi.Magenta.With(ansi.Bold))},
+	{"v", blink.New("Vivaldi", ansi.BrightRed.With(ansi.Bold))},
+	{"e", blink.New("Edge", ansi.BrightCyan.With(ansi.Bold))},
 }
 
 // getBrowser returns a browser by its short key.
