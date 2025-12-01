@@ -61,7 +61,8 @@ func PaddedLineWithPad(s, v any, pad int) string {
 //
 //	string...
 func Shorten(s string, maxLength int) string {
-	if len(s) > maxLength {
+	// FIX: keep `ansi.Remover`?
+	if len(ansi.Remover(s)) > maxLength {
 		return s[:maxLength-3] + "..."
 	}
 
@@ -355,6 +356,29 @@ func TagsWithColorPound(c *ui.Console, s string) string {
 
 		rc := p.Random(p.Italic)
 		sb.WriteString(fmt.Sprintf("%s%s ", rc.Sprint("#"), p.Italic.Sprint(t)))
+	}
+
+	return sb.String()
+}
+
+// TagsWithColorPills returns a prettified tags with #.
+//
+//	#tag1 #tag2 #tag3
+func TagsWithColorPills(c *ui.Console, s string) string {
+	p := c.Palette()
+	tagsSplit := strings.Split(s, ",")
+	sort.Strings(tagsSplit)
+
+	var sb strings.Builder
+	for _, t := range tagsSplit {
+		if t == "" {
+			continue
+		}
+
+		rc := p.Random()
+		pill1, pill2 := rc.Sprint(""), rc.Sprint("")
+		tag := rc.Wrap("#"+t, p.Inverse)
+		sb.WriteString(pill1 + tag + pill2 + " ")
 	}
 
 	return sb.String()

@@ -88,7 +88,7 @@ func NewDefaultConfig() *Config {
 		DefaultKeymaps: &BuiltinKeymaps{
 			Edit:      &Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
 			EditNotes: &Keymap{Bind: "ctrl-w", Desc: "edit notes", Enabled: true, Hidden: false},
-			Open:      &Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
+			Open:      &Keymap{Bind: "enter", Desc: "open", Enabled: true, Hidden: false},
 			OpenQR:    &Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
 			Preview:   &Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
 			QR:        &Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},

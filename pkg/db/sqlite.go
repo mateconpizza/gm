@@ -128,6 +128,7 @@ func buildSQLiteDSN(path string, params map[string]string) string {
 // OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
 func OpenDatabase(path string, cfg *Cfg) (*sqlx.DB, error) {
+	// FIX: Change signature for context awareness.
 	slog.Debug("opening database", "path", path)
 	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
@@ -162,7 +163,6 @@ func OpenDatabase(path string, cfg *Cfg) (*sqlx.DB, error) {
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.MaxLifetimeConn)
 
-	// FIX: Change func signature to receive a context.
 	if err := db.PingContext(context.TODO()); err != nil {
 		return nil, fmt.Errorf("%w: on ping context", err)
 	}

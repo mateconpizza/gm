@@ -130,7 +130,7 @@ func Frame(c *ui.Console, b *bookmark.Bookmark) string {
 	// description
 	if b.Desc != "" {
 		descSplit := SplitIntoChunks(b.Desc, w)
-		f.Midln(ansi.StyleAll(descSplit, p.White)...)
+		f.Midln(ansi.StyleAll(descSplit, p.BrightBlack)...)
 	}
 
 	// tags

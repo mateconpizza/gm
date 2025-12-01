@@ -64,6 +64,7 @@ func RemoveRepo(a *app.Context) error {
 func RemoveBackups(a *app.Context) error {
 	fn := a.Cfg.DBPath
 	dbName := files.StripSuffixes(filepath.Base(fn))
+	// match YYYYMMDD-HHMMSS_dbname.db
 	fs, err := files.List(a.Cfg.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return err
@@ -104,22 +105,20 @@ actionLoop:
 				menu.WithArgs("--cycle"),
 				menu.WithConfig(a.Cfg.Menu),
 				menu.WithMultiSelection(),
+				menu.WithOutputColor(a.Cfg.Flags.Color),
 				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(fn))),
 				menu.WithPreview(a.Cfg.Cmd+" db --name=./backup/{1} --info"),
 			)
-
-			if errors.Is(err, sys.ErrActionAborted) {
-				continue
-			}
-
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
 			c.ClearLine(1)
 			filesToRemove.Append(selected...)
 			break actionLoop
 		}
 	}
+
+	c.Frame().Headerln(c.Palette().BrightRed.Sprint("Removing") + " backups").Rowln().Flush()
 
 	return removeSlicePath(a, filesToRemove)
 }

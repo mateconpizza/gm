@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/mateconpizza/rotato"
 
@@ -244,6 +245,41 @@ func Deduplicate(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmar
 
 			f.Flush()
 		}
+	}
+
+	return filtered
+}
+
+// DeduplicateByURL removes bookmarks from `incoming` that already exist in `existing`.
+// It compares bookmarks by their URL and returns a new slice with unique entries.
+func DeduplicateByURL(existing, incoming []*bookmark.Bookmark) []*bookmark.Bookmark {
+	// FIX: replace `Deduplicate` with this
+	if len(incoming) == 0 {
+		return nil
+	}
+	if len(existing) == 0 {
+		return incoming
+	}
+
+	// Fast lookup map of existing URLs.
+	seen := make(map[string]struct{}, len(existing))
+	for _, b := range existing {
+		if b.URL != "" {
+			seen[strings.TrimSuffix(b.URL, "/")] = struct{}{}
+		}
+	}
+
+	// Filter incoming bookmarks.
+	filtered := make([]*bookmark.Bookmark, 0, len(incoming))
+	for _, b := range incoming {
+		if b == nil || b.URL == "" {
+			continue
+		}
+		if _, dup := seen[b.URL]; dup {
+			continue
+		}
+		seen[b.URL] = struct{}{}
+		filtered = append(filtered, b)
 	}
 
 	return filtered

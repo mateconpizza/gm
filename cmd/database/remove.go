@@ -50,9 +50,6 @@ var (
 				)),
 			)
 
-			c := a.Console()
-			c.Frame().Headerln(c.Palette().BrightRed.Sprint("Removing") + " backups").Rowln().Flush()
-
 			return handler.RemoveBackups(a)
 		},
 	}

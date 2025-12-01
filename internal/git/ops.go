@@ -459,8 +459,8 @@ func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
 			return f.StringReset(), err
 		}
 
-		lastSync := sum.LastSync + p.BrightBlack.With(p.Italic).
-			Sprintf(" (%s)", txt.RelativeTime(tt.Format(txt.TimeLayout)))
+		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) + p.BrightBlack.With(p.Italic).
+			Sprintf(" (%s)", sum.LastSync)
 		f.Rowln(txt.PaddedLine("last sync:", lastSync))
 		f.Success(txt.PaddedLine("sync:", true)).Ln()
 	} else {

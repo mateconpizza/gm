@@ -115,7 +115,7 @@ func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {
 	}
 	rSrc, err := db.New(srcDB)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 	defer rSrc.Close()
 
