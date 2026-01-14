@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 const (
@@ -528,4 +530,35 @@ func CleanLines(s string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// formatFlags returns a string representation of bookmark status flags.
+//
+//	~ Notes attached
+//	@ Wayback snapshot available
+//	* Favorite
+//	? Broken link
+func formatFlags(b *bookmark.Bookmark) string {
+	const (
+		wayback   = "@" // @
+		tilde     = "~" // ~
+		broken    = "?" // ?
+		important = "*" // *
+	)
+	var flags strings.Builder
+
+	if b.ArchiveURL != "" {
+		flags.WriteString(wayback)
+	}
+	if b.Notes != "" {
+		flags.WriteString(tilde)
+	}
+	if b.Favorite {
+		flags.WriteString(important)
+	}
+	if b.HTTPStatusCode == http.StatusNotFound {
+		flags.WriteString(broken)
+	}
+
+	return flags.String()
 }

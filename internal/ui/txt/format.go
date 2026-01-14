@@ -48,7 +48,7 @@ func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 	tagsColor := p.Blue.Wrap(TagsWithUnicode(b.Tags), p.Italic)
 
 	sep := " " + UnicodeMiddleDot + " "
-	if b.Notes != "" {
+	if b.Notes != "" || b.Favorite || b.ArchiveURL != "" {
 		sep = p.BrightMagenta.Wrap(" "+UnicodeBulletPoint+" ", p.Bold)
 	}
 
@@ -56,7 +56,7 @@ func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 	sb.Grow(w + 20)
 	sb.WriteString(coloredID)
 	sb.WriteString(sep)
-	sb.WriteString(fmt.Sprintf("%-*s %-*s\n", urlLen, colorURL, tagsLen, tagsColor))
+	fmt.Fprintf(&sb, "%-*s %-*s\n", urlLen, colorURL, tagsLen, tagsColor)
 
 	return sb.String()
 }
@@ -109,27 +109,30 @@ func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
 
 // Frame formats a bookmark in a frame with min width.
 func Frame(c *ui.Console, b *bookmark.Bookmark) string {
-	w := terminal.MinWidth
+	width := terminal.MinWidth
 	p := c.Palette()
 	f := c.Frame()
 
 	// indentation
-	w -= len(f.Border.Row)
+	width -= len(f.Border.Row)
 
-	// id + url
-	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
-	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w)
-	f.Headerln(fmt.Sprintf("%s %s", id, urlColor))
+	// id + [flags] + url
+	header := []string{p.BrightYellow.With(p.Bold).Sprint(b.ID)}
+	if flags := formatFlags(b); flags != "" {
+		header = append(header, p.BrightBlack.Sprint("[", flags, "]"))
+	}
+	header = append(header, Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), width))
+	f.Headerln(strings.Join(header, " "))
 
 	// title
 	if b.Title != "" {
-		titleSplit := SplitIntoChunks(b.Title, w)
+		titleSplit := SplitIntoChunks(b.Title, width)
 		f.Midln(ansi.StyleAll(titleSplit, p.BrightCyan)...)
 	}
 
 	// description
 	if b.Desc != "" {
-		descSplit := SplitIntoChunks(b.Desc, w)
+		descSplit := SplitIntoChunks(b.Desc, width)
 		f.Midln(ansi.StyleAll(descSplit, p.BrightBlack)...)
 	}
 
