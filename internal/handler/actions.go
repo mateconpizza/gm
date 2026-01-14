@@ -280,6 +280,40 @@ func Update(a *app.Context, bs []*bookmark.Bookmark) error {
 	return nil
 }
 
+func Snapshot(a *app.Context, bs []*bookmark.Bookmark) error {
+	maxItems := 15
+	f := a.Cfg.Flags
+	c := a.Console()
+	p := c.Palette()
+
+	n := len(bs)
+	if n == 0 {
+		return ErrNoItems
+	}
+
+	action := func(u string) error {
+		fmt.Println(u)
+		return nil
+	}
+
+	if f.Open {
+		// get user confirmation to procced
+		s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
+		if err := confirmUserLimit(a.Console(), n, maxItems, s, f.Force); err != nil {
+			return err
+		}
+		action = sys.OpenInBrowser
+	}
+
+	for _, u := range bs {
+		if err := action(u.ArchiveURL); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func processBookmarkUpdate(a *app.Context, b *bookmark.Bookmark) error {
 	c := a.Console()
 	updated, err := updateBookmarkData(a.Context(), c, b)

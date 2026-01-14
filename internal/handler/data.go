@@ -149,6 +149,11 @@ func applyFilters(a *app.Context, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark
 		bs = filterByNotes(bs)
 	}
 
+	// Filter by Snapshots
+	if f.Snapshot {
+		bs = filterBySnapshots(bs)
+	}
+
 	return bs, nil
 }
 
@@ -274,6 +279,24 @@ func filterByNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	filtered := make([]*bookmark.Bookmark, 0, n)
 	for i := range bs {
 		if bs[i].Notes == "" {
+			continue
+		}
+
+		filtered = append(filtered, bs[i])
+	}
+
+	return filtered
+}
+
+func filterBySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+	n := len(bs)
+	if n == 0 {
+		return bs
+	}
+
+	filtered := make([]*bookmark.Bookmark, 0, n)
+	for i := range bs {
+		if bs[i].ArchiveURL == "" {
 			continue
 		}
 

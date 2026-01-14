@@ -30,7 +30,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
   # Check specific bookmarks
   gm health golang.org --status
-  gm health -t tutorial --status`,
+  gm health --tag tutorial --status`,
 		RunE: checkerFunc,
 	}
 

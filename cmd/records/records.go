@@ -84,6 +84,7 @@ func InitFlags(cmd *cobra.Command, cfg *config.Config) {
 	f.BoolVarP(&flag.QR, "qr", "q", false, "generate QR code for bookmark URL")
 	f.BoolVarP(&flag.Notes, "notes", "N", false, "display bookmark notes")
 	f.BoolVarP(&flag.Menu, "menu", "m", false, "interactive menu mode using fzf")
+	f.BoolVarP(&flag.Snapshot, "snapshot", "s", false, "display bookmark archive URL")
 	f.BoolVar(&flag.Multiline, "multiline", false, "output in multiline format (fzf)")
 
 	// Display
@@ -114,6 +115,8 @@ func exec(a *app.Context, bs []*bookmark.Bookmark) error {
 		return handler.Edit(a, bs)
 	case f.Copy:
 		return handler.Copy(bs)
+	case f.Snapshot:
+		return handler.Snapshot(a, bs)
 	case f.Open && !f.QR:
 		return handler.Open(a, bs)
 	}

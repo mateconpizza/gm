@@ -1,3 +1,5 @@
+// Package wayback provides commands for querying the Internet Archive Wayback
+// Machine to retrieve historical snapshots of bookmarked URLs.
 package wayback
 
 import (
@@ -21,22 +23,23 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	waybackCmd := &cobra.Command{
 		Use:     "wayback",
 		Aliases: []string{"w", "wm", "wb"},
-		Short:   "Wayback Machine",
-		RunE:    waybackFunc,
+		Short:   "Query the Wayback Machine for bookmarks",
+		Long:    `Query the Internet Archive Wayback Machine for one or more bookmarks.`,
+		Example: `  # Get the latest snapshot for bookmark 179
+  gm health wayback --latest 179
+
+  # Get up to 5 snapshots from 2023
+  gm health wayback --limit 5 --year 2023 179`,
+		RunE: waybackFunc,
 	}
 
 	f := waybackCmd.Flags()
 	f.SortFlags = false
-	f.BoolVarP(&cfg.Flags.Snapshot, "latest", "c", false,
-		"fetches lastets snapshot from Wayback Machine")
-	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0,
-		"limit the number of snapshots returned")
-	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0,
-		"fetches the last N snapshots from a specific year")
-	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
-		"interactive menu mode using fzf (select bookmarks)")
-	f.BoolVar(&cfg.Flags.Multiline, "multiline", false,
-		"output in multiline format (fzf)")
+	f.BoolVarP(&cfg.Flags.Snapshot, "latest", "l", false, "fetches lastets snapshot from Wayback Machine")
+	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
+	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
+	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "interactive menu mode using fzf (select bookmarks)")
+	f.BoolVar(&cfg.Flags.Multiline, "multiline", false, "output in multiline format (fzf)")
 
 	return waybackCmd
 }
@@ -85,27 +88,37 @@ func processWayback(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []stri
 		return wayback.ErrTooManyRecords
 	}
 
+	operation := "all available snapshots"
+	if flags.Snapshot {
+		operation = "latest snapshot"
+	} else if flags.Limit > 0 {
+		operation = fmt.Sprintf("up to %d snapshot(s)", flags.Limit)
+	}
+
+	if !flags.Snapshot && flags.Year > 0 {
+		operation += fmt.Sprintf(" from %d", flags.Year)
+	}
+
 	f, p := a.Console().Frame(), a.Console().Palette()
-	f.Headerln(p.BrightRed.With(p.Bold).Sprintf("Bookmarks (%d)", n)).Rowln()
+	f.Headerln("Wayback Machine: Fetch " + operation).Rowln()
+	f.Midln(p.BrightCyan.Sprintf("Selected bookmarks: %d", n)).Rowln()
 	for i := range bs {
 		if i >= wayback.MaxItems {
-			f.Midln(p.BrightBlack.With(p.Italic).Sprintf("%d more ...", n-i)).Rowln()
+			f.Midln(p.BrightBlack.With(p.Italic).Sprintf("... and %d more", n-i))
 			break
 		}
-		f.Midln(bs[i].URL)
+		f.Midln(p.BrightBlack.Sprintf("[%d] ", bs[i].ID) + bs[i].URL)
 	}
-	f.Flush()
 
-	if !a.Console().Confirm("continue?", "n") {
+	f.Rowln().Flush()
+
+	if !a.Console().Confirm("continue with Wayback Machine query?", "n") {
 		return sys.ErrExitFailure
 	}
 
-	switch {
-	case flags.Snapshot:
+	if flags.Snapshot {
 		return handler.WaybackLatestSnapshot(a, bs)
-	case flags.Limit > 0:
-		return handler.WaybackSnapshots(a, bs)
 	}
 
-	return nil
+	return handler.WaybackSnapshots(a, bs)
 }

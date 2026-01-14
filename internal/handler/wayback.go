@@ -12,7 +12,6 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/internal/app"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -165,13 +164,13 @@ func updateSpinnerWithDeadline(ctx context.Context, sp *rotato.Rotato, prefix st
 	}
 }
 
-func waybackMenu[T wayback.SnapshotInfo](c *ui.Console) *menu.Menu[wayback.SnapshotInfo] {
-	m := menu.New[wayback.SnapshotInfo](
-		menu.WithArgs("--color=header:italic:bold:bright-red"),
+func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, opts ...menu.Option) *menu.Menu[wayback.SnapshotInfo] {
+	opts = append(opts, menu.WithArgs("--color=header:italic:bold:bright-red"),
 		menu.WithOutputColor(c.Palette().Enabled()),
 		menu.WithHeaderOnly("donate <3 https://archive.org/donate"),
 		menu.WithArgs("--cycle"),
 	)
+	m := menu.New[wayback.SnapshotInfo](opts...)
 
 	// format each item `YYYY MMM DD HH:MM (N days ago)`
 	m.SetPreprocessor(func(s *wayback.SnapshotInfo) string {
@@ -191,7 +190,6 @@ func formatTime(label, ts string) string {
 func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
 	c, p := a.Console(), a.Console().Palette()
-	m := waybackMenu(c)
 
 	ct := wayback.New(wayback.WithByYear(a.Cfg.Flags.Year), wayback.WithLimit(a.Cfg.Flags.Limit))
 	for _, b := range bs {
@@ -203,11 +201,13 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 		u := txt.Shorten(b.URL, 60)
 		prefix := "Fetching " + p.Italic.Sprint(u) + " snapshots"
 		go updateSpinnerWithDeadline(ctx, sp, prefix, deadline)
+
 		snapshots, err := ct.Snapshots(ctx, b.URL)
 		cancel()
+
 		if err != nil {
-			sp.Done()
-			return err
+			sp.Fail(p.Red.Sprintf("Failed to fetch %s: %v", u, err))
+			continue
 		}
 
 		f := c.Frame()
@@ -216,23 +216,20 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 			f.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
 		}
 
+		m := waybackMenu(c, menu.WithFooter(b.URL))
 		m.SetItems(snapshots)
 		selected, err := m.Select()
 		if err != nil {
 			if !errors.Is(err, menu.ErrFzfActionAborted) {
 				return err
 			}
+
 			continue
 		}
 
 		snap := selected[0]
 		b.ArchiveURL = snap.ArchiveURL
 		b.ArchiveTimestamp = snap.ArchiveTimestamp
-
-		if a.Cfg.Flags.Open {
-			f.Midln(formatTime("Open:", b.ArchiveTimestamp)).Flush()
-			return sys.OpenInBrowser(snap.ArchiveURL)
-		}
 
 		updateCtx, updateCancel := context.WithTimeout(a.Context(), 3*time.Second)
 		err = a.DB.UpdateOne(updateCtx, b)
