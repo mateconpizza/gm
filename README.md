@@ -38,7 +38,8 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 - [x] Check bookmark `status` _(http status)_
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
-- [x] Migrate items from one database to another
+- [x] ~Migrate items from one database to another~
+- [x] Fetch lasts snapshot from Wayback Machine
 - [ ] Add `docker|podman` support <sub>_priority_</sub>
 
 ### Installation
@@ -78,6 +79,7 @@ Flags:
   -q, --qr              generate QR code for bookmark URL
   -N, --notes           display bookmark notes
   -m, --menu            interactive menu mode using fzf
+  -s, --snapshot        display bookmark archive URL
       --multiline       output in multiline format (fzf)
   -f, --format string   output format [oneline|json|id|url|title|tags|desc|notes]
   -t, --tag strings     filter bookmarks by tag(s)

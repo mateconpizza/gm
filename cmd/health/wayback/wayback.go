@@ -35,7 +35,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 	f := waybackCmd.Flags()
 	f.SortFlags = false
-	f.BoolVarP(&cfg.Flags.Snapshot, "latest", "l", false, "fetches lastets snapshot from Wayback Machine")
+	f.BoolVarP(&cfg.Flags.Snapshot, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
 	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
 	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
 	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "interactive menu mode using fzf (select bookmarks)")
