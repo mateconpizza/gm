@@ -36,7 +36,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 	f := healthCmd.Flags()
 	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check HTTP status of bookmark URLs")
-	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update bookmark metadata")
+	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update bookmark metadata (title|desc|tags)")
 	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "interactive menu mode using fzf")
 	f.BoolVar(&cfg.Flags.Multiline, "multiline", false, "output in multiline format (fzf)")
 
@@ -89,5 +89,5 @@ func checkerFunc(cmd *cobra.Command, args []string) error {
 		return handler.Update(a, bs)
 	}
 
-	return handler.CheckStatus(a, bs)
+	return cmd.Help()
 }
