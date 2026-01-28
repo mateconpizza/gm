@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	runewidth "github.com/mattn/go-runewidth"
+
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -62,13 +64,10 @@ func PaddedLineWithPad(s, v any, pad int) string {
 // Shorten shortens a string to a maximum length.
 //
 //	string...
-func Shorten(s string, maxLength int) string {
-	// FIX: keep `ansi.Remover`?
-	if len(ansi.Remover(s)) > maxLength {
-		return s[:maxLength-3] + "..."
-	}
-
-	return s
+//
+// Shorten shortens a string to a maximum visual width.
+func Shorten(s string, maxWidth int) string {
+	return runewidth.Truncate(s, maxWidth, "...")
 }
 
 // SplitAndAlign splits a string into multiple lines and aligns the
@@ -205,17 +204,32 @@ func URLBreadCrumbs(s string) string {
 //
 //	https://example.org/title/some-title
 //	https://example.org > title > some-title
-func URLBreadCrumbsColor(p *ansi.Palette, s, uc string) string {
+func URLBreadCrumbsColor(p *ansi.Palette, s, uc string, width int) string {
 	u, err := url.Parse(s)
 	if err != nil {
 		return ""
 	}
 
+	// Fallback if no host/path
 	if u.Host == "" || u.Path == "" {
+		// If the whole raw URL is too long, shorten it
+		if runewidth.StringWidth(s) > width {
+			return p.BrightMagenta.With(p.Bold).Sprint(Shorten(s, width))
+		}
 		return p.BrightMagenta.With(p.Bold).Sprint(s)
 	}
 
-	host := p.BrightMagenta.With(p.Bold).Sprint(u.Host)
+	// Measure Host width (stripped of ANSI)
+	hostRaw := u.Host
+	hostWidth := runewidth.StringWidth(hostRaw)
+
+	host := p.BrightMagenta.With(p.Bold).Sprint(hostRaw)
+
+	// If Host alone takes up all space (or more), return just shortened host
+	if hostWidth >= width {
+		return p.BrightMagenta.With(p.Bold).Sprint(Shorten(hostRaw, width))
+	}
+
 	pathSegments := strings.FieldsFunc(
 		strings.TrimLeft(u.Path, "/"),
 		func(r rune) bool { return r == '/' },
@@ -225,10 +239,29 @@ func URLBreadCrumbsColor(p *ansi.Palette, s, uc string) string {
 		return host
 	}
 
-	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
-	pathSeg := p.Italic.Sprintf("%s %s", uc, segments)
+	// Separator logic
+	ucStyled := p.Dim.Sprint(uc)
+	sep := fmt.Sprintf(" %s ", uc)
+	sepStyled := fmt.Sprintf(" %s ", ucStyled)
+	sepWidth := runewidth.StringWidth(sep) // usually 3: " > "
 
-	return fmt.Sprintf("%s %s", host, pathSeg)
+	// Available width for path = Total - Host - Separator
+	pathWidth := width - hostWidth - sepWidth
+
+	// Safety check if we ran out of space
+	if pathWidth <= 0 {
+		return host
+	}
+
+	segments := strings.Join(pathSegments, sep)
+
+	// Shorten the raw segments string to fit pathWidth
+	shortSegments := Shorten(segments, pathWidth)
+
+	// Replace raw separators with styled ones
+	styledSegments := strings.ReplaceAll(shortSegments, sep, sepStyled)
+	pathSeg := p.Italic.Sprint(styledSegments)
+	return fmt.Sprintf("%s%s", host, sepStyled+pathSeg)
 }
 
 // CountLines counts the number of lines in a string.
@@ -357,7 +390,7 @@ func TagsWithColorPound(c *ui.Console, s string) string {
 		}
 
 		rc := p.Random(p.Italic)
-		sb.WriteString(fmt.Sprintf("%s%s ", rc.Sprint("#"), p.Italic.Sprint(t)))
+		fmt.Fprintf(&sb, "%s%s ", rc.Sprint("#"), p.Italic.Sprint(t))
 	}
 
 	return sb.String()

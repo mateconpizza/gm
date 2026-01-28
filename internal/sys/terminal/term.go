@@ -212,7 +212,7 @@ func (t *Term) ConfirmErr(q, def string) error {
 	h := &highlighter{}
 	choices := fmtChoicesWithDefault(opts, def)
 	for i := range len(choices) {
-		choices[i] = h.brightBlack(choices[i])
+		choices[i] = h.dim(choices[i])
 	}
 
 	chosen, err := t.promptWithChoicesErr(q, choices, def)
@@ -246,7 +246,7 @@ func (t *Term) Choose(q string, opts []string, def string) (string, error) {
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string, error) {
 	h := &highlighter{}
-	dimmer := h.brightBlack
+	dimmer := h.dim
 	sep := dimmer("/")
 	s := dimmer("[")
 	e := dimmer("]:")

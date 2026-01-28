@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	runewidth "github.com/mattn/go-runewidth"
+
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -41,7 +43,7 @@ func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 	const urlPadding = 3 // 3 = ' ' + '·' + ' '.
 	urlLen := w - idLen - urlPadding - tagsLen
 	shortURL := Shorten(b.URL, urlLen)
-	colorURL := p.BrightWhite.Sprint(shortURL)
+	colorURL := p.Dim.Sprint(shortURL)
 	urlLen += len(colorURL) - len(shortURL)
 
 	// tags
@@ -69,7 +71,7 @@ func Multiline(c *ui.Console, b *bookmark.Bookmark) string {
 	var sb strings.Builder
 	sb.WriteString(p.BrightYellow.With(p.Bold).Sprint(b.ID))
 	sb.WriteString(NBSP)
-	sb.WriteString(Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w) + "\n")
+	sb.WriteString(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark, w) + "\n")
 
 	if b.Title != "" {
 		sb.WriteString(p.Cyan.Sprint(Shorten(b.Title, w)) + "\n")
@@ -82,12 +84,12 @@ func Multiline(c *ui.Console, b *bookmark.Bookmark) string {
 
 func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
 	p := c.Palette()
-	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
+	f := frame.New(frame.WithColorBorder(ansi.Dim))
 	w := terminal.MaxWidth - len(f.Border.Row)
 
 	// id + url
 	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
-	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w)
+	urlColor := URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark, w)
 	f.Headerln(fmt.Sprintf("%s %s", id, urlColor))
 
 	// title
@@ -97,46 +99,59 @@ func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
 
 	// description
 	if b.Desc != "" {
-		f.Midln(ansi.StyleAll(SplitIntoChunks(b.Desc, w), p.BrightBlack)...)
+		f.Midln(ansi.StyleAll(SplitIntoChunks(b.Desc, w), p.Dim)...)
 	}
 
 	// tags
-	tags := p.BrightBlack.With(p.Italic).Sprint(TagsWithPound(b.Tags))
+	tags := p.Dim.With(p.Italic).Sprint(TagsWithPound(b.Tags))
 	f.Footer(tags).Ln()
 
 	return f.String()
 }
 
-// Frame formats a bookmark in a frame with min width.
 func Frame(c *ui.Console, b *bookmark.Bookmark) string {
 	width := terminal.MinWidth
 	p := c.Palette()
 	f := c.Frame()
 
-	// indentation
+	// initial border adjustment
 	width -= len(f.Border.Row)
 
-	// id + [flags] + url
-	header := []string{p.BrightYellow.With(p.Bold).Sprint(b.ID)}
+	idStr := strconv.Itoa(b.ID)
+	// calculate visual width of id
+	usedWidth := runewidth.StringWidth(idStr)
+
+	idColor := p.BrightYellow.With(p.Bold).Sprint(idStr)
+	header := []string{idColor}
+
+	// prepare flags (if any) and accumulate width
 	if flags := formatFlags(b); flags != "" {
-		header = append(header, p.BrightBlack.Sprint("[", flags, "]"))
+		// " [" + flags + "]"
+		flagRaw := "[" + flags + "]"
+		header = append(header, p.Dim.Sprint(flagRaw))
+
+		// add flag width + 1 (for the space strings.join will add)
+		usedWidth += runewidth.StringWidth(flagRaw) + 1
 	}
-	header = append(header, Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), width))
+
+	// calculate space for url
+	// we subtract 'usedwidth' and 1 extra for the final space before the url
+	urlWidth := width - usedWidth - 1
+
+	header = append(header, URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark, urlWidth))
 	f.Headerln(strings.Join(header, " "))
 
-	// title
+	// title ... (rest of function remains the same)
 	if b.Title != "" {
 		titleSplit := SplitIntoChunks(b.Title, width)
 		f.Midln(ansi.StyleAll(titleSplit, p.BrightCyan)...)
 	}
 
-	// description
 	if b.Desc != "" {
 		descSplit := SplitIntoChunks(b.Desc, width)
-		f.Midln(ansi.StyleAll(descSplit, p.BrightBlack)...)
+		f.Midln(ansi.StyleAll(descSplit, p.Dim)...)
 	}
 
-	// tags
 	f.Mid(TagsWithColorPound(c, b.Tags)).Ln()
 
 	return f.StringReset()
@@ -145,11 +160,11 @@ func Frame(c *ui.Console, b *bookmark.Bookmark) string {
 func Notes(c *ui.Console, b *bookmark.Bookmark) string {
 	w := terminal.MinWidth
 	p := c.Palette()
-	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
+	f := frame.New(frame.WithColorBorder(ansi.Dim))
 
 	// id + url
 	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
-	urlColor := Shorten(URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark), w)
+	urlColor := URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark, w)
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 
 	// notes

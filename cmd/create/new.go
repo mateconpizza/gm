@@ -82,7 +82,7 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 	)
 
 	c, p := a.Console(), a.Console().Palette()
-	s := p.BrightYellow.Sprint("Add Bookmark") + p.BrightBlack.With(p.Italic).Sprint(" (ctrl+c to exit)")
+	s := p.BrightYellow.Sprint("Add Bookmark") + p.Dim.With(p.Italic).Sprint(" (ctrl+c to exit)")
 	c.Frame().Headerln(s).Rowln().Flush()
 
 	b := bookmark.New()

@@ -24,7 +24,7 @@ type highlighter struct{}
 func (h *highlighter) red(s string) string         { return ansi.BrightRed.Wrap(s, ansi.Bold) }
 func (h *highlighter) green(s string) string       { return ansi.BrightGreen.Wrap(s, ansi.Bold) }
 func (h *highlighter) magenta(s string) string     { return ansi.BrightMagenta.Wrap(s, ansi.Bold) }
-func (h *highlighter) brightBlack(s string) string { return ansi.BrightBlack.Wrap(s) }
+func (h *highlighter) dim(s string) string 		     { return ansi.Dim.Wrap(s) }
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
@@ -161,7 +161,7 @@ func promptOptions(c bool) (o []prompt.Option) {
 // completerHelper creates a PromptSuggester that filters suggestions based on
 // the provided items and filter function.
 func completerHelper[T any](items []T, filter filterFn) PromptSuggester {
-	sg := make([]prompt.Suggest, 0)
+	sg := make([]prompt.Suggest, 0, len(items))
 	for _, t := range items {
 		sg = append(sg, prompt.Suggest{Text: fmt.Sprint(t)})
 	}
@@ -191,7 +191,7 @@ func completerDummy() PromptSuggester {
 // completerTagsWithCount creates a prompt suggester with count as a
 // description.
 func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) PromptSuggester {
-	sg := make([]prompt.Suggest, 0)
+	sg := make([]prompt.Suggest, 0, len(m))
 	for t, v := range m {
 		sg = append(sg, prompt.Suggest{
 			Text:        fmt.Sprint(t),
@@ -249,7 +249,7 @@ func fmtChoicesWithDefaultColor(opts []string, def string) []string {
 	h := &highlighter{}
 	if def == "" {
 		for i := range len(opts) {
-			opts[i] = h.brightBlack(opts[i])
+			opts[i] = h.dim(opts[i])
 		}
 
 		return opts
@@ -263,11 +263,11 @@ func fmtChoicesWithDefaultColor(opts []string, def string) []string {
 	for _, opt := range opts {
 		if strings.HasPrefix(opt, def) {
 			// Capitalize and color the first letter of the default
-			colored := h.red(strings.ToUpper(opt[:1])) + h.brightBlack(opt[1:])
+			colored := h.red(strings.ToUpper(opt[:1])) + h.dim(opt[1:])
 			defaultOpt = colored
 		} else {
 			// Highlight first letter of non-default
-			colored := h.red(opt[:1]) + h.brightBlack(opt[1:])
+			colored := h.red(opt[:1]) + h.dim(opt[1:])
 			formatted = append(formatted, colored)
 		}
 	}
