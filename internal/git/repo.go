@@ -284,7 +284,6 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 		menu.WithMultilineView(),
 		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
 	)
-	m.SetItems(fps)
 	m.SetPreprocessor(func(f **gpg.Fingerprint) string {
 		fp := *f
 		return fmt.Sprintf(
@@ -299,7 +298,7 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 		)
 	})
 
-	keys, err := m.Select()
+	keys, err := m.Select(fps)
 	if err != nil {
 		return nil, err
 	}

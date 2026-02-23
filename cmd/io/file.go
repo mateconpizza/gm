@@ -100,9 +100,8 @@ var htmlCmd = &cobra.Command{
 				menu.WithMultiSelection(),
 			)
 
-			m.SetItems(deduplicated)
 			m.SetPreprocessor(func(b **bookmark.Bookmark) string { return txt.Oneline(c, *b) })
-			deduplicated, err = m.Select()
+			deduplicated, err = m.Select(deduplicated)
 			if err != nil {
 				return err
 			}

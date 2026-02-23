@@ -88,10 +88,9 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 	}
 
 	m.SetPreprocessor(fmtFn)
-	m.SetItems(items)
 
 	var result []T
-	result, err := m.Select()
+	result, err := m.Select(items)
 	if err != nil {
 		if errors.Is(err, menu.ErrFzfActionAborted) {
 			return nil, sys.ErrActionAborted

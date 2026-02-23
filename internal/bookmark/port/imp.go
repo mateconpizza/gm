@@ -85,12 +85,11 @@ func Database(a *app.Context, srcDB, destDB *db.SQLite) error {
 		rec = append(rec, *items[i])
 	}
 
-	m.SetItems(rec)
 	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
 		return txt.Oneline(a.Console(), b)
 	})
 
-	records, err := m.Select()
+	records, err := m.Select(rec)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -173,12 +172,11 @@ func FromBackup(a *app.Context, destDB, srcDB *db.SQLite) error {
 		rec = append(rec, *bookmarks[i])
 	}
 
-	m.SetItems(rec)
 	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
 		return txt.Oneline(c, b)
 	})
 
-	items, err := m.Select()
+	items, err := m.Select(rec)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

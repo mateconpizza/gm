@@ -67,10 +67,6 @@ type Options struct {
 
 // Items holds the data and transformation logic for menu items.
 type Items[T comparable] struct {
-	// items contains the original data items to be displayed in the menu.
-	// These are transformed by the preprocessor for display in FZF.
-	items []T
-
 	// preprocessor converts items to display strings for FZF.
 	// If nil, a default preprocessor will be used that calls String() method.
 	// The function should return ANSI-formatted strings for rich display.
@@ -83,12 +79,12 @@ type Menu[T comparable] struct {
 }
 
 // Select executes Fzf with the set elements and returns the selected item/s.
-func (m *Menu[T]) Select() ([]T, error) {
+func (m *Menu[T]) Select(items []T) ([]T, error) {
 	if err := m.buildArgs(); err != nil {
 		return nil, err
 	}
 
-	selected, err := selectFromItems(m)
+	selected, err := selectFromItems(m, items)
 	if err != nil {
 		return nil, err
 	}
@@ -120,11 +116,6 @@ func (m *Menu[T]) callInterruptFn(err error) {
 // SetInterruptFn sets the interrupt function for the menu.
 func (m *Menu[T]) SetInterruptFn(fn func(error)) {
 	m.interruptFn = fn
-}
-
-// SetItems sets the items for the menu.
-func (m *Menu[T]) SetItems(items []T) {
-	m.items = items
 }
 
 // SetPreprocessor sets a function to format items for display in fzf.

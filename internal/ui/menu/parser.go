@@ -34,8 +34,8 @@ func handleFzfErr(retcode int) error {
 }
 
 // selectFromItems runs Fzf with the given items and returns the selected item/s.
-func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
-	if len(m.items) == 0 {
+func selectFromItems[T comparable](m *Menu[T], items []T) ([]T, error) {
+	if len(items) == 0 {
 		return nil, ErrFzfNoItems
 	}
 
@@ -48,9 +48,9 @@ func selectFromItems[T comparable](m *Menu[T]) ([]T, error) {
 	slog.Debug("menu args", "args", m.args.list)
 
 	// Pre-process all items once for better performance
-	formattedItems := make([]string, len(m.items))
-	itemMap := make(map[string]T, len(m.items))
-	for i, item := range m.items {
+	formattedItems := make([]string, len(items))
+	itemMap := make(map[string]T, len(items))
+	for i, item := range items {
 		ti := item
 		formatted := m.preprocessor(&ti)
 		formattedItems[i] = formatted

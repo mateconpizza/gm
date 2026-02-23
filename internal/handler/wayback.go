@@ -217,8 +217,7 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 		}
 
 		m := waybackMenu(c, menu.WithFooter(b.URL))
-		m.SetItems(snapshots)
-		selected, err := m.Select()
+		selected, err := m.Select(snapshots)
 		if err != nil {
 			if !errors.Is(err, menu.ErrFzfActionAborted) {
 				return err
