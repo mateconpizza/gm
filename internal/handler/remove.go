@@ -11,7 +11,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -35,7 +34,10 @@ func RemoveRepo(a *app.Context) error {
 	c, p := a.Console(), a.Console().Palette()
 	fmt.Fprint(a.Writer(), summary.RepoFromPath(a, a.Cfg.DBPath, a.Cfg.Path.Backup))
 	if !a.Cfg.Flags.Force {
-		if err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(a.Cfg.DBPath)+"?", "n"); err != nil {
+		if err := c.ConfirmErr(
+			p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(a.Cfg.DBPath)+"?",
+			"n",
+		); err != nil {
 			return err
 		}
 	}
@@ -74,13 +76,13 @@ func RemoveBackups(a *app.Context) error {
 		return db.ErrBackupNotFound
 	}
 
-	filesToRemove := slice.New[string]()
-	if a.Cfg.Flags.Yes {
-		filesToRemove.Append(fs...)
-		return removeSlicePath(a, filesToRemove)
+	if a.Cfg.Flags.Yes || a.Cfg.Flags.Force {
+		return removeSlicePath(a, fs)
 	}
 
 	c, p := a.Console(), a.Console().Palette()
+
+	filesToRemove := make([]string, 0, len(fs))
 
 actionLoop:
 	for {
@@ -94,7 +96,7 @@ actionLoop:
 			c.ReplaceLine(c.Warning(p.BrightYellow.Sprint("skipping") + " backup/s").StringReset())
 			break actionLoop
 		case "a", "all":
-			filesToRemove.Append(fs...)
+			filesToRemove = append(filesToRemove, fs...)
 			break actionLoop
 		case "s", "select":
 			c.SetReader(os.Stdin)
@@ -113,7 +115,7 @@ actionLoop:
 				return err
 			}
 			c.ClearLine(1)
-			filesToRemove.Append(selected...)
+			filesToRemove = append(filesToRemove, selected...)
 			break actionLoop
 		}
 	}
@@ -124,19 +126,18 @@ actionLoop:
 }
 
 // removeSlicePath removes a slice of paths.
-func removeSlicePath(a *app.Context, dbs *slice.Slice[string]) error {
+func removeSlicePath(a *app.Context, dbs []string) error {
 	c := a.Console()
 	f := c.Frame()
-	n := dbs.Len()
+	n := len(dbs)
 	if n == 0 {
-		return slice.ErrSliceEmpty
+		return ErrNoItems
 	}
 
 	if n > 1 && !a.Cfg.Flags.Yes {
-		dbs.ForEach(func(r string) {
-			f.Midln(summary.RepoRecordsFromPath(a.Context(), a.Console(), r))
-		})
-
+		for i := range n {
+			f.Midln(summary.RepoRecordsFromPath(a.Context(), a.Console(), dbs[i]))
+		}
 		f.Flush()
 
 		msg := fmt.Sprintf("%s %d item/s", c.Palette().BrightRed.Sprint("removing"), n)
@@ -159,13 +160,15 @@ func removeSlicePath(a *app.Context, dbs *slice.Slice[string]) error {
 		return nil
 	}
 
-	if err := dbs.ForEachErr(rmRepo); err != nil {
-		return fmt.Errorf("%w", err)
+	for i := range n {
+		if err := rmRepo(dbs[i]); err != nil {
+			return fmt.Errorf("%w", err)
+		}
 	}
 
 	sp.Done()
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("%d item/s removed", dbs.Len())))
+	fmt.Println(c.SuccessMesg(fmt.Sprintf("%d item/s removed", n)))
 
 	return nil
 }
@@ -194,17 +197,22 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 		menu.WithMultiSelection(),
 	)
 
-	// FIX: use []*bookmark.Bookmark
-	fixMe := slice.New[bookmark.Bookmark]()
+	items := make([]bookmark.Bookmark, 0, len(bs))
 	for i := range bs {
-		fixMe.Push(bs[i])
+		items = append(items, *bs[i])
 	}
 
-	if err := confirmRemove(a, m, fixMe); err != nil {
+	items, err := confirmRemove(a, m, items)
+	if err != nil {
 		return err
 	}
 
-	return removeRecords(a, bs)
+	toRemove := make([]*bookmark.Bookmark, 0, len(items))
+	for i := range items {
+		toRemove = append(toRemove, &items[i])
+	}
+
+	return removeRecords(a, toRemove)
 }
 
 // DroppingDB drops a database.

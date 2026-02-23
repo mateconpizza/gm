@@ -9,7 +9,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -20,51 +19,55 @@ import (
 )
 
 // confirmRemove prompts the user to confirm the action.
-func confirmRemove(a *app.Context, m *menu.Menu[bookmark.Bookmark], bs *slice.Slice[bookmark.Bookmark]) error {
+func confirmRemove(
+	a *app.Context,
+	m *menu.Menu[bookmark.Bookmark],
+	bs []bookmark.Bookmark,
+) ([]bookmark.Bookmark, error) {
 	for !a.Cfg.Flags.Yes {
-		n := bs.Len()
+		n := len(bs)
 		if n == 0 {
-			return db.ErrRecordNotFound
+			return nil, db.ErrRecordNotFound
 		}
 
-		bs.ForEach(func(b bookmark.Bookmark) {
-			fmt.Println(txt.Frame(a.Console(), &b))
-		})
+		for i := range n {
+			fmt.Println(txt.Frame(a.Console(), &bs[i]))
+		}
 
 		opts := []string{"yes", "no"}
-		if bs.Len() > 1 {
+		if n > 1 {
 			opts = append(opts, "select")
 		}
 
 		c, p := a.Console(), a.Console().Palette()
 		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", p.BrightRed.Wrap("remove", p.Bold), n), opts, "n")
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		switch strings.ToLower(opt) {
 		case "n", "no":
-			return sys.ErrActionAborted
+			return nil, sys.ErrActionAborted
 		case "y", "yes":
-			return nil
+			return bs, nil
 		case "s", "select":
-			items, err := selectionWithMenu(m, *bs.Items(), func(b *bookmark.Bookmark) string {
+			items, err := selectionWithMenu(m, bs, func(b *bookmark.Bookmark) string {
 				return txt.Oneline(a.Console(), b)
 			})
 			if err != nil {
-				return err
+				return nil, err
 			}
 
-			bs.Set(&items)
+			bs = items
 			fmt.Println()
 		}
 	}
 
-	if bs.Empty() {
-		return db.ErrRecordNotFound
+	if len(bs) == 0 {
+		return nil, db.ErrRecordNotFound
 	}
 
-	return nil
+	return bs, nil
 }
 
 // confirmUserLimit prompts the user to confirm the exceeding limit.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/mateconpizza/rotato"
 	ini "gopkg.in/ini.v1"
 
-	"github.com/mateconpizza/gm/internal/slice"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -21,7 +21,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-var ignoredPrefixes = slice.New(
+var ignoredPrefixes = []string{
 	"about:",
 	"apt:",
 	"chrome://",
@@ -29,7 +29,7 @@ var ignoredPrefixes = slice.New(
 	"place:",
 	"vivaldi://",
 	"moz-extension://",
-)
+}
 
 var (
 	ErrBrowserIsOpen           = errors.New("browser is open")
@@ -171,14 +171,9 @@ func openSQLite(c *ui.Console, dbPath string) (*sqlx.DB, error) {
 // isNonGenericURL checks if the given URL is a non-generic URL based on a set
 // of ignored prefixes.
 func isNonGenericURL(url string) bool {
-	if ignoredPrefixes.Any(func(prefix string) bool {
+	return slices.ContainsFunc(ignoredPrefixes, func(prefix string) bool {
 		return strings.HasPrefix(url, prefix)
-	}) {
-		slog.Info("ignoring URL", "url", url)
-		return true
-	}
-
-	return false
+	})
 }
 
 // queryBookmarks queries the bookmarks table to retrieve some sample data.

@@ -8,7 +8,6 @@ import (
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/slice"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -202,13 +201,16 @@ func SelectDatabase(a *app.Context, ignoreDBPath string) (string, error) {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	dbs := slice.New(dbFiles...)
-	dbs = dbs.Filter(func(r string) bool {
-		return r != ignoreDBPath
-	})
+	dbs := make([]string, 0, len(dbFiles))
+	for i := range dbFiles {
+		if dbFiles[i] == ignoreDBPath {
+			continue
+		}
+		dbs = append(dbs, dbFiles[i])
+	}
 
 	// ask the user which one to import from
-	s, err := selectItem(a, *dbs.Items(), "choose a database to import from")
+	s, err := selectItem(a, dbs, "choose a database to import from")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
