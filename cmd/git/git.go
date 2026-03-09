@@ -229,7 +229,7 @@ func gitCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(args) == 0 {
-		args = append(args, "log", "--oneline")
+		args = append(args, "log", "--oneline", "--reverse")
 	}
 
 	return gm.Exec(args...)
