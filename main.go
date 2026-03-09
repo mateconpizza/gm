@@ -7,7 +7,7 @@ import (
 )
 
 // version of the application.
-var version = "0.1.30"
+var version = "0.1.31"
 
 func main() {
 	cfg := config.NewDefaultConfig(version)
