@@ -85,7 +85,7 @@ func SetupInitializedDBWithBookmarks(t *testing.T, dbPath string, n int) *db.SQL
 	t.Helper()
 	r := SetupInitializedEmptyDB(t, dbPath)
 
-	if err := r.InsertMany(t.Context(), sliceBookmark(n)); err != nil {
+	if err := r.InsertMany(t.Context(), BookmarkSlice(n)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func singleBookmark() *bookmark.Bookmark {
 	}
 }
 
-func sliceBookmark(n int) []*bookmark.Bookmark {
+func BookmarkSlice(n int) []*bookmark.Bookmark {
 	bs := make([]*bookmark.Bookmark, 0, n)
 	for i := range n {
 		b := singleBookmark()

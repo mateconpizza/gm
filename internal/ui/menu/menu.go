@@ -123,6 +123,10 @@ func (m *Menu[T]) SetPreprocessor(preprocessor func(*T) string) {
 	m.preprocessor = preprocessor
 }
 
+func (m *Menu[T]) UpdatePreview(s string) {
+	m.previewCmd = s
+}
+
 // WithInterruptFn sets a callback that executes on fzf interruption.
 // Use for cleanup or custom error handling when user cancels selection.
 func WithInterruptFn(fn func(error)) Option {

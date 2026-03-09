@@ -173,3 +173,34 @@ func Notes(c *ui.Console, b *bookmark.Bookmark) string {
 
 	return f.String()
 }
+
+func OnelineURL(c *ui.Console, b *bookmark.Bookmark) string {
+	w := terminal.MaxWidth
+
+	const (
+		idPadding      = 3
+		idWithColor    = 4 // visible width for IDS up to 9999
+		defaultTagsLen = 24
+		minTagsLen     = 34
+	)
+
+	idLen := idPadding
+
+	p := c.Palette()
+	if !p.Enabled() {
+		idLen = idWithColor
+	}
+
+	// ID padding con color sin romper el formato
+	idStr := strconv.Itoa(b.ID)
+	paddedID := fmt.Sprintf("%*s", idLen, idStr)
+	coloredID := strings.Replace(paddedID, idStr, p.BrightYellow.Wrap(idStr, p.Bold), 1)
+
+	var sb strings.Builder
+	sb.Grow(w + 20)
+	sb.WriteString(coloredID)
+	sb.WriteString(" " + UnicodeMiddleDot + " ") // separator
+	sb.WriteString(b.URL)
+
+	return sb.String()
+}

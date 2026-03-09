@@ -23,13 +23,15 @@ import (
 // It provides entrypoints for listing, filtering, and operating on bookmarks.
 func NewCmd(cfg *config.Config) *cobra.Command {
 	records := &cobra.Command{
-		Use:     "rec",
-		Aliases: []string{"r", "records"},
+		Use:     "records",
+		Aliases: []string{"r", "rec"},
 		Short:   "Records management",
 		RunE:    Cmd,
 	}
 
 	InitFlags(records, cfg)
+
+	records.AddCommand(newParamsCmd(cfg))
 
 	return records
 }

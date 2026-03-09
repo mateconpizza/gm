@@ -177,11 +177,16 @@ type Palette struct {
 	Strikethrough SGR // Crossed-out/strikethrough
 }
 
-func (c *Palette) Enabled() bool { return ColorEnabled }
+func (p *Palette) Enabled() bool { return ColorEnabled }
 
 // Random returns a random color with the given styles.
-func (c *Palette) Random(styles ...SGR) SGR {
+func (p *Palette) Random(styles ...SGR) SGR {
 	return ColorRand(styles...)
+}
+
+// Remover removes ANSI codes from a given string.
+func (p *Palette) Remover(s string) string {
+	return Remover(s)
 }
 
 // ColorRand returns a random color with the given styles.
