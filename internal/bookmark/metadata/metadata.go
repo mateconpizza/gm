@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
@@ -82,7 +81,6 @@ func EnrichBookmark(ctx context.Context, b *bookmark.Bookmark) *bookmark.Bookmar
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-
 	sc := scraper.New(b.URL, scraper.WithContext(ctx), scraper.WithSpinner("scraping webpage..."))
 	if err := sc.Start(); err != nil {
 		slog.Error("scraping error", "error", err)
@@ -90,26 +88,30 @@ func EnrichBookmark(ctx context.Context, b *bookmark.Bookmark) *bookmark.Bookmar
 
 	if b.Title == "" {
 		t, _ := sc.Title()
-		b.Title = validateAttr(b.Title, t)
+		b.Title = strings.TrimSpace(t)
 	}
 
 	if b.Desc == "" {
 		d, _ := sc.Desc()
-		b.Desc = validateAttr(b.Desc, d)
+		b.Desc = strings.TrimSpace(d)
+	}
+
+	if b.Tags == "" || b.Tags == bookmark.DefaultTag {
+		tags, _ := sc.Keywords()
+		if tags == "" {
+			repo, _ := sc.TagsRepo()
+			tags = strings.Join(repo, ",")
+		}
+
+		if tags == "" {
+			tags = bookmark.DefaultTag
+		}
+
+		b.Tags = tags
 	}
 
 	f, _ := sc.Favicon()
 	b.FaviconURL = f
 
 	return b
-}
-
-// validateAttr validates bookmark attribute.
-func validateAttr(s, fallback string) string {
-	s = strings.TrimSpace(txt.NormalizeSpace(s))
-	if s == "" {
-		return strings.TrimSpace(fallback)
-	}
-
-	return s
 }

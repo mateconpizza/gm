@@ -65,10 +65,6 @@ func (baseBookmarkStrategy) ParseBuffer(
 	idx, total int,
 ) (*Record, error) {
 	edited := bookmarkFromBytes(buf)
-	if err := bookmark.Validate(edited); err != nil {
-		return nil, err
-	}
-
 	if original.Equals(edited) {
 		return nil, ErrBufferUnchanged
 	}
@@ -80,6 +76,10 @@ func (baseBookmarkStrategy) ParseBuffer(
 	edited.LastVisit = original.LastVisit
 	edited.VisitCount = original.VisitCount
 	edited.FaviconURL = original.FaviconURL
+
+	if err := bookmark.Validate(edited); err != nil {
+		return nil, err
+	}
 
 	return edited, nil
 }

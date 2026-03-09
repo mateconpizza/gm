@@ -169,6 +169,44 @@ func (s *Scraper) Favicon() (string, error) {
 	return base.String(), nil
 }
 
+func (s *Scraper) Host() string {
+	u, err := url.Parse(s.uri)
+	if err != nil {
+		return ""
+	}
+
+	h := strings.ToLower(u.Hostname())
+	return strings.TrimPrefix(h, "www.")
+}
+
+// TagsRepo returns repository topics (if present).
+func (s *Scraper) TagsRepo() ([]string, error) {
+	tagSelectors := map[string]string{
+		"github.com":   "a[href^='/topics/']",
+		"gitlab.com":   "span.gl-badge-content",
+		"codeberg.org": "a.repo-topic",
+	}
+
+	if !s.started {
+		return nil, ErrScrapeNotStarted
+	}
+
+	selector, ok := tagSelectors[s.Host()]
+	if !ok {
+		return nil, nil
+	}
+
+	tags := make([]string, 0, 6)
+	s.doc.Find(selector).Each(func(_ int, sel *goquery.Selection) {
+		tag := strings.TrimSpace(sel.Text())
+		if tag != "" {
+			tags = append(tags, tag)
+		}
+	})
+
+	return tags, nil
+}
+
 func (s *Scraper) resolveFaviconURL(href string) string {
 	baseURL, err := url.Parse(s.uri)
 	if err != nil {

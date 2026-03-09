@@ -48,7 +48,6 @@ func SetupApp(t *testing.T) *app.Context {
 
 	cfg := SetupConfig(t)
 	temp := t.TempDir()
-	t.Setenv(cfg.Env.Home, temp)
 
 	cfg.DBPath = filepath.Join(temp, cfg.DBName)
 	cfg.Path.Data = temp

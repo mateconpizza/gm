@@ -186,7 +186,9 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 
 	c := a.Console()
 	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
-	f.Header(c.Palette().BrightRed.Sprint("Removing Bookmarks\n\n")).Flush()
+	if !a.Cfg.Flags.Yes {
+		f.Header(c.Palette().BrightRed.Sprint("Removing Bookmarks\n\n")).Flush()
+	}
 
 	t := a.Console().Term()
 	defer t.CancelInterruptHandler()

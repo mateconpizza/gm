@@ -60,8 +60,9 @@ func toBytes(b *Bookmark) []byte {
 //	from: "tag1, tag2, tag3 tag"
 //	to: "tag,tag1,tag2,tag3,"
 func ParseTags(tags string) string {
+	// TODO: remove this default tag?
 	if tags == "" {
-		return defaultTag
+		return DefaultTag
 	}
 
 	split := strings.FieldsFunc(tags, func(r rune) bool {
@@ -119,7 +120,7 @@ func Validate(b *Bookmark) error {
 		return ErrBookmarkURLEmpty
 	}
 
-	if b.Tags == "," || b.Tags == "" || b.Tags == "notag" {
+	if b.Tags == "," || b.Tags == "" {
 		slog.Error("bookmark is invalid. Tags are empty")
 		return ErrBookmarkTagsEmpty
 	}

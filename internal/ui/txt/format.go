@@ -51,7 +51,7 @@ func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 
 	sep := " " + UnicodeMiddleDot + " "
 	if b.Notes != "" || b.Favorite || b.ArchiveURL != "" {
-		sep = p.BrightMagenta.Wrap(" "+UnicodeBulletPoint+" ", p.Bold)
+		sep = p.BrightMagenta.Wrap(" "+UnicodeMiddleDot+" ", p.Bold)
 	}
 
 	var sb strings.Builder

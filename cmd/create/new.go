@@ -87,11 +87,11 @@ func newBookmarkFunc(cmd *cobra.Command, args []string) error {
 
 	b := bookmark.New()
 	if err := handler.NewBookmark(a, b, args); err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	if err := bookmark.Validate(b); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
+		return err
 	}
 
 	if err := handler.SaveNewBookmark(a, b); err != nil {

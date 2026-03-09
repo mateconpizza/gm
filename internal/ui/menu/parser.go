@@ -41,7 +41,6 @@ func selectFromItems[T comparable](m *Menu[T], items []T) ([]T, error) {
 
 	if m.preprocessor == nil {
 		slog.Warn("preprocessor is nil, defaulting to 'defaultPreprocessor'")
-
 		m.preprocessor = defaultPreprocessor
 	}
 

@@ -129,7 +129,7 @@ func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 
 	// Use default if force flag is set
 	if a.Cfg.Flags.Force {
-		b.tags = "notag"
+		b.tags = bookmark.DefaultTag
 		f.Textln(" " + p.Dim.Wrap(b.tags, p.Italic)).Flush()
 		return
 	}
@@ -171,6 +171,11 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	b.desc, _ = sc.Desc()
 	b.tags, _ = sc.Keywords()
 	b.favicon, _ = sc.Favicon()
+
+	if b.tags == "" {
+		tags, _ := sc.TagsRepo()
+		b.tags = strings.Join(tags, ",")
+	}
 
 	// title
 	t := p.Dim.Sprint(txt.SplitAndAlign(b.title, width, indentation))

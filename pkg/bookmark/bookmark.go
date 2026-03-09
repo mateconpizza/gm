@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const defaultTag = "notag"
+const DefaultTag = "notag"
 
 var (
 	ErrBookmarkDuplicate       = errors.New("bookmark already exists")
