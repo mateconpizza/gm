@@ -388,10 +388,10 @@ func openQR(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appNam
 	}
 
 	trunc := func(s string) string { return txt.Shorten(s, maxLabelLen) }
-	if err := qrcode.Label(trunc(b.Title), "top"); err != nil {
+	if err := qrcode.Label(trunc(b.Title), qr.LabelTop); err != nil {
 		return fmt.Errorf("%w: adding top label", err)
 	}
-	if err := qrcode.Label(trunc(b.URL), "bottom"); err != nil {
+	if err := qrcode.Label(trunc(b.URL), qr.LabelBottom); err != nil {
 		return fmt.Errorf("%w: adding bottom label", err)
 	}
 

@@ -18,6 +18,11 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
+var (
+	defaultForeground = color.RGBA{235, 235, 235, 255}
+	defaultBackground = color.RGBA{28, 28, 28, 255}
+)
+
 // position is a position on an image.
 type position struct {
 	x, y int
@@ -56,7 +61,7 @@ func loadImage(s string) (image.Image, error) {
 func createFontDrawer(s string, ro RenderOpts) *font.Drawer {
 	fd := &font.Drawer{
 		Dst:  ro.bitmap,
-		Src:  image.NewUniform(color.RGBA{0, 0, 0, 255}), // black
+		Src:  image.NewUniform(defaultBackground),
 		Face: ro.face,
 	}
 
@@ -69,7 +74,7 @@ func createFontDrawer(s string, ro RenderOpts) *font.Drawer {
 }
 
 // addLabel adds a label to an image, with the given position.
-func addLabel(path, text, pos string) error {
+func addLabel(path, text string, pos labelPosition) error {
 	img, err := loadImage(path)
 	if err != nil {
 		return err
@@ -83,7 +88,7 @@ func addLabel(path, text, pos string) error {
 		bitmap: bitmap,
 	}
 
-	switch pos {
+	switch pos.String() {
 	case "top":
 		opts.face = inconsolata.Bold8x16
 		opts.calcPos = calcTop
@@ -150,6 +155,9 @@ func calcTop(s string, fd *font.Drawer) position {
 // generatePNG generates a PNG from a given QR-Code.
 func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	const imgSize = 512
+
+	qr.ForegroundColor = defaultBackground
+	qr.BackgroundColor = defaultForeground
 
 	qrfile, err := files.CreateTemp(prefix, "png")
 	if err != nil {

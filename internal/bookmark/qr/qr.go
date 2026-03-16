@@ -17,6 +17,24 @@ var (
 	ErrQRNotGenerated = errors.New("QR-Code not generated")
 )
 
+type labelPosition int
+
+const (
+	LabelTop labelPosition = iota
+	LabelBottom
+)
+
+func (p labelPosition) String() string {
+	switch p {
+	case LabelTop:
+		return "top"
+	case LabelBottom:
+		return "bottom"
+	default:
+		return ""
+	}
+}
+
 // QRCode represents a QR-Code.
 type QRCode struct {
 	QR   *qrcode.QRCode
@@ -74,7 +92,7 @@ func (q *QRCode) Open(ctx context.Context) error {
 }
 
 // Label adds a label to an image, with the given position (top or bottom).
-func (q *QRCode) Label(s, pos string) error {
+func (q *QRCode) Label(s string, pos labelPosition) error {
 	if q.file == nil {
 		return ErrQRFileNotFound
 	}
