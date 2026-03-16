@@ -11,6 +11,8 @@ func TestBuildHeaderStrings(t *testing.T) {
 	t.Run("success with visible keybinds", func(t *testing.T) {
 		t.Parallel()
 		m := New[any]()
+		sep := " "
+		m.cfg.Header = Header{Sep: sep, Enabled: true}
 
 		keys := []*Keymap{
 			{Bind: "a", Action: "Add", Desc: "Add", Enabled: true},
@@ -20,7 +22,7 @@ func TestBuildHeaderStrings(t *testing.T) {
 		m.keymaps.register(keys...)
 
 		got := m.buildHeaderStrings()
-		want := []string{"a:Add", "d:Delete"}
+		want := []string{"a:Add" + sep + "d:Delete"}
 
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("want %v, got %v", want, got)
@@ -47,22 +49,6 @@ func TestBuildHeaderStrings(t *testing.T) {
 	})
 }
 
-func TestFormatHeaderArg(t *testing.T) {
-	t.Parallel()
-	m := New[any]()
-	m.cfg.Header = Header{Sep: " | "}
-	headers := []string{"a:Add", "d:Delete"}
-	got, err := m.formatHeaderArgs(headers)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := `--header=a:Add | d:Delete`
-	if got != want {
-		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
 func TestBuildHeader_Integration(t *testing.T) {
 	t.Parallel()
 	m := New[any]()
@@ -81,7 +67,7 @@ func TestBuildHeader_Integration(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := []string{`--header=a:Add | d:Delete`}
+	want := []string{"--header", "a:Add | d:Delete"}
 	got := m.args.build()
 
 	if len(got) != len(want) {

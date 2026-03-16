@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	shellwords "github.com/junegunn/go-shellwords"
+
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 var ErrInvalidHeaderArg = errors.New("invalid header argument")
@@ -44,53 +46,43 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 		return m.header
 	}
 
-	headers := make([]string, 0, len(m.header)+len(m.keymaps.keymaps))
-	headers = append(headers, m.header...)
+	headerParts := make([]string, 0, len(m.header)+len(m.keymaps.keymaps))
 
 	for _, k := range m.keymaps.list() {
 		if !k.Enabled || k.Hidden {
 			continue
 		}
 
-		headers = append(headers, fmt.Sprintf("%s:%s", k.Bind, k.Desc))
+		// single string per keymap, with color applied (optional)
+		part := fmt.Sprintf("%s:%s", k.Bind, k.Desc)
+		if m.withOutputColor {
+			p := ansi.NewPalette()
+
+			part = fmt.Sprintf("%s%s%s",
+				p.BrightYellow.Sprint(k.Bind),
+				p.Dim.Sprint(":"),
+				p.BrightBlue.Sprint(k.Desc),
+			)
+		}
+
+		headerParts = append(headerParts, part)
 	}
 
-	return headers
-}
-
-// formatHeaderArg builds the complete `--header="..."` argument string.
-func (m *Menu[T]) formatHeaderArgs(headers []string) (string, error) {
-	if len(headers) == 0 {
-		slog.Debug("menu: skipping header, empty")
-		return "", nil
+	if len(headerParts) > 0 {
+		return []string{strings.Join(headerParts, m.cfg.Header.Sep)}
 	}
 
-	s := fmt.Sprintf("%s=%q", m.args.header, strings.Join(headers, m.cfg.Header.Sep))
-	args, err := shellwords.Parse(s)
-	if err != nil {
-		return "", err
-	}
-
-	// shellwords.Parse returns a slice; we expect one element here.
-	if len(args) == 0 {
-		return "", fmt.Errorf("%w parsed from %q", ErrInvalidHeaderArg, s)
-	}
-
-	return args[0], nil
+	return nil
 }
 
 // buildHeader builds and appends the header argument.
 func (m *Menu[T]) buildHeaderArgs() error {
 	headers := m.buildHeaderStrings()
-	headerArg, err := m.formatHeaderArgs(headers)
-	if err != nil {
-		return err
-	}
-	if headerArg == "" {
+	if len(headers) == 0 {
 		return nil
 	}
 
-	m.args.add(headerArg)
+	m.args.add("--header", headers[0])
 
 	return nil
 }
