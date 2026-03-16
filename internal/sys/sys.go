@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/atotto/clipboard"
 	"github.com/pkg/browser"
@@ -155,6 +156,8 @@ func CopyClipboard(s string) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrCopyToClipboard, err)
 	}
+
+	time.Sleep(150 * time.Millisecond)
 
 	slog.Debug("text copied to clipboard", "text", s)
 
