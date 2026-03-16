@@ -102,6 +102,7 @@ func NewDefaultConfig() *Config {
 			withTac().
 			withHeight("100%").
 			withNoScrollbar().
+			withCycle().
 			withColor("prompt", "bold").
 			withColor("header", "italic", "bright-blue").build(),
 	}

@@ -35,7 +35,7 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 			kb.EditNotes(cfg.Menu.DefaultKeymaps.EditNotes),
 			kb.Open(cfg.Menu.DefaultKeymaps.Open),
 			kb.QR(cfg.Menu.DefaultKeymaps.QR),
-			kb.OpenQR(cfg.Menu.DefaultKeymaps.OpenQR),
+			kb.QROpen(cfg.Menu.DefaultKeymaps.OpenQR),
 			kb.Yank(cfg.Menu.DefaultKeymaps.Yank),
 			kb.ToggleAll(cfg.Menu.DefaultKeymaps.ToggleAll),
 			kb.Preview(cfg.Menu.DefaultKeymaps.Preview),

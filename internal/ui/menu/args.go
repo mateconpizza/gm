@@ -29,6 +29,7 @@ type ArgsBuilder struct {
 	read0         string // Read input delimited by ASCII NUL characters instead of newline characters
 	sync          string // Synchronous search for multi-staged filtering
 	tac           string // Reverse the order of the input
+	cycle         string // Enable cyclic scroll
 }
 
 func (a *ArgsBuilder) add(s ...string) *ArgsBuilder {
@@ -48,6 +49,7 @@ func (a *ArgsBuilder) withPreview(s string) *ArgsBuilder { return a.add(a.previe
 func (a *ArgsBuilder) withPrompt(s string) *ArgsBuilder  { return a.add(a.prompt + "=" + s) }
 func (a *ArgsBuilder) withSync() *ArgsBuilder            { return a.add(a.sync) }
 func (a *ArgsBuilder) withTac() *ArgsBuilder             { return a.add(a.tac) }
+func (a *ArgsBuilder) withCycle() *ArgsBuilder           { return a.add(a.cycle) }
 
 func (a *ArgsBuilder) withBorderLabel(s string) *ArgsBuilder {
 	return a.add(a.border, a.borderLabel+"="+s)
@@ -86,5 +88,6 @@ func newArgsBuilder() *ArgsBuilder {
 		read0:         "--read0",
 		sync:          "--sync",
 		tac:           "--tac",
+		cycle:         "--cycle",
 	}
 }

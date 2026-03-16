@@ -28,6 +28,12 @@ func (k *Keymap) WithAction(cmd string) *Keymap {
 	return k
 }
 
+// WithSilentAction returns a new Keymap with the given action command.
+func (k *Keymap) WithSilentAction(cmd string) *Keymap {
+	k.Action = action(fmt.Sprintf("execute-silent(%s)", cmd))
+	return k
+}
+
 // BuiltinKeymaps holds the keymaps for FZF.
 type BuiltinKeymaps struct {
 	Edit      *Keymap `json:"edit"       yaml:"edit"`
@@ -137,18 +143,22 @@ func (kb *KeybindBuilder) EditNotes(km *Keymap) *Keymap {
 }
 
 // Open returns a keybind to open the selected record in the default browser.
-func (kb *KeybindBuilder) Open(km *Keymap) *Keymap { return km.WithAction(kb.fmtCmd("--open {+1}")) }
+func (kb *KeybindBuilder) Open(km *Keymap) *Keymap {
+	return km.WithSilentAction(kb.fmtCmd("--open {+1}"))
+}
 
 // QR returns a keybind to show the QR code of the selected record.
 func (kb *KeybindBuilder) QR(km *Keymap) *Keymap { return km.WithAction(kb.fmtCmd("--qr {+1}")) }
 
-// OpenQR returns a keybind to open the QR code in the default image viewer.
-func (kb *KeybindBuilder) OpenQR(km *Keymap) *Keymap {
+// QROpen returns a keybind to open the QR code in the default image viewer.
+func (kb *KeybindBuilder) QROpen(km *Keymap) *Keymap {
 	return km.WithAction(kb.fmtCmd("--qr --open {+1}"))
 }
 
 // Yank returns a keybind to copy the selected record to the clipboard.
-func (kb *KeybindBuilder) Yank(km *Keymap) *Keymap { return km.WithAction(kb.fmtCmd("--copy {+1}")) }
+func (kb *KeybindBuilder) Yank(km *Keymap) *Keymap {
+	return km.WithSilentAction(kb.fmtCmd("--copy {+1}"))
+}
 
 func (kb *KeybindBuilder) ToggleAll(km *Keymap) *Keymap {
 	km.Action = "toggle-all"
