@@ -157,7 +157,7 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark, force bool) (bool, error
 	g := new(errgroup.Group)
 
 	for i := range bs {
-		b := bs[i] // capture loop variable
+		b := bs[i]
 		g.Go(func() error {
 			updated, err := bookio.SaveAsJSON(root, b, force)
 			if err != nil {

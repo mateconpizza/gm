@@ -177,8 +177,6 @@ func ReadClipboard() string {
 
 // ErrAndExit logs the error and exits the program.
 func ErrAndExit(err error) {
-	runCleanup()
-
 	switch {
 	case err == nil:
 		os.Exit(ExitSuccess)

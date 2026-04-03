@@ -30,6 +30,10 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 		menu.WithOutputColor(cfg.Flags.Color),
 		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
 		menu.WithPrompt(cfg.Menu.Prompt),
+		menu.WithHeaderFirst(),
+		menu.WithArgs("--header-border=rounded"),
+		menu.WithArgs("--header-label= keybinds "),
+		menu.WithArgs("--preview-border=rounded"),
 		menu.WithKeybinds(
 			kb.Edit(cfg.Menu.DefaultKeymaps.Edit, keybindsArgs...),
 			kb.EditNotes(cfg.Menu.DefaultKeymaps.EditNotes),

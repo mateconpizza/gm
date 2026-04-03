@@ -206,7 +206,8 @@ func ColorRand(styles ...SGR) SGR {
 		BrightBlue.With(styles...),
 		BrightMagenta.With(styles...),
 		BrightCyan.With(styles...),
-		BrightWhite.With(styles...),
+
+		// BrightWhite.With(styles...),
 	}
 
 	return colors[rand.Intn(len(colors))]

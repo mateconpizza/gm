@@ -38,8 +38,6 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		"track database in git")
 	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.Untrack, "untrack", "u", false,
 		"untrack database in git")
-	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.Management, "manage", "m", false,
-		"repos management in git")
 	gitCmd.AddCommand(gitTrackerCmd)
 
 	// git initializer

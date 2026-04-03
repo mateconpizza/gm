@@ -5,6 +5,9 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/mateconpizza/gm)
 ![Linux](https://img.shields.io/badge/-Linux-grey?logo=linux)
 ![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=Flat&logo=sqlite&logoColor=white)
+![Release](https://img.shields.io/github/v/release/mateconpizza/gm)
+![Go Report Card](https://goreportcard.com/badge/github.com/mateconpizza/gm)
+![GoDoc](https://pkg.go.dev/badge/github.com/mateconpizza/gm.svg)
 
 <img align="center" width="240px" src="https://raw.githubusercontent.com/MariaLetta/free-gophers-pack/refs/heads/master/illustrations/png/19.png" alt="Writing gopher logo">
 </div>

@@ -200,6 +200,13 @@ func WithHeaderOnly(header string) Option {
 	}
 }
 
+// WithHeaderFirst print header before the prompt line.
+func WithHeaderFirst() Option {
+	return func(o *Options) {
+		o.args.add("--header-first")
+	}
+}
+
 func WithFooter(footer string) Option {
 	return func(o *Options) {
 		o.args.add(o.args.footer + "=" + footer)

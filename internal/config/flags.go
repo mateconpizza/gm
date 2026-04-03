@@ -63,7 +63,6 @@ type Database struct {
 
 // GitFlags tracking operations.
 type GitFlags struct {
-	Management bool // Git repository management
 	Track      bool // Track database in git
 	Untrack    bool // Untrack database in git
 	Redo       bool // Redo

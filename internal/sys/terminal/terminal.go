@@ -28,9 +28,6 @@ var (
 // termState contains the state of the terminal.
 var termState *term.State
 
-// https://no-color.org
-const noColorEnv string = "NO_COLOR"
-
 // force is a flag to force the terminal to run in non-interactive mode.
 var force bool = false
 
@@ -44,13 +41,11 @@ var (
 // NoColorEnv disables color output if the NO_COLOR environment variable is
 // set.
 func NoColorEnv() bool {
-	if c := sys.Env(noColorEnv, ""); c != "" {
-		slog.Debug("NO_COLOR", "env found", c)
-
-		return true
-	}
-
-	return false
+	// https://no-color.org
+	const noColorEnv string = "NO_COLOR"
+	c := sys.Env(noColorEnv, "")
+	slog.Debug("Environment", slog.String("NO_COLOR", c))
+	return c != ""
 }
 
 // saveState the current terminal state.

@@ -36,8 +36,6 @@ func trackerFunc(cmd *cobra.Command, _ []string) error {
 	switch {
 	case cfg.Flags.List:
 		return status(c, cfg, gr.Tracker.Repos)
-	case cfg.Flags.Management:
-		return management(c, cfg)
 	case cfg.Flags.Track:
 		terminal.NonInteractiveMode(true) // don't ask confirmation
 		return track(c, gr)
@@ -82,54 +80,6 @@ func managementSelect(c *ui.Console, cfg *config.Config) error {
 		if i != len(dbFiles)-1 {
 			fmt.Println()
 		}
-	}
-
-	return nil
-}
-
-// management updates the tracked databases in the git repository.
-func management(c *ui.Console, cfg *config.Config) error {
-	dbFiles, err := files.Find(cfg.Path.Data, "*.db")
-	if err != nil {
-		return fmt.Errorf("finding db files: %w", err)
-	}
-
-	f, p := c.Frame(), c.Palette()
-	f.Headerln("Tracked database management").Rowln().Flush()
-
-	files.PrioritizeFile(dbFiles, config.MainDBName)
-	for _, dbPath := range dbFiles {
-		gr, err := git.NewRepo(dbPath)
-		if err != nil {
-			return fmt.Errorf("creating repo: %w", err)
-		}
-
-		if gr.IsTracked() {
-			if !c.Confirm(p.Bold.Sprintf("Untrack %q?", gr.Loc.Name), "n") {
-				continue
-			}
-
-			c.ReplaceLine(c.Warning(fmt.Sprintf("Untracking database %q", gr.Loc.Name)).String())
-
-			if err := gr.Untrack("untracked"); err != nil {
-				return err
-			}
-
-			fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q untracked", gr.Loc.DBName)))
-			continue
-		}
-
-		if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
-			continue
-		}
-
-		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", gr.Loc.DBName)).String())
-
-		if err := gr.Track(); err != nil {
-			return err
-		}
-
-		fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
 	}
 
 	return nil
