@@ -58,9 +58,7 @@ var (
 	dbRemoveCmd = &cobra.Command{
 		Use:     "db",
 		Aliases: []string{"database", "d"},
-		Short:   "Remove one or more databases from local storage",
-		Example: `  gm rm db -n dbName
-  gm rm db -n dbName --force`,
+		Short:   "Remove a database from local storage",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.FromContext(cmd.Context())
 			if err != nil {
@@ -92,16 +90,6 @@ var (
 			return handler.RemoveRepo(a)
 		},
 		PostRunE: dbRemovePostFunc,
-	}
-
-	// removeCmd databases/backups management.
-	removeCmd = &cobra.Command{
-		Use:     "remove",
-		Short:   "Remove databases/backups",
-		Aliases: []string{"rm", "del"},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Usage()
-		},
 	}
 )
 

@@ -24,14 +24,14 @@ import (
 var (
 	backupCmd = &cobra.Command{
 		Use:     "backup",
-		Aliases: []string{"b", "bk", "backups"},
+		Aliases: []string{"b", "bk"},
 		Short:   "Backup management",
 		RunE:    cli.HookHelp,
 	}
 
 	// backupRmCmd remove backups.
 	backupRmCmd = &cobra.Command{
-		Use:   "rm",
+		Use:   "remove",
 		Short: "Remove a backup/s",
 		RunE:  bkRemoveCmd.RunE,
 	}

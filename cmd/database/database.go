@@ -73,6 +73,8 @@ var (
 				return lockCmd.RunE(cmd, args)
 			case a.Cfg.Flags.List:
 				return printer.DatabasesTable(cmd.Context(), a.Console(), a.Cfg.Path.Data)
+			case a.Cfg.Flags.Remove:
+				return dbRemoveCmd.RunE(cmd, args)
 			case a.Cfg.Flags.Info:
 				return infoCmd.RunE(cmd, args)
 			}
@@ -105,37 +107,7 @@ var (
 		Use:     "info",
 		Short:   "Show information about a database",
 		Aliases: []string{"i", "show"},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := config.FromContext(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed to get config: %w", err)
-			}
-
-			r, err := db.New(cfg.DBPath)
-			if err != nil {
-				return err
-			}
-
-			a := app.New(cmd.Context(),
-				app.WithConfig(cfg),
-				app.WithDB(r),
-				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
-					db.Shutdown()
-				})),
-			)
-
-			return printer.RepoInfo(a)
-		},
-	}
-
-	// rmCmd remove a database.
-	rmCmd = &cobra.Command{
-		Use:      "rm",
-		Short:    dbRemoveCmd.Short,
-		Aliases:  []string{"r", "remove"},
-		Example:  dbRemoveCmd.Example,
-		RunE:     dbRemoveCmd.RunE,
-		PostRunE: dbRemoveCmd.PostRunE,
+		RunE:    dbInfoFunc,
 	}
 
 	lockCmd = &cobra.Command{
@@ -239,14 +211,36 @@ func dbDropPostFunc(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
+func dbInfoFunc(cmd *cobra.Command, _ []string) error {
+	cfg, err := config.FromContext(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
+	r, err := db.New(cfg.DBPath)
+	if err != nil {
+		return err
+	}
+
+	a := app.New(cmd.Context(),
+		app.WithConfig(cfg),
+		app.WithDB(r),
+		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+			db.Shutdown()
+		})),
+	)
+
+	return printer.RepoInfo(a)
+}
+
 func NewCmd(cfg *config.Config) *cobra.Command {
 	f := dbRootCmd.Flags()
 	f.SortFlags = false
 
-	f.StringVarP(&cfg.DBName, "name", "n", config.MainDBName, "database name")
 	f.BoolVarP(&cfg.Flags.List, "list", "l", false, "list databases")
 	f.BoolVarP(&cfg.Flags.Info, "info", "i", false, "database information")
 	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	f.BoolVarP(&cfg.Flags.Remove, "remove", "r", false, "remove database")
 	f.BoolVarP(&cfg.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
 	f.BoolVarP(&cfg.Flags.Reorder, "reorder", "R", false, "reorder IDs")
 	f.BoolVarP(&cfg.Flags.Lock, "lock", "L", false, "lock a database")
@@ -256,12 +250,10 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	newCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName,
 		"new database name")
 	dbRootCmd.AddCommand(newCmd)
+
 	// show database info
 	infoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false,
 		"output in JSON format")
-	// remove database
-	rmCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
-		"select database to remove (fzf compatible)")
 
 	// backup
 	backupUnlockCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
@@ -269,11 +261,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	backupCmd.AddCommand(BackupNewCmd, backupRmCmd, backupLockCmd, backupUnlockCmd)
 	dbRootCmd.AddCommand(backupCmd)
 
-	// remove
-	removeCmd.AddCommand(dbRemoveCmd, bkRemoveCmd)
-	dbRootCmd.AddCommand(removeCmd)
-
-	dbRootCmd.AddCommand(dropCmd, rmCmd)
+	dbRootCmd.AddCommand(dropCmd)
 
 	return dbRootCmd
 }
