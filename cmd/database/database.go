@@ -34,6 +34,10 @@ var (
 				return fmt.Errorf("failed to get config: %w", err)
 			}
 
+			if cfg.Flags.Unlock {
+				return unlockCmd.RunE(cmd, args)
+			}
+
 			r, err := db.New(cfg.DBPath)
 			if err != nil {
 				return err
@@ -53,20 +57,11 @@ var (
 
 			case a.Cfg.Flags.Vacuum:
 				slog.Debug("database:", "vacuum", a.Cfg.DBName)
-				r, err := db.New(a.Cfg.DBPath)
-				if err != nil {
-					return fmt.Errorf("backup: %w", err)
-				}
 				defer r.Close()
-
 				return r.Vacuum(cmd.Context())
 
 			case a.Cfg.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
-				r, err := db.New(a.Cfg.DBPath)
-				if err != nil {
-					return fmt.Errorf("backup: %w", err)
-				}
 				defer r.Close()
 
 				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
@@ -76,8 +71,6 @@ var (
 
 			case a.Cfg.Flags.Lock:
 				return lockCmd.RunE(cmd, args)
-			case a.Cfg.Flags.Unlock:
-				return unlockCmd.RunE(cmd, args)
 			case a.Cfg.Flags.List:
 				return printer.DatabasesTable(cmd.Context(), a.Console(), a.Cfg.Path.Data)
 			case a.Cfg.Flags.Info:

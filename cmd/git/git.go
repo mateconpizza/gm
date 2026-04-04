@@ -271,6 +271,7 @@ func pushFunc(ctx context.Context, cfg *config.Config) error {
 }
 
 func cloneFunc(cmd *cobra.Command, args []string) error {
+	// FIX: prompt the user to select which repo to import or all.
 	if len(args) == 0 {
 		return git.ErrGitRepoURLEmpty
 	}

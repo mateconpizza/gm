@@ -47,9 +47,7 @@ func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 	}
 	slog.Debug("ensure database", "command", cmd.Name())
 
-	// Skip DB check if explicitly unlocking
-	unlockFlag, _ := cmd.Flags().GetBool("unlock")
-	if unlockFlag {
+	if exit := dispatch(cmd); exit {
 		return nil
 	}
 
@@ -222,4 +220,14 @@ func checkDatabaseLocked(p string) error {
 	}
 
 	return nil
+}
+
+func dispatch(cmd *cobra.Command) bool {
+	// Skip DB check if explicitly unlocking
+	if unlock, _ := cmd.Flags().GetBool("unlock"); unlock {
+		slog.Debug("ensure database dispatch", "unlock", unlock)
+		return true
+	}
+
+	return false
 }
