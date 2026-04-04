@@ -1,13 +1,12 @@
-// Package health provides bookmark health verification and maintenance.
-package health
+// Package records provides bookmark health verification and maintenance.
+package records
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/health/wayback"
-	"github.com/mateconpizza/gm/cmd/records"
+	"github.com/mateconpizza/gm/cmd/records/wayback"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -19,32 +18,36 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func NewCmd(cfg *config.Config) *cobra.Command {
-	healthCmd := &cobra.Command{
-		Use:     "health [query]",
-		Aliases: []string{"h", "check", "verify"},
+func newCheckCmd(cfg *config.Config) *cobra.Command {
+	checkCmd := &cobra.Command{
+		Use:     "check",
+		Aliases: []string{"c"},
 		Short:   "Bookmark health",
 		Example: `  # Check specific aspects
-  gm health --status
-  gm health --update
+  gm records check --status
+  gm records check --update
 
   # Check specific bookmarks
-  gm health golang.org --status
-  gm health --tag tutorial --status`,
+  gm records check golang.org --status
+  gm records check --tag tutorial --status`,
 		RunE: checkerFunc,
 	}
 
-	f := healthCmd.Flags()
-	f.BoolVarP(&cfg.Flags.Status, "status", "s", false, "check HTTP status of bookmark URLs")
-	f.BoolVarP(&cfg.Flags.Update, "update", "u", false, "update bookmark metadata (title|desc|tags)")
-	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "interactive menu mode using fzf")
-	f.BoolVar(&cfg.Flags.Multiline, "multiline", false, "output in multiline format (fzf)")
+	f := checkCmd.Flags()
+	f.BoolVarP(&cfg.Flags.Status, "status", "s", false,
+		"check HTTP status of bookmark URLs")
+	f.BoolVarP(&cfg.Flags.Update, "update", "u", false,
+		"update bookmark metadata (title|desc|tags)")
+	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
+		"interactive menu mode using fzf")
+	f.BoolVar(&cfg.Flags.Multiline, "multiline", false,
+		"output in multiline format (fzf)")
 
-	records.InitFilterFlags(healthCmd, cfg)
+	InitFilterFlags(checkCmd, cfg)
 
-	healthCmd.AddCommand(wayback.NewCmd(cfg))
+	checkCmd.AddCommand(wayback.NewCmd(cfg))
 
-	return healthCmd
+	return checkCmd
 }
 
 func checkerFunc(cmd *cobra.Command, args []string) error {

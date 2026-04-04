@@ -21,11 +21,13 @@ func newParamsCmd(cfg *config.Config) *cobra.Command {
 	paramsCmd := &cobra.Command{
 		Use:     "params [query]",
 		Aliases: []string{"p", "par"},
+		Short:   "Parameters management",
 		RunE:    cleanParamsFunc,
 	}
 
 	f := paramsCmd.Flags()
-	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "interactive menu mode using fzf")
+	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
+		"interactive menu mode using fzf")
 
 	return paramsCmd
 }

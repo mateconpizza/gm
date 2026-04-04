@@ -33,6 +33,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 	recordCmd.AddCommand(newParamsCmd(cfg))
 	recordCmd.AddCommand(newTagsCmd(cfg))
+	recordCmd.AddCommand(newCheckCmd(cfg))
 
 	return recordCmd
 }
