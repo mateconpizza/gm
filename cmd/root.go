@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/cmd/io"
 	"github.com/mateconpizza/gm/cmd/records"
 	"github.com/mateconpizza/gm/cmd/setup"
-	"github.com/mateconpizza/gm/cmd/tags"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
@@ -106,7 +105,6 @@ func Setup(root *cobra.Command, cfg *config.Config) {
 	root.AddCommand(
 		create.NewCmd(cfg),
 		records.NewCmd(cfg),
-		tags.NewCmd(cfg),
 		health.NewCmd(cfg),
 		database.NewCmd(cfg),
 		gitCmd.NewCmd(cfg),

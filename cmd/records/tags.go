@@ -1,4 +1,4 @@
-package tags
+package records
 
 import (
 	"github.com/spf13/cobra"
@@ -7,8 +7,8 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 )
 
-// NewCmd manages bookmark tags (list, JSON export, etc.).
-func NewCmd(cfg *config.Config) *cobra.Command {
+// newTagsCmd manages bookmark tags (list, JSON export, etc.).
+func newTagsCmd(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "tags",
 		Aliases: []string{"t"},

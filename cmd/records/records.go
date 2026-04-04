@@ -22,18 +22,19 @@ import (
 // NewCmd is the root "records" command.
 // It provides entrypoints for listing, filtering, and operating on bookmarks.
 func NewCmd(cfg *config.Config) *cobra.Command {
-	records := &cobra.Command{
+	recordCmd := &cobra.Command{
 		Use:     "records",
 		Aliases: []string{"r", "rec"},
 		Short:   "Records management",
 		RunE:    Cmd,
 	}
 
-	InitFlags(records, cfg)
+	InitFlags(recordCmd, cfg)
 
-	records.AddCommand(newParamsCmd(cfg))
+	recordCmd.AddCommand(newParamsCmd(cfg))
+	recordCmd.AddCommand(newTagsCmd(cfg))
 
-	return records
+	return recordCmd
 }
 
 // Cmd is the main command and entrypoint.
