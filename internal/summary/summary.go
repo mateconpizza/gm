@@ -80,15 +80,6 @@ func RepoFromPath(a *app.Context, dbPath, backupPath string) string {
 	return f.Rowln(path).StringReset()
 }
 
-// RepoRecords generates a summary of record counts for a given SQLite
-// repository and bookmark.
-//
-//	repositoryName (main: n)
-func RepoRecords(ctx context.Context, c *ui.Console, r *db.SQLite) string {
-	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
-	return r.Name() + " " + c.Palette().BrightBlack.Wrap(main, c.Palette().Italic)
-}
-
 // RepoRecordsFromPath generates a summary of record counts for a given SQLite
 // repository and bookmark.
 //

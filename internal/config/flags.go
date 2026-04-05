@@ -64,9 +64,9 @@ type Database struct {
 
 // GitFlags tracking operations.
 type GitFlags struct {
-	Track      bool // Track database in git
-	Untrack    bool // Untrack database in git
-	Redo       bool // Redo
+	Track   bool // Track database in git
+	Untrack bool // Untrack database in git
+	Redo    bool // Redo
 }
 
 func SetVerbosity(verbose int) {

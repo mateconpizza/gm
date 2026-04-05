@@ -27,7 +27,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
-	cmd.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "", "")
+	cmd.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "always", "")
 	_ = cmd.Flags().MarkHidden("help")
 	_ = cmd.Flags().MarkHidden("color")
 

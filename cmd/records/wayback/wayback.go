@@ -26,10 +26,10 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Short:   "query the Wayback Machine for bookmarks",
 		Long:    `query the Internet Archive Wayback Machine for one or more bookmarks.`,
 		Example: `  # Get the latest snapshot for bookmark 179
-  gm health wayback --latest 179
+  gm records check wayback --latest 179
 
   # Get up to 5 snapshots from 2023
-  gm health wayback --limit 5 --year 2023 179`,
+  gm records check wayback --limit 5 --year 2023 179`,
 		RunE: waybackFunc,
 	}
 

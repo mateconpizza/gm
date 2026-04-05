@@ -7,8 +7,8 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 )
 
-// newTagsCmd manages bookmark tags (list, JSON export, etc.).
-func newTagsCmd(cfg *config.Config) *cobra.Command {
+// newTagCmd manages bookmark tags (list, JSON export, etc.).
+func newTagCmd(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "tag",
 		Aliases: []string{"t"},

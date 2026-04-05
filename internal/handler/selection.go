@@ -117,7 +117,7 @@ func selectItem(a *app.Context, fs []string, header string) (string, error) {
 		menu.WithOutputColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
-		menu.WithPreview(a.Cfg.Cmd+" db -n {1} -i"),
+		menu.WithPreview(a.Cfg.Cmd+" db -n {1} info"),
 	)
 	if err != nil {
 		return "", err

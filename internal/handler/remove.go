@@ -109,7 +109,7 @@ actionLoop:
 				menu.WithMultiSelection(),
 				menu.WithOutputColor(a.Cfg.Flags.Color),
 				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(fn))),
-				menu.WithPreview(a.Cfg.Cmd+" db --name=./backup/{1} --info"),
+				menu.WithPreview(a.Cfg.Cmd+" db --name=./backup/{1} info"),
 			)
 			if err != nil {
 				return err

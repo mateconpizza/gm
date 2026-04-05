@@ -32,7 +32,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	InitFlags(recordCmd, cfg)
 
 	recordCmd.AddCommand(newParamsCmd(cfg))
-	recordCmd.AddCommand(newTagsCmd(cfg))
+	recordCmd.AddCommand(newTagCmd(cfg))
 	recordCmd.AddCommand(newCheckCmd(cfg))
 
 	return recordCmd
