@@ -17,6 +17,7 @@ type Flags struct {
 	Remove bool // Remove bookmarks
 	List   bool // List items
 	Create bool // Action create
+	Help   bool // Help
 
 	// Output format
 	Format    string // Format

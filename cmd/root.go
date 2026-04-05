@@ -65,6 +65,7 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 	cmd.SilenceErrors = true
 	cmd.DisableSuggestions = true
 	cmd.SuggestionsMinimumDistance = 1
+	cmd.SetHelpCommand(&cobra.Command{Hidden: true})
 	cobra.EnableCommandSorting = false
 	cobra.EnableTraverseRunHooks = true
 

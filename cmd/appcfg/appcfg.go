@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -18,40 +19,76 @@ import (
 )
 
 func NewCmd(cfg *config.Config) *cobra.Command {
-	configCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "conf",
-		Aliases: []string{"c", "config"},
+		Aliases: []string{"c", "cfg", "config"},
 		Short:   "configuration management",
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE:    cli.HookHelp,
+	}
+
+	cmd.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
+	cmd.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "", "")
+	_ = cmd.Flags().MarkHidden("help")
+	_ = cmd.Flags().MarkHidden("color")
+
+	cmd.AddCommand(
+		newCreateCmd(cfg),
+		newEditCmd(cfg),
+		newJSONCmd(cfg),
+		newShowPathCmd(cfg),
+	)
+
+	return cmd
+}
+
+func newCreateCmd(cfg *config.Config) *cobra.Command {
+	return &cobra.Command{
+		Use:   "create",
+		Short: "create configuration file",
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cfg.Validate(); err != nil {
 				return err
 			}
 
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-
-			switch {
-			case cfg.Flags.Create:
-				return createConfig(c, cfg)
-			case cfg.Flags.Edit:
-				return editConfig(cmd.Context(), cfg)
-			case cfg.Flags.JSON:
-				return printConfigJSON(c, cfg)
-			case cfg.Flags.List:
-				return showPathFile(cfg.Path.ConfigFile)
-			}
-
-			return cmd.Usage()
+			return createConfig(c, cfg)
 		},
 	}
+}
 
-	f := configCmd.Flags()
-	f.SortFlags = false
-	f.BoolVarP(&cfg.Flags.Create, "create", "c", false, "create config file")
-	f.BoolVarP(&cfg.Flags.Edit, "edit", "e", false, "edit config")
-	f.BoolVarP(&cfg.Flags.List, "show-path", "s", false, "display config file location")
-	f.BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+func newEditCmd(cfg *config.Config) *cobra.Command {
+	return &cobra.Command{
+		Use:   "edit",
+		Short: "edit configuration file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cfg.Validate(); err != nil {
+				return err
+			}
 
-	return configCmd
+			return editConfig(cmd.Context(), cfg)
+		},
+	}
+}
+
+func newJSONCmd(cfg *config.Config) *cobra.Command {
+	return &cobra.Command{
+		Use:   "json",
+		Short: "output config in JSON format",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
+			return printConfigJSON(c, cfg)
+		},
+	}
+}
+
+func newShowPathCmd(cfg *config.Config) *cobra.Command {
+	return &cobra.Command{
+		Use:   "path",
+		Short: "print config file location",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return showPathFile(cfg.Path.ConfigFile)
+		},
+	}
 }
 
 // createConfig dumps the app configuration to a YAML file.
