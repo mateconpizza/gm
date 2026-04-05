@@ -4,10 +4,39 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
+func testBookmarksWithParameters(t *testing.T) []*bookmark.Bookmark {
+	t.Helper()
+
+	urls := []string{
+		"https://example.com/products?utm_source=google&utm_medium=cpc&utm_campaign=spring_sale&fbclid=IwAR123abc456def",
+		"https://blog.example.org/article?source=twitter&mc_cid=abc123&mc_eid=def456&_ga=2.123456789.987654321.123456789",
+		"https://shop.example.net/item?id=12345&utm_content=buffer123&utm_term=keyword&_hsenc=p2ANqtz-abc123",
+		"https://news.example.com/story?utm_source=feedburner&utm_medium=email&utm_campaign=Feed%3A+example&fb_ref=xyz789",
+		"https://docs.example.io/guide?gclid=CjwKCAjwq42FBhB2EiwA8S8q1abc&utm_campaign=evergreen&utm_source=reddit&utm_medium=social",
+		"https://app.example.co/login?redirect=/dashboard&_openstat=abc123;def456;ghi789&yclid=1234567890",
+		"https://www.example.com/search?q=test&ref=sr_gw_1&pf_rd_r=ABC123&pf_rd_p=def456&pd_rd_wg=ghi789",
+		"https://forum.example.org/topic/123?source=facebook&fb_action_ids=123456789&fb_action_types=og.likes",
+		"https://store.example.com/checkout?session_id=abc123&_ga=GA1.2.123456789.123456789&_gac=1.123456789.123456789",
+		"https://example.edu/course/view.php?id=123&utm_source=newsletter&utm_medium=email&utm_campaign=june2023&trk=profile_certification_title",
+	}
+
+	bs := testutil.BookmarkSlice(len(urls))
+	for i := range bs {
+		b := bs[i]
+		b.URL = urls[i]
+	}
+
+	return bs
+}
+
 func TestFilterWithParams(t *testing.T) {
+	// FIX: finish implementation
+	_ = testBookmarksWithParameters(t)
+
 	t.Parallel()
 
 	tests := []struct {

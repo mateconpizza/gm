@@ -19,6 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -69,8 +70,7 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 	cobra.EnableCommandSorting = false
 	cobra.EnableTraverseRunHooks = true
 
-	// close all open connections
-	sys.RegisterCleanup(db.Shutdown)
+	registerCleanups(cfg)
 
 	return cmd
 }
@@ -119,4 +119,17 @@ func Execute(r *cobra.Command) error {
 	defer stop()
 
 	return r.ExecuteContext(ctx)
+}
+
+func registerCleanups(_ *config.Config) {
+	// sync git
+	// cleanup.Register(func() {
+	// FIX: implement
+	// 	if err := git.Sync(cfg); err != nil {
+	// 		slog.Error("GitSync", slog.String("error", err.Error()))
+	// 	}
+	// })
+
+	// close all open connections
+	cleanup.Register(db.Shutdown)
 }
