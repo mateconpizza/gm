@@ -25,7 +25,7 @@ var (
 	// bkRemoveOtroCmd removes backups.
 	bkRemoveCmd = &cobra.Command{
 		Use:     "bk",
-		Short:   "Remove one or more backups from local storage",
+		Short:   "remove one or more backups from local storage",
 		Aliases: []string{"backup", "b", "backups"},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.FromContext(cmd.Context())
@@ -56,9 +56,9 @@ var (
 
 	// dbRemoveCmd remove a database.
 	dbRemoveCmd = &cobra.Command{
-		Use:     "db",
-		Aliases: []string{"database", "d"},
-		Short:   "Remove a database from local storage",
+		Use:     "rm",
+		Aliases: []string{"remove"},
+		Short:   "remove a database from local storage",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.FromContext(cmd.Context())
 			if err != nil {

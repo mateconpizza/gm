@@ -10,9 +10,9 @@ import (
 // newTagsCmd manages bookmark tags (list, JSON export, etc.).
 func newTagsCmd(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "tags",
+		Use:     "tag",
 		Aliases: []string{"t"},
-		Short:   "Tags management",
+		Short:   "tags management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case cfg.Flags.JSON:

@@ -16,7 +16,7 @@ import (
 
 var gitTrackerCmd = &cobra.Command{
 	Use:   "tracker",
-	Short: "Track database in git",
+	Short: "track database in git",
 	RunE:  trackerFunc,
 }
 

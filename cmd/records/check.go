@@ -22,7 +22,7 @@ func newCheckCmd(cfg *config.Config) *cobra.Command {
 	checkCmd := &cobra.Command{
 		Use:     "check",
 		Aliases: []string{"c"},
-		Short:   "Bookmark health",
+		Short:   "bookmark health",
 		Example: `  # Check specific aspects
   gm records check --status
   gm records check --update

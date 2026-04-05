@@ -18,7 +18,7 @@ var (
 func NewCmd(cfg *config.Config) *cobra.Command {
 	ioCmd := &cobra.Command{
 		Use:                "io",
-		Short:              "Export/Import bookmarks",
+		Short:              "export/import bookmarks",
 		RunE:               cli.HookHelp,
 		PersistentPostRunE: cli.HookGitSync,
 	}

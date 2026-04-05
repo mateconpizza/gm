@@ -20,14 +20,14 @@ import (
 var (
 	importFromDatabaseCmd = &cobra.Command{
 		Use:     "database",
-		Short:   "Import from database",
+		Short:   "import from database",
 		Aliases: []string{"db"},
 		RunE:    fromDatabaseFunc,
 	}
 
 	importFromBackupCmd = &cobra.Command{
 		Use:     "backup",
-		Short:   "Import from backup",
+		Short:   "import from backup",
 		Aliases: []string{"bk"},
 		RunE:    fromBackupFunc,
 	}

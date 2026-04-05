@@ -21,7 +21,7 @@ import (
 
 var InitCmd = &cobra.Command{
 	Use:               "init",
-	Short:             "Initialize a new bookmarks database",
+	Short:             "initialize a new bookmarks database",
 	Hidden:            true,
 	Annotations:       cli.SkipDBCheckAnnotation,
 	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,

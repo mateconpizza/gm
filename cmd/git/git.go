@@ -23,7 +23,7 @@ import (
 func NewCmd(cfg *config.Config) *cobra.Command {
 	gitCmd := &cobra.Command{
 		Use:                "git",
-		Short:              "Git commands",
+		Short:              "git commands",
 		Aliases:            []string{"g"},
 		PersistentPreRunE:  cli.HookEnsureGitEnv,
 		RunE:               gitCommandFunc,

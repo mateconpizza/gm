@@ -25,35 +25,35 @@ var (
 	backupCmd = &cobra.Command{
 		Use:     "backup",
 		Aliases: []string{"b", "bk"},
-		Short:   "Backup management",
+		Short:   "backup management",
 		RunE:    cli.HookHelp,
 	}
 
 	// backupRmCmd remove backups.
 	backupRmCmd = &cobra.Command{
 		Use:   "remove",
-		Short: "Remove a backup/s",
+		Short: "remove a backup/s",
 		RunE:  bkRemoveCmd.RunE,
 	}
 
 	// backupRmCmd remove backups.
 	backupLockCmd = &cobra.Command{
 		Use:   "lock",
-		Short: "Lock a database backup",
+		Short: "lock a database backup",
 		RunE:  backupLockFunc,
 	}
 
 	// backupRmCmd remove backups.
 	backupUnlockCmd = &cobra.Command{
 		Use:   "unlock",
-		Short: "Unlock a database backup",
+		Short: "unlock a database backup",
 		RunE:  backupUnlockFunc,
 	}
 
 	// backupCmd backup management.
 	BackupNewCmd = &cobra.Command{
-		Use:     "new",
-		Short:   "Create a new backup",
+		Use:     "add",
+		Short:   "create a new backup",
 		Aliases: []string{"create", "add"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.FromContext(cmd.Context())

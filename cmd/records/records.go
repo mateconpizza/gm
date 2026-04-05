@@ -24,8 +24,8 @@ import (
 func NewCmd(cfg *config.Config) *cobra.Command {
 	recordCmd := &cobra.Command{
 		Use:     "records",
-		Aliases: []string{"r", "rec"},
-		Short:   "Records management",
+		Aliases: []string{"bookmarks", "ls", "list"},
+		Short:   "records management",
 		RunE:    Cmd,
 	}
 

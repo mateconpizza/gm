@@ -15,7 +15,7 @@ import (
 
 var browserCmd = &cobra.Command{
 	Use:   "browser",
-	Short: "Import from browser",
+	Short: "import from browser",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.FromContext(cmd.Context())
 		if err != nil {

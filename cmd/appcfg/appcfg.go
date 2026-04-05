@@ -21,7 +21,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:     "conf",
 		Aliases: []string{"c", "config"},
-		Short:   "Configuration management",
+		Short:   "configuration management",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := cfg.Validate(); err != nil {
 				return err

@@ -21,7 +21,7 @@ func newParamsCmd(cfg *config.Config) *cobra.Command {
 	paramsCmd := &cobra.Command{
 		Use:     "params [query]",
 		Aliases: []string{"p", "par"},
-		Short:   "Parameters management",
+		Short:   "parameters management",
 		RunE:    cleanParamsFunc,
 	}
 

@@ -23,7 +23,7 @@ import (
 
 var htmlCmd = &cobra.Command{
 	Use:   "html",
-	Short: "Import from HTML Netscape file",
+	Short: "import from HTML Netscape file",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cfg, err := config.FromContext(cmd.Context())
 		if err != nil {

@@ -27,7 +27,7 @@ var (
 	dbRootCmd = &cobra.Command{
 		Use:     "db",
 		Aliases: []string{"database", "d"},
-		Short:   "Database management",
+		Short:   "database management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.FromContext(cmd.Context())
 			if err != nil {
@@ -77,7 +77,7 @@ var (
 	// createCmd initialize a new bookmarks database.
 	createCmd = &cobra.Command{
 		Use:               "create",
-		Short:             "Create a database",
+		Short:             "create a database",
 		Aliases:           []string{"add"},
 		Example:           `  gm db create -n myDb`,
 		Annotations:       cli.SkipDBCheckAnnotation,
@@ -89,7 +89,7 @@ var (
 	listCmd = &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"l", "ls"},
-		Short:   "List all databases",
+		Short:   "list all databases",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.FromContext(cmd.Context())
 			if err != nil {
@@ -109,7 +109,7 @@ var (
 	// dropCmd drops a database.
 	dropCmd = &cobra.Command{
 		Use:      "drop",
-		Short:    "Drop a database",
+		Short:    "drop a database",
 		RunE:     dbDropFunc,
 		PostRunE: dbDropPostFunc,
 	}
@@ -117,14 +117,14 @@ var (
 	// infoCmd shows information about a database.
 	infoCmd = &cobra.Command{
 		Use:     "info",
-		Short:   "Show information about a database",
+		Short:   "show information about a database",
 		Aliases: []string{"i", "show"},
 		RunE:    dbInfoFunc,
 	}
 
 	lockCmd = &cobra.Command{
 		Use:   "lock",
-		Short: "Lock a database",
+		Short: "lock a database",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.FromContext(cmd.Context())
 			if err != nil {
@@ -142,7 +142,7 @@ var (
 
 	unlockCmd = &cobra.Command{
 		Use:         "unlock",
-		Short:       "Unlock a database",
+		Short:       "unlock a database",
 		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.FromContext(cmd.Context())

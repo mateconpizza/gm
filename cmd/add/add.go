@@ -20,7 +20,7 @@ import (
 // addCmd represents the new command.
 var addCmd = &cobra.Command{
 	Use:     "add",
-	Short:   "Add bookmark, database, backup",
+	Short:   "add bookmark, database, backup",
 	Example: `  gm add r --title='Some title' --tags='tag1 tag2'`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.FromContext(cmd.Context())

@@ -23,8 +23,8 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	waybackCmd := &cobra.Command{
 		Use:     "wayback",
 		Aliases: []string{"w", "wm", "wb"},
-		Short:   "Query the Wayback Machine for bookmarks",
-		Long:    `Query the Internet Archive Wayback Machine for one or more bookmarks.`,
+		Short:   "query the Wayback Machine for bookmarks",
+		Long:    `query the Internet Archive Wayback Machine for one or more bookmarks.`,
 		Example: `  # Get the latest snapshot for bookmark 179
   gm health wayback --latest 179
 
