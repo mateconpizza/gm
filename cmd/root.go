@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/add"
 	"github.com/mateconpizza/gm/cmd/appcfg"
-	"github.com/mateconpizza/gm/cmd/create"
 	"github.com/mateconpizza/gm/cmd/database"
 	gitCmd "github.com/mateconpizza/gm/cmd/git"
 	"github.com/mateconpizza/gm/cmd/io"
@@ -102,7 +102,7 @@ func initAppConfig(ctx context.Context, cfg *config.Config) {
 // Setup registers all application commands with the CLI.
 func Setup(root *cobra.Command, cfg *config.Config) {
 	root.AddCommand(
-		create.NewCmd(cfg),
+		add.NewCmd(cfg),
 		records.NewCmd(cfg),
 		database.NewCmd(cfg),
 		gitCmd.NewCmd(cfg),
