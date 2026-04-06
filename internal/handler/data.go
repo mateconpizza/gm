@@ -42,7 +42,7 @@ func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bo
 		return nil, ErrNoItems
 	}
 
-	if a.Cfg.Flags.Menu || a.Cfg.Flags.Multiline {
+	if a.Cfg.Flags.Menu {
 		bs, err = applyMenuSelection(a.Console(), m, bs, a.Cfg.Flags)
 		if err != nil {
 			return nil, err
@@ -368,12 +368,7 @@ func applyMenuSelection(
 	}
 
 	// Select with menu
-	items, err := selectionWithMenu(m, bsCopy, func(b *bookmark.Bookmark) string {
-		if f.Multiline {
-			return txt.Multiline(c, b)
-		}
-		return txt.Oneline(c, b)
-	})
+	items, err := selectionWithMenu(m, bsCopy, func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) })
 	if err != nil {
 		return nil, err
 	}

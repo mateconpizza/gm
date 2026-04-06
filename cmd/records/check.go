@@ -40,8 +40,6 @@ func newCheckCmd(cfg *config.Config) *cobra.Command {
 		"update bookmark metadata (title|desc|tags)")
 	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
 		"interactive menu mode using fzf")
-	f.BoolVar(&cfg.Flags.Multiline, "multiline", false,
-		"output in multiline format (fzf)")
 
 	InitFilterFlags(checkCmd, cfg)
 

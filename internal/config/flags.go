@@ -20,9 +20,8 @@ type Flags struct {
 	Help   bool // Help
 
 	// Output format
-	Format    string // Format
-	JSON      bool   // JSON output
-	Multiline bool   // Multiline output
+	Format string // Format
+	JSON   bool   // JSON output
 
 	// Filtering and pagination
 	Head int      // Head limit

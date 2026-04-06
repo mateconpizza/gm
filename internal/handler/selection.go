@@ -46,10 +46,6 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 		),
 	}
 
-	if cfg.Flags.Multiline {
-		mo = append(mo, menu.WithMultilineView())
-	}
-
 	return menu.New[T](mo...)
 }
 
@@ -60,10 +56,6 @@ func MenuSimple[T comparable](cfg *config.Config, opts ...menu.Option) *menu.Men
 		menu.WithConfig(cfg.Menu),
 		menu.WithPreview(cfg.Cmd+" --name "+cfg.DBName+" records {1}"),
 	)
-
-	if cfg.Flags.Multiline {
-		opts = append(opts, menu.WithMultilineView())
-	}
 
 	return menu.New[T](opts...)
 }

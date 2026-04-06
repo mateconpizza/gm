@@ -89,7 +89,6 @@ func InitFlags(cmd *cobra.Command, cfg *config.Config) {
 	f.BoolVarP(&flag.Notes, "notes", "N", false, "display bookmark notes")
 	f.BoolVarP(&flag.Menu, "menu", "m", false, "interactive menu mode using fzf")
 	f.BoolVarP(&flag.Snapshot, "snapshot", "s", false, "display bookmark archive URL")
-	f.BoolVar(&flag.Multiline, "multiline", false, "output in multiline format (fzf)")
 
 	// Display
 	f.StringVarP(&cfg.Flags.Format, "format", "f", "",
