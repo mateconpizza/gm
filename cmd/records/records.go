@@ -63,6 +63,10 @@ func Cmd(cmd *cobra.Command, args []string) error {
 	)
 
 	m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+	if err := m.Validate(); err != nil {
+		return fmt.Errorf("menu: %w", err)
+	}
+
 	bs, err := handler.Data(a, m, args)
 	if err != nil {
 		return err

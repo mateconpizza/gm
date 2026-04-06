@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 )
 
 var (
@@ -22,6 +23,30 @@ var (
 	ErrFzfNoItems     = errors.New("fzf: no items found")
 	ErrFzfReturnCode  = errors.New("fzf: returned a non-zero code")
 )
+
+// Border draw border around the finder.
+type Border string
+
+const (
+	BorderRounded    Border = "rounded"
+	BorderSharp      Border = "sharp"
+	BorderBold       Border = "bold"
+	BorderDouble     Border = "double"
+	BorderBlock      Border = "block"
+	BorderThinblock  Border = "thinblock"
+	BorderHorizontal Border = "horizontal"
+	BorderVertical   Border = "vertical"
+	BorderLine       Border = "line"
+	BorderTop        Border = "top"
+	BorderBottom     Border = "bottom"
+	BorderLeft       Border = "left"
+	BorderRight      Border = "right"
+	BorderNone       Border = "none"
+)
+
+func (b Border) Arg(s string) string {
+	return s + "=" + string(b)
+}
 
 type Option func(*Options)
 
@@ -203,7 +228,34 @@ func WithHeaderOnly(header string) Option {
 // WithHeaderFirst print header before the prompt line.
 func WithHeaderFirst() Option {
 	return func(o *Options) {
-		o.args.add("--header-first")
+		o.args.add(o.args.headerFirst)
+	}
+}
+
+// WithHeaderBorder draw border around the header section.
+func WithHeaderBorder(b Border) Option {
+	return func(o *Options) {
+		o.args.add(b.Arg(o.args.headerBorder))
+	}
+}
+
+// WithHeaderLabel label to print on the header border.
+func WithHeaderLabel(s string) Option {
+	return func(o *Options) {
+		o.args.add(o.args.headerLabel + "=" + s)
+	}
+}
+
+// WithPreviewBorder draws a single separator line.
+func WithPreviewBorder(b Border) Option {
+	return func(o *Options) {
+		o.args.add(b.Arg(o.args.previewBorder))
+	}
+}
+
+func WithNth(idx ...string) Option {
+	return func(o *Options) {
+		o.args.add(o.args.withNth, strings.Join(idx, ","))
 	}
 }
 
@@ -290,5 +342,5 @@ func (m Menu[T]) Validate() error {
 		slog.Warn("empty settings, loading default settings")
 	}
 
-	return nil
+	return m.args.Validate()
 }

@@ -1,6 +1,13 @@
 package menu
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"reflect"
+	"strings"
+)
+
+var ErrArgEmpty = errors.New("argument cannot be empty")
 
 // Args holds the FZF arguments.
 type Args []string
@@ -25,11 +32,16 @@ type ArgsBuilder struct {
 	pointer       string // Pointer to the current line
 	preview       string // Execute the given command for the current line
 	previewWindow string // Determines the layout of the preview window.
+	previewBorder string // Draws a single separator line
 	prompt        string // Input prompt
 	read0         string // Read input delimited by ASCII NUL characters instead of newline characters
 	sync          string // Synchronous search for multi-staged filtering
 	tac           string // Reverse the order of the input
 	cycle         string // Enable cyclic scroll
+	headerFirst   string // Print header before the prompt line
+	headerLabel   string // Label to print on the header border
+	headerBorder  string // Draw border around the header section.
+	withNth       string // Transform the presentation of each line using the field index expressions
 }
 
 func (a *ArgsBuilder) add(s ...string) *ArgsBuilder {
@@ -65,6 +77,25 @@ func (a *ArgsBuilder) withColor(target string, styles ...string) *ArgsBuilder {
 	return a.add(color)
 }
 
+// Validate checks that all string fields in ArgsBuilder are not empty.
+func (a *ArgsBuilder) Validate() error {
+	v := reflect.ValueOf(*a)
+	t := reflect.TypeFor[ArgsBuilder]()
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldName := t.Field(i).Name
+
+		if field.Kind() == reflect.String {
+			if field.String() == "" {
+				return fmt.Errorf("%w: %q", ErrArgEmpty, fieldName)
+			}
+		}
+	}
+
+	return nil
+}
+
 func newArgsBuilder() *ArgsBuilder {
 	return &ArgsBuilder{
 		ansi:          "--ansi",
@@ -84,10 +115,15 @@ func newArgsBuilder() *ArgsBuilder {
 		pointer:       "--pointer",
 		preview:       "--preview",
 		previewWindow: "--preview-window",
+		previewBorder: "--preview-border",
 		prompt:        "--prompt",
 		read0:         "--read0",
 		sync:          "--sync",
 		tac:           "--tac",
 		cycle:         "--cycle",
+		headerFirst:   "--header-first",
+		headerLabel:   "--header-label",
+		headerBorder:  "--header-border",
+		withNth:       "--with-nth",
 	}
 }

@@ -211,6 +211,9 @@ linters:
       - path: "internal/handler/params_test.go"
         linters:
           - lll
+      - path: "cmd/root.go"
+        linters:
+          - lll
       - path: "internal/locker/locker_test.go"
         linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`
