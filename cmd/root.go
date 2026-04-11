@@ -26,12 +26,21 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
+const usageTemplate = `usage: {{if .Runnable}}{{.UseLine}}{{end}}{{if .HasAvailableSubCommands}} [command]{{end}}{{if gt (len .Aliases) 0}}
+
+aliases: {{.NameAndAliases}}{{end}}
+{{ if gt (len .Commands) 0}}
+commands:
+{{range .Commands}}{{if or .IsAvailableCommand (eq .Name "help")}}  {{rpad .Name .NamePadding}} {{.Short}}
+{{end}}{{end}}{{end}}
+flags:
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}
+`
+
 // NewRootCmd is the main command.
 func NewRootCmd(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               cfg.Cmd,
-		Short:             cfg.Info.Title,
-		Long:              cfg.Info.Desc,
+		Use:               cfg.Cmd + " [query]",
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
 		PersistentPreRunE: cli.ChainHooks(cli.HookInjectConfig(cfg), cli.HookEnsureDatabase),
@@ -39,6 +48,7 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
 	}
 
+	cmd.SetUsageTemplate(usageTemplate)
 	cmd.PersistentFlags().SortFlags = false
 
 	// Global flags
