@@ -34,7 +34,6 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 	base.FlagsFilter(c, cfg)
 
-	c.AddCommand(newSnapCmd(cfg))
 	c.AddCommand(newStatusCmd(cfg))
 	c.AddCommand(newUpdateCmd(cfg))
 

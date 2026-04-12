@@ -24,6 +24,11 @@ const UsageTemplate = `usage: {{if .Runnable}}{{.UseLine}}{{end}}{{if .HasAvaila
 
 aliases: {{.NameAndAliases}}
 {{- end}}
+{{- if .HasExample}}
+
+examples:
+{{.Example}}
+{{- end}}
 {{- if gt (len .Commands) 0}}
 
 commands:
