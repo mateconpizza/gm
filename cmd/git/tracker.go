@@ -14,6 +14,21 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
+func newGitTrackerCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "tracker",
+		Short: "track database in git",
+		RunE:  trackerFunc,
+	}
+
+	c.Flags().SortFlags = false
+	c.Flags().BoolVarP(&cfg.Flags.List, "list", "l", false, "status tracked databases")
+	c.Flags().BoolVarP(&cfg.Flags.Track, "track", "t", false, "track database in git")
+	c.Flags().BoolVarP(&cfg.Flags.Untrack, "untrack", "u", false, "untrack database in git")
+
+	return c
+}
+
 var gitTrackerCmd = &cobra.Command{
 	Use:   "tracker",
 	Short: "track database in git",

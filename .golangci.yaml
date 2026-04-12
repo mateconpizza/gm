@@ -231,6 +231,10 @@ linters:
           - funlen
           - gocyclo
           - gosec
+      - path: "cmd/io/file.go"
+        linters:
+          - funlen
+          - gocyclo
       - path: "pkg/ansi/pallete.go"
         linters:
           - gosec

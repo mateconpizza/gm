@@ -25,6 +25,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -34,15 +35,15 @@ import (
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(a *app.Context, bs []*bookmark.Bookmark, open bool, appName string) error {
+func QR(a *app.Context, bs []*bookmark.Bookmark) error {
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		if open {
-			return openQR(a.Context(), qrcode, b, appName)
+		if a.Cfg.Flags.Open {
+			return openQR(a.Context(), qrcode, b, a.Cfg.Name)
 		}
 
 		p := a.Console().Palette()
@@ -68,7 +69,7 @@ func QR(a *app.Context, bs []*bookmark.Bookmark, open bool, appName string) erro
 }
 
 // Copy copies the URLs to the system clipboard.
-func Copy(bs []*bookmark.Bookmark) error {
+func Copy(_ *app.Context, bs []*bookmark.Bookmark) error {
 	var sb strings.Builder
 	for i := range bs {
 		sb.WriteString(bs[i].URL + "\n")
@@ -82,7 +83,7 @@ func Copy(bs []*bookmark.Bookmark) error {
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
 func Open(a *app.Context, bs []*bookmark.Bookmark) error {
-	const maxGoroutines = 15
+	const maxGoroutines = 10
 	n := len(bs)
 	p := a.Console().Palette()
 
@@ -375,7 +376,7 @@ func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 	}
 }
 
-func Export(bs []*bookmark.Bookmark) error {
+func Export(_ *app.Context, bs []*bookmark.Bookmark) error {
 	return bookio.ExportToNetscapeHTML(bs, os.Stdout)
 }
 
@@ -449,7 +450,7 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 func runEditSession(a *app.Context, bs []*bookmark.Bookmark, opts ...editor.SessionOption) error {
 	te, err := editor.NewEditor(a.Cfg.Env.Editor)
 	if err != nil {
-		return fmt.Errorf("init editor: %w", err)
+		return err
 	}
 
 	m := editor.NewMeta()
@@ -463,12 +464,22 @@ func runEditSession(a *app.Context, bs []*bookmark.Bookmark, opts ...editor.Sess
 		editor.WithMeta(m),
 	)
 
-	session := editor.NewEditSession(
-		a.Console(),
-		a.DB,
-		te,
-		opts...,
-	)
+	session := editor.NewEditSession(a.Console(), a.DB, te, opts...)
 
 	return session.Run(bs, es)
+}
+
+func Notes(a *app.Context, bs []*bookmark.Bookmark) error {
+	return printer.Notes(a.Console(), bs)
+}
+
+func Display(a *app.Context, bs []*bookmark.Bookmark) error {
+	f := a.Cfg.Flags
+
+	switch {
+	case f.Format != "":
+		return printer.Display(a.Console(), f.Format, bs)
+	default:
+		return printer.Records(a.Console(), bs)
+	}
 }

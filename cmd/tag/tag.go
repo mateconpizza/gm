@@ -1,4 +1,4 @@
-package records
+package tag
 
 import (
 	"github.com/spf13/cobra"
@@ -7,12 +7,12 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 )
 
-// newTagCmd manages bookmark tags (list, JSON export, etc.).
-func newTagCmd(cfg *config.Config) *cobra.Command {
-	cmd := &cobra.Command{
+// NewCmd manages bookmark tags (list, JSON export, etc.).
+func NewCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
 		Use:     "tag",
 		Aliases: []string{"t"},
-		Short:   "tags management",
+		Short:   "tags management (wip)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case cfg.Flags.JSON:
@@ -25,10 +25,10 @@ func newTagCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false,
+	c.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false,
 		"output tags+count in JSON format")
-	cmd.Flags().BoolVarP(&cfg.Flags.List, "list", "l", false,
+	c.Flags().BoolVarP(&cfg.Flags.List, "list", "l", false,
 		"list all tags")
 
-	return cmd
+	return c
 }

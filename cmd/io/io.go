@@ -16,30 +16,23 @@ var (
 )
 
 func NewCmd(cfg *config.Config) *cobra.Command {
-	ioCmd := &cobra.Command{
+	c := &cobra.Command{
 		Use:                "io",
 		Short:              "export/import bookmarks",
 		RunE:               cli.HookHelp,
 		PersistentPostRunE: cli.HookGitSync,
 	}
 
-	ioCmd.Flags().BoolVarP(&cfg.Flags.Export, "export", "e", false, "export selected bookmarks")
-	ioCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "menu mode (fzf)")
+	c.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
+	_ = c.Flags().MarkHidden("help")
 
-	// browser
-	ioCmd.AddCommand(browserCmd)
+	c.AddCommand(
+		newExportCmd(cfg),
+		browserCmd,
+		newHTMLCmd(cfg),
+		importFromBackupCmd,
+		importFromDatabaseCmd,
+	)
 
-	// netscape html
-	htmlCmd.Flags().StringVarP(&cfg.Flags.Path, "filename", "f", "", "filename path")
-	ioCmd.AddCommand(htmlCmd)
-
-	// databases
-	ioCmd.AddCommand(importFromBackupCmd)
-	ioCmd.AddCommand(importFromDatabaseCmd)
-
-	// git
-	gitCmd.Flags().StringVarP(&cfg.Flags.Path, "uri", "i", "", "repo URI to import")
-	ioCmd.AddCommand(gitCmd)
-
-	return ioCmd
+	return c
 }

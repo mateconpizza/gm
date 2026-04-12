@@ -10,79 +10,90 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/add"
 	"github.com/mateconpizza/gm/cmd/appcfg"
+	"github.com/mateconpizza/gm/cmd/archive"
+	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/check"
+	"github.com/mateconpizza/gm/cmd/clean"
 	"github.com/mateconpizza/gm/cmd/database"
+	"github.com/mateconpizza/gm/cmd/edit"
 	gitCmd "github.com/mateconpizza/gm/cmd/git"
 	"github.com/mateconpizza/gm/cmd/io"
-	"github.com/mateconpizza/gm/cmd/records"
+	"github.com/mateconpizza/gm/cmd/notes"
+	"github.com/mateconpizza/gm/cmd/open"
+	"github.com/mateconpizza/gm/cmd/qrcmd"
+	"github.com/mateconpizza/gm/cmd/rm"
 	"github.com/mateconpizza/gm/cmd/setup"
+	"github.com/mateconpizza/gm/cmd/tag"
+	"github.com/mateconpizza/gm/cmd/yank"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-const usageTemplate = `usage: {{if .Runnable}}{{.UseLine}}{{end}}{{if .HasAvailableSubCommands}} [command]{{end}}{{if gt (len .Aliases) 0}}
-
-aliases: {{.NameAndAliases}}{{end}}
-{{ if gt (len .Commands) 0}}
-commands:
-{{range .Commands}}{{if or .IsAvailableCommand (eq .Name "help")}}  {{rpad .Name .NamePadding}} {{.Short}}
-{{end}}{{end}}{{end}}
-flags:
-{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}
-`
+// TODO: let the user set the default database.
+// - [ ] gm db use <name> (this will set it as default?)
 
 // NewRootCmd is the main command.
 func NewRootCmd(cfg *config.Config) *cobra.Command {
-	cmd := &cobra.Command{
+	c := &cobra.Command{
 		Use:               cfg.Cmd + " [query]",
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
 		PersistentPreRunE: cli.ChainHooks(cli.HookInjectConfig(cfg), cli.HookEnsureDatabase),
-		RunE:              records.Cmd,
 		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+			if err := m.Validate(); err != nil {
+				return err
+			}
+
+			return base.RunWithBookmarks(cmd, args, m, handler.Display)
+		},
 	}
 
-	cmd.SetUsageTemplate(usageTemplate)
-	cmd.PersistentFlags().SortFlags = false
+	cobra.AddTemplateFunc("hasFlags", base.HasFlags)
 
-	// Global flags
-	cmd.PersistentFlags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName,
-		"database name")
-	cmd.PersistentFlags().StringVar(&cfg.Flags.ColorStr, "color", "always",
-		"output with pretty colors [always|never]")
-	cmd.PersistentFlags().BoolVar(&cfg.Flags.Force, "force", false,
-		"force action")
-	cmd.PersistentFlags().BoolVarP(&cfg.Flags.Yes, "yes", "y", false,
-		"assume \"yes\" on most questions")
-	cmd.PersistentFlags().CountVarP(&cfg.Flags.Verbose, "verbose", "v",
-		"increase verbosity (-v, -vv, -vvv)")
+	c.SetUsageTemplate(base.UsageTemplate)
+	c.PersistentFlags().SortFlags = false
 
-	// Initialize flags for records commands
-	records.InitFlags(cmd, cfg)
+	// local
+	base.FlagFormat(c, cfg)
+	base.FlagsFilter(c, cfg)
+	base.FlagMenu(c, cfg)
+
+	// global
+	g := c.PersistentFlags()
+	g.StringVar(&cfg.DBName, "db", config.MainDBName, "database name")
+	g.StringVar(&cfg.Flags.ColorStr, "color", "always", "output with colors [always|never]")
+	g.BoolVar(&cfg.Flags.Force, "force", false, "force action")
+	g.BoolVarP(&cfg.Flags.Yes, "yes", "y", false, "assume yes")
+	g.CountVarP(&cfg.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
 
 	cobra.OnInitialize(func() {
 		cfg.Initialize()
-		initAppConfig(cmd.Context(), cfg)
+		initAppConfig(c.Context(), cfg)
 	})
 
 	// cmd settings
-	cmd.CompletionOptions.HiddenDefaultCmd = true
-	cmd.SilenceErrors = true
-	cmd.DisableSuggestions = true
-	cmd.SuggestionsMinimumDistance = 1
-	cmd.SetHelpCommand(&cobra.Command{Hidden: true})
+	c.CompletionOptions.HiddenDefaultCmd = true
+	c.SilenceErrors = true
+	c.DisableSuggestions = true
+	c.SuggestionsMinimumDistance = 1
+	c.SetHelpCommand(&cobra.Command{Hidden: true})
 	cobra.EnableCommandSorting = false
 	cobra.EnableTraverseRunHooks = true
 
 	registerCleanups(cfg)
 
-	return cmd
+	return c
 }
 
 func initAppConfig(ctx context.Context, cfg *config.Config) {
@@ -114,11 +125,17 @@ func initAppConfig(ctx context.Context, cfg *config.Config) {
 func Setup(root *cobra.Command, cfg *config.Config) {
 	root.AddCommand(
 		add.NewCmd(cfg),
-		records.NewCmd(cfg),
-		database.NewCmd(cfg),
-		gitCmd.NewCmd(cfg),
-		io.NewCmd(cfg),
-		appcfg.NewCmd(cfg),
+		edit.NewCmd(cfg),
+		rm.NewCmd(cfg),
+		open.NewCmd(cfg),
+		yank.NewCmd(cfg),
+		notes.NewCmd(cfg),
+		qrcmd.NewCmd(cfg),
+		check.NewCmd(cfg),
+		tag.NewCmd(cfg),
+		clean.NewCmd(cfg),
+		archive.NewCmd(cfg),
+		newAdminCmd(cfg),
 		setup.NewCmd(),
 	)
 }
@@ -131,15 +148,29 @@ func Execute(r *cobra.Command) error {
 	return r.ExecuteContext(ctx)
 }
 
-func registerCleanups(_ *config.Config) {
-	// sync git
-	// cleanup.Register(func() {
-	// FIX: implement
-	// 	if err := git.Sync(cfg); err != nil {
-	// 		slog.Error("GitSync", slog.String("error", err.Error()))
-	// 	}
-	// })
+func newAdminCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "admin",
+		Short: "manage database, git sync, and config",
+	}
 
+	c.AddCommand(
+		database.NewCmd(cfg),
+		appcfg.NewCmd(cfg),
+		gitCmd.NewCmd(cfg),
+		io.NewCmd(cfg),
+	)
+
+	c.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
+	_ = c.Flags().MarkHidden("help")
+
+	return c
+}
+
+func registerCleanups(_ *config.Config) {
 	// close all open connections
-	cleanup.Register(db.Shutdown)
+	cleanup.Register(func() error {
+		db.Shutdown()
+		return nil
+	})
 }

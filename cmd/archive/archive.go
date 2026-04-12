@@ -1,12 +1,13 @@
 // Package wayback provides commands for querying the Internet Archive Wayback
 // Machine to retrieve historical snapshots of bookmarked URLs.
-package wayback
+package archive
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/base"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -20,11 +21,10 @@ import (
 )
 
 func NewCmd(cfg *config.Config) *cobra.Command {
-	waybackCmd := &cobra.Command{
-		Use:     "wayback",
-		Aliases: []string{"w", "wm", "wb"},
-		Short:   "query the Wayback Machine for bookmarks",
-		Long:    `query the Internet Archive Wayback Machine for one or more bookmarks.`,
+	c := &cobra.Command{
+		Use:     "archive",
+		Aliases: []string{"a", "w", "wb"},
+		Short:   "wayback lookup",
 		Example: `  # Get the latest snapshot for bookmark 179
   gm records check wayback --latest 179
 
@@ -33,14 +33,16 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		RunE: waybackFunc,
 	}
 
-	f := waybackCmd.Flags()
+	f := c.Flags()
 	f.SortFlags = false
 	f.BoolVarP(&cfg.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
 	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
 	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
-	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "interactive menu mode using fzf (select bookmarks)")
+	base.FlagMenu(c, cfg)
+	f.Bool("help", false, "help message")
+	_ = f.MarkHidden("help")
 
-	return waybackCmd
+	return c
 }
 
 func waybackFunc(cmd *cobra.Command, args []string) error {

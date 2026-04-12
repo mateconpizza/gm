@@ -21,43 +21,35 @@ import (
 
 // NewCmd is the git command.
 func NewCmd(cfg *config.Config) *cobra.Command {
-	gitCmd := &cobra.Command{
+	c := &cobra.Command{
 		Use:                "git",
-		Short:              "git commands",
+		Short:              "git sync",
 		Aliases:            []string{"g"},
 		PersistentPreRunE:  cli.HookEnsureGitEnv,
 		RunE:               gitCommandFunc,
 		DisableFlagParsing: true,
 	}
 
-	// git tracker
-	gitTrackerCmd.Flags().SortFlags = false
-	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.List, "list", "l", false,
-		"status tracked databases")
-	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.Track, "track", "t", false,
-		"track database in git")
-	gitTrackerCmd.Flags().BoolVarP(&cfg.Flags.Untrack, "untrack", "u", false,
-		"untrack database in git")
-	gitCmd.AddCommand(gitTrackerCmd)
-
 	// git initializer
-	initCmd.Flags().BoolVar(&cfg.Flags.Redo, "redo", false,
-		"reinitialize")
-	gitCmd.AddCommand(initCmd)
+	initCmd.Flags().BoolVar(&cfg.Flags.Redo, "redo", false, "reinitialize")
+	c.AddCommand(initCmd)
+
+	c.AddCommand(newGitTrackerCmd(cfg))
 
 	// git import from repo
-	ImportCmd.Flags().StringVarP(&cfg.Flags.Path, "uri", "i", "",
-		"repo URI to import")
-	gitCmd.AddCommand(ImportCmd) // public
+	ImportCmd.Flags().StringVarP(&cfg.Flags.Path, "uri", "i", "", "repo URI to import")
+	c.AddCommand(ImportCmd) // public
 
 	// git clone
-	cloneCmd.Flags().BoolVar(&cfg.Flags.Force, "force", false,
-		"force clone")
-	gitCmd.AddCommand(cloneCmd)
+	cloneCmd.Flags().BoolVar(&cfg.Flags.Force, "force", false, "force clone")
+	c.AddCommand(cloneCmd)
 
-	gitCmd.AddCommand(commitCmd, pushCmd, rawCmd)
+	c.AddCommand(commitCmd, pushCmd, rawCmd)
 
-	return gitCmd
+	c.Flags().Bool("help", false, "help message")
+	_ = c.Flags().MarkHidden("help")
+
+	return c
 }
 
 var (

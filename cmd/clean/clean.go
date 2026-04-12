@@ -1,10 +1,11 @@
-package records
+package clean
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/base"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -17,24 +18,22 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func newParamsCmd(cfg *config.Config) *cobra.Command {
-	paramsCmd := &cobra.Command{
-		Use:     "params [query]",
-		Aliases: []string{"p", "par"},
-		Short:   "parameters management",
-		RunE:    cleanParamsFunc,
+func NewCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "clean [query]",
+		Short: "strip URL params",
+		RunE:  cleanParamsFunc,
 	}
 
-	f := paramsCmd.Flags()
-	f.BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
-		"interactive menu mode using fzf")
+	base.FlagMenu(c, cfg)
+	c.Flags().Bool("help", false, "help message")
+	_ = c.Flags().MarkHidden("help")
 
-	return paramsCmd
+	return c
 }
 
 func cleanParamsFunc(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-
 	cfg, err := config.FromContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)

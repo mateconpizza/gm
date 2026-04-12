@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cmdGit "github.com/mateconpizza/gm/cmd/git"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
@@ -30,13 +29,6 @@ var (
 		Short:   "import from backup",
 		Aliases: []string{"bk"},
 		RunE:    fromBackupFunc,
-	}
-
-	gitCmd = &cobra.Command{
-		Use:     "git",
-		Short:   cmdGit.ImportCmd.Short,
-		Aliases: []string{"g"},
-		RunE:    cmdGit.ImportCmd.RunE,
 	}
 )
 

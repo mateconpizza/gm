@@ -19,26 +19,26 @@ import (
 )
 
 func NewCmd(cfg *config.Config) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "conf",
-		Aliases: []string{"c", "cfg", "config"},
+	c := &cobra.Command{
+		Use:     "config",
+		Aliases: []string{"cfg", "conf"},
 		Short:   "configuration management",
 		RunE:    cli.HookHelp,
 	}
 
-	cmd.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
-	cmd.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "always", "")
-	_ = cmd.Flags().MarkHidden("help")
-	_ = cmd.Flags().MarkHidden("color")
+	c.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
+	c.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "always", "")
+	_ = c.Flags().MarkHidden("help")
+	_ = c.Flags().MarkHidden("color")
 
-	cmd.AddCommand(
+	c.AddCommand(
 		newCreateCmd(cfg),
 		newEditCmd(cfg),
 		newJSONCmd(cfg),
 		newShowPathCmd(cfg),
 	)
 
-	return cmd
+	return c
 }
 
 func newCreateCmd(cfg *config.Config) *cobra.Command {

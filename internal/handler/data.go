@@ -11,7 +11,6 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/app"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -28,7 +27,7 @@ var (
 
 // Data retrieves and filters bookmarks based on configuration and arguments.
 func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
-	bs, err := getRecords(a, args)
+	bs, err := FetchBookmarks(a, args)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +42,7 @@ func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bo
 	}
 
 	if a.Cfg.Flags.Menu {
-		bs, err = applyMenuSelection(a.Console(), m, bs, a.Cfg.Flags)
+		bs, err = ApplyMenuSelection(a.Console(), m, bs)
 		if err != nil {
 			return nil, err
 		}
@@ -52,9 +51,9 @@ func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bo
 	return bs, nil
 }
 
-// getRecords retrieves records based on user input and filtering criteria.
-func getRecords(a *app.Context, args []string) ([]*bookmark.Bookmark, error) {
-	slog.Debug("getRecords", "args", args)
+// FetchBookmarks retrieves records based on user input and filtering criteria.
+func FetchBookmarks(a *app.Context, args []string) ([]*bookmark.Bookmark, error) {
+	slog.Debug("FetchBookmarks", "args", args)
 
 	// Try to get by IDs first
 	if bs, err := getByIDs(a, args); err != nil {
@@ -354,12 +353,11 @@ func tail(bs []*bookmark.Bookmark, n int) []*bookmark.Bookmark {
 	return result
 }
 
-// applyMenuSelection applies menu selection to bookmarks.
-func applyMenuSelection(
+// ApplyMenuSelection applies menu selection to bookmarks.
+func ApplyMenuSelection(
 	c *ui.Console,
 	m *menu.Menu[bookmark.Bookmark],
 	bs []*bookmark.Bookmark,
-	f *config.Flags,
 ) ([]*bookmark.Bookmark, error) {
 	// Create copy for menu selection
 	bsCopy := make([]bookmark.Bookmark, 0, len(bs))

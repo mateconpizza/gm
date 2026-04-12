@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/base"
 	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
@@ -27,7 +28,7 @@ var (
 	dbRootCmd = &cobra.Command{
 		Use:     "db",
 		Aliases: []string{"database", "d"},
-		Short:   "database management",
+		Short:   "database ops",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.FromContext(cmd.Context())
 			if err != nil {
@@ -265,16 +266,14 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	)
 
 	// new database
-	createCmd.Flags().StringVarP(&cfg.DBName, "name", "n", config.MainDBName,
-		"new database name")
+	createCmd.Flags().StringVar(&cfg.DBName, "db", config.MainDBName, "new database name")
 
 	// show database info
 	infoCmd.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false,
 		"output in JSON format")
 
 	// backup
-	backupUnlockCmd.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false,
-		"select a backup to lock|unlock (fzf compatible)")
+	base.FlagMenu(backupLockCmd, cfg)
 	backupCmd.AddCommand(
 		BackupNewCmd,
 		backupRmCmd,

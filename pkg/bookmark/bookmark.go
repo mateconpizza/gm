@@ -23,6 +23,7 @@ var (
 	ErrBookmarkTitleRequired   = errors.New("title is required")
 	ErrBookmarkUnknownField    = errors.New("bookmark field unknown")
 	ErrBookmarkInvalidChecksum = errors.New("invalid checksum")
+	ErrBookmarkArchiveURL      = errors.New("no archive URL found")
 )
 
 // Bookmark represents a bookmark.
