@@ -96,7 +96,7 @@ func resolveBookmarks(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []st
 	return bs, nil
 }
 
-func RunWithBookmarks(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark], action BookmarkAction) error {
+func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark], action BookmarkAction) error {
 	a, cleanup, err := SetupApp(cmd, &args)
 	if err != nil {
 		return err
@@ -147,7 +147,7 @@ func HideFlag(c *cobra.Command, names ...string) {
 	for _, name := range names {
 		if f := c.Flags().Lookup(name); f != nil {
 			f.Hidden = true
-			return
+			continue
 		}
 		if f := c.PersistentFlags().Lookup(name); f != nil {
 			f.Hidden = true

@@ -17,33 +17,29 @@ import (
 
 // MenuMainForRecords builds the interactive FZF menu for selecting records.
 func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
-	var keybindsArgs []string
-	if cfg.Flags.Notes {
-		keybindsArgs = append(keybindsArgs, "--notes")
-	}
-
 	kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
+	k := cfg.Menu.DefaultKeymaps
 	mo := []menu.Option{
 		menu.WithBorderLabel(" " + config.AppName + " "),
 		menu.WithConfig(cfg.Menu),
 		menu.WithMultiSelection(),
 		menu.WithOutputColor(cfg.Flags.Color),
-		menu.WithPreview(cfg.Cmd + " --name " + cfg.DBName + " records {1}"),
+		menu.WithPreview(cfg.PreviewCmd(cfg.DBName) + " {1}"),
 		menu.WithPrompt(cfg.Menu.Prompt),
 		menu.WithHeaderFirst(),
 		menu.WithHeaderLabel(" keybinds "),
 		menu.WithHeaderBorder(menu.BorderRounded),
 		menu.WithPreviewBorder(menu.BorderRounded),
-		menu.WithNth("3", "4"),
+		// menu.WithNth("3", "4"),
 		menu.WithKeybinds(
-			kb.Edit(cfg.Menu.DefaultKeymaps.Edit, keybindsArgs...),
-			kb.EditNotes(cfg.Menu.DefaultKeymaps.EditNotes),
-			kb.Open(cfg.Menu.DefaultKeymaps.Open),
-			kb.QR(cfg.Menu.DefaultKeymaps.QR),
-			kb.QROpen(cfg.Menu.DefaultKeymaps.OpenQR),
-			kb.Yank(cfg.Menu.DefaultKeymaps.Yank),
-			kb.ToggleAll(cfg.Menu.DefaultKeymaps.ToggleAll),
-			kb.Preview(cfg.Menu.DefaultKeymaps.Preview),
+			kb.Edit(k.Edit),
+			kb.EditNotes(k.EditNotes),
+			kb.Open(k.Open),
+			kb.QR(k.QR),
+			kb.QROpen(k.OpenQR),
+			kb.Yank(k.Yank),
+			kb.ToggleAll(k.ToggleAll),
+			kb.Preview(k.Preview),
 		),
 	}
 
@@ -53,9 +49,13 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 // MenuSimple builds a simpler menu without all keybindings.
 func MenuSimple[T comparable](cfg *config.Config, opts ...menu.Option) *menu.Menu[T] {
 	opts = append(opts,
+		menu.WithBorderLabel(" "+cfg.Name+" "),
 		menu.WithOutputColor(cfg.Flags.Color),
 		menu.WithConfig(cfg.Menu),
-		menu.WithPreview(cfg.Cmd+" --name "+cfg.DBName+" records {1}"),
+		menu.WithHeaderBorder(menu.BorderRounded),
+		menu.WithPreviewBorder(menu.BorderRounded),
+		menu.WithHeaderFirst(),
+		menu.WithNth("3", "4"),
 	)
 
 	return menu.New[T](opts...)
@@ -110,7 +110,7 @@ func selectItem(a *app.Context, fs []string, header string) (string, error) {
 		menu.WithOutputColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
-		menu.WithPreview(a.Cfg.Cmd+" db -n {1} info"),
+		menu.WithPreview(a.Cfg.PreviewCmd("{1}")+" admin db info"),
 	)
 	if err != nil {
 		return "", err
@@ -129,7 +129,8 @@ func SelectBackupOne(a *app.Context, bks []string) (string, error) {
 		menu.WithOutputColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader("choose a backup to import from"),
-		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"))
+		menu.WithPreview(a.Cfg.PreviewCmd("./backup/{1}")+" admin db info"),
+	)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
@@ -160,7 +161,7 @@ func SelectBackupMany(a *app.Context, root, header string) ([]string, error) {
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
 		menu.WithMultiSelection(),
-		menu.WithPreview(a.Cfg.Cmd+" db -n ./backup/{1} info"),
+		menu.WithPreview(a.Cfg.PreviewCmd("./backup/{1}", "admin db info")),
 	)
 	if err != nil {
 		return repos, fmt.Errorf("%w", err)

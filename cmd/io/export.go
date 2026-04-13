@@ -20,7 +20,7 @@ func newExportCmd(cfg *config.Config) *cobra.Command {
 				menu.WithMultiSelection(),
 			)
 
-			return base.RunWithBookmarks(cmd, args, m, handler.Export)
+			return base.Execute(cmd, args, m, handler.Export)
 		},
 	}
 

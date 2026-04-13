@@ -46,8 +46,6 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 		return m.header
 	}
 
-	headerParts := make([]string, 0, len(m.header)+len(m.keymaps.keymaps))
-
 	for _, k := range m.keymaps.list() {
 		if !k.Enabled || k.Hidden {
 			continue
@@ -65,11 +63,11 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 			)
 		}
 
-		headerParts = append(headerParts, part)
+		m.header = append(m.header, part)
 	}
 
-	if len(headerParts) > 0 {
-		return []string{strings.Join(headerParts, m.cfg.Header.Sep)}
+	if len(m.header) > 0 {
+		return []string{strings.Join(m.header, ansi.NewPalette().Dim.Sprint(m.cfg.Header.Sep))}
 	}
 
 	return nil

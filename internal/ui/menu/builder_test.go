@@ -3,6 +3,8 @@ package menu
 import (
 	"reflect"
 	"testing"
+
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 func TestBuildHeaderStrings(t *testing.T) {
@@ -52,6 +54,7 @@ func TestBuildHeaderStrings(t *testing.T) {
 func TestBuildHeader_Integration(t *testing.T) {
 	t.Parallel()
 	m := New[any]()
+	ansi.DisableColor()
 	m.cfg.Header = Header{Sep: " | ", Enabled: true}
 
 	keys := []*Keymap{

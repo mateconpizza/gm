@@ -17,22 +17,20 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Short:   "open in browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
-			k := kb.NewKeymap("records snapshot open")
-			k.Bind = cfg.Menu.DefaultKeymaps.Open.Bind
-			k.Desc = "snapshot"
+			k := menu.NewKeymap()
+			k = k.WithSilentAction(kb.BaseCmd("archive open") + " {1}")
+			k.Bind = "ctrl-o"
+			k.Desc = "open-snapshot"
 			k.Enabled = true
 
 			m := handler.MenuSimple[bookmark.Bookmark](cfg,
 				menu.WithMultiSelection(),
-				menu.WithBorderLabel(" "+config.AppName+" "),
-				menu.WithHeaderLabel("open in default browser"),
-				menu.WithHeaderBorder(menu.BorderRounded),
-				menu.WithPreviewBorder(menu.BorderRounded),
-				menu.WithHeaderFirst(),
+				menu.WithHeaderLabel(" open in browser "),
+				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 				menu.WithKeybinds(k),
 			)
 
-			return base.RunWithBookmarks(cmd, args, m, handler.Open)
+			return base.Execute(cmd, args, m, handler.Open)
 		},
 	}
 

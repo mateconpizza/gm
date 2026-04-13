@@ -125,11 +125,18 @@ func NewKeybindBuilder(cmd, dbName string) *KeybindBuilder {
 func (kb *KeybindBuilder) NewKeymap(action string) *Keymap {
 	k := NewKeymap()
 	k.Enabled = true
-	k.WithAction(kb.fmtCmd(action + " {+1}"))
+	k.WithAction(kb.BaseCmd(action + " {+1}"))
 	return k
 }
 
-func (kb *KeybindBuilder) fmtCmd(s string) string {
+// func coso() {
+// 	k := NewKeymap().
+// 		WithCmd("gm --db=main").
+// 		WithSubcmd("edit").WithSubcmd("notes").WithIndex("{+1}")
+//
+// }
+
+func (kb *KeybindBuilder) BaseCmd(s string) string {
 	return fmt.Sprintf("%s --db=%s %s", kb.cmd, kb.dbName, s)
 }
 
@@ -141,34 +148,34 @@ func (kb *KeybindBuilder) Edit(km *Keymap, args ...string) *Keymap {
 	}
 	cmd += "{+1}"
 
-	return km.WithAction(kb.fmtCmd(cmd))
+	return km.WithAction(kb.BaseCmd(cmd))
 }
 
 // EditNotes returns a keybind to edit notes of the selected record.
 func (kb *KeybindBuilder) EditNotes(km *Keymap) *Keymap {
-	return km.WithAction(kb.fmtCmd("show notes edit {+1}"))
+	return km.WithAction(kb.BaseCmd("notes edit {+1}"))
 }
 
 func (kb *KeybindBuilder) EditJSON(km *Keymap) *Keymap {
-	return km.WithAction(kb.fmtCmd("edit --format json {+1}"))
+	return km.WithAction(kb.BaseCmd("edit --format json {+1}"))
 }
 
 // Open returns a keybind to open the selected record in the default browser.
 func (kb *KeybindBuilder) Open(km *Keymap) *Keymap {
-	return km.WithSilentAction(kb.fmtCmd("open {+1}"))
+	return km.WithSilentAction(kb.BaseCmd("open {+1}"))
 }
 
 // QR returns a keybind to show the QR code of the selected record.
-func (kb *KeybindBuilder) QR(km *Keymap) *Keymap { return km.WithAction(kb.fmtCmd("qr {+1}")) }
+func (kb *KeybindBuilder) QR(km *Keymap) *Keymap { return km.WithAction(kb.BaseCmd("qr {+1}")) }
 
 // QROpen returns a keybind to open the QR code in the default image viewer.
 func (kb *KeybindBuilder) QROpen(km *Keymap) *Keymap {
-	return km.WithSilentAction(kb.fmtCmd("qr --open {+1}"))
+	return km.WithSilentAction(kb.BaseCmd("qr --open {+1}"))
 }
 
 // Yank returns a keybind to copy the selected record to the clipboard.
 func (kb *KeybindBuilder) Yank(km *Keymap) *Keymap {
-	return km.WithSilentAction(kb.fmtCmd("copy {+1}"))
+	return km.WithSilentAction(kb.BaseCmd("copy {+1}"))
 }
 
 func (kb *KeybindBuilder) ToggleAll(km *Keymap) *Keymap {

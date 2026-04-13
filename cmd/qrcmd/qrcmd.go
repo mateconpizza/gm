@@ -19,7 +19,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 			m := handler.MenuSimple[bookmark.Bookmark](cfg,
 				menu.WithMultiSelection(),
 			)
-			return base.RunWithBookmarks(cmd, args, m, handler.QR)
+			return base.Execute(cmd, args, m, handler.QR)
 		},
 	}
 

@@ -1,8 +1,6 @@
 package archive
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/base"
@@ -20,8 +18,15 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Short:   "show archive URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg.Flags.Snapshot = true
-			m := handler.MenuSimple[bookmark.Bookmark](cfg, menu.WithMultiSelection())
-			return base.RunWithBookmarks(cmd, args, m, handler.Snapshot)
+			m := handler.MenuSimple[bookmark.Bookmark](
+				cfg,
+				menu.WithMultiSelection(),
+				menu.WithHeader("select record/s"),
+				menu.WithHeaderLabel(" archive URL "),
+				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+			)
+
+			return base.Execute(cmd, args, m, handler.Snapshot)
 		},
 	}
 
@@ -45,9 +50,15 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg.Flags.Snapshot = true
 
-			m := handler.MenuSimple[bookmark.Bookmark](cfg, menu.WithMultiSelection())
+			m := handler.MenuSimple[bookmark.Bookmark](
+				cfg,
+				menu.WithMultiSelection(),
+				menu.WithHeader("select record/s"),
+				menu.WithHeaderLabel(" open archive URL "),
+				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+			)
 
-			return base.RunWithBookmarks(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+			return base.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
 				filtered := make([]*bookmark.Bookmark, 0, len(bs))
 				for i := range bs {
 					if bs[i].ArchiveURL != "" {
@@ -64,10 +75,6 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 					b := bookmark.New()
 					b.URL = filtered[i].ArchiveURL
 					result = append(result, b)
-				}
-
-				for i := range result {
-					fmt.Printf("result[i].URL: %v\n", result[i].URL)
 				}
 
 				return handler.Open(a, result)

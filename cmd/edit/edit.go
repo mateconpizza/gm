@@ -31,15 +31,13 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 			m := handler.MenuSimple[bookmark.Bookmark](cfg,
 				menu.WithMultiSelection(),
-				menu.WithBorderLabel(" "+config.AppName+" "),
-				menu.WithHeader("select record/s for edition"),
-				menu.WithHeaderBorder(menu.BorderRounded),
-				menu.WithPreviewBorder(menu.BorderRounded),
-				menu.WithHeaderFirst(),
+				menu.WithHeader("select record/s"),
+				menu.WithHeaderLabel(" edition "),
+				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 				menu.WithKeybinds(k),
 			)
 
-			return base.RunWithBookmarks(cmd, args, m, handler.Edit)
+			return base.Execute(cmd, args, m, handler.Edit)
 		},
 	}
 

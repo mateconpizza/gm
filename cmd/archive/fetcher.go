@@ -28,11 +28,16 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
   # get up to 5 snapshots from 2023
   %s archive %s --limit 5 --year 2023 179`, cfg.Cmd, use, cfg.Cmd, use),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](cfg, menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"))
+			flags := cfg.Flags
+			m := handler.MenuSimple[bookmark.Bookmark](
+				cfg,
+				menu.WithMultiSelection(),
+				menu.WithHeader("select record/s"),
+				menu.WithHeaderLabel(" wayback machine lookup "),
+				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+			)
 
-			return base.RunWithBookmarks(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
-				flags := cfg.Flags
+			return base.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
 				operation := "all available snapshots"
 				if flags.Update {
 					operation = "latest snapshot"
@@ -46,7 +51,7 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 
 				f, p := a.Console().Frame(), a.Console().Palette()
 				f.Headerln("Wayback Machine: Fetch " + operation).Rowln()
-				f.Midln(p.BrightCyan.Sprintf("Selected bookmarks: %d", len(bs))).Rowln()
+				f.Midln(p.BrightCyan.Sprintf("[%d] selected bookmarks:", len(bs))).Rowln()
 				for i := range bs {
 					if i >= wayback.MaxItems {
 						f.Midln(p.BrightBlack.With(p.Italic).Sprintf("... and %d more", len(bs)-i))
@@ -70,6 +75,7 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 	f := c.Flags()
 	f.SortFlags = false
 	base.FlagMenu(c, cfg)
+	base.FlagsFilter(c, cfg)
 	f.BoolVarP(&cfg.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
 	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
 	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")

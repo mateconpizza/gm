@@ -73,11 +73,7 @@ func fromBackupFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer srcRepo.Close()
 
-	if err := port.FromBackup(a, destRepo, srcRepo); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
+	return port.FromBackup(a, destRepo, srcRepo)
 }
 
 func fromDatabaseFunc(cmd *cobra.Command, _ []string) error {

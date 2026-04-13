@@ -3,7 +3,9 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
@@ -93,6 +95,10 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) PreviewCmd(dbPath string, args ...string) string {
+	return fmt.Sprintf("%s --db %s %s", c.Cmd, dbPath, strings.Join(args, " "))
 }
 
 func New() *Config {

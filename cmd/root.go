@@ -51,11 +51,7 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
-			if err := m.Validate(); err != nil {
-				return err
-			}
-
-			return base.RunWithBookmarks(cmd, args, m, handler.Display)
+			return base.Execute(cmd, args, m, handler.Display)
 		},
 	}
 

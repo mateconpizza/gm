@@ -18,14 +18,16 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg.Flags.Notes = true
 			kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
+			edit := cfg.Menu.DefaultKeymaps.Edit
+			edit.Hidden = false
 
 			m := handler.MenuSimple[bookmark.Bookmark](cfg,
 				menu.WithMultiSelection(),
-				menu.WithHeaderFirst(),
 				menu.WithBorderLabel(" notes "),
 				menu.WithKeybinds(kb.EditNotes(cfg.Menu.DefaultKeymaps.Edit)),
+				menu.WithPreview(cfg.PreviewCmd(cfg.DBName, "notes")+" {+1}"),
 			)
-			return base.RunWithBookmarks(cmd, args, m, handler.Notes)
+			return base.Execute(cmd, args, m, handler.Notes)
 		},
 	}
 
@@ -56,7 +58,7 @@ func newEditNotesCmd(cfg *config.Config) *cobra.Command {
 				menu.WithKeybinds(kb.EditNotes(cfg.Menu.DefaultKeymaps.Edit)),
 			)
 
-			return base.RunWithBookmarks(cmd, args, m, handler.Edit)
+			return base.Execute(cmd, args, m, handler.Edit)
 		},
 	}
 
