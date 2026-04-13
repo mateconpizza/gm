@@ -3,7 +3,7 @@ package archive
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -26,15 +26,15 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return base.Execute(cmd, args, m, handler.Snapshot)
+			return cmdutil.Execute(cmd, args, m, handler.Snapshot)
 		},
 	}
 
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 	c.Flags().Bool("help", false, "help message")
 	_ = c.Flags().MarkHidden("help")
 
-	base.FlagsFilter(c, cfg)
+	cmdutil.FlagsFilter(c, cfg)
 
 	c.AddCommand(newLookupCmd(cfg))
 	c.AddCommand(newOpenCmd(cfg))
@@ -58,7 +58,7 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return base.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
 				filtered := make([]*bookmark.Bookmark, 0, len(bs))
 				for i := range bs {
 					if bs[i].ArchiveURL != "" {
@@ -82,7 +82,7 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 	c.Flags().Bool("help", false, "help message")
 	_ = c.Flags().MarkHidden("help")
 

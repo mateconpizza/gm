@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -37,7 +37,7 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return base.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
 				operation := "all available snapshots"
 				if flags.Update {
 					operation = "latest snapshot"
@@ -74,8 +74,8 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 
 	f := c.Flags()
 	f.SortFlags = false
-	base.FlagMenu(c, cfg)
-	base.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
+	cmdutil.FlagsFilter(c, cfg)
 	f.BoolVarP(&cfg.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
 	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
 	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")

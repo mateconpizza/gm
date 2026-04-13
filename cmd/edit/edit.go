@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -37,7 +37,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithKeybinds(k),
 			)
 
-			return base.Execute(cmd, args, m, handler.Edit)
+			return cmdutil.Execute(cmd, args, m, handler.Edit)
 		},
 	}
 
@@ -47,7 +47,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	c.Flags().StringVarP(&cfg.Flags.Format, "format", "f", "",
 		fmt.Sprintf("output format [%s]", strings.Join(printer.ValidFormats, "|")))
 
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 	c.Flags().StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "filter bookmarks by tag(s)")
 	c.Flags().IntVarP(&cfg.Flags.Head, "head", "H", 0, "filter first N bookmarks")
 	c.Flags().IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "filter last N bookmarks")

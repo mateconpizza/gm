@@ -4,7 +4,7 @@ package check
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -24,15 +24,15 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return base.Execute(cmd, args, m, handler.CheckStatus)
+			return cmdutil.Execute(cmd, args, m, handler.CheckStatus)
 		},
 	}
 
 	c.Flags().Bool("help", false, "help message")
 	_ = c.Flags().MarkHidden("help")
 
-	base.FlagMenu(c, cfg)
-	base.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
+	cmdutil.FlagsFilter(c, cfg)
 
 	c.AddCommand(newUpdateCmd(cfg))
 
@@ -51,7 +51,7 @@ func newUpdateCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return base.Execute(cmd, args, m, handler.Update)
+			return cmdutil.Execute(cmd, args, m, handler.Update)
 		},
 	}
 

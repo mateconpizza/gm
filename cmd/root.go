@@ -11,9 +11,9 @@ import (
 	"github.com/mateconpizza/gm/cmd/add"
 	"github.com/mateconpizza/gm/cmd/appcfg"
 	"github.com/mateconpizza/gm/cmd/archive"
-	"github.com/mateconpizza/gm/cmd/base"
 	"github.com/mateconpizza/gm/cmd/check"
 	"github.com/mateconpizza/gm/cmd/clean"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/database"
 	"github.com/mateconpizza/gm/cmd/edit"
 	gitCmd "github.com/mateconpizza/gm/cmd/git"
@@ -51,19 +51,19 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
-			return base.Execute(cmd, args, m, handler.Display)
+			return cmdutil.Execute(cmd, args, m, handler.Display)
 		},
 	}
 
-	cobra.AddTemplateFunc("hasFlags", base.HasFlags)
+	cobra.AddTemplateFunc("hasFlags", cmdutil.HasFlags)
 
-	c.SetUsageTemplate(base.UsageTemplate)
+	c.SetUsageTemplate(cmdutil.UsageTemplate)
 	c.PersistentFlags().SortFlags = false
 
 	// local
-	base.FlagFormat(c, cfg)
-	base.FlagsFilter(c, cfg)
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagFormat(c, cfg)
+	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 
 	// global
 	g := c.PersistentFlags()

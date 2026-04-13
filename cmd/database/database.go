@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
@@ -273,7 +273,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		"output in JSON format")
 
 	// backup
-	base.FlagMenu(backupLockCmd, cfg)
+	cmdutil.FlagMenu(backupLockCmd, cfg)
 	backupCmd.AddCommand(
 		BackupNewCmd,
 		backupRmCmd,

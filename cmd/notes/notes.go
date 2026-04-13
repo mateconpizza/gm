@@ -3,7 +3,7 @@ package notes
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -27,15 +27,15 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithKeybinds(kb.EditNotes(cfg.Menu.DefaultKeymaps.Edit)),
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName, "notes")+" {+1}"),
 			)
-			return base.Execute(cmd, args, m, handler.Notes)
+			return cmdutil.Execute(cmd, args, m, handler.Notes)
 		},
 	}
 
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 	c.Flags().Bool("help", false, "help message")
 	_ = c.Flags().MarkHidden("help")
 
-	base.FlagsFilter(c, cfg)
+	cmdutil.FlagsFilter(c, cfg)
 
 	c.AddCommand(newEditNotesCmd(cfg))
 
@@ -58,15 +58,15 @@ func newEditNotesCmd(cfg *config.Config) *cobra.Command {
 				menu.WithKeybinds(kb.EditNotes(cfg.Menu.DefaultKeymaps.Edit)),
 			)
 
-			return base.Execute(cmd, args, m, handler.Edit)
+			return cmdutil.Execute(cmd, args, m, handler.Edit)
 		},
 	}
 
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 	c.Flags().Bool("help", false, "help message")
 	_ = c.Flags().MarkHidden("help")
 
-	base.FlagsFilter(c, cfg)
+	cmdutil.FlagsFilter(c, cfg)
 
 	return c
 }

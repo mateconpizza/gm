@@ -3,7 +3,7 @@ package io
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -20,12 +20,12 @@ func newExportCmd(cfg *config.Config) *cobra.Command {
 				menu.WithMultiSelection(),
 			)
 
-			return base.Execute(cmd, args, m, handler.Export)
+			return cmdutil.Execute(cmd, args, m, handler.Export)
 		},
 	}
 
-	base.FlagsFilter(c, cfg)
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 
 	return c
 }

@@ -3,7 +3,7 @@ package yank
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/base"
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -23,14 +23,14 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return base.Execute(cmd, args, m, handler.Copy)
+			return cmdutil.Execute(cmd, args, m, handler.Copy)
 		},
 	}
 
-	base.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, cfg)
 	c.Flags().Bool("help", false, "help message")
-	base.HideFlag(c, "help", "menu")
-	base.FlagsFilter(c, cfg)
+	cmdutil.HideFlag(c, "help", "menu")
+	cmdutil.FlagsFilter(c, cfg)
 
 	return c
 }
