@@ -14,7 +14,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func newGitTrackerCmd(cfg *config.Config) *cobra.Command {
+func newTrackerCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "tracker",
 		Short: "track database in git",

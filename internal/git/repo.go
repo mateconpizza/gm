@@ -229,7 +229,7 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 	}
 
 	c.Frame().Success("GPG command found").Ln().Flush()
-	if !c.Confirm("Use GPG for encryption?", "n") {
+	if !c.Confirm("Use GPG for encryption? (experimental)", "n") {
 		return nil
 	}
 
