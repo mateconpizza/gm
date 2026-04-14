@@ -131,6 +131,7 @@ func Setup(root *cobra.Command, cfg *config.Config) {
 		tag.NewCmd(cfg),
 		clean.NewCmd(cfg),
 		archive.NewCmd(cfg),
+		gitCmd.NewCmd(cfg),
 		newAdminCmd(cfg),
 		setup.NewCmd(),
 	)
@@ -147,13 +148,12 @@ func Execute(r *cobra.Command) error {
 func newAdminCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "admin",
-		Short: "manage database, git sync, and config",
+		Short: "manage database and config",
 	}
 
 	c.AddCommand(
 		database.NewCmd(cfg),
 		appcfg.NewCmd(cfg),
-		gitCmd.NewCmd(cfg),
 		io.NewCmd(cfg),
 	)
 
