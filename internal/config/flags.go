@@ -8,16 +8,12 @@ import (
 
 type Flags struct {
 	// Actions
-	Copy   bool // Copy URL into clipboard
 	Edit   bool // Edit mode
 	Menu   bool // Menu mode
 	Notes  bool // Record notes
 	Open   bool // Open URL in default browser
-	QR     bool // QR code generator
-	Remove bool // Remove bookmarks
 	List   bool // List items
 	Create bool // Action create
-	Help   bool // Help
 
 	// Output format
 	Format string // Format

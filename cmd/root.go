@@ -141,6 +141,7 @@ func Setup(root *cobra.Command, cfg *config.Config) {
 		tag.NewCmd(cfg),
 		clean.NewCmd(cfg),
 		archive.NewCmd(cfg),
+		database.NewCmd(cfg),
 		gitCmd.NewCmd(cfg),
 		newAdminCmd(cfg),
 		setup.NewCmd(),
@@ -162,13 +163,12 @@ func newAdminCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	c.AddCommand(
-		database.NewCmd(cfg),
 		appcfg.NewCmd(cfg),
 		in.NewCmd(cfg),
 		out.NewCmd(cfg),
 	)
 
-	c.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
+	c.Flags().Bool("help", false, "help message")
 	_ = c.Flags().MarkHidden("help")
 
 	return c

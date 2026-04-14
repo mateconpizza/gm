@@ -26,7 +26,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		RunE:    cli.HookHelp,
 	}
 
-	c.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")
+	c.Flags().Bool("help", false, "help message")
 	c.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "always", "")
 	_ = c.Flags().MarkHidden("help")
 	_ = c.Flags().MarkHidden("color")

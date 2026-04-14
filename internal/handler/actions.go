@@ -154,7 +154,7 @@ func LockRepo(a *app.Context, rToLock string) error {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
 	}
 
-	if err := c.ConfirmErr(fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "y"); err != nil {
+	if err := c.ConfirmErr(fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
 		if errors.Is(err, sys.ErrActionAborted) {
 			return nil
 		}

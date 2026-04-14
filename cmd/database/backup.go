@@ -8,14 +8,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -51,45 +50,30 @@ var (
 	}
 
 	// backupCmd backup management.
-	BackupNewCmd = &cobra.Command{
+	backupNewCmd = &cobra.Command{
 		Use:     "add",
 		Short:   "create a new backup",
 		Aliases: []string{"create", "add"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.FromContext(cmd.Context())
+			a, cancel, err := cmdutil.SetupApp(cmd, &args)
 			if err != nil {
-				return fmt.Errorf("failed to get config: %w", err)
+				return err
 			}
+			defer cancel()
 
-			r, err := db.New(cfg.DBPath)
-			if err != nil {
-				return fmt.Errorf("backup: %w", err)
-			}
-			defer r.Close()
-
-			return backupNewFunc(app.New(cmd.Context(),
-				app.WithConfig(cfg),
-				app.WithDB(r),
-				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
-					r.Close()
-					sys.ErrAndExit(err)
-				})),
-			))
+			return backupNewFunc(a)
 		},
 	}
 )
 
 // backupLockFunc lock backups.
-func backupLockFunc(cmd *cobra.Command, _ []string) error {
-	cfg, err := config.FromContext(cmd.Context())
+func backupLockFunc(cmd *cobra.Command, args []string) error {
+	a, cancel, err := cmdutil.SetupApp(cmd, &args)
 	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
+		return err
 	}
+	defer cancel()
 
-	a := app.New(cmd.Context(),
-		app.WithConfig(cfg),
-		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
-	)
 	fs, err := handler.SelectBackupMany(a, a.Cfg.Path.Backup, "select backup/s to lock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -114,16 +98,12 @@ func backupLockFunc(cmd *cobra.Command, _ []string) error {
 }
 
 // backupUnlockFunc unlock backups.
-func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
-	cfg, err := config.FromContext(cmd.Context())
+func backupUnlockFunc(cmd *cobra.Command, args []string) error {
+	a, cancel, err := cmdutil.SetupApp(cmd, &args)
 	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
+		return err
 	}
-
-	a := app.New(cmd.Context(),
-		app.WithConfig(cfg),
-		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
-	)
+	defer cancel()
 
 	p := a.Cfg.Path.Backup
 	if !files.Exists(p) {
@@ -140,7 +120,7 @@ func backupUnlockFunc(cmd *cobra.Command, _ []string) error {
 
 // backupNewFunc create a new backup.
 func backupNewFunc(a *app.Context) error {
-	r, cfg := a.DB, a.Cfg
+	cfg := a.Cfg
 	srcPath := cfg.DBPath
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
@@ -165,7 +145,7 @@ func backupNewFunc(a *app.Context) error {
 		return err
 	}
 
-	newBkPath, err := r.Backup(a.Context(), cfg.Path.Backup)
+	newBkPath, err := a.DB.Backup(a.Context(), cfg.Path.Backup)
 	if err != nil {
 		return err
 	}
