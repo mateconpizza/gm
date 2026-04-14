@@ -92,10 +92,10 @@ type Options struct {
 
 // Items holds the data and transformation logic for menu items.
 type Items[T comparable] struct {
-	// preprocessor converts items to display strings for FZF.
-	// If nil, a default preprocessor will be used that calls String() method.
+	// Formatter converts items to display strings for FZF.
+	// If nil, a default Formatter will be used that calls String() method.
 	// The function should return ANSI-formatted strings for rich display.
-	preprocessor func(*T) string
+	Formatter func(*T) string
 }
 
 type Menu[T comparable] struct {
@@ -143,9 +143,9 @@ func (m *Menu[T]) SetInterruptFn(fn func(error)) {
 	m.interruptFn = fn
 }
 
-// SetPreprocessor sets a function to format items for display in fzf.
-func (m *Menu[T]) SetPreprocessor(preprocessor func(*T) string) {
-	m.preprocessor = preprocessor
+// SetFormatter sets a function to format items for display in fzf.
+func (m *Menu[T]) SetFormatter(preprocessor func(*T) string) {
+	m.Formatter = preprocessor
 }
 
 func (m *Menu[T]) UpdatePreview(s string) {

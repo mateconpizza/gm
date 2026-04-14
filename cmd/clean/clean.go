@@ -70,7 +70,7 @@ func paramsMenu(a *app.Context, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, 
 		menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 	)
 
-	m.SetPreprocessor(func(b **bookmark.Bookmark) string {
+	m.SetFormatter(func(b **bookmark.Bookmark) string {
 		bm := *b
 		bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
 		return txt.OnelineURL(a.Console(), bm)

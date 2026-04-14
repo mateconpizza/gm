@@ -129,13 +129,6 @@ func (kb *KeybindBuilder) NewKeymap(action string) *Keymap {
 	return k
 }
 
-// func coso() {
-// 	k := NewKeymap().
-// 		WithCmd("gm --db=main").
-// 		WithSubcmd("edit").WithSubcmd("notes").WithIndex("{+1}")
-//
-// }
-
 func (kb *KeybindBuilder) BaseCmd(s string) string {
 	return fmt.Sprintf("%s --db=%s %s", kb.cmd, kb.dbName, s)
 }

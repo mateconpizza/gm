@@ -30,7 +30,7 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 		menu.WithHeaderLabel(" keybinds "),
 		menu.WithHeaderBorder(menu.BorderRounded),
 		menu.WithPreviewBorder(menu.BorderRounded),
-		// menu.WithNth("3", "4"),
+		menu.WithNth("3", "4"),
 		menu.WithKeybinds(
 			kb.Edit(k.Edit),
 			kb.EditNotes(k.EditNotes),
@@ -55,7 +55,6 @@ func MenuSimple[T comparable](cfg *config.Config, opts ...menu.Option) *menu.Men
 		menu.WithHeaderBorder(menu.BorderRounded),
 		menu.WithPreviewBorder(menu.BorderRounded),
 		menu.WithHeaderFirst(),
-		menu.WithNth("3", "4"),
 	)
 
 	return menu.New[T](opts...)
@@ -84,7 +83,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 		return nil, menu.ErrFzfNoItems
 	}
 
-	m.SetPreprocessor(fmtFn)
+	m.SetFormatter(fmtFn)
 
 	var result []T
 	result, err := m.Select(items)

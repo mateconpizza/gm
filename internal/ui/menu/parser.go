@@ -39,9 +39,9 @@ func selectFromItems[T comparable](m *Menu[T], items []T) ([]T, error) {
 		return nil, ErrFzfNoItems
 	}
 
-	if m.preprocessor == nil {
+	if m.Formatter == nil {
 		slog.Warn("preprocessor is nil, defaulting to 'defaultPreprocessor'")
-		m.preprocessor = defaultPreprocessor
+		m.Formatter = defaultPreprocessor
 	}
 
 	slog.Debug("menu args", "args", m.args.list)
@@ -51,7 +51,7 @@ func selectFromItems[T comparable](m *Menu[T], items []T) ([]T, error) {
 	itemMap := make(map[string]T, len(items))
 	for i, item := range items {
 		ti := item
-		formatted := m.preprocessor(&ti)
+		formatted := m.Formatter(&ti)
 		formattedItems[i] = formatted
 		itemMap[ansiCodeRemover(formatted)] = item
 	}

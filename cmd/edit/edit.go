@@ -8,6 +8,7 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -37,7 +38,13 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithKeybinds(k),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.Edit)
+			var strategy editor.EditStrategy
+			strategy = editor.BookmarkStrategy{}
+			if cfg.Flags.Format == "j" || cfg.Flags.Format == "json" {
+				strategy = editor.JSONStrategy{}
+			}
+
+			return cmdutil.Execute(cmd, args, m, handler.Edit(strategy))
 		},
 	}
 
@@ -48,9 +55,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		fmt.Sprintf("output format [%s]", strings.Join(printer.ValidFormats, "|")))
 
 	cmdutil.FlagMenu(c, cfg)
-	c.Flags().StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "filter bookmarks by tag(s)")
-	c.Flags().IntVarP(&cfg.Flags.Head, "head", "H", 0, "filter first N bookmarks")
-	c.Flags().IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "filter last N bookmarks")
+	cmdutil.FlagsFilter(c, cfg)
 
 	return c
 }

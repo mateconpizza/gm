@@ -82,6 +82,8 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 	g.BoolVar(&cfg.Flags.Force, "force", false, "force action")
 	g.BoolVarP(&cfg.Flags.Yes, "yes", "y", false, "assume yes")
 	g.CountVarP(&cfg.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
+	g.Bool("help", false, "")
+	_ = g.MarkHidden("help")
 
 	cobra.OnInitialize(func() {
 		cfg.Initialize()

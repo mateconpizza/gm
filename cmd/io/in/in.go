@@ -234,7 +234,7 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 					menu.WithMultiSelection(),
 				)
 
-				m.SetPreprocessor(func(b **bookmark.Bookmark) string { return txt.Oneline(c, *b) })
+				m.SetFormatter(func(b **bookmark.Bookmark) string { return txt.Oneline(c, *b) })
 				deduplicated, err = m.Select(deduplicated)
 				if err != nil {
 					return err

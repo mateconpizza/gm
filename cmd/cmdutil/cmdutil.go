@@ -19,6 +19,15 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
+type (
+	// BookmarkAction defines a task to be performed on a set of bookmarks.
+	BookmarkAction func(*app.Context, []*bookmark.Bookmark) error
+
+	// Filter is a predicate used to narrow down a slice of bookmarks
+	// before they are passed to an action or presented in a menu.
+	Filter func([]*bookmark.Bookmark) []*bookmark.Bookmark
+)
+
 const UsageTemplate = `usage: {{if .Runnable}}{{.UseLine}}{{end}}{{if .HasAvailableSubCommands}} [command]{{end}}
 {{- if gt (len .Aliases) 0}}
 
@@ -49,8 +58,6 @@ global:
 {{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}
 {{- end}}
 `
-
-type BookmarkAction func(*app.Context, []*bookmark.Bookmark) error
 
 // SetupApp inicializa la config, db y app para los subcommands.
 func SetupApp(cmd *cobra.Command, args *[]string) (*app.Context, func(), error) {
@@ -89,15 +96,17 @@ func resolveBookmarks(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []st
 		return nil, err
 	}
 
-	if len(bs) == 0 {
-		return nil, db.ErrRecordNotFound
-	}
-
 	return bs, nil
 }
 
-func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark], action BookmarkAction) error {
-	a, cleanup, err := SetupApp(cmd, &args)
+func Execute(
+	c *cobra.Command,
+	args []string,
+	m *menu.Menu[bookmark.Bookmark],
+	action BookmarkAction,
+	filters ...Filter,
+) error {
+	a, cleanup, err := SetupApp(c, &args)
 	if err != nil {
 		return err
 	}
@@ -108,25 +117,42 @@ func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark],
 		return err
 	}
 
+	// custom filters
+	for _, f := range filters {
+		bs = f(bs)
+	}
+
+	// filter by head and tail
+	f := a.Cfg.Flags
+	if f.Head > 0 || f.Tail > 0 {
+		bs, err = handler.FilterByHeadAndTail(bs, f.Head, f.Tail)
+		if err != nil {
+			return fmt.Errorf("failed to filter by head/tail: %w", err)
+		}
+	}
+
+	// menu selection
+	if f.Menu && len(bs) > 0 {
+		bs, err = handler.ApplyMenuSelection(a.Console(), m, bs)
+		if err != nil {
+			return err
+		}
+	}
+
 	return action(a, bs)
 }
 
-// FlagFormat initializes CLI flags for the records command.
 func FlagFormat(c *cobra.Command, cfg *config.Config) {
-	f := c.Flags()
-	f.SortFlags = false
-
-	// Display
-	f.StringVarP(&cfg.Flags.Format, "format", "f", "",
+	c.Flags().SortFlags = false
+	c.Flags().StringVarP(&cfg.Flags.Format, "format", "f", "",
 		fmt.Sprintf("output format [%s]", strings.Join(printer.ValidFormats, "|")))
 }
 
 func FlagsFilter(c *cobra.Command, cfg *config.Config) {
-	f := c.Flags()
-	f.SortFlags = false
-	f.StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
-	f.IntVarP(&cfg.Flags.Head, "head", "H", 0, "show first N bookmarks")
-	f.IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "show last N bookmarks")
+	c.Flags().SortFlags = false
+	c.Flags().StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
+	c.Flags().IntVarP(&cfg.Flags.Head, "head", "H", 0, "show first N bookmarks")
+	c.Flags().IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "show last N bookmarks")
 }
 
 func FlagMenu(c *cobra.Command, cfg *config.Config) {

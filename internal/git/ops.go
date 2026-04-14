@@ -346,10 +346,7 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		return cmp.Compare(a.ID, b.ID)
 	})
 
-	m.SetPreprocessor(func(b *bookmark.Bookmark) string {
-		return txt.Oneline(c, b)
-	})
-
+	m.SetFormatter(func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) })
 	selected, err := m.Select(records)
 	if err != nil {
 		return fmt.Errorf("%w", err)

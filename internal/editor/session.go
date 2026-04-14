@@ -44,6 +44,7 @@ func WithContext(ctx context.Context) SessionOption {
 
 func WithFileType(ft string) SessionOption {
 	return func(es *EditSession) {
+		// TODO: add `FileType()` method to Strategy
 		es.filetype = ft
 	}
 }
@@ -130,8 +131,8 @@ func (e *EditSession) saveRecordChanges(strategy EditStrategy, original, updated
 	return nil
 }
 
-func NewMeta() *Meta {
-	return &Meta{}
+func NewMeta(s, ver string) *Meta {
+	return &Meta{DBName: s, Version: ver}
 }
 
 // NewEditSession creates a new editing session.
@@ -147,7 +148,7 @@ func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...SessionO
 	}
 
 	if s.meta == nil {
-		s.meta = NewMeta()
+		s.meta = NewMeta("dbname?", "0.0.1")
 	}
 
 	if s.ctx == nil {

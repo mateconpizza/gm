@@ -173,7 +173,7 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, opts ...menu.Option) *me
 	m := menu.New[wayback.SnapshotInfo](opts...)
 
 	// format each item `YYYY MMM DD HH:MM (N days ago)`
-	m.SetPreprocessor(func(s *wayback.SnapshotInfo) string {
+	m.SetFormatter(func(s *wayback.SnapshotInfo) string {
 		absolute, relative := txt.TimeWithAgo(s.ArchiveTimestamp)
 		return absolute + dimmer(relative)
 	})

@@ -64,7 +64,7 @@ func QR(a *app.Context, bs []*bookmark.Bookmark) error {
 
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
 func Open(a *app.Context, bs []*bookmark.Bookmark) error {
-	const maxGoroutines = 10
+	const maxGoroutines = 5
 	n := len(bs)
 	p := a.Console().Palette()
 
@@ -127,20 +127,24 @@ func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 	return nil
 }
 
-// Edit edits the bookmarks using a text editor.
-func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
-	const maxItems = 10
-	p := a.Console().Palette()
-	q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
-	if err := a.Console().ConfirmLimit(len(bs), maxItems, q, a.Cfg.Flags.Force); err != nil {
-		return err
-	}
+// Edit returns a BookmarkAction configured with a specific strategy.
+func Edit(es editor.EditStrategy) func(*app.Context, []*bookmark.Bookmark) error {
+	return func(a *app.Context, bs []*bookmark.Bookmark) error {
+		const maxItems = 10
+		p := a.Console().Palette()
+		q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
 
-	return runEditSession(a, bs,
-		editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-			return git.UpdateBookmark(a.Cfg, o, u)
-		}),
-	)
+		if err := a.Console().ConfirmLimit(len(bs), maxItems, q, a.Cfg.Flags.Force); err != nil {
+			return err
+		}
+
+		// Pass the strategy through
+		return runEditSession(a, bs, es,
+			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
+				return git.UpdateBookmark(a.Cfg, o, u)
+			}),
+		)
+	}
 }
 
 // LockRepo locks the database.
@@ -257,7 +261,9 @@ func processBookmarkUpdate(a *app.Context, b *bookmark.Bookmark) error {
 	case "n", "no":
 		return nil
 	case "e", "edit":
-		if err := runEditSession(a, []*bookmark.Bookmark{&updated},
+		if err := runEditSession(a,
+			[]*bookmark.Bookmark{&updated},
+			editor.BookmarkStrategy{},
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
 				return git.UpdateBookmark(a.Cfg, o, u)
 			}),
@@ -325,7 +331,7 @@ func SaveNewBookmark(a *app.Context, b *bookmark.Bookmark) error {
 	case "n", "no":
 		return sys.ErrActionAborted
 	case "e", "edit":
-		return runEditSession(a, []*bookmark.Bookmark{b})
+		return runEditSession(a, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
 	default:
 		if _, err := a.DB.InsertOne(a.Context(), b); err != nil {
 			return fmt.Errorf("%w", err)
@@ -357,24 +363,29 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 	return updatedB, nil
 }
 
-func runEditSession(a *app.Context, bs []*bookmark.Bookmark, opts ...editor.SessionOption) error {
+func runEditSession(
+	a *app.Context,
+	bs []*bookmark.Bookmark,
+	es editor.EditStrategy,
+	opts ...editor.SessionOption,
+) error {
 	te, err := editor.NewEditor(a.Cfg.Env.Editor)
 	if err != nil {
 		return err
 	}
 
-	m := editor.NewMeta()
-	m.DBName = a.Cfg.DBName
-	m.Version = a.Cfg.Info.Version
+	ft := a.Cfg.Name
+	if _, ok := es.(editor.JSONStrategy); ok {
+		// TODO: add `FileType()` method to Strategy
+		ft = "json"
+	}
 
-	es, ft := editor.Strategy(a.Cfg)
 	opts = append(opts,
 		editor.WithFileType(ft),
 		editor.WithContext(a.Context()),
-		editor.WithMeta(m),
+		editor.WithMeta(editor.NewMeta(a.Cfg.DBName, a.Cfg.Info.Version)),
 	)
 
 	session := editor.NewEditSession(a.Console(), a.DB, te, opts...)
-
 	return session.Run(bs, es)
 }

@@ -37,7 +37,6 @@ var ValidFormats = []string{
 	"title",
 	"tags",
 	"desc",
-	"notes",
 }
 
 // Records prints the bookmarks in a frame format with the given colorscheme.

@@ -6,6 +6,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -18,21 +19,21 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Aliases: []string{"n"},
 		Short:   "view/edit notes",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg.Flags.Notes = true
 			kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
 			edit := cfg.Menu.DefaultKeymaps.Edit
 			edit.Hidden = false
 
 			m := handler.MenuSimple[bookmark.Bookmark](cfg,
 				menu.WithMultiSelection(),
+				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithKeybinds(kb.EditNotes(cfg.Menu.DefaultKeymaps.Edit)),
+				menu.WithKeybinds(kb.EditNotes(edit)),
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName, "notes")+" {+1}"),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
 				return printer.Notes(a.Console(), bs)
-			})
+			}, OnlyNotes)
 		},
 	}
 
@@ -52,18 +53,16 @@ func newEditNotesCmd(cfg *config.Config) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg.Flags.Notes = true
-			cfg.Flags.Edit = true
-
 			kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
 			m := handler.MenuSimple[bookmark.Bookmark](cfg,
 				menu.WithMultiSelection(),
-				menu.WithHeaderFirst(),
+				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
 				menu.WithKeybinds(kb.EditNotes(cfg.Menu.DefaultKeymaps.Edit)),
+				menu.WithPreview(cfg.PreviewCmd(cfg.DBName, "notes")+" {+1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.Edit)
+			return cmdutil.Execute(cmd, args, m, handler.Edit(editor.NotesStrategy{}))
 		},
 	}
 
@@ -74,4 +73,17 @@ func newEditNotesCmd(cfg *config.Config) *cobra.Command {
 	cmdutil.FlagsFilter(c, cfg)
 
 	return c
+}
+
+func OnlyNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+	filtered := make([]*bookmark.Bookmark, 0, len(bs))
+	for i := range bs {
+		if bs[i].Notes == "" {
+			continue
+		}
+
+		filtered = append(filtered, bs[i])
+	}
+
+	return filtered
 }

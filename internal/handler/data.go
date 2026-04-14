@@ -39,13 +39,6 @@ func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bo
 		return nil, ErrNoItems
 	}
 
-	if a.Cfg.Flags.Menu {
-		bs, err = ApplyMenuSelection(a.Console(), m, bs)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return bs, nil
 }
 
@@ -133,24 +126,6 @@ func applyFilters(a *app.Context, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark
 		}
 	}
 
-	// Filter by head and tail
-	if f.Head > 0 || f.Tail > 0 {
-		bs, err = filterByHeadAndTail(bs, f.Head, f.Tail)
-		if err != nil {
-			return nil, fmt.Errorf("failed to filter by head/tail: %w", err)
-		}
-	}
-
-	// Filter by Notes
-	if !f.Edit && f.Notes {
-		bs = filterByNotes(bs)
-	}
-
-	// Filter by Snapshots
-	if f.Snapshot {
-		bs = filterBySnapshots(bs)
-	}
-
 	return bs, nil
 }
 
@@ -231,9 +206,9 @@ func filterBookmarksByTags(bs []*bookmark.Bookmark, tags []string) []*bookmark.B
 	return result
 }
 
-// filterByHeadAndTail returns a slice of bookmarks with limited elements based
+// FilterByHeadAndTail returns a slice of bookmarks with limited elements based
 // on head/tail parameters.
-func filterByHeadAndTail(bs []*bookmark.Bookmark, h, t int) ([]*bookmark.Bookmark, error) {
+func FilterByHeadAndTail(bs []*bookmark.Bookmark, h, t int) ([]*bookmark.Bookmark, error) {
 	if h == 0 && t == 0 {
 		return bs, nil
 	}
@@ -265,42 +240,6 @@ func filterByHeadAndTail(bs []*bookmark.Bookmark, h, t int) ([]*bookmark.Bookmar
 	}
 
 	return result, nil
-}
-
-func filterByNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
-	n := len(bs)
-	if n == 0 {
-		return bs
-	}
-
-	filtered := make([]*bookmark.Bookmark, 0, n)
-	for i := range bs {
-		if bs[i].Notes == "" {
-			continue
-		}
-
-		filtered = append(filtered, bs[i])
-	}
-
-	return filtered
-}
-
-func filterBySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
-	n := len(bs)
-	if n == 0 {
-		return bs
-	}
-
-	filtered := make([]*bookmark.Bookmark, 0, n)
-	for i := range bs {
-		if bs[i].ArchiveURL == "" {
-			continue
-		}
-
-		filtered = append(filtered, bs[i])
-	}
-
-	return filtered
 }
 
 // getFlagOrder determines the order of head/tail flags from command line.
@@ -363,8 +302,13 @@ func ApplyMenuSelection(
 		bsCopy = append(bsCopy, *b)
 	}
 
+	defFormatter := func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) }
+	if m.Formatter == nil {
+		m.SetFormatter(defFormatter)
+	}
+
 	// Select with menu
-	items, err := selectionWithMenu(m, bsCopy, func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) })
+	items, err := selectionWithMenu(m, bsCopy, m.Formatter)
 	if err != nil {
 		return nil, err
 	}
