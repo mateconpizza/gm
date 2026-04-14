@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/mateconpizza/rotato"
@@ -17,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -27,7 +25,7 @@ var (
 
 // Data retrieves and filters bookmarks based on configuration and arguments.
 func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
-	bs, err := FetchBookmarks(a, args)
+	bs, err := fetchBookmarks(a, args)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +49,8 @@ func Data(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bo
 	return bs, nil
 }
 
-// FetchBookmarks retrieves records based on user input and filtering criteria.
-func FetchBookmarks(a *app.Context, args []string) ([]*bookmark.Bookmark, error) {
+// fetchBookmarks retrieves records based on user input and filtering criteria.
+func fetchBookmarks(a *app.Context, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("FetchBookmarks", "args", args)
 
 	// Try to get by IDs first
@@ -404,27 +402,4 @@ func removeRecords(a *app.Context, bs []*bookmark.Bookmark) error {
 	}
 
 	return nil
-}
-
-// FindDB returns the path to the database.
-func FindDB(p string) (string, error) {
-	slog.Debug("searching db", "path", p)
-
-	if files.Exists(p) {
-		return p, nil
-	}
-
-	fs, err := files.FindByExtList(filepath.Dir(p), ".db", ".enc")
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	s := filepath.Base(p)
-	for _, f := range fs {
-		if strings.Contains(f, s) {
-			return f, nil
-		}
-	}
-
-	return "", fmt.Errorf("%w: %q", db.ErrDBNotFound, files.StripSuffixes(s))
 }

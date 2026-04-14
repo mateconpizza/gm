@@ -165,7 +165,7 @@ func HookGitSync(cmd *cobra.Command, args []string) error {
 
 	r, err := db.New(cfg.DBPath)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 	defer r.Close()
 
@@ -191,18 +191,15 @@ func HookInjectConfig(cfg *config.Config) Hook {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
-		// If context is nil, create a new one
 		if ctx == nil {
 			ctx = context.Background()
 		}
 
-		// Check if config already exists
 		if _, err := config.FromContext(ctx); err == nil {
-			// Config already injected, skip
+			// config already injected, skip
 			return nil
 		}
 
-		// Inject config into context
 		cmd.SetContext(config.ToContext(ctx, cfg))
 		return nil
 	}

@@ -58,7 +58,7 @@ func Records(c *ui.Console, bs []*bookmark.Bookmark) error {
 func TagsList(ctx context.Context, p string) error {
 	r, err := db.New(p)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 	defer r.Close()
 

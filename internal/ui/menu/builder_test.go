@@ -8,6 +8,8 @@ import (
 )
 
 func TestBuildHeaderStrings(t *testing.T) {
+	ansi.DisableColor()
+
 	t.Parallel()
 
 	t.Run("success with visible keybinds", func(t *testing.T) {

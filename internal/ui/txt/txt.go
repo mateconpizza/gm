@@ -29,6 +29,7 @@ const (
 	UnicodeSingleAngleMark  = "\u203A" // ›
 	UnicodeBlackSquare      = "\u25A0" // ■
 	UnicodeNotes            = "\U0001F4DD"
+	UnicodeDash             = "—" // —
 )
 
 // TimeLayout is the default layout for time formatting.

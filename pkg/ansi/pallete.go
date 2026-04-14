@@ -14,7 +14,8 @@ func DisableColor() {
 
 func NewPalette() *Palette {
 	return &Palette{
-		Reset: Reset,
+		Reset:  Reset,
+		Normal: Normal,
 
 		// Standard foreground colors (30-37).
 		Black:   Black,
@@ -122,7 +123,8 @@ func combine(codes ...SGR) string {
 }
 
 type Palette struct {
-	Reset SGR // Reset all attributes
+	Reset  SGR // Reset all attributes
+	Normal SGR
 
 	// Standard foreground colors (30-37).
 	Black   SGR

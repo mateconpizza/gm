@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -17,17 +16,14 @@ import (
 
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
-	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
@@ -66,19 +62,6 @@ func QR(a *app.Context, bs []*bookmark.Bookmark) error {
 	return nil
 }
 
-// Copy copies the URLs to the system clipboard.
-func Copy(_ *app.Context, bs []*bookmark.Bookmark) error {
-	var sb strings.Builder
-	for i := range bs {
-		sb.WriteString(bs[i].URL + "\n")
-	}
-	if err := sys.CopyClipboard(sb.String()); err != nil {
-		return fmt.Errorf("copy error: %w", err)
-	}
-
-	return nil
-}
-
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
 func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 10
@@ -87,7 +70,7 @@ func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 
 	// get user confirmation to procced
 	s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
-	if err := confirmUserLimit(a.Console(), n, maxGoroutines, s, a.Cfg.Flags.Force); err != nil {
+	if err := a.Console().ConfirmLimit(n, maxGoroutines, s, a.Cfg.Flags.Force); err != nil {
 		return err
 	}
 
@@ -147,9 +130,9 @@ func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 // Edit edits the bookmarks using a text editor.
 func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxItems = 10
-	c, p := a.Console(), a.Console().Palette()
+	p := a.Console().Palette()
 	q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
-	if err := confirmUserLimit(c, len(bs), maxItems, q, a.Cfg.Flags.Force); err != nil {
+	if err := a.Console().ConfirmLimit(len(bs), maxItems, q, a.Cfg.Flags.Force); err != nil {
 		return err
 	}
 
@@ -158,38 +141,6 @@ func Edit(a *app.Context, bs []*bookmark.Bookmark) error {
 			return git.UpdateBookmark(a.Cfg, o, u)
 		}),
 	)
-}
-
-// CheckStatus prints the status code of the bookmark URL.
-func CheckStatus(a *app.Context, bs []*bookmark.Bookmark) error {
-	const maxGoroutines = 15
-
-	n := len(bs)
-	if n == 0 {
-		return db.ErrRecordQueryNotProvided
-	}
-
-	s := fmt.Sprintf("checking status of %d bookmarks", n)
-	if err := confirmUserLimit(a.Console(), n, maxGoroutines, s, a.Cfg.Flags.Force); err != nil {
-		return sys.ErrActionAborted
-	}
-
-	if err := status.Check(a.Context(), a.Console(), bs); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	for i := range bs {
-		b := bs[i]
-		if b.HTTPStatusCode == http.StatusTooManyRequests {
-			continue
-		}
-
-		if err := a.DB.UpdateOne(a.Context(), b); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // LockRepo locks the database.
@@ -263,49 +214,14 @@ func UnlockRepo(a *app.Context, rToUnlock string) error {
 //
 // It uses the scraper to update the title, description and favicon.
 func Update(a *app.Context, bs []*bookmark.Bookmark) error {
-	c := a.Console()
-	f := c.Frame()
+	p := a.Console().Palette()
 	n := len(bs)
 	if n > 1 {
-		f.Reset().Headerln(c.Palette().Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
+		a.Console().Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
 	}
 
 	for _, b := range bs {
 		if err := processBookmarkUpdate(a, b); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func Snapshot(a *app.Context, bs []*bookmark.Bookmark) error {
-	maxItems := 15
-	f := a.Cfg.Flags
-	c := a.Console()
-	p := c.Palette()
-
-	n := len(bs)
-	if n == 0 {
-		return ErrNoItems
-	}
-
-	action := func(u string) error {
-		fmt.Println(u)
-		return nil
-	}
-
-	if f.Open {
-		// get user confirmation to procced
-		s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
-		if err := confirmUserLimit(a.Console(), n, maxItems, s, f.Force); err != nil {
-			return err
-		}
-		action = sys.OpenInBrowser
-	}
-
-	for _, u := range bs {
-		if err := action(u.ArchiveURL); err != nil {
 			return err
 		}
 	}
@@ -461,19 +377,4 @@ func runEditSession(a *app.Context, bs []*bookmark.Bookmark, opts ...editor.Sess
 	session := editor.NewEditSession(a.Console(), a.DB, te, opts...)
 
 	return session.Run(bs, es)
-}
-
-func Notes(a *app.Context, bs []*bookmark.Bookmark) error {
-	return printer.Notes(a.Console(), bs)
-}
-
-func Display(a *app.Context, bs []*bookmark.Bookmark) error {
-	f := a.Cfg.Flags
-
-	switch {
-	case f.Format != "":
-		return printer.Display(a.Console(), f.Format, bs)
-	default:
-		return printer.Records(a.Console(), bs)
-	}
 }

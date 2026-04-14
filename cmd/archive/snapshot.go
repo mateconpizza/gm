@@ -1,12 +1,15 @@
 package archive
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -26,7 +29,39 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.Snapshot)
+			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+				maxItems := 15
+
+				n := len(bs)
+				if n == 0 {
+					return handler.ErrNoItems
+				}
+
+				action := func(u string) error {
+					fmt.Println(u)
+					return nil
+				}
+
+				if a.Cfg.Flags.Open {
+					c, p := a.Console(), a.Console().Palette()
+
+					// get user confirmation to procced
+					s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
+					if err := c.ConfirmLimit(n, maxItems, s, a.Cfg.Flags.Force); err != nil {
+						return err
+					}
+
+					action = sys.OpenInBrowser
+				}
+
+				for _, u := range bs {
+					if err := action(u.ArchiveURL); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			})
 		},
 	}
 

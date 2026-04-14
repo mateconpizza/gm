@@ -27,6 +27,7 @@ func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *Recor
 	if err != nil {
 		return nil, err
 	}
+
 	return bm, nil
 }
 

@@ -4,9 +4,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -27,7 +29,10 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithKeybinds(kb.EditNotes(cfg.Menu.DefaultKeymaps.Edit)),
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName, "notes")+" {+1}"),
 			)
-			return cmdutil.Execute(cmd, args, m, handler.Notes)
+
+			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+				return printer.Notes(a.Console(), bs)
+			})
 		},
 	}
 

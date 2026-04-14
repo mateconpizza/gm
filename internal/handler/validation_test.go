@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func TestExtractIDsFromString(t *testing.T) {
@@ -39,52 +37,6 @@ func TestExtractIDsFromString(t *testing.T) {
 		}
 		if len(ids) != 0 {
 			t.Errorf("expected empty slice, got %v", ids)
-		}
-	})
-}
-
-func TestFindLockedDB(t *testing.T) {
-	t.Run("success finding unlocked DB", func(t *testing.T) {
-		t.Parallel()
-		f := testSetupDBFiles(t, t.TempDir(), 12)
-		want := f[0]
-		got, err := FindDB(want)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
-	})
-
-	t.Run("success finding DB without extension", func(t *testing.T) {
-		t.Parallel()
-		f := testSetupDBFiles(t, t.TempDir(), 10)
-		want := f[0]
-		withoutExt := strings.TrimSuffix(want, filepath.Ext(want))
-		got, err := FindDB(withoutExt)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
-	})
-
-	t.Run("failed finding DB", func(t *testing.T) {
-		t.Parallel()
-		f := testSetupDBFiles(t, t.TempDir(), 10)
-		path := filepath.Dir(f[0])
-		nonExistentFile := filepath.Join(path, "non-existent.db")
-		got, err := FindDB(nonExistentFile)
-		if err == nil {
-			t.Errorf("expected error, got none")
-		}
-		if !errors.Is(err, db.ErrDBNotFound) {
-			t.Errorf("expected ErrDBNotFound, got %v", err)
-		}
-		if got != "" {
-			t.Errorf("expected empty result, got %q", got)
 		}
 	})
 }

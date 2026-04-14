@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -104,6 +105,17 @@ func (c *Console) ConfirmErr(q, def string) error {
 
 func (c *Console) Confirm(q, def string) bool {
 	return c.term.Confirm(c.frame.Reset().Question(q).StringReset(), def)
+}
+
+func (c *Console) ConfirmLimit(count, maxItems int, q string, force bool) error {
+	if force || count < maxItems {
+		return nil
+	}
+	if !c.Confirm(q+", continue?", "n") {
+		return sys.ErrActionAborted
+	}
+	c.ReplaceLine(c.Frame().Midln(q).StringReset())
+	return nil
 }
 
 func (c *Console) Choose(q string, opts []string, def string) (string, error) {

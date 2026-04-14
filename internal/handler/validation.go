@@ -70,21 +70,6 @@ func confirmRemove(
 	return bs, nil
 }
 
-// confirmUserLimit prompts the user to confirm the exceeding limit.
-func confirmUserLimit(c *ui.Console, count, maxItems int, q string, force bool) error {
-	if force || count < maxItems {
-		return nil
-	}
-
-	if !c.Confirm(q+", continue?", "n") {
-		return sys.ErrActionAborted
-	}
-
-	c.ReplaceLine(c.Frame().Midln(q).StringReset())
-
-	return nil
-}
-
 // extractIDsFrom extracts IDs from a argument slice.
 func extractIDsFrom(args []string) ([]int, error) {
 	ids := make([]int, 0)

@@ -2,13 +2,20 @@
 package check
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	"github.com/mateconpizza/gm/internal/app"
+	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func NewCmd(cfg *config.Config) *cobra.Command {
@@ -24,7 +31,36 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.CheckStatus)
+			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+				const maxGoroutines = 15
+
+				n := len(bs)
+				if n == 0 {
+					return db.ErrRecordQueryNotProvided
+				}
+
+				s := fmt.Sprintf("checking status of %d bookmarks", n)
+				if err := a.Console().ConfirmLimit(n, maxGoroutines, s, a.Cfg.Flags.Force); err != nil {
+					return sys.ErrActionAborted
+				}
+
+				if err := status.Check(a.Context(), a.Console(), bs); err != nil {
+					return err
+				}
+
+				for i := range bs {
+					b := bs[i]
+					if b.HTTPStatusCode == http.StatusTooManyRequests {
+						continue
+					}
+
+					if err := a.DB.UpdateOne(a.Context(), b); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			})
 		},
 	}
 

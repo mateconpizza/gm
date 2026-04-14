@@ -52,7 +52,8 @@ const (
 type SGR string
 
 const (
-	Reset SGR = "\x1b[0m" // Reset all attributes
+	Reset  SGR = "\x1b[0m" // Reset all attributes
+	Normal SGR = "\x1b[39m"
 
 	// Standard foreground colors (30-37).
 	Black   SGR = "\x1b[30m"

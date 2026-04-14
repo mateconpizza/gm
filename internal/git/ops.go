@@ -161,7 +161,7 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 	if !c.Confirm(fmt.Sprintf("Import into %q database?", gr.Loc.DBName), "y") {
 		// FIX:
 		// - Limit options to:
-		// 		- Current database (flag `--name`)?
+		// 		- Current database (flag `--db`)?
 		// 		- New database
 		// 		- on "no/cancel", abort all process?
 		return "", nil
