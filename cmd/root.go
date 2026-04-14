@@ -17,7 +17,8 @@ import (
 	"github.com/mateconpizza/gm/cmd/database"
 	"github.com/mateconpizza/gm/cmd/edit"
 	gitCmd "github.com/mateconpizza/gm/cmd/git"
-	"github.com/mateconpizza/gm/cmd/io"
+	"github.com/mateconpizza/gm/cmd/io/in"
+	"github.com/mateconpizza/gm/cmd/io/out"
 	"github.com/mateconpizza/gm/cmd/notes"
 	"github.com/mateconpizza/gm/cmd/open"
 	"github.com/mateconpizza/gm/cmd/qrcmd"
@@ -154,7 +155,8 @@ func newAdminCmd(cfg *config.Config) *cobra.Command {
 	c.AddCommand(
 		database.NewCmd(cfg),
 		appcfg.NewCmd(cfg),
-		io.NewCmd(cfg),
+		in.NewCmd(cfg),
+		out.NewCmd(cfg),
 	)
 
 	c.Flags().BoolVarP(&cfg.Flags.Help, "help", "h", false, "")

@@ -1,6 +1,7 @@
-package io
+package in
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -9,8 +10,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -19,7 +23,136 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/files"
 )
+
+var ErrMissingArg = errors.New("missing argument")
+
+func NewCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "import",
+		Aliases: []string{"imp", "i"},
+		Short:   "import bookmarks from various sources",
+		RunE:    cli.HookHelp,
+	}
+
+	c.AddCommand(
+		newBrowserCmd(cfg),
+		newFromDatabaseCmd(cfg),
+		newFromBackupCmd(cfg),
+	)
+
+	c.Flags().Bool("help", false, "")
+	_ = c.Flags().MarkHidden("help")
+
+	return c
+}
+
+func newFromDatabaseCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "database",
+		Short:   "import from database",
+		Aliases: []string{"db"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rDest, err := db.New(cfg.DBPath)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			defer rDest.Close()
+
+			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			// FIX: refactor `SelectDatabase`, return a string (fullpath)
+			srcDB, err := handler.SelectDatabase(a, rDest.Cfg.Fullpath())
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			rSrc, err := db.New(srcDB)
+			if err != nil {
+				return err
+			}
+			defer rSrc.Close()
+
+			return port.Database(a, rSrc, rDest)
+		},
+	}
+
+	return c
+}
+
+func newFromBackupCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "backup",
+		Short:   "import from backup",
+		Aliases: []string{"bk"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			destRepo, err := db.New(cfg.DBPath)
+			if err != nil {
+				return err
+			}
+			defer destRepo.Close()
+
+			dbName := files.StripSuffixes(destRepo.Name())
+			bks, err := files.List(cfg.Path.Backup, "*_"+dbName+".db*")
+			if err != nil {
+				return err
+			}
+
+			if len(bks) == 0 {
+				return db.ErrBackupNotFound
+			}
+
+			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			backupPath, err := handler.SelectBackupOne(a, bks)
+			if err != nil {
+				return err
+			}
+
+			srcRepo, err := db.New(backupPath)
+			if err != nil {
+				return err
+			}
+			defer srcRepo.Close()
+
+			return port.FromBackup(a, destRepo, srcRepo)
+		},
+	}
+
+	return c
+}
+
+func newBrowserCmd(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "browser",
+		Short: "import from browser",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			r, err := db.New(cfg.DBPath)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+			defer r.Close()
+
+			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			return port.Browser(a)
+		},
+	}
+
+	return c
+}
 
 func newHTMLCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
