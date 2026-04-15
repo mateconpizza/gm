@@ -228,26 +228,7 @@ func UnlockRepo(a *app.Context, rToUnlock string) error {
 	return nil
 }
 
-// Update updates the bookmarks.
-//
-// It uses the scraper to update the title, description and favicon.
-func Update(a *app.Context, bs []*bookmark.Bookmark) error {
-	p := a.Console().Palette()
-	n := len(bs)
-	if n > 1 {
-		a.Console().Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
-	}
-
-	for _, b := range bs {
-		if err := processBookmarkUpdate(a, b); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func processBookmarkUpdate(a *app.Context, b *bookmark.Bookmark) error {
+func ProcessBookmarkUpdate(a *app.Context, b *bookmark.Bookmark) error {
 	c := a.Console()
 	updated, err := updateBookmarkData(a.Context(), c, b)
 	if err != nil {

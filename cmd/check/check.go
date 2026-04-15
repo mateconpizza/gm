@@ -87,7 +87,21 @@ func newUpdateCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.Update)
+			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+				p := a.Console().Palette()
+				n := len(bs)
+				if n > 1 {
+					a.Console().Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
+				}
+
+				for _, b := range bs {
+					if err := handler.ProcessBookmarkUpdate(a, b); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			})
 		},
 	}
 
