@@ -235,7 +235,7 @@ linters:
         linters:
           - funlen
           - gocyclo
-      - path: "pkg/ansi/pallete.go"
+      - path: "pkg/ansi/palette.go"
         linters:
           - gosec
         text: "G404:"
