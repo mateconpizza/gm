@@ -159,7 +159,7 @@ func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	qr.ForegroundColor = defaultBackground
 	qr.BackgroundColor = defaultForeground
 
-	qrfile, err := files.CreateTemp(prefix, "png")
+	qrfile, err := files.CreateTempFile(prefix, "png")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}

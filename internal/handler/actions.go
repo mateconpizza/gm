@@ -58,6 +58,25 @@ func QR(a *app.Context, bs []*bookmark.Bookmark) error {
 	return nil
 }
 
+// QROpen opens a QR-Code image in the system default image viewer.
+func QROpen(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
+	const maxLabelLen = 55
+
+	if err := qrcode.GenerateImg(appName); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	trunc := func(s string) string { return txt.Shorten(s, maxLabelLen) }
+	if err := qrcode.Label(trunc(b.Title), qr.LabelTop); err != nil {
+		return fmt.Errorf("%w: adding top label", err)
+	}
+	if err := qrcode.Label(trunc(b.URL), qr.LabelBottom); err != nil {
+		return fmt.Errorf("%w: adding bottom label", err)
+	}
+
+	return qrcode.Open(ctx)
+}
+
 // Open opens the URLs in the browser for the bookmarks in the provided Slice.
 func Open(a *app.Context, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 5
@@ -290,25 +309,6 @@ func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
 		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
-}
-
-// OpenQR opens a QR-Code image in the system default image viewer.
-func OpenQR(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
-	const maxLabelLen = 55
-
-	if err := qrcode.GenerateImg(appName); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	trunc := func(s string) string { return txt.Shorten(s, maxLabelLen) }
-	if err := qrcode.Label(trunc(b.Title), qr.LabelTop); err != nil {
-		return fmt.Errorf("%w: adding top label", err)
-	}
-	if err := qrcode.Label(trunc(b.URL), qr.LabelBottom); err != nil {
-		return fmt.Errorf("%w: adding bottom label", err)
-	}
-
-	return qrcode.Open(ctx)
 }
 
 // SaveNewBookmark asks the user if they want to save the bookmark.

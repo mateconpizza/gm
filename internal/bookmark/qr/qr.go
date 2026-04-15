@@ -101,6 +101,16 @@ func (q *QRCode) String() string {
 	return q.QR.ToSmallString(true)
 }
 
+func (q *QRCode) Write(path string) error {
+	const imgSize = 512
+
+	if err := q.Generate(); err != nil {
+		return err
+	}
+
+	return q.QR.WriteFile(imgSize, path)
+}
+
 // New creates a new QR-Code.
 func New(s string) *QRCode {
 	return &QRCode{

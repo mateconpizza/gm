@@ -1,6 +1,11 @@
 package qrcmd
 
 import (
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -11,6 +16,11 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
+
+var ErrInvalidFormat = errors.New("invalid format")
+
+// Output image valid formats.
+var validFormats = []string{"jpeg", "png", "jpg"}
 
 func NewCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
@@ -34,7 +44,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 	cmdutil.FlagsFilter(c, cfg)
 
-	c.AddCommand(newOpenCmd(cfg))
+	c.AddCommand(newOpenCmd(cfg), newGenQR(cfg))
 
 	return c
 }
@@ -52,6 +62,7 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 				menu.WithHeaderLabel(" QR-code "),
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
+
 			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
 				for i := range bs {
 					b := bs[i]
@@ -59,7 +70,7 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 					if err := qrcode.Generate(); err != nil {
 						return err
 					}
-					if err := handler.OpenQR(cmd.Context(), qrcode, b, cfg.Name); err != nil {
+					if err := handler.QROpen(cmd.Context(), qrcode, b, cfg.Name); err != nil {
 						return err
 					}
 				}
@@ -72,6 +83,43 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 	cmdutil.FlagMenu(c, cfg)
 	cmdutil.FlagsFilter(c, cfg)
 	cmdutil.HideFlag(c, "help")
+
+	return c
+}
+
+func newGenQR(cfg *config.Config) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "text [string]",
+		Short:   "generate QR image from text",
+		Aliases: []string{"t"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+
+			qrcode := qr.New(strings.Join(args, " "))
+			if err := qrcode.Generate(); err != nil {
+				return err
+			}
+
+			if cfg.Flags.Path != "" {
+				ext := strings.ToLower(filepath.Ext(cfg.Flags.Path))
+				switch ext {
+				case ".png", ".jpg", ".jpeg":
+					return qrcode.Write(cfg.Flags.Path)
+				default:
+					return fmt.Errorf("%w: %q (use: %s)", ErrInvalidFormat, ext, strings.Join(validFormats, "|"))
+				}
+			}
+
+			fmt.Print(qrcode.String())
+
+			return nil
+		},
+	}
+
+	c.Flags().StringVarP(&cfg.Flags.Path, "output", "o", "",
+		fmt.Sprintf("write QR image to file [%s]", strings.Join(validFormats, "|")))
 
 	return c
 }

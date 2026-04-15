@@ -241,8 +241,8 @@ func CloseAndClean(f *os.File) {
 	}
 }
 
-// CreateTemp Creates a temporary file with the provided prefix.
-func CreateTemp(prefix, ext string) (*os.File, error) {
+// CreateTempFile Creates a temporary file with the provided prefix.
+func CreateTempFile(prefix, ext string) (*os.File, error) {
 	tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.%s", prefix, ext))
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
@@ -552,7 +552,7 @@ func PrioritizeFile(files []string, name string) {
 // CreateTempFileWithData creates a temporary file and writes the provided data
 // to it.
 func CreateTempFileWithData(d []byte, extension string) (*os.File, error) {
-	tf, err := CreateTemp("edit", extension)
+	tf, err := CreateTempFile("edit", extension)
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file: %w", err)
 	}
