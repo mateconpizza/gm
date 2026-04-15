@@ -217,10 +217,9 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 	return removeRecords(a, toRemove)
 }
 
-// DroppingDB drops a database.
-func DroppingDB(a *app.Context) error {
-	c := a.Console()
-	f := c.Frame()
+// DropDatabase drops a database.
+func DropDatabase(a *app.Context) error {
+	c, f := a.Console(), a.Console().Frame()
 	f.Header(c.Palette().BrightRed.Sprint("Dropping") + " all records\n").Row("\n").Flush()
 	fmt.Print(summary.Info(a))
 

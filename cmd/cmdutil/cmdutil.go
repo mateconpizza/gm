@@ -180,3 +180,8 @@ func HideFlag(c *cobra.Command, names ...string) {
 		}
 	}
 }
+
+func FlagDBRequired(c *cobra.Command, cfg *config.Config) {
+	c.Flags().StringVar(&cfg.DBName, "db", config.MainDBName, "database name")
+	_ = c.MarkFlagRequired("db")
+}

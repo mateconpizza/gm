@@ -58,7 +58,7 @@ func TestDatabase_Drop(t *testing.T) {
 		t.Fatalf("expected %d bookmarks, got: %d", want, len(got))
 	}
 
-	err = DroppingDB(a)
+	err = DropDatabase(a)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
