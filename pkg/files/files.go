@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -107,24 +106,6 @@ func List(root, pattern string) ([]string, error) {
 	return files, nil
 }
 
-func ListRecursive(root, pattern string) ([]string, error) {
-	var files []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() && filepath.Ext(path) == pattern {
-			files = append(files, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return files, nil
-}
-
 // mkdir creates a new directory at the specified path.
 func mkdir(s string) error {
 	if Exists(s) {
@@ -180,40 +161,6 @@ func RemoveAll(s string) error {
 
 	if err := os.RemoveAll(s); err != nil {
 		return fmt.Errorf("removing file: %w", err)
-	}
-
-	return nil
-}
-
-// Copy copies the contents of a source file to a destination file.
-func Copy(from, to string) error {
-	srcFile, err := os.Open(from)
-	if err != nil {
-		return fmt.Errorf("error opening source file: %w", err)
-	}
-
-	defer func() {
-		if err := srcFile.Close(); err != nil {
-			slog.Error("closing source file", "file", from, "error", err)
-		}
-	}()
-
-	dstFile, err := Touch(to, false)
-	if err != nil {
-		return fmt.Errorf("error creating destination file: %w", err)
-	}
-
-	slog.Debug("copying file", "from", from, "to", to)
-
-	defer func() {
-		if err := dstFile.Close(); err != nil {
-			slog.Error("closing destination file", "file", dstFile.Name(), "error", err)
-		}
-	}()
-
-	_, err = io.Copy(dstFile, srcFile)
-	if err != nil {
-		return fmt.Errorf("error copying file: %w", err)
 	}
 
 	return nil
@@ -314,17 +261,6 @@ func StripSuffixes(p string) string {
 // Empty returns true if the file at path s has non-zero size.
 func Empty(s string) bool {
 	return SizeBytes(s) == 0
-}
-
-// ModTime returns the formatted modification time of the specified file.
-func ModTime(s, format string) string {
-	file, err := os.Stat(s)
-	if err != nil {
-		slog.Error("getting modification time", "file", s, "error", err)
-		return ""
-	}
-
-	return file.ModTime().Format(format)
 }
 
 // Touch creates a file at this given path.
@@ -572,15 +508,4 @@ func saveBytestToFile(f *os.File, d []byte) error {
 	}
 
 	return nil
-}
-
-func Rename(oldPath, newName string) error {
-	if !Exists(oldPath) {
-		return fmt.Errorf("%w: %q", ErrFileNotFound, oldPath)
-	}
-
-	basePath := filepath.Dir(oldPath)
-	newPath := filepath.Join(basePath, newName)
-
-	return os.Rename(oldPath, newPath)
 }

@@ -153,7 +153,6 @@ func Edit(es editor.EditStrategy) func(*app.Context, []*bookmark.Bookmark) error
 			return err
 		}
 
-		// Pass the strategy through
 		return runEditSession(a, bs, es,
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
 				return git.UpdateBookmark(a.Cfg, o, u)

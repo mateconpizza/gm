@@ -11,9 +11,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -288,38 +286,6 @@ func tail(bs []*bookmark.Bookmark, n int) []*bookmark.Bookmark {
 	result := make([]*bookmark.Bookmark, n)
 	copy(result, bs[start:])
 	return result
-}
-
-// ApplyMenuSelection applies menu selection to bookmarks.
-func ApplyMenuSelection(
-	c *ui.Console,
-	m *menu.Menu[bookmark.Bookmark],
-	bs []*bookmark.Bookmark,
-) ([]*bookmark.Bookmark, error) {
-	// Create copy for menu selection
-	bsCopy := make([]bookmark.Bookmark, 0, len(bs))
-	for _, b := range bs {
-		bsCopy = append(bsCopy, *b)
-	}
-
-	defFormatter := func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) }
-	if m.Formatter == nil {
-		m.SetFormatter(defFormatter)
-	}
-
-	// Select with menu
-	items, err := selectionWithMenu(m, bsCopy, m.Formatter)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert selected items back to pointers
-	result := make([]*bookmark.Bookmark, len(items))
-	for i := range items {
-		result[i] = &items[i]
-	}
-
-	return result, nil
 }
 
 // removeRecords removes the records from the database.

@@ -10,7 +10,10 @@ import (
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -109,7 +112,7 @@ func selectItem(a *app.Context, fs []string, header string) (string, error) {
 		menu.WithOutputColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
-		menu.WithPreview(a.Cfg.PreviewCmd("{1}")+" admin db info"),
+		menu.WithPreview(a.Cfg.PreviewCmd("{1}")+" db info"),
 	)
 	if err != nil {
 		return "", err
@@ -128,7 +131,7 @@ func SelectBackupOne(a *app.Context, bks []string) (string, error) {
 		menu.WithOutputColor(a.Cfg.Flags.Color),
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader("choose a backup to import from"),
-		menu.WithPreview(a.Cfg.PreviewCmd("./backup/{1}")+" admin db info"),
+		menu.WithPreview(a.Cfg.PreviewCmd("./backup/{1}")+" db info"),
 	)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
@@ -160,7 +163,7 @@ func SelectBackupMany(a *app.Context, root, header string) ([]string, error) {
 		menu.WithConfig(a.Cfg.Menu),
 		menu.WithHeader(header),
 		menu.WithMultiSelection(),
-		menu.WithPreview(a.Cfg.PreviewCmd("./backup/{1}", "admin db info")),
+		menu.WithPreview(a.Cfg.PreviewCmd("./backup/{1}", "db info")),
 	)
 	if err != nil {
 		return repos, fmt.Errorf("%w", err)
@@ -191,18 +194,9 @@ func SelectFileLocked(a *app.Context, root, header string) ([]string, error) {
 }
 
 func SelectDatabase(a *app.Context, ignoreDBPath string) (string, error) {
-	// build list of candidate .db files
-	dbFiles, err := files.FindByExtList(a.Cfg.Path.Data, ".db")
+	dbs, err := ListDatabases(a, ignoreDBPath)
 	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	dbs := make([]string, 0, len(dbFiles))
-	for i := range dbFiles {
-		if dbFiles[i] == ignoreDBPath {
-			continue
-		}
-		dbs = append(dbs, dbFiles[i])
+		return "", err
 	}
 
 	// ask the user which one to import from
@@ -216,4 +210,55 @@ func SelectDatabase(a *app.Context, ignoreDBPath string) (string, error) {
 	}
 
 	return s, nil
+}
+
+// ApplyMenuSelection applies menu selection to bookmarks.
+func ApplyMenuSelection(
+	c *ui.Console,
+	m *menu.Menu[bookmark.Bookmark],
+	bs []*bookmark.Bookmark,
+) ([]*bookmark.Bookmark, error) {
+	// Create copy for menu selection
+	bsCopy := make([]bookmark.Bookmark, 0, len(bs))
+	for _, b := range bs {
+		bsCopy = append(bsCopy, *b)
+	}
+
+	defFormatter := func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) }
+	if m.Formatter == nil {
+		m.SetFormatter(defFormatter)
+	}
+
+	// Select with menu
+	items, err := selectionWithMenu(m, bsCopy, m.Formatter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert selected items back to pointers
+	result := make([]*bookmark.Bookmark, len(items))
+	for i := range items {
+		result[i] = &items[i]
+	}
+
+	return result, nil
+}
+
+// ListDatabases returns database paths, excluding the given path.
+func ListDatabases(a *app.Context, exclude string) ([]string, error) {
+	// build list of candidate .db files
+	dbFiles, err := files.FindByExtList(a.Cfg.Path.Data, ".db")
+	if err != nil {
+		return nil, err
+	}
+
+	dbs := make([]string, 0, len(dbFiles))
+	for i := range dbFiles {
+		if dbFiles[i] == exclude {
+			continue
+		}
+		dbs = append(dbs, dbFiles[i])
+	}
+
+	return dbs, nil
 }

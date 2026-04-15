@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/summary"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -28,7 +27,8 @@ func RemoveRepo(a *app.Context) error {
 	}
 
 	if filepath.Base(a.Cfg.DBPath) == config.MainDBName && !a.Cfg.Flags.Force {
-		return fmt.Errorf("%w: main database cannot be removed, use --force", sys.ErrActionAborted)
+		f := ansi.BrightYellow.With(ansi.Italic).Sprint("--force")
+		return fmt.Errorf("%w: main database cannot be removed, use %s", ErrInvalidOption, f)
 	}
 
 	c, p := a.Console(), a.Console().Palette()

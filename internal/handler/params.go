@@ -54,26 +54,6 @@ func ParamsURL(a *app.Context, bs []*bookmark.Bookmark) error {
 	return nil
 }
 
-// ParamsFilter returns bookmarks that contain URL query parameters.
-func ParamsFilter(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
-	cleanup := make([]*bookmark.Bookmark, 0, len(bs))
-
-	for i := range bs {
-		u, err := url.Parse(bs[i].URL)
-		if err != nil {
-			continue
-		}
-
-		if len(u.Query()) == 0 {
-			continue
-		}
-
-		cleanup = append(cleanup, bs[i])
-	}
-
-	return cleanup
-}
-
 // ParamHighlight returns the URL with its query parameters highlighted with
 // the given ansi code.
 func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {

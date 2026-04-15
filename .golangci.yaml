@@ -211,6 +211,9 @@ linters:
       - path: "internal/handler/params_test.go"
         linters:
           - lll
+      - path: "cmd/clean/clean_test.go"
+        linters:
+          - lll
       - path: "cmd/root.go"
         linters:
           - lll

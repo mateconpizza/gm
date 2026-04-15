@@ -174,7 +174,7 @@ func Notes(c *ui.Console, b *bookmark.Bookmark) string {
 	return f.String()
 }
 
-func OnelineURL(c *ui.Console, b *bookmark.Bookmark) string {
+func OnelineURL(p *ansi.Palette, b *bookmark.Bookmark) string {
 	w := terminal.MaxWidth
 
 	const (
@@ -186,7 +186,6 @@ func OnelineURL(c *ui.Console, b *bookmark.Bookmark) string {
 
 	idLen := idPadding
 
-	p := c.Palette()
 	if !p.Enabled() {
 		idLen = idWithColor
 	}

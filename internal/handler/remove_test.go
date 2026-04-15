@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -143,7 +142,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 		a.SetDatabase(r)
 
 		err := RemoveRepo(a)
-		if !errors.Is(err, sys.ErrActionAborted) {
+		if !errors.Is(err, ErrInvalidOption) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
