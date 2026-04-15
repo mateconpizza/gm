@@ -57,43 +57,35 @@ go install github.com/mateconpizza/gm@latest
 
 ```sh
 $ gm --help
-Simple yet powerful bookmark manager for your terminal
+usage: gm [query] [flags] [command]
 
-Usage:
-  gm [flags]
-  gm [command]
+commands:
+  add         add bookmark
+  edit        edit bookmark
+  rm          remove bookmark
+  open        open in browser
+  yank        copy URL
+  notes       view/edit notes
+  qr          generate QR
+  check       check URLs HTTP status
+  tag         tags management (wip)
+  clean       strip URL params
+  archive     show archive URL
+  db          database ops
+  git         git sync
+  admin       manage database and config
 
-Available Commands:
-  new         New bookmark, database, backup
-  rec         Records management
-  tags        Tags management
-  health      Bookmark health
-  db          Database management
-  git         Git commands
-  io          Export/Import bookmarks
-  conf        Configuration management
-  help        Help about any command
-
-Flags:
-  -o, --open            open bookmark in default browser
-  -e, --edit            edit bookmark with preferred text editor
-  -r, --remove          remove bookmark by query or ID
-  -c, --copy            copy bookmark URL to clipboard
-  -q, --qr              generate QR code for bookmark URL
-  -N, --notes           display bookmark notes
-  -m, --menu            interactive menu mode using fzf
-  -s, --snapshot        display bookmark archive URL
-      --multiline       output in multiline format (fzf)
-  -f, --format string   output format [oneline|json|id|url|title|tags|desc|notes]
-  -t, --tag strings     filter bookmarks by tag(s)
+flags:
+  -f, --format string   output format [oneline|json|id|url|title|tags|desc]
+  -t, --tag strings     filter by tag(s)
   -H, --head int        show first N bookmarks
   -T, --tail int        show last N bookmarks
-  -n, --name string     database name (default "main.db")
-      --color string    output with pretty colors [always|never] (default "always")
+  -m, --menu            select interactively
+      --db string       database name (default "main.db")
+      --color string    output with colors [always|never] (default "always")
       --force           force action
-  -y, --yes             assume "yes" on most questions
+  -y, --yes             assume yes
   -v, --verbose count   increase verbosity (-v, -vv, -vvv)
-  -h, --help            help for gm
       --version         version for gm
 ```
 

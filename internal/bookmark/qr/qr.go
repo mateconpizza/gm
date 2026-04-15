@@ -75,20 +75,12 @@ func (q *QRCode) Open(ctx context.Context) error {
 		return ErrQRFileNotFound
 	}
 
-	args := make([]string, 0)
-
-	// FIX: remove display, keep default xdg-open
-	if sys.BinExists("display") {
-		args = append(args, "display", q.file.Name())
-	} else {
-		args = append(sys.OSArgs(), q.file.Name())
-	}
-
+	args := append(sys.OSArgs(), q.file.Name())
 	if err := sys.ExecuteCmd(ctx, args...); err != nil {
 		return fmt.Errorf("%w: opening QR", err)
 	}
 
-	return nil
+	return sys.ExecuteCmd(ctx, args...)
 }
 
 // Label adds a label to an image, with the given position (top or bottom).

@@ -36,10 +36,6 @@ func QR(a *app.Context, bs []*bookmark.Bookmark) error {
 			return fmt.Errorf("%w", err)
 		}
 
-		if a.Cfg.Flags.Open {
-			return openQR(a.Context(), qrcode, b, a.Cfg.Name)
-		}
-
 		p := a.Console().Palette()
 		var sb strings.Builder
 		sb.WriteString(p.Bold.Sprint(b.Title + "\n"))
@@ -296,8 +292,8 @@ func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 	}
 }
 
-// openQR opens a QR-Code image in the system default image viewer.
-func openQR(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
+// OpenQR opens a QR-Code image in the system default image viewer.
+func OpenQR(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
 	const maxLabelLen = 55
 
 	if err := qrcode.GenerateImg(appName); err != nil {
