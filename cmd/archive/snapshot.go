@@ -51,10 +51,8 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	cmdutil.FlagMenu(c, cfg)
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
-
 	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.HideFlag(c, "help")
 
 	c.AddCommand(newLookupCmd(cfg), newOpenCmd(cfg))
 
@@ -83,8 +81,7 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 
 	cmdutil.FlagMenu(c, cfg)
 	cmdutil.FlagsFilter(c, cfg)
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }
@@ -102,7 +99,7 @@ func formatArchiveURL(b *bookmark.Bookmark) string {
 
 	return fmt.Sprintf("%s %s %s %-*s %s",
 		idStr,
-		txt.UnicodeDash,
+		txt.UnicodeMiddleDot,
 		absolute,
 		28,
 		relative,
