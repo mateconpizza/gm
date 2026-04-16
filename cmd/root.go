@@ -170,8 +170,7 @@ func newAdminCmd(cfg *config.Config) *cobra.Command {
 		out.NewCmd(cfg),
 	)
 
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }

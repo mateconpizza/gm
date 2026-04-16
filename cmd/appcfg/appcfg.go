@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
@@ -26,10 +27,9 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		RunE:    cli.HookHelp,
 	}
 
-	c.Flags().Bool("help", false, "help message")
 	c.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "always", "")
-	_ = c.Flags().MarkHidden("help")
-	_ = c.Flags().MarkHidden("color")
+	c.Flags().StringVar(&cfg.DBName, "db", config.MainDBName, "database name")
+	cmdutil.HideFlag(c, "help", "color", "db")
 
 	c.AddCommand(
 		newCreateCmd(cfg),

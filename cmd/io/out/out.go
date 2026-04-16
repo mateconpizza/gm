@@ -32,13 +32,11 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	for i := range cmds {
-		cmds[i].Flags().Bool("help", false, "")
-		_ = cmds[i].Flags().MarkHidden("help")
+		cmdutil.HideFlag(cmds[i], "help")
 	}
 
 	c.AddCommand(cmds...)
-	c.Flags().Bool("help", false, "")
-	_ = c.Flags().MarkHidden("help")
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }

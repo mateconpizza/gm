@@ -17,6 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -48,16 +49,11 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		newRawCmd(cfg),
 	}
 
-	// hide `--help` flag
 	for i := range cmds {
-		cmds[i].Flags().Bool("help", false, "help message")
-		_ = cmds[i].Flags().MarkHidden("help")
+		cmdutil.HideFlag(cmds[i], "help")
 	}
-
 	c.AddCommand(cmds...)
-
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }
@@ -111,8 +107,8 @@ func newInitRepoCmd(cfg *config.Config) *cobra.Command {
 				return err
 			}
 
-			if err := gr.Git.Init(cfg.Flags.Redo); err != nil {
-				return fmt.Errorf("init repo: %w", err)
+			if err := gr.Git.Init(cfg.Flags.Reinit); err != nil {
+				return fmt.Errorf("%w, use %s", err, ansi.BrightYellow.With(ansi.Italic).Sprint("--reinit"))
 			}
 
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
@@ -124,7 +120,7 @@ func newInitRepoCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	c.Flags().BoolVar(&cfg.Flags.Redo, "redo", false, "reinitialize")
+	c.Flags().BoolVar(&cfg.Flags.Reinit, "reinit", false, "reinitialize existing repository")
 
 	return c
 }

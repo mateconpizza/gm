@@ -42,26 +42,14 @@ type Flags struct {
 	Path     string // Custom database path
 	Verbose  int    // Verbose output level
 
-	// Subcmds
-	Database
-	GitFlags
-}
-
-// Database operations.
-type Database struct {
-	Info    bool // Database info
-	List    bool // List database items
-	Lock    bool // Lock a database
+	// database
 	Reorder bool // Reorder table IDs
-	Unlock  bool // Unlock a database
 	Vacuum  bool // Rebuild the database file
-}
 
-// GitFlags tracking operations.
-type GitFlags struct {
+	// git
 	Track   bool // Track database in git
 	Untrack bool // Untrack database in git
-	Redo    bool // Redo
+	Reinit  bool // Reinitialize existing repository
 }
 
 func SetVerbosity(verbose int) {

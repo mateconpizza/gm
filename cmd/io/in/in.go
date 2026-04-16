@@ -32,7 +32,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "import",
 		Aliases: []string{"imp", "i"},
-		Short:   "import bookmarks from various sources",
+		Short:   "import bookmarks",
 		RunE:    cli.HookHelp,
 	}
 
@@ -42,8 +42,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		newFromBackupCmd(cfg),
 	)
 
-	c.Flags().Bool("help", false, "")
-	_ = c.Flags().MarkHidden("help")
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }

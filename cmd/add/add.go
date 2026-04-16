@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
@@ -72,8 +73,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	}
 	c.Flags().StringVar(&cfg.Flags.Title, "title", "", "bookmark title")
 	c.Flags().StringVarP(&cfg.Flags.TagsStr, "tags", "t", "", "bookmark tags")
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }

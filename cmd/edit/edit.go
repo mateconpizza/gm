@@ -1,9 +1,6 @@
 package edit
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -11,7 +8,6 @@ import (
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -25,7 +21,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 			// New functionality must keep menu after editing.
 
 			kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
-			k := kb.NewKeymap("edit --format json")
+			k := kb.NewKeymap("edit --json")
 			k.Bind = cfg.Menu.DefaultKeymaps.Edit.Bind
 			k.Desc = "as-json"
 			k.Enabled = true
@@ -40,7 +36,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 			var strategy editor.EditStrategy
 			strategy = editor.BookmarkStrategy{}
-			if cfg.Flags.Format == "j" || cfg.Flags.Format == "json" {
+			if cfg.Flags.JSON {
 				strategy = editor.JSONStrategy{}
 			}
 
@@ -48,14 +44,10 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
-
-	c.Flags().StringVarP(&cfg.Flags.Format, "format", "f", "",
-		fmt.Sprintf("output format [%s]", strings.Join(printer.ValidFormats, "|")))
-
 	cmdutil.FlagMenu(c, cfg)
 	cmdutil.FlagsFilter(c, cfg)
+	c.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "edit bookmark as JSON")
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }

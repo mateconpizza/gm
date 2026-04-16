@@ -38,10 +38,8 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	cmdutil.FlagMenu(c, cfg)
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
-
 	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.HideFlag(c, "help")
 
 	c.AddCommand(newEditNotesCmd(cfg))
 
@@ -67,10 +65,8 @@ func newEditNotesCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	cmdutil.FlagMenu(c, cfg)
-	c.Flags().Bool("help", false, "help message")
-	_ = c.Flags().MarkHidden("help")
-
 	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.HideFlag(c, "help")
 
 	return c
 }
