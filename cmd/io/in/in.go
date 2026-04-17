@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -26,7 +26,7 @@ import (
 
 var ErrMissingArg = errors.New("missing argument")
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "import",
 		Aliases: []string{"imp", "i"},
@@ -35,10 +35,10 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	c.AddCommand(
-		newHTMLCmd(cfg),
-		newBrowserCmd(cfg),
-		newFromDatabaseCmd(cfg),
-		newFromBackupCmd(cfg),
+		newHTMLCmd(app),
+		newBrowserCmd(app),
+		newFromDatabaseCmd(app),
+		newFromBackupCmd(app),
 	)
 
 	cmdutil.HideFlag(c, "help")
@@ -46,13 +46,13 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	return c
 }
 
-func newFromDatabaseCmd(cfg *config.Config) *cobra.Command {
+func newFromDatabaseCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "database",
 		Short:   "import from database",
 		Aliases: []string{"db"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			rDest, err := db.New(cfg.DBPath)
+			rDest, err := db.New(app.DBPath)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -82,20 +82,20 @@ func newFromDatabaseCmd(cfg *config.Config) *cobra.Command {
 	return c
 }
 
-func newFromBackupCmd(cfg *config.Config) *cobra.Command {
+func newFromBackupCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "backup",
 		Short:   "import from backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			destRepo, err := db.New(cfg.DBPath)
+			destRepo, err := db.New(app.DBPath)
 			if err != nil {
 				return err
 			}
 			defer destRepo.Close()
 
 			dbName := files.StripSuffixes(destRepo.Name())
-			bks, err := files.List(cfg.Path.Backup, "*_"+dbName+".db*")
+			bks, err := files.List(app.Path.Backup, "*_"+dbName+".db*")
 			if err != nil {
 				return err
 			}
@@ -128,12 +128,12 @@ func newFromBackupCmd(cfg *config.Config) *cobra.Command {
 	return c
 }
 
-func newBrowserCmd(cfg *config.Config) *cobra.Command {
+func newBrowserCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "browser",
 		Short: "import from browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(cfg.DBPath)
+			r, err := db.New(app.DBPath)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -152,23 +152,23 @@ func newBrowserCmd(cfg *config.Config) *cobra.Command {
 	return c
 }
 
-func newHTMLCmd(cfg *config.Config) *cobra.Command {
+func newHTMLCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "html",
 		Short: "import from HTML Netscape file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if cfg.Flags.Path == "" {
+			if app.Flags.Path == "" {
 				return fmt.Errorf("%w: %q", ErrMissingArg, "filename")
 			}
 
-			file, err := os.Open(cfg.Flags.Path)
+			file, err := os.Open(app.Flags.Path)
 			if err != nil {
-				log.Printf("Error opening file: %v, %q\n", err, cfg.Flags.Path)
+				log.Printf("Error opening file: %v, %q\n", err, app.Flags.Path)
 				return err
 			}
 			defer func() {
 				if err := file.Close(); err != nil {
-					slog.Error("Err closing file", "file", cfg.Flags.Path)
+					slog.Error("Err closing file", "file", app.Flags.Path)
 				}
 			}()
 
@@ -213,7 +213,7 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 				return sys.ErrActionAborted
 			case "s", "select":
 				m := menu.New[*bookmark.Bookmark](
-					menu.WithOutputColor(cfg.Flags.Color),
+					menu.WithOutputColor(app.Flags.Color),
 					menu.WithHeader("select record/s to import"),
 					menu.WithInterruptFn(c.Term().InterruptFn),
 					menu.WithMultiSelection(),
@@ -239,7 +239,7 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	c.Flags().StringVarP(&cfg.Flags.Path, "filename", "f", "", "filename path")
+	c.Flags().StringVarP(&app.Flags.Path, "filename", "f", "", "filename path")
 	_ = c.MarkFlagRequired("filename")
 
 	return c

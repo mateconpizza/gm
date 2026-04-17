@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -22,43 +22,42 @@ var ErrInvalidFormat = errors.New("invalid format")
 // Output image valid formats.
 var validFormats = []string{"jpeg", "png", "jpg"}
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "qr [query]",
 		Aliases: []string{"q"},
 		Short:   "generate QR",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](cfg,
+			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" QR-code "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 			return cmdutil.Execute(cmd, args, m, handler.QR)
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	cmdutil.HideFlag(c, "help")
 
-	c.AddCommand(newOpenCmd(cfg), newGenQR(cfg))
+	c.AddCommand(newOpenCmd(app), newGenQR(app))
 
 	return c
 }
 
-func newOpenCmd(cfg *config.Config) *cobra.Command {
+func newOpenCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "open [query]",
 		Aliases: []string{"q"},
 		Short:   "open QR-code image in default viewer",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg.Flags.Open = true
-			m := handler.MenuSimple[bookmark.Bookmark](cfg,
+			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" QR-code "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
@@ -68,7 +67,7 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 					if err := qrcode.Generate(); err != nil {
 						return err
 					}
-					if err := handler.QROpen(cmd.Context(), qrcode, b, cfg.Name); err != nil {
+					if err := handler.QROpen(cmd.Context(), qrcode, b, app.Name); err != nil {
 						return err
 					}
 				}
@@ -78,14 +77,14 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	cmdutil.HideFlag(c, "help")
 
 	return c
 }
 
-func newGenQR(cfg *config.Config) *cobra.Command {
+func newGenQR(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "text [string]",
 		Short:   "generate QR image from text",
@@ -100,11 +99,11 @@ func newGenQR(cfg *config.Config) *cobra.Command {
 				return err
 			}
 
-			if cfg.Flags.Path != "" {
-				ext := strings.ToLower(filepath.Ext(cfg.Flags.Path))
+			if app.Flags.Path != "" {
+				ext := strings.ToLower(filepath.Ext(app.Flags.Path))
 				switch ext {
 				case ".png", ".jpg", ".jpeg":
-					return qrcode.Write(cfg.Flags.Path)
+					return qrcode.Write(app.Flags.Path)
 				default:
 					return fmt.Errorf("%w: %q (use: %s)", ErrInvalidFormat, ext, strings.Join(validFormats, "|"))
 				}
@@ -116,7 +115,7 @@ func newGenQR(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	c.Flags().StringVarP(&cfg.Flags.Path, "output", "o", "",
+	c.Flags().StringVarP(&app.Flags.Path, "output", "o", "",
 		fmt.Sprintf("write QR image to file [%s]", strings.Join(validFormats, "|")))
 
 	return c

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -28,7 +28,7 @@ func Repo(d *deps.Deps) string {
 		p       = d.Console().Palette()
 	)
 
-	if name == config.MainDBName {
+	if name == application.MainDBName {
 		name += p.BrightBlack.Wrap(" (main) ", p.Italic)
 	}
 
@@ -47,7 +47,7 @@ func RepoFromPath(d *deps.Deps, dbPath, backupPath string) string {
 		s := p.BrightMagenta.Wrap(filepath.Base(dbPath), p.Italic)
 
 		e := "(locked)"
-		if filepath.Base(dbPath) == config.MainDBName {
+		if filepath.Base(dbPath) == application.MainDBName {
 			e = "(main locked)"
 		}
 
@@ -66,7 +66,7 @@ func RepoFromPath(d *deps.Deps, dbPath, backupPath string) string {
 	tags := txt.PaddedLine("tags:", r.Count(d.Context(), "tags"))
 	name := p.Yellow.Wrap(r.Name(), p.Italic)
 
-	if r.Name() == config.MainDBName {
+	if r.Name() == application.MainDBName {
 		name = txt.PaddedLine(name, p.BrightBlack.Wrap("(main)", p.Italic))
 	}
 
@@ -142,7 +142,7 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 func BackupListDetail(d *deps.Deps) string {
 	c := d.Console()
 	p := c.Palette()
-	backupPath := d.Cfg.Path.Backup
+	backupPath := d.App.Path.Backup
 	dbName := files.StripSuffixes(d.DB.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
@@ -169,7 +169,7 @@ func BackupListDetail(d *deps.Deps) string {
 func Backups(d *deps.Deps) string {
 	var (
 		p              = d.Console().Palette()
-		backupPath     = d.Cfg.Path.Backup
+		backupPath     = d.App.Path.Backup
 		empty          = "n/a"
 		backupsColor   = p.BrightMagenta.Wrap("backups:", p.Italic)
 		backupsInfo    = txt.PaddedLine("found:", empty)

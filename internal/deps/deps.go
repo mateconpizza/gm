@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -15,16 +15,16 @@ type Option func(*Deps)
 
 // Deps holds the initialized application context.
 type Deps struct {
-	Cfg     *config.Config
+	App     *application.App
 	DB      *db.SQLite
 	console *ui.Console
 	ctx     context.Context
 	writer  io.Writer
 }
 
-func WithConfig(a *config.Config) Option {
+func WithApplication(app *application.App) Option {
 	return func(c *Deps) {
-		c.Cfg = a
+		c.App = app
 	}
 }
 
@@ -51,9 +51,9 @@ func (c *Deps) Context() context.Context {
 	return c.ctx
 }
 
-// Config retrieves config from context.
-func (c *Deps) Config() (*config.Config, error) {
-	return config.FromContext(c.ctx)
+// Application retrieves application from context.
+func (c *Deps) Application() (*application.App, error) {
+	return application.FromContext(c.ctx)
 }
 
 func (c *Deps) SetDatabase(r *db.SQLite)  { c.DB = r }

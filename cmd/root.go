@@ -26,8 +26,8 @@ import (
 	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/cmd/tag"
 	"github.com/mateconpizza/gm/cmd/yank"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -51,19 +51,19 @@ import (
 // - 'buildPreviewArgs' -> 'menu/builder.go'
 
 // NewRootCmd is the main command.
-func NewRootCmd(cfg *config.Config) *cobra.Command {
+func NewRootCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:               cfg.Cmd + " [query]",
+		Use:               app.Cmd + " [query]",
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
-		PersistentPreRunE: cli.ChainHooks(cli.HookInjectConfig(cfg), cli.HookEnsureDatabase),
-		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
+		PersistentPreRunE: cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase),
+		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
+			m := handler.MenuMainForRecords[bookmark.Bookmark](app)
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				switch {
-				case d.Cfg.Flags.Format != "":
-					return printer.Display(d.Console(), d.Cfg.Flags.Format, bs)
+				case d.App.Flags.Format != "":
+					return printer.Display(d.Console(), d.App.Flags.Format, bs)
 				default:
 					return printer.Records(d.Console(), bs)
 				}
@@ -77,23 +77,24 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 	c.PersistentFlags().SortFlags = false
 
 	// local
-	cmdutil.FlagFormat(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
-	cmdutil.FlagMenu(c, cfg)
+	cmdutil.FlagFormat(c, app)
+	cmdutil.FlagFields(c, app)
+	cmdutil.FlagsFilter(c, app)
+	cmdutil.FlagMenu(c, app)
 
 	// global
 	g := c.PersistentFlags()
-	g.StringVar(&cfg.DBName, "db", config.MainDBName, "database name")
-	g.StringVar(&cfg.Flags.ColorStr, "color", "always", "output with colors [always|never]")
-	g.BoolVar(&cfg.Flags.Force, "force", false, "force action")
-	g.BoolVarP(&cfg.Flags.Yes, "yes", "y", false, "assume yes")
-	g.CountVarP(&cfg.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
+	g.StringVar(&app.DBName, "db", application.MainDBName, "database name")
+	g.StringVar(&app.Flags.ColorStr, "color", "always", "output with colors [always|never]")
+	g.BoolVar(&app.Flags.Force, "force", false, "force action")
+	g.BoolVarP(&app.Flags.Yes, "yes", "y", false, "assume yes")
+	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
 	g.Bool("help", false, "")
 	_ = g.MarkHidden("help")
 
 	cobra.OnInitialize(func() {
-		cfg.Initialize()
-		initAppConfig(c.Context(), cfg)
+		app.Initialize()
+		initAppConfig(c.Context(), app)
 	})
 
 	// cmd settings
@@ -105,55 +106,55 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 	cobra.EnableCommandSorting = false
 	cobra.EnableTraverseRunHooks = true
 
-	registerCleanups(cfg)
+	registerCleanups(app)
 
 	return c
 }
 
-func initAppConfig(ctx context.Context, cfg *config.Config) {
-	cfg.Flags.Color = cfg.Flags.ColorStr == "always" &&
+func initAppConfig(ctx context.Context, app *application.App) {
+	app.Flags.Color = app.Flags.ColorStr == "always" &&
 		!terminal.IsPiped() &&
 		!terminal.NoColorEnv()
 
-	config.SetVerbosity(cfg.Flags.Verbose)
+	application.SetVerbosity(app.Flags.Verbose)
 
 	// load config from YAML
-	if err := config.Load(cfg); err != nil {
+	if err := application.Load(app); err != nil {
 		slog.Error("loading config", "err", err)
 	}
 
 	// enable global color
-	if !cfg.Flags.Color {
+	if !app.Flags.Color {
 		ansi.DisableColor()
 		frame.DisableColor()
 	}
 
 	// terminal interactive mode
-	terminal.NonInteractiveMode(cfg.Flags.Yes)
+	terminal.NonInteractiveMode(app.Flags.Yes)
 
 	// git config
-	git.SetConfig(ctx, cfg)
+	git.SetConfig(ctx, app)
 }
 
 // Setup registers all application commands with the CLI.
-func Setup(root *cobra.Command, cfg *config.Config) {
+func Setup(root *cobra.Command, app *application.App) {
 	root.AddCommand(
-		add.NewCmd(cfg),
-		edit.NewCmd(cfg),
-		rm.NewCmd(cfg),
-		open.NewCmd(cfg),
-		yank.NewCmd(cfg),
-		notes.NewCmd(cfg),
-		qrcmd.NewCmd(cfg),
-		check.NewCmd(cfg),
-		tag.NewCmd(cfg),
-		clean.NewCmd(cfg),
-		archive.NewCmd(cfg),
-		database.NewCmd(cfg),
-		gitCmd.NewCmd(cfg),
-		appcfg.NewCmd(cfg),
-		in.NewCmd(cfg),
-		out.NewCmd(cfg),
+		add.NewCmd(app),
+		edit.NewCmd(app),
+		rm.NewCmd(app),
+		open.NewCmd(app),
+		yank.NewCmd(app),
+		notes.NewCmd(app),
+		qrcmd.NewCmd(app),
+		check.NewCmd(app),
+		tag.NewCmd(app),
+		clean.NewCmd(app),
+		archive.NewCmd(app),
+		database.NewCmd(app),
+		gitCmd.NewCmd(app),
+		appcfg.NewCmd(app),
+		in.NewCmd(app),
+		out.NewCmd(app),
 		setup.NewCmd(),
 	)
 }
@@ -166,7 +167,7 @@ func Execute(r *cobra.Command) error {
 	return r.ExecuteContext(ctx)
 }
 
-func registerCleanups(_ *config.Config) {
+func registerCleanups(_ *application.App) {
 	// close all open connections
 	cleanup.Register(func() error {
 		db.Shutdown()

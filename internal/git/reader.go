@@ -10,7 +10,7 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -78,12 +78,12 @@ var GPGStrategy = &bookio.RepositoryLoader{
 }
 
 func gpgLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
-	cfg, err := config.FromContext(ctx)
+	app, err := application.FromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	fingerprintPath := gpg.GPGIDPath(cfg.Git.Path)
+	fingerprintPath := gpg.GPGIDPath(app.Git.Path)
 	content, err := gpg.Decrypt(ctx, fingerprintPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("decrypting %w", err)

@@ -1,4 +1,4 @@
-package config
+package application
 
 import (
 	"errors"
@@ -13,8 +13,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func (c *Config) CreatePaths() error {
-	return files.MkdirAll(c.Path.Data)
+func (app *App) CreatePaths() error {
+	return files.MkdirAll(app.Path.Data)
 }
 
 // dataPath returns the data path for the application.
@@ -52,27 +52,29 @@ func loadDataPath(appName, envVar string) (string, error) {
 }
 
 // InitPaths initializes all filesystem paths for the application.
-func (c *Config) InitPaths() {
-	dataHomePath, err := loadDataPath(c.Name, c.Env.Home)
+func (app *App) InitPaths() error {
+	dataHomePath, err := loadDataPath(app.Name, app.Env.Home)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// set app home
-	c.Path.Data = dataHomePath
-	c.Path.ConfigFile = filepath.Join(c.Path.Data, ConfigFilename)
-	c.Path.Backup = filepath.Join(c.Path.Data, "backup")
+	app.Path.Data = dataHomePath
+	app.Path.ConfigFile = filepath.Join(app.Path.Data, ConfigFilename)
+	app.Path.Backup = filepath.Join(app.Path.Data, "backup")
 
 	// set main database path and name
-	if filepath.Ext(c.DBName) != ".db" {
-		c.DBName += ".db"
+	if filepath.Ext(app.DBName) != ".db" {
+		app.DBName += ".db"
 	}
-	c.DBPath = filepath.Join(dataHomePath, c.DBName)
+	app.DBPath = filepath.Join(dataHomePath, app.DBName)
+
+	return nil
 }
 
 // Load loads the user configurations file.
-func Load(cfg *Config) error {
-	err := getConfig(cfg.Path.ConfigFile, cfg)
+func Load(app *App) error {
+	err := getConfig(app.Path.ConfigFile, app)
 	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
 		return err
 	}
@@ -81,20 +83,20 @@ func Load(cfg *Config) error {
 }
 
 // getConfig loads the config file.
-func getConfig(p string, cfg *Config) error {
+func getConfig(p string, app *App) error {
 	if !files.Exists(p) {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	if err := ReadYAML(p, &cfg); err != nil {
+	if err := ReadYAML(p, &app); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	if cfg == nil {
+	if app == nil {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	return cfg.Validate()
+	return app.Validate()
 }
 
 // ReadYAML unmarshals the YAML data from the specified file.

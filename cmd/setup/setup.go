@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -26,14 +26,14 @@ var InitCmd = &cobra.Command{
 	Annotations:       cli.SkipDBCheckAnnotation,
 	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: convert `InitCmd` to command builder(*config.Config)
-		cfg, err := config.FromContext(cmd.Context())
+		// TODO: convert `InitCmd` to command builder(*application.App)
+		app, err := application.FromContext(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("failed to get config: %w", err)
 		}
 
 		return initializeAction(deps.New(cmd.Context(),
-			deps.WithConfig(cfg),
+			deps.WithApplication(app),
 			deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 		))
 	},
@@ -45,18 +45,18 @@ func NewCmd() *cobra.Command {
 }
 
 func initializeAction(d *deps.Deps) error {
-	c, cfg := d.Console(), d.Cfg
-	if err := createPaths(c, cfg); err != nil {
+	c, app := d.Console(), d.App
+	if err := createPaths(c, app); err != nil {
 		return err
 	}
 
-	store, err := db.Init(cfg.DBPath)
+	store, err := db.Init(app.DBPath)
 	if store == nil {
 		return fmt.Errorf("%w", err)
 	}
 	defer store.Close()
 
-	if ok := store.IsInitialized(d.Context()); ok && !cfg.Flags.Force {
+	if ok := store.IsInitialized(d.Context()); ok && !app.Flags.Force {
 		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
@@ -64,40 +64,40 @@ func initializeAction(d *deps.Deps) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	if cfg.DBName != config.MainDBName {
-		fmt.Fprintln(d.Writer(), c.SuccessMesg("initialized database "+cfg.DBName))
+	if app.DBName != application.MainDBName {
+		fmt.Fprintln(d.Writer(), c.SuccessMesg("initialized database "+app.DBName))
 		return nil
 	}
 
 	// initial bookmark
 	ib := bookmark.New()
 	ib.ID = 1
-	ib.URL = cfg.Info.URL
-	ib.Title = cfg.Info.Title
-	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
-	ib.Desc = cfg.Info.Desc
+	ib.URL = app.Info.URL
+	ib.Title = app.Info.Title
+	ib.Tags = bookmark.ParseTags(app.Info.Tags)
+	ib.Desc = app.Info.Desc
 
 	if _, err := store.InsertOne(d.Context(), ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	fmt.Fprint(d.Writer(), txt.Frame(c, ib))
-	fmt.Fprintln(d.Writer(), "\n"+c.SuccessMesg("initialized database "+cfg.DBName))
+	fmt.Fprintln(d.Writer(), "\n"+c.SuccessMesg("initialized database "+app.DBName))
 
 	return nil
 }
 
 // InitAppPostFunc ask user to track new database if git is initialized.
 func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
-	cfg, err := config.FromContext(cmd.Context())
+	app, err := application.FromContext(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	if !cfg.Git.Enabled {
+	if !app.Git.Enabled {
 		return nil
 	}
-	gr, err := git.NewRepo(cfg.DBPath)
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -127,15 +127,15 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 }
 
 // createPaths creates the paths for the application.
-func createPaths(c *ui.Console, cfg *config.Config) error {
-	if files.Exists(cfg.Path.Data) {
+func createPaths(c *ui.Console, app *application.App) error {
+	if files.Exists(app.Path.Data) {
 		return nil
 	}
 
 	p, f := c.Palette(), c.Frame()
-	f.Headerln(cli.PrettyVersion(cfg.Name, cfg.Info.Version)).Rowln().
-		Info(txt.PaddedLine("Create path:", p.Italic.Sprint(cfg.Path.Data))).Ln().
-		Info(txt.PaddedLine("Create db:", p.Italic.Sprint(cfg.DBPath))).Ln()
+	f.Headerln(cli.PrettyVersion(app.Name, app.Info.Version)).Rowln().
+		Info(txt.PaddedLine("Create path:", p.Italic.Sprint(app.Path.Data))).Ln().
+		Info(txt.PaddedLine("Create db:", p.Italic.Sprint(app.DBPath))).Ln()
 
 	lines := txt.CountLines(f.String()) + 1
 	f.Rowln().Flush()
@@ -149,11 +149,11 @@ func createPaths(c *ui.Console, cfg *config.Config) error {
 	lines += txt.CountLines(f.String()) - headerN
 	c.ClearLine(lines)
 
-	if err := cfg.CreatePaths(); err != nil {
+	if err := app.CreatePaths(); err != nil {
 		sys.ErrAndExit(err)
 	}
 
-	c.Success(fmt.Sprintf("Created directory path %q\n", cfg.Path.Data)).Flush()
+	c.Success(fmt.Sprintf("Created directory path %q\n", app.Path.Data)).Flush()
 	c.Success("Inserted initial bookmark\n").Row("\n").Flush()
 
 	return nil

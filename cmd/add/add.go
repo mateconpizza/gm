@@ -8,13 +8,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "add",
 		Short: "add bookmark",
@@ -39,15 +39,15 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 			if err := handler.SaveNewBookmark(d, b); err != nil {
 				return err
 			}
-			if err := git.AddBookmark(cfg, b); err != nil {
+			if err := git.AddBookmark(app, b); err != nil {
 				return err
 			}
 			fmt.Println(c.SuccessMesg("bookmark added"))
 			return nil
 		},
 	}
-	c.Flags().StringVar(&cfg.Flags.Title, "title", "", "bookmark title")
-	c.Flags().StringVarP(&cfg.Flags.TagsStr, "tags", "t", "", "bookmark tags")
+	c.Flags().StringVar(&app.Flags.Title, "title", "", "bookmark title")
+	c.Flags().StringVarP(&app.Flags.TagsStr, "tags", "t", "", "bookmark tags")
 	cmdutil.HideFlag(c, "help")
 
 	return c

@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -61,12 +61,12 @@ global:
 
 // SetupDeps inicializa la config, db y app para los subcommands.
 func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
-	cfg, err := config.FromContext(cmd.Context())
+	app, err := application.FromContext(cmd.Context())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	r, err := db.New(cfg.DBPath)
+	r, err := db.New(app.DBPath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,7 +74,7 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	terminal.ReadPipedInput(args)
 
 	d := deps.New(cmd.Context(),
-		deps.WithConfig(cfg),
+		deps.WithApplication(app),
 		deps.WithDB(r),
 		deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
 			r.Close()
@@ -86,12 +86,12 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 }
 
 // resolveBookmarks es el setup adicional compartido entre subcommands que trabajan con records.
-func resolveBookmarks(a *deps.Deps, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
+func resolveBookmarks(app *deps.Deps, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
 	if err := m.Validate(); err != nil {
 		return nil, fmt.Errorf("menu: %w", err)
 	}
 
-	bs, err := handler.Data(a, m, args)
+	bs, err := handler.Data(app, m, args)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func Execute(
 	}
 
 	// filter by head and tail
-	f := d.Cfg.Flags
+	f := d.App.Flags
 	if f.Head > 0 || f.Tail > 0 {
 		bs, err = handler.FilterByHeadAndTail(bs, f.Head, f.Tail)
 		if err != nil {
@@ -142,21 +142,26 @@ func Execute(
 	return action(d, bs)
 }
 
-func FlagFormat(c *cobra.Command, cfg *config.Config) {
+func FlagFormat(c *cobra.Command, app *application.App) {
 	c.Flags().SortFlags = false
-	c.Flags().StringVarP(&cfg.Flags.Format, "format", "f", "",
+	c.Flags().StringVarP(&app.Flags.Format, "format", "f", "",
 		fmt.Sprintf("output format [%s]", strings.Join(printer.ValidFormats, "|")))
 }
 
-func FlagsFilter(c *cobra.Command, cfg *config.Config) {
-	c.Flags().SortFlags = false
-	c.Flags().StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
-	c.Flags().IntVarP(&cfg.Flags.Head, "head", "H", 0, "limit to first N bookmarks")
-	c.Flags().IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "limit to last N bookmarks")
+func FlagFields(c *cobra.Command, app *application.App) {
+	c.Flags().StringVarP(&app.Flags.Field, "fields", "F", "",
+		fmt.Sprintf("select fields [%s]", strings.Join([]string{"id", "url", "title", "tags", "desc"}, "|")))
 }
 
-func FlagMenu(c *cobra.Command, cfg *config.Config) {
-	c.Flags().BoolVarP(&cfg.Flags.Menu, "menu", "m", false, "select interactively")
+func FlagsFilter(c *cobra.Command, app *application.App) {
+	c.Flags().SortFlags = false
+	c.Flags().StringSliceVarP(&app.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
+	c.Flags().IntVarP(&app.Flags.Head, "head", "H", 0, "limit to first N bookmarks")
+	c.Flags().IntVarP(&app.Flags.Tail, "tail", "T", 0, "limit to last N bookmarks")
+}
+
+func FlagMenu(c *cobra.Command, app *application.App) {
+	c.Flags().BoolVarP(&app.Flags.Menu, "menu", "m", false, "select interactively")
 }
 
 func HasFlags(cmd *cobra.Command) bool {
@@ -181,7 +186,7 @@ func HideFlag(c *cobra.Command, names ...string) {
 	}
 }
 
-func FlagDBRequired(c *cobra.Command, cfg *config.Config) {
-	c.Flags().StringVar(&cfg.DBName, "db", config.MainDBName, "database name")
+func FlagDBRequired(c *cobra.Command, app *application.App) {
+	c.Flags().StringVar(&app.DBName, "db", application.MainDBName, "database name")
 	_ = c.MarkFlagRequired("db")
 }

@@ -114,7 +114,7 @@ func getByQuery(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 // applyFilters applies tag and head/tail filters to the bookmark list.
 func applyFilters(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	var err error
-	f := d.Cfg.Flags
+	f := d.App.Flags
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
@@ -303,7 +303,7 @@ func removeRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 	sp.Done()
 
-	if err := git.RemoveBookmarks(d.Cfg, bs); err != nil {
+	if err := git.RemoveBookmarks(d.App, bs); err != nil {
 		return err
 	}
 

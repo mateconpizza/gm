@@ -11,8 +11,8 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/setup"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -23,7 +23,7 @@ import (
 )
 
 // NewCmd database management.
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "db",
 		Aliases: []string{"database", "d"},
@@ -36,12 +36,12 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 			defer cancel()
 
 			switch {
-			case d.Cfg.Flags.Vacuum:
-				slog.Debug("database:", "vacuum", d.Cfg.DBName)
+			case d.App.Flags.Vacuum:
+				slog.Debug("database:", "vacuum", d.App.DBName)
 				defer d.DB.Close()
 				return d.DB.Vacuum(cmd.Context())
 
-			case d.Cfg.Flags.Reorder:
+			case d.App.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
 				defer d.DB.Close()
 
@@ -56,18 +56,18 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 
 	f := c.Flags()
 	f.SortFlags = false
-	f.BoolVarP(&cfg.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
-	f.BoolVarP(&cfg.Flags.Reorder, "reorder", "R", false, "reorder IDs")
+	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
+	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false, "reorder IDs")
 
 	c.AddCommand(
-		createCmd, newDatabaseRemoveCmd(cfg), newListCmd(cfg),
-		newInfoCmd(cfg), newBackupCmd(cfg), newDropCmd(cfg),
-		newLockCmd(cfg), newUnlockCmd(cfg))
+		createCmd, newDatabaseRemoveCmd(app), newListCmd(app),
+		newInfoCmd(app), newBackupCmd(app), newDropCmd(app),
+		newLockCmd(app), newUnlockCmd(app))
 
 	return c
 }
 
-func newInfoCmd(cfg *config.Config) *cobra.Command {
+func newInfoCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "info",
 		Short:   "show info about a database",
@@ -83,12 +83,12 @@ func newInfoCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	c.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
 
 	return c
 }
 
-func newListCmd(_ *config.Config) *cobra.Command {
+func newListCmd(_ *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"l", "ls"},
@@ -100,7 +100,7 @@ func newListCmd(_ *config.Config) *cobra.Command {
 			}
 			defer cancel()
 
-			return printer.DatabasesTable(cmd.Context(), d.Console(), d.Cfg.Path.Data)
+			return printer.DatabasesTable(cmd.Context(), d.Console(), d.App.Path.Data)
 		},
 	}
 	return c
@@ -117,11 +117,11 @@ var createCmd = &cobra.Command{
 	PostRunE:          setup.InitCmd.PostRunE,
 }
 
-func newDropCmd(cfg *config.Config) *cobra.Command {
+func newDropCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:      "drop",
 		Short:    "drop a database",
-		PostRunE: dbDropPostFunc(cfg),
+		PostRunE: dbDropPostFunc(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -133,12 +133,12 @@ func newDropCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagDBRequired(c, cfg)
+	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }
 
-func newLockCmd(cfg *config.Config) *cobra.Command {
+func newLockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "lock",
 		Short: "lock a database",
@@ -149,42 +149,42 @@ func newLockCmd(cfg *config.Config) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.LockRepo(d, d.Cfg.DBPath)
+			return handler.LockRepo(d, d.App.DBPath)
 		},
 	}
 
-	cmdutil.FlagDBRequired(c, cfg)
+	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }
 
-func newUnlockCmd(cfg *config.Config) *cobra.Command {
+func newUnlockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "unlock",
 		Short:       "unlock a database",
 		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d := deps.New(cmd.Context(),
-				deps.WithConfig(cfg),
+				deps.WithApplication(app),
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
-			return handler.UnlockRepo(d, d.Cfg.DBPath)
+			return handler.UnlockRepo(d, d.App.DBPath)
 		},
 	}
 
-	cmdutil.FlagDBRequired(c, cfg)
+	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }
 
-func dbDropPostFunc(cfg *config.Config) func(*cobra.Command, []string) error {
+func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
-		if !cfg.Git.Enabled {
+		if !app.Git.Enabled {
 			return nil
 		}
 
-		gr, err := git.NewRepo(cfg.DBPath)
+		gr, err := git.NewRepo(app.DBPath)
 		if err != nil {
 			return err
 		}

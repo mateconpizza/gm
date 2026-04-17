@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -21,27 +21,27 @@ var ErrURLParamsNotFound = errors.New("params not found")
 
 type ParamsProcessor struct {
 	d   *deps.Deps
-	cfg *config.Config
+	app *application.App
 	m   *menu.Menu[string]
 }
 
 // ParamsURL processes and optionally cleans query params for each bookmark.
 func ParamsURL(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	cfg, err := d.Config()
+	app, err := d.Application()
 	if err != nil {
 		return err
 	}
 
 	pp := &ParamsProcessor{
 		d:   d,
-		cfg: cfg,
+		app: app,
 		m: menu.New[string](
 			menu.WithArgs("--cycle"),
 			menu.WithBorderLabel("URL Parameters"),
-			menu.WithConfig(cfg.Menu),
+			menu.WithConfig(app.Menu),
 			menu.WithHeader("Select with <TAB> which params to remove"),
 			menu.WithMultiSelection(),
-			menu.WithOutputColor(cfg.Flags.Color),
+			menu.WithOutputColor(app.Flags.Color),
 		),
 	}
 
@@ -119,7 +119,7 @@ func diffParams(d *deps.Deps, originalURL string, params []string) int {
 	f.Rowln()
 
 	lines := txt.CountLines(f.String())
-	if d.Cfg.Flags.Yes {
+	if d.App.Flags.Yes {
 		lines--
 	}
 
@@ -287,5 +287,5 @@ func persistBookmarkUpdate(pp *ParamsProcessor, b *bookmark.Bookmark, newURL str
 		return err
 	}
 
-	return git.UpdateBookmark(pp.cfg, b, &newB)
+	return git.UpdateBookmark(pp.app, b, &newB)
 }

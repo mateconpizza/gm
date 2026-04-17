@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -14,18 +14,18 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "clean [query]",
 		Short: "strip URL params",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := handler.MenuSimple[bookmark.Bookmark](
-				cfg,
+				app,
 				menu.WithMultiSelection(),
 				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" parameters highlighted "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 
 			m.SetFormatter(func(b *bookmark.Bookmark) string {
@@ -38,7 +38,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, app)
 	c.Flags().Bool("help", false, "help message")
 	cmdutil.HideFlag(c, "help")
 

@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
@@ -136,7 +136,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 
 	t := strconv.Itoa
 	p := c.Palette()
-	files.PrioritizeFile(fs, config.MainDBName)
+	files.PrioritizeFile(fs, application.MainDBName)
 
 	for _, fpath := range fs {
 		dir, fname, ext := filepath.Dir(fpath), filepath.Base(fpath), filepath.Ext(fpath)
@@ -163,7 +163,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 			return err
 		}
 
-		if s.Name == config.MainDBName {
+		if s.Name == application.MainDBName {
 			fnameColor = p.BrightYellow.With(p.Bold).Sprint
 			cleanName = fnameColor(cleanName)
 			cleanName += p.BrightBlack.Wrap(" (default)", p.Italic)
@@ -225,13 +225,13 @@ func TagsJSON(ctx context.Context, p string) error {
 // RepoInfo prints the database info.
 func RepoInfo(d *deps.Deps) error {
 	// FIX: Test RepoInfo()
-	if err := locker.IsLocked(d.Cfg.DBPath); err != nil {
-		fmt.Print(summary.RepoFromPath(d, d.Cfg.DBPath+".enc", d.Cfg.Path.Backup))
+	if err := locker.IsLocked(d.App.DBPath); err != nil {
+		fmt.Print(summary.RepoFromPath(d, d.App.DBPath+".enc", d.App.Path.Backup))
 		return nil
 	}
 
 	// FIX: Implement ListBackups
-	if d.Cfg.Flags.JSON {
+	if d.App.Flags.JSON {
 		b, err := port.ToJSON(d.DB)
 		if err != nil {
 			return fmt.Errorf("%w", err)
@@ -244,7 +244,7 @@ func RepoInfo(d *deps.Deps) error {
 
 	info := summary.Info(d)
 
-	g, err := git.Info(d.Console(), d.Cfg.DBPath, d.Cfg.Git)
+	g, err := git.Info(d.Console(), d.App.DBPath, d.App.Git)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}

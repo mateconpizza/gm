@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -18,18 +18,18 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "archive [query]",
 		Aliases: []string{"snap", "ar", "a"},
 		Short:   "show archive URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := handler.MenuSimple[bookmark.Bookmark](
-				cfg,
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" archive URL "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
@@ -50,27 +50,27 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	cmdutil.HideFlag(c, "help")
 
-	c.AddCommand(newLookupCmd(cfg), newOpenCmd(cfg))
+	c.AddCommand(newLookupCmd(app), newOpenCmd(app))
 
 	return c
 }
 
-func newOpenCmd(cfg *config.Config) *cobra.Command {
+func newOpenCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "open [query]",
 		Aliases: []string{"o"},
 		Short:   "open archive URL in browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := handler.MenuSimple[bookmark.Bookmark](
-				cfg,
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" open archive URL "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 				menu.WithNth("3.."),
 			)
 			m.SetFormatter(formatArchiveURL)
@@ -79,8 +79,8 @@ func newOpenCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	cmdutil.HideFlag(c, "help")
 
 	return c

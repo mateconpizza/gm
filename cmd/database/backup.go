@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/summary"
@@ -20,7 +20,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func newBackupCmd(cfg *config.Config) *cobra.Command {
+func newBackupCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "backup",
 		Aliases: []string{"b", "bk"},
@@ -28,13 +28,13 @@ func newBackupCmd(cfg *config.Config) *cobra.Command {
 		RunE:    cli.HookHelp,
 	}
 
-	c.AddCommand(newBackupAddCmd(cfg), newBackupRemoveCmd(cfg),
-		newBackupLockCmd(cfg), newBackupUnlockCmd(cfg))
+	c.AddCommand(newBackupAddCmd(app), newBackupRemoveCmd(app),
+		newBackupLockCmd(app), newBackupUnlockCmd(app))
 
 	return c
 }
 
-func newBackupAddCmd(_ *config.Config) *cobra.Command {
+func newBackupAddCmd(_ *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "create",
 		Short:   "create a new backup",
@@ -53,7 +53,7 @@ func newBackupAddCmd(_ *config.Config) *cobra.Command {
 	return c
 }
 
-func newBackupLockCmd(cfg *config.Config) *cobra.Command {
+func newBackupLockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "lock",
 		Short: "lock a database backup",
@@ -64,7 +64,7 @@ func newBackupLockCmd(cfg *config.Config) *cobra.Command {
 			}
 			defer cancel()
 
-			fs, err := handler.SelectBackupMany(d, d.Cfg.Path.Backup, "select backup/s to lock")
+			fs, err := handler.SelectBackupMany(d, d.App.Path.Backup, "select backup/s to lock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -88,12 +88,12 @@ func newBackupLockCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
+	cmdutil.FlagMenu(c, app)
 
 	return c
 }
 
-func newBackupUnlockCmd(_ *config.Config) *cobra.Command {
+func newBackupUnlockCmd(_ *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "unlock",
 		Short: "unlock a database backup",
@@ -104,7 +104,7 @@ func newBackupUnlockCmd(_ *config.Config) *cobra.Command {
 			}
 			defer cancel()
 
-			p := d.Cfg.Path.Backup
+			p := d.App.Path.Backup
 			if !files.Exists(p) {
 				return fmt.Errorf("%w", db.ErrBackupNotFound)
 			}
@@ -122,8 +122,8 @@ func newBackupUnlockCmd(_ *config.Config) *cobra.Command {
 }
 
 func backupNewFunc(d *deps.Deps) error {
-	cfg := d.Cfg
-	srcPath := cfg.DBPath
+	app := d.App
+	srcPath := app.DBPath
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
 	}
@@ -137,24 +137,24 @@ func backupNewFunc(d *deps.Deps) error {
 	f, p := c.Frame(), c.Palette()
 	f.Reset().Row("\n").Flush()
 
-	if !cfg.Flags.Yes {
+	if !app.Flags.Yes {
 		if err := c.ConfirmErr("create "+p.BrightGreen.Wrap("backup", p.Italic), "y"); err != nil {
 			return err
 		}
 	}
 
-	if err := files.MkdirAll(cfg.Path.Backup); err != nil {
+	if err := files.MkdirAll(app.Path.Backup); err != nil {
 		return err
 	}
 
-	newBkPath, err := d.DB.Backup(d.Context(), cfg.Path.Backup)
+	newBkPath, err := d.DB.Backup(d.Context(), app.Path.Backup)
 	if err != nil {
 		return err
 	}
 
 	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
 
-	if cfg.Flags.Force {
+	if app.Flags.Force {
 		slog.Debug("skipping lock", "path", newBkPath)
 		return nil
 	}

@@ -1,4 +1,4 @@
-package config
+package application
 
 import (
 	"log/slog"
@@ -8,15 +8,15 @@ import (
 
 type Flags struct {
 	// Actions
-	Edit   bool // Edit mode
-	Menu   bool // Menu mode
-	Notes  bool // Record notes
-	Open   bool // Open URL in default browser
-	List   bool // List items
-	Create bool // Action create
+	Edit  bool // Edit mode
+	Menu  bool // Menu mode
+	Notes bool // Record notes
+	Open  bool // Open URL in default browser
+	List  bool // List items
 
 	// Output format
 	Format string // Format
+	Field  string // Bookmarks fields
 	JSON   bool   // JSON output
 
 	// Filtering and pagination

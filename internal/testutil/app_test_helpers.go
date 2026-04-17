@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -16,29 +16,29 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func SetupConfig(t *testing.T) *config.Config {
+func SetupApp(t *testing.T) *application.App {
 	t.Helper()
 
-	return &config.Config{
-		Name:   config.AppName,
-		Cmd:    config.AppCommand,
-		DBName: config.MainDBName,
-		Path:   &config.Path{},
-		Flags: &config.Flags{
+	return &application.App{
+		Name:   application.Name,
+		Cmd:    application.Command,
+		DBName: application.MainDBName,
+		Path:   &application.Path{},
+		Flags: &application.Flags{
 			ColorStr: "never",
 			Color:    false,
 		},
-		Git: &config.Git{},
-		Info: &config.Information{
+		Git: &application.Git{},
+		Info: &application.Information{
 			URL:     "https://github.com/mateconpizza/gm#readme",
 			Title:   "Gomarks: A bookmark manager",
 			Tags:    "golang,awesome,bookmarks,cli",
 			Desc:    "Simple yet powerful bookmark manager for your terminal",
 			Version: "0.0.1",
 		},
-		Env: &config.Env{
-			Home:   config.EnvHome,
-			Editor: config.EnvEditor,
+		Env: &application.Env{
+			Home:   application.EnvHome,
+			Editor: application.EnvEditor,
 		},
 	}
 }
@@ -46,18 +46,18 @@ func SetupConfig(t *testing.T) *config.Config {
 func SetupDeps(t *testing.T) *deps.Deps {
 	t.Helper()
 
-	cfg := SetupConfig(t)
+	app := SetupApp(t)
 	temp := t.TempDir()
 
-	cfg.DBPath = filepath.Join(temp, cfg.DBName)
-	cfg.Path.Data = temp
+	app.DBPath = filepath.Join(temp, app.DBName)
+	app.Path.Data = temp
 	tm := terminal.New(
 		terminal.WithContext(t.Context()),
 		terminal.WithWriter(io.Discard),
 	)
 
 	return deps.New(t.Context(),
-		deps.WithConfig(cfg),
+		deps.WithApplication(app),
 		deps.WithConsole(ui.NewConsole(
 			ui.WithTerminal(tm),
 			ui.WithFrame(frame.New()),

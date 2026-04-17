@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -204,7 +204,7 @@ func (rp *RepoProcessor) Pull() error {
 	return nil
 }
 
-func NewRepoProcessor(c *ui.Console, g *Manager, a *config.Config, opts ...RepoProcessorOption) *RepoProcessor {
+func NewRepoProcessor(c *ui.Console, g *Manager, app *application.App, opts ...RepoProcessorOption) *RepoProcessor {
 	o := &RepoProcessorOptions{}
 	for _, fn := range opts {
 		fn(o)
@@ -217,7 +217,7 @@ func NewRepoProcessor(c *ui.Console, g *Manager, a *config.Config, opts ...RepoP
 	return &RepoProcessor{
 		Console:              c,
 		Root:                 g.RepoPath,
-		DestPath:             a.Path.Data,
+		DestPath:             app.Path.Data,
 		result:               &PullResult{},
 		RepoProcessorOptions: o,
 	}

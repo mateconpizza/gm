@@ -1,5 +1,5 @@
-// Package config manages application-wide settings, paths, and environment variables.
-package config
+// Package application manages application-wide settings, paths, and environment variables.
+package application
 
 import (
 	"errors"
@@ -16,8 +16,8 @@ var (
 )
 
 const (
-	AppName        string = "gomarks"        // Default name of the application
-	AppCommand     string = "gm"             // Default name of the executable
+	Name           string = "gomarks"        // Default name of the application
+	Command        string = "gm"             // Default name of the executable
 	MainDBName     string = "main.db"        // Default name of the main database
 	ConfigFilename string = "config.yml"     // Default config filename
 	EnvHome        string = "GOMARKS_HOME"   // Default Environment variable for app home
@@ -25,7 +25,7 @@ const (
 )
 
 type (
-	Config struct {
+	App struct {
 		Name        string       `json:"name"          yaml:"-"`             // Name of the application
 		Cmd         string       `json:"cmd"           yaml:"-"`             // Name of the executable
 		DBName      string       `json:"db"            yaml:"-"`             // Database name
@@ -69,38 +69,57 @@ type (
 )
 
 // Initialize prepares the config after flags are parsed.
-func (c *Config) Initialize() {
-	if c.initialized {
+func (app *App) Initialize() {
+	if app.initialized {
 		return
 	}
 
-	if filepath.Ext(c.DBName) != ".db" {
-		c.DBName += ".db"
+	if filepath.Ext(app.DBName) != ".db" {
+		app.DBName += ".db"
 	}
-	c.DBPath = filepath.Join(c.Path.Data, c.DBName)
-	c.initialized = true
+	app.DBPath = filepath.Join(app.Path.Data, app.DBName)
+	app.initialized = true
 }
 
 // Validate validates the configuration file.
-func (c *Config) Validate() error {
-	if c.DBName == "" {
+func (app *App) Validate() error {
+	if app.DBName == "" {
 		return ErrDatabaseNameNotSet
 	}
-	if c.DBPath == "" {
+	if app.DBPath == "" {
 		return ErrDatabasePathNotSet
 	}
 
-	if c.Menu != nil {
-		return c.Menu.Validate()
+	if app.Menu != nil {
+		return app.Menu.Validate()
 	}
 
 	return nil
 }
 
-func (c *Config) PreviewCmd(dbPath string, args ...string) string {
-	return fmt.Sprintf("%s --db %s %s", c.Cmd, dbPath, strings.Join(args, " "))
+func (app *App) PreviewCmd(dbPath string, args ...string) string {
+	return fmt.Sprintf("%s --db %s %s", app.Cmd, dbPath, strings.Join(args, " "))
 }
 
-func New() *Config {
-	return &Config{}
+func New(info *Information) *App {
+	return &App{
+		Name:   Name,
+		Cmd:    Command,
+		DBName: MainDBName,
+		Flags:  &Flags{},
+		Info:   info,
+		Path:   &Path{},
+		Git: &Git{
+			Enabled: false,
+			GPG:     false,
+			// FIX: `Log` not implemented yet
+			// if set to `false` it will silent the `git` output
+			Log: true,
+		},
+		Env: &Env{
+			Home:   EnvHome,
+			Editor: EnvEditor,
+		},
+		Menu: menu.NewDefaultConfig(),
+	}
 }

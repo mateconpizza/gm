@@ -1,18 +1,18 @@
 package git
 
 import (
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // UpdateBookmark updates a bookmark in Git version control.
 // Only proceeds if Git repository is initialized and tracking the database.
-func UpdateBookmark(cfg *config.Config, oldB, newB *bookmark.Bookmark) error {
-	if !cfg.Git.Enabled {
+func UpdateBookmark(app *application.App, oldB, newB *bookmark.Bookmark) error {
+	if !app.Git.Enabled {
 		return nil
 	}
 
-	gr, err := NewRepo(cfg.DBPath)
+	gr, err := NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -30,8 +30,8 @@ func UpdateBookmark(cfg *config.Config, oldB, newB *bookmark.Bookmark) error {
 
 // AddBookmark adds a bookmark to Git version control if the repository is tracked.
 // Stages the bookmark, updates repository statistics, and creates a commit.
-func AddBookmark(cfg *config.Config, b *bookmark.Bookmark) error {
-	gr, err := NewRepo(cfg.DBPath)
+func AddBookmark(app *application.App, b *bookmark.Bookmark) error {
+	gr, err := NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -51,12 +51,12 @@ func AddBookmark(cfg *config.Config, b *bookmark.Bookmark) error {
 	return gr.Commit("new bookmark")
 }
 
-func RemoveBookmarks(cfg *config.Config, bs []*bookmark.Bookmark) error {
-	if !cfg.Git.Enabled {
+func RemoveBookmarks(app *application.App, bs []*bookmark.Bookmark) error {
+	if !app.Git.Enabled {
 		return nil
 	}
 
-	gr, err := NewRepo(cfg.DBPath)
+	gr, err := NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -19,7 +19,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func newBackupRemoveCmd(cfg *config.Config) *cobra.Command {
+func newBackupRemoveCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "rm",
 		Short:   "remove one or more backups",
@@ -27,7 +27,7 @@ func newBackupRemoveCmd(cfg *config.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input := "s\n" // input for prompt, this will show the menu to select backups files.
 			d := deps.New(cmd.Context(),
-				deps.WithConfig(cfg),
+				deps.WithApplication(app),
 				deps.WithConsole(ui.NewConsole(
 					ui.WithFrame(frame.New(frame.WithColorBorder(ansi.BrightBlack))),
 					ui.WithTerminal(terminal.New(
@@ -46,17 +46,17 @@ func newBackupRemoveCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagDBRequired(c, cfg)
+	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }
 
-func newDatabaseRemoveCmd(cfg *config.Config) *cobra.Command {
+func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:      "rm",
 		Aliases:  []string{"remove"},
 		Short:    "remove a database",
-		PostRunE: databaseRemovePostFunc(cfg),
+		PostRunE: databaseRemovePostFunc(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -68,18 +68,18 @@ func newDatabaseRemoveCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagDBRequired(c, cfg)
+	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }
 
-func databaseRemovePostFunc(cfg *config.Config) func(*cobra.Command, []string) error {
+func databaseRemovePostFunc(app *application.App) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
-		if !cfg.Git.Enabled {
+		if !app.Git.Enabled {
 			return nil
 		}
 
-		gr, err := git.NewRepo(cfg.DBPath)
+		gr, err := git.NewRepo(app.DBPath)
 		if err != nil {
 			return err
 		}

@@ -1,4 +1,4 @@
-package config
+package application
 
 import (
 	"errors"
@@ -17,12 +17,12 @@ func TestPaths_LoadDataPath(t *testing.T) {
 		want := t.TempDir()
 		t.Setenv(EnvHome, want)
 
-		got, err := loadDataPath(AppName, EnvHome)
+		got, err := loadDataPath(Name, EnvHome)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		want = filepath.Join(want, AppName)
+		want = filepath.Join(want, Name)
 		if want != got {
 			t.Fatalf("want: %q, got: %q", want, got)
 		}
@@ -30,13 +30,13 @@ func TestPaths_LoadDataPath(t *testing.T) {
 
 	t.Run("falls back to user data directory when env not set", func(t *testing.T) {
 		t.Parallel()
-		scope := gap.NewScope(gap.User, AppName)
+		scope := gap.NewScope(gap.User, Name)
 		want, err := scope.DataPath("")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		got, err := loadDataPath(AppName, "")
+		got, err := loadDataPath(Name, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -48,9 +48,9 @@ func TestPaths_LoadDataPath(t *testing.T) {
 }
 
 func TestPaths_InitPaths(t *testing.T) {
-	c := &Config{
-		Name:   AppName,
-		Cmd:    AppCommand,
+	c := &App{
+		Name:   Name,
+		Cmd:    Command,
 		DBName: "main",
 		Path:   &Path{},
 		Flags:  &Flags{},
@@ -66,7 +66,7 @@ func TestPaths_InitPaths(t *testing.T) {
 	c.InitPaths()
 
 	p := c.Path
-	tempDir = filepath.Join(tempDir, AppName)
+	tempDir = filepath.Join(tempDir, Name)
 
 	wantConfigFilepath := filepath.Join(tempDir, ConfigFilename)
 	if wantConfigFilepath != p.ConfigFile {
@@ -94,7 +94,7 @@ func TestWriteRead_Successfully_Reads_And_Unmarshals_Valid_YAML(t *testing.T) {
 	t.Parallel()
 	tempDir := t.TempDir()
 	fn := filepath.Join(tempDir, "config.yaml")
-	conf := &Config{
+	conf := &App{
 		Git: &Git{
 			Enabled: true,
 			Log:     false,
@@ -108,14 +108,14 @@ func TestWriteRead_Successfully_Reads_And_Unmarshals_Valid_YAML(t *testing.T) {
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	var cfg *Config
-	err := ReadYAML(fn, &cfg)
+	var app *App
+	err := ReadYAML(fn, &app)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	want := conf.Git
-	got := cfg.Git
+	got := app.Git
 	if want.Enabled != got.Enabled {
 		t.Fatalf("git enabled, want :%v, got: %v", want.Enabled, got.Enabled)
 	}
@@ -138,8 +138,8 @@ func TestRead_Fails_When_File_Does_Not_Exist(t *testing.T) {
 	tempDir := t.TempDir()
 	fn := filepath.Join(tempDir, "nonexistent.yaml")
 
-	var cfg Config
-	err := ReadYAML(fn, &cfg)
+	var app App
+	err := ReadYAML(fn, &app)
 
 	if err == nil {
 		t.Fatal("expected error for non-existent file")
@@ -165,8 +165,8 @@ version: 1.0
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	var cfg Config
-	err := ReadYAML(fn, &cfg)
+	var app App
+	err := ReadYAML(fn, &app)
 
 	if err == nil {
 		t.Fatal("expected error for invalid YAML")
@@ -188,15 +188,15 @@ enabled: "not a boolean"`
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	type StrictConfig struct {
+	type StrictApp struct {
 		Name    string `yaml:"name"`
 		Enabled bool   `yaml:"enabled"`
 	}
 
-	var cfg StrictConfig
-	err := ReadYAML(fn, &cfg)
+	var app StrictApp
+	err := ReadYAML(fn, &app)
 	if err == nil {
-		t.Logf("YAML was permissive: Name=%v, Enabled=%v", cfg.Name, cfg.Enabled)
+		t.Logf("YAML was permissive: Name=%v, Enabled=%v", app.Name, app.Enabled)
 	}
 }
 
@@ -209,8 +209,8 @@ func TestRead_Handles_Empty_YAML_File(t *testing.T) {
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	var cfg Config
-	err := ReadYAML(fn, &cfg)
+	var app App
+	err := ReadYAML(fn, &app)
 	if err != nil {
 		t.Errorf("unexpected error for empty file: %v", err)
 	}

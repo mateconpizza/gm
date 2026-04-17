@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -18,17 +18,17 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "check",
 		Aliases: []string{"c"},
 		Short:   "check URLs HTTP status",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](cfg,
+			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" bookmark status "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
@@ -40,7 +40,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				}
 
 				s := fmt.Sprintf("checking status of %d bookmarks", n)
-				if err := d.Console().ConfirmLimit(n, maxGoroutines, s, d.Cfg.Flags.Force); err != nil {
+				if err := d.Console().ConfirmLimit(n, maxGoroutines, s, d.App.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
@@ -64,25 +64,25 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	cmdutil.HideFlag(c, "help")
 
-	c.AddCommand(newUpdateCmd(cfg))
+	c.AddCommand(newUpdateCmd(app))
 
 	return c
 }
 
-func newUpdateCmd(cfg *config.Config) *cobra.Command {
+func newUpdateCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "update [id|query]",
 		Short: "update metadata (title|desc|tags)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](cfg,
+			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" update metadata "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {

@@ -163,7 +163,7 @@ func (kb *KeybindBuilder) QR(km *Keymap) *Keymap { return km.WithAction(kb.BaseC
 
 // QROpen returns a keybind to open the QR code in the default image viewer.
 func (kb *KeybindBuilder) QROpen(km *Keymap) *Keymap {
-	return km.WithSilentAction(kb.BaseCmd("qr --open {+1}"))
+	return km.WithSilentAction(kb.BaseCmd("qr open {+1}"))
 }
 
 // Yank returns a keybind to copy the selected record to the clipboard.

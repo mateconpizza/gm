@@ -45,7 +45,7 @@ func TestRemoveBackups(t *testing.T) {
 func TestDatabase_Drop(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	want := 10
-	r := testutil.SetupInitializedDBWithBookmarks(t, d.Cfg.DBPath, want)
+	r := testutil.SetupInitializedDBWithBookmarks(t, d.App.DBPath, want)
 	d.SetDatabase(r)
 	c := testutil.ConsoleWithInput(t, "y\n")
 	d.SetConsole(c)
@@ -78,8 +78,8 @@ func TestRemoveRepo_Success(t *testing.T) {
 
 	t.Run("successfully remove main database", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		d.Cfg.Flags.Force = true
-		r := testutil.SetupInitializedEmptyDB(t, d.Cfg.DBPath)
+		d.App.Flags.Force = true
+		r := testutil.SetupInitializedEmptyDB(t, d.App.DBPath)
 		d.SetDatabase(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
@@ -94,17 +94,17 @@ func TestRemoveRepo_Success(t *testing.T) {
 			t.Fatalf("%v", output)
 		}
 
-		if files.Exists(d.Cfg.DBPath) {
-			t.Fatalf("file %q was not deleted", d.Cfg.DBPath)
+		if files.Exists(d.App.DBPath) {
+			t.Fatalf("file %q was not deleted", d.App.DBPath)
 		}
 	})
 
 	t.Run("successfully remove a database", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		d.Cfg.DBName = "somedatabase.db"
-		d.Cfg.DBPath = filepath.Join(d.Cfg.Path.Data, d.Cfg.DBName)
-		d.Cfg.Flags.Force = true
-		r := testutil.SetupInitializedEmptyDB(t, d.Cfg.DBPath)
+		d.App.DBName = "somedatabase.db"
+		d.App.DBPath = filepath.Join(d.App.Path.Data, d.App.DBName)
+		d.App.Flags.Force = true
+		r := testutil.SetupInitializedEmptyDB(t, d.App.DBPath)
 		d.SetDatabase(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
@@ -115,12 +115,12 @@ func TestRemoveRepo_Success(t *testing.T) {
 		}
 
 		output := buf.String()
-		if !strings.Contains(output, "Successfully database "+d.Cfg.DBName+" removed") {
+		if !strings.Contains(output, "Successfully database "+d.App.DBName+" removed") {
 			t.Fatalf("%v", output)
 		}
 
-		if files.Exists(d.Cfg.DBPath) {
-			t.Fatalf("file %q was not deleted", d.Cfg.DBPath)
+		if files.Exists(d.App.DBPath) {
+			t.Fatalf("file %q was not deleted", d.App.DBPath)
 		}
 	})
 }
@@ -128,7 +128,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 func TestRemoveRepo_Fail(t *testing.T) {
 	t.Run("fails with database not found", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		d.Cfg.DBPath = filepath.Join(d.Cfg.Path.Data, "nonexistent.db")
+		d.App.DBPath = filepath.Join(d.App.Path.Data, "nonexistent.db")
 
 		err := RemoveRepo(d)
 		if !errors.Is(err, db.ErrDBNotFound) {
@@ -138,7 +138,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 
 	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		r := testutil.SetupInitializedEmptyDB(t, d.Cfg.DBPath)
+		r := testutil.SetupInitializedEmptyDB(t, d.App.DBPath)
 		d.SetDatabase(r)
 
 		err := RemoveRepo(d)

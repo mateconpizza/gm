@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -69,11 +69,11 @@ func setupRepoProcessor(t *testing.T) *RepoProcessor {
 		)),
 	)
 	g, _ := NewManager(t.Context(), "")
-	a := &config.Config{
+	a := &application.App{
 		DBName: "test.db",
 		DBPath: "/tmp/testpath",
-		Path:   &config.Path{},
-		Info:   &config.Information{Version: "1.2.3"},
+		Path:   &application.Path{},
+		Info:   &application.Information{Version: "1.2.3"},
 	}
 
 	return NewRepoProcessor(c, g, a)

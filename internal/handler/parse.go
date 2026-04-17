@@ -20,8 +20,8 @@ type bookmarkTemp struct {
 
 // NewBookmark fetch metadata and parses the new bookmark.
 func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
-	title := d.Cfg.Flags.Title
-	tags := d.Cfg.Flags.TagsStr
+	title := d.App.Flags.Title
+	tags := d.App.Flags.TagsStr
 	c := d.Console()
 	newURL, err := newURLFromArgs(c, args)
 	if err != nil {
@@ -128,7 +128,7 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) {
 	}
 
 	// Use default if force flag is set
-	if d.Cfg.Flags.Force {
+	if d.App.Flags.Force {
 		b.tags = bookmark.DefaultTag
 		f.Textln(" " + p.Dim.Wrap(b.tags, p.Italic)).Flush()
 		return

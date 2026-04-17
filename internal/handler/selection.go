@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
@@ -19,16 +19,16 @@ import (
 )
 
 // MenuMainForRecords builds the interactive FZF menu for selecting records.
-func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
-	kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
-	k := cfg.Menu.DefaultKeymaps
+func MenuMainForRecords[T comparable](app *application.App) *menu.Menu[T] {
+	kb := menu.NewKeybindBuilder(app.Cmd, app.DBName)
+	k := app.Menu.DefaultKeymaps
 	mo := []menu.Option{
-		menu.WithBorderLabel(" " + cfg.Name + " "),
-		menu.WithConfig(cfg.Menu),
+		menu.WithBorderLabel(" " + app.Name + " "),
+		menu.WithConfig(app.Menu),
 		menu.WithMultiSelection(),
-		menu.WithOutputColor(cfg.Flags.Color),
-		menu.WithPreview(cfg.PreviewCmd(cfg.DBName) + " {1}"),
-		menu.WithPrompt(cfg.Menu.Prompt),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithPreview(app.PreviewCmd(app.DBName) + " {1}"),
+		menu.WithPrompt(app.Menu.Prompt),
 		menu.WithHeaderFirst(),
 		menu.WithHeaderLabel(" keybinds "),
 		menu.WithHeaderBorder(menu.BorderRounded),
@@ -50,11 +50,11 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 }
 
 // MenuSimple builds a simpler menu without all keybindings.
-func MenuSimple[T comparable](cfg *config.Config, opts ...menu.Option) *menu.Menu[T] {
+func MenuSimple[T comparable](app *application.App, opts ...menu.Option) *menu.Menu[T] {
 	opts = append(opts,
-		menu.WithBorderLabel(" "+cfg.Name+" "),
-		menu.WithOutputColor(cfg.Flags.Color),
-		menu.WithConfig(cfg.Menu),
+		menu.WithBorderLabel(" "+app.Name+" "),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(app.Menu),
 		menu.WithHeaderBorder(menu.BorderRounded),
 		menu.WithPreviewBorder(menu.BorderRounded),
 		menu.WithHeaderFirst(),
@@ -109,10 +109,10 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 func selectItem(d *deps.Deps, fs []string, header string) (string, error) {
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(d.Context(), d.Console(), *p) },
-		menu.WithOutputColor(d.Cfg.Flags.Color),
-		menu.WithConfig(d.Cfg.Menu),
+		menu.WithOutputColor(d.App.Flags.Color),
+		menu.WithConfig(d.App.Menu),
 		menu.WithHeader(header),
-		menu.WithPreview(d.Cfg.PreviewCmd("{1}")+" db info"),
+		menu.WithPreview(d.App.PreviewCmd("{1}")+" db info"),
 	)
 	if err != nil {
 		return "", err
@@ -128,10 +128,10 @@ func SelectBackupOne(d *deps.Deps, bks []string) (string, error) {
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), c, *p) },
 		menu.WithArgs("--cycle"),
-		menu.WithOutputColor(d.Cfg.Flags.Color),
-		menu.WithConfig(d.Cfg.Menu),
+		menu.WithOutputColor(d.App.Flags.Color),
+		menu.WithConfig(d.App.Menu),
 		menu.WithHeader("choose a backup to import from"),
-		menu.WithPreview(d.Cfg.PreviewCmd("./backup/{1}")+" db info"),
+		menu.WithPreview(d.App.PreviewCmd("./backup/{1}")+" db info"),
 	)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
@@ -159,11 +159,11 @@ func SelectBackupMany(d *deps.Deps, root, header string) ([]string, error) {
 
 	repos, err := selection(fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(d.Context(), d.Console(), *p) },
-		menu.WithOutputColor(d.Cfg.Flags.Color),
-		menu.WithConfig(d.Cfg.Menu),
+		menu.WithOutputColor(d.App.Flags.Color),
+		menu.WithConfig(d.App.Menu),
 		menu.WithHeader(header),
 		menu.WithMultiSelection(),
-		menu.WithPreview(d.Cfg.PreviewCmd("./backup/{1}", "db info")),
+		menu.WithPreview(d.App.PreviewCmd("./backup/{1}", "db info")),
 	)
 	if err != nil {
 		return repos, fmt.Errorf("%w", err)
@@ -182,8 +182,8 @@ func SelectFileLocked(d *deps.Deps, root, header string) ([]string, error) {
 
 	selected, err := selection(bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
-		menu.WithOutputColor(d.Cfg.Flags.Color),
-		menu.WithConfig(d.Cfg.Menu),
+		menu.WithOutputColor(d.App.Flags.Color),
+		menu.WithConfig(d.App.Menu),
 		menu.WithHeader(header),
 	)
 	if err != nil {
@@ -247,7 +247,7 @@ func ApplyMenuSelection(
 // ListDatabases returns database paths, excluding the given path.
 func ListDatabases(d *deps.Deps, exclude string) ([]string, error) {
 	// build list of candidate .db files
-	dbFiles, err := files.FindByExtList(d.Cfg.Path.Data, ".db")
+	dbFiles, err := files.FindByExtList(d.App.Path.Data, ".db")
 	if err != nil {
 		return nil, err
 	}

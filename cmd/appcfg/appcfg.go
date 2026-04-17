@@ -10,92 +10,92 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "config",
 		Aliases: []string{"cfg", "conf"},
 		Short:   "configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if cfg.Flags.JSON {
-				return newJSONCmd(cfg).RunE(cmd, args)
+			if app.Flags.JSON {
+				return newJSONCmd(app).RunE(cmd, args)
 			}
 
 			return cmd.Help()
 		},
 	}
 
-	c.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "always", "")
-	c.Flags().StringVar(&cfg.DBName, "db", config.MainDBName, "database name")
-	c.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
+	c.Flags().StringVarP(&app.Flags.ColorStr, "color", "c", "always", "")
+	c.Flags().StringVar(&app.DBName, "db", application.MainDBName, "database name")
+	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
 	cmdutil.HideFlag(c, "help", "color", "db")
 
-	c.AddCommand(newCreateCmd(cfg), newEditCmd(cfg), newShowPathCmd(cfg))
+	c.AddCommand(newCreateCmd(app), newEditCmd(app), newShowPathCmd(app))
 
 	return c
 }
 
-func newCreateCmd(cfg *config.Config) *cobra.Command {
+func newCreateCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "create",
 		Short: "create configuration file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cfg.Validate(); err != nil {
+			if err := app.Validate(); err != nil {
 				return err
 			}
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			return createConfig(c, cfg)
+			return createConfig(c, app)
 		},
 	}
 }
 
-func newEditCmd(cfg *config.Config) *cobra.Command {
+func newEditCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "edit",
 		Short:   "edit configuration file",
 		Aliases: []string{"e"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cfg.Validate(); err != nil {
+			if err := app.Validate(); err != nil {
 				return err
 			}
 
-			return editConfig(cmd.Context(), cfg)
+			return editConfig(cmd.Context(), app)
 		},
 	}
 }
 
-func newJSONCmd(cfg *config.Config) *cobra.Command {
+func newJSONCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "json",
 		Short: "output config in JSON format",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			return printConfigJSON(c, cfg)
+			return printConfigJSON(c, app)
 		},
 	}
 }
 
-func newShowPathCmd(cfg *config.Config) *cobra.Command {
+func newShowPathCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "path",
 		Short: "print config file location",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return showPathFile(cfg.Path.ConfigFile)
+			return showPathFile(app.Path.ConfigFile)
 		},
 	}
 }
 
 // createConfig dumps the app configuration to a YAML file.
-func createConfig(c *ui.Console, cfg *config.Config) error {
-	fn := cfg.Path.ConfigFile
-	if files.Exists(fn) && !cfg.Flags.Force {
+func createConfig(c *ui.Console, app *application.App) error {
+	fn := app.Path.ConfigFile
+	if files.Exists(fn) && !app.Flags.Force {
 		p := c.Palette()
 		f := p.BrightYellow.Wrap("--force", p.Italic, p.Bold)
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
@@ -105,23 +105,23 @@ func createConfig(c *ui.Console, cfg *config.Config) error {
 		return sys.ErrActionAborted
 	}
 
-	if err := config.WriteYAML(fn, cfg, cfg.Flags.Force); err != nil {
+	if err := application.WriteYAML(fn, app, app.Flags.Force); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(c.Writer(), "%s: file saved %q\n", cfg.Name, fn)
+	fmt.Fprintf(c.Writer(), "%s: file saved %q\n", app.Name, fn)
 
 	return nil
 }
 
 // editConfig edits the config file.
-func editConfig(ctx context.Context, cfg *config.Config) error {
-	p := cfg.Path.ConfigFile
+func editConfig(ctx context.Context, app *application.App) error {
+	p := app.Path.ConfigFile
 	if !files.Exists(p) {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	te, err := editor.NewEditor(cfg.Env.Editor)
+	te, err := editor.NewEditor(app.Env.Editor)
 	if err != nil {
 		return err
 	}
@@ -130,8 +130,8 @@ func editConfig(ctx context.Context, cfg *config.Config) error {
 }
 
 // printConfigJSON prints the config file as JSON.
-func printConfigJSON(c *ui.Console, cfg *config.Config) error {
-	j, err := port.ToJSON(cfg)
+func printConfigJSON(c *ui.Console, app *application.App) error {
+	j, err := port.ToJSON(app)
 	if err != nil {
 		return err
 	}

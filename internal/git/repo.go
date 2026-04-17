@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -252,7 +252,7 @@ func (gr *Repository) Status(c *ui.Console) string {
 }
 
 // SetConfig sets the app git config.
-func SetConfig(ctx context.Context, c *config.Config) {
+func SetConfig(ctx context.Context, c *application.App) {
 	c.Git.Path = filepath.Join(c.Path.Data, "git")
 	c.Git.Enabled = IsInitialized(c.Git.Path)
 	c.Git.GPG = gpg.IsInitialized(c.Git.Path)

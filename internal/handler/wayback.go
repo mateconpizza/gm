@@ -87,7 +87,7 @@ func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
 func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
 	u := txt.Shorten(b.URL, 60)
 
-	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !d.Cfg.Flags.Force {
+	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !d.App.Flags.Force {
 		return newResult(u, "skipped", wayback.ErrAlreadyArchived.Error())
 	}
 
@@ -191,7 +191,7 @@ func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
 	c, p := d.Console(), d.Console().Palette()
 
-	ct := wayback.New(wayback.WithByYear(d.Cfg.Flags.Year), wayback.WithLimit(d.Cfg.Flags.Limit))
+	ct := wayback.New(wayback.WithByYear(d.App.Flags.Year), wayback.WithLimit(d.App.Flags.Limit))
 	for _, b := range bs {
 		sp.Start()
 

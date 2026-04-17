@@ -19,7 +19,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/pkg/browser"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 )
 
 var (
@@ -190,7 +190,7 @@ func ErrAndExit(err error) {
 
 	default:
 		slog.Warn("exit", "error", err)
-		fmt.Fprintf(os.Stderr, "%s: %s\n", config.AppName, err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", application.Name, err)
 		os.Exit(ExitFailure)
 	}
 }

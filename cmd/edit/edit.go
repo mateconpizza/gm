@@ -4,14 +4,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-func NewCmd(cfg *config.Config) *cobra.Command {
+func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "edit [query]",
 		Aliases: []string{"e"},
@@ -20,23 +20,23 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 			// BUG: menu: current functionality exits the menu after editing a bookmark.
 			// New functionality must keep menu after editing.
 
-			kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
+			kb := menu.NewKeybindBuilder(app.Cmd, app.DBName)
 			k := kb.NewKeymap("edit --json")
-			k.Bind = cfg.Menu.DefaultKeymaps.Edit.Bind
+			k.Bind = app.Menu.DefaultKeymaps.Edit.Bind
 			k.Desc = "as-json"
 			k.Enabled = true
 
-			m := handler.MenuSimple[bookmark.Bookmark](cfg,
+			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" edition "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 				menu.WithKeybinds(k),
 			)
 
 			var strategy editor.EditStrategy
 			strategy = editor.BookmarkStrategy{}
-			if cfg.Flags.JSON {
+			if app.Flags.JSON {
 				strategy = editor.JSONStrategy{}
 			}
 
@@ -44,9 +44,9 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
-	c.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "edit bookmark as JSON")
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
+	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "edit bookmark as JSON")
 	cmdutil.HideFlag(c, "help")
 
 	return c

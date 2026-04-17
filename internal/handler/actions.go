@@ -85,7 +85,7 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 	// get user confirmation to procced
 	s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
-	if err := d.Console().ConfirmLimit(n, maxGoroutines, s, d.Cfg.Flags.Force); err != nil {
+	if err := d.Console().ConfirmLimit(n, maxGoroutines, s, d.App.Flags.Force); err != nil {
 		return err
 	}
 
@@ -149,13 +149,13 @@ func Edit(es editor.EditStrategy) func(*deps.Deps, []*bookmark.Bookmark) error {
 		p := d.Console().Palette()
 		q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
 
-		if err := d.Console().ConfirmLimit(len(bs), maxItems, q, d.Cfg.Flags.Force); err != nil {
+		if err := d.Console().ConfirmLimit(len(bs), maxItems, q, d.App.Flags.Force); err != nil {
 			return err
 		}
 
 		return runEditSession(d, bs, es,
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-				return git.UpdateBookmark(d.Cfg, o, u)
+				return git.UpdateBookmark(d.App, o, u)
 			}),
 		)
 	}
@@ -260,7 +260,7 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 			[]*bookmark.Bookmark{&updated},
 			editor.BookmarkStrategy{},
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-				return git.UpdateBookmark(d.Cfg, o, u)
+				return git.UpdateBookmark(d.App, o, u)
 			}),
 		); err != nil {
 			return err
@@ -293,7 +293,7 @@ func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
 func SaveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
-	if d.Cfg.Flags.Force {
+	if d.App.Flags.Force {
 		return d.DB.InsertMany(d.Context(), []*bookmark.Bookmark{b})
 	}
 
@@ -345,12 +345,12 @@ func runEditSession(
 	es editor.EditStrategy,
 	opts ...editor.SessionOption,
 ) error {
-	te, err := editor.NewEditor(d.Cfg.Env.Editor)
+	te, err := editor.NewEditor(d.App.Env.Editor)
 	if err != nil {
 		return err
 	}
 
-	ft := d.Cfg.Name
+	ft := d.App.Name
 	if _, ok := es.(editor.JSONStrategy); ok {
 		// TODO: add `FileType()` method to Strategy
 		ft = "json"
@@ -359,7 +359,7 @@ func runEditSession(
 	opts = append(opts,
 		editor.WithFileType(ft),
 		editor.WithContext(d.Context()),
-		editor.WithMeta(editor.NewMeta(d.Cfg.DBName, d.Cfg.Info.Version)),
+		editor.WithMeta(editor.NewMeta(d.App.DBName, d.App.Info.Version)),
 	)
 
 	session := editor.NewEditSession(d.Console(), d.DB, te, opts...)

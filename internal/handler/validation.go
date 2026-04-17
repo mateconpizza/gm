@@ -24,7 +24,7 @@ func confirmRemove(
 	m *menu.Menu[bookmark.Bookmark],
 	bs []bookmark.Bookmark,
 ) ([]bookmark.Bookmark, error) {
-	for !d.Cfg.Flags.Yes {
+	for !d.App.Flags.Yes {
 		n := len(bs)
 		if n == 0 {
 			return nil, db.ErrRecordNotFound

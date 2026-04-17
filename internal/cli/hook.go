@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -64,26 +64,26 @@ func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cfg, err := config.FromContext(cmd.Context())
+	app, err := application.FromContext(cmd.Context())
 	if err != nil {
 		return err
 	}
 
-	if files.Exists(cfg.DBPath) {
+	if files.Exists(app.DBPath) {
 		databaseChecked = true
 		return nil
 	}
 
-	if err := checkDatabaseLocked(cfg.DBPath); err != nil {
+	if err := checkDatabaseLocked(app.DBPath); err != nil {
 		return err
 	}
 
-	i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s init", cfg.Cmd)
-	if cfg.DBName == config.MainDBName {
+	i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s init", app.Cmd)
+	if app.DBName == application.MainDBName {
 		return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
 	}
 
-	return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, cfg.DBName, i)
+	return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, app.DBName, i)
 }
 
 func HookHelp(cmd *cobra.Command, _ []string) error {
@@ -93,17 +93,17 @@ func HookHelp(cmd *cobra.Command, _ []string) error {
 // HookCheckIfDatabaseInitialized checks if database file exists and is initialized.
 // Returns error if database already exists to prevent accidental re-initialization.
 func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
-	cfg, err := config.FromContext(cmd.Context())
+	app, err := application.FromContext(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	if files.Exists(cfg.DBPath) {
-		if ok, _ := db.IsInitializedFromPath(cmd.Context(), cfg.DBPath); ok {
-			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, cfg.DBName)
+	if files.Exists(app.DBPath) {
+		if ok, _ := db.IsInitializedFromPath(cmd.Context(), app.DBPath); ok {
+			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, app.DBName)
 		}
 
-		return fmt.Errorf("%q %w", cfg.DBName, db.ErrDBExists)
+		return fmt.Errorf("%q %w", app.DBName, db.ErrDBExists)
 	}
 
 	return nil
@@ -121,12 +121,12 @@ func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	cfg, err := config.FromContext(cmd.Context())
+	app, err := application.FromContext(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	_, err = git.NewManager(cmd.Context(), cfg.Git.Path)
+	_, err = git.NewManager(cmd.Context(), app.Git.Path)
 	if err != nil {
 		return fmt.Errorf("hook git: %w", err)
 	}
@@ -136,7 +136,7 @@ func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if !cfg.Git.Enabled {
+	if !app.Git.Enabled {
 		return git.ErrGitNotInitialized
 	}
 
@@ -145,16 +145,16 @@ func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 
 // HookGitSync synchronizes Git repository with current database state.
 func HookGitSync(cmd *cobra.Command, args []string) error {
-	cfg, err := config.FromContext(cmd.Context())
+	app, err := application.FromContext(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	if !cfg.Git.Enabled {
+	if !app.Git.Enabled {
 		return nil
 	}
 
-	gr, err := git.NewRepo(cfg.DBPath)
+	gr, err := git.NewRepo(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func HookGitSync(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	r, err := db.New(cfg.DBPath)
+	r, err := db.New(app.DBPath)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func HookGitSync(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	updated, err := gr.Write(bs, cfg.Flags.Force)
+	updated, err := gr.Write(bs, app.Flags.Force)
 	if err != nil {
 		return err
 	}
@@ -186,8 +186,8 @@ func HookGitSync(cmd *cobra.Command, args []string) error {
 	return gr.Commit(cmd.Short)
 }
 
-// HookInjectConfig returns a hook that injects the config into the command context.
-func HookInjectConfig(cfg *config.Config) Hook {
+// HookInjectApp returns a hook that injects the config into the command context.
+func HookInjectApp(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
@@ -195,12 +195,12 @@ func HookInjectConfig(cfg *config.Config) Hook {
 			ctx = context.Background()
 		}
 
-		if _, err := config.FromContext(ctx); err == nil {
+		if _, err := application.FromContext(ctx); err == nil {
 			// config already injected, skip
 			return nil
 		}
 
-		cmd.SetContext(config.ToContext(ctx, cfg))
+		cmd.SetContext(application.ToContext(ctx, app))
 		return nil
 	}
 }

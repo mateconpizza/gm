@@ -25,12 +25,12 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	if !strings.Contains(output, "initialized database") {
 		t.Errorf("expected output to contain 'initialized database', got %q", output)
 	}
-	if !strings.Contains(output, d.Cfg.Info.Title) {
-		t.Errorf("expected output to contain title %q, got %q", d.Cfg.Info.Title, output)
+	if !strings.Contains(output, d.App.Info.Title) {
+		t.Errorf("expected output to contain title %q, got %q", d.App.Info.Title, output)
 	}
 
 	// Verify database was actually initialized
-	store, err := db.New(d.Cfg.DBPath)
+	store, err := db.New(d.App.DBPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -45,18 +45,18 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}
-	if bm.URL != d.Cfg.Info.URL {
-		t.Errorf("expected URL %q, got %q", d.Cfg.Info.URL, bm.URL)
+	if bm.URL != d.App.Info.URL {
+		t.Errorf("expected URL %q, got %q", d.App.Info.URL, bm.URL)
 	}
-	if bm.Title != d.Cfg.Info.Title {
-		t.Errorf("expected title %q, got %q", d.Cfg.Info.Title, bm.Title)
+	if bm.Title != d.App.Info.Title {
+		t.Errorf("expected title %q, got %q", d.App.Info.Title, bm.Title)
 	}
 }
 
 func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	d.Cfg.DBName = "test-db"
-	d.Cfg.DBPath = filepath.Join(d.Cfg.Path.Data, d.Cfg.DBName)
+	d.App.DBName = "test-db"
+	d.App.DBPath = filepath.Join(d.App.Path.Data, d.App.DBName)
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
@@ -70,7 +70,7 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 		t.Errorf("expected output to contain 'initialized database test-db', got %q", output)
 	}
 	// Should not contain bookmark frame for non-main DB
-	if strings.Contains(output, d.Cfg.Info.Title) {
+	if strings.Contains(output, d.App.Info.Title) {
 		t.Errorf("expected output to not contain title for non-main DB, got %q", output)
 	}
 }
@@ -106,7 +106,7 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 	}
 
 	// Set force flag and try again
-	d.Cfg.Flags.Force = true
+	d.App.Flags.Force = true
 	err = initializeAction(d)
 	if err != nil {
 		t.Errorf("expected no error with force flag, got %v", err)
@@ -116,7 +116,7 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 func TestFailsWhenInitReturnsErr(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	// Set invalid DB path
-	d.Cfg.DBPath = "/invalid/path/\x00/db"
+	d.App.DBPath = "/invalid/path/\x00/db"
 
 	err := initializeAction(d)
 
@@ -128,7 +128,7 @@ func TestFailsWhenInitReturnsErr(t *testing.T) {
 func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	// Set invalid bookmark data that would cause insertion to fail
-	d.Cfg.Info.URL = "" // Invalid bookmark
+	d.App.Info.URL = "" // Invalid bookmark
 
 	err := initializeAction(d)
 	if err == nil {
@@ -146,7 +146,7 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 		t.Fatalf("initialization failed: %v", err)
 	}
 
-	store, err := db.New(d.Cfg.DBPath)
+	store, err := db.New(d.App.DBPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

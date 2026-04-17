@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -17,7 +17,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
 
-func newLookupCmd(cfg *config.Config) *cobra.Command {
+func newLookupCmd(app *application.App) *cobra.Command {
 	use := "fetch"
 	c := &cobra.Command{
 		Use:   use,
@@ -26,16 +26,16 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
   %s archive %s 179 --latest
 
   # get up to 5 snapshots from 2023
-  %s archive %s 179 --limit 5 --year 2023 179`, cfg.Cmd, use, cfg.Cmd, use),
+  %s archive %s 179 --limit 5 --year 2023 179`, app.Cmd, use, app.Cmd, use),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f := cfg.Flags
+			f := app.Flags
 
 			m := handler.MenuSimple[bookmark.Bookmark](
-				cfg,
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" wayback machine lookup "),
-				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
@@ -51,17 +51,17 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 
 	f := c.Flags()
 	f.SortFlags = false
-	cmdutil.FlagMenu(c, cfg)
-	f.BoolVarP(&cfg.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
-	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
-	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
-	cmdutil.FlagsFilter(c, cfg)
+	cmdutil.FlagMenu(c, app)
+	f.BoolVarP(&app.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
+	f.IntVarP(&app.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
+	f.IntVarP(&app.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
+	cmdutil.FlagsFilter(c, app)
 	cmdutil.HideFlag(c, "help")
 
 	return c
 }
 
-func runWayback(d *deps.Deps, flags *config.Flags, bs []*bookmark.Bookmark) error {
+func runWayback(d *deps.Deps, flags *application.Flags, bs []*bookmark.Bookmark) error {
 	if flags.Update {
 		return handler.WaybackLatestSnapshot(d, bs)
 	}
@@ -88,7 +88,7 @@ func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 	return d.Console().Confirm("continue with Wayback Machine query?", "n")
 }
 
-func waybackOperation(f *config.Flags) string {
+func waybackOperation(f *application.Flags) string {
 	op := "all available snapshots"
 
 	if f.Update {

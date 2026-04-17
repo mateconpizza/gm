@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
@@ -152,7 +152,7 @@ func parseGitRepo(d *deps.Deps, root, repoName string) (string, error) {
 		choices = []string{"merge", "drop", "create", "select", "ignore"}
 	)
 
-	dbPath := filepath.Join(d.Cfg.Path.Data, sum.RepoStats.Name)
+	dbPath := filepath.Join(d.App.Path.Data, sum.RepoStats.Name)
 	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err
@@ -324,15 +324,15 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		return err
 	}
 
-	cfg, err := config.FromContext(ctx)
+	app, err := application.FromContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
 	m := menu.New[bookmark.Bookmark](
 		menu.WithArgs("--cycle"),
-		menu.WithOutputColor(cfg.Flags.Color),
-		menu.WithConfig(cfg.Menu),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(app.Menu),
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
 	)
@@ -393,7 +393,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	}
 
 	name := gr.Loc.Name
-	if name == files.StripSuffixes(config.MainDBName) {
+	if name == files.StripSuffixes(application.MainDBName) {
 		name = "main"
 	}
 
@@ -415,7 +415,7 @@ func StatusRepo(c *ui.Console, dbPath string) (string, error) {
 }
 
 // Info returns a prettify info of the repository.
-func Info(c *ui.Console, dbPath string, cfg *config.Git) (string, error) {
+func Info(c *ui.Console, dbPath string, cfg *application.Git) (string, error) {
 	f, p := c.Frame(), c.Palette()
 	gr, err := NewRepo(dbPath)
 	if err != nil {

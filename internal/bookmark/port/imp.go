@@ -37,7 +37,7 @@ func Browser(d *deps.Deps) error {
 	}
 
 	// find bookmarks
-	bs, err := br.Import(d.Console(), d.Cfg.Flags.Yes)
+	bs, err := br.Import(d.Console(), d.App.Flags.Yes)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
@@ -57,17 +57,17 @@ func Browser(d *deps.Deps) error {
 
 // Database imports bookmarks from a database.
 func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
-	cfg, err := d.Config()
+	app, err := d.Application()
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithOutputColor(cfg.Flags.Color),
-		menu.WithConfig(d.Cfg.Menu),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(d.App.Menu),
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
-		menu.WithPreview(cfg.PreviewCmd(srcDB.Name())+" {1}"),
+		menu.WithPreview(app.PreviewCmd(srcDB.Name())+" {1}"),
 		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
 			srcDB.Close()
@@ -123,7 +123,7 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 func IntoRepo(d *deps.Deps, records []*bookmark.Bookmark) error {
 	c := d.Console()
 	n := len(records)
-	if !d.Cfg.Flags.Force && n > 1 {
+	if !d.App.Flags.Force && n > 1 {
 		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -152,12 +152,12 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	f, t, p := c.Frame(), c.Term(), c.Palette()
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithOutputColor(d.Cfg.Flags.Color),
-		menu.WithConfig(d.Cfg.Menu),
+		menu.WithOutputColor(d.App.Flags.Color),
+		menu.WithConfig(d.App.Menu),
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithMultiSelection(),
-		menu.WithPreview(d.Cfg.PreviewCmd("./backup/"+srcDB.Name())+" {+1}"),
+		menu.WithPreview(d.App.PreviewCmd("./backup/"+srcDB.Name())+" {+1}"),
 	)
 
 	defer t.CancelInterruptHandler()
@@ -291,7 +291,7 @@ func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Boo
 		return bs, nil
 	}
 
-	if !d.Cfg.Flags.Yes {
+	if !d.App.Flags.Yes {
 		q := fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs))
 		if err := c.ConfirmErr(q, "y"); err != nil {
 			if errors.Is(err, sys.ErrActionAborted) {

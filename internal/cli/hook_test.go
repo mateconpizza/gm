@@ -7,17 +7,24 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/application"
 )
 
-func TestHookInjectConfig(t *testing.T) {
+func testSetupAppInfo(t *testing.T, version string) *application.Information {
+	t.Helper()
+	return &application.Information{
+		Version: version,
+	}
+}
+
+func TestHookInjectApp(t *testing.T) {
 	t.Parallel()
 
 	t.Run("injects config into empty context", func(t *testing.T) {
 		t.Parallel()
 
-		cfg := config.NewDefaultConfig("1.0.0")
-		cfg.Initialize()
+		app := application.New(testSetupAppInfo(t, "1.0.0"))
+		app.Initialize()
 		cmd := &cobra.Command{
 			Use: "test",
 		}
@@ -25,19 +32,19 @@ func TestHookInjectConfig(t *testing.T) {
 		// Ensure command has a context
 		cmd.SetContext(context.Background())
 
-		hook := HookInjectConfig(cfg)
+		hook := HookInjectApp(app)
 
 		err := hook(cmd, []string{})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
 
-		retrievedCfg, err := config.FromContext(cmd.Context())
+		retrievedApp, err := application.FromContext(cmd.Context())
 		if err != nil {
 			t.Fatalf("expected config in context, got error: %v", err)
 		}
 
-		if retrievedCfg != cfg {
+		if retrievedApp != app {
 			t.Errorf("expected same config instance, got different one")
 		}
 	})
@@ -45,26 +52,26 @@ func TestHookInjectConfig(t *testing.T) {
 	t.Run("handles nil context", func(t *testing.T) {
 		t.Parallel()
 		// Arrange
-		cfg := config.NewDefaultConfig("1.0.0")
-		cfg.Initialize()
+		app := application.New(testSetupAppInfo(t, "1.0.0"))
+		app.Initialize()
 
 		cmd := &cobra.Command{
 			Use: "test",
 		}
 
-		hook := HookInjectConfig(cfg)
+		hook := HookInjectApp(app)
 
 		err := hook(cmd, []string{})
 		if err != nil {
 			t.Fatalf("expected no error with nil context, got: %v", err)
 		}
 
-		retrievedCfg, err := config.FromContext(cmd.Context())
+		retrievedApp, err := application.FromContext(cmd.Context())
 		if err != nil {
 			t.Fatalf("expected config in context, got error: %v", err)
 		}
 
-		if retrievedCfg != cfg {
+		if retrievedApp != app {
 			t.Errorf("expected same config instance, got different one")
 		}
 	})
@@ -72,38 +79,38 @@ func TestHookInjectConfig(t *testing.T) {
 	t.Run("does not overwrite existing config in context", func(t *testing.T) {
 		t.Parallel()
 
-		originalCfg := config.NewDefaultConfig("1.0.0")
-		originalCfg.DBName = "original"
-		originalCfg.Initialize()
+		originalApp := application.New(testSetupAppInfo(t, "1.0.0"))
+		originalApp.DBName = "original"
+		originalApp.Initialize()
 
-		newCfg := config.NewDefaultConfig("2.0.0")
-		newCfg.DBName = "new"
-		newCfg.Initialize()
+		newApp := application.New(testSetupAppInfo(t, "2.0.0"))
+		newApp.DBName = "new"
+		newApp.Initialize()
 
 		cmd := &cobra.Command{
 			Use: "test",
 		}
 
 		// Pre-inject original config
-		cmd.SetContext(config.ToContext(context.Background(), originalCfg))
+		cmd.SetContext(application.ToContext(context.Background(), originalApp))
 
-		hook := HookInjectConfig(newCfg)
+		hook := HookInjectApp(newApp)
 
 		err := hook(cmd, []string{})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}
 
-		retrievedCfg, err := config.FromContext(cmd.Context())
+		retrievedApp, err := application.FromContext(cmd.Context())
 		if err != nil {
 			t.Fatalf("expected config in context, got error: %v", err)
 		}
 
-		if retrievedCfg.DBName != "original.db" {
-			t.Errorf("expected original config to remain, got DBName=%s", retrievedCfg.DBName)
+		if retrievedApp.DBName != "original.db" {
+			t.Errorf("expected original config to remain, got DBName=%s", retrievedApp.DBName)
 		}
 
-		if retrievedCfg == newCfg {
+		if retrievedApp == newApp {
 			t.Error("config was overwritten, expected original to remain")
 		}
 	})

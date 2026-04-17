@@ -1,4 +1,4 @@
-package config
+package application
 
 import (
 	"context"
@@ -10,36 +10,36 @@ var ErrConfigNotFoundContext = errors.New("config not found in context")
 type contextKey struct{}
 
 // ToContext adds a Config to the context.
-func ToContext(ctx context.Context, cfg *Config) context.Context {
+func ToContext(ctx context.Context, app *App) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithValue(ctx, contextKey{}, cfg)
+	return context.WithValue(ctx, contextKey{}, app)
 }
 
 // FromContext returns the Config from the context.
-func FromContext(ctx context.Context) (*Config, error) {
+func FromContext(ctx context.Context) (*App, error) {
 	if ctx == nil {
 		return nil, ErrConfigNotFoundContext
 	}
 
-	cfg, ok := ctx.Value(contextKey{}).(*Config)
-	if !ok || cfg == nil {
+	app, ok := ctx.Value(contextKey{}).(*App)
+	if !ok || app == nil {
 		return nil, ErrConfigNotFoundContext
 	}
 
-	if err := cfg.Validate(); err != nil {
+	if err := app.Validate(); err != nil {
 		return nil, err
 	}
 
-	return cfg, nil
+	return app, nil
 }
 
 // MustFromContext panics if config not in context (use sparingly).
-func MustFromContext(ctx context.Context) *Config {
-	cfg, err := FromContext(ctx)
+func MustFromContext(ctx context.Context) *App {
+	app, err := FromContext(ctx)
 	if err != nil {
 		panic(err)
 	}
-	return cfg
+	return app
 }
