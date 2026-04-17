@@ -175,7 +175,7 @@ func removeSlicePath(d *deps.Deps, dbs []string) error {
 
 // Remove prompts the user the records to remove.
 func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	defer d.DB.Close()
+	defer d.Repo.Close()
 	if err := validateRemove(bs, d.App.Flags.Force); err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func DropDatabase(d *deps.Deps) error {
 
 	if !d.App.Flags.Yes {
 		q := "continue?"
-		if d.DB.Name() == application.MainDBName {
+		if d.Repo.Name() == application.MainDBName {
 			q = c.WarningMesg("dropping \"main\" database, continue?")
 		}
 
@@ -236,7 +236,7 @@ func DropDatabase(d *deps.Deps) error {
 		}
 	}
 
-	if err := d.DB.DropSecure(d.Context()); err != nil {
+	if err := d.Repo.DropSecure(d.Context()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

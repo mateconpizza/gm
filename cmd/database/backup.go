@@ -147,7 +147,7 @@ func backupNewFunc(d *deps.Deps) error {
 		return err
 	}
 
-	newBkPath, err := d.DB.Backup(d.Context(), app.Path.Backup)
+	newBkPath, err := d.Repo.Backup(d.Context(), app.Path.Backup)
 	if err != nil {
 		return err
 	}

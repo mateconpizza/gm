@@ -197,7 +197,7 @@ func newHTMLCmd(app *application.App) *cobra.Command {
 			s := fmt.Sprintf("Found %d bookmarks from %q\n", len(nbs), file.Name())
 			c.Frame().Success(c.Palette().Italic.Sprint(s)).Flush()
 
-			deduplicated := port.Deduplicate(cmd.Context(), c, d.DB, bs)
+			deduplicated := port.Deduplicate(cmd.Context(), c, d.Repo, bs)
 			n := len(deduplicated)
 			if n == 0 {
 				return bookmark.ErrBookmarkNotFound
@@ -230,7 +230,7 @@ func newHTMLCmd(app *application.App) *cobra.Command {
 				fmt.Println("importing items...well, not implemented yet.")
 			}
 
-			if err := d.DB.InsertMany(cmd.Context(), deduplicated); err != nil {
+			if err := d.Repo.InsertMany(cmd.Context(), deduplicated); err != nil {
 				return err
 			}
 			fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d bookmarks", n)))

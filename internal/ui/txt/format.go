@@ -2,12 +2,12 @@ package txt
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
 	runewidth "github.com/mattn/go-runewidth"
 
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -15,8 +15,9 @@ import (
 )
 
 // Oneline formats a bookmark in a single line with the given colorscheme.
+// Layout: ID • URL  #go #tools.
 func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
-	w := terminal.MaxWidth
+	w := c.MaxWidth()
 
 	const (
 		idPadding      = 3
@@ -47,7 +48,7 @@ func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 	urlLen += len(colorURL) - len(shortURL)
 
 	// tags
-	tagsColor := p.Blue.Wrap(TagsWithUnicode(b.Tags), p.Italic)
+	tagsColor := p.Blue.Wrap(TagsWith(b.Tags, UnicodeMiddleDot), p.Italic)
 
 	sep := " " + UnicodeMiddleDot + " "
 	if b.Notes != "" || b.Favorite || b.ArchiveURL != "" {
@@ -63,10 +64,75 @@ func Oneline(c *ui.Console, b *bookmark.Bookmark) string {
 	return sb.String()
 }
 
+// Brief formats a bookmark as a simple, clean list item.
+// Layout: ┃ ID Title (domain) #go #tools.
+func Brief(c *ui.Console, b *bookmark.Bookmark) string {
+	p, w := c.Palette(), c.MaxWidth()
+
+	const (
+		bulletWidth = 1
+		idMaxWidth  = 4
+		spacing     = 3 // spaces between segments
+		tagsBudget  = 40
+	)
+
+	idStr := strconv.Itoa(b.ID)
+
+	domainPlain := ""
+	if pu, err := url.Parse(b.URL); err == nil && pu.Host != "" {
+		domainPlain = fmt.Sprintf(" (%s)", pu.Host)
+	}
+	domainWidth := runewidth.StringWidth(domainPlain)
+
+	tagsPlain := ""
+	if b.Tags != "" {
+		tagsPlain = TagsWith(b.Tags, UnicodeMiddleDot)
+	}
+
+	// width = total - (bullet + id + domain + tags + 3 spaces)
+	overhead := bulletWidth + idMaxWidth + domainWidth + tagsBudget + spacing
+	maxTitleWidth := max(w-overhead, 1)
+
+	rawTitle := b.Title
+	if rawTitle == "" {
+		rawTitle = b.URL
+	}
+	truncatedTitle := runewidth.Truncate(rawTitle, maxTitleWidth, "…")
+	// ensure the title block always occupies exactly maxtitlewidth on screen
+	paddedTitle := runewidth.FillRight(truncatedTitle, maxTitleWidth)
+
+	// bullet
+	u := UnicodeHeavyVertical
+	bulletColored := p.Normal.Sprint(u)
+	switch {
+	case b.Favorite:
+		bulletColored = p.Yellow.Sprint(u)
+	case b.HTTPStatusCode >= 400:
+		bulletColored = p.Red.Sprint(u)
+	case b.Notes != "":
+		bulletColored = p.Cyan.Sprint(u)
+	}
+
+	titleColored := p.Normal.Sprint(paddedTitle)
+	if b.Title == "" {
+		titleColored = p.Dim.Sprint(paddedTitle)
+	}
+	domainColored := p.Dim.Sprint(domainPlain)
+
+	tagsColored := p.Blue.Wrap(tagsPlain, p.Italic)
+
+	return fmt.Sprintf("%s %s %s%s  %s\n",
+		bulletColored,
+		p.Dim.Sprintf("%-*s", idMaxWidth, idStr),
+		titleColored,
+		domainColored,
+		tagsColored,
+	)
+}
+
 // Multiline formats a bookmark for fzf with max width.
 func Multiline(c *ui.Console, b *bookmark.Bookmark) string {
-	p := c.Palette()
-	w := terminal.MaxWidth
+	p, w := c.Palette(), c.MaxWidth()
 
 	var sb strings.Builder
 	sb.WriteString(p.BrightYellow.With(p.Bold).Sprint(b.ID))
@@ -77,7 +143,7 @@ func Multiline(c *ui.Console, b *bookmark.Bookmark) string {
 		sb.WriteString(p.Cyan.Sprint(Shorten(b.Title, w)) + "\n")
 	}
 
-	sb.WriteString(p.BrightWhite.Wrap(TagsWithUnicode(b.Tags), p.Italic))
+	sb.WriteString(p.BrightWhite.Wrap(TagsWith(b.Tags, UnicodeMiddleDot), p.Italic))
 
 	return sb.String()
 }
@@ -85,7 +151,7 @@ func Multiline(c *ui.Console, b *bookmark.Bookmark) string {
 func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
 	p := c.Palette()
 	f := frame.New(frame.WithColorBorder(ansi.Dim))
-	w := terminal.MaxWidth - len(f.Border.Row)
+	w := c.MaxWidth() - len(f.Border.Row)
 
 	// id + url
 	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
@@ -110,12 +176,10 @@ func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
 }
 
 func Frame(c *ui.Console, b *bookmark.Bookmark) string {
-	width := terminal.MinWidth
-	p := c.Palette()
-	f := c.Frame()
+	w, p, f := c.MaxWidth(), c.Palette(), c.Frame()
 
 	// initial border adjustment
-	width -= len(f.Border.Row)
+	w -= len(f.Border.Row)
 
 	idStr := strconv.Itoa(b.ID)
 	// calculate visual width of id
@@ -136,19 +200,19 @@ func Frame(c *ui.Console, b *bookmark.Bookmark) string {
 
 	// calculate space for url
 	// we subtract 'usedwidth' and 1 extra for the final space before the url
-	urlWidth := width - usedWidth - 1
+	urlWidth := w - usedWidth - 1
 
 	header = append(header, URLBreadCrumbsColor(p, b.URL, UnicodeSingleAngleMark, urlWidth))
 	f.Headerln(strings.Join(header, " "))
 
 	// title ... (rest of function remains the same)
 	if b.Title != "" {
-		titleSplit := SplitIntoChunks(b.Title, width)
+		titleSplit := SplitIntoChunks(b.Title, w)
 		f.Midln(ansi.StyleAll(titleSplit, p.BrightCyan)...)
 	}
 
 	if b.Desc != "" {
-		descSplit := SplitIntoChunks(b.Desc, width)
+		descSplit := SplitIntoChunks(b.Desc, w)
 		f.Midln(ansi.StyleAll(descSplit, p.Dim)...)
 	}
 
@@ -158,9 +222,7 @@ func Frame(c *ui.Console, b *bookmark.Bookmark) string {
 }
 
 func Notes(c *ui.Console, b *bookmark.Bookmark) string {
-	w := terminal.MinWidth
-	p := c.Palette()
-	f := frame.New(frame.WithColorBorder(ansi.Dim))
+	w, p, f := c.MaxWidth(), c.Palette(), c.Frame()
 
 	// id + url
 	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
@@ -174,8 +236,8 @@ func Notes(c *ui.Console, b *bookmark.Bookmark) string {
 	return f.String()
 }
 
-func OnelineURL(p *ansi.Palette, b *bookmark.Bookmark) string {
-	w := terminal.MaxWidth
+func OnelineURL(c *ui.Console, b *bookmark.Bookmark) string {
+	w, p := c.MaxWidth(), c.Palette()
 
 	const (
 		idPadding      = 3
@@ -190,7 +252,6 @@ func OnelineURL(p *ansi.Palette, b *bookmark.Bookmark) string {
 		idLen = idWithColor
 	}
 
-	// ID padding con color sin romper el formato
 	idStr := strconv.Itoa(b.ID)
 	paddedID := fmt.Sprintf("%*s", idLen, idStr)
 	coloredID := strings.Replace(paddedID, idStr, p.BrightYellow.Wrap(idStr, p.Bold), 1)

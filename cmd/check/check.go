@@ -54,7 +54,7 @@ func NewCmd(app *application.App) *cobra.Command {
 						continue
 					}
 
-					if err := d.DB.UpdateOne(d.Context(), b); err != nil {
+					if err := d.Repo.UpdateOne(d.Context(), b); err != nil {
 						return err
 					}
 				}

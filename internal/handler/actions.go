@@ -134,7 +134,7 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	for _, b := range bs {
-		if err := d.DB.AddVisit(d.Context(), b.ID); err != nil {
+		if err := d.Repo.AddVisit(d.Context(), b.ID); err != nil {
 			return err
 		}
 	}
@@ -249,7 +249,7 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 	}
 	switch strings.ToLower(opt) {
 	case "y", "yes":
-		if err := d.DB.UpdateOne(d.Context(), &updated); err != nil {
+		if err := d.Repo.UpdateOne(d.Context(), &updated); err != nil {
 			return fmt.Errorf("updating record: %w", err)
 		}
 		fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
@@ -294,7 +294,7 @@ func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 // SaveNewBookmark asks the user if they want to save the bookmark.
 func SaveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
 	if d.App.Flags.Force {
-		return d.DB.InsertMany(d.Context(), []*bookmark.Bookmark{b})
+		return d.Repo.InsertMany(d.Context(), []*bookmark.Bookmark{b})
 	}
 
 	c := d.Console()
@@ -309,7 +309,7 @@ func SaveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
 	case "e", "edit":
 		return runEditSession(d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
 	default:
-		if _, err := d.DB.InsertOne(d.Context(), b); err != nil {
+		if _, err := d.Repo.InsertOne(d.Context(), b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -362,6 +362,6 @@ func runEditSession(
 		editor.WithMeta(editor.NewMeta(d.App.DBName, d.App.Info.Version)),
 	)
 
-	session := editor.NewEditSession(d.Console(), d.DB, te, opts...)
+	session := editor.NewEditSession(d.Console(), d.Repo, te, opts...)
 	return session.Run(bs, es)
 }

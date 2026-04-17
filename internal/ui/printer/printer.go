@@ -29,6 +29,16 @@ var (
 	ErrUnknownFormat = errors.New("unknown format")
 )
 
+type Formatter struct {
+	Format    func(*ui.Console, *bookmark.Bookmark) string
+	Transform string
+}
+
+var Formatters = map[string]Formatter{
+	"brief":   {Format: txt.Brief, Transform: "3.."},
+	"oneline": {Format: txt.Oneline, Transform: "3.."},
+}
+
 var ValidFormats = []string{
 	"oneline",
 	"json",
@@ -232,7 +242,7 @@ func RepoInfo(d *deps.Deps) error {
 
 	// FIX: Implement ListBackups
 	if d.App.Flags.JSON {
-		b, err := port.ToJSON(d.DB)
+		b, err := port.ToJSON(d.Repo)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}

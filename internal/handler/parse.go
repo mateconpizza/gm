@@ -29,7 +29,7 @@ func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
 	}
 
 	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := d.DB.Has(d.Context(), newURL); exists {
+	if b, exists := d.Repo.Has(d.Context(), newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
@@ -138,7 +138,7 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) {
 	f.Text(p.Dim.Sprint(" (spaces|comma separated)\n")).Flush()
 
 	// Get existing tags from database with their usage counts
-	mTags, _ := d.DB.TagsCounter(d.Context())
+	mTags, _ := d.Repo.TagsCounter(d.Context())
 
 	// Let user select tags and parse them into proper format
 	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))

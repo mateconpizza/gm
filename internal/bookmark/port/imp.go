@@ -99,18 +99,18 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 		bookmarks = append(bookmarks, &records[i])
 	}
 
-	d.SetDatabase(destDB)
+	d.SetRepo(destDB)
 
 	c := d.Console()
 	f := c.Frame()
-	bookmarks = Deduplicate(d.Context(), c, d.DB, bookmarks)
+	bookmarks = Deduplicate(d.Context(), c, d.Repo, bookmarks)
 	n := len(bookmarks)
 	if n == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	if err := d.DB.InsertMany(d.Context(), bookmarks); err != nil {
+	if err := d.Repo.InsertMany(d.Context(), bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -135,7 +135,7 @@ func IntoRepo(d *deps.Deps, records []*bookmark.Bookmark) error {
 	)
 	sp.Start()
 
-	if err := d.DB.InsertMany(d.Context(), records); err != nil {
+	if err := d.Repo.InsertMany(d.Context(), records); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -187,9 +187,9 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	}
 
 	// update which repo to insert
-	d.SetDatabase(destDB)
+	d.SetRepo(destDB)
 
-	dRecords := Deduplicate(d.Context(), c, d.DB, result)
+	dRecords := Deduplicate(d.Context(), c, d.Repo, result)
 	if len(dRecords) == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return nil
@@ -285,7 +285,7 @@ func DeduplicateByURL(existing, incoming []*bookmark.Bookmark) []*bookmark.Bookm
 func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	c := d.Console()
 	f := c.Frame()
-	bs = Deduplicate(d.Context(), c, d.DB, bs)
+	bs = Deduplicate(d.Context(), c, d.Repo, bs)
 	if len(bs) == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return bs, nil

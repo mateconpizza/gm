@@ -20,16 +20,17 @@ import (
 )
 
 const (
+	UnicodeBlackSquare      = "\u25A0" // ■
 	UnicodeBulletPoint      = "\u2022" // •
+	UnicodeDash             = "\u2014" // —
+	UnicodeEllipsis         = "\u2026" // …
+	UnicodeHeavyVertical    = "\u2503" // ┃
 	UnicodeLightDiagCross   = "\u2571" // ╱
 	UnicodeMiddleDot        = "\u00b7" // ·
 	UnicodePathBigSegment   = "\u25B6" // ▶
 	UnicodePathSmallSegment = "\u25B8" // ▸
 	UnicodeRightDoubleAngle = "\u00BB" // »
 	UnicodeSingleAngleMark  = "\u203A" // ›
-	UnicodeBlackSquare      = "\u25A0" // ■
-	UnicodeDash             = "\u2014" // —
-	UnicodeHeavyVertical    = "\u2503" // ┃
 )
 
 // TimeLayout is the default layout for time formatting.
@@ -425,12 +426,11 @@ func TagsWithPoundList(s string) []string {
 	return strings.FieldsFunc(TagsWithPound(s), func(r rune) bool { return r == ' ' })
 }
 
-// TagsWithUnicode returns a prettified tags.
+// TagsWith returns a prettified tags.
 //
 //	tag1·tag2·tag3
-func TagsWithUnicode(s string) string {
-	ud := UnicodeMiddleDot
-	return strings.TrimRight(strings.ReplaceAll(s, ",", ud), ud)
+func TagsWith(s, sep string) string {
+	return strings.TrimRight(strings.ReplaceAll(s, ",", sep), sep)
 }
 
 // CenteredLine returns a string of exactly 'width' characters,

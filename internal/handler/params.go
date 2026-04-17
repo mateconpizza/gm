@@ -276,14 +276,14 @@ func persistBookmarkUpdate(pp *ParamsProcessor, b *bookmark.Bookmark, newURL str
 	newB.URL = newURL
 
 	// check for duplicates
-	if book, has := pp.d.DB.Has(pp.d.Context(), newB.URL); has {
+	if book, has := pp.d.Repo.Has(pp.d.Context(), newB.URL); has {
 		f.Error(id(newB.ID) + p.BrightRed.Wrap("already", p.Italic) + " exists with " + id(book.ID)).
 			Ln().Flush()
 		return nil
 	}
 
 	f.Success(id(newB.ID) + p.BrightGreen.Wrap("updating", p.Italic) + " bookmark").Ln().Flush()
-	if err := pp.d.DB.UpdateOne(pp.d.Context(), &newB); err != nil {
+	if err := pp.d.Repo.UpdateOne(pp.d.Context(), &newB); err != nil {
 		return err
 	}
 

@@ -99,7 +99,7 @@ func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
 
 	b.ArchiveURL = s.ArchiveURL
 	b.ArchiveTimestamp = s.ArchiveTimestamp
-	if err := d.DB.UpdateOne(d.Context(), b); err != nil {
+	if err := d.Repo.UpdateOne(d.Context(), b); err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
@@ -231,7 +231,7 @@ func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		b.ArchiveTimestamp = snap.ArchiveTimestamp
 
 		updateCtx, updateCancel := context.WithTimeout(d.Context(), 3*time.Second)
-		err = d.DB.UpdateOne(updateCtx, b)
+		err = d.Repo.UpdateOne(updateCtx, b)
 		updateCancel()
 		if err != nil {
 			return fmt.Errorf("updating: %w", err)

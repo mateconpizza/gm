@@ -16,7 +16,7 @@ type Option func(*Deps)
 // Deps holds the initialized application context.
 type Deps struct {
 	App     *application.App
-	DB      *db.SQLite
+	Repo    *db.SQLite
 	console *ui.Console
 	ctx     context.Context
 	writer  io.Writer
@@ -34,9 +34,9 @@ func WithConsole(s *ui.Console) Option {
 	}
 }
 
-func WithDB(r *db.SQLite) Option {
+func WithRepo(r *db.SQLite) Option {
 	return func(c *Deps) {
-		c.DB = r
+		c.Repo = r
 	}
 }
 
@@ -56,7 +56,7 @@ func (c *Deps) Application() (*application.App, error) {
 	return application.FromContext(c.ctx)
 }
 
-func (c *Deps) SetDatabase(r *db.SQLite)  { c.DB = r }
+func (c *Deps) SetRepo(r *db.SQLite)      { c.Repo = r }
 func (c *Deps) SetWriter(w io.Writer)     { c.writer = w }
 func (c *Deps) SetConsole(uc *ui.Console) { c.console = uc }
 func (c *Deps) Console() *ui.Console      { return c.console }

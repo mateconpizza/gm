@@ -75,7 +75,7 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 
 	d := deps.New(cmd.Context(),
 		deps.WithApplication(app),
-		deps.WithDB(r),
+		deps.WithRepo(r),
 		deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
 			r.Close()
 			sys.ErrAndExit(err)

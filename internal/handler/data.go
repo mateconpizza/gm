@@ -63,7 +63,7 @@ func fetchBookmarks(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 
 	// If no args provided or nothing found, get all records
 	if len(args) == 0 {
-		return d.DB.All(d.Context())
+		return d.Repo.All(d.Context())
 	}
 
 	// No results found
@@ -83,14 +83,14 @@ func getByIDs(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
 
-	bs, err := d.DB.ByIDList(d.Context(), ids)
+	bs, err := d.Repo.ByIDList(d.Context(), ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
 
 	if len(bs) == 0 {
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
-		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, d.DB.Name())
+		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, d.Repo.Name())
 	}
 
 	return bs, nil
@@ -103,7 +103,7 @@ func getByQuery(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	}
 
 	q := strings.Join(args, "%")
-	bs, err := d.DB.ByQuery(d.Context(), q)
+	bs, err := d.Repo.ByQuery(d.Context(), q)
 	if err != nil {
 		return nil, fmt.Errorf("%w %q", err, strings.Join(args, " "))
 	}
@@ -156,7 +156,7 @@ func filterByTags(d *deps.Deps, tags []string, bs []*bookmark.Bookmark) ([]*book
 		return []*bookmark.Bookmark{}, nil
 	}
 
-	candidates, err := d.DB.ByTag(d.Context(), firstTag)
+	candidates, err := d.Repo.ByTag(d.Context(), firstTag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bookmarks by tag %q: %w", firstTag, err)
 	}
@@ -297,7 +297,7 @@ func removeRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	sp.Start()
 	defer sp.Done()
 
-	if err := d.DB.DeleteMany(d.Context(), bs); err != nil {
+	if err := d.Repo.DeleteMany(d.Context(), bs); err != nil {
 		return err
 	}
 

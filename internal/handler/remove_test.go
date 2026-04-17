@@ -46,7 +46,7 @@ func TestDatabase_Drop(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	want := 10
 	r := testutil.SetupInitializedDBWithBookmarks(t, d.App.DBPath, want)
-	d.SetDatabase(r)
+	d.SetRepo(r)
 	c := testutil.ConsoleWithInput(t, "y\n")
 	d.SetConsole(c)
 
@@ -80,7 +80,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		d := testutil.SetupDeps(t)
 		d.App.Flags.Force = true
 		r := testutil.SetupInitializedEmptyDB(t, d.App.DBPath)
-		d.SetDatabase(r)
+		d.SetRepo(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
@@ -105,7 +105,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		d.App.DBPath = filepath.Join(d.App.Path.Data, d.App.DBName)
 		d.App.Flags.Force = true
 		r := testutil.SetupInitializedEmptyDB(t, d.App.DBPath)
-		d.SetDatabase(r)
+		d.SetRepo(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
@@ -139,7 +139,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
 		r := testutil.SetupInitializedEmptyDB(t, d.App.DBPath)
-		d.SetDatabase(r)
+		d.SetRepo(r)
 
 		err := RemoveRepo(d)
 		if !errors.Is(err, ErrInvalidOption) {

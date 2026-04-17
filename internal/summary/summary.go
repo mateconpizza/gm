@@ -21,10 +21,10 @@ import (
 // Repo returns a summary of the repository.
 func Repo(d *deps.Deps) string {
 	var (
-		name    = d.DB.Name()
-		path    = txt.PaddedLine("path:", files.CollapseHomeDir(d.DB.Cfg.Fullpath()))
-		records = txt.PaddedLine("records:", d.DB.Count(d.Context(), "bookmarks"))
-		tags    = txt.PaddedLine("tags:", d.DB.Count(d.Context(), "tags"))
+		name    = d.Repo.Name()
+		path    = txt.PaddedLine("path:", files.CollapseHomeDir(d.Repo.Cfg.Fullpath()))
+		records = txt.PaddedLine("records:", d.Repo.Count(d.Context(), "bookmarks"))
+		tags    = txt.PaddedLine("tags:", d.Repo.Count(d.Context(), "tags"))
 		p       = d.Console().Palette()
 	)
 
@@ -143,7 +143,7 @@ func BackupListDetail(d *deps.Deps) string {
 	c := d.Console()
 	p := c.Palette()
 	backupPath := d.App.Path.Backup
-	dbName := files.StripSuffixes(d.DB.Name())
+	dbName := files.StripSuffixes(d.Repo.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
 		return ""
@@ -177,7 +177,7 @@ func Backups(d *deps.Deps) string {
 		lastBackupDate = empty
 	)
 
-	dbName := files.StripSuffixes(d.DB.Name())
+	dbName := files.StripSuffixes(d.Repo.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
 		return ""

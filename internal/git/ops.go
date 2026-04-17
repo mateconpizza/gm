@@ -499,7 +499,7 @@ func handleOptCreate(ctx context.Context, c *ui.Console, gr *Repository) (string
 		return "", fmt.Errorf("initializing database: %w", err)
 	}
 
-	return parseGitRepoOpt(deps.New(ctx, deps.WithDB(r), deps.WithConsole(c)), opt, newGr)
+	return parseGitRepoOpt(deps.New(ctx, deps.WithRepo(r), deps.WithConsole(c)), opt, newGr)
 }
 
 func handleOptDrop(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {

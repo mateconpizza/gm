@@ -19,19 +19,26 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:   "clean [query]",
 		Short: "strip URL params",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
 			m := handler.MenuSimple[bookmark.Bookmark](
 				app,
 				menu.WithMultiSelection(),
 				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" parameters highlighted "),
+				menu.WithNth("3.."),
 				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
 			)
 
 			m.SetFormatter(func(b *bookmark.Bookmark) string {
 				bm := *b
 				bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
-				return txt.OnelineURL(ansi.NewPalette(), &bm)
+				return txt.OnelineURL(d.Console(), &bm)
 			})
 
 			return cmdutil.Execute(cmd, args, m, handler.ParamsURL, WithURLParametersOnly)

@@ -38,16 +38,16 @@ func NewCmd(app *application.App) *cobra.Command {
 			switch {
 			case d.App.Flags.Vacuum:
 				slog.Debug("database:", "vacuum", d.App.DBName)
-				defer d.DB.Close()
-				return d.DB.Vacuum(cmd.Context())
+				defer d.Repo.Close()
+				return d.Repo.Vacuum(cmd.Context())
 
 			case d.App.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
-				defer d.DB.Close()
+				defer d.Repo.Close()
 
 				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 				defer cancel()
-				return d.DB.ReorderIDs(ctx)
+				return d.Repo.ReorderIDs(ctx)
 			}
 
 			return cmd.Usage()
