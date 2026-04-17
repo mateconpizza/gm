@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/spf13/cobra"
-
-	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
@@ -30,9 +27,4 @@ func PrettyVersion(appName, version string) string {
 		runtime.GOOS,
 		runtime.GOARCH,
 	)
-}
-
-// Config returns the Config from the command's context.
-func Config(cmd *cobra.Command) (*config.Config, error) {
-	return config.FromContext(cmd.Context())
 }

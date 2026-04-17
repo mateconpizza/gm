@@ -64,7 +64,7 @@ func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	cfg, err := Config(cmd)
+	cfg, err := config.FromContext(cmd.Context())
 	if err != nil {
 		return err
 	}

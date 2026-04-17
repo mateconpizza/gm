@@ -44,11 +44,11 @@ import (
 // TODO: let the user set the default database.
 // - [ ] gm db use <name> (this will set it as default)?
 
-// FIX: keymap `toggle-preview` wont respect user config.
-// If set to `hidden` in will be overwriting it on
-// - `register` -> `menu/keymap.go`
+// FIX: keymap 'toggle-preview' does not respect the user configuration.
+// If the user sets the keybind to 'hidden', it will be overwritten when:
+// - 'register' -> 'menu/keymap.go'
 // or
-// - `buildPreviewArgs` -> `menu/builder.go`
+// - 'buildPreviewArgs' -> 'menu/builder.go'
 
 // NewRootCmd is the main command.
 func NewRootCmd(cfg *config.Config) *cobra.Command {
@@ -164,23 +164,6 @@ func Execute(r *cobra.Command) error {
 	defer stop()
 
 	return r.ExecuteContext(ctx)
-}
-
-func newAdminCmd(cfg *config.Config) *cobra.Command {
-	c := &cobra.Command{
-		Use:   "admin",
-		Short: "manage database and config",
-	}
-
-	c.AddCommand(
-		appcfg.NewCmd(cfg),
-		in.NewCmd(cfg),
-		out.NewCmd(cfg),
-	)
-
-	cmdutil.HideFlag(c, "help")
-
-	return c
 }
 
 func registerCleanups(_ *config.Config) {

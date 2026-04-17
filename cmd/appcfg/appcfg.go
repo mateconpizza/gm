@@ -22,7 +22,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "config",
 		Aliases: []string{"cfg", "conf"},
-		Short:   "configuration management",
+		Short:   "configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cfg.Flags.JSON {
 				return newJSONCmd(cfg).RunE(cmd, args)

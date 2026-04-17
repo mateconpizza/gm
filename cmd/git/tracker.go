@@ -17,8 +17,28 @@ import (
 func newTrackerCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "tracker",
-		Short: "track database in git",
-		RunE:  trackerFunc,
+		Short: "track database with git",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gr, err := git.NewRepo(cfg.DBPath)
+			if err != nil {
+				return err
+			}
+
+			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
+
+			switch {
+			case cfg.Flags.List:
+				return status(c, cfg, gr.Tracker.Repos)
+			case cfg.Flags.Track:
+				terminal.NonInteractiveMode(true) // don't ask confirmation
+				return track(c, gr)
+			case cfg.Flags.Untrack:
+				terminal.NonInteractiveMode(true) // don't ask confirmation
+				return untrack(c, gr)
+			}
+
+			return status(c, cfg, gr.Tracker.Repos)
+		},
 	}
 
 	c.Flags().SortFlags = false
@@ -27,39 +47,6 @@ func newTrackerCmd(cfg *config.Config) *cobra.Command {
 	c.Flags().BoolVarP(&cfg.Flags.Untrack, "untrack", "u", false, "untrack database in git")
 
 	return c
-}
-
-var gitTrackerCmd = &cobra.Command{
-	Use:   "tracker",
-	Short: "track database in git",
-	RunE:  trackerFunc,
-}
-
-func trackerFunc(cmd *cobra.Command, _ []string) error {
-	cfg, err := config.FromContext(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
-	}
-
-	gr, err := git.NewRepo(cfg.DBPath)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-
-	switch {
-	case cfg.Flags.List:
-		return status(c, cfg, gr.Tracker.Repos)
-	case cfg.Flags.Track:
-		terminal.NonInteractiveMode(true) // don't ask confirmation
-		return track(c, gr)
-	case cfg.Flags.Untrack:
-		terminal.NonInteractiveMode(true)
-		return untrack(c, gr)
-	}
-
-	return status(c, cfg, gr.Tracker.Repos)
 }
 
 // managementSelect select which database to track in the git repository.

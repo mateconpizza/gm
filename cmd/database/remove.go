@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"io"
 	"strings"
 
@@ -57,7 +56,7 @@ func newDatabaseRemoveCmd(cfg *config.Config) *cobra.Command {
 		Use:      "rm",
 		Aliases:  []string{"remove"},
 		Short:    "remove a database",
-		PostRunE: databaseRemovePostFunc,
+		PostRunE: databaseRemovePostFunc(cfg),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a, cancel, err := cmdutil.SetupApp(cmd, &args)
 			if err != nil {
@@ -74,23 +73,20 @@ func newDatabaseRemoveCmd(cfg *config.Config) *cobra.Command {
 	return c
 }
 
-func databaseRemovePostFunc(cmd *cobra.Command, _ []string) error {
-	cfg, err := config.FromContext(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
-	}
+func databaseRemovePostFunc(cfg *config.Config) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, _ []string) error {
+		if !cfg.Git.Enabled {
+			return nil
+		}
 
-	if !cfg.Git.Enabled {
-		return nil
-	}
+		gr, err := git.NewRepo(cfg.DBPath)
+		if err != nil {
+			return err
+		}
+		if !gr.IsTracked() {
+			return nil
+		}
 
-	gr, err := git.NewRepo(cfg.DBPath)
-	if err != nil {
-		return err
+		return gr.Untrack("removed database")
 	}
-	if !gr.IsTracked() {
-		return nil
-	}
-
-	return gr.Untrack("removed database")
 }

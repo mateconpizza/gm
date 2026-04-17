@@ -35,8 +35,23 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Short:              "git sync",
 		Aliases:            []string{"g"},
 		PersistentPreRunE:  cli.HookEnsureGitEnv,
-		RunE:               gitCommandFunc,
 		DisableFlagParsing: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !files.Exists(cfg.Git.Path) {
+				return git.ErrGitNotInitialized
+			}
+
+			gm, err := git.NewManager(cmd.Context(), cfg.Git.Path)
+			if err != nil {
+				return fmt.Errorf("%w", err)
+			}
+
+			if len(args) == 0 {
+				args = append(args, "log", "--oneline", "--reverse")
+			}
+
+			return gm.Exec(args...)
+		},
 	}
 
 	cmds := []*cobra.Command{
@@ -258,29 +273,6 @@ func processImported(c *ui.Console, imported []string, commitMesg string) error 
 	}
 
 	return nil
-}
-
-// gitCmd represents the git command.
-func gitCommandFunc(cmd *cobra.Command, args []string) error {
-	cfg, err := config.FromContext(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
-	}
-
-	if !files.Exists(cfg.Git.Path) {
-		return git.ErrGitNotInitialized
-	}
-
-	gm, err := git.NewManager(cmd.Context(), cfg.Git.Path)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if len(args) == 0 {
-		args = append(args, "log", "--oneline", "--reverse")
-	}
-
-	return gm.Exec(args...)
 }
 
 // pushFunc pushes local changes to the remote repository.

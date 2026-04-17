@@ -164,11 +164,6 @@ func newUnlockCmd(cfg *config.Config) *cobra.Command {
 		Short:       "unlock a database",
 		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.FromContext(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed to get config: %w", err)
-			}
-
 			a := app.New(cmd.Context(),
 				app.WithConfig(cfg),
 				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
@@ -185,11 +180,6 @@ func newUnlockCmd(cfg *config.Config) *cobra.Command {
 
 func dbDropPostFunc(cfg *config.Config) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
-		cfg, err := config.FromContext(cmd.Context())
-		if err != nil {
-			return fmt.Errorf("failed to get config: %w", err)
-		}
-
 		if !cfg.Git.Enabled {
 			return nil
 		}

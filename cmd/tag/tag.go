@@ -11,8 +11,8 @@ import (
 func NewCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "tag",
-		Aliases: []string{"t"},
-		Short:   "tags management (wip)",
+		Aliases: []string{"t", "tags"},
+		Short:   "tags ops (wip)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case cfg.Flags.JSON:

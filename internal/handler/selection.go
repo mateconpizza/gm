@@ -23,7 +23,7 @@ func MenuMainForRecords[T comparable](cfg *config.Config) *menu.Menu[T] {
 	kb := menu.NewKeybindBuilder(cfg.Cmd, cfg.DBName)
 	k := cfg.Menu.DefaultKeymaps
 	mo := []menu.Option{
-		menu.WithBorderLabel(" " + config.AppName + " "),
+		menu.WithBorderLabel(" " + cfg.Name + " "),
 		menu.WithConfig(cfg.Menu),
 		menu.WithMultiSelection(),
 		menu.WithOutputColor(cfg.Flags.Color),

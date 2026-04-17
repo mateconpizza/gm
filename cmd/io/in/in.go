@@ -16,8 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -37,6 +35,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	c.AddCommand(
+		newHTMLCmd(cfg),
 		newBrowserCmd(cfg),
 		newFromDatabaseCmd(cfg),
 		newFromBackupCmd(cfg),
@@ -157,12 +156,7 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "html",
 		Short: "import from HTML Netscape file",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := config.FromContext(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed to get config: %w", err)
-			}
-
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if cfg.Flags.Path == "" {
 				return fmt.Errorf("%w: %q", ErrMissingArg, "filename")
 			}
@@ -193,25 +187,17 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 				bs = append(bs, bookio.FromNetscape(&nbs[i]))
 			}
 
-			r, err := db.New(cfg.DBPath)
+			a, cancel, err := cmdutil.SetupApp(cmd, &args)
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
-			defer r.Close()
+			defer cancel()
 
-			c := ui.NewConsole(
-				ui.WithTerminal(terminal.New(
-					terminal.WithContext(cmd.Context()),
-					terminal.WithInterruptFn(func(err error) {
-						r.Close()
-						sys.ErrAndExit(err)
-					}))),
-			)
-
+			c := a.Console()
 			s := fmt.Sprintf("Found %d bookmarks from %q\n", len(nbs), file.Name())
 			c.Frame().Success(c.Palette().Italic.Sprint(s)).Flush()
 
-			deduplicated := port.Deduplicate(cmd.Context(), c, r, bs)
+			deduplicated := port.Deduplicate(cmd.Context(), c, a.DB, bs)
 			n := len(deduplicated)
 			if n == 0 {
 				return bookmark.ErrBookmarkNotFound
@@ -240,10 +226,11 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 				}
 				n = len(deduplicated)
 			case "y", "yes":
-				fmt.Println("importing items")
+				// FIX: finish implementation
+				fmt.Println("importing items...well, not implemented yet.")
 			}
 
-			if err := r.InsertMany(cmd.Context(), deduplicated); err != nil {
+			if err := a.DB.InsertMany(cmd.Context(), deduplicated); err != nil {
 				return err
 			}
 			fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d bookmarks", n)))
@@ -253,6 +240,7 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 	}
 
 	c.Flags().StringVarP(&cfg.Flags.Path, "filename", "f", "", "filename path")
+	_ = c.MarkFlagRequired("filename")
 
 	return c
 }
