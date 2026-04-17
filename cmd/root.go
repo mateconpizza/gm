@@ -42,7 +42,13 @@ import (
 )
 
 // TODO: let the user set the default database.
-// - [ ] gm db use <name> (this will set it as default?)
+// - [ ] gm db use <name> (this will set it as default)?
+
+// FIX: keymap `toggle-preview` wont respect user config.
+// If set to `hidden` in will be overwriting it on
+// - `register` -> `menu/keymap.go`
+// or
+// - `buildPreviewArgs` -> `menu/builder.go`
 
 // NewRootCmd is the main command.
 func NewRootCmd(cfg *config.Config) *cobra.Command {
@@ -145,7 +151,9 @@ func Setup(root *cobra.Command, cfg *config.Config) {
 		archive.NewCmd(cfg),
 		database.NewCmd(cfg),
 		gitCmd.NewCmd(cfg),
-		newAdminCmd(cfg),
+		appcfg.NewCmd(cfg),
+		in.NewCmd(cfg),
+		out.NewCmd(cfg),
 		setup.NewCmd(),
 	)
 }

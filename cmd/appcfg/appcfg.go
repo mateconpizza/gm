@@ -11,7 +11,6 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -24,19 +23,21 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Use:     "config",
 		Aliases: []string{"cfg", "conf"},
 		Short:   "configuration management",
-		RunE:    cli.HookHelp,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if cfg.Flags.JSON {
+				return newJSONCmd(cfg).RunE(cmd, args)
+			}
+
+			return cmd.Help()
+		},
 	}
 
 	c.Flags().StringVarP(&cfg.Flags.ColorStr, "color", "c", "always", "")
 	c.Flags().StringVar(&cfg.DBName, "db", config.MainDBName, "database name")
+	c.Flags().BoolVarP(&cfg.Flags.JSON, "json", "j", false, "output in JSON format")
 	cmdutil.HideFlag(c, "help", "color", "db")
 
-	c.AddCommand(
-		newCreateCmd(cfg),
-		newEditCmd(cfg),
-		newJSONCmd(cfg),
-		newShowPathCmd(cfg),
-	)
+	c.AddCommand(newCreateCmd(cfg), newEditCmd(cfg), newShowPathCmd(cfg))
 
 	return c
 }
@@ -49,7 +50,6 @@ func newCreateCmd(cfg *config.Config) *cobra.Command {
 			if err := cfg.Validate(); err != nil {
 				return err
 			}
-
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 			return createConfig(c, cfg)
 		},
@@ -58,8 +58,9 @@ func newCreateCmd(cfg *config.Config) *cobra.Command {
 
 func newEditCmd(cfg *config.Config) *cobra.Command {
 	return &cobra.Command{
-		Use:   "edit",
-		Short: "edit configuration file",
+		Use:     "edit",
+		Short:   "edit configuration file",
+		Aliases: []string{"e"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cfg.Validate(); err != nil {
 				return err
@@ -122,14 +123,10 @@ func editConfig(ctx context.Context, cfg *config.Config) error {
 
 	te, err := editor.NewEditor(cfg.Env.Editor)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
-	if err := te.EditFile(ctx, p); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return nil
+	return te.EditFile(ctx, p)
 }
 
 // printConfigJSON prints the config file as JSON.

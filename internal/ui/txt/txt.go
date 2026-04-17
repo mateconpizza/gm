@@ -28,8 +28,8 @@ const (
 	UnicodeRightDoubleAngle = "\u00BB" // »
 	UnicodeSingleAngleMark  = "\u203A" // ›
 	UnicodeBlackSquare      = "\u25A0" // ■
-	UnicodeNotes            = "\U0001F4DD"
-	UnicodeDash             = "—" // —
+	UnicodeDash             = "\u2014" // —
+	UnicodeHeavyVertical    = "\u2503" // ┃
 )
 
 // TimeLayout is the default layout for time formatting.

@@ -151,8 +151,8 @@ func FlagFormat(c *cobra.Command, cfg *config.Config) {
 func FlagsFilter(c *cobra.Command, cfg *config.Config) {
 	c.Flags().SortFlags = false
 	c.Flags().StringSliceVarP(&cfg.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
-	c.Flags().IntVarP(&cfg.Flags.Head, "head", "H", 0, "show first N bookmarks")
-	c.Flags().IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "show last N bookmarks")
+	c.Flags().IntVarP(&cfg.Flags.Head, "head", "H", 0, "limit to first N bookmarks")
+	c.Flags().IntVarP(&cfg.Flags.Tail, "tail", "T", 0, "limit to last N bookmarks")
 }
 
 func FlagMenu(c *cobra.Command, cfg *config.Config) {

@@ -23,10 +23,10 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 		Use:   use,
 		Short: "wayback lookup",
 		Example: fmt.Sprintf(`  # get the latest snapshot for bookmark 179
-  %s archive %s --latest 179
+  %s archive %s 179 --latest
 
   # get up to 5 snapshots from 2023
-  %s archive %s --limit 5 --year 2023 179`, cfg.Cmd, use, cfg.Cmd, use),
+  %s archive %s 179 --limit 5 --year 2023 179`, cfg.Cmd, use, cfg.Cmd, use),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cfg.Flags
 
@@ -52,10 +52,10 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 	f := c.Flags()
 	f.SortFlags = false
 	cmdutil.FlagMenu(c, cfg)
-	cmdutil.FlagsFilter(c, cfg)
 	f.BoolVarP(&cfg.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
 	f.IntVarP(&cfg.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
 	f.IntVarP(&cfg.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
+	cmdutil.FlagsFilter(c, cfg)
 	cmdutil.HideFlag(c, "help")
 
 	return c
