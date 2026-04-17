@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -43,7 +43,7 @@ func SetupConfig(t *testing.T) *config.Config {
 	}
 }
 
-func SetupApp(t *testing.T) *app.Context {
+func SetupDeps(t *testing.T) *deps.Deps {
 	t.Helper()
 
 	cfg := SetupConfig(t)
@@ -56,9 +56,9 @@ func SetupApp(t *testing.T) *app.Context {
 		terminal.WithWriter(io.Discard),
 	)
 
-	return app.New(t.Context(),
-		app.WithConfig(cfg),
-		app.WithConsole(ui.NewConsole(
+	return deps.New(t.Context(),
+		deps.WithConfig(cfg),
+		deps.WithConsole(ui.NewConsole(
 			ui.WithTerminal(tm),
 			ui.WithFrame(frame.New()),
 		)),

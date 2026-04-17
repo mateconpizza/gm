@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -26,14 +26,15 @@ var InitCmd = &cobra.Command{
 	Annotations:       cli.SkipDBCheckAnnotation,
 	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// TODO: convert `InitCmd` to command builder(*config.Config)
 		cfg, err := config.FromContext(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("failed to get config: %w", err)
 		}
 
-		return initializeAction(app.New(cmd.Context(),
-			app.WithConfig(cfg),
-			app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
+		return initializeAction(deps.New(cmd.Context(),
+			deps.WithConfig(cfg),
+			deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 		))
 	},
 	PostRunE: InitAppPostFunc,
@@ -43,8 +44,8 @@ func NewCmd() *cobra.Command {
 	return InitCmd
 }
 
-func initializeAction(a *app.Context) error {
-	c, cfg := a.Console(), a.Cfg
+func initializeAction(d *deps.Deps) error {
+	c, cfg := d.Console(), d.Cfg
 	if err := createPaths(c, cfg); err != nil {
 		return err
 	}
@@ -55,16 +56,16 @@ func initializeAction(a *app.Context) error {
 	}
 	defer store.Close()
 
-	if ok := store.IsInitialized(a.Context()); ok && !cfg.Flags.Force {
+	if ok := store.IsInitialized(d.Context()); ok && !cfg.Flags.Force {
 		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
 	}
 
-	if err := store.Init(a.Context()); err != nil {
+	if err := store.Init(d.Context()); err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
 	if cfg.DBName != config.MainDBName {
-		fmt.Fprintln(a.Writer(), c.SuccessMesg("initialized database "+cfg.DBName))
+		fmt.Fprintln(d.Writer(), c.SuccessMesg("initialized database "+cfg.DBName))
 		return nil
 	}
 
@@ -76,12 +77,12 @@ func initializeAction(a *app.Context) error {
 	ib.Tags = bookmark.ParseTags(cfg.Info.Tags)
 	ib.Desc = cfg.Info.Desc
 
-	if _, err := store.InsertOne(a.Context(), ib); err != nil {
+	if _, err := store.InsertOne(d.Context(), ib); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Fprint(a.Writer(), txt.Frame(c, ib))
-	fmt.Fprintln(a.Writer(), "\n"+c.SuccessMesg("initialized database "+cfg.DBName))
+	fmt.Fprint(d.Writer(), txt.Frame(c, ib))
+	fmt.Fprintln(d.Writer(), "\n"+c.SuccessMesg("initialized database "+cfg.DBName))
 
 	return nil
 }

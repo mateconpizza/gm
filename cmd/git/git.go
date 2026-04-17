@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -83,13 +83,13 @@ func newImportCmd(cfg *config.Config) *cobra.Command {
 				return git.ErrGitRepoURLEmpty
 			}
 
-			a, cleanup, err := cmdutil.SetupApp(cmd, &args)
+			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cleanup()
 
-			return importFromClone(a, cmd.Short)
+			return importFromClone(d, cmd.Short)
 		},
 	}
 
@@ -216,15 +216,15 @@ func newCloneCmd(cfg *config.Config) *cobra.Command {
 }
 
 // importFromClone clones a git repo and imports its bookmarks.
-func importFromClone(a *app.Context, commitMesg string) error {
-	cfg := a.Cfg
+func importFromClone(d *deps.Deps, commitMesg string) error {
+	cfg := d.Cfg
 	tmpPath := filepath.Join(os.TempDir(), cfg.Name+"-clone")
 	if files.Exists(tmpPath) {
 		_ = files.RemoveAll(tmpPath)
 	}
 	defer func() { _ = files.RemoveAll(tmpPath) }()
 
-	a.SetConsole(ui.NewDefaultConsole(a.Context(), func(err error) {
+	d.SetConsole(ui.NewDefaultConsole(d.Context(), func(err error) {
 		fmt.Println("cleaning up temp files...")
 		if err := files.RemoveAll(tmpPath); err != nil {
 			slog.Error("cleaning up temp dir", "path", tmpPath)
@@ -232,12 +232,12 @@ func importFromClone(a *app.Context, commitMesg string) error {
 		sys.ErrAndExit(err)
 	}))
 
-	gm, err := git.NewManager(a.Context(), tmpPath)
+	gm, err := git.NewManager(d.Context(), tmpPath)
 	if err != nil {
 		return err
 	}
 
-	imported, err := git.Import(a, gm)
+	imported, err := git.Import(d, gm)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func importFromClone(a *app.Context, commitMesg string) error {
 		return nil
 	}
 
-	return processImported(a.Console(), imported, commitMesg)
+	return processImported(d.Console(), imported, commitMesg)
 }
 
 func processImported(c *ui.Console, imported []string, commitMesg string) error {

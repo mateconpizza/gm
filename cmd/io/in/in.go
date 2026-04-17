@@ -58,14 +58,14 @@ func newFromDatabaseCmd(cfg *config.Config) *cobra.Command {
 			}
 			defer rDest.Close()
 
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
 			// FIX: refactor `SelectDatabase`, return a string (fullpath)
-			srcDB, err := handler.SelectDatabase(a, rDest.Cfg.Fullpath())
+			srcDB, err := handler.SelectDatabase(d, rDest.Cfg.Fullpath())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -75,7 +75,7 @@ func newFromDatabaseCmd(cfg *config.Config) *cobra.Command {
 			}
 			defer rSrc.Close()
 
-			return port.Database(a, rSrc, rDest)
+			return port.Database(d, rSrc, rDest)
 		},
 	}
 
@@ -104,13 +104,13 @@ func newFromBackupCmd(cfg *config.Config) *cobra.Command {
 				return db.ErrBackupNotFound
 			}
 
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			backupPath, err := handler.SelectBackupOne(a, bks)
+			backupPath, err := handler.SelectBackupOne(d, bks)
 			if err != nil {
 				return err
 			}
@@ -121,7 +121,7 @@ func newFromBackupCmd(cfg *config.Config) *cobra.Command {
 			}
 			defer srcRepo.Close()
 
-			return port.FromBackup(a, destRepo, srcRepo)
+			return port.FromBackup(d, destRepo, srcRepo)
 		},
 	}
 
@@ -139,13 +139,13 @@ func newBrowserCmd(cfg *config.Config) *cobra.Command {
 			}
 			defer r.Close()
 
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			return port.Browser(a)
+			return port.Browser(d)
 		},
 	}
 
@@ -187,17 +187,17 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 				bs = append(bs, bookio.FromNetscape(&nbs[i]))
 			}
 
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			c := a.Console()
+			c := d.Console()
 			s := fmt.Sprintf("Found %d bookmarks from %q\n", len(nbs), file.Name())
 			c.Frame().Success(c.Palette().Italic.Sprint(s)).Flush()
 
-			deduplicated := port.Deduplicate(cmd.Context(), c, a.DB, bs)
+			deduplicated := port.Deduplicate(cmd.Context(), c, d.DB, bs)
 			n := len(deduplicated)
 			if n == 0 {
 				return bookmark.ErrBookmarkNotFound
@@ -230,7 +230,7 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 				fmt.Println("importing items...well, not implemented yet.")
 			}
 
-			if err := a.DB.InsertMany(cmd.Context(), deduplicated); err != nil {
+			if err := d.DB.InsertMany(cmd.Context(), deduplicated); err != nil {
 				return err
 			}
 			fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d bookmarks", n)))

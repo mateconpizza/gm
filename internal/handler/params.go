@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -20,20 +20,20 @@ import (
 var ErrURLParamsNotFound = errors.New("params not found")
 
 type ParamsProcessor struct {
-	a   *app.Context
+	d   *deps.Deps
 	cfg *config.Config
 	m   *menu.Menu[string]
 }
 
 // ParamsURL processes and optionally cleans query params for each bookmark.
-func ParamsURL(a *app.Context, bs []*bookmark.Bookmark) error {
-	cfg, err := a.Config()
+func ParamsURL(d *deps.Deps, bs []*bookmark.Bookmark) error {
+	cfg, err := d.Config()
 	if err != nil {
 		return err
 	}
 
 	pp := &ParamsProcessor{
-		a:   a,
+		d:   d,
 		cfg: cfg,
 		m: menu.New[string](
 			menu.WithArgs("--cycle"),
@@ -102,8 +102,8 @@ func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {
 
 // PrintParamChanges displays the original and cleaned URL with removed
 // parameters.
-func diffParams(a *app.Context, originalURL string, params []string) int {
-	f, p := a.Console().Frame(), a.Console().Palette()
+func diffParams(d *deps.Deps, originalURL string, params []string) int {
+	f, p := d.Console().Frame(), d.Console().Palette()
 	f.Headerln(p.Bold.Wrap("Cleaning URL parameters", p.Yellow))
 
 	f.Midln("Original URL:").Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, terminal.MaxWidth))).
@@ -119,7 +119,7 @@ func diffParams(a *app.Context, originalURL string, params []string) int {
 	f.Rowln()
 
 	lines := txt.CountLines(f.String())
-	if a.Cfg.Flags.Yes {
+	if d.Cfg.Flags.Yes {
 		lines--
 	}
 
@@ -182,13 +182,13 @@ func processBookmarkParams(pp *ParamsProcessor, b *bookmark.Bookmark) error {
 		return nil
 	}
 
-	opt, linesToClear, err := promptParamRemoval(pp.a, b.URL, u.Query())
+	opt, linesToClear, err := promptParamRemoval(pp.d, b.URL, u.Query())
 	if err != nil {
 		return err
 	}
 
 	// clear the terminal lines after receiving input
-	pp.a.Console().ClearLine(linesToClear)
+	pp.d.Console().ClearLine(linesToClear)
 
 	newURL, skipped, err := computeNewURL(pp.m, u, opt)
 	if err != nil {
@@ -196,9 +196,9 @@ func processBookmarkParams(pp *ParamsProcessor, b *bookmark.Bookmark) error {
 	}
 
 	if skipped {
-		p := pp.a.Console().Palette()
+		p := pp.d.Console().Palette()
 		id := func(val any) string { return p.Bold.Sprint("[", val, "] ") }
-		pp.a.Console().Frame().Warning(id(b.ID) + p.BrightYellow.Wrap("skipping", p.Italic) + " bookmark").Ln().Flush()
+		pp.d.Console().Frame().Warning(id(b.ID) + p.BrightYellow.Wrap("skipping", p.Italic) + " bookmark").Ln().Flush()
 		return nil
 	}
 
@@ -213,8 +213,8 @@ func processBookmarkParams(pp *ParamsProcessor, b *bookmark.Bookmark) error {
 }
 
 // promptParamRemoval displays URL param diff and asks whether to remove them.
-func promptParamRemoval(a *app.Context, urlStr string, q url.Values) (opt string, lines int, err error) {
-	c := a.Console()
+func promptParamRemoval(d *deps.Deps, urlStr string, q url.Values) (opt string, lines int, err error) {
+	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 	sep := "="
 
@@ -226,7 +226,7 @@ func promptParamRemoval(a *app.Context, urlStr string, q url.Values) (opt string
 		}
 	}
 
-	lines = diffParams(a, urlStr, params)
+	lines = diffParams(d, urlStr, params)
 	f.Flush()
 
 	opts := []string{"no", "yes", "select"}
@@ -268,7 +268,7 @@ func computeNewURL(m *menu.Menu[string], u *url.URL, opt string) (newURL string,
 // persistBookmarkUpdate updates the bookmark URL in the DB and Git if no
 // duplicate exists.
 func persistBookmarkUpdate(pp *ParamsProcessor, b *bookmark.Bookmark, newURL string) error {
-	c := pp.a.Console()
+	c := pp.d.Console()
 	f, p := c.Frame(), c.Palette()
 	id := func(val any) string { return p.Bold.Sprint("[", val, "] ") }
 
@@ -276,14 +276,14 @@ func persistBookmarkUpdate(pp *ParamsProcessor, b *bookmark.Bookmark, newURL str
 	newB.URL = newURL
 
 	// check for duplicates
-	if book, has := pp.a.DB.Has(pp.a.Context(), newB.URL); has {
+	if book, has := pp.d.DB.Has(pp.d.Context(), newB.URL); has {
 		f.Error(id(newB.ID) + p.BrightRed.Wrap("already", p.Italic) + " exists with " + id(book.ID)).
 			Ln().Flush()
 		return nil
 	}
 
 	f.Success(id(newB.ID) + p.BrightGreen.Wrap("updating", p.Italic) + " bookmark").Ln().Flush()
-	if err := pp.a.DB.UpdateOne(pp.a.Context(), &newB); err != nil {
+	if err := pp.d.DB.UpdateOne(pp.d.Context(), &newB); err != nil {
 		return err
 	}
 

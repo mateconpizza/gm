@@ -26,9 +26,9 @@ import (
 	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/cmd/tag"
 	"github.com/mateconpizza/gm/cmd/yank"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -60,12 +60,12 @@ func NewRootCmd(cfg *config.Config) *cobra.Command {
 		Version:           cli.PrettyVersion(cfg.Name, cfg.Info.Version),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := handler.MenuMainForRecords[bookmark.Bookmark](cfg)
-			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				switch {
-				case a.Cfg.Flags.Format != "":
-					return printer.Display(a.Console(), a.Cfg.Flags.Format, bs)
+				case d.Cfg.Flags.Format != "":
+					return printer.Display(d.Console(), d.Cfg.Flags.Format, bs)
 				default:
-					return printer.Records(a.Console(), bs)
+					return printer.Records(d.Console(), bs)
 				}
 			})
 		},

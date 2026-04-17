@@ -12,11 +12,11 @@ import (
 )
 
 func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
-	a := testutil.SetupApp(t)
+	d := testutil.SetupDeps(t)
 	var buf bytes.Buffer
-	a.SetWriter(&buf)
+	d.SetWriter(&buf)
 
-	err := initializeAction(a)
+	err := initializeAction(d)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -25,12 +25,12 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	if !strings.Contains(output, "initialized database") {
 		t.Errorf("expected output to contain 'initialized database', got %q", output)
 	}
-	if !strings.Contains(output, a.Cfg.Info.Title) {
-		t.Errorf("expected output to contain title %q, got %q", a.Cfg.Info.Title, output)
+	if !strings.Contains(output, d.Cfg.Info.Title) {
+		t.Errorf("expected output to contain title %q, got %q", d.Cfg.Info.Title, output)
 	}
 
 	// Verify database was actually initialized
-	store, err := db.New(a.Cfg.DBPath)
+	store, err := db.New(d.Cfg.DBPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -41,26 +41,26 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	}
 
 	// Verify initial bookmark was inserted
-	bm, err := store.ByID(a.Context(), 1)
+	bm, err := store.ByID(d.Context(), 1)
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}
-	if bm.URL != a.Cfg.Info.URL {
-		t.Errorf("expected URL %q, got %q", a.Cfg.Info.URL, bm.URL)
+	if bm.URL != d.Cfg.Info.URL {
+		t.Errorf("expected URL %q, got %q", d.Cfg.Info.URL, bm.URL)
 	}
-	if bm.Title != a.Cfg.Info.Title {
-		t.Errorf("expected title %q, got %q", a.Cfg.Info.Title, bm.Title)
+	if bm.Title != d.Cfg.Info.Title {
+		t.Errorf("expected title %q, got %q", d.Cfg.Info.Title, bm.Title)
 	}
 }
 
 func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
-	a := testutil.SetupApp(t)
-	a.Cfg.DBName = "test-db"
-	a.Cfg.DBPath = filepath.Join(a.Cfg.Path.Data, a.Cfg.DBName)
+	d := testutil.SetupDeps(t)
+	d.Cfg.DBName = "test-db"
+	d.Cfg.DBPath = filepath.Join(d.Cfg.Path.Data, d.Cfg.DBName)
 	var buf bytes.Buffer
-	a.SetWriter(&buf)
+	d.SetWriter(&buf)
 
-	err := initializeAction(a)
+	err := initializeAction(d)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -70,23 +70,23 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 		t.Errorf("expected output to contain 'initialized database test-db', got %q", output)
 	}
 	// Should not contain bookmark frame for non-main DB
-	if strings.Contains(output, a.Cfg.Info.Title) {
+	if strings.Contains(output, d.Cfg.Info.Title) {
 		t.Errorf("expected output to not contain title for non-main DB, got %q", output)
 	}
 }
 
 func TestFailsWhenDatabaseAlreadyInitializedWithoutForceFlag(t *testing.T) {
 	t.Skip("Update database initialization")
-	a := testutil.SetupApp(t)
+	d := testutil.SetupDeps(t)
 
 	// Initialize database first time
-	err := initializeAction(a)
+	err := initializeAction(d)
 	if err != nil {
 		t.Fatalf("first initialization failed: %v", err)
 	}
 
 	// Try to initialize again
-	err = initializeAction(a)
+	err = initializeAction(d)
 	if err == nil {
 		t.Fatal("expected error when reinitializing without force flag")
 	}
@@ -97,28 +97,28 @@ func TestFailsWhenDatabaseAlreadyInitializedWithoutForceFlag(t *testing.T) {
 
 func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 	t.Skip("Update database initialization")
-	a := testutil.SetupApp(t)
+	d := testutil.SetupDeps(t)
 
 	// Initialize database first time
-	err := initializeAction(a)
+	err := initializeAction(d)
 	if err != nil {
 		t.Fatalf("first initialization failed: %v", err)
 	}
 
 	// Set force flag and try again
-	a.Cfg.Flags.Force = true
-	err = initializeAction(a)
+	d.Cfg.Flags.Force = true
+	err = initializeAction(d)
 	if err != nil {
 		t.Errorf("expected no error with force flag, got %v", err)
 	}
 }
 
 func TestFailsWhenInitReturnsErr(t *testing.T) {
-	a := testutil.SetupApp(t)
+	d := testutil.SetupDeps(t)
 	// Set invalid DB path
-	a.Cfg.DBPath = "/invalid/path/\x00/db"
+	d.Cfg.DBPath = "/invalid/path/\x00/db"
 
-	err := initializeAction(a)
+	err := initializeAction(d)
 
 	if err == nil {
 		t.Fatal("expected error with invalid DB path")
@@ -126,33 +126,33 @@ func TestFailsWhenInitReturnsErr(t *testing.T) {
 }
 
 func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
-	a := testutil.SetupApp(t)
+	d := testutil.SetupDeps(t)
 	// Set invalid bookmark data that would cause insertion to fail
-	a.Cfg.Info.URL = "" // Invalid bookmark
+	d.Cfg.Info.URL = "" // Invalid bookmark
 
-	err := initializeAction(a)
+	err := initializeAction(d)
 	if err == nil {
 		t.Fatal("expected error with invalid bookmark data")
 	}
 }
 
 func TestParseAndStoreBookmarkTags(t *testing.T) {
-	a := testutil.SetupApp(t)
+	d := testutil.SetupDeps(t)
 	var buf bytes.Buffer
-	a.SetWriter(&buf)
+	d.SetWriter(&buf)
 
-	err := initializeAction(a)
+	err := initializeAction(d)
 	if err != nil {
 		t.Fatalf("initialization failed: %v", err)
 	}
 
-	store, err := db.New(a.Cfg.DBPath)
+	store, err := db.New(d.Cfg.DBPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
 	defer store.Close()
 
-	bm, err := store.ByID(a.Context(), 1)
+	bm, err := store.ByID(d.Context(), 1)
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}

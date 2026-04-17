@@ -8,9 +8,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -31,7 +31,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				const maxGoroutines = 15
 
 				n := len(bs)
@@ -40,11 +40,11 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 				}
 
 				s := fmt.Sprintf("checking status of %d bookmarks", n)
-				if err := a.Console().ConfirmLimit(n, maxGoroutines, s, a.Cfg.Flags.Force); err != nil {
+				if err := d.Console().ConfirmLimit(n, maxGoroutines, s, d.Cfg.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
-				if err := status.Check(a.Context(), a.Console(), bs); err != nil {
+				if err := status.Check(d.Context(), d.Console(), bs); err != nil {
 					return err
 				}
 
@@ -54,7 +54,7 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 						continue
 					}
 
-					if err := a.DB.UpdateOne(a.Context(), b); err != nil {
+					if err := d.DB.UpdateOne(d.Context(), b); err != nil {
 						return err
 					}
 				}
@@ -85,15 +85,15 @@ func newUpdateCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
-				p := a.Console().Palette()
+			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+				p := d.Console().Palette()
 				n := len(bs)
 				if n > 1 {
-					a.Console().Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
+					d.Console().Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
 				}
 
 				for _, b := range bs {
-					if err := handler.ProcessBookmarkUpdate(a, b); err != nil {
+					if err := handler.ProcessBookmarkUpdate(d, b); err != nil {
 						return err
 					}
 				}

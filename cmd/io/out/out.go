@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -53,7 +53,7 @@ func newHTMLCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(_ *app.Context, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(_ *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.ExportToNetscapeHTML(bs, os.Stdout)
 			})
 		},
@@ -77,7 +77,7 @@ func newJSONCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(_ *app.Context, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(_ *deps.Deps, bs []*bookmark.Bookmark) error {
 				return printer.RecordsJSON(bs)
 			})
 		},

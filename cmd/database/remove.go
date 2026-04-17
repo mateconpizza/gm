@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -26,9 +26,9 @@ func newBackupRemoveCmd(cfg *config.Config) *cobra.Command {
 		Aliases: []string{"backup", "b", "backups"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input := "s\n" // input for prompt, this will show the menu to select backups files.
-			a := app.New(cmd.Context(),
-				app.WithConfig(cfg),
-				app.WithConsole(ui.NewConsole(
+			d := deps.New(cmd.Context(),
+				deps.WithConfig(cfg),
+				deps.WithConsole(ui.NewConsole(
 					ui.WithFrame(frame.New(frame.WithColorBorder(ansi.BrightBlack))),
 					ui.WithTerminal(terminal.New(
 						terminal.WithContext(cmd.Context()),
@@ -42,7 +42,7 @@ func newBackupRemoveCmd(cfg *config.Config) *cobra.Command {
 				)),
 			)
 
-			return handler.RemoveBackups(a)
+			return handler.RemoveBackups(d)
 		},
 	}
 
@@ -58,13 +58,13 @@ func newDatabaseRemoveCmd(cfg *config.Config) *cobra.Command {
 		Short:    "remove a database",
 		PostRunE: databaseRemovePostFunc(cfg),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			return handler.RemoveRepo(a)
+			return handler.RemoveRepo(d)
 		},
 	}
 

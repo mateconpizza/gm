@@ -11,7 +11,7 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/mateconpizza/gm/internal/app"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -33,16 +33,16 @@ func newResult(u, s, m string) SnapshotResult {
 	return SnapshotResult{URL: u, State: s, Msg: m}
 }
 
-func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
+func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	// FIX: updateSpinnerWithDeadline
-	ctx, cancel := context.WithTimeout(a.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(d.Context(), 30*time.Second)
 	sem := semaphore.NewWeighted(1)
 	var (
 		count uint32
 		wg    sync.WaitGroup
 	)
 
-	c := a.Console()
+	c := d.Console()
 	f := c.Frame()
 	results := make(chan SnapshotResult, len(bs))
 	sp := rotato.New(
@@ -69,7 +69,7 @@ func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 			f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
 			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", idx, len(bs), f.Info(txt.Shorten(b.URL, 80)).String()))
 
-			res := processBookmark(a, b)
+			res := processBookmark(d, b)
 			cancel()
 			results <- res
 		}(b)
@@ -84,22 +84,22 @@ func WaybackLatestSnapshot(a *app.Context, bs []*bookmark.Bookmark) error {
 	return printSummary(c, results)
 }
 
-func processBookmark(a *app.Context, b *bookmark.Bookmark) SnapshotResult {
+func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
 	u := txt.Shorten(b.URL, 60)
 
-	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !a.Cfg.Flags.Force {
+	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !d.Cfg.Flags.Force {
 		return newResult(u, "skipped", wayback.ErrAlreadyArchived.Error())
 	}
 
 	ct := wayback.New()
-	s, err := ct.ClosestSnapshot(a.Context(), b.URL)
+	s, err := ct.ClosestSnapshot(d.Context(), b.URL)
 	if err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
 	b.ArchiveURL = s.ArchiveURL
 	b.ArchiveTimestamp = s.ArchiveTimestamp
-	if err := a.DB.UpdateOne(a.Context(), b); err != nil {
+	if err := d.DB.UpdateOne(d.Context(), b); err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
@@ -187,15 +187,15 @@ func formatTime(label, ts string) string {
 	return txt.PaddedLine(label, absolute+dimmer(relative))
 }
 
-func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
+func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
-	c, p := a.Console(), a.Console().Palette()
+	c, p := d.Console(), d.Console().Palette()
 
-	ct := wayback.New(wayback.WithByYear(a.Cfg.Flags.Year), wayback.WithLimit(a.Cfg.Flags.Limit))
+	ct := wayback.New(wayback.WithByYear(d.Cfg.Flags.Year), wayback.WithLimit(d.Cfg.Flags.Limit))
 	for _, b := range bs {
 		sp.Start()
 
-		ctx, cancel := context.WithTimeout(a.Context(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(d.Context(), 30*time.Second)
 		deadline, _ := ctx.Deadline()
 
 		u := txt.Shorten(b.URL, 60)
@@ -230,8 +230,8 @@ func WaybackSnapshots(a *app.Context, bs []*bookmark.Bookmark) error {
 		b.ArchiveURL = snap.ArchiveURL
 		b.ArchiveTimestamp = snap.ArchiveTimestamp
 
-		updateCtx, updateCancel := context.WithTimeout(a.Context(), 3*time.Second)
-		err = a.DB.UpdateOne(updateCtx, b)
+		updateCtx, updateCancel := context.WithTimeout(d.Context(), 3*time.Second)
+		err = d.DB.UpdateOne(updateCtx, b)
 		updateCancel()
 		if err != nil {
 			return fmt.Errorf("updating: %w", err)

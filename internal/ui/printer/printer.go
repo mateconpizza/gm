@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
@@ -223,16 +223,16 @@ func TagsJSON(ctx context.Context, p string) error {
 }
 
 // RepoInfo prints the database info.
-func RepoInfo(a *app.Context) error {
+func RepoInfo(d *deps.Deps) error {
 	// FIX: Test RepoInfo()
-	if err := locker.IsLocked(a.Cfg.DBPath); err != nil {
-		fmt.Print(summary.RepoFromPath(a, a.Cfg.DBPath+".enc", a.Cfg.Path.Backup))
+	if err := locker.IsLocked(d.Cfg.DBPath); err != nil {
+		fmt.Print(summary.RepoFromPath(d, d.Cfg.DBPath+".enc", d.Cfg.Path.Backup))
 		return nil
 	}
 
 	// FIX: Implement ListBackups
-	if a.Cfg.Flags.JSON {
-		b, err := port.ToJSON(a.DB)
+	if d.Cfg.Flags.JSON {
+		b, err := port.ToJSON(d.DB)
 		if err != nil {
 			return fmt.Errorf("%w", err)
 		}
@@ -242,9 +242,9 @@ func RepoInfo(a *app.Context) error {
 		return nil
 	}
 
-	info := summary.Info(a)
+	info := summary.Info(d)
 
-	g, err := git.Info(a.Console(), a.Cfg.DBPath, a.Cfg.Git)
+	g, err := git.Info(d.Console(), d.Cfg.DBPath, d.Cfg.Git)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}

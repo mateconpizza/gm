@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -19,17 +19,17 @@ type bookmarkTemp struct {
 }
 
 // NewBookmark fetch metadata and parses the new bookmark.
-func NewBookmark(a *app.Context, b *bookmark.Bookmark, args []string) error {
-	title := a.Cfg.Flags.Title
-	tags := a.Cfg.Flags.TagsStr
-	c := a.Console()
+func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
+	title := d.Cfg.Flags.Title
+	tags := d.Cfg.Flags.TagsStr
+	c := d.Console()
 	newURL, err := newURLFromArgs(c, args)
 	if err != nil {
 		return err
 	}
 
 	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := a.DB.Has(a.Context(), newURL); exists {
+	if b, exists := d.DB.Has(d.Context(), newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
@@ -37,11 +37,11 @@ func NewBookmark(a *app.Context, b *bookmark.Bookmark, args []string) error {
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithContext(a.Context()), scraper.WithSpinner("scraping webpage..."))
+	sc := scraper.New(newURL, scraper.WithContext(d.Context()), scraper.WithSpinner("scraping webpage..."))
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)
-	tagsFromArgs(a, sc, bTemp)
+	tagsFromArgs(d, sc, bTemp)
 
 	b.URL = newURL
 	b.Title = bTemp.title
@@ -106,8 +106,8 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 }
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
-func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
-	c := a.Console()
+func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) {
+	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 
 	f.Header(p.BrightBlue.Sprint("Tags\t:"))
@@ -128,7 +128,7 @@ func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 	}
 
 	// Use default if force flag is set
-	if a.Cfg.Flags.Force {
+	if d.Cfg.Flags.Force {
 		b.tags = bookmark.DefaultTag
 		f.Textln(" " + p.Dim.Wrap(b.tags, p.Italic)).Flush()
 		return
@@ -138,7 +138,7 @@ func tagsFromArgs(a *app.Context, sc *scraper.Scraper, b *bookmarkTemp) {
 	f.Text(p.Dim.Sprint(" (spaces|comma separated)\n")).Flush()
 
 	// Get existing tags from database with their usage counts
-	mTags, _ := a.DB.TagsCounter(a.Context())
+	mTags, _ := d.DB.TagsCounter(d.Context())
 
 	// Let user select tags and parse them into proper format
 	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))

@@ -9,8 +9,8 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -21,53 +21,53 @@ import (
 )
 
 // RemoveRepo removes a repo.
-func RemoveRepo(a *app.Context) error {
-	if !files.Exists(a.Cfg.DBPath) {
-		return fmt.Errorf("%w: %q", db.ErrDBNotFound, a.Cfg.DBPath)
+func RemoveRepo(d *deps.Deps) error {
+	if !files.Exists(d.Cfg.DBPath) {
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, d.Cfg.DBPath)
 	}
 
-	if filepath.Base(a.Cfg.DBPath) == config.MainDBName && !a.Cfg.Flags.Force {
+	if filepath.Base(d.Cfg.DBPath) == config.MainDBName && !d.Cfg.Flags.Force {
 		f := ansi.BrightYellow.With(ansi.Italic).Sprint("--force")
 		return fmt.Errorf("%w: main database cannot be removed, use %s", ErrInvalidOption, f)
 	}
 
-	c, p := a.Console(), a.Console().Palette()
-	fmt.Fprint(a.Writer(), summary.RepoFromPath(a, a.Cfg.DBPath, a.Cfg.Path.Backup))
-	if !a.Cfg.Flags.Force {
+	c, p := d.Console(), d.Console().Palette()
+	fmt.Fprint(d.Writer(), summary.RepoFromPath(d, d.Cfg.DBPath, d.Cfg.Path.Backup))
+	if !d.Cfg.Flags.Force {
 		if err := c.ConfirmErr(
-			p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(a.Cfg.DBPath)+"?",
+			p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(d.Cfg.DBPath)+"?",
 			"n",
 		); err != nil {
 			return err
 		}
 	}
 
-	if err := RemoveBackups(a); err != nil {
+	if err := RemoveBackups(d); err != nil {
 		if !errors.Is(err, db.ErrBackupNotFound) {
 			return err
 		}
 	}
 
-	if err := files.Remove(a.Cfg.DBPath); err != nil {
+	if err := files.Remove(d.Cfg.DBPath); err != nil {
 		return err
 	}
 
-	dbName := filepath.Base(a.Cfg.DBPath)
+	dbName := filepath.Base(d.Cfg.DBPath)
 	if dbName == config.MainDBName {
 		dbName = "main"
 	}
 
-	fmt.Fprintln(a.Writer(), c.SuccessMesg("database "+dbName+" removed"))
+	fmt.Fprintln(d.Writer(), c.SuccessMesg("database "+dbName+" removed"))
 
 	return nil
 }
 
 // RemoveBackups removes backups.
-func RemoveBackups(a *app.Context) error {
-	fn := a.Cfg.DBPath
+func RemoveBackups(d *deps.Deps) error {
+	fn := d.Cfg.DBPath
 	dbName := files.StripSuffixes(filepath.Base(fn))
 	// match YYYYMMDD-HHMMSS_dbname.db
-	fs, err := files.List(a.Cfg.Path.Backup, "*_"+dbName+".db*")
+	fs, err := files.List(d.Cfg.Path.Backup, "*_"+dbName+".db*")
 	if err != nil {
 		return err
 	}
@@ -76,11 +76,11 @@ func RemoveBackups(a *app.Context) error {
 		return db.ErrBackupNotFound
 	}
 
-	if a.Cfg.Flags.Yes || a.Cfg.Flags.Force {
-		return removeSlicePath(a, fs)
+	if d.Cfg.Flags.Yes || d.Cfg.Flags.Force {
+		return removeSlicePath(d, fs)
 	}
 
-	c, p := a.Console(), a.Console().Palette()
+	c, p := d.Console(), d.Console().Palette()
 
 	filesToRemove := make([]string, 0, len(fs))
 
@@ -103,13 +103,13 @@ actionLoop:
 			c.SetWriter(os.Stdout)
 
 			selected, err := selection(fs,
-				func(p *string) string { return summary.BackupWithFmtDateFromPath(a.Context(), a.Console(), *p) },
+				func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
 				menu.WithArgs("--cycle"),
-				menu.WithConfig(a.Cfg.Menu),
+				menu.WithConfig(d.Cfg.Menu),
 				menu.WithMultiSelection(),
-				menu.WithOutputColor(a.Cfg.Flags.Color),
+				menu.WithOutputColor(d.Cfg.Flags.Color),
 				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(fn))),
-				menu.WithPreview(a.Cfg.Cmd+" db --db=./backup/{1} info"),
+				menu.WithPreview(d.Cfg.Cmd+" db --db=./backup/{1} info"),
 			)
 			if err != nil {
 				return err
@@ -122,21 +122,21 @@ actionLoop:
 
 	c.Frame().Headerln(c.Palette().BrightRed.Sprint("Removing") + " backups").Rowln().Flush()
 
-	return removeSlicePath(a, filesToRemove)
+	return removeSlicePath(d, filesToRemove)
 }
 
 // removeSlicePath removes a slice of paths.
-func removeSlicePath(a *app.Context, dbs []string) error {
-	c := a.Console()
+func removeSlicePath(d *deps.Deps, dbs []string) error {
+	c := d.Console()
 	f := c.Frame()
 	n := len(dbs)
 	if n == 0 {
 		return ErrNoItems
 	}
 
-	if n > 1 && !a.Cfg.Flags.Yes {
+	if n > 1 && !d.Cfg.Flags.Yes {
 		for i := range n {
-			f.Midln(summary.RepoRecordsFromPath(a.Context(), a.Console(), dbs[i]))
+			f.Midln(summary.RepoRecordsFromPath(d.Context(), d.Console(), dbs[i]))
 		}
 		f.Flush()
 
@@ -174,27 +174,27 @@ func removeSlicePath(a *app.Context, dbs []string) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
-	defer a.DB.Close()
-	if err := validateRemove(bs, a.Cfg.Flags.Force); err != nil {
+func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
+	defer d.DB.Close()
+	if err := validateRemove(bs, d.Cfg.Flags.Force); err != nil {
 		return err
 	}
 
-	if a.Cfg.Flags.Force {
-		return removeRecords(a, bs)
+	if d.Cfg.Flags.Force {
+		return removeRecords(d, bs)
 	}
 
-	c := a.Console()
+	c := d.Console()
 	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
-	if !a.Cfg.Flags.Yes {
+	if !d.Cfg.Flags.Yes {
 		f.Header(c.Palette().BrightRed.Sprint("Removing Bookmarks\n\n")).Flush()
 	}
 
-	t := a.Console().Term()
+	t := d.Console().Term()
 	defer t.CancelInterruptHandler()
 
 	m := menu.New[bookmark.Bookmark](
-		menu.WithOutputColor(a.Cfg.Flags.Color),
+		menu.WithOutputColor(d.Cfg.Flags.Color),
 		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithMultiSelection(),
 	)
@@ -204,7 +204,7 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 		items = append(items, *bs[i])
 	}
 
-	items, err := confirmRemove(a, m, items)
+	items, err := confirmRemove(d, m, items)
 	if err != nil {
 		return err
 	}
@@ -214,20 +214,20 @@ func Remove(a *app.Context, bs []*bookmark.Bookmark) error {
 		toRemove = append(toRemove, &items[i])
 	}
 
-	return removeRecords(a, toRemove)
+	return removeRecords(d, toRemove)
 }
 
 // DropDatabase drops a database.
-func DropDatabase(a *app.Context) error {
-	c, f := a.Console(), a.Console().Frame()
+func DropDatabase(d *deps.Deps) error {
+	c, f := d.Console(), d.Console().Frame()
 	f.Header(c.Palette().BrightRed.Sprint("Dropping") + " all records\n").Row("\n").Flush()
-	fmt.Print(summary.Info(a))
+	fmt.Print(summary.Info(d))
 
 	f.Reset().Rowln().Flush()
 
-	if !a.Cfg.Flags.Yes {
+	if !d.Cfg.Flags.Yes {
 		q := "continue?"
-		if a.DB.Name() == config.MainDBName {
+		if d.DB.Name() == config.MainDBName {
 			q = c.WarningMesg("dropping \"main\" database, continue?")
 		}
 
@@ -236,7 +236,7 @@ func DropDatabase(a *app.Context) error {
 		}
 	}
 
-	if err := a.DB.DropSecure(a.Context()); err != nil {
+	if err := d.DB.DropSecure(d.Context()); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 

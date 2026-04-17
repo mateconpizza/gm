@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -38,13 +38,13 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 				menu.WithPreview(cfg.PreviewCmd(cfg.DBName)+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(a *app.Context, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				op := waybackOperation(f)
-				if !confirmWayback(a, bs, op) {
+				if !confirmWayback(d, bs, op) {
 					return sys.ErrExitFailure
 				}
 
-				return runWayback(a, f, bs)
+				return runWayback(d, f, bs)
 			})
 		},
 	}
@@ -61,15 +61,15 @@ func newLookupCmd(cfg *config.Config) *cobra.Command {
 	return c
 }
 
-func runWayback(a *app.Context, flags *config.Flags, bs []*bookmark.Bookmark) error {
+func runWayback(d *deps.Deps, flags *config.Flags, bs []*bookmark.Bookmark) error {
 	if flags.Update {
-		return handler.WaybackLatestSnapshot(a, bs)
+		return handler.WaybackLatestSnapshot(d, bs)
 	}
-	return handler.WaybackSnapshots(a, bs)
+	return handler.WaybackSnapshots(d, bs)
 }
 
-func confirmWayback(a *app.Context, bs []*bookmark.Bookmark, op string) bool {
-	f, p := a.Console().Frame(), a.Console().Palette()
+func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
+	f, p := d.Console().Frame(), d.Console().Palette()
 
 	f.Headerln("Wayback Machine: Fetch " + op).Rowln()
 	f.Midln(p.BrightCyan.Sprintf("[%d] selected bookmarks:", len(bs))).Rowln()
@@ -85,7 +85,7 @@ func confirmWayback(a *app.Context, bs []*bookmark.Bookmark, op string) bool {
 
 	f.Rowln().Flush()
 
-	return a.Console().Confirm("continue with Wayback Machine query?", "n")
+	return d.Console().Confirm("continue with Wayback Machine query?", "n")
 }
 
 func waybackOperation(f *config.Flags) string {

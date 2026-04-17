@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -21,7 +21,7 @@ import (
 
 type (
 	// BookmarkAction defines a task to be performed on a set of bookmarks.
-	BookmarkAction func(*app.Context, []*bookmark.Bookmark) error
+	BookmarkAction func(*deps.Deps, []*bookmark.Bookmark) error
 
 	// Filter is a predicate used to narrow down a slice of bookmarks
 	// before they are passed to an action or presented in a menu.
@@ -59,8 +59,8 @@ global:
 {{- end}}
 `
 
-// SetupApp inicializa la config, db y app para los subcommands.
-func SetupApp(cmd *cobra.Command, args *[]string) (*app.Context, func(), error) {
+// SetupDeps inicializa la config, db y app para los subcommands.
+func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	cfg, err := config.FromContext(cmd.Context())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
@@ -73,20 +73,20 @@ func SetupApp(cmd *cobra.Command, args *[]string) (*app.Context, func(), error) 
 
 	terminal.ReadPipedInput(args)
 
-	a := app.New(cmd.Context(),
-		app.WithConfig(cfg),
-		app.WithDB(r),
-		app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
+	d := deps.New(cmd.Context(),
+		deps.WithConfig(cfg),
+		deps.WithDB(r),
+		deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
 			r.Close()
 			sys.ErrAndExit(err)
 		})),
 	)
 
-	return a, r.Close, nil
+	return d, r.Close, nil
 }
 
 // resolveBookmarks es el setup adicional compartido entre subcommands que trabajan con records.
-func resolveBookmarks(a *app.Context, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
+func resolveBookmarks(a *deps.Deps, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
 	if err := m.Validate(); err != nil {
 		return nil, fmt.Errorf("menu: %w", err)
 	}
@@ -106,13 +106,13 @@ func Execute(
 	action BookmarkAction,
 	filters ...Filter,
 ) error {
-	a, cleanup, err := SetupApp(c, &args)
+	d, cleanup, err := SetupDeps(c, &args)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	bs, err := resolveBookmarks(a, m, args)
+	bs, err := resolveBookmarks(d, m, args)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func Execute(
 	}
 
 	// filter by head and tail
-	f := a.Cfg.Flags
+	f := d.Cfg.Flags
 	if f.Head > 0 || f.Tail > 0 {
 		bs, err = handler.FilterByHeadAndTail(bs, f.Head, f.Tail)
 		if err != nil {
@@ -133,13 +133,13 @@ func Execute(
 
 	// menu selection
 	if f.Menu && len(bs) > 0 {
-		bs, err = handler.ApplyMenuSelection(a.Console(), m, bs)
+		bs, err = handler.ApplyMenuSelection(d.Console(), m, bs)
 		if err != nil {
 			return err
 		}
 	}
 
-	return action(a, bs)
+	return action(d, bs)
 }
 
 func FlagFormat(c *cobra.Command, cfg *config.Config) {

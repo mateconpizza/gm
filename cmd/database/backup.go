@@ -9,9 +9,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -40,13 +40,13 @@ func newBackupAddCmd(_ *config.Config) *cobra.Command {
 		Short:   "create a new backup",
 		Aliases: []string{"add", "new"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			return backupNewFunc(a)
+			return backupNewFunc(d)
 		},
 	}
 
@@ -58,23 +58,23 @@ func newBackupLockCmd(cfg *config.Config) *cobra.Command {
 		Use:   "lock",
 		Short: "lock a database backup",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			fs, err := handler.SelectBackupMany(a, a.Cfg.Path.Backup, "select backup/s to lock")
+			fs, err := handler.SelectBackupMany(d, d.Cfg.Path.Backup, "select backup/s to lock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			c := a.Console()
+			c := d.Console()
 			f, p := c.Frame(), c.Palette()
 			f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 			for _, r := range fs {
-				if err := handler.LockRepo(a, r); err != nil {
+				if err := handler.LockRepo(d, r); err != nil {
 					if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
 						f.Warning(p.BrightBlack.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
 						continue
@@ -98,31 +98,31 @@ func newBackupUnlockCmd(_ *config.Config) *cobra.Command {
 		Use:   "unlock",
 		Short: "unlock a database backup",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			p := a.Cfg.Path.Backup
+			p := d.Cfg.Path.Backup
 			if !files.Exists(p) {
 				return fmt.Errorf("%w", db.ErrBackupNotFound)
 			}
 
-			repos, err := handler.SelectFileLocked(a, p, "select backup to unlock")
+			repos, err := handler.SelectFileLocked(d, p, "select backup to unlock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			return handler.UnlockRepo(a, repos[0])
+			return handler.UnlockRepo(d, repos[0])
 		},
 	}
 
 	return c
 }
 
-func backupNewFunc(a *app.Context) error {
-	cfg := a.Cfg
+func backupNewFunc(d *deps.Deps) error {
+	cfg := d.Cfg
 	srcPath := cfg.DBPath
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
@@ -131,9 +131,9 @@ func backupNewFunc(a *app.Context) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	fmt.Fprint(a.Writer(), summary.Info(a))
+	fmt.Fprint(d.Writer(), summary.Info(d))
 
-	c := a.Console()
+	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 	f.Reset().Row("\n").Flush()
 
@@ -147,12 +147,12 @@ func backupNewFunc(a *app.Context) error {
 		return err
 	}
 
-	newBkPath, err := a.DB.Backup(a.Context(), cfg.Path.Backup)
+	newBkPath, err := d.DB.Backup(d.Context(), cfg.Path.Backup)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintln(a.Writer(), c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
+	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
 
 	if cfg.Flags.Force {
 		slog.Debug("skipping lock", "path", newBkPath)

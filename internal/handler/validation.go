@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/app"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -20,18 +20,18 @@ import (
 
 // confirmRemove prompts the user to confirm the action.
 func confirmRemove(
-	a *app.Context,
+	d *deps.Deps,
 	m *menu.Menu[bookmark.Bookmark],
 	bs []bookmark.Bookmark,
 ) ([]bookmark.Bookmark, error) {
-	for !a.Cfg.Flags.Yes {
+	for !d.Cfg.Flags.Yes {
 		n := len(bs)
 		if n == 0 {
 			return nil, db.ErrRecordNotFound
 		}
 
 		for i := range n {
-			fmt.Println(txt.Frame(a.Console(), &bs[i]))
+			fmt.Println(txt.Frame(d.Console(), &bs[i]))
 		}
 
 		opts := []string{"yes", "no"}
@@ -39,7 +39,7 @@ func confirmRemove(
 			opts = append(opts, "select")
 		}
 
-		c, p := a.Console(), a.Console().Palette()
+		c, p := d.Console(), d.Console().Palette()
 		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", p.BrightRed.Wrap("remove", p.Bold), n), opts, "n")
 		if err != nil {
 			return nil, err
@@ -52,7 +52,7 @@ func confirmRemove(
 			return bs, nil
 		case "s", "select":
 			items, err := selectionWithMenu(m, bs, func(b *bookmark.Bookmark) string {
-				return txt.Oneline(a.Console(), b)
+				return txt.Oneline(d.Console(), b)
 			})
 			if err != nil {
 				return nil, err

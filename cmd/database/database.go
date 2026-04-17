@@ -11,9 +11,9 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/setup"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/config"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -29,25 +29,25 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Aliases: []string{"database", "d"},
 		Short:   "database ops",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
 			switch {
-			case a.Cfg.Flags.Vacuum:
-				slog.Debug("database:", "vacuum", a.Cfg.DBName)
-				defer a.DB.Close()
-				return a.DB.Vacuum(cmd.Context())
+			case d.Cfg.Flags.Vacuum:
+				slog.Debug("database:", "vacuum", d.Cfg.DBName)
+				defer d.DB.Close()
+				return d.DB.Vacuum(cmd.Context())
 
-			case a.Cfg.Flags.Reorder:
+			case d.Cfg.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
-				defer a.DB.Close()
+				defer d.DB.Close()
 
 				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 				defer cancel()
-				return a.DB.ReorderIDs(ctx)
+				return d.DB.ReorderIDs(ctx)
 			}
 
 			return cmd.Usage()
@@ -73,13 +73,13 @@ func newInfoCmd(cfg *config.Config) *cobra.Command {
 		Short:   "show info about a database",
 		Aliases: []string{"i", "show"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			return printer.RepoInfo(a)
+			return printer.RepoInfo(d)
 		},
 	}
 
@@ -94,13 +94,13 @@ func newListCmd(_ *config.Config) *cobra.Command {
 		Aliases: []string{"l", "ls"},
 		Short:   "list all databases",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			return printer.DatabasesTable(cmd.Context(), a.Console(), a.Cfg.Path.Data)
+			return printer.DatabasesTable(cmd.Context(), d.Console(), d.Cfg.Path.Data)
 		},
 	}
 	return c
@@ -123,13 +123,13 @@ func newDropCmd(cfg *config.Config) *cobra.Command {
 		Short:    "drop a database",
 		PostRunE: dbDropPostFunc(cfg),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			return handler.DropDatabase(a)
+			return handler.DropDatabase(d)
 		},
 	}
 
@@ -143,13 +143,13 @@ func newLockCmd(cfg *config.Config) *cobra.Command {
 		Use:   "lock",
 		Short: "lock a database",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, cancel, err := cmdutil.SetupApp(cmd, &args)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			return handler.LockRepo(a, a.Cfg.DBPath)
+			return handler.LockRepo(d, d.Cfg.DBPath)
 		},
 	}
 
@@ -164,12 +164,12 @@ func newUnlockCmd(cfg *config.Config) *cobra.Command {
 		Short:       "unlock a database",
 		Annotations: cli.SkipDBCheckAnnotation,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := app.New(cmd.Context(),
-				app.WithConfig(cfg),
-				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
+			d := deps.New(cmd.Context(),
+				deps.WithConfig(cfg),
+				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
-			return handler.UnlockRepo(a, a.Cfg.DBPath)
+			return handler.UnlockRepo(d, d.Cfg.DBPath)
 		},
 	}
 

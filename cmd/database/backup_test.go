@@ -16,10 +16,10 @@ import (
 )
 
 func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
-	a := testutil.SetupApp(t)
-	a.Cfg.DBPath = filepath.Join(t.TempDir(), "nonexistent.db")
+	d := testutil.SetupDeps(t)
+	d.Cfg.DBPath = filepath.Join(t.TempDir(), "nonexistent.db")
 
-	err := backupNewFunc(a)
+	err := backupNewFunc(d)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -29,8 +29,8 @@ func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
 }
 
 func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
-	a := testutil.SetupApp(t)
-	f, err := os.Create(a.Cfg.DBPath)
+	d := testutil.SetupDeps(t)
+	f, err := os.Create(d.Cfg.DBPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 		t.Errorf("unexpected err closing file: %v", err)
 	}
 
-	err = backupNewFunc(a)
+	err = backupNewFunc(d)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -49,23 +49,23 @@ func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 }
 
 func TestNewBackup_Successfully_Created(t *testing.T) {
-	a := testutil.SetupApp(t)
+	d := testutil.SetupDeps(t)
 
-	a.Cfg.Path.Backup = filepath.Join(a.Cfg.Path.Data, "backup")
-	a.Cfg.Flags.Yes = true
-	a.Cfg.Flags.Force = true
+	d.Cfg.Path.Backup = filepath.Join(d.Cfg.Path.Data, "backup")
+	d.Cfg.Flags.Yes = true
+	d.Cfg.Flags.Force = true
 
-	r := testutil.SetupInitializedDBWithBookmarks(t, a.Cfg.DBPath, 5)
-	a.SetDatabase(r)
+	r := testutil.SetupInitializedDBWithBookmarks(t, d.Cfg.DBPath, 5)
+	d.SetDatabase(r)
 
 	var buf bytes.Buffer
-	a.SetWriter(&buf)
+	d.SetWriter(&buf)
 
-	err := backupNewFunc(a)
+	err := backupNewFunc(d)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	info, err := os.Stat(a.Cfg.Path.Backup)
+	info, err := os.Stat(d.Cfg.Path.Backup)
 	if err != nil {
 		t.Fatalf("expected backup dir, got error: %v", err)
 	}
@@ -81,17 +81,17 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 }
 
 func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
-	a := testutil.SetupApp(t)
-	r := testutil.SetupInitializedDBWithBookmarks(t, a.Cfg.DBPath, 5)
-	a.SetDatabase(r)
+	d := testutil.SetupDeps(t)
+	r := testutil.SetupInitializedDBWithBookmarks(t, d.Cfg.DBPath, 5)
+	d.SetDatabase(r)
 
 	// Update terminal for reject confirmation prompt.
 	input := "n\n"
 	term := terminal.New(terminal.WithContext(t.Context()), terminal.WithReader(strings.NewReader(input)))
 	c := ui.NewConsole(ui.WithTerminal(term))
-	a.SetConsole(c)
+	d.SetConsole(c)
 
-	err := backupNewFunc(a)
+	err := backupNewFunc(d)
 	if !errors.Is(err, sys.ErrExitFailure) {
 		t.Fatalf("expected err %q, got %q", sys.ErrExitFailure, err)
 	}

@@ -8,14 +8,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func NewCmd(cfg *config.Config) *cobra.Command {
@@ -23,44 +19,30 @@ func NewCmd(cfg *config.Config) *cobra.Command {
 		Use:   "add",
 		Short: "add bookmark",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(cfg.DBPath)
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
-			defer r.Close()
+			defer cancel()
 
-			a := app.New(cmd.Context(),
-				app.WithConfig(cfg),
-				app.WithDB(r),
-				app.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
-					db.Shutdown()
-					sys.ErrAndExit(err)
-				})),
-			)
-
-			c, p := a.Console(), a.Console().Palette()
+			c, p := d.Console(), d.Console().Palette()
 			s := p.BrightYellow.Sprint("Add Bookmark") + p.Dim.With(p.Italic).Sprint(" (ctrl+c to exit)")
 			c.Frame().Headerln(s).Rowln().Flush()
 
 			b := bookmark.New()
-			if err := handler.NewBookmark(a, b, args); err != nil {
+			if err := handler.NewBookmark(d, b, args); err != nil {
 				return err
 			}
-
 			if err := bookmark.Validate(b); err != nil {
 				return err
 			}
-
-			if err := handler.SaveNewBookmark(a, b); err != nil {
+			if err := handler.SaveNewBookmark(d, b); err != nil {
 				return err
 			}
-
 			if err := git.AddBookmark(cfg, b); err != nil {
 				return err
 			}
-
 			fmt.Println(c.SuccessMesg("bookmark added"))
-
 			return nil
 		},
 	}

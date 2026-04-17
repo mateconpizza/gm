@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateconpizza/gm/internal/app"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/config"
 	"github.com/mateconpizza/gm/internal/dbtask"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -126,8 +126,8 @@ func records(ctx context.Context, dbPath string) ([]*bookmark.Bookmark, error) {
 }
 
 // parseGitRepo loads a git repo into a database.
-func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
-	c := a.Console()
+func parseGitRepo(d *deps.Deps, root, repoName string) (string, error) {
+	c := d.Console()
 	f := c.Frame()
 	f.Rowln().Info(c.Palette().Bold.Sprintf("Repository %q\n", repoName))
 	repoPath := filepath.Join(root, repoName)
@@ -152,7 +152,7 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 		choices = []string{"merge", "drop", "create", "select", "ignore"}
 	)
 
-	dbPath := filepath.Join(a.Cfg.Path.Data, sum.RepoStats.Name)
+	dbPath := filepath.Join(d.Cfg.Path.Data, sum.RepoStats.Name)
 	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err
@@ -184,7 +184,7 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 		gr.Git.SetRepoPath(repoPath)
 	}
 
-	resultPath, err := parseGitRepoOpt(a, opt, gr)
+	resultPath, err := parseGitRepoOpt(d, opt, gr)
 	if err != nil {
 		return "", err
 	}
@@ -193,8 +193,8 @@ func parseGitRepo(a *app.Context, root, repoName string) (string, error) {
 }
 
 // parseGitRepoOpt handles the options for parseGitRepository.
-func parseGitRepoOpt(a *app.Context, opt string, gr *Repository) (string, error) {
-	ctx, c := a.Context(), a.Console()
+func parseGitRepoOpt(d *deps.Deps, opt string, gr *Repository) (string, error) {
+	ctx, c := d.Context(), d.Console()
 
 	switch strings.ToLower(opt) {
 	case "new":
@@ -499,7 +499,7 @@ func handleOptCreate(ctx context.Context, c *ui.Console, gr *Repository) (string
 		return "", fmt.Errorf("initializing database: %w", err)
 	}
 
-	return parseGitRepoOpt(app.New(ctx, app.WithDB(r), app.WithConsole(c)), opt, newGr)
+	return parseGitRepoOpt(deps.New(ctx, deps.WithDB(r), deps.WithConsole(c)), opt, newGr)
 }
 
 func handleOptDrop(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
