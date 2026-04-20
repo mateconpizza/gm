@@ -1,4 +1,4 @@
-package appcfg
+package config
 
 import (
 	"bytes"

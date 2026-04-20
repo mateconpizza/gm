@@ -1,7 +1,7 @@
-// Package appcfg manages the application's configuration, including
+// Package config manages the application's configuration, including
 // reading from and writing to configuration files (e.g., YAML), and
 // providing helper functions for command-line configuration logic.
-package appcfg
+package config
 
 import (
 	"context"
@@ -28,6 +28,10 @@ func NewCmd(app *application.App) *cobra.Command {
 				return newJSONCmd(app).RunE(cmd, args)
 			}
 
+			if app.Flags.Edit {
+				return newEditCmd(app).RunE(cmd, args)
+			}
+
 			return cmd.Help()
 		},
 	}
@@ -35,6 +39,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	c.Flags().StringVarP(&app.Flags.ColorStr, "color", "c", "always", "")
 	c.Flags().StringVar(&app.DBName, "db", application.MainDBName, "database name")
 	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
+	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit configuration file")
 	cmdutil.HideFlag(c, "help", "color", "db")
 
 	c.AddCommand(newCreateCmd(app), newEditCmd(app), newShowPathCmd(app))
@@ -60,6 +65,7 @@ func newEditCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "edit",
 		Short:   "edit configuration file",
+		Hidden:  true,
 		Aliases: []string{"e"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := app.Validate(); err != nil {
@@ -84,8 +90,9 @@ func newJSONCmd(app *application.App) *cobra.Command {
 
 func newShowPathCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
-		Use:   "path",
-		Short: "print config file location",
+		Use:    "path",
+		Short:  "print config file location",
+		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return showPathFile(app.Path.ConfigFile)
 		},
