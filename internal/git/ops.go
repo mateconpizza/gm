@@ -18,6 +18,7 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -346,7 +347,7 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		return cmp.Compare(a.ID, b.ID)
 	})
 
-	m.SetFormatter(func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) })
+	m.SetFormatter(func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(c, b) })
 	selected, err := m.Select(records)
 	if err != nil {
 		return fmt.Errorf("%w", err)

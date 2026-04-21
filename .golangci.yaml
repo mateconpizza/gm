@@ -205,6 +205,9 @@ linters:
       - path: "internal/git/sync.go"
         linters:
           - funlen
+      - path: "internal/ui/formatter/formatters.go"
+        linters:
+          - funlen
       - path: "internal/handler/remove_test.go"
         linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`

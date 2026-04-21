@@ -98,7 +98,7 @@ func (app *App) Validate() error {
 }
 
 func (app *App) PreviewCmd(dbPath string, args ...string) string {
-	return fmt.Sprintf("%s --db %s %s", app.Cmd, dbPath, strings.Join(args, " "))
+	return fmt.Sprintf("%s --preview frame --db %s %s", app.Cmd, dbPath, strings.Join(args, " "))
 }
 
 func New(info *Information) *App {

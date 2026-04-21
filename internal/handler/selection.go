@@ -11,21 +11,21 @@ import (
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
 // MenuMainForRecords builds the interactive FZF menu for selecting records.
-func MenuMainForRecords[T comparable](app *application.App) *menu.Menu[T] {
-	p := "{+1}"
+func MenuMainForRecords(app *application.App, fm formatter.Formatter) *menu.Menu[bookmark.Bookmark] {
+	p := fm.Menu.Placeholder
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
 	k := app.Menu.DefaultKeymaps
 
-	mo := []menu.Option{
-		menu.WithBorderLabel(" " + app.Name + " "),
+	fm.Menu.Opts = append(fm.Menu.Opts,
+		menu.WithBorderLabel(" "+app.Name+" "),
 		menu.WithConfig(app.Menu),
 		menu.WithMultiSelection(),
 		menu.WithOutputColor(app.Flags.Color),
@@ -35,7 +35,6 @@ func MenuMainForRecords[T comparable](app *application.App) *menu.Menu[T] {
 		menu.WithHeaderLabel(" keybinds "),
 		menu.WithHeaderBorder(menu.BorderRounded),
 		menu.WithPreviewBorder(menu.BorderRounded),
-		menu.WithNth("3", "4"),
 		menu.WithKeybinds(
 			kb.From(k.Edit).Execute("edit"),
 			kb.From(k.EditNotes).Execute("notes edit"),
@@ -46,9 +45,14 @@ func MenuMainForRecords[T comparable](app *application.App) *menu.Menu[T] {
 			kb.Builtin(k.ToggleAll, menu.ToggleAll),
 			kb.Builtin(k.Preview, menu.TogglePreview),
 		),
-	}
+	)
 
-	return menu.New[T](mo...)
+	m := menu.New[bookmark.Bookmark](fm.Menu.Opts...)
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
+		return fm.Render(ui.NewConsole(), b)
+	})
+
+	return m
 }
 
 // MenuSimple builds a simpler menu without all keybindings.
@@ -214,19 +218,15 @@ func SelectDatabase(d *deps.Deps, ignoreDBPath string) (string, error) {
 	return s, nil
 }
 
-// ApplyMenuSelection applies menu selection to bookmarks.
-func ApplyMenuSelection(
-	c *ui.Console,
-	m *menu.Menu[bookmark.Bookmark],
-	bs []*bookmark.Bookmark,
-) ([]*bookmark.Bookmark, error) {
+// MenuSelection applies menu selection to bookmarks.
+func MenuSelection(m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	// Create copy for menu selection
 	bsCopy := make([]bookmark.Bookmark, 0, len(bs))
 	for _, b := range bs {
 		bsCopy = append(bsCopy, *b)
 	}
 
-	defFormatter := func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) }
+	defFormatter := func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(ui.NewConsole(), b) }
 	if m.Formatter == nil {
 		m.SetFormatter(defFormatter)
 	}

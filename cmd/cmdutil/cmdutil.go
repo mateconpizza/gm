@@ -13,8 +13,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -85,20 +85,6 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	return d, r.Close, nil
 }
 
-// resolveBookmarks es el setup adicional compartido entre subcommands que trabajan con records.
-func resolveBookmarks(app *deps.Deps, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
-	if err := m.Validate(); err != nil {
-		return nil, fmt.Errorf("menu: %w", err)
-	}
-
-	bs, err := handler.Data(app, m, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return bs, nil
-}
-
 func Execute(
 	c *cobra.Command,
 	args []string,
@@ -112,7 +98,7 @@ func Execute(
 	}
 	defer cleanup()
 
-	bs, err := resolveBookmarks(d, m, args)
+	bs, err := handler.Data(d, args)
 	if err != nil {
 		return err
 	}
@@ -133,7 +119,7 @@ func Execute(
 
 	// menu selection
 	if f.Menu && len(bs) > 0 {
-		bs, err = handler.ApplyMenuSelection(d.Console(), m, bs)
+		bs, err = handler.MenuSelection(m, bs)
 		if err != nil {
 			return err
 		}
@@ -142,14 +128,18 @@ func Execute(
 	return action(d, bs)
 }
 
-func FlagFormat(c *cobra.Command, app *application.App) {
-	c.Flags().SortFlags = false
-	c.Flags().StringVarP(&app.Flags.Format, "format", "f", "",
-		fmt.Sprintf("output format [%s]", strings.Join(printer.ValidFormats, "|")))
+func FlagOutput(c *cobra.Command, app *application.App) {
+	c.Flags().StringVarP(&app.Flags.Output, "output", "o", "",
+		fmt.Sprintf("output format [%s]", strings.Join(formatter.ValidFormats(), "|")))
+
+	_ = c.RegisterFlagCompletionFunc("output",
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return formatter.ValidFormats(), cobra.ShellCompDirectiveNoFileComp
+		})
 }
 
 func FlagFields(c *cobra.Command, app *application.App) {
-	c.Flags().StringVarP(&app.Flags.Field, "fields", "F", "",
+	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "",
 		fmt.Sprintf("select fields [%s]", strings.Join([]string{"id", "url", "title", "tags", "desc"}, "|")))
 }
 

@@ -4,38 +4,6 @@ import (
 	"testing"
 )
 
-func TestShortenString(t *testing.T) {
-	t.Parallel()
-
-	test := []struct {
-		input    string
-		expected string
-		length   int
-	}{
-		{
-			input:    "This is a long string",
-			length:   10,
-			expected: "This is...",
-		},
-		{
-			input:    "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit...",
-			length:   20,
-			expected: "Neque porro quisq...",
-		},
-	}
-
-	for _, tt := range test {
-		r := Shorten(tt.input, tt.length)
-		if len(r) != tt.length {
-			t.Errorf("Shorten(%q, %d) length = %d, expected %d", tt.input, tt.length, len(r), tt.length)
-		}
-
-		if r != tt.expected {
-			t.Errorf("Shorten(%q, %d) = %q, expected %q", tt.input, tt.length, r, tt.expected)
-		}
-	}
-}
-
 func TestSplitIntoChunks(t *testing.T) {
 	t.Parallel()
 

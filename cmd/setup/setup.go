@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -81,7 +82,7 @@ func initializeAction(d *deps.Deps) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Fprint(d.Writer(), txt.Frame(c, ib))
+	fmt.Fprint(d.Writer(), formatter.FrameFunc(c, ib))
 	fmt.Fprintln(d.Writer(), "\n"+c.SuccessMesg("initialized database "+app.DBName))
 
 	return nil

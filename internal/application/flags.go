@@ -15,9 +15,10 @@ type Flags struct {
 	List  bool // List items
 
 	// Output format
-	Format string // Format
-	Field  string // Bookmarks fields
-	JSON   bool   // JSON output
+	Output  string // Output
+	Field   string // Bookmarks fields
+	JSON    bool   // JSON output
+	Preview string //
 
 	// Filtering and pagination
 	Head int      // Head limit

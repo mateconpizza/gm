@@ -16,8 +16,8 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -219,7 +219,7 @@ func newHTMLCmd(app *application.App) *cobra.Command {
 					menu.WithMultiSelection(),
 				)
 
-				m.SetFormatter(func(b **bookmark.Bookmark) string { return txt.Oneline(c, *b) })
+				m.SetFormatter(func(b **bookmark.Bookmark) string { return formatter.OnelineFunc(c, *b) })
 				deduplicated, err = m.Select(deduplicated)
 				if err != nil {
 					return err

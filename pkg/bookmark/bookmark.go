@@ -124,6 +124,12 @@ func (b *Bookmark) Field(f string) (string, error) {
 		s = b.Desc
 	case "notes", "n", "6":
 		s = b.Notes
+	case "domain", "dom", "7":
+		d, err := b.Domain()
+		if err != nil {
+			return "", err
+		}
+		return d, nil
 	default:
 		return "", fmt.Errorf("%w: %q", ErrBookmarkUnknownField, f)
 	}

@@ -34,6 +34,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -59,29 +60,38 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		PersistentPreRunE: cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase),
 		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuMainForRecords[bookmark.Bookmark](app)
+			fm, err := formatter.Resolve(app.Flags.Output)
+			if err != nil {
+				return err
+			}
+			m := handler.MenuMainForRecords(app, fm)
+
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+				t, f := d.Console(), d.App.Flags
 				switch {
-				case d.App.Flags.Format != "":
-					return printer.Display(d.Console(), d.App.Flags.Format, bs)
+				case d.App.Flags.Field != "":
+					// TODO: experimental
+					return printer.ByField(t, f.Field, bs)
+				case d.App.Flags.Preview != "":
+					return printer.MenuPreview(t, bs, f.Preview)
+				case d.App.Flags.Output != "":
+					return printer.Display(t, f.Output, bs)
 				default:
-					return printer.Records(d.Console(), bs)
+					return printer.Records(t, bs)
 				}
 			})
 		},
 	}
 
 	cobra.AddTemplateFunc("hasFlags", cmdutil.HasFlags)
-
 	c.SetUsageTemplate(cmdutil.UsageTemplate)
 	c.PersistentFlags().SortFlags = false
 
 	// local
-	cmdutil.FlagFormat(c, app)
+	cmdutil.FlagOutput(c, app)
 	cmdutil.FlagFields(c, app)
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagMenu(c, app)
-
 	// global
 	g := c.PersistentFlags()
 	g.StringVar(&app.DBName, "db", application.MainDBName, "database name")
@@ -91,6 +101,9 @@ func NewRootCmd(app *application.App) *cobra.Command {
 	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
 	g.Bool("help", false, "")
 	_ = g.MarkHidden("help")
+
+	g.StringVar(&app.Flags.Preview, "preview", "", "")
+	_ = g.MarkHidden("preview")
 
 	cobra.OnInitialize(func() {
 		app.Initialize()

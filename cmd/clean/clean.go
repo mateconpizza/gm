@@ -8,8 +8,9 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -19,12 +20,6 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:   "clean [query]",
 		Short: "strip URL params",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
 			m := handler.MenuSimple[bookmark.Bookmark](
 				app,
 				menu.WithMultiSelection(),
@@ -38,7 +33,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			m.SetFormatter(func(b *bookmark.Bookmark) string {
 				bm := *b
 				bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
-				return txt.OnelineURL(d.Console(), &bm)
+				return formatter.OnelineURLFunc(ui.NewConsole(), &bm)
 			})
 
 			return cmdutil.Execute(cmd, args, m, handler.ParamsURL, WithURLParametersOnly)

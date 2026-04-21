@@ -11,7 +11,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -22,7 +21,7 @@ var (
 )
 
 // Data retrieves and filters bookmarks based on configuration and arguments.
-func Data(d *deps.Deps, m *menu.Menu[bookmark.Bookmark], args []string) ([]*bookmark.Bookmark, error) {
+func Data(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	bs, err := fetchBookmarks(d, args)
 	if err != nil {
 		return nil, err

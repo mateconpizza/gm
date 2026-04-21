@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
@@ -18,6 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -29,31 +31,24 @@ var (
 	ErrUnknownFormat = errors.New("unknown format")
 )
 
-type Formatter struct {
-	Format    func(*ui.Console, *bookmark.Bookmark) string
-	Transform string
-}
+func MenuPreview(c *ui.Console, bs []*bookmark.Bookmark, f string) error {
+	fm, err := formatter.New(f)
+	if err != nil {
+		return err
+	}
 
-var Formatters = map[string]Formatter{
-	"brief":   {Format: txt.Brief, Transform: "3.."},
-	"oneline": {Format: txt.Oneline, Transform: "3.."},
-}
+	for i := range bs {
+		fmt.Print(fm.Render(c, bs[i]))
+	}
 
-var ValidFormats = []string{
-	"oneline",
-	"json",
-	"id",
-	"url",
-	"title",
-	"tags",
-	"desc",
+	return nil
 }
 
 // Records prints the bookmarks in a frame format with the given colorscheme.
 func Records(c *ui.Console, bs []*bookmark.Bookmark) error {
 	lastIdx := len(bs) - 1
 	for i := range bs {
-		fmt.Print(txt.Frame(c, bs[i]))
+		fmt.Print(formatter.FrameFunc(c, bs[i]))
 
 		if i != lastIdx {
 			fmt.Println()
@@ -81,10 +76,10 @@ func TagsList(ctx context.Context, p string) error {
 	return nil
 }
 
-// Oneline formats the bookmarks in oneline.
-func Oneline(c *ui.Console, bs []*bookmark.Bookmark) error {
+// Print formats the bookmarks in oneline.
+func Print(c *ui.Console, bs []*bookmark.Bookmark, fn func(*ui.Console, *bookmark.Bookmark) string) error {
 	for i := range bs {
-		fmt.Print(txt.Oneline(c, bs[i]))
+		fmt.Print(fn(c, bs[i]))
 	}
 
 	return nil
@@ -100,37 +95,58 @@ func Notes(c *ui.Console, bs []*bookmark.Bookmark) error {
 		if printed {
 			fmt.Println()
 		}
-		fmt.Print(txt.Notes(c, b))
+		fmt.Print(formatter.Notes(c, b))
 		printed = true
 	}
 	return nil
 }
 
-// ByField prints the selected field.
-func ByField(bs []*bookmark.Bookmark, f string) error {
-	printer := func(b *bookmark.Bookmark) error {
-		f, err := b.Field(f)
-		if err != nil {
-			return fmt.Errorf("%w", err)
-		}
+type fieldSpec struct {
+	name  string
+	limit int // 0: no limit
+}
 
-		if f == "" {
-			return nil
-		}
+func ByField(c *ui.Console, fields string, bs []*bookmark.Bookmark) error {
+	// parse input: "id,url:40,title:40"
+	parts := strings.Split(fields, ",")
+	specs := make([]fieldSpec, len(parts))
 
-		fmt.Println(f)
-
-		return nil
-	}
-	slog.Info("selected field", "field", f)
-
-	for i := range bs {
-		if err := printer(bs[i]); err != nil {
-			return err
+	for i, p := range parts {
+		p = strings.TrimSpace(p)
+		if strings.Contains(p, ":") {
+			sub := strings.Split(p, ":")
+			specs[i].name = sub[0]
+			specs[i].limit, _ = strconv.Atoi(sub[1])
+		} else {
+			specs[i].name = p
 		}
 	}
 
-	return nil
+	w := tabwriter.NewWriter(c.Writer(), 0, 0, 2, ' ', 0)
+
+	for _, b := range bs {
+		var row []string
+
+		for _, spec := range specs {
+			val, err := b.Field(spec.name)
+			if err != nil {
+				return err
+			}
+
+			if spec.limit > 0 {
+				val = txt.Shorten(val, spec.limit)
+			} else {
+				safeLimit := c.MaxWidth() / len(specs)
+				val = txt.Shorten(val, safeLimit)
+			}
+
+			row = append(row, val)
+		}
+
+		fmt.Fprintln(w, strings.Join(row, "\t"))
+	}
+
+	return w.Flush()
 }
 
 // DatabasesTable shows a simple table in database information.
@@ -268,39 +284,11 @@ func RepoInfo(d *deps.Deps) error {
 	return nil
 }
 
-func parseDisplayFormat(format string) (formatType, field string, err error) {
-	switch format {
-	case "o", "oneline", "one":
-		return "oneline", "", nil
-	case "j", "json":
-		return "json", "", nil
-	case "id", "i", "1", "url", "u", "2", "title", "t", "3",
-		"tags", "T", "4", "desc", "d", "5", "notes", "n", "6":
-		return "field", format, nil
-	default:
-		return "", "", fmt.Errorf(
-			"%w: %q (use: %s)",
-			ErrInvalidFormat,
-			format,
-			strings.Join(ValidFormats, "|"),
-		)
-	}
-}
-
-func Display(c *ui.Console, format string, bs []*bookmark.Bookmark) error {
-	formatType, field, err := parseDisplayFormat(format)
+func Display(c *ui.Console, f string, bs []*bookmark.Bookmark) error {
+	fm, err := formatter.New(f)
 	if err != nil {
 		return err
 	}
 
-	switch formatType {
-	case "oneline":
-		return Oneline(c, bs)
-	case "json":
-		return RecordsJSON(bs)
-	case "field":
-		return ByField(bs, field)
-	default:
-		return fmt.Errorf("%w: %s", ErrUnknownFormat, formatType)
-	}
+	return Print(c, bs, fm.Render)
 }

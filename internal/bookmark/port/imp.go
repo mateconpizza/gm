@@ -19,6 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -85,9 +86,7 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 		rec = append(rec, *items[i])
 	}
 
-	m.SetFormatter(func(b *bookmark.Bookmark) string {
-		return txt.Oneline(d.Console(), b)
-	})
+	m.SetFormatter(func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(d.Console(), b) })
 
 	records, err := m.Select(rec)
 	if err != nil {
@@ -172,7 +171,7 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 		rec = append(rec, *bookmarks[i])
 	}
 
-	m.SetFormatter(func(b *bookmark.Bookmark) string { return txt.Oneline(c, b) })
+	m.SetFormatter(func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(c, b) })
 	items, err := m.Select(rec)
 	if err != nil {
 		return fmt.Errorf("%w", err)

@@ -12,8 +12,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -31,7 +31,7 @@ func confirmRemove(
 		}
 
 		for i := range n {
-			fmt.Println(txt.Frame(d.Console(), &bs[i]))
+			fmt.Println(formatter.FrameFunc(d.Console(), &bs[i]))
 		}
 
 		opts := []string{"yes", "no"}
@@ -52,7 +52,7 @@ func confirmRemove(
 			return bs, nil
 		case "s", "select":
 			items, err := selectionWithMenu(m, bs, func(b *bookmark.Bookmark) string {
-				return txt.Oneline(d.Console(), b)
+				return formatter.OnelineFunc(d.Console(), b)
 			})
 			if err != nil {
 				return nil, err
