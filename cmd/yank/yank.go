@@ -1,6 +1,7 @@
 package yank
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,7 @@ import (
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "yank [query]",
-		Aliases: []string{"copy", "c", "y"},
+		Aliases: []string{"copy", "y"},
 		Short:   "copy URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := handler.MenuSimple[bookmark.Bookmark](app,
@@ -28,12 +29,25 @@ func NewCmd(app *application.App) *cobra.Command {
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+				t, p := d.Console(), d.Console().Palette()
+				s := fmt.Sprintf("%s %d bookmarks to system clipboard", p.BrightGreen.Wrap("copy", p.Bold), len(bs))
+				if err := t.ConfirmLimit(len(bs), 10, s, app.Flags.Force); err != nil {
+					return err
+				}
+
+				t.ClearLine(2)
+
 				var sb strings.Builder
 				for i := range bs {
 					sb.WriteString(bs[i].URL + "\n")
 				}
+				if err := sys.CopyClipboard(sb.String()); err != nil {
+					return err
+				}
 
-				return sys.CopyClipboard(sb.String())
+				fmt.Println(t.SuccessMesg("copied ", len(bs), " bookmarks to system clipboard"))
+
+				return nil
 			})
 		},
 	}

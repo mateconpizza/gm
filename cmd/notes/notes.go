@@ -1,6 +1,10 @@
 package notes
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -13,31 +17,43 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
+var ErrNotesNotFound = errors.New("notes not found")
+
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "notes [query]",
 		Aliases: []string{"n"},
 		Short:   "view/edit notes",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kb := menu.NewKeybindBuilder(app.Cmd, app.DBName)
-			edit := app.Menu.DefaultKeymaps.Edit
-			edit.Hidden = false
+			if app.Flags.Edit {
+				return newEditNotesCmd(app).RunE(cmd, args)
+			}
+
+			p := "{+1}"
+			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
+			k := app.Menu.DefaultKeymaps.Edit
+			k.Enabled = true
 
 			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithKeybinds(kb.EditNotes(edit)),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "notes")+" {+1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", strings.ReplaceAll(p, "+", ""))),
+				menu.WithKeybinds(kb.New(k.Bind, k.Desc).Execute("notes --edit")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+				if len(bs) == 0 {
+					return fmt.Errorf("%w: %v", ErrNotesNotFound, strings.Join(args, ""))
+				}
+
 				return printer.Notes(d.Console(), bs)
 			}, OnlyNotes)
 		},
 	}
 
 	cmdutil.FlagMenu(c, app)
+	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit with text editor")
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.HideFlag(c, "help")
 
@@ -51,13 +67,11 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kb := menu.NewKeybindBuilder(app.Cmd, app.DBName)
 			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithKeybinds(kb.EditNotes(app.Menu.DefaultKeymaps.Edit)),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "notes")+" {+1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", "{1}")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(editor.NotesStrategy{}))

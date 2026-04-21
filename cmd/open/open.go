@@ -16,18 +16,13 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"o"},
 		Short:   "open in browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kb := menu.NewKeybindBuilder(app.Cmd, app.DBName)
-			k := menu.NewKeymap()
-			k = k.WithSilentAction(kb.BaseCmd("archive open") + " {1}")
-			k.Bind = "ctrl-o"
-			k.Desc = "open-snapshot"
-			k.Enabled = true
-
+			p := "{+1}"
+			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
 			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeaderLabel(" open in browser "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
-				menu.WithKeybinds(k),
+				menu.WithPreview(app.PreviewCmd(app.DBName, p)),
+				menu.WithKeybinds(kb.New("ctrl-o", "open-snapshot").ExecuteSilent("archive open")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Open)

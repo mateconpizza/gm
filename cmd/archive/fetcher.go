@@ -28,23 +28,20 @@ func newLookupCmd(app *application.App) *cobra.Command {
   # get up to 5 snapshots from 2023
   %s archive %s 179 --limit 5 --year 2023 179`, app.Cmd, use, app.Cmd, use),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f := app.Flags
-
-			m := handler.MenuSimple[bookmark.Bookmark](
-				app,
+			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" wayback machine lookup "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
-				op := waybackOperation(f)
+				op := waybackOperation(app.Flags)
 				if !confirmWayback(d, bs, op) {
 					return sys.ErrExitFailure
 				}
 
-				return runWayback(d, f, bs)
+				return runWayback(d, app.Flags, bs)
 			})
 		},
 	}

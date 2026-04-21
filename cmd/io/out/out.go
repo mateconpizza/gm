@@ -50,7 +50,7 @@ func newHTMLCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" export to HTML "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(_ *deps.Deps, bs []*bookmark.Bookmark) error {
@@ -74,7 +74,7 @@ func newJSONCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" export to JSON "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(_ *deps.Deps, bs []*bookmark.Bookmark) error {

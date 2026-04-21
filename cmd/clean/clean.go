@@ -32,7 +32,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" parameters highlighted "),
 				menu.WithNth("3.."),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
 			m.SetFormatter(func(b *bookmark.Bookmark) string {

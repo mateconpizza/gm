@@ -20,14 +20,16 @@ import (
 
 // MenuMainForRecords builds the interactive FZF menu for selecting records.
 func MenuMainForRecords[T comparable](app *application.App) *menu.Menu[T] {
-	kb := menu.NewKeybindBuilder(app.Cmd, app.DBName)
+	p := "{+1}"
+	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
 	k := app.Menu.DefaultKeymaps
+
 	mo := []menu.Option{
 		menu.WithBorderLabel(" " + app.Name + " "),
 		menu.WithConfig(app.Menu),
 		menu.WithMultiSelection(),
 		menu.WithOutputColor(app.Flags.Color),
-		menu.WithPreview(app.PreviewCmd(app.DBName) + " {1}"),
+		menu.WithPreview(app.PreviewCmd(app.DBName, strings.ReplaceAll(p, "+", ""))),
 		menu.WithPrompt(app.Menu.Prompt),
 		menu.WithHeaderFirst(),
 		menu.WithHeaderLabel(" keybinds "),
@@ -35,14 +37,14 @@ func MenuMainForRecords[T comparable](app *application.App) *menu.Menu[T] {
 		menu.WithPreviewBorder(menu.BorderRounded),
 		menu.WithNth("3", "4"),
 		menu.WithKeybinds(
-			kb.Edit(k.Edit),
-			kb.EditNotes(k.EditNotes),
-			kb.Open(k.Open),
-			kb.QR(k.QR),
-			kb.QROpen(k.OpenQR),
-			kb.Yank(k.Yank),
-			kb.ToggleAll(k.ToggleAll),
-			kb.Preview(k.Preview),
+			kb.From(k.Edit).Execute("edit"),
+			kb.From(k.EditNotes).Execute("notes edit"),
+			kb.From(k.Open).ExecuteSilent("open"),
+			kb.From(k.QR).Execute("qr"),
+			kb.From(k.OpenQR).Execute("qr open"),
+			kb.From(k.Yank).Execute("yank"),
+			kb.Builtin(k.ToggleAll, menu.ToggleAll),
+			kb.Builtin(k.Preview, menu.TogglePreview),
 		),
 	}
 

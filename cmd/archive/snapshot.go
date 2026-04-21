@@ -24,25 +24,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"snap", "ar", "a"},
 		Short:   "show archive URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](
-				app,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" archive URL "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
-			)
-
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
-				n := len(bs)
-				if n == 0 {
-					return handler.ErrNoItems
-				}
-
+			return cmdutil.Execute(cmd, args, setupMenu(app), func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				var sb strings.Builder
 				for _, u := range bs {
 					sb.WriteString(u.ArchiveURL + "\n")
 				}
-
 				fmt.Print(sb.String())
 
 				return nil
@@ -65,17 +51,7 @@ func newOpenCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"o"},
 		Short:   "open archive URL in browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](
-				app,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" open archive URL "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
-				menu.WithNth("3.."),
-			)
-			m.SetFormatter(formatArchiveURL)
-
-			return cmdutil.Execute(cmd, args, m, handler.Open, onlySnapshots)
+			return cmdutil.Execute(cmd, args, setupMenu(app), handler.Open, onlySnapshots)
 		},
 	}
 
@@ -95,16 +71,9 @@ func formatArchiveURL(b *bookmark.Bookmark) string {
 	}
 
 	title = runewidth.Truncate(title, terminal.MaxWidth, "…")
-	relative = ansi.BrightBlack.Wrap("("+relative+")", ansi.Italic)
-
-	return fmt.Sprintf("%s %s %s %-*s %s",
-		idStr,
-		txt.UnicodeMiddleDot,
-		absolute,
-		28,
-		relative,
-		title,
-	)
+	relative = ansi.BrightYellow.Wrap("("+relative+")", ansi.Italic)
+	padding := 28
+	return fmt.Sprintf("%s %s %-*s %s", idStr, absolute, padding, relative, title)
 }
 
 func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
@@ -133,4 +102,20 @@ func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	}
 
 	return result
+}
+
+func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+	p := "{+1}"
+	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
+	m := handler.MenuSimple[bookmark.Bookmark](app,
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s"),
+		menu.WithHeaderLabel(" archive URL "),
+		menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
+		menu.WithNth("2.."),
+		menu.WithKeybinds(kb.New("enter", "open-in-browser").ExecuteSilent("archive open")),
+	)
+	m.SetFormatter(formatArchiveURL)
+
+	return m
 }

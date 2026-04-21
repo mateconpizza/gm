@@ -15,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -24,23 +23,12 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"c"},
 		Short:   "check URLs HTTP status",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](app,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" bookmark status "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
-			)
-
+			m := setupMenu(app, " bookmark status ")
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				const maxGoroutines = 15
 
-				n := len(bs)
-				if n == 0 {
-					return db.ErrRecordQueryNotProvided
-				}
-
-				s := fmt.Sprintf("checking status of %d bookmarks", n)
-				if err := d.Console().ConfirmLimit(n, maxGoroutines, s, d.App.Flags.Force); err != nil {
+				s := fmt.Sprintf("checking status of %d bookmarks", len(bs))
+				if err := d.Console().ConfirmLimit(len(bs), maxGoroutines, s, d.App.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
@@ -78,18 +66,17 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		Use:   "update [id|query]",
 		Short: "update metadata (title|desc|tags)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](app,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" update metadata "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
-			)
-
+			m := setupMenu(app, " update metadata ")
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
-				p := d.Console().Palette()
-				n := len(bs)
-				if n > 1 {
-					d.Console().Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", n)).Rowln().Flush()
+				c, p := d.Console(), d.Console().Palette()
+
+				s := fmt.Sprintf("update metadata of %d bookmarks", len(bs))
+				if err := c.ConfirmLimit(len(bs), 10, s, d.App.Flags.Force); err != nil {
+					return sys.ErrActionAborted
+				}
+
+				if len(bs) > 1 {
+					c.Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", len(bs))).Rowln().Flush()
 				}
 
 				for _, b := range bs {
@@ -103,5 +90,16 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		},
 	}
 
+	cmdutil.FlagMenu(c, app)
+
 	return c
+}
+
+func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
+	return handler.MenuSimple[bookmark.Bookmark](app,
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s"),
+		menu.WithHeaderLabel(label),
+		menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
+	)
 }
