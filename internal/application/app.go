@@ -34,7 +34,6 @@ type (
 		Env         *Env         `json:"env"           yaml:"-"`             // Application environment variables
 		Path        *Path        `json:"path"          yaml:"-"`             // Application path
 		Flags       *Flags       `json:"-"             yaml:"-"`             // Command line flags
-		Verbose     bool         `json:"-"             yaml:"-"`             // Logging level
 		Menu        *menu.Config `json:"menu"          yaml:"menu"`          // Menu configuration
 		Git         *Git         `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
 		initialized bool

@@ -68,18 +68,21 @@ commands:
   notes       view/edit notes
   qr          generate QR
   check       check URLs HTTP status
-  tag         tags management (wip)
+  tag         tags ops
   clean       strip URL params
   archive     show archive URL
   db          database ops
   git         git sync
-  admin       manage database and config
+  config      configuration
+  import      import bookmarks
+  export      export bookmarks
 
 flags:
-  -f, --format string   output format [oneline|json|id|url|title|tags|desc]
+  -o, --output string   output format [bar|brief|card|flow|mini|minimal|multiline|oneline]
+  -f, --fields string   select fields [id|url|title|tags|desc]
   -t, --tag strings     filter by tag(s)
-  -H, --head int        show first N bookmarks
-  -T, --tail int        show last N bookmarks
+  -H, --head int        limit to first N bookmarks
+  -T, --tail int        limit to last N bookmarks
   -m, --menu            select interactively
       --db string       database name (default "main.db")
       --color string    output with colors [always|never] (default "always")

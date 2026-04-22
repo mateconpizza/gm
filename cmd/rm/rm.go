@@ -21,7 +21,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" deletion "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Remove)

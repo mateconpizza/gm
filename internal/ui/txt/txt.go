@@ -69,7 +69,7 @@ func PaddedLineWithPad(s, v any, pad int) string {
 //
 // Shorten shortens a string to a maximum visual width.
 func Shorten(s string, maxWidth int) string {
-	return runewidth.Truncate(s, maxWidth, "...")
+	return runewidth.Truncate(s, maxWidth, UnicodeEllipsis)
 }
 
 // SplitAndAlign splits a string into multiple lines and aligns the

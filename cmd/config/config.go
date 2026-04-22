@@ -39,7 +39,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	c.Flags().StringVarP(&app.Flags.ColorStr, "color", "c", "always", "")
 	c.Flags().StringVar(&app.DBName, "db", application.MainDBName, "database name")
 	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
-	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit configuration file")
+	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit with text editor")
 	cmdutil.HideFlag(c, "help", "color", "db")
 
 	c.AddCommand(newCreateCmd(app), newEditCmd(app), newShowPathCmd(app))

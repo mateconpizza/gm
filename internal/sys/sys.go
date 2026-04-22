@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -72,14 +71,11 @@ func BinExists(s string) bool {
 
 // Which checks if the command exists in $PATH.
 func Which(cmd string) (string, error) {
-	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
-		fullPath := filepath.Join(dir, cmd)
-		if info, err := os.Stat(fullPath); err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
-			return fullPath, nil
-		}
+	path, err := exec.LookPath(cmd)
+	if err != nil {
+		return "", ErrSysCmdNotFound
 	}
-
-	return "", ErrSysCmdNotFound
+	return path, nil
 }
 
 // ExecuteCmd runs a command with the given arguments and returns an error if

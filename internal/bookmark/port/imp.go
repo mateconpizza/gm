@@ -68,7 +68,7 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 		menu.WithConfig(d.App.Menu),
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
-		menu.WithPreview(app.PreviewCmd(srcDB.Name())+" {1}"),
+		menu.WithPreview(app.PreviewCmd(srcDB.Name(), "{1}")),
 		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
 			srcDB.Close()
@@ -156,7 +156,7 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithMultiSelection(),
-		menu.WithPreview(d.App.PreviewCmd("./backup/"+srcDB.Name())+" {+1}"),
+		menu.WithPreview(d.App.PreviewCmd("./backup/"+srcDB.Name(), "{+1}")),
 	)
 
 	defer t.CancelInterruptHandler()

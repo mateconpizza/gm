@@ -32,7 +32,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" QR-code "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd("{1}")),
 			)
 			return cmdutil.Execute(cmd, args, m, handler.QR)
 		},
@@ -57,7 +57,7 @@ func newOpenCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" QR-code "),
-				menu.WithPreview(app.PreviewCmd(app.DBName)+" {1}"),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {

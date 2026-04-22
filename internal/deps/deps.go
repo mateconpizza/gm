@@ -53,6 +53,10 @@ func (c *Deps) Context() context.Context {
 
 // Application retrieves application from context.
 func (c *Deps) Application() (*application.App, error) {
+	if c.App != nil {
+		return c.App, nil
+	}
+
 	return application.FromContext(c.ctx)
 }
 

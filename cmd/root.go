@@ -4,52 +4,19 @@ package cmd
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/add"
-	"github.com/mateconpizza/gm/cmd/archive"
-	"github.com/mateconpizza/gm/cmd/check"
-	"github.com/mateconpizza/gm/cmd/clean"
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/cmd/config"
-	"github.com/mateconpizza/gm/cmd/database"
-	"github.com/mateconpizza/gm/cmd/edit"
-	gitCmd "github.com/mateconpizza/gm/cmd/git"
-	"github.com/mateconpizza/gm/cmd/io/in"
-	"github.com/mateconpizza/gm/cmd/io/out"
-	"github.com/mateconpizza/gm/cmd/notes"
-	"github.com/mateconpizza/gm/cmd/open"
-	"github.com/mateconpizza/gm/cmd/qrcmd"
-	"github.com/mateconpizza/gm/cmd/rm"
-	"github.com/mateconpizza/gm/cmd/setup"
-	"github.com/mateconpizza/gm/cmd/tag"
-	"github.com/mateconpizza/gm/cmd/yank"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/cleanup"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 )
-
-// TODO: let the user set the default database.
-// - [ ] gm db use <name> (this will set it as default)?
-
-// FIX: keymap 'toggle-preview' does not respect the user configuration.
-// If the user sets the keybind to 'hidden', it will be overwritten when:
-// - 'register' -> 'menu/keymap.go'
-// or
-// - 'buildPreviewArgs' -> 'menu/builder.go'
 
 // NewRootCmd is the main command.
 func NewRootCmd(app *application.App) *cobra.Command {
@@ -57,119 +24,14 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		Use:               app.Cmd + " [query]",
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
-		PersistentPreRunE: cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase),
+		PersistentPreRunE: cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase(app)),
 		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fm, err := formatter.Resolve(app.Flags.Output)
-			if err != nil {
-				return err
-			}
-			m := handler.MenuMainForRecords(app, fm)
-
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
-				t, f := d.Console(), d.App.Flags
-				switch {
-				case d.App.Flags.Field != "":
-					// TODO: experimental
-					return printer.ByField(t, f.Field, bs)
-				case d.App.Flags.Preview != "":
-					return printer.MenuPreview(t, bs, f.Preview)
-				case d.App.Flags.Output != "":
-					return printer.Display(t, f.Output, bs)
-				default:
-					return printer.Records(t, bs)
-				}
-			})
-		},
+		RunE:              rootCmdFunc(app),
 	}
 
-	cobra.AddTemplateFunc("hasFlags", cmdutil.HasFlags)
-	c.SetUsageTemplate(cmdutil.UsageTemplate)
-	c.PersistentFlags().SortFlags = false
-
-	// local
-	cmdutil.FlagOutput(c, app)
-	cmdutil.FlagFields(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagMenu(c, app)
-	// global
-	g := c.PersistentFlags()
-	g.StringVar(&app.DBName, "db", application.MainDBName, "database name")
-	g.StringVar(&app.Flags.ColorStr, "color", "always", "output with colors [always|never]")
-	g.BoolVar(&app.Flags.Force, "force", false, "force action")
-	g.BoolVarP(&app.Flags.Yes, "yes", "y", false, "assume yes")
-	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
-	g.Bool("help", false, "")
-	_ = g.MarkHidden("help")
-
-	g.StringVar(&app.Flags.Preview, "preview", "", "")
-	_ = g.MarkHidden("preview")
-
-	cobra.OnInitialize(func() {
-		app.Initialize()
-		initAppConfig(c.Context(), app)
-	})
-
-	// cmd settings
-	c.CompletionOptions.HiddenDefaultCmd = true
-	c.SilenceErrors = true
-	c.DisableSuggestions = true
-	c.SuggestionsMinimumDistance = 1
-	c.SetHelpCommand(&cobra.Command{Hidden: true})
-	cobra.EnableCommandSorting = false
-	cobra.EnableTraverseRunHooks = true
-
-	registerCleanups(app)
-
+	registerFlags(c, app)
+	setupRootCmd(c, app)
 	return c
-}
-
-func initAppConfig(ctx context.Context, app *application.App) {
-	app.Flags.Color = app.Flags.ColorStr == "always" &&
-		!terminal.IsPiped() &&
-		!terminal.NoColorEnv()
-
-	application.SetVerbosity(app.Flags.Verbose)
-
-	// load config from YAML
-	if err := application.Load(app); err != nil {
-		slog.Error("loading config", "err", err)
-	}
-
-	// enable global color
-	if !app.Flags.Color {
-		ansi.DisableColor()
-		frame.DisableColor()
-	}
-
-	// terminal interactive mode
-	terminal.NonInteractiveMode(app.Flags.Yes)
-
-	// git config
-	git.SetConfig(ctx, app)
-}
-
-// Setup registers all application commands with the CLI.
-func Setup(root *cobra.Command, app *application.App) {
-	root.AddCommand(
-		add.NewCmd(app),
-		edit.NewCmd(app),
-		rm.NewCmd(app),
-		open.NewCmd(app),
-		yank.NewCmd(app),
-		notes.NewCmd(app),
-		qrcmd.NewCmd(app),
-		check.NewCmd(app),
-		tag.NewCmd(app),
-		clean.NewCmd(app),
-		archive.NewCmd(app),
-		database.NewCmd(app),
-		gitCmd.NewCmd(app),
-		config.NewCmd(app),
-		in.NewCmd(app),
-		out.NewCmd(app),
-		setup.NewCmd(),
-	)
 }
 
 // Execute executes the provided root command and exits on error.
@@ -180,10 +42,67 @@ func Execute(r *cobra.Command) error {
 	return r.ExecuteContext(ctx)
 }
 
-func registerCleanups(_ *application.App) {
-	// close all open connections
-	cleanup.Register(func() error {
-		db.Shutdown()
-		return nil
+func rootCmdFunc(app *application.App) cli.Hook {
+	return func(cmd *cobra.Command, args []string) error {
+		fm, err := formatter.Resolve(app.Flags.Output)
+		if err != nil {
+			return err
+		}
+		m := handler.MenuMainForRecords(app, fm)
+
+		return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			t, f := d.Console(), d.App.Flags
+			switch {
+			case d.App.Flags.Field != "":
+				return printer.ByField(t, f.Field, bs) // TODO: experimental
+			case d.App.Flags.Preview != "":
+				return printer.MenuPreview(t, bs, f.Preview)
+			case d.App.Flags.Output != "":
+				return printer.Display(t, f.Output, bs)
+			default:
+				return printer.Records(t, bs)
+			}
+		})
+	}
+}
+
+func setupRootCmd(c *cobra.Command, app *application.App) {
+	// Add custom template function used inside usage/help templates
+	cobra.AddTemplateFunc("hasFlags", cmdutil.HasFlags)
+
+	// Override default usage template with a custom one
+	c.SetUsageTemplate(cmdutil.UsageTemplate)
+
+	// Keep flag order as defined (do not sort alphabetically)
+	c.PersistentFlags().SortFlags = false
+
+	// Hide the default completion command from help output
+	c.CompletionOptions.HiddenDefaultCmd = true
+
+	// Suppress automatic error printing (handled manually elsewhere)
+	c.SilenceErrors = true
+
+	// Disable command suggestions on invalid input
+	c.DisableSuggestions = true
+
+	// Minimum edit distance for suggestions (irrelevant if disabled, but explicit)
+	c.SuggestionsMinimumDistance = 1
+
+	// Remove the default help command from the command tree
+	c.SetHelpCommand(&cobra.Command{Hidden: true})
+
+	// Preserve command registration order (no automatic sorting)
+	cobra.EnableCommandSorting = false
+
+	// Ensure PersistentPreRun hooks are executed across command traversal
+	cobra.EnableTraverseRunHooks = true
+
+	// Initialize application state before command execution
+	cobra.OnInitialize(func() {
+		app.Initialize()
+		initAppConfig(c.Context(), app)
 	})
+
+	// Register cleanup hooks to be executed on shutdown/exit
+	registerCleanups(app)
 }

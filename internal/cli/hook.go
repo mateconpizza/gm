@@ -41,49 +41,46 @@ func ChainHooks(hooks ...Hook) Hook {
 // HookEnsureDatabase ensures the database exists before command execution.
 // Skips check for unlock operations and commands annotated with "skip-db-check".
 // Returns an error if database is missing, locked, or needs initialization.
-func HookEnsureDatabase(cmd *cobra.Command, args []string) error {
-	if cmd.HasParent() {
-		slog.Debug("ensure database", "parent", cmd.Parent().Name())
-	}
-	slog.Debug("ensure database", "command", cmd.Name())
+func HookEnsureDatabase(app *application.App) Hook {
+	return func(cmd *cobra.Command, args []string) error {
+		if cmd.HasParent() {
+			slog.Debug("ensure database", "parent", cmd.Parent().Name())
+		}
+		slog.Debug("ensure database", "command", cmd.Name())
 
-	if exit := dispatch(cmd); exit {
-		return nil
-	}
-
-	// Walk up the command chain: skip if any ancestor declares skip-db-check
-	for c := cmd; c != nil; c = c.Parent() {
-		if v, ok := c.Annotations["skip-db-check"]; ok && v == "true" {
-			slog.Debug("skipping db check for", "command", c.Name())
+		if exit := dispatch(cmd); exit {
 			return nil
 		}
-	}
 
-	// If check already passed, return early
-	if databaseChecked {
-		return nil
-	}
+		// Walk up the command chain: skip if any ancestor declares skip-db-check
+		for c := cmd; c != nil; c = c.Parent() {
+			if v, ok := c.Annotations["skip-db-check"]; ok && v == "true" {
+				slog.Debug("skipping db check for", "command", c.Name())
+				return nil
+			}
+		}
 
-	app, err := application.FromContext(cmd.Context())
-	if err != nil {
-		return err
-	}
+		// If check already passed, return early
+		if databaseChecked {
+			return nil
+		}
 
-	if files.Exists(app.DBPath) {
-		databaseChecked = true
-		return nil
-	}
+		if files.Exists(app.DBPath) {
+			databaseChecked = true
+			return nil
+		}
 
-	if err := checkDatabaseLocked(app.DBPath); err != nil {
-		return err
-	}
+		if err := checkDatabaseLocked(app.DBPath); err != nil {
+			return err
+		}
 
-	i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s init", app.Cmd)
-	if app.DBName == application.MainDBName {
-		return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
-	}
+		i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s init", app.Cmd)
+		if app.DBName == application.MainDBName {
+			return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
+		}
 
-	return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, app.DBName, i)
+		return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, app.DBName, i)
+	}
 }
 
 func HookHelp(cmd *cobra.Command, _ []string) error {

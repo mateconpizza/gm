@@ -41,7 +41,7 @@ func MenuMainForRecords(app *application.App, fm formatter.Formatter) *menu.Menu
 			kb.From(k.Open).ExecuteSilent("open"),
 			kb.From(k.QR).Execute("qr"),
 			kb.From(k.OpenQR).Execute("qr open"),
-			kb.From(k.Yank).Execute("yank"),
+			kb.From(k.Yank).ExecuteSilent("yank"),
 			kb.Builtin(k.ToggleAll, menu.ToggleAll),
 			kb.Builtin(k.Preview, menu.TogglePreview),
 		),
@@ -118,7 +118,7 @@ func selectItem(d *deps.Deps, fs []string, header string) (string, error) {
 		menu.WithOutputColor(d.App.Flags.Color),
 		menu.WithConfig(d.App.Menu),
 		menu.WithHeader(header),
-		menu.WithPreview(d.App.PreviewCmd("{1}")+" db info"),
+		menu.WithPreview(d.App.PreviewCmd(d.App.DBName, "{1} db info")),
 	)
 	if err != nil {
 		return "", err

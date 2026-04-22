@@ -253,6 +253,8 @@ func WithPreviewBorder(b Border) Option {
 	}
 }
 
+// WithNth transform the presentation of each line using the field index
+// expressions.
 func WithNth(idx ...string) Option {
 	return func(o *Options) {
 		o.args.add(o.args.withNth, strings.Join(idx, ","))
