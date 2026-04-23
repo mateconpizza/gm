@@ -90,9 +90,8 @@ func newJSONCmd(app *application.App) *cobra.Command {
 
 func newShowPathCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
-		Use:    "path",
-		Short:  "print config file location",
-		Hidden: true,
+		Use:   "path",
+		Short: "print config file location",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return showPathFile(app.Path.ConfigFile)
 		},

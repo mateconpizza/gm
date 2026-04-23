@@ -12,7 +12,7 @@ var info = &application.Information{
 	Title:   "Gomarks: A bookmark manager",
 	Tags:    "awesome,bookmarks,cli,golang",
 	Desc:    "Simple yet powerful bookmark manager for your terminal",
-	Version: "0.1.31",
+	Version: "0.1.32",
 }
 
 func main() {
