@@ -26,11 +26,13 @@
 
 https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 
+A `web interface` is currently in development: [gmweb](https://github.com/mateconpizza/gmweb)
+
 ### Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
 - [x] Track `bookmarks` with `git` <sub> wip </sub>
-  - [x] Sync `bookmarks` as `JSON` files
+  - [x] Sync `bookmarks` as `JSON` files and push to remote
   - [x] Encrypt `bookmarks` with `GPG` and push to remote
 - [x] Encrypt local database with `AES-GCM`
 - [x] Support multiple `databases`
@@ -39,10 +41,10 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 - [x] Import `bookmarks` from `git` <sub> wip </sub>
 - [x] Fetch `title` and `description` from new bookmark
 - [x] Check bookmark `status` _(http status)_
+- [x] Fetch lasts snapshot from Wayback Machine
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
 - [x] ~Migrate items from one database to another~
-- [x] Fetch lasts snapshot from Wayback Machine
 - [ ] Add `docker|podman` support <sub>_priority_</sub>
 
 ### Installation
@@ -100,8 +102,70 @@ flags:
 | `GOMARKS_EDITOR` | str  | Preferred text editor | <span style="color:green">**done**</span> |
 | `NO_COLOR`       | int  | Disable all colors    | <span style="color:green">**done**</span> |
 
+### Configuration
+
+Configuration file lives in `$XDG_CONFIG_HOME` if `$GOMARKS_HOME` is not set.
+
 <details>
-<summary><strong>📜 Menu support</strong></summary>
+<summary><strong>YAML file structure</strong></summary>
+
+```yaml
+menu:
+  defaults: true
+  prompt: "▶ "
+  preview: true
+  header:
+    enabled: true
+    separator: " / "
+  keymaps:
+    edit:
+      bind: ctrl-e
+      description: edit
+      enabled: true
+      hidden: false
+    notes:
+      bind: ctrl-w
+      description: edit-notes
+      enabled: true
+      hidden: false
+    open:
+      bind: ctrl-o
+      description: open
+      enabled: true
+      hidden: false
+    preview:
+      bind: ctrl-/
+      description: toggle-preview
+      enabled: true
+      hidden: false
+    qr:
+      bind: ctrl-k
+      description: qr-code
+      enabled: true
+      hidden: false
+    open_qr:
+      bind: ctrl-l
+      description: open-qr
+      enabled: true
+      hidden: false
+    toggle_all:
+      bind: ctrl-a
+      description: toggle-all
+      enabled: true
+      hidden: false
+    yank:
+      bind: ctrl-y
+      description: yank
+      enabled: true
+      hidden: false
+```
+
+</details>
+
+### Preview
+
+<details>
+<summary><strong>Menu support</strong></summary>
 
 Single/multiple selection for open, copy, edit, delete, check status.
 
@@ -110,85 +174,39 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 </details>
 
 <details>
-<summary><strong>➕ Add a bookmark</strong></summary>
+<summary><strong>Add a bookmark</strong></summary>
 
 https://github.com/user-attachments/assets/436b7553-b130-4114-8638-2e8a9b3ea2ce
 
 </details>
 
 <details>
-<summary><strong>📝 Edit a bookmark</strong></summary>
+<summary><strong>Edit a bookmark</strong></summary>
 
 https://github.com/user-attachments/assets/059dd578-2257-4db4-b7b1-1267d0375470
 
 </details>
 
 <details>
-<summary><strong>🔳 Create QR-Code</strong></summary>
+<summary><strong>Create QR-Code</strong></summary>
 
 https://github.com/user-attachments/assets/f531fdc9-067b-4747-9f31-4afd5252e3cb
 
 </details>
 
 <details>
-<summary><strong>☑️ Check status</strong></summary>
+<summary><strong>Check status</strong></summary>
 
 https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
 
 </details>
 
 <details>
-<summary><strong>⚙️ Configuration</strong></summary>
-
-- [x] `$GOMARKS_HOME/config.yml` file
-
-#### YAML file structure
-
-```yaml
-prompt: " Gomarks> "
-header: true
-preview: true
-keymaps:
-  edit:
-    bind: ctrl-e
-    description: edit
-    enabled: true
-    hidden: false
-  open:
-    bind: ctrl-o
-    description: open
-    enabled: true
-    hidden: false
-  preview:
-    bind: ctrl-/
-    description: toggle-preview
-    enabled: true
-    hidden: false
-  qr:
-    bind: ctrl-k
-    description: QRcode
-    enabled: true
-    hidden: false
-  toggle_all:
-    bind: ctrl-a
-    description: toggle-all
-    enabled: true
-    hidden: true
-  yank:
-    bind: ctrl-y
-    description: yank
-    enabled: true
-    hidden: false
-```
-
-</details>
-
-<details>
-<summary><strong>⏳ TODO</strong></summary>
+<summary><strong>TODO</strong></summary>
 
 ## TODO
 
-### ❗ Priority
+### Priority
 
 - ~~Use a ORM <sub>discontinued</sub>~~
   - [x] Add multiple databases option _(default.db, work.db, client.db)_
@@ -205,25 +223,25 @@ keymaps:
 - [x] Store `db` in `XDG_DATA_HOME`
 - [ ] Store `menu config` in `XDG_CONFIG_HOME` _(WIP: for now in `XDG_DATA_HOME`)_
 
-### 📦 Packages
+### Packages
 
 - [x] `terminal` package
 - [x] `color` package
 - [x] `files` package
 
-### 🟨 Redo
+### Redo
 
 - [ ] Backups
 - [ ] Databases
 
-### ⛓️ Import
+### Import
 
 - [x] From firefox
   - [ ] If `database` is locked <sub>(SQLITE_BUSY)</sub>, ask user confirmation
         to copy file to `tmp` directory and read from there.
 - [x] From ~~chrome~~ chromium
 
-### ♻️ Misc
+### Misc
 
 - ~~Add a logging library~~
 - [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
