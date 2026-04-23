@@ -114,8 +114,8 @@ func (gr *Repository) Drop(mesg string) error {
 }
 
 // Commit commits the bookmarks to the git repo.
-func (gr *Repository) Commit(msg string) error {
-	return commitIfChanged(gr.Git.ctx, gr, msg)
+func (gr *Repository) Commit(mesg string) error {
+	return commitIfChanged(gr.Git.ctx, gr, mesg)
 }
 
 // Stats returns the repo stats.

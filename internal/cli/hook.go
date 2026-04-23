@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -144,43 +145,12 @@ func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 func HookGitSync(cmd *cobra.Command, args []string) error {
 	app, err := application.FromContext(cmd.Context())
 	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
+		return fmt.Errorf("hook-git: failed to get config: %w", err)
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	defer cancel()
 
-	if !app.Git.Enabled {
-		return nil
-	}
-
-	gr, err := git.NewRepo(app.DBPath)
-	if err != nil {
-		return err
-	}
-
-	if !gr.IsTracked() {
-		return nil
-	}
-
-	r, err := db.New(app.DBPath)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	bs, err := r.All(cmd.Context())
-	if err != nil {
-		return err
-	}
-
-	updated, err := gr.Write(bs, app.Flags.Force)
-	if err != nil {
-		return err
-	}
-
-	if !updated {
-		return nil
-	}
-
-	return gr.Commit(cmd.Short)
+	return git.Sync(ctx, app, cmd.Short)
 }
 
 // HookInjectApp returns a hook that injects the config into the command context.

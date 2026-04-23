@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -90,11 +91,18 @@ func initAppConfig(ctx context.Context, app *application.App) {
 	git.SetConfig(ctx, app)
 }
 
-func registerCleanups(_ *application.App) {
+func registerCleanups(app *application.App) {
 	// close all open connections
 	cleanup.Register(func() error {
 		db.Shutdown()
 		return nil
+	})
+
+	// synchronize the repository state on shutdown.
+	cleanup.Register(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		return git.Sync(ctx, app, "cleanup: sync pending changes")
 	})
 }
 

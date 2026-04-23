@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -21,6 +22,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -153,7 +155,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 
 // exportAsJSON creates the repository structure.
 func exportAsJSON(root string, bs []*bookmark.Bookmark, force bool) (bool, error) {
-	var hasUpdates uint32
+	var hasUpdates atomic.Bool
 	g := new(errgroup.Group)
 
 	for i := range bs {
@@ -165,7 +167,7 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark, force bool) (bool, error
 			}
 
 			if updated {
-				atomic.StoreUint32(&hasUpdates, 1)
+				hasUpdates.Store(true)
 			}
 
 			return nil
@@ -176,7 +178,7 @@ func exportAsJSON(root string, bs []*bookmark.Bookmark, force bool) (bool, error
 		return false, err
 	}
 
-	return atomic.LoadUint32(&hasUpdates) == 1, nil
+	return hasUpdates.Load(), nil
 }
 
 // cleanGPGRepo removes the files from the git repo concurrently.
@@ -250,4 +252,42 @@ func cleanJSONRepo(ctx context.Context, root string, bs []*bookmark.Bookmark) er
 	}
 
 	return files.RemoveEmptyDirs(root)
+}
+
+// Sync writes bookmarks to the repo and commits changes if any.
+func Sync(ctx context.Context, app *application.App, mesg string) error {
+	if !app.Git.Enabled {
+		return nil
+	}
+
+	gr, err := NewRepo(app.DBPath)
+	if err != nil {
+		return err
+	}
+
+	if !gr.IsTracked() {
+		return nil
+	}
+
+	r, err := db.New(app.DBPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	bs, err := r.All(ctx)
+	if err != nil {
+		return err
+	}
+
+	updated, err := gr.Write(bs, app.Flags.Force)
+	if err != nil {
+		return err
+	}
+
+	if !updated {
+		return nil
+	}
+
+	return gr.Commit(mesg)
 }
