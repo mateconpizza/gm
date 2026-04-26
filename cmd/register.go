@@ -125,4 +125,6 @@ func registerFlags(c *cobra.Command, app *application.App) {
 	_ = g.MarkHidden("help")
 	g.StringVar(&app.Flags.Preview, "preview", "", "")
 	_ = g.MarkHidden("preview")
+
+	c.Flags().BoolVarP(&app.Flags.Version, "version", "V", false, "version for "+app.Cmd)
 }

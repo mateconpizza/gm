@@ -1,3 +1,4 @@
+// Package cli provides utilities for building and managing Cobra commands.
 package cli
 
 import (
@@ -16,6 +17,16 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
+)
+
+var (
+	// SkipDBCheck is used in subcmds declarations to skip the database
+	// existence check.
+	SkipDBCheck = map[string]string{"skip-db-check": "true"}
+
+	// databaseChecked tracks whether the database check has already been
+	// performed in the current process.
+	databaseChecked bool = false
 )
 
 // Hook is the function signature used for Cobra PersistentPreRunE hooks.
@@ -154,20 +165,33 @@ func HookGitSync(cmd *cobra.Command, args []string) error {
 }
 
 // HookInjectApp returns a hook that injects the config into the command context.
+// HookInjectApp returns a hook that injects the app into the command context.
 func HookInjectApp(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
 		if ctx == nil {
 			ctx = context.Background()
+			slog.Debug("hook inject app: context was nil, using background")
 		}
 
 		if _, err := application.FromContext(ctx); err == nil {
-			// config already injected, skip
+			// App already injected, skip
+			slog.Debug(
+				"hook inject app: already present, skipping",
+				"command", cmd.Name(),
+			)
 			return nil
 		}
 
 		cmd.SetContext(application.ToContext(ctx, app))
+
+		slog.Debug(
+			"hook inject app: injected into context",
+			"command", cmd.Name(),
+			"args", args,
+		)
+
 		return nil
 	}
 }

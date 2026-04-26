@@ -42,6 +42,7 @@ type Flags struct {
 	Yes      bool   // Assume "yes" on most questions
 	Path     string // Custom database path
 	Verbose  int    // Verbose output level
+	Version  bool
 
 	// database
 	Reorder bool // Reorder table IDs

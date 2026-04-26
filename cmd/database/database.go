@@ -111,7 +111,7 @@ var createCmd = &cobra.Command{
 	Short:             "create a database",
 	Aliases:           []string{"add"},
 	Example:           `  gm db create -n myDb`,
-	Annotations:       cli.SkipDBCheckAnnotation,
+	Annotations:       cli.SkipDBCheck,
 	PersistentPreRunE: setup.InitCmd.PersistentPreRunE,
 	RunE:              setup.InitCmd.RunE,
 	PostRunE:          setup.InitCmd.PostRunE,
@@ -162,7 +162,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "unlock",
 		Short:       "unlock a database",
-		Annotations: cli.SkipDBCheckAnnotation,
+		Annotations: cli.SkipDBCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d := deps.New(cmd.Context(),
 				deps.WithApplication(app),

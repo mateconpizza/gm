@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 var (
@@ -96,6 +98,17 @@ func (app *App) Validate() error {
 
 func (app *App) PreviewCmd(dbPath string, args ...string) string {
 	return fmt.Sprintf("%s --preview frame --db %s %s", app.Cmd, dbPath, strings.Join(args, " "))
+}
+
+// PrettyVersion formats version in a pretty way.
+func (app *App) PrettyVersion() string {
+	return fmt.Sprintf(
+		"%s v%s %s/%s",
+		ansi.BrightBlue.Wrap(app.Name, ansi.Bold),
+		app.Info.Version,
+		runtime.GOOS,
+		runtime.GOARCH,
+	)
 }
 
 func New(info *Information) *App {

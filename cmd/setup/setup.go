@@ -24,7 +24,7 @@ var InitCmd = &cobra.Command{
 	Use:               "init",
 	Short:             "initialize a new bookmarks database",
 	Hidden:            true,
-	Annotations:       cli.SkipDBCheckAnnotation,
+	Annotations:       cli.SkipDBCheck,
 	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: convert `InitCmd` to command builder(*application.App)
@@ -134,7 +134,7 @@ func createPaths(c *ui.Console, app *application.App) error {
 	}
 
 	p, f := c.Palette(), c.Frame()
-	f.Headerln(cli.PrettyVersion(app.Name, app.Info.Version)).Rowln().
+	f.Headerln(app.PrettyVersion()).Rowln().
 		Info(txt.PaddedLine("Create path:", p.Italic.Sprint(app.Path.Data))).Ln().
 		Info(txt.PaddedLine("Create db:", p.Italic.Sprint(app.Path.Database))).Ln()
 

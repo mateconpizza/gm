@@ -20,6 +20,10 @@ import (
 
 // MenuMainForRecords builds the interactive FZF menu for selecting records.
 func MenuMainForRecords(app *application.App, fm formatter.Formatter) *menu.Menu[bookmark.Bookmark] {
+	if !app.Flags.Menu {
+		return nil
+	}
+
 	p := fm.Menu.Placeholder
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
 	k := app.Menu.DefaultKeymaps

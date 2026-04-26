@@ -25,7 +25,6 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		Args:              cobra.MinimumNArgs(0),
 		SilenceUsage:      true,
 		PersistentPreRunE: cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase(app)),
-		Version:           cli.PrettyVersion(app.Name, app.Info.Version),
 		RunE:              rootCmdFunc(app),
 	}
 
