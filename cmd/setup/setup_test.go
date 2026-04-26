@@ -30,7 +30,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	}
 
 	// Verify database was actually initialized
-	store, err := db.New(d.App.DBPath)
+	store, err := db.New(d.App.Path.Database)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	d.App.DBName = "test-db"
-	d.App.DBPath = filepath.Join(d.App.Path.Data, d.App.DBName)
+	d.App.Path.Database = filepath.Join(d.App.Path.Data, d.App.DBName)
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
@@ -116,7 +116,7 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 func TestFailsWhenInitReturnsErr(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	// Set invalid DB path
-	d.App.DBPath = "/invalid/path/\x00/db"
+	d.App.Path.Database = "/invalid/path/\x00/db"
 
 	err := initializeAction(d)
 
@@ -146,7 +146,7 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 		t.Fatalf("initialization failed: %v", err)
 	}
 
-	store, err := db.New(d.App.DBPath)
+	store, err := db.New(d.App.Path.Database)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

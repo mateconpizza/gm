@@ -149,7 +149,7 @@ func newLockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.LockRepo(d, d.App.DBPath)
+			return handler.LockRepo(d, d.App.Path.Database)
 		},
 	}
 
@@ -169,7 +169,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
-			return handler.UnlockRepo(d, d.App.DBPath)
+			return handler.UnlockRepo(d, d.App.Path.Database)
 		},
 	}
 
@@ -184,7 +184,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return nil
 		}
 
-		gr, err := git.NewRepo(app.DBPath)
+		gr, err := git.NewRepo(app.Path.Database)
 		if err != nil {
 			return err
 		}

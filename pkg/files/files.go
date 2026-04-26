@@ -367,8 +367,6 @@ func JSONRead[T any](p string, v *T) error {
 		return fmt.Errorf("error unmarshalling JSON: %w", err)
 	}
 
-	slog.Debug("JsonRead", "path", p)
-
 	return nil
 }
 

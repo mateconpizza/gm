@@ -117,7 +117,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Use:   "init",
 		Short: "create empty Git repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gr, err := git.NewRepo(app.DBPath)
+			gr, err := git.NewRepo(app.Path.Database)
 			if err != nil {
 				return err
 			}
@@ -277,7 +277,7 @@ func processImported(c *ui.Console, imported []string, commitMesg string) error 
 
 // pushFunc pushes local changes to the remote repository.
 func pushFunc(ctx context.Context, app *application.App) error {
-	gr, err := git.NewRepo(app.DBPath)
+	gr, err := git.NewRepo(app.Path.Database)
 	if err != nil {
 		return err
 	}

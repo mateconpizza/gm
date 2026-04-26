@@ -51,8 +51,8 @@ func loadDataPath(appName, envVar string) (string, error) {
 	return dataHome, nil
 }
 
-// InitPaths initializes all filesystem paths for the application.
-func (app *App) InitPaths() error {
+// Setup initializes all filesystem paths for the application.
+func (app *App) Setup() error {
 	dataHomePath, err := loadDataPath(app.Name, app.Env.Home)
 	if err != nil {
 		return err
@@ -60,26 +60,30 @@ func (app *App) InitPaths() error {
 
 	// set app home
 	app.Path.Data = dataHomePath
-	app.Path.ConfigFile = filepath.Join(app.Path.Data, ConfigFilename)
+	app.Path.Config = filepath.Join(app.Path.Data, ConfigFilename)
 	app.Path.Backup = filepath.Join(app.Path.Data, "backup")
 
 	// set main database path and name
 	if filepath.Ext(app.DBName) != ".db" {
 		app.DBName += ".db"
 	}
-	app.DBPath = filepath.Join(dataHomePath, app.DBName)
+	app.Path.Database = filepath.Join(dataHomePath, app.DBName)
 
 	return nil
 }
 
 // Load loads the user configurations file.
-func Load(app *App) error {
-	err := getConfig(app.Path.ConfigFile, app)
+func (app *App) Load() error {
+	err := getConfig(app.Path.Config, app)
 	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
 		return err
 	}
 
 	return nil
+}
+
+func (app *App) Write() error {
+	return WriteYAML(app.Path.Config, app, app.Flags.Force)
 }
 
 // getConfig loads the config file.
@@ -128,7 +132,7 @@ func WriteYAML[T any](p string, v *T, force bool) error {
 	}
 
 	defer func() {
-		if err := f.Close(); err != nil {
+		if err = f.Close(); err != nil {
 			slog.Error("Yaml closing file", "file", p, "error", err)
 		}
 	}()

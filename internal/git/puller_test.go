@@ -71,8 +71,7 @@ func setupRepoProcessor(t *testing.T) *RepoProcessor {
 	g, _ := NewManager(t.Context(), "")
 	a := &application.App{
 		DBName: "test.db",
-		DBPath: "/tmp/testpath",
-		Path:   &application.Path{},
+		Path:   &application.Path{Database: "/tmp/testpath"},
 		Info:   &application.Information{Version: "1.2.3"},
 	}
 

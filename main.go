@@ -17,7 +17,7 @@ var info = &application.Information{
 
 func main() {
 	app := application.New(info)
-	if err := app.InitPaths(); err != nil {
+	if err := app.Setup(); err != nil {
 		sys.ErrAndExit(err)
 	}
 	defer cleanup.Run()

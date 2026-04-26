@@ -251,8 +251,8 @@ func TagsJSON(ctx context.Context, p string) error {
 // RepoInfo prints the database info.
 func RepoInfo(d *deps.Deps) error {
 	// FIX: Test RepoInfo()
-	if err := locker.IsLocked(d.App.DBPath); err != nil {
-		fmt.Print(summary.RepoFromPath(d, d.App.DBPath+".enc", d.App.Path.Backup))
+	if err := locker.IsLocked(d.App.Path.Database); err != nil {
+		fmt.Print(summary.RepoFromPath(d, d.App.Path.Database+".enc", d.App.Path.Backup))
 		return nil
 	}
 
@@ -270,7 +270,7 @@ func RepoInfo(d *deps.Deps) error {
 
 	info := summary.Info(d)
 
-	g, err := git.Info(d.Console(), d.App.DBPath, d.App.Git)
+	g, err := git.Info(d.Console(), d.App.Path.Database, d.App.Git)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}

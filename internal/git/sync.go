@@ -260,7 +260,7 @@ func Sync(ctx context.Context, app *application.App, mesg string) error {
 		return nil
 	}
 
-	gr, err := NewRepo(app.DBPath)
+	gr, err := NewRepo(app.Path.Database)
 	if err != nil {
 		return err
 	}
@@ -269,7 +269,7 @@ func Sync(ctx context.Context, app *application.App, mesg string) error {
 		return nil
 	}
 
-	r, err := db.New(app.DBPath)
+	r, err := db.New(app.Path.Database)
 	if err != nil {
 		return err
 	}

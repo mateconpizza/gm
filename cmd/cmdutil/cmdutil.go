@@ -66,7 +66,7 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	r, err := db.New(app.DBPath)
+	r, err := db.New(app.Path.Database)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -86,13 +86,13 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 }
 
 func Execute(
-	c *cobra.Command,
+	cmd *cobra.Command,
 	args []string,
 	m *menu.Menu[bookmark.Bookmark],
 	action BookmarkAction,
 	filters ...Filter,
 ) error {
-	d, cleanup, err := SetupDeps(c, &args)
+	d, cleanup, err := SetupDeps(cmd, &args)
 	if err != nil {
 		return err
 	}

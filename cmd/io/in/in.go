@@ -52,7 +52,7 @@ func newFromDatabaseCmd(app *application.App) *cobra.Command {
 		Short:   "import from database",
 		Aliases: []string{"db"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			rDest, err := db.New(app.DBPath)
+			rDest, err := db.New(app.Path.Database)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -88,7 +88,7 @@ func newFromBackupCmd(app *application.App) *cobra.Command {
 		Short:   "import from backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			destRepo, err := db.New(app.DBPath)
+			destRepo, err := db.New(app.Path.Database)
 			if err != nil {
 				return err
 			}
@@ -133,7 +133,7 @@ func newBrowserCmd(app *application.App) *cobra.Command {
 		Use:   "browser",
 		Short: "import from browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(app.DBPath)
+			r, err := db.New(app.Path.Database)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}

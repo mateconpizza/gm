@@ -63,14 +63,14 @@ func TestPaths_InitPaths(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv(c.Env.Home, tempDir)
 
-	c.InitPaths()
+	c.Setup()
 
 	p := c.Path
 	tempDir = filepath.Join(tempDir, Name)
 
 	wantConfigFilepath := filepath.Join(tempDir, ConfigFilename)
-	if wantConfigFilepath != p.ConfigFile {
-		t.Fatalf("want: %q, got: %q", wantConfigFilepath, p.ConfigFile)
+	if wantConfigFilepath != p.Config {
+		t.Fatalf("want: %q, got: %q", wantConfigFilepath, p.Config)
 	}
 
 	wantBackupPath := filepath.Join(tempDir, "backup")
@@ -79,8 +79,8 @@ func TestPaths_InitPaths(t *testing.T) {
 	}
 
 	wantDBPath := filepath.Join(tempDir, c.DBName)
-	if wantDBPath != c.DBPath {
-		t.Fatalf("want: %q, got: %q", wantDBPath, c.DBPath)
+	if wantDBPath != c.Path.Database {
+		t.Fatalf("want: %q, got: %q", wantDBPath, c.Path.Database)
 	}
 
 	wantExt := ".db"
@@ -93,7 +93,7 @@ func TestPaths_InitPaths(t *testing.T) {
 func TestWriteRead_Successfully_Reads_And_Unmarshals_Valid_YAML(t *testing.T) {
 	t.Parallel()
 	tempDir := t.TempDir()
-	fn := filepath.Join(tempDir, "config.yaml")
+	fn := filepath.Join(tempDir, ConfigFilename)
 	conf := &App{
 		Git: &Git{
 			Enabled: true,

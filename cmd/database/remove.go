@@ -79,7 +79,7 @@ func databaseRemovePostFunc(app *application.App) func(*cobra.Command, []string)
 			return nil
 		}
 
-		gr, err := git.NewRepo(app.DBPath)
+		gr, err := git.NewRepo(app.Path.Database)
 		if err != nil {
 			return err
 		}

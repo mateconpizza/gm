@@ -33,8 +33,8 @@ func TestConfig_Create(t *testing.T) {
 
 		dir := t.TempDir()
 		app := testutil.SetupApp(t)
-		fn := "config.yaml"
-		app.Path.ConfigFile = filepath.Join(dir, fn)
+		fn := application.ConfigFilename
+		app.Path.Config = filepath.Join(dir, fn)
 
 		err := createConfig(c, app)
 		if err != nil {
@@ -62,7 +62,7 @@ func TestConfig_Create(t *testing.T) {
 		app := testutil.SetupApp(t)
 		app.Flags.Yes = true
 		dir := t.TempDir()
-		app.Path.ConfigFile = filepath.Join(dir, "conf.yaml")
+		app.Path.Config = filepath.Join(dir, application.ConfigFilename)
 
 		err := createConfig(c, app)
 		if err == nil {
@@ -77,14 +77,14 @@ func TestConfig_Create(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		fn := filepath.Join(dir, "conf.yaml")
+		fn := filepath.Join(dir, application.ConfigFilename)
 		_, err := files.Touch(fn, false)
 		if err != nil {
 			t.Fatalf("setup failed: %v", err)
 		}
 
 		app := testutil.SetupApp(t)
-		app.Path.ConfigFile = fn
+		app.Path.Config = fn
 		c := ui.NewConsole()
 		err = createConfig(c, app)
 		if !errors.Is(err, files.ErrFileExists) {
@@ -109,7 +109,7 @@ func TestConfig_PrintJSON(t *testing.T) {
 
 	fn := filepath.Join(t.TempDir(), application.ConfigFilename)
 	app := testutil.SetupApp(t)
-	app.Path.ConfigFile = fn
+	app.Path.Config = fn
 	app.Git = gitCfg
 
 	var buf bytes.Buffer

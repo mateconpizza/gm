@@ -66,12 +66,12 @@ func HookEnsureDatabase(app *application.App) Hook {
 			return nil
 		}
 
-		if files.Exists(app.DBPath) {
+		if files.Exists(app.Path.Database) {
 			databaseChecked = true
 			return nil
 		}
 
-		if err := checkDatabaseLocked(app.DBPath); err != nil {
+		if err := checkDatabaseLocked(app.Path.Database); err != nil {
 			return err
 		}
 
@@ -96,8 +96,8 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	if files.Exists(app.DBPath) {
-		if ok, _ := db.IsInitializedFromPath(cmd.Context(), app.DBPath); ok {
+	if files.Exists(app.Path.Database) {
+		if ok, _ := db.IsInitializedFromPath(cmd.Context(), app.Path.Database); ok {
 			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, app.DBName)
 		}
 

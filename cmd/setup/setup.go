@@ -51,7 +51,7 @@ func initializeAction(d *deps.Deps) error {
 		return err
 	}
 
-	store, err := db.Init(app.DBPath)
+	store, err := db.Init(app.Path.Database)
 	if store == nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -98,7 +98,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	if !app.Git.Enabled {
 		return nil
 	}
-	gr, err := git.NewRepo(app.DBPath)
+	gr, err := git.NewRepo(app.Path.Database)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func createPaths(c *ui.Console, app *application.App) error {
 	p, f := c.Palette(), c.Frame()
 	f.Headerln(cli.PrettyVersion(app.Name, app.Info.Version)).Rowln().
 		Info(txt.PaddedLine("Create path:", p.Italic.Sprint(app.Path.Data))).Ln().
-		Info(txt.PaddedLine("Create db:", p.Italic.Sprint(app.DBPath))).Ln()
+		Info(txt.PaddedLine("Create db:", p.Italic.Sprint(app.Path.Database))).Ln()
 
 	lines := txt.CountLines(f.String()) + 1
 	f.Rowln().Flush()

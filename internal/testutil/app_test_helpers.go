@@ -49,7 +49,7 @@ func SetupDeps(t *testing.T) *deps.Deps {
 	app := SetupApp(t)
 	temp := t.TempDir()
 
-	app.DBPath = filepath.Join(temp, app.DBName)
+	app.Path.Database = filepath.Join(temp, app.DBName)
 	app.Path.Data = temp
 	tm := terminal.New(
 		terminal.WithContext(t.Context()),

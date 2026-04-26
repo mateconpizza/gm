@@ -22,20 +22,20 @@ import (
 
 // RemoveRepo removes a repo.
 func RemoveRepo(d *deps.Deps) error {
-	if !files.Exists(d.App.DBPath) {
-		return fmt.Errorf("%w: %q", db.ErrDBNotFound, d.App.DBPath)
+	if !files.Exists(d.App.Path.Database) {
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, d.App.Path.Database)
 	}
 
-	if filepath.Base(d.App.DBPath) == application.MainDBName && !d.App.Flags.Force {
+	if filepath.Base(d.App.Path.Database) == application.MainDBName && !d.App.Flags.Force {
 		f := ansi.BrightYellow.With(ansi.Italic).Sprint("--force")
 		return fmt.Errorf("%w: main database cannot be removed, use %s", ErrInvalidOption, f)
 	}
 
 	c, p := d.Console(), d.Console().Palette()
-	fmt.Fprint(d.Writer(), summary.RepoFromPath(d, d.App.DBPath, d.App.Path.Backup))
+	fmt.Fprint(d.Writer(), summary.RepoFromPath(d, d.App.Path.Database, d.App.Path.Backup))
 	if !d.App.Flags.Force {
 		if err := c.ConfirmErr(
-			p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(d.App.DBPath)+"?",
+			p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(d.App.Path.Database)+"?",
 			"n",
 		); err != nil {
 			return err
@@ -48,11 +48,11 @@ func RemoveRepo(d *deps.Deps) error {
 		}
 	}
 
-	if err := files.Remove(d.App.DBPath); err != nil {
+	if err := files.Remove(d.App.Path.Database); err != nil {
 		return err
 	}
 
-	dbName := filepath.Base(d.App.DBPath)
+	dbName := filepath.Base(d.App.Path.Database)
 	if dbName == application.MainDBName {
 		dbName = "main"
 	}
@@ -64,7 +64,7 @@ func RemoveRepo(d *deps.Deps) error {
 
 // RemoveBackups removes backups.
 func RemoveBackups(d *deps.Deps) error {
-	fn := d.App.DBPath
+	fn := d.App.Path.Database
 	dbName := files.StripSuffixes(filepath.Base(fn))
 	// match YYYYMMDD-HHMMSS_dbname.db
 	fs, err := files.List(d.App.Path.Backup, "*_"+dbName+".db*")

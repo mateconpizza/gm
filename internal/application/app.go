@@ -29,7 +29,6 @@ type (
 		Name        string       `json:"name"          yaml:"-"`             // Name of the application
 		Cmd         string       `json:"cmd"           yaml:"-"`             // Name of the executable
 		DBName      string       `json:"db"            yaml:"-"`             // Database name
-		DBPath      string       `json:"db_path"       yaml:"-"`             // Database path
 		Info        *Information `json:"data"          yaml:"-"`             // Application information
 		Env         *Env         `json:"env"           yaml:"-"`             // Application environment variables
 		Path        *Path        `json:"path"          yaml:"-"`             // Application path
@@ -40,9 +39,10 @@ type (
 	}
 
 	Path struct {
-		Data       string `json:"data"`   // Path to store database
-		ConfigFile string `json:"config"` // Path to config file
-		Backup     string `json:"backup"` // Path to store backups
+		Data     string `json:"data"`   // Path to store database
+		Config   string `json:"config"` // Path to config file
+		Backup   string `json:"backup"` // Path to store backups
+		Database string `json:"store"`  // Database path
 	}
 
 	Git struct {
@@ -76,7 +76,7 @@ func (app *App) Initialize() {
 	if filepath.Ext(app.DBName) != ".db" {
 		app.DBName += ".db"
 	}
-	app.DBPath = filepath.Join(app.Path.Data, app.DBName)
+	app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
 	app.initialized = true
 }
 
@@ -85,14 +85,12 @@ func (app *App) Validate() error {
 	if app.DBName == "" {
 		return ErrDatabaseNameNotSet
 	}
-	if app.DBPath == "" {
+	if app.Path.Database == "" {
 		return ErrDatabasePathNotSet
 	}
-
 	if app.Menu != nil {
 		return app.Menu.Validate()
 	}
-
 	return nil
 }
 

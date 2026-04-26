@@ -123,7 +123,7 @@ func newBackupUnlockCmd(_ *application.App) *cobra.Command {
 
 func backupNewFunc(d *deps.Deps) error {
 	app := d.App
-	srcPath := app.DBPath
+	srcPath := app.Path.Database
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
 	}

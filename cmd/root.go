@@ -35,11 +35,11 @@ func NewRootCmd(app *application.App) *cobra.Command {
 }
 
 // Execute executes the provided root command and exits on error.
-func Execute(r *cobra.Command) error {
+func Execute(c *cobra.Command) error {
 	ctx, stop := sys.WithSignalContext(context.Background())
 	defer stop()
 
-	return r.ExecuteContext(ctx)
+	return c.ExecuteContext(ctx)
 }
 
 func rootCmdFunc(app *application.App) cli.Hook {

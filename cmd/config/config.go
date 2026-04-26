@@ -93,25 +93,25 @@ func newShowPathCmd(app *application.App) *cobra.Command {
 		Use:   "path",
 		Short: "print config file location",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return showPathFile(app.Path.ConfigFile)
+			return showPathFile(app.Path.Config)
 		},
 	}
 }
 
 // createConfig dumps the app configuration to a YAML file.
 func createConfig(c *ui.Console, app *application.App) error {
-	fn := app.Path.ConfigFile
+	fn := app.Path.Config
 	if files.Exists(fn) && !app.Flags.Force {
 		p := c.Palette()
 		f := p.BrightYellow.Wrap("--force", p.Italic, p.Bold)
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
 
-	if !c.Confirm(fmt.Sprintf("create configfile %q", fn), "y") {
+	if !app.Flags.Force && !c.Confirm(fmt.Sprintf("create configfile %q", fn), "y") {
 		return sys.ErrActionAborted
 	}
 
-	if err := application.WriteYAML(fn, app, app.Flags.Force); err != nil {
+	if err := app.Write(); err != nil {
 		return err
 	}
 
@@ -122,7 +122,7 @@ func createConfig(c *ui.Console, app *application.App) error {
 
 // editConfig edits the config file.
 func editConfig(ctx context.Context, app *application.App) error {
-	p := app.Path.ConfigFile
+	p := app.Path.Config
 	if !files.Exists(p) {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}

@@ -74,7 +74,7 @@ func initAppConfig(ctx context.Context, app *application.App) {
 	application.SetVerbosity(app.Flags.Verbose)
 
 	// load config from YAML
-	if err := application.Load(app); err != nil {
+	if err := app.Load(); err != nil {
 		slog.Error("loading config", "err", err)
 	}
 
@@ -100,6 +100,7 @@ func registerCleanups(app *application.App) {
 
 	// synchronize the repository state on shutdown.
 	cleanup.Register(func() error {
+		slog.Debug("synchronize the repository state on shutdown")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 		return git.Sync(ctx, app, "cleanup: sync pending changes")

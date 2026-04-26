@@ -19,7 +19,7 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		Use:   "tracker",
 		Short: "track database with git",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gr, err := git.NewRepo(app.DBPath)
+			gr, err := git.NewRepo(app.Path.Database)
 			if err != nil {
 				return err
 			}

@@ -191,7 +191,8 @@ func ErrAndExit(err error) {
 	}
 }
 
-// WithSignalContext returns a context that is canceled when an interrupt or termination signal is received.
+// WithSignalContext returns a context that is canceled when an interrupt or
+// termination signal is received.
 func WithSignalContext(parent context.Context) (context.Context, context.CancelFunc) {
 	ctx, cancelCause := context.WithCancelCause(parent)
 
