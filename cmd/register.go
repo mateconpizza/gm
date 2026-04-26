@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -99,12 +98,13 @@ func registerCleanups(app *application.App) {
 	})
 
 	// synchronize the repository state on shutdown.
-	cleanup.Register(func() error {
-		slog.Debug("synchronize the repository state on shutdown")
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-		return git.Sync(ctx, app, "cleanup: sync pending changes")
-	})
+	// cleanup.Register(func() error {
+	// FIX: this make exit code 130, disabled for now.
+	// 	slog.Debug("synchronize the repository state on shutdown")
+	// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	// 	defer cancel()
+	// 	return git.Sync(ctx, app, "cleanup: sync pending changes")
+	// })
 }
 
 func registerFlags(c *cobra.Command, app *application.App) {
