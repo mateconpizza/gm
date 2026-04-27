@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -131,6 +132,17 @@ func Validate(b *Bookmark) error {
 func ValidateChecksumJSON(b *BookmarkJSON) bool {
 	tags := ParseTags(strings.Join(b.Tags, ","))
 	return b.Checksum == genChecksum(b.URL, b.Title, b.Desc, tags, b.Notes)
+}
+
+func Fields() []string {
+	t := reflect.TypeFor[Bookmark]()
+	fields := make([]string, 0, t.NumField())
+	for i := range t.NumField() {
+		if tag := t.Field(i).Tag.Get("db"); tag != "" && tag != "-" {
+			fields = append(fields, tag)
+		}
+	}
+	return fields
 }
 
 func makeReq(ctx context.Context, b *Bookmark) error {

@@ -285,6 +285,11 @@ linters:
           - gocognit
           - gocyclo
           - gosec
+      - path: "pkg/bookio/csv.go"
+        linters:
+          - funlen
+          - gocognit
+          - gocyclo
     generated: lax
     presets:
       - common-false-positives
