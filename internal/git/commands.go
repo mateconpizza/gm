@@ -287,7 +287,7 @@ func runGitCmd(ctx context.Context, repoPath string, commands ...string) error {
 	commands = append([]string{g, "-C", repoPath}, commands...)
 	w.Midln(ansi.Yellow.With(ansi.Italic).Sprint(strings.Join(commands, " "))).Flush()
 
-	err = sys.ExecCmdWithWriter(ctx, w, commands...)
+	err = sys.ExecCmdWithWriter(ctx, w, nil, commands...)
 	if err != nil {
 		w.Error("")
 		return err

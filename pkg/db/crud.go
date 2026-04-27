@@ -580,36 +580,6 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 	})
 }
 
-// insertInto creates a new record in the given tables.
-func (r *SQLite) insertInto(ctx context.Context, b *bookmark.Bookmark) error {
-	if err := bookmark.Validate(b); err != nil {
-		return fmt.Errorf("insert record: %w", err)
-	}
-
-	if _, exists := r.Has(ctx, b.URL); exists {
-		return ErrRecordDuplicate
-	}
-	// create record and associate tags
-	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		if _, err := insertRecord(tx, b); err != nil {
-			return err
-		}
-
-		if err := r.associateTags(tx, b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("%w: %q", err, b.URL)
-	}
-
-	slog.Debug("inserted record", "url", b.URL)
-
-	return nil
-}
-
 // insertIntoTx inserts a record inside an existing transaction.
 func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 	b.URL = strings.TrimSuffix(b.URL, "/")

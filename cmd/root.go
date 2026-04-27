@@ -45,7 +45,7 @@ func Execute(c *cobra.Command) error {
 
 func rootCmdFunc(app *application.App) cli.Hook {
 	return func(cmd *cobra.Command, args []string) error {
-		fm, err := formatter.Resolve(app.Flags.Output)
+		fm, err := formatter.New(app.Flags.Output)
 		if err != nil {
 			return err
 		}

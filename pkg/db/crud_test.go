@@ -339,17 +339,17 @@ func TestByQuery(t *testing.T) {
 
 	// Insert test bookmarks
 	b := testSingleBookmark()
-	if err := r.insertInto(ctx, b); err != nil {
+	if _, err := r.InsertOne(ctx, b); err != nil {
 		t.Fatalf("failed to insert first bookmark: %v", err)
 	}
 
 	b.URL = "https://www.example2.com"
-	if err := r.insertInto(ctx, b); err != nil {
+	if _, err := r.InsertOne(ctx, b); err != nil {
 		t.Fatalf("failed to insert second bookmark: %v", err)
 	}
 
 	b.URL = "https://www.another.com"
-	if err := r.insertInto(ctx, b); err != nil {
+	if _, err := r.InsertOne(ctx, b); err != nil {
 		t.Fatalf("failed to insert third bookmark: %v", err)
 	}
 
@@ -381,12 +381,12 @@ func TestDuplicateErr(t *testing.T) {
 	b := testSingleBookmark()
 
 	// Insert bookmark successfully
-	if err := r.insertInto(ctx, b); err != nil {
+	if _, err := r.InsertOne(ctx, b); err != nil {
 		t.Fatalf("first insert failed: %v", err)
 	}
 
 	// Attempt to insert duplicate should fail
-	if err := r.insertInto(ctx, b); err == nil {
+	if _, err := r.InsertOne(ctx, b); err == nil {
 		t.Error("expected error when inserting duplicate record, got nil")
 	}
 }
@@ -397,7 +397,7 @@ func TestHasRecord(t *testing.T) {
 	ctx := t.Context()
 
 	b := testSingleBookmark()
-	if err := r.insertInto(ctx, b); err != nil {
+	if _, err := r.InsertOne(ctx, b); err != nil {
 		t.Fatalf("insertInto failed: %v", err)
 	}
 

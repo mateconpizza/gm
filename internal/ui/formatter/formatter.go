@@ -139,8 +139,8 @@ var Formatters = map[Format]Formatter{
 		Name:   Mini,
 		Render: MiniFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+2}",
-			Opts:        []menu.Option{menu.WithNth("3..")},
+			Placeholder: "{+1}",
+			Opts:        []menu.Option{menu.WithNth("2..")},
 		},
 	},
 
@@ -169,6 +169,10 @@ var ValidFormats = func() []string {
 }
 
 func New(name string) (Formatter, error) {
+	if name == "" {
+		return Formatters[DefFormatter], nil
+	}
+
 	if f, ok := Formatters[Format(name)]; ok {
 		return f, nil
 	}
@@ -177,15 +181,4 @@ func New(name string) (Formatter, error) {
 
 func RegisterFormatter(name string, f Formatter) {
 	Formatters[Format(name)] = f
-}
-
-func Resolve(output string) (Formatter, error) {
-	if output == "" {
-		return Formatters[DefFormatter], nil
-	}
-	fm, ok := Formatters[Format(output)]
-	if !ok {
-		return Formatter{}, fmt.Errorf("%w: %q", ErrUnknownFormatter, output)
-	}
-	return fm, nil
 }

@@ -91,16 +91,15 @@ func ExecuteCmd(ctx context.Context, arg ...string) error {
 
 // ExecCmdWithWriter runs a command with the given arguments and writes the
 // output to the writer.
-func ExecCmdWithWriter(ctx context.Context, w io.Writer, s ...string) error {
+func ExecCmdWithWriter(ctx context.Context, w io.Writer, r io.Reader, s ...string) error {
 	slog.Debug("ExecCmdWithWriter", "cmds", s)
 	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
+	cmd.Stdin = r
 	cmd.Stdout = w
 	cmd.Stderr = w
-
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
-
 	return nil
 }
 
