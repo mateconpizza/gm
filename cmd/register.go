@@ -27,6 +27,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/yank"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -111,8 +112,6 @@ func registerCleanups(_ *application.App) {
 
 func registerRootFlags(c *cobra.Command, app *application.App) {
 	local := c.Flags()
-	local.SortFlags = false
-
 	global := c.PersistentFlags()
 	global.SortFlags = false
 
@@ -132,6 +131,9 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	// Field selection for output projection
 	fields := []string{"id", "url", "title", "tags", "desc"}
 	global.StringVarP(&app.Flags.Field, "fields", "f", "", "select fields: "+strings.Join(fields, ", "))
+
+	// Sorting strategy (domain-specific ordering options)
+	global.StringVarP(&app.Flags.Sort, "sort", "s", "", "sort by: "+strings.Join(handler.SortSupported, ", "))
 
 	// Verbosity level
 	global.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")

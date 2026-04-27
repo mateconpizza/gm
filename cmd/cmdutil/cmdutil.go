@@ -102,13 +102,19 @@ func Execute(
 		return err
 	}
 
+	// sort items
+	f := d.App.Flags
+	bs, err = handler.Sort(f.Sort, bs)
+	if err != nil {
+		return err
+	}
+
 	// custom filters
 	for _, filter := range filters {
 		bs = filter(bs)
 	}
 
 	// filter by head and tail
-	f := d.App.Flags
 	if f.Head > 0 || f.Tail > 0 {
 		bs, err = handler.FilterByHeadAndTail(bs, f.Head, f.Tail)
 		if err != nil {

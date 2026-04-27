@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/mateconpizza/rotato"
@@ -14,6 +15,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
+
+var SortSupported = []string{"favorite", "newest", "visited", "popular"}
 
 var (
 	ErrInvalidOption = errors.New("invalid option")
@@ -237,6 +240,40 @@ func FilterByHeadAndTail(bs []*bookmark.Bookmark, h, t int) ([]*bookmark.Bookmar
 	}
 
 	return result, nil
+}
+
+func Sort(s string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+	if s == "" {
+		return bs, nil
+	}
+	switch s {
+	case "favorite", "f", "fav":
+		sort.Slice(bs, func(i, j int) bool {
+			return !bs[i].Favorite && bs[j].Favorite
+		})
+	case "new", "newest", "latest":
+		sort.Slice(bs, func(i, j int) bool {
+			return bs[i].CreatedAt > bs[j].CreatedAt
+		})
+	case "visited", "last-visit", "lv":
+		sort.Slice(bs, func(i, j int) bool {
+			// empty go to the end
+			if bs[i].LastVisit == "" {
+				return false
+			}
+			if bs[j].LastVisit == "" {
+				return true
+			}
+			return bs[i].LastVisit > bs[j].LastVisit
+		})
+	case "popular", "visits", "vc":
+		sort.Slice(bs, func(i, j int) bool {
+			return bs[i].VisitCount > bs[j].VisitCount
+		})
+	default:
+		return nil, fmt.Errorf("%w %q: valid options: %s", ErrInvalidOption, s, strings.Join(SortSupported, ", "))
+	}
+	return bs, nil
 }
 
 // getFlagOrder determines the order of head/tail flags from command line.

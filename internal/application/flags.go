@@ -18,7 +18,8 @@ type Flags struct {
 	Output  string // Output
 	Field   string // Bookmarks fields
 	JSON    bool   // JSON output
-	Preview string //
+	Preview string // Menu preview
+	Sort    string // Sort by
 
 	// Filtering and pagination
 	Head int      // Head limit
