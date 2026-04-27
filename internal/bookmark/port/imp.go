@@ -17,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/browser"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -234,7 +233,7 @@ func Deduplicate(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmar
 		// show discarted bookmarks
 		if len(discarted) <= maxItemsToShow && n != 0 {
 			for _, b := range discarted {
-				f.Midln(p.Italic.Sprint(" " + txt.Shorten(b.URL, terminal.MinWidth)))
+				f.Midln(p.Italic.Sprint(" " + txt.Shorten(b.URL, c.MinWidth())))
 			}
 
 			f.Flush()

@@ -307,7 +307,6 @@ func getQueryFromPipe(r io.Reader) string {
 	for scanner.Scan() {
 		line := scanner.Text()
 		result.WriteString(line)
-		result.WriteString("\n")
 	}
 
 	if err := scanner.Err(); err != nil {

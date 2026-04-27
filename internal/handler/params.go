@@ -10,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -106,7 +105,7 @@ func diffParams(d *deps.Deps, originalURL string, params []string) int {
 	f, p := d.Console().Frame(), d.Console().Palette()
 	f.Headerln(p.Bold.Wrap("Cleaning URL parameters", p.Yellow))
 
-	f.Midln("Original URL:").Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, terminal.MaxWidth))).
+	f.Midln("Original URL:").Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, d.Console().MaxWidth()))).
 		Rowln().Midln(fmt.Sprintf("Found %d: ", len(params)))
 
 	// key=value params

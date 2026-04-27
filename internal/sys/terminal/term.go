@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"slices"
 	"strings"
@@ -24,6 +25,13 @@ const termPromptPrefix = "> "
 // defaultInterruptFn is the default interrupt function for the terminal.
 func defaultInterruptFn(err error) { slog.Debug("InterruptFn not set") }
 
+type termSize struct {
+	width    int
+	maxWidth int
+	minWidth int
+	height   int
+}
+
 // TermOptFn is an option function for the terminal.
 type TermOptFn func(*Options)
 
@@ -40,6 +48,7 @@ type Options struct {
 type Term struct {
 	Options
 	cancelFn context.CancelFunc
+	size     *termSize
 }
 
 // defaultOpts returns the default terminal options.
@@ -345,20 +354,6 @@ func (t *Term) isInteractiveTerminal(n int) bool {
 	return ok && term.IsTerminal(int(file.Fd()))
 }
 
-func (t *Term) PipedInput(input *[]string) {
-	if !t.IsPiped() {
-		return
-	}
-
-	s := getQueryFromPipe(os.Stdin)
-	if s == "" {
-		return
-	}
-
-	split := strings.Split(s, " ")
-	*input = append(*input, split...)
-}
-
 // HideCursor hides cursor.
 func (t *Term) HideCursor() error {
 	_, err := fmt.Fprint(t.writer, ansi.CursorHide)
@@ -371,10 +366,78 @@ func (t *Term) ShowCursor() error {
 	return err
 }
 
+func (t *Term) Height() int {
+	return t.size.height
+}
+
+func (t *Term) Width() int {
+	return t.size.width
+}
+
+func (t *Term) MaxWidth() int {
+	return t.size.maxWidth
+}
+
+func (t *Term) MinWidth() int {
+	return t.size.minWidth
+}
+
+// Print writes content to the terminal, paginating if the output
+// exceeds the terminal height.
+func (t *Term) Print(ctx context.Context, content string) error {
+	if t.needsPager(content) {
+		return t.paginate(ctx, content)
+	}
+	_, err := fmt.Fprint(t.writer, content)
+	return err
+}
+
+// needsPager returns true if content exceeds the terminal height.
+func (t *Term) needsPager(content string) bool {
+	file, ok := t.writer.(*os.File)
+	if !ok {
+		return false
+	}
+	if !term.IsTerminal(int(file.Fd())) {
+		return false
+	}
+	return strings.Count(content, "\n") >= t.Height()
+}
+
+// paginate pipes content through $PAGER (default: less).
+func (t *Term) paginate(ctx context.Context, content string) error {
+	pager := os.Getenv("PAGER")
+	if pager == "" {
+		pager = "less"
+	}
+
+	args := strings.Fields(pager)
+	exe := args[0]
+
+	//nolint:gosec // false positive: we explicitly want to allow the user to
+	// define their own PAGER command
+	cmd := exec.CommandContext(ctx, exe, args[1:]...)
+	cmd.Stdin = strings.NewReader(content)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		_, err = fmt.Fprint(t.writer, content)
+		return err
+	}
+	return nil
+}
+
 // New returns a new terminal with the provided options.
 func New(opts ...TermOptFn) *Term {
 	t := &Term{
 		Options: defaultOpts(),
+		size: &termSize{
+			maxWidth: MaxWidth,
+			minWidth: MinWidth,
+			width:    Width,
+			height:   Height,
+		},
 	}
 
 	for _, opt := range opts {

@@ -33,9 +33,10 @@ var force bool = false
 
 // Default terminal settings.
 var (
-	MaxWidth  int = 120
-	MinHeight int = 15
-	MinWidth  int = 80
+	MaxWidth int = 120
+	MinWidth int = 80
+	Width    int
+	Height   int
 )
 
 // NoColorEnv disables color output if the NO_COLOR environment variable is
@@ -139,12 +140,13 @@ func getWidth() (int, error) {
 		return 0, ErrNotTTY
 	}
 
-	w, _, err := term.GetSize(fd)
+	var err error
+	Width, Height, err = term.GetSize(fd)
 	if err != nil {
 		return 0, fmt.Errorf("getting console width: %w", err)
 	}
 
-	return w, nil
+	return Width, nil
 }
 
 func init() {

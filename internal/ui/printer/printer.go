@@ -45,17 +45,17 @@ func MenuPreview(c *ui.Console, bs []*bookmark.Bookmark, f string) error {
 }
 
 // Records prints the bookmarks in a frame format with the given colorscheme.
-func Records(c *ui.Console, bs []*bookmark.Bookmark) error {
+func Records(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
+	var buf strings.Builder
 	lastIdx := len(bs) - 1
-	for i := range bs {
-		fmt.Print(formatter.FrameFunc(c, bs[i]))
-
+	for i, b := range bs {
+		buf.WriteString(formatter.FrameFunc(c, b))
 		if i != lastIdx {
-			fmt.Println()
+			buf.WriteString("\n")
 		}
 	}
 
-	return nil
+	return c.Term().Print(ctx, buf.String())
 }
 
 // TagsList lists the tags.
@@ -78,11 +78,12 @@ func TagsList(ctx context.Context, p string) error {
 
 // Print formats the bookmarks in oneline.
 func Print(c *ui.Console, bs []*bookmark.Bookmark, fn func(*ui.Console, *bookmark.Bookmark) string) error {
+	var buf strings.Builder
 	for i := range bs {
-		fmt.Print(fn(c, bs[i]))
+		buf.WriteString(fn(c, bs[i]))
 	}
 
-	return nil
+	return c.Term().Print(context.Background(), buf.String())
 }
 
 // Notes formats the bookmarks notes.
@@ -106,11 +107,9 @@ type fieldSpec struct {
 	limit int // 0: no limit
 }
 
-func ByField(c *ui.Console, fields string, bs []*bookmark.Bookmark) error {
-	// parse input: "id,url:40,title:40"
+func ByField(ctx context.Context, c *ui.Console, fields string, bs []*bookmark.Bookmark) error {
 	parts := strings.Split(fields, ",")
 	specs := make([]fieldSpec, len(parts))
-
 	for i, p := range parts {
 		p = strings.TrimSpace(p)
 		if strings.Contains(p, ":") {
@@ -122,31 +121,29 @@ func ByField(c *ui.Console, fields string, bs []*bookmark.Bookmark) error {
 		}
 	}
 
-	w := tabwriter.NewWriter(c.Writer(), 0, 0, 2, ' ', 0)
-
+	var buf strings.Builder
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
 	for _, b := range bs {
 		var row []string
-
 		for _, spec := range specs {
 			val, err := b.Field(spec.name)
 			if err != nil {
 				return err
 			}
-
 			if spec.limit > 0 {
 				val = txt.Shorten(val, spec.limit)
 			} else {
-				safeLimit := c.MaxWidth() / len(specs)
-				val = txt.Shorten(val, safeLimit)
+				val = txt.Shorten(val, c.MaxWidth()/len(specs))
 			}
-
 			row = append(row, val)
 		}
-
 		fmt.Fprintln(w, strings.Join(row, "\t"))
 	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
 
-	return w.Flush()
+	return c.Term().Print(ctx, buf.String())
 }
 
 // DatabasesTable shows a simple table in database information.

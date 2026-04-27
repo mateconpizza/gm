@@ -55,13 +55,13 @@ func rootCmdFunc(app *application.App) cli.Hook {
 			t, f := d.Console(), d.App.Flags
 			switch {
 			case d.App.Flags.Field != "":
-				return printer.ByField(t, f.Field, bs) // TODO: experimental
+				return printer.ByField(cmd.Context(), t, f.Field, bs) // TODO: experimental
 			case d.App.Flags.Preview != "":
 				return printer.MenuPreview(t, bs, f.Preview)
 			case d.App.Flags.Output != "":
 				return printer.Display(t, f.Output, bs)
 			default:
-				return printer.Records(t, bs)
+				return printer.Records(cmd.Context(), t, bs)
 			}
 		})
 	}

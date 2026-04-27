@@ -174,5 +174,7 @@ func (c *Console) Success(s string) *frame.Frame { return c.frame.Reset().Succes
 func (c *Console) Warning(s string) *frame.Frame { return c.frame.Reset().Warning(s) }
 func (c *Console) Flush() *frame.Frame           { return c.frame.Flush() }
 func (c *Console) Reset() *frame.Frame           { return c.frame.Reset() }
-func (c *Console) MaxWidth() int                 { return terminal.MaxWidth }
-func (c *Console) MinWidth() int                 { return terminal.MinWidth }
+func (c *Console) MaxWidth() int                 { return c.Term().MaxWidth() }
+func (c *Console) MinWidth() int                 { return c.Term().MinWidth() }
+func (c *Console) Width() int                    { return c.Term().Width() }
+func (c *Console) Height() int                   { return c.Term().Height() }

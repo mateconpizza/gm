@@ -140,7 +140,7 @@ func TestTermGetUserInput(t *testing.T) {
 func TestTermGetQueryFromPipe(t *testing.T) {
 	t.Parallel()
 
-	input := "hello\n"
+	input := "hello"
 	mockInput := strings.NewReader(input)
 	result := getQueryFromPipe(mockInput)
 	if input != result {
