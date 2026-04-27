@@ -80,18 +80,19 @@ commands:
   export      export bookmarks
 
 flags:
-  -o, --output string   output format [bar|brief|card|flow|mini|minimal|multiline|oneline]
-  -f, --fields string   select fields [id|url|title|tags|desc]
-  -t, --tag strings     filter by tag(s)
-  -H, --head int        limit to first N bookmarks
-  -T, --tail int        limit to last N bookmarks
-  -m, --menu            select interactively
+      --color string    colorize output: always, never (default "always")
       --db string       database name (default "main.db")
-      --color string    output with colors [always|never] (default "always")
+  -f, --fields string   select fields: id, url, title, tags, desc
       --force           force action
-  -y, --yes             assume yes
+  -H, --head int        limit to first N bookmarks
+  -m, --menu            select interactively
+  -o, --output string   output format: bar, brief, card, flow, mini, minimal, multiline, oneline
+  -s, --sort string     sort by: favorite, newest, visited, popular
+  -t, --tag strings     filter by tag(s)
+  -T, --tail int        limit to last N bookmarks
   -v, --verbose count   increase verbosity (-v, -vv, -vvv)
-      --version         version for gm
+  -V, --version         version for gm
+  -y, --yes             assume yes
 ```
 
 ### Supported Env Vars
