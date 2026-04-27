@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -109,8 +111,8 @@ func registerCleanups(app *application.App) {
 
 func registerFlags(c *cobra.Command, app *application.App) {
 	// local
-	cmdutil.FlagOutput(c, app)
-	cmdutil.FlagFields(c, app)
+	cmdutil.FlagOutput(c, app, formatter.ValidFormats())
+	cmdutil.FlagFields(c, app, strings.Join([]string{"id", "url", "title", "tags", "desc"}, "|"))
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagMenu(c, app)
 

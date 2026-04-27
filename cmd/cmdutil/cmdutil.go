@@ -13,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -128,19 +127,18 @@ func Execute(
 	return action(d, bs)
 }
 
-func FlagOutput(c *cobra.Command, app *application.App) {
+func FlagOutput(c *cobra.Command, app *application.App, supportedOutput []string) {
 	c.Flags().StringVarP(&app.Flags.Output, "output", "o", "",
-		fmt.Sprintf("output format [%s]", strings.Join(formatter.ValidFormats(), "|")))
+		fmt.Sprintf("output format [%s]", strings.Join(supportedOutput, "|")))
 
 	_ = c.RegisterFlagCompletionFunc("output",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return formatter.ValidFormats(), cobra.ShellCompDirectiveNoFileComp
+			return supportedOutput, cobra.ShellCompDirectiveNoFileComp
 		})
 }
 
-func FlagFields(c *cobra.Command, app *application.App) {
-	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "",
-		fmt.Sprintf("select fields [%s]", strings.Join([]string{"id", "url", "title", "tags", "desc"}, "|")))
+func FlagFields(c *cobra.Command, app *application.App, fields string) {
+	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "", fmt.Sprintf("select fields [%s]", fields))
 }
 
 func FlagsFilter(c *cobra.Command, app *application.App) {

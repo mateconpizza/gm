@@ -27,6 +27,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		PersistentPreRunE:  cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase(app)),
 		PersistentPostRunE: cli.HookGitSync,
 		RunE:               rootCmdFunc(app),
+		Version:            app.PrettyVersion(),
 	}
 
 	registerFlags(c, app)
