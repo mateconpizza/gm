@@ -52,10 +52,6 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
-
 	c.AddCommand(newUpdateCmd(app))
 
 	return c
@@ -64,7 +60,7 @@ func NewCmd(app *application.App) *cobra.Command {
 func newUpdateCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "update [id|query]",
-		Short: "update metadata (title|desc|tags)",
+		Short: "update metadata: title, desc, tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " update metadata ")
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
@@ -89,8 +85,6 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
 
 	return c
 }

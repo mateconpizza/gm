@@ -52,10 +52,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
 	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit with text editor")
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
 
 	c.AddCommand(newEditNotesCmd(app))
 
@@ -77,10 +74,6 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, handler.Edit(editor.NotesStrategy{}))
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
 
 	return c
 }

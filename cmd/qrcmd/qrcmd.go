@@ -38,10 +38,6 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
-
 	c.AddCommand(newOpenCmd(app), newGenQR(app))
 
 	return c
@@ -76,10 +72,6 @@ func newOpenCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
 
 	return c
 }

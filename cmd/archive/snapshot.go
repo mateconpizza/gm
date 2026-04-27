@@ -36,10 +36,6 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
-
 	c.AddCommand(newLookupCmd(app), newOpenCmd(app))
 
 	return c
@@ -54,10 +50,6 @@ func newOpenCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, setupMenu(app), handler.Open, onlySnapshots)
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
 
 	return c
 }

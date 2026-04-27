@@ -40,10 +40,6 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
-	c.Flags().Bool("help", false, "help message")
-	cmdutil.HideFlag(c, "help")
-
 	return c
 }
 

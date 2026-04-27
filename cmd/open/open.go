@@ -21,17 +21,13 @@ func NewCmd(app *application.App) *cobra.Command {
 			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeaderLabel(" open in browser "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, p)),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 				menu.WithKeybinds(kb.New("ctrl-o", "open-snapshot").ExecuteSilent("archive open")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Open)
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.HideFlag(c, "help")
 
 	return c
 }

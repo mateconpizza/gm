@@ -30,7 +30,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		Version:            app.PrettyVersion(),
 	}
 
-	registerFlags(c, app)
+	registerRootFlags(c, app)
 	setupRootCmd(c, app)
 	return c
 }

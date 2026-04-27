@@ -35,8 +35,6 @@ func NewCmd(app *application.App) *cobra.Command {
 					return err
 				}
 
-				t.ClearLine(2)
-
 				var sb strings.Builder
 				for i := range bs {
 					sb.WriteString(bs[i].URL + "\n")
@@ -51,11 +49,6 @@ func NewCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
-	c.Flags().Bool("help", false, "help message")
-	cmdutil.HideFlag(c, "help")
-	cmdutil.FlagsFilter(c, app)
 
 	return c
 }

@@ -103,8 +103,8 @@ func Execute(
 	}
 
 	// custom filters
-	for _, f := range filters {
-		bs = f(bs)
+	for _, filter := range filters {
+		bs = filter(bs)
 	}
 
 	// filter by head and tail
@@ -128,8 +128,7 @@ func Execute(
 }
 
 func FlagOutput(c *cobra.Command, app *application.App, supportedOutput []string) {
-	c.Flags().StringVarP(&app.Flags.Output, "output", "o", "",
-		fmt.Sprintf("output format [%s]", strings.Join(supportedOutput, "|")))
+	c.Flags().StringVarP(&app.Flags.Output, "output", "o", "", "output format: "+strings.Join(supportedOutput, ", "))
 
 	_ = c.RegisterFlagCompletionFunc("output",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -138,18 +137,7 @@ func FlagOutput(c *cobra.Command, app *application.App, supportedOutput []string
 }
 
 func FlagFields(c *cobra.Command, app *application.App, fields string) {
-	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "", fmt.Sprintf("select fields [%s]", fields))
-}
-
-func FlagsFilter(c *cobra.Command, app *application.App) {
-	c.Flags().SortFlags = false
-	c.Flags().StringSliceVarP(&app.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
-	c.Flags().IntVarP(&app.Flags.Head, "head", "H", 0, "limit to first N bookmarks")
-	c.Flags().IntVarP(&app.Flags.Tail, "tail", "T", 0, "limit to last N bookmarks")
-}
-
-func FlagMenu(c *cobra.Command, app *application.App) {
-	c.Flags().BoolVarP(&app.Flags.Menu, "menu", "m", false, "select interactively")
+	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "", "select fields: "+fields)
 }
 
 func HasFlags(cmd *cobra.Command) bool {

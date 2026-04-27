@@ -47,9 +47,6 @@ func newHTMLCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-
 	return c
 }
 
@@ -64,9 +61,6 @@ func newJSONCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
 
 	return c
 }
@@ -83,8 +77,6 @@ func newCSVCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagFields(c, app, "all,"+wrapFields(bookmark.Fields(), ",", 50))
 
 	return c

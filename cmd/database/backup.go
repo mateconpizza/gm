@@ -53,7 +53,7 @@ func newBackupAddCmd(_ *application.App) *cobra.Command {
 	return c
 }
 
-func newBackupLockCmd(app *application.App) *cobra.Command {
+func newBackupLockCmd(_ *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "lock",
 		Short: "lock a database backup",
@@ -87,8 +87,6 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 			return nil
 		},
 	}
-
-	cmdutil.FlagMenu(c, app)
 
 	return c
 }

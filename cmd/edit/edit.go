@@ -43,10 +43,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
 	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "edit bookmark as JSON")
-	cmdutil.HideFlag(c, "help")
 
 	return c
 }
