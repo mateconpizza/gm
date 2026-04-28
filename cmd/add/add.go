@@ -47,7 +47,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&app.Flags.Title, "title", "", "bookmark title")
-	c.Flags().StringVarP(&app.Flags.TagsStr, "tags", "t", "", "bookmark tags")
+	c.Flags().StringVar(&app.Flags.TagsStr, "tags", "", "bookmark tags")
 	cmdutil.HideFlag(c, "help")
 
 	return c
