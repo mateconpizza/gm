@@ -1,4 +1,4 @@
-package in
+package database
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ import (
 
 var ErrMissingArg = errors.New("missing argument")
 
-func NewCmd(app *application.App) *cobra.Command {
+func newImportCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "import",
 		Aliases: []string{"imp", "i"},
@@ -35,16 +35,13 @@ func NewCmd(app *application.App) *cobra.Command {
 	}
 
 	c.AddCommand(
-		newHTMLCmd(app),
-		newBrowserCmd(app),
-		newFromDatabaseCmd(app),
-		newFromBackupCmd(app),
-	)
+		newImportHTMLCmd(app), newImportBrowserCmd(app),
+		newImportFromDatabaseCmd(app), newImportFromBackupCmd(app))
 
 	return c
 }
 
-func newFromDatabaseCmd(app *application.App) *cobra.Command {
+func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "database",
 		Short:   "import from database",
@@ -80,7 +77,7 @@ func newFromDatabaseCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newFromBackupCmd(app *application.App) *cobra.Command {
+func newImportFromBackupCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "backup",
 		Short:   "import from backup",
@@ -126,7 +123,7 @@ func newFromBackupCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newBrowserCmd(app *application.App) *cobra.Command {
+func newImportBrowserCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "browser",
 		Short: "import from browser",
@@ -150,7 +147,7 @@ func newBrowserCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newHTMLCmd(app *application.App) *cobra.Command {
+func newImportHTMLCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "html",
 		Short: "import from HTML Netscape file",

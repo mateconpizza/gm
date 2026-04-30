@@ -60,7 +60,8 @@ func NewCmd(app *application.App) *cobra.Command {
 	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false, "reorder IDs")
 	c.AddCommand(newAddCmd(app), newDatabaseRemoveCmd(app), newListCmd(app),
 		newInfoCmd(app), newBackupCmd(app), newDropCmd(app),
-		newLockCmd(app), newUnlockCmd(app))
+		newLockCmd(app), newUnlockCmd(app),
+		newImportCmd(app), newExportCmd(app))
 
 	return c
 }

@@ -1,4 +1,4 @@
-package out
+package database
 
 import (
 	"os"
@@ -17,14 +17,14 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-func NewCmd(app *application.App) *cobra.Command {
+func newExportCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "export [id|query]",
 		Short:   "export bookmarks",
 		Aliases: []string{"ex"},
 		RunE:    cli.HookHelp,
 	}
-	cmds := []func(*application.App) *cobra.Command{newHTMLCmd, newJSONCmd, newCSVCmd}
+	cmds := []func(*application.App) *cobra.Command{newExportHTMLCmd, newExportJSONCmd, newExportCSVCmd}
 	for i := range cmds {
 		cmd := cmds[i](app)
 		cmdutil.FlagSort(cmd, app, handler.SortSupported)
@@ -35,7 +35,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newHTMLCmd(app *application.App) *cobra.Command {
+func newExportHTMLCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "html [id|query]",
 		Short: "export to HTML Netscape",
@@ -49,7 +49,7 @@ func newHTMLCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newJSONCmd(app *application.App) *cobra.Command {
+func newExportJSONCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "json [id|query]",
 		Short: "export to JSON",
@@ -63,7 +63,7 @@ func newJSONCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newCSVCmd(app *application.App) *cobra.Command {
+func newExportCSVCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "csv [id|query]",
 		Short: "export to CSV",

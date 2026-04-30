@@ -25,22 +25,20 @@ func NewCmd(app *application.App) *cobra.Command {
 		Short:   "configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.Flags.Output == "json" || app.Flags.Output == "j" {
-				return newJSONCmd(app).RunE(cmd, args)
+				return cfgToJSON(cmd.Context(), app)
 			}
-
 			if app.Flags.Edit {
 				return newEditCmd(app).RunE(cmd, args)
 			}
-
-			if app.Flags.List {
-				return newShowPathCmd(app).RunE(cmd, args)
+			if app.Flags.Print {
+				return showPathFile(app.Path.Config)
 			}
 
 			return cmd.Help()
 		},
 	}
 	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit with text editor")
-	c.Flags().BoolVar(&app.Flags.List, "path", false, "print config file location")
+	c.Flags().BoolVar(&app.Flags.Print, "print", false, "print config file location")
 	cmdutil.FlagOutput(c, app, []string{"json"})
 	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag")
 
@@ -81,25 +79,13 @@ func newEditCmd(app *application.App) *cobra.Command {
 	}
 }
 
-func newJSONCmd(app *application.App) *cobra.Command {
-	return &cobra.Command{
-		Use:   "json",
-		Short: "output config in JSON format",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			return printConfigJSON(c, app)
-		},
+func cfgToJSON(ctx context.Context, app *application.App) error {
+	j, err := port.ToJSON(app)
+	if err != nil {
+		return err
 	}
-}
-
-func newShowPathCmd(app *application.App) *cobra.Command {
-	return &cobra.Command{
-		Use:   "path",
-		Short: "print config file location",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return showPathFile(app.Path.Config)
-		},
-	}
+	c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
+	return c.Term().Print(ctx, string(j))
 }
 
 // createConfig dumps the app configuration to a YAML file.
@@ -137,18 +123,6 @@ func editConfig(ctx context.Context, app *application.App) error {
 	}
 
 	return te.EditFile(ctx, p)
-}
-
-// printConfigJSON prints the config file as JSON.
-func printConfigJSON(c *ui.Console, app *application.App) error {
-	j, err := port.ToJSON(app)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintln(c.Writer(), string(j))
-
-	return nil
 }
 
 func showPathFile(p string) error {

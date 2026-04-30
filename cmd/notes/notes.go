@@ -23,7 +23,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "notes [query]",
 		Aliases: []string{"n"},
-		Short:   "view/edit notes",
+		Short:   "view notes",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.Flags.Edit {
 				return newEditNotesCmd(app).RunE(cmd, args)
@@ -39,7 +39,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
 				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", strings.ReplaceAll(p, "+", ""))),
-				menu.WithKeybinds(kb.New(k.Bind, k.Desc).Execute("notes --edit")),
+				menu.WithKeybinds(kb.New(k.Bind, k.Desc).Execute("edit notes")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {

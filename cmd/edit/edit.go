@@ -46,5 +46,26 @@ func NewCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+	c.AddCommand(newEditNotesCmd(app))
+	return c
+}
+
+func newEditNotesCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "notes [query]",
+		Short: "edit notes with text editor",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := handler.MenuSimple[bookmark.Bookmark](app,
+				menu.WithMultiSelection(),
+				menu.WithHeader("select record/s"),
+				menu.WithBorderLabel(" notes "),
+				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", "{1}")),
+			)
+			return cmdutil.Execute(cmd, args, m, handler.Edit(editor.NotesStrategy{}))
+		},
+	}
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }
