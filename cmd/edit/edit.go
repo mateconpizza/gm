@@ -35,15 +35,16 @@ func NewCmd(app *application.App) *cobra.Command {
 
 			var strategy editor.EditStrategy
 			strategy = editor.BookmarkStrategy{}
-			if app.Flags.JSON {
+			if app.Flags.Output == "json" || app.Flags.Output == "j" {
 				strategy = editor.JSONStrategy{}
 			}
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(strategy))
 		},
 	}
-
-	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "edit bookmark as JSON")
-
+	cmdutil.FlagOutput(c, app, []string{"json"})
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }

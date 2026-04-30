@@ -24,14 +24,14 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"ex"},
 		RunE:    cli.HookHelp,
 	}
-
 	cmds := []func(*application.App) *cobra.Command{newHTMLCmd, newJSONCmd, newCSVCmd}
 	for i := range cmds {
 		cmd := cmds[i](app)
-		cmdutil.HideFlag(cmd, "help")
+		cmdutil.FlagSort(cmd, app, handler.SortSupported)
+		cmdutil.FlagMenu(cmd, app)
+		cmdutil.FlagsFilter(cmd, app)
 		c.AddCommand(cmd)
 	}
-
 	return c
 }
 
@@ -46,7 +46,6 @@ func newHTMLCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
 	return c
 }
 
@@ -61,7 +60,6 @@ func newJSONCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
 	return c
 }
 
@@ -76,9 +74,7 @@ func newCSVCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
 	cmdutil.FlagFields(c, app, "all,"+wrapFields(bookmark.Fields(), ",", 50))
-
 	return c
 }
 

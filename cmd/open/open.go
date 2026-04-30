@@ -16,8 +16,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"o"},
 		Short:   "open in browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			p := "{+1}"
-			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
+			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder("{+1}")
 			m := handler.MenuSimple[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeaderLabel(" open in browser "),
@@ -28,6 +27,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, handler.Open)
 		},
 	}
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }

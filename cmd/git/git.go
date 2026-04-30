@@ -53,22 +53,9 @@ func NewCmd(app *application.App) *cobra.Command {
 			return gm.Exec(args...)
 		},
 	}
-
-	cmds := []*cobra.Command{
-		newInitRepoCmd(app),
-		newTrackerCmd(app),
-		newImportCmd(app),
-		newCloneCmd(app),
-		commitCmd,
-		newPushCmd(app),
-		newRawCmd(app),
-	}
-
-	for i := range cmds {
-		cmdutil.HideFlag(cmds[i], "help")
-	}
-	c.AddCommand(cmds...)
-	cmdutil.HideFlag(c, "help")
+	c.AddCommand(
+		newInitRepoCmd(app), newTrackerCmd(app), newImportCmd(app),
+		newCloneCmd(app), commitCmd, newPushCmd(app), newRawCmd(app))
 
 	return c
 }

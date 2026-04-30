@@ -50,7 +50,9 @@ func newOpenCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, setupMenu(app), handler.Open, onlySnapshots)
 		},
 	}
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }
 

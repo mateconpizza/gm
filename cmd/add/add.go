@@ -17,7 +17,7 @@ import (
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "add",
-		Short: "add bookmark",
+		Short: "add a bookmark",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -46,9 +46,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			return nil
 		},
 	}
+	c.Flags().SortFlags = false
 	c.Flags().StringVar(&app.Flags.Title, "title", "", "bookmark title")
 	c.Flags().StringVar(&app.Flags.TagsStr, "tags", "", "bookmark tags")
-	cmdutil.HideFlag(c, "help")
-
 	return c
 }

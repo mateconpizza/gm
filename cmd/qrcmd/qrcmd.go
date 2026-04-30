@@ -28,16 +28,12 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"q"},
 		Short:   "generate QR",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](app,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" QR-code "),
-				menu.WithPreview(app.PreviewCmd("{1}")),
-			)
-			return cmdutil.Execute(cmd, args, m, handler.QR)
+			return cmdutil.Execute(cmd, args, setupMenu(app), handler.QR)
 		},
 	}
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	c.AddCommand(newOpenCmd(app), newGenQR(app))
 
 	return c
@@ -49,14 +45,7 @@ func newOpenCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"q"},
 		Short:   "open QR-code image in default viewer",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](app,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" QR-code "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
-			)
-
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, setupMenu(app), func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				for i := range bs {
 					b := bs[i]
 					qrcode := qr.New(b.URL)
@@ -67,12 +56,13 @@ func newOpenCmd(app *application.App) *cobra.Command {
 						return err
 					}
 				}
-
 				return nil
 			})
 		},
 	}
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }
 
@@ -106,9 +96,17 @@ func newGenQR(app *application.App) *cobra.Command {
 			return nil
 		},
 	}
-
 	c.Flags().StringVarP(&app.Flags.Path, "output", "o", "",
-		fmt.Sprintf("write QR image to file [%s]", strings.Join(validFormats, "|")))
+		"write QR image to file: "+strings.Join(validFormats, ", "))
 
 	return c
+}
+
+func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+	return handler.MenuSimple[bookmark.Bookmark](app,
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s"),
+		menu.WithHeaderLabel(" QR-code "),
+		menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
+	)
 }

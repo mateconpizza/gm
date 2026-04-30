@@ -51,6 +51,8 @@ func newLookupCmd(app *application.App) *cobra.Command {
 	f.BoolVarP(&app.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
 	f.IntVarP(&app.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
 	f.IntVarP(&app.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 
 	return c
 }

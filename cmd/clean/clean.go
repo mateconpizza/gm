@@ -39,7 +39,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, handler.ParamsURL, WithURLParametersOnly)
 		},
 	}
-
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }
 
