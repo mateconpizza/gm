@@ -24,7 +24,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"cfg", "conf"},
 		Short:   "configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if app.Flags.JSON {
+			if app.Flags.Output == "json" || app.Flags.Output == "j" {
 				return newJSONCmd(app).RunE(cmd, args)
 			}
 
@@ -32,23 +32,25 @@ func NewCmd(app *application.App) *cobra.Command {
 				return newEditCmd(app).RunE(cmd, args)
 			}
 
+			if app.Flags.List {
+				return newShowPathCmd(app).RunE(cmd, args)
+			}
+
 			return cmd.Help()
 		},
 	}
-
-	c.Flags().StringVarP(&app.Flags.ColorStr, "color", "c", "always", "")
-	c.Flags().StringVar(&app.DBName, "db", application.MainDBName, "database name")
-	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "output in JSON format")
 	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit with text editor")
-	cmdutil.HideFlag(c, "help", "color", "db")
+	c.Flags().BoolVar(&app.Flags.List, "path", false, "print config file location")
+	cmdutil.FlagOutput(c, app, []string{"json"})
+	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag")
 
-	c.AddCommand(newCreateCmd(app), newEditCmd(app), newShowPathCmd(app))
+	c.AddCommand(newCreateCmd(app))
 
 	return c
 }
 
 func newCreateCmd(app *application.App) *cobra.Command {
-	return &cobra.Command{
+	c := &cobra.Command{
 		Use:   "create",
 		Short: "create configuration file",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,6 +61,8 @@ func newCreateCmd(app *application.App) *cobra.Command {
 			return createConfig(c, app)
 		},
 	}
+	cmdutil.HideFlag(c, "db")
+	return c
 }
 
 func newEditCmd(app *application.App) *cobra.Command {

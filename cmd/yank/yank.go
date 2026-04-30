@@ -49,6 +49,9 @@ func NewCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
+	cmdutil.FlagOutput(c, app, []string{"json"})
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }

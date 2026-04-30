@@ -27,8 +27,9 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 				const maxGoroutines = 15
 
-				s := fmt.Sprintf("checking status of %d bookmarks", len(bs))
-				if err := d.Console().ConfirmLimit(len(bs), maxGoroutines, s, d.App.Flags.Force); err != nil {
+				p := d.Console().Palette()
+				q := fmt.Sprintf("checking %s of %d bookmarks", p.BrightGreen.Wrap("status", p.Bold), len(bs))
+				if err := d.Console().ConfirmLimit(len(bs), maxGoroutines, q, d.App.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
@@ -52,6 +53,9 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	c.AddCommand(newUpdateCmd(app))
 
 	return c
@@ -85,7 +89,9 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }
 

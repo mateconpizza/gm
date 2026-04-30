@@ -111,53 +111,37 @@ func registerCleanups(_ *application.App) {
 }
 
 func registerRootFlags(c *cobra.Command, app *application.App) {
-	local := c.Flags()
-	global := c.PersistentFlags()
-	global.SortFlags = false
+	c.Flags().SortFlags = false
 
-	// Register common filtering flags (tags, head, tail)
-	global.StringSliceVarP(&app.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
-
-	// Limit results (head/tail semantics)
-	global.IntVarP(&app.Flags.Head, "head", "H", 0, "limit to first N bookmarks")
-	global.IntVarP(&app.Flags.Tail, "tail", "T", 0, "limit to last N bookmarks")
-
-	// Interactive mode (e.g. TUI or prompt-based selection)
-	global.BoolVarP(&app.Flags.Menu, "menu", "m", false, "select interactively")
-
-	// Output formatting (e.g. json, csv, table, etc.)
+	// local
+	// limit results (head/tail semantics)
+	cmdutil.FlagsFilter(c, app)
+	// interactive mode
+	cmdutil.FlagMenu(c, app)
+	// output formatting
 	cmdutil.FlagOutput(c, app, formatter.ValidFormats())
-
-	// Field selection for output projection
+	// sorting strategy (domain-specific ordering options)
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	// field selection for output projection
 	fields := []string{"id", "url", "title", "tags", "desc"}
-	global.StringVarP(&app.Flags.Field, "fields", "f", "", "select fields: "+strings.Join(fields, ", "))
+	cmdutil.FlagFields(c, app, strings.Join(fields, ", "))
 
-	// Sorting strategy (domain-specific ordering options)
-	global.StringVarP(&app.Flags.Sort, "sort", "s", "", "sort by: "+strings.Join(handler.SortSupported, ", "))
+	// global
+	g := c.PersistentFlags()
+	// database selection
+	g.StringVar(&app.DBName, "db", application.MainDBName, "database name")
+	// output colorization policy
+	g.StringVar(&app.Flags.ColorStr, "color", "always", "colorize output: always, never")
+	// non-interactive confirmation
+	g.BoolVarP(&app.Flags.Yes, "yes", "y", false, "assume yes")
+	// force execution even if safeguards would prevent it
+	g.BoolVar(&app.Flags.Force, "force", false, "force action")
+	// verbosity level
+	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
 
-	// Verbosity level
-	global.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
-
-	// Non-interactive confirmation
-	global.BoolVarP(&app.Flags.Yes, "yes", "y", false, "assume yes")
-
-	// Output colorization policy
-	global.StringVar(&app.Flags.ColorStr, "color", "always", "colorize output: always, never")
-
-	// Force execution even if safeguards would prevent it
-	global.BoolVar(&app.Flags.Force, "force", false, "force action")
-
-	// Database selection
-	global.StringVar(&app.DBName, "db", application.MainDBName, "database name")
-
-	// Override default help flag to hide it
-	global.Bool("help", false, "")
-	_ = global.MarkHidden("help")
-
-	// Hidden/internal flag
-	global.StringVar(&app.Flags.Preview, "preview", "", "")
-	_ = global.MarkHidden("preview")
-
-	// Version flag
-	local.BoolVarP(&app.Flags.Version, "version", "V", false, "version for "+app.Cmd)
+	// hidden
+	g.Bool("help", false, "")
+	_ = g.MarkHidden("help")
+	g.StringVar(&app.Flags.Preview, "preview", "", "")
+	_ = g.MarkHidden("preview")
 }

@@ -41,8 +41,6 @@ func NewCmd(app *application.App) *cobra.Command {
 		newFromBackupCmd(app),
 	)
 
-	cmdutil.HideFlag(c, "help")
-
 	return c
 }
 

@@ -48,12 +48,13 @@ func NewCmd(app *application.App) *cobra.Command {
 				}
 
 				return printer.Notes(d.Console(), bs)
-			}, OnlyNotes)
+			}, onlyNotes)
 		},
 	}
 
-	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit with text editor")
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	c.AddCommand(newEditNotesCmd(app))
 
 	return c
@@ -74,11 +75,13 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, handler.Edit(editor.NotesStrategy{}))
 		},
 	}
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }
 
-func OnlyNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+func onlyNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
 	for i := range bs {
 		if bs[i].Notes == "" {

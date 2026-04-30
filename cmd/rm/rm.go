@@ -27,6 +27,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, handler.Remove)
 		},
 	}
-
+	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
 	return c
 }

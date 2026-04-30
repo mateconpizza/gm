@@ -58,9 +58,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	f.SortFlags = false
 	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
 	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false, "reorder IDs")
-
-	c.AddCommand(
-		createCmd, newDatabaseRemoveCmd(app), newListCmd(app),
+	c.AddCommand(newAddCmd(app), newDatabaseRemoveCmd(app), newListCmd(app),
 		newInfoCmd(app), newBackupCmd(app), newDropCmd(app),
 		newLockCmd(app), newUnlockCmd(app))
 
@@ -106,15 +104,20 @@ func newListCmd(_ *application.App) *cobra.Command {
 	return c
 }
 
-var createCmd = &cobra.Command{
-	Use:               "create",
-	Short:             "create a database",
-	Aliases:           []string{"add"},
-	Example:           `  gm db create -n myDb`,
-	Annotations:       cli.SkipDBCheck,
-	PersistentPreRunE: setup.InitCmd.PersistentPreRunE,
-	RunE:              setup.InitCmd.RunE,
-	PostRunE:          setup.InitCmd.PostRunE,
+func newAddCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:         "add",
+		Short:       "add a database",
+		Aliases:     []string{"create"},
+		Example:     `  gm db add --db myDb`,
+		Annotations: cli.SkipDBCheck,
+		RunE:        setup.InitCmd.RunE,
+		PostRunE:    setup.InitCmd.PostRunE,
+	}
+
+	cmdutil.FlagDBRequired(c, app)
+
+	return c
 }
 
 func newDropCmd(app *application.App) *cobra.Command {
