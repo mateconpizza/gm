@@ -62,37 +62,33 @@ $ gm --help
 usage: gm [query] [flags] [command]
 
 commands:
-  add         add bookmark
+  add         add a bookmark
   edit        edit bookmark
   rm          remove bookmark
   open        open in browser
   yank        copy URL
-  notes       view/edit notes
+  notes       view notes
   qr          generate QR
-  check       check URLs HTTP status
-  tag         tags ops
-  clean       strip URL params
-  archive     show archive URL
+  url         URL utilities
+  tag         tags ops (wip)
   db          database ops
   git         git sync
   config      configuration
-  import      import bookmarks
-  export      export bookmarks
 
 flags:
-      --color string    colorize output: always, never (default "always")
-      --db string       database name (default "main.db")
-  -f, --fields string   select fields: id, url, title, tags, desc
-      --force           force action
+  -t, --tag strings     filter by tag(s)
   -H, --head int        limit to first N bookmarks
+  -T, --tail int        limit to last N bookmarks
   -m, --menu            select interactively
   -o, --output string   output format: bar, brief, card, flow, mini, minimal, multiline, oneline
   -s, --sort string     sort by: favorite, newest, visited, popular
-  -t, --tag strings     filter by tag(s)
-  -T, --tail int        limit to last N bookmarks
-  -v, --verbose count   increase verbosity (-v, -vv, -vvv)
-  -V, --version         version for gm
+  -f, --fields string   select fields: id, url, title, tags, desc
+      --db string       database name (default "main.db")
+      --color string    colorize output: always, never (default "always")
   -y, --yes             assume yes
+      --force           force action
+  -v, --verbose count   increase verbosity (-v, -vv, -vvv)
+      --version         version for gm
 ```
 
 ### Supported Env Vars
