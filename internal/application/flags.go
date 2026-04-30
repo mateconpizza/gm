@@ -13,6 +13,7 @@ type Flags struct {
 	Notes bool // Record notes
 	Open  bool // Open URL in default browser
 	List  bool // List items
+	Print bool // Print something
 
 	// Output format
 	Output  string // Output

@@ -192,6 +192,10 @@ linters:
       - path: "cmd/database/backup_test.go"
         linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`
+      - path: "cmd/database/import.go"
+        linters:
+          - gocyclo
+          - funlen
       - path: "cmd/setup/setup_test.go"
         linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`
@@ -237,10 +241,6 @@ linters:
           - funlen
           - gocyclo
           - gosec
-      - path: "cmd/io/file.go"
-        linters:
-          - funlen
-          - gocyclo
       - path: "pkg/ansi/palette.go"
         linters:
           - gosec

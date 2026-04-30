@@ -26,6 +26,7 @@ var InitCmd = &cobra.Command{
 	Hidden:            true,
 	Annotations:       cli.SkipDBCheck,
 	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,
+	PostRunE:          InitAppPostFunc,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: convert `InitCmd` to command builder(*application.App)
 		app, err := application.FromContext(cmd.Context())
@@ -38,10 +39,9 @@ var InitCmd = &cobra.Command{
 			deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 		))
 	},
-	PostRunE: InitAppPostFunc,
 }
 
-func NewCmd() *cobra.Command {
+func NewCmd(_ *application.App) *cobra.Command {
 	return InitCmd
 }
 
