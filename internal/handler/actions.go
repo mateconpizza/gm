@@ -90,9 +90,9 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	sp := rotato.New(
-		rotato.WithMesg("opening bookmarks..."),
-		rotato.WithMesgColor(rotato.ColorBrightGreen),
-		rotato.WithSpinnerColor(rotato.ColorBrightGreen),
+		rotato.WithMessage("opening bookmarks..."),
+		rotato.WithMessageColor(rotato.FgBrightGreen),
+		rotato.WithSpinnerColor(rotato.FgBrightGreen),
 	)
 	sp.Start()
 	defer sp.Done()

@@ -128,8 +128,8 @@ func IntoRepo(d *deps.Deps, records []*bookmark.Bookmark) error {
 	}
 
 	sp := rotato.New(
-		rotato.WithMesg("importing record/s..."),
-		rotato.WithMesgColor(rotato.ColorYellow),
+		rotato.WithMessage("importing record/s..."),
+		rotato.WithMessageColor(rotato.FgYellow),
 	)
 	sp.Start()
 

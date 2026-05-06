@@ -53,9 +53,9 @@ func WithCustomSpinner(sp *rotato.Rotato) OptFn {
 func WithSpinner(mesg string) OptFn {
 	return func(o *Options) {
 		o.sp = rotato.New(
-			rotato.WithMesg(mesg),
-			rotato.WithMesgColor(rotato.ColorYellow),
-			rotato.WithSpinnerColor(rotato.ColorBrightMagenta),
+			rotato.WithMessage(mesg),
+			rotato.WithMessageColor(rotato.FgYellow),
+			rotato.WithSpinnerColor(rotato.FgBrightMagenta),
 		)
 	}
 }

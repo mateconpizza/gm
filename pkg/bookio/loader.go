@@ -84,9 +84,9 @@ func NewFileLoader(ctx context.Context) *FileLoader {
 		mu:      &sync.Mutex{},
 		sem:     semaphore.NewWeighted(1),
 		Spinner: rotato.New(
-			rotato.WithMesgColor(rotato.ColorBrightBlue),
-			rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-			rotato.WithFailColorMesg(rotato.ColorBrightRed, rotato.ColorStyleItalic),
+			rotato.WithMessageColor(rotato.FgBrightBlue),
+			rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
+			rotato.WithFailMessageColor(rotato.FgBrightRed, rotato.StyleItalic),
 		),
 	}
 }

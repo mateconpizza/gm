@@ -47,9 +47,9 @@ func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	results := make(chan SnapshotResult, len(bs))
 	sp := rotato.New(
 		rotato.WithPrefix(f.Mid("Fetching snapshots").String()),
-		rotato.WithMesgColor(rotato.ColorYellow),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-		rotato.WithFailColorMesg(rotato.ColorBrightRed),
+		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithDoneMessageColor(rotato.FgBrightGreen.With(rotato.StyleItalic)),
+		rotato.WithFailMessageColor(rotato.FgBrightRed),
 	)
 	sp.Start()
 
@@ -188,7 +188,7 @@ func formatTime(label, ts string) string {
 }
 
 func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
+	sp := rotato.New(rotato.WithMessage("Fetching wayback machine snapshot"))
 	c, p := d.Console(), d.Console().Palette()
 
 	ct := wayback.New(wayback.WithByYear(d.App.Flags.Year), wayback.WithLimit(d.App.Flags.Limit))
