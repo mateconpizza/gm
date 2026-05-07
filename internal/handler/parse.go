@@ -55,7 +55,7 @@ func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
 // readURLFromClipboard checks if there a valid URL in the clipboard.
 func readURLFromClipboard(c *ui.Console) string {
 	cb := sys.ReadClipboard()
-	if !validURL(cb) {
+	if !ValidURL(cb) {
 		return ""
 	}
 
