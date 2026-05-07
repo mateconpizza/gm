@@ -291,9 +291,9 @@ func loadChromeDatabase(path, uniqueTag string, addParentFolderAsTag bool) ([]bl
 	byteValue, _ := os.ReadFile(path)
 
 	s := rotato.New(
-		rotato.WithMesg("parsing bookmark file..."),
-		rotato.WithMesgColor(rotato.ColorBrightBlue),
-		rotato.WithSpinnerColor(rotato.ColorGray),
+		rotato.WithMessage("parsing bookmark file..."),
+		rotato.WithMessageColor(rotato.FgBrightBlue),
+		rotato.WithSpinnerColor(rotato.FgGray),
 	)
 	s.Start()
 	defer s.Done()

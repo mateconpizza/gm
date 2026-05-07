@@ -147,8 +147,8 @@ func removeSlicePath(d *deps.Deps, dbs []string) error {
 	}
 
 	sp := rotato.New(
-		rotato.WithMesg("removing database..."),
-		rotato.WithMesgColor(rotato.ColorYellow),
+		rotato.WithMessage("removing database..."),
+		rotato.WithMessageColor(rotato.FgYellow),
 	)
 	sp.Start()
 

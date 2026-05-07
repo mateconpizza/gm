@@ -327,8 +327,8 @@ func tail(bs []*bookmark.Bookmark, n int) []*bookmark.Bookmark {
 // removeRecords removes the records from the database.
 func removeRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
-		rotato.WithMesg("removing record/s..."),
-		rotato.WithMesgColor(rotato.ColorGray),
+		rotato.WithMessage("removing record/s..."),
+		rotato.WithMessageColor(rotato.FgGray),
 	)
 	sp.Start()
 	defer sp.Done()

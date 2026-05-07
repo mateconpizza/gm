@@ -13,7 +13,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -34,54 +33,61 @@ func newResult(u, s, m string) SnapshotResult {
 }
 
 func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	// FIX: updateSpinnerWithDeadline
-	ctx, cancel := context.WithTimeout(d.Context(), 30*time.Second)
-	sem := semaphore.NewWeighted(1)
 	var (
-		count uint32
+		sem   = semaphore.NewWeighted(1)
 		wg    sync.WaitGroup
+		count atomic.Uint32
+		dim   = rotato.FgGray.With(rotato.StyleBold)
 	)
 
-	c := d.Console()
-	f := c.Frame()
+	total := uint32(len(bs))
+
 	results := make(chan SnapshotResult, len(bs))
+
 	sp := rotato.New(
-		rotato.WithPrefix(f.Mid("Fetching snapshots").String()),
-		rotato.WithMesgColor(rotato.ColorYellow),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-		rotato.WithFailColorMesg(rotato.ColorBrightRed),
+		rotato.WithContext(d.Context()),
+		rotato.WithPrefix("Snapshots"),
+		rotato.WithPrefixDecorator(func(prefix string) string { // n/N <prefix>
+			current := count.Load()
+			return fmt.Sprintf("%s %s", prefix, dim.Sprintf("%d/%d", current, total))
+		}),
+
+		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
+		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithMessageDecorator(func(mesg string) string { return "Fetching " + mesg }),
+		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
+		rotato.WithFailMessageColor(rotato.FgBrightRed),
 	)
+
 	sp.Start()
 
 	for _, b := range bs {
-		if err := sem.Acquire(ctx, 1); err != nil {
+		if err := sem.Acquire(d.Context(), 1); err != nil {
 			sp.Fail(err.Error())
-			cancel()
 			return fmt.Errorf("acquire semaphore: %w", err)
 		}
+
 		wg.Add(1)
 
 		go func(b *bookmark.Bookmark) {
 			defer wg.Done()
 			defer sem.Release(1)
 
-			idx := atomic.AddUint32(&count, 1)
-			f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
-			sp.UpdateMesg(fmt.Sprintf("[%d/%d] %s", idx, len(bs), f.Info(txt.Shorten(b.URL, 80)).String()))
+			count.Add(1)
+
+			sp.UpdateMesg(txt.Shorten(b.URL, 80))
 
 			res := processBookmark(d, b)
-			cancel()
 			results <- res
 		}(b)
 	}
 
 	wg.Wait()
 	close(results)
+
 	sp.Done()
 
-	cancel()
-
-	return printSummary(c, results)
+	return printSummary(d.Console(), results)
 }
 
 func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
@@ -148,22 +154,6 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 	return nil
 }
 
-func updateSpinnerWithDeadline(ctx context.Context, sp *rotato.Rotato, prefix string, deadline time.Time) {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			remaining := max(time.Until(deadline), 0)
-			left := fmt.Sprintf("%.0fs left", remaining.Seconds())
-			sp.UpdateMesg(fmt.Sprintf("%s%s", prefix, dimmer(left)))
-		}
-	}
-}
-
 func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, opts ...menu.Option) *menu.Menu[wayback.SnapshotInfo] {
 	opts = append(opts, menu.WithArgs("--color=header:italic:bold:bright-red"),
 		menu.WithOutputColor(c.Palette().Enabled()),
@@ -188,19 +178,24 @@ func formatTime(label, ts string) string {
 }
 
 func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	sp := rotato.New(rotato.WithMesg("Fetching wayback machine snapshot"))
 	c, p := d.Console(), d.Console().Palette()
 
 	ct := wayback.New(wayback.WithByYear(d.App.Flags.Year), wayback.WithLimit(d.App.Flags.Limit))
 	for _, b := range bs {
-		sp.Start()
-
 		ctx, cancel := context.WithTimeout(d.Context(), 30*time.Second)
 		deadline, _ := ctx.Deadline()
 
 		u := txt.Shorten(b.URL, 60)
-		prefix := "Fetching " + p.Italic.Sprint(u) + " snapshots"
-		go updateSpinnerWithDeadline(ctx, sp, prefix, deadline)
+		sp := rotato.New(
+			rotato.WithPrefix("Snapshots"),
+			rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
+			rotato.WithMessage("Fetching "+p.Italic.Sprint(u)),
+			rotato.WithMessageDecorator(func(mesg string) string {
+				remaining := max(time.Until(deadline).Round(time.Second), 0)
+				return mesg + " " + rotato.DimCountdownDecorator(remaining)
+			}),
+		)
+		sp.Start()
 
 		snapshots, err := ct.Snapshots(ctx, b.URL)
 		cancel()

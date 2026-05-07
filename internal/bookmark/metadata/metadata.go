@@ -41,10 +41,10 @@ func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) 
 	}
 
 	sp := rotato.New(
-		rotato.WithSpinnerColor(rotato.ColorGray),
-		rotato.WithMesg("scraping missing data..."),
-		rotato.WithMesgColor(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
-		rotato.WithDoneColorMesg(rotato.ColorBrightGreen, rotato.ColorStyleItalic),
+		rotato.WithSpinnerColor(rotato.FgGray),
+		rotato.WithMessage("scraping missing data..."),
+		rotato.WithMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
+		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
 	)
 	sp.Start()
 	defer sp.Done("Scraping done")
