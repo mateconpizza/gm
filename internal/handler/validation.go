@@ -128,8 +128,8 @@ func passwordConfirm(c *ui.Console) (string, error) {
 	return s, nil
 }
 
-// validURL checks if a string is a valid URL.
-func validURL(s string) bool {
+// ValidURL checks if a string is a valid URL.
+func ValidURL(s string) bool {
 	parsedURL, err := url.Parse(s)
 	if err != nil {
 		return false

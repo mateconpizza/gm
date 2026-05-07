@@ -8,6 +8,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -17,9 +18,13 @@ import (
 
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "clean [query]",
+		Use:   "clean [query|URL]",
 		Short: "strip URL params",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 0 && handler.ValidURL(args[0]) {
+				return newCleanURLUser(app).RunE(cmd, args)
+			}
+
 			m := handler.MenuSimple[bookmark.Bookmark](
 				app,
 				menu.WithMultiSelection(),
@@ -62,4 +67,43 @@ func WithURLParametersOnly(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	}
 
 	return cleanup
+}
+
+// newCleanURLUser takes URL from input and strip useless parameters.
+func newCleanURLUser(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "text [url]",
+		Short: "strip URL params from input",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+
+			tab := d.Console().Palette().BrightRed.Sprint("<TAB>")
+			m := handler.MenuSimple[string](app,
+				menu.WithBorderLabel("URL Parameters"),
+				menu.WithHeader("Select with "+tab+" which params to remove"),
+				menu.WithMultiSelection(),
+			)
+
+			newURL, err := handler.ProcessBookmarkParams(d, m, args[0])
+			if err != nil {
+				return err
+			}
+
+			if newURL == "" {
+				return sys.ErrExitFailure
+			}
+
+			t := d.Console().Term()
+			if !t.IsPiped() {
+				newURL += "\n"
+			}
+
+			return t.Print(cmd.Context(), newURL)
+		},
+	}
+	return c
 }
