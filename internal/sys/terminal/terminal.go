@@ -157,3 +157,23 @@ func init() {
 func NonInteractiveMode(b bool) {
 	force = b
 }
+
+// withRestoredTerminal saves the terminal state, runs fn, then restores it
+// regardless of how fn exits. Safe to call even if stdin is not a terminal.
+func withRestoredTerminal(fn func() error) error {
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		return fn()
+	}
+	saved, err := term.GetState(fd)
+	if err != nil {
+		slog.Debug("failed to save terminal state", "err", err)
+		return fn()
+	}
+	defer func() {
+		if err := term.Restore(fd, saved); err != nil {
+			slog.Debug("failed to restore terminal state", "err", err)
+		}
+	}()
+	return fn()
+}
