@@ -25,7 +25,7 @@ type (
 	Filter func([]*bookmark.Bookmark) []*bookmark.Bookmark
 )
 
-// SetupDeps inicializa la config, db y app para los subcommands.
+// SetupDeps initializes the config, db and app for the subcommands..
 func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	app, err := application.FromContext(cmd.Context())
 	if err != nil {

@@ -3,6 +3,7 @@ package cleanup
 
 import (
 	"log/slog"
+	"slices"
 	"sync"
 )
 
@@ -26,8 +27,8 @@ func Register(fn func() error) {
 func Run() {
 	cleanupMu.Lock()
 	defer cleanupMu.Unlock()
-	for i := len(cleanupFuncs) - 1; i >= 0; i-- {
-		if err := cleanupFuncs[i](); err != nil {
+	for _, v := range slices.Backward(cleanupFuncs) {
+		if err := v(); err != nil {
 			slog.Error("cleanup", "error", err)
 		}
 	}

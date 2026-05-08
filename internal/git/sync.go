@@ -257,6 +257,7 @@ func cleanJSONRepo(ctx context.Context, root string, bs []*bookmark.Bookmark) er
 // Sync writes bookmarks to the repo and commits changes if any.
 func Sync(ctx context.Context, app *application.App, mesg string) error {
 	if !app.Git.Enabled {
+		slog.Debug("git sync", "enabled", app.Git.Enabled)
 		return nil
 	}
 

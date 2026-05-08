@@ -154,6 +154,7 @@ func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 
 // HookGitSync synchronizes Git repository with current database state.
 func HookGitSync(cmd *cobra.Command, args []string) error {
+	slog.Debug("hook: git sync, checking for changes")
 	app, err := application.FromContext(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("hook-git: failed to get config: %w", err)
