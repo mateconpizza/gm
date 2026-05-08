@@ -112,7 +112,7 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		go func(b *bookmark.Bookmark) {
 			defer wg.Done()
 
-			if err := sys.OpenInBrowser(b.URL); err != nil {
+			if err := sys.OpenInBrowser(d.Context(), b.URL); err != nil {
 				errCh <- fmt.Errorf("open error: %w", err)
 			}
 		}(b)

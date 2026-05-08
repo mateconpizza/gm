@@ -42,10 +42,10 @@ func MenuMainForRecords(app *application.App, fm formatter.Formatter) *menu.Menu
 		menu.WithKeybinds(
 			kb.From(k.Edit).Execute("edit"),
 			kb.From(k.EditNotes).Execute("notes edit"),
-			kb.From(k.Open).ExecuteSilent("open"),
+			kb.From(k.Open).Execute("open"),
 			kb.From(k.QR).Execute("qr"),
 			kb.From(k.OpenQR).Execute("qr open"),
-			kb.From(k.Yank).ExecuteSilent("yank"),
+			kb.From(k.Yank).Execute("yank"),
 			kb.Builtin(k.ToggleAll, menu.ToggleAll),
 			kb.Builtin(k.Preview, menu.TogglePreview),
 		),

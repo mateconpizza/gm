@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/atotto/clipboard"
-	"github.com/pkg/browser"
 
 	"github.com/mateconpizza/gm/internal/application"
 )
@@ -81,6 +80,7 @@ func Which(cmd string) (string, error) {
 // ExecuteCmd runs a command with the given arguments and returns an error if
 // the command fails.
 func ExecuteCmd(ctx context.Context, arg ...string) error {
+	slog.Debug("execute", "exe", arg[0], "with args", arg[1:])
 	cmd := exec.CommandContext(ctx, arg[0], arg[1:]...)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("running command: %w", err)
@@ -137,12 +137,10 @@ func OSArgs() []string {
 }
 
 // OpenInBrowser opens a URL in the default browser.
-func OpenInBrowser(s string) error {
-	if err := browser.OpenURL(s); err != nil {
-		return fmt.Errorf("%w: opening in browser", err)
-	}
-
-	return nil
+func OpenInBrowser(ctx context.Context, s string) error {
+	args := OSArgs()
+	args = append(args, s)
+	return ExecuteCmd(ctx, args...)
 }
 
 // CopyClipboard copies a string to the clipboard.
