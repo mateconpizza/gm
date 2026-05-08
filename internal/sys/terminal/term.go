@@ -410,18 +410,16 @@ func (t *Term) paginate(ctx context.Context, content string) error {
 	if pager == "" {
 		pager = "less"
 	}
-
 	args := strings.Fields(pager)
-	exe := args[0]
 
 	//nolint:gosec // false positive: we explicitly want to allow the user to
 	// define their own PAGER command
-	cmd := exec.CommandContext(ctx, exe, args[1:]...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Stdin = strings.NewReader(content)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := withRestoredTerminal(cmd.Run); err != nil {
 		_, err = fmt.Fprint(t.writer, content)
 		return err
 	}
