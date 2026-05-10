@@ -51,7 +51,7 @@ func FlagFields(c *cobra.Command, app *application.App, fields string) {
 }
 
 func FlagDBRequired(c *cobra.Command, app *application.App) {
-	c.Flags().StringVar(&app.DBName, "db", application.MainDBName, "database name")
+	c.Flags().StringVar(&app.DBName, "db", app.DBName, "database name")
 	_ = c.MarkFlagRequired("db")
 }
 

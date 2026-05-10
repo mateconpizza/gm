@@ -6,6 +6,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -80,6 +81,8 @@ func newEditCmd(app *application.App) *cobra.Command {
 }
 
 func cfgToJSON(ctx context.Context, app *application.App) error {
+	app.DBName = strings.TrimSuffix(app.DBName, ".db")
+
 	j, err := port.ToJSON(app)
 	if err != nil {
 		return err
@@ -101,7 +104,7 @@ func createConfig(c *ui.Console, app *application.App) error {
 		return sys.ErrActionAborted
 	}
 
-	if err := app.Write(); err != nil {
+	if err := app.WriteConfig(); err != nil {
 		return err
 	}
 

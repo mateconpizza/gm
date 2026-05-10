@@ -19,6 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -58,10 +59,20 @@ func NewCmd(app *application.App) *cobra.Command {
 	f.SortFlags = false
 	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
 	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false, "reorder IDs")
-	c.AddCommand(newAddCmd(app), newDatabaseRemoveCmd(app), newListCmd(app),
-		newInfoCmd(app), newBackupCmd(app), newDropCmd(app),
-		newLockCmd(app), newUnlockCmd(app),
-		newImportCmd(app), newExportCmd(app))
+	c.AddCommand(
+		newAddCmd(app),            // create
+		newUseCmd(app),            // switch context
+		newCurrentCmd(app),        // inspect current
+		newListCmd(app),           // inspect all
+		newInfoCmd(app),           // inspect one
+		newBackupCmd(app),         // safe management
+		newDatabaseRemoveCmd(app), // destructive
+		newDropCmd(app),           // most destructive
+		newLockCmd(app),           // restrict access
+		newUnlockCmd(app),         // restore access
+		newImportCmd(app),         // data in
+		newExportCmd(app),         // data out
+	)
 
 	return c
 }
@@ -180,6 +191,46 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagDBRequired(c, app)
 
 	return c
+}
+
+func newUseCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "use [name]",
+		Short: "set default database",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+
+			filename := files.StripSuffixes(args[0])
+			if filename == "" {
+				return fmt.Errorf("%w: %q", handler.ErrInvalidOption, filename)
+			}
+
+			if err := app.SetDatabase(filename); err != nil {
+				return err
+			}
+
+			_, err := db.New(app.Path.Database)
+			if err != nil {
+				return err
+			}
+
+			app.Flags.Force = true
+
+			return app.WriteConfig()
+		},
+	}
+
+	return c
+}
+
+func newCurrentCmd(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "current",
+		Short: "current default",
+		RunE:  newInfoCmd(app).RunE,
+	}
 }
 
 func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {

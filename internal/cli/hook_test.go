@@ -24,6 +24,9 @@ func TestHookInjectApp(t *testing.T) {
 		t.Parallel()
 
 		app := application.New(testSetupAppInfo(t, "1.0.0"))
+		if err := app.Setup(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		app.Initialize()
 		cmd := &cobra.Command{
 			Use: "test",
@@ -53,6 +56,9 @@ func TestHookInjectApp(t *testing.T) {
 		t.Parallel()
 		// Arrange
 		app := application.New(testSetupAppInfo(t, "1.0.0"))
+		if err := app.Setup(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		app.Initialize()
 
 		cmd := &cobra.Command{
@@ -80,10 +86,16 @@ func TestHookInjectApp(t *testing.T) {
 		t.Parallel()
 
 		originalApp := application.New(testSetupAppInfo(t, "1.0.0"))
+		if err := originalApp.Setup(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		originalApp.DBName = "original"
 		originalApp.Initialize()
 
 		newApp := application.New(testSetupAppInfo(t, "2.0.0"))
+		if err := newApp.Setup(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		newApp.DBName = "new"
 		newApp.Initialize()
 

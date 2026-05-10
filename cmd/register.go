@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"log/slog"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -63,11 +62,6 @@ func initAppConfig(ctx context.Context, app *application.App) {
 
 	application.SetVerbosity(app.Flags.Verbose)
 
-	// load config from YAML
-	if err := app.Load(); err != nil {
-		slog.Error("loading config", "err", err)
-	}
-
 	// enable global color
 	if !app.Flags.Color {
 		ansi.DisableColor()
@@ -117,7 +111,7 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	// global
 	g := c.PersistentFlags()
 	// database selection
-	g.StringVar(&app.DBName, "db", application.MainDBName, "database name")
+	g.StringVar(&app.DBName, "db", app.DBName, "database name")
 	// output colorization policy
 	g.StringVar(&app.Flags.ColorStr, "color", "always", "colorize output: always, never")
 	// non-interactive confirmation

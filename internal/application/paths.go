@@ -1,7 +1,6 @@
 package application
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -49,41 +48,6 @@ func loadDataPath(appName, envVar string) (string, error) {
 	slog.Debug("home app", "path", dataHome)
 
 	return dataHome, nil
-}
-
-// Setup initializes all filesystem paths for the application.
-func (app *App) Setup() error {
-	dataHomePath, err := loadDataPath(app.Name, app.Env.Home)
-	if err != nil {
-		return err
-	}
-
-	// set app home
-	app.Path.Data = dataHomePath
-	app.Path.Config = filepath.Join(app.Path.Data, ConfigFilename)
-	app.Path.Backup = filepath.Join(app.Path.Data, "backup")
-
-	// set main database path and name
-	if filepath.Ext(app.DBName) != ".db" {
-		app.DBName += ".db"
-	}
-	app.Path.Database = filepath.Join(dataHomePath, app.DBName)
-
-	return nil
-}
-
-// Load loads the user configurations file.
-func (app *App) Load() error {
-	err := getConfig(app.Path.Config, app)
-	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
-		return err
-	}
-
-	return nil
-}
-
-func (app *App) Write() error {
-	return WriteYAML(app.Path.Config, app, app.Flags.Force)
 }
 
 // getConfig loads the config file.

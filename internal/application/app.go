@@ -10,11 +10,13 @@ import (
 
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
-	ErrDatabaseNameNotSet = errors.New("database name not set")
-	ErrDatabasePathNotSet = errors.New("database path not set")
+	ErrDatabaseNameNotSet  = errors.New("database name not set")
+	ErrDatabaseInvalidName = errors.New("database name invalid")
+	ErrDatabasePathNotSet  = errors.New("database path not set")
 )
 
 const (
@@ -28,15 +30,16 @@ const (
 
 type (
 	App struct {
-		Name        string       `json:"name"          yaml:"-"`             // Name of the application
-		Cmd         string       `json:"cmd"           yaml:"-"`             // Name of the executable
-		DBName      string       `json:"db"            yaml:"-"`             // Database name
-		Info        *Information `json:"data"          yaml:"-"`             // Application information
-		Env         *Env         `json:"env"           yaml:"-"`             // Application environment variables
-		Path        *Path        `json:"path"          yaml:"-"`             // Application path
-		Flags       *Flags       `json:"-"             yaml:"-"`             // Command line flags
-		Menu        *menu.Config `json:"menu"          yaml:"menu"`          // Menu configuration
-		Git         *Git         `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
+		Name   string       `json:"name"          yaml:"-"`             // Name of the application
+		Cmd    string       `json:"cmd"           yaml:"-"`             // Name of the executable
+		DBName string       `json:"db"            yaml:"db,omitempty"`  // Database name
+		Info   *Information `json:"data"          yaml:"-"`             // Application information
+		Env    *Env         `json:"env"           yaml:"-"`             // Application environment variables
+		Path   *Path        `json:"path"          yaml:"-"`             // Application path
+		Flags  *Flags       `json:"-"             yaml:"-"`             // Command line flags
+		Menu   *menu.Config `json:"menu"          yaml:"menu"`          // Menu configuration
+		Git    *Git         `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
+
 		initialized bool
 	}
 
@@ -75,17 +78,55 @@ func (app *App) Initialize() {
 		return
 	}
 
-	if filepath.Ext(app.DBName) != ".db" {
-		app.DBName += ".db"
+	if err := app.SetDatabase(app.DBName); err != nil {
+		panic(err)
 	}
-	app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
+
 	app.initialized = true
+}
+
+// Setup initializes all filesystem paths for the application.
+func (app *App) Setup() error {
+	dataHomePath, err := loadDataPath(app.Name, app.Env.Home)
+	if err != nil {
+		return err
+	}
+
+	// set app home
+	app.Path.Data = dataHomePath
+	app.Path.Config = filepath.Join(app.Path.Data, ConfigFilename)
+	app.Path.Backup = filepath.Join(app.Path.Data, "backup")
+
+	// set main database path and name
+	return app.SetDatabase(app.DBName)
+}
+
+// Load loads the user configurations file.
+func (app *App) Load() error {
+	err := getConfig(app.Path.Config, app)
+	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
+		return err
+	}
+
+	return app.SetDatabase(app.DBName)
+}
+
+func (app *App) WriteConfig() error {
+	app.DBName = files.StripSuffixes(app.DBName)
+	if !app.Git.Enabled {
+		app.Git = nil
+	}
+
+	return WriteYAML(app.Path.Config, app, app.Flags.Force)
 }
 
 // Validate validates the configuration file.
 func (app *App) Validate() error {
 	if app.DBName == "" {
 		return ErrDatabaseNameNotSet
+	}
+	if files.StripSuffixes(app.DBName) == "" {
+		return ErrDatabaseInvalidName
 	}
 	if app.Path.Database == "" {
 		return ErrDatabasePathNotSet
@@ -109,6 +150,21 @@ func (app *App) PrettyVersion() string {
 		runtime.GOOS,
 		runtime.GOARCH,
 	)
+}
+
+func (app *App) SetDatabase(name string) error {
+	app.DBName = files.StripSuffixes(name)
+	if app.DBName == "" {
+		return ErrDatabaseNameNotSet
+	}
+	if filepath.Ext(app.DBName) != ".db" {
+		app.DBName += ".db"
+	}
+	if app.Path.Data == "" {
+		return ErrDatabasePathNotSet
+	}
+	app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
+	return nil
 }
 
 func New(info *Information) *App {
