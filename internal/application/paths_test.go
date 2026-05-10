@@ -63,7 +63,10 @@ func TestPaths_InitPaths(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv(c.Env.Home, tempDir)
 
-	c.Setup()
+	err := c.Setup()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	p := c.Path
 	tempDir = filepath.Join(tempDir, Name)

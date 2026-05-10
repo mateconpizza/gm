@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -87,11 +88,7 @@ func HookEnsureDatabase(app *application.App) Hook {
 		}
 
 		i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s init", app.Cmd)
-		if app.DBName == application.MainDBName {
-			return fmt.Errorf("%w: use %s to initialize", db.ErrDBMainNotFound, i)
-		}
-
-		return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, app.DBName, i)
+		return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, strings.TrimSuffix(app.DBName, ".db"), i)
 	}
 }
 

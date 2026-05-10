@@ -46,7 +46,12 @@ func NewCmd(_ *application.App) *cobra.Command {
 }
 
 func initializeAction(d *deps.Deps) error {
-	c, app := d.Console(), d.App
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	c := d.Console()
 	if err := createPaths(c, app); err != nil {
 		return err
 	}

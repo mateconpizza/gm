@@ -31,7 +31,18 @@ func NewRootCmd(app *application.App) *cobra.Command {
 	}
 
 	registerRootFlags(c, app)
-	setupRootCmd(c, app)
+	setupRootCmd(c)
+
+	// Initialize application state before command execution
+	cobra.OnInitialize(func() {
+		initAppConfig(c.Context(), app)
+
+		app.Initialize()
+	})
+
+	// Register cleanup hooks to be executed on shutdown/exit
+	registerCleanups(app)
+
 	return c
 }
 
@@ -53,6 +64,7 @@ func rootCmdFunc(app *application.App) cli.Hook {
 
 		return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 			t, f := d.Console(), d.App.Flags
+
 			switch {
 			case d.App.Flags.Field != "":
 				return printer.ByField(d.Context(), t, f.Field, bs) // TODO: experimental
@@ -67,7 +79,7 @@ func rootCmdFunc(app *application.App) cli.Hook {
 	}
 }
 
-func setupRootCmd(c *cobra.Command, app *application.App) {
+func setupRootCmd(c *cobra.Command) {
 	// Add custom template function used inside usage/help templates
 	cobra.AddTemplateFunc("hasFlags", cmdutil.HasFlags)
 
@@ -97,13 +109,4 @@ func setupRootCmd(c *cobra.Command, app *application.App) {
 
 	// Ensure PersistentPreRun hooks are executed across command traversal
 	cobra.EnableTraverseRunHooks = true
-
-	// Initialize application state before command execution
-	cobra.OnInitialize(func() {
-		app.Initialize()
-		initAppConfig(c.Context(), app)
-	})
-
-	// Register cleanup hooks to be executed on shutdown/exit
-	registerCleanups(app)
 }

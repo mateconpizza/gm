@@ -20,6 +20,11 @@ func main() {
 	if err := app.Setup(); err != nil {
 		sys.ErrAndExit(err)
 	}
+
+	// load config from YAML
+	if err := app.Load(); err != nil {
+		sys.ErrAndExit(err)
+	}
 	defer cleanup.Run()
 
 	root := cmd.NewRootCmd(app)
