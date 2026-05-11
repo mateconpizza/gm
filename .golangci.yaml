@@ -12,7 +12,6 @@ linters:
     - bodyclose
     - decorder
     - dogsled
-    - dupl
     - dupword
     - durationcheck
     - err113
@@ -22,20 +21,13 @@ linters:
     - fatcontext
     - forcetypeassert
     - funlen
-    # - goconst
-    - gocognit
     - gocritic
-    - gocyclo
     - goheader
     - godot
     - gosec
     - govet
     - iface
-    # - ireturn
     - ineffassign
-    - interfacebloat
-    - lll
-    - maintidx
     - makezero
     - misspell
     - modernize
@@ -44,7 +36,6 @@ linters:
     - nestif
     - nilerr
     - nilnil
-    # - noctx
     - nolintlint
     - paralleltest
     - perfsprint
@@ -53,7 +44,6 @@ linters:
     - protogetter
     - reassign
     - recvcheck
-    # - gochecknoglobals
     - revive
     - rowserrcheck
     - sqlclosecheck
@@ -65,11 +55,8 @@ linters:
     - unused
     - usestdlibvars
     - usetesting
-    # - varnamelen
     - wastedassign
     - whitespace
-    # - wsl
-    # - wrapcheck
   settings:
     errcheck:
       check-type-assertions: true
@@ -95,8 +82,6 @@ linters:
         - opinionated
         - performance
         - style
-    gocyclo:
-      min-complexity: 12
     gosec:
       excludes:
         - G115
@@ -194,7 +179,6 @@ linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`
       - path: "cmd/database/import.go"
         linters:
-          - gocyclo
           - funlen
       - path: "cmd/setup/setup_test.go"
         linters:
@@ -239,21 +223,11 @@ linters:
       - path: "internal/ui/txt/txt.go"
         linters:
           - funlen
-          - gocyclo
           - gosec
       - path: "pkg/ansi/palette.go"
         linters:
           - gosec
         text: "G404:"
-      - path: "internal/ui/txt/tools.go"
-        linters:
-          - gocyclo
-      - path: "pkg/bookio/htmlexp.go"
-        linters:
-          - gocyclo
-      - path: "pkg/bookio/htmlimp.go"
-        linters:
-          - gocyclo
       - path: "pkg/bookmark/bookmark.go"
         linters:
           - lll
@@ -278,18 +252,14 @@ linters:
           - lll
       - path: _test\.go
         linters:
-          - dupl
           - err113
           - errcheck
           - funlen
-          - gocognit
-          - gocyclo
           - gosec
       - path: "pkg/bookio/csv.go"
         linters:
           - funlen
           - gocognit
-          - gocyclo
     generated: lax
     presets:
       - common-false-positives
