@@ -3,6 +3,7 @@ package db
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -107,18 +108,106 @@ func extractIDs(bookmarks []*bookmark.Bookmark) []int {
 	return ids
 }
 
-func TestBackupRepo(t *testing.T) {
-	r := testPopulatedDB(t, 5)
-	defer teardownthewall(r.DB)
+func TestNewBackup(t *testing.T) {
+	t.Parallel()
+	fixedTime := time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC)
 
-	tempDir := t.TempDir()
-	newBackupPath, err := r.Backup(t.Context(), tempDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T) (*SQLite, string)
+		now     time.Time
+		wantErr error
+	}{
+		{
+			"valid_backup",
+			func(t *testing.T) (*SQLite, string) {
+				t.Helper()
+				r := testPopulatedDB(t, 5)
+				return r, t.TempDir()
+			},
+			fixedTime,
+			nil,
+		},
+		{
+			"empty_dest_root",
+			func(t *testing.T) (*SQLite, string) {
+				t.Helper()
+				r := testPopulatedDB(t, 5)
+				return r, ""
+			},
+			fixedTime,
+			ErrDBEmptyPath, // was nil
+		},
+		{
+			"backup_already_exists",
+			func(t *testing.T) (*SQLite, string) {
+				t.Helper()
+				r := testPopulatedDB(t, 5)
+				tempDir := t.TempDir()
+				// pre-create the file so the second call hits ErrBackupExists
+				destDSN := fmt.Sprintf("%s_%s", fixedTime.Format(defaultDateFormat), r.Name())
+				destPath := filepath.Join(tempDir, destDSN)
+				if err := os.WriteFile(destPath, []byte{}, 0o644); err != nil {
+					t.Fatalf("failed to pre-create backup file: %v", err)
+				}
+				return r, tempDir
+			},
+			fixedTime,
+			ErrBackupExists,
+		},
+		{
+			"empty_db_still_backs_up",
+			func(t *testing.T) (*SQLite, string) {
+				t.Helper()
+				r := testPopulatedDB(t, 0)
+				return r, t.TempDir()
+			},
+			fixedTime,
+			nil,
+		},
+		{
+			"backup_path_uses_correct_timestamp",
+			func(t *testing.T) (*SQLite, string) {
+				t.Helper()
+				r := testPopulatedDB(t, 1)
+				return r, t.TempDir()
+			},
+			time.Date(2099, 12, 31, 23, 59, 59, 0, time.UTC),
+			nil,
+		},
 	}
 
-	want := filepath.Join(tempDir, fmt.Sprintf("%s_%s", time.Now().Format(defaultDateFormat), r.Name()))
-	if want != newBackupPath {
-		t.Fatalf("want: %q, got: %q", want, newBackupPath)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r, destRoot := tt.setup(t)
+			defer teardownthewall(r.DB)
+
+			got, err := r.newBackup(t.Context(), destRoot, tt.now)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("newBackup() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("newBackup() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("newBackup() unexpected error: %v", err)
+			}
+
+			// verify the file exists
+			if _, err := os.Stat(got); err != nil {
+				t.Fatalf("backup file not found at %q: %v", got, err)
+			}
+
+			// verify path is built correctly from timestamp and db name
+			want := filepath.Join(destRoot, fmt.Sprintf("%s_%s", tt.now.Format(defaultDateFormat), r.Name()))
+			if got != want {
+				t.Fatalf("newBackup() path = %q; want %q", got, want)
+			}
+		})
 	}
 }

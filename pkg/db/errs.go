@@ -15,6 +15,7 @@ var (
 	ErrDBUnlockFirst        = errors.New("unlock database first")
 	ErrDBMainNameReserved   = errors.New("name reserved")
 	ErrDBMainNotFound       = errors.New("main database not found")
+	ErrDBEmptyPath          = errors.New("database path cannot be empty")
 )
 
 var (

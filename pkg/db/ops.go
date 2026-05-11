@@ -170,8 +170,15 @@ func (r *SQLite) ReorderIDs(ctx context.Context) error {
 // Backup creates a timestamped backup of the SQLite database at the specified destination.
 // The backup filename follows the format: YYYYMMDD-HHMMSS_dbname.db.
 func (r *SQLite) Backup(ctx context.Context, destRoot string) (string, error) {
+	return r.newBackup(ctx, destRoot, time.Now())
+}
+
+func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) (string, error) {
+	if destRoot == "" {
+		return "", ErrDBEmptyPath
+	}
 	// destDSN -> 20060102-150405_dbName.db
-	destDSN := fmt.Sprintf("%s_%s", time.Now().Format(defaultDateFormat), r.Name())
+	destDSN := fmt.Sprintf("%s_%s", now.Format(defaultDateFormat), r.Name())
 	destPath := filepath.Join(destRoot, destDSN)
 	slog.Info("creating SQLite backup", "src", r.Cfg.Fullpath(), "dest", destPath)
 
