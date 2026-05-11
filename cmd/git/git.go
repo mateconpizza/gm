@@ -54,8 +54,15 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 	c.AddCommand(
-		newInitRepoCmd(app), newTrackerCmd(app), newImportCmd(app),
-		newCloneCmd(app), commitCmd, newPushCmd(app), newRawCmd(app))
+		newInitRepoCmd(app),
+		newTrackerCmd(app),
+		newImportCmd(app),
+		newCloneCmd(app),
+		commitCmd,
+		newPushCmd(app),
+		newRawCmd(app),
+		newDisableCmd(app),
+	)
 
 	return c
 }
@@ -196,6 +203,19 @@ func newCloneCmd(app *application.App) *cobra.Command {
 			rp := git.NewRepoProcessor(c, g, app, git.WithRPContext(cmd.Context()))
 
 			return rp.Pull()
+		},
+	}
+
+	return c
+}
+
+func newDisableCmd(_ *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "disable",
+		Short: "disable tracking",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("not implemented yet...")
+			return nil
 		},
 	}
 

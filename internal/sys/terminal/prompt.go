@@ -21,10 +21,10 @@ type highlightFn func(string) string
 
 type highlighter struct{}
 
-func (h *highlighter) red(s string) string         { return ansi.BrightRed.Wrap(s, ansi.Bold) }
-func (h *highlighter) green(s string) string       { return ansi.BrightGreen.Wrap(s, ansi.Bold) }
-func (h *highlighter) magenta(s string) string     { return ansi.BrightMagenta.Wrap(s, ansi.Bold) }
-func (h *highlighter) dim(s string) string 		     { return ansi.Dim.Wrap(s) }
+func (h *highlighter) red(s string) string     { return ansi.BrightRed.Wrap(s, ansi.Bold) }
+func (h *highlighter) green(s string) string   { return ansi.BrightGreen.Wrap(s, ansi.Bold) }
+func (h *highlighter) magenta(s string) string { return ansi.BrightMagenta.Wrap(s, ansi.Bold) }
+func (h *highlighter) dim(s string) string     { return ansi.Dim.Wrap(s) }
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
@@ -131,7 +131,8 @@ func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
 
 // promptOptions generates default options for prompt.
 func promptOptions(c bool) (o []prompt.Option) {
-	o = append(o,
+	o = append(
+		o,
 		prompt.OptionPrefixTextColor(prompt.White),
 		prompt.OptionInputTextColor(prompt.DefaultColor),
 		prompt.OptionSuggestionBGColor(prompt.Black),
@@ -148,7 +149,8 @@ func promptOptions(c bool) (o []prompt.Option) {
 
 	// color
 	if c {
-		o = append(o,
+		o = append(
+			o,
 			prompt.OptionPrefixTextColor(prompt.DarkGray),
 			prompt.OptionPreviewSuggestionTextColor(prompt.Blue),
 			prompt.OptionInputTextColor(prompt.DarkGray),

@@ -216,6 +216,7 @@ func backupFile(filePath string) (string, error) {
 	}
 
 	// Write backup file
+	//nolint:gosec //false positive
 	err = os.WriteFile(backupPath, data, files.FilePerm)
 	if err != nil {
 		return "", fmt.Errorf("failed to create backup file: %w", err)
@@ -231,6 +232,7 @@ func backupFile(filePath string) (string, error) {
 func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPath string) error {
 	slog.Debug("writing file", "path", targetPath)
 	// Write data to the target file
+	//nolint:gosec //false positive
 	err := os.WriteFile(targetPath, data, files.FilePerm)
 	if err != nil {
 		// If writing fails, attempt to restore from backup

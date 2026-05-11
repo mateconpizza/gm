@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/summary"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -184,27 +183,31 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return removeRecords(d, bs)
 	}
 
-	c := d.Console()
-	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
+	c, p := d.Console(), d.Console().Palette()
+
 	if !d.App.Flags.Yes {
-		f.Header(c.Palette().BrightRed.Sprint("Removing Bookmarks\n\n")).Flush()
+		f := c.Frame()
+		title := p.BrightRed.With(p.Bold).
+			Sprint("Removing Bookmarks")
+		subtitle := p.Dim.With(p.Italic).
+			Sprint("this action cannot be undone")
+		comment := p.Dim.With(p.Italic).
+			Sprint(" (ctrl-c to exit)")
+
+		f.Headerln(title + comment).
+			Headerln(subtitle).
+			Rowln().Flush()
 	}
 
 	t := d.Console().Term()
 	defer t.CancelInterruptHandler()
-
-	m := menu.New[bookmark.Bookmark](
-		menu.WithOutputColor(d.App.Flags.Color),
-		menu.WithInterruptFn(t.InterruptFn),
-		menu.WithMultiSelection(),
-	)
 
 	items := make([]bookmark.Bookmark, 0, len(bs))
 	for i := range bs {
 		items = append(items, *bs[i])
 	}
 
-	items, err := confirmRemove(d, m, items)
+	items, err := confirmRemove(d, items)
 	if err != nil {
 		return err
 	}

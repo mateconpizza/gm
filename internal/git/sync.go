@@ -93,7 +93,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 	)
 	sp.Start()
 
-	var count uint32
+	var count atomic.Uint32
 	n := len(bs)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -131,7 +131,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 				return fmt.Errorf("%w", err)
 			}
 
-			cur := atomic.AddUint32(&count, 1)
+			cur := count.Add(1)
 			sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", cur, n)).String())
 			return nil
 		})
@@ -142,7 +142,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 		return false, err
 	}
 
-	total := atomic.LoadUint32(&count)
+	total := count.Load()
 	if total > 0 {
 		sp.UpdatePrefix(f.Reset().Success(fmt.Sprintf("Encrypted [%d/%d]", total, n)).String())
 		sp.Done("done")

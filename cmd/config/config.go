@@ -28,9 +28,6 @@ func NewCmd(app *application.App) *cobra.Command {
 			if app.Flags.Output == "json" || app.Flags.Output == "j" {
 				return cfgToJSON(cmd.Context(), app)
 			}
-			if app.Flags.Edit {
-				return newEditCmd(app).RunE(cmd, args)
-			}
 			if app.Flags.Print {
 				return showPathFile(app.Path.Config)
 			}
@@ -38,12 +35,11 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmd.Help()
 		},
 	}
-	c.Flags().BoolVarP(&app.Flags.Edit, "edit", "e", false, "edit with text editor")
 	c.Flags().BoolVar(&app.Flags.Print, "print", false, "print config file location")
 	cmdutil.FlagOutput(c, app, []string{"json"})
 	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag")
 
-	c.AddCommand(newCreateCmd(app))
+	c.AddCommand(newCreateCmd(app), newEditCmd(app))
 
 	return c
 }

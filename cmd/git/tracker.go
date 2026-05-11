@@ -2,7 +2,11 @@
 package git
 
 import (
+	"cmp"
 	"fmt"
+	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -96,19 +100,39 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
-	p := c.Palette()
-	c.Frame().Header("Databases tracked in " + p.Yellow.Wrap("git\n", p.Bold)).Rowln().Flush()
 
 	// move main database to the top
-	files.PrioritizeFile(dbFiles, application.MainDBName)
+	files.PrioritizeFile(dbFiles, app.DBName)
 
+	p := c.Palette()
+
+	title := p.BrightYellow.With(p.Bold).
+		Sprint("Git Tracked Databases")
+	subtitle := p.Dim.With(p.Italic).
+		Sprint("showing repository status for tracked databases")
+	c.Frame().
+		Headerln(title).
+		Headerln(subtitle).
+		Rowln().
+		Flush()
+
+	var sb strings.Builder
+
+	dbFiles = prioritizeTracked(dbFiles, tracked)
 	for _, dbPath := range dbFiles {
 		s, err := git.StatusRepo(c, dbPath)
 		if err != nil {
 			return err
 		}
-		fmt.Print(s)
+
+		if s == "" {
+			continue
+		}
+
+		sb.WriteString(s)
 	}
+
+	fmt.Print(sb.String())
 
 	return nil
 }
@@ -152,4 +176,32 @@ func track(c *ui.Console, gr *git.Repository) error {
 	fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
 
 	return nil
+}
+
+func prioritizeTracked(dbFiles, tracked []string) []string {
+	trackedSet := make(map[string]int, len(tracked))
+	for i, name := range tracked {
+		trackedSet[name] = i
+	}
+
+	priority := make([]string, 0, len(tracked))
+	rest := make([]string, 0, len(dbFiles)-len(tracked))
+
+	for _, path := range dbFiles {
+		name := strings.TrimSuffix(filepath.Base(path), ".db")
+		if _, ok := trackedSet[name]; ok {
+			priority = append(priority, path)
+		} else {
+			rest = append(rest, path)
+		}
+	}
+
+	// sort priority slice by tracked order
+	slices.SortFunc(priority, func(a, b string) int {
+		nameA := strings.TrimSuffix(filepath.Base(a), ".db")
+		nameB := strings.TrimSuffix(filepath.Base(b), ".db")
+		return cmp.Compare(trackedSet[nameA], trackedSet[nameB])
+	})
+
+	return append(priority, rest...)
 }

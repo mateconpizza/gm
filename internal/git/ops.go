@@ -401,9 +401,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
 	sb.WriteString(txt.PaddedLine(name, t+p.BrightBlack.Wrap(s, p.Italic)))
 
-	c.Success(sb.String() + "\n").Flush()
-
-	return ""
+	return c.Success(sb.String() + "\n").String()
 }
 
 func StatusRepo(c *ui.Console, dbPath string) (string, error) {

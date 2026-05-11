@@ -19,7 +19,13 @@ import (
 )
 
 // confirmRemove prompts the user to confirm the action.
-func confirmRemove(d *deps.Deps, m *menu.Menu[bookmark.Bookmark], bs []bookmark.Bookmark) ([]bookmark.Bookmark, error) {
+func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, error) {
+	app, err := d.Application()
+	if err != nil {
+		return nil, err
+	}
+	m := MenuSimple[bookmark.Bookmark](app, menu.WithMultiSelection())
+
 	for !d.App.Flags.Yes {
 		n := len(bs)
 		if n == 0 {

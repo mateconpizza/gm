@@ -81,7 +81,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "info",
 		Short:   "show info about a database",
-		Aliases: []string{"i", "show"},
+		Aliases: []string{"i", "show", "stats"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -98,7 +98,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newListCmd(_ *application.App) *cobra.Command {
+func newListCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"l", "ls"},
@@ -110,7 +110,7 @@ func newListCmd(_ *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return printer.DatabasesTable(cmd.Context(), d.Console(), d.App.Path.Data)
+			return printer.DatabasesTable(cmd.Context(), d.Console(), d.App.Path.Data, app.DBName)
 		},
 	}
 	return c
@@ -120,7 +120,7 @@ func newAddCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "add",
 		Short:       "add a database",
-		Aliases:     []string{"create"},
+		Aliases:     []string{"create", "new"},
 		Example:     `  gm db add --db myDb`,
 		Annotations: cli.SkipDBCheck,
 		RunE:        setup.InitCmd.RunE,
@@ -197,6 +197,9 @@ func newUseCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "use [name]",
 		Short: "set default database",
+		Example: `  gm db use <name>
+  # restore to default
+  gm db use default`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()
@@ -207,6 +210,9 @@ func newUseCmd(app *application.App) *cobra.Command {
 				return fmt.Errorf("%w: %q", handler.ErrInvalidOption, filename)
 			}
 
+			if filename == "default" {
+				filename = application.MainDBName
+			}
 			if err := app.SetDatabase(filename); err != nil {
 				return err
 			}

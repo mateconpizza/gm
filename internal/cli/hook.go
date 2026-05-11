@@ -73,6 +73,10 @@ func HookEnsureDatabase(app *application.App) Hook {
 			}
 		}
 
+		if files.StripSuffixes(app.DBName) == "" {
+			return fmt.Errorf("::%w: %q", application.ErrDatabaseInvalidName, app.DBName)
+		}
+
 		// If check already passed, return early
 		if databaseChecked {
 			return nil
@@ -162,7 +166,6 @@ func HookGitSync(cmd *cobra.Command, args []string) error {
 	return git.Sync(ctx, app, cmd.Short)
 }
 
-// HookInjectApp returns a hook that injects the config into the command context.
 // HookInjectApp returns a hook that injects the app into the command context.
 func HookInjectApp(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {

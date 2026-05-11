@@ -139,9 +139,10 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(d *deps.Deps) string {
-	c := d.Console()
-	p := c.Palette()
+func BackupListDetail(d *deps.Deps, complete bool) string {
+	const maxItems = 3
+
+	c, p := d.Console(), d.Console().Palette()
 	backupPath := d.App.Path.Backup
 	dbName := files.StripSuffixes(d.Repo.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
@@ -156,6 +157,10 @@ func BackupListDetail(d *deps.Deps) string {
 		return f.Row(txt.PaddedLine("found:", "n/a\n")).String()
 	}
 
+	if len(fs) > maxItems && !complete {
+		f.Rowln(p.Dim.Sprintf("... %d more", len(fs)-maxItems))
+		fs = fs[len(fs)-maxItems:]
+	}
 	for i := range fs {
 		f.Rowln(BackupWithFmtDateFromPath(d.Context(), d.Console(), fs[i]))
 	}
@@ -214,7 +219,7 @@ func Backups(d *deps.Deps) string {
 func Info(d *deps.Deps) string {
 	s := Repo(d)
 	s += Backups(d)
-	s += BackupListDetail(d)
+	s += BackupListDetail(d, false)
 
 	return s
 }

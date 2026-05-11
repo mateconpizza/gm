@@ -74,6 +74,7 @@ type (
 
 // Initialize prepares the config after flags are parsed.
 func (app *App) Initialize() {
+	// FIX: drop this, use Setup instead.
 	if app.initialized {
 		return
 	}

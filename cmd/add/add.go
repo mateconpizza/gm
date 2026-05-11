@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -26,8 +27,21 @@ func NewCmd(app *application.App) *cobra.Command {
 			defer cancel()
 
 			c, p := d.Console(), d.Console().Palette()
-			s := p.BrightYellow.Sprint("Add Bookmark") + p.Dim.With(p.Italic).Sprint(" (ctrl+c to exit)")
-			c.Frame().Headerln(s).Rowln().Flush()
+			title := p.BrightYellow.With(p.Bold).
+				Sprint("Add Bookmark")
+			comment := p.Dim.With(p.Italic).
+				Sprint(" (ctrl-c to exit)")
+			name := p.BrightYellow.With(p.Bold).
+				Sprint(files.StripSuffixes(d.Repo.Name()))
+			info := p.Dim.With(p.Italic).
+				Sprintf(" (%d bookmarks)", d.Repo.Count(d.Context(), "bookmarks"))
+			subtitle := p.Dim.With(p.Italic).
+				Sprint("repo: " + name)
+
+			c.Frame().
+				Headerln(title + comment).
+				Headerln(subtitle + info).
+				Rowln().Flush()
 
 			b := bookmark.New()
 			if err := handler.NewBookmark(d, b, args); err != nil {

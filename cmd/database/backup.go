@@ -28,8 +28,13 @@ func newBackupCmd(app *application.App) *cobra.Command {
 		RunE:    cli.HookHelp,
 	}
 
-	c.AddCommand(newBackupAddCmd(app), newBackupRemoveCmd(app),
-		newBackupLockCmd(app), newBackupUnlockCmd(app))
+	c.AddCommand(
+		newBackupAddCmd(app),
+		newBackupListCmd(app),
+		newBackupRemoveCmd(app),
+		newBackupLockCmd(app),
+		newBackupUnlockCmd(app),
+	)
 
 	return c
 }
@@ -113,6 +118,50 @@ func newBackupUnlockCmd(_ *application.App) *cobra.Command {
 			}
 
 			return handler.UnlockRepo(d, repos[0])
+		},
+	}
+
+	return c
+}
+
+func newBackupListCmd(_ *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "list",
+		Short:   "list backups",
+		Aliases: []string{"l", "ls", "info", "i"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			p, f := d.Console().Palette(), d.Console().Frame()
+
+			title := p.BrightMagenta.With(p.Bold).
+				Sprint("Repository Backups")
+
+			subtitle := p.Dim.With(p.Italic).
+				Sprint("latest backup snapshots")
+
+			name := p.BrightYellow.With(p.Bold).
+				Sprint(files.StripSuffixes(d.Repo.Name()))
+
+			repo := p.Dim.With(p.Italic).
+				Sprint("repo: " + name)
+
+			info := p.Dim.With(p.Italic).
+				Sprintf(" (%d bookmarks)", d.Repo.Count(d.Context(), "bookmarks"))
+
+			f.Headerln(title).
+				Headerln(subtitle).
+				Rowln().
+				Midln(repo + info).
+				Rowln().Flush()
+
+			fmt.Print(summary.BackupListDetail(d, true))
+
+			return nil
 		},
 	}
 

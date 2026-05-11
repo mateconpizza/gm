@@ -30,7 +30,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" edition "),
 				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
-				menu.WithKeybinds(kb.New(k.Edit.Bind, "as-json").Execute("edit --json")),
+				menu.WithKeybinds(kb.New(k.Edit.Bind, "as-json").Execute("edit --output json")),
 			)
 
 			var strategy editor.EditStrategy

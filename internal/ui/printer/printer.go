@@ -12,7 +12,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
@@ -147,8 +146,8 @@ func ByField(ctx context.Context, c *ui.Console, fields string, bs []*bookmark.B
 }
 
 // DatabasesTable shows a simple table in database information.
-func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
-	fs, err := files.FindByExtList(fp, ".db", ".enc")
+func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName string) error {
+	fs, err := files.FindByExtList(dataPath, ".db", ".enc")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -159,7 +158,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 
 	t := strconv.Itoa
 	p := c.Palette()
-	files.PrioritizeFile(fs, application.MainDBName)
+	files.PrioritizeFile(fs, defaultName)
 
 	for _, fpath := range fs {
 		dir, fname, ext := filepath.Dir(fpath), filepath.Base(fpath), filepath.Ext(fpath)
@@ -177,7 +176,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 				rows,
 				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
 			)
-			footer = append(footer, fnameColor(txt.UnicodeBlackSquare)+" locked")
+			footer = append(footer, fnameColor(txt.UnicodeBlackSquare+" locked"))
 			continue
 		}
 
@@ -186,11 +185,11 @@ func DatabasesTable(ctx context.Context, c *ui.Console, fp string) error {
 			return err
 		}
 
-		if s.Name == application.MainDBName {
+		if s.Name == defaultName {
 			fnameColor = p.BrightYellow.With(p.Bold).Sprint
 			cleanName = fnameColor(cleanName)
 			cleanName += p.BrightBlack.Wrap(" (default)", p.Italic)
-			footer = append(footer, fnameColor(txt.UnicodeBlackSquare)+" main")
+			footer = append(footer, fnameColor(txt.UnicodeBlackSquare+" default"))
 		}
 
 		rows = append(
@@ -249,11 +248,17 @@ func TagsJSON(ctx context.Context, p string) error {
 func RepoInfo(d *deps.Deps) error {
 	// FIX: Test RepoInfo()
 	if err := locker.IsLocked(d.App.Path.Database); err != nil {
-		fmt.Print(summary.RepoFromPath(d, d.App.Path.Database+".enc", d.App.Path.Backup))
+		fmt.Print(
+			summary.RepoFromPath(
+				d,
+				d.App.Path.Database+".enc",
+				d.App.Path.Backup,
+			),
+		)
+
 		return nil
 	}
 
-	// FIX: Implement ListBackups
 	if d.App.Flags.JSON {
 		b, err := port.ToJSON(d.Repo)
 		if err != nil {
@@ -265,18 +270,24 @@ func RepoInfo(d *deps.Deps) error {
 		return nil
 	}
 
-	info := summary.Info(d)
+	var sb strings.Builder
 
-	g, err := git.Info(d.Console(), d.App.Path.Database, d.App.Git)
+	sb.WriteString(summary.Info(d))
+
+	g, err := git.Info(
+		d.Console(),
+		d.App.Path.Database,
+		d.App.Git,
+	)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}
 
 	if g != "" {
-		info += g
+		sb.WriteString(g)
 	}
 
-	fmt.Print(info)
+	fmt.Print(sb.String())
 
 	return nil
 }

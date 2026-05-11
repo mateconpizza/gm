@@ -60,6 +60,14 @@ func (c *Deps) Application() (*application.App, error) {
 	return application.FromContext(c.ctx)
 }
 
+func (c *Deps) Repository() (*db.SQLite, error) {
+	if c.Repo == nil {
+		return nil, db.ErrDBNotFound
+	}
+
+	return c.Repo, nil
+}
+
 func (c *Deps) SetRepo(r *db.SQLite)      { c.Repo = r }
 func (c *Deps) SetWriter(w io.Writer)     { c.writer = w }
 func (c *Deps) SetConsole(uc *ui.Console) { c.console = uc }

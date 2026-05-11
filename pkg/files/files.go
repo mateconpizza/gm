@@ -448,7 +448,7 @@ func RemoveEmptyDirs(root string) error {
 	}
 
 	// In reverse order (from children to parents)
-	for i := len(dirs) - 1; i >= 0; i-- {
+	for i := range slices.Backward(dirs) {
 		path := dirs[i]
 		entries, err := os.ReadDir(path)
 		if err != nil {
