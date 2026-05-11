@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"strings"
 	"time"
@@ -25,10 +26,22 @@ var (
 	// existence check.
 	SkipDBCheck = map[string]string{"skip-db-check": "true"}
 
+	// SkipGitSync is used in subcmds declarations to skip the git commit.
+	SkipGitSync = map[string]string{"skip-git-sync": "true"}
+
 	// databaseChecked tracks whether the database check has already been
 	// performed in the current process.
 	databaseChecked bool = false
 )
+
+// ChainAnnotations merges multiple annotation maps into one.
+func ChainAnnotations(annotations ...map[string]string) map[string]string {
+	m := make(map[string]string)
+	for _, ann := range annotations {
+		maps.Copy(m, ann)
+	}
+	return m
+}
 
 // Hook is the function signature used for Cobra PersistentPreRunE hooks.
 // It takes the current command and its arguments, and returns an error
@@ -155,6 +168,14 @@ func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 
 // HookGitSync synchronizes Git repository with current database state.
 func HookGitSync(cmd *cobra.Command, args []string) error {
+	// Walk up the command chain: skip if any ancestor declares skip-git-sync
+	for c := cmd; c != nil; c = c.Parent() {
+		if v, ok := c.Annotations["skip-git-sync"]; ok && v == "true" {
+			slog.Debug("skipping git sync for", "command", c.Name())
+			return nil
+		}
+	}
+
 	slog.Debug("hook: git sync, checking for changes")
 	app, err := application.FromContext(cmd.Context())
 	if err != nil {

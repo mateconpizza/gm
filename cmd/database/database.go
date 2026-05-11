@@ -195,8 +195,9 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 
 func newUseCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "use [name]",
-		Short: "set default database",
+		Use:         "use [name]",
+		Short:       "set default database",
+		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		Example: `  gm db use <name>
   # restore to default
   gm db use default`,
