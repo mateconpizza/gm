@@ -15,7 +15,7 @@ func createTestSQLiteDB(t *testing.T, dir, dbName string) string {
 	dbPath := filepath.Join(dir, dbName)
 
 	// Open a connection
-	db, err := sqlx.Open("sqlite3", dbPath)
+	db, err := sqlx.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatalf("Failed to open SQLite DB for test setup at %s: %v", dbPath, err)
 	}
