@@ -16,7 +16,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/image v0.40.0
-	golang.org/x/net v0.53.0
+	golang.org/x/net v0.54.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.43.0
 	gopkg.in/ini.v1 v1.67.1
