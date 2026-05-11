@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -245,4 +246,133 @@ func TestChainHooks(t *testing.T) {
 			t.Fatalf("expected no error from empty chain, got: %v", err)
 		}
 	})
+}
+
+func TestHookGitSync(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		setupCmd    func() *cobra.Command
+		setupCtx    func(*cobra.Command)
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "normal_command_no_skip_annotation",
+			setupCmd: func() *cobra.Command {
+				return &cobra.Command{
+					Use:   "sync",
+					Short: "sync database",
+				}
+			},
+			setupCtx: func(cmd *cobra.Command) {
+				app := application.New(testSetupAppInfo(t, "1.0.0"))
+				if err := app.Setup(); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				app.Initialize()
+				cmd.SetContext(context.Background())
+
+				hook := HookInjectApp(app)
+				err := hook(cmd, []string{})
+				if err != nil {
+					t.Fatalf("expected no error, got: %v", err)
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "skip_git_sync_on_current_command",
+			setupCmd: func() *cobra.Command {
+				return &cobra.Command{
+					Use:         "sync",
+					Annotations: SkipGitSync,
+				}
+			},
+			setupCtx: func(cmd *cobra.Command) {
+				// No context needed because function exits early.
+			},
+			wantErr: false,
+		},
+		{
+			name: "skip_git_sync_on_parent_command",
+			setupCmd: func() *cobra.Command {
+				parent := &cobra.Command{
+					Use:         "parent",
+					Annotations: SkipGitSync,
+				}
+
+				child := &cobra.Command{
+					Use: "child",
+				}
+
+				parent.AddCommand(child)
+
+				return child
+			},
+			setupCtx: func(cmd *cobra.Command) {
+				// No context needed because function exits early.
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing_application_context",
+			setupCmd: func() *cobra.Command {
+				return &cobra.Command{
+					Use: "sync",
+				}
+			},
+			setupCtx: func(cmd *cobra.Command) {
+				cmd.SetContext(context.Background())
+			},
+			wantErr:     true,
+			errContains: "hook-git: failed to get config",
+		},
+		{
+			name: "nil_command_panics",
+			setupCmd: func() *cobra.Command {
+				return nil
+			},
+			setupCtx: func(cmd *cobra.Command) {},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cmd := tt.setupCmd()
+
+			if cmd == nil {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Fatalf("expected panic for nil command")
+					}
+				}()
+
+				_ = HookGitSync(nil, nil)
+				return
+			}
+
+			tt.setupCtx(cmd)
+
+			err := HookGitSync(cmd, nil)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Fatalf("expected error containing %q, got %v", tt.errContains, err)
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
 }
