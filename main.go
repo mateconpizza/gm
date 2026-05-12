@@ -7,15 +7,14 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 )
 
-var info = &application.Information{
-	URL:     "https://github.com/mateconpizza/gm#readme",
-	Title:   "Gomarks: A bookmark manager",
-	Tags:    "awesome,bookmarks,cli,golang",
-	Desc:    "Simple yet powerful bookmark manager for your terminal",
-	Version: "0.1.37",
-}
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 func main() {
+	info := application.NewInfo(version, commit, date)
 	app := application.New(info)
 	if err := app.Setup(); err != nil {
 		sys.ErrAndExit(err)

@@ -120,6 +120,8 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	g.BoolVar(&app.Flags.Force, "force", false, "force action")
 	// verbosity level
 	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
+	// version
+	g.BoolVarP(&app.Flags.Version, "version", "V", false, "version")
 
 	// hidden
 	g.Bool("help", false, "")

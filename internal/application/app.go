@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -59,11 +60,13 @@ type (
 	}
 
 	Information struct {
-		URL     string `json:"url"`     // URL of the application
-		Title   string `json:"title"`   // Title of the application
-		Tags    string `json:"tags"`    // Tags of the application
-		Desc    string `json:"desc"`    // Description of the application
-		Version string `json:"version"` // Version of the application
+		URL     string `json:"url"`     // Project homepage or repository URL.
+		Title   string `json:"title"`   // Human-readable application title.
+		Tags    string `json:"tags"`    // Comma-separated keywords describing the application.
+		Desc    string `json:"desc"`    // Short application description.
+		Version string `json:"version"` // Application semantic version.
+		Commit  string `json:"commit"`  // Git commit hash used for the build.
+		Date    string `json:"date"`    // Build timestamp in UTC.
 	}
 
 	Env struct {
@@ -142,15 +145,40 @@ func (app *App) PreviewCmd(dbPath string, args ...string) string {
 	return fmt.Sprintf("%s --preview frame --db %s %s", app.Cmd, dbPath, strings.Join(args, " "))
 }
 
-// PrettyVersion formats version in a pretty way.
+// PrettyVersion formats version information.
 func (app *App) PrettyVersion() string {
-	return fmt.Sprintf(
-		"%s v%s %s/%s",
-		ansi.BrightBlue.Wrap(app.Name, ansi.Bold),
-		app.Info.Version,
-		runtime.GOOS,
-		runtime.GOARCH,
-	)
+	name := ansi.BrightBlue.Wrap(app.Name, ansi.Bold)
+
+	if app.Flags.Verbose == 0 {
+		return fmt.Sprintf(
+			"%s v%s %s/%s\n",
+			name,
+			app.Info.Version,
+			runtime.GOOS,
+			runtime.GOARCH,
+		)
+	}
+
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, "%s v%s\n\n", name, app.Info.Version)
+
+	w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', 0)
+
+	if app.Info.Commit != "" && app.Info.Commit != "none" {
+		fmt.Fprintf(w, "commit:\t%s\n", app.Info.Commit)
+	}
+
+	if app.Info.Date != "" && app.Info.Date != "unknown" {
+		fmt.Fprintf(w, "built:\t%s\n", app.Info.Date)
+	}
+
+	fmt.Fprintf(w, "go version:\t%s\n", runtime.Version())
+	fmt.Fprintf(w, "platform:\t%s/%s\n", runtime.GOOS, runtime.GOARCH)
+
+	_ = w.Flush()
+
+	return sb.String()
 }
 
 func (app *App) SetDatabase(name string) error {
@@ -188,5 +216,17 @@ func New(info *Information) *App {
 			Editor: EnvEditor,
 		},
 		Menu: menu.NewDefaultConfig(),
+	}
+}
+
+func NewInfo(version, commit, date string) *Information {
+	return &Information{
+		URL:     "https://github.com/mateconpizza/gm#readme",
+		Title:   "Gomarks: A bookmark manager",
+		Tags:    "awesome,bookmarks,cli,golang",
+		Desc:    "Simple yet powerful bookmark manager for your terminal",
+		Version: version,
+		Commit:  commit,
+		Date:    date,
 	}
 }

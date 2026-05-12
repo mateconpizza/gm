@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -27,7 +28,6 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		PersistentPreRunE:  cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase(app)),
 		PersistentPostRunE: cli.HookGitSync,
 		RunE:               rootCmdFunc(app),
-		Version:            app.PrettyVersion(),
 	}
 
 	registerRootFlags(c, app)
@@ -56,6 +56,11 @@ func Execute(c *cobra.Command) error {
 
 func rootCmdFunc(app *application.App) cli.Hook {
 	return func(cmd *cobra.Command, args []string) error {
+		if app.Flags.Version {
+			fmt.Print(app.PrettyVersion())
+			return nil
+		}
+
 		fm, err := formatter.New(app.Flags.Output)
 		if err != nil {
 			return err
