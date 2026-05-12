@@ -46,6 +46,19 @@ func ExistsErr(p string) error {
 	return nil
 }
 
+func DirExistsErr(p string) error {
+	_, err := os.Stat(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrPathNotFound
+		}
+
+		return err
+	}
+
+	return nil
+}
+
 // IsFile checks if the given path exists and refers to a regular file.
 func IsFile(path string) bool {
 	info, err := os.Stat(path)
@@ -496,6 +509,42 @@ func CreateTempFileWithData(d []byte, extension string) (*os.File, error) {
 	}
 
 	return tf, nil
+}
+
+func NormalizePath(filename, def string) (string, error) {
+	filename = filepath.Clean(filename)
+
+	// treat empty or "." as "use default"
+	if filename == "" || filename == "." {
+		filename = def
+	}
+
+	dir := filepath.Dir(filename)
+
+	if err := DirExistsErr(dir); err != nil {
+		return "", fmt.Errorf("%w: %q", err, dir)
+	}
+
+	base := filepath.Base(filename)
+
+	// treat directory-like or invalid base as default
+	if base == "." || base == string(filepath.Separator) || base == "" {
+		base = filepath.Base(def)
+	}
+
+	// if stripping suffixes yields nothing → fallback to default base
+	if StripSuffixes(base) == "" {
+		base = filepath.Base(def)
+	}
+
+	// ensure extension
+	if filepath.Ext(base) == "" {
+		if defExt := filepath.Ext(def); defExt != "" {
+			base += defExt
+		}
+	}
+
+	return filepath.Join(dir, base), nil
 }
 
 // saveBytestToFile Writes the provided data to a temporary file.
