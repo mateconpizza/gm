@@ -124,7 +124,8 @@ func BriefFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 	tagsColored := p.Blue.Wrap(tagsPlain, p.Italic)
 
-	return fmt.Sprintf("%s %s %s%s  %s\n",
+	return fmt.Sprintf(
+		"%s %s %s%s  %s\n",
 		bulletColored,
 		p.Dim.Sprintf("%-*s", idMaxWidth, idStr),
 		titleColored,
@@ -392,7 +393,8 @@ func MinimalFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 	// Calculate spacing to keep tags aligned to the right or
 	// just a few spaces after the domain.
-	line := fmt.Sprintf("%s %s %s %s %s",
+	line := fmt.Sprintf(
+		"%s %s %s %s %s",
 		coloredID,
 		flag,
 		displayTitle,
@@ -485,7 +487,8 @@ func FlowFunc(c *ui.Console, b *bookmark.Bookmark) string {
 		tags = tagStyle(txt.TagsWithPound(b.Tags))
 	}
 
-	line := fmt.Sprintf("%s%s%s%s %s",
+	line := fmt.Sprintf(
+		"%s%s%s%s %s",
 		idPart,
 		sep,
 		titlePart,
@@ -575,7 +578,8 @@ func BarFunc(c *ui.Console, b *bookmark.Bookmark) string {
 		dots = p.Dim.Sprint(strings.Repeat(".", dotCount))
 	}
 
-	return fmt.Sprintf("%s %s %s %s %s %s\n",
+	return fmt.Sprintf(
+		"%s %s %s %s %s %s\n",
 		gutter,
 		idCol,
 		titleCol,
