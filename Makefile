@@ -6,8 +6,16 @@ BINARY_NAME 	:= gm
 BIN_DIR		:= $(CURDIR)/bin
 BIN_PATH	:= $(BIN_DIR)/$(BINARY_NAME)
 INSTALL_DIR	:= /usr/local/bin
-LDFLAGS		:= -s -w
 FN		?= .
+
+VERSION ?= dev
+COMMIT  := $(shell git rev-parse --short HEAD)
+DATE    := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+LDFLAGS := -s -w \
+	-X main.version=$(VERSION) \
+	-X main.commit=$(COMMIT) \
+	-X main.date=$(DATE)
 
 full: build
 
