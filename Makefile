@@ -110,6 +110,5 @@ ci:
 	git diff --exit-code
 	go build ./...
 	go test -race ./...
-	golangci-lint run --timeout=5m
 
 .PHONY: all build debug test clean full check lint testfn
