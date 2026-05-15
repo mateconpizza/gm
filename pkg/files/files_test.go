@@ -363,3 +363,66 @@ func TestTouch(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizePath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		filename string
+		def      string
+		want     string
+		wantErr  error
+	}{
+		{
+			name:     "normal_absolute_path_with_extension",
+			filename: "/tmp/file.txt",
+			def:      "default.txt",
+			want:     "/tmp/file.txt",
+			wantErr:  nil,
+		},
+		{
+			name:     "empty_filename_falls_back_to_default_in_current_dir",
+			filename: "",
+			def:      "default.txt",
+			want:     "default.txt",
+			wantErr:  nil,
+		},
+		{
+			name:     "filename_without_extension_inherits_default_extension",
+			filename: "/tmp/file",
+			def:      "default.txt",
+			want:     "/tmp/file.txt",
+			wantErr:  nil,
+		},
+		{
+			name:     "filepath_do_not_exists",
+			filename: "/tmp/do-not-exists/file.txt",
+			def:      "",
+			want:     "",
+			wantErr:  ErrPathNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := NormalizePath(tt.filename, tt.def)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("NormalizePath(%q, %q) expected error, got nil", tt.filename, tt.def)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("NormalizePath(%q, %q) unexpected error: %v", tt.filename, tt.def, err)
+			}
+
+			if got != tt.want {
+				t.Fatalf("NormalizePath(%q, %q) = %q; want %q", tt.filename, tt.def, got, tt.want)
+			}
+		})
+	}
+}

@@ -18,27 +18,23 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-var (
-	ErrNoManager  = errors.New("manager is required")
-	ErrNoRepoPath = errors.New("repoPath is required")
-	ErrNoDBPath   = errors.New("database path is required")
-)
-
-// Location holds all path and naming information for a repository.
-type Location struct {
-	Name   string // Database name without extension (e.g., "bookmarks")
-	DBName string // Database base name (e.g., "main.db")
-	DBPath string // Database fullpath (e.g., "/home/user/.local/share/app/main.db")
-	Git    string // Path to where to store the Git repository (e.g., "~/.local/share/gomarks/git")
-	Path   string // Path to where to store the associated Git files (e.g., "~/.local/share/gomarks/git/bookmarks")
-	Hash   string // Hash of the database fullpath (for internal lookups/storage)
-}
+var ErrNoDBPath = errors.New("database path is required")
 
 // Repository represents a bookmarks repository.
 type Repository struct {
 	Loc     *Location // Encapsulates all path and naming details
 	Tracker *Tracker  // Git repo tracker
 	Git     *Manager  // Git manager
+}
+
+// Location holds all path and naming information for a repository.
+type Location struct {
+	Name   string // Database name without extension (e.g., "main")
+	DBName string // Database base name (e.g., "main.db")
+	DBPath string // Database fullpath (e.g., "/home/user/.local/share/app/main.db")
+	Git    string // Path to where to store the Git repository (e.g., "~/.local/share/gomarks/git")
+	Path   string // Path to where to store the associated Git files (e.g., "~/.local/share/gomarks/git/main")
+	Hash   string // Hash of the database fullpath (for internal lookups/storage)
 }
 
 // newLocation creates a new Location.

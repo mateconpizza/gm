@@ -48,7 +48,7 @@ func AddBookmark(app *application.App, b *bookmark.Bookmark) error {
 		return err
 	}
 
-	return gr.Commit("new bookmark")
+	return gr.Commit("bookmark added")
 }
 
 func RemoveBookmarks(app *application.App, bs []*bookmark.Bookmark) error {

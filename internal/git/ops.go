@@ -67,7 +67,7 @@ func writeRepoStats(ctx context.Context, gr *Repository) error {
 func repoStats(ctx context.Context, dbPath string, summary *SyncGitSummary) error {
 	rs, err := db.NewStats(ctx, dbPath)
 	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
+		return err
 	}
 
 	summary.RepoStats = rs
@@ -252,7 +252,7 @@ func untrackRemoveRepo(gr *Repository, mesg string) error {
 		return err
 	}
 
-	return gr.Commit(mesg)
+	return Commit(gr.Git.ctx, gr.Git.RepoPath, mesg)
 }
 
 func trackRepo(gr *Repository) error {
@@ -272,7 +272,7 @@ func trackRepo(gr *Repository) error {
 		return err
 	}
 
-	return gr.Commit("new tracking")
+	return gr.Commit("add tracking")
 }
 
 func initGPG(c *ui.Console, gr *Repository, k *gpg.Fingerprint) error {

@@ -108,7 +108,7 @@ func (gm *Manager) Push() error {
 
 // Commit commits changes to the repository.
 func (gm *Manager) Commit(msg string) error {
-	return commitChanges(gm.ctx, gm.RepoPath, msg)
+	return Commit(gm.ctx, gm.RepoPath, msg)
 }
 
 // SetRepoPath sets the repository path.

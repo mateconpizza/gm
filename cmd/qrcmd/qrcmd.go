@@ -15,6 +15,7 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var ErrInvalidFormat = errors.New("invalid format")
@@ -76,19 +77,14 @@ func newGenQR(app *application.App) *cobra.Command {
 				return cmd.Help()
 			}
 
-			qrcode := qr.New(strings.Join(args, " "))
+			text := strings.Join(args, " ")
+			qrcode := qr.New(text)
 			if err := qrcode.Generate(); err != nil {
 				return err
 			}
 
 			if app.Flags.Path != "" {
-				ext := strings.ToLower(filepath.Ext(app.Flags.Path))
-				switch ext {
-				case ".png", ".jpg", ".jpeg":
-					return qrcode.Write(app.Flags.Path)
-				default:
-					return fmt.Errorf("%w: %q (use: %s)", ErrInvalidFormat, ext, strings.Join(validFormats, "|"))
-				}
+				return outputQR(qrcode, app.Flags.Path)
 			}
 
 			fmt.Print(qrcode.String())
@@ -103,10 +99,25 @@ func newGenQR(app *application.App) *cobra.Command {
 }
 
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
-	return handler.MenuSimple[bookmark.Bookmark](app,
+	return handler.MenuSimple[bookmark.Bookmark](
+		app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" QR-code "),
 		menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 	)
+}
+
+func outputQR(qrcode *qr.QRCode, s string) error {
+	ext := strings.ToLower(filepath.Ext(s))
+	switch ext {
+	case ".png", ".jpg", ".jpeg":
+		fn, err := files.NormalizePath(s, "qr.png")
+		if err != nil {
+			return err
+		}
+		return qrcode.Write(fn)
+	default:
+		return fmt.Errorf("%w: %q (use: %s)", ErrInvalidFormat, ext, strings.Join(validFormats, "|"))
+	}
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-var SortSupported = []string{"favorite", "newest", "visited", "popular"}
+var SortSupported = []string{"favorite", "newest", "visited", "popular", "reverse"}
 
 var (
 	ErrInvalidOption = errors.New("invalid option")
@@ -265,6 +265,10 @@ func Sort(s string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 				return true
 			}
 			return bs[i].LastVisit > bs[j].LastVisit
+		})
+	case "reverse":
+		sort.Slice(bs, func(i, j int) bool {
+			return bs[i].ID > bs[j].ID
 		})
 	case "popular", "visits", "vc":
 		sort.Slice(bs, func(i, j int) bool {
