@@ -83,7 +83,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 		return false, fmt.Errorf("%w", err)
 	}
 
-	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
+	f := frame.New(frame.WithColorBorder(ansi.Gray))
 	sp := rotato.New(
 		rotato.WithPrefix(f.Mid("Encrypting").String()),
 		rotato.WithMessage("bookmarks..."),

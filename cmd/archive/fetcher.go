@@ -72,11 +72,11 @@ func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 
 	for i := range bs {
 		if i >= wayback.MaxItems {
-			f.Midln(p.BrightBlack.With(p.Italic).
+			f.Midln(p.Gray.With(p.Italic).
 				Sprintf("... and %d more", len(bs)-i))
 			break
 		}
-		f.Midln(p.BrightBlack.Sprintf("[%d] ", bs[i].ID) + bs[i].URL)
+		f.Midln(p.Gray.Sprintf("[%d] ", bs[i].ID) + bs[i].URL)
 	}
 
 	f.Rowln().Flush()

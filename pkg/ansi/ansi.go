@@ -64,6 +64,7 @@ const (
 	Magenta SGR = "\x1b[35m"
 	Cyan    SGR = "\x1b[36m"
 	White   SGR = "\x1b[37m"
+	Gray    SGR = "\x1b[97m\x1b[2m"
 
 	// Bright foreground colors (90-97).
 	BrightBlack   SGR = "\x1b[90m"

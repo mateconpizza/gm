@@ -29,7 +29,7 @@ func Repo(d *deps.Deps) string {
 	)
 
 	if name == application.MainDBName {
-		name += p.BrightBlack.Wrap(" (main) ", p.Italic)
+		name += p.Gray.Wrap(" (main) ", p.Italic)
 	}
 
 	return d.Console().Frame().Headerln(p.Yellow.Wrap(name, p.Italic)).

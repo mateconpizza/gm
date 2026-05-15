@@ -104,7 +104,7 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 		return nil, err
 	}
 
-	f := frame.New(frame.WithColorBorder(ansi.BrightBlack))
+	f := frame.New(frame.WithColorBorder(ansi.Gray))
 	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
 	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Flush()
 

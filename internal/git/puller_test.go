@@ -62,7 +62,7 @@ func setupRepoProcessor(t *testing.T) *RepoProcessor {
 	t.Helper()
 
 	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(ansi.BrightBlack))),
+		ui.WithFrame(frame.New(frame.WithColorBorder(ansi.Gray))),
 		ui.WithTerminal(terminal.New(
 			terminal.WithReader(strings.NewReader("y\n")),
 			terminal.WithWriter(io.Discard), // send output to null, show no prompt

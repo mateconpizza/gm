@@ -48,7 +48,7 @@ func NewConsole(opts ...Option) *Console {
 func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 	return NewConsole(
 		WithFrame(frame.New(
-			frame.WithColorBorder(ansi.BrightBlack),
+			frame.WithColorBorder(ansi.Gray),
 			frame.WithIcons(&frame.Icons{
 				Error:    frame.IconStyle{Symbol: "✗", Color: ansi.BrightRed.With(ansi.Bold)},
 				Warning:  frame.IconStyle{Symbol: "!", Color: ansi.BrightYellow.With(ansi.Bold)},

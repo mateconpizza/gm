@@ -384,7 +384,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	)
 
 	if !gr.IsTracked() {
-		sb.WriteString(txt.PaddedLine(gr.Loc.Name, p.BrightBlack.Wrap("(not tracked)\n", p.Italic)))
+		sb.WriteString(txt.PaddedLine(gr.Loc.Name, p.Gray.Wrap("(not tracked)\n", p.Italic)))
 		return c.Error(sb.String()).StringReset()
 	}
 
@@ -399,7 +399,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	}
 
 	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
-	sb.WriteString(txt.PaddedLine(name, t+p.BrightBlack.Wrap(s, p.Italic)))
+	sb.WriteString(txt.PaddedLine(name, t+p.Gray.Wrap(s, p.Italic)))
 
 	return c.Success(sb.String() + "\n").String()
 }
@@ -454,7 +454,7 @@ func Info(c *ui.Console, dbPath string, cfg *application.Git) (string, error) {
 			return f.StringReset(), err
 		}
 
-		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) + p.BrightBlack.With(p.Italic).
+		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) + p.Gray.With(p.Italic).
 			Sprintf(" (%s)", sum.LastSync)
 		f.Rowln(txt.PaddedLine("last sync:", lastSync))
 		f.Success(txt.PaddedLine("sync:", true)).Ln()

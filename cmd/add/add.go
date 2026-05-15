@@ -33,9 +33,9 @@ func NewCmd(app *application.App) *cobra.Command {
 				Sprint(" (ctrl-c to exit)")
 			name := p.BrightYellow.With(p.Bold).
 				Sprint(files.StripSuffixes(d.Repo.Name()))
-			info := p.Dim.With(p.Italic).
+			info := p.Gray.With(p.Italic).
 				Sprintf(" (%d bookmarks)", d.Repo.Count(d.Context(), "bookmarks"))
-			subtitle := p.Dim.With(p.Italic).
+			subtitle := p.Gray.With(p.Italic).
 				Sprint("repo: " + name)
 
 			c.Frame().

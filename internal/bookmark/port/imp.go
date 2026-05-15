@@ -177,7 +177,7 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	}
 
 	h := p.BrightYellow.Sprint("Import bookmarks from backup: ")
-	f.Headerln(h + p.BrightBlack.Wrap(srcDB.Name(), p.Italic)).Flush()
+	f.Headerln(h + p.Gray.Wrap(srcDB.Name(), p.Italic)).Flush()
 
 	result := make([]*bookmark.Bookmark, 0, len(items))
 	for i := range items {
