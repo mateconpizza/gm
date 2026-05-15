@@ -151,7 +151,7 @@ func untrack(c *ui.Console, gr *git.Repository) error {
 		return nil
 	}
 
-	if err := gr.Untrack("untracked"); err != nil {
+	if err := gr.Untrack(fmt.Sprintf("[%s] remove tracking", gr.Loc.Name)); err != nil {
 		return err
 	}
 

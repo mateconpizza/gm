@@ -115,7 +115,8 @@ func TestRemoveRepo_Success(t *testing.T) {
 		}
 
 		output := buf.String()
-		if !strings.Contains(output, "Successfully database "+d.App.DBName+" removed") {
+		name := files.StripSuffixes(d.App.DBName)
+		if !strings.Contains(output, "Successfully database "+name+" removed") {
 			t.Fatalf("%v", output)
 		}
 
@@ -147,7 +148,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 		}
 
 		gotOutput := err.Error()
-		wantOutput := "main database cannot be removed"
+		wantOutput := "removing the main database requires"
 		if !strings.Contains(gotOutput, wantOutput) {
 			t.Fatalf("want: %q, got: %q", wantOutput, gotOutput)
 		}

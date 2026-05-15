@@ -98,8 +98,8 @@ func HasUpstream(ctx context.Context, repoPath string) error {
 	return nil
 }
 
-// commitChanges commits local changes.
-func commitChanges(ctx context.Context, repoPath, msg string) error {
+// Commit commits local changes.
+func Commit(ctx context.Context, repoPath, msg string) error {
 	return runGitCmd(ctx, repoPath, "commit", "-m", msg)
 }
 

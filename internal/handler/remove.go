@@ -25,18 +25,23 @@ func RemoveRepo(d *deps.Deps) error {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, d.App.Path.Database)
 	}
 
+	c, p := d.Console(), d.Console().Palette()
 	if filepath.Base(d.App.Path.Database) == application.MainDBName && !d.App.Flags.Force {
-		f := ansi.BrightYellow.With(ansi.Italic).Sprint("--force")
-		return fmt.Errorf("%w: main database cannot be removed, use %s", ErrInvalidOption, f)
+		f := p.BrightYellow.With(ansi.Italic).Sprint("--force")
+		return fmt.Errorf("%w: removing the main database requires %s", ErrInvalidOption, f)
 	}
 
-	c, p := d.Console(), d.Console().Palette()
-	fmt.Fprint(d.Writer(), summary.RepoFromPath(d, d.App.Path.Database, d.App.Path.Backup))
-	if !d.App.Flags.Force {
-		if err := c.ConfirmErr(
-			p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(d.App.Path.Database)+"?",
-			"n",
-		); err != nil {
+	if !d.App.Flags.Force && !d.App.Flags.Yes {
+		title := p.BrightRed.With(p.Bold).Sprint("Removing Database/s")
+		subtitle := p.Dim.With(p.Italic).Sprint("this action cannot be undone")
+
+		c.Frame().Headerln(title).
+			Headerln(subtitle).
+			Rowln().Flush()
+
+		fmt.Fprint(d.Writer(), summary.RepoFromPath(d, d.App.Path.Database, d.App.Path.Backup))
+		err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(d.App.Path.Database)+"?", "n")
+		if err != nil {
 			return err
 		}
 	}
@@ -51,11 +56,7 @@ func RemoveRepo(d *deps.Deps) error {
 		return err
 	}
 
-	dbName := filepath.Base(d.App.Path.Database)
-	if dbName == application.MainDBName {
-		dbName = "main"
-	}
-
+	dbName := files.StripSuffixes(filepath.Base(d.App.Path.Database))
 	fmt.Fprintln(d.Writer(), c.SuccessMesg("database "+dbName+" removed"))
 
 	return nil

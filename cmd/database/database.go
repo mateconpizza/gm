@@ -266,7 +266,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return nil
 		}
 
-		if err := gr.Untrack("untracked"); err != nil {
+		if err := gr.Untrack(fmt.Sprintf("[%s] remove tracking", gr.Loc.Name)); err != nil {
 			return err
 		}
 

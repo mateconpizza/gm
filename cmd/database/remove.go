@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"io"
 	"strings"
 
@@ -26,7 +27,8 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"backup", "b", "backups"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input := "s\n" // input for prompt, this will show the menu to select backups files.
-			d := deps.New(cmd.Context(),
+			d := deps.New(
+				cmd.Context(),
 				deps.WithApplication(app),
 				deps.WithConsole(ui.NewConsole(
 					ui.WithFrame(frame.New(frame.WithColorBorder(ansi.BrightBlack))),
@@ -53,10 +55,9 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
 
 func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:      "rm",
-		Aliases:  []string{"remove"},
-		Short:    "remove a database",
-		PostRunE: databaseRemovePostFunc(app),
+		Use:     "rm",
+		Aliases: []string{"remove"},
+		Short:   "remove a database",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -64,29 +65,40 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.RemoveRepo(d)
+			gr, err := git.NewRepo(app.Path.Database)
+			if err != nil {
+				return err
+			}
+
+			r, err := d.Repository()
+			if err != nil {
+				return err
+			}
+
+			bs, err := r.All(d.Context())
+			if err != nil {
+				return err
+			}
+
+			if err := handler.RemoveRepo(d); err != nil {
+				return err
+			}
+
+			if !gr.IsTracked() {
+				return nil
+			}
+
+			var sb strings.Builder
+			fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Loc.Name)
+			if len(bs) > 0 {
+				fmt.Fprintf(&sb, " (-del:%d)", len(bs))
+			}
+
+			return gr.Untrack(sb.String())
 		},
 	}
 
 	cmdutil.FlagDBRequired(c, app)
 
 	return c
-}
-
-func databaseRemovePostFunc(app *application.App) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, _ []string) error {
-		if !app.Git.Enabled {
-			return nil
-		}
-
-		gr, err := git.NewRepo(app.Path.Database)
-		if err != nil {
-			return err
-		}
-		if !gr.IsTracked() {
-			return nil
-		}
-
-		return gr.Untrack("removed database")
-	}
 }
