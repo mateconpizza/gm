@@ -363,7 +363,11 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		bs = append(bs, &selected[i])
 	}
 
-	debookmarks := port.Deduplicate(ctx, c, r, bs)
+	debookmarks, err := port.DeduplicateReport(ctx, c, r, bs)
+	if err != nil {
+		return err
+	}
+
 	if err := r.InsertMany(ctx, debookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -575,7 +579,11 @@ func mergeAndInsert(ctx context.Context, c *ui.Console, gr *Repository) error {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
 
-	bookmarks = port.Deduplicate(ctx, c, r, bookmarks)
+	bookmarks, err = port.DeduplicateReport(ctx, c, r, bookmarks)
+	if err != nil {
+		return err
+	}
+
 	if err := r.InsertMany(ctx, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}

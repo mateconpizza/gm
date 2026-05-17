@@ -123,7 +123,11 @@ func (rp *RepoProcessor) insertBookmarks(repoName string, bookmarks []*bookmark.
 	}
 
 	// Deduplicate and insert
-	deduped := port.Deduplicate(rp.ctx, rp.Console, r, bookmarks)
+	deduped, err := port.DeduplicateReport(rp.ctx, rp.Console, r, bookmarks)
+	if err != nil {
+		return 0, nil
+	}
+
 	if len(deduped) == 0 {
 		rp.result.TotalSkipped += len(bookmarks)
 		return 0, nil

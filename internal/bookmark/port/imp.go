@@ -9,14 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/mateconpizza/rotato"
 
-	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -25,35 +22,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-// Browser imports bookmarks from a supported browser.
-func Browser(d *deps.Deps) error {
-	br, ok := getBrowser(selectBrowser(d.Console()))
-	if !ok {
-		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
-	}
-
-	if err := br.LoadPaths(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	// find bookmarks
-	bs, err := br.Import(d.Console(), d.App.Flags.Yes)
-	if err != nil {
-		return fmt.Errorf("browser %q: %w", br.Name(), err)
-	}
-
-	// clean and process found bookmarks
-	bs, err = parseFoundInBrowser(d, bs)
-	if err != nil {
-		return err
-	}
-
-	if len(bs) == 0 {
-		return nil
-	}
-
-	return IntoRepo(d, bs)
-}
+var ErrNothingToImport = errors.New("nothing to import")
 
 // Database imports bookmarks from a database.
 func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
@@ -75,7 +44,8 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 		}),
 	)
 
-	items, err := srcDB.All(d.Context())
+	ctx := d.Context()
+	items, err := srcDB.All(ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -99,22 +69,22 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 
 	d.SetRepo(destDB)
 
-	c := d.Console()
-	f := c.Frame()
-	bookmarks = Deduplicate(d.Context(), c, d.Repo, bookmarks)
+	c, f := d.Console(), d.Console().Frame()
+	bookmarks, err = DeduplicateReport(ctx, c, d.Repo, bookmarks)
+	if err != nil {
+		return err
+	}
 	n := len(bookmarks)
 	if n == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return nil
 	}
 
-	if err := d.Repo.InsertMany(d.Context(), bookmarks); err != nil {
+	if err := d.Repo.InsertMany(ctx, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d record/s from %s", n, srcDB.Name())))
-
-	return nil
+	return c.Print(ctx, c.SuccessMesg("imported ", n, " record/s from ", srcDB.Name()))
 }
 
 // IntoRepo import records into the database.
@@ -139,9 +109,7 @@ func IntoRepo(d *deps.Deps, records []*bookmark.Bookmark) error {
 
 	sp.Done()
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d record/s", n)))
-
-	return nil
+	return c.Print(d.Context(), c.SuccessMesg(fmt.Sprintf("imported %d record/s", n)))
 }
 
 // FromBackup imports bookmarks from a backup.
@@ -187,7 +155,11 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	// update which repo to insert
 	d.SetRepo(destDB)
 
-	dRecords := Deduplicate(d.Context(), c, d.Repo, result)
+	dRecords, err := DeduplicateReport(d.Context(), c, d.Repo, result)
+	if err != nil {
+		return err
+	}
+
 	if len(dRecords) == 0 {
 		f.Midln("no new bookmark found, skipping import").Flush()
 		return nil
@@ -206,103 +178,69 @@ func ToJSON(data any) ([]byte, error) {
 	return jsonData, nil
 }
 
-// Deduplicate removes duplicate bookmarks.
-func Deduplicate(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) []*bookmark.Bookmark {
-	const maxItemsToShow = 20
-	originalLen := len(bs)
-	filtered := make([]*bookmark.Bookmark, 0, len(bs))
-	discarted := make([]*bookmark.Bookmark, 0, len(bs))
-
-	for _, b := range bs {
-		if _, exists := r.Has(ctx, b.URL); exists {
-			slog.Warn("deduplicate", "url", b.URL)
-			discarted = append(discarted, b)
-			continue
-		}
-		filtered = append(filtered, b)
-	}
-
-	p := c.Palette()
-	n := len(filtered)
-	if originalLen != n {
-		skip := p.BrightYellow.Sprint("skipping")
-		s := fmt.Sprintf("%s %d/%d duplicate bookmarks", skip, originalLen-n, originalLen)
-		c.Warning(s + "\n").Flush()
-
-		f := c.Frame()
-		// show discarted bookmarks
-		if len(discarted) <= maxItemsToShow && n != 0 {
-			for _, b := range discarted {
-				f.Midln(p.Italic.Sprint(" " + txt.Shorten(b.URL, c.MinWidth())))
-			}
-
-			f.Flush()
-		}
-	}
-
-	return filtered
-}
-
-// DeduplicateByURL removes bookmarks from `incoming` that already exist in `existing`.
-// It compares bookmarks by their URL and returns a new slice with unique entries.
-func DeduplicateByURL(existing, incoming []*bookmark.Bookmark) []*bookmark.Bookmark {
-	// FIX: replace `Deduplicate` with this
-	if len(incoming) == 0 {
-		return nil
-	}
-	if len(existing) == 0 {
-		return incoming
-	}
-
-	// Fast lookup map of existing URLs.
+// Deduplicate partitions bs into fresh and duplicate bookmarks.
+func Deduplicate(bs, existing []*bookmark.Bookmark) (fresh, duplicates []*bookmark.Bookmark) {
+	fresh = make([]*bookmark.Bookmark, 0, len(bs))
+	duplicates = make([]*bookmark.Bookmark, 0, len(bs))
 	seen := make(map[string]struct{}, len(existing))
-	for _, b := range existing {
-		if b.URL != "" {
-			seen[strings.TrimSuffix(b.URL, "/")] = struct{}{}
-		}
-	}
 
-	// Filter incoming bookmarks.
-	filtered := make([]*bookmark.Bookmark, 0, len(incoming))
-	for _, b := range incoming {
-		if b == nil || b.URL == "" {
-			continue
-		}
-		if _, dup := seen[b.URL]; dup {
+	for _, b := range existing {
+		if b == nil {
 			continue
 		}
 		seen[b.URL] = struct{}{}
-		filtered = append(filtered, b)
 	}
 
-	return filtered
+	for _, b := range bs {
+		if b == nil {
+			continue
+		}
+
+		if _, ok := seen[b.URL]; ok {
+			slog.Warn("deduplicate", "url", b.URL)
+			duplicates = append(duplicates, b)
+			continue
+		}
+
+		fresh = append(fresh, b)
+	}
+
+	return fresh, duplicates
 }
 
-// parseFoundInBrowser processes the bookmarks found from the import
-// browser process.
-func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
-	c := d.Console()
+// DeduplicateReport removes duplicate bookmarks and reports skipped entries to the console.
+func DeduplicateReport(
+	ctx context.Context,
+	c *ui.Console,
+	r *db.SQLite,
+	bs []*bookmark.Bookmark,
+) ([]*bookmark.Bookmark, error) {
+	const maxItemsToShow = 10
+
+	existing, err := r.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	fresh, duplicates := Deduplicate(bs, existing)
+	if len(duplicates) == 0 {
+		return fresh, nil
+	}
+
+	p := c.Palette()
+	skip := p.BrightYellow.Sprint("skipping")
+	s := fmt.Sprintf("%s %d/%d duplicate bookmarks", skip, len(duplicates), len(bs))
+	c.Warning(s + "\n").Flush()
+
 	f := c.Frame()
-	bs = Deduplicate(d.Context(), c, d.Repo, bs)
-	if len(bs) == 0 {
-		f.Midln("no new bookmark found, skipping import").Flush()
-		return bs, nil
-	}
-
-	if !d.App.Flags.Yes {
-		q := fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs))
-		if err := c.ConfirmErr(q, "y"); err != nil {
-			if errors.Is(err, sys.ErrActionAborted) {
-				return bs, nil
-			}
-
-			return nil, fmt.Errorf("%w", err)
+	for i, b := range duplicates {
+		if i >= maxItemsToShow {
+			f.Midln(p.Dim.With(p.Italic).Sprintf(" ... and %d more", len(duplicates)-i))
+			break
 		}
+		f.Midln(p.Dim.Wrap(" "+txt.Shorten(b.URL, c.MinWidth()), p.Italic))
 	}
+	f.Rowln().Flush()
 
-	if err := metadata.ScrapeDescriptions(d.Context(), bs); err != nil {
-		return nil, fmt.Errorf("scrapping missing description: %w", err)
-	}
-
-	return bs, nil
+	return fresh, nil
 }
