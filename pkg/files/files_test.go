@@ -402,6 +402,13 @@ func TestNormalizePath(t *testing.T) {
 			want:     "",
 			wantErr:  ErrPathNotFound,
 		},
+		{
+			name:     "default_empty",
+			filename: "",
+			def:      "",
+			want:     "",
+			wantErr:  ErrInvalidFilename,
+		},
 	}
 
 	for _, tt := range tests {

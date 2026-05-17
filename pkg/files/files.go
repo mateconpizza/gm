@@ -15,11 +15,12 @@ import (
 )
 
 var (
-	ErrFileNotFound = errors.New("file not found")
-	ErrPathNotFound = errors.New("path not found")
-	ErrFileExists   = errors.New("file already exists")
-	ErrPathEmpty    = errors.New("path is empty")
-	ErrPathExists   = errors.New("path already exists")
+	ErrFileNotFound    = errors.New("file not found")
+	ErrPathNotFound    = errors.New("path not found")
+	ErrFileExists      = errors.New("file already exists")
+	ErrPathEmpty       = errors.New("path is empty")
+	ErrPathExists      = errors.New("path already exists")
+	ErrInvalidFilename = errors.New("invalid filename")
 )
 
 const (
@@ -512,6 +513,10 @@ func CreateTempFileWithData(d []byte, extension string) (*os.File, error) {
 }
 
 func NormalizePath(filename, def string) (string, error) {
+	if def == "" {
+		return "", fmt.Errorf("normalize path: %w: default cannot be empty", ErrInvalidFilename)
+	}
+
 	filename = filepath.Clean(filename)
 
 	// treat empty or "." as "use default"
