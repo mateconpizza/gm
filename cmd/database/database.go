@@ -236,7 +236,10 @@ func newCurrentCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "current default",
-		RunE:  newInfoCmd(app).RunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println(app.DBName)
+			return nil
+		},
 	}
 }
 

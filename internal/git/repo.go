@@ -213,7 +213,7 @@ func (gr *Repository) String() string {
 
 // AskForEncryption prompts the user to enable GPG encryption for the
 // repository if it's not already encrypted.
-func (gr *Repository) AskForEncryption(c *ui.Console) error {
+func (gr *Repository) AskForEncryption(c *ui.Console, app *application.App) error {
 	if gr.IsEncrypted() {
 		return nil
 	}
@@ -225,7 +225,7 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 	}
 
 	c.Frame().Success("GPG command found").Ln().Flush()
-	if !c.Confirm("Use GPG for encryption? (experimental)", "n") {
+	if !c.Confirm("Use GPG for encryption? "+c.Palette().BrightRed.Wrap("(experimental)", c.Palette().Italic), "n") {
 		return nil
 	}
 
@@ -234,7 +234,8 @@ func (gr *Repository) AskForEncryption(c *ui.Console) error {
 		return err
 	}
 
-	key, err := selectFingerprint(c, fps)
+	m := menuFingerprint(c, app)
+	key, err := selectFingerprint(m, fps)
 	if err != nil {
 		return err
 	}
@@ -256,7 +257,18 @@ func SetConfig(ctx context.Context, c *application.App) {
 	c.Git.Remote = remote
 }
 
-func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
+func selectFingerprint(m *menu.Menu[*gpg.Fingerprint], fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
+	keys, err := m.Select(fps)
+	if err != nil {
+		return nil, err
+	}
+
+	key := keys[0]
+
+	return key, nil
+}
+
+func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Fingerprint] {
 	p := c.Palette()
 	trustColor := func(key *gpg.Fingerprint) string {
 		t := key.TrustLevelString()
@@ -274,8 +286,9 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 
 	m := menu.New[*gpg.Fingerprint](
 		menu.WithArgs("--no-bold"),
-		menu.WithOutputColor(p.Enabled()),
-		menu.WithHeader("select a fingerprint"),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(app.Menu),
+		menu.WithHeader(" select a fingerprint "),
 		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
 		menu.WithMultilineView(),
 		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
@@ -294,12 +307,5 @@ func selectFingerprint(c *ui.Console, fps []*gpg.Fingerprint) (*gpg.Fingerprint,
 		)
 	})
 
-	keys, err := m.Select(fps)
-	if err != nil {
-		return nil, err
-	}
-
-	key := keys[0]
-
-	return key, nil
+	return m
 }

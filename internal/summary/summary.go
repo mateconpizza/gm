@@ -32,7 +32,8 @@ func Repo(d *deps.Deps) string {
 		name += p.Gray.Wrap(" (main) ", p.Italic)
 	}
 
-	return d.Console().Frame().Headerln(p.Yellow.Wrap(name, p.Italic)).
+	return d.Console().Frame().
+		Headerln(p.Yellow.Wrap(name, p.Italic)).
 		Rowln(records).
 		Rowln(tags).
 		Rowln(path).
@@ -51,7 +52,7 @@ func RepoFromPath(d *deps.Deps, dbPath, backupPath string) string {
 			e = "(main locked)"
 		}
 
-		return f.Mid(txt.PaddedLine(s, p.BrightBlack.Wrap(e, p.Italic))).Ln().StringReset()
+		return f.Mid(txt.PaddedLine(s, p.Gray.Wrap(e, p.Italic))).Ln().StringReset()
 	}
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
@@ -67,7 +68,7 @@ func RepoFromPath(d *deps.Deps, dbPath, backupPath string) string {
 	name := p.Yellow.Wrap(r.Name(), p.Italic)
 
 	if r.Name() == application.MainDBName {
-		name = txt.PaddedLine(name, p.BrightBlack.Wrap("(main)", p.Italic))
+		name = txt.PaddedLine(name, p.Gray.Wrap("(main)", p.Italic))
 	}
 
 	f.Headerln(name).Rowln(records).Rowln(tags)
@@ -88,7 +89,7 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 	p := c.Palette()
 	if strings.HasSuffix(fp, ".enc") {
 		s := strings.TrimSuffix(filepath.Base(fp), ".enc")
-		return txt.PaddedLine(s, p.BrightBlack.Wrap("(locked)", p.Italic))
+		return txt.PaddedLine(s, p.Gray.Wrap("(locked)", p.Italic))
 	}
 
 	r, _ := db.New(fp)
@@ -96,7 +97,7 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 
 	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
 
-	return txt.PaddedLine(r.Name(), p.BrightBlack.Wrap(main, p.Italic))
+	return txt.PaddedLine(r.Name(), p.Gray.Wrap(main, p.Italic))
 }
 
 // BackupWithFmtDate generates a summary of record counts for a given
@@ -108,7 +109,7 @@ func BackupWithFmtDate(ctx context.Context, c *ui.Console, r *db.SQLite) string 
 	t := strings.Split(r.Name(), "_")[0]
 	p := c.Palette()
 
-	return r.Name() + " " + p.BrightBlack.Wrap(main, p.Italic) + " " + p.BrightBlack.Wrap(txt.RelativeTime(t), p.Italic)
+	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
 }
 
 // BackupWithFmtDateFromPath generates a summary of record counts for a given
@@ -119,10 +120,10 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 	p := c.Palette()
 	name := filepath.Base(fp)
 	t := strings.Split(name, "_")[0]
-	bkTime := p.BrightBlack.Wrap(txt.RelativeTime(t), p.Italic)
+	bkTime := p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
 
 	if base, found := strings.CutSuffix(name, ".enc"); found {
-		name = base + p.BrightBlack.Wrap(" (locked) ", p.Italic)
+		name = base + p.Gray.Wrap(" (locked) ", p.Italic)
 		return name + bkTime
 	}
 
@@ -135,7 +136,7 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 
 	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
 
-	return r.Name() + " " + p.BrightBlack.Wrap(main, p.Italic) + " " + bkTime
+	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + bkTime
 }
 
 // BackupListDetail returns the details of a backup.
@@ -158,7 +159,7 @@ func BackupListDetail(d *deps.Deps, complete bool) string {
 	}
 
 	if len(fs) > maxItems && !complete {
-		f.Rowln(p.Dim.Sprintf("... %d more", len(fs)-maxItems))
+		f.Rowln(p.Gray.Sprintf("... %d more", len(fs)-maxItems))
 		fs = fs[len(fs)-maxItems:]
 	}
 	for i := range fs {
