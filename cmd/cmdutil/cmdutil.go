@@ -8,6 +8,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -91,7 +92,7 @@ func Execute(
 
 	// menu selection
 	if f.Menu && len(bs) > 0 {
-		bs, err = handler.MenuSelection(m, bs)
+		bs, err = picker.BookmarkWithMenu(m, bs)
 		if err != nil {
 			return err
 		}

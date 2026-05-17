@@ -17,6 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -330,10 +331,9 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	m := menu.New[bookmark.Bookmark](
+	m := picker.New[bookmark.Bookmark](
+		app,
 		menu.WithArgs("--cycle"),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithConfig(app.Menu),
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
 	)

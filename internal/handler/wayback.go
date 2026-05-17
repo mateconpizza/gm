@@ -11,7 +11,9 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -154,13 +156,18 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 	return nil
 }
 
-func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, opts ...menu.Option) *menu.Menu[wayback.SnapshotInfo] {
-	opts = append(opts, menu.WithArgs("--color=header:italic:bold:bright-red"),
+func waybackMenu[T wayback.SnapshotInfo](
+	c *ui.Console,
+	app *application.App,
+	opts ...menu.Option,
+) *menu.Menu[wayback.SnapshotInfo] {
+	opts = append(
+		opts, menu.WithArgs("--color=header:italic:bold:bright-red"),
 		menu.WithOutputColor(c.Palette().Enabled()),
 		menu.WithHeaderOnly("donate <3 https://archive.org/donate"),
 		menu.WithArgs("--cycle"),
 	)
-	m := menu.New[wayback.SnapshotInfo](opts...)
+	m := picker.New[wayback.SnapshotInfo](app, opts...)
 
 	// format each item `YYYY MMM DD HH:MM (N days ago)`
 	m.SetFormatter(func(s *wayback.SnapshotInfo) string {
@@ -211,7 +218,12 @@ func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
 			f.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
 		}
 
-		m := waybackMenu(c, menu.WithFooter(b.URL))
+		app, err := d.Application()
+		if err != nil {
+			return err
+		}
+
+		m := waybackMenu(c, app, menu.WithFooter(b.URL))
 		selected, err := m.Select(snapshots)
 		if err != nil {
 			if !errors.Is(err, menu.ErrFzfActionAborted) {

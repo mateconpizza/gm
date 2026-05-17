@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
@@ -17,61 +16,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
-
-// MenuMainForRecords builds the interactive FZF menu for selecting records.
-func MenuMainForRecords(app *application.App, fm formatter.Formatter) *menu.Menu[bookmark.Bookmark] {
-	if !app.Flags.Menu {
-		return nil
-	}
-
-	p := fm.Menu.Placeholder
-	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
-	k := app.Menu.DefaultKeymaps
-
-	fm.Menu.Opts = append(fm.Menu.Opts,
-		menu.WithBorderLabel(" "+app.Name+" "),
-		menu.WithConfig(app.Menu),
-		menu.WithMultiSelection(),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithPreview(app.PreviewCmd(app.DBName, strings.ReplaceAll(p, "+", ""))),
-		menu.WithPrompt(app.Menu.Prompt),
-		menu.WithHeaderFirst(),
-		menu.WithHeaderLabel(" keybinds "),
-		menu.WithHeaderBorder(menu.BorderRounded),
-		menu.WithPreviewBorder(menu.BorderRounded),
-		menu.WithKeybinds(
-			kb.From(k.Edit).Execute("edit"),
-			kb.From(k.EditNotes).Execute("notes edit"),
-			kb.From(k.Open).Execute("open"),
-			kb.From(k.QR).Execute("qr"),
-			kb.From(k.OpenQR).Execute("qr open"),
-			kb.From(k.Yank).Execute("yank"),
-			kb.Builtin(k.ToggleAll, menu.ToggleAll),
-			kb.Builtin(k.Preview, menu.TogglePreview),
-		),
-	)
-
-	m := menu.New[bookmark.Bookmark](fm.Menu.Opts...)
-	m.SetFormatter(func(b *bookmark.Bookmark) string {
-		return fm.Render(ui.NewConsole(), b)
-	})
-
-	return m
-}
-
-// MenuSimple builds a simpler menu without all keybindings.
-func MenuSimple[T comparable](app *application.App, opts ...menu.Option) *menu.Menu[T] {
-	opts = append(opts,
-		menu.WithBorderLabel(" "+app.Name+" "),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithConfig(app.Menu),
-		menu.WithHeaderBorder(menu.BorderRounded),
-		menu.WithPreviewBorder(menu.BorderRounded),
-		menu.WithHeaderFirst(),
-	)
-
-	return menu.New[T](opts...)
-}
 
 // selection allows the user to select a record in a menu interface.
 func selection[T comparable](items []T, fmtFn func(*T) string, opts ...menu.Option) ([]T, error) {
@@ -117,7 +61,8 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 
 // selectItem lets the user choose a repo from a list.
 func selectItem(d *deps.Deps, fs []string, header string) (string, error) {
-	repos, err := selection(fs,
+	repos, err := selection(
+		fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(d.Context(), d.Console(), *p) },
 		menu.WithOutputColor(d.App.Flags.Color),
 		menu.WithConfig(d.App.Menu),
@@ -135,7 +80,8 @@ func selectItem(d *deps.Deps, fs []string, header string) (string, error) {
 // needed.
 func SelectBackupOne(d *deps.Deps, bks []string) (string, error) {
 	c := d.Console()
-	selected, err := selection(bks,
+	selected, err := selection(
+		bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), c, *p) },
 		menu.WithArgs("--cycle"),
 		menu.WithOutputColor(d.App.Flags.Color),
@@ -167,7 +113,8 @@ func SelectBackupMany(d *deps.Deps, root, header string) ([]string, error) {
 		return fs, fmt.Errorf("%w", err)
 	}
 
-	repos, err := selection(fs,
+	repos, err := selection(
+		fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(d.Context(), d.Console(), *p) },
 		menu.WithOutputColor(d.App.Flags.Color),
 		menu.WithConfig(d.App.Menu),
@@ -190,7 +137,8 @@ func SelectFileLocked(d *deps.Deps, root, header string) ([]string, error) {
 		return bks, fmt.Errorf("%w", err)
 	}
 
-	selected, err := selection(bks,
+	selected, err := selection(
+		bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
 		menu.WithOutputColor(d.App.Flags.Color),
 		menu.WithConfig(d.App.Menu),

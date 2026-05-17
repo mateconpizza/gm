@@ -11,6 +11,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -284,10 +285,9 @@ func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Finger
 		}
 	}
 
-	m := menu.New[*gpg.Fingerprint](
+	m := picker.New[*gpg.Fingerprint](
+		app,
 		menu.WithArgs("--no-bold"),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithConfig(app.Menu),
 		menu.WithHeader(" select a fingerprint "),
 		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
 		menu.WithMultilineView(),

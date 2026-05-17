@@ -11,6 +11,7 @@ import (
 	"log/slog"
 
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -29,9 +30,8 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	m := menu.New[bookmark.Bookmark](
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithConfig(d.App.Menu),
+	m := picker.New[bookmark.Bookmark](
+		app,
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
 		menu.WithPreview(app.PreviewCmd(srcDB.Name(), "{1}")),
@@ -117,9 +117,13 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	c := d.Console()
 	f, t, p := c.Frame(), c.Term(), c.Palette()
 
-	m := menu.New[bookmark.Bookmark](
-		menu.WithOutputColor(d.App.Flags.Color),
-		menu.WithConfig(d.App.Menu),
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	m := picker.New[bookmark.Bookmark](
+		app,
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithMultiSelection(),

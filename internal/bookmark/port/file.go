@@ -10,6 +10,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -189,9 +190,8 @@ func promptImportSelection(c *ui.Console, app *application.App, bs []*bookmark.B
 			return nil, sys.ErrActionAborted
 		case "s", "select":
 			c.ClearLine(1)
-			m := menu.New[*bookmark.Bookmark](
-				menu.WithOutputColor(app.Flags.Color),
-				menu.WithConfig(app.Menu),
+			m := picker.New[*bookmark.Bookmark](
+				app,
 				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s to import"),
 				menu.WithInterruptFn(c.Term().InterruptFn),

@@ -8,6 +8,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -25,7 +26,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				return newCleanURLUser(app).RunE(cmd, args)
 			}
 
-			m := handler.MenuSimple[bookmark.Bookmark](
+			m := picker.New[bookmark.Bookmark](
 				app,
 				menu.WithMultiSelection(),
 				menu.WithArgs("--cycle"),
@@ -82,7 +83,7 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 			defer cleanup()
 
 			tab := d.Console().Palette().BrightRed.Sprint("<TAB>")
-			m := handler.MenuSimple[string](app,
+			m := picker.New[string](app,
 				menu.WithBorderLabel("URL Parameters"),
 				menu.WithHeader("Select with "+tab+" which params to remove"),
 				menu.WithMultiSelection(),

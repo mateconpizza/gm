@@ -9,6 +9,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -24,7 +25,7 @@ func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, e
 	if err != nil {
 		return nil, err
 	}
-	m := MenuSimple[bookmark.Bookmark](app, menu.WithMultiSelection())
+	m := picker.New[bookmark.Bookmark](app, menu.WithMultiSelection())
 
 	for !d.App.Flags.Yes {
 		n := len(bs)

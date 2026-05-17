@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -28,7 +29,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
   # get up to 5 snapshots from 2023
   %s archive %s 179 --limit 5 --year 2023 179`, app.Cmd, use, app.Cmd, use),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" wayback machine lookup "),

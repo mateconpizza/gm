@@ -18,7 +18,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		RunE:    cli.HookHelp,
 	}
 
-	c.AddCommand(check.NewCmd(app), clean.NewCmd(app), archive.NewCmd(app))
+	c.AddCommand(
+		check.NewCmd(app),
+		clean.NewCmd(app),
+		archive.NewCmd(app),
+	)
 
 	return c
 }

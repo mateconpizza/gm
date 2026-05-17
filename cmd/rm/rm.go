@@ -6,6 +6,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -16,7 +17,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"remove"},
 		Short:   "remove bookmark",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](
+			m := picker.New[bookmark.Bookmark](
 				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),

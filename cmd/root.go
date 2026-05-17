@@ -12,7 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -65,7 +65,7 @@ func rootCmdFunc(app *application.App) cli.Hook {
 		if err != nil {
 			return err
 		}
-		m := handler.MenuMainForRecords(app, fm)
+		m := picker.NewMainMenu(app, fm)
 
 		return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 			t, f := d.Console(), d.App.Flags
