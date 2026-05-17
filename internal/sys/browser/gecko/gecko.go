@@ -94,28 +94,27 @@ func (b *GeckoBrowser) LoadPaths() error {
 }
 
 func (b *GeckoBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
-	p := b.paths
-	if p.profiles == "" || p.bookmarks == "" {
+	paths := b.paths
+	if paths.profiles == "" || paths.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
 	}
 
-	if !files.Exists(p.profiles) {
-		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, p.profiles)
+	if !files.Exists(paths.profiles) {
+		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, paths.profiles)
 	}
 
-	profiles, err := allProfiles(p.profiles)
+	profiles, err := allProfiles(paths.profiles)
 	if err != nil {
 		return nil, err
 	}
 
-	f := c.Frame()
-
-	f.Header(fmt.Sprintf("Starting %s import...\n", b.Color(b.Name())))
-	f.Mid(fmt.Sprintf("Found %d profiles!", len(profiles))).Ln().Flush()
+	f, p := c.Frame(), c.Palette()
+	f.Header(fmt.Sprintf("Starting %s import\n", b.Color(b.Name())))
+	f.Midln("Found " + p.Bold.Sprint(len(profiles)) + " profiles")
 
 	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
-		p := fmt.Sprintf(p.bookmarks, v)
+		p := fmt.Sprintf(paths.bookmarks, v)
 		processProfile(c, &bs, profile, p, force)
 	}
 
@@ -240,13 +239,11 @@ func allProfiles(p string) (map[string]string, error) {
 
 // processProfile processes a single profile and extracts bookmarks.
 func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
-	p := c.Palette()
-	c.Frame().Rowln().Flush()
-
 	if !confirmImport(c, profile, force) {
 		return
 	}
 
+	p := c.Palette()
 	path = files.ExpandHomeDir(path)
 	db, err := openSQLite(c, path)
 	if err != nil {
@@ -278,12 +275,15 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 }
 
 func confirmImport(c *ui.Console, profile string, force bool) bool {
+	p := c.Palette()
 	if force {
 		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
 		return true
 	}
 	if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
-		c.Warning("skipping profile...'" + profile + "'\n").Flush()
+		c.ClearLine(1)
+		pf := p.Italic.Wrap(profile, p.Bold)
+		c.Warning(p.BrightYellow.Wrap("skipping", p.Italic) + " profile " + pf).Ln().Flush()
 		return false
 	}
 	return true

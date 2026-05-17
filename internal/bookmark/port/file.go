@@ -187,14 +187,15 @@ func promptImportSelection(c *ui.Console, app *application.App, bs []*bookmark.B
 		switch strings.ToLower(opt) {
 		case "n", "no":
 			return nil, sys.ErrActionAborted
-
 		case "s", "select":
 			c.ClearLine(1)
 			m := menu.New[*bookmark.Bookmark](
 				menu.WithOutputColor(app.Flags.Color),
+				menu.WithConfig(app.Menu),
 				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s to import"),
 				menu.WithInterruptFn(c.Term().InterruptFn),
+				menu.WithNth("3.."),
 				menu.WithMultiSelection(),
 			)
 			m.SetFormatter(func(b **bookmark.Bookmark) string { return formatter.OnelineFunc(c, *b) })
@@ -202,7 +203,6 @@ func promptImportSelection(c *ui.Console, app *application.App, bs []*bookmark.B
 			if err != nil {
 				return nil, err
 			}
-
 		case "y", "yes":
 			return bs, nil
 		}

@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/mateconpizza/rotato"
-
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -90,26 +88,28 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 // IntoRepo import records into the database.
 func IntoRepo(d *deps.Deps, records []*bookmark.Bookmark) error {
 	c := d.Console()
-	n := len(records)
-	if !d.App.Flags.Force && n > 1 {
-		if err := c.ConfirmErr(fmt.Sprintf("import %d records?", n), "y"); err != nil {
-			return fmt.Errorf("%w", err)
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	if !app.Flags.Force && len(records) > 1 {
+		records, err = promptImportSelection(d.Console(), app, records)
+		if err != nil {
+			return err
 		}
 	}
 
-	sp := rotato.New(
-		rotato.WithMessage("importing record/s..."),
-		rotato.WithMessageColor(rotato.FgYellow),
-	)
-	sp.Start()
-
-	if err := d.Repo.InsertMany(d.Context(), records); err != nil {
-		return fmt.Errorf("%w", err)
+	r, err := d.Repository()
+	if err != nil {
+		return err
 	}
 
-	sp.Done()
+	if err := r.InsertMany(d.Context(), records); err != nil {
+		return err
+	}
 
-	return c.Print(d.Context(), c.SuccessMesg(fmt.Sprintf("imported %d record/s", n)))
+	return c.Print(d.Context(), c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", len(records))))
 }
 
 // FromBackup imports bookmarks from a backup.
