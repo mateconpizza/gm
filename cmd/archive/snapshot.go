@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -101,7 +102,7 @@ func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	p := "{+1}"
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
-	m := handler.MenuSimple[bookmark.Bookmark](app,
+	m := picker.New[bookmark.Bookmark](app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" archive URL "),

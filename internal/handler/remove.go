@@ -102,7 +102,8 @@ actionLoop:
 			c.SetReader(os.Stdin)
 			c.SetWriter(os.Stdout)
 
-			selected, err := selection(fs,
+			selected, err := selection(
+				fs,
 				func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
 				menu.WithArgs("--cycle"),
 				menu.WithConfig(d.App.Menu),
@@ -180,25 +181,23 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
-	if d.App.Flags.Force {
+	if d.App.Flags.Force || d.App.Flags.Yes {
 		return removeRecords(d, bs)
 	}
 
-	c, p := d.Console(), d.Console().Palette()
+	c := d.Console()
+	p := c.Palette()
 
-	if !d.App.Flags.Yes {
-		f := c.Frame()
-		title := p.BrightRed.With(p.Bold).
-			Sprint("Removing Bookmarks")
-		subtitle := p.Dim.With(p.Italic).
-			Sprint("this action cannot be undone")
-		comment := p.Dim.With(p.Italic).
-			Sprint(" (ctrl-c to exit)")
+	title := p.BrightRed.With(p.Bold).
+		Sprint("Removing Bookmarks")
+	subtitle := p.Dim.With(p.Italic).
+		Sprint("this action cannot be undone")
+	comment := p.Dim.With(p.Italic).
+		Sprint(" (ctrl-c to exit)")
 
-		f.Headerln(title + comment).
-			Headerln(subtitle).
-			Rowln().Flush()
-	}
+	c.Frame().Headerln(title + comment).
+		Headerln(subtitle).
+		Rowln().Flush()
 
 	t := d.Console().Term()
 	defer t.CancelInterruptHandler()
@@ -223,25 +222,38 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 // DropDatabase drops a database.
 func DropDatabase(d *deps.Deps) error {
-	c, f := d.Console(), d.Console().Frame()
-	f.Header(c.Palette().BrightRed.Sprint("Dropping") + " all records\n").Row("\n").Flush()
-	fmt.Print(summary.Info(d))
+	c := d.Console()
+	if d.App.Flags.Yes || d.App.Flags.Force {
+		fmt.Println(c.SuccessMesg("database dropped"))
 
-	f.Reset().Rowln().Flush()
+		return d.Repo.DropSecure(d.Context())
+	}
 
-	if !d.App.Flags.Yes {
-		q := "continue?"
-		if d.Repo.Name() == application.MainDBName {
-			q = c.WarningMesg("dropping \"main\" database, continue?")
-		}
+	f, p := c.Frame(), c.Palette()
+	title := p.BrightRed.
+		Wrap("Dropping All Records", p.Bold)
+	subtitle := p.Dim.With(p.Italic).
+		Sprint("this action cannot be undone")
+	comment := p.Dim.With(p.Italic).
+		Sprint(" (ctrl-c to exit)")
 
-		if err := c.ConfirmErr(q, "n"); err != nil {
-			return fmt.Errorf("%w", err)
-		}
+	f.Headerln(title + comment).
+		Headerln(subtitle).
+		Rowln().
+		Text(summary.Info(d)).
+		Rowln().Flush()
+
+	q := "continue?"
+	if d.Repo.Name() == application.MainDBName {
+		q = c.WarningMesg("dropping \"main\" database, continue?")
+	}
+
+	if err := c.ConfirmErr(q, "n"); err != nil {
+		return err
 	}
 
 	if err := d.Repo.DropSecure(d.Context()); err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	fmt.Println(c.SuccessMesg("database dropped"))

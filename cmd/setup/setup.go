@@ -34,7 +34,8 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("failed to get config: %w", err)
 		}
 
-		return initializeAction(deps.New(cmd.Context(),
+		return initializeAction(deps.New(
+			cmd.Context(),
 			deps.WithApplication(app),
 			deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 		))

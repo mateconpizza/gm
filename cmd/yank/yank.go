@@ -10,6 +10,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -21,7 +22,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"copy", "y"},
 		Short:   "copy URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" yank URL "),

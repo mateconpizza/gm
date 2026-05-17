@@ -7,6 +7,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -25,7 +26,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder("{+1}")
 			k := app.Menu.DefaultKeymaps
 			k.Edit.Enabled = true
-			m := handler.MenuSimple[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" edition "),
@@ -55,7 +57,8 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "notes [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := handler.MenuSimple[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),

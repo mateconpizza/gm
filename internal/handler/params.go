@@ -9,6 +9,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -24,13 +25,12 @@ func ParamsURL(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
-	m := menu.New[string](
+	m := picker.New[string](
+		app,
 		menu.WithArgs("--cycle"),
 		menu.WithBorderLabel("URL Parameters"),
-		menu.WithConfig(app.Menu),
 		menu.WithHeader("Select with <TAB> which params to remove"),
 		menu.WithMultiSelection(),
-		menu.WithOutputColor(app.Flags.Color),
 	)
 
 	for _, b := range bs {

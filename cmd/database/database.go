@@ -179,7 +179,8 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 		Short:       "unlock a database",
 		Annotations: cli.SkipDBCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d := deps.New(cmd.Context(),
+			d := deps.New(
+				cmd.Context(),
 				deps.WithApplication(app),
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
@@ -236,7 +237,10 @@ func newCurrentCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "current",
 		Short: "current default",
-		RunE:  newInfoCmd(app).RunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println(app.DBName)
+			return nil
+		},
 	}
 }
 

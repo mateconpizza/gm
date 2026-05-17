@@ -121,7 +121,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 			}
 
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			if err := gr.AskForEncryption(c); err != nil {
+			if err := gr.AskForEncryption(c, app); err != nil {
 				return err
 			}
 

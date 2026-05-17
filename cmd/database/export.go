@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -138,7 +139,7 @@ func parseCSVFields(f string) []string {
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
-	return handler.MenuSimple[bookmark.Bookmark](app,
+	return picker.New[bookmark.Bookmark](app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),

@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -96,7 +97,7 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
-	return handler.MenuSimple[bookmark.Bookmark](app,
+	return picker.New[bookmark.Bookmark](app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),
