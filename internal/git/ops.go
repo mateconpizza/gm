@@ -363,7 +363,11 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		bs = append(bs, &selected[i])
 	}
 
-	debookmarks := port.Deduplicate(ctx, c, r, bs)
+	debookmarks, err := port.DeduplicateReport(ctx, c, r, bs)
+	if err != nil {
+		return err
+	}
+
 	if err := r.InsertMany(ctx, debookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -384,7 +388,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	)
 
 	if !gr.IsTracked() {
-		sb.WriteString(txt.PaddedLine(gr.Loc.Name, p.BrightBlack.Wrap("(not tracked)\n", p.Italic)))
+		sb.WriteString(txt.PaddedLine(gr.Loc.Name, p.Gray.Wrap("(not tracked)\n", p.Italic)))
 		return c.Error(sb.String()).StringReset()
 	}
 
@@ -399,7 +403,7 @@ func repoStatus(c *ui.Console, gr *Repository) string {
 	}
 
 	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
-	sb.WriteString(txt.PaddedLine(name, t+p.BrightBlack.Wrap(s, p.Italic)))
+	sb.WriteString(txt.PaddedLine(name, t+p.Gray.Wrap(s, p.Italic)))
 
 	return c.Success(sb.String() + "\n").String()
 }
@@ -454,7 +458,7 @@ func Info(c *ui.Console, dbPath string, cfg *application.Git) (string, error) {
 			return f.StringReset(), err
 		}
 
-		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) + p.BrightBlack.With(p.Italic).
+		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) + p.Gray.With(p.Italic).
 			Sprintf(" (%s)", sum.LastSync)
 		f.Rowln(txt.PaddedLine("last sync:", lastSync))
 		f.Success(txt.PaddedLine("sync:", true)).Ln()
@@ -575,7 +579,11 @@ func mergeAndInsert(ctx context.Context, c *ui.Console, gr *Repository) error {
 		return fmt.Errorf("importing bookmarks: %w", err)
 	}
 
-	bookmarks = port.Deduplicate(ctx, c, r, bookmarks)
+	bookmarks, err = port.DeduplicateReport(ctx, c, r, bookmarks)
+	if err != nil {
+		return err
+	}
+
 	if err := r.InsertMany(ctx, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}

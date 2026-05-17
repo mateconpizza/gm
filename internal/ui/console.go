@@ -48,7 +48,7 @@ func NewConsole(opts ...Option) *Console {
 func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 	return NewConsole(
 		WithFrame(frame.New(
-			frame.WithColorBorder(ansi.BrightBlack),
+			frame.WithColorBorder(ansi.Gray),
 			frame.WithIcons(&frame.Icons{
 				Error:    frame.IconStyle{Symbol: "✗", Color: ansi.BrightRed.With(ansi.Bold)},
 				Warning:  frame.IconStyle{Symbol: "!", Color: ansi.BrightYellow.With(ansi.Bold)},
@@ -168,13 +168,14 @@ func (c *Console) InfoMesg(a ...any) string {
 	return c.frame.Reset().Info(info + mesg).StringReset()
 }
 
-func (c *Console) Error(s string) *frame.Frame   { return c.frame.Reset().Error(s) }
-func (c *Console) Info(s string) *frame.Frame    { return c.frame.Reset().Info(s) }
-func (c *Console) Success(s string) *frame.Frame { return c.frame.Reset().Success(s) }
-func (c *Console) Warning(s string) *frame.Frame { return c.frame.Reset().Warning(s) }
-func (c *Console) Flush() *frame.Frame           { return c.frame.Flush() }
-func (c *Console) Reset() *frame.Frame           { return c.frame.Reset() }
-func (c *Console) MaxWidth() int                 { return c.Term().MaxWidth() }
-func (c *Console) MinWidth() int                 { return c.Term().MinWidth() }
-func (c *Console) Width() int                    { return c.Term().Width() }
-func (c *Console) Height() int                   { return c.Term().Height() }
+func (c *Console) Error(s string) *frame.Frame               { return c.frame.Reset().Error(s) }
+func (c *Console) Info(s string) *frame.Frame                { return c.frame.Reset().Info(s) }
+func (c *Console) Success(s string) *frame.Frame             { return c.frame.Reset().Success(s) }
+func (c *Console) Warning(s string) *frame.Frame             { return c.frame.Reset().Warning(s) }
+func (c *Console) Flush() *frame.Frame                       { return c.frame.Flush() }
+func (c *Console) Reset() *frame.Frame                       { return c.frame.Reset() }
+func (c *Console) MaxWidth() int                             { return c.Term().MaxWidth() }
+func (c *Console) MinWidth() int                             { return c.Term().MinWidth() }
+func (c *Console) Width() int                                { return c.Term().Width() }
+func (c *Console) Height() int                               { return c.Term().Height() }
+func (c *Console) Print(ctx context.Context, s string) error { return c.Term().Print(ctx, s) }

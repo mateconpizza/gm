@@ -81,7 +81,7 @@ func newBackupLockCmd(_ *application.App) *cobra.Command {
 			for _, r := range fs {
 				if err := handler.LockRepo(d, r); err != nil {
 					if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
-						f.Warning(p.BrightBlack.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
+						f.Warning(p.Gray.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
 						continue
 					}
 

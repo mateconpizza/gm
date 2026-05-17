@@ -1,12 +1,7 @@
 package database
 
 import (
-	"errors"
 	"fmt"
-	"log"
-	"log/slog"
-	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -15,16 +10,9 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/pkg/bookio"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
-
-var ErrMissingArg = errors.New("missing argument")
 
 func newImportCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
@@ -35,8 +23,11 @@ func newImportCmd(app *application.App) *cobra.Command {
 	}
 
 	c.AddCommand(
-		newImportHTMLCmd(app), newImportBrowserCmd(app),
-		newImportFromDatabaseCmd(app), newImportFromBackupCmd(app))
+		newImportHTMLCmd(app),
+		newImportBrowserCmd(app),
+		newImportFromDatabaseCmd(app),
+		newImportFromBackupCmd(app),
+	)
 
 	return c
 }
@@ -47,6 +38,10 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 		Short:   "import from database",
 		Aliases: []string{"db"},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if app.Flags.Path != "" {
+				return newImportFromFileCmd(app).RunE(cmd, args)
+			}
+
 			rDest, err := db.New(app.Path.Database)
 			if err != nil {
 				return fmt.Errorf("%w", err)
@@ -59,12 +54,11 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			// FIX: refactor `SelectDatabase`, return a string (fullpath)
-			srcDB, err := handler.SelectDatabase(d, rDest.Cfg.Fullpath())
+			srcPath, err := handler.SelectDatabase(d, rDest.Cfg.Fullpath())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			rSrc, err := db.New(srcDB)
+			rSrc, err := db.New(srcPath)
 			if err != nil {
 				return err
 			}
@@ -73,6 +67,8 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			return port.Database(d, rSrc, rDest)
 		},
 	}
+
+	c.Flags().StringVarP(&app.Flags.Path, "filename", "f", "", "database path")
 
 	return c
 }
@@ -152,90 +148,34 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 		Use:   "html",
 		Short: "import from HTML Netscape file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if app.Flags.Path == "" {
-				return fmt.Errorf("%w: %q", ErrMissingArg, "filename")
-			}
-
-			file, err := os.Open(app.Flags.Path)
-			if err != nil {
-				log.Printf("Error opening file: %v, %q\n", err, app.Flags.Path)
-				return err
-			}
-			defer func() {
-				if err := file.Close(); err != nil {
-					slog.Error("Err closing file", "file", app.Flags.Path)
-				}
-			}()
-
-			if err := bookio.IsValidNetscapeFile(file); err != nil {
-				return err
-			}
-
-			bp := bookio.NewHTMLParser()
-			nbs, err := bp.ParseHTML(file)
-			if err != nil {
-				return err
-			}
-
-			bs := make([]*bookmark.Bookmark, 0, len(nbs))
-			for i := range nbs {
-				bs = append(bs, bookio.FromNetscape(&nbs[i]))
-			}
-
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
 			}
 			defer cancel()
 
-			c := d.Console()
-			s := fmt.Sprintf("Found %d bookmarks from %q\n", len(nbs), file.Name())
-			c.Frame().Success(c.Palette().Italic.Sprint(s)).Flush()
-
-			deduplicated := port.Deduplicate(cmd.Context(), c, d.Repo, bs)
-			n := len(deduplicated)
-			if n == 0 {
-				return bookmark.ErrBookmarkNotFound
-			}
-
-			opt, err := c.Choose(fmt.Sprintf("Import %d bookmarks?", n), []string{"yes", "no", "select"}, "y")
-			if err != nil {
-				return err
-			}
-
-			switch strings.ToLower(opt) {
-			case "n", "no":
-				return sys.ErrActionAborted
-			case "s", "select":
-				m := menu.New[*bookmark.Bookmark](
-					menu.WithOutputColor(app.Flags.Color),
-					menu.WithHeader("select record/s to import"),
-					menu.WithInterruptFn(c.Term().InterruptFn),
-					menu.WithMultiSelection(),
-				)
-
-				m.SetFormatter(func(b **bookmark.Bookmark) string { return formatter.OnelineFunc(c, *b) })
-				deduplicated, err = m.Select(deduplicated)
-				if err != nil {
-					return err
-				}
-				n = len(deduplicated)
-			case "y", "yes":
-				// FIX: finish implementation
-				fmt.Println("importing items...well, not implemented yet.")
-			}
-
-			if err := d.Repo.InsertMany(cmd.Context(), deduplicated); err != nil {
-				return err
-			}
-			fmt.Println(c.SuccessMesg(fmt.Sprintf("imported %d bookmarks", n)))
-
-			return nil
+			return port.FromHTML(d, app.Flags.Path)
 		},
 	}
 
 	c.Flags().StringVarP(&app.Flags.Path, "filename", "f", "", "filename path")
 	_ = c.MarkFlagRequired("filename")
+
+	return c
+}
+
+func newImportFromFileCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			return port.FromFile(d, app.Flags.Path)
+		},
+	}
 
 	return c
 }

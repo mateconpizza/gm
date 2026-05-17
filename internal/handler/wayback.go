@@ -20,7 +20,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
 
-var dimmer = func(s string) string { return ansi.BrightBlack.Wrap(" ("+s+")", ansi.Italic) }
+var dimmer = func(s string) string { return ansi.Gray.Wrap(" ("+s+")", ansi.Italic) }
 
 type SnapshotResult struct {
 	URL   string
