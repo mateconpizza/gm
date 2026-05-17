@@ -184,69 +184,109 @@ func formatTime(label, ts string) string {
 	return txt.PaddedLine(label, absolute+dimmer(relative))
 }
 
+// WaybackSnapshots fetches and updates archive snapshots for each bookmark.
 func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	c, p := d.Console(), d.Console().Palette()
-
+	c := d.Console()
 	ct := wayback.New(wayback.WithByYear(d.App.Flags.Year), wayback.WithLimit(d.App.Flags.Limit))
+
 	for _, b := range bs {
-		ctx, cancel := context.WithTimeout(d.Context(), 30*time.Second)
-		deadline, _ := ctx.Deadline()
-
-		u := txt.Shorten(b.URL, 60)
-		sp := rotato.New(
-			rotato.WithPrefix("Snapshots"),
-			rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
-			rotato.WithMessage("Fetching "+p.Italic.Sprint(u)),
-			rotato.WithMessageDecorator(func(mesg string) string {
-				remaining := max(time.Until(deadline).Round(time.Second), 0)
-				return mesg + " " + rotato.DimCountdownDecorator(remaining)
-			}),
-		)
-		sp.Start()
-
-		snapshots, err := ct.Snapshots(ctx, b.URL)
-		cancel()
-
+		snapshots, err := fetchSnapshots(d, c, ct, b)
 		if err != nil {
-			sp.Fail(p.Red.Sprintf("Failed to fetch %s: %v", u, err))
 			continue
 		}
 
-		f := c.Frame()
-		sp.Done(fmt.Sprintf("%d snapshots from %q", len(snapshots), u))
-		if b.ArchiveURL != "" {
-			f.Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
-		}
-
-		app, err := d.Application()
+		snap, err := selectSnapshot(d, b, snapshots)
 		if err != nil {
+			if errors.Is(err, menu.ErrFzfActionAborted) {
+				continue
+			}
 			return err
 		}
 
-		m := waybackMenu(c, app, menu.WithFooter(b.URL))
-		selected, err := m.Select(snapshots)
-		if err != nil {
-			if !errors.Is(err, menu.ErrFzfActionAborted) {
-				return err
-			}
-
-			continue
+		if err := applySnapshot(d, b, snap); err != nil {
+			return err
 		}
-
-		snap := selected[0]
-		b.ArchiveURL = snap.ArchiveURL
-		b.ArchiveTimestamp = snap.ArchiveTimestamp
-
-		updateCtx, updateCancel := context.WithTimeout(d.Context(), 3*time.Second)
-		err = d.Repo.UpdateOne(updateCtx, b)
-		updateCancel()
-		if err != nil {
-			return fmt.Errorf("updating: %w", err)
-		}
-
-		f.Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
-		fmt.Println(c.SuccessMesg("bookmark updated"))
 	}
 
 	return nil
+}
+
+// fetchSnapshots fetches the wayback snapshots for a single bookmark.
+func fetchSnapshots(
+	d *deps.Deps,
+	c *ui.Console,
+	ct *wayback.WaybackMachine,
+	b *bookmark.Bookmark,
+) ([]wayback.SnapshotInfo, error) {
+	p := c.Palette()
+	u := txt.Shorten(b.URL, 60)
+
+	ctx, cancel := context.WithTimeout(d.Context(), 30*time.Second)
+	defer cancel()
+
+	deadline, _ := ctx.Deadline()
+	sp := rotato.New(
+		rotato.WithPrefix("Snapshots"),
+		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
+		rotato.WithMessage("Fetching "+p.Italic.Sprint(u)),
+		rotato.WithMessageDecorator(func(mesg string) string {
+			remaining := max(time.Until(deadline).Round(time.Second), 0)
+			return mesg + " " + rotato.DimCountdownDecorator(remaining)
+		}),
+	)
+	sp.Start()
+
+	snapshots, err := ct.Snapshots(ctx, b.URL)
+	if err != nil {
+		sp.Fail(p.Red.Sprintf("Failed to fetch %s: %v", u, err))
+		return nil, err
+	}
+
+	sp.Done(fmt.Sprintf("%d snapshots from %q", len(snapshots), u))
+
+	return snapshots, nil
+}
+
+// selectSnapshot shows the current archive info.
+func selectSnapshot(d *deps.Deps, b *bookmark.Bookmark, snaps []wayback.SnapshotInfo) (wayback.SnapshotInfo, error) {
+	c := d.Console()
+	if b.ArchiveURL != "" {
+		c.Frame().Midln(formatTime("Current:", b.ArchiveTimestamp)).Flush()
+	}
+
+	app, err := d.Application()
+	if err != nil {
+		return wayback.SnapshotInfo{}, err
+	}
+
+	m := waybackMenu(c, app, menu.WithFooter(b.URL))
+	selected, err := m.Select(snaps)
+	if err != nil {
+		return wayback.SnapshotInfo{}, err
+	}
+
+	return selected[0], nil
+}
+
+// applySnapshot persists the selected snapshot to the bookmark and reports the result.
+func applySnapshot(d *deps.Deps, b *bookmark.Bookmark, snap wayback.SnapshotInfo) error {
+	b.ArchiveURL = snap.ArchiveURL
+	b.ArchiveTimestamp = snap.ArchiveTimestamp
+
+	ctx, cancel := context.WithTimeout(d.Context(), 3*time.Second)
+	defer cancel()
+
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	if err := r.UpdateOne(ctx, b); err != nil {
+		return fmt.Errorf("updating: %w", err)
+	}
+
+	c := d.Console()
+	c.Frame().Midln(formatTime("New:", b.ArchiveTimestamp)).Flush()
+
+	return c.Print(ctx, c.SuccessMesg("bookmark updated\n"))
 }

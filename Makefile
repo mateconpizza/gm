@@ -25,7 +25,7 @@ all: lint check test build
 # Build the binary
 build:
 	@echo '>> Building $(PROJECT_NAME)'
-	@go build -ldflags='$(LDFLAGS)' -o $(BIN_PATH) $(CURDIR)
+	@CGO_ENABLED=0 go build -ldflags='$(LDFLAGS)' -o $(BIN_PATH) $(CURDIR)
 	@echo '>> Binary built at $(BIN_PATH)'
 
 # Build the binary with debugger
@@ -113,7 +113,7 @@ uninstall:
 tidy:
 	go mod tidy
 
-ci:
+ci: lint
 	go mod tidy
 	git diff --exit-code
 	go build ./...

@@ -29,7 +29,8 @@ func newLookupCmd(app *application.App) *cobra.Command {
   # get up to 5 snapshots from 2023
   %s archive %s 179 --limit 5 --year 2023 179`, app.Cmd, use, app.Cmd, use),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := picker.New[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" wayback machine lookup "),
@@ -68,8 +69,20 @@ func runWayback(d *deps.Deps, flags *application.Flags, bs []*bookmark.Bookmark)
 func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 	f, p := d.Console().Frame(), d.Console().Palette()
 
-	f.Headerln("Wayback Machine: Fetch " + op).Rowln()
-	f.Midln(p.BrightCyan.Sprintf("[%d] selected bookmarks:", len(bs))).Rowln()
+	title := p.BrightYellow.
+		Wrap("Wayback Machine: Fetch "+op, p.Bold)
+
+	subtitle := p.Dim.With(p.Italic).
+		Sprint("confirm bookmarks to query in the wayback machine")
+
+	items := p.BrightCyan.
+		Sprintf("[%d] selected bookmarks:", len(bs))
+
+	f.Headerln(title).
+		Headerln(subtitle).
+		Rowln().
+		Midln(items).
+		Rowln()
 
 	for i := range bs {
 		if i >= wayback.MaxItems {
@@ -82,7 +95,7 @@ func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 
 	f.Rowln().Flush()
 
-	return d.Console().Confirm("continue with Wayback Machine query?", "n")
+	return d.Console().Confirm("continue?", "n")
 }
 
 func waybackOperation(f *application.Flags) string {
