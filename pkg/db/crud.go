@@ -468,7 +468,6 @@ func (r *SQLite) CountFavorites(ctx context.Context) int {
 // Has checks if a record exists in the main table.
 func (r *SQLite) Has(ctx context.Context, bURL string) (*bookmark.Bookmark, bool) {
 	var exists bool
-	bURL = strings.TrimSuffix(bURL, "/")
 	err := r.DB.QueryRowxContext(ctx, "SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = ?)", bURL).
 		Scan(&exists)
 	if err != nil {
@@ -551,18 +550,6 @@ func (r *SQLite) deleteAll(ctx context.Context, tx *sqlx.Tx, ts ...Table) error 
 	return nil
 }
 
-// hasTx checks if a record exists in the specified table and column in
-// a transaction.
-func (r *SQLite) hasTx(tx *sqlx.Tx, target any) (bool, error) {
-	var exists bool
-	err := tx.Get(&exists, "SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = ?)", target)
-	if err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	return exists, nil
-}
-
 func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) error {
 	slog.Info("inserting records into main table", "count", len(bs))
 	sort.Slice(bs, func(i, j int) bool {
@@ -582,17 +569,12 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 
 // insertIntoTx inserts a record inside an existing transaction.
 func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
-	b.URL = strings.TrimSuffix(b.URL, "/")
-	if _, err := r.hasTx(tx, b.URL); err != nil {
-		return 0, fmt.Errorf("duplicate record: %w, %q", err, b.URL)
-	}
-
 	b.GenChecksum()
 
 	// insert record and associate tags in the same transaction.
 	bID, err := insertRecord(tx, b)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%w: %s", err, b.URL)
 	}
 
 	if err := r.associateTags(tx, b); err != nil {
