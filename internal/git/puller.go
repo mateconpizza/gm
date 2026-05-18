@@ -146,10 +146,10 @@ func (rp *RepoProcessor) openDatabase(repoName string) (*db.SQLite, error) {
 	dbPath := files.EnsureSuffix(filepath.Join(rp.DestPath, repoName), ".db")
 
 	if files.Exists(dbPath) {
-		return db.New(dbPath)
+		return db.New(rp.ctx, dbPath)
 	}
 
-	return db.Init(dbPath)
+	return db.Init(rp.ctx, dbPath)
 }
 
 // displaySummary shows the final summary of the pull operation.

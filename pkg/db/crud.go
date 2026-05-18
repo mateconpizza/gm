@@ -106,7 +106,8 @@ func (r *SQLite) UpdateNotes(ctx context.Context, bID int, notes string) error {
 	slog.Debug("updating notes", "id", bID)
 
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		_, err := tx.ExecContext(ctx,
+		_, err := tx.ExecContext(
+			ctx,
 			"UPDATE bookmarks SET notes = ? WHERE id = ?",
 			notes, bID,
 		)

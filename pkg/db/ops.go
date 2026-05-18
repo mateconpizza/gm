@@ -21,7 +21,7 @@ func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
 
 	allExist := true
 
-	r, err := New(p)
+	r, err := New(ctx, p)
 	if err != nil {
 		return false, err
 	}
@@ -189,7 +189,7 @@ func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) 
 
 	_ = r.DB.MustExecContext(ctx, "VACUUM INTO ?", destPath)
 
-	backup, err := New(destPath)
+	backup, err := New(ctx, destPath)
 	if err != nil {
 		return "", err
 	}

@@ -59,7 +59,7 @@ func Records(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error 
 
 // TagsList lists the tags.
 func TagsList(ctx context.Context, p string) error {
-	r, err := db.New(p)
+	r, err := db.New(ctx, p)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func RecordsJSON(bs []*bookmark.Bookmark) error {
 
 // TagsJSON formats the tags counter in JSON.
 func TagsJSON(ctx context.Context, p string) error {
-	r, err := db.New(p)
+	r, err := db.New(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

@@ -42,7 +42,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 				return newImportFromFileCmd(app).RunE(cmd, args)
 			}
 
-			rDest, err := db.New(app.Path.Database)
+			rDest, err := db.New(cmd.Context(), app.Path.Database)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -58,7 +58,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
-			rSrc, err := db.New(srcPath)
+			rSrc, err := db.New(cmd.Context(), srcPath)
 			if err != nil {
 				return err
 			}
@@ -79,7 +79,7 @@ func newImportFromBackupCmd(app *application.App) *cobra.Command {
 		Short:   "import from backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			destRepo, err := db.New(app.Path.Database)
+			destRepo, err := db.New(cmd.Context(), app.Path.Database)
 			if err != nil {
 				return err
 			}
@@ -106,7 +106,7 @@ func newImportFromBackupCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			srcRepo, err := db.New(backupPath)
+			srcRepo, err := db.New(cmd.Context(), backupPath)
 			if err != nil {
 				return err
 			}
@@ -124,7 +124,7 @@ func newImportBrowserCmd(app *application.App) *cobra.Command {
 		Use:   "browser",
 		Short: "import from browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(app.Path.Database)
+			r, err := db.New(cmd.Context(), app.Path.Database)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}

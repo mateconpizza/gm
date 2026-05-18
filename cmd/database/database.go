@@ -224,7 +224,7 @@ func newUseCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			_, err := db.New(app.Path.Database)
+			_, err := db.New(cmd.Context(), app.Path.Database)
 			if err != nil {
 				return err
 			}

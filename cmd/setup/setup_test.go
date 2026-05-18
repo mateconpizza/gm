@@ -34,7 +34,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	}
 
 	// Verify database was actually initialized
-	store, err := db.New(app.Path.Database)
+	store, err := db.New(t.Context(), app.Path.Database)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	store, err := db.New(app.Path.Database)
+	store, err := db.New(t.Context(), app.Path.Database)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

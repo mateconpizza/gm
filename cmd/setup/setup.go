@@ -57,7 +57,8 @@ func initializeAction(d *deps.Deps) error {
 		return err
 	}
 
-	store, err := db.Init(app.Path.Database)
+	ctx := d.Context()
+	store, err := db.Init(ctx, app.Path.Database)
 	if store == nil {
 		return fmt.Errorf("%w", err)
 	}
