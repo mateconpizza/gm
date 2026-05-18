@@ -19,12 +19,17 @@ import (
 )
 
 // Repo returns a summary of the repository.
-func Repo(d *deps.Deps) string {
+func Repo(d *deps.Deps) (string, error) {
+	r, err := d.Repository()
+	if err != nil {
+		return "", err
+	}
+
 	var (
-		name    = d.Repo.Name()
-		path    = txt.PaddedLine("path:", files.CollapseHomeDir(d.Repo.Cfg.Fullpath()))
-		records = txt.PaddedLine("records:", d.Repo.Count(d.Context(), "bookmarks"))
-		tags    = txt.PaddedLine("tags:", d.Repo.Count(d.Context(), "tags"))
+		name    = r.Name()
+		path    = txt.PaddedLine("path:", files.CollapseHomeDir(r.Cfg.Fullpath()))
+		records = txt.PaddedLine("records:", r.Count(d.Context(), "bookmarks"))
+		tags    = txt.PaddedLine("tags:", r.Count(d.Context(), "tags"))
 		p       = d.Console().Palette()
 	)
 
@@ -37,7 +42,7 @@ func Repo(d *deps.Deps) string {
 		Rowln(records).
 		Rowln(tags).
 		Rowln(path).
-		StringReset()
+		StringReset(), nil
 }
 
 // RepoFromPath returns a summary of the repository.
@@ -140,22 +145,32 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(d *deps.Deps, complete bool) string {
+func BackupListDetail(d *deps.Deps, complete bool) (string, error) {
 	const maxItems = 3
 
+	r, err := d.Repository()
+	if err != nil {
+		return "", err
+	}
+
+	app, err := d.Application()
+	if err != nil {
+		return "", err
+	}
+
 	c, p := d.Console(), d.Console().Palette()
-	backupPath := d.App.Path.Backup
-	dbName := files.StripSuffixes(d.Repo.Name())
+	backupPath := app.Path.Backup
+	dbName := files.StripSuffixes(r.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
-		return ""
+		return "", nil
 	}
 
 	f := c.Frame()
 
 	f.Header(p.BrightCyan.Wrap("summary:\n", p.Italic))
 	if err != nil {
-		return f.Row(txt.PaddedLine("found:", "n/a\n")).String()
+		return f.Row(txt.PaddedLine("found:", "n/a\n")).String(), nil
 	}
 
 	if len(fs) > maxItems && !complete {
@@ -166,16 +181,21 @@ func BackupListDetail(d *deps.Deps, complete bool) string {
 		f.Rowln(BackupWithFmtDateFromPath(d.Context(), d.Console(), fs[i]))
 	}
 
-	return f.StringReset()
+	return f.StringReset(), nil
 }
 
 // Backups returns a summary of the backups.
 //
 // last, path and number of backups.
-func Backups(d *deps.Deps) string {
+func Backups(d *deps.Deps) (string, error) {
+	app, err := d.Application()
+	if err != nil {
+		return "", err
+	}
+
 	var (
 		p              = d.Console().Palette()
-		backupPath     = d.App.Path.Backup
+		backupPath     = app.Path.Backup
 		empty          = "n/a"
 		backupsColor   = p.BrightMagenta.Wrap("backups:", p.Italic)
 		backupsInfo    = txt.PaddedLine("found:", empty)
@@ -183,10 +203,15 @@ func Backups(d *deps.Deps) string {
 		lastBackupDate = empty
 	)
 
-	dbName := files.StripSuffixes(d.Repo.Name())
+	r, err := d.Repository()
+	if err != nil {
+		return "", err
+	}
+
+	dbName := files.StripSuffixes(r.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
-		return ""
+		return "", nil
 	}
 
 	var n int
@@ -213,14 +238,31 @@ func Backups(d *deps.Deps) string {
 		Rowln(last).
 		Rowln(lastDate).
 		Rowln(backupsInfo).
-		StringReset()
+		StringReset(), nil
 }
 
 // Info returns the repository info.
-func Info(d *deps.Deps) string {
-	s := Repo(d)
-	s += Backups(d)
-	s += BackupListDetail(d, false)
+func Info(d *deps.Deps) (string, error) {
+	var sb strings.Builder
 
-	return s
+	fn := func(s string, err error) error {
+		if err != nil {
+			return err
+		}
+
+		sb.WriteString(s)
+		return nil
+	}
+
+	if err := fn(Repo(d)); err != nil {
+		return "", err
+	}
+	if err := fn(Backups(d)); err != nil {
+		return "", err
+	}
+	if err := fn(BackupListDetail(d, false)); err != nil {
+		return "", err
+	}
+
+	return sb.String(), nil
 }

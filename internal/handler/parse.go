@@ -20,16 +20,23 @@ type bookmarkTemp struct {
 
 // NewBookmark fetch metadata and parses the new bookmark.
 func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
-	title := d.App.Flags.Title
-	tags := d.App.Flags.TagsStr
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	title := app.Flags.Title
+	tags := app.Flags.TagsStr
 	c := d.Console()
 	newURL, err := newURLFromArgs(c, args)
 	if err != nil {
 		return err
 	}
 
-	newURL = strings.TrimRight(newURL, "/")
-	if b, exists := d.Repo.Has(d.Context(), newURL); exists {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	if b, exists := r.Has(d.Context(), newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
@@ -41,7 +48,9 @@ func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)
-	tagsFromArgs(d, sc, bTemp)
+	if err := tagsFromArgs(d, sc, bTemp); err != nil {
+		return err
+	}
 
 	b.URL = newURL
 	b.Title = bTemp.title
@@ -82,7 +91,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 
 	// checks if url is provided
 	if len(args) > 0 {
-		bURL := strings.TrimRight((args)[0], "\n")
+		bURL := strings.TrimRight(args[0], "\n")
 		f.Header(p.BrightMagenta.Sprint("URL\t:")).
 			Text(" " + p.Dim.Sprint(bURL)).Ln().Flush()
 
@@ -106,7 +115,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 }
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
-func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) {
+func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) error {
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 
@@ -116,7 +125,7 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) {
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
 		f.Textln(" " + p.Dim.Wrap(b.tags, p.Italic)).Flush()
-		return
+		return nil
 	}
 
 	// Try to get keywords from scraper
@@ -124,21 +133,29 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) {
 	if keywords, _ := sc.Keywords(); keywords != "" {
 		b.tags = bookmark.ParseTags(keywords)
 		f.Textln(" " + p.Dim.Wrap(b.tags, p.Italic)).Flush()
-		return
+		return nil
 	}
 
 	// Use default if force flag is set
-	if d.App.Flags.Force {
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	if app.Flags.Force {
 		b.tags = bookmark.DefaultTag
 		f.Textln(" " + p.Dim.Wrap(b.tags, p.Italic)).Flush()
-		return
+		return nil
 	}
 
 	// Display prompt for tag input format
 	f.Text(p.Dim.Sprint(" (spaces|comma separated)\n")).Flush()
 
 	// Get existing tags from database with their usage counts
-	mTags, _ := d.Repo.TagsCounter(d.Context())
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	mTags, _ := r.TagsCounter(d.Context())
 
 	// Let user select tags and parse them into proper format
 	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))
@@ -149,6 +166,7 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) {
 	// Clear previous input lines from terminal
 	c.ClearLine(txt.CountLines(f.String()))
 	f.Flush()
+	return nil
 }
 
 // fetchTitleAndDesc fetch and display title and description.

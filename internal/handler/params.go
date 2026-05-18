@@ -102,7 +102,7 @@ func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {
 
 // PrintParamChanges displays the original and cleaned URL with removed
 // parameters.
-func diffParams(d *deps.Deps, originalURL string, params []string) int {
+func diffParams(d *deps.Deps, originalURL string, params []string) (int, error) {
 	f, p := d.Console().Frame(), d.Console().Palette()
 	f.Headerln(p.Bold.Wrap("Cleaning URL parameters", p.Yellow))
 
@@ -120,11 +120,15 @@ func diffParams(d *deps.Deps, originalURL string, params []string) int {
 	f.Rowln()
 
 	lines := txt.CountLines(f.String())
-	if d.App.Flags.Yes {
+	app, err := d.Application()
+	if err != nil {
+		return 0, err
+	}
+	if app.Flags.Yes {
 		lines--
 	}
 
-	return lines
+	return lines, nil
 }
 
 // paramsCleaner removes all query parameters from the URL and returns the
@@ -228,7 +232,10 @@ func promptParamRemoval(d *deps.Deps, urlStr string, q url.Values) (opt string, 
 		}
 	}
 
-	lines = diffParams(d, urlStr, params)
+	lines, err = diffParams(d, urlStr, params)
+	if err != nil {
+		return "", 0, err
+	}
 	f.Flush()
 
 	opts := []string{"no", "yes"}
@@ -281,7 +288,12 @@ func persistBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark, newURL string) er
 	newB.URL = newURL
 
 	// check for duplicates
-	if book, has := d.Repo.Has(d.Context(), newB.URL); has {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	// TODO: use port.Deduplicate or port.DeduplicateReport
+	if book, has := r.Has(d.Context(), newB.URL); has {
 		f.Error(id(newB.ID) + p.BrightRed.Wrap("already", p.Italic) + " exists with " + id(book.ID)).
 			Ln().Flush()
 		return nil
@@ -292,7 +304,7 @@ func persistBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark, newURL string) er
 		return err
 	}
 
-	if err := d.Repo.UpdateOne(d.Context(), &newB); err != nil {
+	if err := r.UpdateOne(d.Context(), &newB); err != nil {
 		return err
 	}
 

@@ -17,9 +17,13 @@ import (
 
 func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	d.App.Path.Database = filepath.Join(t.TempDir(), "nonexistent.db")
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	app.Path.Database = filepath.Join(t.TempDir(), "nonexistent.db")
 
-	err := backupNewFunc(d)
+	err = backupNewFunc(d)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -30,7 +34,11 @@ func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
 
 func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	f, err := os.Create(d.App.Path.Database)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	f, err := os.Create(app.Path.Database)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -50,22 +58,25 @@ func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 
 func TestNewBackup_Successfully_Created(t *testing.T) {
 	d := testutil.SetupDeps(t)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	app.Path.Backup = filepath.Join(app.Path.Data, "backup")
+	app.Flags.Yes = true
+	app.Flags.Force = true
 
-	d.App.Path.Backup = filepath.Join(d.App.Path.Data, "backup")
-	d.App.Flags.Yes = true
-	d.App.Flags.Force = true
-
-	r := testutil.SetupInitializedDBWithBookmarks(t, d.App.Path.Database, 5)
+	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.Database, 5)
 	d.SetRepo(r)
 
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
-	err := backupNewFunc(d)
+	err = backupNewFunc(d)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	info, err := os.Stat(d.App.Path.Backup)
+	info, err := os.Stat(app.Path.Backup)
 	if err != nil {
 		t.Fatalf("expected backup dir, got error: %v", err)
 	}
@@ -82,7 +93,11 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 
 func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	r := testutil.SetupInitializedDBWithBookmarks(t, d.App.Path.Database, 5)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.Database, 5)
 	d.SetRepo(r)
 
 	// Update terminal for reject confirmation prompt.
@@ -91,7 +106,7 @@ func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 	c := ui.NewConsole(ui.WithTerminal(term))
 	d.SetConsole(c)
 
-	err := backupNewFunc(d)
+	err = backupNewFunc(d)
 	if !errors.Is(err, sys.ErrExitFailure) {
 		t.Fatalf("expected err %q, got %q", sys.ErrExitFailure, err)
 	}

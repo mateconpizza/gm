@@ -36,19 +36,24 @@ func NewCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			switch {
-			case d.App.Flags.Vacuum:
-				slog.Debug("database:", "vacuum", d.App.DBName)
-				defer d.Repo.Close()
-				return d.Repo.Vacuum(cmd.Context())
+			r, err := d.Repository()
+			if err != nil {
+				return err
+			}
 
-			case d.App.Flags.Reorder:
+			switch {
+			case app.Flags.Vacuum:
+				slog.Debug("database:", "vacuum", app.DBName)
+				defer r.Close()
+				return r.Vacuum(cmd.Context())
+
+			case app.Flags.Reorder:
 				slog.Debug("database: reordering bookmark IDs")
-				defer d.Repo.Close()
+				defer r.Close()
 
 				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 				defer cancel()
-				return d.Repo.ReorderIDs(ctx)
+				return r.ReorderIDs(ctx)
 			}
 
 			return cmd.Usage()
@@ -110,7 +115,7 @@ func newListCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return printer.DatabasesTable(cmd.Context(), d.Console(), d.App.Path.Data, app.DBName)
+			return printer.DatabasesTable(cmd.Context(), d.Console(), app.Path.Data, app.DBName)
 		},
 	}
 	return c
@@ -164,7 +169,7 @@ func newLockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.LockRepo(d, d.App.Path.Database)
+			return handler.LockRepo(d, app.Path.Database)
 		},
 	}
 
@@ -185,7 +190,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
-			return handler.UnlockRepo(d, d.App.Path.Database)
+			return handler.UnlockRepo(d, app.Path.Database)
 		},
 	}
 

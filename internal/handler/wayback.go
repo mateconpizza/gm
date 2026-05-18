@@ -94,8 +94,8 @@ func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
 	u := txt.Shorten(b.URL, 60)
-
-	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !d.App.Flags.Force {
+	app, _ := d.Application()
+	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !app.Flags.Force {
 		return newResult(u, "skipped", wayback.ErrAlreadyArchived.Error())
 	}
 
@@ -107,7 +107,8 @@ func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
 
 	b.ArchiveURL = s.ArchiveURL
 	b.ArchiveTimestamp = s.ArchiveTimestamp
-	if err := d.Repo.UpdateOne(d.Context(), b); err != nil {
+	r, _ := d.Repository()
+	if err := r.UpdateOne(d.Context(), b); err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
@@ -186,9 +187,13 @@ func formatTime(label, ts string) string {
 
 // WaybackSnapshots fetches and updates archive snapshots for each bookmark.
 func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	c := d.Console()
-	ct := wayback.New(wayback.WithByYear(d.App.Flags.Year), wayback.WithLimit(d.App.Flags.Limit))
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	ct := wayback.New(wayback.WithByYear(app.Flags.Year), wayback.WithLimit(app.Flags.Limit))
 
+	c := d.Console()
 	for _, b := range bs {
 		snapshots, err := fetchSnapshots(d, c, ct, b)
 		if err != nil {

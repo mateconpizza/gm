@@ -30,11 +30,16 @@ func NewCmd(app *application.App) *cobra.Command {
 
 				p := d.Console().Palette()
 				q := fmt.Sprintf("checking %s of %d bookmarks", p.BrightGreen.Wrap("status", p.Bold), len(bs))
-				if err := d.Console().ConfirmLimit(len(bs), maxGoroutines, q, d.App.Flags.Force); err != nil {
+				if err := d.Console().ConfirmLimit(len(bs), maxGoroutines, q, app.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
 				if err := status.Check(d.Context(), d.Console(), bs); err != nil {
+					return err
+				}
+
+				r, err := d.Repository()
+				if err != nil {
 					return err
 				}
 
@@ -44,7 +49,7 @@ func NewCmd(app *application.App) *cobra.Command {
 						continue
 					}
 
-					if err := d.Repo.UpdateOne(d.Context(), b); err != nil {
+					if err := r.UpdateOne(d.Context(), b); err != nil {
 						return err
 					}
 				}
@@ -72,7 +77,7 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 				c, p := d.Console(), d.Console().Palette()
 
 				s := fmt.Sprintf("update metadata of %d bookmarks", len(bs))
-				if err := c.ConfirmLimit(len(bs), 10, s, d.App.Flags.Force); err != nil {
+				if err := c.ConfirmLimit(len(bs), 10, s, app.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
@@ -97,7 +102,8 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
-	return picker.New[bookmark.Bookmark](app,
+	return picker.New[bookmark.Bookmark](
+		app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),

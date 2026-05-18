@@ -21,17 +21,21 @@ import (
 
 // RemoveRepo removes a repo.
 func RemoveRepo(d *deps.Deps) error {
-	if !files.Exists(d.App.Path.Database) {
-		return fmt.Errorf("%w: %q", db.ErrDBNotFound, d.App.Path.Database)
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	if !files.Exists(app.Path.Database) {
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, app.Path.Database)
 	}
 
 	c, p := d.Console(), d.Console().Palette()
-	if filepath.Base(d.App.Path.Database) == application.MainDBName && !d.App.Flags.Force {
+	if filepath.Base(app.Path.Database) == application.MainDBName && !app.Flags.Force {
 		f := p.BrightYellow.With(ansi.Italic).Sprint("--force")
 		return fmt.Errorf("%w: removing the main database requires %s", ErrInvalidOption, f)
 	}
 
-	if !d.App.Flags.Force && !d.App.Flags.Yes {
+	if !app.Flags.Force && !app.Flags.Yes {
 		title := p.BrightRed.With(p.Bold).Sprint("Removing Database/s")
 		subtitle := p.Dim.With(p.Italic).Sprint("this action cannot be undone")
 
@@ -39,8 +43,8 @@ func RemoveRepo(d *deps.Deps) error {
 			Headerln(subtitle).
 			Rowln().Flush()
 
-		fmt.Fprint(d.Writer(), summary.RepoFromPath(d, d.App.Path.Database, d.App.Path.Backup))
-		err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(d.App.Path.Database)+"?", "n")
+		fmt.Fprint(d.Writer(), summary.RepoFromPath(d, app.Path.Database, app.Path.Backup))
+		err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.Database)+"?", "n")
 		if err != nil {
 			return err
 		}
@@ -52,11 +56,11 @@ func RemoveRepo(d *deps.Deps) error {
 		}
 	}
 
-	if err := files.Remove(d.App.Path.Database); err != nil {
+	if err := files.Remove(app.Path.Database); err != nil {
 		return err
 	}
 
-	dbName := files.StripSuffixes(filepath.Base(d.App.Path.Database))
+	dbName := files.StripSuffixes(filepath.Base(app.Path.Database))
 	fmt.Fprintln(d.Writer(), c.SuccessMesg("database "+dbName+" removed"))
 
 	return nil
@@ -64,10 +68,14 @@ func RemoveRepo(d *deps.Deps) error {
 
 // RemoveBackups removes backups.
 func RemoveBackups(d *deps.Deps) error {
-	fn := d.App.Path.Database
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	fn := app.Path.Database
 	dbName := files.StripSuffixes(filepath.Base(fn))
-	// match YYYYMMDD-HHMMSS_dbname.db
-	fs, err := files.List(d.App.Path.Backup, "*_"+dbName+".db*")
+	fs, err := files.List(app.Path.Backup, "*_"+dbName+".db*") // match YYYYMMDD-HHMMSS_dbname.db
 	if err != nil {
 		return err
 	}
@@ -76,14 +84,12 @@ func RemoveBackups(d *deps.Deps) error {
 		return db.ErrBackupNotFound
 	}
 
-	if d.App.Flags.Yes || d.App.Flags.Force {
+	if app.Flags.Yes || app.Flags.Force {
 		return removeSlicePath(d, fs)
 	}
 
-	c, p := d.Console(), d.Console().Palette()
-
 	filesToRemove := make([]string, 0, len(fs))
-
+	c, p := d.Console(), d.Console().Palette()
 actionLoop:
 	for {
 		opt, err := c.Choose(p.BrightRed.Wrap("remove", p.Bold)+" backups?", []string{"all", "no", "select"}, "n")
@@ -106,11 +112,11 @@ actionLoop:
 				fs,
 				func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
 				menu.WithArgs("--cycle"),
-				menu.WithConfig(d.App.Menu),
+				menu.WithConfig(app.Menu),
 				menu.WithMultiSelection(),
-				menu.WithOutputColor(d.App.Flags.Color),
+				menu.WithOutputColor(app.Flags.Color),
 				menu.WithHeader(fmt.Sprintf("select backup/s from %q", filepath.Base(fn))),
-				menu.WithPreview(d.App.Cmd+" db --db=./backup/{1} info"),
+				menu.WithPreview(app.Cmd+" db --db=./backup/{1} info"),
 			)
 			if err != nil {
 				return err
@@ -121,8 +127,7 @@ actionLoop:
 		}
 	}
 
-	c.Frame().Headerln(c.Palette().BrightRed.Sprint("Removing") + " backups").Rowln().Flush()
-
+	c.Frame().Headerln(p.BrightRed.Sprint("Removing") + " backups").Rowln().Flush()
 	return removeSlicePath(d, filesToRemove)
 }
 
@@ -135,7 +140,11 @@ func removeSlicePath(d *deps.Deps, dbs []string) error {
 		return ErrNoItems
 	}
 
-	if n > 1 && !d.App.Flags.Yes {
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	if n > 1 && !app.Flags.Yes {
 		for i := range n {
 			f.Midln(summary.RepoRecordsFromPath(d.Context(), d.Console(), dbs[i]))
 		}
@@ -176,12 +185,20 @@ func removeSlicePath(d *deps.Deps, dbs []string) error {
 
 // Remove prompts the user the records to remove.
 func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	defer d.Repo.Close()
-	if err := validateRemove(bs, d.App.Flags.Force); err != nil {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	if err := validateRemove(bs, app.Flags.Force); err != nil {
 		return err
 	}
 
-	if d.App.Flags.Force || d.App.Flags.Yes {
+	if app.Flags.Force || app.Flags.Yes {
 		return removeRecords(d, bs)
 	}
 
@@ -207,7 +224,7 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		items = append(items, *bs[i])
 	}
 
-	items, err := confirmRemove(d, items)
+	items, err = confirmRemove(d, items)
 	if err != nil {
 		return err
 	}
@@ -222,11 +239,19 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 // DropDatabase drops a database.
 func DropDatabase(d *deps.Deps) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
 	c := d.Console()
-	if d.App.Flags.Yes || d.App.Flags.Force {
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	if app.Flags.Yes || app.Flags.Force {
 		fmt.Println(c.SuccessMesg("database dropped"))
 
-		return d.Repo.DropSecure(d.Context())
+		return r.DropSecure(d.Context())
 	}
 
 	f, p := c.Frame(), c.Palette()
@@ -237,14 +262,19 @@ func DropDatabase(d *deps.Deps) error {
 	comment := p.Dim.With(p.Italic).
 		Sprint(" (ctrl-c to exit)")
 
+	s, err := summary.Info(d)
+	if err != nil {
+		return err
+	}
+
 	f.Headerln(title + comment).
 		Headerln(subtitle).
 		Rowln().
-		Text(summary.Info(d)).
+		Text(s).
 		Rowln().Flush()
 
 	q := "continue?"
-	if d.Repo.Name() == application.MainDBName {
+	if r.Name() == application.MainDBName {
 		q = c.WarningMesg("dropping \"main\" database, continue?")
 	}
 
@@ -252,11 +282,9 @@ func DropDatabase(d *deps.Deps) error {
 		return err
 	}
 
-	if err := d.Repo.DropSecure(d.Context()); err != nil {
+	if err := r.DropSecure(d.Context()); err != nil {
 		return err
 	}
 
-	fmt.Println(c.SuccessMesg("database dropped"))
-
-	return nil
+	return c.Term().Print(d.Context(), c.SuccessMesg("database dropped\n"))
 }

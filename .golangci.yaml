@@ -260,6 +260,9 @@ linters:
         linters:
           - funlen
           - gocognit
+      - path: "internal/summary/summary.go"
+        linters:
+          - nilerr
     generated: lax
     presets:
       - common-false-positives

@@ -77,18 +77,30 @@ func QROpen(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appNam
 	return qrcode.Open(ctx)
 }
 
-// Open opens the URLs in the browser for the bookmarks in the provided Slice.
+// Open opens the URLs in the browser for the bookmarks in the provided slice.
 func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 5
 	n := len(bs)
 	p := d.Console().Palette()
-
-	// get user confirmation to procced
 	s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
-	if err := d.Console().ConfirmLimit(n, maxGoroutines, s, d.App.Flags.Force); err != nil {
+
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	if err := d.Console().ConfirmLimit(n, maxGoroutines, s, app.Flags.Force); err != nil {
 		return err
 	}
 
+	if err := openInBrowser(d, bs, maxGoroutines); err != nil {
+		return err
+	}
+
+	return recordVisits(d, bs)
+}
+
+// openInBrowser concurrently opens each bookmark URL in the browser.
+func openInBrowser(d *deps.Deps, bs []*bookmark.Bookmark, maxGoroutines int64) error {
 	sp := rotato.New(
 		rotato.WithMessage("opening bookmarks..."),
 		rotato.WithMessageColor(rotato.FgBrightGreen),
@@ -100,30 +112,21 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	var (
 		wg    sync.WaitGroup
 		sem   = semaphore.NewWeighted(maxGoroutines)
-		errCh = make(chan error, n)
+		errCh = make(chan error, len(bs))
 	)
-	actionFn := func(b *bookmark.Bookmark) error {
+
+	for _, b := range bs {
 		if err := sem.Acquire(d.Context(), 1); err != nil {
 			return fmt.Errorf("error acquiring semaphore: %w", err)
 		}
-		defer sem.Release(1)
 		wg.Add(1)
-
 		go func(b *bookmark.Bookmark) {
 			defer wg.Done()
-
+			defer sem.Release(1)
 			if err := sys.OpenInBrowser(d.Context(), b.URL); err != nil {
 				errCh <- fmt.Errorf("open error: %w", err)
 			}
 		}(b)
-
-		return nil
-	}
-
-	for _, b := range bs {
-		if err := actionFn(b); err != nil {
-			return err
-		}
 	}
 
 	wg.Wait()
@@ -133,8 +136,18 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
+	return nil
+}
+
+// recordVisits increments the visit counter for each bookmark.
+func recordVisits(d *deps.Deps, bs []*bookmark.Bookmark) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
 	for _, b := range bs {
-		if err := d.Repo.AddVisit(d.Context(), b.ID); err != nil {
+		if err := r.AddVisit(d.Context(), b.ID); err != nil {
 			return err
 		}
 	}
@@ -146,16 +159,23 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 func Edit(es editor.EditStrategy) func(*deps.Deps, []*bookmark.Bookmark) error {
 	return func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		const maxItems = 10
-		p := d.Console().Palette()
-		q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
 
-		if err := d.Console().ConfirmLimit(len(bs), maxItems, q, d.App.Flags.Force); err != nil {
+		app, err := d.Application()
+		if err != nil {
 			return err
 		}
 
-		return runEditSession(d, bs, es,
+		p := d.Console().Palette()
+		q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
+
+		if err := d.Console().ConfirmLimit(len(bs), maxItems, q, app.Flags.Force); err != nil {
+			return err
+		}
+
+		return runEditSession(
+			d, bs, es,
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-				return git.UpdateBookmark(d.App, o, u)
+				return git.UpdateBookmark(app, o, u)
 			}),
 		)
 	}
@@ -242,6 +262,11 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 
 	displayBookmarkChanges(c, b, &updated)
 
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
 	// Handle user choice
 	opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
@@ -249,18 +274,23 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 	}
 	switch strings.ToLower(opt) {
 	case "y", "yes":
-		if err := d.Repo.UpdateOne(d.Context(), &updated); err != nil {
+		if err := r.UpdateOne(d.Context(), &updated); err != nil {
 			return fmt.Errorf("updating record: %w", err)
 		}
 		fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 	case "n", "no":
 		return nil
 	case "e", "edit":
-		if err := runEditSession(d,
+		if err := runEditSession(
+			d,
 			[]*bookmark.Bookmark{&updated},
 			editor.BookmarkStrategy{},
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-				return git.UpdateBookmark(d.App, o, u)
+				app, err := d.Application()
+				if err != nil {
+					return err
+				}
+				return git.UpdateBookmark(app, o, u)
 			}),
 		); err != nil {
 			return err
@@ -293,8 +323,17 @@ func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 
 // SaveNewBookmark asks the user if they want to save the bookmark.
 func SaveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
-	if d.App.Flags.Force {
-		return d.Repo.InsertMany(d.Context(), []*bookmark.Bookmark{b})
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	if app.Flags.Force {
+		return r.InsertMany(d.Context(), []*bookmark.Bookmark{b})
 	}
 
 	c := d.Console()
@@ -309,7 +348,7 @@ func SaveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
 	case "e", "edit":
 		return runEditSession(d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
 	default:
-		if _, err := d.Repo.InsertOne(d.Context(), b); err != nil {
+		if _, err := r.InsertOne(d.Context(), b); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -345,23 +384,33 @@ func runEditSession(
 	es editor.EditStrategy,
 	opts ...editor.SessionOption,
 ) error {
-	te, err := editor.NewEditor(d.App.Env.Editor)
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	te, err := editor.NewEditor(app.Env.Editor)
 	if err != nil {
 		return err
 	}
 
-	ft := d.App.Name
+	ft := app.Name
 	if _, ok := es.(editor.JSONStrategy); ok {
 		// TODO: add `FileType()` method to Strategy
 		ft = "json"
 	}
 
-	opts = append(opts,
+	opts = append(
+		opts,
 		editor.WithFileType(ft),
 		editor.WithContext(d.Context()),
-		editor.WithMeta(editor.NewMeta(d.App.DBName, d.App.Info.Version)),
+		editor.WithMeta(editor.NewMeta(app.DBName, app.Info.Version)),
 	)
 
-	session := editor.NewEditSession(d.Console(), d.Repo, te, opts...)
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	session := editor.NewEditSession(d.Console(), r, te, opts...)
 	return session.Run(bs, es)
 }

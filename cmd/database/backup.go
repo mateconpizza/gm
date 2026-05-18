@@ -58,7 +58,7 @@ func newBackupAddCmd(_ *application.App) *cobra.Command {
 	return c
 }
 
-func newBackupLockCmd(_ *application.App) *cobra.Command {
+func newBackupLockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "lock",
 		Short: "lock a database backup",
@@ -69,7 +69,7 @@ func newBackupLockCmd(_ *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			fs, err := handler.SelectBackupMany(d, d.App.Path.Backup, "select backup/s to lock")
+			fs, err := handler.SelectBackupMany(d, app.Path.Backup, "select backup/s to lock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -96,7 +96,7 @@ func newBackupLockCmd(_ *application.App) *cobra.Command {
 	return c
 }
 
-func newBackupUnlockCmd(_ *application.App) *cobra.Command {
+func newBackupUnlockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "unlock",
 		Short: "unlock a database backup",
@@ -107,7 +107,7 @@ func newBackupUnlockCmd(_ *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			p := d.App.Path.Backup
+			p := app.Path.Backup
 			if !files.Exists(p) {
 				return fmt.Errorf("%w", db.ErrBackupNotFound)
 			}
@@ -137,6 +137,10 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 			defer cancel()
 
 			p, f := d.Console().Palette(), d.Console().Frame()
+			r, err := d.Repository()
+			if err != nil {
+				return err
+			}
 
 			title := p.BrightMagenta.With(p.Bold).
 				Sprint("Repository Backups")
@@ -145,13 +149,13 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 				Sprint("latest backup snapshots")
 
 			name := p.BrightYellow.With(p.Bold).
-				Sprint(files.StripSuffixes(d.Repo.Name()))
+				Sprint(files.StripSuffixes(r.Name()))
 
 			repo := p.Dim.With(p.Italic).
 				Sprint("repo: " + name)
 
 			info := p.Dim.With(p.Italic).
-				Sprintf(" (%d bookmarks)", d.Repo.Count(d.Context(), "bookmarks"))
+				Sprintf(" (%d bookmarks)", r.Count(d.Context(), "bookmarks"))
 
 			f.Headerln(title).
 				Headerln(subtitle).
@@ -169,7 +173,11 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 }
 
 func backupNewFunc(d *deps.Deps) error {
-	app := d.App
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
 	srcPath := app.Path.Database
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
@@ -178,7 +186,11 @@ func backupNewFunc(d *deps.Deps) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	fmt.Fprint(d.Writer(), summary.Info(d))
+	s, err := summary.Info(d)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(d.Writer(), s)
 
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
@@ -194,7 +206,12 @@ func backupNewFunc(d *deps.Deps) error {
 		return err
 	}
 
-	newBkPath, err := d.Repo.Backup(d.Context(), app.Path.Backup)
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	newBkPath, err := r.Backup(d.Context(), app.Path.Backup)
 	if err != nil {
 		return err
 	}

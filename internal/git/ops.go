@@ -129,8 +129,7 @@ func records(ctx context.Context, dbPath string) ([]*bookmark.Bookmark, error) {
 
 // parseGitRepo loads a git repo into a database.
 func parseGitRepo(d *deps.Deps, root, repoName string) (string, error) {
-	c := d.Console()
-	f := c.Frame()
+	c, f := d.Console(), d.Console().Frame()
 	f.Rowln().Info(c.Palette().Bold.Sprintf("Repository %q\n", repoName))
 	repoPath := filepath.Join(root, repoName)
 
@@ -154,7 +153,11 @@ func parseGitRepo(d *deps.Deps, root, repoName string) (string, error) {
 		choices = []string{"merge", "drop", "create", "select", "ignore"}
 	)
 
-	dbPath := filepath.Join(d.App.Path.Data, sum.RepoStats.Name)
+	app, err := d.Application()
+	if err != nil {
+		return "", err
+	}
+	dbPath := filepath.Join(app.Path.Data, sum.RepoStats.Name)
 	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return "", err

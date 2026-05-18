@@ -61,13 +61,17 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 
 // selectItem lets the user choose a repo from a list.
 func selectItem(d *deps.Deps, fs []string, header string) (string, error) {
+	app, err := d.Application()
+	if err != nil {
+		return "", err
+	}
 	repos, err := selection(
 		fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(d.Context(), d.Console(), *p) },
-		menu.WithOutputColor(d.App.Flags.Color),
-		menu.WithConfig(d.App.Menu),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(app.Menu),
 		menu.WithHeader(header),
-		menu.WithPreview(d.App.PreviewCmd("{1}", "db info")),
+		menu.WithPreview(app.PreviewCmd("{1}", "db info")),
 	)
 	if err != nil {
 		return "", err
@@ -80,14 +84,18 @@ func selectItem(d *deps.Deps, fs []string, header string) (string, error) {
 // needed.
 func SelectBackupOne(d *deps.Deps, bks []string) (string, error) {
 	c := d.Console()
+	app, err := d.Application()
+	if err != nil {
+		return "", err
+	}
 	selected, err := selection(
 		bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), c, *p) },
 		menu.WithArgs("--cycle"),
-		menu.WithOutputColor(d.App.Flags.Color),
-		menu.WithConfig(d.App.Menu),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(app.Menu),
 		menu.WithHeader("choose a backup to import from"),
-		menu.WithPreview(d.App.PreviewCmd("./backup/{1}")+" db info"),
+		menu.WithPreview(app.PreviewCmd("./backup/{1}")+" db info"),
 	)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
@@ -113,14 +121,19 @@ func SelectBackupMany(d *deps.Deps, root, header string) ([]string, error) {
 		return fs, fmt.Errorf("%w", err)
 	}
 
+	app, err := d.Application()
+	if err != nil {
+		return nil, err
+	}
+
 	repos, err := selection(
 		fs,
 		func(p *string) string { return summary.RepoRecordsFromPath(d.Context(), d.Console(), *p) },
-		menu.WithOutputColor(d.App.Flags.Color),
-		menu.WithConfig(d.App.Menu),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(app.Menu),
 		menu.WithHeader(header),
 		menu.WithMultiSelection(),
-		menu.WithPreview(d.App.PreviewCmd("./backup/{1}", "db info")),
+		menu.WithPreview(app.PreviewCmd("./backup/{1}", "db info")),
 	)
 	if err != nil {
 		return repos, fmt.Errorf("%w", err)
@@ -137,11 +150,16 @@ func SelectFileLocked(d *deps.Deps, root, header string) ([]string, error) {
 		return bks, fmt.Errorf("%w", err)
 	}
 
+	app, err := d.Application()
+	if err != nil {
+		return nil, err
+	}
+
 	selected, err := selection(
 		bks,
 		func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
-		menu.WithOutputColor(d.App.Flags.Color),
-		menu.WithConfig(d.App.Menu),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithConfig(app.Menu),
 		menu.WithHeader(header),
 	)
 	if err != nil {
@@ -200,8 +218,12 @@ func MenuSelection(m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) ([]
 
 // ListDatabases returns database paths, excluding the given path.
 func ListDatabases(d *deps.Deps, exclude string) ([]string, error) {
+	app, err := d.Application()
+	if err != nil {
+		return nil, err
+	}
 	// build list of candidate .db files
-	dbFiles, err := files.FindByExtList(d.App.Path.Data, ".db")
+	dbFiles, err := files.FindByExtList(app.Path.Data, ".db")
 	if err != nil {
 		return nil, err
 	}

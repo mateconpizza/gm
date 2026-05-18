@@ -45,7 +45,11 @@ func TestRemoveBackups(t *testing.T) {
 func TestDatabase_Drop(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	want := 10
-	r := testutil.SetupInitializedDBWithBookmarks(t, d.App.Path.Database, want)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.Database, want)
 	d.SetRepo(r)
 	c := testutil.ConsoleWithInput(t, "y\n")
 	d.SetConsole(c)
@@ -78,13 +82,17 @@ func TestRemoveRepo_Success(t *testing.T) {
 
 	t.Run("successfully remove main database", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		d.App.Flags.Force = true
-		r := testutil.SetupInitializedEmptyDB(t, d.App.Path.Database)
+		app, err := d.Application()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		app.Flags.Force = true
+		r := testutil.SetupInitializedEmptyDB(t, app.Path.Database)
 		d.SetRepo(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
-		err := RemoveRepo(d)
+		err = RemoveRepo(d)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -94,34 +102,38 @@ func TestRemoveRepo_Success(t *testing.T) {
 			t.Fatalf("%v", output)
 		}
 
-		if files.Exists(d.App.Path.Database) {
-			t.Fatalf("file %q was not deleted", d.App.Path.Database)
+		if files.Exists(app.Path.Database) {
+			t.Fatalf("file %q was not deleted", app.Path.Database)
 		}
 	})
 
 	t.Run("successfully remove a database", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		d.App.DBName = "somedatabase.db"
-		d.App.Path.Database = filepath.Join(d.App.Path.Data, d.App.DBName)
-		d.App.Flags.Force = true
-		r := testutil.SetupInitializedEmptyDB(t, d.App.Path.Database)
+		app, err := d.Application()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		app.DBName = "somedatabase.db"
+		app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
+		app.Flags.Force = true
+		r := testutil.SetupInitializedEmptyDB(t, app.Path.Database)
 		d.SetRepo(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
-		err := RemoveRepo(d)
+		err = RemoveRepo(d)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
 		output := buf.String()
-		name := files.StripSuffixes(d.App.DBName)
+		name := files.StripSuffixes(app.DBName)
 		if !strings.Contains(output, "Successfully database "+name+" removed") {
 			t.Fatalf("%v", output)
 		}
 
-		if files.Exists(d.App.Path.Database) {
-			t.Fatalf("file %q was not deleted", d.App.Path.Database)
+		if files.Exists(app.Path.Database) {
+			t.Fatalf("file %q was not deleted", app.Path.Database)
 		}
 	})
 }
@@ -129,9 +141,13 @@ func TestRemoveRepo_Success(t *testing.T) {
 func TestRemoveRepo_Fail(t *testing.T) {
 	t.Run("fails with database not found", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		d.App.Path.Database = filepath.Join(d.App.Path.Data, "nonexistent.db")
+		app, err := d.Application()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		app.Path.Database = filepath.Join(app.Path.Data, "nonexistent.db")
 
-		err := RemoveRepo(d)
+		err = RemoveRepo(d)
 		if !errors.Is(err, db.ErrDBNotFound) {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -139,10 +155,14 @@ func TestRemoveRepo_Fail(t *testing.T) {
 
 	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		r := testutil.SetupInitializedEmptyDB(t, d.App.Path.Database)
+		app, err := d.Application()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r := testutil.SetupInitializedEmptyDB(t, app.Path.Database)
 		d.SetRepo(r)
 
-		err := RemoveRepo(d)
+		err = RemoveRepo(d)
 		if !errors.Is(err, ErrInvalidOption) {
 			t.Fatalf("unexpected error: %v", err)
 		}

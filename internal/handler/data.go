@@ -64,8 +64,12 @@ func fetchBookmarks(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	}
 
 	// If no args provided or nothing found, get all records
+	r, err := d.Repository()
+	if err != nil {
+		return nil, err
+	}
 	if len(args) == 0 {
-		return d.Repo.All(d.Context())
+		return r.All(d.Context())
 	}
 
 	// No results found
@@ -85,14 +89,18 @@ func getByIDs(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
 
-	bs, err := d.Repo.ByIDList(d.Context(), ids)
+	r, err := d.Repository()
+	if err != nil {
+		return nil, err
+	}
+	bs, err := r.ByIDList(d.Context(), ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
 
 	if len(bs) == 0 {
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
-		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, d.Repo.Name())
+		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, r.Name())
 	}
 
 	return bs, nil
@@ -104,8 +112,12 @@ func getByQuery(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 		return []*bookmark.Bookmark{}, nil
 	}
 
+	r, err := d.Repository()
+	if err != nil {
+		return nil, err
+	}
 	q := strings.Join(args, "%")
-	bs, err := d.Repo.ByQuery(d.Context(), q)
+	bs, err := r.ByQuery(d.Context(), q)
 	if err != nil {
 		return nil, fmt.Errorf("%w %q", err, strings.Join(args, " "))
 	}
@@ -115,8 +127,11 @@ func getByQuery(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 
 // applyFilters applies tag and head/tail filters to the bookmark list.
 func applyFilters(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
-	var err error
-	f := d.App.Flags
+	app, err := d.Application()
+	if err != nil {
+		return nil, err
+	}
+	f := app.Flags
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
@@ -158,7 +173,11 @@ func filterByTags(d *deps.Deps, tags []string, bs []*bookmark.Bookmark) ([]*book
 		return []*bookmark.Bookmark{}, nil
 	}
 
-	candidates, err := d.Repo.ByTag(d.Context(), firstTag)
+	r, err := d.Repository()
+	if err != nil {
+		return nil, err
+	}
+	candidates, err := r.ByTag(d.Context(), firstTag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bookmarks by tag %q: %w", firstTag, err)
 	}
@@ -337,13 +356,21 @@ func removeRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	sp.Start()
 	defer sp.Done()
 
-	if err := d.Repo.DeleteMany(d.Context(), bs); err != nil {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	if err := r.DeleteMany(d.Context(), bs); err != nil {
 		return err
 	}
 
 	sp.Done()
 
-	if err := git.RemoveBookmarks(d.App, bs); err != nil {
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	if err := git.RemoveBookmarks(app, bs); err != nil {
 		return err
 	}
 

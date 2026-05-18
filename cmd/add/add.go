@@ -27,14 +27,22 @@ func NewCmd(app *application.App) *cobra.Command {
 			defer cancel()
 
 			c, p := d.Console(), d.Console().Palette()
+			r, err := d.Repository()
+			if err != nil {
+				return err
+			}
 			title := p.BrightYellow.With(p.Bold).
 				Sprint("Add Bookmark")
+
 			comment := p.Dim.With(p.Italic).
 				Sprint(" (ctrl-c to exit)")
+
 			name := p.BrightYellow.With(p.Bold).
-				Sprint(files.StripSuffixes(d.Repo.Name()))
+				Sprint(files.StripSuffixes(r.Name()))
+
 			info := p.Gray.With(p.Italic).
-				Sprintf(" (%d bookmarks)", d.Repo.Count(d.Context(), "bookmarks"))
+				Sprintf(" (%d bookmarks)", r.Count(d.Context(), "bookmarks"))
+
 			subtitle := p.Gray.With(p.Italic).
 				Sprint("repo: " + name)
 

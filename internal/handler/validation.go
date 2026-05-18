@@ -27,7 +27,7 @@ func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, e
 	}
 	m := picker.New[bookmark.Bookmark](app, menu.WithMultiSelection())
 
-	for !d.App.Flags.Yes {
+	for !app.Flags.Yes {
 		n := len(bs)
 		if n == 0 {
 			return nil, db.ErrRecordNotFound

@@ -29,7 +29,11 @@ import (
 // Import clones a Git repository, parses its bookmark files, and imports them
 // into the application.
 func Import(d *deps.Deps, gm *Manager) ([]string, error) {
-	urlRepo := d.App.Flags.Path
+	app, err := d.Application()
+	if err != nil {
+		return nil, err
+	}
+	urlRepo := app.Flags.Path
 	if err := gm.Clone(urlRepo); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}

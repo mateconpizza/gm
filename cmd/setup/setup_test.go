@@ -25,12 +25,16 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	if !strings.Contains(output, "initialized database") {
 		t.Errorf("expected output to contain 'initialized database', got %q", output)
 	}
-	if !strings.Contains(output, d.App.Info.Title) {
-		t.Errorf("expected output to contain title %q, got %q", d.App.Info.Title, output)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(output, app.Info.Title) {
+		t.Errorf("expected output to contain title %q, got %q", app.Info.Title, output)
 	}
 
 	// Verify database was actually initialized
-	store, err := db.New(d.App.Path.Database)
+	store, err := db.New(app.Path.Database)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -45,22 +49,26 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}
-	if bm.URL != d.App.Info.URL {
-		t.Errorf("expected URL %q, got %q", d.App.Info.URL, bm.URL)
+	if bm.URL != app.Info.URL {
+		t.Errorf("expected URL %q, got %q", app.Info.URL, bm.URL)
 	}
-	if bm.Title != d.App.Info.Title {
-		t.Errorf("expected title %q, got %q", d.App.Info.Title, bm.Title)
+	if bm.Title != app.Info.Title {
+		t.Errorf("expected title %q, got %q", app.Info.Title, bm.Title)
 	}
 }
 
 func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	d.App.DBName = "test-db"
-	d.App.Path.Database = filepath.Join(d.App.Path.Data, d.App.DBName)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	app.DBName = "test-db"
+	app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
-	err := initializeAction(d)
+	err = initializeAction(d)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -70,7 +78,7 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 		t.Errorf("expected output to contain 'initialized database test-db', got %q", output)
 	}
 	// Should not contain bookmark frame for non-main DB
-	if strings.Contains(output, d.App.Info.Title) {
+	if strings.Contains(output, app.Info.Title) {
 		t.Errorf("expected output to not contain title for non-main DB, got %q", output)
 	}
 }
@@ -105,8 +113,13 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 		t.Fatalf("first initialization failed: %v", err)
 	}
 
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
 	// Set force flag and try again
-	d.App.Flags.Force = true
+	app.Flags.Force = true
 	err = initializeAction(d)
 	if err != nil {
 		t.Errorf("expected no error with force flag, got %v", err)
@@ -115,10 +128,14 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 
 func TestFailsWhenInitReturnsErr(t *testing.T) {
 	d := testutil.SetupDeps(t)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	// Set invalid DB path
-	d.App.Path.Database = "/invalid/path/\x00/db"
+	app.Path.Database = "/invalid/path/\x00/db"
 
-	err := initializeAction(d)
+	err = initializeAction(d)
 
 	if err == nil {
 		t.Fatal("expected error with invalid DB path")
@@ -127,10 +144,14 @@ func TestFailsWhenInitReturnsErr(t *testing.T) {
 
 func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
 	d := testutil.SetupDeps(t)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	// Set invalid bookmark data that would cause insertion to fail
-	d.App.Info.URL = "" // Invalid bookmark
+	app.Info.URL = "" // Invalid bookmark
 
-	err := initializeAction(d)
+	err = initializeAction(d)
 	if err == nil {
 		t.Fatal("expected error with invalid bookmark data")
 	}
@@ -146,7 +167,12 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 		t.Fatalf("initialization failed: %v", err)
 	}
 
-	store, err := db.New(d.App.Path.Database)
+	app, err := d.Application()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	store, err := db.New(app.Path.Database)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

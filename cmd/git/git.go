@@ -224,7 +224,10 @@ func newDisableCmd(_ *application.App) *cobra.Command {
 
 // importFromClone clones a git repo and imports its bookmarks.
 func importFromClone(d *deps.Deps, commitMesg string) error {
-	app := d.App
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
 	tmpPath := filepath.Join(os.TempDir(), app.Name+"-clone")
 	if files.Exists(tmpPath) {
 		_ = files.RemoveAll(tmpPath)

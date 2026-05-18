@@ -47,14 +47,12 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
-	// BUG: fix!!!
 	rec := make([]bookmark.Bookmark, 0, len(items))
 	for i := range items {
 		rec = append(rec, *items[i])
 	}
 
 	m.SetFormatter(func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(d.Console(), b) })
-
 	records, err := m.Select(rec)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -68,7 +66,11 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 	d.SetRepo(destDB)
 
 	c, f := d.Console(), d.Console().Frame()
-	bookmarks, err = DeduplicateReport(ctx, c, d.Repo, bookmarks)
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	bookmarks, err = DeduplicateReport(ctx, c, r, bookmarks)
 	if err != nil {
 		return err
 	}
@@ -78,7 +80,7 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 		return nil
 	}
 
-	if err := d.Repo.InsertMany(ctx, bookmarks); err != nil {
+	if err := r.InsertMany(ctx, bookmarks); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -127,7 +129,7 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 		menu.WithInterruptFn(t.InterruptFn),
 		menu.WithMultiSelection(),
-		menu.WithPreview(d.App.PreviewCmd("./backup/"+srcDB.Name(), "{+1}")),
+		menu.WithPreview(app.PreviewCmd("./backup/"+srcDB.Name(), "{+1}")),
 	)
 
 	defer t.CancelInterruptHandler()
@@ -159,7 +161,11 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	// update which repo to insert
 	d.SetRepo(destDB)
 
-	dRecords, err := DeduplicateReport(d.Context(), c, d.Repo, result)
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	dRecords, err := DeduplicateReport(d.Context(), c, r, result)
 	if err != nil {
 		return err
 	}

@@ -44,7 +44,11 @@ func Browser(d *deps.Deps) error {
 	}
 
 	// find bookmarks
-	bs, err := br.Import(d.Console(), d.App.Flags.Yes)
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+	bs, err := br.Import(d.Console(), app.Flags.Yes)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
@@ -66,7 +70,11 @@ func Browser(d *deps.Deps) error {
 // browser process.
 func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	c, f := d.Console(), d.Console().Frame()
-	bs, err := DeduplicateReport(d.Context(), c, d.Repo, bs)
+	r, err := d.Repository()
+	if err != nil {
+		return nil, err
+	}
+	bs, err = DeduplicateReport(d.Context(), c, r, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +84,12 @@ func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Boo
 		return bs, nil
 	}
 
-	if !d.App.Flags.Yes && !c.Confirm(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y") {
+	app, err := d.Application()
+	if err != nil {
+		return nil, err
+	}
+
+	if !app.Flags.Yes && !c.Confirm(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y") {
 		return bs, nil
 	}
 

@@ -40,7 +40,8 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 
 	terminal.ReadPipedInput(args)
 
-	d := deps.New(cmd.Context(),
+	d := deps.New(
+		cmd.Context(),
 		deps.WithApplication(app),
 		deps.WithRepo(r),
 		deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
@@ -70,8 +71,13 @@ func Execute(
 		return err
 	}
 
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
 	// sort items
-	f := d.App.Flags
+	f := app.Flags
 	bs, err = handler.Sort(f.Sort, bs)
 	if err != nil {
 		return err
