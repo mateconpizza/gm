@@ -56,7 +56,8 @@ func SetupDeps(t *testing.T) *deps.Deps {
 		terminal.WithWriter(io.Discard),
 	)
 
-	return deps.New(t.Context(),
+	return deps.New(
+		t.Context(),
 		deps.WithApplication(app),
 		deps.WithConsole(ui.NewConsole(
 			ui.WithTerminal(tm),
@@ -68,7 +69,7 @@ func SetupDeps(t *testing.T) *deps.Deps {
 func SetupInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {
 	t.Helper()
 
-	r, err := db.Init(dbPath)
+	r, err := db.Init(t.Context(), dbPath)
 	if err != nil {
 		t.Fatalf("failed to init DB: %v", err)
 	}

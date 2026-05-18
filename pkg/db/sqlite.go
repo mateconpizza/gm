@@ -52,8 +52,8 @@ func newSQLiteRepository(db *sqlx.DB, cfg *Cfg) *SQLite {
 }
 
 // New returns a new SQLiteRepository from an existing database path.
-func New(p string) (*SQLite, error) {
-	return newRepository(p, func(path string) error {
+func New(ctx context.Context, p string) (*SQLite, error) {
+	return newRepository(ctx, p, func(path string) error {
 		slog.Debug("new repo: checking if database exists")
 
 		if !fileExists(path) {
@@ -65,8 +65,8 @@ func New(p string) (*SQLite, error) {
 }
 
 // Init initializes a new SQLiteRepository at the provided path.
-func Init(p string) (*SQLite, error) {
-	return newRepository(p, func(path string) error {
+func Init(ctx context.Context, p string) (*SQLite, error) {
+	return newRepository(ctx, p, func(path string) error {
 		slog.Debug("init repo: checking if database exists", "path", path)
 
 		if fileExists(path) {
@@ -78,7 +78,7 @@ func Init(p string) (*SQLite, error) {
 }
 
 // newRepository returns a new SQLiteRepository from the provided path.
-func newRepository(p string, validate func(string) error) (*SQLite, error) {
+func newRepository(ctx context.Context, p string, validate func(string) error) (*SQLite, error) {
 	if p == "" {
 		return nil, fmt.Errorf("%w: %q", ErrDBNotFound, p)
 	}
@@ -92,7 +92,7 @@ func newRepository(p string, validate func(string) error) (*SQLite, error) {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	db, err := OpenDatabase(p, c)
+	db, err := OpenDatabase(ctx, p, c)
 	if err != nil {
 		slog.Error("NewRepo", "error", err, "path", p)
 		return nil, err
@@ -127,8 +127,7 @@ func buildSQLiteDSN(path string, params map[string]string) string {
 
 // OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
-func OpenDatabase(path string, cfg *Cfg) (*sqlx.DB, error) {
-	// FIX: Change signature for context awareness.
+func OpenDatabase(ctx context.Context, path string, cfg *Cfg) (*sqlx.DB, error) {
 	slog.Debug("opening database", "path", path)
 	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
@@ -163,7 +162,7 @@ func OpenDatabase(path string, cfg *Cfg) (*sqlx.DB, error) {
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.MaxLifetimeConn)
 
-	if err := db.PingContext(context.TODO()); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("%w: on ping context", err)
 	}
 

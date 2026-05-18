@@ -40,7 +40,7 @@ func (rs *RepoStats) String() string {
 }
 
 func NewStats(ctx context.Context, dbPath string) (*RepoStats, error) {
-	r, err := New(dbPath)
+	r, err := New(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}

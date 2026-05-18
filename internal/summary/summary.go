@@ -62,7 +62,7 @@ func RepoFromPath(d *deps.Deps, dbPath, backupPath string) string {
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
 
-	r, err := db.New(dbPath)
+	r, err := db.New(d.Context(), dbPath)
 	if err != nil {
 		return f.Row(path).StringReset()
 	}
@@ -97,7 +97,7 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 		return txt.PaddedLine(s, p.Gray.Wrap("(locked)", p.Italic))
 	}
 
-	r, _ := db.New(fp)
+	r, _ := db.New(ctx, fp)
 	defer r.Close()
 
 	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
@@ -132,7 +132,7 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 		return name + bkTime
 	}
 
-	r, err := db.New(fp)
+	r, err := db.New(ctx, fp)
 	if err != nil {
 		slog.Warn("creating repository from path", "path", fp, "error", err)
 		return ""

@@ -44,7 +44,7 @@ func TestNewRepository(t *testing.T) {
 
 	t.Run("empty path returns ErrPathEmpty", func(t *testing.T) {
 		t.Parallel()
-		r, err := New("")
+		r, err := New(t.Context(), "")
 		if r != nil {
 			t.Errorf("expected nil repository, got: %v", r)
 		}
@@ -55,7 +55,7 @@ func TestNewRepository(t *testing.T) {
 
 	t.Run("non-existent path returns ErrDBNotFound", func(t *testing.T) {
 		t.Parallel()
-		r, err := New("/tmp/invalid/path")
+		r, err := New(t.Context(), "/tmp/invalid/path")
 		if r != nil {
 			t.Errorf("expected nil repository, got: %v", r)
 		}
@@ -74,7 +74,7 @@ func TestNewRepository(t *testing.T) {
 		if !fileExists(nonSqlitePath) {
 			t.Fatalf("expected file to exist: %s", nonSqlitePath)
 		}
-		r, err := New(nonSqlitePath)
+		r, err := New(t.Context(), nonSqlitePath)
 		if r != nil {
 			t.Errorf("expected nil repository, got: %v", r)
 		}
@@ -88,7 +88,7 @@ func TestNewRepository(t *testing.T) {
 		d := t.TempDir()
 		s := "test_db.sqlite"
 		dbPath := createTestSQLiteDB(t, d, s)
-		r, err := New(dbPath)
+		r, err := New(t.Context(), dbPath)
 		if err != nil {
 			t.Fatalf("unexpected error creating repository: %v", err)
 		}

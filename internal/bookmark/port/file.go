@@ -125,7 +125,7 @@ func bookmarksFromFile(ctx context.Context, f string) ([]*bookmark.Bookmark, err
 		return nil, err
 	}
 
-	repo, err := db.New(f)
+	repo, err := db.New(ctx, f)
 	if err != nil {
 		return nil, err
 	}

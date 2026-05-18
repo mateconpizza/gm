@@ -274,7 +274,7 @@ func Sync(ctx context.Context, app *application.App, mesg string) error {
 		return nil
 	}
 
-	r, err := db.New(app.Path.Database)
+	r, err := db.New(ctx, app.Path.Database)
 	if err != nil {
 		return err
 	}

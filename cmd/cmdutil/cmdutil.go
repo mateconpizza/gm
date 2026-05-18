@@ -33,7 +33,7 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	r, err := db.New(app.Path.Database)
+	r, err := db.New(cmd.Context(), app.Path.Database)
 	if err != nil {
 		return nil, nil, err
 	}

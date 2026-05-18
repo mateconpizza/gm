@@ -10,7 +10,7 @@ import (
 
 // DropFromPath drops the database from the given path.
 func DropFromPath(ctx context.Context, dbPath string) error {
-	r, err := db.New(dbPath)
+	r, err := db.New(ctx, dbPath)
 	if err != nil {
 		return err
 	}
@@ -19,7 +19,7 @@ func DropFromPath(ctx context.Context, dbPath string) error {
 
 // TagsCounterFromPath returns a map with tag as key and count as value.
 func TagsCounterFromPath(ctx context.Context, dbPath string) (map[string]int, error) {
-	r, err := db.New(dbPath)
+	r, err := db.New(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}

@@ -114,7 +114,7 @@ func commitIfChanged(ctx context.Context, gr *Repository, actionMsg string) erro
 
 // records gets all records from the database.
 func records(ctx context.Context, dbPath string) ([]*bookmark.Bookmark, error) {
-	r, err := db.New(dbPath)
+	r, err := db.New(ctx, dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating repo: %w", err)
 	}
@@ -356,7 +356,7 @@ func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string
 		return fmt.Errorf("%w", err)
 	}
 
-	r, err := db.New(dbPath)
+	r, err := db.New(ctx, dbPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -497,7 +497,7 @@ func handleOptCreate(ctx context.Context, c *ui.Console, gr *Repository) (string
 		return "", err
 	}
 
-	r, err := db.Init(dbPath)
+	r, err := db.Init(ctx, dbPath)
 	if err != nil {
 		return "", err
 	}
@@ -548,7 +548,7 @@ func intoDBFromGit(ctx context.Context, c *ui.Console, gr *Repository) error {
 	}
 
 	// FIX: replace with `repository.New`
-	store, err := db.Init(gr.Loc.DBPath)
+	store, err := db.Init(ctx, gr.Loc.DBPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -556,7 +556,7 @@ func intoDBFromGit(ctx context.Context, c *ui.Console, gr *Repository) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 
-	r, err := db.New(store.Cfg.Fullpath())
+	r, err := db.New(ctx, store.Cfg.Fullpath())
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
@@ -571,7 +571,7 @@ func intoDBFromGit(ctx context.Context, c *ui.Console, gr *Repository) error {
 
 // mergeAndInsert merges non-duplicates records into database.
 func mergeAndInsert(ctx context.Context, c *ui.Console, gr *Repository) error {
-	r, err := db.New(gr.Loc.DBPath)
+	r, err := db.New(ctx, gr.Loc.DBPath)
 	if err != nil {
 		return fmt.Errorf("creating repo: %w", err)
 	}
