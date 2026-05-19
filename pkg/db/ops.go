@@ -17,7 +17,7 @@ const defaultDateFormat = "20060102-150405"
 
 // IsInitializedFromPath checks if the database is initialized.
 func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
-	slog.Debug("checking if database is initialized", "path", p)
+	slog.DebugContext(ctx, "checking if database is initialized", "path", p)
 	r, err := New(ctx, p)
 	if err != nil {
 		return false, err
@@ -44,7 +44,7 @@ func drop(ctx context.Context, r *SQLite) error {
 }
 
 func vacuum(ctx context.Context, r *SQLite) error {
-	slog.Debug("vacuuming database")
+	slog.DebugContext(ctx, "vacuuming database")
 
 	_, err := r.DB.ExecContext(ctx, "VACUUM")
 	if err != nil {
@@ -57,12 +57,12 @@ func vacuum(ctx context.Context, r *SQLite) error {
 // resetSQLiteSequence resets the SQLite sequence for the given table.
 func resetSQLiteSequence(ctx context.Context, tx *sqlx.Tx, tables ...Table) error {
 	if len(tables) == 0 {
-		slog.Warn("no tables provided to reset sqlite sequence")
+		slog.WarnContext(ctx, "no tables provided to reset sqlite sequence")
 		return nil
 	}
 
 	for _, t := range tables {
-		slog.Debug("resetting sqlite sequence", "table", t)
+		slog.DebugContext(ctx, "resetting sqlite sequence", "table", t)
 
 		if _, err := tx.ExecContext(ctx, "DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
 			return fmt.Errorf("resetting sqlite sequence: %w", err)
@@ -151,7 +151,7 @@ func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) 
 	// destDSN -> 20060102-150405_dbName.db
 	destDSN := fmt.Sprintf("%s_%s", now.Format(defaultDateFormat), r.Name())
 	destPath := filepath.Join(destRoot, destDSN)
-	slog.Info("creating SQLite backup", "src", r.Cfg.Fullpath(), "dest", destPath)
+	slog.InfoContext(ctx, "creating SQLite backup", "src", r.Cfg.Fullpath(), "dest", destPath)
 
 	_, err := os.Stat(destPath)
 	if !os.IsNotExist(err) {
@@ -184,7 +184,7 @@ func (r *SQLite) CheckIntegrity(ctx context.Context) error {
 		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
 	}
 
-	slog.Debug("SQLite integrity verified", "result", result)
+	slog.DebugContext(ctx, "SQLite integrity verified", "result", result)
 
 	return nil
 }

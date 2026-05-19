@@ -14,7 +14,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/dbtask"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
@@ -515,7 +514,7 @@ func handleOptCreate(ctx context.Context, c *ui.Console, gr *Repository) (string
 
 func handleOptDrop(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
 	c.Warning("Dropping database\n").Flush()
-	if err := dbtask.DropFromPath(ctx, gr.Loc.DBPath); err != nil {
+	if err := dropRepoFromPath(ctx, gr.Loc.DBPath); err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 	return handleOptMerge(ctx, c, gr)
@@ -609,4 +608,13 @@ func mergeAndInsert(ctx context.Context, c *ui.Console, gr *Repository) error {
 	}
 
 	return nil
+}
+
+// dropRepoFromPath drops the database from the given path.
+func dropRepoFromPath(ctx context.Context, dbPath string) error {
+	r, err := db.New(ctx, dbPath)
+	if err != nil {
+		return err
+	}
+	return r.DropSecure(ctx)
 }

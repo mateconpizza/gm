@@ -52,7 +52,7 @@ func newSQLiteRepository(db *sqlx.DB, cfg *Cfg) *SQLite {
 // New returns a new SQLiteRepository from an existing database path.
 func New(ctx context.Context, p string) (*SQLite, error) {
 	return newRepository(ctx, p, func(path string) error {
-		slog.Debug("new repo: checking if database exists")
+		slog.DebugContext(ctx, "new repo: checking if database exists")
 
 		if !fileExists(path) {
 			return fmt.Errorf("%w: %q", ErrDBNotFound, filepath.Base(path))
@@ -65,7 +65,7 @@ func New(ctx context.Context, p string) (*SQLite, error) {
 // Init initializes a new SQLiteRepository at the provided path.
 func Init(ctx context.Context, p string) (*SQLite, error) {
 	return newRepository(ctx, p, func(path string) error {
-		slog.Debug("init repo: checking if database exists", "path", path)
+		slog.DebugContext(ctx, "init repo: checking if database exists", "path", path)
 
 		if fileExists(path) {
 			return fmt.Errorf("%w: %q", ErrDBExists, path)
@@ -92,7 +92,7 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 
 	db, err := OpenDatabase(ctx, p, c)
 	if err != nil {
-		slog.Error("NewRepo", "error", err, "path", p)
+		slog.ErrorContext(ctx, "NewRepo", "error", err, "path", p)
 		return nil, err
 	}
 
@@ -130,7 +130,7 @@ func buildSQLiteDSN(path string, params map[string]string) string {
 // OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
 func OpenDatabase(ctx context.Context, path string, cfg *Cfg) (*sqlx.DB, error) {
-	slog.Debug("opening database", "path", path)
+	slog.DebugContext(ctx, "opening database", "path", path)
 	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
 	dbParams := map[string]string{
