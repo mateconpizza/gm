@@ -115,7 +115,12 @@ func summaryUpdate(ctx context.Context, gr *Repository, version string) (*SyncGi
 		return nil, fmt.Errorf("getting hostname: %w", err)
 	}
 
-	stats, err := db.NewStats(ctx, gr.Loc.DBPath)
+	r, err := db.New(ctx, gr.Loc.DBPath)
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := db.NewStats(ctx, r)
 	if err != nil {
 		return nil, fmt.Errorf("crating stats: %w", err)
 	}
