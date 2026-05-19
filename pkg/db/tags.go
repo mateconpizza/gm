@@ -94,8 +94,8 @@ func (r *SQLite) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 		slog.Debug("processing Tags", "tag", tag, "tagID", tagID)
 
 		_ = tx.MustExec(
-			"INSERT OR IGNORE INTO bookmark_tags (bookmark_url, tag_id) VALUES (?, ?)",
-			b.URL,
+			"INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)",
+			b.ID,
 			tagID,
 		)
 	}

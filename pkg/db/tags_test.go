@@ -58,7 +58,7 @@ func TestTagsCounter(t *testing.T) {
 		for _, tagID := range record.tagIDs {
 			_, err := r.DB.ExecContext(
 				t.Context(),
-				"INSERT INTO bookmark_tags (bookmark_url, tag_id) VALUES (?, ?)",
+				"INSERT INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)",
 				record.url,
 				tagID,
 			)

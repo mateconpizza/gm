@@ -64,12 +64,12 @@ func initializeAction(d *deps.Deps) error {
 	}
 	defer store.Close()
 
-	if ok := store.IsInitialized(d.Context()); ok && !app.Flags.Force {
-		return fmt.Errorf("%q %w", store.Name(), db.ErrDBAlreadyInitialized)
+	if err := db.Migrate(ctx, store); err != nil {
+		return fmt.Errorf("new migrations: %w", err)
 	}
 
-	if err := store.Init(d.Context()); err != nil {
-		return fmt.Errorf("initializing database: %w", err)
+	if err := db.UpdateAppVersion(ctx, store, app.Info.Version); err != nil {
+		return err
 	}
 
 	if app.DBName != application.MainDBName {

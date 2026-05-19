@@ -18,29 +18,13 @@ const defaultDateFormat = "20060102-150405"
 // IsInitializedFromPath checks if the database is initialized.
 func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
 	slog.Debug("checking if database is initialized", "path", p)
-
-	allExist := true
-
 	r, err := New(ctx, p)
 	if err != nil {
 		return false, err
 	}
+	defer r.Close()
 
-	for _, s := range tablesAndSchemas {
-		exists, err := tableExists(ctx, r, s.Name)
-		if err != nil {
-			slog.Error("checking if table exists", "name", s.Name, "error", err)
-			return false, err
-		}
-
-		if !exists {
-			allExist = false
-
-			slog.Warn("table does not exist", "name", s.Name)
-		}
-	}
-
-	return allExist, nil
+	return r.IsInitialized(ctx), nil
 }
 
 // drop removes all records database.
@@ -216,4 +200,14 @@ func (r *SQLite) CheckIntegrity(ctx context.Context) error {
 	slog.Debug("SQLite integrity verified", "result", result)
 
 	return nil
+}
+
+func UpdateAppVersion(ctx context.Context, r *SQLite, version string) error {
+	query := `
+		INSERT INTO metadata (key, value)
+		VALUES ('app_version', ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+	`
+	_, err := r.DB.ExecContext(ctx, query, version)
+	return err
 }

@@ -15,31 +15,38 @@ var tablesAndSchemas = []Schema{
 	schemaRelation,
 }
 
+type Table string
+
+var (
+	TableBookmarks Table = "bookmarks"
+	TableTags      Table = "tags"
+	TableRelation  Table = "bookmark_tags"
+	TableMetadata  Table = "metadata"
+)
+
+func (t Table) Exists(ctx context.Context, r *SQLite) (bool, error) {
+	var count int
+	err := r.DB.GetContext(
+		ctx,
+		&count,
+		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = ?",
+		t.String(),
+	)
+	if err != nil {
+		slog.ErrorContext(ctx, "checking if table exists", "name", t, "error", err)
+		return false, fmt.Errorf("tableExists: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+func (t Table) String() string {
+	return string(t)
+}
+
 // Init initializes a new database and creates the required tables.
 func (r *SQLite) Init(ctx context.Context) error {
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		for _, s := range tablesAndSchemas {
-			if err := r.tableCreate(ctx, tx, s.Name, s.SQL); err != nil {
-				return fmt.Errorf("creating %q table: %w", s.Name, err)
-			}
-
-			if s.Index != "" {
-				if _, err := tx.ExecContext(ctx, s.Index); err != nil {
-					return fmt.Errorf("creating %q index: %w", s.Name, err)
-				}
-			}
-
-			if len(s.Trigger) > 0 {
-				for _, t := range s.Trigger {
-					if _, err := tx.ExecContext(ctx, t); err != nil {
-						return fmt.Errorf("creating %q trigger: %w", s.Name, err)
-					}
-				}
-			}
-		}
-
-		return nil
-	})
+	return Migrate(ctx, r)
 }
 
 // tableRename renames the temporary table to the specified main table name.

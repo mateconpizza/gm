@@ -15,8 +15,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type Table string
-
 // SQLite implements the Repository interface.
 type SQLite struct {
 	DB        *sqlx.DB `json:"-"`
@@ -99,6 +97,10 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 	}
 
 	r := newSQLiteRepository(db, c)
+
+	if err := Migrate(ctx, r); err != nil {
+		return nil, err
+	}
 
 	manager.Register(c.Name, r)
 

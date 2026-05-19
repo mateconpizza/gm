@@ -20,7 +20,7 @@ func setupTestDB(t *testing.T) *SQLite {
 		t.Fatalf("failed to open database: %v", err)
 	}
 	r := newSQLiteRepository(db, c)
-	_ = r.Init(t.Context())
+	_ = Migrate(t.Context(), r)
 
 	return r
 }
