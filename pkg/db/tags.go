@@ -55,19 +55,19 @@ func TagsList(ctx context.Context, r *SQLite) ([]string, error) {
 }
 
 // getOrCreateTag returns the tag ID.
-func (r *SQLite) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
+func (r *SQLite) getOrCreateTag(ctx context.Context, tx *sqlx.Tx, s string) (int64, error) {
 	if s == "" {
 		// no tag to process
 		return 0, nil
 	}
 	// try to get the tag within the transaction
-	tagID, err := getTag(tx, s)
+	tagID, err := getTag(ctx, tx, s)
 	if err != nil {
 		return 0, fmt.Errorf("getting tag: error retrieving tag: %w", err)
 	}
 	// if the tag doesn't exist, create it within the transaction
 	if tagID == 0 {
-		tagID, err = createTag(tx, s)
+		tagID, err = createTag(ctx, tx, s)
 		if err != nil {
 			return 0, fmt.Errorf("creating tag: error creating tag: %w", err)
 		}
@@ -77,8 +77,8 @@ func (r *SQLite) getOrCreateTag(tx *sqlx.Tx, s string) (int64, error) {
 }
 
 // associateTags associates tags to the given record.
-func (r *SQLite) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
-	slog.Debug("associating tags with URL", "tags", b.Tags, "url", b.URL)
+func (r *SQLite) associateTags(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
+	slog.DebugContext(ctx, "associating tags with URL", "tags", b.Tags, "url", b.URL)
 
 	tags := strings.SplitSeq(b.Tags, ",")
 	for tag := range tags {
@@ -86,16 +86,17 @@ func (r *SQLite) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 			continue
 		}
 
-		tagID, err := r.getOrCreateTag(tx, tag)
+		tagID, err := r.getOrCreateTag(ctx, tx, tag)
 		if err != nil {
 			return err
 		}
 
-		slog.Debug("processing Tags", "tag", tag, "tagID", tagID)
+		slog.DebugContext(ctx, "processing Tags", "tag", tag, "tagID", tagID)
 
-		_ = tx.MustExec(
-			"INSERT OR IGNORE INTO bookmark_tags (bookmark_url, tag_id) VALUES (?, ?)",
-			b.URL,
+		_ = tx.MustExecContext(
+			ctx,
+			"INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)",
+			b.ID,
 			tagID,
 		)
 	}
@@ -104,10 +105,10 @@ func (r *SQLite) associateTags(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 }
 
 // getTag returns the tag ID.
-func getTag(tx *sqlx.Tx, tag string) (int64, error) {
+func getTag(ctx context.Context, tx *sqlx.Tx, tag string) (int64, error) {
 	var tagID int64
 
-	err := tx.QueryRowx("SELECT id FROM tags WHERE name = ?", tag).Scan(&tagID)
+	err := tx.QueryRowxContext(ctx, "SELECT id FROM tags WHERE name = ?", tag).Scan(&tagID)
 	if errors.Is(err, sql.ErrNoRows) {
 		// tag not found
 		return 0, nil
@@ -119,12 +120,16 @@ func getTag(tx *sqlx.Tx, tag string) (int64, error) {
 }
 
 // createTag creates a new tag.
-func createTag(tx *sqlx.Tx, tag string) (int64, error) {
-	result := tx.MustExec("INSERT INTO tags (name) VALUES (?)", tag)
+func createTag(ctx context.Context, tx *sqlx.Tx, tag string) (int64, error) {
+	result := tx.MustExecContext(
+		ctx,
+		"INSERT INTO tags (name) VALUES (?)",
+		tag,
+	)
 
 	tagID, err := result.LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("CreateTag: error getting last insert ID: %w", err)
+		return 0, fmt.Errorf("createTag: error getting last insert ID: %w", err)
 	}
 
 	return tagID, nil

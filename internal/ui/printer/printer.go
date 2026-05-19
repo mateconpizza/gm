@@ -171,7 +171,6 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 		if ext == locker.Extension {
 			fnameColor = p.BrightMagenta.Sprint
 			cleanName = fnameColor(cleanName)
-			cleanName += p.Gray.Wrap(" (locked)", p.Italic)
 			rows = append(
 				rows,
 				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
@@ -180,12 +179,17 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 			continue
 		}
 
-		s, err := db.NewStats(ctx, fpath)
+		r, err := db.New(ctx, fpath)
 		if err != nil {
 			return err
 		}
+		s, err := db.NewStats(ctx, r)
+		if err != nil {
+			return err
+		}
+		r.Close()
 
-		if s.Name == defaultName {
+		if r.Name() == defaultName {
 			fnameColor = p.BrightYellow.With(p.Bold).Sprint
 			cleanName = fnameColor(cleanName)
 			cleanName += p.Gray.Wrap(" (default)", p.Italic)

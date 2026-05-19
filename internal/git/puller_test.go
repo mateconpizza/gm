@@ -31,7 +31,6 @@ func setupRepoSummary(t *testing.T) *SyncGitSummary {
 			Bookmarks: 10,
 			Tags:      20,
 			Favorites: 5,
-			Size:      "256",
 		},
 
 		ClientInfo: &ClientInfo{

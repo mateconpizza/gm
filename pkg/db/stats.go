@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 	"strings"
-
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
-// RepoStats holds statistics about a bookmark repository.
+// RepoStats holds metadata about a bookmark repository.
 type RepoStats struct {
-	Name      string `json:"dbname"`     // Name is the database base name.
-	Bookmarks int    `json:"bookmarks"`  // Bookmarks is the count of bookmarks.
-	Tags      int    `json:"tags"`       // Tags is the count of tags.
-	Favorites int    `json:"favorites"`  // Favorites is the count of favorite bookmarks.
-	Size      string `json:"size_bytes"` // Size in bytes
+	Name        string `db:"-"`
+	Bookmarks   int    `db:"total_bookmarks"`
+	Tags        int    `db:"total_tags"`
+	Favorites   int    `db:"favorites"`
+	Archived    int    `db:"archived"`
+	DeadLinks   int    `db:"dead_links"`
+	TotalVisits int    `db:"total_visits"`
 }
 
-// String returns a string representation of the repo summary.
 func (rs *RepoStats) String() string {
 	var parts []string
 	if rs.Bookmarks > 0 {
@@ -39,22 +38,14 @@ func (rs *RepoStats) String() string {
 	return strings.Join(parts, ", ")
 }
 
-func NewStats(ctx context.Context, dbPath string) (*RepoStats, error) {
-	r, err := New(ctx, dbPath)
+func NewStats(ctx context.Context, r *SQLite) (*RepoStats, error) {
+	var stats RepoStats
+	err := r.DB.GetContext(ctx, &stats, `SELECT * FROM stats`)
 	if err != nil {
-		return nil, fmt.Errorf("creating repo: %w", err)
+		return nil, fmt.Errorf("get stats: %w", err)
 	}
-	defer r.Close()
 
-	return r.Stats(ctx), nil
-}
+	stats.Name = r.Name()
 
-func (r *SQLite) Stats(ctx context.Context) *RepoStats {
-	return &RepoStats{
-		Name:      r.Name(),
-		Bookmarks: r.Count(ctx, "bookmarks"),
-		Tags:      r.Count(ctx, "tags"),
-		Favorites: r.CountFavorites(ctx),
-		Size:      files.SizeFormatted(r.Cfg.Fullpath()),
-	}
+	return &stats, nil
 }

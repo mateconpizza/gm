@@ -20,7 +20,7 @@ func setupTestDB(t *testing.T) *SQLite {
 		t.Fatalf("failed to open database: %v", err)
 	}
 	r := newSQLiteRepository(db, c)
-	_ = r.Init(t.Context())
+	_ = Migrate(t.Context(), r)
 
 	return r
 }
@@ -86,42 +86,15 @@ func TestInit(t *testing.T) {
 	}
 	defer teardownthewall(r.DB)
 
-	for _, s := range tablesAndSchemas {
-		tExists, err := tableExists(t.Context(), r, s.Name)
+	for _, table := range tables {
+		tExists, err := table.Exists(t.Context(), r)
 		if err != nil {
-			t.Errorf("failed to check if table %s exists: %v", s.Name, err)
+			t.Errorf("failed to check if table %s exists: %v", table, err)
 			continue
 		}
 		if !tExists {
-			t.Errorf("expected table %s to exist, but it does not", s.Name)
+			t.Errorf("expected table %s to exist, but it does not", table)
 		}
-	}
-}
-
-func TestDropTable(t *testing.T) {
-	t.Parallel()
-	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
-
-	tDrop := schemaMain.Name
-	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
-		return r.tableDrop(t.Context(), tx, tDrop)
-	})
-	if err != nil {
-		t.Fatalf("failed to drop table %s: %v", tDrop, err)
-	}
-
-	_, err = r.DB.ExecContext(t.Context(), fmt.Sprintf("SELECT * FROM %s", tDrop))
-	if err == nil {
-		t.Errorf("main table %s still exists after dropping", tDrop)
-	}
-
-	exists, err := tableExists(t.Context(), r, tDrop)
-	if err != nil {
-		t.Fatalf("failed to check table existence: %v", err)
-	}
-	if exists {
-		t.Errorf("expected table %s to not exist, but it still does", tDrop)
 	}
 }
 
@@ -138,7 +111,7 @@ func TestTableCreate(t *testing.T) {
 		t.Fatalf("failed to create table %s: %v", newTable, err)
 	}
 
-	exists, err := tableExists(t.Context(), r, newTable)
+	exists, err := newTable.Exists(t.Context(), r)
 	if err != nil {
 		t.Fatalf("failed to check if table exists: %v", err)
 	}
@@ -161,7 +134,7 @@ func TestTableExists(t *testing.T) {
 		t.Fatalf("failed to create table %s: %v", tt, err)
 	}
 
-	exists, err := tableExists(t.Context(), r, tt)
+	exists, err := tt.Exists(t.Context(), r)
 	if err != nil {
 		t.Fatalf("failed to check table %s existence: %v", tt, err)
 	}
@@ -169,43 +142,12 @@ func TestTableExists(t *testing.T) {
 		t.Errorf("expected table %s to exist, but it does not", tt)
 	}
 
-	exists, err = tableExists(t.Context(), r, "non_existent_table")
+	var nonExistentTable Table = "non_existent_table"
+	exists, err = nonExistentTable.Exists(t.Context(), r)
 	if err != nil {
 		t.Fatalf("failed to check non-existent table: %v", err)
 	}
 	if exists {
 		t.Errorf("expected non-existent table to not exist, but it does")
-	}
-}
-
-func TestRenameTable(t *testing.T) {
-	t.Parallel()
-	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
-
-	srcTable := schemaMain.Name
-	destTable := "new_" + srcTable
-
-	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
-		return r.tableRename(t.Context(), tx, srcTable, destTable)
-	})
-	if err != nil {
-		t.Fatalf("failed to rename table %s to %s: %v", srcTable, destTable, err)
-	}
-
-	srcExists, err := tableExists(t.Context(), r, srcTable)
-	if err != nil {
-		t.Fatalf("failed to check if source table exists: %v", err)
-	}
-	if srcExists {
-		t.Errorf("expected source table %s to not exist, but it does", srcTable)
-	}
-
-	destExists, err := tableExists(t.Context(), r, destTable)
-	if err != nil {
-		t.Fatalf("failed to check if destination table exists: %v", err)
-	}
-	if !destExists {
-		t.Errorf("expected destination table %s to exist, but it does not", destTable)
 	}
 }

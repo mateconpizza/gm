@@ -26,7 +26,7 @@ func (r *SQLite) InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, er
 	var id int64
 	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		var err error
-		id, err = r.insertIntoTx(tx, b)
+		id, err = r.insertIntoTx(ctx, tx, b)
 		return err
 	})
 
@@ -43,16 +43,18 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
-	slog.Debug("deleting many records", "count", n)
+	slog.DebugContext(ctx, "deleting many records", "count", n)
 
-	urls := make([]string, 0, len(bs))
+	ids := make([]int, 0, len(bs))
 	for i := range bs {
-		urls = append(urls, bs[i].URL)
+		ids = append(ids, bs[i].ID)
 	}
+
+	slog.DebugContext(ctx, "delete many", "ids", ids)
 
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		// Delete from bookmark_tags first (foreign key constraint)
-		q1, args1, err := sqlx.In("DELETE FROM bookmark_tags WHERE bookmark_url IN (?)", urls)
+		q1, args1, err := sqlx.In("DELETE FROM bookmark_tags WHERE bookmark_id IN (?)", ids)
 		if err != nil {
 			return fmt.Errorf("preparing bookmark_tags delete: %w", err)
 		}
@@ -62,7 +64,7 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 		}
 
 		// Delete from bookmarks table
-		q2, args2, err := sqlx.In("DELETE FROM bookmarks WHERE url IN (?)", urls)
+		q2, args2, err := sqlx.In("DELETE FROM bookmarks WHERE id IN (?)", ids)
 		if err != nil {
 			return fmt.Errorf("preparing bookmarks delete: %w", err)
 		}
@@ -72,7 +74,7 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 		}
 
 		// Clean up orphaned tags
-		return r.cleanOrphanTagsTx(tx)
+		return r.cleanOrphanTagsTx(ctx, tx)
 	})
 }
 
@@ -83,21 +85,21 @@ func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 		b.GenChecksum()
 
 		// Update record
-		if err := r.updateRecordTx(tx, b); err != nil {
+		if err := r.updateRecordTx(ctx, tx, b); err != nil {
 			return fmt.Errorf("update record: %w", err)
 		}
 
 		// Remove old tag associations
-		if _, err := tx.Exec("DELETE FROM bookmark_tags WHERE bookmark_url = ?", b.URL); err != nil {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM bookmark_tags WHERE bookmark_id = ?", b.ID); err != nil {
 			return fmt.Errorf("clear tags: %w", err)
 		}
 
 		// Re-associate tags
-		if err := r.associateTags(tx, b); err != nil {
+		if err := r.associateTags(ctx, tx, b); err != nil {
 			return fmt.Errorf("associate tags: %w", err)
 		}
 
-		return r.cleanOrphanTagsTx(tx)
+		return r.cleanOrphanTagsTx(ctx, tx)
 	})
 }
 
@@ -119,7 +121,7 @@ func (r *SQLite) UpdateNotes(ctx context.Context, bID int, notes string) error {
 }
 
 // updateRecordTx updates a bookmark inside a transaction.
-func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) updateRecordTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	b.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	query := `
@@ -145,7 +147,7 @@ func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	WHERE id = :id OR url = :url
 	`
 
-	if _, err := tx.NamedExec(query, b); err != nil {
+	if _, err := tx.NamedExecContext(ctx, query, b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -157,10 +159,10 @@ func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
 	q := `
     SELECT
       b.*,
-      GROUP_CONCAT(t.name, ',') AS tags
+      COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
-      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
       LEFT JOIN tags t ON bt.tag_id = t.id
     GROUP BY
       b.id
@@ -188,13 +190,10 @@ func (r *SQLite) ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error) 
 	q := `
     SELECT
       b.*,
-      COALESCE(
-        GROUP_CONCAT(t.name, ','),
-        ''
-      ) AS tags
+      COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
-      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
       LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
       b.id = ?`
@@ -223,13 +222,10 @@ func (r *SQLite) ByIDList(ctx context.Context, bIDs []int) ([]*bookmark.Bookmark
 	q, args, err := sqlx.In(`
     SELECT
       b.*,
-      COALESCE(
-        GROUP_CONCAT(t.name, ','),
-        ''
-      ) AS tags
+      COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
-      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
       LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
       b.id IN (?)
@@ -255,13 +251,10 @@ func (r *SQLite) ByURL(ctx context.Context, bURL string) (*bookmark.Bookmark, er
 	row := r.DB.QueryRowxContext(ctx, `
     SELECT
       b.*,
-      COALESCE(
-        GROUP_CONCAT(t.name, ','),
-        ''
-      ) AS tags
+      COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
-      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
       LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
       b.url = ?`, bURL)
@@ -281,20 +274,23 @@ func (r *SQLite) ByURL(ctx context.Context, bURL string) (*bookmark.Bookmark, er
 
 // ByTag returns records filtered by tag, including all associated tags.
 func (r *SQLite) ByTag(ctx context.Context, tag string) ([]*bookmark.Bookmark, error) {
-	q := `
-    SELECT
-      b.*,
-      COALESCE(GROUP_CONCAT(t_all.name, ','), '') AS tags
-    FROM bookmarks b
-    JOIN bookmark_tags bt_filter ON b.url = bt_filter.bookmark_url
-    JOIN tags t_filter ON bt_filter.tag_id = t_filter.id
-    JOIN bookmark_tags bt_all ON b.url = bt_all.bookmark_url
-    JOIN tags t_all ON bt_all.tag_id = t_all.id
-    WHERE LOWER(t_filter.name) LIKE LOWER(?)
-    GROUP BY b.id
-    ORDER BY b.id ASC;`
+	query := `
+		SELECT
+			b.*,
+			GROUP_CONCAT(t2.name, ',') AS tags
+		FROM bookmarks b
+		JOIN bookmark_tags bt ON b.id = bt.bookmark_id
+		JOIN tags t ON t.id = bt.tag_id
 
-	bs, err := r.bySQL(ctx, q, "%"+tag+"%")
+		LEFT JOIN bookmark_tags bt2 ON b.id = bt2.bookmark_id
+		LEFT JOIN tags t2 ON t2.id = bt2.tag_id
+
+		WHERE t.name = ?
+		GROUP BY b.id
+		ORDER BY b.id ASC;
+	`
+
+	bs, err := r.bySQL(ctx, query, tag)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +307,7 @@ func (r *SQLite) ByQuery(ctx context.Context, query string) ([]*bookmark.Bookmar
       b.*,
       GROUP_CONCAT(t.name, ',') AS tags
     FROM bookmarks b
-    LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+		LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
     LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
         (LOWER(b.id || b.title || b.url || b.desc || b.notes) LIKE LOWER(?) OR
@@ -402,7 +398,7 @@ func (r *SQLite) FavoritesList(ctx context.Context) ([]*bookmark.Bookmark, error
       GROUP_CONCAT(t.name, ',') AS tags
     FROM
       bookmarks b
-      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
       LEFT JOIN tags t ON bt.tag_id = t.id
     WHERE
       b.favorite = 1
@@ -426,7 +422,7 @@ func (r *SQLite) ByOrder(ctx context.Context, column, sortBy string) ([]*bookmar
       GROUP_CONCAT(t.name, ',') AS tags
     FROM
       bookmarks b
-      LEFT JOIN bookmark_tags bt ON b.url = bt.bookmark_url
+      LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
       LEFT JOIN tags t ON bt.tag_id = t.id
     GROUP BY
       b.id
@@ -509,12 +505,13 @@ func (r *SQLite) bySQL(ctx context.Context, q string, args ...any) ([]*bookmark.
 
 // deleteOneTx deletes an single record in the given table.
 func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
-	slog.Debug("deleting record", "url", b.URL)
+	slog.DebugContext(ctx, "deleting record", "id", b.ID, "url", b.URL)
 
 	// remove tags relationships first
-	if _, err := tx.ExecContext(ctx,
-		fmt.Sprintf("DELETE FROM %s WHERE bookmark_url = ?", schemaRelation.Name),
-		b.URL,
+	if _, err := tx.ExecContext(
+		ctx,
+		fmt.Sprintf("DELETE FROM %s WHERE bookmark_id = ?", TableRelation.String()),
+		b.ID,
 	); err != nil {
 		return fmt.Errorf("failed to delete tags: %w", err)
 	}
@@ -533,14 +530,14 @@ func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookm
 // deleteAll deletes all records in the give table.
 func (r *SQLite) deleteAll(ctx context.Context, tx *sqlx.Tx, ts ...Table) error {
 	if len(ts) == 0 {
-		slog.Debug("no tables to delete")
+		slog.DebugContext(ctx, "no tables to delete")
 		return nil
 	}
 
-	slog.Debug("deleting all records from tables", "tables", ts)
+	slog.DebugContext(ctx, "deleting all records from tables", "tables", ts)
 
 	for _, t := range ts {
-		slog.Debug("deleting records from table", "table", t)
+		slog.DebugContext(ctx, "deleting records from table", "table", t)
 
 		_, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", t))
 		if err != nil {
@@ -559,7 +556,7 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		for _, b := range bs {
-			if _, err := r.insertIntoTx(tx, b); err != nil {
+			if _, err := r.insertIntoTx(ctx, tx, b); err != nil {
 				return err
 			}
 		}
@@ -569,16 +566,16 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 }
 
 // insertIntoTx inserts a record inside an existing transaction.
-func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
+func (r *SQLite) insertIntoTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 	b.GenChecksum()
 
 	// insert record and associate tags in the same transaction.
-	bID, err := insertRecord(tx, b)
+	bID, err := insertRecord(ctx, tx, b)
 	if err != nil {
 		return 0, fmt.Errorf("%w: %s", err, b.URL)
 	}
 
-	if err := r.associateTags(tx, b); err != nil {
+	if err := r.associateTags(ctx, tx, b); err != nil {
 		return 0, fmt.Errorf("failed to associate tags: %w", err)
 	}
 
@@ -588,46 +585,48 @@ func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) 
 }
 
 // insertRecord inserts a new record into the table.
-func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
+func insertRecord(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 	if b.Checksum == "" {
 		return 0, ErrChecksumEmpty
 	}
 
 	b.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 
-	r, err := tx.NamedExec(`
-	INSERT INTO bookmarks (
-		url,
-		title,
-		desc,
-		notes,
-		created_at,
-		last_visit,
-		updated_at,
-		visit_count,
-		favorite,
-		checksum,
-		favicon_url,
-		favicon_local,
-		archive_url,
-		archive_timestamp
+	r, err := tx.NamedExecContext(
+		ctx,
+		`INSERT INTO bookmarks (
+			url,
+			title,
+			desc,
+			notes,
+			created_at,
+			last_visit,
+			updated_at,
+			visit_count,
+			favorite,
+			checksum,
+			favicon_url,
+			favicon_local,
+			archive_url,
+			archive_timestamp
+		)
+		VALUES (
+			:url,
+			:title,
+			:desc,
+			:notes,
+			:created_at,
+			:last_visit,
+			:updated_at,
+			:visit_count,
+			:favorite,
+			:checksum,
+			:favicon_url,
+			:favicon_local,
+			:archive_url,
+			:archive_timestamp
+	)`, &b,
 	)
-	VALUES (
-		:url,
-		:title,
-		:desc,
-		:notes,
-		:created_at,
-		:last_visit,
-		:updated_at,
-		:visit_count,
-		:favorite,
-		:checksum,
-		:favicon_url,
-		:favicon_local,
-		:archive_url,
-		:archive_timestamp
-	)`, &b)
 	if err != nil {
 		return 0, fmt.Errorf("%w", err)
 	}
@@ -644,7 +643,7 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 
 // updateVisit updates the visit count and last visit date for a bookmark.
 func updateVisit(ctx context.Context, tx *sqlx.Tx, bID int) error {
-	slog.Debug("updating visit count", "id", bID)
+	slog.DebugContext(ctx, "updating visit count", "id", bID)
 	_, err := tx.ExecContext(
 		ctx,
 		"UPDATE bookmarks SET visit_count = visit_count + 1, last_visit = ? WHERE id = ?",

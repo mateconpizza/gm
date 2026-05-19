@@ -18,38 +18,17 @@ const defaultDateFormat = "20060102-150405"
 // IsInitializedFromPath checks if the database is initialized.
 func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
 	slog.Debug("checking if database is initialized", "path", p)
-
-	allExist := true
-
 	r, err := New(ctx, p)
 	if err != nil {
 		return false, err
 	}
+	defer r.Close()
 
-	for _, s := range tablesAndSchemas {
-		exists, err := tableExists(ctx, r, s.Name)
-		if err != nil {
-			slog.Error("checking if table exists", "name", s.Name, "error", err)
-			return false, err
-		}
-
-		if !exists {
-			allExist = false
-
-			slog.Warn("table does not exist", "name", s.Name)
-		}
-	}
-
-	return allExist, nil
+	return r.IsInitialized(ctx), nil
 }
 
 // drop removes all records database.
 func drop(ctx context.Context, r *SQLite) error {
-	tables := make([]Table, 0, len(tablesAndSchemas))
-	for _, t := range tablesAndSchemas {
-		tables = append(tables, t.Name)
-	}
-
 	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.deleteAll(ctx, tx, tables...); err != nil {
 			return err
@@ -113,19 +92,10 @@ func ensureDBSuffix(s string) string {
 	return fmt.Sprintf("%s%s", s, suffix)
 }
 
-// CleanupOrphanTags elimina todos los tags que no estén asociados a ningún bookmark.
-func (r *SQLite) CleanupOrphanTags(ctx context.Context) error {
-	_, err := r.DB.ExecContext(ctx, `
-		DELETE FROM tags
-		WHERE id NOT IN (
-			SELECT DISTINCT tag_id FROM bookmark_tags
-		);
-	`)
-	return err
-}
-
-func (r *SQLite) cleanOrphanTagsTx(tx *sqlx.Tx) error {
-	_, err := tx.Exec(`
+// cleanOrphanTagsTx removes all tags that are not associated with any
+// bookmark.
+func (r *SQLite) cleanOrphanTagsTx(ctx context.Context, tx *sqlx.Tx) error {
+	_, err := tx.ExecContext(ctx, `
 		DELETE FROM tags
 		WHERE id NOT IN (
 			SELECT DISTINCT tag_id FROM bookmark_tags
@@ -138,9 +108,8 @@ func (r *SQLite) cleanOrphanTagsTx(tx *sqlx.Tx) error {
 }
 
 func (r *SQLite) ReorderIDs(ctx context.Context) error {
-	slog.Debug("Reordering bookmark IDs")
+	slog.DebugContext(ctx, "Reordering bookmark IDs")
 
-	// Get all bookmarks in memory
 	bs, err := r.All(ctx)
 	if err != nil && !errors.Is(err, ErrRecordNotFound) {
 		return err
@@ -149,15 +118,17 @@ func (r *SQLite) ReorderIDs(ctx context.Context) error {
 		return nil
 	}
 
+	mainTables := []Table{TableBookmarks, TableTags, TableRelation}
+
 	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		for _, tbl := range []Table{schemaMain.Name, schemaTags.Name, schemaRelation.Name} {
-			slog.Debug("Deleting records from", "table", tbl)
+		for _, tbl := range mainTables {
+			slog.DebugContext(ctx, "deleting records from", "table", tbl)
 			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tbl)); err != nil {
 				return fmt.Errorf("clearing table %q: %w", tbl, err)
 			}
 		}
 
-		return resetSQLiteSequence(ctx, tx, schemaMain.Name, schemaTags.Name, schemaRelation.Name)
+		return resetSQLiteSequence(ctx, tx, mainTables...)
 	})
 	if err != nil {
 		return err
@@ -216,4 +187,14 @@ func (r *SQLite) CheckIntegrity(ctx context.Context) error {
 	slog.Debug("SQLite integrity verified", "result", result)
 
 	return nil
+}
+
+func UpdateAppVersion(ctx context.Context, r *SQLite, version string) error {
+	query := `
+		INSERT INTO metadata (key, value)
+		VALUES ('app_version', ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+	`
+	_, err := r.DB.ExecContext(ctx, query, version)
+	return err
 }

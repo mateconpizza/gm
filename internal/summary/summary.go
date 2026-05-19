@@ -25,24 +25,36 @@ func Repo(d *deps.Deps) (string, error) {
 		return "", err
 	}
 
-	var (
-		name    = r.Name()
-		path    = txt.PaddedLine("path:", files.CollapseHomeDir(r.Cfg.Fullpath()))
-		records = txt.PaddedLine("records:", r.Count(d.Context(), "bookmarks"))
-		tags    = txt.PaddedLine("tags:", r.Count(d.Context(), "tags"))
-		p       = d.Console().Palette()
-	)
+	stats, err := db.NewStats(d.Context(), r)
+	if err != nil {
+		return "", err
+	}
 
+	p := d.Console().Palette()
+
+	name := r.Name()
 	if name == application.MainDBName {
 		name += p.Gray.Wrap(" (main) ", p.Italic)
 	}
 
-	return d.Console().Frame().
-		Headerln(p.Yellow.Wrap(name, p.Italic)).
-		Rowln(records).
-		Rowln(tags).
-		Rowln(path).
-		StringReset(), nil
+	f := d.Console().Frame()
+	f.Headerln(p.Yellow.Wrap(name, p.Italic)).
+		Rowln(txt.PaddedLine("records:", stats.Bookmarks)).
+		Rowln(txt.PaddedLine("tags:", stats.Tags))
+
+	if stats.Favorites > 0 {
+		f.Rowln(txt.PaddedLine("favorites:", stats.Favorites))
+	}
+	if stats.DeadLinks > 0 {
+		f.Rowln(txt.PaddedLine("deadlinks:", stats.DeadLinks))
+	}
+	if stats.TotalVisits > 0 {
+		f.Rowln(txt.PaddedLine("visits:", stats.TotalVisits))
+	}
+
+	f.Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(r.Cfg.Fullpath())))
+
+	return f.StringReset(), nil
 }
 
 // RepoFromPath returns a summary of the repository.

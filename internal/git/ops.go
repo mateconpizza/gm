@@ -66,7 +66,12 @@ func writeRepoStats(ctx context.Context, gr *Repository) error {
 
 // repoStats returns a new RepoStats.
 func repoStats(ctx context.Context, dbPath string, summary *SyncGitSummary) error {
-	rs, err := db.NewStats(ctx, dbPath)
+	r, err := db.New(ctx, dbPath)
+	if err != nil {
+		return err
+	}
+
+	rs, err := db.NewStats(ctx, r)
 	if err != nil {
 		return err
 	}
