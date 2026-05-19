@@ -26,7 +26,7 @@ func (r *SQLite) InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, er
 	var id int64
 	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		var err error
-		id, err = r.insertIntoTx(tx, b)
+		id, err = r.insertIntoTx(ctx, tx, b)
 		return err
 	})
 
@@ -74,7 +74,7 @@ func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 		}
 
 		// Clean up orphaned tags
-		return r.cleanOrphanTagsTx(tx)
+		return r.cleanOrphanTagsTx(ctx, tx)
 	})
 }
 
@@ -85,7 +85,7 @@ func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 		b.GenChecksum()
 
 		// Update record
-		if err := r.updateRecordTx(tx, b); err != nil {
+		if err := r.updateRecordTx(ctx, tx, b); err != nil {
 			return fmt.Errorf("update record: %w", err)
 		}
 
@@ -95,11 +95,11 @@ func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 		}
 
 		// Re-associate tags
-		if err := r.associateTags(tx, b); err != nil {
+		if err := r.associateTags(ctx, tx, b); err != nil {
 			return fmt.Errorf("associate tags: %w", err)
 		}
 
-		return r.cleanOrphanTagsTx(tx)
+		return r.cleanOrphanTagsTx(ctx, tx)
 	})
 }
 
@@ -121,7 +121,7 @@ func (r *SQLite) UpdateNotes(ctx context.Context, bID int, notes string) error {
 }
 
 // updateRecordTx updates a bookmark inside a transaction.
-func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
+func (r *SQLite) updateRecordTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	b.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	query := `
@@ -147,7 +147,7 @@ func (r *SQLite) updateRecordTx(tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	WHERE id = :id OR url = :url
 	`
 
-	if _, err := tx.NamedExec(query, b); err != nil {
+	if _, err := tx.NamedExecContext(ctx, query, b); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
@@ -510,7 +510,7 @@ func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookm
 	// remove tags relationships first
 	if _, err := tx.ExecContext(
 		ctx,
-		fmt.Sprintf("DELETE FROM %s WHERE bookmark_id = ?", schemaRelation.Name),
+		fmt.Sprintf("DELETE FROM %s WHERE bookmark_id = ?", TableRelation.String()),
 		b.ID,
 	); err != nil {
 		return fmt.Errorf("failed to delete tags: %w", err)
@@ -530,14 +530,14 @@ func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookm
 // deleteAll deletes all records in the give table.
 func (r *SQLite) deleteAll(ctx context.Context, tx *sqlx.Tx, ts ...Table) error {
 	if len(ts) == 0 {
-		slog.Debug("no tables to delete")
+		slog.DebugContext(ctx, "no tables to delete")
 		return nil
 	}
 
-	slog.Debug("deleting all records from tables", "tables", ts)
+	slog.DebugContext(ctx, "deleting all records from tables", "tables", ts)
 
 	for _, t := range ts {
-		slog.Debug("deleting records from table", "table", t)
+		slog.DebugContext(ctx, "deleting records from table", "table", t)
 
 		_, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", t))
 		if err != nil {
@@ -556,7 +556,7 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		for _, b := range bs {
-			if _, err := r.insertIntoTx(tx, b); err != nil {
+			if _, err := r.insertIntoTx(ctx, tx, b); err != nil {
 				return err
 			}
 		}
@@ -566,16 +566,16 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 }
 
 // insertIntoTx inserts a record inside an existing transaction.
-func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
+func (r *SQLite) insertIntoTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 	b.GenChecksum()
 
 	// insert record and associate tags in the same transaction.
-	bID, err := insertRecord(tx, b)
+	bID, err := insertRecord(ctx, tx, b)
 	if err != nil {
 		return 0, fmt.Errorf("%w: %s", err, b.URL)
 	}
 
-	if err := r.associateTags(tx, b); err != nil {
+	if err := r.associateTags(ctx, tx, b); err != nil {
 		return 0, fmt.Errorf("failed to associate tags: %w", err)
 	}
 
@@ -585,46 +585,48 @@ func (r *SQLite) insertIntoTx(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) 
 }
 
 // insertRecord inserts a new record into the table.
-func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
+func insertRecord(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 	if b.Checksum == "" {
 		return 0, ErrChecksumEmpty
 	}
 
 	b.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 
-	r, err := tx.NamedExec(`
-	INSERT INTO bookmarks (
-		url,
-		title,
-		desc,
-		notes,
-		created_at,
-		last_visit,
-		updated_at,
-		visit_count,
-		favorite,
-		checksum,
-		favicon_url,
-		favicon_local,
-		archive_url,
-		archive_timestamp
+	r, err := tx.NamedExecContext(
+		ctx,
+		`INSERT INTO bookmarks (
+			url,
+			title,
+			desc,
+			notes,
+			created_at,
+			last_visit,
+			updated_at,
+			visit_count,
+			favorite,
+			checksum,
+			favicon_url,
+			favicon_local,
+			archive_url,
+			archive_timestamp
+		)
+		VALUES (
+			:url,
+			:title,
+			:desc,
+			:notes,
+			:created_at,
+			:last_visit,
+			:updated_at,
+			:visit_count,
+			:favorite,
+			:checksum,
+			:favicon_url,
+			:favicon_local,
+			:archive_url,
+			:archive_timestamp
+	)`, &b,
 	)
-	VALUES (
-		:url,
-		:title,
-		:desc,
-		:notes,
-		:created_at,
-		:last_visit,
-		:updated_at,
-		:visit_count,
-		:favorite,
-		:checksum,
-		:favicon_url,
-		:favicon_local,
-		:archive_url,
-		:archive_timestamp
-	)`, &b)
 	if err != nil {
 		return 0, fmt.Errorf("%w", err)
 	}
@@ -641,7 +643,7 @@ func insertRecord(tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
 
 // updateVisit updates the visit count and last visit date for a bookmark.
 func updateVisit(ctx context.Context, tx *sqlx.Tx, bID int) error {
-	slog.Debug("updating visit count", "id", bID)
+	slog.DebugContext(ctx, "updating visit count", "id", bID)
 	_, err := tx.ExecContext(
 		ctx,
 		"UPDATE bookmarks SET visit_count = visit_count + 1, last_visit = ? WHERE id = ?",

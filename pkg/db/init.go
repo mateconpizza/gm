@@ -8,13 +8,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// tablesAndSchemas all tables and their schema.
-var tablesAndSchemas = []Schema{
-	schemaMain,
-	schemaTags,
-	schemaRelation,
-}
-
 type Table string
 
 var (
@@ -44,6 +37,13 @@ func (t Table) String() string {
 	return string(t)
 }
 
+var tables = []Table{
+	TableBookmarks,
+	TableTags,
+	TableRelation,
+	TableMetadata,
+}
+
 // Init initializes a new database and creates the required tables.
 func (r *SQLite) Init(ctx context.Context) error {
 	return Migrate(ctx, r)
@@ -63,7 +63,7 @@ func (r *SQLite) tableRename(ctx context.Context, tx *sqlx.Tx, srcTable, destTab
 
 // tableCreate creates a new table with the specified name in the SQLite database.
 func (r *SQLite) tableCreate(ctx context.Context, tx *sqlx.Tx, name Table, schema string) error {
-	slog.Debug("creating table", "name", name)
+	slog.DebugContext(ctx, "creating table", "name", name)
 
 	_, err := tx.ExecContext(ctx, schema)
 	if err != nil {

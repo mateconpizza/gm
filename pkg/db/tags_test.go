@@ -102,7 +102,7 @@ func TestGetOrCreateTag(t *testing.T) {
 
 	newTagName := "newtag"
 	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
-		tagID, err := createTag(tx, newTagName)
+		tagID, err := createTag(t.Context(), tx, newTagName)
 		if err != nil {
 			t.Errorf("failed to create tag: %v", err)
 		}
@@ -110,7 +110,7 @@ func TestGetOrCreateTag(t *testing.T) {
 			t.Errorf("expected non-zero tag ID")
 		}
 
-		newTagID, err := getTag(tx, newTagName)
+		newTagID, err := getTag(t.Context(), tx, newTagName)
 		if err != nil {
 			t.Errorf("failed to get tag: %v", err)
 		}

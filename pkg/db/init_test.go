@@ -86,14 +86,14 @@ func TestInit(t *testing.T) {
 	}
 	defer teardownthewall(r.DB)
 
-	for _, s := range tablesAndSchemas {
-		tExists, err := tableExists(t.Context(), r, s.Name)
+	for _, table := range tables {
+		tExists, err := table.Exists(t.Context(), r)
 		if err != nil {
-			t.Errorf("failed to check if table %s exists: %v", s.Name, err)
+			t.Errorf("failed to check if table %s exists: %v", table, err)
 			continue
 		}
 		if !tExists {
-			t.Errorf("expected table %s to exist, but it does not", s.Name)
+			t.Errorf("expected table %s to exist, but it does not", table)
 		}
 	}
 }
@@ -138,7 +138,7 @@ func TestTableCreate(t *testing.T) {
 		t.Fatalf("failed to create table %s: %v", newTable, err)
 	}
 
-	exists, err := tableExists(t.Context(), r, newTable)
+	exists, err := newTable.Exists(t.Context(), r)
 	if err != nil {
 		t.Fatalf("failed to check if table exists: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestTableExists(t *testing.T) {
 		t.Fatalf("failed to create table %s: %v", tt, err)
 	}
 
-	exists, err := tableExists(t.Context(), r, tt)
+	exists, err := tt.Exists(t.Context(), r)
 	if err != nil {
 		t.Fatalf("failed to check table %s existence: %v", tt, err)
 	}
@@ -169,7 +169,8 @@ func TestTableExists(t *testing.T) {
 		t.Errorf("expected table %s to exist, but it does not", tt)
 	}
 
-	exists, err = tableExists(t.Context(), r, "non_existent_table")
+	var nonExistentTable Table = "non_existent_table"
+	exists, err = nonExistentTable.Exists(t.Context(), r)
 	if err != nil {
 		t.Fatalf("failed to check non-existent table: %v", err)
 	}

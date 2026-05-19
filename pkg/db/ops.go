@@ -29,11 +29,6 @@ func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
 
 // drop removes all records database.
 func drop(ctx context.Context, r *SQLite) error {
-	tables := make([]Table, 0, len(tablesAndSchemas))
-	for _, t := range tablesAndSchemas {
-		tables = append(tables, t.Name)
-	}
-
 	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		if err := r.deleteAll(ctx, tx, tables...); err != nil {
 			return err
@@ -97,19 +92,10 @@ func ensureDBSuffix(s string) string {
 	return fmt.Sprintf("%s%s", s, suffix)
 }
 
-// CleanupOrphanTags elimina todos los tags que no estén asociados a ningún bookmark.
-func (r *SQLite) CleanupOrphanTags(ctx context.Context) error {
-	_, err := r.DB.ExecContext(ctx, `
-		DELETE FROM tags
-		WHERE id NOT IN (
-			SELECT DISTINCT tag_id FROM bookmark_tags
-		);
-	`)
-	return err
-}
-
-func (r *SQLite) cleanOrphanTagsTx(tx *sqlx.Tx) error {
-	_, err := tx.Exec(`
+// cleanOrphanTagsTx removes all tags that are not associated with any
+// bookmark.
+func (r *SQLite) cleanOrphanTagsTx(ctx context.Context, tx *sqlx.Tx) error {
+	_, err := tx.ExecContext(ctx, `
 		DELETE FROM tags
 		WHERE id NOT IN (
 			SELECT DISTINCT tag_id FROM bookmark_tags
@@ -122,9 +108,8 @@ func (r *SQLite) cleanOrphanTagsTx(tx *sqlx.Tx) error {
 }
 
 func (r *SQLite) ReorderIDs(ctx context.Context) error {
-	slog.Debug("Reordering bookmark IDs")
+	slog.DebugContext(ctx, "Reordering bookmark IDs")
 
-	// Get all bookmarks in memory
 	bs, err := r.All(ctx)
 	if err != nil && !errors.Is(err, ErrRecordNotFound) {
 		return err
@@ -133,15 +118,17 @@ func (r *SQLite) ReorderIDs(ctx context.Context) error {
 		return nil
 	}
 
+	mainTables := []Table{TableBookmarks, TableTags, TableRelation}
+
 	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		for _, tbl := range []Table{schemaMain.Name, schemaTags.Name, schemaRelation.Name} {
-			slog.Debug("Deleting records from", "table", tbl)
+		for _, tbl := range mainTables {
+			slog.DebugContext(ctx, "deleting records from", "table", tbl)
 			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tbl)); err != nil {
 				return fmt.Errorf("clearing table %q: %w", tbl, err)
 			}
 		}
 
-		return resetSQLiteSequence(ctx, tx, schemaMain.Name, schemaTags.Name, schemaRelation.Name)
+		return resetSQLiteSequence(ctx, tx, mainTables...)
 	})
 	if err != nil {
 		return err

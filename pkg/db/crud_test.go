@@ -26,8 +26,8 @@ func TestInsertOne(t *testing.T) {
 	defer teardownthewall(r.DB)
 
 	// verify table exists
-	mainTable := schemaMain.Name
-	tableExists, err := tableExists(t.Context(), r, mainTable)
+	mainTable := TableBookmarks
+	tableExists, err := mainTable.Exists(t.Context(), r)
 	if err != nil {
 		t.Fatalf("failed to check if table %s exists: %v", mainTable, err)
 	}
@@ -38,7 +38,7 @@ func TestInsertOne(t *testing.T) {
 	// insert a record
 	record := testSingleBookmark()
 	err = r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
-		_, err := r.insertIntoTx(tx, record)
+		_, err := r.insertIntoTx(t.Context(), tx, record)
 		return err
 	})
 	if err != nil {
@@ -298,7 +298,7 @@ func TestByURL(t *testing.T) {
 	// Insert a test bookmark
 	b := testSingleBookmark()
 	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
-		_, err := r.insertIntoTx(tx, b)
+		_, err := r.insertIntoTx(t.Context(), tx, b)
 		return err
 	})
 	if err != nil {
@@ -422,7 +422,7 @@ func TestRollback(t *testing.T) {
 
 	// Insert bookmark successfully
 	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		_, err := r.insertIntoTx(tx, b)
+		_, err := r.insertIntoTx(t.Context(), tx, b)
 		return err
 	})
 	if err != nil {
@@ -465,13 +465,6 @@ func TestRollback(t *testing.T) {
 func TestDeleteAll(t *testing.T) {
 	r := setupTestDB(t)
 	defer teardownthewall(r.DB)
-
-	// Define tables to delete from
-	tables := []Table{
-		schemaMain.Name,
-		schemaTags.Name,
-		schemaRelation.Name,
-	}
 
 	// Insert test data
 	bookmarks := testSliceBookmarks(10)
