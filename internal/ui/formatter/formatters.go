@@ -220,7 +220,7 @@ func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
 		f.Midln(ansi.StyleAll(descSplit, p.Dim)...)
 	}
 
-	f.Mid(txt.TagsWithColorPound(c, b.Tags)).Ln()
+	f.Footer(txt.TagsWithColorPound(c, b.Tags)).Ln()
 
 	return f.StringReset()
 }
