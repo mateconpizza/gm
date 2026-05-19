@@ -64,12 +64,15 @@ func NewCmd(app *application.App) *cobra.Command {
 	f.SortFlags = false
 	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
 	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false, "reorder IDs")
+
+	cmdutil.HideFlag(c, "color", "db", "force", "verbose", "version", "yes")
+
 	c.AddCommand(
 		newAddCmd(app),            // create
 		newUseCmd(app),            // switch context
 		newCurrentCmd(app),        // inspect current
 		newListCmd(app),           // inspect all
-		newInfoCmd(app),           // inspect one
+		newStatsCmd(app),          // inspect one
 		newBackupCmd(app),         // safe management
 		newDatabaseRemoveCmd(app), // destructive
 		newDropCmd(app),           // most destructive
@@ -82,11 +85,11 @@ func NewCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newInfoCmd(app *application.App) *cobra.Command {
+func newStatsCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "info",
-		Short:   "show info about a database",
-		Aliases: []string{"i", "show", "stats"},
+		Use:     "stats",
+		Short:   "show database stats",
+		Aliases: []string{"i", "show", "info"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -94,7 +97,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return printer.RepoInfo(d)
+			return printer.RepoStats(d)
 		},
 	}
 
@@ -224,10 +227,11 @@ func newUseCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			_, err := db.New(cmd.Context(), app.Path.Database)
+			r, err := db.New(cmd.Context(), app.Path.Database)
 			if err != nil {
 				return err
 			}
+			defer r.Close()
 
 			app.Flags.Force = true
 

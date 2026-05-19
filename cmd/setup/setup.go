@@ -3,7 +3,9 @@
 package setup
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -13,12 +15,13 @@ import (
 	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
+
+const padding = 28
 
 var InitCmd = &cobra.Command{
 	Use:               "init",
@@ -53,46 +56,26 @@ func initializeAction(d *deps.Deps) error {
 	}
 
 	c := d.Console()
-	if err := createPaths(c, app); err != nil {
+
+	// announce app version
+	c.Frame().Header(app.PrettyVersion()).Rowln().Flush()
+
+	if err := initWorkspace(c, app); err != nil {
 		return err
 	}
 
-	ctx := d.Context()
-	store, err := db.Init(ctx, app.Path.Database)
-	if store == nil {
-		return fmt.Errorf("%w", err)
-	}
-	defer store.Close()
-
-	if err := db.Migrate(ctx, store); err != nil {
-		return fmt.Errorf("new migrations: %w", err)
-	}
-
-	if err := db.UpdateAppVersion(ctx, store, app.Info.Version); err != nil {
+	r, err := initMigrations(d.Context(), app, c)
+	if err != nil {
 		return err
 	}
+	defer r.Close()
 
 	if app.DBName != application.MainDBName {
-		fmt.Fprintln(d.Writer(), c.SuccessMesg("initialized database "+app.DBName))
+		c.Frame().Success("Initialized database: " + c.Palette().Italic.Sprint(app.DBName) + "\n").Flush()
 		return nil
 	}
 
-	// initial bookmark
-	ib := bookmark.New()
-	ib.ID = 1
-	ib.URL = app.Info.URL
-	ib.Title = app.Info.Title
-	ib.Tags = bookmark.ParseTags(app.Info.Tags)
-	ib.Desc = app.Info.Desc
-
-	if _, err := store.InsertOne(d.Context(), ib); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprint(d.Writer(), formatter.FrameFunc(c, ib))
-	fmt.Fprintln(d.Writer(), "\n"+c.SuccessMesg("initialized database "+app.DBName))
-
-	return nil
+	return seedNewRepo(d.Context(), app, r, c)
 }
 
 // InitAppPostFunc ask user to track new database if git is initialized.
@@ -134,35 +117,86 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// createPaths creates the paths for the application.
-func createPaths(c *ui.Console, app *application.App) error {
+// initWorkspace creates the paths for the application.
+func initWorkspace(c *ui.Console, app *application.App) error {
 	if files.Exists(app.Path.Data) {
 		return nil
 	}
 
 	p, f := c.Palette(), c.Frame()
-	f.Headerln(app.PrettyVersion()).Rowln().
-		Info(txt.PaddedLine("Create path:", p.Italic.Sprint(app.Path.Data))).Ln().
-		Info(txt.PaddedLine("Create db:", p.Italic.Sprint(app.Path.Database))).Ln()
+	dimmer := func(s string) string { return p.Dim.Wrap(s, p.Italic) }
 
-	lines := txt.CountLines(f.String()) + 1
-	f.Rowln().Flush()
-
-	if err := c.ConfirmErr("continue?", "y"); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	// clean terminal keeping header+row
-	headerN := 3
-	lines += txt.CountLines(f.String()) - headerN
-	c.ClearLine(lines)
+	f.Headerln(p.Bold.Sprint("Initializing workspace")).
+		Info(txt.PaddedLineWithPad("path", dimmer(app.Path.Data)+"\n", padding)).
+		Info(txt.PaddedLineWithPad("database", dimmer(app.DBName)+"\n", padding)).
+		Rowln().
+		Flush()
 
 	if err := app.CreatePaths(); err != nil {
-		sys.ErrAndExit(err)
+		return fmt.Errorf("failed to create workspace paths: %w", err)
 	}
 
-	c.Success(fmt.Sprintf("Created directory path %q\n", app.Path.Data)).Flush()
-	c.Success("Inserted initial bookmark\n").Row("\n").Flush()
+	return nil
+}
+
+func seedNewRepo(ctx context.Context, app *application.App, r *db.SQLite, c *ui.Console) error {
+	ib := bookmark.New()
+	ib.URL = app.Info.URL
+	ib.Title = app.Info.Title
+	ib.Tags = bookmark.ParseTags(app.Info.Tags)
+	ib.Desc = app.Info.Desc
+
+	if _, err := r.InsertOne(ctx, ib); err != nil {
+		return fmt.Errorf("failed to seed initial bookmark: %w", err)
+	}
+
+	p, f := c.Palette(), c.Frame()
+
+	f.Headerln(p.Bold.Sprint("Seeding initial bookmark"))
+
+	u := strings.Replace(ib.URL, "https://", "", 1)
+
+	f.Success(txt.PaddedLineWithPad("inserted", p.Dim.Wrap(u, p.Italic), padding) + "\n").
+		Rowln().
+		Success("Database initialized\n").
+		Success("Setup complete\n").
+		Flush()
 
 	return nil
+}
+
+func initMigrations(ctx context.Context, app *application.App, c *ui.Console) (*db.SQLite, error) {
+	p, f := c.Palette(), c.Frame()
+
+	r, err := db.Init(ctx, app.Path.Database)
+	if err != nil {
+		return nil, fmt.Errorf("database init failed: %w", err)
+	}
+
+	f.Headerln(p.Bold.Sprint("Configuring database"))
+
+	if err := db.Migrate(ctx, r); err != nil {
+		return nil, fmt.Errorf("migrations failed: %w", err)
+	}
+
+	if err := db.UpdateAppVersion(ctx, r, app.Info.Version); err != nil {
+		return nil, fmt.Errorf("app version update failed: %w", err)
+	}
+
+	schemaVer, err := db.CurrentSchemaVersion(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+
+	sqlVer, err := db.SQLiteVersion(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+
+	f.Success(txt.PaddedLineWithPad("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
+		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
+		Rowln().
+		Flush()
+
+	return r, nil
 }

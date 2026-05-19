@@ -305,6 +305,10 @@ func (f *Frame) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+func (f *Frame) SetWriter(w io.Writer) {
+	f.writer = w
+}
+
 // New creates a new Frame instance with the provided options.
 func New(opts ...OptFn) *Frame {
 	o := defaultOpts()

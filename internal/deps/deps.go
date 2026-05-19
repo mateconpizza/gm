@@ -47,32 +47,36 @@ func WithWriter(w io.Writer) Option {
 }
 
 // Context returns the underlying context.Context.
-func (c *Deps) Context() context.Context {
-	return c.ctx
+func (d *Deps) Context() context.Context {
+	return d.ctx
 }
 
 // Application retrieves application from context.
-func (c *Deps) Application() (*application.App, error) {
-	if c.app != nil {
-		return c.app, nil
+func (d *Deps) Application() (*application.App, error) {
+	if d.app != nil {
+		return d.app, nil
 	}
 
-	return application.FromContext(c.ctx)
+	return application.FromContext(d.ctx)
 }
 
-func (c *Deps) Repository() (*db.SQLite, error) {
-	if c.repo == nil {
+func (d *Deps) Repository() (*db.SQLite, error) {
+	if d.repo == nil {
 		return nil, db.ErrDBNotFound
 	}
 
-	return c.repo, nil
+	return d.repo, nil
 }
 
-func (c *Deps) SetRepo(r *db.SQLite)      { c.repo = r }
-func (c *Deps) SetWriter(w io.Writer)     { c.writer = w }
-func (c *Deps) SetConsole(uc *ui.Console) { c.console = uc }
-func (c *Deps) Console() *ui.Console      { return c.console }
-func (c *Deps) Writer() io.Writer         { return c.writer }
+func (d *Deps) SetRepo(r *db.SQLite)      { d.repo = r }
+func (d *Deps) SetConsole(uc *ui.Console) { d.console = uc }
+func (d *Deps) Console() *ui.Console      { return d.console }
+func (d *Deps) Writer() io.Writer         { return d.writer }
+func (d *Deps) SetWriter(w io.Writer) {
+	d.writer = w
+	d.console.Frame().SetWriter(w)
+	d.console.Term().SetWriter(w)
+}
 
 func New(ctx context.Context, opts ...Option) *Deps {
 	c := &Deps{ctx: ctx}

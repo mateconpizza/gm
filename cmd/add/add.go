@@ -40,10 +40,10 @@ func NewCmd(app *application.App) *cobra.Command {
 			name := p.BrightYellow.With(p.Bold).
 				Sprint(files.StripSuffixes(r.Name()))
 
-			info := p.Gray.With(p.Italic).
+			info := p.Dim.With(p.Italic).
 				Sprintf(" (%d bookmarks)", r.Count(d.Context(), "bookmarks"))
 
-			subtitle := p.Gray.With(p.Italic).
+			subtitle := p.Dim.With(p.Italic).
 				Sprint("repo: " + name)
 
 			c.Frame().

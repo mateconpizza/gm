@@ -248,8 +248,8 @@ func TagsJSON(ctx context.Context, p string) error {
 	return nil
 }
 
-// RepoInfo prints the database info.
-func RepoInfo(d *deps.Deps) error {
+// RepoStats prints the database info.
+func RepoStats(d *deps.Deps) error {
 	app, err := d.Application()
 	if err != nil {
 		return err

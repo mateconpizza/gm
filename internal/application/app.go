@@ -221,7 +221,7 @@ func New(info *Information) *App {
 
 func NewInfo(version, commit, date string) *Information {
 	return &Information{
-		URL:     "https://github.com/mateconpizza/gm#readme",
+		URL:     "https://github.com/mateconpizza/gm",
 		Title:   "Gomarks: A bookmark manager",
 		Tags:    "awesome,bookmarks,cli,golang",
 		Desc:    "Simple yet powerful bookmark manager for your terminal",

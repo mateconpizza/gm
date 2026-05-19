@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/testutil"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -16,21 +17,28 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
+	ansi.DisableColor()
+
 	err := initializeAction(d)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "initialized database") {
-		t.Errorf("expected output to contain 'initialized database', got %q", output)
+	want := "Database initialized"
+	if !strings.Contains(output, "Database initialized") {
+		t.Errorf("expected output to contain '%s', got %q", want, output)
 	}
+
 	app, err := d.Application()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(output, app.Info.Title) {
-		t.Errorf("expected output to contain title %q, got %q", app.Info.Title, output)
+
+	u := app.Info.URL
+	want = strings.Replace(u, "https://", "", 1)
+	if !strings.Contains(output, want) {
+		t.Errorf("expected output to contain URL %q, got %q", want, output)
 	}
 
 	// Verify database was actually initialized
@@ -45,7 +53,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	}
 
 	// Verify initial bookmark was inserted
-	bm, err := store.ByID(d.Context(), 1)
+	bm, err := store.ByID(t.Context(), 1)
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}
@@ -74,8 +82,9 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "initialized database test-db") {
-		t.Errorf("expected output to contain 'initialized database test-db', got %q", output)
+	want := "Initialized database: test-db"
+	if !strings.Contains(output, want) {
+		t.Errorf("expected output to contain '%s', got %q", want, output)
 	}
 	// Should not contain bookmark frame for non-main DB
 	if strings.Contains(output, app.Info.Title) {
