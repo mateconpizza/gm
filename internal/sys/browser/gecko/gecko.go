@@ -261,7 +261,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 
 	gmarks, err := queryBookmarks(db)
 	if err != nil {
-		fmt.Printf("err querying bookmarks for profile %q: %v\n", profile, err)
+		fmt.Fprintf(c.Writer(), "err querying bookmarks for profile %q: %v\n", profile, err)
 		return
 	}
 
@@ -295,7 +295,7 @@ func handleDBError(c *ui.Console, p *ansi.Palette, profile string, err error) {
 		c.Error("database is " + p.BrightRed.Sprint("locked") + ", maybe firefox is open?\n").Flush()
 		return
 	}
-	fmt.Printf("err opening database for profile %q: %v\n", profile, err)
+	fmt.Fprintf(c.Writer(), "err opening database for profile %q: %v\n", profile, err)
 }
 
 func importBookmarks(bs *[]*bookmark.Bookmark, gmarks []*geckoBookmark) int {

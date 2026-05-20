@@ -70,7 +70,7 @@ func managementSelect(c *ui.Console, app *application.App) error {
 		}
 
 		if gr.IsTracked() {
-			fmt.Print(c.Info(fmt.Sprintf("%q is already tracked\n", gr.Loc.Name)))
+			fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Loc.Name)))
 			continue
 		}
 
@@ -84,7 +84,7 @@ func managementSelect(c *ui.Console, app *application.App) error {
 
 		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", gr.Loc.Name)).String())
 		if i != len(dbFiles)-1 {
-			fmt.Println()
+			fmt.Fprintln(c.Writer())
 		}
 	}
 
@@ -132,7 +132,7 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 		sb.WriteString(s)
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(c.Writer(), sb.String())
 
 	return nil
 }
@@ -155,7 +155,7 @@ func untrack(c *ui.Console, gr *git.Repository) error {
 		return err
 	}
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q untracked", gr.Loc.DBName)))
+	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q untracked", gr.Loc.DBName)))
 
 	return nil
 }
@@ -173,7 +173,7 @@ func track(c *ui.Console, gr *git.Repository) error {
 		return err
 	}
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
+	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
 
 	return nil
 }

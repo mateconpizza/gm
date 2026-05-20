@@ -6,6 +6,8 @@ package config
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -29,7 +31,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				return cfgToJSON(cmd.Context(), app)
 			}
 			if app.Flags.Print {
-				return showPathFile(app.Path.Config)
+				return showPathFile(os.Stdout, app.Path.Config)
 			}
 
 			return cmd.Help()
@@ -124,12 +126,12 @@ func editConfig(ctx context.Context, app *application.App) error {
 	return te.EditFile(ctx, p)
 }
 
-func showPathFile(p string) error {
+func showPathFile(w io.Writer, p string) error {
 	if !files.Exists(p) {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}
 
-	fmt.Println(p)
+	fmt.Fprintln(w, p)
 
 	return nil
 }

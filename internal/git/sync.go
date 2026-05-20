@@ -75,7 +75,7 @@ func Import(d *deps.Deps, gm *Manager) ([]string, error) {
 		return nil, fmt.Errorf("removing temp repo: %w", err)
 	}
 
-	fmt.Println(c.SuccessMesg("imported bookmarks from git"))
+	fmt.Fprintln(d.Writer(), c.SuccessMesg("imported bookmarks from git"))
 
 	return imported, nil
 }

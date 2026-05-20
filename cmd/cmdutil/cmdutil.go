@@ -28,26 +28,30 @@ type (
 
 // SetupDeps initializes the config, db and app for the subcommands..
 func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
-	app, err := application.FromContext(cmd.Context())
+	ctx := cmd.Context()
+
+	app, err := application.FromContext(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	r, err := db.New(cmd.Context(), app.Path.Database)
+	r, err := db.New(ctx, app.Path.Database)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	terminal.ReadPipedInput(args)
 
+	console := ui.NewDefaultConsole(ctx, func(err error) {
+		r.Close()
+		sys.ErrAndExit(err)
+	})
+
 	d := deps.New(
-		cmd.Context(),
+		ctx,
 		deps.WithApplication(app),
 		deps.WithRepo(r),
-		deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) {
-			r.Close()
-			sys.ErrAndExit(err)
-		})),
+		deps.WithConsole(console),
 	)
 
 	return d, r.Close, nil

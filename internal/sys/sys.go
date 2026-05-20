@@ -194,7 +194,8 @@ func WithSignalContext(parent context.Context) (context.Context, context.CancelF
 	ctx, cancelCause := context.WithCancelCause(parent)
 
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals,
+	signal.Notify(
+		signals,
 		os.Interrupt,    // Ctrl+C (SIGINT)
 		syscall.SIGTERM, // Process termination
 		syscall.SIGHUP,  // Terminal closed

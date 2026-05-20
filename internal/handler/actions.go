@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strings"
@@ -41,7 +42,7 @@ func QR(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		sb.WriteString(p.Bold.Sprint(b.Title + "\n"))
 		sb.WriteString(p.Italic.Sprint(b.URL + "\n"))
 		sb.WriteString(qrcode.String())
-		fmt.Print(sb.String())
+		fmt.Fprint(d.Writer(), sb.String())
 
 		terminal.WaitForEnter()
 		terminal.ClearLine(txt.CountLines(sb.String()))
@@ -238,12 +239,12 @@ func UnlockRepo(d *deps.Deps, rToUnlock string) error {
 	}
 
 	if err := locker.Unlock(rToUnlock, s); err != nil {
-		fmt.Println()
+		fmt.Fprintln(d.Writer())
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println()
-	fmt.Println(c.SuccessMesg("database unlocked"))
+	fmt.Fprintln(d.Writer())
+	fmt.Fprintln(d.Writer(), c.SuccessMesg("database unlocked"))
 
 	return nil
 }
@@ -260,7 +261,7 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 		return nil
 	}
 
-	displayBookmarkChanges(c, b, &updated)
+	displayBookmarkChanges(d.Writer(), c, b, &updated)
 
 	r, err := d.Repository()
 	if err != nil {
@@ -277,7 +278,7 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 		if err := r.UpdateOne(d.Context(), &updated); err != nil {
 			return fmt.Errorf("updating record: %w", err)
 		}
-		fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 	case "n", "no":
 		return nil
 	case "e", "edit":
@@ -295,14 +296,14 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 		); err != nil {
 			return err
 		}
-		fmt.Print(c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 	}
 
 	return nil
 }
 
 // displayBookmarkChanges shows the differences between original and updated bookmarks.
-func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
+func displayBookmarkChanges(w io.Writer, c *ui.Console, b, updated *bookmark.Bookmark) {
 	p := c.Palette()
 	bid := p.Bold.Sprintf("[%d]", b.ID)
 	su := txt.Shorten(updated.URL, 60)
@@ -312,12 +313,12 @@ func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) {
 
 	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Title:", p.Italic)).Flush()
-		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updated.Title))))
+		fmt.Fprintln(w, txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updated.Title))))
 	}
 
 	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
-		fmt.Println(txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
+		fmt.Fprintln(w, txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
 }
 

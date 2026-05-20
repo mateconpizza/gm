@@ -34,7 +34,7 @@ func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, e
 		}
 
 		for i := range n {
-			fmt.Println(formatter.FrameFunc(d.Console(), &bs[i]))
+			fmt.Fprintln(d.Writer(), formatter.FrameFunc(d.Console(), &bs[i]))
 		}
 
 		opts := []string{"yes", "no"}
@@ -62,7 +62,7 @@ func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, e
 			}
 
 			bs = items
-			fmt.Println()
+			fmt.Fprintln(d.Writer())
 		}
 	}
 
@@ -119,14 +119,14 @@ func passwordConfirm(c *ui.Console) (string, error) {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	fmt.Println()
+	fmt.Fprintln(c.Writer())
 
 	s2, err := c.InputPassword("Confirm Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
-	fmt.Println()
+	fmt.Fprintln(c.Writer())
 
 	if s != s2 {
 		return "", locker.ErrPassphraseMismatch

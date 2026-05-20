@@ -375,7 +375,7 @@ func removeRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	if d.Console() != nil {
-		fmt.Print(d.Console().SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
+		fmt.Fprint(d.Writer(), d.Console().SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
 	}
 
 	return nil

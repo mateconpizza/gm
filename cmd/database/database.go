@@ -267,13 +267,14 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return nil
 		}
 
+		// FIX: inject console
 		c := ui.NewConsole(ui.WithDefaultTerminal(cmd.Context(), func(err error) { sys.ErrAndExit(err) }))
 
 		if err := gr.Drop("dropped"); err != nil {
 			return err
 		}
 
-		fmt.Println(c.SuccessMesg("database dropped"))
+		fmt.Fprintln(c.Writer(), c.SuccessMesg("database dropped"))
 
 		if !c.Confirm("Untrack database?", "n") {
 			return nil
@@ -283,7 +284,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return err
 		}
 
-		fmt.Println(c.SuccessMesg("database untracked"))
+		fmt.Fprintln(c.Writer(), c.SuccessMesg("database untracked"))
 
 		return nil
 	}

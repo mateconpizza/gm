@@ -163,7 +163,12 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 				Midln(repo + info).
 				Rowln().Flush()
 
-			fmt.Print(summary.BackupListDetail(d, true))
+			bkDetail, err := summary.BackupListDetail(d, true)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprint(d.Writer(), bkDetail)
 
 			return nil
 		},

@@ -3,6 +3,7 @@ package qrcmd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -88,7 +89,7 @@ func newGenQR(app *application.App) *cobra.Command {
 				return outputQR(qrcode, app.Flags.Path)
 			}
 
-			fmt.Print(qrcode.String())
+			fmt.Fprint(os.Stdout, qrcode.String())
 
 			return nil
 		},

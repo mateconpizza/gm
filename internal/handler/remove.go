@@ -178,7 +178,7 @@ func removeSlicePath(d *deps.Deps, dbs []string) error {
 
 	sp.Done()
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("%d item/s removed", n)))
+	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("%d item/s removed", n)))
 
 	return nil
 }
@@ -249,7 +249,7 @@ func DropDatabase(d *deps.Deps) error {
 		return err
 	}
 	if app.Flags.Yes || app.Flags.Force {
-		fmt.Println(c.SuccessMesg("database dropped"))
+		fmt.Fprintln(d.Writer(), c.SuccessMesg("database dropped"))
 
 		return r.DropSecure(d.Context())
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	qrcode "github.com/skip2/go-qrcode"
@@ -40,6 +41,19 @@ type QRCode struct {
 	QR   *qrcode.QRCode
 	file *os.File
 	From string
+	Options
+}
+
+type OptFn func(*Options)
+
+type Options struct {
+	writer io.Writer
+}
+
+func WithWriter(w io.Writer) OptFn {
+	return func(o *Options) {
+		o.writer = w
+	}
 }
 
 // Generate generates a QR-Code from a given string.
@@ -94,7 +108,7 @@ func (q *QRCode) Label(s string, pos labelPosition) error {
 
 // Render renders a QR-Code to the standard output.
 func (q *QRCode) Render() {
-	fmt.Print(q.QR.ToSmallString(true))
+	fmt.Fprint(q.writer, q.QR.ToSmallString(true))
 }
 
 func (q *QRCode) String() string {
@@ -112,7 +126,16 @@ func (q *QRCode) Write(path string) error {
 }
 
 // New creates a new QR-Code.
-func New(s string) *QRCode {
+func New(s string, opts ...OptFn) *QRCode {
+	o := &Options{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	if o.writer == nil {
+		o.writer = os.Stdout
+	}
+
 	return &QRCode{
 		From: s,
 	}

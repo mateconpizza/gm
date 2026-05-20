@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"strconv"
@@ -37,7 +38,7 @@ func MenuPreview(c *ui.Console, bs []*bookmark.Bookmark, f string) error {
 	}
 
 	for i := range bs {
-		fmt.Print(fm.Render(c, bs[i]))
+		fmt.Fprint(c.Writer(), fm.Render(c, bs[i]))
 	}
 
 	return nil
@@ -58,7 +59,7 @@ func Records(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error 
 }
 
 // TagsList lists the tags.
-func TagsList(ctx context.Context, p string) error {
+func TagsList(ctx context.Context, w io.Writer, p string) error {
 	r, err := db.New(ctx, p)
 	if err != nil {
 		return err
@@ -70,7 +71,7 @@ func TagsList(ctx context.Context, p string) error {
 		return fmt.Errorf("tagslist: %w", err)
 	}
 
-	fmt.Println(strings.Join(tags, "\n"))
+	fmt.Fprintln(w, strings.Join(tags, "\n"))
 
 	return nil
 }
@@ -93,9 +94,9 @@ func Notes(c *ui.Console, bs []*bookmark.Bookmark) error {
 			continue
 		}
 		if printed {
-			fmt.Println()
+			fmt.Fprintln(c.Writer())
 		}
-		fmt.Print(formatter.Notes(c, b))
+		fmt.Fprint(c.Writer(), formatter.Notes(c, b))
 		printed = true
 	}
 	return nil
@@ -202,7 +203,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 		)
 	}
 
-	fmt.Print(txt.CreateSimpleTable(headers, rows, strings.Join(footer, " ")))
+	fmt.Fprint(c.Writer(), txt.CreateSimpleTable(headers, rows, strings.Join(footer, " ")))
 
 	return nil
 }
@@ -226,7 +227,7 @@ func RecordsJSON(bs []*bookmark.Bookmark) error {
 }
 
 // TagsJSON formats the tags counter in JSON.
-func TagsJSON(ctx context.Context, p string) error {
+func TagsJSON(ctx context.Context, w io.Writer, p string) error {
 	r, err := db.New(ctx, p)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -243,7 +244,7 @@ func TagsJSON(ctx context.Context, p string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println(string(j))
+	fmt.Fprintln(w, string(j))
 
 	return nil
 }
@@ -256,7 +257,8 @@ func RepoStats(d *deps.Deps) error {
 	}
 	// FIX: Test RepoInfo()
 	if err := locker.IsLocked(app.Path.Database); err != nil {
-		fmt.Print(
+		fmt.Fprint(
+			d.Writer(),
 			summary.RepoFromPath(
 				d,
 				app.Path.Database+".enc",
@@ -277,7 +279,7 @@ func RepoStats(d *deps.Deps) error {
 			return fmt.Errorf("%w", err)
 		}
 
-		fmt.Println(string(b))
+		fmt.Fprintln(d.Writer(), string(b))
 
 		return nil
 	}
@@ -303,7 +305,7 @@ func RepoStats(d *deps.Deps) error {
 		sb.WriteString(g)
 	}
 
-	fmt.Print(sb.String())
+	fmt.Fprint(d.Writer(), sb.String())
 
 	return nil
 }

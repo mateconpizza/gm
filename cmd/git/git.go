@@ -235,7 +235,7 @@ func importFromClone(d *deps.Deps, commitMesg string) error {
 	defer func() { _ = files.RemoveAll(tmpPath) }()
 
 	d.SetConsole(ui.NewDefaultConsole(d.Context(), func(err error) {
-		fmt.Println("cleaning up temp files...")
+		fmt.Fprintln(d.Writer(), "cleaning up temp files...")
 		if err := files.RemoveAll(tmpPath); err != nil {
 			slog.Error("cleaning up temp dir", "path", tmpPath)
 		}

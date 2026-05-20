@@ -255,7 +255,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 
 	result, err := loadChromeDatabase(path, uniqueTag, addParentFolderAsTag)
 	if err != nil {
-		fmt.Println("Error loading Chrome database:", err)
+		fmt.Fprintln(c.Writer(), "Error loading Chrome database:", err)
 	}
 
 	// original size

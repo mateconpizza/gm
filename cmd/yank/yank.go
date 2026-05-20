@@ -44,7 +44,7 @@ func NewCmd(app *application.App) *cobra.Command {
 					return err
 				}
 
-				fmt.Println(t.SuccessMesg("copied ", len(bs), " bookmarks to system clipboard"))
+				fmt.Fprintln(d.Writer(), t.SuccessMesg("copied ", len(bs), " bookmarks to system clipboard"))
 
 				return nil
 			})

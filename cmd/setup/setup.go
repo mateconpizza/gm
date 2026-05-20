@@ -112,7 +112,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	fmt.Println(c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
+	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
 
 	return nil
 }

@@ -304,7 +304,7 @@ func initGPG(c *ui.Console, gr *Repository, k *gpg.Fingerprint) error {
 	}
 
 	if c != nil {
-		fmt.Println(c.SuccessMesg(fmt.Sprintf("GPG repo initialized with key %q", k.UserID)))
+		fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("GPG repo initialized with key %q", k.UserID)))
 	}
 
 	return nil

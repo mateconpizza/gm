@@ -30,7 +30,8 @@ func NewCmd(app *application.App) *cobra.Command {
 				for _, u := range bs {
 					sb.WriteString(u.ArchiveURL + "\n")
 				}
-				fmt.Print(sb.String())
+
+				fmt.Fprint(d.Writer(), sb.String())
 
 				return nil
 			}, onlySnapshots)

@@ -1,6 +1,8 @@
 package tag
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -14,11 +16,12 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"t", "tags"},
 		Short:   "tags ops (wip)",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			switch {
 			case app.Flags.JSON:
-				return printer.TagsJSON(cmd.Context(), app.Path.Database)
+				return printer.TagsJSON(ctx, os.Stdout, app.Path.Database)
 			case app.Flags.List:
-				return printer.TagsList(cmd.Context(), app.Path.Database)
+				return printer.TagsList(ctx, os.Stdout, app.Path.Database)
 			}
 
 			return cmd.Usage()
