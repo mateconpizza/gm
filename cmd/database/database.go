@@ -62,10 +62,12 @@ func NewCmd(app *application.App) *cobra.Command {
 
 	f := c.Flags()
 	f.SortFlags = false
-	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false, "rebuilds the database file")
-	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false, "reorder IDs")
+	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false,
+		"compact and rebuild the database file")
+	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false,
+		"renumber bookmark IDs sequentially")
 
-	cmdutil.HideFlag(c, "color", "db", "force", "verbose", "version", "yes")
+	cmdutil.HideInheritedFlags(c)
 
 	c.AddCommand(
 		newAddCmd(app),            // create

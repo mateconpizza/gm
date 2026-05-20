@@ -69,14 +69,24 @@ func FlagSort(c *cobra.Command, app *application.App, sortSupported []string) {
 	c.Flags().StringVarP(&app.Flags.Sort, "sort", "s", "", "sort by: "+strings.Join(sortSupported, ", "))
 }
 
-func HasFlags(cmd *cobra.Command) bool {
+func HasFlags(c *cobra.Command) bool {
 	hasVisible := false
-	cmd.LocalFlags().VisitAll(func(f *pflag.Flag) {
+	c.LocalFlags().VisitAll(func(f *pflag.Flag) {
 		if !f.Hidden {
 			hasVisible = true
 		}
 	})
 	return hasVisible
+}
+
+func HideInheritedFlags(c *cobra.Command) {
+	c.SetHelpFunc(func(c *cobra.Command, args []string) {
+		c.InheritedFlags().VisitAll(func(f *pflag.Flag) {
+			f.Hidden = true
+		})
+
+		c.Parent().HelpFunc()(c, args)
+	})
 }
 
 func HideFlag(c *cobra.Command, names ...string) {
