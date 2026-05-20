@@ -263,6 +263,14 @@ linters:
       - path: "internal/summary/summary.go"
         linters:
           - nilerr
+      - path: "pkg/db/migrate.go"
+        linters:
+          - funlen
+      - path: "pkg/db/migrate.go"
+        linters:
+          - revive
+          - funlen
+        text: "confusing-naming:"
     generated: lax
     presets:
       - common-false-positives

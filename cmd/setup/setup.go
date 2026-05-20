@@ -175,7 +175,12 @@ func initMigrations(ctx context.Context, app *application.App, c *ui.Console) (*
 
 	f.Headerln(p.Bold.Sprint("Configuring database"))
 
-	if err := db.Migrate(ctx, r); err != nil {
+	ms, err := db.LoadMigrations()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Migrate(ctx, r, ms); err != nil {
 		return nil, fmt.Errorf("migrations failed: %w", err)
 	}
 

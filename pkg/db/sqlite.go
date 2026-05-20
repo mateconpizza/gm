@@ -98,7 +98,12 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 
 	r := newSQLiteRepository(db, c)
 
-	if err := Migrate(ctx, r); err != nil {
+	ms, err := LoadMigrations()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := Migrate(ctx, r, ms); err != nil {
 		return nil, err
 	}
 

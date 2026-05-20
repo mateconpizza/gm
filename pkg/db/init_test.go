@@ -3,26 +3,78 @@ package db
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-// setupTestDB sets up a test database.
+// setupTestDB sets up an isolated, migrated in-memory database for a single test.
 func setupTestDB(t *testing.T) *SQLite {
 	t.Helper()
-	c, _ := NewSQLiteCfg("")
-	db, err := OpenDatabase(t.Context(), fmt.Sprintf("file:testdb_%d?mode=memory", time.Now().UnixNano()), c)
+
+	c, err := NewSQLiteCfg("")
+	if err != nil {
+		t.Fatalf("failed to create config: %v", err)
+	}
+
+	// Using t.Name() ensures unique DBs per test/sub-test, while cache=shared
+	// keeps the pool unified.
+	// Clean the name of characters that might upset a file-based DSN string.
+	safeTestName := strings.ReplaceAll(t.Name(), "/", "_")
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", safeTestName)
+
+	db, err := OpenDatabase(t.Context(), dsn, c)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
+
+	// Close the DB automatically when the test finishes to wipe the in-memory
+	// cache
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("warning: failed to close test db: %v", err)
+		}
+	})
+
 	r := newSQLiteRepository(db, c)
-	_ = Migrate(t.Context(), r)
+
+	ms, err := LoadMigrations()
+	if err != nil {
+		t.Fatalf("failed to load migrations: %v", err)
+	}
+
+	if err := Migrate(t.Context(), r, ms); err != nil {
+		t.Fatalf("migration failed during setup: %v", err)
+	}
 
 	return r
+}
+
+// setupTestDBNoMigration sets up an isolated, blank in-memory database.
+func setupTestDBNoMigration(t *testing.T) *SQLite {
+	t.Helper()
+
+	c, err := NewSQLiteCfg("")
+	if err != nil {
+		t.Fatalf("failed to create config: %v", err)
+	}
+
+	safeTestName := strings.ReplaceAll(t.Name(), "/", "_")
+	dsn := fmt.Sprintf("file:%s_nomig?mode=memory&cache=shared", safeTestName)
+
+	db, err := OpenDatabase(t.Context(), dsn, c)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	return newSQLiteRepository(db, c)
 }
 
 // teardownthewall closes the database connection.
@@ -84,7 +136,9 @@ func TestInit(t *testing.T) {
 	if err := r.Init(t.Context()); err != nil {
 		t.Fatalf("failed to initialize repository: %v", err)
 	}
-	defer teardownthewall(r.DB)
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
 
 	for _, table := range tables {
 		tExists, err := table.Exists(t.Context(), r)
@@ -101,7 +155,6 @@ func TestInit(t *testing.T) {
 func TestTableCreate(t *testing.T) {
 	t.Parallel()
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	var newTable Table = "new_table"
 	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
@@ -124,7 +177,6 @@ func TestTableExists(t *testing.T) {
 	t.Parallel()
 
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	var tt Table = "test_table"
 	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {

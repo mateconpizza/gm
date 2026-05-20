@@ -10,7 +10,7 @@ import (
 
 type Table string
 
-var (
+const (
 	TableBookmarks Table = "bookmarks"
 	TableTags      Table = "tags"
 	TableRelation  Table = "bookmark_tags"
@@ -46,7 +46,12 @@ var tables = []Table{
 
 // Init initializes a new database and creates the required tables.
 func (r *SQLite) Init(ctx context.Context) error {
-	return Migrate(ctx, r)
+	ms, err := LoadMigrations()
+	if err != nil {
+		return err
+	}
+
+	return Migrate(ctx, r, ms)
 }
 
 // tableCreate creates a new table with the specified name in the SQLite database.

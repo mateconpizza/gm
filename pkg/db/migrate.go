@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"embed"
-	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -15,7 +14,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var ErrInvalidMigrationFilename = errors.New("invalid migration filename")
+type Migrator interface {
+	CurrentVersion(ctx context.Context) (int, error)
+	Apply(ctx context.Context, m Migration) error
+}
 
 //go:embed migrations/*.sql
 var migrationFS embed.FS
@@ -27,15 +29,16 @@ type Migration struct {
 	SQL     string
 }
 
-func Migrate(ctx context.Context, r *SQLite) error {
+func Migrate(ctx context.Context, r *SQLite, ms []Migration) error {
 	slog.DebugContext(ctx, "starting database migration")
-
-	migrations, err := LoadMigrations()
+	ok, err := NeedsMigration(ctx, r)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to load migrations", "error", err)
 		return err
 	}
-	slog.DebugContext(ctx, "loaded migrations", "count", len(migrations))
+	if !ok {
+		slog.DebugContext(ctx, "no migration need it")
+		return nil
+	}
 
 	current, err := CurrentSchemaVersion(ctx, r)
 	if err != nil {
@@ -45,7 +48,7 @@ func Migrate(ctx context.Context, r *SQLite) error {
 	slog.DebugContext(ctx, "current database version", "version", current)
 
 	pendingCount := 0
-	for _, m := range migrations {
+	for _, m := range ms {
 		if m.Version <= current {
 			slog.DebugContext(ctx, "skipping migration", "version", m.Version, "reason", "already applied")
 			continue
@@ -60,7 +63,9 @@ func Migrate(ctx context.Context, r *SQLite) error {
 
 	slog.DebugContext(ctx, "applying pending migrations", "count", pendingCount, "from_version", current)
 
-	for _, m := range migrations {
+	finalVersion := current
+
+	for _, m := range ms {
 		if m.Version <= current {
 			continue
 		}
@@ -76,55 +81,15 @@ func Migrate(ctx context.Context, r *SQLite) error {
 		}
 
 		slog.DebugContext(ctx, "migration applied successfully", "version", m.Version, "name", m.Name)
+		finalVersion = m.Version
 	}
 
-	slog.DebugContext(ctx, "database migration completed", "final_version", current+len(migrations))
+	slog.DebugContext(ctx, "database migration completed", "final_version", finalVersion)
 	return nil
 }
 
 func LoadMigrations() ([]Migration, error) {
-	entries, err := fs.ReadDir(migrationFS, "migrations")
-	if err != nil {
-		return nil, err
-	}
-
-	migrations := make([]Migration, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-
-		if filepath.Ext(name) != ".sql" {
-			continue
-		}
-
-		version, migrationName, err := parseMigrationFilename(name)
-		if err != nil {
-			return nil, err
-		}
-
-		path := filepath.Join("migrations", name)
-
-		content, err := migrationFS.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-
-		migrations = append(migrations, Migration{
-			Version: version,
-			Name:    migrationName,
-			File:    name,
-			SQL:     string(content),
-		})
-	}
-
-	sort.Slice(migrations, func(i, j int) bool {
-		return migrations[i].Version < migrations[j].Version
-	})
-
-	return migrations, nil
+	return loadMigrations(migrationFS)
 }
 
 func SQLiteVersion(ctx context.Context, r *SQLite) (string, error) {
@@ -147,12 +112,88 @@ func CurrentSchemaVersion(ctx context.Context, r *SQLite) (int, error) {
 	return ver, nil
 }
 
+func NeedsMigration(ctx context.Context, r *SQLite) (bool, error) {
+	current, err := CurrentSchemaVersion(ctx, r)
+	if err != nil {
+		return false, err
+	}
+
+	latest := LatestMigrationVersion()
+
+	return current < latest, nil
+}
+
+func LatestMigrationVersion() int {
+	ms, err := LoadMigrations()
+	if err != nil {
+		return 0
+	}
+
+	if len(ms) == 0 {
+		return 0
+	}
+
+	return ms[len(ms)-1].Version
+}
+
+func loadMigrations(fsys fs.FS) ([]Migration, error) {
+	entries, err := fs.ReadDir(fsys, "migrations")
+	if err != nil {
+		return nil, err
+	}
+
+	ms := make([]Migration, 0, len(entries))
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+
+		if filepath.Ext(name) != ".sql" {
+			continue
+		}
+
+		version, migrationName, err := parseMigrationFilename(name)
+		if err != nil {
+			return nil, err
+		}
+
+		path := filepath.Join("migrations", name)
+
+		content, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return nil, err
+		}
+
+		ms = append(ms, Migration{
+			Version: version,
+			Name:    migrationName,
+			File:    name,
+			SQL:     string(content),
+		})
+	}
+
+	sort.Slice(ms, func(i, j int) bool {
+		return ms[i].Version < ms[j].Version
+	})
+
+	if err := validateMigrations(ms); err != nil {
+		return nil, err
+	}
+
+	slog.Debug("loaded migrations", "count", len(ms))
+
+	return ms, nil
+}
+
 func parseMigrationFilename(name string) (version int, migration string, err error) {
 	base := strings.TrimSuffix(name, ".sql")
 
 	parts := strings.SplitN(base, "_", 2)
 	if len(parts) != 2 {
-		return 0, "", fmt.Errorf("%w: %s", ErrInvalidMigrationFilename, name)
+		return 0, "", fmt.Errorf("%w: %s", ErrMigrationInvalidFilename, name)
 	}
 
 	version, err = strconv.Atoi(parts[0])
@@ -186,4 +227,49 @@ func applyMigration(ctx context.Context, db *SQLite, m Migration) error {
 
 		return nil
 	})
+}
+
+func validateMigrations(ms []Migration) error {
+	if err := validateDuplication(ms); err != nil {
+		return err
+	}
+
+	return validateMigrationOrder(ms)
+}
+
+func validateDuplication(ms []Migration) error {
+	seen := map[int]string{}
+
+	for _, m := range ms {
+		if prev, ok := seen[m.Version]; ok {
+			return fmt.Errorf(
+				"%w version %04d: %s and %s",
+				ErrMigrationDuplicate,
+				m.Version,
+				prev,
+				m.File,
+			)
+		}
+
+		seen[m.Version] = m.File
+	}
+
+	return nil
+}
+
+func validateMigrationOrder(ms []Migration) error {
+	for i := 1; i < len(ms); i++ {
+		expected := ms[i-1].Version + 1
+
+		if ms[i].Version != expected {
+			return fmt.Errorf(
+				"%w: expected %04d, got %04d",
+				ErrMigrationGap,
+				expected,
+				ms[i].Version,
+			)
+		}
+	}
+
+	return nil
 }

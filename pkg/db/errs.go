@@ -39,3 +39,10 @@ var (
 	ErrBackupExists   = errors.New("backup already exists")
 	ErrBackupNotFound = errors.New("no backup found")
 )
+
+// migration errs.
+var (
+	ErrMigrationInvalidFilename = errors.New("invalid migration filename")
+	ErrMigrationDuplicate       = errors.New("duplicate migration")
+	ErrMigrationGap             = errors.New("migration gap")
+)

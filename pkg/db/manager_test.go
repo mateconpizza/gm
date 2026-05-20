@@ -10,10 +10,8 @@ func TestManager_RegisterAndCloseAll(t *testing.T) {
 	t.Parallel()
 
 	db1 := setupTestDB(t)
-	defer teardownthewall(db1.DB)
 
 	db2 := setupTestDB(t)
-	defer teardownthewall(db2.DB)
 
 	mgr := NewManager()
 
@@ -55,7 +53,7 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 
-			db := setupTestDB(t)
+			db := setupTestDBNoMigration(t)
 			mgr.Register(db.Name(), db)
 			if i%5 == 0 {
 				mgr.Unregister(db.Name())

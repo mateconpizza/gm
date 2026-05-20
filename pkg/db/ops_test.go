@@ -16,7 +16,6 @@ func TestDropRepository(t *testing.T) {
 	t.Parallel()
 	const n = 10
 	r := testPopulatedDB(t, n)
-	defer teardownthewall(r.DB)
 
 	b, err := r.ByID(t.Context(), 1)
 	if err != nil {
@@ -47,7 +46,6 @@ func TestRecordIDs(t *testing.T) {
 	t.Parallel()
 	const want = 10
 	r := testPopulatedDB(t, want)
-	defer teardownthewall(r.DB)
 
 	// get initial records
 	bs, err := r.All(t.Context())

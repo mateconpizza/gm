@@ -23,7 +23,6 @@ func extractTags(t *testing.T, bs []*bookmark.Bookmark) []string {
 
 func TestInsertOne(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	// verify table exists
 	mainTable := TableBookmarks
@@ -85,7 +84,6 @@ func TestDeleteMany(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := setupTestDB(t)
-			defer teardownthewall(r.DB)
 
 			bsToInsert := testSliceBookmarks(tt.bookmarksToInsert)
 			err := r.InsertMany(t.Context(), bsToInsert)
@@ -144,7 +142,6 @@ func TestDeleteMany(t *testing.T) {
 
 func TestUpdateOne(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	// Insert initial record
 	oldB := testSingleBookmark()
@@ -216,7 +213,6 @@ func TestUpdateOne(t *testing.T) {
 func TestAllRecords(t *testing.T) {
 	const want = 10
 	r := testPopulatedDB(t, want)
-	defer teardownthewall(r.DB)
 
 	// get bs records
 	bs, err := r.All(t.Context())
@@ -233,7 +229,6 @@ func TestAllRecords(t *testing.T) {
 func TestByID(t *testing.T) {
 	const want = 10
 	r := testPopulatedDB(t, want)
-	defer teardownthewall(r.DB)
 
 	// Get all records to verify setup
 	all, err := r.All(t.Context())
@@ -269,7 +264,6 @@ func TestByID(t *testing.T) {
 func TestByIDList(t *testing.T) {
 	want := 11
 	r := testPopulatedDB(t, want)
-	defer teardownthewall(r.DB)
 
 	// Test retrieving multiple records by ID list
 	ids := []int{1, 4, 2, 5, 8}
@@ -293,7 +287,6 @@ func TestByIDList(t *testing.T) {
 
 func TestByURL(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	// Insert a test bookmark
 	b := testSingleBookmark()
@@ -333,7 +326,6 @@ func TestByTag(t *testing.T) {
 
 func TestByQuery(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 	ctx := t.Context()
 
 	// Insert test bookmarks
@@ -374,7 +366,6 @@ func TestByQuery(t *testing.T) {
 
 func TestDuplicateErr(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 	ctx := t.Context()
 
 	b := testSingleBookmark()
@@ -392,7 +383,6 @@ func TestDuplicateErr(t *testing.T) {
 
 func TestHasRecord(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 	ctx := t.Context()
 
 	b := testSingleBookmark()
@@ -415,7 +405,6 @@ func TestHasRecord(t *testing.T) {
 
 func TestRollback(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 	ctx := t.Context()
 
 	b := testSingleBookmark()
@@ -464,7 +453,6 @@ func TestRollback(t *testing.T) {
 
 func TestDeleteAll(t *testing.T) {
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	// Insert test data
 	bookmarks := testSliceBookmarks(10)

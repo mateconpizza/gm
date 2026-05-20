@@ -10,7 +10,6 @@ func TestTagsCounter(t *testing.T) {
 	t.Parallel()
 
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	tags := []struct {
 		id   int
@@ -98,7 +97,6 @@ func TestTagsCounter(t *testing.T) {
 func TestGetOrCreateTag(t *testing.T) {
 	t.Parallel()
 	r := setupTestDB(t)
-	defer teardownthewall(r.DB)
 
 	newTagName := "newtag"
 	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
