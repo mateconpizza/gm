@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -85,7 +86,13 @@ func (e *EditSession) processSingleRecord(original *Record, idx, total int, stra
 			return err
 		}
 
-		e.Console.Frame().Reset().Header("Diff:\n").Flush()
+		p := e.Console.Palette()
+		header := func() string { return p.BrightYellow.Wrap(txt.GlyphHeavyHorizontal.Prefix(" "), p.Bold) }
+		e.Console.Frame().
+			Reset().
+			CustomFunc(header, p.BrightYellow.Wrap("Diff:\n", p.Bold)).
+			Flush()
+
 		fmt.Println(strategy.Diff(original, updated))
 
 		opt, err := e.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")

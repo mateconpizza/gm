@@ -76,7 +76,7 @@ func TagsList(ctx context.Context, w io.Writer, p string) error {
 	return nil
 }
 
-// Print formats the bookmarks in oneline.
+// Print formats the bookmarks with the given fn.
 func Print(c *ui.Console, bs []*bookmark.Bookmark, fn func(*ui.Console, *bookmark.Bookmark) string) error {
 	var buf strings.Builder
 	for i := range bs {
@@ -176,7 +176,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 				rows,
 				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
 			)
-			footer = append(footer, fnameColor(txt.UnicodeBlackSquare+" locked"))
+			footer = append(footer, fnameColor(txt.GlyphBlackSquare+" locked"))
 			continue
 		}
 
@@ -194,7 +194,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 			fnameColor = p.BrightYellow.With(p.Bold).Sprint
 			cleanName = fnameColor(cleanName)
 			cleanName += p.Gray.Wrap(" (default)", p.Italic)
-			footer = append(footer, fnameColor(txt.UnicodeBlackSquare+" default"))
+			footer = append(footer, fnameColor(txt.GlyphBlackSquare.Prefix(" default")))
 		}
 
 		rows = append(

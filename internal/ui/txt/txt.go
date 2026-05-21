@@ -17,19 +17,58 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
+type Glyph string
+
 const (
-	UnicodeBlackSquare      = "\u25A0" // ■
-	UnicodeBulletPoint      = "\u2022" // •
-	UnicodeDash             = "\u2014" // —
-	UnicodeEllipsis         = "\u2026" // …
-	UnicodeHeavyVertical    = "\u2503" // ┃
-	UnicodeLightDiagCross   = "\u2571" // ╱
-	UnicodeMiddleDot        = "\u00b7" // ·
-	UnicodePathBigSegment   = "\u25B6" // ▶
-	UnicodePathSmallSegment = "\u25B8" // ▸
-	UnicodeRightDoubleAngle = "\u00BB" // »
-	UnicodeSingleAngleMark  = "\u203A" // ›
+	GlyphBlackSquare      Glyph = "■" // ■
+	GlyphBulletPoint      Glyph = "•" // •
+	GlyphDash             Glyph = "—" // —
+	GlyphEllipsis         Glyph = "…" // …
+	GlyphHeavyVertical    Glyph = "┃" // ┃
+	GlyphLightDiagCross   Glyph = "╱" // ╱
+	GlyphMiddleDot        Glyph = "·" // ·
+	GlyphRightDoubleAngle Glyph = "»" // »
+	GlyphSingleAngleMark  Glyph = "›" // ›
+
+	GlyphPipe            Glyph = "|" // |
+	GlyphBrokenPipe      Glyph = "¦" // ¦
+	GlyphLightHorizontal Glyph = "─" // ─
+	GlyphHeavyHorizontal Glyph = "━" // ━
+	GlyphLightVertical   Glyph = "│" // │
+	GlyphLightTripleDash Glyph = "┄" // ┄
+	GlyphHeavyTripleDash Glyph = "┅" // ┅
+	GlyphLightQuadDash   Glyph = "┈" // ┈
+	GlyphHeavyQuadDash   Glyph = "┉" // ┉
+
+	GlyphArrowRight       Glyph = "→" // →
+	GlyphArrowLeft        Glyph = "←" // ←
+	GlyphArrowUp          Glyph = "↑" // ↑
+	GlyphArrowDown        Glyph = "↓" // ↓
+	GlyphDoubleArrowRight Glyph = "⇒" // ⇒
+	GlyphLongArrowRight   Glyph = "⟶" // ⟶
+	GlyphHookArrow        Glyph = "↳" // ↳
+
+	GlyphSmallSquare   Glyph = "▪" // ▪
+	GlyphWhiteSquare   Glyph = "□" // □
+	GlyphBlackCircle   Glyph = "●" // ●
+	GlyphWhiteCircle   Glyph = "○" // ○
+	GlyphDiamond       Glyph = "◆" // ◆
+	GlyphWhiteDiamond  Glyph = "◇" // ◇
+	GlyphTriangleRight Glyph = "▶" // ▶
+	GlyphTriangleSmall Glyph = "▸" // ▸
+
+	GlyphFullBlock      Glyph = "█" // █
+	GlyphDarkShade      Glyph = "▓" // ▓
+	GlyphMediumShade    Glyph = "▒" // ▒
+	GlyphLightShade     Glyph = "░" // ░
+	GlyphHalfBlock      Glyph = "▄" // ▄
+	GlyphUpperHalfBlock Glyph = "▀" // ▀
 )
+
+func (g Glyph) Prefix(text string) string           { return g.String() + text }
+func (g Glyph) Suffix(text string) string           { return text + g.String() }
+func (g Glyph) With(fn func(g Glyph) string) string { return fn(g) }
+func (g Glyph) String() string                      { return string(g) }
 
 // TimeLayout is the default layout for time formatting.
 const TimeLayout = "20060102-150405"
@@ -67,7 +106,7 @@ func PaddedLineWithPad(s, v any, pad int) string {
 //
 // Shorten shortens a string to a maximum visual width.
 func Shorten(s string, maxWidth int) string {
-	return runewidth.Truncate(s, maxWidth, UnicodeEllipsis)
+	return runewidth.Truncate(s, maxWidth, GlyphEllipsis.String())
 }
 
 // SplitAndAlign splits a string into multiple lines and aligns the
@@ -193,9 +232,9 @@ func URLBreadCrumbs(s string) string {
 		return host
 	}
 
-	uc := UnicodeSingleAngleMark
-	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", uc))
-	pathSeg := uc + " " + segments
+	g := GlyphSingleAngleMark
+	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", g))
+	pathSeg := g.String() + " " + segments
 
 	return fmt.Sprintf("%s %s", host, pathSeg)
 }

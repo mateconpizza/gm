@@ -104,10 +104,17 @@ func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {
 // parameters.
 func diffParams(d *deps.Deps, originalURL string, params []string) (int, error) {
 	f, p := d.Console().Frame(), d.Console().Palette()
-	f.Headerln(p.Bold.Wrap("Cleaning URL parameters", p.Yellow))
+	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	subtitle := p.Dim.With(p.Italic).
+		Sprint("query parameters detected in the URL")
 
-	f.Midln("Original URL:").Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, d.Console().MaxWidth()))).
-		Rowln().Midln(fmt.Sprintf("Found %d: ", len(params)))
+	f.CustomFunc(header, p.Bold.Wrap("Clean URL parameters", p.Yellow)).Ln().
+		Midln(subtitle).
+		Rowln().
+		Midln("Original URL:").
+		Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, d.Console().MaxWidth()))).
+		Rowln().
+		Midln(fmt.Sprintf("Parameters to remove (%d) ", len(params)))
 
 	// key=value params
 	sep := "="
@@ -242,7 +249,7 @@ func promptParamRemoval(d *deps.Deps, urlStr string, q url.Values) (opt string, 
 	if len(q) > 1 {
 		opts = append(opts, "select")
 	}
-	opt, err = c.Choose(fmt.Sprintf("remove %d params?", len(q)), opts, "n")
+	opt, err = c.Choose(p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
 
 	return
 }

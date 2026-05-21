@@ -14,6 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
@@ -77,11 +78,17 @@ func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 
 	items := p.BrightCyan.
 		Sprintf("[%d] selected bookmarks:", len(bs))
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+	selected := func() string {
+		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
 
-	f.Headerln(title).
+	f.CustomFunc(header, title).Ln().
 		Headerln(subtitle).
 		Rowln().
-		Midln(items).
+		CustomFunc(selected, items).Ln().
 		Rowln()
 
 	for i := range bs {

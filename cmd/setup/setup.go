@@ -55,10 +55,14 @@ func initializeAction(d *deps.Deps) error {
 		return err
 	}
 
-	c := d.Console()
+	c, p := d.Console(), d.Console().Palette()
 
 	// announce app version
-	c.Frame().Header(app.PrettyVersion()).Rowln().Flush()
+	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	c.Frame().
+		CustomFunc(header, app.PrettyVersion()).
+		Rowln().
+		Flush()
 
 	if err := initWorkspace(c, app); err != nil {
 		return err
@@ -125,10 +129,10 @@ func initWorkspace(c *ui.Console, app *application.App) error {
 
 	p, f := c.Palette(), c.Frame()
 	dimmer := func(s string) string { return p.Dim.Wrap(s, p.Italic) }
-
-	f.Headerln(p.Bold.Sprint("Initializing workspace")).
-		Info(txt.PaddedLineWithPad("path", dimmer(app.Path.Data)+"\n", padding)).
-		Info(txt.PaddedLineWithPad("database", dimmer(app.DBName)+"\n", padding)).
+	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	f.CustomFunc(header, p.Bold.Sprint("Initializing workspace")).Ln().
+		Mid(txt.PaddedLineWithPad("path", dimmer(app.Path.Data), padding)).Ln().
+		Mid(txt.PaddedLineWithPad("database", dimmer(app.DBName), padding)).Ln().
 		Rowln().
 		Flush()
 
@@ -151,14 +155,13 @@ func seedNewRepo(ctx context.Context, app *application.App, r *db.SQLite, c *ui.
 	}
 
 	p, f := c.Palette(), c.Frame()
-
-	f.Headerln(p.Bold.Sprint("Seeding initial bookmark"))
+	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	f.CustomFunc(header, p.Bold.Sprint("Seeding initial bookmark")).Ln()
 
 	u := strings.Replace(ib.URL, "https://", "", 1)
 
-	f.Success(txt.PaddedLineWithPad("inserted", p.Dim.Wrap(u, p.Italic), padding) + "\n").
+	f.Success(txt.PaddedLineWithPad("inserted", p.Dim.Wrap(u, p.Italic), padding)).Ln().
 		Rowln().
-		Success("Database initialized\n").
 		Success("Setup complete\n").
 		Flush()
 

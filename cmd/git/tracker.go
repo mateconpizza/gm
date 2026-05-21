@@ -15,6 +15,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
@@ -109,9 +110,13 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 	title := p.BrightYellow.With(p.Bold).
 		Sprint("Git Tracked Databases")
 	subtitle := p.Dim.With(p.Italic).
-		Sprint("showing repository status for tracked databases")
+		Sprint("showing tracked databases with git")
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+
 	c.Frame().
-		Headerln(title).
+		CustomFunc(header, title).Ln().
 		Headerln(subtitle).
 		Rowln().
 		Flush()

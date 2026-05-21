@@ -61,7 +61,6 @@ func toBytes(b *Bookmark) []byte {
 //	from: "tag1, tag2, tag3 tag"
 //	to: "tag,tag1,tag2,tag3,"
 func ParseTags(tags string) string {
-	// TODO: remove this default tag?
 	if tags == "" {
 		return DefaultTag
 	}

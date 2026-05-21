@@ -51,11 +51,15 @@ func OnelineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	urlLen += len(colorURL) - len(shortURL)
 
 	// tags
-	tagsColor := p.Blue.Wrap(txt.TagsWith(b.Tags, txt.UnicodeMiddleDot), p.Italic)
+	tagsColor := p.Blue.Wrap(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()), p.Italic)
 
-	sep := " " + txt.UnicodeMiddleDot + " "
+	sep := txt.GlyphMiddleDot.With(func(g txt.Glyph) string {
+		return " " + txt.GlyphMiddleDot.String() + " "
+	})
 	if b.Notes != "" || b.Favorite || b.ArchiveURL != "" {
-		sep = p.BrightMagenta.Wrap(" "+txt.UnicodeMiddleDot+" ", p.Bold)
+		sep = p.BrightMagenta.Wrap(txt.GlyphMiddleDot.With(func(u txt.Glyph) string {
+			return " " + u.String() + " "
+		}), p.Bold)
 	}
 
 	var sb strings.Builder
@@ -89,7 +93,7 @@ func BriefFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 	tagsPlain := ""
 	if b.Tags != "" {
-		tagsPlain = txt.TagsWith(b.Tags, txt.UnicodeMiddleDot)
+		tagsPlain = txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String())
 	}
 
 	// width = total - (bullet + id + domain + tags + 3 spaces)
@@ -105,15 +109,15 @@ func BriefFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	paddedTitle := runewidth.FillRight(truncatedTitle, maxTitleWidth)
 
 	// bullet
-	u := txt.UnicodeHeavyVertical
-	bulletColored := p.Normal.Sprint(u)
+	g := txt.GlyphHeavyVertical
+	bulletColored := p.Normal.Sprint(g)
 	switch {
 	case b.Favorite:
-		bulletColored = p.Yellow.Sprint(u)
+		bulletColored = p.Yellow.Sprint(g)
 	case b.HTTPStatusCode >= 400:
-		bulletColored = p.Red.Sprint(u)
+		bulletColored = p.Red.Sprint(g)
 	case b.Notes != "":
-		bulletColored = p.Cyan.Sprint(u)
+		bulletColored = p.Cyan.Sprint(g)
 	}
 
 	titleColored := p.Normal.Sprint(paddedTitle)
@@ -141,13 +145,13 @@ func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	var sb strings.Builder
 	sb.WriteString(p.BrightYellow.With(p.Bold).Sprint(b.ID))
 	sb.WriteString(txt.NBSP)
-	sb.WriteString(txt.URLBreadCrumbsColor(p, b.URL, txt.UnicodeSingleAngleMark, w) + "\n")
+	sb.WriteString(txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w) + "\n")
 
 	if b.Title != "" {
 		sb.WriteString(p.Cyan.Sprint(txt.Shorten(b.Title, w)) + "\n")
 	}
 
-	sb.WriteString(p.BrightWhite.Wrap(txt.TagsWith(b.Tags, txt.UnicodeMiddleDot), p.Italic))
+	sb.WriteString(p.BrightWhite.Wrap(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()), p.Italic))
 
 	return sb.String()
 }
@@ -160,7 +164,7 @@ func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
 
 	// id + url
 	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
-	urlColor := txt.URLBreadCrumbsColor(p, b.URL, txt.UnicodeSingleAngleMark, w)
+	urlColor := txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w)
 	f.Headerln(fmt.Sprintf("%s %s", id, urlColor))
 
 	// title
@@ -208,8 +212,8 @@ func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	// we subtract 'usedwidth' and 1 extra for the final space before the url
 	urlWidth := w - usedWidth - 1
 
-	header = append(header, txt.URLBreadCrumbsColor(p, b.URL, txt.UnicodeSingleAngleMark, urlWidth))
-	f.Headerln(strings.Join(header, " "))
+	header = append(header, txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), urlWidth))
+	f.Midln(strings.Join(header, " "))
 
 	// title ... (rest of function remains the same)
 	if b.Title != "" {
@@ -232,7 +236,7 @@ func Notes(c *ui.Console, b *bookmark.Bookmark) string {
 
 	// id + url
 	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
-	urlColor := txt.URLBreadCrumbsColor(p, b.URL, txt.UnicodeSingleAngleMark, w)
+	urlColor := txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w)
 	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
 
 	// notes
@@ -265,7 +269,9 @@ func OnelineURLFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	var sb strings.Builder
 	sb.Grow(w + 20)
 	sb.WriteString(coloredID)
-	sb.WriteString(" " + txt.UnicodeMiddleDot + " ") // separator
+	sb.WriteString(txt.GlyphMiddleDot.With(func(u txt.Glyph) string {
+		return " " + u.String() + ""
+	}))
 	sb.WriteString(b.URL + "\n")
 
 	return sb.String()
@@ -321,7 +327,7 @@ func MiniFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 	tagsStr := ""
 	if b.Tags != "" {
-		tags := txt.TagsWith(b.Tags, txt.UnicodeMiddleDot) // idealmente "#tag #tag"
+		tags := txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()) // "#tag #tag"
 		if p.Enabled() {
 			tagsStr = p.Dim.Sprint(tags)
 		} else {
@@ -446,7 +452,10 @@ func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	// Tags with a subtle separator
 	tags := ""
 	if b.Tags != "" {
-		tags = " " + txt.UnicodeMiddleDot + " " + p.Blue.Sprint(txt.TagsWith(b.Tags, txt.UnicodeMiddleDot))
+		tags = " " +
+			txt.GlyphMiddleDot.String() +
+			" " +
+			p.Blue.Sprint(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()))
 	}
 
 	// Indent line 2 to align under the title (past the ID)
@@ -549,7 +558,7 @@ func BarFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 	titleTrunc := runewidth.Truncate(titlePlain, max(maxTitleW, 5), "…")
 
-	gutter := gutterStyle.Sprint(txt.UnicodeHeavyVertical)
+	gutter := gutterStyle.Sprint(txt.GlyphHeavyVertical)
 	idCol := p.Dim.Sprint(idStr)
 
 	var titleCol string

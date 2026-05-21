@@ -212,7 +212,7 @@ func newCloneCmd(app *application.App) *cobra.Command {
 func newDisableCmd(_ *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "disable",
-		Short: "disable tracking",
+		Short: "disable tracking (wip)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("not implemented yet...")
 			return nil

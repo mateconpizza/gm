@@ -67,8 +67,6 @@ func NewCmd(app *application.App) *cobra.Command {
 	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false,
 		"renumber bookmark IDs sequentially")
 
-	cmdutil.HideInheritedFlags(c)
-
 	c.AddCommand(
 		newAddCmd(app),            // create
 		newUseCmd(app),            // switch context

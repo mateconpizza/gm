@@ -140,14 +140,14 @@ func (f *Frame) Success(s ...string) *Frame { return f.applyIcon(f.icons.Success
 func (f *Frame) Info(s ...string) *Frame    { return f.applyIcon(f.icons.Info, s) }
 func (f *Frame) Question(s string) *Frame   { return f.applyIcon(f.icons.Question, []string{s}) }
 
-// BorderFn defines a function that returns a border string.
-type BorderFn func() string
+// CustomBorderFunc defines a function that returns a border string.
+type CustomBorderFunc func() string
 
-// WithBorder applies a custom border string to the provided lines.
-func (f *Frame) WithBorder(border string, s ...string) *Frame { return f.apply(border, s) }
+// Custom applies a custom border string to the provided lines.
+func (f *Frame) Custom(border string, s ...string) *Frame { return f.apply(border, s) }
 
-// WithBorderFn applies a dynamically generated border to the provided lines.
-func (f *Frame) WithBorderFn(fn BorderFn, s ...string) *Frame {
+// CustomFunc applies a dynamically generated border to the provided lines.
+func (f *Frame) CustomFunc(fn CustomBorderFunc, s ...string) *Frame {
 	if fn == nil {
 		return f.apply("", s)
 	}
@@ -183,8 +183,8 @@ func (f *Frame) Borders() *FrameBorders { return f.border }
 // it.
 func (f *Frame) Flush() *Frame {
 	// if something is left in the buffer, print it now as footer
-	if strings.TrimSpace(f.buf) != "" {
-		f.Footerln(strings.TrimSpace(f.buf))
+	if line := strings.TrimSpace(f.buf); line != "" {
+		f.Footerln(line)
 		f.buf = ""
 	}
 	fmt.Fprint(f.writer, strings.Join(f.text, ""))

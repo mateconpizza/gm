@@ -43,7 +43,9 @@ func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, e
 		}
 
 		c, p := d.Console(), d.Console().Palette()
-		opt, err := c.Choose(fmt.Sprintf("%s %d bookmark/s?", p.BrightRed.Wrap("remove", p.Bold), n), opts, "n")
+		c.ClearLine(1)            // clean empty line from FrameFunc
+		c.Frame().Rowln().Flush() // connect FrameFunc with prompt
+		opt, err := c.Choose(fmt.Sprintf("%s [%d] bookmark/s?", p.BrightRed.Wrap("remove", p.Bold), n), opts, "n")
 		if err != nil {
 			return nil, err
 		}

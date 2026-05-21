@@ -25,8 +25,8 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	}
 
 	output := buf.String()
-	want := "Database initialized"
-	if !strings.Contains(output, "Database initialized") {
+	want := "Setup complete"
+	if !strings.Contains(output, want) {
 		t.Errorf("expected output to contain '%s', got %q", want, output)
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -36,12 +37,17 @@ func RemoveRepo(d *deps.Deps) error {
 	}
 
 	if !app.Flags.Force && !app.Flags.Yes {
-		title := p.BrightRed.With(p.Bold).Sprint("Removing Database/s")
+		title := p.BrightRed.With(p.Bold).Sprint("Remove Database/s")
 		subtitle := p.Dim.With(p.Italic).Sprint("this action cannot be undone")
+		header := func() string {
+			return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold)
+		}
 
-		c.Frame().Headerln(title).
+		c.Frame().
+			CustomFunc(header, title).Ln().
 			Headerln(subtitle).
-			Rowln().Flush()
+			Rowln().
+			Flush()
 
 		fmt.Fprint(d.Writer(), summary.RepoFromPath(d, app.Path.Database, app.Path.Backup))
 		err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.Database)+"?", "n")
@@ -83,7 +89,6 @@ func RemoveBackups(d *deps.Deps) error {
 	if len(fs) == 0 {
 		return db.ErrBackupNotFound
 	}
-
 	if app.Flags.Yes || app.Flags.Force {
 		return removeSlicePath(d, fs)
 	}
@@ -107,7 +112,6 @@ actionLoop:
 		case "s", "select":
 			c.SetReader(os.Stdin)
 			c.SetWriter(os.Stdout)
-
 			selected, err := selection(
 				fs,
 				func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
@@ -127,7 +131,9 @@ actionLoop:
 		}
 	}
 
-	c.Frame().Headerln(p.BrightRed.Sprint("Removing") + " backups").Rowln().Flush()
+	header := func() string { return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold) }
+	c.Frame().CustomFunc(header, p.BrightRed.Sprint("Remove")+" backups\n").Rowln().Flush()
+
 	return removeSlicePath(d, filesToRemove)
 }
 
@@ -206,13 +212,15 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	p := c.Palette()
 
 	title := p.BrightRed.With(p.Bold).
-		Sprint("Removing Bookmarks")
+		Sprint("Remove Bookmarks")
 	subtitle := p.Dim.With(p.Italic).
 		Sprint("this action cannot be undone")
 	comment := p.Dim.With(p.Italic).
 		Sprint(" (ctrl-c to exit)")
+	header := func() string { return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold) }
 
-	c.Frame().Headerln(title + comment).
+	c.Frame().
+		CustomFunc(header, title+comment).Ln().
 		Headerln(subtitle).
 		Rowln().Flush()
 
@@ -256,18 +264,21 @@ func DropDatabase(d *deps.Deps) error {
 
 	f, p := c.Frame(), c.Palette()
 	title := p.BrightRed.
-		Wrap("Dropping All Records", p.Bold)
+		Wrap("Drop All Records", p.Bold)
 	subtitle := p.Dim.With(p.Italic).
 		Sprint("this action cannot be undone")
 	comment := p.Dim.With(p.Italic).
 		Sprint(" (ctrl-c to exit)")
+	header := func() string {
+		return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold)
+	}
 
 	s, err := summary.Info(d)
 	if err != nil {
 		return err
 	}
 
-	f.Headerln(title + comment).
+	f.CustomFunc(header, title+comment).Ln().
 		Headerln(subtitle).
 		Rowln().
 		Text(s).
