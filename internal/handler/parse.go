@@ -158,7 +158,8 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) error {
 	mTags, _ := r.TagsCounter(d.Context())
 
 	// Let user select tags and parse them into proper format
-	b.tags = bookmark.ParseTags(c.Term().ChooseTags(f.Border.Mid, mTags))
+	borders := f.Borders()
+	b.tags = bookmark.ParseTags(c.Term().ChooseTags(borders.Mid, mTags))
 
 	// Clear and display the selected tags
 	f.Reset().Mid(p.BrightBlue.Sprint("Tags\t:")).Textln(" " + p.Dim.Wrap(b.tags, p.Italic))
@@ -174,7 +175,8 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	f, p := c.Frame(), c.Palette()
 	const indentation int = 10
 
-	width := terminal.MinWidth - len(f.Border.Row)
+	borders := f.Borders()
+	width := terminal.MinWidth - len(borders.Row)
 
 	if b.title != "" {
 		t := p.Dim.Sprint(txt.SplitAndAlign(b.title, width, indentation))

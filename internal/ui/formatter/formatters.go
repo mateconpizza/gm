@@ -155,7 +155,8 @@ func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
 	p := c.Palette()
 	f := frame.New(frame.WithColorBorder(ansi.Dim))
-	w := c.MaxWidth() - len(f.Border.Row)
+	borders := f.Borders()
+	w := c.MaxWidth() - len(borders.Row)
 
 	// id + url
 	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
@@ -183,7 +184,8 @@ func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	w, p, f := c.MaxWidth(), c.Palette(), c.Frame()
 
 	// initial border adjustment
-	w -= len(f.Border.Row)
+	borders := f.Borders()
+	w -= len(borders.Row)
 
 	idStr := strconv.Itoa(b.ID)
 	// calculate visual width of id

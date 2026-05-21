@@ -1,6 +1,7 @@
 package frame
 
 var (
+	defaultBorder = NewBorders("+ ", "| ", "+ ", "+ ")
 	roundedCorner = NewBorders("╭─ ", "│  ", "├─ ", "╰─ ")
 	asciiBorder   = NewBorders("+- ", "|  ", "+- ", "+- ")
 	dottedBorder  = NewBorders(".. ", ".  ", ".. ", ".. ")
@@ -24,7 +25,7 @@ var (
 
 func setBorders(fb *FrameBorders) OptFn {
 	return func(o *Options) {
-		o.Border = fb
+		o.border = fb
 	}
 }
 
