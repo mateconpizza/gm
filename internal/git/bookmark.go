@@ -30,8 +30,8 @@ func UpdateBookmark(app *application.App, oldB, newB *bookmark.Bookmark) error {
 
 // AddBookmark adds a bookmark to Git version control if the repository is tracked.
 // Stages the bookmark, updates repository statistics, and creates a commit.
-func AddBookmark(app *application.App, b *bookmark.Bookmark) error {
-	gr, err := NewRepo(app.Path.Database)
+func AddBookmark(dbPath string, b *bookmark.Bookmark) error {
+	gr, err := NewRepo(dbPath)
 	if err != nil {
 		return err
 	}

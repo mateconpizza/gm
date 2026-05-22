@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"path/filepath"
 	"time"
@@ -168,5 +169,7 @@ func readBookmarks(ctx context.Context, root, repoPath string) ([]*bookmark.Book
 		loader = readGPGRepo
 	}
 
-	return loader(ctx, repoPath, nil)
+	sp := rotato.New(rotato.WithWriter(io.Discard))
+
+	return loader(ctx, repoPath, sp)
 }

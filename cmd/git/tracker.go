@@ -48,8 +48,8 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 
 	c.Flags().SortFlags = false
 	c.Flags().BoolVarP(&app.Flags.List, "list", "l", false, "status tracked databases")
-	c.Flags().BoolVarP(&app.Flags.Track, "track", "t", false, "track database in git")
-	c.Flags().BoolVarP(&app.Flags.Untrack, "untrack", "u", false, "untrack database in git")
+	c.Flags().BoolVarP(&app.Flags.Track, "track", "t", false, "track database with git")
+	c.Flags().BoolVarP(&app.Flags.Untrack, "untrack", "u", false, "untrack database with git")
 
 	return c
 }

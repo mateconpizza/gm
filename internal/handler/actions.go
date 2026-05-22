@@ -25,6 +25,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
@@ -245,6 +246,48 @@ func UnlockRepo(d *deps.Deps, rToUnlock string) error {
 
 	fmt.Fprintln(d.Writer())
 	fmt.Fprintln(d.Writer(), c.SuccessMesg("database unlocked"))
+
+	return nil
+}
+
+func MigrationsStatus(d *deps.Deps) error {
+	c := d.Console()
+	p, f := c.Palette(), c.Frame()
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+	f.CustomFunc(header, p.Bold.Sprint("Configuring database")).Ln()
+
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	ctx := d.Context()
+	if err = db.UpdateAppVersion(ctx, r, app.Info.Version); err != nil {
+		return fmt.Errorf("app version update failed: %w", err)
+	}
+
+	schemaVer, err := db.CurrentSchemaVersion(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	sqlVer, err := db.SQLiteVersion(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	const padding = 28
+	f.Success(txt.PaddedLineWithPad("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
+		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
+		Rowln().
+		Flush()
 
 	return nil
 }

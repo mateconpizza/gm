@@ -1,17 +1,10 @@
 package git
 
 import (
-	"io"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -57,32 +50,11 @@ func setupTestSummaryJSON(t *testing.T, filename string) string {
 	return tmpFile
 }
 
-func setupRepoProcessor(t *testing.T) *RepoProcessor {
-	t.Helper()
-
-	c := ui.NewConsole(
-		ui.WithFrame(frame.New(frame.WithColorBorder(ansi.Gray))),
-		ui.WithTerminal(terminal.New(
-			terminal.WithReader(strings.NewReader("y\n")),
-			terminal.WithWriter(io.Discard), // send output to null, show no prompt
-		)),
-	)
-	g, _ := NewManager(t.Context(), "")
-	a := &application.App{
-		DBName: "test.db",
-		Path:   &application.Path{Database: "/tmp/testpath"},
-		Info:   &application.Information{Version: "1.2.3"},
-	}
-
-	return NewRepoProcessor(c, g, a)
-}
-
 func TestReadSummary(t *testing.T) {
 	t.Parallel()
-	rp := setupRepoProcessor(t)
 
 	summaryFile := setupTestSummaryJSON(t, SummaryFileName)
-	g, err := rp.readSummary(filepath.Dir(summaryFile))
+	g, err := loadSummary(filepath.Dir(summaryFile))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -25,7 +25,7 @@ var ErrNoDBPath = errors.New("database path is required")
 type Repository struct {
 	Loc     *Location // Encapsulates all path and naming details
 	Tracker *Tracker  // Git repo tracker
-	Git     *Manager  // Git manager
+	Git     *Git      // Git manager
 }
 
 // Location holds all path and naming information for a repository.
@@ -73,7 +73,7 @@ func NewRepo(dbPath string) (*Repository, error) {
 	return &Repository{
 		Loc:     loc,
 		Tracker: tk,
-		Git:     NewGit(loc.Git, WithCmd(gitCmd)),
+		Git:     newGit(loc.Git, WithCmd(gitCmd)),
 	}, nil
 }
 
@@ -112,6 +112,7 @@ func (gr *Repository) Drop(mesg string) error {
 
 // Commit commits the bookmarks to the git repo.
 func (gr *Repository) Commit(mesg string) error {
+	slog.DebugContext(gr.Git.ctx, "git: committing changes to git", "message", mesg)
 	return commitIfChanged(gr.Git.ctx, gr, mesg)
 }
 
@@ -144,6 +145,7 @@ func (gr *Repository) RepoStatsWrite() error {
 // Write exports the provided bookmarks to the repository's file, encrypting if
 // configured.
 func (gr *Repository) Write(bs []*bookmark.Bookmark, force bool) (bool, error) {
+	slog.Debug("git: writing bookmarks to git repo", "force", force)
 	if gr.IsEncrypted() {
 		fingerprintPath := gpg.GPGIDPath(gr.Loc.Git)
 		return exportAsGPG(gr.Git.ctx, fingerprintPath, gr.Loc.Path, bs)
@@ -172,7 +174,7 @@ func (gr *Repository) Untrack(mesg string) error {
 
 // IsEncrypted returns whether the repo is encrypted.
 func (gr *Repository) IsEncrypted() bool {
-	return gpg.IsInitialized(gr.Git.RepoPath)
+	return gpg.IsInitialized(gr.Git.repoPath)
 }
 
 // IsTracked returns whether the repo is tracked.
