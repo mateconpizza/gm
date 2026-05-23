@@ -32,6 +32,8 @@ type RemoteRepo struct {
 	fullpath  string
 	bookmarks []*bookmark.Bookmark
 	stats     *db.RepoStats
+
+	ctx context.Context
 }
 
 func (r *RemoteRepo) Load(ctx context.Context) error {
@@ -70,8 +72,12 @@ func (r *RemoteRepo) String() string {
 }
 
 // newRemoteRepo creates a tracked remote repository instance.
-func newRemoteRepo(name, fullpath string) *RemoteRepo {
-	return &RemoteRepo{name: name, fullpath: fullpath}
+func newRemoteRepo(ctx context.Context, name, fullpath string) *RemoteRepo {
+	return &RemoteRepo{
+		ctx:      ctx,
+		name:     name,
+		fullpath: fullpath,
+	}
 }
 
 // Puller handles remote repository data ingestion.
@@ -96,7 +102,7 @@ func (pu *Puller) loadAll() error {
 	for _, repoName := range pu.found {
 		fullpath := filepath.Join(pu.srcDir, repoName)
 
-		repo := newRemoteRepo(repoName, fullpath)
+		repo := newRemoteRepo(pu.ctx, repoName, fullpath)
 		if err := repo.Load(pu.ctx); err != nil {
 			return err
 		}

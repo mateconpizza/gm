@@ -5,8 +5,6 @@ package git
 import (
 	"context"
 	"fmt"
-
-	"github.com/mateconpizza/gm/internal/sys"
 )
 
 const (
@@ -157,7 +155,7 @@ func newGit(path string, opts ...GitOptFn) *Git {
 // New verifies the system environment and returns a usable Git workflow
 // client.
 func New(ctx context.Context, path string) (*Git, error) {
-	gitCmd, err := sys.Which("git")
+	gitCmd, err := which("git")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", err, "git")
 	}

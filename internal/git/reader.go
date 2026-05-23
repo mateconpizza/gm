@@ -19,8 +19,8 @@ import (
 
 type RepositoryReader struct {
 	RepositoryReaderOpts
-	Root string
-	Path string
+	root string
+	path string
 }
 
 type RepositoryReaderOptFn func(*RepositoryReaderOpts)
@@ -44,11 +44,11 @@ func WithRepositoryReaderContext(ctx context.Context) RepositoryReaderOptFn {
 
 func (r *RepositoryReader) Read() ([]*bookmark.Bookmark, error) {
 	loader := readJSONRepo
-	if gpg.IsInitialized(r.Root) {
+	if gpg.IsInitialized(r.root) {
 		loader = readGPGRepo
 	}
 
-	return loader(r.ctx, r.Path, r.spinner)
+	return loader(r.ctx, r.path, r.spinner)
 }
 
 func NewReader(repoPath string, opts ...RepositoryReaderOptFn) *RepositoryReader {
@@ -62,8 +62,8 @@ func NewReader(repoPath string, opts ...RepositoryReaderOptFn) *RepositoryReader
 	}
 
 	return &RepositoryReader{
-		Root:                 filepath.Dir(repoPath),
-		Path:                 repoPath,
+		root:                 filepath.Dir(repoPath),
+		path:                 repoPath,
 		RepositoryReaderOpts: opt,
 	}
 }

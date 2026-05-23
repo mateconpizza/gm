@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -314,4 +315,12 @@ func Info(c *ui.Console, dbPath string, cfg *application.Git) (string, error) {
 	}
 
 	return f.StringReset(), nil
+}
+
+func which(cmd string) (string, error) {
+	path, err := exec.LookPath(cmd)
+	if err != nil {
+		return "", exec.ErrNotFound
+	}
+	return path, nil
 }
