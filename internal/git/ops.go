@@ -1,25 +1,18 @@
 package git
 
 import (
-	"cmp"
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -83,7 +76,8 @@ func repoStats(ctx context.Context, dbPath string, summary *SyncGitSummary) erro
 
 // commitIfChanged commits the bookmarks to the git repo if there are changes.
 func commitIfChanged(ctx context.Context, gr *Repository, actionMsg string) error {
-	err := writeRepoStats(ctx, gr)
+	var err error
+	err = writeRepoStats(ctx, gr)
 	if err != nil {
 		return err
 	}
@@ -95,7 +89,7 @@ func commitIfChanged(ctx context.Context, gr *Repository, actionMsg string) erro
 		return nil
 	}
 
-	if err := gm.AddAll(); err != nil {
+	if err = gm.AddAll(); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
 
@@ -129,98 +123,6 @@ func records(ctx context.Context, dbPath string) ([]*bookmark.Bookmark, error) {
 	}
 
 	return bs, nil
-}
-
-// parseGitRepo loads a git repo into a database.
-func parseGitRepo(d *deps.Deps, root, repoName string) (string, error) {
-	c, f := d.Console(), d.Console().Frame()
-	f.Rowln().Info(c.Palette().Bold.Sprintf("Repository %q\n", repoName))
-	repoPath := filepath.Join(root, repoName)
-
-	// read summary.json
-	sum := NewSummary()
-	if err := files.JSONRead(filepath.Join(repoPath, SummaryFileName), sum); err != nil {
-		return "", fmt.Errorf("reading summary: %w", err)
-	}
-
-	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
-		Midln(txt.PaddedLine("tags:", sum.RepoStats.Tags)).
-		Midln(txt.PaddedLine("favorites:", sum.RepoStats.Favorites)).Flush()
-
-	if err := c.ConfirmErr("Continue?", "y"); err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	var (
-		opt     string
-		err     error
-		choices = []string{"merge", "drop", "create", "select", "ignore"}
-	)
-
-	app, err := d.Application()
-	if err != nil {
-		return "", err
-	}
-	dbPath := filepath.Join(app.Path.Data, sum.RepoStats.Name)
-	gr, err := NewRepo(dbPath)
-	if err != nil {
-		return "", err
-	}
-
-	if !c.Confirm(fmt.Sprintf("Import into %q database?", gr.Loc.DBName), "y") {
-		// FIX:
-		// - Limit options to:
-		// 		- Current database (flag `--db`)?
-		// 		- New database
-		// 		- on "no/cancel", abort all process?
-		return "", nil
-	}
-
-	gr.Git.SetRepoPath(repoPath)
-
-	if files.Exists(dbPath) {
-		c.Warning(fmt.Sprintf("Database %q already exists\n", gr.Loc.DBName)).Flush()
-		opt, err = c.Choose("What do you want to do?", choices, "m")
-		if err != nil {
-			return "", fmt.Errorf("%w", err)
-		}
-	} else {
-		opt = "new"
-		gr, err = NewRepo(dbPath)
-		if err != nil {
-			return "", err
-		}
-		gr.Git.SetRepoPath(repoPath)
-	}
-
-	resultPath, err := parseGitRepoOpt(d, opt, gr)
-	if err != nil {
-		return "", err
-	}
-
-	return resultPath, nil
-}
-
-// parseGitRepoOpt handles the options for parseGitRepository.
-func parseGitRepoOpt(d *deps.Deps, opt string, gr *Repository) (string, error) {
-	ctx, c := d.Context(), d.Console()
-
-	switch strings.ToLower(opt) {
-	case "new":
-		return handleOptNew(ctx, c, gr)
-	case "c", "create":
-		return handleOptCreate(ctx, c, gr)
-	case "d", "drop":
-		return handleOptDrop(ctx, c, gr)
-	case "m", "merge":
-		return handleOptMerge(ctx, c, gr)
-	case "s", "select":
-		return handleOptSelect(ctx, c, gr)
-	case "i", "ignore":
-		return handleOptIgnore(ctx, c, gr)
-	default:
-		return gr.Loc.DBPath, nil
-	}
 }
 
 // removeRepoFiles removes all files in a repository.
@@ -260,7 +162,7 @@ func untrackRemoveRepo(gr *Repository, mesg string) error {
 		return err
 	}
 
-	return Commit(gr.Git.ctx, gr.Git.RepoPath, mesg)
+	return Commit(gr.Git.ctx, gr.Git.repoPath, mesg)
 }
 
 func trackRepo(gr *Repository) error {
@@ -288,7 +190,7 @@ func initGPG(c *ui.Console, gr *Repository, k *gpg.Fingerprint) error {
 		return fmt.Errorf("%w: %s", gpg.ErrKeyNotTrusted, k.UserID)
 	}
 
-	if err := gpg.Init(gr.Git.RepoPath, AttributesFile, k); err != nil {
+	if err := gpg.Init(gr.Git.repoPath, AttributesFile, k); err != nil {
 		return fmt.Errorf("gpg init: %w", err)
 	}
 
@@ -324,67 +226,6 @@ func dropRepo(gr *Repository, mesg string) error {
 	}
 
 	return gr.Commit(mesg)
-}
-
-// selectAndInsert prompts the user to select records to import.
-func selectAndInsert(ctx context.Context, c *ui.Console, dbPath, repoPath string) error {
-	bookmarks, err := readBookmarks(ctx, filepath.Dir(dbPath), repoPath)
-	if err != nil {
-		return err
-	}
-
-	app, err := application.FromContext(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
-	}
-
-	m := picker.New[bookmark.Bookmark](
-		app,
-		menu.WithArgs("--cycle"),
-		menu.WithHeader("select record/s to import"),
-		menu.WithMultiSelection(),
-	)
-
-	records := make([]bookmark.Bookmark, 0, len(bookmarks))
-	for _, b := range bookmarks {
-		records = append(records, *b)
-	}
-
-	slices.SortFunc(records, func(a, b bookmark.Bookmark) int {
-		return cmp.Compare(a.ID, b.ID)
-	})
-
-	m.SetFormatter(func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(c, b) })
-	selected, err := m.Select(records)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	r, err := db.New(ctx, dbPath)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	bs := make([]*bookmark.Bookmark, 0, len(selected))
-	for i := range selected {
-		bs = append(bs, &selected[i])
-	}
-
-	debookmarks, err := port.DeduplicateReport(ctx, c, r, bs)
-	if err != nil {
-		return err
-	}
-
-	if err := r.InsertMany(ctx, debookmarks); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	n := len(debookmarks)
-	if n > 0 {
-		c.Frame().Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, filepath.Base(dbPath))).Flush()
-	}
-
-	return nil
 }
 
 func repoStatus(c *ui.Console, gr *Repository) string {
@@ -476,145 +317,10 @@ func Info(c *ui.Console, dbPath string, cfg *application.Git) (string, error) {
 	return f.StringReset(), nil
 }
 
-func handleOptNew(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
-	if err := intoDBFromGit(ctx, c, gr); err != nil {
-		return "", err
-	}
-	return gr.Loc.DBPath, nil
-}
-
-func handleOptCreate(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
-	var dbName string
-	for dbName == "" {
-		dbName = files.EnsureSuffix(c.Prompt("Enter new name: "), ".db")
-	}
-	dbPath := filepath.Join(filepath.Dir(gr.Loc.DBPath), dbName)
-
-	newGr, err := NewRepo(dbPath)
+func which(cmd string) (string, error) {
+	path, err := exec.LookPath(cmd)
 	if err != nil {
-		return "", err
+		return "", exec.ErrNotFound
 	}
-	newGr.Git.SetRepoPath(gr.Git.RepoPath)
-
-	opt, err := c.Choose("What do you want to do?", []string{"select", "merge"}, "m")
-	if err != nil {
-		return "", err
-	}
-
-	r, err := db.Init(ctx, dbPath)
-	if err != nil {
-		return "", err
-	}
-	if err := r.Init(ctx); err != nil {
-		return "", fmt.Errorf("initializing database: %w", err)
-	}
-
-	return parseGitRepoOpt(deps.New(ctx, deps.WithRepo(r), deps.WithConsole(c)), opt, newGr)
-}
-
-func handleOptDrop(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
-	c.Warning("Dropping database\n").Flush()
-	if err := dropRepoFromPath(ctx, gr.Loc.DBPath); err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-	return handleOptMerge(ctx, c, gr)
-}
-
-func handleOptMerge(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
-	c.Info("Merging database\n").Flush()
-	if err := mergeAndInsert(ctx, c, gr); err != nil {
-		return "", err
-	}
-	return gr.Loc.DBPath, nil
-}
-
-func handleOptSelect(ctx context.Context, c *ui.Console, gr *Repository) (string, error) {
-	if err := selectAndInsert(ctx, c, gr.Loc.DBPath, gr.Git.RepoPath); err != nil {
-		if errors.Is(err, menu.ErrFzfActionAborted) {
-			return "", nil
-		}
-		return "", err
-	}
-	return gr.Loc.DBPath, nil
-}
-
-func handleOptIgnore(_ context.Context, c *ui.Console, gr *Repository) (string, error) {
-	s := fmt.Sprintf("%s repo %q", c.Palette().Yellow.Sprint("skipping"), gr.Loc.Name)
-	c.ReplaceLine(c.Warning(s).StringReset())
-	return "", nil
-}
-
-// intoDBFromGit loads a git repo into a database.
-func intoDBFromGit(ctx context.Context, c *ui.Console, gr *Repository) error {
-	bookmarks, err := readBookmarks(ctx, gr.Loc.Git, gr.Git.RepoPath)
-	if err != nil {
-		return fmt.Errorf("importing bookmarks: %w", err)
-	}
-
-	// FIX: replace with `repository.New`
-	store, err := db.Init(ctx, gr.Loc.DBPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	if err := store.Init(ctx); err != nil {
-		return fmt.Errorf("initializing database: %w", err)
-	}
-
-	r, err := db.New(ctx, store.Cfg.Fullpath())
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	if err := r.InsertMany(ctx, bookmarks); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	c.Frame().Success(fmt.Sprintf("Imported %d records into %q\n", len(bookmarks), gr.Loc.DBName)).Flush()
-
-	return nil
-}
-
-// mergeAndInsert merges non-duplicates records into database.
-func mergeAndInsert(ctx context.Context, c *ui.Console, gr *Repository) error {
-	r, err := db.New(ctx, gr.Loc.DBPath)
-	if err != nil {
-		return fmt.Errorf("creating repo: %w", err)
-	}
-	defer r.Close()
-
-	bookmarks, err := readBookmarks(ctx, gr.Loc.Git, gr.Git.RepoPath)
-	if err != nil {
-		return fmt.Errorf("importing bookmarks: %w", err)
-	}
-
-	bookmarks, err = port.DeduplicateReport(ctx, c, r, bookmarks)
-	if err != nil {
-		return err
-	}
-
-	if err := r.InsertMany(ctx, bookmarks); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := gr.Export(); err != nil {
-		return err
-	}
-	if err := gr.Commit("imported bookmarks from git"); err != nil {
-		return err
-	}
-
-	n := len(bookmarks)
-	if n > 0 {
-		c.Frame().Reset().Success(fmt.Sprintf("Imported %d records into %q\n", n, gr.Loc.DBName)).Flush()
-	}
-
-	return nil
-}
-
-// dropRepoFromPath drops the database from the given path.
-func dropRepoFromPath(ctx context.Context, dbPath string) error {
-	r, err := db.New(ctx, dbPath)
-	if err != nil {
-		return err
-	}
-	return r.DropSecure(ctx)
+	return path, nil
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
+	gitCmd "github.com/mateconpizza/gm/cmd/git"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
@@ -27,6 +28,7 @@ func newImportCmd(app *application.App) *cobra.Command {
 		newImportBrowserCmd(app),
 		newImportFromDatabaseCmd(app),
 		newImportFromBackupCmd(app),
+		newImportFromGit(app),
 	)
 
 	return c
@@ -175,6 +177,24 @@ func newImportFromFileCmd(app *application.App) *cobra.Command {
 
 			return port.FromFile(d, app.Flags.Path)
 		},
+	}
+
+	return c
+}
+
+func newImportFromGit(app *application.App) *cobra.Command {
+	var c *cobra.Command
+
+	g := gitCmd.NewCmd(app)
+	for _, cmd := range g.Commands() {
+		if cmd.Name() == "clone" {
+			c = &cobra.Command{
+				Use:   "git",
+				Short: "import from git repository",
+				Args:  cobra.MinimumNArgs(1),
+				RunE:  cmd.RunE,
+			}
+		}
 	}
 
 	return c

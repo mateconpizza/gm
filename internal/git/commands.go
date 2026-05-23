@@ -26,6 +26,7 @@ var (
 	ErrGitUpToDate        = errors.New("git: everything up-to-date")
 	ErrGitRepoNotFound    = errors.New("git: repo not found")
 	ErrGitRepoURLEmpty    = errors.New("git: repo url is empty")
+	ErrGitRepoEmpty       = errors.New("git: empty repository")
 )
 
 func cloneRepo(ctx context.Context, destRepoPath, repoURL string) error {
@@ -281,7 +282,10 @@ func runGitCmd(ctx context.Context, repoPath string, commands ...string) error {
 		return fmt.Errorf("%w: %s", err, g)
 	}
 
-	w := frame.New(frame.WithColorBorder(ansi.Yellow))
+	w := frame.New(
+		frame.WithColorBorder(ansi.Yellow),
+		frame.WithBordersSmallBlock(),
+	)
 	defer w.Flush()
 
 	commands = append([]string{g, "-C", repoPath}, commands...)

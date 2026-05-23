@@ -149,7 +149,7 @@ func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	_, err = git.NewManager(cmd.Context(), app.Git.Path)
+	_, err = git.New(cmd.Context(), app.Git.Path)
 	if err != nil {
 		return fmt.Errorf("hook git: %w", err)
 	}

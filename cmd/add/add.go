@@ -61,7 +61,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			if err := handler.SaveNewBookmark(d, b); err != nil {
 				return err
 			}
-			if err := git.AddBookmark(app, b); err != nil {
+			if err := git.AddBookmark(app.Path.Database, b); err != nil {
 				return err
 			}
 			fmt.Println(c.SuccessMesg("bookmark added"))

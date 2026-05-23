@@ -1,12 +1,13 @@
 package git
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 
-	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -14,78 +15,106 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-type RepoProcessorOption func(*RepoProcessorOptions)
+type Menu interface {
+	Select(items []*RemoteRepo) ([]*RemoteRepo, error)
+}
 
-type RepoProcessorOptions struct {
+type PullerOptFun func(*PullerOptions)
+
+type PullerOptions struct {
 	ctx context.Context
 }
 
-// RepoProcessor handles the processing of a single repository.
-type RepoProcessor struct {
-	Console  *ui.Console
-	Root     string
-	DestPath string
-	Repos    []string
-	result   *PullResult
-	*RepoProcessorOptions
+// RemoteRepo represents a remote repository's structure discovered in the git
+// payload.
+type RemoteRepo struct {
+	name      string
+	fullpath  string
+	bookmarks []*bookmark.Bookmark
+	stats     *db.RepoStats
+
+	ctx context.Context
 }
 
-func WithRPContext(ctx context.Context) RepoProcessorOption {
-	return func(o *RepoProcessorOptions) {
+func (r *RemoteRepo) Load(ctx context.Context) error {
+	// read and display summary
+	sum, err := loadSummary(r.fullpath)
+	if err != nil {
+		return err
+	}
+
+	// read bookmarks from git
+	bookmarks, err := readBookmarks(ctx, filepath.Base(r.fullpath), r.fullpath)
+	if err != nil {
+		return err
+	}
+
+	slices.SortFunc(bookmarks, func(a, b *bookmark.Bookmark) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	r.bookmarks = bookmarks
+	r.stats = sum.RepoStats
+
+	return nil
+}
+
+func (r *RemoteRepo) Name() string {
+	return r.name
+}
+
+func (r *RemoteRepo) Bookmarks() []*bookmark.Bookmark {
+	return r.bookmarks
+}
+
+func (r *RemoteRepo) String() string {
+	return txt.PaddedLine(r.name, fmt.Sprintf("(bookmarks: %d)", r.stats.Bookmarks))
+}
+
+// newRemoteRepo creates a tracked remote repository instance.
+func newRemoteRepo(ctx context.Context, name, fullpath string) *RemoteRepo {
+	return &RemoteRepo{
+		ctx:      ctx,
+		name:     name,
+		fullpath: fullpath,
+	}
+}
+
+// Puller handles remote repository data ingestion.
+type Puller struct {
+	srcDir string        // Base directory where cloned assets are held
+	dstDir string        // Output directory path for generated databases
+	found  []string      // Discovered directory names matching the lookup criteria
+	items  []*RemoteRepo // Parsed structural instances ready for ingestion
+
+	*PullerOptions
+	console *ui.Console
+}
+
+func WithPullerContext(ctx context.Context) PullerOptFun {
+	return func(o *PullerOptions) {
 		o.ctx = ctx
 	}
 }
 
-// PullResult tracks the results of a pull operation.
-type PullResult struct {
-	TotalBookmarks      int
-	TotalReposProcessed int
-	TotalSkipped        int
-}
+// loadAll discovers and loads metadata for all available repositories.
+func (pu *Puller) loadAll() error {
+	for _, repoName := range pu.found {
+		fullpath := filepath.Join(pu.srcDir, repoName)
 
-// processRepositories processes all repositories and returns aggregated results.
-func (rp *RepoProcessor) processRepositories() error {
-	for _, repoName := range rp.Repos {
-		count, err := rp.processRepository(repoName)
-		if err != nil {
+		repo := newRemoteRepo(pu.ctx, repoName, fullpath)
+		if err := repo.Load(pu.ctx); err != nil {
 			return err
 		}
 
-		if count > 0 {
-			rp.result.TotalBookmarks += count
-			rp.result.TotalReposProcessed++
-		}
+		pu.items = append(pu.items, repo)
 	}
 
 	return nil
 }
 
-// processRepository processes a single repository and returns the number of bookmarks added.
-func (rp *RepoProcessor) processRepository(repoName string) (int, error) {
-	repoPath := filepath.Join(rp.Root, repoName)
-
-	f := rp.Console.Frame().Rowln()
-	f.Info(rp.Console.Palette().Bold.Sprintf("Repository %q\n", repoName))
-
-	// Read and display summary
-	sum, err := rp.readSummary(repoPath)
-	if err != nil {
-		return 0, err
-	}
-	rp.displaySummary(sum)
-
-	// Read bookmarks from git
-	bookmarks, err := readBookmarks(rp.ctx, rp.Root, repoPath)
-	if err != nil {
-		return 0, err
-	}
-
-	// Insert into database
-	return rp.insertBookmarks(repoName, bookmarks)
-}
-
-// readSummary reads the summary.json file from a repository.
-func (rp *RepoProcessor) readSummary(repoPath string) (*SyncGitSummary, error) {
+// loadSummary reads a repository summary file.
+func loadSummary(repoPath string) (*SyncGitSummary, error) {
 	sum := NewSummary()
 	summaryPath := filepath.Join(repoPath, SummaryFileName)
 	if err := files.JSONRead(summaryPath, sum); err != nil {
@@ -95,91 +124,28 @@ func (rp *RepoProcessor) readSummary(repoPath string) (*SyncGitSummary, error) {
 	return sum, nil
 }
 
-// displaySummary shows repository statistics.
-func (rp *RepoProcessor) displaySummary(sum *SyncGitSummary) {
-	f, p := rp.Console.Frame(), rp.Console.Palette()
-	f.Midln(txt.PaddedLine("records:", sum.RepoStats.Bookmarks)).
-		Midln(txt.PaddedLine(p.BrightBlue.Sprint("tags:"), sum.RepoStats.Tags))
+// printStats writes repository metadata to the user interface.
+func printStats(c *ui.Console, stats *db.RepoStats) {
+	f, p := c.Frame(), c.Palette()
+	f.Midln(txt.PaddedLine(p.BrightYellow.Sprint("records:"), stats.Bookmarks)).
+		Midln(txt.PaddedLine(p.BrightBlue.Sprint("tags:"), stats.Tags))
 
-	if sum.RepoStats.Favorites > 0 {
-		f.Midln(txt.PaddedLine(p.BrightRed.Sprint("favorites:"), sum.RepoStats.Favorites))
+	if stats.Favorites > 0 {
+		f.Midln(txt.PaddedLine(p.BrightRed.Sprint("favorites:"), stats.Favorites))
+	}
+	if stats.Archived > 0 {
+		f.Midln(txt.PaddedLine(p.BrightRed.Sprint("wayback:"), stats.Archived))
+	}
+	if stats.TotalVisits > 0 {
+		f.Midln(txt.PaddedLine("visits:", stats.TotalVisits))
 	}
 
 	f.Flush()
 }
 
-// insertBookmarks inserts bookmarks into the local database.
-func (rp *RepoProcessor) insertBookmarks(repoName string, bookmarks []*bookmark.Bookmark) (int, error) {
-	// Open or create database
-	r, err := rp.openDatabase(repoName)
-	if err != nil {
-		return 0, err
-	}
-	defer r.Close()
-
-	// Initialize database if needed
-	if err := r.Init(rp.ctx); err != nil {
-		return 0, fmt.Errorf("initializing database: %w", err)
-	}
-
-	// Deduplicate and insert
-	deduped, err := port.DeduplicateReport(rp.ctx, rp.Console, r, bookmarks)
-	if err != nil {
-		return 0, nil
-	}
-
-	if len(deduped) == 0 {
-		rp.result.TotalSkipped += len(bookmarks)
-		return 0, nil
-	}
-
-	rp.result.TotalSkipped += len(bookmarks) - len(deduped)
-	if err := r.InsertMany(rp.ctx, deduped); err != nil {
-		return 0, err
-	}
-
-	return len(deduped), nil
-}
-
-// openDatabase opens an existing database or creates a new one.
-func (rp *RepoProcessor) openDatabase(repoName string) (*db.SQLite, error) {
-	dbPath := files.EnsureSuffix(filepath.Join(rp.DestPath, repoName), ".db")
-
-	if files.Exists(dbPath) {
-		return db.New(rp.ctx, dbPath)
-	}
-
-	return db.Init(rp.ctx, dbPath)
-}
-
-// displaySummary shows the final summary of the pull operation.
-func (rp *RepoProcessor) displayPullSummary() {
-	f, p := rp.Console.Frame(), rp.Console.Palette()
-	r := rp.result
-	pad := txt.PaddedLine
-
-	f.Ln().Headerln(p.Bold.Sprint("Summary:")).
-		Midln(pad("Repos:", fmt.Sprintf("%d found", len(rp.Repos))))
-
-	if r.TotalReposProcessed > 0 {
-		f.Midln(pad(p.BrightRed.Sprint("Processed:"), r.TotalReposProcessed))
-	}
-	if r.TotalSkipped > 0 {
-		f.Midln(pad(p.BrightYellow.Sprint("Skipped:"), r.TotalSkipped))
-	}
-
-	message := fmt.Sprintf("%d bookmarks", r.TotalBookmarks)
-	if r.TotalBookmarks == 0 {
-		message = "No bookmark added"
-	}
-	f.Midln(pad(p.BrightBlue.Sprint("Added:"), message))
-
-	f.Flush()
-}
-
-// searchRepositories searches for repos in the root folder.
-func (rp *RepoProcessor) searchRepositories() error {
-	repos, err := files.ListRootFolders(rp.Root, ".git")
+// scan finds matching subdirectories in the working root.
+func (pu *Puller) scan() error {
+	repos, err := files.ListRootFolders(pu.srcDir, ".git")
 	if err != nil {
 		return err
 	}
@@ -187,29 +153,45 @@ func (rp *RepoProcessor) searchRepositories() error {
 		return ErrGitNoRepos
 	}
 
-	rp.Repos = repos
+	pu.found = repos
 
+	return nil
+}
+
+// Repos returns the loaded repositories if processing has been initiated.
+func (pu *Puller) Repos() []*RemoteRepo {
+	return pu.items
+}
+
+// PrintDetails outputs a repository's metadata profile and summary metrics.
+func (pu *Puller) PrintDetails(repo *RemoteRepo) error {
+	f, p := pu.console.Frame(), pu.console.Palette()
+	f.Rowln().Info(p.Bold.Sprintf("Repository %q\n", repo.Name()))
+
+	if len(repo.bookmarks) == 0 {
+		skip := p.BrightYellow.Wrap("skipping ", p.Italic)
+		pu.console.Warning(skip + repo.Name() + ": no bookmark found").Ln().Flush()
+		return ErrGitRepoEmpty
+	}
+
+	printStats(pu.console, repo.stats)
 	return nil
 }
 
 // Pull pulls bookmarks from remote git repository and replicate the
 // repositories as databases.
-func (rp *RepoProcessor) Pull() error {
-	if err := rp.searchRepositories(); err != nil {
+func (pu *Puller) Pull() error {
+	if err := pu.scan(); err != nil {
 		return err
 	}
 
-	if err := rp.processRepositories(); err != nil {
-		return err
-	}
+	printHeader(pu)
 
-	rp.displayPullSummary()
-
-	return nil
+	return pu.loadAll()
 }
 
-func NewRepoProcessor(c *ui.Console, g *Manager, app *application.App, opts ...RepoProcessorOption) *RepoProcessor {
-	o := &RepoProcessorOptions{}
+func NewRepoProcessor(c *ui.Console, srcDir, dstDir string, opts ...PullerOptFun) *Puller {
+	o := &PullerOptions{}
 	for _, fn := range opts {
 		fn(o)
 	}
@@ -218,11 +200,68 @@ func NewRepoProcessor(c *ui.Console, g *Manager, app *application.App, opts ...R
 		o.ctx = context.Background()
 	}
 
-	return &RepoProcessor{
-		Console:              c,
-		Root:                 g.RepoPath,
-		DestPath:             app.Path.Data,
-		result:               &PullResult{},
-		RepoProcessorOptions: o,
+	return &Puller{
+		console:       c,
+		srcDir:        srcDir,
+		dstDir:        dstDir,
+		PullerOptions: o,
 	}
+}
+
+// printHeader writes the operational overview to the terminal.
+func printHeader(rp *Puller) {
+	var (
+		p      = rp.console.Palette()
+		f      = rp.console.Frame()
+		y      = func(s string) string { return p.BrightYellow.Wrap(s, p.Bold) }
+		square = func() string { return y(txt.GlyphSmallSquare.Prefix(" ")) }
+	)
+
+	path := files.CollapseHomeDir(rp.dstDir)
+
+	f.Ln().
+		CustomFunc(square, y("Repository cloned successfully")).Ln().
+		Midln(p.Gray.Wrap("Path: "+path, p.Italic)).Rowln().
+		CustomFunc(func() string {
+			return txt.GlyphSmallSquare.Prefix(" ")
+		}, p.Bold.Sprint("Found repositories")).Ln()
+
+	for _, repo := range rp.found {
+		f.Rowln(repo)
+	}
+
+	f.Rowln().Flush()
+}
+
+func (pu *Puller) Select(m Menu) error {
+	opts := []string{"yes", "no"}
+	n := len(pu.found)
+	if n > 1 {
+		opts = append(opts, "select")
+	}
+
+	opt, err := pu.console.Choose("import repositories?", opts, "n")
+	if err != nil {
+		return err
+	}
+
+	if n == 1 {
+		return nil
+	}
+
+	switch opt {
+	case "y", "yes":
+		return nil
+	case "n", "no":
+		return sys.ErrActionAborted
+	case "s", "select":
+		repos, err := m.Select(pu.items)
+		if err != nil {
+			return err
+		}
+
+		pu.items = repos
+	}
+
+	return nil
 }

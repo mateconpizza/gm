@@ -5,8 +5,6 @@ package git
 import (
 	"context"
 	"fmt"
-
-	"github.com/mateconpizza/gm/internal/sys"
 )
 
 const (
@@ -21,10 +19,10 @@ type GitOpts struct {
 	ctx context.Context
 }
 
-// Manager represents a Git repository manager.
-type Manager struct {
+// Git handles operational tasks on a local Git repository.
+type Git struct {
 	GitOpts
-	RepoPath      string
+	repoPath      string
 	isInitialized bool
 }
 
@@ -48,87 +46,96 @@ func WithContext(ctx context.Context) GitOptFn {
 }
 
 // IsInitialized returns true if the Git repository is initialized.
-func (gm *Manager) IsInitialized() bool {
-	if !gm.isInitialized {
-		gm.isInitialized = IsInitialized(gm.RepoPath)
+func (g *Git) IsInitialized() bool {
+	if !g.isInitialized {
+		g.isInitialized = IsInitialized(g.repoPath)
 	}
 
-	return gm.isInitialized
+	return g.isInitialized
 }
 
 // Init creates a new Git repository.
-func (gm *Manager) Init(force bool) error {
-	return initialize(gm.ctx, gm.RepoPath, force)
+func (g *Git) Init(force bool) error {
+	return initialize(g.ctx, g.repoPath, force)
+}
+
+// FullPath returns the absolute directory path where the Git repository lives.
+func (g *Git) FullPath() string {
+	return g.repoPath
 }
 
 // branch returns the name of the current branch.
-func (gm *Manager) branch() (string, error) {
-	return branch(gm.ctx, gm.RepoPath)
+func (g *Git) branch() (string, error) {
+	return branch(g.ctx, g.repoPath)
 }
 
 // Remote returns the origin of the repository.
-func (gm *Manager) Remote() (string, error) {
-	return Remote(gm.ctx, gm.RepoPath)
+func (g *Git) Remote() (string, error) {
+	return Remote(g.ctx, g.repoPath)
 }
 
 // status returns the status of the repository.
-func (gm *Manager) status() (string, error) {
-	return status(gm.ctx, gm.RepoPath)
+func (g *Git) status() (string, error) {
+	return status(g.ctx, g.repoPath)
 }
 
 // HasUnpushedCommits checks if there are any unpushed commits in the repo.
-func (gm *Manager) HasUnpushedCommits() (bool, error) {
-	return hasUnpushedCommits(gm.ctx, gm.RepoPath)
+func (g *Git) HasUnpushedCommits() (bool, error) {
+	return hasUnpushedCommits(g.ctx, g.repoPath)
 }
 
 // hasChanges checks if there are any staged or unstaged changes in the repo.
-func (gm *Manager) hasChanges() (bool, error) {
-	return hasChanges(gm.ctx, gm.RepoPath)
+func (g *Git) hasChanges() (bool, error) {
+	return hasChanges(g.ctx, g.repoPath)
 }
 
 // AddAll adds all local changes.
-func (gm *Manager) AddAll() error {
-	return addAll(gm.ctx, gm.RepoPath)
+func (g *Git) AddAll() error {
+	return addAll(g.ctx, g.repoPath)
 }
 
 // AddRemote adds a remote repository.
-func (gm *Manager) AddRemote(repoURL string, force bool) error {
-	return addRemote(gm.ctx, gm.RepoPath, repoURL, force)
+func (g *Git) AddRemote(repoURL string, force bool) error {
+	return addRemote(g.ctx, g.repoPath, repoURL, force)
 }
 
 // Clone clones a repository.
-func (gm *Manager) Clone(repoURL string) error {
-	return cloneRepo(gm.ctx, gm.RepoPath, repoURL)
+func (g *Git) Clone(repoURL string) error {
+	return cloneRepo(g.ctx, g.repoPath, repoURL)
+}
+
+func (g *Git) CloneInto(repoURL, destPath string) error {
+	return cloneRepo(g.ctx, destPath, repoURL)
 }
 
 // Push pushes changes to the remote repository.
-func (gm *Manager) Push() error {
-	return push(gm.ctx, gm.RepoPath)
+func (g *Git) Push() error {
+	return push(g.ctx, g.repoPath)
 }
 
 // Commit commits changes to the repository.
-func (gm *Manager) Commit(msg string) error {
-	return Commit(gm.ctx, gm.RepoPath, msg)
+func (g *Git) Commit(msg string) error {
+	return Commit(g.ctx, g.repoPath, msg)
 }
 
 // SetRepoPath sets the repository path.
-func (gm *Manager) SetRepoPath(repoPath string) {
-	gm.isInitialized = false
-	gm.RepoPath = repoPath
+func (g *Git) SetRepoPath(path string) {
+	g.isInitialized = false
+	g.repoPath = path
 }
 
 // setConfigLocal sets a local config value.
-func (gm *Manager) setConfigLocal(k, v string) error {
-	return setConfigLocal(gm.ctx, gm.RepoPath, k, v)
+func (g *Git) setConfigLocal(k, v string) error {
+	return setConfigLocal(g.ctx, g.repoPath, k, v)
 }
 
 // Exec executes a command in the repository.
-func (gm *Manager) Exec(commands ...string) error {
-	return runGitCmd(gm.ctx, gm.RepoPath, commands...)
+func (g *Git) Exec(commands ...string) error {
+	return runGitCmd(g.ctx, g.repoPath, commands...)
 }
 
-// NewGit creates a new GitManager.
-func NewGit(repoPath string, opts ...GitOptFn) *Manager {
+// newGit creates a base Git wrapper instance with options.
+func newGit(path string, opts ...GitOptFn) *Git {
 	o := defaultOpts()
 	for _, fn := range opts {
 		fn(o)
@@ -139,19 +146,20 @@ func NewGit(repoPath string, opts ...GitOptFn) *Manager {
 		o.ctx = context.Background()
 	}
 
-	return &Manager{
-		RepoPath: repoPath,
+	return &Git{
+		repoPath: path,
 		GitOpts:  *o,
 	}
 }
 
-func NewManager(ctx context.Context, path string) (*Manager, error) {
-	gitCmd, err := sys.Which("git")
+// New verifies the system environment and returns a usable Git workflow
+// client.
+func New(ctx context.Context, path string) (*Git, error) {
+	gitCmd, err := which("git")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", err, "git")
 	}
 
-	gm := NewGit(path, WithCmd(gitCmd), WithContext(ctx))
-
-	return gm, nil
+	g := newGit(path, WithCmd(gitCmd), WithContext(ctx))
+	return g, nil
 }

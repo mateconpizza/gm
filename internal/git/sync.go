@@ -15,9 +15,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -25,60 +23,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
-
-// Import clones a Git repository, parses its bookmark files, and imports them
-// into the application.
-func Import(d *deps.Deps, gm *Manager) ([]string, error) {
-	app, err := d.Application()
-	if err != nil {
-		return nil, err
-	}
-	urlRepo := app.Flags.Path
-	if err := gm.Clone(urlRepo); err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-
-	repos, err := files.ListRootFolders(gm.RepoPath, ".git")
-	if err != nil {
-		return nil, fmt.Errorf("%w", err)
-	}
-	n := len(repos)
-	if n == 0 {
-		return nil, ErrGitRepoNotFound
-	}
-
-	c := d.Console()
-	c.Frame().Midln(fmt.Sprintf("Found %d repositorie/s", n)).Flush()
-
-	var imported []string
-	for _, repoName := range repos {
-		dbPath, err := parseGitRepo(d, gm.RepoPath, repoName)
-		if err != nil {
-			if errors.Is(err, sys.ErrActionAborted) {
-				n--
-				continue
-			}
-
-			return nil, fmt.Errorf("%w", err)
-		}
-
-		if dbPath != "" {
-			imported = append(imported, dbPath)
-		}
-	}
-
-	if len(imported) == 0 {
-		return nil, sys.ErrActionAborted
-	}
-
-	if err := files.RemoveAll(gm.RepoPath); err != nil {
-		return nil, fmt.Errorf("removing temp repo: %w", err)
-	}
-
-	fmt.Fprintln(d.Writer(), c.SuccessMesg("imported bookmarks from git"))
-
-	return imported, nil
-}
 
 // exportAsGPG export and encrypts the bookmarks and stores them in the git
 // repo.
@@ -260,39 +204,53 @@ func cleanJSONRepo(ctx context.Context, root string, bs []*bookmark.Bookmark) er
 
 // Sync writes bookmarks to the repo and commits changes if any.
 func Sync(ctx context.Context, app *application.App, mesg string) error {
+	slog.DebugContext(ctx, "starting git sync")
 	if !app.Git.Enabled {
-		slog.Debug("git sync", "enabled", app.Git.Enabled)
+		slog.DebugContext(ctx, "git sync disabled, skipping", "enabled", app.Git.Enabled)
 		return nil
 	}
 
+	slog.DebugContext(ctx, "creating git repo instance")
 	gr, err := NewRepo(app.Path.Database)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to create git repo", "error", err)
 		return err
 	}
 
 	if !gr.IsTracked() {
+		slog.DebugContext(ctx, "database path not tracked in git, skipping sync")
 		return nil
 	}
 
 	r, err := db.New(ctx, app.Path.Database)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to open database", "error", err)
 		return err
 	}
 	defer r.Close()
 
 	bs, err := r.All(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to fetch bookmarks", "error", err)
 		return err
 	}
 
 	updated, err := gr.Write(bs, app.Flags.Force)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to write bookmarks to repo", "error", err)
 		return err
 	}
 
 	if !updated {
+		slog.DebugContext(ctx, "no changes detected, skipping commit")
 		return nil
 	}
 
-	return gr.Commit(mesg)
+	if err := gr.Commit(mesg); err != nil {
+		slog.ErrorContext(ctx, "failed to commit changes", "error", err)
+		return err
+	}
+
+	slog.InfoContext(ctx, "git sync completed successfully", "changes_committed", updated)
+	return nil
 }
