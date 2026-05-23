@@ -22,42 +22,32 @@ const trackerFile = ".tracked.json"
 
 // Tracker manages a list of tracked repositories stored in a file.
 type Tracker struct {
-	Repos    []string // Repos holds tracked repository names or paths.
-	Filename string   // Filename is the path to the JSON file.
-	loaded   bool
+	repos    []string // Repos holds tracked repository names or paths.
+	filename string   // Filename is the path to the JSON file.
 }
 
 // NewTracker returns a new Tracker for the given root directory.
 func NewTracker(root string) *Tracker {
 	return &Tracker{
-		Filename: filepath.Join(root, trackerFile),
+		filename: filepath.Join(root, trackerFile),
 	}
 }
 
 // Load loads the tracked repositories from the file (if exists).
 func (t *Tracker) Load() error {
-	if t.loaded {
-		return nil
-	}
-
-	if files.Exists(t.Filename) {
-		if err := files.JSONRead(t.Filename, &t.Repos); err != nil {
+	if files.Exists(t.filename) {
+		if err := files.JSONRead(t.filename, &t.repos); err != nil {
 			return fmt.Errorf("load tracker: %w", err)
 		}
 	}
 
-	t.loaded = true
 	return nil
 }
 
 // Save writes the tracked repositories to the file.
 func (t *Tracker) Save() error {
-	if !t.loaded {
-		return ErrGitTrackNotLoaded
-	}
-
-	t.Repos = slices.Compact(t.Repos)
-	if _, err := files.JSONWrite(t.Filename, &t.Repos, true); err != nil {
+	t.repos = slices.Compact(t.repos)
+	if _, err := files.JSONWrite(t.filename, &t.repos, true); err != nil {
 		return fmt.Errorf("save tracker: %w", err)
 	}
 
@@ -77,13 +67,10 @@ func (t *Tracker) Track(name string) error {
 	if name == "" {
 		return ErrGitRepoNameEmpty
 	}
-	if !t.loaded {
-		return ErrGitTrackNotLoaded
-	}
-	if slices.Contains(t.Repos, name) {
+	if slices.Contains(t.repos, name) {
 		return ErrGitTracked
 	}
-	t.Repos = append(t.Repos, name)
+	t.repos = append(t.repos, name)
 	return nil
 }
 
@@ -92,36 +79,27 @@ func (t *Tracker) Untrack(name string) error {
 	if name == "" {
 		return ErrGitRepoNameEmpty
 	}
-	if !t.loaded {
-		return ErrGitTrackNotLoaded
-	}
-	if !slices.Contains(t.Repos, name) {
+
+	if !slices.Contains(t.repos, name) {
 		return ErrGitNotTracked
 	}
-	t.Repos = slices.DeleteFunc(t.Repos, func(r string) bool { return r == name })
+
+	t.repos = slices.DeleteFunc(
+		t.repos,
+		func(r string) bool {
+			return r == name
+		},
+	)
+
 	return nil
 }
 
 // Contains checks if a repository is tracked.
 func (t *Tracker) Contains(name string) (bool, error) {
-	if !t.loaded {
-		return false, ErrGitTrackNotLoaded
-	}
-
-	return slices.Contains(t.Repos, name), nil
+	return slices.Contains(t.repos, name), nil
 }
 
-// Tracked returns the currently tracked repositories.
-func Tracked(path string) ([]string, error) {
-	tracked := []string{}
-	if !files.Exists(path) {
-		if _, err := files.JSONWrite(path, &tracked, true); err != nil {
-			return nil, fmt.Errorf("create tracker: %w", err)
-		}
-		return tracked, nil
-	}
-	if err := files.JSONRead(path, &tracked); err != nil {
-		return nil, fmt.Errorf("read tracker: %w", err)
-	}
-	return tracked, nil
+// Repos returns the tracked repositories.
+func (t *Tracker) Repos() []string {
+	return t.repos
 }

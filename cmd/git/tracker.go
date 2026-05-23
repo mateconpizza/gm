@@ -29,11 +29,12 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
+			repos := gr.Tracker.Repos()
 
+			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 			switch {
 			case app.Flags.List:
-				return status(c, app, gr.Tracker.Repos)
+				return status(c, app, repos)
 			case app.Flags.Track:
 				terminal.NonInteractiveMode(true) // don't ask confirmation
 				return track(c, gr)
@@ -42,7 +43,7 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 				return untrack(c, gr)
 			}
 
-			return status(c, app, gr.Tracker.Repos)
+			return status(c, app, repos)
 		},
 	}
 

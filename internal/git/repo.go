@@ -60,8 +60,8 @@ func NewRepo(dbPath string) (*Repository, error) {
 	}
 
 	loc := newLocation(dbPath)
-	tk := NewTracker(loc.Git)
-	if err := tk.Load(); err != nil {
+	t := NewTracker(loc.Git)
+	if err := t.Load(); err != nil {
 		return nil, err
 	}
 
@@ -72,7 +72,7 @@ func NewRepo(dbPath string) (*Repository, error) {
 
 	return &Repository{
 		Loc:     loc,
-		Tracker: tk,
+		Tracker: t,
 		Git:     newGit(loc.Git, WithCmd(gitCmd)),
 	}, nil
 }
