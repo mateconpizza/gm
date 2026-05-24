@@ -100,6 +100,16 @@ func PaddedLineWithPad(s, v any, pad int) string {
 	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
 }
 
+func PaddedLineWithPadChar(s, v any, pad int, padChar string) string {
+	str := fmt.Sprint(s)
+	visibleLen := len(ansi.Remover(str))
+	padding := max(pad-visibleLen, 0)
+
+	paddingStr := strings.Repeat(padChar, padding)
+
+	return fmt.Sprintf("%s%s%v", str, paddingStr, v)
+}
+
 // Shorten shortens a string to a maximum length.
 //
 //	string...
@@ -408,7 +418,7 @@ func TagsWithPound(s string) string {
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("#%s ", t))
+		fmt.Fprintf(&sb, "#%s ", t)
 	}
 
 	return sb.String()

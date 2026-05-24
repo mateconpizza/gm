@@ -251,13 +251,13 @@ func UnlockRepo(d *deps.Deps, rToUnlock string) error {
 }
 
 func MigrationsStatus(d *deps.Deps) error {
-	c := d.Console()
-	p, f := c.Palette(), c.Frame()
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 
+	c := d.Console()
+	p, f := c.Palette(), c.Frame()
 	header := func() string {
 		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
 	}
@@ -363,41 +363,6 @@ func displayBookmarkChanges(w io.Writer, c *ui.Console, b, updated *bookmark.Boo
 		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
 		fmt.Fprintln(w, txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
-}
-
-// SaveNewBookmark asks the user if they want to save the bookmark.
-func SaveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	app, err := d.Application()
-	if err != nil {
-		return err
-	}
-
-	if app.Flags.Force {
-		return r.InsertMany(d.Context(), []*bookmark.Bookmark{b})
-	}
-
-	c := d.Console()
-	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	switch strings.ToLower(opt) {
-	case "n", "no":
-		return sys.ErrActionAborted
-	case "e", "edit":
-		return runEditSession(d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
-	default:
-		if _, err := r.InsertOne(d.Context(), b); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-	}
-
-	return nil
 }
 
 func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark, error) {

@@ -42,7 +42,7 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 
 	terminal.ReadPipedInput(args)
 
-	console := ui.NewDefaultConsole(ctx, func(err error) {
+	c := ui.NewDefaultConsole(ctx, func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
 	})
@@ -51,7 +51,7 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 		ctx,
 		deps.WithApplication(app),
 		deps.WithRepo(r),
-		deps.WithConsole(console),
+		deps.WithConsole(c),
 	)
 
 	return d, r.Close, nil

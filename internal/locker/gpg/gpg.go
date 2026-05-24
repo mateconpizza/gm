@@ -57,7 +57,7 @@ func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(output))
-		slog.Error("gpg: decryption failed", "error", err, "output", msg, "output_length", len(output))
+		slog.Debug("gpg: decryption failed", "error", err, "output", msg, "output_length", len(output))
 		return nil, fmt.Errorf("gpg decrypt failed: %s: %w", msg, err)
 	}
 
@@ -90,7 +90,7 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Error("gpg: encryption failed", "error", err, "output_length", len(output))
+		slog.Debug("gpg: encryption failed", "error", err, "output_length", len(output))
 		return fmt.Errorf("gpg encrypt failed: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 

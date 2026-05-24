@@ -6,11 +6,14 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/editor"
+	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -18,8 +21,49 @@ type bookmarkTemp struct {
 	title, desc, tags, favicon string
 }
 
-// NewBookmark fetch metadata and parses the new bookmark.
-func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
+func AddBookmark(d *deps.Deps, args []string) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	c, p := d.Console(), d.Console().Palette()
+	title := p.BrightYellow.With(p.Bold).
+		Sprint("Add Bookmark")
+	comment := p.Dim.With(p.Italic).
+		Sprint(" (ctrl-c to exit)")
+	name := p.BrightYellow.With(p.Bold).
+		Sprint(files.StripSuffixes(r.Name()))
+	info := p.Dim.With(p.Italic).
+		Sprintf(" (%d bookmarks)", r.Count(d.Context(), "bookmarks"))
+	subtitle := p.Dim.With(p.Italic).
+		Sprint(txt.PaddedLine("repository", name))
+	header := func() string { return p.BrightYellow.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold) }
+
+	c.Frame().
+		CustomFunc(header, title+comment).Ln().
+		Headerln(subtitle + info).
+		Rowln().Flush()
+
+	b := bookmark.New()
+	if err := parseNewBookmark(d, b, args); err != nil {
+		return err
+	}
+	if err := bookmark.Validate(b); err != nil {
+		return err
+	}
+	if err := saveNewBookmark(d, b); err != nil {
+		return err
+	}
+	if err := git.AddBookmark(r.Cfg.Fullpath(), b); err != nil {
+		return err
+	}
+
+	return c.Term().Print(d.Context(), c.SuccessMesg("bookmark added\n"))
+}
+
+// parseNewBookmark fetch metadata and parses the new bookmark.
+func parseNewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
 	app, err := d.Application()
 	if err != nil {
 		return err
@@ -44,7 +88,11 @@ func NewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithContext(d.Context()), scraper.WithSpinner("scraping webpage..."))
+	sc := scraper.New(
+		newURL,
+		scraper.WithContext(d.Context()),
+		scraper.WithSpinner("scraping webpage..."),
+	)
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)
@@ -216,4 +264,39 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	}
 
 	f.Flush()
+}
+
+// saveNewBookmark asks the user if they want to save the bookmark.
+func saveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	if app.Flags.Force {
+		return r.InsertMany(d.Context(), []*bookmark.Bookmark{b})
+	}
+
+	c := d.Console()
+	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	switch strings.ToLower(opt) {
+	case "n", "no":
+		return sys.ErrActionAborted
+	case "e", "edit":
+		return runEditSession(d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
+	default:
+		if _, err := r.InsertOne(d.Context(), b); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	return nil
 }

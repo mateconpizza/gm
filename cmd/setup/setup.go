@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -37,11 +38,20 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("failed to get config: %w", err)
 		}
 
-		return initializeAction(deps.New(
+		c := ui.NewDefaultConsole(
 			cmd.Context(),
-			deps.WithApplication(app),
-			deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
-		))
+			func(err error) {
+				sys.ErrAndExit(err)
+			},
+		)
+
+		return initializeAction(
+			deps.New(
+				cmd.Context(),
+				deps.WithApplication(app),
+				deps.WithConsole(c),
+			),
+		)
 	},
 }
 
@@ -68,8 +78,13 @@ func initializeAction(d *deps.Deps) error {
 		return err
 	}
 
-	r, err := initMigrations(d.Context(), app, c)
+	r, err := db.Init(d.Context(), app.Path.Database)
 	if err != nil {
+		return fmt.Errorf("database init failed: %w", err)
+	}
+	d.SetRepo(r)
+
+	if err := handler.MigrationsStatus(d); err != nil {
 		return err
 	}
 	defer r.Close()
@@ -166,45 +181,4 @@ func seedNewRepo(ctx context.Context, app *application.App, r *db.SQLite, c *ui.
 		Flush()
 
 	return nil
-}
-
-func initMigrations(ctx context.Context, app *application.App, c *ui.Console) (*db.SQLite, error) {
-	p, f := c.Palette(), c.Frame()
-
-	r, err := db.Init(ctx, app.Path.Database)
-	if err != nil {
-		return nil, fmt.Errorf("database init failed: %w", err)
-	}
-
-	f.Headerln(p.Bold.Sprint("Configuring database"))
-
-	ms, err := db.LoadMigrations()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Migrate(ctx, r, ms); err != nil {
-		return nil, fmt.Errorf("migrations failed: %w", err)
-	}
-
-	if err := db.UpdateAppVersion(ctx, r, app.Info.Version); err != nil {
-		return nil, fmt.Errorf("app version update failed: %w", err)
-	}
-
-	schemaVer, err := db.CurrentSchemaVersion(ctx, r)
-	if err != nil {
-		return nil, err
-	}
-
-	sqlVer, err := db.SQLiteVersion(ctx, r)
-	if err != nil {
-		return nil, err
-	}
-
-	f.Success(txt.PaddedLineWithPad("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
-		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
-		Rowln().
-		Flush()
-
-	return r, nil
 }

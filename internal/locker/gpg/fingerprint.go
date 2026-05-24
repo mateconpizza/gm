@@ -72,19 +72,19 @@ func loadFingerprint(f string) (string, error) {
 	slog.Debug("gpg: loading GPG fingerprint", "path", f)
 
 	if !fileExists(f) {
-		slog.Error("gpg: gpg-id file does not exist", "path", f)
+		slog.Debug("gpg: gpg-id file does not exist", "path", f)
 		return "", fmt.Errorf("%w: %q", ErrNoGPGIDFile, f)
 	}
 
 	fingerprint, err := os.ReadFile(f)
 	if err != nil {
-		slog.Error("gpg: failed to read gpg-id file", "path", f, "error", err)
+		slog.Debug("gpg: failed to read gpg-id file", "path", f, "error", err)
 		return "", fmt.Errorf("failed to read .gpg-id: %w", err)
 	}
 
 	recipientKey := strings.TrimSpace(string(fingerprint))
 	if recipientKey == "" {
-		slog.Error("gpg: empty fingerprint in gpg-id file", "path", f)
+		slog.Debug("gpg: empty fingerprint in gpg-id file", "path", f)
 		return "", ErrNoFingerprint
 	}
 

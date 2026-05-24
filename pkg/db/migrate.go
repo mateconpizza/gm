@@ -30,8 +30,7 @@ type Migration struct {
 }
 
 func Migrate(ctx context.Context, r *SQLite, ms []Migration) error {
-	slog.DebugContext(ctx, "starting database migration")
-	ok, err := NeedsMigration(ctx, r)
+	ok, err := NeedsMigration(ctx, r, ms)
 	if err != nil {
 		return err
 	}
@@ -39,6 +38,8 @@ func Migrate(ctx context.Context, r *SQLite, ms []Migration) error {
 		slog.DebugContext(ctx, "no migration need it")
 		return nil
 	}
+
+	slog.DebugContext(ctx, "starting database migration")
 
 	current, err := CurrentSchemaVersion(ctx, r)
 	if err != nil {
@@ -112,23 +113,18 @@ func CurrentSchemaVersion(ctx context.Context, r *SQLite) (int, error) {
 	return ver, nil
 }
 
-func NeedsMigration(ctx context.Context, r *SQLite) (bool, error) {
+func NeedsMigration(ctx context.Context, r *SQLite, ms []Migration) (bool, error) {
 	current, err := CurrentSchemaVersion(ctx, r)
 	if err != nil {
 		return false, err
 	}
 
-	latest := LatestMigrationVersion()
+	latest := LatestMigrationVersion(ms)
 
 	return current < latest, nil
 }
 
-func LatestMigrationVersion() int {
-	ms, err := LoadMigrations()
-	if err != nil {
-		return 0
-	}
-
+func LatestMigrationVersion(ms []Migration) int {
 	if len(ms) == 0 {
 		return 0
 	}

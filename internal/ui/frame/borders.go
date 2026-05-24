@@ -171,6 +171,7 @@ func WithBordersSolidDiamond() OptFn { return setBorders(solidDiamondBorder) }
 //
 //	header: ▪
 //	row:    │
+//	row:    |
 //	mid:    ▪
 //	footer: ▪
 func WithBordersSmallBlock() OptFn { return setBorders(smallBlock) }

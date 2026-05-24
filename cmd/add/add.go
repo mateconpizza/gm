@@ -3,16 +3,11 @@
 package add
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
-	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -26,46 +21,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			c, p := d.Console(), d.Console().Palette()
-			r, err := d.Repository()
-			if err != nil {
-				return err
-			}
-			title := p.BrightYellow.With(p.Bold).
-				Sprint("Add Bookmark")
-
-			comment := p.Dim.With(p.Italic).
-				Sprint(" (ctrl-c to exit)")
-
-			name := p.BrightYellow.With(p.Bold).
-				Sprint(files.StripSuffixes(r.Name()))
-
-			info := p.Dim.With(p.Italic).
-				Sprintf(" (%d bookmarks)", r.Count(d.Context(), "bookmarks"))
-
-			subtitle := p.Dim.With(p.Italic).
-				Sprint("repo: " + name)
-
-			c.Frame().
-				Headerln(title + comment).
-				Headerln(subtitle + info).
-				Rowln().Flush()
-
-			b := bookmark.New()
-			if err := handler.NewBookmark(d, b, args); err != nil {
-				return err
-			}
-			if err := bookmark.Validate(b); err != nil {
-				return err
-			}
-			if err := handler.SaveNewBookmark(d, b); err != nil {
-				return err
-			}
-			if err := git.AddBookmark(app.Path.Database, b); err != nil {
-				return err
-			}
-			fmt.Println(c.SuccessMesg("bookmark added"))
-			return nil
+			return handler.AddBookmark(d, args)
 		},
 	}
 	c.Flags().SortFlags = false

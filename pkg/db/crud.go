@@ -156,6 +156,7 @@ func (r *SQLite) updateRecordTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bo
 
 // All returns all bookmarks.
 func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
+	slog.DebugContext(ctx, "fetching all bookmarks from database")
 	q := `
     SELECT
       b.*,
@@ -174,7 +175,7 @@ func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "getting all records", "got", len(bs))
+	slog.DebugContext(ctx, "fetched bookmarks", "count", len(bs))
 
 	return bs, nil
 }
