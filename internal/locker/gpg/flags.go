@@ -1,7 +1,20 @@
 package gpg
 
-// Arguments.
-var flags = struct {
+// PinentryMode defines how GPG handles passphrase prompts.
+type PinentryMode string
+
+const (
+	ModeDefault PinentryMode = "default" // Use the default of the agent, which is ask.
+	ModeAsk     PinentryMode = "ask"     // Force the use of the Pinentry.
+	ModeCancel  PinentryMode = "cancel"  // Emulate use of Pinentry's cancel button.
+	ModeError   PinentryMode = "error"   // Return a Pinentry error (``No Pinentry'').
+
+	// Redirect Pinentry queries to the caller.  Note that in contrast to
+	// Pinentry the user is not prompted again if he enters a bad password.
+	ModeLoopback PinentryMode = "loopback"
+)
+
+type gpgFlags struct {
 	batch       string // Use batch mode.  Never ask, do not allow interactive commands.
 	decrypt     string // Decrypt the file given on the command line
 	encrypt     string // Encrypt data to one or more public keys.
@@ -12,7 +25,15 @@ var flags = struct {
 	recipient   string // Encrypt for user id name.
 	withColons  string // Print key listings delimited by colons.
 	yes         string // Assume "yes" on most questions
-}{
+}
+
+// pinentryMode returns the dynamic CLI flag to set the pinentry mode.
+func (gpgFlags) pinentryMode(pm PinentryMode) string {
+	return "--pinentry-mode=" + string(pm)
+}
+
+// Arguments.
+var flags = gpgFlags{
 	batch:       "--batch",
 	decrypt:     "--decrypt",
 	encrypt:     "--encrypt",
@@ -23,4 +44,19 @@ var flags = struct {
 	recipient:   "--recipient",
 	withColons:  "--with-colons",
 	yes:         "--yes",
+}
+
+// GitDiffConf is the gpg diff configuration for git.
+var GitDiffConf = map[string][]string{
+	"diff.gpg.binary": {"true"},
+	"diff.gpg.textconv": {
+		Command,                // GPG executable.
+		"-d",                   // Decrypt input.
+		"--quiet",              // Try to be as quiet as possible.
+		"--yes",                // Assume "yes" on most questions
+		"--compress-algo=none", // Disable compression.
+		"--no-encrypt-to",      // Ignore default encryption recipients.
+		"--batch",              // Enable non-interactive mode.
+		"--use-agent",          // Use the GPG agent.
+	},
 }

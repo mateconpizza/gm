@@ -3,18 +3,16 @@
 package gpg
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -25,84 +23,124 @@ var (
 )
 
 const (
-	Command               = "gpg"
-	gitAttContent         = "*.gpg diff=gpg"
-	fingerprintIDFilename = ".gpg-id"
-	Extension             = ".gpg"
+	Command               = "gpg"            // Command is the GPG executable name.
+	gitAttContent         = "*.gpg diff=gpg" // gitAttContent defines the Git attributes rule for encrypted files.
+	fingerprintIDFilename = ".gpg-id"        // fingerprintIDFilename is the filename storing the GPG recipient fingerprint.
+	Extension             = ".gpg"           // Extension is the file extension for encrypted files.
 )
 
-// GitDiffConf is the gpg diff configuration for git.
-var GitDiffConf = map[string][]string{
-	"diff.gpg.binary": {"true"},
-	"diff.gpg.textconv": {
-		Command,
-		"-d",
-		"--quiet",
-		"--yes",
-		"--compress-algo=none",
-		"--no-encrypt-to",
-		"--batch",
-		"--use-agent",
-	},
-}
+const (
+	dirPerm  = 0o755 // Permissions for new directories.
+	filePerm = 0o644 // Permissions for new files.
+)
 
 // GPG holds configuration for running GPG commands.
 type GPG struct {
-	Recipient string
-	BinPath   string
-	exec      func(context.Context, string, ...string) *exec.Cmd
+	recipient string
+	binPath   string
+	exec      func(context.Context, ...string) *exec.Cmd
 }
 
 // Decrypt decrypts a file using the configured GPG binary.
 func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error) {
-	cmd := g.exec(ctx, g.BinPath, flags.quiet, flags.decrypt, encryptedPath)
+	slog.Debug("gpg: starting decryption")
+
+	cmd := g.exec(
+		ctx,
+		flags.quiet,
+		flags.decrypt,
+		encryptedPath,
+	)
+
+	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(output))
+		slog.Error("gpg: decryption failed", "error", err, "output", msg, "output_length", len(output))
 		return nil, fmt.Errorf("gpg decrypt failed: %s: %w", msg, err)
 	}
+
+	slog.Info("gpg: decryption successful", "encrypted_path", encryptedPath, "output_size", len(output))
 
 	return output, nil
 }
 
 // Encrypt encrypts data for the configured recipient and writes it to path.
 func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
-	if g.Recipient == "" {
+	if g.recipient == "" {
 		return ErrNoGPGRecipient
 	}
 
+	slog.Debug("gpg: starting encryption")
+
 	cmd := g.exec(
 		ctx,
-		g.BinPath,
 		flags.yes,
 		flags.encrypt,
 		flags.recipient,
-		g.Recipient,
+		g.recipient,
 		flags.output,
 		path,
 	)
+
+	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
+
 	cmd.Stdin = bytes.NewReader(content)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		slog.Error("gpg: encryption failed", "error", err, "output_length", len(output))
 		return fmt.Errorf("gpg encrypt failed: %s: %w", strings.TrimSpace(string(output)), err)
 	}
+
+	slog.Info("gpg: encryption successful", "encrypted_path", path, "output_size", len(output))
 
 	return nil
 }
 
+// Unlocked reports whether the given encrypted file can be decrypted without a
+// passphrase prompt.
+func (g *GPG) Unlocked(ctx context.Context, filePath string) (bool, error) {
+	slog.Debug("gpg: checking if unlocked")
+
+	cmd := g.exec(
+		ctx,
+		flags.batch,
+		flags.pinentryMode(ModeError),
+		flags.decrypt,
+		filePath,
+	)
+
+	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
+
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+
+	u := cmd.Run() == nil
+
+	slog.Debug("gpg: result", "unlocked", u)
+
+	return u, nil
+}
+
 // New returns a new GPG instance after locating the gpg binary.
 func New(recipient string) (*GPG, error) {
-	binPath, err := sys.Which(Command)
+	binPath, err := which()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", err, Command)
 	}
 
+	e := func(binPath string) func(context.Context, ...string) *exec.Cmd {
+		return func(ctx context.Context, args ...string) *exec.Cmd {
+			return exec.CommandContext(ctx, binPath, args...)
+		}
+	}
+
 	return &GPG{
-		Recipient: recipient,
-		BinPath:   binPath,
-		exec:      exec.CommandContext,
+		recipient: recipient,
+		binPath:   binPath,
+		exec:      e(binPath),
 	}, nil
 }
 
@@ -115,6 +153,21 @@ func IsInitialized(path string) bool {
 	}
 
 	return recipientKey != ""
+}
+
+// Unlocked reports whether the given encrypted file can be decrypted without a
+// passphrase prompt.
+func Unlocked(ctx context.Context, filePath string) (bool, error) {
+	g, err := New("")
+	if err != nil {
+		return false, err
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return g.Unlocked(ctx, filePath)
 }
 
 // Decrypt decrypts the provided encrypted file.
@@ -147,161 +200,23 @@ func Encrypt(ctx context.Context, fingerprintPath, path string, content []byte) 
 	return g.Encrypt(ctx, path, content)
 }
 
-// loadFingerprint loads fingerprint from the .gpg-id file.
-func loadFingerprint(f string) (string, error) {
-	if !files.Exists(f) {
-		return "", fmt.Errorf("%w: %q", ErrNoGPGIDFile, f)
-	}
-
-	fingerprint, err := os.ReadFile(f)
-	if err != nil {
-		return "", fmt.Errorf("failed to read .gpg-id: %w", err)
-	}
-
-	recipientKey := strings.TrimSpace(string(fingerprint))
-	if recipientKey == "" {
-		return "", ErrNoFingerprint
-	}
-
-	return recipientKey, nil
-}
-
-// execGPGListKeys executes the GPG command and returns its raw colon-delimited output.
-func execGPGListKeys() ([]byte, error) {
-	binPath, err := sys.Which(Command)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", err, Command)
-	}
-
-	cmd := exec.Command(
-		binPath,
-		flags.listKeys,
-		flags.withColons,
-		flags.fingerprint,
-		flags.batch,
-		flags.quiet,
-	)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("gpg list-keys failed to execute: %w", err)
-	}
-
-	return output, nil
-}
-
-// parseGPGOutput processes the raw colon-delimited GPG output into Fingerprint structs.
-func parseGPGOutput(output []byte) ([]*Fingerprint, error) {
-	const (
-		trustFieldIndex = 1
-		keyIDFieldIndex = 4
-		fprFieldIndex   = 9
-		uidFieldIndex   = 9
-	)
-
-	var (
-		keys    []*Fingerprint
-		current *Fingerprint
-		lastTag string
-	)
-
-	scanner := bufio.NewScanner(bytes.NewReader(output))
-	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Split(line, ":")
-		if len(fields) <= fprFieldIndex {
-			continue
-		}
-		tag := fields[0]
-
-		switch tag {
-		case "pub":
-			current = handlePub(fields, trustFieldIndex, keyIDFieldIndex)
-			keys = append(keys, current)
-		case "uid":
-			handleUID(current, fields, uidFieldIndex)
-		case "fpr":
-			handleFPR(current, fields, fprFieldIndex, lastTag)
-		case "sub":
-			handleSub(current, fields, keyIDFieldIndex)
-		}
-		lastTag = tag
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scanner error during parsing: %w", err)
-	}
-	return keys, nil
-}
-
-func handlePub(fields []string, trustIdx, keyIdx int) *Fingerprint {
-	return &Fingerprint{
-		KeyID:        fields[keyIdx],
-		TrustLevel:   fields[trustIdx],
-		IsPrimaryKey: true,
-	}
-}
-
-func handleUID(current *Fingerprint, fields []string, uidIdx int) {
-	if current != nil && current.UserID == "" {
-		current.UserID = strings.TrimSpace(fields[uidIdx])
-	}
-}
-
-func handleFPR(current *Fingerprint, fields []string, fprIdx int, lastTag string) {
-	if current == nil {
-		return
-	}
-	fp := strings.TrimSpace(fields[fprIdx])
-	switch lastTag {
-	case "pub":
-		current.Fingerprint = fp
-	case "sub":
-		current.Subkeys = append(current.Subkeys, fp)
-	}
-}
-
-func handleSub(current *Fingerprint, fields []string, keyIdx int) {
-	if current != nil {
-		current.SubkeyIDs = append(current.SubkeyIDs, fields[keyIdx])
-	}
-}
-
-// ListFingerprints lists all public GPG keys with their fingerprints and subkeys.
-func ListFingerprints() ([]*Fingerprint, error) {
-	output, err := execGPGListKeys()
-	if err != nil {
-		return nil, err
-	}
-
-	fps, err := parseGPGOutput(output)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(fps) == 0 {
-		return nil, ErrNoFingerprint
-	}
-
-	return fps, nil
-}
-
 // Init will extract the gpg fingerprint and save it to .gpg-id.
 func Init(path, gitAttrFile string, fingerprint *Fingerprint) error {
-	if _, err := sys.Which(Command); err != nil {
+	if _, err := which(); err != nil {
 		return fmt.Errorf("%w: %s", err, Command)
 	}
 
-	if err := files.MkdirAll(path); err != nil {
+	if err := os.MkdirAll(path, dirPerm); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	fileIDPath := filepath.Join(path, fingerprintIDFilename)
-	err := os.WriteFile(fileIDPath, []byte(fingerprint.Fingerprint+"\n"), files.FilePerm)
+	err := os.WriteFile(fileIDPath, []byte(fingerprint.Fingerprint+"\n"), filePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write .gpg-id: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, gitAttrFile), []byte(gitAttContent), files.FilePerm)
+	err = os.WriteFile(filepath.Join(path, gitAttrFile), []byte(gitAttContent), filePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write .gitattributes: %w", err)
 	}
@@ -312,4 +227,17 @@ func Init(path, gitAttrFile string, fingerprint *Fingerprint) error {
 // GPGIDPath returns the path to the .gpg-id file inside the given repo directory.
 func GPGIDPath(repoPath string) string {
 	return filepath.Join(repoPath, ".gpg-id")
+}
+
+func which() (string, error) {
+	path, err := exec.LookPath(Command)
+	if err != nil {
+		return "", exec.ErrNotFound
+	}
+	return path, nil
+}
+
+func fileExists(s string) bool {
+	_, err := os.Stat(s)
+	return !os.IsNotExist(err)
 }
