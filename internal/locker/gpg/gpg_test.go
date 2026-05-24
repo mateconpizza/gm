@@ -9,9 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var testData = []byte(`tru::1:1712345678:0:3:1:5
@@ -126,7 +123,7 @@ func TestLoadFingerprint(t *testing.T) {
 	}
 
 	// Test: empty file
-	if err := os.WriteFile(gpgIDPath, []byte(""), files.FilePerm); err != nil {
+	if err := os.WriteFile(gpgIDPath, []byte(""), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	_, err = loadFingerprint(gpgIDPath)
@@ -136,7 +133,7 @@ func TestLoadFingerprint(t *testing.T) {
 
 	// Test: valid fingerprint
 	testFingerprint := "A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0"
-	if err := os.WriteFile(gpgIDPath, []byte(testFingerprint+"\n"), files.FilePerm); err != nil {
+	if err := os.WriteFile(gpgIDPath, []byte(testFingerprint+"\n"), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	fp, err := loadFingerprint(gpgIDPath)
@@ -148,7 +145,7 @@ func TestLoadFingerprint(t *testing.T) {
 	}
 
 	// Test: fingerprint with whitespace
-	if err := os.WriteFile(gpgIDPath, []byte("  "+testFingerprint+"  \n"), files.FilePerm); err != nil {
+	if err := os.WriteFile(gpgIDPath, []byte("  "+testFingerprint+"  \n"), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	fp, err = loadFingerprint(gpgIDPath)
@@ -172,7 +169,7 @@ func TestIsInitialized(t *testing.T) {
 
 	// Test: initialized
 	gpgIDPath := filepath.Join(tmpDir, fingerprintIDFilename)
-	if err := os.WriteFile(gpgIDPath, []byte("A1B2C3D4E5F6G7H8\n"), files.FilePerm); err != nil {
+	if err := os.WriteFile(gpgIDPath, []byte("A1B2C3D4E5F6G7H8\n"), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 	if !IsInitialized(tmpDir) {
@@ -194,8 +191,8 @@ func TestFingerprintIDPath(t *testing.T) {
 func TestGPGEncryptNoRecipient(t *testing.T) {
 	t.Parallel()
 	g := &GPG{
-		Recipient: "",
-		BinPath:   "/usr/bin/gpg",
+		recipient: "",
+		binPath:   "/usr/bin/gpg",
 	}
 
 	err := g.Encrypt(t.Context(), "test.gpg", []byte("data"))
@@ -207,7 +204,7 @@ func TestGPGEncryptNoRecipient(t *testing.T) {
 // TestInit tests the Init function.
 func TestInit(t *testing.T) {
 	t.Parallel()
-	_, err := sys.Which(Command)
+	_, err := which()
 	if err != nil {
 		// This test requires gpg to be installed
 		// Skip if gpg is not available
@@ -247,15 +244,15 @@ func TestInit(t *testing.T) {
 }
 
 // mockExecSuccess returns a Cmd that prints fake output.
-func mockExecSuccess(output string) func(ctx context.Context, name string, args ...string) *exec.Cmd {
-	return func(ctx context.Context, name string, args ...string) *exec.Cmd {
+func mockExecSuccess(output string) func(ctx context.Context, args ...string) *exec.Cmd {
+	return func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "echo", output)
 	}
 }
 
 // mockExecFail returns a Cmd that exits with error.
-func mockExecFail(stderr string) func(ctx context.Context, name string, args ...string) *exec.Cmd {
-	return func(ctx context.Context, name string, args ...string) *exec.Cmd {
+func mockExecFail(stderr string) func(ctx context.Context, args ...string) *exec.Cmd {
+	return func(ctx context.Context, args ...string) *exec.Cmd {
 		return exec.CommandContext(ctx, "sh", "-c", "echo '"+stderr+"' 1>&2; exit 1")
 	}
 }
@@ -264,8 +261,8 @@ func TestGPG_Encrypt_Success(t *testing.T) {
 	t.Parallel()
 
 	g := &GPG{
-		Recipient: "user@example.com",
-		BinPath:   "/usr/bin/gpg",
+		recipient: "user@example.com",
+		binPath:   "/usr/bin/gpg",
 		exec:      mockExecSuccess("encrypted ok"),
 	}
 
@@ -288,8 +285,8 @@ func TestGPG_Encrypt_CommandFails(t *testing.T) {
 	t.Parallel()
 
 	g := &GPG{
-		Recipient: "user@example.com",
-		BinPath:   "/usr/bin/gpg",
+		recipient: "user@example.com",
+		binPath:   "/usr/bin/gpg",
 		exec:      mockExecFail("some gpg error"),
 	}
 
@@ -306,7 +303,7 @@ func TestGPG_Decrypt_Success(t *testing.T) {
 	t.Parallel()
 
 	g := &GPG{
-		BinPath: "/usr/bin/gpg",
+		binPath: "/usr/bin/gpg",
 		exec:    mockExecSuccess("decrypted text"),
 	}
 
@@ -323,7 +320,7 @@ func TestGPG_Decrypt_CommandFails(t *testing.T) {
 	t.Parallel()
 
 	g := &GPG{
-		BinPath: "/usr/bin/gpg",
+		binPath: "/usr/bin/gpg",
 		exec:    mockExecFail("bad decrypt"),
 	}
 
@@ -340,5 +337,91 @@ func TestGPG_Decrypt_CommandFails(t *testing.T) {
 func BenchmarkParseGPGOutput(b *testing.B) {
 	for b.Loop() {
 		_, _ = parseGPGOutput(testData)
+	}
+}
+
+func TestGPG_Unlocked(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		exec     func(ctx context.Context, args ...string) *exec.Cmd
+		filePath string
+		want     bool
+	}{
+		{
+			name:     "unlocked_file_succeeds",
+			exec:     mockExecSuccess("decrypted"),
+			filePath: "secret.gpg",
+			want:     true,
+		},
+		{
+			name:     "locked_file_fails",
+			exec:     mockExecFail("bad passphrase"),
+			filePath: "secret.gpg",
+			want:     false,
+		},
+		{
+			name:     "empty_filepath",
+			exec:     mockExecFail("no such file"),
+			filePath: "",
+			want:     false,
+		},
+		{
+			name:     "nonexistent_file",
+			exec:     mockExecFail("file not found"),
+			filePath: "/nonexistent/path/file.gpg",
+			want:     false,
+		},
+		{
+			name: "cancelled_context",
+			exec: func(ctx context.Context, args ...string) *exec.Cmd {
+				return exec.CommandContext(ctx, "sleep", "10")
+			},
+			filePath: "secret.gpg",
+			want:     false,
+		},
+		{
+			name: "command_exits_nonzero",
+			exec: func(ctx context.Context, args ...string) *exec.Cmd {
+				return exec.CommandContext(ctx, "sh", "-c", "exit 2")
+			},
+			filePath: "secret.gpg",
+			want:     false,
+		},
+		{
+			name: "command_exits_zero",
+			exec: func(ctx context.Context, args ...string) *exec.Cmd {
+				return exec.CommandContext(ctx, "sh", "-c", "exit 0")
+			},
+			filePath: "any.gpg",
+			want:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			if tt.name == "cancelled_context" {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+
+			g := &GPG{
+				binPath: "/usr/bin/gpg",
+				exec:    tt.exec,
+			}
+
+			got, err := g.Unlocked(ctx, tt.filePath)
+			if err != nil {
+				t.Fatalf("NoPinentry(%q) unexpected error: %v", tt.filePath, err)
+			}
+			if got != tt.want {
+				t.Fatalf("NoPinentry(%q) = %v; want %v", tt.filePath, got, tt.want)
+			}
+		})
 	}
 }
