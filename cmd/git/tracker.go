@@ -24,12 +24,12 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		Use:   "tracker",
 		Short: "track database with git",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gr, err := git.NewRepo(app.Path.Database)
+			m, err := git.NewManager(app.Path.Database)
 			if err != nil {
 				return err
 			}
 
-			repos := gr.Tracker.Repos()
+			repos := m.Tracker.Repos()
 
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
 			switch {
@@ -37,10 +37,10 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 				return status(c, app, repos)
 			case app.Flags.Track:
 				terminal.NonInteractiveMode(true) // don't ask confirmation
-				return track(c, gr)
+				return track(c, m)
 			case app.Flags.Untrack:
 				terminal.NonInteractiveMode(true) // don't ask confirmation
-				return untrack(c, gr)
+				return untrack(c, m)
 			}
 
 			return status(c, app, repos)
@@ -66,25 +66,25 @@ func managementSelect(c *ui.Console, app *application.App) error {
 
 	files.PrioritizeFile(dbFiles, application.MainDBName)
 	for i, dbPath := range dbFiles {
-		gr, err := git.NewRepo(dbPath)
+		m, err := git.NewManager(dbPath)
 		if err != nil {
 			return fmt.Errorf("creating repo: %w", err)
 		}
 
-		if gr.IsTracked() {
-			fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Loc.Name)))
+		if m.IsTracked() {
+			fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", m.Loc.Name)))
 			continue
 		}
 
-		if !c.Confirm(fmt.Sprintf("Track %q?", gr.Loc.Name), "n") {
+		if !c.Confirm(fmt.Sprintf("Track %q?", m.Loc.Name), "n") {
 			continue
 		}
 
-		if err := gr.Track(); err != nil {
+		if err := m.Track(); err != nil {
 			return fmt.Errorf("tracking repo: %w", err)
 		}
 
-		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", gr.Loc.Name)).String())
+		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", m.Loc.Name)).String())
 		if i != len(dbFiles)-1 {
 			fmt.Fprintln(c.Writer())
 		}
@@ -143,43 +143,43 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 	return nil
 }
 
-func untrack(c *ui.Console, gr *git.Repository) error {
-	if !gr.IsTracked() {
-		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.Loc.DBName)
+func untrack(c *ui.Console, m *git.RepoManager) error {
+	if !m.IsTracked() {
+		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, m.Loc.DBName)
 	}
 
 	p := c.Palette()
-	q := p.Bold.Sprintf("Untrack %q?", gr.Loc.Name)
-	if gr.Loc.DBName == application.MainDBName {
+	q := p.Bold.Sprintf("Untrack %q?", m.Loc.Name)
+	if m.Loc.DBName == application.MainDBName {
 		q = p.Bold.Sprint("Untrack database \"" + "main\"")
 	}
 	if !c.Confirm(c.Warning(q).String(), "n") {
 		return nil
 	}
 
-	if err := gr.Untrack(fmt.Sprintf("[%s] remove tracking", gr.Loc.Name)); err != nil {
+	if err := m.Untrack(fmt.Sprintf("[%s] remove tracking", m.Loc.Name)); err != nil {
 		return err
 	}
 
-	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q untracked", gr.Loc.DBName)))
+	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q untracked", m.Loc.DBName)))
 
 	return nil
 }
 
-func track(c *ui.Console, gr *git.Repository) error {
-	if gr.IsTracked() {
-		return fmt.Errorf("%w: %q", git.ErrGitTracked, gr.Loc.DBName)
+func track(c *ui.Console, m *git.RepoManager) error {
+	if m.IsTracked() {
+		return fmt.Errorf("%w: %q", git.ErrGitTracked, m.Loc.DBName)
 	}
 
-	if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
+	if !c.Confirm(fmt.Sprintf("Track database %q?", m.Loc.DBName), "n") {
 		return nil
 	}
 
-	if err := gr.Track(); err != nil {
+	if err := m.Track(); err != nil {
 		return err
 	}
 
-	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
+	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q tracked", m.Loc.DBName)))
 
 	return nil
 }

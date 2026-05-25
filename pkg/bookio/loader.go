@@ -94,7 +94,7 @@ func NewFileLoader(ctx context.Context) *FileLoader {
 // RepositoryLoader defines the strategy for loading a specific type of
 // repository.
 type RepositoryLoader struct {
-	LoaderFn   loadFileFn
+	Func       loadFileFn
 	Prefix     string
 	FileFilter FileFilterFunc
 }

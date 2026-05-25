@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -37,18 +39,24 @@ func GitClone(d *deps.Deps) error {
 	fn := func() { _ = files.RemoveAll(tmpPath) }
 	defer fn()
 
-	d.Console().Term().SetInterruptFn(func(err error) {
+	t := d.Console().Term()
+	t.SetInterruptFn(func(err error) {
 		fn()
 		sys.ErrAndExit(err)
 	})
 
-	rp, repos, err := fetchGitRepos(d, app, tmpPath)
+	pu, err := fetchGitRepos(d, app, tmpPath)
 	if err != nil {
 		return err
 	}
 
-	for _, repo := range repos {
-		if err := processRepo(d, app, rp, repo); err != nil {
+	for _, repo := range pu.Repos() {
+		q := fmt.Sprintf("read encrypted repository %q?", repo.Name())
+		if pu.IsGPG && !t.Confirm(q, "yes") {
+			continue
+		}
+
+		if err := processRepo(d, app, pu, repo); err != nil {
 			return err
 		}
 	}
@@ -56,22 +64,27 @@ func GitClone(d *deps.Deps) error {
 	return nil
 }
 
-func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*git.Puller, []*git.RemoteRepo, error) {
+func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*git.Puller, error) {
 	g, err := git.New(d.Context(), tmpPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if err := g.CloneInto(app.Git.Remote, tmpPath); err != nil {
-		return nil, nil, fmt.Errorf("cloning remote repo: %w", err)
+		return nil, fmt.Errorf("cloning remote repo: %w", err)
 	}
 
-	rp := git.NewRepoProcessor(d.Console(), g.FullPath(), tmpPath, git.WithPullerContext(d.Context()))
-	if err := rp.Pull(); err != nil {
-		return nil, nil, err
+	pu := git.NewPuller(
+		d.Console(),
+		g.FullPath(),
+		tmpPath,
+		git.WithPullerEncrypted(gpg.IsInitialized(g.FullPath())),
+	)
+	if err := pu.Pull(); err != nil {
+		return nil, err
 	}
 
-	if err := rp.Select(picker.New[*git.RemoteRepo](
+	if err := pu.Select(picker.New[*git.Repo](
 		app,
 		menu.WithHeader("select repo/s"),
 		menu.WithArgs("--cycle"),
@@ -80,16 +93,18 @@ func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*git.Pul
 		menu.WithInterruptFn(d.Console().Term().InterruptFn),
 		menu.WithMultiSelection(),
 	)); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	repos := rp.Repos()
-
-	return rp, repos, nil
+	return pu, nil
 }
 
-func processRepo(d *deps.Deps, app *application.App, rp *git.Puller, repo *git.RemoteRepo) error {
-	if err := rp.PrintDetails(repo); err != nil {
+func processRepo(d *deps.Deps, app *application.App, pu *git.Puller, repo *git.Repo) error {
+	if err := pu.Read(d.Context()); err != nil {
+		return err
+	}
+
+	if err := pu.PrintDetails(repo); err != nil {
 		if errors.Is(err, git.ErrGitRepoEmpty) {
 			return nil // move to next
 		}
@@ -99,7 +114,7 @@ func processRepo(d *deps.Deps, app *application.App, rp *git.Puller, repo *git.R
 	return handleImportLoop(d, app, repo)
 }
 
-func handleImportLoop(d *deps.Deps, app *application.App, repo *git.RemoteRepo) error {
+func handleImportLoop(d *deps.Deps, app *application.App, repo *git.Repo) error {
 	var (
 		c    = d.Console()
 		p    = c.Palette()
@@ -140,7 +155,7 @@ func handleImportLoop(d *deps.Deps, app *application.App, repo *git.RemoteRepo) 
 	}
 }
 
-func handleCreateRepoMode(d *deps.Deps, repo *git.RemoteRepo, bs []*bookmark.Bookmark) error {
+func handleCreateRepoMode(d *deps.Deps, repo *git.Repo, bs []*bookmark.Bookmark) error {
 	app, err := d.Application()
 	if err != nil {
 		return err
@@ -220,4 +235,46 @@ func renameRepo(path string) string {
 		filepath.Join(root, name+"-"+t),
 		".db",
 	)
+}
+
+func GitPrune(d *deps.Deps) error {
+	slog.Debug("git prune: starting repository prune")
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	if !app.Git.Enabled {
+		slog.Debug("git prune: git not enabled")
+		return nil
+	}
+
+	name := files.StripSuffixes(app.DBName)
+	m := git.NewRepo(
+		name,
+		filepath.Join(app.Git.Path, name),
+	)
+
+	if err := m.Read(d.Context()); err != nil {
+		return err
+	}
+
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	inDB, err := r.All(d.Context())
+	if err != nil {
+		return err
+	}
+
+	inRepo := m.Bookmarks()
+	stale, _ := port.Deduplicate(inRepo, inDB)
+	if len(stale) == 0 {
+		slog.Debug("git sync: nothing found")
+		return nil
+	}
+
+	return git.RemoveBookmarks(app, stale)
 }

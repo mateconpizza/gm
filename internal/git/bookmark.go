@@ -12,43 +12,43 @@ func UpdateBookmark(app *application.App, oldB, newB *bookmark.Bookmark) error {
 		return nil
 	}
 
-	gr, err := NewRepo(app.Path.Database)
+	m, err := NewManager(app.Path.Database)
 	if err != nil {
 		return err
 	}
 
-	if !gr.IsTracked() {
+	if !m.IsTracked() {
 		return nil
 	}
 
-	if err := gr.UpdateOne(oldB, newB); err != nil {
+	if err := m.UpdateOne(oldB, newB); err != nil {
 		return err
 	}
 
-	return gr.Commit("update bookmark")
+	return m.Commit("update bookmark")
 }
 
 // AddBookmark adds a bookmark to Git version control if the repository is tracked.
 // Stages the bookmark, updates repository statistics, and creates a commit.
 func AddBookmark(dbPath string, b *bookmark.Bookmark) error {
-	gr, err := NewRepo(dbPath)
+	m, err := NewManager(dbPath)
 	if err != nil {
 		return err
 	}
 
-	if !gr.IsTracked() {
+	if !m.IsTracked() {
 		return nil
 	}
 
-	if err := gr.Add([]*bookmark.Bookmark{b}); err != nil {
+	if err := m.Add([]*bookmark.Bookmark{b}); err != nil {
 		return err
 	}
 
-	if err := gr.RepoStatsWrite(); err != nil {
+	if err := m.WriteStats(); err != nil {
 		return err
 	}
 
-	return gr.Commit("bookmark added")
+	return m.Commit("bookmark added")
 }
 
 func RemoveBookmarks(app *application.App, bs []*bookmark.Bookmark) error {
@@ -56,18 +56,18 @@ func RemoveBookmarks(app *application.App, bs []*bookmark.Bookmark) error {
 		return nil
 	}
 
-	gr, err := NewRepo(app.Path.Database)
+	m, err := NewManager(app.Path.Database)
 	if err != nil {
 		return err
 	}
 
-	if !gr.IsTracked() {
+	if !m.IsTracked() {
 		return nil
 	}
 
-	if err := gr.Remove(bs); err != nil {
+	if err := m.Remove(bs); err != nil {
 		return err
 	}
 
-	return gr.Commit("remove bookmarks")
+	return m.Commit("remove bookmarks")
 }

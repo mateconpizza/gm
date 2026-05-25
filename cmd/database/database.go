@@ -259,18 +259,18 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return nil
 		}
 
-		gr, err := git.NewRepo(app.Path.Database)
+		m, err := git.NewManager(app.Path.Database)
 		if err != nil {
 			return err
 		}
-		if !gr.IsTracked() || !files.Exists(gr.Loc.DBPath) {
+		if !m.IsTracked() || !files.Exists(m.Loc.DBPath) {
 			return nil
 		}
 
 		// FIX: inject console
 		c := ui.NewConsole(ui.WithDefaultTerminal(cmd.Context(), func(err error) { sys.ErrAndExit(err) }))
 
-		if err := gr.Drop("dropped"); err != nil {
+		if err := m.Drop("dropped"); err != nil {
 			return err
 		}
 
@@ -280,7 +280,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return nil
 		}
 
-		if err := gr.Untrack(fmt.Sprintf("[%s] remove tracking", gr.Loc.Name)); err != nil {
+		if err := m.Untrack(fmt.Sprintf("[%s] remove tracking", m.Loc.Name)); err != nil {
 			return err
 		}
 

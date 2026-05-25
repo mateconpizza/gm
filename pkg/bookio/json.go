@@ -19,8 +19,8 @@ const (
 )
 
 var JSONStrategy = &RepositoryLoader{
-	LoaderFn: jsonLoader,
-	Prefix:   "Loading JSON bookmarks",
+	Func:   jsonLoader,
+	Prefix: "Loading JSON bookmarks",
 	FileFilter: And(
 		IsFile,
 		HasExtension(jsonExt),

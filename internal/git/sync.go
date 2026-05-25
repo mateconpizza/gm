@@ -36,6 +36,7 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 		rotato.WithPrefix(f.Mid("Encrypting").String()),
 		rotato.WithMessage("bookmarks..."),
 		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithSpinnerColor(rotato.FgYellow),
 		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
 		rotato.WithFailMessageColor(rotato.FgBrightRed),
 	)
@@ -80,7 +81,11 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 			}
 
 			cur := count.Add(1)
-			sp.UpdatePrefix(f.Reset().Mid(fmt.Sprintf("Encrypting [%d/%d]", cur, n)).String())
+			sp.UpdatePrefix(
+				f.Reset().
+					Mid(fmt.Sprintf("Encrypting [%d/%d]", cur, n)).
+					String(),
+			)
 			return nil
 		})
 	}
@@ -211,13 +216,13 @@ func Sync(ctx context.Context, app *application.App, mesg string) error {
 	}
 
 	slog.DebugContext(ctx, "creating git repo instance")
-	gr, err := NewRepo(app.Path.Database)
+	m, err := NewManager(app.Path.Database)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create git repo", "error", err)
 		return err
 	}
 
-	if !gr.IsTracked() {
+	if !m.IsTracked() {
 		slog.DebugContext(ctx, "database path not tracked in git, skipping sync")
 		return nil
 	}
@@ -235,7 +240,7 @@ func Sync(ctx context.Context, app *application.App, mesg string) error {
 		return err
 	}
 
-	updated, err := gr.Write(bs, app.Flags.Force)
+	updated, err := m.Write(bs, app.Flags.Force)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to write bookmarks to repo", "error", err)
 		return err
@@ -246,7 +251,7 @@ func Sync(ctx context.Context, app *application.App, mesg string) error {
 		return nil
 	}
 
-	if err := gr.Commit(mesg); err != nil {
+	if err := m.Commit(mesg); err != nil {
 		slog.ErrorContext(ctx, "failed to commit changes", "error", err)
 		return err
 	}

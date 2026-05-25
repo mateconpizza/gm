@@ -107,31 +107,31 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	if !app.Git.Enabled {
 		return nil
 	}
-	gr, err := git.NewRepo(app.Path.Database)
+	m, err := git.NewManager(app.Path.Database)
 	if err != nil {
 		return err
 	}
 
-	if gr.IsTracked() {
+	if m.IsTracked() {
 		return nil
 	}
 
 	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-	if !c.Confirm(fmt.Sprintf("Track database %q?", gr.Loc.DBName), "n") {
-		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", gr.Loc.DBName)).String())
+	if !c.Confirm(fmt.Sprintf("Track database %q?", m.Loc.DBName), "n") {
+		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", m.Loc.DBName)).String())
 		return nil
 	}
-	c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", gr.Loc.DBName)).String())
+	c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", m.Loc.DBName)).String())
 
-	if err := files.MkdirAll(gr.Loc.Path); err != nil {
+	if err := files.MkdirAll(m.Loc.Path); err != nil {
 		return fmt.Errorf("creating repo path: %w", err)
 	}
 
-	if err := gr.Track(); err != nil {
+	if err := m.Track(); err != nil {
 		return err
 	}
 
-	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q tracked", gr.Loc.DBName)))
+	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q tracked", m.Loc.DBName)))
 
 	return nil
 }

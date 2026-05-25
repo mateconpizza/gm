@@ -65,7 +65,7 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			gr, err := git.NewRepo(app.Path.Database)
+			m, err := git.NewManager(app.Path.Database)
 			if err != nil {
 				return err
 			}
@@ -84,17 +84,17 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			if !gr.IsTracked() {
+			if !m.IsTracked() {
 				return nil
 			}
 
 			var sb strings.Builder
-			fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Loc.Name)
+			fmt.Fprintf(&sb, "[%s] removed and untracked", m.Loc.Name)
 			if len(bs) > 0 {
 				fmt.Fprintf(&sb, " (-del:%d)", len(bs))
 			}
 
-			return gr.Untrack(sb.String())
+			return m.Untrack(sb.String())
 		},
 	}
 

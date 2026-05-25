@@ -1,80 +1,34 @@
 package git
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"path/filepath"
-	"slices"
 
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
+// TODO:
+// - [ ] using `--yes` brakes the `import repositories?` question.
+// - [ ] fix(git/reader): getting `fingerprintPath` on `gpgLoader` is horrible.
+
 type Menu interface {
-	Select(items []*RemoteRepo) ([]*RemoteRepo, error)
+	Select(items []*Repo) ([]*Repo, error)
 }
 
 type PullerOptFun func(*PullerOptions)
 
 type PullerOptions struct {
-	ctx context.Context
+	IsGPG bool
 }
 
-// RemoteRepo represents a remote repository's structure discovered in the git
-// payload.
-type RemoteRepo struct {
-	name      string
-	fullpath  string
-	bookmarks []*bookmark.Bookmark
-	stats     *db.RepoStats
-
-	ctx context.Context
-}
-
-func (r *RemoteRepo) Load(ctx context.Context) error {
-	// read and display summary
-	sum, err := loadSummary(r.fullpath)
-	if err != nil {
-		return err
-	}
-
-	// read bookmarks from git
-	bookmarks, err := readBookmarks(ctx, filepath.Base(r.fullpath), r.fullpath)
-	if err != nil {
-		return err
-	}
-
-	slices.SortFunc(bookmarks, func(a, b *bookmark.Bookmark) int {
-		return cmp.Compare(a.ID, b.ID)
-	})
-
-	r.bookmarks = bookmarks
-	r.stats = sum.RepoStats
-
-	return nil
-}
-
-func (r *RemoteRepo) Name() string {
-	return r.name
-}
-
-func (r *RemoteRepo) Bookmarks() []*bookmark.Bookmark {
-	return r.bookmarks
-}
-
-func (r *RemoteRepo) String() string {
-	return txt.PaddedLine(r.name, fmt.Sprintf("(bookmarks: %d)", r.stats.Bookmarks))
-}
-
-// newRemoteRepo creates a tracked remote repository instance.
-func newRemoteRepo(ctx context.Context, name, fullpath string) *RemoteRepo {
-	return &RemoteRepo{
-		ctx:      ctx,
+// NewRemoteRepo creates a tracked remote repository instance.
+func NewRemoteRepo(name, fullpath string) *Repo {
+	return &Repo{
 		name:     name,
 		fullpath: fullpath,
 	}
@@ -82,18 +36,18 @@ func newRemoteRepo(ctx context.Context, name, fullpath string) *RemoteRepo {
 
 // Puller handles remote repository data ingestion.
 type Puller struct {
-	srcDir string        // Base directory where cloned assets are held
-	dstDir string        // Output directory path for generated databases
-	found  []string      // Discovered directory names matching the lookup criteria
-	items  []*RemoteRepo // Parsed structural instances ready for ingestion
+	srcDir string   // Base directory where cloned assets are held
+	dstDir string   // Output directory path for generated databases
+	found  []string // Discovered directory names matching the lookup criteria
+	items  []*Repo  // Parsed structural instances ready for ingestion
 
 	*PullerOptions
 	console *ui.Console
 }
 
-func WithPullerContext(ctx context.Context) PullerOptFun {
+func WithPullerEncrypted(b bool) PullerOptFun {
 	return func(o *PullerOptions) {
-		o.ctx = ctx
+		o.IsGPG = b
 	}
 }
 
@@ -102,12 +56,23 @@ func (pu *Puller) loadAll() error {
 	for _, repoName := range pu.found {
 		fullpath := filepath.Join(pu.srcDir, repoName)
 
-		repo := newRemoteRepo(pu.ctx, repoName, fullpath)
-		if err := repo.Load(pu.ctx); err != nil {
+		repo := NewRemoteRepo(repoName, fullpath)
+		if err := repo.LoadSummary(); err != nil {
 			return err
 		}
 
 		pu.items = append(pu.items, repo)
+	}
+
+	return nil
+}
+
+// Read read bookmarks in the repository.
+func (pu *Puller) Read(ctx context.Context) error {
+	for _, repo := range pu.items {
+		if err := repo.Read(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -159,16 +124,16 @@ func (pu *Puller) scan() error {
 }
 
 // Repos returns the loaded repositories if processing has been initiated.
-func (pu *Puller) Repos() []*RemoteRepo {
+func (pu *Puller) Repos() []*Repo {
 	return pu.items
 }
 
 // PrintDetails outputs a repository's metadata profile and summary metrics.
-func (pu *Puller) PrintDetails(repo *RemoteRepo) error {
+func (pu *Puller) PrintDetails(repo *Repo) error {
 	f, p := pu.console.Frame(), pu.console.Palette()
 	f.Rowln().Info(p.Bold.Sprintf("Repository %q\n", repo.Name()))
 
-	if len(repo.bookmarks) == 0 {
+	if repo.stats.Bookmarks == 0 {
 		skip := p.BrightYellow.Wrap("skipping ", p.Italic)
 		pu.console.Warning(skip + repo.Name() + ": no bookmark found").Ln().Flush()
 		return ErrGitRepoEmpty
@@ -185,19 +150,19 @@ func (pu *Puller) Pull() error {
 		return err
 	}
 
+	if err := pu.loadAll(); err != nil {
+		return err
+	}
+
 	printHeader(pu)
 
-	return pu.loadAll()
+	return nil
 }
 
-func NewRepoProcessor(c *ui.Console, srcDir, dstDir string, opts ...PullerOptFun) *Puller {
+func NewPuller(c *ui.Console, srcDir, dstDir string, opts ...PullerOptFun) *Puller {
 	o := &PullerOptions{}
 	for _, fn := range opts {
 		fn(o)
-	}
-
-	if o.ctx == nil {
-		o.ctx = context.Background()
 	}
 
 	return &Puller{
@@ -219,15 +184,25 @@ func printHeader(rp *Puller) {
 
 	path := files.CollapseHomeDir(rp.dstDir)
 
+	comment := p.Dim.With(p.Italic).
+		Sprint(" (ctrl-c to exit)")
+
 	f.Ln().
 		CustomFunc(square, y("Repository cloned successfully")).Ln().
 		Midln(p.Gray.Wrap("Path: "+path, p.Italic)).Rowln().
 		CustomFunc(func() string {
 			return txt.GlyphSmallSquare.Prefix(" ")
-		}, p.Bold.Sprint("Found repositories")).Ln()
+		}, p.Bold.Sprint("Found repositories")).
+		Textln(comment)
 
-	for _, repo := range rp.found {
-		f.Rowln(repo)
+	t := p.BrightCyan.Wrap("JSON", p.Bold)
+	if rp.IsGPG {
+		t = p.BrightMagenta.Wrap("GPG", p.Bold)
+	}
+
+	for _, repo := range rp.items {
+		b := p.Dim.Sprintf(" (%d bookmarks)", repo.stats.Bookmarks)
+		f.Rowln(txt.PaddedLine(repo.name, t+b))
 	}
 
 	f.Rowln().Flush()

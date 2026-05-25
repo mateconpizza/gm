@@ -68,44 +68,44 @@ func NewSummary() *SyncGitSummary {
 	return &SyncGitSummary{}
 }
 
-func UpdateSummaryAndCommit(gr *Repository, version string) error {
-	sum, err := gr.SummaryUpdate(version)
+func UpdateSummaryAndCommit(m *RepoManager, version string) error {
+	sum, err := m.SummaryUpdate(version)
 	if err != nil {
 		return err
 	}
 
-	sumFile := filepath.Join(gr.Loc.Path, SummaryFileName)
+	sumFile := filepath.Join(m.Loc.Path, SummaryFileName)
 	if _, err := files.JSONWrite(sumFile, sum, true); err != nil {
 		return fmt.Errorf("writing summary: %w", err)
 	}
 
-	if err := gr.Git.AddAll(); err != nil {
+	if err := m.Git.AddAll(); err != nil {
 		return fmt.Errorf("git add: %w", err)
 	}
 
-	if err := gr.Git.Commit(fmt.Sprintf("[%s] update summary", files.StripSuffixes(gr.Loc.DBName))); err != nil {
+	if err := m.Git.Commit(fmt.Sprintf("[%s] update summary", files.StripSuffixes(m.Loc.DBName))); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
 
 	return nil
 }
 
-func summaryRead(gr *Repository) (*SyncGitSummary, error) {
+func summaryRead(m *RepoManager) (*SyncGitSummary, error) {
 	sum := NewSummary()
-	if err := files.JSONRead(filepath.Join(gr.Loc.Path, SummaryFileName), sum); err != nil {
+	if err := files.JSONRead(filepath.Join(m.Loc.Path, SummaryFileName), sum); err != nil {
 		return nil, fmt.Errorf("reading summary: %w", err)
 	}
 
 	return sum, nil
 }
 
-func summaryUpdate(ctx context.Context, gr *Repository, version string) (*SyncGitSummary, error) {
-	branch, err := gr.Git.branch()
+func summaryUpdate(ctx context.Context, m *RepoManager, version string) (*SyncGitSummary, error) {
+	branch, err := m.Git.branch()
 	if err != nil {
 		return nil, fmt.Errorf("getting branch: %w", err)
 	}
 
-	remote, err := gr.Git.Remote()
+	remote, err := m.Git.Remote()
 	if err != nil {
 		remote = ""
 	}
@@ -115,7 +115,7 @@ func summaryUpdate(ctx context.Context, gr *Repository, version string) (*SyncGi
 		return nil, fmt.Errorf("getting hostname: %w", err)
 	}
 
-	r, err := db.New(ctx, gr.Loc.DBPath)
+	r, err := db.New(ctx, m.Loc.DBPath)
 	if err != nil {
 		return nil, err
 	}

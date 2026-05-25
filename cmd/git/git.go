@@ -82,17 +82,17 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Use:   "init",
 		Short: "create empty Git repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gr, err := git.NewRepo(app.Path.Database)
+			m, err := git.NewManager(app.Path.Database)
 			if err != nil {
 				return err
 			}
 
-			if err := gr.Git.Init(app.Flags.Reinit); err != nil {
+			if err := m.Git.Init(app.Flags.Reinit); err != nil {
 				return fmt.Errorf("%w, use %s", err, ansi.BrightYellow.With(ansi.Italic).Sprint("--reinit"))
 			}
 
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			if err := gr.AskForEncryption(c, app); err != nil {
+			if err := m.AskForEncryption(c, app); err != nil {
 				return err
 			}
 
@@ -134,9 +134,10 @@ func newRawCmd(app *application.App) *cobra.Command {
 
 func newCloneCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "clone",
-		Short: "clone a remote repository",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "clone",
+		Short:   "import from remote",
+		Aliases: []string{"import"},
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -168,11 +169,11 @@ func newDisableCmd(_ *application.App) *cobra.Command {
 
 // pushFunc pushes local changes to the remote repository.
 func pushFunc(ctx context.Context, app *application.App) error {
-	gr, err := git.NewRepo(app.Path.Database)
+	m, err := git.NewManager(app.Path.Database)
 	if err != nil {
 		return err
 	}
-	remote, err := gr.Git.Remote()
+	remote, err := m.Git.Remote()
 	if err != nil || remote == "" {
 		return git.ErrGitNoUpstream
 	}
@@ -185,7 +186,7 @@ func pushFunc(ctx context.Context, app *application.App) error {
 	}
 
 	// Check if there are unpushed commits
-	proceed, err := gr.Git.HasUnpushedCommits()
+	proceed, err := m.Git.HasUnpushedCommits()
 	if err != nil {
 		return err
 	}
@@ -194,10 +195,10 @@ func pushFunc(ctx context.Context, app *application.App) error {
 	}
 
 	// Update summary and push
-	if err := git.UpdateSummaryAndCommit(gr, app.Info.Version); err != nil {
+	if err := git.UpdateSummaryAndCommit(m, app.Info.Version); err != nil {
 		return err
 	}
-	if err := gr.Git.Push(); err != nil {
+	if err := m.Git.Push(); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}
 

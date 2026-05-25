@@ -1,313 +1,235 @@
-// Package git provides the model and logic of a bookmarks Git repository.
 package git
 
 import (
+	"cmp"
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
-	"log/slog"
+	"io/fs"
 	"path/filepath"
-	"strings"
+	"slices"
+	"time"
 
-	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/rotato"
+
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
-var ErrNoDBPath = errors.New("database path is required")
+type RepoOptFn func(*RepoOpts)
 
-// Repository represents a bookmarks repository.
-type Repository struct {
-	Loc     *Location // Encapsulates all path and naming details
-	Tracker *Tracker  // Git repo tracker
-	Git     *Git      // Git manager
+type RepoOpts struct {
+	spinner *rotato.Rotato
+	ctx     context.Context
 }
 
-// Location holds all path and naming information for a repository.
-type Location struct {
-	Name   string // Database name without extension (e.g., "main")
-	DBName string // Database base name (e.g., "main.db")
-	DBPath string // Database fullpath (e.g., "/home/user/.local/share/app/main.db")
-	Git    string // Path to where to store the Git repository (e.g., "~/.local/share/gomarks/git")
-	Path   string // Path to where to store the associated Git files (e.g., "~/.local/share/gomarks/git/main")
-	Hash   string // Hash of the database fullpath (for internal lookups/storage)
+type Repo struct {
+	name      string
+	fullpath  string
+	bookmarks []*bookmark.Bookmark
+	stats     *db.RepoStats
+
+	RepoOpts
 }
 
-// newLocation creates a new Location.
-func newLocation(dbPath string) *Location {
-	baseName := filepath.Base(dbPath)
-	name := files.StripSuffixes(baseName)
-	git := filepath.Join(filepath.Dir(dbPath), "git")
-
-	return &Location{
-		Name:   name,
-		DBName: baseName,
-		DBPath: dbPath,
-		Git:    git,
-		Path:   filepath.Join(git, name),
-		Hash:   name,
-	}
+func (r *Repo) Root() string {
+	return filepath.Dir(r.fullpath)
 }
 
-func NewRepo(dbPath string) (*Repository, error) {
-	if dbPath == "" {
-		return nil, ErrNoDBPath
-	}
+func (r *Repo) Stats() *db.RepoStats {
+	return r.stats
+}
 
-	loc := newLocation(dbPath)
-	t := NewTracker(loc.Git)
-	if err := t.Load(); err != nil {
-		return nil, err
-	}
-
-	gitCmd, err := sys.Which("git")
+// LoadSummary loads summary file found in repository.
+func (r *Repo) LoadSummary() error {
+	sum, err := loadSummary(r.fullpath)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %q", err, "git")
-	}
-
-	return &Repository{
-		Loc:     loc,
-		Tracker: t,
-		Git:     newGit(loc.Git, WithCmd(gitCmd)),
-	}, nil
-}
-
-// Add adds the bookmarks to the repo.
-func (gr *Repository) Add(bs []*bookmark.Bookmark) error {
-	if _, err := gr.Write(bs, false); err != nil {
 		return err
 	}
+
+	r.stats = sum.RepoStats
 
 	return nil
 }
 
-// UpdateOne updates the bookmarks in the repo.
-func (gr *Repository) UpdateOne(oldB, newB *bookmark.Bookmark) error {
-	if err := gr.Remove([]*bookmark.Bookmark{oldB}); err != nil {
-		return err
+// Read reads bookmarks in git repository.
+func (r *Repo) Read(ctx context.Context) error {
+	loader := readJSONRepo
+	if gpg.IsInitialized(filepath.Dir(r.fullpath)) {
+		loader = readGPGRepo
 	}
 
-	return gr.Add([]*bookmark.Bookmark{newB})
-}
-
-// Remove removes the bookmarks from the repo.
-func (gr *Repository) Remove(bs []*bookmark.Bookmark) error {
-	if gr.IsEncrypted() {
-		return cleanGPGRepo(gr.Git.ctx, gr.Loc.Path, bs)
-	}
-
-	return cleanJSONRepo(gr.Git.ctx, gr.Loc.Path, bs)
-}
-
-// Drop removes a repository's files, updates its summary, and commits the
-// changes.
-func (gr *Repository) Drop(mesg string) error {
-	return dropRepo(gr, mesg)
-}
-
-// Commit commits the bookmarks to the git repo.
-func (gr *Repository) Commit(mesg string) error {
-	slog.DebugContext(gr.Git.ctx, "git: committing changes to git", "message", mesg)
-	return commitIfChanged(gr.Git.ctx, gr, mesg)
-}
-
-// Stats returns the repo stats.
-func (gr *Repository) Stats() (*SyncGitSummary, error) {
-	sum := NewSummary()
-	if err := repoStats(gr.Git.ctx, gr.Loc.DBPath, sum); err != nil {
-		return nil, err
-	}
-
-	return sum, nil
-}
-
-// Summary returns the repo summary.
-func (gr *Repository) Summary() (*SyncGitSummary, error) {
-	return summaryRead(gr)
-}
-
-// SummaryUpdate returns a new SyncGitSummary.
-func (gr *Repository) SummaryUpdate(version string) (*SyncGitSummary, error) {
-	return summaryUpdate(gr.Git.ctx, gr, version)
-}
-
-// RepoStatsWrite calculates, updates, and saves the repository's statistics to
-// its summary file.
-func (gr *Repository) RepoStatsWrite() error {
-	return writeRepoStats(gr.Git.ctx, gr)
-}
-
-// Write exports the provided bookmarks to the repository's file, encrypting if
-// configured.
-func (gr *Repository) Write(bs []*bookmark.Bookmark, force bool) (bool, error) {
-	slog.Debug("git: writing bookmarks to git repo", "force", force)
-	if gr.IsEncrypted() {
-		fingerprintPath := gpg.GPGIDPath(gr.Loc.Git)
-		return exportAsGPG(gr.Git.ctx, fingerprintPath, gr.Loc.Path, bs)
-	}
-
-	return exportAsJSON(gr.Loc.Path, bs, force)
-}
-
-// Read reads and decrypts the repository's bookmarks, handling encryption if
-// configured.
-// func (gr *Repository) Read(c *ui.Console) ([]*bookmark.Bookmark, error) {
-// 	return Read(c, gr.Loc.Path)
-// }
-
-// Track tracks a repository in Git, exporting its data and committing the
-// changes.
-func (gr *Repository) Track() error {
-	return trackRepo(gr)
-}
-
-// Untrack untracks a repository in Git, removes its files, and
-// commits the change.
-func (gr *Repository) Untrack(mesg string) error {
-	return untrackRemoveRepo(gr, mesg)
-}
-
-// IsEncrypted returns whether the repo is encrypted.
-func (gr *Repository) IsEncrypted() bool {
-	return gpg.IsInitialized(gr.Git.repoPath)
-}
-
-// IsTracked returns whether the repo is tracked.
-func (gr *Repository) IsTracked() bool {
-	ok, _ := gr.Tracker.Contains(gr.Loc.Hash)
-	return ok
-}
-
-// Export exports the repository's bookmarks to Git, handling encryption if
-// configured.
-func (gr *Repository) Export() error {
-	bs, err := records(gr.Git.ctx, gr.Loc.DBPath)
+	bs, err := loader(ctx, r.fullpath, r.spinner)
 	if err != nil {
 		return err
 	}
 
-	if _, err := gr.Write(bs, false); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Records retrieves all bookmarks from the repository's database.
-func (gr *Repository) Records() ([]*bookmark.Bookmark, error) {
-	return records(gr.Git.ctx, gr.Loc.DBPath)
-}
-
-// String returns the repo summary.
-func (gr *Repository) String() string {
-	sum, err := gr.Stats()
-	if err != nil {
-		slog.Error("error getting repo summary", "error", err)
-		return ""
-	}
-
-	return sum.RepoStats.String()
-}
-
-// AskForEncryption prompts the user to enable GPG encryption for the
-// repository if it's not already encrypted.
-func (gr *Repository) AskForEncryption(c *ui.Console, app *application.App) error {
-	if gr.IsEncrypted() {
-		return nil
-	}
-
-	_, err := sys.Which(gpg.Command)
-	if err != nil {
-		slog.Debug("git repo with GPG, command not found", "command", gpg.Command)
-		return nil
-	}
-
-	c.Frame().Success("GPG command found").Ln().Flush()
-	if !c.Confirm("Use GPG for encryption? "+c.Palette().BrightRed.Wrap("(experimental)", c.Palette().Italic), "n") {
-		return nil
-	}
-
-	fps, err := gpg.ListFingerprints()
-	if err != nil {
-		return err
-	}
-
-	m := menuFingerprint(c, app)
-	key, err := selectFingerprint(m, fps)
-	if err != nil {
-		return err
-	}
-
-	return initGPG(c, gr, key)
-}
-
-// Status returns a prettify status of the repository.
-func (gr *Repository) Status(c *ui.Console) string {
-	return repoStatus(c, gr)
-}
-
-// SetConfig sets the app git config.
-func SetConfig(ctx context.Context, c *application.App) {
-	c.Git.Path = filepath.Join(c.Path.Data, "git")
-	c.Git.Enabled = IsInitialized(c.Git.Path)
-	c.Git.GPG = gpg.IsInitialized(c.Git.Path)
-	remote, _ := Remote(ctx, c.Git.Path)
-	c.Git.Remote = remote
-}
-
-func selectFingerprint(m *menu.Menu[*gpg.Fingerprint], fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
-	keys, err := m.Select(fps)
-	if err != nil {
-		return nil, err
-	}
-
-	key := keys[0]
-
-	return key, nil
-}
-
-func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Fingerprint] {
-	p := c.Palette()
-	trustColor := func(key *gpg.Fingerprint) string {
-		t := key.TrustLevelString()
-		if key.IsTrusted() {
-			return p.BrightGreen.Sprint(strings.ToUpper(t))
-		}
-
-		switch t {
-		case "marginal":
-			return p.BrightYellow.Sprint(strings.ToUpper(t))
-		default:
-			return p.BrightRed.Sprint(strings.ToUpper(t))
-		}
-	}
-
-	m := picker.New[*gpg.Fingerprint](
-		app,
-		menu.WithArgs("--no-bold"),
-		menu.WithHeader(" select a fingerprint "),
-		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
-		menu.WithMultilineView(),
-		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
-	)
-	m.SetFormatter(func(f **gpg.Fingerprint) string {
-		fp := *f
-		return fmt.Sprintf(
-			"[Trusted: %s] %s: %s %s: %s\n%s: %s",
-			trustColor(fp),
-			p.BrightBlue.Wrap("KeyID", p.Bold),
-			fp.KeyID,
-			p.BrightMagenta.Wrap("UserID", p.Bold),
-			fp.UserID,
-			p.BrightYellow.Wrap("Fingerprint", p.Bold),
-			fp.Fingerprint,
-		)
+	slices.SortFunc(bs, func(a, b *bookmark.Bookmark) int {
+		return cmp.Compare(a.ID, b.ID)
 	})
 
-	return m
+	r.bookmarks = bs
+
+	return nil
+}
+
+func (r *Repo) Name() string {
+	return r.name
+}
+
+func (r *Repo) Bookmarks() []*bookmark.Bookmark {
+	return r.bookmarks
+}
+
+func (r *Repo) String() string {
+	return txt.PaddedLine(r.name, fmt.Sprintf("(bookmarks: %d)", r.stats.Bookmarks))
+}
+
+func NewRepo(name, dstDir string, opts ...RepoOptFn) *Repo {
+	opt := RepoOpts{}
+	for _, fn := range opts {
+		fn(&opt)
+	}
+
+	if opt.ctx == nil {
+		opt.ctx = context.Background()
+	}
+
+	return &Repo{
+		name:     name,
+		fullpath: dstDir,
+		RepoOpts: opt,
+	}
+}
+
+var GPGStrategy = &bookio.RepositoryLoader{
+	Func:   gpgLoader,
+	Prefix: "Decrypting GPG bookmarks",
+	FileFilter: bookio.And(
+		bookio.IsFile,
+		bookio.HasExtension(gpg.Extension),
+		bookio.NotNamed(SummaryFileName),
+	),
+}
+
+func gpgLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
+	// FIX: getting `fingerprintPath`
+
+	// path: [root/repoName/domainName/fileName.gpg]
+	// root: [root]
+	fingerprintPath := gpg.GPGIDPath(filepath.Dir(filepath.Dir(filepath.Dir(path))))
+	content, err := gpg.Decrypt(ctx, fingerprintPath, path)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting %w", err)
+	}
+
+	bj := &bookmark.BookmarkJSON{}
+	if err := json.Unmarshal(content, bj); err != nil {
+		fmt.Println(string(content))
+		fmt.Println(path)
+		return nil, fmt.Errorf("error unmarshalling JSON: %w", err)
+	}
+
+	return bookmark.NewFromJSON(bj), nil
+}
+
+func readJSONRepo(ctx context.Context, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
+	return ReadRepo(ctx, RepoConfig{
+		Root:    root,
+		Loader:  bookio.JSONStrategy,
+		Spinner: sp,
+	})
+}
+
+func readGPGRepo(ctx context.Context, root string, sp *rotato.Rotato) ([]*bookmark.Bookmark, error) {
+	return ReadRepo(ctx, RepoConfig{
+		Root:    root,
+		Loader:  GPGStrategy,
+		Spinner: sp,
+	})
+}
+
+// RepoConfig groups the configuration needed to read a repository.
+type RepoConfig struct {
+	Root    string
+	Loader  *bookio.RepositoryLoader
+	Spinner *rotato.Rotato
+}
+
+// ReadRepo is the unified function that uses the Strategy Pattern.
+func ReadRepo(ctx context.Context, cfg RepoConfig) ([]*bookmark.Bookmark, error) {
+	f := bookio.NewFileLoader(ctx)
+	f.WithLoader(cfg.Loader.Func)
+	if cfg.Spinner != nil {
+		f.WithSpinner(cfg.Spinner)
+	}
+
+	f.Spinner.UpdatePrefix(cfg.Loader.Prefix)
+	f.Spinner.Start()
+
+	// Only for the GPGStrategy
+	var passphrasePrompted bool
+
+	err := filepath.WalkDir(cfg.Root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("%w: walking root: %s, on file: %s", err, cfg.Root, path)
+		}
+
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if !cfg.Loader.FileFilter(path, d) {
+			return nil
+		}
+
+		// Handle prompt for GPG passphrase on the first valid file
+		if cfg.Loader == GPGStrategy && !passphrasePrompted {
+			if err := promptGPGPassphrase(ctx, f, path); err != nil {
+				return err
+			}
+			passphrasePrompted = true
+			return nil
+		}
+
+		f.LoadAsync(path)
+		return nil
+	})
+	if err != nil {
+		f.Spinner.Fail(err.Error())
+		return nil, err
+	}
+
+	return f.Results()
+}
+
+// promptGPGPassphrase handles unlocking and initializing the first GPG file.
+func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, path string) error {
+	unlocked, err := gpg.Unlocked(f.Context, path)
+	if err != nil {
+		return err
+	}
+
+	if unlocked {
+		if _, err := f.Loader(ctx, path); err != nil {
+			return err
+		}
+		f.LoadAsync(path)
+		return nil
+	}
+
+	ctxPrompt, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	f.Spinner.UpdateMesg("waiting for GPG passphrase")
+
+	if _, err := f.Loader(ctxPrompt, path); err != nil {
+		return err
+	}
+
+	f.LoadAsync(path)
+	return nil
 }
