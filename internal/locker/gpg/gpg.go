@@ -146,6 +146,7 @@ func New(recipient string) (*GPG, error) {
 
 // IsInitialized returns true if GPG is active.
 func IsInitialized(path string) bool {
+	slog.Debug("gpg: checking initialized", "path", path)
 	f := GPGIDPath(path)
 	recipientKey, err := loadFingerprint(f)
 	if err != nil {

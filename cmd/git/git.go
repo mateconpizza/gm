@@ -58,6 +58,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		newPushCmd(app),
 		newRawCmd(app),
 		newDisableCmd(app),
+		newSyncCmd(app),
 	)
 
 	return c
@@ -161,6 +162,26 @@ func newDisableCmd(_ *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("not implemented yet...")
 			return nil
+		},
+	}
+
+	return c
+}
+
+func newSyncCmd(_ *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:               "sync",
+		Short:             "sync bookmarks with local repo",
+		PersistentPreRunE: cli.HookEnsureGitEnv,
+		Annotations:       cli.SkipGitSync,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+
+			return handler.GitPrune(d)
 		},
 	}
 

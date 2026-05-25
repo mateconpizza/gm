@@ -225,12 +225,12 @@ func (b *Bookmark) JSONPath() (string, error) {
 //
 //	domainHash -> urlHash.gpg
 func (b *Bookmark) GPGPath(ext string) (string, error) {
-	domain, err := domain(b.URL)
+	hashPath, err := b.HashPath()
 	if err != nil {
-		return "", fmt.Errorf("%w", err)
+		return "", fmt.Errorf("hashing path: %w", err)
 	}
 
-	return filepath.Join(domain, b.Checksum+ext), nil
+	return hashPath + ext, nil
 }
 
 // CheckStatus updates the bookmark's status fields.
