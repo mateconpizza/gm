@@ -16,7 +16,7 @@ import (
 
 var (
 	ErrAPIRequestFail     = errors.New("wayback machine: API request failed")
-	ErrAlreadyArchived    = errors.New("wayback machine: URL already has archive")
+	ErrAlreadyArchived    = errors.New("wayback machine: bookmark already has archive")
 	ErrNoSnapshots        = errors.New("wayback machine: no snapshots found")
 	ErrNoVersionAvailable = errors.New("wayback machine: no version available")
 	ErrSaveFailed         = errors.New("wayback machine: failed to save snapshot")

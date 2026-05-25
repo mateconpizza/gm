@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -50,43 +50,30 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 
 	var (
 		responses = make([]*Response, 0, len(bs))
-		sem       *semaphore.Weighted
-		start     time.Time
-		wg        sync.WaitGroup
+		start     = time.Now()
 		mu        sync.Mutex
 	)
 
-	sem = semaphore.NewWeighted(int64(maxConRequests))
-	start = time.Now()
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConRequests)
 
-	schedule := func(b *bookmark.Bookmark) error {
-		wg.Add(1)
+	for _, b := range bs {
+		g.Go(func() error {
+			time.Sleep(50 * time.Millisecond)
 
-		if err := sem.Acquire(ctx, 1); err != nil {
-			return fmt.Errorf("error acquiring semaphore: %w", err)
-		}
+			res := makeRequest(c, b, ctx)
 
-		time.Sleep(50 * time.Millisecond)
-
-		go func(b *bookmark.Bookmark) {
-			defer wg.Done()
-
-			res := makeRequest(c, b, ctx, sem)
 			mu.Lock()
 			responses = append(responses, &res)
 			mu.Unlock()
-		}(b)
 
-		return nil
+			return nil
+		})
 	}
 
-	for _, b := range bs {
-		if err := schedule(b); err != nil {
-			return err
-		}
+	if err := g.Wait(); err != nil {
+		return err
 	}
-
-	wg.Wait()
 
 	duration := time.Since(start)
 	printSummaryStatus(c, responses, duration)
@@ -115,6 +102,7 @@ func prettifyURLStatus(p *ansi.Palette, code int) (status, statusCode string) {
 		status = p.Yellow.Sprint("WA")
 		statusCode = p.Yellow.Sprint(code)
 	}
+
 	return status, statusCode
 }
 
@@ -139,6 +127,7 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 	p := c.Palette()
 	codes := make(map[int][]Response)
 	f := c.Frame()
+
 	f.Rowln().Header(p.Bold.Sprint("Summary URLs status:\n"))
 
 	for _, res := range r {
@@ -149,6 +138,7 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 		n := len(res)
 
 		statusCategory := statusCode / 100
+
 		switch statusCategory {
 		case 2: // 2xx status codes
 			f.Midln(fmtSummary(c, n, statusCode, p.BrightGreen.With(p.Bold).Sprint))
@@ -168,17 +158,30 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 			if r.statusCode == http.StatusOK {
 				continue
 			}
-			f.Rowln(fmt.Sprintf(" > %-3d %s", r.bID, txt.Shorten(r.URL, terminal.MinWidth)))
+
+			f.Rowln(fmt.Sprintf(
+				" > %-3d %s",
+				r.bID,
+				txt.Shorten(r.URL, terminal.MinWidth),
+			))
 		}
 	}
 
 	took := fmt.Sprintf("%.2fs", d.Seconds())
 	total := fmt.Sprintf("Total %s checked,", p.Blue.Sprint(len(r)))
-	f.Rowln().Footerln(total + " took " + p.Blue.Sprint(took)).Flush()
+
+	f.Rowln().
+		Footerln(total + " took " + p.Blue.Sprint(took)).
+		Flush()
 }
 
 // buildResponse builds a Response from an HTTP response.
-func buildResponse(c *ui.Console, b *bookmark.Bookmark, statusCode int, hasError bool) Response {
+func buildResponse(
+	c *ui.Console,
+	b *bookmark.Bookmark,
+	statusCode int,
+	hasError bool,
+) Response {
 	result := Response{
 		URL:        b.URL,
 		bID:        b.ID,
@@ -194,6 +197,7 @@ func buildResponse(c *ui.Console, b *bookmark.Bookmark, statusCode int, hasError
 	f := c.Frame()
 
 	statusCategory := statusCode / 100
+
 	switch statusCategory {
 	case 2: // 2xx status codes
 		f.Success(result.String() + "\n").Flush()
@@ -212,7 +216,11 @@ func buildResponse(c *ui.Console, b *bookmark.Bookmark, statusCode int, hasError
 
 // handleRequestError handles errors from the HTTP request and determines the
 // appropriate status code.
-func handleRequestError(c *ui.Console, b *bookmark.Bookmark, err error) Response {
+func handleRequestError(
+	c *ui.Console,
+	b *bookmark.Bookmark,
+	err error,
+) Response {
 	var statusCode int
 
 	switch {
@@ -231,24 +239,28 @@ func handleRequestError(c *ui.Console, b *bookmark.Bookmark, err error) Response
 
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
 // returns a response.
-//
-// The function uses a weighted semaphore to limit the number of concurrent
-// requests.
-func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context, sem *semaphore.Weighted) Response {
-	// FIX: Split this function
-	defer sem.Release(1)
-
-	timeout := 5 * time.Second
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context) Response {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		b.URL,
+		http.NoBody,
+	)
 	if err != nil {
-		slog.Error("creating request", slog.String("url", b.URL), slog.String("error", err.Error()))
+		slog.Error(
+			"creating request",
+			slog.String("url", b.URL),
+			slog.String("error", err.Error()),
+		)
+
 		return buildResponse(c, b, http.StatusNotFound, true)
 	}
 
 	client := http.DefaultClient
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return handleRequestError(c, b, err)
@@ -261,14 +273,23 @@ func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context, sem *
 		}
 	}()
 
-	return buildResponse(c, b, resp.StatusCode, resp.StatusCode != http.StatusOK)
+	return buildResponse(
+		c,
+		b,
+		resp.StatusCode,
+		resp.StatusCode != http.StatusOK,
+	)
 }
 
 func isNetworkUnreachableError(err error) bool {
 	var netOpErr *net.OpError
+
 	if errors.As(err, &netOpErr) {
 		return netOpErr.Op == "connect" &&
-			strings.Contains(netOpErr.Err.Error(), "network is unreachable")
+			strings.Contains(
+				netOpErr.Err.Error(),
+				"network is unreachable",
+			)
 	}
 
 	return false

@@ -9,7 +9,6 @@ import (
 
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -21,7 +20,6 @@ type FileLoader struct {
 	count   uint32
 	g       *errgroup.Group
 	mu      *sync.Mutex
-	sem     *semaphore.Weighted
 	results []*bookmark.Bookmark
 	Loader  loadFileFn
 	Spinner *rotato.Rotato
@@ -41,11 +39,6 @@ func (f *FileLoader) WithSpinner(sp *rotato.Rotato) *FileLoader {
 
 func (f *FileLoader) LoadAsync(path string) {
 	f.g.Go(func() error {
-		if err := f.sem.Acquire(f.Context, 1); err != nil {
-			return err
-		}
-		defer f.sem.Release(1)
-
 		b, err := f.Loader(f.Context, path)
 		currentCount := atomic.AddUint32(&f.count, 1)
 		f.Spinner.UpdateMesg(fmt.Sprintf("[%d] %s", currentCount, filepath.Base(path)))
@@ -78,11 +71,11 @@ func (f *FileLoader) Results() ([]*bookmark.Bookmark, error) {
 
 func NewFileLoader(ctx context.Context) *FileLoader {
 	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(1)
 	return &FileLoader{
 		Context: ctx,
 		g:       g,
 		mu:      &sync.Mutex{},
-		sem:     semaphore.NewWeighted(1),
 		Spinner: rotato.New(
 			rotato.WithMessageColor(rotato.FgBrightBlue),
 			rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
