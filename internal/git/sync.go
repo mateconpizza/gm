@@ -12,7 +12,6 @@ import (
 
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/semaphore"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
@@ -46,16 +45,17 @@ func exportAsGPG(ctx context.Context, fingerprintPath, root string, bs []*bookma
 	n := len(bs)
 
 	g, ctx := errgroup.WithContext(ctx)
-	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
+	g.SetLimit(runtime.NumCPU() * 2)
 
 	for i := range bs {
 		b := bs[i]
 
 		g.Go(func() error {
-			if err := sem.Acquire(ctx, 1); err != nil {
-				return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
 			}
-			defer sem.Release(1)
 
 			hashPath, err := b.HashPath()
 			if err != nil {
@@ -139,14 +139,15 @@ func cleanGPGRepo(ctx context.Context, root string, bs []*bookmark.Bookmark) err
 	slog.Debug("cleaning up git GPG files")
 
 	g, ctx := errgroup.WithContext(ctx)
-	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
+	g.SetLimit(runtime.NumCPU() * 2)
 
 	for _, b := range bs {
 		g.Go(func() error {
-			if err := sem.Acquire(ctx, 1); err != nil {
-				return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
 			}
-			defer sem.Release(1)
 
 			gpgPath, err := b.GPGPath(gpg.Extension)
 			if err != nil {
@@ -177,14 +178,15 @@ func cleanJSONRepo(ctx context.Context, root string, bs []*bookmark.Bookmark) er
 	slog.Debug("cleaning up git JSON files")
 
 	g, ctx := errgroup.WithContext(ctx)
-	sem := semaphore.NewWeighted(int64(runtime.NumCPU() * 2))
+	g.SetLimit(runtime.NumCPU() * 2)
 
 	for _, b := range bs {
 		g.Go(func() error {
-			if err := sem.Acquire(ctx, 1); err != nil {
-				return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
 			}
-			defer sem.Release(1)
 
 			jsonPath, err := b.JSONPath()
 			if err != nil {

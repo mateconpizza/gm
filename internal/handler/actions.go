@@ -10,10 +10,9 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/mateconpizza/rotato"
-	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -102,43 +101,30 @@ func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
 }
 
 // openInBrowser concurrently opens each bookmark URL in the browser.
-func openInBrowser(d *deps.Deps, bs []*bookmark.Bookmark, maxGoroutines int64) error {
+func openInBrowser(d *deps.Deps, bs []*bookmark.Bookmark, maxGoroutines int) error {
 	sp := rotato.New(
 		rotato.WithMessage("opening bookmarks..."),
 		rotato.WithMessageColor(rotato.FgBrightGreen),
 		rotato.WithSpinnerColor(rotato.FgBrightGreen),
 	)
+
 	sp.Start()
 	defer sp.Done()
 
-	var (
-		wg    sync.WaitGroup
-		sem   = semaphore.NewWeighted(maxGoroutines)
-		errCh = make(chan error, len(bs))
-	)
+	g, ctx := errgroup.WithContext(d.Context())
+	g.SetLimit(maxGoroutines)
 
 	for _, b := range bs {
-		if err := sem.Acquire(d.Context(), 1); err != nil {
-			return fmt.Errorf("error acquiring semaphore: %w", err)
-		}
-		wg.Add(1)
-		go func(b *bookmark.Bookmark) {
-			defer wg.Done()
-			defer sem.Release(1)
-			if err := sys.OpenInBrowser(d.Context(), b.URL); err != nil {
-				errCh <- fmt.Errorf("open error: %w", err)
+		g.Go(func() error {
+			if err := sys.OpenInBrowser(ctx, b.URL); err != nil {
+				return fmt.Errorf("open error: %w", err)
 			}
-		}(b)
+
+			return nil
+		})
 	}
 
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
-		return err
-	}
-
-	return nil
+	return g.Wait()
 }
 
 // recordVisits increments the visit counter for each bookmark.
