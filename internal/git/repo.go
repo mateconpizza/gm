@@ -188,7 +188,7 @@ func ReadRepo(ctx context.Context, cfg RepoConfig) ([]*bookmark.Bookmark, error)
 
 		// Handle prompt for GPG passphrase on the first valid file
 		if cfg.Loader == GPGStrategy && !passphrasePrompted {
-			if err := promptGPGPassphrase(ctx, f, path); err != nil {
+			if err := promptGPGPassphrase(ctx, f, path, &passphrasePrompted); err != nil {
 				return err
 			}
 			passphrasePrompted = true
@@ -207,7 +207,7 @@ func ReadRepo(ctx context.Context, cfg RepoConfig) ([]*bookmark.Bookmark, error)
 }
 
 // promptGPGPassphrase handles unlocking and initializing the first GPG file.
-func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, path string) error {
+func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, path string, prompted *bool) error {
 	unlocked, err := gpg.Unlocked(f.Context, path)
 	if err != nil {
 		return err
@@ -224,7 +224,17 @@ func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, path string)
 	ctxPrompt, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
+	deadline, _ := ctxPrompt.Deadline()
+	dimmer := rotato.FgYellow.With(rotato.StyleDim, rotato.StyleBold)
+
 	f.Spinner.UpdateMesg("waiting for GPG passphrase")
+	f.Spinner.SetMessageDecorator(func(mesg string) string {
+		remaining := max(time.Until(deadline).Round(time.Second), 0)
+		if remaining == 0 || *prompted {
+			return mesg
+		}
+		return mesg + " " + dimmer.Sprintf("(%.0fs left)", remaining.Seconds())
+	})
 
 	if _, err := f.Loader(ctxPrompt, path); err != nil {
 		return err
