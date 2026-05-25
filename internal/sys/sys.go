@@ -18,6 +18,7 @@ import (
 	"github.com/atotto/clipboard"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/sys/cleanup"
 )
 
 var (
@@ -170,6 +171,8 @@ func ReadClipboard() string {
 
 // ErrAndExit logs the error and exits the program.
 func ErrAndExit(err error) {
+	cleanup.Run()
+
 	switch {
 	case err == nil:
 		os.Exit(ExitSuccess)
