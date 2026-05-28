@@ -44,13 +44,6 @@ type (
 		initialized bool
 	}
 
-	Path struct {
-		Data     string `json:"data"`   // Path to store database
-		Config   string `json:"config"` // Path to config file
-		Backup   string `json:"backup"` // Path to store backups
-		Database string `json:"store"`  // Database path
-	}
-
 	Git struct {
 		Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
 		Log     bool   `json:"logging" yaml:"logging"` // Enable logging
@@ -195,6 +188,9 @@ func (app *App) SetDatabase(name string) error {
 	app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
 	return nil
 }
+
+func (app *App) DBNameBase() string { return files.StripSuffixes(app.DBName) }
+func (app *App) CreatePaths() error { return app.Path.setup() }
 
 func New(info *Information) *App {
 	return &App{
