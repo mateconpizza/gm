@@ -22,12 +22,11 @@ import (
 // NewRootCmd is the main command.
 func NewRootCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:                app.Cmd + " [query]",
-		Args:               cobra.MinimumNArgs(0),
-		SilenceUsage:       true,
-		PersistentPreRunE:  cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase(app)),
-		PersistentPostRunE: cli.HookGitSync,
-		RunE:               rootCmdFunc(app),
+		Use:               app.Cmd + " [query]",
+		Args:              cobra.MinimumNArgs(0),
+		SilenceUsage:      true,
+		PersistentPreRunE: cli.ChainHooks(cli.HookInjectApp(app), cli.HookEnsureDatabase(app)),
+		RunE:              rootCmdFunc(app),
 	}
 
 	registerRootFlags(c, app)
@@ -35,7 +34,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 
 	// Initialize application state before command execution
 	cobra.OnInitialize(func() {
-		initAppConfig(c.Context(), app)
+		initAppConfig(app)
 
 		app.Initialize()
 	})

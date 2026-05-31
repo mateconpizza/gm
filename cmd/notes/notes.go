@@ -73,12 +73,14 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", "{1}")),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.Edit(editor.NotesStrategy{}))
+			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NotesStrategy{}))
 		},
 	}
+
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+
 	return c
 }
 

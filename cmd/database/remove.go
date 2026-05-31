@@ -10,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -18,6 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 func newBackupRemoveCmd(app *application.App) *cobra.Command {
@@ -65,7 +65,7 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			m, err := git.NewManager(app.Path.Database)
+			m, err := git.NewManager(app.Path.Git())
 			if err != nil {
 				return err
 			}
@@ -84,17 +84,18 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			if !m.IsTracked() {
+			gr := m.NewRepo(r.BaseName())
+			if !m.IsTracked(gr.Name()) {
 				return nil
 			}
 
 			var sb strings.Builder
-			fmt.Fprintf(&sb, "[%s] removed and untracked", m.Loc.Name)
+			fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Name())
 			if len(bs) > 0 {
 				fmt.Fprintf(&sb, " (-del:%d)", len(bs))
 			}
 
-			return m.Untrack(sb.String())
+			return m.Untrack(cmd.Context(), gr, sb.String())
 		},
 	}
 

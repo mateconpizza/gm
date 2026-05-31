@@ -12,7 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -20,6 +20,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 const padding = 28
@@ -107,33 +108,38 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	if !app.Git.Enabled {
 		return nil
 	}
-	m, err := git.NewManager(app.Path.Database)
+	m, err := git.NewManager(app.Path.Git())
 	if err != nil {
 		return err
 	}
 
-	if m.IsTracked() {
+	name := app.DBNameBase()
+	if m.IsTracked(name) {
 		return nil
 	}
 
 	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-	if !c.Confirm(fmt.Sprintf("Track database %q?", m.Loc.DBName), "n") {
-		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", m.Loc.DBName)).String())
+	if !c.Confirm(fmt.Sprintf("Track database %q?", name), "n") {
+		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", name)).String())
 		return nil
 	}
-	c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", m.Loc.DBName)).String())
+	c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", name)).String())
 
-	if err := files.MkdirAll(m.Loc.Path); err != nil {
+	if err := files.MkdirAll(app.Path.Database); err != nil {
 		return fmt.Errorf("creating repo path: %w", err)
 	}
 
-	if err := m.Track(); err != nil {
+	r, err := db.New(cmd.Context(), app.Path.Database)
+	if err != nil {
 		return err
 	}
 
-	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database %q tracked", m.Loc.DBName)))
+	gr := m.NewRepo(name)
+	if err := gitops.Track(cmd.Context(), r, m, gr); err != nil {
+		return err
+	}
 
-	return nil
+	return c.Print(cmd.Context(), c.SuccessMesg(fmt.Sprintf("database %q tracked\n", name)))
 }
 
 // initWorkspace creates the paths for the application.

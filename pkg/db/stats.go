@@ -45,7 +45,9 @@ func NewStats(ctx context.Context, r *SQLite) (*RepoStats, error) {
 		return nil, fmt.Errorf("get stats: %w", err)
 	}
 
-	stats.Name = r.Name()
-
 	return &stats, nil
+}
+
+func (r *SQLite) Stats(ctx context.Context, dest any) error {
+	return r.DB.GetContext(ctx, dest, `SELECT * FROM stats`)
 }

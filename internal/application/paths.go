@@ -12,9 +12,17 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-func (app *App) CreatePaths() error {
-	return files.MkdirAll(app.Path.Data)
+type Path struct {
+	Data     string `json:"data"`   // Path to store database
+	Config   string `json:"config"` // Path to config file
+	Backup   string `json:"backup"` // Path to store backups
+	Database string `json:"store"`  // Database fullpath
 }
+
+func (p *Path) Home() string       { return p.Data }
+func (p *Path) Git() string        { return filepath.Join(p.Data, "git") }
+func (p *Path) ConfigFile() string { return filepath.Join(p.Data, ConfigFilename) }
+func (p *Path) setup() error       { return files.MkdirAll(p.Home()) }
 
 // dataPath returns the data path for the application.
 func dataPath(appName string) (string, error) {

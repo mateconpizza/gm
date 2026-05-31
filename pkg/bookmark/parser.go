@@ -1,18 +1,15 @@
 package bookmark
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"reflect"
 	"sort"
 	"strings"
-	"time"
 )
 
 // hashDomain generates a hash from a domain.
@@ -144,37 +141,14 @@ func Fields() []string {
 	return fields
 }
 
-func makeReq(ctx context.Context, b *Bookmark) error {
-	timeout := 5 * time.Second
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+func CopyMetadata(dst, src *Bookmark) *Bookmark {
+	dst.ID = src.ID
+	dst.CreatedAt = src.CreatedAt
+	dst.Favorite = src.Favorite
+	dst.LastVisit = src.LastVisit
+	dst.VisitCount = src.VisitCount
+	dst.FaviconURL = src.FaviconURL
+	dst.Notes = src.Notes
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, b.URL, http.NoBody)
-	if err != nil {
-		return err
-	}
-
-	client := http.DefaultClient
-	resp, err := client.Do(req)
-	if err != nil {
-		slog.Error("creating request", slog.String("url", b.URL), slog.String("error", err.Error()))
-		b.HTTPStatusCode = 0
-		b.HTTPStatusText = "Network error"
-		b.IsActive = false
-		b.LastStatusChecked = time.Now().Format("20060102150405")
-		return err
-	}
-
-	go func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("check status: closing body", "error", err)
-		}
-	}()
-
-	b.HTTPStatusCode = resp.StatusCode
-	b.HTTPStatusText = http.StatusText(resp.StatusCode)
-	b.IsActive = resp.StatusCode >= 200 && resp.StatusCode <= 299
-	b.LastStatusChecked = time.Now().Format("20060102150405")
-
-	return nil
+	return dst
 }

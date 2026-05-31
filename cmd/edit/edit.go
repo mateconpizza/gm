@@ -41,7 +41,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				strategy = editor.JSONStrategy{}
 			}
 
-			return cmdutil.Execute(cmd, args, m, handler.Edit(strategy))
+			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), strategy))
 		},
 	}
 	cmdutil.FlagOutput(c, app, []string{"json"})
@@ -64,11 +64,13 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithBorderLabel(" notes "),
 				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", "{1}")),
 			)
-			return cmdutil.Execute(cmd, args, m, handler.Edit(editor.NotesStrategy{}))
+			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NotesStrategy{}))
 		},
 	}
+
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagsFilter(c, app)
+
 	return c
 }

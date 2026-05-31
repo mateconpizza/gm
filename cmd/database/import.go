@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	gitCmd "github.com/mateconpizza/gm/cmd/git"
+	"github.com/mateconpizza/gm/cmd/gitcmd"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
@@ -185,7 +185,7 @@ func newImportFromFileCmd(app *application.App) *cobra.Command {
 func newImportFromGit(app *application.App) *cobra.Command {
 	var c *cobra.Command
 
-	g := gitCmd.NewCmd(app)
+	g := gitcmd.NewCmd(app)
 	for _, cmd := range g.Commands() {
 		if cmd.Name() == "clone" {
 			c = &cobra.Command{

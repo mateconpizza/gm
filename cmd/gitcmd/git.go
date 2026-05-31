@@ -1,4 +1,4 @@
-package git
+package gitcmd
 
 import (
 	"context"
@@ -10,19 +10,48 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 // commitCmd records staged changes in the repository.
-var commitCmd = &cobra.Command{
-	Use:   "commit",
-	Short: "commit changes to the repository",
-	RunE:  cli.HookGitSync,
+func newCommitCmd(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "commit",
+		Short: "commit changes to the repository",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			g, err := gitops.NewGit(app)
+			if err != nil {
+				return err
+			}
+
+			m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
+			if err != nil {
+				return err
+			}
+
+			r, err := db.New(cmd.Context(), app.Path.Database)
+			if err != nil {
+				return err
+			}
+
+			gr := m.NewRepo(
+				app.DBNameBase(),
+				gitops.RepoStatsReader(r),
+			)
+
+			return m.SaveChanges(cmd.Context(), git.NewCommitCfg(
+				gr,
+				app.Info.Version,
+				cmd.Short,
+			))
+		},
+	}
 }
 
 // NewCmd is the git command.
@@ -31,14 +60,10 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:                "git",
 		Short:              "git sync",
 		Aliases:            []string{"g"},
-		PersistentPreRunE:  cli.HookEnsureGitEnv,
 		DisableFlagParsing: true,
+		PersistentPreRunE:  cli.HookEnsureGitEnv(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !files.Exists(app.Git.Path) {
-				return git.ErrGitNotInitialized
-			}
-
-			g, err := git.New(cmd.Context(), app.Git.Path)
+			g, err := gitops.NewGit(app)
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -47,14 +72,14 @@ func NewCmd(app *application.App) *cobra.Command {
 				args = append(args, "log", "--oneline", "--reverse")
 			}
 
-			return g.Exec(args...)
+			return g.Exec(cmd.Context(), args...)
 		},
 	}
 	c.AddCommand(
 		newInitRepoCmd(app),
 		newTrackerCmd(app),
 		newCloneCmd(app),
-		commitCmd,
+		newCommitCmd(app),
 		newPushCmd(app),
 		newRawCmd(app),
 		newDisableCmd(app),
@@ -80,24 +105,39 @@ func newPushCmd(app *application.App) *cobra.Command {
 // newInitRepoCmd initializes a new, empty Git repository.
 func newInitRepoCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "init",
-		Short: "create empty Git repository",
+		Use:         "init",
+		Short:       "create empty Git repository",
+		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := git.NewManager(app.Path.Database)
+			g, err := gitops.NewGit(app)
 			if err != nil {
 				return err
 			}
 
-			if err := m.Git.Init(app.Flags.Reinit); err != nil {
-				return fmt.Errorf("%w, use %s", err, ansi.BrightYellow.With(ansi.Italic).Sprint("--reinit"))
-			}
-
-			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			if err := m.AskForEncryption(c, app); err != nil {
+			m, err := git.NewManager(
+				app.Path.Git(),
+				git.WithGit(g),
+				gitops.MgrVersion(app.Info.Version),
+			)
+			if err != nil {
 				return err
 			}
 
-			return managementSelect(c, app)
+			ctx := cmd.Context()
+			if err := m.Init(ctx, app.Flags.Reinit); err != nil {
+				if errors.Is(err, git.ErrGitInitialized) {
+					s := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s %s --reinit", cmd.Parent().Name(), cmd.Name())
+					return fmt.Errorf("%w, use %s", err, s)
+				}
+				return err
+			}
+
+			c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
+			if err := handler.AskForEncryption(ctx, c, app, m); err != nil {
+				return err
+			}
+
+			return managementSelect(ctx, c, app, m)
 		},
 	}
 
@@ -113,20 +153,16 @@ func newRawCmd(app *application.App) *cobra.Command {
 		Short:              "raw git commands",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !files.Exists(app.Git.Path) {
-				return git.ErrGitNotInitialized
-			}
-
-			g, err := git.New(cmd.Context(), app.Git.Path)
+			g, err := gitops.NewGit(app)
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
 
 			if len(args) == 0 {
 				args = append(args, "log", "--oneline", "--reverse")
 			}
 
-			return g.Exec(args...)
+			return g.Exec(cmd.Context(), args...)
 		},
 	}
 
@@ -148,7 +184,7 @@ func newCloneCmd(app *application.App) *cobra.Command {
 
 			app.Git.Remote = args[0]
 
-			return handler.GitClone(d)
+			return handler.GitClone(cmd.Context(), d)
 		},
 	}
 
@@ -168,20 +204,19 @@ func newDisableCmd(_ *application.App) *cobra.Command {
 	return c
 }
 
-func newSyncCmd(_ *application.App) *cobra.Command {
+func newSyncCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:               "sync",
-		Short:             "sync bookmarks with local repo",
-		PersistentPreRunE: cli.HookEnsureGitEnv,
-		Annotations:       cli.SkipGitSync,
+		Use:         "sync",
+		Short:       "sync bookmarks with local repo",
+		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
+			r, err := db.New(cmd.Context(), app.Path.Database)
 			if err != nil {
 				return err
 			}
-			defer cleanup()
+			defer r.Close()
 
-			return handler.GitPrune(d)
+			return gitops.Prune(cmd.Context(), app, r)
 		},
 	}
 
@@ -190,24 +225,26 @@ func newSyncCmd(_ *application.App) *cobra.Command {
 
 // pushFunc pushes local changes to the remote repository.
 func pushFunc(ctx context.Context, app *application.App) error {
-	m, err := git.NewManager(app.Path.Database)
+	m, err := git.NewManager(app.Path.Git())
 	if err != nil {
 		return err
 	}
-	remote, err := m.Git.Remote()
+
+	g := m.Git()
+	remote, err := g.Remote(ctx)
 	if err != nil || remote == "" {
 		return git.ErrGitNoUpstream
 	}
 
 	// SetUpstream will push changes if upstream doesn't exist
-	if err := git.SetUpstream(ctx, app.Git.Path); err != nil {
+	if err := g.SetUpstream(ctx, app.Git.Path); err != nil {
 		if !errors.Is(err, git.ErrGitUpstreamExists) {
 			return err
 		}
 	}
 
 	// Check if there are unpushed commits
-	proceed, err := m.Git.HasUnpushedCommits()
+	proceed, err := g.HasUnpushedCommits(ctx)
 	if err != nil {
 		return err
 	}
@@ -216,10 +253,16 @@ func pushFunc(ctx context.Context, app *application.App) error {
 	}
 
 	// Update summary and push
-	if err := git.UpdateSummaryAndCommit(m, app.Info.Version); err != nil {
+	gr := m.NewRepo(app.DBNameBase())
+	err = m.SaveChanges(ctx, git.NewCommitCfg(
+		gr,
+		app.Info.Version,
+		"???????????????",
+	))
+	if err != nil {
 		return err
 	}
-	if err := m.Git.Push(); err != nil {
+	if err := g.Push(ctx); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}
 

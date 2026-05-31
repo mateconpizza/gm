@@ -14,11 +14,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 var (
@@ -28,6 +29,10 @@ var (
 
 	// SkipGitSync is used in subcmds declarations to skip the git commit.
 	SkipGitSync = map[string]string{"skip-git-sync": "true"}
+
+	// SkipGitCheck is used in subcmds declarations to skip the git existence
+	// check.
+	SkipGitCheck = map[string]string{"skip-git-check": "true"}
 
 	// databaseChecked tracks whether the database check has already been
 	// performed in the current process.
@@ -134,57 +139,69 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 
 // HookEnsureGitEnv ensures Git environment is properly set up.
 // Shows help if help flags are present, verifies Git is installed,
-// and checks if repository is initialized (except for init/import commands).
-func HookEnsureGitEnv(cmd *cobra.Command, args []string) error {
-	// This will handle when the `c.DisableFlagParsing` is true and show help command.
-	for _, arg := range args {
-		if arg == "-h" || arg == "--help" || arg == "help" {
-			_ = cmd.Help()
-			os.Exit(0)
+// and checks if repository is initialized (except for init/import/clone commands).
+func HookEnsureGitEnv(app *application.App) Hook {
+	return func(cmd *cobra.Command, args []string) error {
+		// This will handle when the `c.DisableFlagParsing` is true and show help command.
+		for _, arg := range args {
+			if arg == "-h" || arg == "--help" || arg == "help" {
+				_ = cmd.Help()
+				os.Exit(0)
+			}
 		}
-	}
 
-	app, err := application.FromContext(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("failed to get config: %w", err)
-	}
+		for c := cmd; c != nil; c = c.Parent() {
+			if v, ok := c.Annotations["skip-git-check"]; ok && v == "true" {
+				slog.Debug("skipping git sync for", "command", c.Name())
+				return nil
+			}
+		}
 
-	_, err = git.New(cmd.Context(), app.Git.Path)
-	if err != nil {
-		return fmt.Errorf("hook git: %w", err)
-	}
+		_, err := git.New(app.Path.Git())
+		if err != nil {
+			return fmt.Errorf("hook git: %w", err)
+		}
 
-	switch cmd.Name() {
-	case "init", "import", "clone":
+		switch cmd.Name() {
+		case "init", "import", "clone":
+			return nil
+		}
+
+		if !app.Git.Enabled {
+			i := ansi.BrightYellow.With(ansi.Italic).Sprint("git init")
+			return fmt.Errorf("%w: use %s to setup", git.ErrGitNotInitialized, i)
+		}
+
 		return nil
 	}
-
-	if !app.Git.Enabled {
-		return git.ErrGitNotInitialized
-	}
-
-	return nil
 }
 
 // HookGitSync synchronizes Git repository with current database state.
-func HookGitSync(cmd *cobra.Command, args []string) error {
-	// Walk up the command chain: skip if any ancestor declares skip-git-sync
-	for c := cmd; c != nil; c = c.Parent() {
-		if v, ok := c.Annotations["skip-git-sync"]; ok && v == "true" {
-			slog.Debug("skipping git sync for", "command", c.Name())
-			return nil
+func HookGitSync(app *application.App) Hook {
+	return func(cmd *cobra.Command, args []string) error {
+		// Walk up the command chain: skip if any ancestor declares skip-git-sync
+		for c := cmd; c != nil; c = c.Parent() {
+			if v, ok := c.Annotations["skip-git-sync"]; ok && v == "true" {
+				slog.Debug("skipping git sync for", "command", c.Name())
+				return nil
+			}
 		}
-	}
 
-	slog.Debug("hook: git sync, checking for changes")
-	app, err := application.FromContext(cmd.Context())
-	if err != nil {
-		return fmt.Errorf("hook-git: failed to get config: %w", err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
-	defer cancel()
+		slog.Debug("hook: git sync, checking for changes")
+		app, err := application.FromContext(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("hook-git: failed to get config: %w", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
 
-	return git.Sync(ctx, app, cmd.Short)
+		msg := cmd.Short
+		if msg == "" {
+			msg = cmd.Name() + " hook sync"
+		}
+
+		return gitops.Sync(ctx, app, fmt.Sprintf("[%s] %s", app.DBNameBase(), msg))
+	}
 }
 
 // HookInjectApp returns a hook that injects the app into the command context.

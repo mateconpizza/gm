@@ -8,10 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mateconpizza/rotato"
-
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -349,34 +347,23 @@ func tail(bs []*bookmark.Bookmark, n int) []*bookmark.Bookmark {
 
 // removeRecords removes the records from the database.
 func removeRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	sp := rotato.New(
-		rotato.WithMessage("removing record/s..."),
-		rotato.WithMessageColor(rotato.FgGray),
-	)
-	sp.Start()
-	defer sp.Done()
-
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
+
 	if err := r.DeleteMany(d.Context(), bs); err != nil {
 		return err
 	}
-
-	sp.Done()
 
 	app, err := d.Application()
 	if err != nil {
 		return err
 	}
-	if err := git.RemoveBookmarks(app, bs); err != nil {
+	if err := gitops.Remove(d.Context(), app, bs); err != nil {
 		return err
 	}
 
-	if d.Console() != nil {
-		fmt.Fprint(d.Writer(), d.Console().SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
-	}
-
-	return nil
+	c := d.Console()
+	return c.Print(d.Context(), c.SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
 }

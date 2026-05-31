@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -20,6 +20,10 @@ var ErrURLParamsNotFound = errors.New("params not found")
 
 // ParamsURL processes and optionally cleans query params for each bookmark.
 func ParamsURL(d *deps.Deps, bs []*bookmark.Bookmark) error {
+	if len(bs) == 0 {
+		return ErrNoItems
+	}
+
 	app, err := d.Application()
 	if err != nil {
 		return err
@@ -300,7 +304,8 @@ func persistBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark, newURL string) er
 		return err
 	}
 	// TODO: use port.Deduplicate or port.DeduplicateReport
-	if book, has := r.Has(d.Context(), newB.URL); has {
+	ctx := d.Context()
+	if book, has := r.Has(ctx, newB.URL); has {
 		f.Error(id(newB.ID) + p.BrightRed.Wrap("already", p.Italic) + " exists with " + id(book.ID)).
 			Ln().Flush()
 		return nil
@@ -311,9 +316,9 @@ func persistBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark, newURL string) er
 		return err
 	}
 
-	if err := r.UpdateOne(d.Context(), &newB); err != nil {
+	if err := r.UpdateOne(ctx, &newB); err != nil {
 		return err
 	}
 
-	return git.UpdateBookmark(app, b, &newB)
+	return gitops.Update(ctx, app, b, &newB)
 }

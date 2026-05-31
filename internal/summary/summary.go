@@ -30,6 +30,8 @@ func Repo(d *deps.Deps) (string, error) {
 		return "", err
 	}
 
+	stats.Name = r.Name()
+
 	p := d.Console().Palette()
 
 	name := r.Name()

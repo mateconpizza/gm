@@ -6,14 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -29,38 +26,7 @@ var (
 	ErrGitRepoEmpty       = errors.New("git: empty repository")
 )
 
-func cloneRepo(ctx context.Context, destRepoPath, repoURL string) error {
-	return runGitCmd(ctx, "", "clone", repoURL, destRepoPath)
-}
-
-// addAll adds all local changes.
-func addAll(ctx context.Context, repoPath string) error {
-	return runGitCmd(ctx, repoPath, "add", ".")
-}
-
-// addRemote adds a remote repository.
-func addRemote(ctx context.Context, repoPath, repoURL string, force bool) error {
-	if force {
-		return runGitCmd(ctx, repoPath, "remote", "set-url", "origin", repoURL)
-	}
-
-	return runGitCmd(ctx, repoPath, "remote", "add", "origin", repoURL)
-}
-
-// SetUpstream sets the upstream for the current branch.
-func SetUpstream(ctx context.Context, repoPath string) error {
-	err := HasUpstream(ctx, repoPath)
-	if err == nil {
-		return ErrGitUpstreamExists
-	}
-
-	b, err := branch(ctx, repoPath)
-	if err != nil {
-		return err
-	}
-
-	return runGitCmd(ctx, repoPath, "push", "--set-upstream", "origin", b)
-}
+type CmdLogger func(commands []string)
 
 // hasUnpushedCommits checks if there are any unpushed commits.
 func hasUnpushedCommits(ctx context.Context, repoPath string) (bool, error) {
@@ -104,27 +70,14 @@ func Commit(ctx context.Context, repoPath, msg string) error {
 	return runGitCmd(ctx, repoPath, "commit", "-m", msg)
 }
 
-// hasChanges checks if there are any staged or unstaged changes in the repo.
-func hasChanges(ctx context.Context, repoPath string) (bool, error) {
+// HasChanges checks if there are any staged or unstaged changes in the repo.
+func HasChanges(ctx context.Context, repoPath string) (bool, error) {
 	output, err := runWithOutput(ctx, repoPath, "status", "--porcelain")
 	if err != nil {
 		return false, fmt.Errorf("git status failed: %w", err)
 	}
 
 	return strings.TrimSpace(output) != "", nil
-}
-
-// initialize creates a new Git repository.
-func initialize(ctx context.Context, repoPath string, force bool) error {
-	if IsInitialized(repoPath) && !force {
-		return ErrGitInitialized
-	}
-
-	if err := files.MkdirAll(repoPath); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return runGitCmd(ctx, repoPath, "init")
 }
 
 // push pushes local changes to remote.
@@ -169,7 +122,7 @@ func status(ctx context.Context, repoPath string) (string, error) {
 
 func countStagedChanges(repoPath string) (added, modified, deleted int, err error) {
 	var out bytes.Buffer
-	cmd := exec.Command(gitCmd, "diff", "--cached", "--name-status")
+	cmd := exec.Command(command, "diff", "--cached", "--name-status")
 	cmd.Stdout = &out
 	cmd.Dir = repoPath
 
@@ -223,13 +176,9 @@ func Remote(ctx context.Context, repoPath string) (string, error) {
 	return runWithOutput(ctx, repoPath, "config", "--get", "remote.origin.url")
 }
 
-func setConfigLocal(ctx context.Context, repoPath, key, value string) error {
-	return runGitCmd(ctx, repoPath, "config", "--local", key, value)
-}
-
 // IsInitialized checks if the repo is initialized.
 func IsInitialized(repoPath string) bool {
-	return files.Exists(filepath.Join(repoPath, ".git"))
+	return fileExists(filepath.Join(repoPath, ".git"))
 }
 
 // hasCommits checks if the repo has commits.
@@ -248,7 +197,7 @@ func hasCommits(ctx context.Context, repoPath string) bool {
 
 // runWithOutput executes a git command and returns the output.
 func runWithOutput(ctx context.Context, repoPath string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, gitCmd, args...)
+	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 
@@ -257,7 +206,7 @@ func runWithOutput(ctx context.Context, repoPath string, args ...string) (string
 
 // runWithWriter executes a Git command and writes output to the provided io.Writer.
 func runWithWriter(ctx context.Context, stdout io.Writer, repoPath string, s ...string) error {
-	cmd := exec.CommandContext(ctx, gitCmd, s...)
+	cmd := exec.CommandContext(ctx, command, s...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	o := strings.TrimSpace(string(output))
@@ -274,28 +223,31 @@ func runWithWriter(ctx context.Context, stdout io.Writer, repoPath string, s ...
 	return nil
 }
 
-// runGitCmd executes a Git command.
 func runGitCmd(ctx context.Context, repoPath string, commands ...string) error {
-	// FIX: inject `io.Writer`
-	g, err := sys.Which(gitCmd)
+	g, err := New(repoPath)
 	if err != nil {
-		return fmt.Errorf("%w: %s", err, g)
-	}
-
-	w := frame.New(
-		frame.WithColorBorder(ansi.Yellow),
-		frame.WithBordersSmallBlock(),
-	)
-	defer w.Flush()
-
-	commands = append([]string{g, "-C", repoPath}, commands...)
-	w.Midln(ansi.Yellow.With(ansi.Italic).Sprint(strings.Join(commands, " "))).Flush()
-
-	err = sys.ExecCmdWithWriter(ctx, w, nil, commands...)
-	if err != nil {
-		w.Error("")
 		return err
 	}
+	cmd := []string{g.Bin()}
+	if repoPath != "" {
+		cmd = append(cmd, "-C", repoPath)
+	}
 
+	commands = append(cmd, commands...)
+
+	return execCmdWithWriter(ctx, os.Stdout, nil, commands...)
+}
+
+// execCmdWithWriter runs a command with the given arguments and writes the
+// output to the writer.
+func execCmdWithWriter(ctx context.Context, w io.Writer, r io.Reader, s ...string) error {
+	slog.Debug("ExecCmdWithWriter", "cmds", s)
+	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
+	cmd.Stdin = r
+	cmd.Stdout = w
+	cmd.Stderr = w
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%w", err)
+	}
 	return nil
 }

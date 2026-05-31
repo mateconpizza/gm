@@ -2,12 +2,10 @@ package bookio
 
 import (
 	"context"
-	"fmt"
-	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
-	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -16,78 +14,69 @@ import (
 type loadFileFn func(ctx context.Context, path string) (*bookmark.Bookmark, error)
 
 type FileLoader struct {
-	Context context.Context
-	count   uint32
+	current atomic.Uint32
 	g       *errgroup.Group
 	mu      *sync.Mutex
 	results []*bookmark.Bookmark
 	Loader  loadFileFn
-	Spinner *rotato.Rotato
 }
 
-func (f *FileLoader) WithLoader(
-	loader func(context.Context, string) (*bookmark.Bookmark, error),
-) *FileLoader {
-	f.Loader = loader
-	return f
-}
-
-func (f *FileLoader) WithSpinner(sp *rotato.Rotato) *FileLoader {
-	f.Spinner = sp
-	return f
-}
-
-func (f *FileLoader) LoadAsync(path string) {
+// LoadAsync loads a bookmark asynchronously from the given path.
+func (f *FileLoader) LoadAsync(ctx context.Context, path string) {
 	f.g.Go(func() error {
-		b, err := f.Loader(f.Context, path)
-		currentCount := atomic.AddUint32(&f.count, 1)
-		f.Spinner.UpdateMesg(fmt.Sprintf("[%d] %s", currentCount, filepath.Base(path)))
-		if err != nil {
-			return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			b, err := f.Loader(ctx, path)
+			if err != nil {
+				return err
+			}
+
+			f.add(b)
+
+			return nil
 		}
-
-		f.add(b)
-
-		return nil
 	})
 }
 
+// add appends a bookmark to the result set.
 func (f *FileLoader) add(b *bookmark.Bookmark) {
 	f.mu.Lock()
 	f.results = append(f.results, b)
 	f.mu.Unlock()
 }
 
+// Results waits for all loads to complete and returns the results.
 func (f *FileLoader) Results() ([]*bookmark.Bookmark, error) {
 	if err := f.g.Wait(); err != nil {
 		return nil, err
 	}
 
-	f.Spinner.UpdatePrefix("")
-	f.Spinner.Done(fmt.Sprintf("found %d bookmarks", f.count))
-
 	return f.results, nil
 }
 
-func NewFileLoader(ctx context.Context) *FileLoader {
-	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(1)
-	return &FileLoader{
-		Context: ctx,
-		g:       g,
-		mu:      &sync.Mutex{},
-		Spinner: rotato.New(
-			rotato.WithMessageColor(rotato.FgBrightBlue),
-			rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
-			rotato.WithFailMessageColor(rotato.FgBrightRed, rotato.StyleItalic),
-		),
-	}
+// Count increments the processed item count and returns the new value.
+func (f *FileLoader) Count(n uint32) uint32 {
+	return f.current.Add(n)
 }
 
-// RepositoryLoader defines the strategy for loading a specific type of
-// repository.
+// RepositoryLoader configures how a repository is loaded.
 type RepositoryLoader struct {
 	Func       loadFileFn
 	Prefix     string
 	FileFilter FileFilterFunc
+}
+
+// NewFileLoader creates a concurrent file loader with a CPU-sized worker
+// limit.
+func NewFileLoader(loader loadFileFn) *FileLoader {
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.NumCPU())
+
+	return &FileLoader{
+		g:      g,
+		Loader: loader,
+		mu:     &sync.Mutex{},
+	}
 }

@@ -17,7 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -144,7 +144,7 @@ func recordVisits(d *deps.Deps, bs []*bookmark.Bookmark) error {
 }
 
 // Edit returns a BookmarkAction configured with a specific strategy.
-func Edit(es editor.EditStrategy) func(*deps.Deps, []*bookmark.Bookmark) error {
+func Edit(ctx context.Context, es editor.EditStrategy) func(*deps.Deps, []*bookmark.Bookmark) error {
 	return func(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		const maxItems = 10
 
@@ -162,8 +162,8 @@ func Edit(es editor.EditStrategy) func(*deps.Deps, []*bookmark.Bookmark) error {
 
 		return runEditSession(
 			d, bs, es,
-			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-				return git.UpdateBookmark(app, o, u)
+			editor.WithPostEditionRunE(func(old, fresh *editor.Record) error {
+				return gitops.Update(ctx, app, old, fresh)
 			}),
 		)
 	}
@@ -320,7 +320,7 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 				if err != nil {
 					return err
 				}
-				return git.UpdateBookmark(app, o, u)
+				return gitops.Update(d.Context(), app, o, u)
 			}),
 		); err != nil {
 			return err

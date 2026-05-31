@@ -15,7 +15,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -188,6 +188,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 		if err != nil {
 			return err
 		}
+		s.Name = r.Name()
 		r.Close()
 
 		if r.Name() == defaultName {
@@ -292,11 +293,7 @@ func RepoStats(d *deps.Deps) error {
 	}
 	sb.WriteString(s)
 
-	g, err := git.Info(
-		d.Console(),
-		app.Path.Database,
-		app.Git,
-	)
+	g, err := gitops.Info(d.Context(), d)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}
