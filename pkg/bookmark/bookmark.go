@@ -2,7 +2,6 @@
 package bookmark
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -224,18 +223,25 @@ func (b *Bookmark) JSONPath() (string, error) {
 // GPGPath returns the path to the GPG file.
 //
 //	domainHash -> urlHash.gpg
-func (b *Bookmark) GPGPath(ext string) (string, error) {
+func (b *Bookmark) GPGPath() (string, error) {
 	hashPath, err := b.HashPath()
 	if err != nil {
 		return "", fmt.Errorf("hashing path: %w", err)
 	}
 
-	return hashPath + ext, nil
+	return hashPath + ".gpg", nil
 }
 
-// CheckStatus updates the bookmark's status fields.
-func (b *Bookmark) CheckStatus(ctx context.Context) error {
-	return makeReq(ctx, b)
+func (b *Bookmark) Copy() *Bookmark {
+	if b == nil {
+		return nil
+	}
+	cp := *b
+	return &cp
+}
+
+func (b *Bookmark) String() string {
+	return fmt.Sprintf("%d - %s", b.ID, b.URL)
 }
 
 // New creates a new bookmark.

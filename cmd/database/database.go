@@ -14,13 +14,13 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 // NewCmd database management.
@@ -259,18 +259,22 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return nil
 		}
 
-		m, err := git.NewManager(app.Path.Database)
+		m, err := git.NewManager(app.Path.Git())
 		if err != nil {
 			return err
 		}
-		if !m.IsTracked() || !files.Exists(m.Loc.DBPath) {
+
+		name := app.DBNameBase()
+		if !m.IsTracked(name) || !files.Exists(app.Path.Database) {
 			return nil
 		}
 
 		// FIX: inject console
 		c := ui.NewConsole(ui.WithDefaultTerminal(cmd.Context(), func(err error) { sys.ErrAndExit(err) }))
+		ctx := cmd.Context()
 
-		if err := m.Drop("dropped"); err != nil {
+		gr := m.NewRepo(name)
+		if err := m.Drop(ctx, gr); err != nil {
 			return err
 		}
 
@@ -280,7 +284,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return nil
 		}
 
-		if err := m.Untrack(fmt.Sprintf("[%s] remove tracking", m.Loc.Name)); err != nil {
+		if err := m.Untrack(ctx, gr, fmt.Sprintf("[%s] remove tracking", gr.Name())); err != nil {
 			return err
 		}
 

@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,19 +12,21 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
-func GitClone(d *deps.Deps) error {
+func GitClone(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application()
 	if err != nil {
 		return err
@@ -45,18 +47,18 @@ func GitClone(d *deps.Deps) error {
 		sys.ErrAndExit(err)
 	})
 
-	pu, err := fetchGitRepos(d, app, tmpPath)
+	gp, err := fetchGitRepos(d, app, tmpPath)
 	if err != nil {
 		return err
 	}
 
-	for _, repo := range pu.Repos() {
-		q := fmt.Sprintf("read encrypted repository %q?", repo.Name())
-		if pu.IsGPG && !t.Confirm(q, "yes") {
+	for _, gr := range gp.Repos() {
+		if gpg.IsInitialized(gr.Root()) &&
+			!t.Confirm(fmt.Sprintf("read encrypted repository %q?", gr.Name()), "yes") {
 			continue
 		}
 
-		if err := processRepo(d, app, pu, repo); err != nil {
+		if err := processRepo(d, gp, gr); err != nil {
 			return err
 		}
 	}
@@ -64,27 +66,26 @@ func GitClone(d *deps.Deps) error {
 	return nil
 }
 
-func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*git.Puller, error) {
-	g, err := git.New(d.Context(), tmpPath)
+func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*gitops.GitPuller, error) {
+	g, err := gitops.NewGit(app)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := g.CloneInto(app.Git.Remote, tmpPath); err != nil {
+	if err := g.CloneInto(d.Context(), app.Git.Remote, tmpPath); err != nil {
 		return nil, fmt.Errorf("cloning remote repo: %w", err)
 	}
 
-	pu := git.NewPuller(
+	gp := gitops.NewPuller(
 		d.Console(),
-		g.FullPath(),
 		tmpPath,
-		git.WithPullerEncrypted(gpg.IsInitialized(g.FullPath())),
+		g.Root(),
 	)
-	if err := pu.Pull(); err != nil {
+	if err := gp.Pull(); err != nil {
 		return nil, err
 	}
 
-	if err := pu.Select(picker.New[*git.Repo](
+	p := picker.New[*git.Repo](
 		app,
 		menu.WithHeader("select repo/s"),
 		menu.WithArgs("--cycle"),
@@ -92,38 +93,43 @@ func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*git.Pul
 		menu.WithHeader("select record/s to import"),
 		menu.WithInterruptFn(d.Console().Term().InterruptFn),
 		menu.WithMultiSelection(),
-	)); err != nil {
+	)
+
+	err = gp.Select(p, ui.NewDefaultConsole(d.Context(), func(err error) {
+		fmt.Println(err.Error())
+	}))
+	if err != nil {
 		return nil, err
 	}
 
-	return pu, nil
+	return gp, nil
 }
 
-func processRepo(d *deps.Deps, app *application.App, pu *git.Puller, repo *git.Repo) error {
-	if err := pu.Read(d.Context()); err != nil {
+func processRepo(d *deps.Deps, gp *gitops.GitPuller, gr *git.Repo) error {
+	if err := gp.Read(d.Context()); err != nil {
 		return err
 	}
 
-	if err := pu.PrintDetails(repo); err != nil {
+	if err := gp.PrintDetails(gr); err != nil {
 		if errors.Is(err, git.ErrGitRepoEmpty) {
 			return nil // move to next
 		}
 		return err
 	}
 
-	return handleImportLoop(d, app, repo)
+	return handleImportLoop(d, gr)
 }
 
-func handleImportLoop(d *deps.Deps, app *application.App, repo *git.Repo) error {
+func handleImportLoop(d *deps.Deps, gr *git.Repo) error {
 	var (
 		c    = d.Console()
 		p    = c.Palette()
 		opts = []string{"merge", "create", "select"}
-		bs   = repo.Bookmarks()
+		bs   = gr.Bookmarks()
 	)
 
 	for {
-		opt, err := c.Choose(p.Bold.Wrap(repo.Name(), p.Italic)+": import mode?", opts, "m")
+		opt, err := c.Choose(p.Bold.Wrap(gr.Name(), p.Italic)+": import mode?", opts, "m")
 		if err != nil {
 			return err
 		}
@@ -133,9 +139,14 @@ func handleImportLoop(d *deps.Deps, app *application.App, repo *git.Repo) error 
 			return insertRecords(d, bs)
 
 		case "c":
-			return handleCreateRepoMode(d, repo, bs)
+			return handleCreateRepoMode(d, gr, bs)
 
 		case "s":
+			app, err := d.Application()
+			if err != nil {
+				return err
+			}
+
 			m := picker.New[*bookmark.Bookmark](
 				app,
 				menu.WithNth("3.."),
@@ -155,19 +166,19 @@ func handleImportLoop(d *deps.Deps, app *application.App, repo *git.Repo) error 
 	}
 }
 
-func handleCreateRepoMode(d *deps.Deps, repo *git.Repo, bs []*bookmark.Bookmark) error {
+func handleCreateRepoMode(d *deps.Deps, gr *git.Repo, bs []*bookmark.Bookmark) error {
 	app, err := d.Application()
 	if err != nil {
 		return err
 	}
 
-	p := filepath.Join(app.Path.Data, repo.Name())
+	p := filepath.Join(app.Path.Data, gr.Name())
 	p = files.EnsureSuffix(p, ".db")
 
 	if files.Exists(p) {
 		c := d.Console()
 		p = renameRepo(p)
-		c.Warning(fmt.Sprintf("%q repo already exists\n", repo.Name())).
+		c.Warning(fmt.Sprintf("%q repo already exists\n", gr.Name())).
 			Info(fmt.Sprintf("renamed to %q\n", filepath.Base(p))).
 			Rowln().
 			Flush()
@@ -190,7 +201,7 @@ func insertRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 	c := d.Console()
 	if len(bs) == 0 {
-		_ = c.Term().Print(ctx, c.Warning("nothing to import").Ln().StringReset())
+		_ = c.Term().Print(ctx, c.Warning("nothing to import\n").StringReset())
 		return nil
 	}
 
@@ -235,46 +246,4 @@ func renameRepo(path string) string {
 		filepath.Join(root, name+"-"+t),
 		".db",
 	)
-}
-
-func GitPrune(d *deps.Deps) error {
-	slog.Debug("git prune: starting repository prune")
-	app, err := d.Application()
-	if err != nil {
-		return err
-	}
-
-	if !app.Git.Enabled {
-		slog.Debug("git prune: git not enabled")
-		return nil
-	}
-
-	name := files.StripSuffixes(app.DBName)
-	m := git.NewRepo(
-		name,
-		filepath.Join(app.Git.Path, name),
-	)
-
-	if err := m.Read(d.Context()); err != nil {
-		return err
-	}
-
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-
-	inDB, err := r.All(d.Context())
-	if err != nil {
-		return err
-	}
-
-	inRepo := m.Bookmarks()
-	stale, _ := port.Deduplicate(inRepo, inDB)
-	if len(stale) == 0 {
-		slog.Debug("git sync: nothing found")
-		return nil
-	}
-
-	return git.RemoveBookmarks(app, stale)
 }

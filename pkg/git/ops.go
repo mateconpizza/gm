@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -59,7 +58,7 @@ func untrackRemoveRepo(ctx context.Context, m *Mgr, gr *Repo, msg string) error 
 	return commitIfChanged(ctx, m.Git(), msg)
 }
 
-func update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark) error {
+func updateRepo(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark) error {
 	if gr.db == nil {
 		return fmt.Errorf("%w: in repo %q", ErrNoStoreFound, gr.name)
 	}
@@ -93,7 +92,12 @@ func saveChanges(ctx context.Context, m *Mgr, gc *CommitCfg) error {
 		return err
 	}
 
-	if oldStats.Equal(freshStats) {
+	changed, err := HasChanges(ctx, m.Root())
+	if err != nil {
+		return err
+	}
+
+	if oldStats.Equal(freshStats) && !changed {
 		return ErrGitUpToDate
 	}
 
@@ -113,16 +117,9 @@ func saveChanges(ctx context.Context, m *Mgr, gc *CommitCfg) error {
 	return commitIfChanged(ctx, m.Git(), gc.msg)
 }
 
-func drop(ctx context.Context, g *Git, gr *Repo) error {
+func dropRepo(ctx context.Context, g *Git, gr *Repo) error {
 	if err := os.RemoveAll(gr.Fullpath()); err != nil {
 		return err
 	}
 	return commitIfChanged(ctx, g, fmt.Sprintf("[%s] remove tracking", gr.Name()))
-}
-
-func (rs *RepoStats) Equal(other *RepoStats) bool {
-	if rs == nil || other == nil {
-		return rs == other
-	}
-	return reflect.DeepEqual(rs, other)
 }

@@ -70,8 +70,8 @@ func Commit(ctx context.Context, repoPath, msg string) error {
 	return runGitCmd(ctx, repoPath, "commit", "-m", msg)
 }
 
-// hasChanges checks if there are any staged or unstaged changes in the repo.
-func hasChanges(ctx context.Context, repoPath string) (bool, error) {
+// HasChanges checks if there are any staged or unstaged changes in the repo.
+func HasChanges(ctx context.Context, repoPath string) (bool, error) {
 	output, err := runWithOutput(ctx, repoPath, "status", "--porcelain")
 	if err != nil {
 		return false, fmt.Errorf("git status failed: %w", err)

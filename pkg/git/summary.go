@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -98,6 +99,13 @@ func (rs *RepoStats) Validate() error {
 	}
 
 	return nil
+}
+
+func (rs *RepoStats) Equal(other *RepoStats) bool {
+	if rs == nil || other == nil {
+		return rs == other
+	}
+	return reflect.DeepEqual(rs, other)
 }
 
 func (rs *RepoStats) String() string {

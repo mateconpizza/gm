@@ -22,10 +22,9 @@ type SQLite struct {
 	closeOnce sync.Once
 }
 
-// Name returns the name of the SQLite database.
-func (r *SQLite) Name() string {
-	return r.Cfg.Name
-}
+func (r *SQLite) Name() string     { return r.Cfg.Name }
+func (r *SQLite) BaseName() string { return strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name)) }
+func (r *SQLite) Fullpath() string { return r.Cfg.Fullpath() }
 
 // Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLite) Close() {
@@ -92,7 +91,7 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 
 	db, err := OpenDatabase(ctx, p, c)
 	if err != nil {
-		slog.ErrorContext(ctx, "NewRepo", "error", err, "path", p)
+		slog.DebugContext(ctx, "NewRepo", "error", err, "path", p)
 		return nil, err
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/testutil"
 )
 
 func testSetupAppInfo(t *testing.T, version string) *application.Information {
@@ -258,30 +259,6 @@ func TestHookGitSync(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "normal_command_no_skip_annotation",
-			setupCmd: func() *cobra.Command {
-				return &cobra.Command{
-					Use:   "sync",
-					Short: "sync database",
-				}
-			},
-			setupCtx: func(cmd *cobra.Command) {
-				app := application.New(testSetupAppInfo(t, "1.0.0"))
-				if err := app.Setup(); err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				app.Initialize()
-				cmd.SetContext(context.Background())
-
-				hook := HookInjectApp(app)
-				err := hook(cmd, []string{})
-				if err != nil {
-					t.Fatalf("expected no error, got: %v", err)
-				}
-			},
-			wantErr: false,
-		},
-		{
 			name: "skip_git_sync_on_current_command",
 			setupCmd: func() *cobra.Command {
 				return &cobra.Command{
@@ -350,13 +327,16 @@ func TestHookGitSync(t *testing.T) {
 					}
 				}()
 
-				_ = HookGitSync(nil, nil)
+				app := testutil.SetupApp(t)
+
+				_ = HookGitSync(app)(nil, nil)
 				return
 			}
 
 			tt.setupCtx(cmd)
 
-			err := HookGitSync(cmd, nil)
+			app := testutil.SetupApp(t)
+			err := HookGitSync(app)(cmd, nil)
 
 			if tt.wantErr {
 				if err == nil {

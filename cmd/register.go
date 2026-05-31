@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -11,7 +10,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/config"
 	"github.com/mateconpizza/gm/cmd/database"
 	"github.com/mateconpizza/gm/cmd/edit"
-	gitCmd "github.com/mateconpizza/gm/cmd/git"
+	"github.com/mateconpizza/gm/cmd/gitcmd"
 	"github.com/mateconpizza/gm/cmd/notes"
 	"github.com/mateconpizza/gm/cmd/open"
 	"github.com/mateconpizza/gm/cmd/qrcmd"
@@ -21,7 +20,6 @@ import (
 	urlcmd "github.com/mateconpizza/gm/cmd/url"
 	"github.com/mateconpizza/gm/cmd/yank"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/git"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -44,7 +42,7 @@ func Setup(root *cobra.Command, app *application.App) {
 		urlcmd.NewCmd,
 		tag.NewCmd,
 		database.NewCmd,
-		gitCmd.NewCmd,
+		gitcmd.NewCmd,
 		config.NewCmd,
 		setup.NewCmd,
 	}
@@ -55,7 +53,7 @@ func Setup(root *cobra.Command, app *application.App) {
 	}
 }
 
-func initAppConfig(ctx context.Context, app *application.App) {
+func initAppConfig(app *application.App) {
 	app.Flags.Color = app.Flags.ColorStr == "always" &&
 		!terminal.IsPiped() &&
 		!terminal.NoColorEnv()
@@ -72,7 +70,7 @@ func initAppConfig(ctx context.Context, app *application.App) {
 	terminal.NonInteractiveMode(app.Flags.Yes)
 
 	// git config
-	git.SetConfig(ctx, app)
+	// git.SetConfig(ctx, app)
 }
 
 func registerCleanups(_ *application.App) {

@@ -7,7 +7,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
-	"github.com/mateconpizza/gm/internal/git"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -26,6 +26,7 @@ func AddBookmark(d *deps.Deps, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 
 	c, p := d.Console(), d.Console().Palette()
 	title := p.BrightYellow.With(p.Bold).
@@ -55,7 +56,13 @@ func AddBookmark(d *deps.Deps, args []string) error {
 	if err := saveNewBookmark(d, b); err != nil {
 		return err
 	}
-	if err := git.AddBookmark(r.Cfg.Fullpath(), b); err != nil {
+
+	app, err := d.Application()
+	if err != nil {
+		return err
+	}
+
+	if err := gitops.Add(d.Context(), app.Path.Git(), r, b); err != nil {
 		return err
 	}
 

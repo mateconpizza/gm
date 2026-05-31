@@ -64,7 +64,7 @@ func (g *Git) Bin() string                                  { return g.bin }
 func (g *Git) Branch(ctx context.Context) (string, error)   { return branch(ctx, g.fullpath) }
 func (g *Git) Remote(ctx context.Context) (string, error)   { return Remote(ctx, g.fullpath) }
 func (g *Git) Status(ctx context.Context) (string, error)   { return status(ctx, g.fullpath) }
-func (g *Git) HasChanges(ctx context.Context) (bool, error) { return hasChanges(ctx, g.fullpath) }
+func (g *Git) HasChanges(ctx context.Context) (bool, error) { return HasChanges(ctx, g.fullpath) }
 func (g *Git) AddAll(ctx context.Context) error             { return g.run(ctx, g.fullpath, "add", ".") }
 func (g *Git) Push(ctx context.Context) error               { return push(ctx, g.fullpath) }
 func (g *Git) Commit(ctx context.Context, msg string) error { return Commit(ctx, g.fullpath, msg) }
