@@ -27,7 +27,7 @@ import (
 )
 
 func GitClone(ctx context.Context, d *deps.Deps) error {
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func GitClone(ctx context.Context, d *deps.Deps) error {
 		sys.ErrAndExit(err)
 	})
 
-	gp, err := fetchGitRepos(d, app, tmpPath)
+	gp, err := fetchGitRepos(ctx, d, app, tmpPath)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func GitClone(ctx context.Context, d *deps.Deps) error {
 			continue
 		}
 
-		if err := processRepo(d, gp, gr); err != nil {
+		if err := processRepo(ctx, d, gp, gr); err != nil {
 			return err
 		}
 	}
@@ -66,13 +66,13 @@ func GitClone(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
-func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*gitops.GitPuller, error) {
+func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*gitops.GitPuller, error) {
 	g, err := gitops.NewGit(app)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := g.CloneInto(d.Context(), app.Git.Remote, tmpPath); err != nil {
+	if err := g.CloneInto(ctx, app.Git.Remote, tmpPath); err != nil {
 		return nil, fmt.Errorf("cloning remote repo: %w", err)
 	}
 
@@ -95,7 +95,7 @@ func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*gitops.
 		menu.WithMultiSelection(),
 	)
 
-	err = gp.Select(p, ui.NewDefaultConsole(d.Context(), func(err error) {
+	err = gp.Select(p, ui.NewDefaultConsole(ctx, func(err error) {
 		fmt.Println(err.Error())
 	}))
 	if err != nil {
@@ -105,8 +105,8 @@ func fetchGitRepos(d *deps.Deps, app *application.App, tmpPath string) (*gitops.
 	return gp, nil
 }
 
-func processRepo(d *deps.Deps, gp *gitops.GitPuller, gr *git.Repo) error {
-	if err := gp.Read(d.Context()); err != nil {
+func processRepo(ctx context.Context, d *deps.Deps, gp *gitops.GitPuller, gr *git.Repo) error {
+	if err := gp.Read(ctx); err != nil {
 		return err
 	}
 
@@ -117,10 +117,10 @@ func processRepo(d *deps.Deps, gp *gitops.GitPuller, gr *git.Repo) error {
 		return err
 	}
 
-	return handleImportLoop(d, gr)
+	return handleImportLoop(ctx, d, gr)
 }
 
-func handleImportLoop(d *deps.Deps, gr *git.Repo) error {
+func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 	var (
 		c    = d.Console()
 		p    = c.Palette()
@@ -136,13 +136,13 @@ func handleImportLoop(d *deps.Deps, gr *git.Repo) error {
 
 		switch opt {
 		case "m":
-			return insertRecords(d, bs)
+			return insertRecords(ctx, d, bs)
 
 		case "c":
-			return handleCreateRepoMode(d, gr, bs)
+			return handleCreateRepoMode(ctx, d, gr, bs)
 
 		case "s":
-			app, err := d.Application()
+			app, err := d.Application(ctx)
 			if err != nil {
 				return err
 			}
@@ -166,8 +166,8 @@ func handleImportLoop(d *deps.Deps, gr *git.Repo) error {
 	}
 }
 
-func handleCreateRepoMode(d *deps.Deps, gr *git.Repo, bs []*bookmark.Bookmark) error {
-	app, err := d.Application()
+func handleCreateRepoMode(ctx context.Context, d *deps.Deps, gr *git.Repo, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -184,16 +184,15 @@ func handleCreateRepoMode(d *deps.Deps, gr *git.Repo, bs []*bookmark.Bookmark) e
 			Flush()
 	}
 
-	return createRepo(d, p, bs)
+	return createRepo(ctx, d, p, bs)
 }
 
-func insertRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func insertRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 
-	ctx := d.Context()
 	bs, err = port.DeduplicateReport(ctx, d.Console(), r, bs)
 	if err != nil {
 		return err
@@ -215,8 +214,7 @@ func insertRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	)
 }
 
-func createRepo(d *deps.Deps, repoPath string, bs []*bookmark.Bookmark) error {
-	ctx := d.Context()
+func createRepo(ctx context.Context, d *deps.Deps, repoPath string, bs []*bookmark.Bookmark) error {
 	r, err := db.Init(ctx, repoPath)
 	if err != nil {
 		return err
@@ -233,7 +231,7 @@ func createRepo(d *deps.Deps, repoPath string, bs []*bookmark.Bookmark) error {
 			Success("Initialized database: " + c.Palette().Italic.Sprint(r.Name()) + "\n").Flush()
 	}()
 
-	return MigrationsStatus(d)
+	return MigrationsStatus(ctx, d)
 }
 
 func renameRepo(path string) string {

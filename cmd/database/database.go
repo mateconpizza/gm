@@ -97,7 +97,7 @@ func newStatsCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return printer.RepoStats(d)
+			return printer.RepoStats(cmd.Context(), d)
 		},
 	}
 
@@ -152,7 +152,7 @@ func newDropCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.DropDatabase(d)
+			return handler.DropDatabase(cmd.Context(), d)
 		},
 	}
 
@@ -188,7 +188,6 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipDBCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d := deps.New(
-				cmd.Context(),
 				deps.WithApplication(app),
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)

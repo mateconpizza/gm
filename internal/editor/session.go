@@ -26,7 +26,6 @@ type EditSession struct {
 	Editor      *TextEditor
 	DB          *db.SQLite
 	postEdition postRunEditionFunc
-	ctx         context.Context
 	filetype    string
 	meta        *Meta
 }
@@ -34,12 +33,6 @@ type EditSession struct {
 func WithPostEditionRunE(fn postRunEditionFunc) SessionOption {
 	return func(es *EditSession) {
 		es.postEdition = fn
-	}
-}
-
-func WithContext(ctx context.Context) SessionOption {
-	return func(es *EditSession) {
-		es.ctx = ctx
 	}
 }
 
@@ -57,10 +50,10 @@ func WithMeta(m *Meta) SessionOption {
 }
 
 // Run processes records for editing using the specified strategy.
-func (e *EditSession) Run(bs []*Record, strategy EditStrategy) error {
+func (e *EditSession) Run(ctx context.Context, bs []*Record, strategy EditStrategy) error {
 	n := len(bs)
 	for i, b := range bs {
-		if err := e.processSingleRecord(b, i, n, strategy); err != nil {
+		if err := e.processSingleRecord(ctx, b, i, n, strategy); err != nil {
 			return err
 		}
 	}
@@ -68,17 +61,22 @@ func (e *EditSession) Run(bs []*Record, strategy EditStrategy) error {
 }
 
 // processSingleRecord handles the edit loop for a single record.
-func (e *EditSession) processSingleRecord(original *Record, idx, total int, strategy EditStrategy) error {
+func (e *EditSession) processSingleRecord(
+	ctx context.Context,
+	original *Record,
+	idx, total int,
+	strategy EditStrategy,
+) error {
 	currentRecord := original
 
 	// Loop to handle the "retry" action for a single record.
 	for {
-		editedBuf, err := e.buildAndEdit(currentRecord, idx, total, strategy)
+		editedBuf, err := e.buildAndEdit(ctx, currentRecord, idx, total, strategy)
 		if err != nil {
 			return err
 		}
 
-		updated, err := strategy.ParseBuffer(e.ctx, editedBuf, currentRecord, idx, total)
+		updated, err := strategy.ParseBuffer(ctx, editedBuf, currentRecord, idx, total)
 		if errors.Is(err, ErrBufferUnchanged) {
 			return nil // Success: nothing changed, move to the next record.
 		}
@@ -102,7 +100,7 @@ func (e *EditSession) processSingleRecord(original *Record, idx, total int, stra
 
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			return e.saveRecordChanges(strategy, original, updated)
+			return e.saveRecordChanges(ctx, strategy, original, updated)
 		case "n", "no":
 			// Skip and continue
 			return nil
@@ -114,17 +112,17 @@ func (e *EditSession) processSingleRecord(original *Record, idx, total int, stra
 }
 
 // buildAndEdit prepares record for editing and launches editor.
-func (e *EditSession) buildAndEdit(r *Record, idx, total int, s EditStrategy) ([]byte, error) {
+func (e *EditSession) buildAndEdit(ctx context.Context, r *Record, idx, total int, s EditStrategy) ([]byte, error) {
 	buf, err := s.BuildBuffer(e.meta, r, idx, total)
 	if err != nil {
 		return nil, err
 	}
-	return e.Editor.Bytes(e.ctx, buf, e.filetype)
+	return e.Editor.Bytes(ctx, buf, e.filetype)
 }
 
 // saveRecordChanges persists updated record to database.
-func (e *EditSession) saveRecordChanges(strategy EditStrategy, original, updated *Record) error {
-	if err := strategy.Save(e.ctx, e.DB, updated); err != nil {
+func (e *EditSession) saveRecordChanges(ctx context.Context, strategy EditStrategy, original, updated *Record) error {
+	if err := strategy.Save(ctx, e.DB, updated); err != nil {
 		return err
 	}
 
@@ -156,10 +154,6 @@ func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...SessionO
 
 	if s.meta == nil {
 		s.meta = NewMeta("dbname?", "0.0.1")
-	}
-
-	if s.ctx == nil {
-		s.ctx = context.Background()
 	}
 
 	return s

@@ -58,7 +58,7 @@ func Track(ctx context.Context, r *db.SQLite, m *git.Mgr, gr *git.Repo) error {
 }
 
 func Untrack(ctx context.Context, d *deps.Deps) error {
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}

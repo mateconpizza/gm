@@ -18,7 +18,6 @@ type Deps struct {
 	app     *application.App
 	repo    *db.SQLite
 	console *ui.Console
-	ctx     context.Context
 	writer  io.Writer
 }
 
@@ -46,18 +45,13 @@ func WithWriter(w io.Writer) Option {
 	}
 }
 
-// Context returns the underlying context.Context.
-func (d *Deps) Context() context.Context {
-	return d.ctx
-}
-
 // Application retrieves application from context.
-func (d *Deps) Application() (*application.App, error) {
+func (d *Deps) Application(ctx context.Context) (*application.App, error) {
 	if d.app != nil {
 		return d.app, nil
 	}
 
-	return application.FromContext(d.ctx)
+	return application.FromContext(ctx)
 }
 
 func (d *Deps) Repository() (*db.SQLite, error) {
@@ -78,8 +72,8 @@ func (d *Deps) SetWriter(w io.Writer) {
 	d.console.Term().SetWriter(w)
 }
 
-func New(ctx context.Context, opts ...Option) *Deps {
-	c := &Deps{ctx: ctx}
+func New(opts ...Option) *Deps {
+	c := &Deps{}
 	for _, opt := range opts {
 		opt(c)
 	}

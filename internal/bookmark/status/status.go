@@ -46,8 +46,6 @@ func (r *Response) String() string {
 
 // Check checks the status of a slice of bookmarks.
 func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
-	const maxConRequests = 25
-
 	var (
 		responses = make([]*Response, 0, len(bs))
 		start     = time.Now()
@@ -55,19 +53,25 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxConRequests)
+	g.SetLimit(10)
 
 	for _, b := range bs {
 		g.Go(func() error {
-			time.Sleep(50 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				if err := pause(ctx, 50*time.Millisecond); err != nil {
+					return err
+				}
+				res := makeRequest(c, b, ctx)
 
-			res := makeRequest(c, b, ctx)
+				mu.Lock()
+				responses = append(responses, &res)
+				mu.Unlock()
 
-			mu.Lock()
-			responses = append(responses, &res)
-			mu.Unlock()
-
-			return nil
+				return nil
+			}
 		})
 	}
 
@@ -293,4 +297,16 @@ func isNetworkUnreachableError(err error) bool {
 	}
 
 	return false
+}
+
+// pause blocks until d elapses or ctx is cancelled.
+func pause(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

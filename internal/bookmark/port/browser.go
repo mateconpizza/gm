@@ -1,6 +1,7 @@
 package port
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
@@ -33,7 +34,7 @@ var registeredBrowser = []supportedBrowser{
 }
 
 // Browser imports bookmarks from a supported browser.
-func Browser(d *deps.Deps) error {
+func Browser(ctx context.Context, d *deps.Deps) error {
 	br, ok := getBrowser(selectBrowser(d.Console()))
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
@@ -44,7 +45,7 @@ func Browser(d *deps.Deps) error {
 	}
 
 	// find bookmarks
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func Browser(d *deps.Deps) error {
 	}
 
 	// clean and process found bookmarks
-	bs, err = parseFoundInBrowser(d, bs)
+	bs, err = parseFoundInBrowser(ctx, d, bs)
 	if err != nil {
 		return err
 	}
@@ -63,18 +64,18 @@ func Browser(d *deps.Deps) error {
 		return nil
 	}
 
-	return IntoRepo(d, bs)
+	return IntoRepo(ctx, d, bs)
 }
 
 // parseFoundInBrowser processes the bookmarks found from the import
 // browser process.
-func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	c, f := d.Console(), d.Console().Frame()
 	r, err := d.Repository()
 	if err != nil {
 		return nil, err
 	}
-	bs, err = DeduplicateReport(d.Context(), c, r, bs)
+	bs, err = DeduplicateReport(ctx, c, r, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Boo
 		return bs, nil
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Boo
 		return bs, nil
 	}
 
-	if err := metadata.ScrapeDescriptions(d.Context(), bs); err != nil {
+	if err := metadata.ScrapeDescriptions(ctx, bs); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 

@@ -28,7 +28,6 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input := "s\n" // input for prompt, this will show the menu to select backups files.
 			d := deps.New(
-				cmd.Context(),
 				deps.WithApplication(app),
 				deps.WithConsole(ui.NewConsole(
 					ui.WithFrame(frame.New(frame.WithColorBorder(ansi.Gray))),
@@ -44,7 +43,7 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
 				)),
 			)
 
-			return handler.RemoveBackups(d)
+			return handler.RemoveBackups(cmd.Context(), d)
 		},
 	}
 
@@ -75,12 +74,13 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			bs, err := r.All(d.Context())
+			ctx := cmd.Context()
+			bs, err := r.All(ctx)
 			if err != nil {
 				return err
 			}
 
-			if err := handler.RemoveRepo(d); err != nil {
+			if err := handler.RemoveRepo(ctx, d); err != nil {
 				return err
 			}
 

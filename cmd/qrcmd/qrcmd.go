@@ -1,6 +1,7 @@
 package qrcmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -48,7 +49,7 @@ func newOpenCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"q"},
 		Short:   "open QR-code image in default viewer",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd, args, setupMenu(app), func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				for i := range bs {
 					b := bs[i]
 					qrcode := qr.New(b.URL)
@@ -60,12 +61,16 @@ func newOpenCmd(app *application.App) *cobra.Command {
 					}
 				}
 				return nil
-			})
+			}
+
+			return cmdutil.Execute(cmd, args, setupMenu(app), a)
 		},
 	}
+
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+
 	return c
 }
 
@@ -94,6 +99,7 @@ func newGenQR(app *application.App) *cobra.Command {
 			return nil
 		},
 	}
+
 	c.Flags().StringVarP(&app.Flags.Path, "output", "o", "",
 		"write QR image to file: "+strings.Join(validFormats, ", "))
 

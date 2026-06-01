@@ -35,7 +35,6 @@ func ScrapeDescriptions(ctx context.Context, bs []*bookmark.Bookmark) error {
 }
 
 func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) error {
-	const maxItems = 10
 	if len(bs) == 0 {
 		return nil
 	}
@@ -51,25 +50,30 @@ func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) 
 	defer sp.Done("Scraping done")
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxItems)
+	g.SetLimit(1)
 
 	for _, b := range bs {
 		g.Go(func() error {
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			ctxTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 
-			sc := scraper.New(b.URL, scraper.WithContext(ctx))
-			if err := sc.Start(); err != nil {
-				slog.Warn("scraping error", "url", b.URL, "err", err)
-				return nil // Always succeed, just log the error
-			}
+			select {
+			case <-ctxTimeout.Done():
+				return ctxTimeout.Err()
+			default:
 
-			b.Desc, _ = sc.Desc()
-			return nil
+				sc := scraper.New(b.URL)
+				if err := sc.Start(); err != nil {
+					slog.Warn("scraping error", "url", b.URL, "err", err)
+					return nil // just log the error
+				}
+
+				b.Desc, _ = sc.Desc()
+				return nil
+			}
 		})
 	}
 
-	// This should never return an error since we always return nil from goroutines
 	return g.Wait()
 }
 

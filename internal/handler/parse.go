@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -21,7 +22,7 @@ type bookmarkTemp struct {
 	title, desc, tags, favicon string
 }
 
-func AddBookmark(d *deps.Deps, args []string) error {
+func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
@@ -36,7 +37,7 @@ func AddBookmark(d *deps.Deps, args []string) error {
 	name := p.BrightYellow.With(p.Bold).
 		Sprint(files.StripSuffixes(r.Name()))
 	info := p.Dim.With(p.Italic).
-		Sprintf(" (%d bookmarks)", r.Count(d.Context(), "bookmarks"))
+		Sprintf(" (%d bookmarks)", r.Count(ctx, "bookmarks"))
 	subtitle := p.Dim.With(p.Italic).
 		Sprint(txt.PaddedLine("repository", name))
 	header := func() string { return p.BrightYellow.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold) }
@@ -47,31 +48,31 @@ func AddBookmark(d *deps.Deps, args []string) error {
 		Rowln().Flush()
 
 	b := bookmark.New()
-	if err := parseNewBookmark(d, b, args); err != nil {
+	if err := parseNewBookmark(ctx, d, b, args); err != nil {
 		return err
 	}
 	if err := bookmark.Validate(b); err != nil {
 		return err
 	}
-	if err := saveNewBookmark(d, b); err != nil {
+	if err := saveNewBookmark(ctx, d, b); err != nil {
 		return err
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err := gitops.Add(d.Context(), app.Path.Git(), r, b); err != nil {
+	if err := gitops.Add(ctx, app.Path.Git(), r, b); err != nil {
 		return err
 	}
 
-	return c.Term().Print(d.Context(), c.SuccessMesg("bookmark added\n"))
+	return c.Term().Print(ctx, c.SuccessMesg("bookmark added\n"))
 }
 
 // parseNewBookmark fetch metadata and parses the new bookmark.
-func parseNewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
-	app, err := d.Application()
+func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, args []string) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -87,7 +88,7 @@ func parseNewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
 	if err != nil {
 		return err
 	}
-	if b, exists := r.Has(d.Context(), newURL); exists {
+	if b, exists := r.Has(ctx, newURL); exists {
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
 	}
 
@@ -97,13 +98,13 @@ func parseNewBookmark(d *deps.Deps, b *bookmark.Bookmark, args []string) error {
 
 	sc := scraper.New(
 		newURL,
-		scraper.WithContext(d.Context()),
+		scraper.WithContext(ctx),
 		scraper.WithSpinner("scraping webpage..."),
 	)
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(c, sc, bTemp)
-	if err := tagsFromArgs(d, sc, bTemp); err != nil {
+	if err := tagsFromArgs(ctx, d, sc, bTemp); err != nil {
 		return err
 	}
 
@@ -173,7 +174,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 }
 
 // tagsFromArgs retrieves the Tags from args or prompts the user for input.
-func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) error {
+func tagsFromArgs(ctx context.Context, d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) error {
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 
@@ -196,7 +197,7 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) error {
 	}
 
 	// Use default if force flag is set
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -214,7 +215,7 @@ func tagsFromArgs(d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) error {
 	if err != nil {
 		return err
 	}
-	mTags, _ := r.TagsCounter(d.Context())
+	mTags, _ := r.TagsCounter(ctx)
 
 	// Let user select tags and parse them into proper format
 	tags := c.Term().ChooseTags(txt.GlyphTriangleRight.Prefix(" "), mTags)
@@ -274,18 +275,18 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 }
 
 // saveNewBookmark asks the user if they want to save the bookmark.
-func saveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
+func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 
 	if app.Flags.Force {
-		return r.InsertMany(d.Context(), []*bookmark.Bookmark{b})
+		return r.InsertMany(ctx, []*bookmark.Bookmark{b})
 	}
 
 	c := d.Console()
@@ -298,10 +299,10 @@ func saveNewBookmark(d *deps.Deps, b *bookmark.Bookmark) error {
 	case "n", "no":
 		return sys.ErrActionAborted
 	case "e", "edit":
-		return runEditSession(d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
+		return runEditSession(ctx, d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
 	default:
-		if _, err := r.InsertOne(d.Context(), b); err != nil {
-			return fmt.Errorf("%w", err)
+		if _, err := r.InsertOne(ctx, b); err != nil {
+			return err
 		}
 	}
 

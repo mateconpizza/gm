@@ -45,7 +45,7 @@ func TestRemoveBackups(t *testing.T) {
 func TestDatabase_Drop(t *testing.T) {
 	d := testutil.SetupDeps(t)
 	want := 10
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestDatabase_Drop(t *testing.T) {
 		t.Fatalf("expected %d bookmarks, got: %d", want, len(got))
 	}
 
-	err = DropDatabase(d)
+	err = DropDatabase(t.Context(), d)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 
 	t.Run("successfully remove main database", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		app, err := d.Application()
+		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -92,7 +92,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
-		err = RemoveRepo(d)
+		err = RemoveRepo(t.Context(), d)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -109,7 +109,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 
 	t.Run("successfully remove a database", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		app, err := d.Application()
+		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -121,7 +121,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
-		err = RemoveRepo(d)
+		err = RemoveRepo(t.Context(), d)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -141,13 +141,13 @@ func TestRemoveRepo_Success(t *testing.T) {
 func TestRemoveRepo_Fail(t *testing.T) {
 	t.Run("fails with database not found", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		app, err := d.Application()
+		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		app.Path.Database = filepath.Join(app.Path.Data, "nonexistent.db")
 
-		err = RemoveRepo(d)
+		err = RemoveRepo(t.Context(), d)
 		if !errors.Is(err, db.ErrDBNotFound) {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -155,14 +155,14 @@ func TestRemoveRepo_Fail(t *testing.T) {
 
 	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
 		d := testutil.SetupDeps(t)
-		app, err := d.Application()
+		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		r := testutil.SetupInitializedEmptyDB(t, app.Path.Database)
 		d.SetRepo(r)
 
-		err = RemoveRepo(d)
+		err = RemoveRepo(t.Context(), d)
 		if !errors.Is(err, ErrInvalidOption) {
 			t.Fatalf("unexpected error: %v", err)
 		}

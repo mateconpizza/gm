@@ -56,7 +56,8 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			srcPath, err := handler.SelectDatabase(d, rDest.Cfg.Fullpath())
+			ctx := cmd.Context()
+			srcPath, err := handler.SelectDatabase(ctx, d, rDest.Cfg.Fullpath())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -66,7 +67,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			}
 			defer rSrc.Close()
 
-			return port.Database(d, rSrc, rDest)
+			return port.Database(ctx, d, rSrc, rDest)
 		},
 	}
 
@@ -103,18 +104,19 @@ func newImportFromBackupCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			backupPath, err := handler.SelectBackupOne(d, bks)
+			ctx := cmd.Context()
+			backupPath, err := handler.SelectBackupOne(ctx, d, bks)
 			if err != nil {
 				return err
 			}
 
-			srcRepo, err := db.New(cmd.Context(), backupPath)
+			srcRepo, err := db.New(ctx, backupPath)
 			if err != nil {
 				return err
 			}
 			defer srcRepo.Close()
 
-			return port.FromBackup(d, destRepo, srcRepo)
+			return port.FromBackup(ctx, d, destRepo, srcRepo)
 		},
 	}
 
@@ -138,7 +140,7 @@ func newImportBrowserCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return port.Browser(d)
+			return port.Browser(cmd.Context(), d)
 		},
 	}
 
@@ -156,7 +158,7 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return port.FromHTML(d, app.Flags.Path)
+			return port.FromHTML(cmd.Context(), d, app.Flags.Path)
 		},
 	}
 
@@ -175,7 +177,7 @@ func newImportFromFileCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return port.FromFile(d, app.Flags.Path)
+			return port.FromFile(cmd.Context(), d, app.Flags.Path)
 		},
 	}
 

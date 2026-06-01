@@ -23,40 +23,33 @@ import (
 )
 
 // FromFile import bookmarks from database.
-func FromFile(d *deps.Deps, f string) error {
-	bs, err := bookmarksFromFile(d.Context(), f)
+func FromFile(ctx context.Context, d *deps.Deps, f string) error {
+	bs, err := bookmarksFromFile(ctx, f)
 	if err != nil {
 		return err
 	}
 
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	return importPipeline(d, r, "from file", f, bs)
+	return importPipeline(ctx, d, "from file", f, bs)
 }
 
 // FromHTML import bookmarks from HTML Netscape file.
-func FromHTML(d *deps.Deps, f string) error {
+func FromHTML(ctx context.Context, d *deps.Deps, f string) error {
 	bs, err := bookmarksFromHTML(f)
 	if err != nil {
 		return err
 	}
 
+	return importPipeline(ctx, d, "from HTML", f, bs)
+}
+
+// importPipeline handles deduplication, user prompting, and persistence.
+func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs []*bookmark.Bookmark) error {
+	c := d.Console()
+
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	return importPipeline(d, r, "from HTML", f, bs)
-}
-
-// importPipeline handles deduplication, user prompting, and persistence.
-func importPipeline(d *deps.Deps, r *db.SQLite, source, from string, bs []*bookmark.Bookmark) error {
-	ctx, c := d.Context(), d.Console()
 
 	printImportHeader(c, source, files.StripSuffixes(r.Name()), from, len(bs))
 
@@ -70,7 +63,7 @@ func importPipeline(d *deps.Deps, r *db.SQLite, source, from string, bs []*bookm
 		return sys.ErrExitFailure
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}

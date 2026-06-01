@@ -19,7 +19,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 
 	ansi.DisableColor()
 
-	err := initializeAction(d)
+	err := initializeAction(t.Context(), d)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -30,7 +30,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 		t.Errorf("expected output to contain '%s', got %q", want, output)
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 
 func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
-	err = initializeAction(d)
+	err = initializeAction(t.Context(), d)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -97,13 +97,13 @@ func TestFailsWhenDatabaseAlreadyInitializedWithoutForceFlag(t *testing.T) {
 	d := testutil.SetupDeps(t)
 
 	// Initialize database first time
-	err := initializeAction(d)
+	err := initializeAction(t.Context(), d)
 	if err != nil {
 		t.Fatalf("first initialization failed: %v", err)
 	}
 
 	// Try to initialize again
-	err = initializeAction(d)
+	err = initializeAction(t.Context(), d)
 	if err == nil {
 		t.Fatal("expected error when reinitializing without force flag")
 	}
@@ -117,19 +117,19 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 	d := testutil.SetupDeps(t)
 
 	// Initialize database first time
-	err := initializeAction(d)
+	err := initializeAction(t.Context(), d)
 	if err != nil {
 		t.Fatalf("first initialization failed: %v", err)
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Set force flag and try again
 	app.Flags.Force = true
-	err = initializeAction(d)
+	err = initializeAction(t.Context(), d)
 	if err != nil {
 		t.Errorf("expected no error with force flag, got %v", err)
 	}
@@ -137,14 +137,14 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 
 func TestFailsWhenInitReturnsErr(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Set invalid DB path
 	app.Path.Database = "/invalid/path/\x00/db"
 
-	err = initializeAction(d)
+	err = initializeAction(t.Context(), d)
 
 	if err == nil {
 		t.Fatal("expected error with invalid DB path")
@@ -153,14 +153,14 @@ func TestFailsWhenInitReturnsErr(t *testing.T) {
 
 func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Set invalid bookmark data that would cause insertion to fail
 	app.Info.URL = "" // Invalid bookmark
 
-	err = initializeAction(d)
+	err = initializeAction(t.Context(), d)
 	if err == nil {
 		t.Fatal("expected error with invalid bookmark data")
 	}
@@ -171,12 +171,12 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
-	err := initializeAction(d)
+	err := initializeAction(t.Context(), d)
 	if err != nil {
 		t.Fatalf("initialization failed: %v", err)
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 	}
 	defer store.Close()
 
-	bm, err := store.ByID(d.Context(), 1)
+	bm, err := store.ByID(t.Context(), 1)
 	if err != nil {
 		t.Fatalf("failed to get bookmark: %v", err)
 	}

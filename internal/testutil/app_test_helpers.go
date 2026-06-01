@@ -57,7 +57,6 @@ func SetupDeps(t *testing.T) *deps.Deps {
 	)
 
 	return deps.New(
-		t.Context(),
 		deps.WithApplication(app),
 		deps.WithConsole(ui.NewConsole(
 			ui.WithTerminal(tm),

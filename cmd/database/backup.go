@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -51,7 +52,7 @@ func newBackupAddCmd(_ *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return backupNewFunc(d)
+			return backupNewFunc(cmd.Context(), d)
 		},
 	}
 
@@ -69,7 +70,7 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			fs, err := handler.SelectBackupMany(d, app.Path.Backup, "select backup/s to lock")
+			fs, err := handler.SelectBackupMany(cmd.Context(), d, app.Path.Backup, "select backup/s to lock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -112,7 +113,7 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 				return fmt.Errorf("%w", db.ErrBackupNotFound)
 			}
 
-			repos, err := handler.SelectFileLocked(d, p, "select backup to unlock")
+			repos, err := handler.SelectFileLocked(cmd.Context(), d, p, "select backup to unlock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -155,7 +156,7 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 				Sprint("repo: " + name)
 
 			info := p.Dim.With(p.Italic).
-				Sprintf(" (%d bookmarks)", r.Count(d.Context(), "bookmarks"))
+				Sprintf(" (%d bookmarks)", r.Count(cmd.Context(), "bookmarks"))
 
 			f.Headerln(title).
 				Headerln(subtitle).
@@ -163,7 +164,7 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 				Midln(repo + info).
 				Rowln().Flush()
 
-			bkDetail, err := summary.BackupListDetail(d, true)
+			bkDetail, err := summary.BackupListDetail(cmd.Context(), d, true)
 			if err != nil {
 				return err
 			}
@@ -177,8 +178,8 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 	return c
 }
 
-func backupNewFunc(d *deps.Deps) error {
-	app, err := d.Application()
+func backupNewFunc(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -191,7 +192,7 @@ func backupNewFunc(d *deps.Deps) error {
 	if files.Empty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	s, err := summary.Info(d)
+	s, err := summary.Info(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -216,7 +217,7 @@ func backupNewFunc(d *deps.Deps) error {
 		return err
 	}
 
-	newBkPath, err := r.Backup(d.Context(), app.Path.Backup)
+	newBkPath, err := r.Backup(ctx, app.Path.Backup)
 	if err != nil {
 		return err
 	}

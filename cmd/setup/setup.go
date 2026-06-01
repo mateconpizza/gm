@@ -47,8 +47,8 @@ var InitCmd = &cobra.Command{
 		)
 
 		return initializeAction(
+			cmd.Context(),
 			deps.New(
-				cmd.Context(),
 				deps.WithApplication(app),
 				deps.WithConsole(c),
 			),
@@ -60,8 +60,8 @@ func NewCmd(_ *application.App) *cobra.Command {
 	return InitCmd
 }
 
-func initializeAction(d *deps.Deps) error {
-	app, err := d.Application()
+func initializeAction(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -79,13 +79,13 @@ func initializeAction(d *deps.Deps) error {
 		return err
 	}
 
-	r, err := db.Init(d.Context(), app.Path.Database)
+	r, err := db.Init(ctx, app.Path.Database)
 	if err != nil {
 		return fmt.Errorf("database init failed: %w", err)
 	}
 	d.SetRepo(r)
 
-	if err := handler.MigrationsStatus(d); err != nil {
+	if err := handler.MigrationsStatus(ctx, d); err != nil {
 		return err
 	}
 	defer r.Close()
@@ -95,7 +95,7 @@ func initializeAction(d *deps.Deps) error {
 		return nil
 	}
 
-	return seedNewRepo(d.Context(), app, r, c)
+	return seedNewRepo(ctx, app, r, c)
 }
 
 // InitAppPostFunc ask user to track new database if git is initialized.

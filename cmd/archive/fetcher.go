@@ -3,6 +3,7 @@
 package archive
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -38,14 +39,15 @@ func newLookupCmd(app *application.App) *cobra.Command {
 				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				op := waybackOperation(app.Flags)
 				if !confirmWayback(d, bs, op) {
 					return sys.ErrExitFailure
 				}
+				return runWayback(ctx, d, app.Flags, bs)
+			}
 
-				return runWayback(d, app.Flags, bs)
-			})
+			return cmdutil.Execute(cmd, args, m, a)
 		},
 	}
 
@@ -60,11 +62,11 @@ func newLookupCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func runWayback(d *deps.Deps, flags *application.Flags, bs []*bookmark.Bookmark) error {
+func runWayback(ctx context.Context, d *deps.Deps, flags *application.Flags, bs []*bookmark.Bookmark) error {
 	if flags.Update {
-		return handler.WaybackLatestSnapshot(d, bs)
+		return handler.WaybackLatestSnapshot(ctx, d, bs)
 	}
-	return handler.WaybackSnapshots(d, bs)
+	return handler.WaybackSnapshots(ctx, d, bs)
 }
 
 func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {

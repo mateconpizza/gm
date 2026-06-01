@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -22,13 +23,13 @@ var (
 )
 
 // Data retrieves and filters bookmarks based on configuration and arguments.
-func Data(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
-	bs, err := fetchBookmarks(d, args)
+func Data(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
+	bs, err := fetchBookmarks(ctx, d, args)
 	if err != nil {
 		return nil, err
 	}
 
-	bs, err = applyFilters(d, bs)
+	bs, err = applyFilters(ctx, d, bs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply filters: %w", err)
 	}
@@ -41,11 +42,11 @@ func Data(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // fetchBookmarks retrieves records based on user input and filtering criteria.
-func fetchBookmarks(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
+func fetchBookmarks(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("FetchBookmarks", "args", args)
 
 	// Try to get by IDs first
-	if bs, err := getByIDs(d, args); err != nil {
+	if bs, err := getByIDs(ctx, d, args); err != nil {
 		if !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 			return nil, err
 		}
@@ -55,7 +56,7 @@ func fetchBookmarks(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	}
 
 	// Try to get by query
-	if bs, err := getByQuery(d, args); err != nil {
+	if bs, err := getByQuery(ctx, d, args); err != nil {
 		return nil, err
 	} else if len(bs) > 0 {
 		return bs, nil
@@ -67,7 +68,7 @@ func fetchBookmarks(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 		return nil, err
 	}
 	if len(args) == 0 {
-		return r.All(d.Context())
+		return r.All(ctx)
 	}
 
 	// No results found
@@ -75,7 +76,7 @@ func fetchBookmarks(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // getByIDs retrieves records from the database based on IDs.
-func getByIDs(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
+func getByIDs(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	slog.Debug("getting by IDs")
 
 	ids, err := extractIDsFrom(args)
@@ -91,7 +92,7 @@ func getByIDs(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	if err != nil {
 		return nil, err
 	}
-	bs, err := r.ByIDList(d.Context(), ids)
+	bs, err := r.ByIDList(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
@@ -105,7 +106,7 @@ func getByIDs(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // getByQuery executes a search query on the given repository.
-func getByQuery(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
+func getByQuery(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 	if len(args) == 0 {
 		return []*bookmark.Bookmark{}, nil
 	}
@@ -115,7 +116,7 @@ func getByQuery(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 		return nil, err
 	}
 	q := strings.Join(args, "%")
-	bs, err := r.ByQuery(d.Context(), q)
+	bs, err := r.ByQuery(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("%w %q", err, strings.Join(args, " "))
 	}
@@ -124,8 +125,8 @@ func getByQuery(d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
 }
 
 // applyFilters applies tag and head/tail filters to the bookmark list.
-func applyFilters(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
-	app, err := d.Application()
+func applyFilters(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +134,7 @@ func applyFilters(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, 
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
-		bs, err = filterByTags(d, f.Tags, bs)
+		bs, err = filterByTags(ctx, d, f.Tags, bs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to filter by tags: %w", err)
 		}
@@ -143,7 +144,7 @@ func applyFilters(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, 
 }
 
 // filterByTags returns a slice of bookmarks that contain ALL of the provided tags.
-func filterByTags(d *deps.Deps, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func filterByTags(ctx context.Context, d *deps.Deps, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	n := len(bs)
 	slog.Debug("by tags", "tags", tags, "count", n)
 
@@ -175,7 +176,7 @@ func filterByTags(d *deps.Deps, tags []string, bs []*bookmark.Bookmark) ([]*book
 	if err != nil {
 		return nil, err
 	}
-	candidates, err := r.ByTag(d.Context(), firstTag)
+	candidates, err := r.ByTag(ctx, firstTag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bookmarks by tag %q: %w", firstTag, err)
 	}
@@ -346,24 +347,24 @@ func tail(bs []*bookmark.Bookmark, n int) []*bookmark.Bookmark {
 }
 
 // removeRecords removes the records from the database.
-func removeRecords(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 
-	if err := r.DeleteMany(d.Context(), bs); err != nil {
+	if err := r.DeleteMany(ctx, bs); err != nil {
 		return err
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
-	if err := gitops.Remove(d.Context(), app, bs); err != nil {
+	if err := gitops.Remove(ctx, app, bs); err != nil {
 		return err
 	}
 
 	c := d.Console()
-	return c.Print(d.Context(), c.SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
+	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("%d bookmark/s removed\n", len(bs))))
 }

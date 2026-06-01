@@ -24,8 +24,8 @@ import (
 var ErrNothingToImport = errors.New("nothing to import")
 
 // Database imports bookmarks from a database.
-func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
-	app, err := d.Application()
+func Database(ctx context.Context, d *deps.Deps, srcDB, destDB *db.SQLite) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
@@ -42,7 +42,6 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 		}),
 	)
 
-	ctx := d.Context()
 	items, err := srcDB.All(ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -88,9 +87,9 @@ func Database(d *deps.Deps, srcDB, destDB *db.SQLite) error {
 }
 
 // IntoRepo import records into the database.
-func IntoRepo(d *deps.Deps, records []*bookmark.Bookmark) error {
+func IntoRepo(ctx context.Context, d *deps.Deps, records []*bookmark.Bookmark) error {
 	c := d.Console()
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -107,19 +106,19 @@ func IntoRepo(d *deps.Deps, records []*bookmark.Bookmark) error {
 		return err
 	}
 
-	if err := r.InsertMany(d.Context(), records); err != nil {
+	if err := r.InsertMany(ctx, records); err != nil {
 		return err
 	}
 
-	return c.Print(d.Context(), c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", len(records))))
+	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", len(records))))
 }
 
 // FromBackup imports bookmarks from a backup.
-func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
+func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	c := d.Console()
 	f, t, p := c.Frame(), c.Term(), c.Palette()
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -134,7 +133,7 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 
 	defer t.CancelInterruptHandler()
 
-	bookmarks, err := srcDB.All(d.Context())
+	bookmarks, err := srcDB.All(ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -165,7 +164,7 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	if err != nil {
 		return err
 	}
-	dRecords, err := DeduplicateReport(d.Context(), c, r, result)
+	dRecords, err := DeduplicateReport(ctx, c, r, result)
 	if err != nil {
 		return err
 	}
@@ -175,7 +174,7 @@ func FromBackup(d *deps.Deps, destDB, srcDB *db.SQLite) error {
 		return nil
 	}
 
-	return IntoRepo(d, dRecords)
+	return IntoRepo(ctx, d, dRecords)
 }
 
 // ToJSON converts an interface to JSON.

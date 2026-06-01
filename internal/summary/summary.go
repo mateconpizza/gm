@@ -19,13 +19,13 @@ import (
 )
 
 // Repo returns a summary of the repository.
-func Repo(d *deps.Deps) (string, error) {
+func Repo(ctx context.Context, d *deps.Deps) (string, error) {
 	r, err := d.Repository()
 	if err != nil {
 		return "", err
 	}
 
-	stats, err := db.NewStats(d.Context(), r)
+	stats, err := db.NewStats(ctx, r)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +60,7 @@ func Repo(d *deps.Deps) (string, error) {
 }
 
 // RepoFromPath returns a summary of the repository.
-func RepoFromPath(d *deps.Deps, dbPath, backupPath string) string {
+func RepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) string {
 	f, p := d.Console().Frame(), d.Console().Palette()
 	if base, found := strings.CutSuffix(dbPath, ".enc"); found {
 		dbPath = base
@@ -76,14 +76,14 @@ func RepoFromPath(d *deps.Deps, dbPath, backupPath string) string {
 
 	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
 
-	r, err := db.New(d.Context(), dbPath)
+	r, err := db.New(ctx, dbPath)
 	if err != nil {
 		return f.Row(path).StringReset()
 	}
 	defer r.Close()
 
-	records := txt.PaddedLine("records:", r.Count(d.Context(), "bookmarks"))
-	tags := txt.PaddedLine("tags:", r.Count(d.Context(), "tags"))
+	records := txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
+	tags := txt.PaddedLine("tags:", r.Count(ctx, "tags"))
 	name := p.Yellow.Wrap(r.Name(), p.Italic)
 
 	if r.Name() == application.MainDBName {
@@ -125,7 +125,7 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 //	repositoryName (main: n) (time)
 func BackupWithFmtDate(ctx context.Context, c *ui.Console, r *db.SQLite) string {
 	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
-	t := strings.Split(r.Name(), "_")[0]
+	t, _, _ := strings.Cut(r.Name(), "_")
 	p := c.Palette()
 
 	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
@@ -138,7 +138,7 @@ func BackupWithFmtDate(ctx context.Context, c *ui.Console, r *db.SQLite) string 
 func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) string {
 	p := c.Palette()
 	name := filepath.Base(fp)
-	t := strings.Split(name, "_")[0]
+	t, _, _ := strings.Cut(name, "_")
 	bkTime := p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
 
 	if base, found := strings.CutSuffix(name, ".enc"); found {
@@ -159,7 +159,7 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 }
 
 // BackupListDetail returns the details of a backup.
-func BackupListDetail(d *deps.Deps, complete bool) (string, error) {
+func BackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string, error) {
 	const maxItems = 3
 
 	r, err := d.Repository()
@@ -167,7 +167,7 @@ func BackupListDetail(d *deps.Deps, complete bool) (string, error) {
 		return "", err
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -192,7 +192,7 @@ func BackupListDetail(d *deps.Deps, complete bool) (string, error) {
 		fs = fs[len(fs)-maxItems:]
 	}
 	for i := range fs {
-		f.Rowln(BackupWithFmtDateFromPath(d.Context(), d.Console(), fs[i]))
+		f.Rowln(BackupWithFmtDateFromPath(ctx, d.Console(), fs[i]))
 	}
 
 	return f.StringReset(), nil
@@ -201,8 +201,8 @@ func BackupListDetail(d *deps.Deps, complete bool) (string, error) {
 // Backups returns a summary of the backups.
 //
 // last, path and number of backups.
-func Backups(d *deps.Deps) (string, error) {
-	app, err := d.Application()
+func Backups(ctx context.Context, d *deps.Deps) (string, error) {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -217,13 +217,7 @@ func Backups(d *deps.Deps) (string, error) {
 		lastBackupDate = empty
 	)
 
-	r, err := d.Repository()
-	if err != nil {
-		return "", err
-	}
-
-	dbName := files.StripSuffixes(r.Name())
-	fs, err := files.List(backupPath, "*_"+dbName+".db*")
+	fs, err := files.List(backupPath, "*_"+app.DBNameBase()+".db*")
 	if len(fs) == 0 {
 		return "", nil
 	}
@@ -238,7 +232,7 @@ func Backups(d *deps.Deps) (string, error) {
 	if n > 0 {
 		backupsInfo = txt.PaddedLine("found:", strconv.Itoa(n)+" backups found")
 		lastItem := fs[n-1]
-		lastBackup = RepoRecordsFromPath(d.Context(), d.Console(), lastItem)
+		lastBackup = RepoRecordsFromPath(ctx, d.Console(), lastItem)
 		s := txt.RelativeTime(strings.Split(filepath.Base(lastBackup), "_")[0])
 		lastBackupDate = p.BrightGreen.Wrap(s, p.Italic)
 	}
@@ -256,7 +250,7 @@ func Backups(d *deps.Deps) (string, error) {
 }
 
 // Info returns the repository info.
-func Info(d *deps.Deps) (string, error) {
+func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	var sb strings.Builder
 
 	fn := func(s string, err error) error {
@@ -268,13 +262,13 @@ func Info(d *deps.Deps) (string, error) {
 		return nil
 	}
 
-	if err := fn(Repo(d)); err != nil {
+	if err := fn(Repo(ctx, d)); err != nil {
 		return "", err
 	}
-	if err := fn(Backups(d)); err != nil {
+	if err := fn(Backups(ctx, d)); err != nil {
 		return "", err
 	}
-	if err := fn(BackupListDetail(d, false)); err != nil {
+	if err := fn(BackupListDetail(ctx, d, false)); err != nil {
 		return "", err
 	}
 
