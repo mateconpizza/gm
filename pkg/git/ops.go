@@ -67,8 +67,6 @@ func updateRepo(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark) er
 		return err
 	}
 
-	fmt.Printf("fresh.Notes: %v\n", fresh.Notes)
-
 	return gr.Add(ctx, []*bookmark.Bookmark{fresh})
 }
 
