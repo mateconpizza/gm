@@ -363,11 +363,10 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 
 	sc := scraper.New(
 		updatedB.URL,
-		scraper.WithContext(ctx),
 		scraper.WithSpinner(c.Info(bid+" updating bookmark "+p.BrightCyan.Wrap(su, p.Italic)).String()),
 	)
 
-	if err := sc.Start(); err != nil {
+	if err := sc.Start(ctx); err != nil {
 		return updatedB, err
 	}
 

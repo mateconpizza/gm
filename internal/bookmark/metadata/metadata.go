@@ -63,7 +63,7 @@ func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) 
 			default:
 
 				sc := scraper.New(b.URL)
-				if err := sc.Start(); err != nil {
+				if err := sc.Start(ctxTimeout); err != nil {
 					slog.Warn("scraping error", "url", b.URL, "err", err)
 					return nil // just log the error
 				}
@@ -86,8 +86,8 @@ func EnrichBookmark(ctx context.Context, b *bookmark.Bookmark) *bookmark.Bookmar
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	sc := scraper.New(b.URL, scraper.WithContext(ctx), scraper.WithSpinner("scraping webpage..."))
-	if err := sc.Start(); err != nil {
+	sc := scraper.New(b.URL, scraper.WithSpinner("scraping webpage..."))
+	if err := sc.Start(ctx); err != nil {
 		slog.Error("scraping error", "error", err)
 	}
 

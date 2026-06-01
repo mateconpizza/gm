@@ -98,12 +98,11 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 
 	sc := scraper.New(
 		newURL,
-		scraper.WithContext(ctx),
 		scraper.WithSpinner("scraping webpage..."),
 	)
 
 	// fetch title, description and tags
-	fetchTitleAndDesc(c, sc, bTemp)
+	fetchTitleAndDesc(ctx, c, sc, bTemp)
 	if err := tagsFromArgs(ctx, d, sc, bTemp); err != nil {
 		return err
 	}
@@ -189,7 +188,7 @@ func tagsFromArgs(ctx context.Context, d *deps.Deps, sc *scraper.Scraper, b *boo
 	}
 
 	// Try to get keywords from scraper
-	_ = sc.Start()
+	_ = sc.Start(ctx)
 	if keywords, _ := sc.Keywords(); keywords != "" {
 		b.tags = bookmark.ParseTags(keywords)
 		f.Textln(" " + p.Gray.Wrap(b.tags, p.Italic)).Flush()
@@ -233,7 +232,7 @@ func tagsFromArgs(ctx context.Context, d *deps.Deps, sc *scraper.Scraper, b *boo
 }
 
 // fetchTitleAndDesc fetch and display title and description.
-func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
+func fetchTitleAndDesc(ctx context.Context, c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	f, p := c.Frame(), c.Palette()
 	const indentation int = 10
 
@@ -249,7 +248,7 @@ func fetchTitleAndDesc(c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
 	}
 
 	// scrape data
-	_ = sc.Start()
+	_ = sc.Start(ctx)
 	b.title, _ = sc.Title()
 	b.desc, _ = sc.Desc()
 	b.tags, _ = sc.Keywords()
