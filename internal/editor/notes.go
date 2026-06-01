@@ -40,9 +40,9 @@ func (NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, original *Reco
 	if bytes.Equal([]byte(original.Notes), editedNotes) {
 		return nil, ErrBufferUnchanged
 	}
-	clone := *original
+	clone := original.Copy()
 	clone.Notes = string(editedNotes)
-	return &clone, nil
+	return clone, nil
 }
 
 func (NotesStrategy) Diff(oldB, newB *Record) string {
