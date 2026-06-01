@@ -33,7 +33,7 @@ func newResult(u, s, m string) SnapshotResult {
 	return SnapshotResult{URL: u, State: s, Msg: m}
 }
 
-func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	var (
 		count atomic.Uint32
 		dim   = rotato.FgGray.With(rotato.StyleBold)
@@ -43,7 +43,7 @@ func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	results := make(chan SnapshotResult, len(bs))
 
 	sp := rotato.New(
-		rotato.WithContext(d.Context()),
+		rotato.WithContext(ctx),
 		rotato.WithPrefix("Snapshots"),
 		rotato.WithPrefixDecorator(func(prefix string) string { // n/N <prefix>
 			current := count.Load()
@@ -58,22 +58,21 @@ func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 	sp.Start()
 
-	g, ctx := errgroup.WithContext(d.Context())
+	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(1)
 
 	for _, b := range bs {
 		g.Go(func() error {
-			count.Add(1)
-
-			sp.UpdateMesg(txt.Shorten(b.URL, 80))
-
-			res := processBookmark(d, b)
-			results <- res
-
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
+				count.Add(1)
+
+				sp.UpdateMesg(txt.Shorten(b.URL, 80))
+
+				res := processBookmark(ctx, d, b)
+				results <- res
 				return nil
 			}
 		})
@@ -93,15 +92,15 @@ func WaybackLatestSnapshot(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	return printSummary(d.Console(), results)
 }
 
-func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
+func processBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
 	u := txt.Shorten(b.URL, 60)
-	app, _ := d.Application()
+	app, _ := d.Application(ctx)
 	if b.ArchiveURL != "" && b.ArchiveTimestamp != "" && !app.Flags.Force {
 		return newResult(u, "skipped", wayback.ErrAlreadyArchived.Error())
 	}
 
 	ct := wayback.New()
-	s, err := ct.ClosestSnapshot(d.Context(), b.URL)
+	s, err := ct.ClosestSnapshot(ctx, b.URL)
 	if err != nil {
 		return newResult(u, "error", err.Error())
 	}
@@ -110,7 +109,7 @@ func processBookmark(d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
 	b.ArchiveTimestamp = s.ArchiveTimestamp
 
 	r, _ := d.Repository()
-	if err := r.UpdateOne(d.Context(), b); err != nil {
+	if err := r.UpdateOne(ctx, b); err != nil {
 		return newResult(u, "error", err.Error())
 	}
 
@@ -205,8 +204,8 @@ func formatTime(label, ts string) string {
 }
 
 // WaybackSnapshots fetches and updates archive snapshots for each bookmark.
-func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
-	app, err := d.Application()
+func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -219,12 +218,12 @@ func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	c := d.Console()
 
 	for _, b := range bs {
-		snapshots, err := fetchSnapshots(d, c, ct, b)
+		snapshots, err := fetchSnapshots(ctx, c, ct, b)
 		if err != nil {
 			continue
 		}
 
-		snap, err := selectSnapshot(d, b, snapshots)
+		snap, err := selectSnapshot(ctx, d, b, snapshots)
 		if err != nil {
 			if errors.Is(err, menu.ErrFzfActionAborted) {
 				continue
@@ -233,7 +232,7 @@ func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
 			return err
 		}
 
-		if err := applySnapshot(d, b, snap); err != nil {
+		if err := applySnapshot(ctx, d, b, snap); err != nil {
 			return err
 		}
 	}
@@ -243,7 +242,7 @@ func WaybackSnapshots(d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 // fetchSnapshots fetches the wayback snapshots for a single bookmark.
 func fetchSnapshots(
-	d *deps.Deps,
+	ctx context.Context,
 	c *ui.Console,
 	ct *wayback.WaybackMachine,
 	b *bookmark.Bookmark,
@@ -251,10 +250,7 @@ func fetchSnapshots(
 	p := c.Palette()
 	u := txt.Shorten(b.URL, 60)
 
-	ctx, cancel := context.WithTimeout(
-		d.Context(),
-		30*time.Second,
-	)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	deadline, _ := ctx.Deadline()
@@ -303,6 +299,7 @@ func fetchSnapshots(
 
 // selectSnapshot shows the current archive info.
 func selectSnapshot(
+	ctx context.Context,
 	d *deps.Deps,
 	b *bookmark.Bookmark,
 	snaps []wayback.SnapshotInfo,
@@ -315,7 +312,7 @@ func selectSnapshot(
 			Flush()
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return wayback.SnapshotInfo{}, err
 	}
@@ -336,6 +333,7 @@ func selectSnapshot(
 
 // applySnapshot persists the selected snapshot to the bookmark and reports the result.
 func applySnapshot(
+	ctx context.Context,
 	d *deps.Deps,
 	b *bookmark.Bookmark,
 	snap wayback.SnapshotInfo,
@@ -343,10 +341,7 @@ func applySnapshot(
 	b.ArchiveURL = snap.ArchiveURL
 	b.ArchiveTimestamp = snap.ArchiveTimestamp
 
-	ctx, cancel := context.WithTimeout(
-		d.Context(),
-		3*time.Second,
-	)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	r, err := d.Repository()

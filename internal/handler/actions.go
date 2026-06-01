@@ -30,7 +30,7 @@ import (
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func QR(_ context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
@@ -79,29 +79,29 @@ func QROpen(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appNam
 }
 
 // Open opens the URLs in the browser for the bookmarks in the provided slice.
-func Open(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 5
 	n := len(bs)
 	p := d.Console().Palette()
 	s := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("open", p.Bold), n)
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
-	if err := d.Console().ConfirmLimit(n, maxGoroutines, s, app.Flags.Force); err != nil {
+	if err := d.Console().ConfirmLimit(ctx, n, maxGoroutines, s, app.Flags.Force); err != nil {
 		return err
 	}
 
-	if err := openInBrowser(d, bs, maxGoroutines); err != nil {
+	if err := openInBrowser(ctx, bs); err != nil {
 		return err
 	}
 
-	return recordVisits(d, bs)
+	return recordVisits(ctx, d, bs)
 }
 
 // openInBrowser concurrently opens each bookmark URL in the browser.
-func openInBrowser(d *deps.Deps, bs []*bookmark.Bookmark, maxGoroutines int) error {
+func openInBrowser(ctx context.Context, bs []*bookmark.Bookmark) error {
 	sp := rotato.New(
 		rotato.WithMessage("opening bookmarks..."),
 		rotato.WithMessageColor(rotato.FgBrightGreen),
@@ -111,16 +111,21 @@ func openInBrowser(d *deps.Deps, bs []*bookmark.Bookmark, maxGoroutines int) err
 	sp.Start()
 	defer sp.Done()
 
-	g, ctx := errgroup.WithContext(d.Context())
-	g.SetLimit(maxGoroutines)
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(1)
 
 	for _, b := range bs {
 		g.Go(func() error {
-			if err := sys.OpenInBrowser(ctx, b.URL); err != nil {
-				return fmt.Errorf("open error: %w", err)
-			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				if err := sys.OpenInBrowser(ctx, b.URL); err != nil {
+					return fmt.Errorf("open error: %w", err)
+				}
 
-			return nil
+				return nil
+			}
 		})
 	}
 
@@ -128,14 +133,14 @@ func openInBrowser(d *deps.Deps, bs []*bookmark.Bookmark, maxGoroutines int) err
 }
 
 // recordVisits increments the visit counter for each bookmark.
-func recordVisits(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func recordVisits(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 
 	for _, b := range bs {
-		if err := r.AddVisit(d.Context(), b.ID); err != nil {
+		if err := r.AddVisit(ctx, b.ID); err != nil {
 			return err
 		}
 	}
@@ -144,11 +149,11 @@ func recordVisits(d *deps.Deps, bs []*bookmark.Bookmark) error {
 }
 
 // Edit returns a BookmarkAction configured with a specific strategy.
-func Edit(ctx context.Context, es editor.EditStrategy) func(*deps.Deps, []*bookmark.Bookmark) error {
-	return func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *deps.Deps, []*bookmark.Bookmark) error {
+	return func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		const maxItems = 10
 
-		app, err := d.Application()
+		app, err := d.Application(ctx)
 		if err != nil {
 			return err
 		}
@@ -156,21 +161,20 @@ func Edit(ctx context.Context, es editor.EditStrategy) func(*deps.Deps, []*bookm
 		p := d.Console().Palette()
 		q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
 
-		if err := d.Console().ConfirmLimit(len(bs), maxItems, q, app.Flags.Force); err != nil {
+		if err := d.Console().ConfirmLimit(ctx, len(bs), maxItems, q, app.Flags.Force); err != nil {
 			return err
 		}
 
-		return runEditSession(
-			d, bs, es,
-			editor.WithPostEditionRunE(func(old, fresh *editor.Record) error {
-				return gitops.Update(ctx, app, old, fresh)
-			}),
-		)
+		opt := editor.WithPostEditionRunE(func(old, fresh *editor.Record) error {
+			return gitops.Update(ctx, app, old, fresh)
+		})
+
+		return runEditSession(ctx, d, bs, es, opt)
 	}
 }
 
 // LockRepo locks the database.
-func LockRepo(d *deps.Deps, rToLock string) error {
+func LockRepo(ctx context.Context, d *deps.Deps, rToLock string) error {
 	c := d.Console()
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
@@ -180,14 +184,14 @@ func LockRepo(d *deps.Deps, rToLock string) error {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
 	}
 
-	if err := c.ConfirmErr(fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
+	if err := c.ConfirmErr(ctx, fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
 		if errors.Is(err, sys.ErrActionAborted) {
 			return nil
 		}
 		return err
 	}
 
-	pass, err := passwordConfirm(c)
+	pass, err := passwordConfirm(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -202,7 +206,7 @@ func LockRepo(d *deps.Deps, rToLock string) error {
 }
 
 // UnlockRepo unlocks the database.
-func UnlockRepo(d *deps.Deps, rToUnlock string) error {
+func UnlockRepo(ctx context.Context, d *deps.Deps, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
 		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
 	}
@@ -216,11 +220,11 @@ func UnlockRepo(d *deps.Deps, rToUnlock string) error {
 	}
 
 	c := d.Console()
-	if err := c.ConfirmErr(fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
+	if err := c.ConfirmErr(ctx, fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	s, err := c.InputPassword("Password: ")
+	s, err := c.InputPassword(ctx, "Password: ")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -236,7 +240,7 @@ func UnlockRepo(d *deps.Deps, rToUnlock string) error {
 	return nil
 }
 
-func MigrationsStatus(d *deps.Deps) error {
+func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
@@ -249,12 +253,11 @@ func MigrationsStatus(d *deps.Deps) error {
 	}
 	f.CustomFunc(header, p.Bold.Sprint("Configuring database")).Ln()
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 
-	ctx := d.Context()
 	if err = db.UpdateAppVersion(ctx, r, app.Info.Version); err != nil {
 		return fmt.Errorf("app version update failed: %w", err)
 	}
@@ -278,9 +281,9 @@ func MigrationsStatus(d *deps.Deps) error {
 	return nil
 }
 
-func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
+func ProcessBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) error {
 	c := d.Console()
-	updated, err := updateBookmarkData(d.Context(), c, b)
+	updated, err := updateBookmarkData(ctx, c, b)
 	if err != nil {
 		return err
 	}
@@ -298,13 +301,13 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 	}
 
 	// Handle user choice
-	opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+	opt, err := c.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("choose: %w", err)
 	}
 	switch strings.ToLower(opt) {
 	case "y", "yes":
-		if err := r.UpdateOne(d.Context(), &updated); err != nil {
+		if err := r.UpdateOne(ctx, &updated); err != nil {
 			return fmt.Errorf("updating record: %w", err)
 		}
 		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
@@ -312,15 +315,16 @@ func ProcessBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark) error {
 		return nil
 	case "e", "edit":
 		if err := runEditSession(
+			ctx,
 			d,
 			[]*bookmark.Bookmark{&updated},
 			editor.BookmarkStrategy{},
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-				app, err := d.Application()
+				app, err := d.Application(ctx)
 				if err != nil {
 					return err
 				}
-				return gitops.Update(d.Context(), app, o, u)
+				return gitops.Update(ctx, app, o, u)
 			}),
 		); err != nil {
 			return err
@@ -359,11 +363,10 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 
 	sc := scraper.New(
 		updatedB.URL,
-		scraper.WithContext(ctx),
 		scraper.WithSpinner(c.Info(bid+" updating bookmark "+p.BrightCyan.Wrap(su, p.Italic)).String()),
 	)
 
-	if err := sc.Start(); err != nil {
+	if err := sc.Start(ctx); err != nil {
 		return updatedB, err
 	}
 
@@ -374,12 +377,13 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 }
 
 func runEditSession(
+	ctx context.Context,
 	d *deps.Deps,
 	bs []*bookmark.Bookmark,
 	es editor.EditStrategy,
 	opts ...editor.SessionOption,
 ) error {
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -397,7 +401,6 @@ func runEditSession(
 	opts = append(
 		opts,
 		editor.WithFileType(ft),
-		editor.WithContext(d.Context()),
 		editor.WithMeta(editor.NewMeta(app.DBName, app.Info.Version)),
 	)
 
@@ -407,5 +410,5 @@ func runEditSession(
 	}
 
 	session := editor.NewEditSession(d.Console(), r, te, opts...)
-	return session.Run(bs, es)
+	return session.Run(ctx, bs, es)
 }

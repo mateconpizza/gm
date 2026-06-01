@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -19,12 +20,12 @@ import (
 var ErrURLParamsNotFound = errors.New("params not found")
 
 // ParamsURL processes and optionally cleans query params for each bookmark.
-func ParamsURL(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	if len(bs) == 0 {
 		return ErrNoItems
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -38,7 +39,7 @@ func ParamsURL(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	)
 
 	for _, b := range bs {
-		newURL, err := ProcessBookmarkParams(d, m, b.URL)
+		newURL, err := ProcessBookmarkParams(ctx, d, m, b.URL)
 		if err != nil {
 			return err
 		}
@@ -50,7 +51,7 @@ func ParamsURL(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		b.URL = newURL
 
 		// save to db and git
-		if err := persistBookmarkUpdate(d, b, newURL); err != nil {
+		if err := persistBookmarkUpdate(ctx, d, b, newURL); err != nil {
 			return err
 		}
 	}
@@ -106,7 +107,7 @@ func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {
 
 // PrintParamChanges displays the original and cleaned URL with removed
 // parameters.
-func diffParams(d *deps.Deps, originalURL string, params []string) (int, error) {
+func diffParams(ctx context.Context, d *deps.Deps, originalURL string, params []string) (int, error) {
 	f, p := d.Console().Frame(), d.Console().Palette()
 	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 	subtitle := p.Dim.With(p.Italic).
@@ -131,7 +132,7 @@ func diffParams(d *deps.Deps, originalURL string, params []string) (int, error) 
 	f.Rowln()
 
 	lines := txt.CountLines(f.String())
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -187,7 +188,7 @@ func selectParams(m *menu.Menu[string], u *url.URL) ([]string, error) {
 
 // ProcessBookmarkParams prompts for param removal and persists updates if
 // confirmed.
-func ProcessBookmarkParams(d *deps.Deps, m *menu.Menu[string], urlStr string) (string, error) {
+func ProcessBookmarkParams(ctx context.Context, d *deps.Deps, m *menu.Menu[string], urlStr string) (string, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return "", err
@@ -198,7 +199,7 @@ func ProcessBookmarkParams(d *deps.Deps, m *menu.Menu[string], urlStr string) (s
 		return "", nil
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -207,7 +208,7 @@ func ProcessBookmarkParams(d *deps.Deps, m *menu.Menu[string], urlStr string) (s
 		return paramsCleaner(u), nil
 	}
 
-	opt, linesToClear, err := promptParamRemoval(d, urlStr, u.Query())
+	opt, linesToClear, err := promptParamRemoval(ctx, d, urlStr, u.Query())
 	if err != nil {
 		return "", err
 	}
@@ -230,7 +231,12 @@ func ProcessBookmarkParams(d *deps.Deps, m *menu.Menu[string], urlStr string) (s
 }
 
 // promptParamRemoval displays URL param diff and asks whether to remove them.
-func promptParamRemoval(d *deps.Deps, urlStr string, q url.Values) (opt string, lines int, err error) {
+func promptParamRemoval(
+	ctx context.Context,
+	d *deps.Deps,
+	urlStr string,
+	q url.Values,
+) (opt string, lines int, err error) {
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 	sep := "="
@@ -243,7 +249,7 @@ func promptParamRemoval(d *deps.Deps, urlStr string, q url.Values) (opt string, 
 		}
 	}
 
-	lines, err = diffParams(d, urlStr, params)
+	lines, err = diffParams(ctx, d, urlStr, params)
 	if err != nil {
 		return "", 0, err
 	}
@@ -253,9 +259,9 @@ func promptParamRemoval(d *deps.Deps, urlStr string, q url.Values) (opt string, 
 	if len(q) > 1 {
 		opts = append(opts, "select")
 	}
-	opt, err = c.Choose(p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
+	opt, err = c.Choose(ctx, p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
 
-	return
+	return opt, lines, err
 }
 
 // computeNewURL returns a new URL based on the selected option or reports
@@ -290,7 +296,7 @@ func computeNewURL(m *menu.Menu[string], u *url.URL, opt string) (newURL string,
 
 // persistBookmarkUpdate updates the bookmark URL in the DB and Git if no
 // duplicate exists.
-func persistBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark, newURL string) error {
+func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, newURL string) error {
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 	id := func(val any) string { return p.Bold.Sprint("[", val, "] ") }
@@ -304,14 +310,13 @@ func persistBookmarkUpdate(d *deps.Deps, b *bookmark.Bookmark, newURL string) er
 		return err
 	}
 	// TODO: use port.Deduplicate or port.DeduplicateReport
-	ctx := d.Context()
 	if book, has := r.Has(ctx, newB.URL); has {
 		f.Error(id(newB.ID) + p.BrightRed.Wrap("already", p.Italic) + " exists with " + id(book.ID)).
 			Ln().Flush()
 		return nil
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}

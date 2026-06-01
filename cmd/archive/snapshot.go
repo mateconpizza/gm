@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -25,16 +26,17 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"snap", "ar", "a"},
 		Short:   "show archive URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd, args, setupMenu(app), func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				var sb strings.Builder
 				for _, u := range bs {
-					sb.WriteString(u.ArchiveURL + "\n")
+					sb.WriteString(u.ArchiveURL)
+					sb.WriteString("\n")
 				}
-
 				fmt.Fprint(d.Writer(), sb.String())
-
 				return nil
-			}, onlySnapshots)
+			}
+
+			return cmdutil.Execute(cmd, args, setupMenu(app), a, onlySnapshots)
 		},
 	}
 
@@ -103,7 +105,8 @@ func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	p := "{+1}"
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
-	m := picker.New[bookmark.Bookmark](app,
+	m := picker.New[bookmark.Bookmark](
+		app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" archive URL "),

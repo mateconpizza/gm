@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"os"
 	"strings"
 
@@ -42,9 +43,10 @@ func newExportHTMLCmd(app *application.App) *cobra.Command {
 		Short: "export to HTML Netscape",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to HTML ")
-			return cmdutil.Execute(cmd, args, m, func(_ *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.ExportToNetscapeHTML(bs, os.Stdout)
-			})
+			}
+			return cmdutil.Execute(cmd, args, m, a)
 		},
 	}
 	return c
@@ -56,9 +58,10 @@ func newExportJSONCmd(app *application.App) *cobra.Command {
 		Short: "export to JSON",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to JSON ")
-			return cmdutil.Execute(cmd, args, m, func(_ *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return printer.RecordsJSON(bs)
-			})
+			}
+			return cmdutil.Execute(cmd, args, m, a)
 		},
 	}
 	return c
@@ -70,9 +73,10 @@ func newExportCSVCmd(app *application.App) *cobra.Command {
 		Short: "export to CSV",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to CSV ")
-			return cmdutil.Execute(cmd, args, m, func(_ *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.ExportToCSV(bs, os.Stdout, parseCSVFields(app.Flags.Field))
-			})
+			}
+			return cmdutil.Execute(cmd, args, m, a)
 		},
 	}
 	cmdutil.FlagFields(c, app, "all,"+wrapFields(bookmark.Fields(), ",", 50))
@@ -139,7 +143,8 @@ func parseCSVFields(f string) []string {
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
-	return picker.New[bookmark.Bookmark](app,
+	return picker.New[bookmark.Bookmark](
+		app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),

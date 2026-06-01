@@ -17,13 +17,13 @@ import (
 
 func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	app.Path.Database = filepath.Join(t.TempDir(), "nonexistent.db")
 
-	err = backupNewFunc(d)
+	err = backupNewFunc(t.Context(), d)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -34,7 +34,7 @@ func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
 
 func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 		t.Errorf("unexpected err closing file: %v", err)
 	}
 
-	err = backupNewFunc(d)
+	err = backupNewFunc(t.Context(), d)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -58,7 +58,7 @@ func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 
 func TestNewBackup_Successfully_Created(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
-	err = backupNewFunc(d)
+	err = backupNewFunc(t.Context(), d)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 
 func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 	d := testutil.SetupDeps(t)
-	app, err := d.Application()
+	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -102,11 +102,11 @@ func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 
 	// Update terminal for reject confirmation prompt.
 	input := "n\n"
-	term := terminal.New(terminal.WithContext(t.Context()), terminal.WithReader(strings.NewReader(input)))
+	term := terminal.New(terminal.WithReader(strings.NewReader(input)))
 	c := ui.NewConsole(ui.WithTerminal(term))
 	d.SetConsole(c)
 
-	err = backupNewFunc(d)
+	err = backupNewFunc(t.Context(), d)
 	if !errors.Is(err, sys.ErrExitFailure) {
 		t.Fatalf("expected err %q, got %q", sys.ErrExitFailure, err)
 	}

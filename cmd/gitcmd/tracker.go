@@ -80,7 +80,7 @@ func managementSelect(ctx context.Context, c *ui.Console, app *application.App, 
 			continue
 		}
 
-		if !c.Confirm(fmt.Sprintf("Track %q?", name), "n") {
+		if !c.Confirm(ctx, fmt.Sprintf("Track %q?", name), "n") {
 			continue
 		}
 

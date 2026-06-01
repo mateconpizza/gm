@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -20,8 +21,8 @@ import (
 )
 
 // confirmRemove prompts the user to confirm the action.
-func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, error) {
-	app, err := d.Application()
+func confirmRemove(ctx context.Context, d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, error) {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,10 @@ func confirmRemove(d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, e
 		c, p := d.Console(), d.Console().Palette()
 		c.ClearLine(1)            // clean empty line from FrameFunc
 		c.Frame().Rowln().Flush() // connect FrameFunc with prompt
-		opt, err := c.Choose(fmt.Sprintf("%s [%d] bookmark/s?", p.BrightRed.Wrap("remove", p.Bold), n), opts, "n")
+		name := p.Bold.Sprint(app.DBNameBase())
+
+		s := fmt.Sprintf("%s [%d] bookmark/s from %s?", p.BrightRed.Wrap("remove", p.Bold), n, name)
+		opt, err := c.Choose(ctx, s, opts, "n")
 		if err != nil {
 			return nil, err
 		}
@@ -115,15 +119,15 @@ func validateRemove(bs []*bookmark.Bookmark, force bool) error {
 }
 
 // passwordConfirm prompts user for password input.
-func passwordConfirm(c *ui.Console) (string, error) {
-	s, err := c.InputPassword("Password: ")
+func passwordConfirm(ctx context.Context, c *ui.Console) (string, error) {
+	s, err := c.InputPassword(ctx, "Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
 	fmt.Fprintln(c.Writer())
 
-	s2, err := c.InputPassword("Confirm Password: ")
+	s2, err := c.InputPassword(ctx, "Confirm Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}

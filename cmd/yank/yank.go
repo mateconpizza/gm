@@ -1,6 +1,7 @@
 package yank
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -22,23 +23,26 @@ func NewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"copy", "y"},
 		Short:   "copy URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := picker.New[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" yank URL "),
 				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")+" {1}"),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				t, p := d.Console(), d.Console().Palette()
+
 				s := fmt.Sprintf("%s %d bookmarks to system clipboard", p.BrightGreen.Wrap("copy", p.Bold), len(bs))
-				if err := t.ConfirmLimit(len(bs), 10, s, app.Flags.Force); err != nil {
+				if err := t.ConfirmLimit(cmd.Context(), len(bs), 10, s, app.Flags.Force); err != nil {
 					return err
 				}
 
 				var sb strings.Builder
 				for i := range bs {
-					sb.WriteString(bs[i].URL + "\n")
+					sb.WriteString(bs[i].URL)
+					sb.WriteString("\n")
 				}
 				if err := sys.CopyClipboard(sb.String()); err != nil {
 					return err
@@ -47,7 +51,9 @@ func NewCmd(app *application.App) *cobra.Command {
 				fmt.Fprintln(d.Writer(), t.SuccessMesg("copied ", len(bs), " bookmarks to system clipboard"))
 
 				return nil
-			})
+			}
+
+			return cmdutil.Execute(cmd, args, m, a)
 		},
 	}
 	cmdutil.FlagOutput(c, app, []string{"json"})

@@ -199,6 +199,9 @@ linters:
       - path: "internal/handler/remove_test.go"
         linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`
+      - path: "internal/handler/remove.go"
+        linters:
+          - funlen
       - path: "internal/handler/params_test.go"
         linters:
           - lll

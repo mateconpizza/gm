@@ -21,7 +21,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.AddBookmark(d, args)
+			return handler.AddBookmark(cmd.Context(), d, args)
 		},
 	}
 	c.Flags().SortFlags = false

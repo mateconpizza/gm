@@ -8,14 +8,12 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"os/signal"
 	"slices"
 	"strings"
-	"syscall"
 
-	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
 
+	prompt "github.com/c-bata/go-prompt"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
@@ -40,8 +38,7 @@ type Options struct {
 	reader      io.Reader
 	writer      io.Writer
 	PromptStr   string
-	ctx         context.Context
-	InterruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
+	interruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
 }
 
 // Term is a struct that represents a terminal.
@@ -77,13 +74,7 @@ func WithWriter(w io.Writer) TermOptFn {
 // WithInterruptFn sets a callback that executes on terminal interruption.
 func WithInterruptFn(fn func(error)) TermOptFn {
 	return func(o *Options) {
-		o.InterruptFn = fn
-	}
-}
-
-func WithContext(ctx context.Context) TermOptFn {
-	return func(o *Options) {
-		o.ctx = ctx
+		o.interruptFn = fn
 	}
 }
 
@@ -99,7 +90,7 @@ func (t *Term) SetWriter(w io.Writer) {
 
 // Input get the Input data from the user and return it.
 func (t *Term) Input(p string) string {
-	o, restore := prepareInputState(t.InterruptFn)
+	o, restore := prepareInputState(t.interruptFn)
 	defer restore()
 
 	s := prompt.Input(p, completerDummy(), o...)
@@ -107,10 +98,10 @@ func (t *Term) Input(p string) string {
 	return s
 }
 
-func (t *Term) InputPassword() (string, error) {
+func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	fd := int(os.Stdin.Fd())
 
-	// If not a terminal (piped or test), read plain input
+	// if not a terminal (piped or test), read plain input
 	if !term.IsTerminal(fd) {
 		var password string
 		if _, err := fmt.Fscanln(t.reader, &password); err != nil {
@@ -129,71 +120,77 @@ func (t *Term) InputPassword() (string, error) {
 		}
 	}()
 
-	// Context that listens to the global signal-aware context
-	ctx, cancel := context.WithCancel(t.ctx)
-	defer cancel()
+	// channel to receive password result
+	type passwordResult struct {
+		password string
+		err      error
+	}
+	resultChan := make(chan passwordResult, 1)
 
-	// Handle Ctrl+C safely (only local cancel + restore)
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		case <-sig:
-			slog.Debug("received interrupt during password input")
-			_ = restoreState()
-			cancel()
-		}
+		p, err := term.ReadPassword(fd)
+		resultChan <- passwordResult{password: string(p), err: err}
 	}()
-	defer signal.Stop(sig)
 
-	// Read password (puts terminal into no-echo mode)
-	p, err := term.ReadPassword(fd)
-
-	// Respect cancellation or read errors
 	select {
 	case <-ctx.Done():
 		return "", sys.ErrActionAborted
-	default:
-		if err != nil {
-			return "", fmt.Errorf("reading password: %w", err)
+	case result := <-resultChan:
+		if result.err != nil {
+			return "", fmt.Errorf("reading password: %w", result.err)
 		}
-		return string(p), nil
+		return result.password, nil
 	}
 }
 
 // Prompt get the input data from the user and return it.
-func (t *Term) Prompt(p string) string {
+func (t *Term) Prompt(ctx context.Context, p string) (string, error) {
 	r := bufio.NewReader(t.reader)
+	fmt.Fprint(t.writer, p)
 
-	fmt.Print(p)
+	type inputResult struct {
+		input string
+		err   error
+	}
 
-	s, _ := r.ReadString('\n')
+	resultChan := make(chan inputResult, 1)
 
-	return strings.TrimSpace(s)
+	go func() {
+		userInput, err := r.ReadString('\n')
+		resultChan <- inputResult{input: userInput, err: err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "", sys.ErrActionAborted
+	case result := <-resultChan:
+		if result.err != nil {
+			return "", result.err
+		}
+		return strings.TrimSpace(result.input), nil
+	}
 }
 
 // PromptWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
 func (t *Term) PromptWithSuggestions(p string, items []string) string {
-	return inputWithSuggestions(p, items, t.InterruptFn)
+	return inputWithSuggestions(p, items, t.interruptFn)
 }
 
 // PromptWithFuzzySuggestions prompts the user for input with fuzzy suggestions.
 func (t *Term) PromptWithFuzzySuggestions(p string, items []string) string {
-	return inputWithFuzzySuggestions(p, items, t.InterruptFn)
+	return inputWithFuzzySuggestions(p, items, t.interruptFn)
 }
 
 // ChooseTags prompts the user for input with suggestions based on
 // the provided tags.
 func (t *Term) ChooseTags(p string, items map[string]int) string {
-	return inputWithTags(p, items, t.InterruptFn)
+	return inputWithTags(p, items, t.interruptFn)
 }
 
 // Confirm prompts the user with a question and options.
-func (t *Term) Confirm(q, def string) bool {
-	err := t.ConfirmErr(q, def)
+func (t *Term) Confirm(ctx context.Context, q, def string) bool {
+	err := t.ConfirmErr(ctx, q, def)
 	if err != nil {
 		slog.Debug("terminal confirm", "err", err)
 	}
@@ -202,7 +199,7 @@ func (t *Term) Confirm(q, def string) bool {
 }
 
 // ConfirmErr prompts the user with a question and options.
-func (t *Term) ConfirmErr(q, def string) error {
+func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 	if force {
 		slog.Debug("force", "def", def)
 		return nil
@@ -224,7 +221,7 @@ func (t *Term) ConfirmErr(q, def string) error {
 		choices[i] = h.dim(choices[i])
 	}
 
-	chosen, err := t.promptWithChoicesErr(q, choices, def)
+	chosen, err := t.promptWithChoicesErr(ctx, q, choices, def)
 	if err != nil {
 		return err
 	}
@@ -237,9 +234,9 @@ func (t *Term) ConfirmErr(q, def string) error {
 }
 
 // Choose prompts the user to enter one of the given options.
-func (t *Term) Choose(q string, opts []string, def string) (string, error) {
+func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
 	if force {
-		slog.Debug("force", "def", def)
+		slog.Debug("choose", "def", def)
 		return def, nil
 	}
 
@@ -249,11 +246,11 @@ func (t *Term) Choose(q string, opts []string, def string) (string, error) {
 
 	opts = fmtChoicesWithDefaultColor(opts, def)
 
-	return t.promptWithChoicesErr(q, opts, def)
+	return t.promptWithChoicesErr(ctx, q, opts, def)
 }
 
 // promptWithChoices prompts the user to enter one of the given options.
-func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string, error) {
+func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
 	h := &highlighter{}
 	dimmer := h.dim
 	sep := dimmer("/")
@@ -262,7 +259,7 @@ func (t *Term) promptWithChoicesErr(q string, opts []string, def string) (string
 
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 
-	return getUserInputWithAttempts(&PromptInput{
+	return getUserInputWithAttempts(ctx, &PromptInput{
 		Reader:  t.reader,
 		Writer:  t.writer,
 		Prompt:  p,
@@ -318,7 +315,12 @@ func (t *Term) Clear() {
 func (t *Term) SetInterruptFn(fn func(error)) {
 	// FIX: remove
 	slog.Info("setting interrupt function")
-	t.InterruptFn = fn
+	t.interruptFn = fn
+}
+
+// InterruptFn returns current interruptFn.
+func (t *Term) InterruptFn() func(error) {
+	return t.interruptFn
 }
 
 // CancelInterruptHandler cancels the interrupt handler.
@@ -443,25 +445,9 @@ func New(opts ...TermOptFn) *Term {
 	}
 
 	// Set default interrupt handler if not provided
-	if t.InterruptFn == nil {
-		t.InterruptFn = defaultInterruptFn
+	if t.interruptFn == nil {
+		t.interruptFn = defaultInterruptFn
 	}
-
-	// Ensure context always exists
-	if t.ctx == nil {
-		t.ctx = context.Background()
-	}
-
-	// Create a cancelable context tied to the one passed in
-	ctx, cancel := context.WithCancel(t.ctx)
-	t.cancelFn = cancel
-
-	// React to external cancellation (instead of managing signals internally)
-	go func() {
-		<-ctx.Done()
-		slog.Debug("terminal context canceled")
-		t.InterruptFn(sys.ErrActionAborted)
-	}()
 
 	return t
 }

@@ -83,13 +83,14 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 			defer cleanup()
 
 			tab := d.Console().Palette().BrightRed.Sprint("<TAB>")
-			m := picker.New[string](app,
+			m := picker.New[string](
+				app,
 				menu.WithBorderLabel("URL Parameters"),
 				menu.WithHeader("Select with "+tab+" which params to remove"),
 				menu.WithMultiSelection(),
 			)
 
-			newURL, err := handler.ProcessBookmarkParams(d, m, args[0])
+			newURL, err := handler.ProcessBookmarkParams(cmd.Context(), d, m, args[0])
 			if err != nil {
 				return err
 			}

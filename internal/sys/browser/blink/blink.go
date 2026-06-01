@@ -3,6 +3,7 @@
 package blink
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -84,7 +85,7 @@ func (b *BlinkBrowser) LoadPaths() error {
 }
 
 // Import extracts profile system names and user names.
-func (b *BlinkBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
+func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
 	p := b.paths
 	if p.bookmarks == "" || p.profiles == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -111,7 +112,7 @@ func (b *BlinkBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
 		p := fmt.Sprintf(p.bookmarks, profile)
-		processProfile(c, &bs, v, files.ExpandHomeDir(p), force)
+		processProfile(ctx, c, &bs, v, files.ExpandHomeDir(p), force)
 	}
 
 	return bs, nil
@@ -231,7 +232,7 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 }
 
 // processProfile extracts profile system names and user names.
-func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
+func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
 	f, p := c.Frame(), c.Palette()
 	skip := p.BrightYellow.Sprint("skipping")
 	pf := p.Italic.Wrap(profile, p.Bold)
@@ -242,7 +243,7 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 	}
 
 	if !force {
-		if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
+		if err := c.ConfirmErr(ctx, fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
 			c.ReplaceLine(f.Row(skip + " profile " + pf).String())
 			return
 		}

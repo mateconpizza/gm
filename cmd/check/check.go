@@ -2,6 +2,7 @@
 package check
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -25,16 +26,17 @@ func NewCmd(app *application.App) *cobra.Command {
 		Short:   "check URLs HTTP status",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " bookmark status ")
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				const maxGoroutines = 15
 
 				p := d.Console().Palette()
 				q := fmt.Sprintf("checking %s of %d bookmarks", p.BrightGreen.Wrap("status", p.Bold), len(bs))
-				if err := d.Console().ConfirmLimit(len(bs), maxGoroutines, q, app.Flags.Force); err != nil {
+				if err := d.Console().
+					ConfirmLimit(cmd.Context(), len(bs), maxGoroutines, q, app.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
-				if err := status.Check(d.Context(), d.Console(), bs); err != nil {
+				if err := status.Check(cmd.Context(), d.Console(), bs); err != nil {
 					return err
 				}
 
@@ -49,13 +51,15 @@ func NewCmd(app *application.App) *cobra.Command {
 						continue
 					}
 
-					if err := r.UpdateOne(d.Context(), b); err != nil {
+					if err := r.UpdateOne(ctx, b); err != nil {
 						return err
 					}
 				}
 
 				return nil
-			})
+			}
+
+			return cmdutil.Execute(cmd, args, m, a)
 		},
 	}
 
@@ -73,11 +77,11 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		Short: "update metadata: title, desc, tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " update metadata ")
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				c, p := d.Console(), d.Console().Palette()
 
 				s := fmt.Sprintf("update metadata of %d bookmarks", len(bs))
-				if err := c.ConfirmLimit(len(bs), 10, s, app.Flags.Force); err != nil {
+				if err := c.ConfirmLimit(cmd.Context(), len(bs), 10, s, app.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
@@ -86,13 +90,15 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 				}
 
 				for _, b := range bs {
-					if err := handler.ProcessBookmarkUpdate(d, b); err != nil {
+					if err := handler.ProcessBookmarkUpdate(cmd.Context(), d, b); err != nil {
 						return err
 					}
 				}
 
 				return nil
-			})
+			}
+
+			return cmdutil.Execute(cmd, args, m, a)
 		},
 	}
 	cmdutil.FlagSort(c, app, handler.SortSupported)

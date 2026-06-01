@@ -29,19 +29,12 @@ type OptFn func(*Options)
 type Options struct {
 	uri     string
 	doc     *goquery.Document
-	ctx     context.Context
 	started bool
 	sp      *rotato.Rotato
 }
 
 type Scraper struct {
 	Options
-}
-
-func WithContext(ctx context.Context) OptFn {
-	return func(o *Options) {
-		o.ctx = ctx
-	}
 }
 
 func WithCustomSpinner(sp *rotato.Rotato) OptFn {
@@ -61,7 +54,7 @@ func WithSpinner(mesg string) OptFn {
 }
 
 // Start fetches and parses the URL content.
-func (s *Scraper) Start() error {
+func (s *Scraper) Start(ctx context.Context) error {
 	if s.started {
 		return nil
 	}
@@ -71,16 +64,10 @@ func (s *Scraper) Start() error {
 		defer s.sp.Done()
 	}
 
-	s.doc = scrapeURL(s.ctx, s.uri)
+	s.doc = scrapeURL(ctx, s.uri)
 	s.started = true
 
 	return nil
-}
-
-func defaults() *Options {
-	return &Options{
-		ctx: context.Background(),
-	}
 }
 
 // Title retrieves the page title from the Scraper's Doc field, falling back
@@ -223,7 +210,7 @@ func (s *Scraper) resolveFaviconURL(href string) string {
 
 // New creates a new Scraper.
 func New(s string, opts ...OptFn) *Scraper {
-	o := defaults()
+	o := &Options{}
 	for _, opt := range opts {
 		opt(o)
 	}

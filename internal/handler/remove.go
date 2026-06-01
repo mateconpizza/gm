@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -21,8 +22,8 @@ import (
 )
 
 // RemoveRepo removes a repo.
-func RemoveRepo(d *deps.Deps) error {
-	app, err := d.Application()
+func RemoveRepo(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -49,14 +50,14 @@ func RemoveRepo(d *deps.Deps) error {
 			Rowln().
 			Flush()
 
-		fmt.Fprint(d.Writer(), summary.RepoFromPath(d, app.Path.Database, app.Path.Backup))
-		err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.Database)+"?", "n")
+		fmt.Fprint(d.Writer(), summary.RepoFromPath(ctx, d, app.Path.Database, app.Path.Backup))
+		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.Database)+"?", "n")
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := RemoveBackups(d); err != nil {
+	if err := RemoveBackups(ctx, d); err != nil {
 		if !errors.Is(err, db.ErrBackupNotFound) {
 			return err
 		}
@@ -73,8 +74,8 @@ func RemoveRepo(d *deps.Deps) error {
 }
 
 // RemoveBackups removes backups.
-func RemoveBackups(d *deps.Deps) error {
-	app, err := d.Application()
+func RemoveBackups(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -90,14 +91,14 @@ func RemoveBackups(d *deps.Deps) error {
 		return db.ErrBackupNotFound
 	}
 	if app.Flags.Yes || app.Flags.Force {
-		return removeSlicePath(d, fs)
+		return removeSlicePath(ctx, d, fs)
 	}
 
 	filesToRemove := make([]string, 0, len(fs))
 	c, p := d.Console(), d.Console().Palette()
 actionLoop:
 	for {
-		opt, err := c.Choose(p.BrightRed.Wrap("remove", p.Bold)+" backups?", []string{"all", "no", "select"}, "n")
+		opt, err := c.Choose(ctx, p.BrightRed.Wrap("remove", p.Bold)+" backups?", []string{"all", "no", "select"}, "n")
 		if err != nil {
 			return err
 		}
@@ -114,7 +115,9 @@ actionLoop:
 			c.SetWriter(os.Stdout)
 			selected, err := selection(
 				fs,
-				func(p *string) string { return summary.BackupWithFmtDateFromPath(d.Context(), d.Console(), *p) },
+				func(p *string) string {
+					return summary.BackupWithFmtDateFromPath(ctx, d.Console(), *p)
+				},
 				menu.WithArgs("--cycle"),
 				menu.WithConfig(app.Menu),
 				menu.WithMultiSelection(),
@@ -131,14 +134,16 @@ actionLoop:
 		}
 	}
 
-	header := func() string { return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold) }
+	header := func() string {
+		return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold)
+	}
 	c.Frame().CustomFunc(header, p.BrightRed.Sprint("Remove")+" backups\n").Rowln().Flush()
 
-	return removeSlicePath(d, filesToRemove)
+	return removeSlicePath(ctx, d, filesToRemove)
 }
 
 // removeSlicePath removes a slice of paths.
-func removeSlicePath(d *deps.Deps, dbs []string) error {
+func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 	c := d.Console()
 	f := c.Frame()
 	n := len(dbs)
@@ -146,18 +151,18 @@ func removeSlicePath(d *deps.Deps, dbs []string) error {
 		return ErrNoItems
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 	if n > 1 && !app.Flags.Yes {
 		for i := range n {
-			f.Midln(summary.RepoRecordsFromPath(d.Context(), d.Console(), dbs[i]))
+			f.Midln(summary.RepoRecordsFromPath(ctx, d.Console(), dbs[i]))
 		}
 		f.Flush()
 
 		msg := fmt.Sprintf("%s %d item/s", c.Palette().BrightRed.Sprint("removing"), n)
-		if err := c.ConfirmErr(msg+", continue?", "n"); err != nil {
+		if err := c.ConfirmErr(ctx, msg+", continue?", "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -190,13 +195,13 @@ func removeSlicePath(d *deps.Deps, dbs []string) error {
 }
 
 // Remove prompts the user the records to remove.
-func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
+func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 	defer r.Close()
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
@@ -205,7 +210,7 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	if app.Flags.Force || app.Flags.Yes {
-		return removeRecords(d, bs)
+		return removeRecords(ctx, d, bs)
 	}
 
 	c := d.Console()
@@ -232,7 +237,7 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		items = append(items, *bs[i])
 	}
 
-	items, err = confirmRemove(d, items)
+	items, err = confirmRemove(ctx, d, items)
 	if err != nil {
 		return err
 	}
@@ -242,24 +247,24 @@ func Remove(d *deps.Deps, bs []*bookmark.Bookmark) error {
 		toRemove = append(toRemove, &items[i])
 	}
 
-	return removeRecords(d, toRemove)
+	return removeRecords(ctx, d, toRemove)
 }
 
 // DropDatabase drops a database.
-func DropDatabase(d *deps.Deps) error {
+func DropDatabase(ctx context.Context, d *deps.Deps) error {
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 	c := d.Console()
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 	if app.Flags.Yes || app.Flags.Force {
 		fmt.Fprintln(d.Writer(), c.SuccessMesg("database dropped"))
 
-		return r.DropSecure(d.Context())
+		return r.DropSecure(ctx)
 	}
 
 	f, p := c.Frame(), c.Palette()
@@ -273,7 +278,7 @@ func DropDatabase(d *deps.Deps) error {
 		return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold)
 	}
 
-	s, err := summary.Info(d)
+	s, err := summary.Info(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -289,13 +294,13 @@ func DropDatabase(d *deps.Deps) error {
 		q = c.WarningMesg("dropping \"main\" database, continue?")
 	}
 
-	if err := c.ConfirmErr(q, "n"); err != nil {
+	if err := c.ConfirmErr(ctx, q, "n"); err != nil {
 		return err
 	}
 
-	if err := r.DropSecure(d.Context()); err != nil {
+	if err := r.DropSecure(ctx); err != nil {
 		return err
 	}
 
-	return c.Term().Print(d.Context(), c.SuccessMesg("database dropped\n"))
+	return c.Term().Print(ctx, c.SuccessMesg("database dropped\n"))
 }

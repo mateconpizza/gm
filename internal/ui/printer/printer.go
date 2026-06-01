@@ -251,21 +251,20 @@ func TagsJSON(ctx context.Context, w io.Writer, p string) error {
 }
 
 // RepoStats prints the database info.
-func RepoStats(d *deps.Deps) error {
-	app, err := d.Application()
+func RepoStats(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 	// FIX: Test RepoInfo()
 	if err := locker.IsLocked(app.Path.Database); err != nil {
-		fmt.Fprint(
-			d.Writer(),
-			summary.RepoFromPath(
-				d,
-				app.Path.Database+".enc",
-				app.Path.Backup,
-			),
+		sum := summary.RepoFromPath(
+			ctx,
+			d,
+			app.Path.Database+".enc",
+			app.Path.Backup,
 		)
+		fmt.Fprint(d.Writer(), sum)
 
 		return nil
 	}
@@ -287,13 +286,13 @@ func RepoStats(d *deps.Deps) error {
 
 	var sb strings.Builder
 
-	s, err := summary.Info(d)
+	s, err := summary.Info(ctx, d)
 	if err != nil {
 		return err
 	}
 	sb.WriteString(s)
 
-	g, err := gitops.Info(d.Context(), d)
+	g, err := gitops.Info(ctx, d)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}

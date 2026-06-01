@@ -123,7 +123,7 @@ func TestTermGetUserInput(t *testing.T) {
 				Default: tt.defaultVal,
 			}
 
-			result, err := getUserInputWithAttempts(mockPromptInput)
+			result, err := getUserInputWithAttempts(t.Context(), mockPromptInput)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getUserInputWithAttempts() error = %v, wantErr %v", err, tt.wantErr)

@@ -12,7 +12,7 @@ import (
 
 // Info returns a prettify info of the repository.
 func Info(ctx context.Context, d *deps.Deps) (string, error) {
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return "", err
 	}

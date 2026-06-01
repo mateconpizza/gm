@@ -1,6 +1,7 @@
 package notes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -35,7 +36,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			k := app.Menu.DefaultKeymaps.Edit
 			k.Enabled = true
 
-			m := picker.New[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
@@ -43,13 +45,14 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithKeybinds(kb.New(k.Bind, k.Desc).Execute("edit notes")),
 			)
 
-			return cmdutil.Execute(cmd, args, m, func(d *deps.Deps, bs []*bookmark.Bookmark) error {
+			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				if len(bs) == 0 {
 					return fmt.Errorf("%w: %v", ErrNotesNotFound, strings.Join(args, ""))
 				}
-
 				return printer.Notes(d.Console(), bs)
-			}, onlyNotes)
+			}
+
+			return cmdutil.Execute(cmd, args, m, a, onlyNotes)
 		},
 	}
 
@@ -66,7 +69,8 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := picker.New[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),

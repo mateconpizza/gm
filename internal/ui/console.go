@@ -83,7 +83,6 @@ func WithWriter(w io.Writer) Option {
 
 func WithDefaultTerminal(ctx context.Context, f func(error)) Option {
 	return WithTerminal(terminal.New(
-		terminal.WithContext(ctx),
 		terminal.WithInterruptFn(f),
 	))
 }
@@ -99,41 +98,41 @@ func (c *Console) SetReader(r io.Reader)        { c.term.SetReader(r) }
 func (c *Console) SetWriter(w io.Writer)        { c.term.SetWriter(w) }
 
 // ConfirmErr prompts the user with a question and options.
-func (c *Console) ConfirmErr(q, def string) error {
-	return c.term.ConfirmErr(c.frame.Reset().Question(q).StringReset(), def)
+func (c *Console) ConfirmErr(ctx context.Context, q, def string) error {
+	return c.term.ConfirmErr(ctx, c.frame.Reset().Question(q).StringReset(), def)
 }
 
-func (c *Console) Confirm(q, def string) bool {
-	return c.term.Confirm(c.frame.Reset().Question(q).StringReset(), def)
+func (c *Console) Confirm(ctx context.Context, q, def string) bool {
+	return c.term.Confirm(ctx, c.frame.Reset().Question(q).StringReset(), def)
 }
 
-func (c *Console) ConfirmLimit(count, maxItems int, q string, force bool) error {
+func (c *Console) ConfirmLimit(ctx context.Context, count, maxItems int, q string, force bool) error {
 	if force || count < maxItems {
 		return nil
 	}
-	if !c.Confirm(q+", continue?", "n") {
+	if !c.Confirm(ctx, q+", continue?", "n") {
 		return sys.ErrActionAborted
 	}
 	c.ReplaceLine(c.Frame().Midln(q).StringReset())
 	return nil
 }
 
-func (c *Console) Choose(q string, opts []string, def string) (string, error) {
-	return c.term.Choose(c.frame.Reset().Question(q).StringReset(), opts, def)
+func (c *Console) Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
+	return c.term.Choose(ctx, c.frame.Reset().Question(q).StringReset(), opts, def)
 }
 
 func (c *Console) Input(p string) string {
 	return c.term.Input(c.frame.Reset().Info(p).StringReset())
 }
 
-func (c *Console) InputPassword(s string) (string, error) {
+func (c *Console) InputPassword(ctx context.Context, s string) (string, error) {
 	c.frame.Reset().Question(s).Flush()
-	return c.term.InputPassword()
+	return c.term.InputPassword(ctx)
 }
 
 // Prompt get the input data from the user and return it.
-func (c *Console) Prompt(p string) string {
-	return c.term.Prompt(c.frame.Reset().Question(p).StringReset())
+func (c *Console) Prompt(ctx context.Context, p string) (string, error) {
+	return c.term.Prompt(ctx, c.frame.Reset().Question(p).StringReset())
 }
 
 func (c *Console) PromptWithSuggestions(p string, items []string) string {

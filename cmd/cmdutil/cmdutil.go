@@ -1,6 +1,7 @@
 package cmdutil
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -19,7 +20,7 @@ import (
 
 type (
 	// BookmarkAction defines a task to be performed on a set of bookmarks.
-	BookmarkAction func(*deps.Deps, []*bookmark.Bookmark) error
+	BookmarkAction func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 
 	// Filter is a predicate used to narrow down a slice of bookmarks
 	// before they are passed to an action or presented in a menu.
@@ -48,7 +49,6 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	})
 
 	d := deps.New(
-		ctx,
 		deps.WithApplication(app),
 		deps.WithRepo(r),
 		deps.WithConsole(c),
@@ -70,12 +70,12 @@ func Execute(
 	}
 	defer cleanup()
 
-	bs, err := handler.Data(d, args)
+	bs, err := handler.Data(cmd.Context(), d, args)
 	if err != nil {
 		return err
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -108,5 +108,5 @@ func Execute(
 		}
 	}
 
-	return action(d, bs)
+	return action(cmd.Context(), d, bs)
 }

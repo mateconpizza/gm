@@ -1,6 +1,7 @@
 package port
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
@@ -9,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/browser/blink"
 	"github.com/mateconpizza/gm/internal/sys/browser/gecko"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -33,8 +33,13 @@ var registeredBrowser = []supportedBrowser{
 }
 
 // Browser imports bookmarks from a supported browser.
-func Browser(d *deps.Deps) error {
-	br, ok := getBrowser(selectBrowser(d.Console()))
+func Browser(ctx context.Context, d *deps.Deps) error {
+	selected, err := selectBrowser(ctx, d.Console())
+	if err != nil {
+		return err
+	}
+
+	br, ok := getBrowser(selected)
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
 	}
@@ -44,17 +49,17 @@ func Browser(d *deps.Deps) error {
 	}
 
 	// find bookmarks
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
-	bs, err := br.Import(d.Console(), app.Flags.Yes)
+	bs, err := br.Import(ctx, d.Console(), app.Flags.Yes)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
 
 	// clean and process found bookmarks
-	bs, err = parseFoundInBrowser(d, bs)
+	bs, err = parseFoundInBrowser(ctx, d, bs)
 	if err != nil {
 		return err
 	}
@@ -63,18 +68,18 @@ func Browser(d *deps.Deps) error {
 		return nil
 	}
 
-	return IntoRepo(d, bs)
+	return IntoRepo(ctx, d, bs)
 }
 
 // parseFoundInBrowser processes the bookmarks found from the import
 // browser process.
-func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	c, f := d.Console(), d.Console().Frame()
 	r, err := d.Repository()
 	if err != nil {
 		return nil, err
 	}
-	bs, err = DeduplicateReport(d.Context(), c, r, bs)
+	bs, err = DeduplicateReport(ctx, c, r, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -84,16 +89,16 @@ func parseFoundInBrowser(d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Boo
 		return bs, nil
 	}
 
-	app, err := d.Application()
+	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if !app.Flags.Yes && !c.Confirm(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y") {
+	if !app.Flags.Yes && !c.Confirm(ctx, fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y") {
 		return bs, nil
 	}
 
-	if err := metadata.ScrapeDescriptions(d.Context(), bs); err != nil {
+	if err := metadata.ScrapeDescriptions(ctx, bs); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 
@@ -122,7 +127,7 @@ func getBrowser(key string) (browser.Browser, bool) {
 }
 
 // selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(c *ui.Console) string {
+func selectBrowser(ctx context.Context, c *ui.Console) (string, error) {
 	f, p := c.Frame(), c.Palette()
 	title := p.BrightGreen.With(p.Bold).
 		Sprint("Import Bookmarks from Browser")
@@ -135,7 +140,7 @@ func selectBrowser(c *ui.Console) string {
 
 	f.Headerln(title + comment).
 		Headerln(subtitle).
-		Rowln().Flush().
+		Rowln().
 		Midln("Supported Browsers").
 		Rowln()
 
@@ -148,8 +153,11 @@ func selectBrowser(c *ui.Console) string {
 		)
 	}
 
-	defer c.ClearLine(txt.CountLines(f.String()) + 1)
 	f.Rowln().Flush()
+	selected, err := c.Prompt(ctx, "Select browser: ")
+	if err != nil {
+		return "", err
+	}
 
-	return c.Prompt("Select browser: ")
+	return selected, nil
 }

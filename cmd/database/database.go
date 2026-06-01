@@ -97,7 +97,7 @@ func newStatsCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return printer.RepoStats(d)
+			return printer.RepoStats(cmd.Context(), d)
 		},
 	}
 
@@ -152,7 +152,7 @@ func newDropCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.DropDatabase(d)
+			return handler.DropDatabase(cmd.Context(), d)
 		},
 	}
 
@@ -172,7 +172,7 @@ func newLockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.LockRepo(d, app.Path.Database)
+			return handler.LockRepo(cmd.Context(), d, app.Path.Database)
 		},
 	}
 
@@ -188,12 +188,11 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipDBCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d := deps.New(
-				cmd.Context(),
 				deps.WithApplication(app),
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
-			return handler.UnlockRepo(d, app.Path.Database)
+			return handler.UnlockRepo(cmd.Context(), d, app.Path.Database)
 		},
 	}
 
@@ -280,7 +279,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 
 		fmt.Fprintln(c.Writer(), c.SuccessMesg("database dropped"))
 
-		if !c.Confirm("Untrack database?", "n") {
+		if !c.Confirm(cmd.Context(), "Untrack database?", "n") {
 			return nil
 		}
 
