@@ -96,6 +96,7 @@ func push(ctx context.Context, repoPath string) error {
 	if err != nil {
 		return fmt.Errorf("could not get current branch: %w", err)
 	}
+
 	// check if branch has upstream
 	err = runWithWriter(ctx, io.Discard, repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
 	if err != nil {

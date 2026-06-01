@@ -65,8 +65,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 func newEditCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "edit",
-		Short:   "edit configuration file",
-		Hidden:  true,
+		Short:   "edit configuration file with text editor",
 		Aliases: []string{"e"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := app.Validate(); err != nil {

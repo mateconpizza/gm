@@ -11,14 +11,14 @@ import (
 	runewidth "github.com/mattn/go-runewidth"
 
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // OnelineFunc formats a bookmark in a single line with the given colorscheme.
-// Layout: ID • URL  #go #tools.
+//
+//	ID • URL  #go #tools.
 func OnelineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	w := c.MaxWidth()
 
@@ -72,7 +72,8 @@ func OnelineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 }
 
 // BriefFunc formats a bookmark as a simple, clean list item.
-// Layout: ┃ ID Title (domain) #go #tools.
+//
+//	┃ ID Title (domain) #go #tools.
 func BriefFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	p, w := c.Palette(), c.MaxWidth()
 
@@ -145,43 +146,17 @@ func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	var sb strings.Builder
 	sb.WriteString(p.BrightYellow.With(p.Bold).Sprint(b.ID))
 	sb.WriteString(txt.NBSP)
-	sb.WriteString(txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w) + "\n")
+	sb.WriteString(txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w))
+	sb.WriteString("\n")
 
 	if b.Title != "" {
-		sb.WriteString(p.Cyan.Sprint(txt.Shorten(b.Title, w)) + "\n")
+		sb.WriteString(p.Cyan.Sprint(txt.Shorten(b.Title, w)))
+		sb.WriteString("\n")
 	}
 
 	sb.WriteString(p.BrightWhite.Wrap(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()), p.Italic))
 
 	return sb.String()
-}
-
-func FrameFormatted(c *ui.Console, b *bookmark.Bookmark) string {
-	p := c.Palette()
-	f := frame.New(frame.WithColorBorder(ansi.Dim))
-	borders := f.Borders()
-	w := c.MaxWidth() - len(borders.Row)
-
-	// id + url
-	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
-	urlColor := txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w)
-	f.Headerln(fmt.Sprintf("%s %s", id, urlColor))
-
-	// title
-	if b.Title != "" {
-		f.Midln(ansi.StyleAll(txt.SplitIntoChunks(b.Title, w), p.Cyan)...)
-	}
-
-	// description
-	if b.Desc != "" {
-		f.Midln(ansi.StyleAll(txt.SplitIntoChunks(b.Desc, w), p.Dim)...)
-	}
-
-	// tags
-	tags := p.Dim.With(p.Italic).Sprint(txt.TagsWithPound(b.Tags))
-	f.Footer(tags).Ln()
-
-	return f.String()
 }
 
 func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
@@ -272,7 +247,8 @@ func OnelineURLFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	sb.WriteString(txt.GlyphMiddleDot.With(func(u txt.Glyph) string {
 		return " " + u.String() + ""
 	}))
-	sb.WriteString(b.URL + "\n")
+	sb.WriteString(b.URL)
+	sb.WriteString("\n")
 
 	return sb.String()
 }

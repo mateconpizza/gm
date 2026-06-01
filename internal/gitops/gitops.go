@@ -13,7 +13,7 @@ import (
 
 // loadRepoBookmarks reads the git repo and returns the current bookmarks found there.
 func loadRepoBookmarks(ctx context.Context, app *application.App, m *git.Mgr) ([]*bookmark.Bookmark, error) {
-	gr := m.NewRepo(app.DBNameBase(), RepoFileReader())
+	gr := m.NewRepo(app.DBBaseName(), RepoFileReader())
 	total, err := gr.Count()
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func syncMissingToRepo(ctx context.Context, app *application.App, inDB, inRepo [
 		return false, err
 	}
 
-	gr := m.NewRepo(app.DBNameBase(), RepoFileWriter())
+	gr := m.NewRepo(app.DBBaseName(), RepoFileWriter())
 	if err := gr.Add(ctx, missing); err != nil {
 		return false, err
 	}
@@ -62,7 +62,7 @@ func pruneStaleBookmarks(ctx context.Context, app *application.App, inRepo, inDB
 		return false, err
 	}
 
-	gr := m.NewRepo(app.DBNameBase(), RepoFileRemover())
+	gr := m.NewRepo(app.DBBaseName(), RepoFileRemover())
 	if err := gr.RmMany(ctx, stale); err != nil {
 		return false, err
 	}

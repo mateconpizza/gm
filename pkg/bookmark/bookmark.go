@@ -40,13 +40,13 @@ type Bookmark struct {
 	Favorite          bool   `db:"favorite"          json:"favorite"`          // Boolean indicating if the bookmark is marked as a favorite.
 	FaviconURL        string `db:"favicon_url"       json:"favicon_url"`       // URL for the bookmark's favicon.
 	FaviconLocal      string `db:"favicon_local"     json:"favicon_local"`     // Local path to the cached favicon file.
-	Checksum          string `db:"checksum"          json:"checksum"`          // Checksum or hash (URL, Title, Description and Tags)
 	ArchiveURL        string `db:"archive_url"       json:"archive_url"`       // Internet Archive URL
 	ArchiveTimestamp  string `db:"archive_timestamp" json:"archive_timestamp"` // Internet Archive timestamp
 	LastStatusChecked string `db:"last_checked"      json:"last_checked"`      // Last checked timestamp.
 	HTTPStatusCode    int    `db:"status_code"       json:"status_code"`       // HTTP status code (200, 404, etc.)
 	HTTPStatusText    string `db:"status_text"       json:"status_text"`       // OK, Not Found, etc
 	IsActive          bool   `db:"is_active"         json:"is_active"`         // true if the URL is active (200-299)
+	Checksum          string `db:"checksum"          json:"checksum"`          // Checksum or hash (URL, Title, Description and Tags)
 }
 
 type BookmarkJSON struct {
@@ -145,7 +145,8 @@ func (b *Bookmark) Equals(o *Bookmark) bool {
 	return b.URL == o.URL &&
 		b.Tags == o.Tags &&
 		b.Title == o.Title &&
-		b.Desc == o.Desc
+		b.Desc == o.Desc &&
+		b.Notes == o.Notes
 }
 
 func (b *Bookmark) Buffer() []byte {

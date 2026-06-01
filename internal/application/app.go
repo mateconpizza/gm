@@ -189,7 +189,7 @@ func (app *App) SetDatabase(name string) error {
 	return nil
 }
 
-func (app *App) DBNameBase() string { return files.StripSuffixes(app.DBName) }
+func (app *App) DBBaseName() string { return files.StripSuffixes(app.DBName) }
 func (app *App) CreatePaths() error { return app.Path.setup() }
 
 func New(info *Information) *App {

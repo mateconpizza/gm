@@ -10,8 +10,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-var ErrFileNotFound = errors.New("file not found")
-
 const (
 	jsonExt         = ".json"
 	summaryFile     = "summary.json"  // Git and database metadata

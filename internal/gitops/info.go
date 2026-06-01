@@ -29,7 +29,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 	defer r.Close()
 
-	if !m.IsTracked(r.Name()) || !m.IsEnabled() {
+	if !m.IsTracked(app.DBBaseName()) || !m.IsEnabled() {
 		return f.StringReset(), err
 	}
 
@@ -59,10 +59,11 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 			return f.StringReset(), err
 		}
 
-		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) + p.Gray.With(p.Italic).
-			Sprintf(" (%s)", sum.LastSync)
-		f.Rowln(txt.PaddedLine("last sync:", lastSync))
-		f.Success(txt.PaddedLine("sync:", true)).Ln()
+		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) +
+			p.Gray.With(p.Italic).Sprintf(" (%s)", sum.LastSync)
+
+		f.Rowln(txt.PaddedLine("last sync:", lastSync)).
+			Success(txt.PaddedLine("sync:", true)).Ln()
 	} else {
 		f.Error(txt.PaddedLine("sync:", false)).Ln()
 	}

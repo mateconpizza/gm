@@ -41,7 +41,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 			}
 
 			gr := m.NewRepo(
-				app.DBNameBase(),
+				app.DBBaseName(),
 				gitops.RepoStatsReader(r),
 			)
 
@@ -236,7 +236,6 @@ func pushFunc(ctx context.Context, app *application.App) error {
 		return git.ErrGitNoUpstream
 	}
 
-	// SetUpstream will push changes if upstream doesn't exist
 	if err := g.SetUpstream(ctx, app.Git.Path); err != nil {
 		if !errors.Is(err, git.ErrGitUpstreamExists) {
 			return err
@@ -252,16 +251,6 @@ func pushFunc(ctx context.Context, app *application.App) error {
 		return git.ErrGitUpToDate
 	}
 
-	// Update summary and push
-	gr := m.NewRepo(app.DBNameBase())
-	err = m.SaveChanges(ctx, git.NewCommitCfg(
-		gr,
-		app.Info.Version,
-		"???????????????",
-	))
-	if err != nil {
-		return err
-	}
 	if err := g.Push(ctx); err != nil {
 		return fmt.Errorf("git push: %w", err)
 	}

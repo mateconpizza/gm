@@ -53,7 +53,7 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 		return err
 	}
 
-	repoName := app.DBNameBase()
+	repoName := app.DBBaseName()
 	if !m.IsTracked(repoName) {
 		return nil
 	}
@@ -99,7 +99,7 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 		return err
 	}
 
-	if !m.IsEnabled() || !m.IsTracked(app.DBNameBase()) {
+	if !m.IsEnabled() || !m.IsTracked(app.DBBaseName()) {
 		return nil
 	}
 
@@ -114,7 +114,7 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 	}
 
 	gr := m.NewRepo(
-		app.DBNameBase(),
+		app.DBBaseName(),
 		RepoFileRemover(),
 		RepoFileWriter(),
 		RepoStatsReader(r),
@@ -141,8 +141,8 @@ func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
 		return nil
 	}
 
-	if !m.IsTracked(app.DBNameBase()) {
-		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBNameBase())
+	if !m.IsTracked(app.DBBaseName()) {
+		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBBaseName())
 	}
 
 	inRepo, err := loadRepoBookmarks(ctx, app, m)
@@ -191,7 +191,7 @@ func NewGit(app *application.App) (*git.Git, error) {
 // UpdateSummary generates fresh stats from the DB and writes them to the Git repo.
 func UpdateSummary(ctx context.Context, app *application.App, r *db.SQLite, m *git.Mgr, msg string) error {
 	gr := m.NewRepo(
-		app.DBNameBase(),
+		app.DBBaseName(),
 		RepoStatsReader(r),
 	)
 

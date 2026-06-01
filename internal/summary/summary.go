@@ -9,11 +9,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -25,8 +27,8 @@ func Repo(ctx context.Context, d *deps.Deps) (string, error) {
 		return "", err
 	}
 
-	stats, err := db.NewStats(ctx, r)
-	if err != nil {
+	stats := db.NewStats()
+	if err := r.Stats(ctx, stats); err != nil {
 		return "", err
 	}
 
@@ -56,12 +58,18 @@ func Repo(ctx context.Context, d *deps.Deps) (string, error) {
 
 	f.Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(r.Cfg.Fullpath())))
 
+	createdAt := createdAt(r, p)
+	if createdAt != "" {
+		f.Rowln(txt.PaddedLine("created:", createdAt))
+	}
+
 	return f.StringReset(), nil
 }
 
 // RepoFromPath returns a summary of the repository.
 func RepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) string {
 	f, p := d.Console().Frame(), d.Console().Palette()
+
 	if base, found := strings.CutSuffix(dbPath, ".enc"); found {
 		dbPath = base
 		s := p.BrightMagenta.Wrap(filepath.Base(dbPath), p.Italic)
@@ -111,10 +119,18 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 		return txt.PaddedLine(s, p.Gray.Wrap("(locked)", p.Italic))
 	}
 
-	r, _ := db.New(ctx, fp)
+	r, err := db.New(ctx, fp)
+	if err != nil {
+		return p.BrightRed.Sprint("err")
+	}
 	defer r.Close()
 
-	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
+	stats := db.NewStats()
+	if err := r.Stats(ctx, stats); err != nil {
+		return p.BrightRed.Sprint("err")
+	}
+
+	main := fmt.Sprintf("(%d bookmarks)", stats.Bookmarks)
 
 	return txt.PaddedLine(r.Name(), p.Gray.Wrap(main, p.Italic))
 }
@@ -153,7 +169,7 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 	}
 	defer r.Close()
 
-	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
+	main := fmt.Sprintf("(%d bookmarks)", r.Count(ctx, "bookmarks"))
 
 	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + bkTime
 }
@@ -217,7 +233,7 @@ func Backups(ctx context.Context, d *deps.Deps) (string, error) {
 		lastBackupDate = empty
 	)
 
-	fs, err := files.List(backupPath, "*_"+app.DBNameBase()+".db*")
+	fs, err := files.List(backupPath, "*_"+app.DBBaseName()+".db*")
 	if len(fs) == 0 {
 		return "", nil
 	}
@@ -273,4 +289,18 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+func createdAt(r *db.SQLite, p *ansi.Palette) string {
+	createdAt, err := db.Metadata(r, "created_at")
+	if err != nil {
+		return ""
+	}
+
+	parsed, err := time.Parse("2006-01-02 15:04:05", createdAt)
+	if err != nil {
+		return ""
+	}
+
+	return createdAt + p.Gray.Sprintf(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
 }

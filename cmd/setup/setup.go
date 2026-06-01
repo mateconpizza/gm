@@ -113,7 +113,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	name := app.DBNameBase()
+	name := app.DBBaseName()
 	if m.IsTracked(name) {
 		return nil
 	}

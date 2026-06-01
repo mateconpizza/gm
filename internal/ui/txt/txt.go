@@ -63,6 +63,9 @@ const (
 	GlyphLightShade     Glyph = "░" // ░
 	GlyphHalfBlock      Glyph = "▄" // ▄
 	GlyphUpperHalfBlock Glyph = "▀" // ▀
+
+	GlyphPillLeft  Glyph = ""
+	GlyphPillRight Glyph = ""
 )
 
 func (g Glyph) Prefix(text string) string           { return g.String() + text }
@@ -460,9 +463,12 @@ func TagsWithColorPills(c *ui.Console, s string) string {
 		}
 
 		rc := p.Random()
-		pill1, pill2 := rc.Sprint(""), rc.Sprint("")
+		pill1, pill2 := rc.Sprint(GlyphPillLeft), rc.Sprint(GlyphPillRight)
 		tag := rc.Wrap("#"+t, p.Inverse)
-		sb.WriteString(pill1 + tag + pill2 + " ")
+		sb.WriteString(pill1)
+		sb.WriteString(tag)
+		sb.WriteString(pill2)
+		sb.WriteString(" ")
 	}
 
 	return sb.String()

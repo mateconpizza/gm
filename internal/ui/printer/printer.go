@@ -184,8 +184,8 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 		if err != nil {
 			return err
 		}
-		s, err := db.NewStats(ctx, r)
-		if err != nil {
+		s := db.NewStats()
+		if err := r.Stats(ctx, s); err != nil {
 			return err
 		}
 		s.Name = r.Name()
@@ -256,6 +256,7 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 	if err != nil {
 		return err
 	}
+
 	// FIX: Test RepoInfo()
 	if err := locker.IsLocked(app.Path.Database); err != nil {
 		sum := summary.RepoFromPath(

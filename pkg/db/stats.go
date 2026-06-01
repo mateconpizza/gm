@@ -8,13 +8,13 @@ import (
 
 // RepoStats holds metadata about a bookmark repository.
 type RepoStats struct {
-	Name        string `db:"-"`
-	Bookmarks   int    `db:"total_bookmarks"`
-	Tags        int    `db:"total_tags"`
-	Favorites   int    `db:"favorites"`
-	Archived    int    `db:"archived"`
-	DeadLinks   int    `db:"dead_links"`
-	TotalVisits int    `db:"total_visits"`
+	Name        string `db:"-"               json:"name"`
+	Bookmarks   int    `db:"total_bookmarks" json:"bookmarks"`
+	Tags        int    `db:"total_tags"      json:"tags"`
+	Favorites   int    `db:"favorites"       json:"favorites"`
+	Archived    int    `db:"archived"        json:"archived"`
+	DeadLinks   int    `db:"dead_links"      json:"dead_links"`
+	TotalVisits int    `db:"total_visits"    json:"total_visits"`
 }
 
 func (rs *RepoStats) String() string {
@@ -38,16 +38,25 @@ func (rs *RepoStats) String() string {
 	return strings.Join(parts, ", ")
 }
 
-func NewStats(ctx context.Context, r *SQLite) (*RepoStats, error) {
-	var stats RepoStats
-	err := r.DB.GetContext(ctx, &stats, `SELECT * FROM stats`)
-	if err != nil {
-		return nil, fmt.Errorf("get stats: %w", err)
-	}
-
-	return &stats, nil
+func NewStats() *RepoStats {
+	return &RepoStats{}
 }
 
 func (r *SQLite) Stats(ctx context.Context, dest any) error {
 	return r.DB.GetContext(ctx, dest, `SELECT * FROM stats`)
+}
+
+func Metadata(r *SQLite, key string) (string, error) {
+	type metadata struct {
+		Key   string `db:"key"`
+		Value string `db:"value"`
+	}
+
+	var m metadata
+	query := `SELECT key, value FROM metadata WHERE key = ?`
+	err := r.DB.Get(&m, query, key)
+	if err != nil {
+		return "", err
+	}
+	return m.Value, nil
 }

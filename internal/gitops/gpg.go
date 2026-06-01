@@ -110,7 +110,6 @@ func promptGPGPassphrase(
 	}
 
 	if unlocked {
-		// Just ensure it can be read, but DO NOT call f.LoadAsync here.
 		if _, err := f.Loader(ctx, path); err != nil {
 			return err
 		}

@@ -46,7 +46,7 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []bookmark.Bookmark) ([
 		c, p := d.Console(), d.Console().Palette()
 		c.ClearLine(1)            // clean empty line from FrameFunc
 		c.Frame().Rowln().Flush() // connect FrameFunc with prompt
-		name := p.Bold.Sprint(app.DBNameBase())
+		name := p.Bold.Sprint(app.DBBaseName())
 
 		s := fmt.Sprintf("%s [%d] bookmark/s from %s?", p.BrightRed.Wrap("remove", p.Bold), n, name)
 		opt, err := c.Choose(ctx, s, opts, "n")

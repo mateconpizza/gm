@@ -213,7 +213,7 @@ func newTrackCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			gr := m.NewRepo(app.DBNameBase(), gitops.RepoFileWriter())
+			gr := m.NewRepo(app.DBBaseName(), gitops.RepoFileWriter())
 			if err := gitops.Track(cmd.Context(), r, m, gr); err != nil {
 				return err
 			}

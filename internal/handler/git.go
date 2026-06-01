@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -76,28 +75,30 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 		return nil, fmt.Errorf("cloning remote repo: %w", err)
 	}
 
-	gp := gitops.NewPuller(
-		d.Console(),
-		tmpPath,
-		g.Root(),
-	)
+	gp := gitops.NewPuller(d.Console(), tmpPath, g.Root())
 	if err := gp.Pull(); err != nil {
 		return nil, err
 	}
 
-	p := picker.New[*git.Repo](
+	m := picker.New[*git.Repo](
 		app,
 		menu.WithHeader("select repo/s"),
 		menu.WithArgs("--cycle"),
-		menu.WithHeaderLabel(" importing from git "),
+		menu.WithHeaderLabel(" import from git "),
 		menu.WithHeader("select record/s to import"),
 		menu.WithInterruptFn(d.Console().Term().InterruptFn()),
 		menu.WithMultiSelection(),
 	)
 
-	err = gp.Select(ctx, p, ui.NewDefaultConsole(ctx, func(err error) {
-		fmt.Println(err.Error())
-	}))
+	p := d.Console().Palette()
+	dimmer := p.Dim.With(p.Italic)
+	m.SetFormatter(func(gr **git.Repo) string {
+		r := *gr
+		name := p.BrightYellow.Wrap(r.Name(), p.Bold)
+		return txt.PaddedLine(name, dimmer.Sprintf("(%s)", r.String()))
+	})
+
+	err = gp.Select(ctx, m, d.Console())
 	if err != nil {
 		return nil, err
 	}

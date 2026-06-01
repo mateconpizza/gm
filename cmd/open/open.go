@@ -5,6 +5,7 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -13,12 +14,14 @@ import (
 
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "open [query]",
-		Aliases: []string{"o"},
-		Short:   "open in browser",
+		Use:         "open [query]",
+		Aliases:     []string{"o"},
+		Short:       "open in browser",
+		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder("{+1}")
-			m := picker.New[bookmark.Bookmark](app,
+			m := picker.New[bookmark.Bookmark](
+				app,
 				menu.WithMultiSelection(),
 				menu.WithHeaderLabel(" open in browser "),
 				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),

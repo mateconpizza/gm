@@ -94,7 +94,7 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return nil
 	}
 
-	if !m.IsTracked(app.DBNameBase()) {
+	if !m.IsTracked(app.DBBaseName()) {
 		slog.DebugContext(ctx, "database path not tracked in git, skipping sync")
 		return nil
 	}

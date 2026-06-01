@@ -73,7 +73,7 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gr := m.NewRepo(app.DBNameBase())
+	gr := m.NewRepo(app.DBBaseName())
 	commitMsg := fmt.Sprintf("[%s] remove tracking", gr.Name())
 	if err := m.Untrack(ctx, gr, commitMsg); err != nil {
 		return err

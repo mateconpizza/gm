@@ -156,7 +156,7 @@ func (r *SQLite) updateRecordTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bo
 
 // All returns all bookmarks.
 func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
-	slog.DebugContext(ctx, "fetching all bookmarks from database")
+	slog.DebugContext(ctx, "fetching all bookmarks from database: "+r.Name())
 	q := `
     SELECT
       b.*,
@@ -361,7 +361,7 @@ func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 			panic(p)          // re-throw the panic
 		} else if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-				slog.ErrorContext(
+				slog.DebugContext(
 					ctx,
 					"transaction rollback failed",
 					"original_error",
@@ -476,7 +476,7 @@ func (r *SQLite) Has(ctx context.Context, bURL string) (*bookmark.Bookmark, bool
 	err := r.DB.QueryRowxContext(ctx, "SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = ?)", bURL).
 		Scan(&exists)
 	if err != nil {
-		slog.ErrorContext(ctx, "error checking existence", "error", err)
+		slog.DebugContext(ctx, "error checking existence", "error", err)
 		return nil, false
 	}
 

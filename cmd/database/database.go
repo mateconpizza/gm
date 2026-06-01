@@ -263,7 +263,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 			return err
 		}
 
-		name := app.DBNameBase()
+		name := app.DBBaseName()
 		if !m.IsTracked(name) || !files.Exists(app.Path.Database) {
 			return nil
 		}

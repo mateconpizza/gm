@@ -43,7 +43,7 @@ func Migrate(ctx context.Context, r *SQLite, ms []Migration) error {
 
 	current, err := CurrentSchemaVersion(ctx, r)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get current version", "error", err)
+		slog.DebugContext(ctx, "failed to get current version", "error", err)
 		return err
 	}
 	slog.DebugContext(ctx, "current database version", "version", current)
@@ -74,7 +74,7 @@ func Migrate(ctx context.Context, r *SQLite, ms []Migration) error {
 		slog.DebugContext(ctx, "applying migration", "version", m.Version, "name", m.Name)
 
 		if err := applyMigration(ctx, r, m); err != nil {
-			slog.ErrorContext(ctx, "migration failed",
+			slog.DebugContext(ctx, "migration failed",
 				"version", m.Version,
 				"name", m.Name,
 				"error", err)

@@ -69,12 +69,9 @@ type Repo struct {
 	*RepoOptions
 }
 
-func (gr *Repo) Name() string { return gr.name }
-
-func (gr *Repo) Root() string { return filepath.Dir(gr.fullpath) }
-
-func (gr *Repo) DB() RepoDB { return gr.db }
-
+func (gr *Repo) Name() string     { return gr.name }
+func (gr *Repo) Root() string     { return filepath.Dir(gr.fullpath) }
+func (gr *Repo) DB() RepoDB       { return gr.db }
 func (gr *Repo) Fullpath() string { return gr.fullpath }
 
 func (gr *Repo) String() string {
@@ -179,6 +176,7 @@ func (gr *Repo) Stats() (*RepoStats, error) {
 
 	sum := NewSummary()
 	err := readFile(gr.summaryFile, &sum)
+	sum.RepoStats.Name = gr.Name()
 	return sum.RepoStats, err
 }
 

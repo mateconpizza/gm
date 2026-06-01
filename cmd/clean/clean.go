@@ -32,7 +32,6 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" parameters highlighted "),
-				menu.WithNth("3.."),
 				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
 			)
 
@@ -45,6 +44,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, handler.ParamsURL, WithURLParametersOnly)
 		},
 	}
+
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 	return c

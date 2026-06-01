@@ -200,7 +200,7 @@ func HookGitSync(app *application.App) Hook {
 			msg = cmd.Name() + " hook sync"
 		}
 
-		return gitops.Sync(ctx, app, fmt.Sprintf("[%s] %s", app.DBNameBase(), msg))
+		return gitops.Sync(ctx, app, fmt.Sprintf("[%s] %s", app.DBBaseName(), msg))
 	}
 }
 
