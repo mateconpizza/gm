@@ -10,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/browser/blink"
 	"github.com/mateconpizza/gm/internal/sys/browser/gecko"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -35,7 +34,12 @@ var registeredBrowser = []supportedBrowser{
 
 // Browser imports bookmarks from a supported browser.
 func Browser(ctx context.Context, d *deps.Deps) error {
-	br, ok := getBrowser(selectBrowser(d.Console()))
+	selected, err := selectBrowser(ctx, d.Console())
+	if err != nil {
+		return err
+	}
+
+	br, ok := getBrowser(selected)
 	if !ok {
 		return fmt.Errorf("%w", browser.ErrBrowserUnsupported)
 	}
@@ -49,7 +53,7 @@ func Browser(ctx context.Context, d *deps.Deps) error {
 	if err != nil {
 		return err
 	}
-	bs, err := br.Import(d.Console(), app.Flags.Yes)
+	bs, err := br.Import(ctx, d.Console(), app.Flags.Yes)
 	if err != nil {
 		return fmt.Errorf("browser %q: %w", br.Name(), err)
 	}
@@ -90,7 +94,7 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 		return nil, err
 	}
 
-	if !app.Flags.Yes && !c.Confirm(fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y") {
+	if !app.Flags.Yes && !c.Confirm(ctx, fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "y") {
 		return bs, nil
 	}
 
@@ -123,7 +127,7 @@ func getBrowser(key string) (browser.Browser, bool) {
 }
 
 // selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(c *ui.Console) string {
+func selectBrowser(ctx context.Context, c *ui.Console) (string, error) {
 	f, p := c.Frame(), c.Palette()
 	title := p.BrightGreen.With(p.Bold).
 		Sprint("Import Bookmarks from Browser")
@@ -136,7 +140,7 @@ func selectBrowser(c *ui.Console) string {
 
 	f.Headerln(title + comment).
 		Headerln(subtitle).
-		Rowln().Flush().
+		Rowln().
 		Midln("Supported Browsers").
 		Rowln()
 
@@ -149,8 +153,11 @@ func selectBrowser(c *ui.Console) string {
 		)
 	}
 
-	defer c.ClearLine(txt.CountLines(f.String()) + 1)
 	f.Rowln().Flush()
+	selected, err := c.Prompt(ctx, "Select browser: ")
+	if err != nil {
+		return "", err
+	}
 
-	return c.Prompt("Select browser: ")
+	return selected, nil
 }

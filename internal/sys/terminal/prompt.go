@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -59,7 +60,6 @@ func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string
 	defer restore()
 
 	s := prompt.Input(p, completerPrefix(items), o...)
-
 	return s
 }
 
@@ -70,26 +70,30 @@ func inputWithFuzzySuggestions[T any](p string, items []T, exitFn func(error)) s
 	defer restore()
 
 	s := prompt.Input(p, completerFuzzy(items), o...)
-
 	return s
 }
 
 // Confirm prompts the user with a question and options.
-func Confirm(q, def string) bool {
+func Confirm(ctx context.Context, q, def string) bool {
 	t := New(WithInterruptFn(sys.ErrAndExit))
-	return t.Confirm(q, def)
+	return t.Confirm(ctx, q, def)
 }
 
 // ConfirmErr prompts the user with a question and options.
-func ConfirmErr(q, def string) error {
+func ConfirmErr(ctx context.Context, q, def string) error {
 	t := New(WithInterruptFn(sys.ErrAndExit))
-	return t.ConfirmErr(q, def)
+	return t.ConfirmErr(ctx, q, def)
 }
 
 // Choose prompts the user to enter one of the given options.
-func Choose(q string, opts []string, def string) (string, error) {
+func Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
 	t := New(WithInterruptFn(sys.ErrAndExit))
-	return t.Choose(q, opts, def)
+	return t.Choose(ctx, q, opts, def)
+}
+
+func Password(ctx context.Context) (string, error) {
+	t := New(WithInterruptFn(sys.ErrAndExit))
+	return t.InputPassword(ctx)
 }
 
 // ReadPipedInput reads the input from a pipe.
@@ -208,7 +212,7 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 
 // getUserInputWithAttempts reads user input and validates against the options,
 // with a limited number of attempts (3).
-func getUserInputWithAttempts(pi *PromptInput) (string, error) {
+func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, error) {
 	r := bufio.NewReader(pi.Reader)
 	var count int
 	h := &highlighter{}
@@ -216,32 +220,48 @@ func getUserInputWithAttempts(pi *PromptInput) (string, error) {
 	for count < maxRetries {
 		_, _ = fmt.Fprint(pi.Writer, pi.Prompt)
 
-		userInput, err := r.ReadString('\n')
-		if err != nil {
-			slog.Error("error reading input", "error", err)
-			return "", err
+		// ch to receive input result
+		type inputResult struct {
+			input string
+			err   error
 		}
+		resultChan := make(chan inputResult, 1)
 
-		userInput = strings.ToLower(strings.TrimSpace(userInput))
+		// read in a goroutine so context can interrupt it
+		go func() {
+			userInput, err := r.ReadString('\n')
+			resultChan <- inputResult{input: userInput, err: err}
+		}()
 
-		if userInput == "" && pi.Default != "" || userInput == pi.Default {
-			redrawPromptWithSelection(pi.Writer, pi.Prompt, pi.Default, pi.Options, h.green)
-			return pi.Default, nil
-		}
+		// wait for input, context cancellation, or timeout
+		select {
+		case <-ctx.Done():
+			return "", sys.ErrActionAborted
+		case result := <-resultChan:
+			if result.err != nil {
+				slog.Error("error reading input", "error", result.err)
+				return "", result.err
+			}
 
-		if isValidOption(userInput, pi.Options) {
-			redrawPromptWithSelection(pi.Writer, pi.Prompt, userInput, pi.Options, h.magenta)
-			return userInput, nil
-		}
+			userInput := strings.ToLower(strings.TrimSpace(result.input))
+			if userInput == "" && pi.Default != "" || userInput == pi.Default {
+				redrawPromptWithSelection(pi.Writer, pi.Prompt, pi.Default, pi.Options, h.green)
+				return pi.Default, nil
+			}
 
-		count++
-		if count <= maxRetries-1 {
-			ClearLine(len(strings.Split(pi.Prompt, "\n")))
+			if isValidOption(userInput, pi.Options) {
+				redrawPromptWithSelection(pi.Writer, pi.Prompt, userInput, pi.Options, h.magenta)
+				return userInput, nil
+			}
+
+			count++
+			if count <= maxRetries-1 {
+				ClearLine(len(strings.Split(pi.Prompt, "\n")))
+			}
 		}
 	}
 
 	redrawPromptWithSelection(pi.Writer, pi.Prompt, "error", []string{"error"}, h.red)
-
 	return "", fmt.Errorf("%d %w", maxRetries, ErrIncorrectAttempts)
 }
 

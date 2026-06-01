@@ -51,7 +51,7 @@ func RemoveRepo(ctx context.Context, d *deps.Deps) error {
 			Flush()
 
 		fmt.Fprint(d.Writer(), summary.RepoFromPath(ctx, d, app.Path.Database, app.Path.Backup))
-		err := c.ConfirmErr(p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.Database)+"?", "n")
+		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.Database)+"?", "n")
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 	c, p := d.Console(), d.Console().Palette()
 actionLoop:
 	for {
-		opt, err := c.Choose(p.BrightRed.Wrap("remove", p.Bold)+" backups?", []string{"all", "no", "select"}, "n")
+		opt, err := c.Choose(ctx, p.BrightRed.Wrap("remove", p.Bold)+" backups?", []string{"all", "no", "select"}, "n")
 		if err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 		f.Flush()
 
 		msg := fmt.Sprintf("%s %d item/s", c.Palette().BrightRed.Sprint("removing"), n)
-		if err := c.ConfirmErr(msg+", continue?", "n"); err != nil {
+		if err := c.ConfirmErr(ctx, msg+", continue?", "n"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 	}
@@ -294,7 +294,7 @@ func DropDatabase(ctx context.Context, d *deps.Deps) error {
 		q = c.WarningMesg("dropping \"main\" database, continue?")
 	}
 
-	if err := c.ConfirmErr(q, "n"); err != nil {
+	if err := c.ConfirmErr(ctx, q, "n"); err != nil {
 		return err
 	}
 

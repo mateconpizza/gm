@@ -89,7 +89,7 @@ func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	if err != nil {
 		return err
 	}
-	if err := d.Console().ConfirmLimit(n, maxGoroutines, s, app.Flags.Force); err != nil {
+	if err := d.Console().ConfirmLimit(ctx, n, maxGoroutines, s, app.Flags.Force); err != nil {
 		return err
 	}
 
@@ -161,7 +161,7 @@ func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *de
 		p := d.Console().Palette()
 		q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
 
-		if err := d.Console().ConfirmLimit(len(bs), maxItems, q, app.Flags.Force); err != nil {
+		if err := d.Console().ConfirmLimit(ctx, len(bs), maxItems, q, app.Flags.Force); err != nil {
 			return err
 		}
 
@@ -174,7 +174,7 @@ func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *de
 }
 
 // LockRepo locks the database.
-func LockRepo(d *deps.Deps, rToLock string) error {
+func LockRepo(ctx context.Context, d *deps.Deps, rToLock string) error {
 	c := d.Console()
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
@@ -184,14 +184,14 @@ func LockRepo(d *deps.Deps, rToLock string) error {
 		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
 	}
 
-	if err := c.ConfirmErr(fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
+	if err := c.ConfirmErr(ctx, fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
 		if errors.Is(err, sys.ErrActionAborted) {
 			return nil
 		}
 		return err
 	}
 
-	pass, err := passwordConfirm(c)
+	pass, err := passwordConfirm(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func LockRepo(d *deps.Deps, rToLock string) error {
 }
 
 // UnlockRepo unlocks the database.
-func UnlockRepo(d *deps.Deps, rToUnlock string) error {
+func UnlockRepo(ctx context.Context, d *deps.Deps, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
 		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
 	}
@@ -220,11 +220,11 @@ func UnlockRepo(d *deps.Deps, rToUnlock string) error {
 	}
 
 	c := d.Console()
-	if err := c.ConfirmErr(fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
+	if err := c.ConfirmErr(ctx, fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	s, err := c.InputPassword("Password: ")
+	s, err := c.InputPassword(ctx, "Password: ")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -301,7 +301,7 @@ func ProcessBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	}
 
 	// Handle user choice
-	opt, err := c.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+	opt, err := c.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("choose: %w", err)
 	}

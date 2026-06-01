@@ -49,7 +49,7 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []bookmark.Bookmark) ([
 		name := p.Bold.Sprint(app.DBNameBase())
 
 		s := fmt.Sprintf("%s [%d] bookmark/s from %s?", p.BrightRed.Wrap("remove", p.Bold), n, name)
-		opt, err := c.Choose(s, opts, "n")
+		opt, err := c.Choose(ctx, s, opts, "n")
 		if err != nil {
 			return nil, err
 		}
@@ -119,15 +119,15 @@ func validateRemove(bs []*bookmark.Bookmark, force bool) error {
 }
 
 // passwordConfirm prompts user for password input.
-func passwordConfirm(c *ui.Console) (string, error) {
-	s, err := c.InputPassword("Password: ")
+func passwordConfirm(ctx context.Context, c *ui.Console) (string, error) {
+	s, err := c.InputPassword(ctx, "Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
 
 	fmt.Fprintln(c.Writer())
 
-	s2, err := c.InputPassword("Confirm Password: ")
+	s2, err := c.InputPassword(ctx, "Confirm Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}

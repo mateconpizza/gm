@@ -110,7 +110,7 @@ func SelectBackupOne(ctx context.Context, d *deps.Deps, bks []string) (string, e
 
 	// Handle locked backups
 	if err := locker.IsLocked(backupPath); err != nil {
-		if err := UnlockRepo(d, backupPath); err != nil {
+		if err := UnlockRepo(ctx, d, backupPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
 

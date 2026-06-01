@@ -3,6 +3,7 @@
 package browser
 
 import (
+	"context"
 	"errors"
 
 	"github.com/mateconpizza/gm/internal/ui"
@@ -19,5 +20,5 @@ type Browser interface {
 	Short() string
 	LoadPaths() error
 	Color(string) string
-	Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, error)
+	Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error)
 }

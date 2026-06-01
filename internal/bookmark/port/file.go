@@ -69,7 +69,7 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 	}
 
 	if !app.Flags.Force && !app.Flags.Yes {
-		deduplicated, err = promptImportSelection(c, app, deduplicated)
+		deduplicated, err = promptImportSelection(ctx, c, app, deduplicated)
 		if err != nil {
 			return err
 		}
@@ -161,7 +161,7 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 }
 
 // promptImportSelection runs the interactive action loop.
-func promptImportSelection(c *ui.Console, app *application.App, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func promptImportSelection(ctx context.Context, c *ui.Console, app *application.App, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	for {
 		n := len(bs)
 		options := []string{"yes", "no"}
@@ -170,6 +170,7 @@ func promptImportSelection(c *ui.Console, app *application.App, bs []*bookmark.B
 		}
 
 		opt, err := c.Choose(
+			ctx,
 			fmt.Sprintf("import %d bookmarks into %q?", n, files.StripSuffixes(app.DBName)),
 			options,
 			"y",
@@ -187,7 +188,7 @@ func promptImportSelection(c *ui.Console, app *application.App, bs []*bookmark.B
 				app,
 				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s to import"),
-				menu.WithInterruptFn(c.Term().InterruptFn),
+				menu.WithInterruptFn(c.Term().InterruptFn()),
 				menu.WithNth("3.."),
 				menu.WithMultiSelection(),
 			)

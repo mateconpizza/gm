@@ -32,7 +32,7 @@ func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, 
 
 	p := c.Palette()
 	c.Frame().Rowln().Success("GPG command found").Ln().Flush()
-	if !c.Confirm("Use GPG for encryption? "+p.BrightRed.Wrap("(experimental)", p.Italic), "n") {
+	if !c.Confirm(ctx, "Use GPG for encryption? "+p.BrightRed.Wrap("(experimental)", p.Italic), "n") {
 		return nil
 	}
 

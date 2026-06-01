@@ -41,7 +41,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
 
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				op := waybackOperation(app.Flags)
-				if !confirmWayback(d, bs, op) {
+				if !confirmWayback(cmd.Context(), d, bs, op) {
 					return sys.ErrExitFailure
 				}
 				return runWayback(ctx, d, app.Flags, bs)
@@ -69,7 +69,7 @@ func runWayback(ctx context.Context, d *deps.Deps, flags *application.Flags, bs 
 	return handler.WaybackSnapshots(ctx, d, bs)
 }
 
-func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
+func confirmWayback(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 	f, p := d.Console().Frame(), d.Console().Palette()
 
 	title := p.BrightYellow.
@@ -104,7 +104,7 @@ func confirmWayback(d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 
 	f.Rowln().Flush()
 
-	return d.Console().Confirm("continue?", "n")
+	return d.Console().Confirm(ctx, "continue?", "n")
 }
 
 func waybackOperation(f *application.Flags) string {

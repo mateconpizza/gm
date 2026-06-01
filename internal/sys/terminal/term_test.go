@@ -2,13 +2,11 @@ package terminal
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/mateconpizza/gm/internal/sys"
 )
@@ -26,7 +24,10 @@ func TestTermPrompt(t *testing.T) {
 	input := want + "\n"
 	mockInput := strings.NewReader(input)
 	term := New(WithReader(mockInput))
-	got := term.Prompt(question)
+	got, err := term.Prompt(t.Context(), question)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if want != got {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
@@ -46,7 +47,7 @@ func TestTermChoose(t *testing.T) {
 	}
 
 	term := New(WithReader(mockInput), WithInterruptFn(exitFn))
-	result, err := term.Choose(question, []string{"golang", "python", "javascript"}, "python")
+	result, err := term.Choose(t.Context(), question, []string{"golang", "python", "javascript"}, "python")
 	if err != nil {
 		t.Errorf("expected no error during input, got: %v", err)
 	}
@@ -65,10 +66,10 @@ func TestTermConfirm(t *testing.T) {
 		t.Parallel()
 		question := "Are you sure? "
 		term := New(WithReader(strings.NewReader("y\n")))
-		if !term.Confirm(question, "y") {
+		if !term.Confirm(t.Context(), question, "y") {
 			t.Errorf("expected confirmation to be true")
 		}
-		if term.Confirm(question, "n") {
+		if term.Confirm(t.Context(), question, "n") {
 			t.Errorf("expected confirmation to be false")
 		}
 	})
@@ -77,10 +78,10 @@ func TestTermConfirm(t *testing.T) {
 		t.Parallel()
 		question := "Continue? "
 		term := New(WithReader(strings.NewReader("\n")))
-		if !term.Confirm(question, "y") {
+		if !term.Confirm(t.Context(), question, "y") {
 			t.Errorf("expected default confirmation to be true")
 		}
-		if term.Confirm(question, "n") {
+		if term.Confirm(t.Context(), question, "n") {
 			t.Errorf("expected default confirmation to be false")
 		}
 	})
@@ -89,7 +90,7 @@ func TestTermConfirm(t *testing.T) {
 		t.Parallel()
 		term := New(WithReader(strings.NewReader("invalid\n")))
 		question := "Continue? "
-		if term.Confirm(question, "y") {
+		if term.Confirm(t.Context(), question, "y") {
 			t.Errorf("expected confirmation to be false for invalid input")
 		}
 	})
@@ -101,7 +102,7 @@ func TestTestConfirmErr(t *testing.T) {
 	t.Run("user cancels", func(t *testing.T) {
 		t.Parallel()
 		term := New(WithReader(strings.NewReader("n\n")))
-		err := term.ConfirmErr("continue?", "y")
+		err := term.ConfirmErr(t.Context(), "continue?", "y")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -114,7 +115,7 @@ func TestTestConfirmErr(t *testing.T) {
 		t.Parallel()
 		input := "bad\nalso\nwrong\n"
 		term := New(WithReader(strings.NewReader(input)))
-		err := term.ConfirmErr("continue?", "y")
+		err := term.ConfirmErr(t.Context(), "continue?", "y")
 		if err == nil {
 			t.Fatal("expected error due to incorrect attempts, got nil")
 		}
@@ -126,7 +127,7 @@ func TestTestConfirmErr(t *testing.T) {
 	t.Run("valid input", func(t *testing.T) {
 		t.Parallel()
 		term := New(WithReader(strings.NewReader("y\n")))
-		err := term.ConfirmErr("continue?", "y")
+		err := term.ConfirmErr(t.Context(), "continue?", "y")
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
@@ -165,7 +166,7 @@ func TestInputPassword(t *testing.T) {
 		pwd := "123"
 		input := strings.NewReader(pwd + "\n")
 		term := New(WithWriter(io.Discard), WithReader(input))
-		s, err := term.InputPassword()
+		s, err := term.InputPassword(t.Context())
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
@@ -178,11 +179,11 @@ func TestInputPassword(t *testing.T) {
 		t.Parallel()
 		input := strings.NewReader("password1\npassword2\n")
 		term := New(WithWriter(io.Discard), WithReader(input))
-		s1, err := term.InputPassword()
+		s1, err := term.InputPassword(t.Context())
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
-		s2, err := term.InputPassword()
+		s2, err := term.InputPassword(t.Context())
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
@@ -192,28 +193,28 @@ func TestInputPassword(t *testing.T) {
 	})
 }
 
-func TestTerm_UsesProvidedContext(t *testing.T) {
-	t.Parallel()
-
-	called := make(chan error, 1)
-	ctx, cancel := context.WithCancel(t.Context())
-
-	_ = New(
-		WithContext(ctx),
-		WithInterruptFn(func(err error) {
-			called <- err
-		}),
-	)
-
-	// Cancel the context — this should trigger the InterruptFn
-	cancel()
-
-	select {
-	case err := <-called:
-		if !errors.Is(err, sys.ErrActionAborted) {
-			t.Errorf("expected sys.ErrActionAborted, got %v", err)
-		}
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("expected InterruptFn to be called when context is canceled")
-	}
-}
+// func TestTerm_UsesProvidedContext(t *testing.T) {
+// 	t.Parallel()
+//
+// 	called := make(chan error, 1)
+// 	ctx, cancel := context.WithCancel(t.Context())
+//
+// 	_ = New(
+// 		WithContext(ctx),
+// 		WithInterruptFn(func(err error) {
+// 			called <- err
+// 		}),
+// 	)
+//
+// 	// Cancel the context — this should trigger the InterruptFn
+// 	cancel()
+//
+// 	select {
+// 	case err := <-called:
+// 		if !errors.Is(err, sys.ErrActionAborted) {
+// 			t.Errorf("expected sys.ErrActionAborted, got %v", err)
+// 		}
+// 	case <-time.After(100 * time.Millisecond):
+// 		t.Fatal("expected InterruptFn to be called when context is canceled")
+// 	}
+// }

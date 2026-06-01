@@ -93,7 +93,7 @@ func (e *EditSession) processSingleRecord(
 
 		fmt.Println(strategy.Diff(original, updated))
 
-		opt, err := e.Console.Choose("save changes?", []string{"yes", "no", "edit"}, "y")
+		opt, err := e.Console.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
 			return err
 		}

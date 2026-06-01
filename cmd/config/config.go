@@ -55,7 +55,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 				return err
 			}
 			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			return createConfig(c, app)
+			return createConfig(cmd.Context(), c, app)
 		},
 	}
 	cmdutil.HideFlag(c, "db")
@@ -90,15 +90,15 @@ func cfgToJSON(ctx context.Context, app *application.App) error {
 }
 
 // createConfig dumps the app configuration to a YAML file.
-func createConfig(c *ui.Console, app *application.App) error {
-	fn := app.Path.Config
-	if files.Exists(fn) && !app.Flags.Force {
+func createConfig(ctx context.Context, c *ui.Console, app *application.App) error {
+	cfgFile := app.Path.ConfigFile()
+	if files.Exists(cfgFile) && !app.Flags.Force {
 		p := c.Palette()
 		f := p.BrightYellow.Wrap("--force", p.Italic, p.Bold)
 		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
 	}
 
-	if !app.Flags.Force && !c.Confirm(fmt.Sprintf("create configfile %q", fn), "y") {
+	if !app.Flags.Force && !c.Confirm(ctx, fmt.Sprintf("create configfile %q", cfgFile), "y") {
 		return sys.ErrActionAborted
 	}
 
@@ -106,7 +106,7 @@ func createConfig(c *ui.Console, app *application.App) error {
 		return err
 	}
 
-	fmt.Fprintf(c.Writer(), "%s: file saved %q\n", app.Name, fn)
+	fmt.Fprintf(c.Writer(), "%s: file saved %q\n", app.Name, cfgFile)
 
 	return nil
 }

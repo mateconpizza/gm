@@ -51,10 +51,7 @@ func SetupDeps(t *testing.T) *deps.Deps {
 
 	app.Path.Database = filepath.Join(temp, app.DBName)
 	app.Path.Data = temp
-	tm := terminal.New(
-		terminal.WithContext(t.Context()),
-		terminal.WithWriter(io.Discard),
-	)
+	tm := terminal.New(terminal.WithWriter(io.Discard))
 
 	return deps.New(
 		deps.WithApplication(app),
@@ -119,6 +116,6 @@ func BookmarkSlice(n int) []*bookmark.Bookmark {
 
 func ConsoleWithInput(t *testing.T, input string) *ui.Console {
 	t.Helper()
-	term := terminal.New(terminal.WithContext(t.Context()), terminal.WithReader(strings.NewReader(input)))
+	term := terminal.New(terminal.WithReader(strings.NewReader(input)))
 	return ui.NewConsole(ui.WithTerminal(term))
 }

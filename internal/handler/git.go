@@ -54,7 +54,7 @@ func GitClone(ctx context.Context, d *deps.Deps) error {
 
 	for _, gr := range gp.Repos() {
 		if gpg.IsInitialized(gr.Root()) &&
-			!t.Confirm(fmt.Sprintf("read encrypted repository %q?", gr.Name()), "yes") {
+			!t.Confirm(ctx, fmt.Sprintf("read encrypted repository %q?", gr.Name()), "yes") {
 			continue
 		}
 
@@ -91,11 +91,11 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 		menu.WithArgs("--cycle"),
 		menu.WithHeaderLabel(" importing from git "),
 		menu.WithHeader("select record/s to import"),
-		menu.WithInterruptFn(d.Console().Term().InterruptFn),
+		menu.WithInterruptFn(d.Console().Term().InterruptFn()),
 		menu.WithMultiSelection(),
 	)
 
-	err = gp.Select(p, ui.NewDefaultConsole(ctx, func(err error) {
+	err = gp.Select(ctx, p, ui.NewDefaultConsole(ctx, func(err error) {
 		fmt.Println(err.Error())
 	}))
 	if err != nil {
@@ -129,7 +129,7 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 	)
 
 	for {
-		opt, err := c.Choose(p.Bold.Wrap(gr.Name(), p.Italic)+": import mode?", opts, "m")
+		opt, err := c.Choose(ctx, p.Bold.Wrap(gr.Name(), p.Italic)+": import mode?", opts, "m")
 		if err != nil {
 			return err
 		}

@@ -102,7 +102,7 @@ func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 
 	// Update terminal for reject confirmation prompt.
 	input := "n\n"
-	term := terminal.New(terminal.WithContext(t.Context()), terminal.WithReader(strings.NewReader(input)))
+	term := terminal.New(terminal.WithReader(strings.NewReader(input)))
 	c := ui.NewConsole(ui.WithTerminal(term))
 	d.SetConsole(c)
 

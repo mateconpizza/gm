@@ -80,7 +80,7 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 			f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
 
 			for _, r := range fs {
-				if err := handler.LockRepo(d, r); err != nil {
+				if err := handler.LockRepo(cmd.Context(), d, r); err != nil {
 					if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
 						f.Warning(p.Gray.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
 						continue
@@ -118,7 +118,7 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 				return fmt.Errorf("%w", err)
 			}
 
-			return handler.UnlockRepo(d, repos[0])
+			return handler.UnlockRepo(cmd.Context(), d, repos[0])
 		},
 	}
 
@@ -203,7 +203,7 @@ func backupNewFunc(ctx context.Context, d *deps.Deps) error {
 	f.Reset().Row("\n").Flush()
 
 	if !app.Flags.Yes {
-		if err := c.ConfirmErr("create "+p.BrightGreen.Wrap("backup", p.Italic), "y"); err != nil {
+		if err := c.ConfirmErr(ctx, "create "+p.BrightGreen.Wrap("backup", p.Italic), "y"); err != nil {
 			return err
 		}
 	}

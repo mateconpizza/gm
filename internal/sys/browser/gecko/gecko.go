@@ -3,6 +3,7 @@
 package gecko
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -93,7 +94,7 @@ func (b *GeckoBrowser) LoadPaths() error {
 	return nil
 }
 
-func (b *GeckoBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
+func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
 	paths := b.paths
 	if paths.profiles == "" || paths.bookmarks == "" {
 		return nil, ErrBrowserConfigPathNotSet
@@ -109,13 +110,15 @@ func (b *GeckoBrowser) Import(c *ui.Console, force bool) ([]*bookmark.Bookmark, 
 	}
 
 	f, p := c.Frame(), c.Palette()
-	f.Header(fmt.Sprintf("Starting %s import\n", b.Color(b.Name())))
-	f.Midln("Found " + p.Bold.Sprint(len(profiles)) + " profiles")
+	f.Rowln().
+		Header(fmt.Sprintf("Starting %s import\n", b.Color(b.Name()))).
+		Midln("Found " + p.Bold.Sprint(len(profiles)) + " profiles").
+		Flush()
 
 	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
 		p := fmt.Sprintf(paths.bookmarks, v)
-		processProfile(c, &bs, profile, p, force)
+		processProfile(ctx, c, &bs, profile, p, force)
 	}
 
 	return bs, nil
@@ -238,8 +241,8 @@ func allProfiles(p string) (map[string]string, error) {
 }
 
 // processProfile processes a single profile and extracts bookmarks.
-func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
-	if !confirmImport(c, profile, force) {
+func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
+	if !confirmImport(ctx, c, profile, force) {
 		return
 	}
 
@@ -274,18 +277,20 @@ func processProfile(c *ui.Console, bs *[]*bookmark.Bookmark, profile, path strin
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-skipped)).Flush()
 }
 
-func confirmImport(c *ui.Console, profile string, force bool) bool {
+func confirmImport(ctx context.Context, c *ui.Console, profile string, force bool) bool {
 	p := c.Palette()
 	if force {
 		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
 		return true
 	}
-	if err := c.ConfirmErr(fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
+
+	if err := c.ConfirmErr(ctx, fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
 		c.ClearLine(1)
 		pf := p.Italic.Wrap(profile, p.Bold)
 		c.Warning(p.BrightYellow.Wrap("skipping", p.Italic) + " profile " + pf).Ln().Flush()
 		return false
 	}
+
 	return true
 }
 

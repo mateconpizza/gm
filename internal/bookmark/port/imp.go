@@ -95,7 +95,7 @@ func IntoRepo(ctx context.Context, d *deps.Deps, records []*bookmark.Bookmark) e
 	}
 
 	if !app.Flags.Force && len(records) > 1 {
-		records, err = promptImportSelection(d.Console(), app, records)
+		records, err = promptImportSelection(ctx, d.Console(), app, records)
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) err
 	m := picker.New[bookmark.Bookmark](
 		app,
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
-		menu.WithInterruptFn(t.InterruptFn),
+		menu.WithInterruptFn(t.InterruptFn()),
 		menu.WithMultiSelection(),
 		menu.WithPreview(app.PreviewCmd("./backup/"+srcDB.Name(), "{+1}")),
 	)

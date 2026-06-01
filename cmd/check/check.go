@@ -31,7 +31,8 @@ func NewCmd(app *application.App) *cobra.Command {
 
 				p := d.Console().Palette()
 				q := fmt.Sprintf("checking %s of %d bookmarks", p.BrightGreen.Wrap("status", p.Bold), len(bs))
-				if err := d.Console().ConfirmLimit(len(bs), maxGoroutines, q, app.Flags.Force); err != nil {
+				if err := d.Console().
+					ConfirmLimit(cmd.Context(), len(bs), maxGoroutines, q, app.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 
@@ -80,7 +81,7 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 				c, p := d.Console(), d.Console().Palette()
 
 				s := fmt.Sprintf("update metadata of %d bookmarks", len(bs))
-				if err := c.ConfirmLimit(len(bs), 10, s, app.Flags.Force); err != nil {
+				if err := c.ConfirmLimit(cmd.Context(), len(bs), 10, s, app.Flags.Force); err != nil {
 					return sys.ErrActionAborted
 				}
 

@@ -18,7 +18,7 @@ type Menu interface {
 }
 
 type Terminal interface {
-	Choose(string, []string, string) (string, error)
+	Choose(context.Context, string, []string, string) (string, error)
 }
 
 // GitPuller handles remote repository data ingestion.
@@ -170,14 +170,14 @@ func printHeader(rp *GitPuller) {
 	f.Rowln().Flush()
 }
 
-func (gp *GitPuller) Select(m Menu, t Terminal) error {
+func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
 	opts := []string{"yes", "no"}
 	n := len(gp.found)
 	if n > 1 {
 		opts = append(opts, "select")
 	}
 
-	opt, err := t.Choose("import repositories?", opts, "n")
+	opt, err := t.Choose(ctx, "import repositories?", opts, "n")
 	if err != nil {
 		return err
 	}

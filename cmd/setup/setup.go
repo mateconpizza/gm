@@ -119,7 +119,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	}
 
 	c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-	if !c.Confirm(fmt.Sprintf("Track database %q?", name), "n") {
+	if !c.Confirm(cmd.Context(), fmt.Sprintf("Track database %q?", name), "n") {
 		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", name)).String())
 		return nil
 	}

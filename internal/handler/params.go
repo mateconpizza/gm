@@ -259,7 +259,7 @@ func promptParamRemoval(
 	if len(q) > 1 {
 		opts = append(opts, "select")
 	}
-	opt, err = c.Choose(p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
+	opt, err = c.Choose(ctx, p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
 
 	return opt, lines, err
 }

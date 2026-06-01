@@ -32,7 +32,6 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
 				deps.WithConsole(ui.NewConsole(
 					ui.WithFrame(frame.New(frame.WithColorBorder(ansi.Gray))),
 					ui.WithTerminal(terminal.New(
-						terminal.WithContext(cmd.Context()),
 						terminal.WithInterruptFn(func(err error) {
 							db.Shutdown()
 							sys.ErrAndExit(err)

@@ -79,7 +79,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	title := app.Flags.Title
 	tags := app.Flags.TagsStr
 	c := d.Console()
-	newURL, err := newURLFromArgs(c, args)
+	newURL, err := newURLFromArgs(ctx, c, args)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 }
 
 // readURLFromClipboard checks if there a valid URL in the clipboard.
-func readURLFromClipboard(c *ui.Console) string {
+func readURLFromClipboard(ctx context.Context, c *ui.Console) string {
 	cb := sys.ReadClipboard()
 	if !ValidURL(cb) {
 		return ""
@@ -132,7 +132,7 @@ func readURLFromClipboard(c *ui.Console) string {
 	f.Flush()
 
 	t := c.Term()
-	if err := c.ConfirmErr("found valid URL in clipboard, use URL?", "y"); err != nil {
+	if err := c.ConfirmErr(ctx, "found valid URL in clipboard, use URL?", "y"); err != nil {
 		t.ClearLine(lines)
 		return ""
 	}
@@ -143,7 +143,7 @@ func readURLFromClipboard(c *ui.Console) string {
 }
 
 // newURLFromArgs parse URL from args.
-func newURLFromArgs(c *ui.Console, args []string) (string, error) {
+func newURLFromArgs(ctx context.Context, c *ui.Console, args []string) (string, error) {
 	f, t, p := c.Frame(), c.Term(), c.Palette()
 	dot := func() string { return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 
@@ -157,7 +157,7 @@ func newURLFromArgs(c *ui.Console, args []string) (string, error) {
 	}
 
 	// checks clipboard
-	cb := readURLFromClipboard(c)
+	cb := readURLFromClipboard(ctx, c)
 	if cb != "" {
 		return cb, nil
 	}
@@ -289,7 +289,7 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 	}
 
 	c := d.Console()
-	opt, err := c.Choose("save bookmark?", []string{"yes", "no", "edit"}, "y")
+	opt, err := c.Choose(ctx, "save bookmark?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}

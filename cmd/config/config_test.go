@@ -36,7 +36,7 @@ func TestConfig_Create(t *testing.T) {
 		fn := application.ConfigFilename
 		app.Path.Config = filepath.Join(dir, fn)
 
-		err := createConfig(c, app)
+		err := createConfig(t.Context(), c, app)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -64,7 +64,7 @@ func TestConfig_Create(t *testing.T) {
 		dir := t.TempDir()
 		app.Path.Config = filepath.Join(dir, application.ConfigFilename)
 
-		err := createConfig(c, app)
+		err := createConfig(t.Context(), c, app)
 		if err == nil {
 			t.Fatal("expected error but got none")
 		}
@@ -77,16 +77,17 @@ func TestConfig_Create(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		fn := filepath.Join(dir, application.ConfigFilename)
-		_, err := files.Touch(fn, false)
+		path := filepath.Join(dir, application.ConfigFilename)
+		_, err := files.Touch(path, false)
 		if err != nil {
 			t.Fatalf("setup failed: %v", err)
 		}
 
 		app := testutil.SetupApp(t)
-		app.Path.Config = fn
+		app.Path.Data = dir
+
 		c := ui.NewConsole()
-		err = createConfig(c, app)
+		err = createConfig(t.Context(), c, app)
 		if !errors.Is(err, files.ErrFileExists) {
 			t.Fatalf("got error %v, want %v", err, files.ErrFileExists)
 		}
@@ -94,6 +95,12 @@ func TestConfig_Create(t *testing.T) {
 		wantErrStr := "file already exists."
 		if !strings.Contains(err.Error(), wantErrStr) {
 			t.Errorf("error message %q should contain %q", err.Error(), wantErrStr)
+		}
+
+		want := path
+		got := app.Path.ConfigFile()
+		if want != got {
+			t.Fatalf("unexpected path. want: %q, got: %q", want, got)
 		}
 	})
 }

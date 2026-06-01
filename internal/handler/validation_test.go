@@ -55,7 +55,7 @@ func TestPasswordInput(t *testing.T) {
 			)),
 		)
 
-		s, err := passwordConfirm(c)
+		s, err := passwordConfirm(t.Context(), c)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -75,7 +75,7 @@ func TestPasswordInput(t *testing.T) {
 			)),
 		)
 
-		s, err := passwordConfirm(c)
+		s, err := passwordConfirm(t.Context(), c)
 		if err == nil {
 			t.Error("expected error, got none")
 		}

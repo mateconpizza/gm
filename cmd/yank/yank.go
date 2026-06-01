@@ -35,7 +35,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				t, p := d.Console(), d.Console().Palette()
 
 				s := fmt.Sprintf("%s %d bookmarks to system clipboard", p.BrightGreen.Wrap("copy", p.Bold), len(bs))
-				if err := t.ConfirmLimit(len(bs), 10, s, app.Flags.Force); err != nil {
+				if err := t.ConfirmLimit(cmd.Context(), len(bs), 10, s, app.Flags.Force); err != nil {
 					return err
 				}
 
