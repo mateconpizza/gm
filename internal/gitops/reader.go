@@ -57,7 +57,7 @@ func ReadJSONRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark,
 	f := bookio.NewFileLoader(cfg.loader.Func)
 
 	cfg.sp.UpdatePrefix(cfg.loader.Prefix)
-	cfg.sp.Start()
+	cfg.sp.Start(ctx)
 	defer cfg.sp.Done()
 
 	if err := filepath.WalkDir(cfg.root, func(path string, d fs.DirEntry, err error) error {
