@@ -108,7 +108,7 @@ func openInBrowser(ctx context.Context, bs []*bookmark.Bookmark) error {
 		rotato.WithSpinnerColor(rotato.FgBrightGreen),
 	)
 
-	sp.Start()
+	sp.Start(ctx)
 	defer sp.Done()
 
 	g, ctx := errgroup.WithContext(ctx)

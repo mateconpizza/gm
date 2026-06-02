@@ -171,7 +171,7 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 		rotato.WithMessage("removing database..."),
 		rotato.WithMessageColor(rotato.FgYellow),
 	)
-	sp.Start()
+	sp.Start(ctx)
 
 	rmRepo := func(p string) error {
 		if err := files.Remove(p); err != nil {

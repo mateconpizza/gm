@@ -254,7 +254,7 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 	uniqueTag := getTodayFormatted()
 	addParentFolderAsTag := true
 
-	result, err := loadChromeDatabase(path, uniqueTag, addParentFolderAsTag)
+	result, err := loadChromeDatabase(ctx, path, uniqueTag, addParentFolderAsTag)
 	if err != nil {
 		fmt.Fprintln(c.Writer(), "Error loading Chrome database:", err)
 	}
@@ -288,7 +288,7 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 }
 
 // Define the main function to load the Chrome database.
-func loadChromeDatabase(path, uniqueTag string, addParentFolderAsTag bool) ([]blinkBookmark, error) {
+func loadChromeDatabase(ctx context.Context, path, uniqueTag string, addParentFolderAsTag bool) ([]blinkBookmark, error) {
 	byteValue, _ := os.ReadFile(path)
 
 	s := rotato.New(
@@ -296,7 +296,7 @@ func loadChromeDatabase(path, uniqueTag string, addParentFolderAsTag bool) ([]bl
 		rotato.WithMessageColor(rotato.FgBrightBlue),
 		rotato.WithSpinnerColor(rotato.FgGray),
 	)
-	s.Start()
+	s.Start(ctx)
 	defer s.Done()
 
 	// unmarshal the json data

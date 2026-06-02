@@ -46,7 +46,7 @@ func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) 
 		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
 		rotato.WithDoneSymbolColor(rotato.FgBrightGreen, rotato.StyleBold),
 	)
-	sp.Start()
+	sp.Start(ctx)
 	defer sp.Done("Scraping done")
 
 	g, ctx := errgroup.WithContext(ctx)

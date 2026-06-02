@@ -60,7 +60,7 @@ func (s *Scraper) Start(ctx context.Context) error {
 	}
 
 	if s.sp != nil {
-		s.sp.Start()
+		s.sp.Start(ctx)
 		defer s.sp.Done()
 	}
 

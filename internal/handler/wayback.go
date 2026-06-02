@@ -43,7 +43,6 @@ func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 	results := make(chan SnapshotResult, len(bs))
 
 	sp := rotato.New(
-		rotato.WithContext(ctx),
 		rotato.WithPrefix("Snapshots"),
 		rotato.WithPrefixDecorator(func(prefix string) string { // n/N <prefix>
 			current := count.Load()
@@ -56,7 +55,7 @@ func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 		rotato.WithFailMessageColor(rotato.FgBrightRed),
 	)
 
-	sp.Start()
+	sp.Start(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(1)
@@ -273,7 +272,7 @@ func fetchSnapshots(
 		}),
 	)
 
-	sp.Start()
+	sp.Start(ctx)
 
 	snapshots, err := ct.Snapshots(ctx, b.URL)
 	if err != nil {

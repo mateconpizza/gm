@@ -32,7 +32,7 @@ func gpgStrategy(fingerprintPath string) *bookio.RepositoryLoader {
 func ReadGPGRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark, error) {
 	f := bookio.NewFileLoader(cfg.loader.Func)
 
-	cfg.sp.Start()
+	cfg.sp.Start(ctx)
 	defer cfg.sp.Done()
 
 	var passphrasePrompted bool
