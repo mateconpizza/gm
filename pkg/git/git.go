@@ -15,6 +15,10 @@ const (
 	AttributesFile = ".gitattributes"
 )
 
+func Initialized(root string) bool {
+	return fileExists(root)
+}
+
 type GitOpt func(*GitOptions)
 
 type GitOptions struct {
@@ -51,10 +55,8 @@ func NewCommitCfg(gr *Repo, ver, msg string) *CommitCfg {
 
 // Git handles operational tasks on a local Git repository.
 type Git struct {
-	bin           string
-	fullpath      string
-	isInitialized bool
-
+	bin      string
+	fullpath string
 	*GitOptions
 }
 
@@ -88,6 +90,7 @@ func (g *Git) SetCfgLocal(ctx context.Context, k, v string) error {
 func (g *Git) CloneInto(ctx context.Context, repoURL, destPath string) error {
 	return g.run(ctx, "", "clone", repoURL, destPath)
 }
+
 func Command() (string, error) { return which(command) }
 
 // Init creates a new Git repository.
@@ -131,12 +134,6 @@ func (g *Git) SetUpstream(ctx context.Context, repoPath string) error {
 	}
 
 	return g.run(ctx, repoPath, "push", "--set-upstream", "origin", b)
-}
-
-// SetRepoPath sets the repository path.
-func (g *Git) SetRepoPath(path string) {
-	g.isInitialized = false
-	g.fullpath = path
 }
 
 func (g *Git) run(ctx context.Context, repoPath string, commands ...string) error {

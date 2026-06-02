@@ -33,8 +33,8 @@ func TestConfig_Create(t *testing.T) {
 
 		dir := t.TempDir()
 		app := testutil.SetupApp(t)
+		app.Path.Data = dir
 		fn := application.ConfigFilename
-		app.Path.Config = filepath.Join(dir, fn)
 
 		err := createConfig(t.Context(), c, app)
 		if err != nil {
@@ -62,7 +62,7 @@ func TestConfig_Create(t *testing.T) {
 		app := testutil.SetupApp(t)
 		app.Flags.Yes = true
 		dir := t.TempDir()
-		app.Path.Config = filepath.Join(dir, application.ConfigFilename)
+		app.Path.Data = dir
 
 		err := createConfig(t.Context(), c, app)
 		if err == nil {

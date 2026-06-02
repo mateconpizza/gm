@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 var (
@@ -47,8 +48,6 @@ type (
 	Git struct {
 		Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
 		Log     bool   `json:"logging" yaml:"logging"` // Enable logging
-		GPG     bool   `json:"gpg"     yaml:"gpg"`     // Enable GPG
-		Path    string `json:"path"    yaml:"path"`    // Path to store git
 		Remote  string `json:"remote"  yaml:"remote"`  // Remote repo
 	}
 
@@ -70,7 +69,6 @@ type (
 
 // Initialize prepares the config after flags are parsed.
 func (app *App) Initialize() {
-	// FIX: drop this, use Setup instead.
 	if app.initialized {
 		return
 	}
@@ -91,8 +89,6 @@ func (app *App) Setup() error {
 
 	// set app home
 	app.Path.Data = dataHomePath
-	app.Path.Config = filepath.Join(app.Path.Data, ConfigFilename)
-	app.Path.Backup = filepath.Join(app.Path.Data, "backup")
 
 	// set main database path and name
 	return app.SetDatabase(app.DBName)
@@ -100,7 +96,7 @@ func (app *App) Setup() error {
 
 // Load loads the user configurations file.
 func (app *App) Load() error {
-	err := getConfig(app.Path.Config, app)
+	err := getConfig(app.Path.ConfigFile(), app)
 	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
 		return err
 	}
@@ -108,13 +104,13 @@ func (app *App) Load() error {
 	return app.SetDatabase(app.DBName)
 }
 
-func (app *App) WriteConfig() error {
-	app.DBName = files.StripSuffixes(app.DBName)
-	if !app.Git.Enabled {
+func (app *App) WriteConfig(force bool) error {
+	app.DBName = app.DBBaseName()
+	if !git.Initialized(app.Path.Git()) {
 		app.Git = nil
 	}
 
-	return WriteYAML(app.Path.Config, app, app.Flags.Force)
+	return WriteYAML(app.Path.ConfigFile(), app, force)
 }
 
 // Validate validates the configuration file.
@@ -125,7 +121,7 @@ func (app *App) Validate() error {
 	if files.StripSuffixes(app.DBName) == "" {
 		return ErrDatabaseInvalidName
 	}
-	if app.Path.Database == "" {
+	if app.Path.DB() == "" {
 		return ErrDatabasePathNotSet
 	}
 	if app.Menu != nil {
@@ -146,7 +142,7 @@ func (app *App) PrettyVersion() string {
 		return fmt.Sprintf(
 			"%s v%s %s/%s\n",
 			name,
-			app.Info.Version,
+			app.Version(),
 			runtime.GOOS,
 			runtime.GOARCH,
 		)
@@ -154,7 +150,7 @@ func (app *App) PrettyVersion() string {
 
 	var sb strings.Builder
 
-	fmt.Fprintf(&sb, "%s v%s\n\n", name, app.Info.Version)
+	fmt.Fprintf(&sb, "%s v%s\n\n", name, app.Version())
 
 	w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', 0)
 
@@ -191,6 +187,15 @@ func (app *App) SetDatabase(name string) error {
 
 func (app *App) DBBaseName() string { return files.StripSuffixes(app.DBName) }
 func (app *App) CreatePaths() error { return app.Path.setup() }
+func (app *App) GitEnabled() bool   { return app.Git.Enabled }
+func (app *App) Version() string    { return app.Info.Version }
+
+func (g *Git) Status() string {
+	if !g.Enabled {
+		return "disabled"
+	}
+	return "enabled"
+}
 
 func New(info *Information) *App {
 	return &App{
@@ -202,7 +207,6 @@ func New(info *Information) *App {
 		Path:   &Path{},
 		Git: &Git{
 			Enabled: false,
-			GPG:     false,
 			// FIX: `Log` not implemented yet
 			// if set to `false` it will silent the `git` output
 			Log: true,
@@ -212,6 +216,14 @@ func New(info *Information) *App {
 			Editor: EnvEditor,
 		},
 		Menu: menu.NewDefaultConfig(),
+	}
+}
+
+func NewApp(dataHome string) *App {
+	return &App{
+		Path: &Path{
+			Data: dataHome,
+		},
 	}
 }
 

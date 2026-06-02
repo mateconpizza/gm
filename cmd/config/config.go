@@ -31,7 +31,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				return cfgToJSON(cmd.Context(), app)
 			}
 			if app.Flags.Print {
-				return showPathFile(os.Stdout, app.Path.Config)
+				return showPathFile(os.Stdout, app.Path.ConfigFile())
 			}
 
 			return cmd.Help()
@@ -101,7 +101,7 @@ func createConfig(ctx context.Context, c *ui.Console, app *application.App) erro
 		return sys.ErrActionAborted
 	}
 
-	if err := app.WriteConfig(); err != nil {
+	if err := app.WriteConfig(app.Flags.Force); err != nil {
 		return err
 	}
 
@@ -112,7 +112,7 @@ func createConfig(ctx context.Context, c *ui.Console, app *application.App) erro
 
 // editConfig edits the config file.
 func editConfig(ctx context.Context, app *application.App) error {
-	p := app.Path.Config
+	p := app.Path.ConfigFile()
 	if !files.Exists(p) {
 		return fmt.Errorf("config %w", files.ErrFileNotFound)
 	}

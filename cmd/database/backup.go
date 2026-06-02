@@ -70,7 +70,7 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			fs, err := handler.SelectBackupMany(cmd.Context(), d, app.Path.Backup, "select backup/s to lock")
+			fs, err := handler.SelectBackupMany(cmd.Context(), d, app.Path.Backup(), "select backup/s to lock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -108,12 +108,11 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			p := app.Path.Backup
-			if !files.Exists(p) {
+			if !files.Exists(app.Path.Backup()) {
 				return fmt.Errorf("%w", db.ErrBackupNotFound)
 			}
 
-			repos, err := handler.SelectFileLocked(cmd.Context(), d, p, "select backup to unlock")
+			repos, err := handler.SelectFileLocked(cmd.Context(), d, app.Path.Backup(), "select backup to unlock")
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -184,7 +183,7 @@ func backupNewFunc(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	srcPath := app.Path.Database
+	srcPath := app.Path.DB()
 	if !files.Exists(srcPath) {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
 	}
@@ -208,7 +207,7 @@ func backupNewFunc(ctx context.Context, d *deps.Deps) error {
 		}
 	}
 
-	if err := files.MkdirAll(app.Path.Backup); err != nil {
+	if err := files.MkdirAll(app.Path.Backup()); err != nil {
 		return err
 	}
 
@@ -217,7 +216,7 @@ func backupNewFunc(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	newBkPath, err := r.Backup(ctx, app.Path.Backup)
+	newBkPath, err := r.Backup(ctx, app.Path.Backup())
 	if err != nil {
 		return err
 	}

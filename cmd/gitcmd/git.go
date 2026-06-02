@@ -35,7 +35,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			r, err := db.New(cmd.Context(), app.Path.Database)
+			r, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {
 				return err
 			}
@@ -47,7 +47,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 
 			return m.SaveChanges(cmd.Context(), git.NewCommitCfg(
 				gr,
-				app.Info.Version,
+				app.Version(),
 				cmd.Short,
 			))
 		},
@@ -117,7 +117,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 			m, err := git.NewManager(
 				app.Path.Git(),
 				git.WithGit(g),
-				gitops.MgrVersion(app.Info.Version),
+				gitops.MgrVersion(app.Version()),
 			)
 			if err != nil {
 				return err
@@ -210,7 +210,7 @@ func newSyncCmd(app *application.App) *cobra.Command {
 		Short:       "sync bookmarks with local repo",
 		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(cmd.Context(), app.Path.Database)
+			r, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {
 				return err
 			}
@@ -236,7 +236,7 @@ func pushFunc(ctx context.Context, app *application.App) error {
 		return git.ErrGitNoUpstream
 	}
 
-	if err := g.SetUpstream(ctx, app.Git.Path); err != nil {
+	if err := g.SetUpstream(ctx, app.Path.Git()); err != nil {
 		if !errors.Is(err, git.ErrGitUpstreamExists) {
 			return err
 		}

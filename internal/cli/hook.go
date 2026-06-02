@@ -100,12 +100,12 @@ func HookEnsureDatabase(app *application.App) Hook {
 			return nil
 		}
 
-		if files.Exists(app.Path.Database) {
+		if files.Exists(app.Path.DB()) {
 			databaseChecked = true
 			return nil
 		}
 
-		if err := checkDatabaseLocked(app.Path.Database); err != nil {
+		if err := checkDatabaseLocked(app.Path.DB()); err != nil {
 			return err
 		}
 
@@ -126,8 +126,8 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	if files.Exists(app.Path.Database) {
-		if ok, _ := db.IsInitializedFromPath(cmd.Context(), app.Path.Database); ok {
+	if files.Exists(app.Path.DB()) {
+		if ok, _ := db.IsInitializedFromPath(cmd.Context(), app.Path.DB()); ok {
 			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, app.DBName)
 		}
 
@@ -138,8 +138,6 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 }
 
 // HookEnsureGitEnv ensures Git environment is properly set up.
-// Shows help if help flags are present, verifies Git is installed,
-// and checks if repository is initialized (except for init/import/clone commands).
 func HookEnsureGitEnv(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {
 		// This will handle when the `c.DisableFlagParsing` is true and show help command.
@@ -167,7 +165,12 @@ func HookEnsureGitEnv(app *application.App) Hook {
 			return nil
 		}
 
-		if !app.Git.Enabled {
+		isInitialized := git.Initialized(app.Path.Git())
+		if !app.GitEnabled() && isInitialized {
+			return git.ErrGitDisabled
+		}
+
+		if !isInitialized {
 			i := ansi.BrightYellow.With(ansi.Italic).Sprint("git init")
 			return fmt.Errorf("%w: use %s to setup", git.ErrGitNotInitialized, i)
 		}

@@ -16,6 +16,7 @@ import (
 var (
 	ErrGitInitialized     = errors.New("git: is initialized")
 	ErrGitNotInitialized  = errors.New("git: is not initialized")
+	ErrGitDisabled        = errors.New("git: is disabled")
 	ErrGitNoCommits       = errors.New("git: no commits found")
 	ErrGitNoUpstream      = errors.New("git: no upstream configured")
 	ErrGitUpstreamExists  = errors.New("git: remote origin already exists")

@@ -43,6 +43,10 @@ func Add(ctx context.Context, gitRoot string, r *db.SQLite, b *bookmark.Bookmark
 }
 
 func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) error {
+	if !app.GitEnabled() {
+		return nil
+	}
+
 	g, err := NewGit(app)
 	if err != nil {
 		return err
@@ -58,7 +62,7 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 		return nil
 	}
 
-	r, err := db.New(ctx, app.Path.Database)
+	r, err := db.New(ctx, app.Path.DB())
 	if err != nil {
 		return err
 	}
@@ -75,7 +79,7 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 
 	return m.SaveChanges(ctx, git.NewCommitCfg(
 		gr,
-		app.Info.Version,
+		app.Version(),
 		fmt.Sprintf("[%s] remove bookmarks", repoName),
 	))
 }
@@ -85,6 +89,10 @@ func Drop(ctx context.Context, app *application.App) error {
 }
 
 func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Bookmark) error {
+	if !app.GitEnabled() {
+		return nil
+	}
+
 	g, err := NewGit(app)
 	if err != nil {
 		return err
@@ -93,7 +101,7 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 	m, err := git.NewManager(
 		app.Path.Git(),
 		git.WithGit(g),
-		MgrVersion(app.Info.Version),
+		MgrVersion(app.Version()),
 	)
 	if err != nil {
 		return err
@@ -103,7 +111,7 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 		return nil
 	}
 
-	r, err := db.New(ctx, app.Path.Database)
+	r, err := db.New(ctx, app.Path.DB())
 	if err != nil {
 		return err
 	}
@@ -125,6 +133,10 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 
 // Prune checks for differences between database and local repo and syncs them.
 func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
+	if !app.GitEnabled() {
+		return nil
+	}
+
 	slog.Debug("git prune: starting repository prune")
 
 	g, err := NewGit(app)
@@ -197,7 +209,7 @@ func UpdateSummary(ctx context.Context, app *application.App, r *db.SQLite, m *g
 
 	return m.SaveChanges(ctx, git.NewCommitCfg(
 		gr,
-		app.Info.Version,
+		app.Version(),
 		msg,
 	))
 }

@@ -38,7 +38,7 @@ func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	f, err := os.Create(app.Path.Database)
+	f, err := os.Create(app.Path.DB())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,11 +62,10 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	app.Path.Backup = filepath.Join(app.Path.Data, "backup")
 	app.Flags.Yes = true
 	app.Flags.Force = true
 
-	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.Database, 5)
+	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.DB(), 5)
 	d.SetRepo(r)
 
 	var buf bytes.Buffer
@@ -76,7 +75,7 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	info, err := os.Stat(app.Path.Backup)
+	info, err := os.Stat(app.Path.Backup())
 	if err != nil {
 		t.Fatalf("expected backup dir, got error: %v", err)
 	}
@@ -97,7 +96,7 @@ func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.Database, 5)
+	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.DB(), 5)
 	d.SetRepo(r)
 
 	// Update terminal for reject confirmation prompt.

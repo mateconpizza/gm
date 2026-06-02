@@ -79,7 +79,7 @@ func initializeAction(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	r, err := db.Init(ctx, app.Path.Database)
+	r, err := db.Init(ctx, app.Path.DB())
 	if err != nil {
 		return fmt.Errorf("database init failed: %w", err)
 	}
@@ -105,7 +105,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	if !app.Git.Enabled {
+	if !app.GitEnabled() {
 		return nil
 	}
 	m, err := git.NewManager(app.Path.Git())
@@ -125,11 +125,11 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	}
 	c.ReplaceLine(c.Success(fmt.Sprintf("Tracking database %q", name)).String())
 
-	if err := files.MkdirAll(app.Path.Database); err != nil {
+	if err := files.MkdirAll(app.Path.DB()); err != nil {
 		return fmt.Errorf("creating repo path: %w", err)
 	}
 
-	r, err := db.New(cmd.Context(), app.Path.Database)
+	r, err := db.New(cmd.Context(), app.Path.DB())
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 
 // initWorkspace creates the paths for the application.
 func initWorkspace(c *ui.Console, app *application.App) error {
-	if files.Exists(app.Path.Data) {
+	if files.Exists(app.Path.Home()) {
 		return nil
 	}
 
@@ -152,7 +152,7 @@ func initWorkspace(c *ui.Console, app *application.App) error {
 	dimmer := func(s string) string { return p.Dim.Wrap(s, p.Italic) }
 	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 	f.CustomFunc(header, p.Bold.Sprint("Initializing workspace")).Ln().
-		Mid(txt.PaddedLineWithPad("path", dimmer(app.Path.Data), padding)).Ln().
+		Mid(txt.PaddedLineWithPad("path", dimmer(app.Path.Home()), padding)).Ln().
 		Mid(txt.PaddedLineWithPad("database", dimmer(app.DBName), padding)).Ln().
 		Rowln().
 		Flush()

@@ -64,7 +64,7 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 
 // managementSelect select which database to track in the git repository.
 func managementSelect(ctx context.Context, c *ui.Console, app *application.App, m *git.Mgr) error {
-	dbFiles, err := files.Find(app.Path.Data, "*.db")
+	dbFiles, err := files.Find(app.Path.Home(), "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
@@ -110,7 +110,7 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 		return nil
 	}
 
-	dbFiles, err := files.Find(app.Path.Data, "*.db")
+	dbFiles, err := files.Find(app.Path.Home(), "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}

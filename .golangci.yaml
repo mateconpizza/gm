@@ -259,6 +259,10 @@ linters:
           - errcheck
           - funlen
           - gosec
+      - path: _test\.go
+        linters:
+          - gocritic
+        text: "filepathJoin"
       - path: "pkg/bookio/csv.go"
         linters:
           - funlen

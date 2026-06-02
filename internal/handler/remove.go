@@ -27,12 +27,12 @@ func RemoveRepo(ctx context.Context, d *deps.Deps) error {
 	if err != nil {
 		return err
 	}
-	if !files.Exists(app.Path.Database) {
-		return fmt.Errorf("%w: %q", db.ErrDBNotFound, app.Path.Database)
+	if !files.Exists(app.Path.DB()) {
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, app.Path.DB())
 	}
 
 	c, p := d.Console(), d.Console().Palette()
-	if filepath.Base(app.Path.Database) == application.MainDBName && !app.Flags.Force {
+	if filepath.Base(app.Path.DB()) == application.MainDBName && !app.Flags.Force {
 		f := p.BrightYellow.With(ansi.Italic).Sprint("--force")
 		return fmt.Errorf("%w: removing the main database requires %s", ErrInvalidOption, f)
 	}
@@ -50,8 +50,8 @@ func RemoveRepo(ctx context.Context, d *deps.Deps) error {
 			Rowln().
 			Flush()
 
-		fmt.Fprint(d.Writer(), summary.RepoFromPath(ctx, d, app.Path.Database, app.Path.Backup))
-		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.Database)+"?", "n")
+		fmt.Fprint(d.Writer(), summary.RepoFromPath(ctx, d, app.Path.DB(), app.Path.Backup()))
+		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.DB())+"?", "n")
 		if err != nil {
 			return err
 		}
@@ -63,11 +63,11 @@ func RemoveRepo(ctx context.Context, d *deps.Deps) error {
 		}
 	}
 
-	if err := files.Remove(app.Path.Database); err != nil {
+	if err := files.Remove(app.Path.DB()); err != nil {
 		return err
 	}
 
-	dbName := files.StripSuffixes(filepath.Base(app.Path.Database))
+	dbName := files.StripSuffixes(filepath.Base(app.Path.DB()))
 	fmt.Fprintln(d.Writer(), c.SuccessMesg("database "+dbName+" removed"))
 
 	return nil
@@ -80,9 +80,9 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	fn := app.Path.Database
+	fn := app.Path.DB()
 	dbName := files.StripSuffixes(filepath.Base(fn))
-	fs, err := files.List(app.Path.Backup, "*_"+dbName+".db*") // match YYYYMMDD-HHMMSS_dbname.db
+	fs, err := files.List(app.Path.Backup(), "*_"+dbName+".db*") // match YYYYMMDD-HHMMSS_dbname.db
 	if err != nil {
 		return err
 	}

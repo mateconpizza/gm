@@ -118,7 +118,7 @@ func newListCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return printer.DatabasesTable(cmd.Context(), d.Console(), app.Path.Data, app.DBName)
+			return printer.DatabasesTable(cmd.Context(), d.Console(), app.Path.Home(), app.DBName)
 		},
 	}
 	return c
@@ -172,7 +172,7 @@ func newLockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.LockRepo(cmd.Context(), d, app.Path.Database)
+			return handler.LockRepo(cmd.Context(), d, app.Path.DB())
 		},
 	}
 
@@ -192,7 +192,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
-			return handler.UnlockRepo(cmd.Context(), d, app.Path.Database)
+			return handler.UnlockRepo(cmd.Context(), d, app.Path.DB())
 		},
 	}
 
@@ -226,15 +226,13 @@ func newUseCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			r, err := db.New(cmd.Context(), app.Path.Database)
+			r, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {
 				return err
 			}
 			defer r.Close()
 
-			app.Flags.Force = true
-
-			return app.WriteConfig()
+			return app.WriteConfig(true)
 		},
 	}
 
@@ -254,7 +252,7 @@ func newCurrentCmd(app *application.App) *cobra.Command {
 
 func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
-		if !app.Git.Enabled {
+		if !app.GitEnabled() {
 			return nil
 		}
 
@@ -264,7 +262,7 @@ func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
 		}
 
 		name := app.DBBaseName()
-		if !m.IsTracked(name) || !files.Exists(app.Path.Database) {
+		if !m.IsTracked(name) || !files.Exists(app.Path.DB()) {
 			return nil
 		}
 

@@ -258,12 +258,12 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 	}
 
 	// FIX: Test RepoInfo()
-	if err := locker.IsLocked(app.Path.Database); err != nil {
+	if err := locker.IsLocked(app.Path.DB()); err != nil {
 		sum := summary.RepoFromPath(
 			ctx,
 			d,
-			app.Path.Database+".enc",
-			app.Path.Backup,
+			app.Path.DB()+".enc",
+			app.Path.Backup(),
 		)
 		fmt.Fprint(d.Writer(), sum)
 

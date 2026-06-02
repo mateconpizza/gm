@@ -77,7 +77,12 @@ func removeFile(ctx context.Context, repoPath string, b *bookmark.Bookmark) erro
 }
 
 func Sync(ctx context.Context, app *application.App, msg string) error {
-	slog.DebugContext(ctx, "starting git sync")
+	slog.Debug("starting git sync")
+	if !app.GitEnabled() {
+		slog.Warn("git sync: disabled")
+		return nil
+	}
+
 	g, err := NewGit(app)
 	if err != nil {
 		return err
@@ -99,7 +104,7 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return nil
 	}
 
-	r, err := db.New(ctx, app.Path.Database)
+	r, err := db.New(ctx, app.Path.DB())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to open database", "error", err)
 		return err

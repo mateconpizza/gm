@@ -44,7 +44,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 				return newImportFromFileCmd(app).RunE(cmd, args)
 			}
 
-			rDest, err := db.New(cmd.Context(), app.Path.Database)
+			rDest, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
@@ -82,14 +82,14 @@ func newImportFromBackupCmd(app *application.App) *cobra.Command {
 		Short:   "import from backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			destRepo, err := db.New(cmd.Context(), app.Path.Database)
+			destRepo, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {
 				return err
 			}
 			defer destRepo.Close()
 
 			dbName := files.StripSuffixes(destRepo.Name())
-			bks, err := files.List(app.Path.Backup, "*_"+dbName+".db*")
+			bks, err := files.List(app.Path.Backup(), "*_"+dbName+".db*")
 			if err != nil {
 				return err
 			}
@@ -128,7 +128,7 @@ func newImportBrowserCmd(app *application.App) *cobra.Command {
 		Use:   "browser",
 		Short: "import from browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(cmd.Context(), app.Path.Database)
+			r, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}

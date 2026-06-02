@@ -194,9 +194,58 @@ func TestAppSetDatabasePath(t *testing.T) {
 				t.Errorf("DBName = %q; want %q", app.DBName, tt.wantDBName)
 			}
 
-			wantPath := filepath.Join(app.Path.Data, tt.wantDBName)
-			if app.Path.Database != wantPath {
-				t.Errorf("Path.Database = %q; want %q", app.Path.Database, wantPath)
+			wantPath := filepath.Join(app.Path.Home(), tt.wantDBName)
+			if app.Path.DB() != wantPath {
+				t.Errorf("Path.Database = %q; want %q", app.Path.DB(), wantPath)
+			}
+		})
+	}
+}
+
+func TestApp_GitEnabled(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		git  *application.Git
+		want bool
+	}{
+		{"git_enabled", &application.Git{Enabled: true}, true},
+		{"git_disabled", &application.Git{Enabled: false}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			app := testutil.SetupApp(t)
+			app.Git = tt.git
+			got := app.GitEnabled()
+			if got != tt.want {
+				t.Fatalf("App.GitEnabled() = %v; want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApp_Version(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		info *application.Information
+		want string
+	}{
+		{"normal_version", &application.Information{Version: "1.0.0"}, "1.0.0"},
+		{"empty_version", &application.Information{Version: ""}, ""},
+		{"pre_release_version", &application.Information{Version: "2.1.0-alpha"}, "2.1.0-alpha"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			app := testutil.SetupApp(t)
+			app.Info = tt.info
+			got := app.Version()
+			if got != tt.want {
+				t.Fatalf("App.Version() = %q; want %q", got, tt.want)
 			}
 		})
 	}

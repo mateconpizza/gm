@@ -258,7 +258,7 @@ func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	if err = db.UpdateAppVersion(ctx, r, app.Info.Version); err != nil {
+	if err = db.UpdateAppVersion(ctx, r, app.Version()); err != nil {
 		return fmt.Errorf("app version update failed: %w", err)
 	}
 
@@ -401,7 +401,7 @@ func runEditSession(
 	opts = append(
 		opts,
 		editor.WithFileType(ft),
-		editor.WithMeta(editor.NewMeta(app.DBName, app.Info.Version)),
+		editor.WithMeta(editor.NewMeta(app.DBName, app.Version())),
 	)
 
 	r, err := d.Repository()

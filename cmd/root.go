@@ -17,6 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 // NewRootCmd is the main command.
@@ -37,6 +38,10 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		initAppConfig(app)
 
 		app.Initialize()
+
+		// set up git env
+		remote, _ := git.Remote(c.Context(), app.Path.Git())
+		app.Git.Remote = remote
 	})
 
 	// Register cleanup hooks to be executed on shutdown/exit

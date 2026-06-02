@@ -173,7 +173,7 @@ func handleCreateRepoMode(ctx context.Context, d *deps.Deps, gr *git.Repo, bs []
 		return err
 	}
 
-	p := filepath.Join(app.Path.Data, gr.Name())
+	p := filepath.Join(app.Path.Home(), gr.Name())
 	p = files.EnsureSuffix(p, ".db")
 
 	if files.Exists(p) {

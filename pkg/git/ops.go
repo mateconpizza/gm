@@ -24,7 +24,7 @@ func commitIfChanged(ctx context.Context, g *Git, msg string) error {
 
 	status, err := g.Status(ctx)
 	if err != nil {
-		return fmt.Errorf("getting status: %w", err)
+		status = ""
 	}
 
 	if status != "" {

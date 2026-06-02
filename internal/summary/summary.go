@@ -189,7 +189,7 @@ func BackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string,
 	}
 
 	c, p := d.Console(), d.Console().Palette()
-	backupPath := app.Path.Backup
+	backupPath := app.Path.Backup()
 	dbName := files.StripSuffixes(r.Name())
 	fs, err := files.List(backupPath, "*_"+dbName+".db*")
 	if len(fs) == 0 {
@@ -225,7 +225,7 @@ func Backups(ctx context.Context, d *deps.Deps) (string, error) {
 
 	var (
 		p              = d.Console().Palette()
-		backupPath     = app.Path.Backup
+		backupPath     = app.Path.Backup()
 		empty          = "n/a"
 		backupsColor   = p.BrightMagenta.Wrap("backups:", p.Italic)
 		backupsInfo    = txt.PaddedLine("found:", empty)

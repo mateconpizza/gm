@@ -232,7 +232,7 @@ func ListDatabases(ctx context.Context, d *deps.Deps, exclude string) ([]string,
 		return nil, err
 	}
 	// build list of candidate .db files
-	dbFiles, err := files.FindByExtList(app.Path.Data, ".db")
+	dbFiles, err := files.FindByExtList(app.Path.Home(), ".db")
 	if err != nil {
 		return nil, err
 	}
