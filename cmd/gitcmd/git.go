@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -83,6 +84,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		newPushCmd(app),
 		newRawCmd(app),
 		newDisableCmd(app),
+		newEnableCmd(app),
 		newSyncCmd(app),
 	)
 
@@ -134,6 +136,11 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 
 			c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
 			if err := handler.AskForEncryption(ctx, c, app, m); err != nil {
+				return err
+			}
+
+			app.Git.Enabled = true
+			if err := app.WriteConfig(true); err != nil {
 				return err
 			}
 
@@ -191,13 +198,41 @@ func newCloneCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newDisableCmd(_ *application.App) *cobra.Command {
+func newDisableCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "disable",
-		Short: "disable tracking (wip)",
+		Use:         "disable",
+		Short:       "disable git tracking",
+		Annotations: cli.SkipGitCheck,
+		Aliases:     []string{"off"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("not implemented yet...")
-			return nil
+			if !app.GitEnabled() {
+				slog.Warn("git already disable")
+				return sys.ErrExitFailure
+			}
+
+			app.Git.Enabled = false
+			return app.WriteConfig(true)
+		},
+	}
+
+	return c
+}
+
+func newEnableCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:                "enable",
+		Short:              "enable git tracking",
+		Annotations:        cli.SkipGitCheck,
+		PersistentPostRunE: cli.HookGitPrune(app),
+		Aliases:            []string{"on"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if app.GitEnabled() {
+				slog.Warn("git already enabled")
+				return sys.ErrExitFailure
+			}
+
+			app.Git.Enabled = true
+			return app.WriteConfig(true)
 		},
 	}
 
