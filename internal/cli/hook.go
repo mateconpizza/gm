@@ -207,6 +207,21 @@ func HookGitSync(app *application.App) Hook {
 	}
 }
 
+// HookGitPrune checks for differences between database and local repo and
+// syncs them.
+func HookGitPrune(app *application.App) Hook {
+	return func(cmd *cobra.Command, args []string) error {
+		slog.Debug("hook: checks for differences between database and local repo and syncs them")
+		r, err := db.New(cmd.Context(), app.Path.DB())
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+
+		return gitops.Prune(cmd.Context(), app, r)
+	}
+}
+
 // HookInjectApp returns a hook that injects the app into the command context.
 func HookInjectApp(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {

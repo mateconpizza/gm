@@ -89,7 +89,7 @@ func managementSelect(ctx context.Context, c *ui.Console, app *application.App, 
 			return err
 		}
 
-		gr := m.NewRepo(name)
+		gr := m.NewRepo(name, gitops.RepoFileWriter())
 		if err := gitops.Track(ctx, r, m, gr); err != nil {
 			return err
 		}
