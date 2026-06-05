@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 const (
@@ -24,6 +25,10 @@ func writeFile[T any](path string, v *T) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshalling JSON: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), DirPerm); err != nil {
+		return err
 	}
 
 	f, err := os.Create(path)

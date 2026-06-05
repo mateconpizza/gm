@@ -3,7 +3,6 @@ package gitops
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -11,8 +10,20 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
 )
+
+func NewGit(app *application.App) (*git.Git, error) {
+	return git.New(
+		app.Path.Git(),
+		git.WithGitCommandLogger(func(commands []string) {
+			headerFrame := frame.New(frame.WithColorBorder(ansi.BrightYellow), frame.WithBordersSmallBlock())
+			fullCmd := ansi.BrightYellow.Wrap(strings.Join(commands, " "), ansi.Italic)
+			headerFrame.Midln(fullCmd).Flush()
+		}),
+	)
+}
 
 func Add(ctx context.Context, gitRoot string, r *db.SQLite, b *bookmark.Bookmark) error {
 	m, err := git.NewManager(gitRoot)
@@ -52,7 +63,11 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 		return err
 	}
 
-	m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
+	m, err := git.NewManager(
+		app.Path.Git(),
+		git.WithGit(g),
+		git.WithVersion(app.Version()),
+	)
 	if err != nil {
 		return err
 	}
@@ -73,15 +88,16 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 		RepoFileRemover(),
 		RepoStatsReader(r),
 	)
-	if err := gr.RmMany(ctx, bs); err != nil {
+
+	if err := gr.RmMany(ctx, bs, files.RemoveEmptyDirs); err != nil {
 		return err
 	}
 
-	return m.SaveChanges(ctx, git.NewCommitCfg(
+	return m.SaveChanges(
+		ctx,
 		gr,
-		app.Version(),
 		fmt.Sprintf("[%s] remove bookmarks", repoName),
-	))
+	)
 }
 
 func Drop(ctx context.Context, app *application.App) error {
@@ -128,88 +144,5 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 		RepoStatsReader(r),
 	)
 
-	return m.Update(ctx, gr, old, fresh)
-}
-
-// Prune checks for differences between database and local repo and syncs them.
-func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
-	if !app.GitEnabled() {
-		return nil
-	}
-
-	slog.Debug("git prune: starting repository prune")
-
-	g, err := NewGit(app)
-	if err != nil {
-		return err
-	}
-
-	m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
-	if err != nil {
-		return err
-	}
-	if !m.IsEnabled() {
-		slog.Debug("git prune: git not enabled")
-		return nil
-	}
-
-	if !m.IsTracked(app.DBBaseName()) {
-		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBBaseName())
-	}
-
-	inRepo, err := loadRepoBookmarks(ctx, app, m)
-	if err != nil {
-		return err
-	}
-
-	inDB, err := r.All(ctx)
-	if err != nil {
-		return err
-	}
-
-	added, err := syncMissingToRepo(ctx, app, inDB, inRepo)
-	if err != nil {
-		return fmt.Errorf("syncing missing files: %w", err)
-	}
-
-	removed, err := pruneStaleBookmarks(ctx, app, inRepo, inDB)
-	if err != nil {
-		return fmt.Errorf("pruning stale files: %w", err)
-	}
-
-	if added || removed {
-		slog.Debug("git prune: state changed, updating summary")
-		msg := fmt.Sprintf("[%s] sync repo", r.BaseName())
-		if err := UpdateSummary(ctx, app, r, m, msg); err != nil {
-			return fmt.Errorf("updating summary: %w", err)
-		}
-	}
-
-	slog.Debug("git prune: repository already up to date")
-	return git.ErrGitUpToDate
-}
-
-func NewGit(app *application.App) (*git.Git, error) {
-	return git.New(
-		app.Path.Git(),
-		git.WithGitCommandLogger(func(commands []string) {
-			headerFrame := frame.New(frame.WithColorBorder(ansi.BrightYellow), frame.WithBordersSmallBlock())
-			fullCmd := ansi.BrightYellow.Wrap(strings.Join(commands, " "), ansi.Italic)
-			headerFrame.Midln(fullCmd).Flush()
-		}),
-	)
-}
-
-// UpdateSummary generates fresh stats from the DB and writes them to the Git repo.
-func UpdateSummary(ctx context.Context, app *application.App, r *db.SQLite, m *git.Mgr, msg string) error {
-	gr := m.NewRepo(
-		app.DBBaseName(),
-		RepoStatsReader(r),
-	)
-
-	return m.SaveChanges(ctx, git.NewCommitCfg(
-		gr,
-		app.Version(),
-		msg,
-	))
+	return m.Update(ctx, gr, old, fresh, files.RemoveEmptyDirs)
 }

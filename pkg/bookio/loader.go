@@ -11,14 +11,14 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-type loadFileFn func(ctx context.Context, path string) (*bookmark.Bookmark, error)
+type LoaderFileFunc func(ctx context.Context, path string) (*bookmark.Bookmark, error)
 
 type FileLoader struct {
 	current atomic.Uint32
 	g       *errgroup.Group
 	mu      *sync.Mutex
 	results []*bookmark.Bookmark
-	Loader  loadFileFn
+	Loader  LoaderFileFunc
 }
 
 // LoadAsync loads a bookmark asynchronously from the given path.
@@ -63,14 +63,14 @@ func (f *FileLoader) Count(n uint32) uint32 {
 
 // RepositoryLoader configures how a repository is loaded.
 type RepositoryLoader struct {
-	Func       loadFileFn
+	Func       LoaderFileFunc
 	Prefix     string
 	FileFilter FileFilterFunc
 }
 
 // NewFileLoader creates a concurrent file loader with a CPU-sized worker
 // limit.
-func NewFileLoader(loader loadFileFn) *FileLoader {
+func NewFileLoader(loader LoaderFileFunc) *FileLoader {
 	g := new(errgroup.Group)
 	g.SetLimit(runtime.NumCPU())
 

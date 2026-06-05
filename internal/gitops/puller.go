@@ -77,13 +77,13 @@ func (gp *GitPuller) Pull() error {
 // Read read bookmarks in the repository.
 func (gp *GitPuller) Read(ctx context.Context) error {
 	for _, gr := range gp.repos {
-		stats, err := gr.Stats()
+		_, err := gr.Stats()
 		if err != nil {
 			fmt.Println("skipping "+gr.Name(), err.Error())
 			continue
 		}
 
-		if err := gr.Read(ctx, stats.Bookmarks); err != nil {
+		if err := gr.Read(ctx); err != nil {
 			return err
 		}
 	}

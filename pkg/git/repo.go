@@ -1,6 +1,7 @@
 package git
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -22,33 +23,34 @@ type RepoDB interface {
 }
 
 type (
-	ReaderFn  func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error)
-	WriterFn  func(ctx context.Context, path string, b *bookmark.Bookmark) error
-	RemoverFn func(ctx context.Context, repoPath string, b *bookmark.Bookmark) error
+	ReaderFunc      func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error)
+	WriterFunc      func(ctx context.Context, path string, bs []*bookmark.Bookmark) error
+	RemoverFunc     func(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error
+	PostRemovalFunc func(path string) error
 )
 
 type RepoOptFunc func(*RepoOptions)
 
 type RepoOptions struct {
-	reader  ReaderFn
-	writer  WriterFn
-	remover RemoverFn
+	reader  ReaderFunc
+	writer  WriterFunc
+	remover RemoverFunc
 	db      RepoDB
 }
 
-func WithRepoWriter(w WriterFn) RepoOptFunc {
+func WithRepoWriter(w WriterFunc) RepoOptFunc {
 	return func(ro *RepoOptions) {
 		ro.writer = w
 	}
 }
 
-func WithRepoReader(r ReaderFn) RepoOptFunc {
+func WithRepoReader(r ReaderFunc) RepoOptFunc {
 	return func(ro *RepoOptions) {
 		ro.reader = r
 	}
 }
 
-func WithRepoRemover(rm RemoverFn) RepoOptFunc {
+func WithRepoRemover(rm RemoverFunc) RepoOptFunc {
 	return func(ro *RepoOptions) {
 		ro.remover = rm
 	}
@@ -83,42 +85,61 @@ func (gr *Repo) String() string {
 	return stats.String()
 }
 
-func (gr *Repo) Bookmarks() []*bookmark.Bookmark { return gr.bookmarks }
+func (gr *Repo) Bookmarks() []*bookmark.Bookmark {
+	slices.SortFunc(gr.bookmarks, func(a, b *bookmark.Bookmark) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	return gr.bookmarks
+}
 
 func (gr *Repo) Add(ctx context.Context, bs []*bookmark.Bookmark) error {
 	if gr.writer == nil {
 		return fmt.Errorf("%w: file writer", ErrNoFunctionFound)
 	}
 
-	for i := range bs {
-		b := bs[i]
-		if err := gr.writer(ctx, gr.fullpath, b); err != nil {
-			return err
-		}
-
-		gr.bookmarks = append(gr.bookmarks, b)
+	if err := gr.writer(ctx, gr.fullpath, bs); err != nil {
+		return err
 	}
+
+	gr.bookmarks = append(gr.bookmarks, bs...)
 
 	return nil
 }
 
-func (gr *Repo) RmMany(ctx context.Context, bs []*bookmark.Bookmark) error {
-	for i := range bs {
-		b := bs[i]
-		if err := gr.Rm(ctx, b); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (gr *Repo) Rm(ctx context.Context, b *bookmark.Bookmark) error {
+func (gr *Repo) RmMany(ctx context.Context, bs []*bookmark.Bookmark, postRm PostRemovalFunc) error {
 	if gr.remover == nil {
 		return fmt.Errorf("%w: file remover", ErrNoFunctionFound)
 	}
-	if err := gr.remover(ctx, gr.Fullpath(), b); err != nil {
+
+	if err := gr.remover(ctx, gr.fullpath, bs); err != nil {
 		return err
+	}
+
+	// removal map
+	toRemove := make(map[int]bool, len(bs))
+	for _, b := range bs {
+		toRemove[b.ID] = true
+	}
+
+	gr.bookmarks = slices.DeleteFunc(gr.bookmarks, func(e *bookmark.Bookmark) bool {
+		return toRemove[e.ID]
+	})
+
+	if err := postRm(gr.Fullpath()); err != nil {
+		return fmt.Errorf("post removal function: %q: %w", gr.Fullpath(), err)
+	}
+
+	return nil
+}
+
+func (gr *Repo) Rm(ctx context.Context, b *bookmark.Bookmark, postRemoval PostRemovalFunc) error {
+	if gr.remover == nil {
+		return fmt.Errorf("%w: file remover", ErrNoFunctionFound)
+	}
+
+	if err := gr.remover(ctx, gr.Fullpath(), []*bookmark.Bookmark{b}); err != nil {
+		return fmt.Errorf("remove bookmark %q from repo %q: %w", b.ID, gr.Fullpath(), err)
 	}
 
 	gr.bookmarks = slices.DeleteFunc(
@@ -127,13 +148,24 @@ func (gr *Repo) Rm(ctx context.Context, b *bookmark.Bookmark) error {
 			return e.ID == b.ID
 		},
 	)
+
+	if err := postRemoval(gr.Fullpath()); err != nil {
+		return fmt.Errorf("post removal function: %q: %w", gr.Fullpath(), err)
+	}
+
 	return nil
 }
 
-func (gr *Repo) Read(ctx context.Context, total int) error {
+func (gr *Repo) Read(ctx context.Context) error {
 	if gr.reader == nil {
 		return fmt.Errorf("%w: file reader", ErrNoFunctionFound)
 	}
+
+	total, err := gr.Count()
+	if err != nil {
+		return err
+	}
+
 	bs, err := gr.reader(ctx, gr.fullpath, total)
 	if err != nil {
 		return err

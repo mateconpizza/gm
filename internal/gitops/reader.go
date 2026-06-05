@@ -35,10 +35,14 @@ func NewRepoReader(ctx context.Context, gitRoot, repoPath string, n int) ([]*boo
 
 	if gpg.IsInitialized(gitRoot) {
 		fingerprintPath := gpg.GPGIDPath(gitRoot)
+		loader, err := gpgStrategy(fingerprintPath)
+		if err != nil {
+			return nil, err
+		}
 
 		return ReadGPGRepo(ctx, RepoReaderCfg{
 			root:   repoPath,
-			loader: gpgStrategy(fingerprintPath),
+			loader: loader,
 			sp:     sp,
 			total:  n,
 		})
@@ -77,6 +81,7 @@ func ReadJSONRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark,
 		cfg.sp.UpdateMesg("reading..." + filepath.Base(path))
 
 		f.LoadAsync(ctx, path)
+
 		return nil
 	}); err != nil {
 		cfg.sp.Fail(err.Error())

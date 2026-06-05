@@ -16,16 +16,26 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-func gpgStrategy(fingerprintPath string) *bookio.RepositoryLoader {
+func gpgStrategy(fingerprintPath string) (*bookio.RepositoryLoader, error) {
+	recipient, err := gpg.LoadFingerprint(fingerprintPath)
+	if err != nil {
+		return nil, fmt.Errorf("gpg strategy: %w", err)
+	}
+
+	g, err := gpg.New(recipient)
+	if err != nil {
+		return nil, err
+	}
+
 	return &bookio.RepositoryLoader{
-		Func:   gpgBookmarkFileLoader(fingerprintPath),
+		Func:   gpgBookmarkFileLoader(g),
 		Prefix: "GPG bookmarks [%d/%d]",
 		FileFilter: bookio.And(
 			bookio.IsFile,
 			bookio.HasExtension(gpg.Extension),
 			bookio.NotNamed(git.SummaryFileName),
 		),
-	}
+	}, nil
 }
 
 // ReadGPGRepo handles reading encrypted GPG bookmark repositories.
@@ -74,22 +84,20 @@ func ReadGPGRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark, 
 
 // gpgBookmarkFileLoader returns a loader function that decrypts and parses
 // GPG-encrypted bookmark.
-func gpgBookmarkFileLoader(fingerprintPath string) func(ctx context.Context, path string) (*bookmark.Bookmark, error) {
+func gpgBookmarkFileLoader(g *gpg.GPG) bookio.LoaderFileFunc {
 	return func(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		content, err := gpg.Decrypt(ctx, fingerprintPath, path)
+		content, err := g.Decrypt(ctx, path)
 		if err != nil {
 			return nil, fmt.Errorf("decrypting %w", err)
 		}
 
 		bj := &bookmark.BookmarkJSON{}
 		if err := json.Unmarshal(content, bj); err != nil {
-			fmt.Println(string(content))
-			fmt.Println(path)
-			return nil, fmt.Errorf("error unmarshalling JSON: %w", err)
+			return nil, fmt.Errorf("error unmarshalling JSON: %w, %s", err, path)
 		}
 
 		return bookmark.NewFromJSON(bj), nil

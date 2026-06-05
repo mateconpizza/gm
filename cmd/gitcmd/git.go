@@ -31,7 +31,11 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
+			m, err := git.NewManager(
+				app.Path.Git(),
+				git.WithGit(g),
+				git.WithVersion(app.Version()),
+			)
 			if err != nil {
 				return err
 			}
@@ -46,11 +50,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				gitops.RepoStatsReader(r),
 			)
 
-			return m.SaveChanges(cmd.Context(), git.NewCommitCfg(
-				gr,
-				app.Version(),
-				cmd.Short,
-			))
+			return m.SaveChanges(cmd.Context(), gr, cmd.Short)
 		},
 	}
 }
@@ -241,9 +241,8 @@ func newEnableCmd(app *application.App) *cobra.Command {
 
 func newSyncCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:         "sync",
-		Short:       "sync bookmarks with local repo",
-		Annotations: cli.SkipGitSync,
+		Use:   "sync",
+		Short: "sync bookmarks with local repo",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {

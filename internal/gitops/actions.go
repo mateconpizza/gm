@@ -9,29 +9,19 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-type MkFileFunc func(ctx context.Context, b *bookmark.Bookmark) error
+var _ bookio.FileManager = (*files.FileManager)(nil)
 
-func RepoFileWriter() git.RepoOptFunc {
-	return git.WithRepoWriter(addFile)
-}
-
-func RepoFileRemover() git.RepoOptFunc {
-	return git.WithRepoRemover(removeFile)
-}
-
-func RepoStatsReader(r *db.SQLite) git.RepoOptFunc {
-	return git.WithRepoStore(r)
-}
-
-func MgrVersion(ver string) git.MgrOptFunc {
-	return git.WithVersion(ver)
-}
+func RepoFileWriter() git.RepoOptFunc              { return git.WithRepoWriter(addFiles) }
+func RepoFileRemover() git.RepoOptFunc             { return git.WithRepoRemover(removeFiles) }
+func RepoStatsReader(r *db.SQLite) git.RepoOptFunc { return git.WithRepoStore(r) }
+func MgrVersion(ver string) git.MgrOptFunc         { return git.WithVersion(ver) }
 
 func RepoFileReader() git.RepoOptFunc {
 	return git.WithRepoReader(func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
@@ -40,40 +30,54 @@ func RepoFileReader() git.RepoOptFunc {
 	})
 }
 
-func addFile(ctx context.Context, repoPath string, b *bookmark.Bookmark) error {
+func addFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
 	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	fullpath, err := genFullpath(repoPath, b)
-	if err != nil {
 		return err
 	}
 
 	root := filepath.Dir(repoPath)
 	if gpg.IsInitialized(root) {
 		fingerprintPath := gpg.GPGIDPath(root)
-		return createGPGFile(ctx, fullpath, fingerprintPath, b)
+
+		recipient, err := gpg.LoadFingerprint(fingerprintPath)
+		if err != nil {
+			return fmt.Errorf("gpg strategy: %w", err)
+		}
+
+		g, err := gpg.New(recipient)
+		if err != nil {
+			return err
+		}
+
+		for i := range bs {
+			if err := createGPGFile(ctx, g, repoPath, bs[i]); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
-	return createJSONFile(fullpath, b)
+
+	for i := range bs {
+		if _, err := bookio.SaveAsJSON(repoPath, bs[i], true); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func removeFile(ctx context.Context, repoPath string, b *bookmark.Bookmark) error {
+func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	fullpath, err := genFullpath(repoPath, b)
+	c, err := bookio.NewFileRemover(repoPath, files.DefaultManager, genFullpath)
 	if err != nil {
 		return err
 	}
 
-	if !files.Exists(fullpath) {
-		slog.Debug("remove bookmark: not found", "file", fullpath)
-		return nil
-	}
-
-	return files.Remove(fullpath)
+	return c.Rm(ctx, bs)
 }
 
 func Sync(ctx context.Context, app *application.App, msg string) error {
@@ -90,71 +94,73 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 
 	m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create git repo", "error", err)
-		return err
+		return fmt.Errorf("git sync: failed to create git repo: %w", err)
 	}
 
 	if !m.IsEnabled() {
-		slog.DebugContext(ctx, "git sync disabled, skipping", "enabled", app.Git.Enabled)
+		slog.Debug("git sync disabled, skipping", "enabled", m.IsEnabled())
 		return nil
 	}
 
 	if !m.IsTracked(app.DBBaseName()) {
-		slog.DebugContext(ctx, "database path not tracked in git, skipping sync")
+		slog.Debug("database path not tracked in git, skipping sync")
 		return nil
 	}
 
 	r, err := db.New(ctx, app.Path.DB())
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to open database", "error", err)
-		return err
+		return fmt.Errorf("git sync: failed to open database: %w", err)
 	}
 	defer r.Close()
 
 	bs, err := r.All(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to fetch bookmarks", "error", err)
-		return err
+		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
 	}
 
 	gr := m.NewRepo(r.BaseName(), RepoFileWriter())
 	if err := gr.Add(ctx, bs); err != nil {
-		return err
+		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
 
 	sum, err := getSummary(ctx, r, gr)
 	if err != nil {
-		return err
+		return fmt.Errorf("git sync: failed to get summary: %w", err)
 	}
 
 	if err := gr.WriteSummary(sum); err != nil {
-		return err
+		return fmt.Errorf("git sync: failed to write summary: %w", err)
 	}
 
 	if err := m.Commit(ctx, msg); err != nil {
-		slog.ErrorContext(ctx, "failed to commit changes", "error", err)
-		return err
+		return fmt.Errorf("git sync: failed to commit changes: %w", err)
 	}
 
 	return nil
 }
 
-func createGPGFile(ctx context.Context, fullpath, fingerprintPath string, b *bookmark.Bookmark) error {
+func createGPGFile(ctx context.Context, g *gpg.GPG, repoPath string, b *bookmark.Bookmark) error {
+	fullpath, err := genFullpath(repoPath, b)
+	if err != nil {
+		return fmt.Errorf("gpgfile: %w", err)
+	}
+
+	if files.Exists(fullpath) {
+		slog.Warn("gpgfile: not found", "file", fullpath)
+		return nil
+	}
+
 	if err := files.MkdirAll(filepath.Dir(fullpath)); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
+		return fmt.Errorf("gpgfile: failed creating dir: %w, %q", err, filepath.Dir(fullpath))
 	}
 
 	data, err := json.MarshalIndent(b.JSON(), "", "  ")
 	if err != nil {
-		return fmt.Errorf("json marshal: %w", err)
+		return fmt.Errorf("gpgfile: JSON marshal: %w", err)
 	}
 
-	return gpg.Encrypt(ctx, fingerprintPath, fullpath, data)
-}
-
-func createJSONFile(fullpath string, b *bookmark.Bookmark) error {
-	if _, err := files.JSONWrite(fullpath, b.JSON(), true); err != nil {
-		return err
+	if err := g.Encrypt(ctx, fullpath, data); err != nil {
+		return fmt.Errorf("gpgfile: creating file: %w", err)
 	}
 
 	return nil

@@ -37,22 +37,29 @@ type Mgr struct {
 	*MgrOptions
 }
 
-func (m *Mgr) Root() string                                         { return m.root }
-func (m *Mgr) IsEnabled() bool                                      { return fileExists(m.root) }
-func (m *Mgr) Git() *Git                                            { return m.g }
-func (m *Mgr) Init(ctx context.Context, force bool) error           { return m.g.Init(ctx, force) }
-func (m *Mgr) Summary(gr *Repo) (*Summary, error)                   { return gr.Summary() }
-func (m *Mgr) IsTracked(name string) bool                           { return m.track.Contains(name) }
-func (m *Mgr) Repos() []string                                      { return m.track.Repos() }
-func (m *Mgr) WriteRepos() error                                    { return m.track.Write() }
-func (m *Mgr) Track(names ...string) error                          { return m.track.Track(names...) }
-func (m *Mgr) Drop(ctx context.Context, gr *Repo) error             { return dropRepo(ctx, m.g, gr) }
-func (m *Mgr) SaveChanges(ctx context.Context, gc *CommitCfg) error { return saveChanges(ctx, m, gc) }
-func (m *Mgr) Commit(ctx context.Context, msg string) error         { return commitIfChanged(ctx, m.g, msg) }
-func (m *Mgr) SetCfg(ctx context.Context, k, v string) error        { return m.g.SetCfgLocal(ctx, k, v) }
+func (m *Mgr) Root() string                                  { return m.root }
+func (m *Mgr) IsEnabled() bool                               { return fileExists(m.root) }
+func (m *Mgr) Git() *Git                                     { return m.g }
+func (m *Mgr) Init(ctx context.Context, force bool) error    { return m.g.Init(ctx, force) }
+func (m *Mgr) Summary(gr *Repo) (*Summary, error)            { return gr.Summary() }
+func (m *Mgr) IsTracked(name string) bool                    { return m.track.Contains(name) }
+func (m *Mgr) Repos() []string                               { return m.track.Repos() }
+func (m *Mgr) WriteRepos() error                             { return m.track.Write() }
+func (m *Mgr) Version() string                               { return m.version }
+func (m *Mgr) Track(names ...string) error                   { return m.track.Track(names...) }
+func (m *Mgr) Drop(ctx context.Context, gr *Repo) error      { return dropRepo(ctx, m.g, gr) }
+func (m *Mgr) Commit(ctx context.Context, msg string) error  { return commitIfChanged(ctx, m.g, msg) }
+func (m *Mgr) SetCfg(ctx context.Context, k, v string) error { return m.g.SetCfgLocal(ctx, k, v) }
 
 func (m *Mgr) Untrack(ctx context.Context, gr *Repo, msg string) error {
 	return untrackRemoveRepo(ctx, m, gr, msg)
+}
+
+func (m *Mgr) SaveChanges(ctx context.Context, gr *Repo, msg string) error {
+	if m.version == "" {
+		return ErrNoVersionFound
+	}
+	return saveChanges(ctx, m, gr, m.version, msg)
 }
 
 func (m *Mgr) NewRepo(name string, opts ...RepoOptFunc) *Repo {
@@ -60,20 +67,20 @@ func (m *Mgr) NewRepo(name string, opts ...RepoOptFunc) *Repo {
 	return NewRepo(name, filepath.Join(m.Root(), name), opts...)
 }
 
-func (m *Mgr) Update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark) error {
+func (m *Mgr) Update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
 	if m.version == "" {
 		return ErrNoVersionFound
 	}
 
-	if err := updateRepo(ctx, gr, old, fresh); err != nil {
+	if err := updateRepo(ctx, gr, old, fresh, postRm); err != nil {
 		return err
 	}
 
-	return m.SaveChanges(ctx, NewCommitCfg(
+	return m.SaveChanges(
+		ctx,
 		gr,
-		m.version,
 		fmt.Sprintf("[%s] update bookmark", gr.Name()),
-	))
+	)
 }
 
 func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {

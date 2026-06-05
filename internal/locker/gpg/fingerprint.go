@@ -67,10 +67,8 @@ func ListFingerprints() ([]*Fingerprint, error) {
 	return fps, nil
 }
 
-// loadFingerprint loads fingerprint from the .gpg-id file.
-func loadFingerprint(f string) (string, error) {
-	slog.Debug("gpg: loading GPG fingerprint", "path", f)
-
+// LoadFingerprint loads fingerprint from the .gpg-id file.
+func LoadFingerprint(f string) (string, error) {
 	if !fileExists(f) {
 		slog.Debug("gpg: gpg-id file does not exist", "path", f)
 		return "", fmt.Errorf("%w: %q", ErrNoGPGIDFile, f)

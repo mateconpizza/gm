@@ -39,20 +39,6 @@ func WithGitCommandLogger(hook CmdLogger) GitOpt {
 	}
 }
 
-type CommitCfg struct {
-	gr  *Repo
-	ver string
-	msg string
-}
-
-func NewCommitCfg(gr *Repo, ver, msg string) *CommitCfg {
-	return &CommitCfg{
-		gr:  gr,
-		ver: ver,
-		msg: msg,
-	}
-}
-
 // Git handles operational tasks on a local Git repository.
 type Git struct {
 	bin      string

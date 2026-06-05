@@ -2,7 +2,9 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -15,6 +17,7 @@ func commitIfChanged(ctx context.Context, g *Git, msg string) error {
 		return fmt.Errorf("checking for changes: %w", err)
 	}
 	if !changed {
+		slog.Debug("git commit: no changes found")
 		return nil
 	}
 
@@ -58,34 +61,31 @@ func untrackRemoveRepo(ctx context.Context, m *Mgr, gr *Repo, msg string) error 
 	return commitIfChanged(ctx, m.Git(), msg)
 }
 
-func updateRepo(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark) error {
+func updateRepo(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
 	if gr.db == nil {
 		return fmt.Errorf("%w: in repo %q", ErrNoStoreFound, gr.name)
 	}
 
-	if err := gr.Rm(ctx, old); err != nil {
-		return err
+	if err := gr.Rm(ctx, old, postRm); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("removing %s: %w", old.URL, err)
+		}
 	}
 
 	return gr.Add(ctx, []*bookmark.Bookmark{fresh})
 }
 
-func saveChanges(ctx context.Context, m *Mgr, gc *CommitCfg) error {
-	if gc.gr.DB() == nil {
+func saveChanges(ctx context.Context, m *Mgr, gr *Repo, ver, msg string) error {
+	if gr.DB() == nil {
 		return fmt.Errorf("%w: stats loader", ErrNoFunctionFound)
 	}
-
-	var (
-		db = gc.gr.DB()
-		gr = gc.gr
-	)
 
 	oldStats, err := gr.Stats()
 	if err != nil {
 		return err
 	}
 
-	freshStats, err := gr.StatsFromDB(ctx, db)
+	freshStats, err := gr.StatsFromDB(ctx, gr.db)
 	if err != nil {
 		return err
 	}
@@ -95,11 +95,11 @@ func saveChanges(ctx context.Context, m *Mgr, gc *CommitCfg) error {
 		return err
 	}
 
-	if oldStats.Equal(freshStats) && !changed {
+	if !changed && oldStats.Equal(freshStats) {
 		return ErrGitUpToDate
 	}
 
-	sum, err := summaryComplete(ctx, m.Git(), freshStats, gc.ver)
+	sum, err := summaryComplete(ctx, m.Git(), freshStats, ver)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func saveChanges(ctx context.Context, m *Mgr, gc *CommitCfg) error {
 		return err
 	}
 
-	return commitIfChanged(ctx, m.Git(), gc.msg)
+	return commitIfChanged(ctx, m.Git(), msg)
 }
 
 func dropRepo(ctx context.Context, g *Git, gr *Repo) error {

@@ -146,9 +146,8 @@ func New(recipient string) (*GPG, error) {
 
 // IsInitialized returns true if GPG is active.
 func IsInitialized(path string) bool {
-	slog.Debug("gpg: checking initialized", "path", path)
 	f := GPGIDPath(path)
-	recipientKey, err := loadFingerprint(f)
+	recipientKey, err := LoadFingerprint(f)
 	if err != nil {
 		return false
 	}
@@ -164,16 +163,12 @@ func Unlocked(ctx context.Context, filePath string) (bool, error) {
 		return false, err
 	}
 
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	return g.Unlocked(ctx, filePath)
 }
 
 // Decrypt decrypts the provided encrypted file.
 func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte, error) {
-	recipientKey, err := loadFingerprint(fingerprintPath)
+	recipientKey, err := LoadFingerprint(fingerprintPath)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +183,7 @@ func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte
 
 // Encrypt encrypts the provided data and saves it to the specified path.
 func Encrypt(ctx context.Context, fingerprintPath, path string, content []byte) error {
-	recipientKey, err := loadFingerprint(fingerprintPath)
+	recipientKey, err := LoadFingerprint(fingerprintPath)
 	if err != nil {
 		return err
 	}

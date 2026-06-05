@@ -2,11 +2,13 @@ package gitops
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -69,4 +71,21 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	return f.StringReset(), nil
+}
+
+func getSummary(ctx context.Context, r *db.SQLite, repo *git.Repo) (*git.Summary, error) {
+	stats := git.NewRepoStats()
+	if err := r.Stats(ctx, stats); err != nil {
+		return nil, fmt.Errorf("failed to get database stats: %w", err)
+	}
+
+	sum, err := repo.Summary()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repo stats: %w", err)
+	}
+
+	stats.Name = repo.Name()
+	sum.RepoStats = stats
+
+	return sum, nil
 }
