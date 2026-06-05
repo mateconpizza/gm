@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"runtime"
 	"strings"
 	"time"
 
@@ -50,7 +51,7 @@ func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) 
 	defer sp.Done("Scraping done")
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(1)
+	g.SetLimit(runtime.NumCPU())
 
 	for _, b := range bs {
 		g.Go(func() error {

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
@@ -181,40 +180,10 @@ func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) err
 func ToJSON(data any) ([]byte, error) {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("to JSON: %w", err)
 	}
 
 	return jsonData, nil
-}
-
-// Deduplicate partitions bs into fresh and duplicate bookmarks.
-func Deduplicate(bs, existing []*bookmark.Bookmark) (fresh, duplicates []*bookmark.Bookmark) {
-	fresh = make([]*bookmark.Bookmark, 0, len(bs))
-	duplicates = make([]*bookmark.Bookmark, 0, len(bs))
-	seen := make(map[string]struct{}, len(existing))
-
-	for _, b := range existing {
-		if b == nil {
-			continue
-		}
-		seen[b.URL] = struct{}{}
-	}
-
-	for _, b := range bs {
-		if b == nil {
-			continue
-		}
-
-		if _, ok := seen[b.URL]; ok {
-			slog.Warn("deduplicate", "url", b.URL)
-			duplicates = append(duplicates, b)
-			continue
-		}
-
-		fresh = append(fresh, b)
-	}
-
-	return fresh, duplicates
 }
 
 // DeduplicateReport removes duplicate bookmarks and reports skipped entries to the console.
@@ -231,7 +200,7 @@ func DeduplicateReport(
 		return nil, err
 	}
 
-	fresh, duplicates := Deduplicate(bs, existing)
+	fresh, duplicates := bookmark.Deduplicate(bs, existing)
 	if len(duplicates) == 0 {
 		return fresh, nil
 	}

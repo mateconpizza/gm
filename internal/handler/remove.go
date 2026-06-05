@@ -223,7 +223,7 @@ func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		Sprint("this action cannot be undone")
 	comment := p.Dim.With(p.Italic).
 		Sprint(" (ctrl-c to exit)")
-	header := func() string { return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold) }
+	header := func() string { return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 
 	c.Frame().
 		CustomFunc(header, title+comment).Ln().
@@ -276,7 +276,7 @@ func DropDatabase(ctx context.Context, d *deps.Deps) error {
 	comment := p.Dim.With(p.Italic).
 		Sprint(" (ctrl-c to exit)")
 	header := func() string {
-		return p.BrightRed.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold)
+		return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
 	}
 
 	s, err := summary.Info(ctx, d)

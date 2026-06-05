@@ -69,7 +69,9 @@ func managementSelect(ctx context.Context, c *ui.Console, app *application.App, 
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	c.Frame().Rowln().Midln("Select which databases to track").Flush()
+	c.Frame().Rowln().
+		Midln("Select which databases to track").
+		Flush()
 
 	files.PrioritizeFile(dbFiles, application.MainDBName)
 

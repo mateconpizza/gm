@@ -10,6 +10,7 @@ var (
 	singleBorder  = NewBorders("┌─ ", "│  ", "├─ ", "└─ ")
 	simpleBorder  = NewBorders("- ", "| ", "- ", "- ")
 	smallBlock    = NewBorders("▪ ", "│ ", "▪ ", "▪ ")
+	smallBlock2   = NewBorders("▪ ", "| ", "▪ ", "▪ ")
 
 	dashedBorder        = NewBorders("-- ", "|  ", "-- ", "-- ")
 	artDecoBorder       = NewBorders("╓─ ", "║  ", "╠─ ", "╙─ ")
@@ -174,6 +175,14 @@ func WithBordersSolidDiamond() OptFn { return setBorders(solidDiamondBorder) }
 //	mid:    ▪
 //	footer: ▪
 func WithBordersSmallBlock() OptFn { return setBorders(smallBlock) }
+
+// WithBordersSmallBlock2 borders
+//
+//	header: ▪
+//	row:    |
+//	mid:    ▪
+//	footer: ▪
+func WithBordersSmallBlock2() OptFn { return setBorders(smallBlock2) }
 
 // WithBordersPlusSign borders
 //

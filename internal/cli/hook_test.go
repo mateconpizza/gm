@@ -293,19 +293,6 @@ func TestHookGitSync(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing_application_context",
-			setupCmd: func() *cobra.Command {
-				return &cobra.Command{
-					Use: "sync",
-				}
-			},
-			setupCtx: func(cmd *cobra.Command) {
-				cmd.SetContext(context.Background())
-			},
-			wantErr:     true,
-			errContains: "hook-git: failed to get config",
-		},
-		{
 			name: "nil_command_panics",
 			setupCmd: func() *cobra.Command {
 				return nil

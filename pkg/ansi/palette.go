@@ -185,7 +185,7 @@ func (p *Palette) Enabled() bool { return ColorEnabled }
 
 // Random returns a random color with the given styles.
 func (p *Palette) Random(styles ...SGR) SGR {
-	return ColorRand(styles...)
+	return Random(styles...)
 }
 
 // Remover removes ANSI codes from a given string.
@@ -193,8 +193,8 @@ func (p *Palette) Remover(s string) string {
 	return Remover(s)
 }
 
-// ColorRand returns a random color with the given styles.
-func ColorRand(styles ...SGR) SGR {
+// Random returns a random color with the given styles.
+func Random(styles ...SGR) SGR {
 	colors := []SGR{
 		Red.With(styles...),
 		Green.With(styles...),

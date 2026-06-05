@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/mateconpizza/rotato"
@@ -112,7 +113,7 @@ func openInBrowser(ctx context.Context, bs []*bookmark.Bookmark) error {
 	defer sp.Done()
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(1)
+	g.SetLimit(runtime.NumCPU())
 
 	for _, b := range bs {
 		g.Go(func() error {

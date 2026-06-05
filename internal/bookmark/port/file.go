@@ -137,6 +137,10 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 	title := p.BrightGreen.With(p.Bold).
 		Sprint("Import Bookmarks " + header)
 
+	h := func() string {
+		return p.BrightGreen.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+
 	subtitle := p.Dim.With(p.Italic).
 		Sprint("merge bookmarks into your collection")
 
@@ -150,7 +154,7 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 	}
 
 	c.Frame().
-		Headerln(title).
+		CustomFunc(h, title).Ln().
 		Headerln(subtitle).
 		Rowln().
 		Info(txt.PaddedLine("source:", value(toName+"\n"))).
@@ -161,7 +165,12 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 }
 
 // promptImportSelection runs the interactive action loop.
-func promptImportSelection(ctx context.Context, c *ui.Console, app *application.App, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func promptImportSelection(
+	ctx context.Context,
+	c *ui.Console,
+	app *application.App,
+	bs []*bookmark.Bookmark,
+) ([]*bookmark.Bookmark, error) {
 	for {
 		n := len(bs)
 		options := []string{"yes", "no"}

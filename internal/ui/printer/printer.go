@@ -20,6 +20,7 @@ import (
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -285,12 +286,15 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 		return nil
 	}
 
-	var sb strings.Builder
+	f := d.Console().Frame()
+	f.SetBorders(frame.WithBordersSmallBlock2())
 
 	s, err := summary.Info(ctx, d)
 	if err != nil {
 		return err
 	}
+
+	var sb strings.Builder
 	sb.WriteString(s)
 
 	g, err := gitops.Info(ctx, d)

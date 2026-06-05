@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -56,7 +57,7 @@ func SaveAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error)
 	updated, err := files.JSONWrite(filePathJSON, b.JSON(), force)
 
 	// Handle file conflict
-	if errors.Is(err, files.ErrFileExists) {
+	if errors.Is(err, os.ErrExist) {
 		bj := bookmark.BookmarkJSON{}
 		if err := files.JSONRead(filePathJSON, &bj); err != nil {
 			return false, fmt.Errorf("%w", err)

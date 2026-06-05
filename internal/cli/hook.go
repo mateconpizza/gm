@@ -92,7 +92,7 @@ func HookEnsureDatabase(app *application.App) Hook {
 		}
 
 		if files.StripSuffixes(app.DBName) == "" {
-			return fmt.Errorf("::%w: %q", application.ErrDatabaseInvalidName, app.DBName)
+			return fmt.Errorf("%w: %q", application.ErrDatabaseInvalidName, app.DBName)
 		}
 
 		// If check already passed, return early
@@ -191,11 +191,7 @@ func HookGitSync(app *application.App) Hook {
 		}
 
 		slog.Debug("hook: git sync, checking for changes")
-		app, err := application.FromContext(cmd.Context())
-		if err != nil {
-			return fmt.Errorf("hook-git: failed to get config: %w", err)
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		ctx, cancel := context.WithTimeout(cmd.Context(), 100*time.Second)
 		defer cancel()
 
 		msg := cmd.Short

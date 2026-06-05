@@ -42,7 +42,7 @@ func Repo(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	f := d.Console().Frame()
-	f.Headerln(p.Yellow.Wrap(name, p.Italic)).
+	f.HeaderCln(p.Yellow, p.Yellow.Wrap(name, p.Italic)).
 		Rowln(txt.PaddedLine("records:", stats.Bookmarks)).
 		Rowln(txt.PaddedLine("tags:", stats.Tags))
 
@@ -198,7 +198,7 @@ func BackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string,
 
 	f := c.Frame()
 
-	f.Header(p.BrightCyan.Wrap("summary:\n", p.Italic))
+	f.HeaderCln(p.BrightCyan, p.BrightCyan.Wrap("summary:", p.Italic))
 	if err != nil {
 		return f.Row(txt.PaddedLine("found:", "n/a\n")).String(), nil
 	}
@@ -257,7 +257,8 @@ func Backups(ctx context.Context, d *deps.Deps) (string, error) {
 	last := txt.PaddedLine("last:", lastBackup)
 	lastDate := txt.PaddedLine("date:", lastBackupDate)
 
-	return d.Console().Frame().Headerln(backupsColor).
+	return d.Console().Frame().
+		HeaderCln(p.BrightMagenta, backupsColor).
 		Rowln(path).
 		Rowln(last).
 		Rowln(lastDate).
