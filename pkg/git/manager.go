@@ -47,7 +47,7 @@ func (m *Mgr) Repos() []string                               { return m.track.Re
 func (m *Mgr) WriteRepos() error                             { return m.track.Write() }
 func (m *Mgr) Version() string                               { return m.version }
 func (m *Mgr) Track(names ...string) error                   { return m.track.Track(names...) }
-func (m *Mgr) Drop(ctx context.Context, gr *Repo) error      { return dropRepo(ctx, m.g, gr) }
+func (m *Mgr) Drop(ctx context.Context, gr *Repo) error      { return dropRepo(ctx, m, gr) }
 func (m *Mgr) Commit(ctx context.Context, msg string) error  { return commitIfChanged(ctx, m.g, msg) }
 func (m *Mgr) SetCfg(ctx context.Context, k, v string) error { return m.g.SetCfgLocal(ctx, k, v) }
 

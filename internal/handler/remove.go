@@ -12,6 +12,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -302,5 +303,9 @@ func DropDatabase(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	return c.Term().Print(ctx, c.SuccessMesg("database dropped\n"))
+	if err := c.Term().Print(ctx, c.SuccessMesg("database dropped\n")); err != nil {
+		return err
+	}
+
+	return gitops.Drop(ctx, app, c)
 }

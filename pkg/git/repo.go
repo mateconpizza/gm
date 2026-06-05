@@ -117,13 +117,13 @@ func (gr *Repo) RmMany(ctx context.Context, bs []*bookmark.Bookmark, postRm Post
 	}
 
 	// removal map
-	toRemove := make(map[int]bool, len(bs))
+	toRemove := make(map[string]bool, len(bs))
 	for _, b := range bs {
-		toRemove[b.ID] = true
+		toRemove[b.URL] = true
 	}
 
 	gr.bookmarks = slices.DeleteFunc(gr.bookmarks, func(e *bookmark.Bookmark) bool {
-		return toRemove[e.ID]
+		return toRemove[e.URL]
 	})
 
 	if err := postRm(gr.Fullpath()); err != nil {
@@ -179,6 +179,10 @@ func (gr *Repo) Read(ctx context.Context) error {
 func (gr *Repo) Count() (int, error) {
 	sum, err := gr.Summary()
 	if err != nil {
+		return 0, err
+	}
+
+	if sum.RepoStats == nil {
 		return 0, err
 	}
 

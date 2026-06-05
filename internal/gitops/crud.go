@@ -3,9 +3,11 @@ package gitops
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -100,8 +102,55 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 	)
 }
 
-func Drop(ctx context.Context, app *application.App) error {
-	return nil
+func Drop(ctx context.Context, app *application.App, c *ui.Console) error {
+	slog.Debug("git repo: start repo drop")
+	if !app.GitEnabled() {
+		slog.Debug("git repo: git disable")
+		return nil
+	}
+
+	m, err := git.NewManager(
+		app.Path.Git(),
+		MgrVersion(app.Version()),
+	)
+	if err != nil {
+		return err
+	}
+
+	name := app.DBBaseName()
+	if !m.IsTracked(name) || !files.Exists(app.Path.DB()) {
+		return nil
+	}
+
+	r, err := db.New(ctx, app.Path.DB())
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	gr := m.NewRepo(
+		name,
+		RepoFileWriter(),
+		RepoStatsReader(r),
+	)
+
+	if !c.Confirm(ctx, "drop git repo?", "n") {
+		return nil
+	}
+
+	if err := m.Drop(ctx, gr); err != nil {
+		return err
+	}
+
+	if !c.Confirm(ctx, "untrack database?", "n") {
+		return nil
+	}
+
+	if err := m.Untrack(ctx, gr, fmt.Sprintf("[%s] remove tracking", gr.Name())); err != nil {
+		return err
+	}
+
+	return c.Print(ctx, c.SuccessMesg("database untracked\n"))
 }
 
 func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Bookmark) error {

@@ -20,7 +20,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
-	"github.com/mateconpizza/gm/pkg/git"
 )
 
 // NewCmd database management.
@@ -142,9 +141,8 @@ func newAddCmd(app *application.App) *cobra.Command {
 
 func newDropCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:      "drop",
-		Short:    "drop a database",
-		PostRunE: dbDropPostFunc(app),
+		Use:   "drop",
+		Short: "drop a database",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -241,52 +239,12 @@ func newUseCmd(app *application.App) *cobra.Command {
 
 func newCurrentCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
-		Use:   "current",
-		Short: "current default",
+		Use:         "current",
+		Short:       "current default",
+		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println(app.DBName)
 			return nil
 		},
-	}
-}
-
-func dbDropPostFunc(app *application.App) func(*cobra.Command, []string) error {
-	return func(cmd *cobra.Command, _ []string) error {
-		if !app.GitEnabled() {
-			return nil
-		}
-
-		m, err := git.NewManager(app.Path.Git())
-		if err != nil {
-			return err
-		}
-
-		name := app.DBBaseName()
-		if !m.IsTracked(name) || !files.Exists(app.Path.DB()) {
-			return nil
-		}
-
-		// FIX: inject console
-		c := ui.NewConsole(ui.WithDefaultTerminal(cmd.Context(), func(err error) { sys.ErrAndExit(err) }))
-		ctx := cmd.Context()
-
-		gr := m.NewRepo(name)
-		if err := m.Drop(ctx, gr); err != nil {
-			return err
-		}
-
-		fmt.Fprintln(c.Writer(), c.SuccessMesg("database dropped"))
-
-		if !c.Confirm(cmd.Context(), "Untrack database?", "n") {
-			return nil
-		}
-
-		if err := m.Untrack(ctx, gr, fmt.Sprintf("[%s] remove tracking", gr.Name())); err != nil {
-			return err
-		}
-
-		fmt.Fprintln(c.Writer(), c.SuccessMesg("database untracked"))
-
-		return nil
 	}
 }

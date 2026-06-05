@@ -58,6 +58,25 @@ func readFile[T any](path string, v *T) error {
 	return nil
 }
 
+func removeAllExcept(dir string, keep map[string]struct{}) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if _, ok := keep[entry.Name()]; ok {
+			continue
+		}
+
+		if err := os.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // genHash generates a hash from a string with the given length.
 func genHash(s string, c int) string {
 	hash := sha256.Sum256([]byte(s))

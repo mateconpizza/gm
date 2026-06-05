@@ -19,8 +19,6 @@ var (
 
 const SummaryFileName = "summary.json" // summary.json
 
-type StatsLoader func(ctx context.Context, dest any) error
-
 // ClientInfo holds information about the client machine and application.
 type ClientInfo struct {
 	Hostname   string `json:"hostname"`     // Hostname is the client's hostname.

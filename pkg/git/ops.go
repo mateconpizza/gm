@@ -115,9 +115,15 @@ func saveChanges(ctx context.Context, m *Mgr, gr *Repo, ver, msg string) error {
 	return commitIfChanged(ctx, m.Git(), msg)
 }
 
-func dropRepo(ctx context.Context, g *Git, gr *Repo) error {
-	if err := os.RemoveAll(gr.Fullpath()); err != nil {
+func dropRepo(ctx context.Context, m *Mgr, gr *Repo) error {
+	keep := map[string]struct{}{
+		SummaryFileName: {},
+	}
+
+	err := removeAllExcept(gr.fullpath, keep)
+	if err != nil {
 		return err
 	}
-	return commitIfChanged(ctx, g, fmt.Sprintf("[%s] remove tracking", gr.Name()))
+
+	return m.SaveChanges(ctx, gr, fmt.Sprintf("[%s] drop repo", gr.Name()))
 }
