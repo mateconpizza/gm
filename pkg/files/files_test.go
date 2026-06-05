@@ -77,7 +77,7 @@ func TestExistsErr(t *testing.T) {
 		{
 			name:     "FileDoesNotExist",
 			path:     filepath.Join(tempDir, "non-existent-file.txt"),
-			expected: ErrFileNotFound,
+			expected: os.ErrNotExist,
 		},
 		{
 			name:     "DirectoryExists",
@@ -87,7 +87,7 @@ func TestExistsErr(t *testing.T) {
 		{
 			name:     "EmptyString",
 			path:     "",
-			expected: ErrFileNotFound,
+			expected: os.ErrNotExist,
 		},
 	}
 
@@ -237,8 +237,8 @@ func TestTouch(t *testing.T) {
 			existsOK: false,
 			wantErr:  true,
 			checkErr: func(t *testing.T, err error) {
-				if !errors.Is(err, ErrFileExists) {
-					t.Errorf("expected ErrFileExists, got %v", err)
+				if !errors.Is(err, os.ErrExist) {
+					t.Errorf("expected os.ErrExist, got %v", err)
 				}
 				if !strings.Contains(err.Error(), "existing.txt") {
 					t.Errorf("error should contain filename, got %q", err.Error())

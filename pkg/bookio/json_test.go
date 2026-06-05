@@ -56,7 +56,7 @@ func TestSaveAsJSON_ConflictChecksumUpdate(t *testing.T) {
 		Title:    "New Title",
 		Checksum: "new456",
 	}
-	updated, err := SaveAsJSON(root, b2, false)
+	updated, err := SaveAsJSON(root, b2, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

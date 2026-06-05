@@ -19,7 +19,6 @@ var (
 	ErrPathNotFound    = errors.New("path not found")
 	ErrFileExists      = errors.New("file already exists")
 	ErrPathEmpty       = errors.New("path is empty")
-	ErrPathExists      = errors.New("path already exists")
 	ErrInvalidFilename = errors.New("invalid filename")
 )
 
@@ -38,7 +37,7 @@ func ExistsErr(p string) error {
 	_, err := os.Stat(p)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return ErrFileNotFound
+			return os.ErrNotExist
 		}
 
 		return err
@@ -153,7 +152,7 @@ func MkdirAll(s ...string) error {
 // Remove removes the specified file if it exists.
 func Remove(s string) error {
 	if !Exists(s) {
-		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
+		return fmt.Errorf("%w: %q", os.ErrNotExist, s)
 	}
 
 	slog.Debug("removing path", "path", s)
@@ -168,7 +167,7 @@ func Remove(s string) error {
 // RemoveAll removes the specified file if it exists.
 func RemoveAll(s string) error {
 	if !Exists(s) {
-		return fmt.Errorf("%w: %q", ErrFileNotFound, s)
+		return fmt.Errorf("%w: %q", os.ErrNotExist, s)
 	}
 
 	slog.Debug("removing path", "path", s)
@@ -281,7 +280,7 @@ func Empty(s string) bool {
 // If the file already exists, the function succeeds when exist_ok is true.
 func Touch(s string, existsOK bool) (*os.File, error) {
 	if Exists(s) && !existsOK {
-		return nil, fmt.Errorf("%w: %q", ErrFileExists, s)
+		return nil, fmt.Errorf("%w: %q", os.ErrExist, s)
 	}
 
 	if !Exists(filepath.Dir(s)) {
@@ -368,7 +367,7 @@ func JSONWrite[T any](p string, v *T, force bool) (bool, error) {
 // JSONRead unmarshals the JSON data from the specified file.
 func JSONRead[T any](p string, v *T) error {
 	if !Exists(p) {
-		return fmt.Errorf("%w: %q", ErrFileNotFound, p)
+		return fmt.Errorf("%w: %q", os.ErrNotExist, p)
 	}
 
 	content, err := os.ReadFile(p)
@@ -392,7 +391,7 @@ func Find(root, pattern string) ([]string, error) {
 	}
 
 	if len(f) == 0 {
-		return nil, fmt.Errorf("%w: %q", ErrFileNotFound, pattern)
+		return nil, fmt.Errorf("%w: %q", os.ErrNotExist, pattern)
 	}
 
 	return f, nil
@@ -419,7 +418,7 @@ func ListRootFolders(root string, ignore ...string) ([]string, error) {
 func RemoveFilepath(fname string) error {
 	if !Exists(fname) {
 		slog.Debug("file not found", "path", fname)
-		return fmt.Errorf("%w: %q", ErrFileNotFound, fname)
+		return fmt.Errorf("%w: %q", os.ErrNotExist, fname)
 	}
 
 	if err := Remove(fname); err != nil {
