@@ -188,7 +188,7 @@ func prioritizeTracked(dbFiles, tracked []string) []string {
 	return append(priority, rest...)
 }
 
-func newTrackCmd(app *application.App) *cobra.Command {
+func newTrackCmd(_ *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "track",
 		Short:   "track a database",
@@ -200,28 +200,7 @@ func newTrackCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			g, err := gitops.NewGit(app)
-			if err != nil {
-				return err
-			}
-
-			m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
-			if err != nil {
-				return err
-			}
-
-			r, err := d.Repository()
-			if err != nil {
-				return err
-			}
-
-			gr := m.NewRepo(app.DBBaseName(), gitops.RepoFileWriter())
-			if err := gitops.Track(cmd.Context(), r, m, gr); err != nil {
-				return err
-			}
-
-			fmt.Println(d.Console().SuccessMesg(fmt.Sprintf("database %q tracked", gr.Name())))
-			return nil
+			return gitops.NewTrack(cmd.Context(), d)
 		},
 	}
 

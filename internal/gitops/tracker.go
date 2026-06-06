@@ -15,6 +15,37 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+func NewTrack(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	r, err := db.New(ctx, app.Path.DB())
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	m, err := NewManager(app)
+	if err != nil {
+		return err
+	}
+
+	gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
+
+	c := d.Console()
+	if m.IsTracked(gr.Name()) {
+		fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Name())))
+	}
+
+	if err := Track(ctx, r, m, gr); err != nil {
+		return err
+	}
+
+	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Name())))
+}
+
 func Track(ctx context.Context, r *db.SQLite, m *git.Mgr, gr *git.Repo) error {
 	if m.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitTracked, gr.Name())
