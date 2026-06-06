@@ -141,14 +141,34 @@ func Fields() []string {
 	return fields
 }
 
+// CopyMetadata copies non-content bookmark metadata from src to dst.
 func CopyMetadata(dst, src *Bookmark) *Bookmark {
+	// Identity
 	dst.ID = src.ID
-	dst.CreatedAt = src.CreatedAt
-	dst.Favorite = src.Favorite
-	dst.LastVisit = src.LastVisit
-	dst.VisitCount = src.VisitCount
-	dst.FaviconURL = src.FaviconURL
+
+	// Data
 	dst.Notes = src.Notes
+
+	// Timestamps
+	dst.CreatedAt = src.CreatedAt
+	dst.LastVisit = src.LastVisit
+	dst.LastStatusChecked = src.LastStatusChecked
+
+	// Usage stats
+	dst.VisitCount = src.VisitCount
+	dst.Favorite = src.Favorite
+
+	// Link health
+	dst.HTTPStatusCode = src.HTTPStatusCode
+	dst.HTTPStatusText = src.HTTPStatusText
+	dst.IsActive = src.IsActive
+
+	// Media / enrichment
+	dst.FaviconURL = src.FaviconURL
+
+	// Archive metadata
+	dst.ArchiveURL = src.ArchiveURL
+	dst.ArchiveTimestamp = src.ArchiveTimestamp
 
 	return dst
 }

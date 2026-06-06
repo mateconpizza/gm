@@ -70,13 +70,7 @@ func (baseBookmarkStrategy) ParseBuffer(
 	}
 
 	edited = metadata.EnrichBookmark(ctx, edited)
-	edited.ID = original.ID
-	edited.CreatedAt = original.CreatedAt
-	edited.Favorite = original.Favorite
-	edited.LastVisit = original.LastVisit
-	edited.VisitCount = original.VisitCount
-	edited.FaviconURL = original.FaviconURL
-
+	bookmark.CopyMetadata(edited, original)
 	if err := bookmark.Validate(edited); err != nil {
 		return nil, err
 	}
