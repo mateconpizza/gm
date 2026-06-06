@@ -35,7 +35,18 @@ func NewRepoReader(ctx context.Context, gitRoot, repoPath string, n int) ([]*boo
 
 	if gpg.IsInitialized(gitRoot) {
 		fingerprintPath := gpg.GPGIDPath(gitRoot)
-		loader, err := gpgStrategy(fingerprintPath)
+		fp, err := gpg.LookupKey(fingerprintPath)
+		if err != nil {
+			return nil, err
+		}
+
+		if fp.Expired() {
+			sp.AddPrefixDecorator(func(mesg string) string {
+				return mesg + rotato.FgBrightYellow.Wrap(" warn: key has expired", rotato.StyleItalic)
+			})
+		}
+
+		loader, err := gpgStrategy(fp.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
