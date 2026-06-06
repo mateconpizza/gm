@@ -45,6 +45,10 @@ func (f *Fingerprint) IsTrusted() bool {
 	return f.TrustLevel == TrustFull || f.TrustLevel == TrustUltimate
 }
 
+func (f *Fingerprint) Expired() bool {
+	return f.TrustLevel == TrustExpired
+}
+
 // TrustLevelString returns a human-readable trust level.
 func (f *Fingerprint) TrustLevelString() string {
 	switch f.TrustLevel {
@@ -52,6 +56,8 @@ func (f *Fingerprint) TrustLevelString() string {
 		return "ultimate"
 	case TrustFull:
 		return "full"
+	case TrustExpired:
+		return "expired"
 	case TrustMarginal:
 		return "marginal"
 	case TrustNever:
