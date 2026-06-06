@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	ErrKeyNotTrusted  = errors.New("gpg: key is not trusted")
 	ErrNoFingerprint  = errors.New("gpg: no fingerprint found")
 	ErrNoGPGIDFile    = errors.New("gpg: no .gpg-id file found")
 	ErrNoGPGRecipient = errors.New("gpg: no GPG recipient configured")

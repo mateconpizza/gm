@@ -3,11 +3,30 @@ package gpg
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
+)
+
+var (
+	ErrKeyExpired    = errors.New("gpg: key has expired")
+	ErrKeyNotFound   = errors.New("gpg: key not found")
+	ErrKeyNotTrusted = errors.New("gpg: key not trusted")
+	ErrKeyUnusable   = errors.New("gpg: unusable public key")
+)
+
+type TrustLevel string
+
+const (
+	TrustUltimate TrustLevel = "u"
+	TrustFull     TrustLevel = "f"
+	TrustMarginal TrustLevel = "m"
+	TrustExpired  TrustLevel = "e"
+	TrustNever    TrustLevel = "n"
+	TrustUnknown  TrustLevel = "q" // also “o”, “-”, or empty string.
 )
 
 // Fingerprint represents a GPG key and its subkeys.
@@ -18,26 +37,26 @@ type Fingerprint struct {
 	Subkeys      []string // list of subkey fingerprints
 	SubkeyIDs    []string // list of subkey short IDs
 	IsPrimaryKey bool
-	TrustLevel   string
+	TrustLevel   TrustLevel
 }
 
 // IsTrusted returns true if the key is fully or ultimately trusted.
 func (f *Fingerprint) IsTrusted() bool {
-	return f.TrustLevel == "f" || f.TrustLevel == "u"
+	return f.TrustLevel == TrustFull || f.TrustLevel == TrustUltimate
 }
 
 // TrustLevelString returns a human-readable trust level.
 func (f *Fingerprint) TrustLevelString() string {
 	switch f.TrustLevel {
-	case "u":
+	case TrustUltimate:
 		return "ultimate"
-	case "f":
+	case TrustFull:
 		return "full"
-	case "m":
+	case TrustMarginal:
 		return "marginal"
-	case "n":
+	case TrustNever:
 		return "never"
-	case "q", "o", "-", "":
+	case TrustUnknown, "o", "-", "":
 		return "unknown"
 	default:
 		return "unknown"
@@ -165,7 +184,7 @@ func parseGPGOutput(output []byte) ([]*Fingerprint, error) {
 func handlePub(fields []string, trustIdx, keyIdx int) *Fingerprint {
 	return &Fingerprint{
 		KeyID:        fields[keyIdx],
-		TrustLevel:   fields[trustIdx],
+		TrustLevel:   TrustLevel(fields[trustIdx]),
 		IsPrimaryKey: true,
 	}
 }

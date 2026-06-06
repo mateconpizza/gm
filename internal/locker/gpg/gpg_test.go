@@ -81,7 +81,7 @@ func TestFingerprintTrust(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name       string
-		trustLevel string
+		trustLevel TrustLevel
 		wantTrust  bool
 		wantString string
 	}{
