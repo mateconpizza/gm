@@ -74,6 +74,7 @@ func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Finger
 		menu.WithMultilineView(),
 		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
 	)
+
 	m.SetFormatter(func(f **gpg.Fingerprint) string {
 		fp := *f
 		return fmt.Sprintf(
@@ -103,8 +104,8 @@ func selectFingerprint(m *menu.Menu[*gpg.Fingerprint], fps []*gpg.Fingerprint) (
 }
 
 func initGPG(ctx context.Context, c *ui.Console, m *git.Mgr, k *gpg.Fingerprint) error {
-	if !k.IsTrusted() {
-		return fmt.Errorf("%w: %s", gpg.ErrKeyNotTrusted, k.UserID)
+	if err := k.Validate(); err != nil {
+		return fmt.Errorf("gpg init: %w", err)
 	}
 
 	if err := gpg.Init(m.Root(), git.AttributesFile, k); err != nil {

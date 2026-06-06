@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -69,8 +68,51 @@ func (f *Fingerprint) TrustLevelString() string {
 	}
 }
 
+func (f *Fingerprint) Validate() error {
+	if f.Expired() {
+		return fmt.Errorf("%w: %s %q", ErrKeyExpired, f.UserID, f.Fingerprint)
+	}
+	if f.IsTrusted() {
+		return fmt.Errorf("%w: %s %q", ErrKeyNotTrusted, f.UserID, f.Fingerprint)
+	}
+	return nil
+}
+
 func (f *Fingerprint) String() string {
 	return fmt.Sprintf("ID: %s  User: %s\nFingerprint: %s", f.KeyID, f.UserID, f.Fingerprint)
+}
+
+// LookupKey looks up the GPG key for the fingerprint stored in path.
+func LookupKey(path string) (*Fingerprint, error) {
+	if !fileExists(path) {
+		return nil, fmt.Errorf("%w: %q", os.ErrNotExist, path)
+	}
+
+	recipient, err := loadFingerprint(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if recipient == "" {
+		return nil, ErrNoGPGRecipient
+	}
+
+	fps, err := ListFingerprints()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(fps) == 0 {
+		return nil, ErrNoFingerprint
+	}
+
+	for i := range fps {
+		if fps[i].Fingerprint == recipient {
+			return fps[i], nil
+		}
+	}
+
+	return nil, ErrNoFingerprint
 }
 
 // ListFingerprints lists all public GPG keys with their fingerprints and subkeys.
@@ -92,30 +134,21 @@ func ListFingerprints() ([]*Fingerprint, error) {
 	return fps, nil
 }
 
-// LoadFingerprint loads fingerprint from the .gpg-id file.
-func LoadFingerprint(f string) (string, error) {
+// loadFingerprint loads fingerprint from the .gpg-id file.
+func loadFingerprint(f string) (string, error) {
 	if !fileExists(f) {
-		slog.Debug("gpg: gpg-id file does not exist", "path", f)
 		return "", fmt.Errorf("%w: %q", ErrNoGPGIDFile, f)
 	}
 
 	fingerprint, err := os.ReadFile(f)
 	if err != nil {
-		slog.Debug("gpg: failed to read gpg-id file", "path", f, "error", err)
 		return "", fmt.Errorf("failed to read .gpg-id: %w", err)
 	}
 
 	recipientKey := strings.TrimSpace(string(fingerprint))
 	if recipientKey == "" {
-		slog.Debug("gpg: empty fingerprint in gpg-id file", "path", f)
 		return "", ErrNoFingerprint
 	}
-
-	slog.Debug(
-		"gpg: loaded GPG fingerprint successfully",
-		"path", f,
-		"fingerprint", recipientKey,
-	)
 
 	return recipientKey, nil
 }

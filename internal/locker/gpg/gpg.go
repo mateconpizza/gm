@@ -146,7 +146,7 @@ func New(recipient string) (*GPG, error) {
 // IsInitialized returns true if GPG is active.
 func IsInitialized(path string) bool {
 	f := GPGIDPath(path)
-	recipientKey, err := LoadFingerprint(f)
+	recipientKey, err := loadFingerprint(f)
 	if err != nil {
 		return false
 	}
@@ -167,7 +167,7 @@ func Unlocked(ctx context.Context, filePath string) (bool, error) {
 
 // Decrypt decrypts the provided encrypted file.
 func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte, error) {
-	recipientKey, err := LoadFingerprint(fingerprintPath)
+	recipientKey, err := loadFingerprint(fingerprintPath)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte
 
 // Encrypt encrypts the provided data and saves it to the specified path.
 func Encrypt(ctx context.Context, fingerprintPath, path string, content []byte) error {
-	recipientKey, err := LoadFingerprint(fingerprintPath)
+	recipientKey, err := loadFingerprint(fingerprintPath)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func Init(path, gitAttrFile string, fingerprint *Fingerprint) error {
 
 // GPGIDPath returns the path to the .gpg-id file inside the given repo directory.
 func GPGIDPath(repoPath string) string {
-	return filepath.Join(repoPath, ".gpg-id")
+	return filepath.Join(repoPath, fingerprintIDFilename)
 }
 
 func which() (string, error) {

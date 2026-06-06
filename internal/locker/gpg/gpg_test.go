@@ -117,7 +117,7 @@ func TestLoadFingerprint(t *testing.T) {
 	gpgIDPath := filepath.Join(tmpDir, fingerprintIDFilename)
 
 	// Test: file doesn't exist
-	_, err := LoadFingerprint(gpgIDPath)
+	_, err := loadFingerprint(gpgIDPath)
 	if err == nil {
 		t.Error("expected error when file doesn't exist")
 	}
@@ -126,7 +126,7 @@ func TestLoadFingerprint(t *testing.T) {
 	if err := os.WriteFile(gpgIDPath, []byte(""), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	_, err = LoadFingerprint(gpgIDPath)
+	_, err = loadFingerprint(gpgIDPath)
 	if !errors.Is(err, ErrNoFingerprint) {
 		t.Errorf("expected ErrNoFingerprint, got %v", err)
 	}
@@ -136,7 +136,7 @@ func TestLoadFingerprint(t *testing.T) {
 	if err := os.WriteFile(gpgIDPath, []byte(testFingerprint+"\n"), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	fp, err := LoadFingerprint(gpgIDPath)
+	fp, err := loadFingerprint(gpgIDPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestLoadFingerprint(t *testing.T) {
 	if err := os.WriteFile(gpgIDPath, []byte("  "+testFingerprint+"  \n"), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
-	fp, err = LoadFingerprint(gpgIDPath)
+	fp, err = loadFingerprint(gpgIDPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

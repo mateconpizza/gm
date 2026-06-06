@@ -16,12 +16,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-func gpgStrategy(fingerprintPath string) (*bookio.RepositoryLoader, error) {
-	recipient, err := gpg.LoadFingerprint(fingerprintPath)
-	if err != nil {
-		return nil, fmt.Errorf("gpg strategy: %w", err)
-	}
-
+func gpgStrategy(recipient string) (*bookio.RepositoryLoader, error) {
 	g, err := gpg.New(recipient)
 	if err != nil {
 		return nil, err
