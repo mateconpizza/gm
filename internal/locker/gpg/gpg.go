@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	ErrKeyNotTrusted  = errors.New("gpg: key is not trusted")
 	ErrNoFingerprint  = errors.New("gpg: no fingerprint found")
 	ErrNoGPGIDFile    = errors.New("gpg: no .gpg-id file found")
 	ErrNoGPGRecipient = errors.New("gpg: no GPG recipient configured")
@@ -54,13 +53,18 @@ func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error)
 
 	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
 
-	output, err := cmd.CombinedOutput()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
-		msg := strings.TrimSpace(string(output))
-		slog.Debug("gpg: decryption failed", "error", err, "output", msg, "output_length", len(output))
-		return nil, fmt.Errorf("gpg decrypt failed: %s: %w", msg, err)
+		return nil, fmt.Errorf("gpg decrypt failed: %w: %s", err, stderr.String())
 	}
 
+	output := stdout.Bytes()
 	slog.Info("gpg: decryption successful", "encrypted_path", encryptedPath, "output_size", len(output))
 
 	return output, nil
@@ -86,15 +90,20 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 
 	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
 
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	cmd.Stdin = bytes.NewReader(content)
 
-	output, err := cmd.CombinedOutput()
+	err := cmd.Run()
 	if err != nil {
-		slog.Debug("gpg: encryption failed", "error", err, "output_length", len(output))
-		return fmt.Errorf("gpg encrypt failed: %s: %w", strings.TrimSpace(string(output)), err)
+		if strings.Contains(stderr.String(), "Unusable public key") {
+			return fmt.Errorf("%w: %q", ErrKeyUnusable, g.recipient)
+		}
+
+		return fmt.Errorf("gpg encrypt failed: %w: %s", err, stderr.String())
 	}
 
-	slog.Info("gpg: encryption successful", "encrypted_path", path, "output_size", len(output))
+	slog.Info("gpg: encryption successful", "encrypted_path", path)
 
 	return nil
 }
@@ -147,7 +156,7 @@ func New(recipient string) (*GPG, error) {
 // IsInitialized returns true if GPG is active.
 func IsInitialized(path string) bool {
 	f := GPGIDPath(path)
-	recipientKey, err := LoadFingerprint(f)
+	recipientKey, err := loadFingerprint(f)
 	if err != nil {
 		return false
 	}
@@ -168,7 +177,7 @@ func Unlocked(ctx context.Context, filePath string) (bool, error) {
 
 // Decrypt decrypts the provided encrypted file.
 func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte, error) {
-	recipientKey, err := LoadFingerprint(fingerprintPath)
+	recipientKey, err := loadFingerprint(fingerprintPath)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +192,7 @@ func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte
 
 // Encrypt encrypts the provided data and saves it to the specified path.
 func Encrypt(ctx context.Context, fingerprintPath, path string, content []byte) error {
-	recipientKey, err := LoadFingerprint(fingerprintPath)
+	recipientKey, err := loadFingerprint(fingerprintPath)
 	if err != nil {
 		return err
 	}
@@ -222,7 +231,7 @@ func Init(path, gitAttrFile string, fingerprint *Fingerprint) error {
 
 // GPGIDPath returns the path to the .gpg-id file inside the given repo directory.
 func GPGIDPath(repoPath string) string {
-	return filepath.Join(repoPath, ".gpg-id")
+	return filepath.Join(repoPath, fingerprintIDFilename)
 }
 
 func which() (string, error) {

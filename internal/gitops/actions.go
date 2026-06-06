@@ -39,12 +39,16 @@ func addFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) err
 	if gpg.IsInitialized(root) {
 		fingerprintPath := gpg.GPGIDPath(root)
 
-		recipient, err := gpg.LoadFingerprint(fingerprintPath)
+		fp, err := gpg.LookupKey(fingerprintPath)
 		if err != nil {
 			return fmt.Errorf("gpg strategy: %w", err)
 		}
 
-		g, err := gpg.New(recipient)
+		if err := fp.Validate(); err != nil {
+			return err
+		}
+
+		g, err := gpg.New(fp.Fingerprint)
 		if err != nil {
 			return err
 		}
