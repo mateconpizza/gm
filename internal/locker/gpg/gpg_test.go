@@ -294,7 +294,7 @@ func TestGPG_Encrypt_CommandFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from Encrypt, got nil")
 	}
-	if !strings.Contains(err.Error(), "gpg encrypt failed") {
+	if !strings.Contains(err.Error(), "gpg encrypt failed:") {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }

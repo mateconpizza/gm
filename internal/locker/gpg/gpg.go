@@ -53,13 +53,18 @@ func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error)
 
 	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
 
-	output, err := cmd.CombinedOutput()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
-		msg := strings.TrimSpace(string(output))
-		slog.Debug("gpg: decryption failed", "error", err, "output", msg, "output_length", len(output))
-		return nil, fmt.Errorf("gpg decrypt failed: %s: %w", msg, err)
+		return nil, fmt.Errorf("gpg decrypt failed: %w: %s", err, stderr.String())
 	}
 
+	output := stdout.Bytes()
 	slog.Info("gpg: decryption successful", "encrypted_path", encryptedPath, "output_size", len(output))
 
 	return output, nil
@@ -85,15 +90,20 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 
 	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
 
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	cmd.Stdin = bytes.NewReader(content)
 
-	output, err := cmd.CombinedOutput()
+	err := cmd.Run()
 	if err != nil {
-		slog.Debug("gpg: encryption failed", "error", err, "output_length", len(output))
-		return fmt.Errorf("gpg encrypt failed: %s: %w", strings.TrimSpace(string(output)), err)
+		if strings.Contains(stderr.String(), "Unusable public key") {
+			return fmt.Errorf("%w: %q", ErrKeyUnusable, g.recipient)
+		}
+
+		return fmt.Errorf("gpg encrypt failed: %w: %s", err, stderr.String())
 	}
 
-	slog.Info("gpg: encryption successful", "encrypted_path", path, "output_size", len(output))
+	slog.Info("gpg: encryption successful", "encrypted_path", path)
 
 	return nil
 }
