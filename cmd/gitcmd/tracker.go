@@ -36,7 +36,7 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			m, err := git.NewManager(app.Path.Git())
+			m, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func managementSelect(ctx context.Context, c *ui.Console, app *application.App, 
 			return err
 		}
 
-		gr := m.NewRepo(name, gitops.RepoFileWriter())
+		gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
 		if err := gitops.Track(ctx, r, m, gr); err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 		Rowln().
 		Flush()
 
-	m, err := git.NewManager(app.Path.Git())
+	m, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 	dbFiles = prioritizeTracked(dbFiles, tracked)
 	for _, dbPath := range dbFiles {
 		name := filepath.Base(dbPath)
-		gr := m.NewRepo(name)
+		gr := gitops.NewRepo(m, name)
 
 		s := gitops.TrackStatus(c, m, gr)
 		if s == "" {

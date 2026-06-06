@@ -10,6 +10,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -63,11 +64,6 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			m, err := git.NewManager(app.Path.Git())
-			if err != nil {
-				return err
-			}
-
 			r, err := d.Repository()
 			if err != nil {
 				return err
@@ -83,7 +79,12 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			gr := m.NewRepo(r.BaseName())
+			m, err := gitops.NewManager(app)
+			if err != nil {
+				return err
+			}
+
+			gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
 			if !m.IsTracked(gr.Name()) {
 				return nil
 			}

@@ -63,17 +63,12 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	g, err := NewGit(app)
+	m, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
-	m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
-	if err != nil {
-		return err
-	}
-
-	gr := m.NewRepo(app.DBBaseName())
+	gr := NewRepo(m, app.DBBaseName())
 	commitMsg := fmt.Sprintf("[%s] remove tracking", gr.Name())
 	if err := m.Untrack(ctx, gr, commitMsg); err != nil {
 		return err

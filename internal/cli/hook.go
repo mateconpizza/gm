@@ -208,9 +208,19 @@ func HookGitSync(app *application.App) Hook {
 func HookGitPrune(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {
 		slog.Debug("hook: checks for differences between database and local repo and syncs them")
+		m, err := gitops.NewManager(app)
+		if err != nil {
+			return fmt.Errorf("hook git: new git manager: %w", err)
+		}
+
+		if !m.IsTracked(app.DBBaseName()) {
+			slog.Debug("hook git: repo not tracked", "name", app.DBBaseName())
+			return nil
+		}
+
 		r, err := db.New(cmd.Context(), app.Path.DB())
 		if err != nil {
-			return err
+			return fmt.Errorf("hook git: %w", err)
 		}
 		defer r.Close()
 

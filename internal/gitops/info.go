@@ -2,13 +2,11 @@ package gitops
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -35,7 +33,8 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 		return f.StringReset(), err
 	}
 
-	f.Reset().Headerln(p.BrightRed.Wrap("git:", p.Italic))
+	f.Reset().
+		HeaderCln(p.BrightRed, p.BrightRed.Wrap("git:", p.Italic))
 
 	gr := m.NewRepo(r.BaseName())
 	sum, err := m.Summary(gr)
@@ -64,28 +63,14 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 		lastSync := txt.RelativeTime(tt.Format(txt.TimeLayout)) +
 			p.Gray.With(p.Italic).Sprintf(" (%s)", sum.LastSync)
 
-		f.Rowln(txt.PaddedLine("last sync:", lastSync)).
-			Success(txt.PaddedLine("sync:", true)).Ln()
+		f.Rowln(txt.PaddedLine("last sync:", lastSync))
+	}
+
+	if app.GitEnabled() {
+		f.Success(txt.PaddedLine("sync:", p.BrightGreen.Wrap("true", p.Bold))).Ln()
 	} else {
-		f.Error(txt.PaddedLine("sync:", false)).Ln()
+		f.Error(txt.PaddedLine("sync:", p.BrightRed.Wrap("false", p.Bold))).Ln()
 	}
 
 	return f.StringReset(), nil
-}
-
-func getSummary(ctx context.Context, r *db.SQLite, repo *git.Repo) (*git.Summary, error) {
-	stats := git.NewRepoStats()
-	if err := r.Stats(ctx, stats); err != nil {
-		return nil, fmt.Errorf("failed to get database stats: %w", err)
-	}
-
-	sum, err := repo.Summary()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repo stats: %w", err)
-	}
-
-	stats.Name = repo.Name()
-	sum.RepoStats = stats
-
-	return sum, nil
 }

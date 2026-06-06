@@ -63,11 +63,11 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 		return err
 	}
 
-	if err := gitops.Add(ctx, app.Path.Git(), r, b); err != nil {
+	if err := c.Term().Print(ctx, c.SuccessMesg("bookmark added\n")); err != nil {
 		return err
 	}
 
-	return c.Term().Print(ctx, c.SuccessMesg("bookmark added\n"))
+	return gitops.Add(ctx, app, r, b)
 }
 
 // parseNewBookmark fetch metadata and parses the new bookmark.

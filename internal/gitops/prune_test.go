@@ -46,13 +46,6 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 		wantErr     error
 	}{
 		{
-			name:        "empty_bookmarks",
-			dbBookmarks: []*bookmark.Bookmark{},
-			repoSetup:   func(m *mockGitRepo) {},
-			saveFn:      func(ctx context.Context, msg string) error { return nil },
-			wantErr:     bookmark.ErrBookmarkNotFound,
-		},
-		{
 			name: "normal_success",
 			dbBookmarks: []*bookmark.Bookmark{
 				{ID: 1, Title: "bookmark1"},

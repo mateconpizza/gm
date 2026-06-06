@@ -37,10 +37,6 @@ func newRepoReconciler(gr gitRepo, bs []*bookmark.Bookmark, save saveChangesFunc
 }
 
 func (r *RepoReconciler) Reconcile(ctx context.Context) error {
-	if len(r.dbBookmarks) == 0 {
-		return bookmark.ErrBookmarkNotFound
-	}
-
 	if err := r.readRepo(ctx); err != nil {
 		return err
 	}
@@ -121,28 +117,12 @@ func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
 		return git.ErrGitDisabled
 	}
 
-	g, err := NewGit(app)
+	m, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
-	m, err := git.NewManager(
-		app.Path.Git(),
-		git.WithGit(g),
-		git.WithVersion(app.Version()),
-	)
-	if err != nil {
-		return err
-	}
-
-	gr := m.NewRepo(
-		app.DBBaseName(),
-		RepoFileReader(),
-		RepoFileRemover(),
-		RepoFileWriter(),
-		RepoStatsReader(r),
-	)
-
+	gr := NewRepo(m, r.Name(), RepoStatsReader(r))
 	if !m.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBBaseName())
 	}

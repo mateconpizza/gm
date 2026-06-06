@@ -26,16 +26,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 		Use:   "commit",
 		Short: "commit changes to the repository",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app)
-			if err != nil {
-				return err
-			}
-
-			m, err := git.NewManager(
-				app.Path.Git(),
-				git.WithGit(g),
-				git.WithVersion(app.Version()),
-			)
+			m, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
@@ -45,11 +36,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			gr := m.NewRepo(
-				app.DBBaseName(),
-				gitops.RepoStatsReader(r),
-			)
-
+			gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
 			return m.SaveChanges(cmd.Context(), gr, cmd.Short)
 		},
 	}
@@ -111,16 +98,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Short:       "create empty Git repository",
 		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app)
-			if err != nil {
-				return err
-			}
-
-			m, err := git.NewManager(
-				app.Path.Git(),
-				git.WithGit(g),
-				gitops.MgrVersion(app.Version()),
-			)
+			m, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
@@ -259,7 +237,7 @@ func newSyncCmd(app *application.App) *cobra.Command {
 
 // pushFunc pushes local changes to the remote repository.
 func pushFunc(ctx context.Context, app *application.App) error {
-	m, err := git.NewManager(app.Path.Git())
+	m, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}

@@ -18,16 +18,15 @@ import (
 
 var _ bookio.FileManager = (*files.FileManager)(nil)
 
+func RepoFileReader() git.RepoOptFunc              { return git.WithRepoReader(readFiles) }
 func RepoFileWriter() git.RepoOptFunc              { return git.WithRepoWriter(addFiles) }
 func RepoFileRemover() git.RepoOptFunc             { return git.WithRepoRemover(removeFiles) }
 func RepoStatsReader(r *db.SQLite) git.RepoOptFunc { return git.WithRepoStore(r) }
 func MgrVersion(ver string) git.MgrOptFunc         { return git.WithVersion(ver) }
 
-func RepoFileReader() git.RepoOptFunc {
-	return git.WithRepoReader(func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
-		root := filepath.Dir(path)
-		return NewRepoReader(ctx, root, path, total)
-	})
+func readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
+	root := filepath.Dir(path)
+	return NewRepoReader(ctx, root, path, total)
 }
 
 func addFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
@@ -91,12 +90,7 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return nil
 	}
 
-	g, err := NewGit(app)
-	if err != nil {
-		return err
-	}
-
-	m, err := git.NewManager(app.Path.Git(), git.WithGit(g))
+	m, err := NewManager(app)
 	if err != nil {
 		return fmt.Errorf("git sync: failed to create git repo: %w", err)
 	}
@@ -122,25 +116,12 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
 	}
 
-	gr := m.NewRepo(r.BaseName(), RepoFileWriter())
+	gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
 
-	sum, err := getSummary(ctx, r, gr)
-	if err != nil {
-		return fmt.Errorf("git sync: failed to get summary: %w", err)
-	}
-
-	if err := gr.WriteSummary(sum); err != nil {
-		return fmt.Errorf("git sync: failed to write summary: %w", err)
-	}
-
-	if err := m.Commit(ctx, msg); err != nil {
-		return fmt.Errorf("git sync: failed to commit changes: %w", err)
-	}
-
-	return nil
+	return m.SaveChanges(ctx, gr, msg)
 }
 
 func createGPGFile(ctx context.Context, g *gpg.GPG, repoPath string, b *bookmark.Bookmark) error {

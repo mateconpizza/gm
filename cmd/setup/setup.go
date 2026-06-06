@@ -108,7 +108,8 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	if !app.GitEnabled() {
 		return nil
 	}
-	m, err := git.NewManager(app.Path.Git())
+
+	m, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -134,7 +135,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	gr := m.NewRepo(name)
+	gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
 	if err := gitops.Track(cmd.Context(), r, m, gr); err != nil {
 		return err
 	}
