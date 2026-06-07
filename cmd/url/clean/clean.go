@@ -47,6 +47,9 @@ func NewCmd(app *application.App) *cobra.Command {
 
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+
+	c.PersistentFlags().BoolVarP(&app.Flags.Vacuum, "all", "a", false, "remove all parameters")
+
 	return c
 }
 

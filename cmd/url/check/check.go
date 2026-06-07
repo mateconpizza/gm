@@ -21,9 +21,8 @@ import (
 
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "status",
-		Aliases: []string{"sta", "s"},
-		Short:   "check URLs HTTP status",
+		Use:   "check",
+		Short: "check URLs HTTP status",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " bookmark status ")
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
