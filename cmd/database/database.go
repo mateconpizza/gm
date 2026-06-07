@@ -86,9 +86,10 @@ func NewCmd(app *application.App) *cobra.Command {
 
 func newStatsCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "stats",
-		Short:   "show database stats",
-		Aliases: []string{"i", "show", "info"},
+		Use:         "stats",
+		Short:       "show database stats",
+		Aliases:     []string{"i", "show", "info"},
+		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -129,9 +130,15 @@ func newAddCmd(app *application.App) *cobra.Command {
 		Short:       "add a database",
 		Aliases:     []string{"create", "new"},
 		Example:     `  gm db add --db myDb`,
-		Annotations: cli.SkipDBCheck,
-		RunE:        setup.InitCmd.RunE,
-		PostRunE:    setup.InitCmd.PostRunE,
+		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if files.Exists(app.Path.DB()) {
+				return fmt.Errorf("%w: %q", db.ErrDBExists, app.DBName)
+			}
+
+			return setup.InitCmd.RunE(cmd, args)
+		},
+		PostRunE: setup.InitCmd.PostRunE,
 	}
 
 	cmdutil.FlagDBRequired(c, app)
@@ -161,8 +168,9 @@ func newDropCmd(app *application.App) *cobra.Command {
 
 func newLockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "lock",
-		Short: "lock a database",
+		Use:         "lock",
+		Short:       "lock a database",
+		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -183,7 +191,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "unlock",
 		Short:       "unlock a database",
-		Annotations: cli.SkipDBCheck,
+		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d := deps.New(
 				deps.WithApplication(app),

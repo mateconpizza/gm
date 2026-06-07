@@ -17,10 +17,11 @@ import (
 
 func newImportCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "import",
-		Aliases: []string{"imp", "i"},
-		Short:   "import bookmarks",
-		RunE:    cli.HookHelp,
+		Use:                "import",
+		Aliases:            []string{"imp", "i"},
+		Short:              "import bookmarks",
+		PersistentPostRunE: cli.HookGitSync(app),
+		RunE:               cli.HookHelp,
 	}
 
 	c.AddCommand(

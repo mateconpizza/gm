@@ -156,10 +156,11 @@ func newRawCmd(app *application.App) *cobra.Command {
 
 func newCloneCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "clone",
-		Short:   "import from remote",
-		Aliases: []string{"import"},
-		Args:    cobra.MinimumNArgs(1),
+		Use:                "clone",
+		Short:              "import from remote",
+		Aliases:            []string{"import"},
+		Args:               cobra.MinimumNArgs(1),
+		PersistentPostRunE: cli.HookGitSync(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
