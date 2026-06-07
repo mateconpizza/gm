@@ -61,9 +61,6 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				if err := pause(ctx, 50*time.Millisecond); err != nil {
-					return err
-				}
 				res := makeRequest(c, b, ctx)
 
 				mu.Lock()
@@ -220,11 +217,7 @@ func buildResponse(
 
 // handleRequestError handles errors from the HTTP request and determines the
 // appropriate status code.
-func handleRequestError(
-	c *ui.Console,
-	b *bookmark.Bookmark,
-	err error,
-) Response {
+func handleRequestError(c *ui.Console, b *bookmark.Bookmark, err error) Response {
 	var statusCode int
 
 	switch {
@@ -244,7 +237,7 @@ func handleRequestError(
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
 // returns a response.
 func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context) Response {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(

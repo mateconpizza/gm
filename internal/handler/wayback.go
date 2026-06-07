@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync/atomic"
 	"time"
 
@@ -58,7 +59,7 @@ func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 	sp.Start(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(1)
+	g.SetLimit(runtime.NumCPU())
 
 	for _, b := range bs {
 		g.Go(func() error {

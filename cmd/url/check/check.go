@@ -138,7 +138,7 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 				args,
 				nil,
 				func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-					return printer.Display(ctx, d.Console(), string(formatter.HTTPStatusCode), bs)
+					return printer.Display(ctx, d.Console(), formatter.HTTPStatusCode.String(), bs)
 				},
 				statusCodeFilter(app.Flags.Field),
 			)

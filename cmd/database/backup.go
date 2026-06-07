@@ -23,10 +23,11 @@ import (
 
 func newBackupCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "backup",
-		Aliases: []string{"b", "bk"},
-		Short:   "backup management",
-		RunE:    cli.HookHelp,
+		Use:         "backup",
+		Aliases:     []string{"b", "bk"},
+		Short:       "backup management",
+		RunE:        cli.HookHelp,
+		Annotations: cli.SkipGitSync,
 	}
 
 	c.AddCommand(

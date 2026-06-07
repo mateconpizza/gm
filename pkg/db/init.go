@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type Table string
@@ -52,18 +50,6 @@ func (r *SQLite) Init(ctx context.Context) error {
 	}
 
 	return Migrate(ctx, r, ms)
-}
-
-// tableCreate creates a new table with the specified name in the SQLite database.
-func (r *SQLite) tableCreate(ctx context.Context, tx *sqlx.Tx, name Table, schema string) error {
-	slog.DebugContext(ctx, "creating table", "name", name)
-
-	_, err := tx.ExecContext(ctx, schema)
-	if err != nil {
-		return fmt.Errorf("error creating table: %w", err)
-	}
-
-	return nil
 }
 
 // Vacuum rebuilds the database file, repacking it into a minimal amount of

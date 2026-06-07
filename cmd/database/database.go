@@ -108,9 +108,10 @@ func newStatsCmd(app *application.App) *cobra.Command {
 
 func newListCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "list",
-		Aliases: []string{"l", "ls"},
-		Short:   "list all databases",
+		Use:         "list",
+		Aliases:     []string{"l", "ls"},
+		Short:       "list all databases",
+		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -130,7 +131,7 @@ func newAddCmd(app *application.App) *cobra.Command {
 		Short:       "add a database",
 		Aliases:     []string{"create", "new"},
 		Example:     `  gm db add --db myDb`,
-		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
+		Annotations: cli.SkipDBCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if files.Exists(app.Path.DB()) {
 				return fmt.Errorf("%w: %q", db.ErrDBExists, app.DBName)

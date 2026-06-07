@@ -27,26 +27,41 @@ var (
 
 // Bookmark represents a bookmark.
 type Bookmark struct {
-	ID                int    `db:"id"                json:"id"`
-	URL               string `db:"url"               json:"url"`               // URL of the bookmark.
-	Tags              string `db:"tags"              json:"tags"`              // Tags for the bookmark, stored as a comma-separated string.
-	Title             string `db:"title"             json:"title"`             // Title of the bookmark, retrieved from the website's metadata.
-	Desc              string `db:"desc"              json:"desc"`              // Description of the bookmark.
-	Notes             string `db:"notes"             json:"notes"`             // Notes
-	CreatedAt         string `db:"created_at"        json:"created_at"`        // Timestamp when the bookmark was created.
-	LastVisit         string `db:"last_visit"        json:"last_visit"`        // Timestamp of the last time the bookmark was visited.
-	UpdatedAt         string `db:"updated_at"        json:"updated_at"`        // Timestamp of the last time the bookmark record was updated.
-	VisitCount        int    `db:"visit_count"       json:"visit_count"`       // The number of times the bookmark has been visited.
-	Favorite          bool   `db:"favorite"          json:"favorite"`          // Boolean indicating if the bookmark is marked as a favorite.
-	FaviconURL        string `db:"favicon_url"       json:"favicon_url"`       // URL for the bookmark's favicon.
-	FaviconLocal      string `db:"favicon_local"     json:"favicon_local"`     // Local path to the cached favicon file.
-	ArchiveURL        string `db:"archive_url"       json:"archive_url"`       // Internet Archive URL
-	ArchiveTimestamp  string `db:"archive_timestamp" json:"archive_timestamp"` // Internet Archive timestamp
-	LastStatusChecked string `db:"last_checked"      json:"last_checked"`      // Last checked timestamp.
-	HTTPStatusCode    int    `db:"status_code"       json:"status_code"`       // HTTP status code (200, 404, etc.)
-	HTTPStatusText    string `db:"status_text"       json:"status_text"`       // OK, Not Found, etc
-	IsActive          bool   `db:"is_active"         json:"is_active"`         // true if the URL is active (200-299)
-	Checksum          string `db:"checksum"          json:"checksum"`          // Checksum or hash (URL, Title, Description and Tags)
+	// Identity
+	ID int `db:"id" json:"id"`
+
+	// Content (user-editable)
+	URL   string `db:"url"   json:"url"`
+	Title string `db:"title" json:"title"`
+	Desc  string `db:"desc"  json:"desc"`
+	Tags  string `db:"tags"  json:"tags"` // comma-separated tags
+	Notes string `db:"notes" json:"notes"`
+
+	// Timestamps
+	CreatedAt         string `db:"created_at"   json:"created_at"`
+	UpdatedAt         string `db:"updated_at"   json:"updated_at"`
+	LastVisit         string `db:"last_visit"   json:"last_visit"`
+	LastStatusChecked string `db:"last_checked" json:"last_checked"`
+
+	// Usage stats
+	VisitCount int  `db:"visit_count" json:"visit_count"`
+	Favorite   bool `db:"favorite"    json:"favorite"`
+
+	// Link health
+	HTTPStatusCode int    `db:"status_code" json:"status_code"`
+	HTTPStatusText string `db:"status_text" json:"status_text"` // OK, Not Found, etc
+	IsActive       bool   `db:"is_active"   json:"is_active"`   // true if the URL is active (200-299)
+
+	// Media / enrichment
+	FaviconURL   string `db:"favicon_url"   json:"favicon_url"`   // URL for the bookmark's favicon.
+	FaviconLocal string `db:"favicon_local" json:"favicon_local"` // Local path to the cached favicon file.
+
+	// Archive metadata
+	ArchiveURL       string `db:"archive_url"       json:"archive_url"`       // Internet Archive URL
+	ArchiveTimestamp string `db:"archive_timestamp" json:"archive_timestamp"` // Internet Archive timestamp
+
+	// Integrity
+	Checksum string `db:"checksum" json:"checksum"` // Checksum or hash (URL, Title, Description and Tags)
 }
 
 type BookmarkJSON struct {
@@ -147,6 +162,18 @@ func (b *Bookmark) Equals(o *Bookmark) bool {
 		b.Title == o.Title &&
 		b.Desc == o.Desc &&
 		b.Notes == o.Notes
+}
+
+func (b *Bookmark) DeepEquals(o *Bookmark) bool {
+	if b == nil || o == nil {
+		return b == o
+	}
+
+	if b.Checksum == o.Checksum {
+		return true
+	}
+
+	return *b == *o
 }
 
 func (b *Bookmark) Buffer() []byte {

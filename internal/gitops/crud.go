@@ -22,16 +22,11 @@ func NewManager(app *application.App) (*git.Mgr, error) {
 		return nil, err
 	}
 
-	m, err := git.NewManager(
+	return git.NewManager(
 		app.Path.Git(),
 		git.WithGit(g),
 		git.WithVersion(app.Version()),
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	return m, nil
 }
 
 func NewRepo(m *git.Mgr, name string, opts ...git.RepoOptFunc) *git.Repo {
