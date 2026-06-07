@@ -72,7 +72,7 @@ func (f *Fingerprint) Validate() error {
 	if f.Expired() {
 		return fmt.Errorf("%w: %s %q", ErrKeyExpired, f.UserID, f.Fingerprint)
 	}
-	if f.IsTrusted() {
+	if !f.IsTrusted() {
 		return fmt.Errorf("%w: %s %q", ErrKeyNotTrusted, f.UserID, f.Fingerprint)
 	}
 	return nil
