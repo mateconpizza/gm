@@ -654,3 +654,47 @@ func formatFlags(b *bookmark.Bookmark) string {
 
 	return flags.String()
 }
+
+// StatusCodeFunc formats a bookmark with its HTTP status and URL.
+func StatusCodeFunc(c *ui.Console, b *bookmark.Bookmark) string {
+	const statusWidth = 22
+
+	p := c.Palette()
+
+	statusText := b.HTTPStatusText
+	if statusText == "" {
+		statusText = "Unassigned"
+	}
+
+	statusText = txt.Shorten(statusText, statusWidth-6)
+
+	statusLabel := fmt.Sprintf(
+		"(%d) %s",
+		b.HTTPStatusCode,
+		statusText,
+	)
+
+	bURL := txt.Shorten(
+		b.URL,
+		c.MaxWidth()-statusWidth,
+	)
+
+	var sb strings.Builder
+
+	sb.WriteString(p.Bold.Sprintf("%-*d ", 4, b.ID))
+
+	sb.WriteString(
+		txt.PaddedLineWithPad(
+			txt.HTTPStatusCodeColor(
+				b.HTTPStatusCode,
+				p,
+			).Sprint(statusLabel),
+			bURL,
+			statusWidth,
+		),
+	)
+
+	sb.WriteByte('\n')
+
+	return sb.String()
+}

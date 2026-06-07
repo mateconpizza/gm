@@ -65,7 +65,7 @@ func rootCmdFunc(app *application.App) cli.Hook {
 			return nil
 		}
 
-		fm, err := formatter.New(app.Flags.Output)
+		fm, err := formatter.New(formatter.Format(app.Flags.Output))
 		if err != nil {
 			return err
 		}
@@ -80,7 +80,7 @@ func rootCmdFunc(app *application.App) cli.Hook {
 			case app.Flags.Preview != "":
 				return printer.MenuPreview(t, bs, f.Preview)
 			case app.Flags.Output != "":
-				return printer.Display(t, f.Output, bs)
+				return printer.Display(ctx, t, f.Output, bs)
 			default:
 				return printer.Records(ctx, t, bs)
 			}

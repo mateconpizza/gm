@@ -18,7 +18,8 @@ func NewCmd(app *application.App) *cobra.Command {
 	}
 
 	c.AddCommand(
-		check.NewCmd(app),
+		check.NewCheckCmd(app),
+		check.NewStatusCmd(app),
 		clean.NewCmd(app),
 		archive.NewCmd(app),
 	)

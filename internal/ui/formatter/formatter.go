@@ -34,8 +34,13 @@ const (
 	bar       Format = "bar"
 	Frame     Format = "frame"
 
-	Parameters Format = "parameters"
+	Parameters     Format = "parameters"
+	HTTPStatusCode Format = "statusCode"
 )
+
+func (f Format) String() string {
+	return string(f)
+}
 
 // Func formats a bookmark for console output.
 type Func func(*ui.Console, *bookmark.Bookmark) string
@@ -152,6 +157,10 @@ var Formatters = map[Format]Formatter{
 		},
 	},
 
+	HTTPStatusCode: {
+		Render: StatusCodeFunc,
+	},
+
 	// Compact:   {Format: CompactFunc, Transform: "3..", Preview: "{+2}"},
 	// Label:     {Format: LabelFunc, Transform: "3..", Preview: "{+2}"},
 	// Lean:      {Format: LeanFunc, Transform: "3..", Preview: "{+2}"},
@@ -168,12 +177,12 @@ var ValidFormats = func() []string {
 	return keys
 }
 
-func New(name string) (Formatter, error) {
+func New(name Format) (Formatter, error) {
 	if name == "" {
 		return Formatters[DefFormatter], nil
 	}
 
-	if f, ok := Formatters[Format(name)]; ok {
+	if f, ok := Formatters[name]; ok {
 		return f, nil
 	}
 	return Formatter{}, fmt.Errorf("%w: %q (use: %s)", ErrUnknownFormatter, name, strings.Join(ValidFormats(), "|"))

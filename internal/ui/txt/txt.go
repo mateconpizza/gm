@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -617,4 +618,59 @@ func CleanLines(s string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.SGR {
+	switch {
+	case statusCode == 0:
+		return p.BrightRed.With(p.Italic)
+
+	// 2xx Success
+	case statusCode >= 200 && statusCode < 300:
+		return p.Green.With(p.Bold)
+
+	// 3xx Redirection
+	case statusCode >= 300 && statusCode < 400:
+		return p.BrightBlue
+
+	// Specific 4xx
+	case statusCode == http.StatusUnauthorized:
+		return p.Yellow.With(p.Bold)
+
+	case statusCode == http.StatusForbidden:
+		return p.BrightRed
+
+	case statusCode == http.StatusNotFound:
+		return p.Red.With(p.Bold)
+
+	case statusCode == http.StatusGone:
+		return p.Red.With(p.Bold)
+
+	case statusCode == http.StatusTooManyRequests:
+		return p.BrightYellow.With(p.Bold)
+
+	// Other 4xx
+	case statusCode >= 400 && statusCode < 500:
+		return p.Yellow
+
+	// Specific 5xx
+	case statusCode == http.StatusGatewayTimeout:
+		return p.BrightMagenta
+
+	case statusCode == http.StatusBadGateway:
+		return p.Magenta.With(p.Bold)
+
+	case statusCode == http.StatusServiceUnavailable:
+		return p.BrightMagenta.With(p.Bold)
+
+	case statusCode == http.StatusInternalServerError:
+		return p.BrightRed.With(p.Bold)
+
+	// Other 5xx
+	case statusCode >= 500 && statusCode < 600:
+		return p.Magenta
+
+	default:
+		return p.Dim.With(p.Italic)
+	}
 }

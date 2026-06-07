@@ -33,7 +33,7 @@ var (
 )
 
 func MenuPreview(c *ui.Console, bs []*bookmark.Bookmark, f string) error {
-	fm, err := formatter.New(f)
+	fm, err := formatter.New(formatter.Format(f))
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,12 @@ func TagsList(ctx context.Context, w io.Writer, p string) error {
 }
 
 // Print formats the bookmarks with the given fn.
-func Print(c *ui.Console, bs []*bookmark.Bookmark, fn func(*ui.Console, *bookmark.Bookmark) string) error {
+func Print(
+	ctx context.Context,
+	c *ui.Console,
+	bs []*bookmark.Bookmark,
+	fn func(*ui.Console, *bookmark.Bookmark) string,
+) error {
 	var buf strings.Builder
 	for i := range bs {
 		buf.WriteString(fn(c, bs[i]))
@@ -311,11 +316,11 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
-func Display(c *ui.Console, f string, bs []*bookmark.Bookmark) error {
-	fm, err := formatter.New(f)
+func Display(ctx context.Context, c *ui.Console, f string, bs []*bookmark.Bookmark) error {
+	fm, err := formatter.New(formatter.Format(f))
 	if err != nil {
 		return err
 	}
 
-	return Print(c, bs, fm.Render)
+	return Print(ctx, c, bs, fm.Render)
 }
