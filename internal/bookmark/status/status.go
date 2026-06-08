@@ -291,15 +291,3 @@ func isNetworkUnreachableError(err error) bool {
 
 	return false
 }
-
-// pause blocks until d elapses or ctx is cancelled.
-func pause(ctx context.Context, d time.Duration) error {
-	t := time.NewTimer(d)
-	defer t.Stop()
-	select {
-	case <-t.C:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
