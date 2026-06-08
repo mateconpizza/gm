@@ -190,6 +190,14 @@ func (app *App) CreatePaths() error { return app.Path.setup() }
 func (app *App) GitEnabled() bool   { return app.Git.Enabled }
 func (app *App) Version() string    { return app.Info.Version }
 
+func (app *App) Example(template string) string {
+	return strings.NewReplacer(
+		"{cmd}", app.Cmd,
+		"{version}", app.Version(),
+		"{db}", app.DBBaseName(),
+	).Replace(template)
+}
+
 func (g *Git) Status() string {
 	if !g.Enabled {
 		return "disabled"

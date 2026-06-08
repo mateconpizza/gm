@@ -22,6 +22,12 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "yank [query]",
 		Aliases: []string{"copy", "y"},
 		Short:   "copy URL",
+		Example: app.Example(`  $ {cmd} yank <query>
+  $ {cmd} yank --menu
+  $ {cmd} yank --menu --sort favorite
+  $ {cmd} yank --tag golang
+  $ {cmd} yank --tag golang,awesome
+  $ {cmd} yank --json <query>`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := picker.New[bookmark.Bookmark](
 				app,

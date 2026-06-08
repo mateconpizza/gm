@@ -15,6 +15,10 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "add",
 		Short:   "add a bookmark",
 		Aliases: []string{"new"},
+		Example: app.Example(`  $ {cmd} new
+  $ {cmd} add <URL>
+  $ {cmd} new <URL> --title <title>
+  $ {cmd} new <URL> --title <title> --tags <golang,awesome>`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {

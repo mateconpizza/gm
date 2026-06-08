@@ -16,6 +16,10 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "rm [query]",
 		Aliases: []string{"remove"},
 		Short:   "remove bookmark",
+		Example: app.Example(`  $ {cmd} rm <id> or <query>
+  $ {cmd} rm --menu --sort favorite
+  $ {cmd} rm --tag golang,awesome
+  $ {cmd} rm --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := picker.New[bookmark.Bookmark](
 				app,

@@ -21,15 +21,11 @@ import (
 )
 
 func newLookupCmd(app *application.App) *cobra.Command {
-	use := "fetch"
 	c := &cobra.Command{
-		Use:   use,
+		Use:   "fetch",
 		Short: "wayback lookup",
-		Example: fmt.Sprintf(`  # get the latest snapshot for bookmark 179
-  %s archive %s 179 --latest
-
-  # get up to 5 snapshots from 2023
-  %s archive %s 179 --limit 5 --year 2023 179`, app.Cmd, use, app.Cmd, use),
+		Example: app.Example(`  $ {cmd} url archive fetch 179 --latest
+  $ {cmd} url archive fetch 179 --limit 5 --year 2023`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := picker.New[bookmark.Bookmark](
 				app,

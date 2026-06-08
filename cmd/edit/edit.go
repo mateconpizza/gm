@@ -17,6 +17,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "edit [query]",
 		Aliases: []string{"e"},
 		Short:   "edit bookmark",
+		Example: app.Example(`  $ {cmd} edit <id> or <query>
+  $ {cmd} edit --menu --sort favorite
+  $ {cmd} edit --tag golang,awesome
+  $ {cmd} edit --tag golang --json
+  $ {cmd} edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// FIX: menu: current functionality exits the menu after editing a bookmark.
 			// New functionality must keep menu after editing.
@@ -59,6 +64,10 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "notes [query]",
 		Short: "edit notes with text editor",
+		Example: app.Example(`  $ {cmd} edit notes <id> or <query>
+  $ {cmd} edit notes --menu --sort favorite
+  $ {cmd} edit notes --tag golang,awesome
+  $ {cmd} edit notes --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := picker.New[bookmark.Bookmark](
 				app,

@@ -26,6 +26,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "notes [query]",
 		Aliases: []string{"n"},
 		Short:   "view notes",
+		Example: app.Example(`  $ {cmd} notes <id> or <query>
+  $ {cmd} notes --menu --sort favorite
+  $ {cmd} notes --sort newest <query>
+  $ {cmd} notes edit --tag golang,awesome
+  $ {cmd} notes edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.Flags.Edit {
 				return newEditNotesCmd(app).RunE(cmd, args)

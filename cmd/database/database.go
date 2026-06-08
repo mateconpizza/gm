@@ -90,6 +90,10 @@ func newStatsCmd(app *application.App) *cobra.Command {
 		Short:       "show database stats",
 		Aliases:     []string{"i", "show", "info"},
 		Annotations: cli.SkipGitSync,
+		Example: app.Example(`  $ {cmd} db stats
+  $ {cmd} db stats --db work
+  $ {cmd} db stats --json
+  $ {cmd} db stats --db {db} --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -112,6 +116,7 @@ func newListCmd(app *application.App) *cobra.Command {
 		Aliases:     []string{"l", "ls"},
 		Short:       "list all databases",
 		Annotations: cli.SkipGitSync,
+		Example:     app.Example(`  $ {cmd} db list`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -122,15 +127,20 @@ func newListCmd(app *application.App) *cobra.Command {
 			return printer.DatabasesTable(cmd.Context(), d.Console(), app.Path.Home(), app.DBName)
 		},
 	}
+
+	cmdutil.HideFlag(c, "force", "yes")
+
 	return c
 }
 
 func newAddCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:         "add",
-		Short:       "add a database",
-		Aliases:     []string{"create", "new"},
-		Example:     `  gm db add --db myDb`,
+		Use:     "add",
+		Short:   "add a database",
+		Aliases: []string{"create", "new"},
+		Example: app.Example(`  $ {cmd} db add --db <name>
+  $ {cmd} db new --db <name>
+  $ {cmd} db create --db <name>`),
 		Annotations: cli.SkipDBCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if files.Exists(app.Path.DB()) {
@@ -151,6 +161,9 @@ func newDropCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "drop",
 		Short: "drop a database",
+		Example: app.Example(`  $ {cmd} db drop --db {db}
+			$ {cmd} db drop --db {db} --yes
+			$ {cmd} db drop --db work --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -172,6 +185,8 @@ func newLockCmd(app *application.App) *cobra.Command {
 		Use:         "lock",
 		Short:       "lock a database",
 		Annotations: cli.SkipGitSync,
+		Example: app.Example(`  $ {cmd} db lock --db {db}
+  $ {cmd} db lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -190,8 +205,10 @@ func newLockCmd(app *application.App) *cobra.Command {
 
 func newUnlockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:         "unlock",
-		Short:       "unlock a database",
+		Use:   "unlock",
+		Short: "unlock a database",
+		Example: app.Example(`  $ {cmd} db unlock --db {db}
+  $ {cmd} db unlock --db work`),
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d := deps.New(
@@ -213,9 +230,8 @@ func newUseCmd(app *application.App) *cobra.Command {
 		Use:         "use [name]",
 		Short:       "set default database",
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
-		Example: `  gm db use <name>
-  # restore to default
-  gm db use default`,
+		Example: app.Example(`  $ {cmd} db use <name>
+  $ {cmd} db use default`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()
