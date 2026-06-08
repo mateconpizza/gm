@@ -26,6 +26,9 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
 		Use:     "rm",
 		Short:   "remove one or more backups",
 		Aliases: []string{"backup", "b", "backups"},
+		Example: app.Example(`  $ {cmd} db backup rm
+  $ {cmd} db backup rm --db work
+  $ {cmd} db backup rm --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input := "s\n" // input for prompt, this will show the menu to select backups files.
 			d := deps.New(

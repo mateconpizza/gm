@@ -41,11 +41,14 @@ func newBackupCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newBackupAddCmd(_ *application.App) *cobra.Command {
+func newBackupAddCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "create",
 		Short:   "create a new backup",
-		Aliases: []string{"add", "new"},
+		Aliases: []string{"add", "new", "create"},
+		Example: app.Example(`  $ {cmd} db backup create
+  $ {cmd} db backup new
+  $ {cmd} db backup add --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -64,6 +67,8 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "lock",
 		Short: "lock a database backup",
+		Example: app.Example(`  $ {cmd} db backup lock
+  $ {cmd} db backup lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -102,6 +107,8 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "unlock",
 		Short: "unlock a database backup",
+		Example: app.Example(`  $ {cmd} db backup unlock
+  $ {cmd} db backup unlock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -125,11 +132,14 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newBackupListCmd(_ *application.App) *cobra.Command {
+func newBackupListCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "list",
 		Short:   "list backups",
 		Aliases: []string{"l", "ls", "info", "i"},
+		Example: app.Example(`  $ {cmd} db backup list
+  $ {cmd} db backup list --db work
+  $ {cmd} db backup ls`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -174,6 +184,8 @@ func newBackupListCmd(_ *application.App) *cobra.Command {
 			return nil
 		},
 	}
+
+	cmdutil.HideFlag(c, "yes", "force")
 
 	return c
 }

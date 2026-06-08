@@ -26,6 +26,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "config",
 		Aliases: []string{"cfg", "conf"},
 		Short:   "configuration",
+		Example: app.Example(`  $ {cmd} config create
+  $ {cmd} config create --force
+  $ {cmd} config edit
+  $ {cmd} config --print
+  $ {cmd} config --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.Flags.Output == "json" || app.Flags.Output == "j" {
 				return cfgToJSON(cmd.Context(), app)

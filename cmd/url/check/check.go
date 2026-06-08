@@ -126,12 +126,10 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "status",
 		Short: "filter bookmarks by HTTP status code",
-		Example: `  # show all codes 4xx, 5xx
-  gm url status
-
-  # using -c, --code flag
-  gm url status -c 200,400
-	gm url status -c 2,4`,
+		Example: app.Example(`  $ {cmd} url status
+  $ {cmd} url status -c 200,400
+  $ {cmd} url status -c 2,4
+  $ {cmd} url status --code 404,403`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Execute(
 				cmd,

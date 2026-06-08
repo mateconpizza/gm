@@ -14,9 +14,13 @@ import (
 
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:         "open [query]",
-		Aliases:     []string{"o"},
-		Short:       "open in browser",
+		Use:     "open [query]",
+		Aliases: []string{"o"},
+		Short:   "open in browser",
+		Example: app.Example(`  $ {cmd} open <id> or <query>
+  $ {cmd} open --menu --sort favorite
+  $ {cmd} open --tag golang,awesome
+  $ {cmd} open --tag golang --tag awesome`),
 		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder("{+1}")
