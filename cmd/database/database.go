@@ -2,10 +2,7 @@
 package database
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -28,43 +25,8 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "db",
 		Aliases: []string{"database", "d"},
 		Short:   "database ops",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			r, err := d.Repository()
-			if err != nil {
-				return err
-			}
-
-			switch {
-			case app.Flags.Vacuum:
-				slog.Debug("database:", "vacuum", app.DBName)
-				defer r.Close()
-				return r.Vacuum(cmd.Context())
-
-			case app.Flags.Reorder:
-				slog.Debug("database: reordering bookmark IDs")
-				defer r.Close()
-
-				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-				defer cancel()
-				return r.ReorderIDs(ctx)
-			}
-
-			return cmd.Usage()
-		},
+		RunE:    cli.HookHelp,
 	}
-
-	f := c.Flags()
-	f.SortFlags = false
-	f.BoolVarP(&app.Flags.Vacuum, "vacuum", "X", false,
-		"compact and rebuild the database file")
-	f.BoolVarP(&app.Flags.Reorder, "reorder", "R", false,
-		"renumber bookmark IDs sequentially")
 
 	c.AddCommand(
 		newAddCmd(app),            // create
@@ -79,6 +41,8 @@ func NewCmd(app *application.App) *cobra.Command {
 		newUnlockCmd(app),         // restore access
 		newImportCmd(app),         // data in
 		newExportCmd(app),         // data out
+		newReorderCmd(app),        // reorder IDs
+		newVacuumCmd(app),         // compact database file
 	)
 
 	return c
@@ -253,6 +217,26 @@ func newCurrentCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println(app.DBName)
 			return nil
+		},
+	}
+}
+
+func newReorderCmd(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "reorder",
+		Short: "renumber bookmark IDs sequentially",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return dbops.ReorderDatabase(cmd.Context(), app)
+		},
+	}
+}
+
+func newVacuumCmd(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "vacuum",
+		Short: "compact and rebuild the database file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return dbops.VacuumDatabase(cmd.Context(), app)
 		},
 	}
 }
