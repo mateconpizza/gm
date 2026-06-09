@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -81,72 +79,6 @@ func selectItem(ctx context.Context, d *deps.Deps, fs []string, header string) (
 	}
 
 	return repos[0], nil
-}
-
-// SelectBackupOne lets the user choose a backup and handles decryption if
-// needed.
-func SelectBackupOne(ctx context.Context, d *deps.Deps, bks []string) (string, error) {
-	c := d.Console()
-	app, err := d.Application(ctx)
-	if err != nil {
-		return "", err
-	}
-	selected, err := selection(
-		bks,
-		func(p *string) string {
-			return summary.BackupWithFmtDateFromPath(ctx, c, *p)
-		},
-		menu.WithArgs("--cycle"),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithConfig(app.Menu),
-		menu.WithHeader("choose a backup to import from"),
-		menu.WithPreview(app.PreviewCmd("./backup/{1}")+" db info"),
-	)
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	backupPath := selected[0]
-
-	// Handle locked backups
-	if err := locker.IsLocked(backupPath); err != nil {
-		if err := UnlockRepo(ctx, d, backupPath); err != nil {
-			return "", fmt.Errorf("%w", err)
-		}
-
-		backupPath = strings.TrimSuffix(backupPath, ".enc")
-	}
-
-	return backupPath, nil
-}
-
-func SelectBackupMany(ctx context.Context, d *deps.Deps, root, header string) ([]string, error) {
-	fs, err := files.FindByExtList(root, "db")
-	if err != nil {
-		return fs, fmt.Errorf("%w", err)
-	}
-
-	app, err := d.Application(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	repos, err := selection(
-		fs,
-		func(p *string) string {
-			return summary.RepoRecordsFromPath(ctx, d.Console(), *p)
-		},
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithConfig(app.Menu),
-		menu.WithHeader(header),
-		menu.WithMultiSelection(),
-		menu.WithPreview(app.PreviewCmd("./backup/{1}", "db info")),
-	)
-	if err != nil {
-		return repos, fmt.Errorf("%w", err)
-	}
-
-	return repos, nil
 }
 
 // SelectFileLocked lets the user choose a repo from a list of locked

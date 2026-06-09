@@ -4,11 +4,8 @@ package handler
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"log/slog"
-	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -19,14 +16,12 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -174,114 +169,6 @@ func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *de
 	}
 }
 
-// LockRepo locks the database.
-func LockRepo(ctx context.Context, d *deps.Deps, rToLock string) error {
-	c := d.Console()
-	if err := locker.IsLocked(rToLock); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if !files.Exists(rToLock) {
-		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
-	}
-
-	if err := c.ConfirmErr(ctx, fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
-		if errors.Is(err, sys.ErrActionAborted) {
-			return nil
-		}
-		return err
-	}
-
-	pass, err := passwordConfirm(ctx, c)
-	if err != nil {
-		return err
-	}
-
-	if err := locker.Lock(rToLock, pass); err != nil {
-		return err
-	}
-
-	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("database locked: %q", filepath.Base(rToLock))))
-
-	return nil
-}
-
-// UnlockRepo unlocks the database.
-func UnlockRepo(ctx context.Context, d *deps.Deps, rToUnlock string) error {
-	if err := locker.IsLocked(rToUnlock); err == nil {
-		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
-	}
-
-	rToUnlock = files.EnsureSuffix(rToUnlock, locker.Extension)
-	slog.Debug("unlocking database", "name", rToUnlock)
-
-	if !files.Exists(rToUnlock) {
-		s := filepath.Base(strings.TrimSuffix(rToUnlock, ".enc"))
-		return fmt.Errorf("%w: %q", files.ErrFileNotFound, s)
-	}
-
-	c := d.Console()
-	if err := c.ConfirmErr(ctx, fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	s, err := c.InputPassword(ctx, "Password: ")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := locker.Unlock(rToUnlock, s); err != nil {
-		fmt.Fprintln(d.Writer())
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprintln(d.Writer())
-	fmt.Fprintln(d.Writer(), c.SuccessMesg("database unlocked"))
-
-	return nil
-}
-
-func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-
-	c := d.Console()
-	p, f := c.Palette(), c.Frame()
-	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-	f.CustomFunc(header, p.Bold.Sprint("Configuring database")).Ln()
-
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err = db.UpdateAppVersion(ctx, r, app.Version()); err != nil {
-		return fmt.Errorf("app version update failed: %w", err)
-	}
-
-	schemaVer, err := db.CurrentSchemaVersion(ctx, r)
-	if err != nil {
-		return err
-	}
-
-	sqlVer, err := db.SQLiteVersion(ctx, r)
-	if err != nil {
-		return err
-	}
-
-	const padding = 28
-	f.Success(txt.PaddedLineWithPad("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
-		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
-		Rowln().
-		Flush()
-
-	return nil
-}
-
 func ProcessBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) error {
 	c := d.Console()
 	updated, err := updateBookmarkData(ctx, c, b)
@@ -412,4 +299,45 @@ func runEditSession(
 
 	session := editor.NewEditSession(d.Console(), r, te, opts...)
 	return session.Run(ctx, bs, es)
+}
+
+func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	c := d.Console()
+	p, f := c.Palette(), c.Frame()
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+	f.CustomFunc(header, p.Bold.Sprint("Configuring database")).Ln()
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err = db.UpdateAppVersion(ctx, r, app.Version()); err != nil {
+		return fmt.Errorf("app version update failed: %w", err)
+	}
+
+	schemaVer, err := db.CurrentSchemaVersion(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	sqlVer, err := db.SQLiteVersion(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	const padding = 28
+	f.Success(txt.PaddedLineWithPad("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
+		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
+		Rowln().
+		Flush()
+
+	return nil
 }

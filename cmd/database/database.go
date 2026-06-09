@@ -13,8 +13,8 @@ import (
 	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -173,7 +173,7 @@ func newDropCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.DropDatabase(cmd.Context(), d)
+			return dbops.Drop(cmd.Context(), d)
 		},
 	}
 
@@ -196,7 +196,7 @@ func newLockCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return handler.LockRepo(cmd.Context(), d, app.Path.DB())
+			return dbops.Lock(cmd.Context(), d, app.Path.DB())
 		},
 	}
 
@@ -218,7 +218,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 				deps.WithConsole(ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })),
 			)
 
-			return handler.UnlockRepo(cmd.Context(), d, app.Path.DB())
+			return dbops.Unlock(cmd.Context(), d, app.Path.DB())
 		},
 	}
 
@@ -238,26 +238,7 @@ func newUseCmd(app *application.App) *cobra.Command {
 			if len(args) == 0 {
 				return cmd.Help()
 			}
-
-			filename := files.StripSuffixes(args[0])
-			if filename == "" {
-				return fmt.Errorf("%w: %q", handler.ErrInvalidOption, filename)
-			}
-
-			if filename == "default" {
-				filename = application.MainDBName
-			}
-			if err := app.SetDatabase(filename); err != nil {
-				return err
-			}
-
-			r, err := db.New(cmd.Context(), app.Path.DB())
-			if err != nil {
-				return err
-			}
-			defer r.Close()
-
-			return app.WriteConfig(true)
+			return dbops.SetDefault(cmd.Context(), app, args[0])
 		},
 	}
 

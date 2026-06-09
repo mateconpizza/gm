@@ -10,6 +10,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -106,7 +107,7 @@ func newImportFromBackupCmd(app *application.App) *cobra.Command {
 			defer cancel()
 
 			ctx := cmd.Context()
-			backupPath, err := handler.SelectBackupOne(ctx, d, bks)
+			backupPath, err := dbops.SelectBackup(ctx, d, bks)
 			if err != nil {
 				return err
 			}

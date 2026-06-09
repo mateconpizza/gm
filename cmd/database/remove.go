@@ -9,9 +9,9 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -30,7 +30,7 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
   $ {cmd} db backup rm --db work
   $ {cmd} db backup rm --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			input := "s\n" // input for prompt, this will show the menu for selecting backup files.
+			input := "select\n" // input for prompt, this will show the menu for selecting backup files.
 			d := deps.New(
 				deps.WithApplication(app),
 				deps.WithConsole(ui.NewConsole(
@@ -46,11 +46,9 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
 				)),
 			)
 
-			return handler.RemoveBackups(cmd.Context(), d)
+			return dbops.RemoveBackups(cmd.Context(), d)
 		},
 	}
-
-	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }
@@ -78,7 +76,7 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			if err := handler.RemoveRepo(ctx, d); err != nil {
+			if err := dbops.Remove(ctx, d); err != nil {
 				return err
 			}
 

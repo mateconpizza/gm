@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -19,6 +21,7 @@ import (
 )
 
 func TestDatabase_Drop(t *testing.T) {
+	t.Parallel()
 	d := testutil.SetupDeps(t)
 	want := 10
 	app, err := d.Application(t.Context())
@@ -54,9 +57,11 @@ func TestDatabase_Drop(t *testing.T) {
 }
 
 func TestRemoveRepo_Success(t *testing.T) {
+	t.Parallel()
 	ansi.DisableColor()
 
 	t.Run("successfully remove main database", func(t *testing.T) {
+		t.Parallel()
 		d := testutil.SetupDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
@@ -84,6 +89,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 	})
 
 	t.Run("successfully remove a database", func(t *testing.T) {
+		t.Parallel()
 		d := testutil.SetupDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
@@ -115,7 +121,10 @@ func TestRemoveRepo_Success(t *testing.T) {
 }
 
 func TestRemoveRepo_Fail(t *testing.T) {
+	t.Parallel()
+
 	t.Run("fails with database not found", func(t *testing.T) {
+		t.Parallel()
 		d := testutil.SetupDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
@@ -130,6 +139,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 	})
 
 	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
+		t.Parallel()
 		d := testutil.SetupDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
@@ -196,4 +206,104 @@ func TestPasswordInput(t *testing.T) {
 			t.Errorf("expected empty string, got %q", s)
 		}
 	})
+}
+
+func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
+	t.Parallel()
+	d := testutil.SetupDeps(t)
+	app, err := d.Application(t.Context())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	app.Path.Database = filepath.Join(t.TempDir(), "nonexistent.db")
+
+	err = NewBackup(t.Context(), d)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !errors.Is(err, db.ErrDBNotFound) {
+		t.Fatalf("expected db.ErrDBNotFound, got %v", err)
+	}
+}
+
+func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
+	t.Parallel()
+	d := testutil.SetupDeps(t)
+	app, err := d.Application(t.Context())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	f, err := os.Create(app.Path.DB())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := f.Close(); err != nil {
+		t.Errorf("unexpected err closing file: %v", err)
+	}
+
+	err = NewBackup(t.Context(), d)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !errors.Is(err, db.ErrDBEmpty) {
+		t.Fatalf("expected db.ErrDBEmpty, got %v", err)
+	}
+}
+
+func TestNewBackup_Successfully_Created(t *testing.T) {
+	t.Parallel()
+	d := testutil.SetupDeps(t)
+	app, err := d.Application(t.Context())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	app.Flags.Yes = true
+	app.Flags.Force = true
+
+	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.DB(), 5)
+	d.SetRepo(r)
+
+	var buf bytes.Buffer
+	d.SetWriter(&buf)
+
+	err = NewBackup(t.Context(), d)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	info, err := os.Stat(app.Path.Backup())
+	if err != nil {
+		t.Fatalf("expected backup dir, got error: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("expected backup dir, got file")
+	}
+
+	output := buf.String()
+	expectedString := "backup created:"
+	if !strings.Contains(output, expectedString) {
+		t.Errorf("want %q, got %q", expectedString, output)
+	}
+}
+
+func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
+	t.Parallel()
+	d := testutil.SetupDeps(t)
+	app, err := d.Application(t.Context())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.DB(), 5)
+	d.SetRepo(r)
+
+	// Update terminal for reject confirmation prompt.
+	input := "n\n"
+	term := terminal.New(terminal.WithReader(strings.NewReader(input)))
+	c := ui.NewConsole(ui.WithTerminal(term))
+	d.SetConsole(c)
+
+	err = NewBackup(t.Context(), d)
+	if !errors.Is(err, sys.ErrExitFailure) {
+		t.Fatalf("expected err %q, got %q", sys.ErrExitFailure, err)
+	}
 }

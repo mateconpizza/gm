@@ -19,6 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -272,8 +273,8 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 	return removeSlicePath(ctx, d, filesToRemove)
 }
 
-// LockRepo locks the database.
-func LockRepo(ctx context.Context, d *deps.Deps, rToLock string) error {
+// Lock locks the database.
+func Lock(ctx context.Context, d *deps.Deps, rToLock string) error {
 	c := d.Console()
 	if err := locker.IsLocked(rToLock); err != nil {
 		return fmt.Errorf("%w", err)
@@ -304,8 +305,32 @@ func LockRepo(ctx context.Context, d *deps.Deps, rToLock string) error {
 	return nil
 }
 
-// UnlockRepo unlocks the database.
-func UnlockRepo(ctx context.Context, d *deps.Deps, rToUnlock string) error {
+func LockBackup(ctx context.Context, d *deps.Deps) error {
+	fs, err := selectBackups(ctx, d, "select backup/s to lock")
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	c := d.Console()
+	f, p := c.Frame(), c.Palette()
+	f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
+
+	for _, r := range fs {
+		if err := Lock(ctx, d, r); err != nil {
+			if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
+				f.Warning(p.Gray.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
+				continue
+			}
+
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Unlock unlocks the database.
+func Unlock(ctx context.Context, d *deps.Deps, rToUnlock string) error {
 	if err := locker.IsLocked(rToUnlock); err == nil {
 		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
 	}
@@ -335,6 +360,60 @@ func UnlockRepo(ctx context.Context, d *deps.Deps, rToUnlock string) error {
 
 	fmt.Fprintln(d.Writer())
 	fmt.Fprintln(d.Writer(), c.SuccessMesg("database unlocked"))
+
+	return nil
+}
+
+func NewBackup(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	srcPath := app.Path.DB()
+	if !files.Exists(srcPath) {
+		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
+	}
+
+	if files.Empty(srcPath) {
+		return fmt.Errorf("%w", db.ErrDBEmpty)
+	}
+	s, err := summary.Info(ctx, d)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(d.Writer(), s)
+
+	c := d.Console()
+	f, p := c.Frame(), c.Palette()
+	f.Reset().Row("\n").Flush()
+
+	if !app.Flags.Yes {
+		if err := c.ConfirmErr(ctx, "create "+p.BrightGreen.Wrap("backup", p.Italic), "y"); err != nil {
+			return err
+		}
+	}
+
+	if err := os.MkdirAll(app.Path.Backup(), files.DirPerm); err != nil {
+		return err
+	}
+
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	newBkPath, err := r.Backup(ctx, app.Path.Backup())
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
+
+	if app.Flags.Force {
+		slog.Debug("skipping lock", "path", newBkPath)
+		return nil
+	}
 
 	return nil
 }

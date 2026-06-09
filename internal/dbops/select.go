@@ -40,7 +40,7 @@ func SelectBackup(ctx context.Context, d *deps.Deps, bks []string) (string, erro
 
 	// Handle locked backups
 	if err := locker.IsLocked(backupPath); err != nil {
-		if err := UnlockRepo(ctx, d, backupPath); err != nil {
+		if err := Unlock(ctx, d, backupPath); err != nil {
 			return "", fmt.Errorf("%w", err)
 		}
 
@@ -50,15 +50,15 @@ func SelectBackup(ctx context.Context, d *deps.Deps, bks []string) (string, erro
 	return backupPath, nil
 }
 
-func SelectBackupMany(ctx context.Context, d *deps.Deps, root, header string) ([]string, error) {
-	fs, err := files.FindByExtList(root, "db")
-	if err != nil {
-		return fs, fmt.Errorf("%w", err)
-	}
-
+func selectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, error) {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	fs, err := files.FindByExtList(app.Path.Backup(), "db")
+	if err != nil {
+		return fs, fmt.Errorf("selectBackups: %w", err)
 	}
 
 	p := d.Console().Palette()
@@ -132,7 +132,7 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 	return m.Select(fs)
 }
 
-func setupMenu[T comparable](app *application.App, formatter func(item *T) string, opts ...menu.Option) *menu.Menu[T] {
+func setupMenu[T comparable](app *application.App, formatter menu.FmtFunc[T], opts ...menu.Option) *menu.Menu[T] {
 	opts = append(
 		opts,
 		menu.WithArgs("--cycle"),

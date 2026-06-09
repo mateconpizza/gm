@@ -9,11 +9,9 @@ import (
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -116,29 +114,6 @@ func validateRemove(bs []*bookmark.Bookmark, force bool) error {
 	}
 
 	return nil
-}
-
-// passwordConfirm prompts user for password input.
-func passwordConfirm(ctx context.Context, c *ui.Console) (string, error) {
-	s, err := c.InputPassword(ctx, "Password: ")
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprintln(c.Writer())
-
-	s2, err := c.InputPassword(ctx, "Confirm Password: ")
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprintln(c.Writer())
-
-	if s != s2 {
-		return "", locker.ErrPassphraseMismatch
-	}
-
-	return s, nil
 }
 
 // ValidURL checks if a string is a valid URL.
