@@ -9,6 +9,7 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
@@ -29,42 +30,76 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} yank --tag golang,awesome
   $ {cmd} yank --json <query>`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := picker.New[bookmark.Bookmark](
-				app,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" yank URL "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")+" {1}"),
-			)
-
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				t, p := d.Console(), d.Console().Palette()
+				c := d.Console()
+				p := c.Palette()
 
-				s := fmt.Sprintf("%s %d bookmarks to system clipboard", p.BrightGreen.Wrap("copy", p.Bold), len(bs))
-				if err := t.ConfirmLimit(cmd.Context(), len(bs), 10, s, app.Flags.Force); err != nil {
+				msg := fmt.Sprintf(
+					"%s %d bookmarks to system clipboard",
+					p.BrightGreen.Wrap("copy", p.Bold),
+					len(bs),
+				)
+
+				if err := c.ConfirmLimit(ctx, len(bs), 10, msg, app.Flags.Force); err != nil {
 					return err
 				}
 
-				var sb strings.Builder
-				for i := range bs {
-					sb.WriteString(bs[i].URL)
-					sb.WriteString("\n")
-				}
-				if err := sys.CopyClipboard(sb.String()); err != nil {
+				content, err := clipboardContent(bs, app.Flags.JSON)
+				if err != nil {
 					return err
 				}
 
-				fmt.Fprintln(d.Writer(), t.SuccessMesg("copied ", len(bs), " bookmarks to system clipboard"))
+				if !app.Flags.Force && !app.Flags.Yes {
+					c.ClearLine(2)
+				}
 
-				return nil
+				if err := sys.CopyClipboard(content); err != nil {
+					return err
+				}
+
+				return c.Print(
+					ctx,
+					c.SuccessMesg("copied ", len(bs), " bookmarks to system clipboard\n"),
+				)
 			}
 
-			return cmdutil.Execute(cmd, args, m, a)
+			return cmdutil.Execute(cmd, args, setupMenu(app), a)
 		},
 	}
-	cmdutil.FlagOutput(c, app, []string{"json"})
+
+	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "yank as JSON")
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+
 	return c
+}
+
+func clipboardContent(bs []*bookmark.Bookmark, asJSON bool) (string, error) {
+	if asJSON {
+		b, err := port.ToJSON(bs)
+		if err != nil {
+			return "", err
+		}
+
+		return string(b), nil
+	}
+
+	var sb strings.Builder
+	for _, b := range bs {
+		sb.WriteString(b.URL)
+		sb.WriteByte('\n')
+	}
+
+	return sb.String(), nil
+}
+
+func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+	return picker.New[bookmark.Bookmark](
+		app,
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s"),
+		menu.WithHeaderLabel(" yank URL "),
+		menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")+" {1}"),
+	)
 }

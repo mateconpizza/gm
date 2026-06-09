@@ -95,6 +95,8 @@ func newStatsCmd(app *application.App) *cobra.Command {
   $ {cmd} db stats --json
   $ {cmd} db stats --db {db} --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// FIX: add struct for building the RepoStats.
+			// - enable to port to JSON
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err

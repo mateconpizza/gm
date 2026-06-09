@@ -32,7 +32,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} config --print
   $ {cmd} config --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if app.Flags.Output == "json" || app.Flags.Output == "j" {
+			if app.Flags.JSON {
 				return cfgToJSON(cmd.Context(), app)
 			}
 			if app.Flags.Print {
@@ -43,7 +43,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 	c.Flags().BoolVar(&app.Flags.Print, "print", false, "print config file location")
-	cmdutil.FlagOutput(c, app, []string{"json"})
+	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "JSON output")
 	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag")
 
 	c.AddCommand(newCreateCmd(app), newEditCmd(app))

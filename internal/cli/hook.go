@@ -182,10 +182,17 @@ func HookEnsureGitEnv(app *application.App) Hook {
 // HookGitSync synchronizes Git repository with current database state.
 func HookGitSync(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {
+		for _, arg := range args {
+			if arg == "-h" || arg == "--help" || arg == "help" {
+				_ = cmd.Help()
+				os.Exit(0)
+			}
+		}
+
 		// Walk up the command chain: skip if any ancestor declares skip-git-sync
 		for c := cmd; c != nil; c = c.Parent() {
 			if v, ok := c.Annotations["skip-git-sync"]; ok && v == "true" {
-				slog.Debug("skipping git sync for", "command", c.Name())
+				slog.Debug("skipping git sync", "command", cmd.CommandPath(), "skipped_by", c.CommandPath())
 				return nil
 			}
 		}
@@ -207,6 +214,13 @@ func HookGitSync(app *application.App) Hook {
 // syncs them.
 func HookGitPrune(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) error {
+		for _, arg := range args {
+			if arg == "-h" || arg == "--help" || arg == "help" {
+				_ = cmd.Help()
+				os.Exit(0)
+			}
+		}
+
 		slog.Debug("hook: checks for differences between database and local repo and syncs them")
 		m, err := gitops.NewManager(app)
 		if err != nil {

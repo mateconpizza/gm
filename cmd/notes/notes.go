@@ -32,10 +32,6 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} notes edit --tag golang,awesome
   $ {cmd} notes edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if app.Flags.Edit {
-				return newEditNotesCmd(app).RunE(cmd, args)
-			}
-
 			p := "{+1}"
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
 			k := app.Menu.DefaultKeymaps.Edit

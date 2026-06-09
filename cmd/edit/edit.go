@@ -37,12 +37,12 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" edition "),
 				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
-				menu.WithKeybinds(kb.New(k.Edit.Bind, "as-json").Execute("edit --output json")),
+				menu.WithKeybinds(kb.New(k.Edit.Bind, "as-json").Execute("edit --json")),
 			)
 
 			var strategy editor.EditStrategy
 			strategy = editor.BookmarkStrategy{}
-			if app.Flags.Output == "json" || app.Flags.Output == "j" {
+			if app.Flags.JSON {
 				strategy = editor.JSONStrategy{}
 			}
 
@@ -50,7 +50,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagOutput(c, app, []string{"json"})
+	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "JSON format")
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)

@@ -70,6 +70,7 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup lock
   $ {cmd} db backup lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// FIX: err on backup selection
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
