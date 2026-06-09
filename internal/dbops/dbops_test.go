@@ -1,46 +1,22 @@
-package handler
+package dbops
 
 import (
 	"bytes"
 	"errors"
-	"os"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/testutil"
+	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
-
-func testSetupDBFiles(t *testing.T, tempDir string, n int) []string {
-	t.Helper()
-	r := make([]string, 0, n)
-
-	for range n {
-		tf, err := os.CreateTemp(tempDir, "sqlite-*.db")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		r = append(r, tf.Name())
-	}
-
-	return r
-}
-
-func TestRemoveRepo(t *testing.T) {
-	t.Skip("skipping for now")
-	t.Parallel()
-	fs := testSetupDBFiles(t, t.TempDir(), 10)
-	_ = fs
-}
-
-func TestRemoveBackups(t *testing.T) {
-	t.Parallel()
-	t.Skip("skipping for now")
-}
 
 func TestDatabase_Drop(t *testing.T) {
 	d := testutil.SetupDeps(t)
@@ -62,7 +38,7 @@ func TestDatabase_Drop(t *testing.T) {
 		t.Fatalf("expected %d bookmarks, got: %d", want, len(got))
 	}
 
-	err = DropDatabase(t.Context(), d)
+	err = Drop(t.Context(), d)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,7 +68,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
-		err = RemoveRepo(t.Context(), d)
+		err = Remove(t.Context(), d)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -121,7 +97,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
 
-		err = RemoveRepo(t.Context(), d)
+		err = Remove(t.Context(), d)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -147,7 +123,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 		}
 		app.Path.Database = filepath.Join(app.Path.Data, "nonexistent.db")
 
-		err = RemoveRepo(t.Context(), d)
+		err = Remove(t.Context(), d)
 		if !errors.Is(err, db.ErrDBNotFound) {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -162,7 +138,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 		r := testutil.SetupInitializedEmptyDB(t, app.Path.DB())
 		d.SetRepo(r)
 
-		err = RemoveRepo(t.Context(), d)
+		err = Remove(t.Context(), d)
 		if !errors.Is(err, ErrInvalidOption) {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -171,6 +147,53 @@ func TestRemoveRepo_Fail(t *testing.T) {
 		wantOutput := "removing the main database requires"
 		if !strings.Contains(gotOutput, wantOutput) {
 			t.Fatalf("want: %q, got: %q", wantOutput, gotOutput)
+		}
+	})
+}
+
+func TestPasswordInput(t *testing.T) {
+	t.Run("valid password input", func(t *testing.T) {
+		t.Parallel()
+		pwd := "123"
+		input := strings.NewReader(pwd + "\n" + pwd + "\n")
+
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New()),
+			ui.WithTerminal(terminal.New(
+				terminal.WithWriter(io.Discard),
+				terminal.WithReader(input),
+			)),
+		)
+
+		s, err := passwordConfirm(t.Context(), c)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if s != pwd {
+			t.Errorf("got %q, want %q", s, pwd)
+		}
+	})
+
+	t.Run("password mismatch", func(t *testing.T) {
+		t.Parallel()
+		input := strings.NewReader("password1\npassword2\n")
+		c := ui.NewConsole(
+			ui.WithFrame(frame.New()),
+			ui.WithTerminal(terminal.New(
+				terminal.WithWriter(io.Discard),
+				terminal.WithReader(input),
+			)),
+		)
+
+		s, err := passwordConfirm(t.Context(), c)
+		if err == nil {
+			t.Error("expected error, got none")
+		}
+		if !errors.Is(err, locker.ErrPassphraseMismatch) {
+			t.Errorf("expected ErrPassphraseMismatch, got %v", err)
+		}
+		if s != "" {
+			t.Errorf("expected empty string, got %q", s)
 		}
 	})
 }
