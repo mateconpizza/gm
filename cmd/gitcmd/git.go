@@ -15,11 +15,50 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+// NewCmd is the git command.
+func NewCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:                "git",
+		Short:              "git operations",
+		Aliases:            []string{"g"},
+		DisableFlagParsing: true,
+		PersistentPreRunE:  cli.HookGitEnsureEnv(app),
+		PreRun:             cli.HookGitEnableLogging(app),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			g, err := gitops.NewGit(app)
+			if err != nil {
+				return err
+			}
+
+			if len(args) == 0 {
+				args = append(args, "log", "--oneline", "--reverse")
+			}
+
+			return g.Exec(cmd.Context(), args...)
+		},
+	}
+	c.AddCommand(
+		newInitRepoCmd(app),
+		newEnableCmd(app),
+		newDisableCmd(app),
+		newTrackerCmd(app),
+		newLoggingCmd(app),
+		newCloneCmd(app),
+		newCommitCmd(app),
+		newPushCmd(app),
+		newRawCmd(app),
+		newSyncCmd(app),
+	)
+
+	return c
+}
+
 // commitCmd records staged changes in the repository.
 func newCommitCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
-		Use:   "commit",
-		Short: "commit changes to the repository",
+		Use:    "commit",
+		Short:  "commit changes to the repository",
+		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := gitops.NewManager(app)
 			if err != nil {
@@ -37,47 +76,12 @@ func newCommitCmd(app *application.App) *cobra.Command {
 	}
 }
 
-// NewCmd is the git command.
-func NewCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:                "git",
-		Short:              "git operations",
-		Aliases:            []string{"g"},
-		DisableFlagParsing: true,
-		PersistentPreRunE:  cli.HookEnsureGitEnv(app),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app)
-			if err != nil {
-				return err
-			}
-
-			if len(args) == 0 {
-				args = append(args, "log", "--oneline", "--reverse")
-			}
-
-			return g.Exec(cmd.Context(), args...)
-		},
-	}
-	c.AddCommand(
-		newInitRepoCmd(app),
-		newTrackerCmd(app),
-		newCloneCmd(app),
-		newCommitCmd(app),
-		newPushCmd(app),
-		newRawCmd(app),
-		newDisableCmd(app),
-		newEnableCmd(app),
-		newSyncCmd(app),
-	)
-
-	return c
-}
-
 func newPushCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:                "push",
 		Short:              "push changes to the repository",
 		DisableFlagParsing: true,
+		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := gitops.NewManager(app)
 			if err != nil {
@@ -97,6 +101,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Use:         "init",
 		Short:       "create empty Git repository",
 		Annotations: cli.SkipGitSync,
+		PreRun:      cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := gitops.NewManager(app)
 			if err != nil {
@@ -118,6 +123,7 @@ func newRawCmd(app *application.App) *cobra.Command {
 		Use:                "raw",
 		Short:              "raw git commands",
 		DisableFlagParsing: true,
+		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g, err := gitops.NewGit(app)
 			if err != nil {
@@ -142,6 +148,7 @@ func newCloneCmd(app *application.App) *cobra.Command {
 		Aliases:            []string{"import"},
 		Args:               cobra.MinimumNArgs(1),
 		PersistentPostRunE: cli.HookGitSync(app),
+		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -164,6 +171,7 @@ func newDisableCmd(app *application.App) *cobra.Command {
 		Short:       "disable git tracking",
 		Annotations: cli.SkipGitCheck,
 		Aliases:     []string{"off"},
+		PostRun:     cli.HookGitStatus(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !app.GitEnabled() {
 				slog.Warn("git: already disable")
@@ -205,8 +213,9 @@ func newEnableCmd(app *application.App) *cobra.Command {
 
 func newSyncCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "sync",
-		Short: "sync bookmarks with local repo",
+		Use:    "sync",
+		Short:  "sync bookmarks with local repo",
+		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, err := db.New(cmd.Context(), app.Path.DB())
 			if err != nil {
@@ -217,6 +226,55 @@ func newSyncCmd(app *application.App) *cobra.Command {
 			return gitops.Prune(cmd.Context(), app, r)
 		},
 	}
+
+	return c
+}
+
+func newLoggingCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:               "logging",
+		Short:             "configure git command logging",
+		PersistentPostRun: cli.HookGitLoggingStatus(app),
+		Example: app.Example(`  $ {cmd} git logging enable
+  $ {cmd} git logging on
+  $ {cmd} git logging disable
+  $ {cmd} git logging off`),
+		RunE: cli.HookNil,
+	}
+
+	cmdutil.HideFlag(c, "db", "color", "yes", "force")
+
+	c.AddCommand(&cobra.Command{
+		Use:     "enable",
+		Short:   "enable logging",
+		Aliases: []string{"on"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if app.Git.Log {
+				slog.Warn("git: output logging already enable")
+				return sys.ErrExitFailure
+			}
+
+			app.Git.Log = true
+			slog.Warn("git: output logging enabled")
+			return app.WriteConfig(true)
+		},
+	})
+
+	c.AddCommand(&cobra.Command{
+		Use:     "disable",
+		Short:   "disable logging",
+		Aliases: []string{"off"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !app.Git.Log {
+				slog.Warn("git: output logging already disable")
+				return sys.ErrExitFailure
+			}
+
+			app.Git.Log = false
+			slog.Warn("git: output logging disabled")
+			return app.WriteConfig(true)
+		},
+	})
 
 	return c
 }

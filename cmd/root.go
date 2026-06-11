@@ -58,7 +58,7 @@ func Execute(c *cobra.Command) error {
 	return c.ExecuteContext(ctx)
 }
 
-func rootCmdFunc(app *application.App) cli.Hook {
+func rootCmdFunc(app *application.App) cli.HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		if app.Flags.Version {
 			fmt.Print(app.PrettyVersion())
