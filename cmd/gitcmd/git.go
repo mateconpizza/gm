@@ -1,9 +1,6 @@
 package gitcmd
 
 import (
-	"context"
-	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/spf13/cobra"
@@ -14,8 +11,6 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
@@ -46,14 +41,14 @@ func newCommitCmd(app *application.App) *cobra.Command {
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:                "git",
-		Short:              "git sync",
+		Short:              "git operations",
 		Aliases:            []string{"g"},
 		DisableFlagParsing: true,
 		PersistentPreRunE:  cli.HookEnsureGitEnv(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g, err := gitops.NewGit(app)
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
 
 			if len(args) == 0 {
@@ -84,7 +79,12 @@ func newPushCmd(app *application.App) *cobra.Command {
 		Short:              "push changes to the repository",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return pushFunc(cmd.Context(), app)
+			m, err := gitops.NewManager(app)
+			if err != nil {
+				return err
+			}
+
+			return gitops.Push(cmd.Context(), app, m)
 		},
 	}
 
@@ -103,26 +103,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			ctx := cmd.Context()
-			if err := m.Init(ctx, app.Flags.Reinit); err != nil {
-				if errors.Is(err, git.ErrGitInitialized) {
-					s := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s %s --reinit", cmd.Parent().Name(), cmd.Name())
-					return fmt.Errorf("%w, use %s", err, s)
-				}
-				return err
-			}
-
-			c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
-			if err := handler.AskForEncryption(ctx, c, app, m); err != nil {
-				return err
-			}
-
-			app.Git.Enabled = true
-			if err := app.WriteConfig(true); err != nil {
-				return err
-			}
-
-			return managementSelect(ctx, c, app, m)
+			return gitops.Init(cmd.Context(), app, m)
 		},
 	}
 
@@ -185,7 +166,7 @@ func newDisableCmd(app *application.App) *cobra.Command {
 		Aliases:     []string{"off"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !app.GitEnabled() {
-				slog.Warn("git already disable")
+				slog.Warn("git: already disable")
 				return sys.ErrExitFailure
 			}
 
@@ -193,6 +174,8 @@ func newDisableCmd(app *application.App) *cobra.Command {
 			return app.WriteConfig(true)
 		},
 	}
+
+	cmdutil.HideFlag(c, "db", "color", "yes", "force")
 
 	return c
 }
@@ -206,7 +189,7 @@ func newEnableCmd(app *application.App) *cobra.Command {
 		Aliases:            []string{"on"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.GitEnabled() {
-				slog.Warn("git already enabled")
+				slog.Warn("git: already enabled")
 				return sys.ErrExitFailure
 			}
 
@@ -214,6 +197,8 @@ func newEnableCmd(app *application.App) *cobra.Command {
 			return app.WriteConfig(true)
 		},
 	}
+
+	cmdutil.HideFlag(c, "db", "color", "yes", "force")
 
 	return c
 }
@@ -234,39 +219,4 @@ func newSyncCmd(app *application.App) *cobra.Command {
 	}
 
 	return c
-}
-
-// pushFunc pushes local changes to the remote repository.
-func pushFunc(ctx context.Context, app *application.App) error {
-	m, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	g := m.Git()
-	remote, err := g.Remote(ctx)
-	if err != nil || remote == "" {
-		return git.ErrGitNoUpstream
-	}
-
-	if err := g.SetUpstream(ctx, app.Path.Git()); err != nil {
-		if !errors.Is(err, git.ErrGitUpstreamExists) {
-			return err
-		}
-	}
-
-	// Check if there are unpushed commits
-	proceed, err := g.HasUnpushedCommits(ctx)
-	if err != nil {
-		return err
-	}
-	if !proceed {
-		return git.ErrGitUpToDate
-	}
-
-	if err := g.Push(ctx); err != nil {
-		return fmt.Errorf("git push: %w", err)
-	}
-
-	return nil
 }

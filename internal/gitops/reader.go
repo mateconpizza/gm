@@ -22,15 +22,13 @@ type RepoReaderCfg struct {
 }
 
 func NewRepoReader(ctx context.Context, gitRoot, repoPath string, n int) ([]*bookmark.Bookmark, error) {
-	boldRed := rotato.FgBrightRed.With(rotato.StyleBold)
-
 	sp := rotato.New(
 		rotato.WithMessage("starting..."),
 		rotato.WithPrefixColor(rotato.StyleDim),
 		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
 		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
-		rotato.WithFailSymbolColor(boldRed),
-		rotato.WithFailMessageColor(boldRed),
+		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
 	)
 
 	if gpg.IsInitialized(gitRoot) {

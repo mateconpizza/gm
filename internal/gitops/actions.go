@@ -2,18 +2,22 @@ package gitops
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
+	"github.com/mateconpizza/rotato"
 )
 
 var _ bookio.FileManager = (*files.FileManager)(nil)
@@ -23,6 +27,57 @@ func RepoFileWriter() git.RepoOptFunc              { return git.WithRepoWriter(a
 func RepoFileRemover() git.RepoOptFunc             { return git.WithRepoRemover(removeFiles) }
 func RepoStatsReader(r *db.SQLite) git.RepoOptFunc { return git.WithRepoStore(r) }
 func MgrVersion(ver string) git.MgrOptFunc         { return git.WithVersion(ver) }
+
+func Init(ctx context.Context, app *application.App, m *git.Mgr) error {
+	if err := m.Init(ctx, app.Flags.Reinit); err != nil {
+		if errors.Is(err, git.ErrGitInitialized) {
+			s := ansi.BrightYellow.With(ansi.Italic).Sprint("git init --reinit")
+			return fmt.Errorf("%w, use %s", err, s)
+		}
+		return err
+	}
+
+	c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
+	if err := AskForEncryption(ctx, c, app, m); err != nil {
+		return err
+	}
+
+	if err := c.Term().Print(ctx, c.SuccessMesg("git initialized\n")); err != nil {
+		return err
+	}
+
+	app.Git.Enabled = true
+	return app.WriteConfig(true)
+}
+
+func Push(ctx context.Context, app *application.App, m *git.Mgr) error {
+	g := m.Git()
+	remote, err := g.Remote(ctx)
+	if err != nil || remote == "" {
+		return git.ErrGitNoUpstream
+	}
+
+	if err := g.SetUpstream(ctx, app.Path.Git()); err != nil {
+		if !errors.Is(err, git.ErrGitUpstreamExists) {
+			return err
+		}
+	}
+
+	// Check if there are unpushed commits
+	proceed, err := g.HasUnpushedCommits(ctx)
+	if err != nil {
+		return err
+	}
+	if !proceed {
+		return git.ErrGitUpToDate
+	}
+
+	if err := g.Push(ctx); err != nil {
+		return fmt.Errorf("git push: %w", err)
+	}
+
+	return nil
+}
 
 func readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
 	root := filepath.Dir(path)
@@ -34,31 +89,22 @@ func addFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) err
 		return err
 	}
 
+	sp := rotato.New(
+		rotato.WithMessage("starting..."),
+		rotato.WithPrefix("Git Tracker"),
+		rotato.WithPrefixColor(rotato.StyleDim),
+		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
+		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
+		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+	)
+
+	sp.Start(ctx)
+	defer sp.Done()
+
 	root := filepath.Dir(repoPath)
 	if gpg.IsInitialized(root) {
-		fingerprintPath := gpg.GPGIDPath(root)
-
-		fp, err := gpg.LookupKey(fingerprintPath)
-		if err != nil {
-			return fmt.Errorf("gpg strategy: %w", err)
-		}
-
-		if err := fp.Validate(); err != nil {
-			return err
-		}
-
-		g, err := gpg.New(fp.Fingerprint)
-		if err != nil {
-			return err
-		}
-
-		for i := range bs {
-			if err := createGPGFile(ctx, g, repoPath, bs[i]); err != nil {
-				return err
-			}
-		}
-
-		return nil
+		return addGPGFiles(ctx, bs, sp, repoPath)
 	}
 
 	for i := range bs {
@@ -122,33 +168,6 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 	}
 
 	return m.SaveChanges(ctx, gr, msg)
-}
-
-func createGPGFile(ctx context.Context, g *gpg.GPG, repoPath string, b *bookmark.Bookmark) error {
-	fullpath, err := genFullpath(repoPath, b)
-	if err != nil {
-		return fmt.Errorf("gpgfile: %w", err)
-	}
-
-	if files.Exists(fullpath) {
-		slog.Warn("gpgfile: not found", "file", fullpath)
-		return nil
-	}
-
-	if err := files.MkdirAll(filepath.Dir(fullpath)); err != nil {
-		return fmt.Errorf("gpgfile: failed creating dir: %w, %q", err, filepath.Dir(fullpath))
-	}
-
-	data, err := json.MarshalIndent(b.JSON(), "", "  ")
-	if err != nil {
-		return fmt.Errorf("gpgfile: JSON marshal: %w", err)
-	}
-
-	if err := g.Encrypt(ctx, fullpath, data); err != nil {
-		return fmt.Errorf("gpgfile: creating file: %w", err)
-	}
-
-	return nil
 }
 
 func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {

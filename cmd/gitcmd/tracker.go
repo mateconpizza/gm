@@ -2,7 +2,6 @@ package gitcmd
 
 import (
 	"cmp"
-	"context"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -13,11 +12,10 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
-	"github.com/mateconpizza/gm/pkg/git"
 )
 
 // FIX:
@@ -43,68 +41,17 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 
 			reposStr := m.Repos()
 
-			if app.Flags.List {
-				return status(d.Console(), app, reposStr)
-			}
-
 			return status(d.Console(), app, reposStr)
 		},
 	}
 
-	c.Flags().SortFlags = false
-	c.Flags().BoolVarP(&app.Flags.List, "list", "l", false, "status tracked databases")
-
 	c.AddCommand(
 		newTrackCmd(app),
 		newUntrackCmd(app),
+		newMgrCmd(app),
 	)
 
 	return c
-}
-
-// managementSelect select which database to track in the git repository.
-func managementSelect(ctx context.Context, c *ui.Console, app *application.App, m *git.Mgr) error {
-	dbFiles, err := files.Find(app.Path.Home(), "*.db")
-	if err != nil {
-		return fmt.Errorf("finding db files: %w", err)
-	}
-
-	c.Frame().Rowln().
-		Midln("Select which databases to track").
-		Flush()
-
-	files.PrioritizeFile(dbFiles, application.MainDBName)
-
-	for i, dbPath := range dbFiles {
-		name := filepath.Base(dbPath)
-		if m.IsTracked(name) {
-			fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", name)))
-			continue
-		}
-
-		if !c.Confirm(ctx, fmt.Sprintf("Track %q?", name), "n") {
-			continue
-		}
-
-		r, err := db.New(ctx, dbPath)
-		if err != nil {
-			return err
-		}
-
-		gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
-		if err := gitops.Track(ctx, r, m, gr); err != nil {
-			return err
-		}
-
-		r.Close()
-
-		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", name)).String())
-		if i != len(dbFiles)-1 {
-			fmt.Fprintln(c.Writer())
-		}
-	}
-
-	return nil
 }
 
 func status(c *ui.Console, app *application.App, tracked []string) error {
@@ -220,6 +167,32 @@ func newUntrackCmd(_ *application.App) *cobra.Command {
 			defer cancel()
 
 			return gitops.Untrack(cmd.Context(), d)
+		},
+	}
+
+	return c
+}
+
+func newMgrCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "manager",
+		Short:   "select which database to track",
+		Aliases: []string{"mgr", "m"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dbFiles, err := files.Find(app.Path.Home(), "*.db")
+			if err != nil {
+				return fmt.Errorf("finding db files: %w", err)
+			}
+
+			m, err := gitops.NewManager(app)
+			if err != nil {
+				return err
+			}
+
+			ctx := cmd.Context()
+			c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
+
+			return gitops.TrackManager(ctx, m, c, dbFiles)
 		},
 	}
 
