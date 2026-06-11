@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -35,7 +34,7 @@ func TestHookInjectApp(t *testing.T) {
 		}
 
 		// Ensure command has a context
-		cmd.SetContext(context.Background())
+		cmd.SetContext(t.Context())
 
 		hook := HookInjectApp(app)
 
@@ -106,11 +105,14 @@ func TestHookInjectApp(t *testing.T) {
 		}
 
 		// Pre-inject original config
-		cmd.SetContext(application.ToContext(context.Background(), originalApp))
+		ctx, err := application.ToContext(t.Context(), originalApp)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		cmd.SetContext(ctx)
 
 		hook := HookInjectApp(newApp)
-
-		err := hook(cmd, []string{})
+		err = hook(cmd, []string{})
 		if err != nil {
 			t.Fatalf("expected no error, got: %v", err)
 		}

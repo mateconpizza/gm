@@ -5,27 +5,30 @@ import (
 	"errors"
 )
 
-var ErrConfigNotFoundContext = errors.New("config not found in context")
+var (
+	ErrAppNotFoundContext = errors.New("app: not found in context")
+	ErrAppNoContext       = errors.New("app: context is nil")
+)
 
 type contextKey struct{}
 
-// ToContext adds a Config to the context.
-func ToContext(ctx context.Context, app *App) context.Context {
+// ToContext adds a App to the context.
+func ToContext(ctx context.Context, app *App) (context.Context, error) {
 	if ctx == nil {
-		ctx = context.Background()
+		return nil, ErrAppNoContext
 	}
-	return context.WithValue(ctx, contextKey{}, app)
+	return context.WithValue(ctx, contextKey{}, app), nil
 }
 
-// FromContext returns the Config from the context.
+// FromContext returns the App from the context.
 func FromContext(ctx context.Context) (*App, error) {
 	if ctx == nil {
-		return nil, ErrConfigNotFoundContext
+		return nil, ErrAppNoContext
 	}
 
 	app, ok := ctx.Value(contextKey{}).(*App)
 	if !ok || app == nil {
-		return nil, ErrConfigNotFoundContext
+		return nil, ErrAppNotFoundContext
 	}
 
 	if err := app.Validate(); err != nil {
@@ -33,13 +36,4 @@ func FromContext(ctx context.Context) (*App, error) {
 	}
 
 	return app, nil
-}
-
-// MustFromContext panics if config not in context (use sparingly).
-func MustFromContext(ctx context.Context) *App {
-	app, err := FromContext(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return app
 }

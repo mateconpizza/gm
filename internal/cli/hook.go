@@ -261,7 +261,11 @@ func HookInjectApp(app *application.App) Hook {
 			return nil
 		}
 
-		cmd.SetContext(application.ToContext(ctx, app))
+		ctx, err := application.ToContext(ctx, app)
+		if err != nil {
+			return err
+		}
+		cmd.SetContext(ctx)
 
 		slog.Debug(
 			"hook inject app: injected into context",
