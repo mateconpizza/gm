@@ -3,6 +3,7 @@ package gitops
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 
@@ -43,11 +44,21 @@ func NewRepo(m *git.Mgr, name string, opts ...git.RepoOptFunc) *git.Repo {
 func NewGit(app *application.App) (*git.Git, error) {
 	return git.New(
 		app.Path.Git(),
-		git.WithGitCommandLogger(func(commands []string) {
-			headerFrame := frame.New(frame.WithColorBorder(ansi.BrightYellow), frame.WithBordersSmallBlock())
-			fullCmd := ansi.BrightYellow.Wrap(strings.Join(commands, " "), ansi.Italic)
-			headerFrame.Midln(fullCmd).Flush()
-		}),
+		[]git.GitOpt{
+			// add Command logger
+			git.WithGitCommandLogger(func(w io.Writer, commands []string) {
+				headerFrame := frame.New(
+					frame.WithColorBorder(ansi.BrightYellow),
+					frame.WithBordersSmallBlock(),
+					frame.WithWriter(w),
+				)
+				fullCmd := ansi.BrightYellow.Wrap(strings.Join(commands, " "), ansi.Italic)
+				headerFrame.Midln(fullCmd).Flush()
+			}),
+
+			// writer
+			git.WithGitWriter(app.Git.Writer()),
+		}...,
 	)
 }
 

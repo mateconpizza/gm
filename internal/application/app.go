@@ -4,6 +4,7 @@ package application
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -43,12 +44,6 @@ type (
 		Git    *Git         `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
 
 		initialized bool
-	}
-
-	Git struct {
-		Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
-		Log     bool   `json:"logging" yaml:"logging"` // Enable logging
-		Remote  string `json:"remote"  yaml:"remote"`  // Remote repo
 	}
 
 	Information struct {
@@ -100,6 +95,8 @@ func (app *App) Load() error {
 	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
 		return err
 	}
+
+	app.Git.Load()
 
 	return app.SetDatabase(app.DBName)
 }
@@ -198,13 +195,6 @@ func (app *App) Example(template string) string {
 	).Replace(template)
 }
 
-func (g *Git) Status() string {
-	if !g.Enabled {
-		return "disabled"
-	}
-	return "enabled"
-}
-
 func New(info *Information) *App {
 	return &App{
 		Name:   Name,
@@ -215,9 +205,8 @@ func New(info *Information) *App {
 		Path:   &Path{},
 		Git: &Git{
 			Enabled: false,
-			// FIX: `Log` not implemented yet
-			// if set to `false` it will silent the `git` output
-			Log: true,
+			Log:     true,
+			writer:  os.Stdout,
 		},
 		Env: &Env{
 			Home:   EnvHome,

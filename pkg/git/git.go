@@ -22,9 +22,8 @@ func Initialized(root string) bool {
 type GitOpt func(*GitOptions)
 
 type GitOptions struct {
-	w io.Writer
-
-	logHook CmdLogger
+	w             io.Writer
+	commandLogger CmdLogger
 }
 
 func WithGitWriter(w io.Writer) GitOpt {
@@ -35,7 +34,7 @@ func WithGitWriter(w io.Writer) GitOpt {
 
 func WithGitCommandLogger(hook CmdLogger) GitOpt {
 	return func(o *GitOptions) {
-		o.logHook = hook
+		o.commandLogger = hook
 	}
 }
 
@@ -54,8 +53,11 @@ func (g *Git) Remote(ctx context.Context) (string, error)   { return Remote(ctx,
 func (g *Git) Status(ctx context.Context) (string, error)   { return status(ctx, g.fullpath) }
 func (g *Git) HasChanges(ctx context.Context) (bool, error) { return HasChanges(ctx, g.fullpath) }
 func (g *Git) AddAll(ctx context.Context) error             { return g.run(ctx, g.fullpath, "add", ".") }
-func (g *Git) Push(ctx context.Context) error               { return push(ctx, g.fullpath) }
-func (g *Git) Commit(ctx context.Context, msg string) error { return Commit(ctx, g.fullpath, msg) }
+func (g *Git) Push(ctx context.Context) error               { return g.doPush(ctx) }
+
+func (g *Git) Commit(ctx context.Context, msg string) error {
+	return g.run(ctx, g.fullpath, "commit", "-m", msg)
+}
 
 func (g *Git) Exec(ctx context.Context, commands ...string) error {
 	return g.run(ctx, g.fullpath, commands...)
@@ -129,13 +131,41 @@ func (g *Git) run(ctx context.Context, repoPath string, commands ...string) erro
 	}
 	commands = append(cmd, commands...)
 
-	logCmd := g.logHook
+	logCmd := g.commandLogger
 	if logCmd == nil {
-		logCmd = func(commands []string) { fmt.Println(strings.Join(commands, " ")) }
+		logCmd = func(w io.Writer, commands []string) {
+			fmt.Fprintln(g.w, strings.Join(commands, " "))
+		}
 	}
 
-	logCmd(commands)
+	logCmd(g.w, commands)
 	return execCmdWithWriter(ctx, g.w, nil, commands...)
+}
+
+func (g *Git) doPush(ctx context.Context) error {
+	// check if remote exists
+	remotes, err := runWithOutput(ctx, g.fullpath, "remote")
+	if err != nil {
+		return fmt.Errorf("git remote check failed: %w", err)
+	}
+
+	if strings.TrimSpace(remotes) == "" {
+		return ErrGitNoUpstream
+	}
+
+	branch, err := branch(ctx, g.fullpath)
+	if err != nil {
+		return fmt.Errorf("could not get current branch: %w", err)
+	}
+
+	// check if branch has upstream
+	err = runWithWriter(ctx, io.Discard, g.fullpath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	if err != nil {
+		// no upstream, so set it
+		return runWithWriter(ctx, os.Stdout, g.fullpath, "push", "--set-upstream", "origin", branch)
+	}
+
+	return g.run(ctx, g.fullpath, "push")
 }
 
 func Run(ctx context.Context, repoPath string, commands ...string) error {
@@ -158,10 +188,6 @@ func New(path string, opts ...GitOpt) (*Git, error) {
 	binPath, err := which(command)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", err, command)
-	}
-
-	if o.w == nil {
-		o.w = os.Stdout
 	}
 
 	return &Git{

@@ -48,14 +48,16 @@ func ChainAnnotations(annotations ...map[string]string) map[string]string {
 	return m
 }
 
-// Hook is the function signature used for Cobra PersistentPreRunE hooks.
+// HookE is the function signature used for Cobra PersistentPreRunE hooks.
 // It takes the current command and its arguments, and returns an error
 // if the pre-run checks fail.
-type Hook func(cmd *cobra.Command, args []string) error
+type HookE func(cmd *cobra.Command, args []string) error
+
+type Hook func(cmd *cobra.Command, args []string)
 
 // ChainHooks chains multiple Hook functions into a single PersistentPreRunE.
 // Hooks run in the order provided. The first non-nil error stops execution.
-func ChainHooks(hooks ...Hook) Hook {
+func ChainHooks(hooks ...HookE) HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		for _, h := range hooks {
 			if h == nil {
@@ -72,7 +74,7 @@ func ChainHooks(hooks ...Hook) Hook {
 // HookEnsureDatabase ensures the database exists before command execution.
 // Skips check for unlock operations and commands annotated with "skip-db-check".
 // Returns an error if database is missing, locked, or needs initialization.
-func HookEnsureDatabase(app *application.App) Hook {
+func HookEnsureDatabase(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		if cmd.HasParent() {
 			slog.Debug("ensure database", "parent", cmd.Parent().Name())
@@ -137,8 +139,8 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// HookEnsureGitEnv ensures Git environment is properly set up.
-func HookEnsureGitEnv(app *application.App) Hook {
+// HookGitEnsureEnv ensures Git environment is properly set up.
+func HookGitEnsureEnv(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		// This will handle when the `c.DisableFlagParsing` is true and show help command.
 		for _, arg := range args {
@@ -180,7 +182,7 @@ func HookEnsureGitEnv(app *application.App) Hook {
 }
 
 // HookGitSync synchronizes Git repository with current database state.
-func HookGitSync(app *application.App) Hook {
+func HookGitSync(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		for _, arg := range args {
 			if arg == "-h" || arg == "--help" || arg == "help" {
@@ -212,7 +214,7 @@ func HookGitSync(app *application.App) Hook {
 
 // HookGitPrune checks for differences between database and local repo and
 // syncs them.
-func HookGitPrune(app *application.App) Hook {
+func HookGitPrune(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		for _, arg := range args {
 			if arg == "-h" || arg == "--help" || arg == "help" {
@@ -242,8 +244,15 @@ func HookGitPrune(app *application.App) Hook {
 	}
 }
 
+// HookGitEnableLogging returns a hook that enables git command logging.
+func HookGitEnableLogging(app *application.App) Hook {
+	return func(cmd *cobra.Command, args []string) {
+		app.Git.SetWriter(os.Stdout)
+	}
+}
+
 // HookInjectApp returns a hook that injects the app into the command context.
-func HookInjectApp(app *application.App) Hook {
+func HookInjectApp(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
@@ -274,6 +283,22 @@ func HookInjectApp(app *application.App) Hook {
 		)
 
 		return nil
+	}
+}
+
+func HookNil(cmd *cobra.Command, _ []string) error {
+	return nil
+}
+
+func HookGitLoggingStatus(app *application.App) Hook {
+	return func(cmd *cobra.Command, args []string) {
+		fmt.Println(app.Git.Logging())
+	}
+}
+
+func HookGitStatus(app *application.App) Hook {
+	return func(cmd *cobra.Command, args []string) {
+		fmt.Println(app.Git.Status())
 	}
 }
 
