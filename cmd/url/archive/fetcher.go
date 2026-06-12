@@ -32,7 +32,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" wayback machine lookup "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
 			)
 
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {

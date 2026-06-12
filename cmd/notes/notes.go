@@ -42,7 +42,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", strings.ReplaceAll(p, "+", ""))),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", strings.ReplaceAll(p, "+", ""))),
 				menu.WithKeybinds(kb.New(k.Bind, k.Desc).Execute("edit notes")),
 			)
 
@@ -75,7 +75,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", "{1}")),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", "{1}")),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NotesStrategy{}))

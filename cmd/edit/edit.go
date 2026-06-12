@@ -36,7 +36,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" edition "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
 				menu.WithKeybinds(kb.New(k.Edit.Bind, "as-json").Execute("edit --json")),
 			)
 
@@ -74,7 +74,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(app.PreviewCmd(app.DBName, "notes", "{1}")),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", "{1}")),
 			)
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NotesStrategy{}))
 		},

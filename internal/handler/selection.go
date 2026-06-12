@@ -72,7 +72,7 @@ func selectItem(ctx context.Context, d *deps.Deps, fs []string, header string) (
 		menu.WithOutputColor(app.Flags.Color),
 		menu.WithConfig(app.Menu),
 		menu.WithHeader(header),
-		menu.WithPreview(app.PreviewCmd("{1}", "db info")),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), "{1}", "db info")),
 	)
 	if err != nil {
 		return "", err

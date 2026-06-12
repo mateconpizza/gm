@@ -31,7 +31,7 @@ func NewMainMenu(app *application.App, fm formatter.Formatter) *menu.Menu[bookma
 		menu.WithConfig(app.Menu),
 		menu.WithMultiSelection(),
 		menu.WithOutputColor(app.Flags.Color),
-		menu.WithPreview(app.PreviewCmd(app.DBName, strings.ReplaceAll(p, "+", ""))),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), strings.ReplaceAll(p, "+", ""))),
 		menu.WithPrompt(app.Menu.Prompt),
 		menu.WithHeaderFirst(),
 		menu.WithHeaderLabel(" keybinds "),

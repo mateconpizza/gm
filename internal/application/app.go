@@ -127,10 +127,6 @@ func (app *App) Validate() error {
 	return nil
 }
 
-func (app *App) PreviewCmd(dbPath string, args ...string) string {
-	return fmt.Sprintf("%s --preview frame --db %s %s", app.Cmd, dbPath, strings.Join(args, " "))
-}
-
 // PrettyVersion formats version information.
 func (app *App) PrettyVersion() string {
 	name := ansi.BrightBlue.Wrap(app.Name, ansi.Bold)
@@ -167,6 +163,7 @@ func (app *App) PrettyVersion() string {
 	return sb.String()
 }
 
+// SetDatabase sets the database name and path.
 func (app *App) SetDatabase(name string) error {
 	app.DBName = files.StripSuffixes(name)
 	if app.DBName == "" {
@@ -186,6 +183,7 @@ func (app *App) DBBaseName() string { return files.StripSuffixes(app.DBName) }
 func (app *App) CreatePaths() error { return app.Path.setup() }
 func (app *App) GitEnabled() bool   { return app.Git.Enabled }
 func (app *App) Version() string    { return app.Info.Version }
+func (app *App) Command() string    { return app.Cmd }
 
 func (app *App) Example(template string) string {
 	return strings.NewReplacer(

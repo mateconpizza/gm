@@ -148,6 +148,6 @@ func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark]
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),
-		menu.WithPreview(app.PreviewCmd(app.DBName, "{1}")),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
 	)
 }

@@ -294,6 +294,15 @@ func WithPointer(s string) Option {
 	}
 }
 
+func PreviewCmd(command, dbName string, args ...string) string {
+	return fmt.Sprintf(
+		"%s --preview frame --db %s %s",
+		command,
+		dbName,
+		strings.Join(args, " "),
+	)
+}
+
 // New returns a new Menu.
 func New[T comparable](opts ...Option) *Menu[T] {
 	o := Options{

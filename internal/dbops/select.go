@@ -136,7 +136,7 @@ func setupMenu[T comparable](app *application.App, formatter menu.FmtFunc[T], op
 	opts = append(
 		opts,
 		menu.WithArgs("--cycle"),
-		menu.WithPreview(app.PreviewCmd("./backup/{1}", "db info")),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), "./backup/{1}", "db info")),
 	)
 
 	m := picker.New[T](app, opts...)
