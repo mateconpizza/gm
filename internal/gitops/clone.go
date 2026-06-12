@@ -1,4 +1,4 @@
-package handler
+package gitops
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -25,7 +25,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-func GitClone(ctx context.Context, d *deps.Deps) error {
+func Clone(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
@@ -65,8 +65,8 @@ func GitClone(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
-func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*gitops.GitPuller, error) {
-	g, err := gitops.NewGit(app)
+func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*GitPuller, error) {
+	g, err := NewGit(app)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 		return nil, fmt.Errorf("cloning remote repo: %w", err)
 	}
 
-	gp := gitops.NewPuller(d.Console(), tmpPath, g.Root())
+	gp := NewPuller(d.Console(), tmpPath, g.Root())
 	if err := gp.Pull(); err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 	return gp, nil
 }
 
-func processRepo(ctx context.Context, d *deps.Deps, gp *gitops.GitPuller, gr *git.Repo) error {
+func processRepo(ctx context.Context, d *deps.Deps, gp *GitPuller, gr *git.Repo) error {
 	if err := gp.Read(ctx); err != nil {
 		return err
 	}
@@ -232,7 +232,7 @@ func createRepo(ctx context.Context, d *deps.Deps, repoPath string, bs []*bookma
 			Success("Initialized database: " + c.Palette().Italic.Sprint(r.Name()) + "\n").Flush()
 	}()
 
-	return MigrationsStatus(ctx, d)
+	return dbops.MigrationsStatus(ctx, d)
 }
 
 func renameRepo(path string) string {

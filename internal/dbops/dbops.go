@@ -14,7 +14,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/summary"
@@ -174,11 +173,7 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	if err := c.Term().Print(ctx, c.SuccessMesg("database dropped\n")); err != nil {
-		return err
-	}
-
-	return gitops.Drop(ctx, app, c)
+	return c.Term().Print(ctx, c.SuccessMesg("database dropped\n"))
 }
 
 // Remove removes a repo.
@@ -414,6 +409,48 @@ func NewBackup(ctx context.Context, d *deps.Deps) error {
 		slog.Debug("skipping lock", "path", newBkPath)
 		return nil
 	}
+
+	return nil
+}
+
+// MigrationsStatus prints the current database schema and SQLite versions.
+func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	c := d.Console()
+	p, f := c.Palette(), c.Frame()
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+	f.CustomFunc(header, p.Bold.Sprint("Configuring database")).Ln()
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err = db.UpdateAppVersion(ctx, r, app.Version()); err != nil {
+		return fmt.Errorf("app version update failed: %w", err)
+	}
+
+	schemaVer, err := db.CurrentSchemaVersion(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	sqlVer, err := db.SQLiteVersion(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	const padding = 28
+	f.Success(txt.PaddedLineWithPad("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
+		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
+		Rowln().
+		Flush()
 
 	return nil
 }

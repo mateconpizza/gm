@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -137,7 +138,12 @@ func newDropCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return dbops.Drop(cmd.Context(), d)
+			ctx := cmd.Context()
+			if err := dbops.Drop(ctx, d); err != nil {
+				return err
+			}
+
+			return gitops.Drop(ctx, app, d.Console())
 		},
 	}
 

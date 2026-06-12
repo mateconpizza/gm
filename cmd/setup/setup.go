@@ -11,9 +11,9 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -85,7 +85,7 @@ func initializeAction(ctx context.Context, d *deps.Deps) error {
 	}
 	d.SetRepo(r)
 
-	if err := handler.MigrationsStatus(ctx, d); err != nil {
+	if err := dbops.MigrationsStatus(ctx, d); err != nil {
 		return err
 	}
 	defer r.Close()

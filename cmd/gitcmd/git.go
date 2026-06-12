@@ -9,7 +9,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -158,7 +157,7 @@ func newCloneCmd(app *application.App) *cobra.Command {
 
 			app.Git.Remote = args[0]
 
-			return handler.GitClone(cmd.Context(), d)
+			return gitops.Clone(cmd.Context(), d)
 		},
 	}
 
