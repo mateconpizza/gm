@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
@@ -166,6 +167,63 @@ func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *de
 
 		return runEditSession(ctx, d, bs, es, opt)
 	}
+}
+
+func Yank(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	c := d.Console()
+	p := c.Palette()
+
+	msg := fmt.Sprintf(
+		"%s %d bookmarks to system clipboard",
+		p.BrightGreen.Wrap("copy", p.Bold),
+		len(bs),
+	)
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := c.ConfirmLimit(ctx, len(bs), 10, msg, app.Flags.Force); err != nil {
+		return err
+	}
+
+	content, err := clipboardContent(bs, app.Flags.JSON)
+	if err != nil {
+		return err
+	}
+
+	if !app.Flags.Force && !app.Flags.Yes {
+		c.ClearLine(2)
+	}
+
+	if err := sys.CopyClipboard(content); err != nil {
+		return err
+	}
+
+	return c.Print(
+		ctx,
+		c.SuccessMesg("copied ", len(bs), " bookmarks to system clipboard\n"),
+	)
+}
+
+func clipboardContent(bs []*bookmark.Bookmark, asJSON bool) (string, error) {
+	if asJSON {
+		b, err := port.ToJSON(bs)
+		if err != nil {
+			return "", err
+		}
+
+		return string(b), nil
+	}
+
+	var sb strings.Builder
+	for _, b := range bs {
+		sb.WriteString(b.URL)
+		sb.WriteByte('\n')
+	}
+
+	return sb.String(), nil
 }
 
 func ProcessBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) error {
