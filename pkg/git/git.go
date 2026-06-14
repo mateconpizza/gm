@@ -15,9 +15,7 @@ const (
 	AttributesFile = ".gitattributes"
 )
 
-func Initialized(root string) bool {
-	return fileExists(root)
-}
+type CmdLogger func(w io.Writer, commands []string)
 
 type GitOpt func(*GitOptions)
 
@@ -79,7 +77,15 @@ func (g *Git) CloneInto(ctx context.Context, repoURL, destPath string) error {
 	return g.run(ctx, "", "clone", repoURL, destPath)
 }
 
-func Command() (string, error) { return which(command) }
+func (g *Git) UnpushedCommits(ctx context.Context) (int, error) {
+	if err := HasUpstream(ctx, g.fullpath); err != nil {
+		return 0, err
+	}
+	return unpushedCommitsCount(ctx, g.fullpath)
+}
+
+func Cmd() (string, error)         { return which(command) }
+func Initialized(root string) bool { return fileExists(root) }
 
 // Init creates a new Git repository.
 func (g *Git) Init(ctx context.Context, force bool) error {

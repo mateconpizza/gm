@@ -18,15 +18,11 @@ import (
 	"github.com/mateconpizza/gm/pkg/files"
 )
 
-// FIX:
-// - [ ] after initializing a git repo, even when i dont track any database, it
-// will create a `[repoName]/summary.json` (only on GPG repo)
-
 func newTrackerCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "tracker",
-		Short:   "track database with git",
-		Aliases: []string{"t"},
+		Short:   "configure repository tracking",
+		Aliases: []string{"t", "track"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
@@ -50,6 +46,70 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		newUntrackCmd(app),
 		newMgrCmd(app),
 	)
+
+	return c
+}
+
+func newTrackCmd(_ *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "track",
+		Short:   "track a database",
+		Aliases: []string{"t", "add", "new"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			return gitops.NewTrack(cmd.Context(), d)
+		},
+	}
+
+	return c
+}
+
+func newUntrackCmd(_ *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "untrack",
+		Short:   "untrack a database",
+		Aliases: []string{"u", "remove", "rm", "r"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			return gitops.Untrack(cmd.Context(), d)
+		},
+	}
+
+	return c
+}
+
+func newMgrCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "manager",
+		Short:   "select which database to track",
+		Aliases: []string{"mgr", "m"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dbFiles, err := files.Find(app.Path.Home(), "*.db")
+			if err != nil {
+				return fmt.Errorf("finding db files: %w", err)
+			}
+
+			m, err := gitops.NewManager(app)
+			if err != nil {
+				return err
+			}
+
+			ctx := cmd.Context()
+			c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
+
+			return gitops.TrackManager(ctx, m, c, dbFiles)
+		},
+	}
 
 	return c
 }
@@ -133,68 +193,4 @@ func prioritizeTracked(dbFiles, tracked []string) []string {
 	})
 
 	return append(priority, rest...)
-}
-
-func newTrackCmd(_ *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:     "track",
-		Short:   "track a database",
-		Aliases: []string{"t", "add", "new"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return gitops.NewTrack(cmd.Context(), d)
-		},
-	}
-
-	return c
-}
-
-func newUntrackCmd(_ *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:     "untrack",
-		Short:   "untrack a database",
-		Aliases: []string{"u", "remove", "rm", "r"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return gitops.Untrack(cmd.Context(), d)
-		},
-	}
-
-	return c
-}
-
-func newMgrCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:     "manager",
-		Short:   "select which database to track",
-		Aliases: []string{"mgr", "m"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			dbFiles, err := files.Find(app.Path.Home(), "*.db")
-			if err != nil {
-				return fmt.Errorf("finding db files: %w", err)
-			}
-
-			m, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
-
-			ctx := cmd.Context()
-			c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
-
-			return gitops.TrackManager(ctx, m, c, dbFiles)
-		},
-	}
-
-	return c
 }

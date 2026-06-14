@@ -180,6 +180,9 @@ linters:
       - path: "cmd/database/import.go"
         linters:
           - funlen
+      - path: "internal/gitops/info.go"
+        linters:
+          - funlen
       - path: "cmd/setup/setup_test.go"
         linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`

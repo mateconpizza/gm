@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -26,22 +27,33 @@ var (
 	ErrGitRepoEmpty       = errors.New("git: empty repository")
 )
 
-type CmdLogger func(w io.Writer, commands []string)
-
 // hasUnpushedCommits checks if there are any unpushed commits.
 func hasUnpushedCommits(ctx context.Context, repoPath string) (bool, error) {
-	s, err := runWithOutput(ctx, repoPath, "rev-list", "--count", "HEAD", "^@{u}")
+	n, err := unpushedCommitsCount(ctx, repoPath)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("count unpushed commits: %w", err)
 	}
 
-	return s != "0", nil
+	return n != 0, nil
+}
+
+func unpushedCommitsCount(ctx context.Context, repoPath string) (int, error) {
+	s, err := runWithOutput(ctx, repoPath, "rev-list", "--count", "HEAD", "^@{u}")
+	if err != nil {
+		return 0, fmt.Errorf("count unpushed commits: %w", err)
+	}
+
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("parse unpushed commit count %q: %w", s, err)
+	}
+
+	return n, nil
 }
 
 // HasUnpulledCommits checks if there are commits on the upstream
 // branch that have not yet been pulled locally.
 func HasUnpulledCommits(ctx context.Context, repoPath string) (bool, error) {
-	// FIX: not implemented yet
 	if err := HasUpstream(ctx, repoPath); err != nil {
 		return false, err
 	}

@@ -36,17 +36,19 @@ func NewCmd(app *application.App) *cobra.Command {
 			return g.Exec(cmd.Context(), args...)
 		},
 	}
+
 	c.AddCommand(
-		newInitRepoCmd(app),
-		newEnableCmd(app),
-		newDisableCmd(app),
-		newTrackerCmd(app),
-		newLoggingCmd(app),
-		newCloneCmd(app),
-		newCommitCmd(app),
-		newPushCmd(app),
-		newRawCmd(app),
-		newSyncCmd(app),
+		newInitRepoCmd(app), // initialize a bookmarks repository
+		newCloneCmd(app),    // clone bookmarks from a remote repository
+		newEnableCmd(app),   // enable git integration
+		newDisableCmd(app),  // disable git integration
+		newTrackerCmd(app),  // configure repository tracking
+		newLoggingCmd(app),  // configure git command logging
+		newCommitCmd(app),   // commit bookmark database changes
+		newPushCmd(app),     // push bookmark changes to a remote
+		newSyncCmd(app),     // synchronize bookmarks with the repository
+		newInfoCmd(app),     // show repository status and configuration
+		newRawCmd(app),      // run arbitrary git commands
 	)
 
 	return c
@@ -56,7 +58,7 @@ func NewCmd(app *application.App) *cobra.Command {
 func newCommitCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:    "commit",
-		Short:  "commit changes to the repository",
+		Short:  "commit bookmark database changes",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m, err := gitops.NewManager(app)
@@ -78,7 +80,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 func newPushCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:                "push",
-		Short:              "push changes to the repository",
+		Short:              "push bookmark changes to a remote",
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -98,7 +100,7 @@ func newPushCmd(app *application.App) *cobra.Command {
 func newInitRepoCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "init",
-		Short:       "create empty Git repository",
+		Short:       "initialize a bookmarks repository",
 		Annotations: cli.SkipGitSync,
 		PreRun:      cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -120,7 +122,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 func newRawCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:                "raw",
-		Short:              "raw git commands",
+		Short:              "run arbitrary git commands",
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -143,7 +145,7 @@ func newRawCmd(app *application.App) *cobra.Command {
 func newCloneCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:                "clone",
-		Short:              "import from remote",
+		Short:              "clone bookmarks from a remote repository",
 		Aliases:            []string{"import"},
 		Args:               cobra.MinimumNArgs(1),
 		PersistentPostRunE: cli.HookGitSync(app),
@@ -167,7 +169,7 @@ func newCloneCmd(app *application.App) *cobra.Command {
 func newDisableCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "disable",
-		Short:       "disable git tracking",
+		Short:       "disable git integration",
 		Annotations: cli.SkipGitCheck,
 		Aliases:     []string{"off"},
 		PostRun:     cli.HookGitStatus(app),
@@ -190,7 +192,7 @@ func newDisableCmd(app *application.App) *cobra.Command {
 func newEnableCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:                "enable",
-		Short:              "enable git tracking",
+		Short:              "enable git integration",
 		Annotations:        cli.SkipGitCheck,
 		PersistentPostRunE: cli.HookGitPrune(app),
 		Aliases:            []string{"on"},
@@ -213,7 +215,7 @@ func newEnableCmd(app *application.App) *cobra.Command {
 func newSyncCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:    "sync",
-		Short:  "sync bookmarks with local repo",
+		Short:  "synchronize bookmarks with the repository",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r, err := db.New(cmd.Context(), app.Path.DB())
@@ -274,6 +276,27 @@ func newLoggingCmd(app *application.App) *cobra.Command {
 			return app.WriteConfig(true)
 		},
 	})
+
+	return c
+}
+
+func newInfoCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "info",
+		Short:   "show repository status and configuration",
+		Example: app.Example(`  $ {cmd} git info`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+
+			return gitops.InfoCmd(cmd.Context(), d)
+		},
+	}
+
+	cmdutil.HideFlag(c, "db", "color", "yes", "force")
 
 	return c
 }
