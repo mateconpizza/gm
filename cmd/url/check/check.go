@@ -81,31 +81,15 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		Use:   "update [id|query]",
 		Short: "update metadata: title, desc, tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := setupMenu(app, " update metadata ")
-			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				c, p := d.Console(), d.Console().Palette()
-
-				s := fmt.Sprintf("update metadata of %d bookmarks", len(bs))
-				if err := c.ConfirmLimit(cmd.Context(), len(bs), 10, s, app.Flags.Force); err != nil {
-					return sys.ErrActionAborted
-				}
-
-				if len(bs) > 1 {
-					c.Frame().Reset().Headerln(p.Yellow.Sprintf("Updating %d bookmarks", len(bs))).Rowln().Flush()
-				}
-
-				for _, b := range bs {
-					if err := handler.ProcessBookmarkUpdate(cmd.Context(), d, b); err != nil {
-						return err
-					}
-				}
-
-				return nil
-			}
-
-			return cmdutil.Execute(cmd, args, m, a)
+			return cmdutil.Execute(
+				cmd,
+				args,
+				setupMenu(app, " update metadata "),
+				handler.UpdateMetadata,
+			)
 		},
 	}
+
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)

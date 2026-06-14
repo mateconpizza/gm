@@ -207,6 +207,40 @@ func Yank(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	)
 }
 
+// UpdateMetadata refreshes metadata for the provided bookmarks.
+func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	c, p := d.Console(), d.Console().Palette()
+
+	s := fmt.Sprintf("update metadata of %d bookmarks", len(bs))
+	if err := c.ConfirmLimit(ctx, len(bs), 10, s, app.Flags.Force); err != nil {
+		return sys.ErrActionAborted
+	}
+
+	if len(bs) > 1 {
+		c.Frame().Reset().
+			Headerln(p.Yellow.Sprintf("Updating %d bookmarks", len(bs))).
+			Rowln().
+			Flush()
+	}
+
+	for _, b := range bs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if err := processMetadataUpdate(ctx, d, b); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func clipboardContent(bs []*bookmark.Bookmark, asJSON bool) (string, error) {
 	if asJSON {
 		b, err := port.ToJSON(bs)
@@ -226,7 +260,8 @@ func clipboardContent(bs []*bookmark.Bookmark, asJSON bool) (string, error) {
 	return sb.String(), nil
 }
 
-func ProcessBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) error {
+// processMetadataUpdate updates a bookmark's metadata after user confirmation.
+func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) error {
 	c := d.Console()
 	updated, err := updateBookmarkData(ctx, c, b)
 	if err != nil {
@@ -245,19 +280,30 @@ func ProcessBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		return err
 	}
 
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Handle user choice
 	opt, err := c.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
 		return fmt.Errorf("choose: %w", err)
 	}
+
 	switch strings.ToLower(opt) {
+	case "n", "no":
+		return nil
+
 	case "y", "yes":
 		if err := r.UpdateOne(ctx, &updated); err != nil {
 			return fmt.Errorf("updating record: %w", err)
 		}
+		if err := gitops.Update(ctx, app, b, &updated); err != nil {
+			return err
+		}
 		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
-	case "n", "no":
-		return nil
+
 	case "e", "edit":
 		if err := runEditSession(
 			ctx,
@@ -265,10 +311,6 @@ func ProcessBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 			[]*bookmark.Bookmark{&updated},
 			editor.BookmarkStrategy{},
 			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
-				app, err := d.Application(ctx)
-				if err != nil {
-					return err
-				}
 				return gitops.Update(ctx, app, o, u)
 			}),
 		); err != nil {
