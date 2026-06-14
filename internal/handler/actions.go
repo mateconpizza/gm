@@ -4,9 +4,13 @@ package handler
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/mateconpizza/rotato"
@@ -14,14 +18,19 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
+	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
+	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/files"
+	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -207,6 +216,100 @@ func Yank(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	)
 }
 
+// HTTPStatusCheck refreshes and persists bookmark HTTP status information.
+func HTTPStatusCheck(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	if len(bs) == 0 {
+		return bookmark.ErrBookmarkNotFound
+	}
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	c, p := d.Console(), d.Console().Palette()
+	q := fmt.Sprintf("checking %s of %d bookmarks", p.BrightGreen.Wrap("status", p.Bold), len(bs))
+	if err = c.ConfirmLimit(ctx, len(bs), 15, q, app.Flags.Force); err != nil {
+		return sys.ErrActionAborted
+	}
+
+	bs, err = status.Check(ctx, c, bs)
+	if err != nil {
+		return err
+	}
+
+	if err := saveStatusUpdates(ctx, d, bs); err != nil {
+		return err
+	}
+
+	return c.Print(
+		ctx,
+		d.Console().SuccessMesg("bookmark status checked\n"),
+	)
+}
+
+// HTTPStatus prints bookmark HTTP status information.
+func HTTPStatus(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	if len(bs) == 0 {
+		return nil
+	}
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	if app.Flags.Field != "" {
+		return printer.Display(ctx, d.Console(), formatter.HTTPStatusCode.String(), bs)
+	}
+
+	headers := []string{"Code", "Count", "Description"}
+	rows := [][]string{}
+	footer := []string{}
+
+	type Row struct {
+		description string
+		count       int
+	}
+
+	newItems := make(map[int]Row, len(bs))
+	c := d.Console()
+	p := c.Palette()
+
+	for i := range bs {
+		b := bs[i]
+		statusText := b.HTTPStatusText
+		if statusText == "" {
+			statusText = "Unassigned"
+		}
+
+		r := newItems[b.HTTPStatusCode]
+		r.description = txt.HTTPStatusCodeColor(b.HTTPStatusCode, p).
+			Sprint(statusText)
+		r.count++
+		newItems[b.HTTPStatusCode] = r
+	}
+
+	codes := make([]int, 0, len(newItems))
+	for code := range newItems {
+		codes = append(codes, code)
+	}
+
+	sort.Ints(codes)
+
+	for _, code := range codes {
+		v := newItems[code]
+
+		rows = append(rows, []string{
+			strconv.Itoa(code),
+			strconv.Itoa(v.count),
+			v.description,
+		})
+	}
+
+	return c.Print(ctx, txt.CreateSimpleTable(headers, rows, footer...))
+}
+
 // UpdateMetadata refreshes metadata for the provided bookmarks.
 func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	app, err := d.Application(ctx)
@@ -346,7 +449,7 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 	updatedB := *b
 	su := txt.Shorten(updatedB.URL, 60)
 	p := c.Palette()
-	bid := p.Bold.With(p.BgBlue).Sprintf("[%d]", b.ID)
+	bid := p.Bold.With(p.Blue).Sprintf("[%d]", b.ID)
 
 	sc := scraper.New(
 		updatedB.URL,
@@ -398,4 +501,58 @@ func runEditSession(
 
 	session := editor.NewEditSession(d.Console(), r, te, opts...)
 	return session.Run(ctx, bs, es)
+}
+
+func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	m, err := gitops.NewManager(app)
+	if err != nil {
+		return err
+	}
+
+	gr := gitops.NewRepo(
+		m,
+		r.BaseName(),
+		gitops.RepoStatsReader(r),
+	)
+
+	for _, b := range bs {
+		if b.HTTPStatusCode == http.StatusTooManyRequests {
+			continue
+		}
+
+		if err := r.UpdateOne(ctx, b); err != nil {
+			return err
+		}
+
+		if app.GitEnabled() {
+			if err := m.Update(ctx, gr, b, b, files.RemoveEmptyDirs); err != nil {
+				return err
+			}
+		}
+	}
+
+	if app.GitEnabled() {
+		err := m.SaveChanges(
+			ctx,
+			gr,
+			fmt.Sprintf("[%s] http status updated", gr.Name()),
+		)
+
+		if err != nil && !errors.Is(err, git.ErrGitUpToDate) {
+			return err
+		}
+	}
+
+	return nil
 }

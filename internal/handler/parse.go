@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
@@ -68,6 +71,62 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 	}
 
 	return gitops.Add(ctx, app, r, b)
+}
+
+func HTTPStatusCodeFilter(code string) func([]*bookmark.Bookmark) []*bookmark.Bookmark {
+	codes := strings.Split(strings.TrimSpace(code), ",")
+
+	return func(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+		if len(codes) == 0 || code == "" {
+			return bs
+		}
+
+		result := make([]*bookmark.Bookmark, 0, len(bs))
+
+		for _, code := range codes {
+			switch {
+			// Exact status code: 200, 404, 503...
+			case len(code) == 3:
+				want, err := strconv.Atoi(code)
+				if err != nil {
+					return result
+				}
+
+				for _, b := range bs {
+					if b != nil && b.HTTPStatusCode == want {
+						result = append(result, b)
+					}
+				}
+
+			// Status class: 2
+			case len(code) == 1:
+				class, err := strconv.Atoi(code)
+				if err != nil {
+					return result
+				}
+
+				minCode := class * 100
+				maxCode := minCode + 99
+
+				for _, b := range bs {
+					if b != nil &&
+						b.HTTPStatusCode >= minCode &&
+						b.HTTPStatusCode <= maxCode {
+						result = append(result, b)
+					}
+				}
+
+			default:
+				return result
+			}
+		}
+
+		slices.SortFunc(result, func(a, b *bookmark.Bookmark) int {
+			return cmp.Compare(a.ID, b.ID)
+		})
+
+		return result
+	}
 }
 
 // parseNewBookmark fetch metadata and parses the new bookmark.

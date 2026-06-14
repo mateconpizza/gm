@@ -9,14 +9,18 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -24,36 +28,86 @@ import (
 
 var ErrNetworkUnreachable = errors.New("network is unreachable")
 
+type Results struct {
+	mu      sync.Mutex
+	res     []*Response
+	updated []*bookmark.Bookmark
+}
+
+func (r *Results) Add(res *Response) {
+	r.mu.Lock()
+	r.res = append(r.res, res)
+	r.updated = append(r.updated, res.bookmark)
+	r.mu.Unlock()
+}
+
 type Response struct {
-	URL        string
-	bID        int
+	bookmark   *bookmark.Bookmark
 	statusCode int
-	hasError   bool
 }
 
 func (r *Response) String() string {
 	p := ansi.NewPalette()
 	colorStatus, colorCode := prettifyURLStatus(p, r.statusCode)
 
+	statusCategory := r.statusCode / 100
+
+	icons := ui.DefaultIconStyle
+
+	var icon frame.IconStyle
+
+	switch statusCategory {
+	case 2: // 2xx status codes
+		icon = icons.Success
+	case 3: // 3xx status codes
+		icon = icons.Warning
+	case 4: // 4xx status codes
+		icon = icons.Error
+	case 5: // 5xx status codes
+		icon = icons.Error
+	default: // Other status codes
+		icon = icons.Question
+	}
+
 	return fmt.Sprintf(
-		"ID %s (%s %s) %s",
-		p.Bold.Sprintf("%-3d", r.bID),
+		"%s %s (%s %s) %s",
+		icon,
+		p.Bold.Sprintf("%-3d", r.bookmark.ID),
 		colorCode,
 		colorStatus,
-		txt.Shorten(r.URL, terminal.MinWidth),
+		txt.Shorten(r.bookmark.URL, terminal.MinWidth),
 	)
 }
 
 // Check checks the status of a slice of bookmarks.
-func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
-	var (
-		responses = make([]*Response, 0, len(bs))
-		start     = time.Now()
-		mu        sync.Mutex
+func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+	start := time.Now()
+
+	sp := rotato.New(
+		rotato.WithPrefix("Checking URL Status"),
+		rotato.WithMessage("processing..."),
+		rotato.WithPrefixColor(rotato.StyleDim),
+		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
+		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
+		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
 	)
+	sp.Start(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(10)
+	g.SetLimit(runtime.NumCPU())
+
+	var (
+		current atomic.Uint32
+		results = new(Results)
+		total   = len(bs)
+		p       = c.Palette()
+	)
+
+	sp.AddPrefixDecorator(func(mesg string) string {
+		s := fmt.Sprintf("[%-*d/%d] ", 3, current.Load(), total)
+		return p.BrightCyan.Wrap(s, p.Bold) + mesg
+	})
 
 	for _, b := range bs {
 		g.Go(func() error {
@@ -61,11 +115,15 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				res := makeRequest(c, b, ctx)
+				old := *b
+				res := makeRequest(ctx, b)
 
-				mu.Lock()
-				responses = append(responses, &res)
-				mu.Unlock()
+				sp.Print(res.String())
+				current.Add(1)
+
+				if res.statusCode != old.HTTPStatusCode {
+					results.Add(&res)
+				}
 
 				return nil
 			}
@@ -73,13 +131,15 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 	}
 
 	if err := g.Wait(); err != nil {
-		return err
+		return nil, err
 	}
 
-	duration := time.Since(start)
-	printSummaryStatus(c, responses, duration)
+	sp.Done()
 
-	return nil
+	duration := time.Since(start)
+	printSummaryStatus(c, results.res, duration)
+
+	return results.updated, nil
 }
 
 // prettifyURLStatus formats HTTP status codes into colored.
@@ -125,11 +185,21 @@ func fmtSummary(c *ui.Console, n, statusCode int, colorFn func(...any) string) s
 // printSummaryStatus prints a summary of HTTP status codes and their
 // corresponding URLs.
 func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
+	if len(r) == 0 {
+		return
+	}
+
 	p := c.Palette()
 	codes := make(map[int][]Response)
 	f := c.Frame()
 
-	f.Rowln().Header(p.Bold.Sprint("Summary URLs status:\n"))
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+	title := p.BrightYellow.
+		Wrap("Summary URLs status\n", p.Bold)
+
+	f.Rowln().CustomFunc(header, title)
 
 	for _, res := range r {
 		codes[res.statusCode] = append(codes[res.statusCode], *res)
@@ -162,62 +232,39 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 
 			f.Rowln(fmt.Sprintf(
 				" > %-3d %s",
-				r.bID,
-				txt.Shorten(r.URL, terminal.MinWidth),
+				r.bookmark.ID,
+				txt.Shorten(r.bookmark.URL, terminal.MinWidth),
 			))
 		}
 	}
 
-	took := fmt.Sprintf("%.2fs", d.Seconds())
+	took := fmt.Sprintf("%.2fs\n", d.Seconds())
 	total := fmt.Sprintf("Total %s checked,", p.Blue.Sprint(len(r)))
+	header = func() string {
+		return p.BrightBlue.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
 
 	f.Rowln().
-		Footerln(total + " took " + p.Blue.Sprint(took)).
+		CustomFunc(header, total+" took "+p.Blue.Sprint(took)).
 		Flush()
 }
 
 // buildResponse builds a Response from an HTTP response.
-func buildResponse(
-	c *ui.Console,
-	b *bookmark.Bookmark,
-	statusCode int,
-	hasError bool,
-) Response {
-	result := Response{
-		URL:        b.URL,
-		bID:        b.ID,
-		statusCode: statusCode,
-		hasError:   hasError,
-	}
-
+func buildResponse(b *bookmark.Bookmark, statusCode int) Response {
 	b.HTTPStatusCode = statusCode
 	b.HTTPStatusText = http.StatusText(statusCode)
 	b.IsActive = statusCode >= 200 && statusCode <= 299
 	b.LastStatusChecked = time.Now().Format("20060102150405")
 
-	f := c.Frame()
-
-	statusCategory := statusCode / 100
-
-	switch statusCategory {
-	case 2: // 2xx status codes
-		f.Success(result.String() + "\n").Flush()
-	case 3: // 3xx status codes
-		f.Warning(result.String() + "\n").Flush()
-	case 4: // 4xx status codes
-		f.Error(result.String() + "\n").Flush()
-	case 5: // 5xx status codes
-		f.Error(result.String() + "\n").Flush()
-	default: // Other status codes
-		f.Midln(result.String()).Flush()
+	return Response{
+		bookmark:   b,
+		statusCode: statusCode,
 	}
-
-	return result
 }
 
 // handleRequestError handles errors from the HTTP request and determines the
 // appropriate status code.
-func handleRequestError(c *ui.Console, b *bookmark.Bookmark, err error) Response {
+func handleRequestError(b *bookmark.Bookmark, err error) Response {
 	var statusCode int
 
 	switch {
@@ -231,12 +278,12 @@ func handleRequestError(c *ui.Console, b *bookmark.Bookmark, err error) Response
 		statusCode = http.StatusNotFound
 	}
 
-	return buildResponse(c, b, statusCode, true)
+	return buildResponse(b, statusCode)
 }
 
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
 // returns a response.
-func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context) Response {
+func makeRequest(ctx context.Context, b *bookmark.Bookmark) Response {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -247,20 +294,14 @@ func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context) Respo
 		http.NoBody,
 	)
 	if err != nil {
-		slog.Error(
-			"creating request",
-			slog.String("url", b.URL),
-			slog.String("error", err.Error()),
-		)
-
-		return buildResponse(c, b, http.StatusNotFound, true)
+		slog.Error("creating request", "url", b.URL, "error", err)
+		return buildResponse(b, http.StatusNotFound)
 	}
 
 	client := http.DefaultClient
-
 	resp, err := client.Do(req)
 	if err != nil {
-		return handleRequestError(c, b, err)
+		return handleRequestError(b, err)
 	}
 
 	defer func() {
@@ -270,12 +311,7 @@ func makeRequest(c *ui.Console, b *bookmark.Bookmark, ctx context.Context) Respo
 		}
 	}()
 
-	return buildResponse(
-		c,
-		b,
-		resp.StatusCode,
-		resp.StatusCode != http.StatusOK,
-	)
+	return buildResponse(b, resp.StatusCode)
 }
 
 func isNetworkUnreachableError(err error) bool {

@@ -45,17 +45,19 @@ func NewConsole(opts ...Option) *Console {
 	return c
 }
 
+var DefaultIconStyle = &frame.Icons{
+	Error:    frame.IconStyle{Symbol: "✗", Color: ansi.BrightRed.With(ansi.Bold)},
+	Warning:  frame.IconStyle{Symbol: "!", Color: ansi.BrightYellow.With(ansi.Bold)},
+	Info:     frame.IconStyle{Symbol: "i", Color: ansi.BrightBlue.With(ansi.Bold)},
+	Question: frame.IconStyle{Symbol: "?", Color: ansi.BrightGreen.With(ansi.Bold)},
+	Success:  frame.IconStyle{Symbol: "✓", Color: ansi.BrightGreen.With(ansi.Bold)},
+}
+
 func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 	return NewConsole(
 		WithFrame(frame.New(
 			frame.WithColorBorder(ansi.Gray),
-			frame.WithIcons(&frame.Icons{
-				Error:    frame.IconStyle{Symbol: "✗", Color: ansi.BrightRed.With(ansi.Bold)},
-				Warning:  frame.IconStyle{Symbol: "!", Color: ansi.BrightYellow.With(ansi.Bold)},
-				Info:     frame.IconStyle{Symbol: "i", Color: ansi.BrightBlue.With(ansi.Bold)},
-				Question: frame.IconStyle{Symbol: "?", Color: ansi.BrightGreen.With(ansi.Bold)},
-				Success:  frame.IconStyle{Symbol: "✓", Color: ansi.BrightGreen.With(ansi.Bold)},
-			}),
+			frame.WithIcons(DefaultIconStyle),
 		)),
 		WithDefaultTerminal(ctx, f),
 	)
