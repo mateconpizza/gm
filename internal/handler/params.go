@@ -309,7 +309,7 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	if err != nil {
 		return err
 	}
-	// TODO: use port.Deduplicate or port.DeduplicateReport
+	// TODO: use bookmark.Deduplicate or port.DeduplicateReport
 	if book, has := r.Has(ctx, newB.URL); has {
 		f.Error(id(newB.ID) + p.BrightRed.Wrap("already", p.Italic) + " exists with " + id(book.ID)).
 			Ln().Flush()

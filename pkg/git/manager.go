@@ -72,6 +72,19 @@ func (m *Mgr) Update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmar
 		return ErrNoVersionFound
 	}
 
+	return updateRepo(ctx, gr, old, fresh, postRm)
+}
+
+func (m *Mgr) UpdateAndSave(
+	ctx context.Context,
+	gr *Repo,
+	old, fresh *bookmark.Bookmark,
+	postRm PostRemovalFunc,
+) error {
+	if m.version == "" {
+		return ErrNoVersionFound
+	}
+
 	if err := updateRepo(ctx, gr, old, fresh, postRm); err != nil {
 		return err
 	}

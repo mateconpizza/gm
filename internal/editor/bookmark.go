@@ -35,15 +35,15 @@ func (baseBookmarkStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]b
 	}
 
 	// header mesg
-	s := "bookmark edition"
+	s := " bookmark edition "
 	if isNewBookmark {
-		s = "bookmark addition"
+		s = " bookmark addition "
 	}
 
-	sep := txt.CenteredLine(width-rightMargin, s, "-")
+	sep := txt.SpanCenter(width-rightMargin, s, "-")
 
 	// metadata
-	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", m.DBName, m.Version, sep)
+	meta := fmt.Appendf(nil, "# database:\t%s\n# version:\t%s\n# %s\n\n", m.DBName, formatVersion(m.Version), sep)
 
 	// footer
 	buf.Footer = fmt.Appendf(nil, " [%d/%d]", buf.Idx+1, buf.Total)
@@ -65,6 +65,7 @@ func (baseBookmarkStrategy) ParseBuffer(
 	idx, total int,
 ) (*Record, error) {
 	edited := bookmarkFromBytes(buf)
+	edited.Notes = original.Notes
 	if original.Equals(edited) {
 		return nil, ErrBufferUnchanged
 	}

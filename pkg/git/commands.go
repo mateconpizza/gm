@@ -14,17 +14,14 @@ import (
 )
 
 var (
-	ErrGitInitialized     = errors.New("git: is initialized")
-	ErrGitNotInitialized  = errors.New("git: is not initialized")
-	ErrGitDisabled        = errors.New("git: is disabled")
-	ErrGitNoCommits       = errors.New("git: no commits found")
-	ErrGitNoUpstream      = errors.New("git: no upstream configured")
-	ErrGitUpstreamExists  = errors.New("git: remote origin already exists")
-	ErrGitNothingToCommit = errors.New("git: nothing to commit, working tree clean")
-	ErrGitUpToDate        = errors.New("git: everything up-to-date")
-	ErrGitRepoNotFound    = errors.New("git: repo not found")
-	ErrGitRepoURLEmpty    = errors.New("git: repo url is empty")
-	ErrGitRepoEmpty       = errors.New("git: empty repository")
+	ErrGitInitialized    = errors.New("git: is initialized")
+	ErrGitNotInitialized = errors.New("git: is not initialized")
+	ErrGitDisabled       = errors.New("git: is disabled")
+	ErrGitNoCommits      = errors.New("git: no commits found")
+	ErrGitNoUpstream     = errors.New("git: no upstream configured")
+	ErrGitUpstreamExists = errors.New("git: remote origin already exists")
+	ErrGitUpToDate       = errors.New("git: everything up-to-date")
+	ErrGitRepoEmpty      = errors.New("git: empty repository")
 )
 
 // hasUnpushedCommits checks if there are any unpushed commits.
@@ -186,8 +183,8 @@ func runWithOutput(ctx context.Context, repoPath string, args ...string) (string
 }
 
 // runWithWriter executes a Git command and writes output to the provided io.Writer.
-func runWithWriter(ctx context.Context, w io.Writer, repoPath string, s ...string) error {
-	cmd := exec.CommandContext(ctx, command, s...)
+func runWithWriter(ctx context.Context, w io.Writer, repoPath string, args ...string) error {
+	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	o := strings.TrimSpace(string(output))

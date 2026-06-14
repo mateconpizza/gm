@@ -143,7 +143,7 @@ func TrackManager(ctx context.Context, m *git.Mgr, c *ui.Console, dbFiles []stri
 	title := p.BrightYellow.With(p.Bold).
 		Sprint("Git Tracker Databases")
 	subtitle := p.Dim.With(p.Italic).
-		Sprint("Select which databases to track")
+		Sprint("select which databases to track")
 	comment := p.Dim.With(p.Italic).
 		Sprint(" (ctrl-c to exit)")
 	header := func() string {

@@ -487,11 +487,11 @@ func TagsWith(s, sep string) string {
 	return strings.TrimRight(strings.ReplaceAll(s, ",", sep), sep)
 }
 
-// CenteredLine returns a string of exactly 'width' characters,
-// centering the label between dashes.
+// SpanCenter returns a line of exactly width characters with fill on both
+// sides of the label.
 //
 //	-------- label --------
-func CenteredLine(width int, label, char string) string {
+func SpanCenter(width int, label, char string) string {
 	const spaces = 2
 	if width < len(label)+spaces {
 		return label
@@ -501,7 +501,44 @@ func CenteredLine(width int, label, char string) string {
 	left := dashCount / 2
 	right := dashCount - left
 
-	return strings.Repeat(char, left) + " " + label + " " + strings.Repeat(char, right)
+	return strings.Repeat(char, left) + label + strings.Repeat(char, right)
+}
+
+// SpanSuffix returns a line of exactly width characters with fill after the
+// label.
+//
+//	---------------- label
+func SpanSuffix(width int, label, char string) string {
+	const spaces = 2
+	if width < len(label)+spaces {
+		return label
+	}
+	dashCount := width - len(label) - spaces
+	return label + strings.Repeat(char, dashCount)
+}
+
+// SpanPrefix returns a line of exactly width characters with fill before the
+// label.
+//
+//	label ----------------
+func SpanPrefix(width int, label, char string) string {
+	const spaces = 2
+	if width < len(label)+spaces {
+		return label
+	}
+
+	dashCount := width - len(label) - spaces
+	return strings.Repeat(char, dashCount) + label
+}
+
+// Span returns a line of exactly width characters with fill between two
+// labels.
+//
+//	left ---------------- right
+func Span(width int, left, right, char string) string {
+	const spaces = 2
+	dashCount := width - len(left) - len(right) - spaces
+	return left + strings.Repeat(char, dashCount) + right
 }
 
 // GenHash generates a hash from a string with the given length.

@@ -59,7 +59,7 @@ func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
 			frame.WithColorBorder(ansi.Gray),
 			frame.WithIcons(DefaultIconStyle),
 		)),
-		WithDefaultTerminal(ctx, f),
+		WithDefaultTerminal(f),
 	)
 }
 
@@ -83,7 +83,7 @@ func WithWriter(w io.Writer) Option {
 	}
 }
 
-func WithDefaultTerminal(ctx context.Context, f func(error)) Option {
+func WithDefaultTerminal(f func(error)) Option {
 	return WithTerminal(terminal.New(
 		terminal.WithInterruptFn(f),
 	))

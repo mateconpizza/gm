@@ -44,7 +44,7 @@ func (be *BufferBuilder) Buffer() []byte {
 func bookmarkFromBytes(buf []byte) *bookmark.Bookmark {
 	lines := strings.Split(string(buf), "\n") // bytes to lines
 	b := bookmark.New()
-	b.URL = txt.CleanLines(txt.ExtractBlock(lines, "# URL:", "# Title:"))
+	b.URL = txt.CleanLines(txt.ExtractBlock(lines, "# *URL:", "# Title:"))
 	b.Title = txt.CleanLines(txt.ExtractBlock(lines, "# Title:", "# Tags:"))
 	b.Tags = bookmark.ParseTags(txt.CleanLines(txt.ExtractBlock(lines, "# Tags:", "# Description:")))
 	b.Desc = txt.CleanLines(txt.ExtractBlock(lines, "# Description:", "# end"))

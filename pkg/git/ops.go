@@ -99,6 +99,7 @@ func saveChanges(ctx context.Context, m *Mgr, gr *Repo, ver, msg string) error {
 		return ErrGitUpToDate
 	}
 
+	// FIX: update full summary only in git push.
 	sum, err := summaryComplete(ctx, m.Git(), freshStats, ver)
 	if err != nil {
 		return err

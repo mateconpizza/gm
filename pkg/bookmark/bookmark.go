@@ -177,11 +177,11 @@ func (b *Bookmark) DeepEquals(o *Bookmark) bool {
 }
 
 func (b *Bookmark) Buffer() []byte {
-	return fmt.Appendf(nil, `# URL: (required)
+	return fmt.Appendf(nil, `# *URL:   (required)
 %s
-# Title: (leave an empty line for web fetch)
+# Title:  (leave an empty line for web fetch)
 %s
-# Tags: (comma separated)
+# Tags:   (comma separated)
 %s
 # Description:
 %s

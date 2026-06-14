@@ -159,6 +159,7 @@ var Formatters = map[Format]Formatter{
 
 	HTTPStatusCode: {
 		Render: StatusCodeFunc,
+		Hidden: true,
 	},
 
 	// Compact:   {Format: CompactFunc, Transform: "3..", Preview: "{+2}"},

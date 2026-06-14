@@ -31,20 +31,20 @@ A `web interface` is currently in development: [gmweb](https://github.com/mateco
 ### Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
-- [x] Track `bookmarks` with `git` <sub> wip </sub>
+- [x] Track `bookmarks` with `git`
   - [x] Sync `bookmarks` as `JSON` files and push to remote
-  - [x] Encrypt `bookmarks` with `GPG` and push to remote
+  - [x] Encrypt `bookmarks` with [`GPG`](https://gnupg.org/) and push to remote
 - [x] Encrypt local database with `AES-GCM`
 - [x] Support multiple `databases`
 - [x] Import `bookmarks` from `firefox` based browsers
 - [x] Import `bookmarks` from `chromium` based browsers
-- [x] Import `bookmarks` from `git` <sub> wip </sub>
+- [x] Import `bookmarks` from `git`
 - [x] Fetch `title` and `description` from new bookmark
 - [x] Check bookmark `status` _(http status)_
 - [x] Fetch lasts snapshot from Wayback Machine
 - [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
 - [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
-- [x] ~Migrate items from one database to another~
+- [x] Migrate items from one database to another
 - [ ] Add `docker|podman` support <sub>_priority_</sub>
 
 ### Installation
@@ -55,7 +55,7 @@ go install github.com/mateconpizza/gm@latest
 
 <sub>_To uninstall the program remove the binary in your `go env GOPATH`_</sub>
 
-### Usage <small><sub>(🚧WIP)</sub></small>
+### Usage
 
 ```sh
 $ gm --help
@@ -72,7 +72,7 @@ commands:
   url         URL utilities
   tag         tags ops (wip)
   db          database ops
-  git         git sync
+  git         git operations
   config      configuration
 
 flags:
@@ -81,32 +81,52 @@ flags:
   -T, --tail int        limit to last N bookmarks
   -m, --menu            select interactively
   -o, --output string   output format: bar, brief, card, flow, mini, minimal, multiline, oneline
-  -s, --sort string     sort by: favorite, newest, visited, popular
+  -s, --sort string     sort by: favorite, newest, visited, popular, reverse
   -f, --fields string   select fields: id, url, title, tags, desc
       --db string       database name (default "main.db")
       --color string    colorize output: always, never (default "always")
   -y, --yes             assume yes
       --force           force action
   -v, --verbose count   increase verbosity (-v, -vv, -vvv)
-      --version         version for gm
+  -V, --version         version
 ```
 
-### Supported Env Vars
+### Environment Variables
 
-| Name             | type | Description           | Status                                    |
-| ---------------- | ---- | --------------------- | ----------------------------------------- |
-| `GOMARKS_HOME`   | str  | Path to database/yaml | <span style="color:green">**done**</span> |
-| `GOMARKS_EDITOR` | str  | Preferred text editor | <span style="color:green">**done**</span> |
-| `NO_COLOR`       | int  | Disable all colors    | <span style="color:green">**done**</span> |
+<table>
+  <tr>
+    <td><strong>$GOMARKS_HOME</strong></td>
+    <td>
+      Path to the data directory containing the databases, backups and configuration file.
+      <br />
+      <em>If not specified, the default application data directory $XDG_DATA_HOME will be used.</em>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>$GOMARKS_EDITOR</strong></td>
+    <td>
+      A program used to edit text content, e.g. <strong>vim</strong>, <strong>emacs</strong>, <strong>nano</strong>, <strong>gedit</strong>.
+      <br />
+      <em>If not specified, will fall back to $EDITOR.</em>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>$NO_COLOR</strong></td>
+    <td>
+      Disable all colored output.
+      <br />
+      <em>If set to a non-empty value, colorized terminal output will be disabled.</em>
+    </td>
+  </tr>
+</table>
 
 ### Configuration
-
-Configuration file lives in `$XDG_CONFIG_HOME` if `$GOMARKS_HOME` is not set.
 
 <details>
 <summary><strong>YAML file structure</strong></summary>
 
 ```yaml
+db: main
 menu:
   defaults: true
   prompt: "▶ "
@@ -195,57 +215,5 @@ https://github.com/user-attachments/assets/f531fdc9-067b-4747-9f31-4afd5252e3cb
 <summary><strong>Check status</strong></summary>
 
 https://github.com/user-attachments/assets/a3fbc64a-87c1-49d6-af48-5c679b1046b1
-
-</details>
-
-<details>
-<summary><strong>TODO</strong></summary>
-
-## TODO
-
-### Priority
-
-- ~~Use a ORM <sub>discontinued</sub>~~
-  - [x] Add multiple databases option _(default.db, work.db, client.db)_
-
-### Refactor
-
-- [~] Add `Sync` to remote repo??? (WIP)
-- [x] Drop `ErrActionAborted` in package `terminal` (use `sys.ErrActionAborted`)
-- [ ] Move `config/menu` to package `menu`
-  - [ ] Drop global `Fzf`
-
-#### XDG
-
-- [x] Store `db` in `XDG_DATA_HOME`
-- [ ] Store `menu config` in `XDG_CONFIG_HOME` _(WIP: for now in `XDG_DATA_HOME`)_
-
-### Packages
-
-- [x] `terminal` package
-- [x] `color` package
-- [x] `files` package
-
-### Redo
-
-- [ ] Backups
-- [ ] Databases
-
-### Import
-
-- [x] From firefox
-  - [ ] If `database` is locked <sub>(SQLITE_BUSY)</sub>, ask user confirmation
-        to copy file to `tmp` directory and read from there.
-- [x] From ~~chrome~~ chromium
-
-### Misc
-
-- ~~Add a logging library~~
-- [x] Support `NO_COLOR` env var. [no-color](https://no-color.org/)
-- [ ] Create a `rm` subcommand
-  - [ ] Add `rm` database, backup
-  - [ ] Add `rm` records
-  - [ ] Add `rm` misc...
-  - [ ] Remove `db rm`
 
 </details>

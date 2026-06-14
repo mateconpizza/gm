@@ -116,7 +116,7 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	}
 	defer func() {
 		if err := restoreState(); err != nil {
-			slog.Error("restoring terminal state", "error", err)
+			slog.Warn("restoring terminal state", "error", err)
 		}
 	}()
 
@@ -281,7 +281,7 @@ func (t *Term) ClearLine(n int) {
 // ReplaceLine deletes n lines in the console and prints the given string.
 func (t *Term) ReplaceLine(n int, s string) {
 	if !t.isInteractiveTerminal(n) {
-		slog.Error("error replacing line", "error", ErrNotInteractive)
+		slog.Warn("error replacing line", "error", ErrNotInteractive)
 		return
 	}
 
@@ -291,7 +291,7 @@ func (t *Term) ReplaceLine(n int, s string) {
 // ClearChars deletes n characters in the console.
 func (t *Term) ClearChars(n int) {
 	if !t.isInteractiveTerminal(n) {
-		slog.Error("error clearing chars", "error", ErrNotInteractive)
+		slog.Warn("error clearing chars", "error", ErrNotInteractive)
 		return
 	}
 
@@ -301,7 +301,7 @@ func (t *Term) ClearChars(n int) {
 // Clear clears the terminal.
 func (t *Term) Clear() {
 	if !t.isInteractiveTerminal(1) {
-		slog.Error("error clearing the term", "error", ErrNotInteractive)
+		slog.Warn("error clearing the term", "error", ErrNotInteractive)
 		return
 	}
 

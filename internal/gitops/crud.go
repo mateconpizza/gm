@@ -190,5 +190,5 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 	}
 
 	gr := NewRepo(m, r.Name(), RepoStatsReader(r))
-	return m.Update(ctx, gr, old, fresh, files.RemoveEmptyDirs)
+	return m.UpdateAndSave(ctx, gr, old, fresh, files.RemoveEmptyDirs)
 }

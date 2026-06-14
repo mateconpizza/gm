@@ -268,8 +268,7 @@ func fetchSnapshots(
 				0,
 			)
 
-			return mesg + " " +
-				rotato.DimCountdownDecorator(remaining)
+			return mesg + " " + rotato.DimCountdownDecorator(remaining)
 		}),
 	)
 

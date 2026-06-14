@@ -25,7 +25,7 @@ func (NotesStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]byte, er
 	header := fmt.Appendf(nil, "# %d %s\n#\n", b.ID, shortTitle)
 
 	// metadata
-	sep := txt.CenteredLine(w, "bookmark notes", "-")
+	sep := txt.SpanCenter(w, " bookmark notes ", "-")
 	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", m.DBName, m.Version, sep)
 
 	buf.Header = append(buf.Header, header...)

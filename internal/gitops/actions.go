@@ -28,6 +28,7 @@ func RepoFileRemover() git.RepoOptFunc             { return git.WithRepoRemover(
 func RepoStatsReader(r *db.SQLite) git.RepoOptFunc { return git.WithRepoStore(r) }
 func MgrVersion(ver string) git.MgrOptFunc         { return git.WithVersion(ver) }
 
+// Init initializes Git support and configures repository encryption.
 func Init(ctx context.Context, app *application.App, m *git.Mgr) error {
 	if err := m.Init(ctx, app.Flags.Reinit); err != nil {
 		if errors.Is(err, git.ErrGitInitialized) {
@@ -50,6 +51,7 @@ func Init(ctx context.Context, app *application.App, m *git.Mgr) error {
 	return app.WriteConfig(true)
 }
 
+// Push pushes any unpushed commits to the configured upstream remote.
 func Push(ctx context.Context, app *application.App, m *git.Mgr) error {
 	g := m.Git()
 	remote, err := g.Remote(ctx)
@@ -77,6 +79,48 @@ func Push(ctx context.Context, app *application.App, m *git.Mgr) error {
 	}
 
 	return nil
+}
+
+// Sync stages tracked bookmark data and commits any resulting changes to Git.
+func Sync(ctx context.Context, app *application.App, msg string) error {
+	slog.Debug("starting git sync")
+	if !app.GitEnabled() {
+		slog.Warn("git sync: disabled")
+		return nil
+	}
+
+	m, err := NewManager(app)
+	if err != nil {
+		return fmt.Errorf("git sync: failed to create git repo: %w", err)
+	}
+
+	if !m.IsEnabled() {
+		slog.Debug("git sync disabled, skipping", "enabled", m.IsEnabled())
+		return nil
+	}
+
+	if !m.IsTracked(app.DBBaseName()) {
+		slog.Debug("database path not tracked in git, skipping sync")
+		return nil
+	}
+
+	r, err := db.New(ctx, app.Path.DB())
+	if err != nil {
+		return fmt.Errorf("git sync: failed to open database: %w", err)
+	}
+	defer r.Close()
+
+	bs, err := r.All(ctx)
+	if err != nil {
+		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
+	}
+
+	gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
+	if err := gr.Add(ctx, bs); err != nil {
+		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
+	}
+
+	return m.SaveChanges(ctx, gr, msg)
 }
 
 func readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
@@ -127,47 +171,6 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 	}
 
 	return c.Rm(ctx, bs)
-}
-
-func Sync(ctx context.Context, app *application.App, msg string) error {
-	slog.Debug("starting git sync")
-	if !app.GitEnabled() {
-		slog.Warn("git sync: disabled")
-		return nil
-	}
-
-	m, err := NewManager(app)
-	if err != nil {
-		return fmt.Errorf("git sync: failed to create git repo: %w", err)
-	}
-
-	if !m.IsEnabled() {
-		slog.Debug("git sync disabled, skipping", "enabled", m.IsEnabled())
-		return nil
-	}
-
-	if !m.IsTracked(app.DBBaseName()) {
-		slog.Debug("database path not tracked in git, skipping sync")
-		return nil
-	}
-
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return fmt.Errorf("git sync: failed to open database: %w", err)
-	}
-	defer r.Close()
-
-	bs, err := r.All(ctx)
-	if err != nil {
-		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
-	}
-
-	gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
-	if err := gr.Add(ctx, bs); err != nil {
-		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
-	}
-
-	return m.SaveChanges(ctx, gr, msg)
 }
 
 func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {
