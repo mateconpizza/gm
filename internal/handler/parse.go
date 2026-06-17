@@ -43,7 +43,7 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 		Sprintf(" (%d bookmarks)", r.Count(ctx, "bookmarks"))
 	subtitle := p.Dim.With(p.Italic).
 		Sprint(txt.PaddedLine("repository", name))
-	header := func() string { return p.BrightYellow.Wrap(txt.GlyphBlackSquare.Prefix(" "), p.Bold) }
+	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 
 	c.Frame().
 		CustomFunc(header, title+comment).Ln().
@@ -61,16 +61,7 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 		return err
 	}
 
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := c.Term().Print(ctx, c.SuccessMesg("bookmark added\n")); err != nil {
-		return err
-	}
-
-	return gitops.Add(ctx, app, r, b)
+	return c.Term().Print(ctx, c.SuccessMesg("bookmark added\n"))
 }
 
 func HTTPStatusCodeFilter(code string) func([]*bookmark.Bookmark) []*bookmark.Bookmark {
@@ -362,10 +353,14 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 		})
 		return runEditSession(ctx, d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy(), opt)
 	default:
-		if _, err := r.InsertOne(ctx, b); err != nil {
+		newID, err := r.InsertOne(ctx, b)
+		if err != nil {
 			return err
 		}
+		fresh, err := r.ByID(ctx, int(newID))
+		if err != nil {
+			return err
+		}
+		return gitops.Add(ctx, app, r, fresh)
 	}
-
-	return nil
 }
