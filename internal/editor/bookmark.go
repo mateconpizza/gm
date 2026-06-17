@@ -5,73 +5,65 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-var width = terminal.MinWidth
+var _ EditStrategy = (*BookmarkStrategy)(nil)
 
-const (
-	rightMargin  = 4 // padding on the right side of the buffer
-	idFieldWidth = 4 // space reserved for the numeric bookmark ID
-)
+type BookmarkStrategy struct{}
 
-type baseBookmarkStrategy struct{}
+func (BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+	var (
+		pad   = 10
+		f     = frame.New(frame.WithBordersCustom("# ", "# ", "# ", "# "))
+		char  = "-"
+		width = terminal.MinWidth
+	)
 
-func (baseBookmarkStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]byte, error) {
-	buf := NewBufferBuilder(b)
-	buf.Idx, buf.Total = idx, total
-
-	titleSplit := txt.SplitIntoChunks(buf.Item.Title, width-rightMargin)
-	shortTitle := strings.Join(titleSplit, "\n# ")
-
-	isNewBookmark := buf.Item.ID == 0
-	header := fmt.Appendf(nil, "# %d %s\n#\n", buf.Item.ID, shortTitle)
+	isNewBookmark := b.ID == 0
+	label := " bookmark edition "
 	if isNewBookmark {
-		header = fmt.Appendf(nil, "# %s\n#\n", shortTitle)
+		label = " bookmark addition "
+	}
+	footer := fmt.Sprintf(" [%d/%d]", idx, total)
+	if isNewBookmark {
+		footer = " [New]"
 	}
 
-	// header mesg
-	s := " bookmark edition "
-	if isNewBookmark {
-		s = " bookmark addition "
-	}
+	separator := txt.SpanCenter(width-2, "", char)
+	idTitleLine := fmt.Sprintf("%d %s", b.ID, txt.Shorten(b.Title, width))
+	dbName := txt.PaddedLineWithPad("database:", m.DBName, pad)
+	version := txt.PaddedLineWithPad("version:", formatVersion(m.Version), pad)
+	sepTitle := txt.SpanCenter(width-2, label, char)
 
-	sep := txt.SpanCenter(width-rightMargin, s, "-")
-
-	// metadata
-	meta := fmt.Appendf(nil, "# database:\t%s\n# version:\t%s\n# %s\n\n", m.DBName, formatVersion(m.Version), sep)
-
-	// footer
-	buf.Footer = fmt.Appendf(nil, " [%d/%d]", buf.Idx+1, buf.Total)
-	if isNewBookmark {
-		buf.Footer = fmt.Appendf(nil, " [New]")
-	}
-
-	// assemble
-	header = append(header, meta...)
-	buf.Header = append(buf.Header, header...)
-
-	return buf.Buffer(), nil
+	return f.
+		Headerln(separator). // -----------------
+		Midln(idTitleLine).  // ID Title
+		Rowln().             //
+		Midln(dbName).       // database: dbName
+		Midln(version).      // version: x.x.x
+		Midln(sepTitle).     // ----- label -----
+		Ln().
+		Text(string(b.Buffer())).
+		Text(footer).
+		Bytes(), nil
 }
 
-func (baseBookmarkStrategy) ParseBuffer(
-	ctx context.Context,
-	buf []byte,
-	original *Record,
-	idx, total int,
-) (*Record, error) {
-	edited := bookmarkFromBytes(buf)
+func (BookmarkStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+	edited := original.Copy()
+	bookmarkFromBytes(buf, edited)
 	edited.Notes = original.Notes
 	if original.Equals(edited) {
 		return nil, ErrBufferUnchanged
 	}
 
 	edited = metadata.EnrichBookmark(ctx, edited)
-	bookmark.CopyMetadata(edited, original)
 	if err := bookmark.Validate(edited); err != nil {
 		return nil, err
 	}
@@ -79,31 +71,31 @@ func (baseBookmarkStrategy) ParseBuffer(
 	return edited, nil
 }
 
-func (baseBookmarkStrategy) Diff(oldB, newB *Record) string {
+func (BookmarkStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
 	return txt.DiffColor(txt.Diff(oldB.Buffer(), newB.Buffer()))
 }
 
-// BookmarkStrategy implements the Strategy interface for editing
-// existing bookmarks.
-type BookmarkStrategy struct {
-	baseBookmarkStrategy
-}
-
-func (BookmarkStrategy) Save(ctx context.Context, r *db.SQLite, bm *Record) error {
+func (BookmarkStrategy) FileType() string { return application.Name }
+func (BookmarkStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {
 	return r.UpdateOne(ctx, bm)
 }
 
-// NewBookmarkStrategy implements the Strategy interface for
-// creating new bookmarks.
-type NewBookmarkStrategy struct {
-	baseBookmarkStrategy
+func bookmarkFromBytes(buf []byte, b *bookmark.Bookmark) {
+	lines := strings.Split(string(buf), "\n") // bytes to lines
+	b.URL = txt.CleanLines(txt.ExtractBlock(lines, "# *URL:", "# Title:"))
+	b.Title = txt.CleanLines(txt.ExtractBlock(lines, "# Title:", "# Tags:"))
+	b.Tags = bookmark.ParseTags(txt.CleanLines(txt.ExtractBlock(lines, "# Tags:", "# Description:")))
+	b.Desc = txt.CleanLines(txt.ExtractBlock(lines, "# Description:", "# end"))
 }
 
-func (NewBookmarkStrategy) Save(ctx context.Context, r *db.SQLite, bm *Record) error {
-	_, err := r.InsertOne(ctx, bm)
-	if err != nil {
-		return err
-	}
+func NewBookmarkStrategy() *BookmarkStrategy {
+	return &BookmarkStrategy{}
+}
 
-	return nil
+// formatVersion formats the version string.
+func formatVersion(v string) string {
+	if v == "dev" {
+		return v
+	}
+	return "v" + v
 }

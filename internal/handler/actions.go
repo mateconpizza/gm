@@ -170,7 +170,7 @@ func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *de
 			return err
 		}
 
-		opt := editor.WithPostEditionRunE(func(old, fresh *editor.Record) error {
+		opt := editor.WithPostEditionRunE(func(old, fresh *bookmark.Bookmark) error {
 			return gitops.Update(ctx, app, old, fresh)
 		})
 
@@ -413,7 +413,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 			d,
 			[]*bookmark.Bookmark{&updated},
 			editor.BookmarkStrategy{},
-			editor.WithPostEditionRunE(func(o, u *editor.Record) error {
+			editor.WithPostEditionRunE(func(o, u *bookmark.Bookmark) error {
 				return gitops.Update(ctx, app, o, u)
 			}),
 		); err != nil {
@@ -482,15 +482,8 @@ func runEditSession(
 		return err
 	}
 
-	ft := app.Name
-	if _, ok := es.(editor.JSONStrategy); ok {
-		// TODO: add `FileType()` method to Strategy
-		ft = "json"
-	}
-
 	opts = append(
 		opts,
-		editor.WithFileType(ft),
 		editor.WithMeta(editor.NewMeta(app.DBName, app.Version())),
 	)
 

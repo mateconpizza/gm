@@ -127,7 +127,7 @@ func editConfig(ctx context.Context, app *application.App) error {
 		return err
 	}
 
-	return te.EditFile(ctx, p)
+	return te.Open(ctx, p)
 }
 
 func showPathFile(w io.Writer, p string) error {

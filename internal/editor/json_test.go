@@ -63,7 +63,7 @@ func testJSONParseBufferUnchanged(t *testing.T) {
 	s := JSONStrategy{}
 	buf := original.Bytes()
 
-	_, err := s.ParseBuffer(t.Context(), buf, original, 0, 1)
+	_, err := s.ParseBuffer(t.Context(), buf, original)
 	if !errors.Is(err, ErrBufferUnchanged) {
 		t.Errorf("expected parser.ErrBufferUnchanged, got %v", err)
 	}
@@ -88,7 +88,7 @@ func testJSONParseBufferChanged(t *testing.T) {
 	s := JSONStrategy{}
 	buf := modified.Bytes()
 
-	result, err := s.ParseBuffer(t.Context(), buf, original, 0, 1)
+	result, err := s.ParseBuffer(t.Context(), buf, original)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -112,7 +112,7 @@ func testJSONParseBufferInvalidJSON(t *testing.T) {
 	s := JSONStrategy{}
 	invalidBuf := []byte("{invalid json")
 
-	_, err := s.ParseBuffer(t.Context(), invalidBuf, original, 0, 1)
+	_, err := s.ParseBuffer(t.Context(), invalidBuf, original)
 	if err == nil {
 		t.Error("expected error for invalid JSON, got nil")
 	}

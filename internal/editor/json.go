@@ -9,13 +9,15 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
+var _ EditStrategy = (*JSONStrategy)(nil)
+
 type JSONStrategy struct{}
 
-func (JSONStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]byte, error) {
+func (JSONStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *Record, idx, total int) (*Record, error) {
+func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 	old := bytes.TrimRight(original.Bytes(), "\n")
 	newB := bytes.TrimRight(buf, "\n")
 
@@ -31,10 +33,12 @@ func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *Recor
 	return bm, nil
 }
 
-func (JSONStrategy) Diff(oldB, newB *Record) string {
+func (JSONStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
 	return txt.DiffColor(txt.Diff(oldB.Bytes(), newB.Bytes()))
 }
 
-func (JSONStrategy) Save(ctx context.Context, r *db.SQLite, bm *Record) error {
+func (JSONStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {
 	return r.UpdateOne(ctx, bm)
 }
+
+func (JSONStrategy) FileType() string { return "json" }

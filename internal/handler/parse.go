@@ -357,7 +357,10 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 	case "n", "no":
 		return sys.ErrActionAborted
 	case "e", "edit":
-		return runEditSession(ctx, d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy{})
+		opt := editor.WithPostEditionRunE(func(old, fresh *bookmark.Bookmark) error {
+			return gitops.Update(ctx, app, old, fresh)
+		})
+		return runEditSession(ctx, d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy(), opt)
 	default:
 		if _, err := r.InsertOne(ctx, b); err != nil {
 			return err
