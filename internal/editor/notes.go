@@ -4,51 +4,75 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-type NotesStrategy struct{}
+var _ EditStrategy = (*NotesStrategy)(nil)
 
-func (NotesStrategy) BuildBuffer(m *Meta, b *Record, idx, total int) ([]byte, error) {
-	w := width - rightMargin
-
-	buf := NewBufferBuilder(b)
-	buf.Body = b.BufferNotes()
-	buf.Idx, buf.Total = idx, total
-
-	titleSplit := txt.SplitIntoChunks(b.Title, w-idFieldWidth)
-	shortTitle := strings.Join(titleSplit, "\n# ")
-	shortTitle += "\n#\n# " + txt.Shorten(b.URL, w)
-	header := fmt.Appendf(nil, "# %d %s\n#\n", b.ID, shortTitle)
-
-	// metadata
-	sep := txt.SpanCenter(w, " bookmark notes ", "-")
-	meta := fmt.Appendf(nil, "# database:\t%q\n# version:\tv%s\n# %s\n\n", m.DBName, m.Version, sep)
-
-	buf.Header = append(buf.Header, header...)
-	buf.Header = append(buf.Header, meta...)
-
-	// Similar to your EditNotes logic
-	return buf.Buffer(), nil
+type NotesStrategy struct {
+	sectionMarker string
 }
 
-func (NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, original *Record, idx, total int) (*Record, error) {
-	editedNotes := txt.ExtractBlockBytes(buf, "# Notes", "")
-	if bytes.Equal([]byte(original.Notes), editedNotes) {
+func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+	var (
+		bd      = frame.NewBorders("<!-- ", " ", "<!-", "-->")
+		f       = frame.New(frame.WithBorders(bd))
+		padding = 10
+		width   = terminal.MinWidth
+	)
+
+	// content
+	separator := txt.SpanCenter(width-len(bd.Header), "", "-")
+	idTitle := txt.PaddedLineWithPad("["+strconv.Itoa(b.ID)+"]", txt.Shorten(b.Title, width+padding), 6)
+	urlLine := txt.Shorten(b.URL, width-len(bd.Row))
+	dbAndVer := fmt.Sprintf("database: %s %s ver: %s", m.DBName, txt.GlyphBulletPoint, formatVersion(m.Version))
+	headerFooter := txt.SpanCenter(width-len(bd.Header)-len(bd.Footer), " bookmark notes ", "-")
+
+	ns.sectionMarker = strings.TrimSpace(bd.Header) + txt.NBSP
+
+	return f.
+		Headerln(separator).                   // <!-- ------------------
+		Rowln(idTitle).                        // [ID] Title
+		Rowln(urlLine).                        // URL
+		Rowln(dbAndVer).                       // dbName • ver: x.x.x
+		Text(ns.sectionMarker + headerFooter). // <!-- --- label ------->
+		Footerln().
+		Text(b.Notes).
+		Bytes(), nil
+}
+
+func (ns *NotesStrategy) ParseBuffer(
+	ctx context.Context,
+	buf []byte,
+	og *bookmark.Bookmark,
+) (*bookmark.Bookmark, error) {
+	editedNotes := txt.ExtractBlockBytes(buf, ns.sectionMarker, "")
+	fmt.Printf("%q\n", editedNotes)
+	if bytes.Equal([]byte(og.Notes), editedNotes) {
 		return nil, ErrBufferUnchanged
 	}
-	clone := original.Copy()
+	clone := og.Copy()
 	clone.Notes = string(editedNotes)
 	return clone, nil
 }
 
-func (NotesStrategy) Diff(oldB, newB *Record) string {
+func (ns *NotesStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
 	return txt.DiffColor(txt.Diff([]byte(oldB.Notes), []byte(newB.Notes)))
 }
 
-func (NotesStrategy) Save(ctx context.Context, r *db.SQLite, bm *Record) error {
+func (ns *NotesStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {
 	return r.UpdateOne(ctx, bm)
+}
+
+func (ns *NotesStrategy) FileType() string { return "md" }
+
+func NewNotesStrategy() *NotesStrategy {
+	return &NotesStrategy{}
 }

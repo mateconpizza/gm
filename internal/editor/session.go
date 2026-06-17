@@ -8,15 +8,18 @@ import (
 
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
+
+var ErrBufferUnchanged = errors.New("buffer unchanged")
 
 type Meta struct {
 	DBName  string
 	Version string
 }
 
-type postRunEditionFunc func(original, updated *Record) error
+type postRunEditionFunc func(original, updated *bookmark.Bookmark) error
 
 type SessionOption func(*EditSession)
 
@@ -26,20 +29,12 @@ type EditSession struct {
 	Editor      *TextEditor
 	DB          *db.SQLite
 	postEdition postRunEditionFunc
-	filetype    string
 	meta        *Meta
 }
 
 func WithPostEditionRunE(fn postRunEditionFunc) SessionOption {
 	return func(es *EditSession) {
 		es.postEdition = fn
-	}
-}
-
-func WithFileType(ft string) SessionOption {
-	return func(es *EditSession) {
-		// TODO: add `FileType()` method to Strategy
-		es.filetype = ft
 	}
 }
 
@@ -50,10 +45,10 @@ func WithMeta(m *Meta) SessionOption {
 }
 
 // Run processes records for editing using the specified strategy.
-func (e *EditSession) Run(ctx context.Context, bs []*Record, strategy EditStrategy) error {
+func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark, strategy EditStrategy) error {
 	n := len(bs)
 	for i, b := range bs {
-		if err := e.processSingleRecord(ctx, b, i, n, strategy); err != nil {
+		if err := e.processSingleRecord(ctx, b, i+1, n, strategy); err != nil {
 			return err
 		}
 	}
@@ -63,7 +58,7 @@ func (e *EditSession) Run(ctx context.Context, bs []*Record, strategy EditStrate
 // processSingleRecord handles the edit loop for a single record.
 func (e *EditSession) processSingleRecord(
 	ctx context.Context,
-	original *Record,
+	original *bookmark.Bookmark,
 	idx, total int,
 	strategy EditStrategy,
 ) error {
@@ -76,7 +71,7 @@ func (e *EditSession) processSingleRecord(
 			return err
 		}
 
-		updated, err := strategy.ParseBuffer(ctx, editedBuf, currentRecord, idx, total)
+		updated, err := strategy.ParseBuffer(ctx, editedBuf, currentRecord)
 		if errors.Is(err, ErrBufferUnchanged) {
 			return nil // Success: nothing changed, move to the next record.
 		}
@@ -112,16 +107,16 @@ func (e *EditSession) processSingleRecord(
 }
 
 // buildAndEdit prepares record for editing and launches editor.
-func (e *EditSession) buildAndEdit(ctx context.Context, r *Record, idx, total int, s EditStrategy) ([]byte, error) {
+func (e *EditSession) buildAndEdit(ctx context.Context, r *bookmark.Bookmark, idx, total int, s EditStrategy) ([]byte, error) {
 	buf, err := s.BuildBuffer(e.meta, r, idx, total)
 	if err != nil {
 		return nil, err
 	}
-	return e.Editor.Bytes(ctx, buf, e.filetype)
+	return e.Editor.Edit(ctx, buf, s.FileType())
 }
 
 // saveRecordChanges persists updated record to database.
-func (e *EditSession) saveRecordChanges(ctx context.Context, strategy EditStrategy, original, updated *Record) error {
+func (e *EditSession) saveRecordChanges(ctx context.Context, strategy EditStrategy, original, updated *bookmark.Bookmark) error {
 	if err := strategy.Save(ctx, e.DB, updated); err != nil {
 		return err
 	}

@@ -49,7 +49,6 @@ func testBuildBuffer(t *testing.T) {
 	out := string(buf)
 
 	expectedSubstrings := []string{
-		"bookmark notes",
 		"Example Title",
 		"Existing notes",
 	}
@@ -65,9 +64,9 @@ func testParseBufferUnchanged(t *testing.T) {
 	t.Helper()
 	orig := &bookmark.Bookmark{Notes: "abc"}
 	s := NotesStrategy{}
-	buf := []byte("# Notes\nabc")
+	buf := []byte("<!--\nabc")
 
-	_, err := s.ParseBuffer(t.Context(), buf, orig, 0, 1)
+	_, err := s.ParseBuffer(t.Context(), buf, orig)
 	if !errors.Is(err, ErrBufferUnchanged) {
 		t.Errorf("expected ErrBufferUnchanged, got %v", err)
 	}
@@ -77,15 +76,16 @@ func testParseBufferChanged(t *testing.T) {
 	t.Helper()
 	orig := &bookmark.Bookmark{Notes: "abc"}
 	s := NotesStrategy{}
-	buf := []byte("# Notes\nxyz")
+	want := "xyz"
+	buf := []byte("<!--\n" + want)
 
-	rec, err := s.ParseBuffer(t.Context(), buf, orig, 0, 1)
+	rec, err := s.ParseBuffer(t.Context(), buf, orig)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if rec.Notes != "xyz" {
-		t.Errorf("expected updated notes to 'xyz', got %q", rec.Notes)
+	if rec.Notes != want {
+		t.Errorf("expected updated notes to %q, got %q", want, rec.Notes)
 	}
 }
 

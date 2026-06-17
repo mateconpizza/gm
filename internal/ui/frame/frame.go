@@ -94,6 +94,12 @@ func WithIcons(i *Icons) OptFn {
 	}
 }
 
+func WithBorders(b *FrameBorders) OptFn {
+	return func(o *Options) {
+		o.border = b
+	}
+}
+
 // Ln adds a new line.
 func (f *Frame) Ln() *Frame { return f.Text("\n") }
 
@@ -208,6 +214,9 @@ func (f *Frame) StringReset() string {
 
 	return s
 }
+
+// Bytes returns the frame content as a byte slice.
+func (f *Frame) Bytes() []byte { return fmt.Appendf(nil, `%s`, f.StringReset()) }
 
 func (f *Frame) applyStyle(s string) string {
 	colorMutex.Lock()

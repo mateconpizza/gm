@@ -76,7 +76,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithBorderLabel(" notes "),
 				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", "{1}")),
 			)
-			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NotesStrategy{}))
+			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
 		},
 	}
 
