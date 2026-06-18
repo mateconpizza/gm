@@ -131,11 +131,16 @@ func (app *App) Validate() error {
 func (app *App) PrettyVersion() string {
 	name := ansi.BrightBlue.Wrap(app.Name, ansi.Bold)
 
+	ver := app.Version()
+	if ver != "dev" {
+		ver = "v" + ver
+	}
+
 	if app.Flags.Verbose == 0 {
 		return fmt.Sprintf(
-			"%s v%s %s/%s\n",
+			"%s %s %s/%s\n",
 			name,
-			app.Version(),
+			ver,
 			runtime.GOOS,
 			runtime.GOARCH,
 		)
@@ -143,7 +148,7 @@ func (app *App) PrettyVersion() string {
 
 	var sb strings.Builder
 
-	fmt.Fprintf(&sb, "%s v%s\n\n", name, app.Version())
+	fmt.Fprintf(&sb, "%s %s\n\n", name, ver)
 
 	w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', 0)
 
