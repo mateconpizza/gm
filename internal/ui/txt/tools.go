@@ -6,8 +6,22 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
+const (
+	addMarker = "+\u00A0"
+	delMarker = "-\u00A0"
+)
+
 // Diff Take two []byte and return a string with the complete diff.
 func Diff(a, b []byte) string {
+	return newDiff(a, b, addMarker, delMarker)
+}
+
+// DiffColorize colorizes the diff output.
+func DiffColorize(text string) string {
+	return newDiffColor(text, addMarker, delMarker)
+}
+
+func newDiff(a, b []byte, add, del string) string {
 	linesA := strings.Split(string(a), "\n")
 	linesB := strings.Split(string(b), "\n")
 	m, n := len(linesA), len(linesB)
@@ -45,11 +59,11 @@ func Diff(a, b []byte) string {
 			j--
 		case j > 0 && (i == 0 || dp[i][j-1] >= dp[i-1][j]):
 			// added
-			diffLines = append([]string{"+" + linesB[j-1]}, diffLines...)
+			diffLines = append([]string{add + linesB[j-1]}, diffLines...)
 			j--
 		case i > 0 && (j == 0 || dp[i][j-1] < dp[i-1][j]):
 			// deleted
-			diffLines = append([]string{"-" + linesA[i-1]}, diffLines...)
+			diffLines = append([]string{del + linesA[i-1]}, diffLines...)
 			i--
 		}
 	}
@@ -57,16 +71,15 @@ func Diff(a, b []byte) string {
 	return strings.Join(diffLines, "\n")
 }
 
-// DiffColor colorizes the diff output.
-func DiffColor(s string) string {
+func newDiffColor(text, add, del string) string {
 	p := ansi.NewPalette()
 	var r []string
 
-	for l := range strings.SplitSeq(s, "\n") {
+	for l := range strings.SplitSeq(text, "\n") {
 		switch {
-		case strings.HasPrefix(l, "+"):
+		case strings.HasPrefix(l, add):
 			r = append(r, " "+p.BrightGreen.Sprint(l))
-		case strings.HasPrefix(l, "-"):
+		case strings.HasPrefix(l, del):
 			r = append(r, " "+p.BrightRed.Sprint(l))
 		default:
 			r = append(r, " "+p.Dim.Sprint(l))

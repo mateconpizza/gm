@@ -64,7 +64,7 @@ func (ns *NotesStrategy) ParseBuffer(
 }
 
 func (ns *NotesStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
-	return txt.DiffColor(txt.Diff([]byte(oldB.Notes), []byte(newB.Notes)))
+	return txt.DiffColorize(txt.Diff([]byte(oldB.Notes), []byte(newB.Notes)))
 }
 
 func (ns *NotesStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {

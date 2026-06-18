@@ -34,7 +34,7 @@ func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookm
 }
 
 func (JSONStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
-	return txt.DiffColor(txt.Diff(oldB.Bytes(), newB.Bytes()))
+	return txt.DiffColorize(txt.Diff(oldB.Bytes(), newB.Bytes()))
 }
 
 func (JSONStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {
