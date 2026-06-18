@@ -75,7 +75,7 @@ func (r *Response) String() string {
 		p.Bold.Sprintf("%-3d", r.bookmark.ID),
 		colorCode,
 		colorStatus,
-		txt.Shorten(r.bookmark.URL, terminal.MinWidth),
+		txt.Shorten(r.bookmark.URL, terminal.MinWidth()),
 	)
 }
 
@@ -233,7 +233,7 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 			f.Rowln(fmt.Sprintf(
 				" > %-3d %s",
 				r.bookmark.ID,
-				txt.Shorten(r.bookmark.URL, terminal.MinWidth),
+				txt.Shorten(r.bookmark.URL, terminal.MinWidth()),
 			))
 		}
 	}

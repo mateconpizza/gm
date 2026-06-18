@@ -25,7 +25,7 @@ func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total i
 		bd      = frame.NewBorders("<!-- ", " ", "<!-", "-->")
 		f       = frame.New(frame.WithBorders(bd))
 		padding = 10
-		width   = terminal.MinWidth
+		width   = terminal.MinWidth()
 	)
 
 	// content

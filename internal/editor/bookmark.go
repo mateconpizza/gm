@@ -23,7 +23,7 @@ func (BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total in
 		pad   = 10
 		f     = frame.New(frame.WithBordersCustom("# ", "# ", "# ", "# "))
 		char  = "-"
-		width = terminal.MinWidth
+		width = terminal.MinWidth()
 	)
 
 	isNewBookmark := b.ID == 0

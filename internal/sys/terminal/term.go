@@ -433,10 +433,10 @@ func New(opts ...TermOptFn) *Term {
 	t := &Term{
 		Options: defaultOpts(),
 		size: &termSize{
-			maxWidth: MaxWidth,
-			minWidth: MinWidth,
-			width:    Width,
-			height:   Height,
+			maxWidth: maxWidth,
+			minWidth: minWidth,
+			width:    width,
+			height:   height,
 		},
 	}
 

@@ -159,7 +159,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 
 	b.URL = newURL
 	b.Title = bTemp.title
-	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth), "\n")
+	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, terminal.MinWidth()), "\n")
 	b.Tags = bookmark.ParseTags(bTemp.tags)
 	b.FaviconURL = bTemp.favicon
 
@@ -287,7 +287,7 @@ func fetchTitleAndDesc(ctx context.Context, c *ui.Console, sc *scraper.Scraper, 
 	const indentation int = 10
 
 	borders := f.Borders()
-	width := terminal.MinWidth - len(borders.Row)
+	width := terminal.MinWidth() - len(borders.Row)
 	dot := func() string { return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 
 	if b.title != "" {

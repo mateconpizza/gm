@@ -33,11 +33,16 @@ var force bool = false
 
 // Default terminal settings.
 var (
-	MaxWidth int = 120
-	MinWidth int = 80
-	Width    int
-	Height   int
+	maxWidth int = 120
+	minWidth int = 80
+	width    int
+	height   int
 )
+
+func MinWidth() int { return minWidth }
+func MaxWidth() int { return maxWidth }
+func Width() int    { return width }
+func Height() int   { return height }
 
 // NoColorEnv disables color output if the NO_COLOR environment variable is
 // set.
@@ -96,9 +101,8 @@ func loadMaxWidth() {
 		return
 	}
 
-	if w < MaxWidth {
-		// MinWidth = w
-		MaxWidth = w
+	if w < maxWidth {
+		maxWidth = w
 	}
 }
 
@@ -141,12 +145,12 @@ func getWidth() (int, error) {
 	}
 
 	var err error
-	Width, Height, err = term.GetSize(fd)
+	width, height, err = term.GetSize(fd)
 	if err != nil {
 		return 0, fmt.Errorf("getting console width: %w", err)
 	}
 
-	return Width, nil
+	return width, nil
 }
 
 func init() {

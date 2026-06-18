@@ -68,7 +68,7 @@ func formatArchiveURL(b *bookmark.Bookmark) string {
 		title = ansi.Dim.Sprint(b.URL)
 	}
 
-	title = runewidth.Truncate(title, terminal.MaxWidth, "…")
+	title = runewidth.Truncate(title, terminal.MaxWidth(), "…")
 	relative = ansi.BrightYellow.Wrap("("+relative+")", ansi.Italic)
 	padding := 28
 	return fmt.Sprintf("%s %s %-*s %s", idStr, absolute, padding, relative, title)
