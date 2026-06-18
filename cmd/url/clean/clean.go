@@ -9,7 +9,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
@@ -22,26 +22,21 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:   "clean [query|URL]",
 		Short: "strip URL params",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 0 && handler.ValidURL(args[0]) {
+			if terminal.IsPiped() {
+				terminal.ReadPipedInput(&args)
+			}
+
+			if len(args) != 0 && handler.ValidURL(args[0]) || app.Flags.Vacuum {
 				return newCleanURLUser(app).RunE(cmd, args)
 			}
 
-			m := picker.New[bookmark.Bookmark](
-				app,
-				menu.WithMultiSelection(),
-				menu.WithArgs("--cycle"),
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" parameters highlighted "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
+			return cmdutil.Execute(
+				cmd,
+				args,
+				setupMenu(app),
+				handler.ParamsURL,
+				WithURLParametersOnly,
 			)
-
-			m.SetFormatter(func(b *bookmark.Bookmark) string {
-				bm := *b
-				bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
-				return formatter.OnelineURLFunc(ui.NewConsole(), &bm)
-			})
-
-			return cmdutil.Execute(cmd, args, m, handler.ParamsURL, WithURLParametersOnly)
 		},
 	}
 
@@ -79,36 +74,27 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 		Use:   "text [url]",
 		Short: "strip URL params from input",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cleanup()
-
-			tab := d.Console().Palette().BrightRed.Sprint("<TAB>")
-			m := picker.New[string](
-				app,
-				menu.WithBorderLabel("URL Parameters"),
-				menu.WithHeader("Select with "+tab+" which params to remove"),
-				menu.WithMultiSelection(),
-			)
-
-			newURL, err := handler.ProcessBookmarkParams(cmd.Context(), d, m, args[0])
-			if err != nil {
-				return err
-			}
-
-			if newURL == "" {
-				return sys.ErrExitFailure
-			}
-
-			t := d.Console().Term()
-			if !t.IsPiped() {
-				newURL += "\n"
-			}
-
-			return t.Print(cmd.Context(), newURL)
+			return handler.ParamsUserInput(cmd.Context(), app, ui.DefaultConsole, args)
 		},
 	}
 	return c
+}
+
+func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+	m := picker.New[bookmark.Bookmark](
+		app,
+		menu.WithMultiSelection(),
+		menu.WithArgs("--cycle"),
+		menu.WithHeader("select record/s"),
+		menu.WithHeaderLabel(" parameters highlighted "),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
+	)
+
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
+		bm := *b
+		bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
+		return formatter.OnelineURLFunc(ui.NewConsole(), &bm)
+	})
+
+	return m
 }

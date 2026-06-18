@@ -8,9 +8,12 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/picker"
+	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -39,7 +42,7 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 	)
 
 	for _, b := range bs {
-		newURL, err := ProcessBookmarkParams(ctx, d, m, b.URL)
+		newURL, err := processBookmarkParams(ctx, app, d.Console(), m, b.URL)
 		if err != nil {
 			return err
 		}
@@ -105,10 +108,51 @@ func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {
 	return sb.String()
 }
 
+func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, args []string) error {
+	inputURL := args[0]
+	if inputURL == "" || !ValidURL(args[0]) {
+		return sys.ErrExitFailure
+	}
+
+	t := c.Term()
+
+	if app.Flags.Vacuum || t.IsPiped() {
+		newURL, err := paramsStripAll(inputURL)
+		if err != nil {
+			return err
+		}
+
+		return t.Print(ctx, newURL+"\n")
+	}
+
+	tab := c.Palette().BrightRed.Sprint("<TAB>")
+	m := picker.New[string](
+		app,
+		menu.WithBorderLabel("URL Parameters"),
+		menu.WithHeader("Select with "+tab+" which params to remove"),
+		menu.WithMultiSelection(),
+	)
+
+	newURL, err := processBookmarkParams(ctx, app, c, m, inputURL)
+	if err != nil {
+		return err
+	}
+
+	if newURL == "" {
+		return sys.ErrExitFailure
+	}
+
+	if !t.IsPiped() {
+		newURL += "\n"
+	}
+
+	return t.Print(ctx, newURL)
+}
+
 // PrintParamChanges displays the original and cleaned URL with removed
 // parameters.
-func diffParams(ctx context.Context, d *deps.Deps, originalURL string, params []string) (int, error) {
-	f, p := d.Console().Frame(), d.Console().Palette()
+func diffParams(c *ui.Console, flagYes bool, originalURL string, params []string) int {
+	f, p := c.Frame(), c.Palette()
 	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 	subtitle := p.Dim.With(p.Italic).
 		Sprint("query parameters detected in the URL")
@@ -117,7 +161,7 @@ func diffParams(ctx context.Context, d *deps.Deps, originalURL string, params []
 		Midln(subtitle).
 		Rowln().
 		Midln("Original URL:").
-		Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, d.Console().MaxWidth()))).
+		Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, c.MaxWidth()))).
 		Rowln().
 		Midln(fmt.Sprintf("Parameters to remove (%d) ", len(params)))
 
@@ -125,22 +169,18 @@ func diffParams(ctx context.Context, d *deps.Deps, originalURL string, params []
 	sep := "="
 	for i := range params {
 		values := strings.Split(params[i], sep)
-		k, v := values[0], txt.Shorten(values[1], d.Console().Term().MinWidth())
+		k, v := values[0], txt.Shorten(values[1], c.Term().MinWidth())
 		f.Rowln(p.BrightRed.Sprint(k) + p.Dim.Sprint(sep+strings.TrimSpace(v)))
 	}
 
 	f.Rowln()
 
 	lines := txt.CountLines(f.String())
-	app, err := d.Application(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if app.Flags.Yes {
+	if flagYes {
 		lines--
 	}
 
-	return lines, nil
+	return lines
 }
 
 // paramsCleaner removes all query parameters from the URL and returns the
@@ -186,9 +226,9 @@ func selectParams(m *menu.Menu[string], u *url.URL) ([]string, error) {
 	return result, nil
 }
 
-// ProcessBookmarkParams prompts for param removal and persists updates if
+// processBookmarkParams prompts for param removal and persists updates if
 // confirmed.
-func ProcessBookmarkParams(ctx context.Context, d *deps.Deps, m *menu.Menu[string], urlStr string) (string, error) {
+func processBookmarkParams(ctx context.Context, app *application.App, c *ui.Console, m *menu.Menu[string], urlStr string) (string, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return "", err
@@ -199,22 +239,17 @@ func ProcessBookmarkParams(ctx context.Context, d *deps.Deps, m *menu.Menu[strin
 		return "", nil
 	}
 
-	app, err := d.Application(ctx)
-	if err != nil {
-		return "", err
-	}
-
 	if app.Flags.Yes || app.Flags.Force {
 		return paramsCleaner(u), nil
 	}
 
-	opt, linesToClear, err := promptParamRemoval(ctx, d, urlStr, u.Query())
+	opt, linesToClear, err := promptParamRemoval(ctx, app, c, urlStr, u.Query())
 	if err != nil {
 		return "", err
 	}
 
 	// clear the terminal lines after receiving input
-	d.Console().ClearLine(linesToClear)
+	c.ClearLine(linesToClear)
 
 	newURL, skipped, err := computeNewURL(m, u, opt)
 	if err != nil {
@@ -222,7 +257,7 @@ func ProcessBookmarkParams(ctx context.Context, d *deps.Deps, m *menu.Menu[strin
 	}
 
 	if skipped {
-		f, p := d.Console().Frame(), d.Console().Palette()
+		f, p := c.Frame(), c.Palette()
 		f.Warning(p.BrightYellow.Wrap("skipping ", p.Italic) + p.Dim.Sprint(urlStr)).Ln().Flush()
 		return "", nil
 	}
@@ -231,13 +266,7 @@ func ProcessBookmarkParams(ctx context.Context, d *deps.Deps, m *menu.Menu[strin
 }
 
 // promptParamRemoval displays URL param diff and asks whether to remove them.
-func promptParamRemoval(
-	ctx context.Context,
-	d *deps.Deps,
-	urlStr string,
-	q url.Values,
-) (opt string, lines int, err error) {
-	c := d.Console()
+func promptParamRemoval(ctx context.Context, app *application.App, c *ui.Console, urlStr string, q url.Values) (opt string, lines int, err error) {
 	f, p := c.Frame(), c.Palette()
 	sep := "="
 
@@ -249,10 +278,7 @@ func promptParamRemoval(
 		}
 	}
 
-	lines, err = diffParams(ctx, d, urlStr, params)
-	if err != nil {
-		return "", 0, err
-	}
+	lines = diffParams(c, app.Flags.Yes, urlStr, params)
 	f.Flush()
 
 	opts := []string{"no", "yes"}
@@ -326,4 +352,14 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	}
 
 	return gitops.Update(ctx, app, b, &newB)
+}
+
+func paramsStripAll(rawURL string) (string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String(), nil
 }
