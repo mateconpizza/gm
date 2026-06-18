@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/mateconpizza/rotato"
 	ini "gopkg.in/ini.v1"
 
+	"github.com/mateconpizza/gm/internal/sys/browser"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -22,6 +24,15 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
+
+var (
+	ErrBrowserIsOpen           = errors.New("browser is open")
+	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
+	ErrBrowserUnsupported      = errors.New("browser is unsupported")
+	ErrDatabaseLocked          = errors.New("database is locked")
+)
+
+var _ browser.Browser = (*GeckoBrowser)(nil)
 
 var ignoredPrefixes = []string{
 	"about:",
@@ -33,12 +44,11 @@ var ignoredPrefixes = []string{
 	"moz-extension://",
 }
 
-var (
-	ErrBrowserIsOpen           = errors.New("browser is open")
-	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
-	ErrBrowserUnsupported      = errors.New("browser is unsupported")
-	ErrDatabaseLocked          = errors.New("database is locked")
-)
+var Supported = []browser.Supported{
+	{Browser: New("Firefox", ansi.BrightYellow.With(ansi.Bold))},
+	{Browser: New("Zen", ansi.Red.With(ansi.Bold))},
+	{Browser: New("Waterfox", ansi.BrightBlue.With(ansi.Bold))},
+}
 
 func getTodayFormatted() string {
 	today := time.Now()
@@ -47,22 +57,40 @@ func getTodayFormatted() string {
 
 var geckoBrowserPaths = map[string]Paths{
 	"Firefox": {
-		profiles:  browserpath.GeckoProfilePath(".mozilla/firefox"),
-		bookmarks: browserpath.GeckoBookmarkPath(".mozilla/firefox"),
+		profiles: []string{
+			browserpath.GeckoProfilePath(".mozilla/firefox"),
+			browserpath.GeckoProfilePath(".config/mozilla/firefox"),
+		},
+		bookmarks: []string{
+			browserpath.GeckoBookmarkPath(".mozilla/firefox"),
+			browserpath.GeckoBookmarkPath(".config/mozilla/firefox"),
+		},
 	},
 	"Zen": {
-		profiles:  browserpath.GeckoProfilePath(".zen"),
-		bookmarks: browserpath.GeckoBookmarkPath(".zen"),
+		profiles: []string{
+			browserpath.GeckoProfilePath(".zen"),
+			browserpath.GeckoProfilePath(".config/zen"),
+		},
+		bookmarks: []string{
+			browserpath.GeckoBookmarkPath(".zen"),
+			browserpath.GeckoBookmarkPath(".config/zen"),
+		},
 	},
 	"Waterfox": {
-		profiles:  browserpath.GeckoProfilePath(".waterfox"),
-		bookmarks: browserpath.GeckoBookmarkPath(".waterfox"),
+		profiles: []string{
+			browserpath.GeckoProfilePath(".waterfox"),
+			browserpath.GeckoProfilePath(".config/waterfox"),
+		},
+		bookmarks: []string{
+			browserpath.GeckoBookmarkPath(".waterfox"),
+			browserpath.GeckoBookmarkPath(".config/waterfox"),
+		},
 	},
 }
 
 type Paths struct {
-	profiles  string
-	bookmarks string
+	profiles  []string
+	bookmarks []string
 }
 
 type GeckoBrowser struct {
@@ -72,17 +100,9 @@ type GeckoBrowser struct {
 	paths Paths
 }
 
-func (b *GeckoBrowser) Name() string {
-	return b.name
-}
-
-func (b *GeckoBrowser) Short() string {
-	return b.short
-}
-
-func (b *GeckoBrowser) Color(s string) string {
-	return b.color.Sprint(s)
-}
+func (b *GeckoBrowser) Name() string          { return b.name }
+func (b *GeckoBrowser) Short() string         { return b.short }
+func (b *GeckoBrowser) Color(s string) string { return b.color.Sprint(s) }
 
 func (b *GeckoBrowser) LoadPaths() error {
 	p, ok := geckoBrowserPaths[b.name]
@@ -95,17 +115,33 @@ func (b *GeckoBrowser) LoadPaths() error {
 	return nil
 }
 
+func (b *GeckoBrowser) processPaths() (profilePath, bookmarksPath string) {
+	for i := range b.paths.profiles {
+		if files.Exists(b.paths.profiles[i]) {
+			profilePath = b.paths.profiles[i]
+			bookmarksPath = b.paths.bookmarks[i]
+			break
+		}
+	}
+
+	return profilePath, bookmarksPath
+}
+
 func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
-	paths := b.paths
-	if paths.profiles == "" || paths.bookmarks == "" {
-		return nil, ErrBrowserConfigPathNotSet
+	profilesPath, bookmarksPath := b.processPaths()
+	if profilesPath == "" {
+		return nil, fmt.Errorf("%w: profiles filepath: empty", ErrBrowserConfigPathNotSet)
 	}
 
-	if !files.Exists(paths.profiles) {
-		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, paths.profiles)
+	if bookmarksPath == "" {
+		return nil, fmt.Errorf("%w: bookmarks filepath: empty", ErrBrowserConfigPathNotSet)
 	}
 
-	profiles, err := allProfiles(paths.profiles)
+	if !files.Exists(profilesPath) {
+		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, profilesPath)
+	}
+
+	profiles, err := allProfiles(profilesPath)
 	if err != nil {
 		return nil, err
 	}
@@ -114,12 +150,32 @@ func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 	f.Rowln().
 		Header(fmt.Sprintf("Starting %s import\n", b.Color(b.Name()))).
 		Midln("Found " + p.Bold.Sprint(len(profiles)) + " profiles").
+		Rowln().
 		Flush()
 
 	var bs []*bookmark.Bookmark
-	for profile, v := range profiles {
-		p := fmt.Sprintf(paths.bookmarks, v)
-		processProfile(ctx, c, &bs, profile, p, force)
+
+	for profileName, v := range profiles {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		bookmarksPath = fmt.Sprintf(bookmarksPath, v)
+
+		if err := processProfile(ctx, c, &bs, profileName, bookmarksPath, force); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, err
+			}
+
+			c.ClearLine(1)
+
+			pf := p.Italic.Wrap(profileName+":", p.Bold)
+			skip := p.BrightYellow.Wrap("skipping", p.Italic)
+			reason := p.Italic.Sprint("no bookmarks found")
+
+			c.Warning(fmt.Sprintf("%s profile %s %s", skip, pf, reason)).
+				Ln().
+				Flush()
+		}
 	}
 
 	return bs, nil
@@ -239,17 +295,21 @@ func allProfiles(p string) (map[string]string, error) {
 }
 
 // processProfile processes a single profile and extracts bookmarks.
-func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
+func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) error {
 	if !confirmImport(ctx, c, profile, force) {
-		return
+		return nil
 	}
 
 	p := c.Palette()
 	path = files.ExpandHomeDir(path)
+	if err := files.ExistsErr(path); err != nil {
+		return fmt.Errorf("%w: %q", err, path)
+	}
+
 	r, err := openSQLite(ctx, c, path)
 	if err != nil {
 		handleDBError(c, p, profile, err)
-		return
+		return err
 	}
 
 	defer func() {
@@ -263,7 +323,7 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 	gmarks, err := queryBookmarks(r)
 	if err != nil {
 		fmt.Fprintf(c.Writer(), "err querying bookmarks for profile %q: %v\n", profile, err)
-		return
+		return err
 	}
 
 	skipped := importBookmarks(bs, gmarks)
@@ -273,6 +333,8 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 
 	found := p.BrightBlue.Sprint("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-skipped)).Flush()
+
+	return nil
 }
 
 func confirmImport(ctx context.Context, c *ui.Console, profile string, force bool) bool {
@@ -285,7 +347,9 @@ func confirmImport(ctx context.Context, c *ui.Console, profile string, force boo
 	if err := c.ConfirmErr(ctx, fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
 		c.ClearLine(1)
 		pf := p.Italic.Wrap(profile, p.Bold)
-		c.Warning(p.BrightYellow.Wrap("skipping", p.Italic) + " profile " + pf).Ln().Flush()
+		reason := p.Italic.Sprint(": skipped by user")
+		c.Warning(p.BrightYellow.Wrap("skipping", p.Italic) + " profile " + pf + reason).
+			Ln().Flush()
 		return false
 	}
 

@@ -193,6 +193,9 @@ linters:
       - path: "internal/git/repo.go"
         linters:
           - nilerr
+      - path: "internal/sys/browser/blink/blink.go"
+        linters:
+          - nilerr
       - path: "internal/git/sync.go"
         linters:
           - funlen

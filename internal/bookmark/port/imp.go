@@ -87,6 +87,10 @@ func Database(ctx context.Context, d *deps.Deps, srcDB, destDB *db.SQLite) error
 
 // IntoRepo import records into the database.
 func IntoRepo(ctx context.Context, d *deps.Deps, records []*bookmark.Bookmark) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	c := d.Console()
 	app, err := d.Application(ctx)
 	if err != nil {
