@@ -436,12 +436,12 @@ func displayBookmarkChanges(w io.Writer, c *ui.Console, b, updated *bookmark.Boo
 
 	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Title:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColor(txt.Diff([]byte(b.Title), []byte(updated.Title))))
+		fmt.Fprintln(w, txt.DiffColorize(txt.Diff([]byte(b.Title), []byte(updated.Title))))
 	}
 
 	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColor(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
+		fmt.Fprintln(w, txt.DiffColorize(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
 }
 

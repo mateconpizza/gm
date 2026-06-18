@@ -163,25 +163,25 @@ func TestDiff(t *testing.T) {
 			name:     "Line Added",
 			inputA:   []byte("line1\nline2"),
 			inputB:   []byte("line1\nline2\nline3"),
-			expected: "line1\nline2\n+line3",
+			expected: "line1\nline2\n" + addMarker + "line3",
 		},
 		{
 			name:     "Line Removed",
 			inputA:   []byte("line1\nline2\nline3"),
 			inputB:   []byte("line1\nline3"),
-			expected: "line1\n-line2\nline3",
+			expected: "line1\n" + delMarker + "line2\nline3",
 		},
 		{
 			name:     "Line Modified",
 			inputA:   []byte("line1\nline2\nline3"),
 			inputB:   []byte("line1\nlineX\nline3"),
-			expected: "line1\n-line2\n+lineX\nline3",
+			expected: "line1\n" + delMarker + "line2\n" + addMarker + "lineX\nline3",
 		},
 		{
 			name:     "Multiple Changes",
 			inputA:   []byte("lineA\nlineB\nlineC\nlineD"),
 			inputB:   []byte("lineA\nlineX\nlineC\nlineY"),
-			expected: "lineA\n-lineB\n+lineX\nlineC\n-lineD\n+lineY",
+			expected: "lineA\n" + delMarker + "lineB\n" + addMarker + "lineX\nlineC\n" + delMarker + "lineD\n" + addMarker + "lineY",
 		},
 	}
 
