@@ -34,7 +34,7 @@ func ReorderDatabase(ctx context.Context, app *application.App) error {
 	}
 	defer r.Close()
 
-	c := ui.NewDefaultConsole(ctx, nil)
+	c := ui.NewDefaultConsole(nil)
 	f, p := c.Frame(), c.Palette()
 
 	header := func() string {

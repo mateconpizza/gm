@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -104,10 +103,7 @@ func newMgrCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			ctx := cmd.Context()
-			c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
-
-			return gitops.TrackManager(ctx, m, c, dbFiles)
+			return gitops.TrackManager(cmd.Context(), m, ui.DefaultConsole, dbFiles)
 		},
 	}
 

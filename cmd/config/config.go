@@ -59,8 +59,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 			if err := app.Validate(); err != nil {
 				return err
 			}
-			c := ui.NewDefaultConsole(cmd.Context(), func(err error) { sys.ErrAndExit(err) })
-			return createConfig(cmd.Context(), c, app)
+			return createConfig(cmd.Context(), ui.DefaultConsole, app)
 		},
 	}
 	cmdutil.HideFlag(c, "db")
@@ -84,13 +83,11 @@ func newEditCmd(app *application.App) *cobra.Command {
 
 func cfgToJSON(ctx context.Context, app *application.App) error {
 	app.DBName = strings.TrimSuffix(app.DBName, ".db")
-
 	j, err := port.ToJSON(app)
 	if err != nil {
 		return err
 	}
-	c := ui.NewDefaultConsole(ctx, func(err error) { sys.ErrAndExit(err) })
-	return c.Term().Print(ctx, string(j))
+	return ui.DefaultConsole.Term().Print(ctx, string(j))
 }
 
 // createConfig dumps the app configuration to a YAML file.

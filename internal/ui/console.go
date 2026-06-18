@@ -13,6 +13,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
+var DefaultConsole = NewDefaultConsole(func(err error) { sys.ErrAndExit(err) })
+
 type Console struct {
 	term    *terminal.Term
 	frame   *frame.Frame
@@ -53,13 +55,13 @@ var DefaultIconStyle = &frame.Icons{
 	Success:  frame.IconStyle{Symbol: "✓", Color: ansi.BrightGreen.With(ansi.Bold)},
 }
 
-func NewDefaultConsole(ctx context.Context, f func(error)) *Console {
+func NewDefaultConsole(fn func(error)) *Console {
 	return NewConsole(
 		WithFrame(frame.New(
 			frame.WithColorBorder(ansi.Gray),
 			frame.WithIcons(DefaultIconStyle),
 		)),
-		WithDefaultTerminal(f),
+		WithDefaultTerminal(fn),
 	)
 }
 
