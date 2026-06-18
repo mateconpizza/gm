@@ -13,9 +13,9 @@ import (
 
 	"github.com/mateconpizza/rotato"
 
+	"github.com/mateconpizza/gm/internal/sys/browser"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -25,6 +25,16 @@ var (
 	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
 	ErrBrowserUnsupported      = errors.New("browser is unsupported")
 )
+
+var _ browser.Browser = (*BlinkBrowser)(nil)
+
+var Supported = []browser.Supported{
+	{Browser: New("Chromium", ansi.BrightBlue.With(ansi.Bold))},
+	{Browser: New("Google Chrome", ansi.BrightYellow.With(ansi.Bold))},
+	{Browser: New("Brave", ansi.Magenta.With(ansi.Bold))},
+	{Browser: New("Vivaldi", ansi.BrightRed.With(ansi.Bold))},
+	{Browser: New("Edge", ansi.BrightCyan.With(ansi.Bold))},
+}
 
 var blinkBrowserPaths = map[string]Paths{
 	"Chromium": {
@@ -61,17 +71,9 @@ type BlinkBrowser struct {
 	paths Paths
 }
 
-func (b *BlinkBrowser) Name() string {
-	return b.name
-}
-
-func (b *BlinkBrowser) Short() string {
-	return b.short
-}
-
-func (b *BlinkBrowser) Color(s string) string {
-	return b.color.Sprint(s)
-}
+func (b *BlinkBrowser) Name() string          { return b.name }
+func (b *BlinkBrowser) Short() string         { return b.short }
+func (b *BlinkBrowser) Color(s string) string { return b.color.Sprint(s) }
 
 func (b *BlinkBrowser) LoadPaths() error {
 	p, ok := blinkBrowserPaths[b.name]
@@ -105,14 +107,22 @@ func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 		return nil, err
 	}
 
-	f := frame.New(frame.WithColorBorder(ansi.Gray))
-	f.Header(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).Ln()
-	f.Mid(fmt.Sprintf("Found %d profiles", len(profiles))).Ln().Flush()
+	c.Frame().
+		Headerln(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).
+		Midln(fmt.Sprintf("Found %d profiles", len(profiles))).
+		Rowln().
+		Flush()
 
 	var bs []*bookmark.Bookmark
 	for profile, v := range profiles {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		p := fmt.Sprintf(p.bookmarks, profile)
-		processProfile(ctx, c, &bs, v, files.ExpandHomeDir(p), force)
+		if err := processProfile(ctx, c, &bs, v, files.ExpandHomeDir(p), force); err != nil {
+			return nil, err
+		}
 	}
 
 	return bs, nil
@@ -232,20 +242,25 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 }
 
 // processProfile extracts profile system names and user names.
-func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) {
+func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	f, p := c.Frame(), c.Palette()
 	skip := p.BrightYellow.Sprint("skipping")
 	pf := p.Italic.Wrap(profile, p.Bold)
 	if !files.Exists(path) {
 		f.Reset()
 		f.Headerln(skip + " profile " + pf + p.Italic.Sprint(": bookmarks file not found")).Flush()
-		return
+		return nil
 	}
 
 	if !force {
 		if err := c.ConfirmErr(ctx, fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
-			c.ReplaceLine(f.Row(skip + " profile " + pf).String())
-			return
+			reason := p.Italic.Sprint(": skipped by user")
+			c.ReplaceLine(f.Warning(skip + " profile " + pf + reason).String())
+			return nil
 		}
 	} else {
 		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
@@ -285,6 +300,8 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 
 	found := p.BrightBlue.Sprint("found")
 	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-ogSize)).Flush()
+
+	return nil
 }
 
 // Define the main function to load the Chrome database.

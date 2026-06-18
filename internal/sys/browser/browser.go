@@ -12,6 +12,10 @@ import (
 
 var ErrBrowserUnsupported = errors.New("browser unsupported")
 
+type Supported struct {
+	Browser Browser
+}
+
 // Browser defines the interface for interacting with various web browsers,
 // providing methods to retrieve browser information, load browser paths, and
 // import bookmarks.

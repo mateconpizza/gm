@@ -2,6 +2,23 @@
 // for browser profiles and bookmark files.
 package browserpath
 
+type BrowserFiles struct {
+	profiles  string
+	bookmarks string
+}
+
+var (
+	gecko = BrowserFiles{
+		profiles:  "profiles.ini",
+		bookmarks: "places.sqlite",
+	}
+
+	blink = BrowserFiles{
+		profiles:  "Local State",
+		bookmarks: "Bookmarks",
+	}
+)
+
 // GeckoBookmarkPath returns the path to the Gecko-based browser's bookmarks
 // file.
 func GeckoBookmarkPath(p string) string {

@@ -125,17 +125,11 @@ func newImportFromBackupCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newImportBrowserCmd(app *application.App) *cobra.Command {
+func newImportBrowserCmd(_ *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "browser",
 		Short: "import from browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(cmd.Context(), app.Path.DB())
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			defer r.Close()
-
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
