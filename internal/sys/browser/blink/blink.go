@@ -29,11 +29,11 @@ var (
 var _ browser.Browser = (*BlinkBrowser)(nil)
 
 var Supported = []browser.Supported{
-	{Browser: New("Chromium", ansi.BrightBlue.With(ansi.Bold))},
-	{Browser: New("Google Chrome", ansi.BrightYellow.With(ansi.Bold))},
-	{Browser: New("Brave", ansi.Magenta.With(ansi.Bold))},
-	{Browser: New("Vivaldi", ansi.BrightRed.With(ansi.Bold))},
-	{Browser: New("Edge", ansi.BrightCyan.With(ansi.Bold))},
+	{Browser: New("Chromium")},
+	{Browser: New("Google Chrome")},
+	{Browser: New("Brave")},
+	{Browser: New("Vivaldi")},
+	{Browser: New("Edge")},
 }
 
 var blinkBrowserPaths = map[string]Paths{
@@ -67,13 +67,12 @@ type Paths struct {
 type BlinkBrowser struct {
 	name  string
 	short string
-	color ansi.SGR
 	paths Paths
 }
 
-func (b *BlinkBrowser) Name() string          { return b.name }
-func (b *BlinkBrowser) Short() string         { return b.short }
-func (b *BlinkBrowser) Color(s string) string { return b.color.Sprint(s) }
+func (b *BlinkBrowser) Name() string   { return b.name }
+func (b *BlinkBrowser) Short() string  { return b.short }
+func (b *BlinkBrowser) String() string { return ansi.BrightBlue.Sprint(b.name) }
 
 func (b *BlinkBrowser) LoadPaths() error {
 	p, ok := blinkBrowserPaths[b.name]
@@ -88,16 +87,15 @@ func (b *BlinkBrowser) LoadPaths() error {
 
 // Import extracts profile system names and user names.
 func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
-	p := b.paths
-	if p.bookmarks == "" || p.profiles == "" {
+	if b.paths.bookmarks == "" || b.paths.profiles == "" {
 		return nil, ErrBrowserConfigPathNotSet
 	}
 
-	if !files.Exists(p.profiles) {
-		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, p.profiles)
+	if !files.Exists(b.paths.profiles) {
+		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, b.paths.profiles)
 	}
 
-	jsonData, err := os.ReadFile(p.profiles)
+	jsonData, err := os.ReadFile(b.paths.profiles)
 	if err != nil {
 		return nil, fmt.Errorf("error reading JSON file: %w", err)
 	}
@@ -107,9 +105,11 @@ func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 		return nil, err
 	}
 
+	p := c.Palette()
 	c.Frame().
-		Headerln(fmt.Sprintf("Starting %s import...", b.Color(b.Name()))).
-		Midln(fmt.Sprintf("Found %d profiles", len(profiles))).
+		Rowln().
+		Header(p.BrightBlue.Wrap(b.Name(), p.Bold)).
+		Textln(p.Dim.Wrap(fmt.Sprintf(" (%d profiles found)", len(profiles)), p.Italic)).
 		Rowln().
 		Flush()
 
@@ -119,8 +119,8 @@ func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 			return nil, err
 		}
 
-		p := fmt.Sprintf(p.bookmarks, profile)
-		if err := processProfile(ctx, c, &bs, v, files.ExpandHomeDir(p), force); err != nil {
+		bookmarksPath := fmt.Sprintf(b.paths.bookmarks, profile)
+		if err := processProfile(ctx, c, &bs, v, files.ExpandHomeDir(bookmarksPath), force); err != nil {
 			return nil, err
 		}
 	}
@@ -128,11 +128,10 @@ func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 	return bs, nil
 }
 
-func New(name string, c ansi.SGR) *BlinkBrowser {
+func New(name string) *BlinkBrowser {
 	return &BlinkBrowser{
 		name:  name,
 		short: strings.ToLower(string(name[0])),
-		color: c,
 	}
 }
 

@@ -191,8 +191,8 @@ func promptImportSelection(
 		switch strings.ToLower(opt) {
 		case "n", "no":
 			return nil, sys.ErrActionAborted
+
 		case "s", "select":
-			c.ClearLine(1)
 			m := picker.New[*bookmark.Bookmark](
 				app,
 				menu.WithArgs("--cycle"),
@@ -201,11 +201,16 @@ func promptImportSelection(
 				menu.WithNth("3.."),
 				menu.WithMultiSelection(),
 			)
-			m.SetFormatter(func(b **bookmark.Bookmark) string { return formatter.OnelineFunc(c, *b) })
+
+			m.SetFormatter(func(b **bookmark.Bookmark) string {
+				return formatter.OnelineFunc(c, *b)
+			})
+
 			bs, err = m.Select(bs)
 			if err != nil {
 				return nil, err
 			}
+
 		case "y", "yes":
 			return bs, nil
 		}

@@ -16,13 +16,13 @@ type Supported struct {
 	Browser Browser
 }
 
-// Browser defines the interface for interacting with various web browsers,
-// providing methods to retrieve browser information, load browser paths, and
-// import bookmarks.
+func (s Supported) String() string { return s.Browser.String() }
+
+// Browser defines the interface for interacting with web browsers.
 type Browser interface {
 	Name() string
 	Short() string
 	LoadPaths() error
-	Color(string) string
 	Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error)
+	String() string
 }

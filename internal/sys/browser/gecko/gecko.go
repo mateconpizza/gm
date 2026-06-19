@@ -45,9 +45,9 @@ var ignoredPrefixes = []string{
 }
 
 var Supported = []browser.Supported{
-	{Browser: New("Firefox", ansi.BrightYellow.With(ansi.Bold))},
-	{Browser: New("Zen", ansi.Red.With(ansi.Bold))},
-	{Browser: New("Waterfox", ansi.BrightBlue.With(ansi.Bold))},
+	{Browser: New("Firefox")},
+	{Browser: New("Zen")},
+	{Browser: New("Waterfox")},
 }
 
 func getTodayFormatted() string {
@@ -96,13 +96,12 @@ type Paths struct {
 type GeckoBrowser struct {
 	name  string
 	short string
-	color ansi.SGR
 	paths Paths
 }
 
-func (b *GeckoBrowser) Name() string          { return b.name }
-func (b *GeckoBrowser) Short() string         { return b.short }
-func (b *GeckoBrowser) Color(s string) string { return b.color.Sprint(s) }
+func (b *GeckoBrowser) Name() string   { return b.name }
+func (b *GeckoBrowser) Short() string  { return b.short }
+func (b *GeckoBrowser) String() string { return ansi.Orange.Sprint(b.name) }
 
 func (b *GeckoBrowser) LoadPaths() error {
 	p, ok := geckoBrowserPaths[b.name]
@@ -146,10 +145,11 @@ func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 		return nil, err
 	}
 
-	f, p := c.Frame(), c.Palette()
-	f.Rowln().
-		Header(fmt.Sprintf("Starting %s import\n", b.Color(b.Name()))).
-		Midln("Found " + p.Bold.Sprint(len(profiles)) + " profiles").
+	p := c.Palette()
+	c.Frame().
+		Rowln().
+		Header(p.Orange.Wrap(b.Name(), p.Bold)).
+		Textln(p.Dim.Wrap(fmt.Sprintf(" (%d profiles found)", len(profiles)), p.Italic)).
 		Rowln().
 		Flush()
 
@@ -181,11 +181,10 @@ func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 	return bs, nil
 }
 
-func New(name string, c ansi.SGR) *GeckoBrowser {
+func New(name string) *GeckoBrowser {
 	return &GeckoBrowser{
 		name:  name,
 		short: strings.ToLower(string(name[0])),
-		color: c,
 	}
 }
 

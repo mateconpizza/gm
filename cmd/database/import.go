@@ -59,10 +59,12 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			defer cancel()
 
 			ctx := cmd.Context()
+
 			srcPath, err := handler.SelectDatabase(ctx, d, rDest.Cfg.Fullpath())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
+
 			rSrc, err := db.New(cmd.Context(), srcPath)
 			if err != nil {
 				return err

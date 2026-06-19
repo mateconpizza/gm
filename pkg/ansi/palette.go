@@ -27,6 +27,7 @@ func NewPalette() *Palette {
 		Cyan:    Cyan,
 		White:   White,
 		Gray:    BrightWhite.With(Dim),
+		Orange:  Orange,
 
 		// Bright foreground colors (90-97).
 		BrightBlack:   BrightBlack,
@@ -137,6 +138,7 @@ type Palette struct {
 	Cyan    SGR
 	White   SGR
 	Gray    SGR
+	Orange  SGR
 
 	// Bright foreground colors (90-97).
 	BrightBlack   SGR
