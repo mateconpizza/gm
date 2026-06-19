@@ -19,12 +19,12 @@ import (
 )
 
 // confirmRemove prompts the user to confirm the action.
-func confirmRemove(ctx context.Context, d *deps.Deps, bs []bookmark.Bookmark) ([]bookmark.Bookmark, error) {
+func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
 	}
-	m := picker.New[bookmark.Bookmark](app, menu.WithMultiSelection())
+	m := picker.New[*bookmark.Bookmark](app, menu.WithMultiSelection())
 
 	for !app.Flags.Yes {
 		n := len(bs)
@@ -33,7 +33,7 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []bookmark.Bookmark) ([
 		}
 
 		for i := range n {
-			fmt.Fprintln(d.Writer(), formatter.FrameFunc(d.Console(), &bs[i]))
+			fmt.Fprintln(d.Writer(), formatter.FrameFunc(d.Console(), bs[i]))
 		}
 
 		opts := []string{"yes", "no"}
@@ -58,14 +58,15 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []bookmark.Bookmark) ([
 		case "y", "yes":
 			return bs, nil
 		case "s", "select":
-			items, err := selectionWithMenu(m, bs, func(b *bookmark.Bookmark) string {
-				return formatter.OnelineFunc(d.Console(), b)
+			m.SetFormatter(func(b **bookmark.Bookmark) string {
+				return formatter.OnelineFunc(d.Console(), *b)
 			})
+
+			bs, err = m.Select(bs)
 			if err != nil {
 				return nil, err
 			}
 
-			bs = items
 			fmt.Fprintln(d.Writer())
 		}
 	}

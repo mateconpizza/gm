@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -69,7 +68,7 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 	}
 
 	if !app.Flags.Force && !app.Flags.Yes {
-		deduplicated, err = promptImportSelection(ctx, c, app, deduplicated)
+		deduplicated, err = promptImportSelection(ctx, d, deduplicated)
 		if err != nil {
 			return err
 		}
@@ -165,12 +164,18 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 }
 
 // promptImportSelection runs the interactive action loop.
-func promptImportSelection(
-	ctx context.Context,
-	c *ui.Console,
-	app *application.App,
-	bs []*bookmark.Bookmark,
-) ([]*bookmark.Bookmark, error) {
+func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	c := d.Console()
+
 	for {
 		n := len(bs)
 		options := []string{"yes", "no"}

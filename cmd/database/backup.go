@@ -9,7 +9,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -94,12 +93,12 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 				return fmt.Errorf("%w", db.ErrBackupNotFound)
 			}
 
-			repos, err := handler.SelectFileLocked(cmd.Context(), d, app.Path.Backup(), "select backup to unlock")
+			repo, err := dbops.SelectEncrypted(cmd.Context(), d, app.Path.Backup())
 			if err != nil {
 				return fmt.Errorf("%w", err)
 			}
 
-			return dbops.Unlock(cmd.Context(), d, repos[0])
+			return dbops.Unlock(cmd.Context(), d, repo)
 		},
 	}
 

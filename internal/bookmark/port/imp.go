@@ -23,13 +23,18 @@ import (
 var ErrNothingToImport = errors.New("nothing to import")
 
 // Database imports bookmarks from a database.
-func Database(ctx context.Context, d *deps.Deps, srcDB, destDB *db.SQLite) error {
+func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
+	destDB, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
 	app, err := d.Application(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	m := picker.New[bookmark.Bookmark](
+	m := picker.New[*bookmark.Bookmark](
 		app,
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
@@ -41,123 +46,70 @@ func Database(ctx context.Context, d *deps.Deps, srcDB, destDB *db.SQLite) error
 		}),
 	)
 
-	items, err := srcDB.All(ctx)
+	bs, err := srcDB.All(ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
-	}
-	rec := make([]bookmark.Bookmark, 0, len(items))
-	for i := range items {
-		rec = append(rec, *items[i])
-	}
-
-	m.SetFormatter(func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(d.Console(), b) })
-	records, err := m.Select(rec)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	bookmarks := make([]*bookmark.Bookmark, 0, len(records))
-	for i := range records {
-		bookmarks = append(bookmarks, &records[i])
-	}
-
-	d.SetRepo(destDB)
-
-	c, f := d.Console(), d.Console().Frame()
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	bookmarks, err = DeduplicateReport(ctx, c, r, bookmarks)
-	if err != nil {
-		return err
-	}
-	n := len(bookmarks)
-	if n == 0 {
-		f.Midln("no new bookmark found, skipping import").Flush()
-		return nil
-	}
-
-	if err := r.InsertMany(ctx, bookmarks); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	return c.Print(ctx, c.SuccessMesg("imported ", n, " record/s from ", srcDB.Name()))
-}
-
-// IntoRepo import records into the database.
-func IntoRepo(ctx context.Context, d *deps.Deps, records []*bookmark.Bookmark) error {
-	if err := ctx.Err(); err != nil {
-		return err
 	}
 
 	c := d.Console()
-	app, err := d.Application(ctx)
+	m.SetFormatter(func(b **bookmark.Bookmark) string { return formatter.OnelineFunc(c, *b) })
+
+	bs, err = m.Select(bs)
 	if err != nil {
 		return err
 	}
 
-	if !app.Flags.Force && len(records) > 1 {
-		records, err = promptImportSelection(ctx, d.Console(), app, records)
-		if err != nil {
-			return err
-		}
-	}
-
-	r, err := d.Repository()
+	bs, err = DeduplicateReport(ctx, c, destDB, bs)
 	if err != nil {
 		return err
 	}
 
-	if err := r.InsertMany(ctx, records); err != nil {
+	if len(bs) == 0 {
+		p := c.Palette()
+		c.Frame().Error("no new bookmark found, ").
+			Textln(p.BrightYellow.Wrap("skipping import", p.Italic)).
+			Flush()
+		return sys.ErrExitFailure
+	}
+
+	if err := destDB.InsertMany(ctx, bs); err != nil {
 		return err
 	}
 
-	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("imported %d record/s\n", len(records))))
+	return c.Print(ctx, c.SuccessMesg("imported ", len(bs), " record/s from ", srcDB.Name()))
 }
 
 // FromBackup imports bookmarks from a backup.
 func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) error {
 	c := d.Console()
-	f, t, p := c.Frame(), c.Term(), c.Palette()
 
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 
-	m := picker.New[bookmark.Bookmark](
+	m := picker.New[*bookmark.Bookmark](
 		app,
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
-		menu.WithInterruptFn(t.InterruptFn()),
+		menu.WithInterruptFn(c.Term().InterruptFn()),
 		menu.WithMultiSelection(),
 		menu.WithPreview(menu.PreviewCmd(app.Command(), "./backup/"+srcDB.Name(), "{+1}")),
 	)
 
-	defer t.CancelInterruptHandler()
+	defer c.Term().CancelInterruptHandler()
 
 	bookmarks, err := srcDB.All(ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
-	rec := make([]bookmark.Bookmark, 0, len(bookmarks))
-	for i := range bookmarks {
-		rec = append(rec, *bookmarks[i])
-	}
+	m.SetFormatter(func(b **bookmark.Bookmark) string {
+		return formatter.OnelineFunc(c, *b)
+	})
 
-	m.SetFormatter(func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(c, b) })
-	items, err := m.Select(rec)
+	bookmarks, err = m.Select(bookmarks)
 	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	h := p.BrightYellow.Sprint("Import bookmarks from backup: ")
-	f.Headerln(h + p.Gray.Wrap(srcDB.Name(), p.Italic)).Flush()
-
-	result := make([]*bookmark.Bookmark, 0, len(items))
-	for i := range items {
-		result = append(result, &items[i])
+		return err
 	}
 
 	// update which repo to insert
@@ -167,17 +119,21 @@ func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) err
 	if err != nil {
 		return err
 	}
-	dRecords, err := DeduplicateReport(ctx, c, r, result)
+
+	result, err := DeduplicateReport(ctx, c, r, bookmarks)
 	if err != nil {
 		return err
 	}
 
-	if len(dRecords) == 0 {
-		f.Midln("no new bookmark found, skipping import").Flush()
-		return nil
+	if len(result) == 0 {
+		p := c.Palette()
+		c.Frame().Error("no new bookmark found, ").
+			Textln(p.BrightYellow.Wrap("skipping import", p.Italic)).
+			Flush()
+		return sys.ErrExitFailure
 	}
 
-	return IntoRepo(ctx, d, dRecords)
+	return importPipeline(ctx, d, "from backup", srcDB.Name(), result)
 }
 
 // ToJSON converts an interface to JSON.
@@ -191,12 +147,7 @@ func ToJSON(data any) ([]byte, error) {
 }
 
 // DeduplicateReport removes duplicate bookmarks and reports skipped entries to the console.
-func DeduplicateReport(
-	ctx context.Context,
-	c *ui.Console,
-	r *db.SQLite,
-	bs []*bookmark.Bookmark,
-) ([]*bookmark.Bookmark, error) {
+func DeduplicateReport(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	const maxItemsToShow = 10
 
 	existing, err := r.All(ctx)
@@ -211,18 +162,22 @@ func DeduplicateReport(
 
 	p := c.Palette()
 	skip := p.BrightYellow.Sprint("skipping")
-	s := fmt.Sprintf("%s %d/%d duplicate bookmarks", skip, len(duplicates), len(bs))
-	c.Warning(s + "\n").Flush()
+	c.Warning(fmt.Sprintf("%s %d/%d duplicate bookmarks\n", skip, len(duplicates), len(bs))).
+		Flush()
 
 	f := c.Frame()
+
 	for i, b := range duplicates {
 		if i >= maxItemsToShow {
 			f.Midln(p.Dim.With(p.Italic).Sprintf(" ... and %d more", len(duplicates)-i))
 			break
 		}
+
 		f.Midln(p.Dim.Wrap(" "+txt.Shorten(b.URL, c.MinWidth()), p.Italic))
 	}
-	f.Rowln().Flush()
+
+	f.Rowln().
+		Flush()
 
 	return fresh, nil
 }

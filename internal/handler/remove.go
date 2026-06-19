@@ -15,10 +15,12 @@ func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 	defer r.Close()
+
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
+
 	if err := validateRemove(bs, app.Flags.Force); err != nil {
 		return err
 	}
@@ -46,20 +48,10 @@ func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	t := d.Console().Term()
 	defer t.CancelInterruptHandler()
 
-	items := make([]bookmark.Bookmark, 0, len(bs))
-	for i := range bs {
-		items = append(items, *bs[i])
-	}
-
-	items, err = confirmRemove(ctx, d, items)
+	bs, err = confirmRemove(ctx, d, bs)
 	if err != nil {
 		return err
 	}
 
-	toRemove := make([]*bookmark.Bookmark, 0, len(items))
-	for i := range items {
-		toRemove = append(toRemove, &items[i])
-	}
-
-	return removeRecords(ctx, d, toRemove)
+	return removeRecords(ctx, d, bs)
 }

@@ -233,6 +233,25 @@ func FindByExtList(root string, ext ...string) ([]string, error) {
 	return files, nil
 }
 
+// ListWithExclude returns files matching an extension, excluding specified
+// names.
+func ListWithExclude(path, fileExt string, exclude ...string) ([]string, error) {
+	dbFiles, err := FindByExtList(path, fileExt)
+	if err != nil {
+		return nil, err
+	}
+
+	dbs := make([]string, 0, len(dbFiles))
+	for _, file := range dbFiles {
+		if slices.Contains(exclude, file) {
+			continue
+		}
+		dbs = append(dbs, file)
+	}
+
+	return dbs, nil
+}
+
 // findByExt returns a list of files with the specified extension in the
 // given directory.
 func findByExt(root, ext string) ([]string, error) {

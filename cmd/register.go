@@ -67,10 +67,11 @@ func initAppConfig(app *application.App) {
 	}
 
 	// terminal interactive mode
-	terminal.NonInteractiveMode(app.Flags.Yes)
-
-	// git config
-	// git.SetConfig(ctx, app)
+	terminal.NonInteractiveMode(
+		app.Flags.Yes ||
+			app.Flags.Force ||
+			terminal.IsPiped(),
+	)
 }
 
 func registerCleanups(_ *application.App) {
@@ -79,15 +80,6 @@ func registerCleanups(_ *application.App) {
 		db.Shutdown()
 		return nil
 	})
-
-	// synchronize the repository state on shutdown.
-	// cleanup.Register(func() error {
-	// FIX: this make exit code 130, disabled for now.
-	// 	slog.Debug("synchronize the repository state on shutdown")
-	// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	// 	defer cancel()
-	// 	return git.Sync(ctx, app, "cleanup: sync pending changes")
-	// })
 }
 
 func registerRootFlags(c *cobra.Command, app *application.App) {
@@ -118,8 +110,9 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	g.BoolVar(&app.Flags.Force, "force", false, "force action")
 	// verbosity level
 	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
+
 	// version
-	g.BoolVarP(&app.Flags.Version, "version", "V", false, "version")
+	c.Flags().BoolVarP(&app.Flags.Version, "version", "V", false, "version")
 
 	// hidden
 	g.Bool("help", false, "")

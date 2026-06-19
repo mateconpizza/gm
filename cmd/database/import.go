@@ -1,8 +1,6 @@
 package database
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -11,7 +9,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 )
@@ -46,12 +43,6 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 				return newImportFromFileCmd(app).RunE(cmd, args)
 			}
 
-			rDest, err := db.New(cmd.Context(), app.Path.DB())
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-			defer rDest.Close()
-
 			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
 			if err != nil {
 				return err
@@ -59,10 +50,9 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			defer cancel()
 
 			ctx := cmd.Context()
-
-			srcPath, err := handler.SelectDatabase(ctx, d, rDest.Cfg.Fullpath())
+			srcPath, err := dbops.Select(ctx, d, app.Path.DB())
 			if err != nil {
-				return fmt.Errorf("%w", err)
+				return err
 			}
 
 			rSrc, err := db.New(cmd.Context(), srcPath)
@@ -71,7 +61,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			}
 			defer rSrc.Close()
 
-			return port.Database(ctx, d, rSrc, rDest)
+			return port.Database(ctx, d, rSrc)
 		},
 	}
 
