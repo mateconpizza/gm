@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
@@ -17,6 +18,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
@@ -126,8 +128,10 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	if err != nil {
 		return err
 	}
+
 	title := app.Flags.Title
 	tags := app.Flags.TagsStr
+
 	c := d.Console()
 	newURL, err := newURLFromArgs(ctx, c, args)
 	if err != nil {
@@ -349,18 +353,25 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 		return sys.ErrActionAborted
 	case "e", "edit":
 		opt := editor.WithPostEditionRunE(func(old, fresh *bookmark.Bookmark) error {
-			return gitops.Update(ctx, app, old, fresh)
+			return insertAndAddBookmark(ctx, r, app, fresh)
 		})
 		return runEditSession(ctx, d, []*bookmark.Bookmark{b}, editor.NewBookmarkStrategy(), opt)
 	default:
-		newID, err := r.InsertOne(ctx, b)
-		if err != nil {
-			return err
-		}
-		fresh, err := r.ByID(ctx, int(newID))
-		if err != nil {
-			return err
-		}
-		return gitops.Add(ctx, app, r, fresh)
+		return insertAndAddBookmark(ctx, r, app, b)
 	}
+}
+
+// insertAndAddBookmark inserts a bookmark and applies git add.
+func insertAndAddBookmark(ctx context.Context, r *db.SQLite, app *application.App, b *bookmark.Bookmark) error {
+	newID, err := r.InsertOne(ctx, b)
+	if err != nil {
+		return err
+	}
+
+	fresh, err := r.ByID(ctx, int(newID))
+	if err != nil {
+		return err
+	}
+
+	return gitops.Add(ctx, app, r, fresh)
 }
