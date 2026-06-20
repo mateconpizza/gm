@@ -23,8 +23,13 @@ var (
 )
 
 const (
-	DirPerm  = 0o755 // Permissions for new directories.
-	FilePerm = 0o644 // Permissions for new files.
+	// Private user data.
+	DirPerm  = 0o700
+	FilePerm = 0o600
+
+	// Shared/readable permissions when needed.
+	DirPermPublic  = 0o755
+	FilePermPublic = 0o644
 )
 
 // Exists checks if a file exists.
