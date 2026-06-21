@@ -24,7 +24,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "db",
 		Aliases: []string{"database", "d"},
-		Short:   "database ops",
+		Short:   "database operations",
 		RunE:    cli.HookHelp,
 	}
 

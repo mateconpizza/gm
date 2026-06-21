@@ -25,6 +25,8 @@ type IconStyle struct {
 	Color  Color // Applies color/style
 }
 
+func (i IconStyle) String() string { return i.Color.Sprint(i.Symbol) }
+
 type Icons struct {
 	Error    IconStyle
 	Info     IconStyle

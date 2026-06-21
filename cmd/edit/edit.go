@@ -38,12 +38,13 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeaderLabel(" edition "),
 				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
 				menu.WithKeybinds(kb.New(k.Edit.Bind, "as-json").Execute("edit --json")),
+				menu.WithKeybinds(kb.New(k.EditNotes.Bind, "notes").Execute("edit notes")),
 			)
 
 			var strategy editor.EditStrategy
-			strategy = editor.BookmarkStrategy{}
+			strategy = editor.NewBookmarkStrategy()
 			if app.Flags.JSON {
-				strategy = editor.JSONStrategy{}
+				strategy = editor.NewJSONStrategy()
 			}
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), strategy))

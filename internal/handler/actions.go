@@ -412,9 +412,9 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 			ctx,
 			d,
 			[]*bookmark.Bookmark{&updated},
-			editor.BookmarkStrategy{},
-			editor.WithPostEditionRunE(func(o, u *bookmark.Bookmark) error {
-				return gitops.Update(ctx, app, o, u)
+			editor.NewBookmarkStrategy(),
+			editor.WithPostEditionRunE(func(old, fresh *bookmark.Bookmark) error {
+				return gitops.Update(ctx, app, old, fresh)
 			}),
 		); err != nil {
 			return err

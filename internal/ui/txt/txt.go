@@ -582,7 +582,8 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 	writeBorder := func() {
 		b.WriteString("+")
 		for _, width := range colWidths {
-			b.WriteString(strings.Repeat("-", width+2) + "+")
+			b.WriteString(strings.Repeat("-", width+2))
+			b.WriteString("+")
 		}
 		b.WriteString("\n")
 	}
@@ -594,7 +595,10 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 	for i, header := range headers {
 		visibleLen := len(ansi.Remover(header))
 		padding := colWidths[i] - visibleLen
-		b.WriteString(" " + header + strings.Repeat(" ", padding) + " |")
+		b.WriteByte(' ')
+		b.WriteString(header)
+		b.WriteString(strings.Repeat(" ", padding))
+		b.WriteString(" |")
 	}
 	b.WriteString("\n")
 
@@ -610,7 +614,10 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 			}
 			visibleLen := len(ansi.Remover(cell))
 			padding := width - visibleLen
-			b.WriteString(" " + cell + strings.Repeat(" ", padding) + " |")
+			b.WriteByte(' ')
+			b.WriteString(cell)
+			b.WriteString(strings.Repeat(" ", padding))
+			b.WriteString(" |")
 		}
 		b.WriteString("\n")
 	}
@@ -710,4 +717,14 @@ func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.SGR {
 	default:
 		return p.Dim.With(p.Italic)
 	}
+}
+
+func Pill(color ansi.SGR, msg string) string {
+	var sb strings.Builder
+
+	sb.WriteString(color.Sprint(GlyphPillLeft))
+	sb.WriteString(color.Wrap(msg, ansi.Inverse))
+	sb.WriteString(color.Sprint(GlyphPillRight))
+
+	return sb.String()
 }

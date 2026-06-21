@@ -53,11 +53,12 @@ func Select(ctx context.Context, d *deps.Deps, ignoreDBPath string) (string, err
 // SelectBackup lets the user choose a backup and handles decryption if
 // needed.
 func SelectBackup(ctx context.Context, d *deps.Deps, bks []string) (string, error) {
-	c := d.Console()
 	app, err := d.Application(ctx)
 	if err != nil {
 		return "", err
 	}
+
+	c := d.Console()
 
 	m := setupMenu(
 		app,

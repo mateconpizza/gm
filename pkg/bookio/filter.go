@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"slices"
+	"strings"
 )
 
 type FileFilterFunc func(path string, d fs.DirEntry) bool
@@ -16,9 +17,14 @@ var (
 	}
 
 	// HasExtension returns a filter that matches files with the given extension.
-	HasExtension = func(ext string) FileFilterFunc {
+	HasExtension = func(exts ...string) FileFilterFunc {
+		for i := range exts {
+			exts[i] = strings.ToLower(exts[i])
+		}
+
 		return func(path string, d fs.DirEntry) bool {
-			return filepath.Ext(path) == ext
+			ext := strings.ToLower(filepath.Ext(path))
+			return slices.Contains(exts, ext)
 		}
 	}
 

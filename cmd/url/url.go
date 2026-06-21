@@ -13,7 +13,7 @@ import (
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "url",
-		Short: "URL utilities",
+		Short: "URL operations",
 		RunE:  cli.HookHelp,
 	}
 

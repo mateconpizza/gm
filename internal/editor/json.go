@@ -42,3 +42,7 @@ func (JSONStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmar
 }
 
 func (JSONStrategy) FileType() string { return "json" }
+
+func NewJSONStrategy() *JSONStrategy {
+	return &JSONStrategy{}
+}

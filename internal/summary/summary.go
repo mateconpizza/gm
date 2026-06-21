@@ -121,7 +121,7 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 
 	r, err := db.New(ctx, fp)
 	if err != nil {
-		return p.BrightRed.Sprint("err")
+		return p.BrightRed.Sprint("err", err.Error())
 	}
 	defer r.Close()
 
@@ -178,20 +178,13 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 func BackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string, error) {
 	const maxItems = 3
 
-	r, err := d.Repository()
-	if err != nil {
-		return "", err
-	}
-
 	app, err := d.Application(ctx)
 	if err != nil {
 		return "", err
 	}
 
 	c, p := d.Console(), d.Console().Palette()
-	backupPath := app.Path.Backup()
-	dbName := files.StripSuffixes(r.Name())
-	fs, err := files.List(backupPath, "*_"+dbName+".db*")
+	fs, err := files.List(app.Path.Backup(), "*_"+app.DBBaseName()+".db*")
 	if len(fs) == 0 {
 		return "", nil
 	}
@@ -207,6 +200,7 @@ func BackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string,
 		f.Rowln(p.Gray.Sprintf("... %d more", len(fs)-maxItems))
 		fs = fs[len(fs)-maxItems:]
 	}
+
 	for i := range fs {
 		f.Rowln(BackupWithFmtDateFromPath(ctx, d.Console(), fs[i]))
 	}
