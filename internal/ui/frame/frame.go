@@ -54,6 +54,7 @@ type Options struct {
 type Frame struct {
 	Options
 	buf string
+	mu  sync.Mutex
 }
 
 // defaultOpts returns the default configuration options.
@@ -165,6 +166,9 @@ func (f *Frame) CustomFunc(fn CustomBorderFunc, s ...string) *Frame {
 
 // Write implements the io.Writer interface.
 func (f *Frame) Write(p []byte) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	content := f.buf + string(p)
 	lines := strings.Split(content, "\n")
 
@@ -275,7 +279,25 @@ func (f *Frame) applyFooter(border string, s []string) *Frame {
 
 func (f *Frame) applyIcon(icon IconStyle, s []string) *Frame {
 	mid := f.applyStyle(f.formatIcon(icon))
-	return f.apply(mid, s)
+
+	n := len(s)
+	if n == 0 {
+		return f.Text(mid, "")
+	}
+
+	// first line
+	f.Text(mid, s[0])
+
+	if n == 1 {
+		return f
+	}
+
+	// middle lines
+	for _, line := range s[1:n] {
+		f.Ln().RowC(icon.Color, line)
+	}
+
+	return f
 }
 
 // Helper method to format an icon with its color.
