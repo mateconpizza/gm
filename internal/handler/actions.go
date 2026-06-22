@@ -17,13 +17,11 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -33,61 +31,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
-
-// QR handles creation, rendering or opening of QR-Codes.
-func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-	qrFn := func(b *bookmark.Bookmark) error {
-		qrcode := qr.New(b.URL)
-		if err := qrcode.Generate(); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		c := d.Console()
-		p := c.Palette()
-		var sb strings.Builder
-		sb.WriteString(p.Bold.Sprint(b.Title + "\n"))
-		sb.WriteString(p.Italic.Sprint(b.URL + "\n"))
-		sb.WriteString(qrcode.String())
-		fmt.Fprint(d.Writer(), sb.String())
-
-		if err := c.WaitForEnter(ctx); err != nil {
-			if errors.Is(err, context.Canceled) {
-				return sys.ErrActionAborted
-			}
-			return err
-		}
-		terminal.ClearLine(txt.CountLines(sb.String()))
-
-		return nil
-	}
-
-	for i := range bs {
-		if err := qrFn(bs[i]); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// QROpen opens a QR-Code image in the system default image viewer.
-func QROpen(ctx context.Context, qrcode *qr.QRCode, b *bookmark.Bookmark, appName string) error {
-	const maxLabelLen = 55
-
-	if err := qrcode.GenerateImg(appName); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	trunc := func(s string) string { return txt.Shorten(s, maxLabelLen) }
-	if err := qrcode.Label(trunc(b.Title), qr.LabelTop); err != nil {
-		return fmt.Errorf("%w: adding top label", err)
-	}
-	if err := qrcode.Label(trunc(b.URL), qr.LabelBottom); err != nil {
-		return fmt.Errorf("%w: adding bottom label", err)
-	}
-
-	return qrcode.Open(ctx)
-}
 
 // Open opens the URLs in the browser for the bookmarks in the provided slice.
 func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
