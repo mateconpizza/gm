@@ -26,7 +26,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				terminal.ReadPipedInput(&args)
 			}
 
-			if len(args) != 0 && handler.ValidURL(args[0]) || app.Flags.Vacuum {
+			if len(args) != 0 && handler.ValidURL(args[0]) || app.Flags.All {
 				return newCleanURLUser(app).RunE(cmd, args)
 			}
 
@@ -40,10 +40,9 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
+	c.Flags().BoolVarP(&app.Flags.All, "all", "a", false, "remove all parameters")
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
-
-	c.PersistentFlags().BoolVarP(&app.Flags.Vacuum, "all", "a", false, "remove all parameters")
 
 	return c
 }

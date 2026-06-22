@@ -9,12 +9,10 @@ import (
 
 type Flags struct {
 	// Actions
-	Edit  bool // Edit mode
 	Menu  bool // Menu mode
-	Notes bool // Record notes
-	Open  bool // Open URL in default browser
 	List  bool // List items
 	Print bool // Print something
+	All   bool // Include all items
 
 	// Output format
 	Output  string // Output
@@ -29,15 +27,12 @@ type Flags struct {
 	Tail int      // Tail limit
 
 	// Bookmark operations
-	Export   bool          // Exports the bookmarks into a Netscape HTML file
-	Snapshot bool          // Fetches lastets snapshot from Wayback Machine
 	Limit    int           // Limit to N
 	Year     int           // Year
 	Update   bool          // Update bookmarks
-	Status   bool          // Status checks URLs status code
 	Title    string        // Bookmark's title
 	TagsStr  string        // Bookmark's tags (tag1,tag2,...)
-	Duration time.Duration // Timeout ops in seconds
+	Duration time.Duration // Timeout ops
 
 	// Configuration and behavior
 	Color    bool   // Application color enable
@@ -46,16 +41,10 @@ type Flags struct {
 	Yes      bool   // Assume "yes" on most questions
 	Path     string // Custom database path
 	Verbose  int    // Verbose output level
-	Version  bool
-
-	// database
-	Reorder bool // Reorder table IDs
-	Vacuum  bool // Rebuild the database file
+	Version  bool   // App version
 
 	// git
-	Track   bool // Track database in git
-	Untrack bool // Untrack database in git
-	Reinit  bool // Reinitialize existing repository
+	Reinit bool // Reinitialize existing repository
 }
 
 func SetVerbosity(verbose int) {
