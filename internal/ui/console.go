@@ -143,6 +143,8 @@ func (c *Console) PromptWithSuggestions(p string, items []string) string {
 	return c.term.PromptWithSuggestions(p, items)
 }
 
+func (c *Console) WaitForEnter(ctx context.Context) error { return c.term.WaitForEnter(ctx) }
+
 // SuccessMesg returns a prettified success message.
 func (c *Console) SuccessMesg(a ...any) string {
 	success := c.palette.BrightGreen.Wrap("Successfully ", c.palette.Italic)

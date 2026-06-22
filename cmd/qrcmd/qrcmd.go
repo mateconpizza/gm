@@ -35,9 +35,11 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, setupMenu(app), handler.QR)
 		},
 	}
+
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+
 	c.AddCommand(newOpenCmd(app), newGenQR(app))
 
 	return c

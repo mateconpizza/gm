@@ -35,21 +35,27 @@ import (
 )
 
 // QR handles creation, rendering or opening of QR-Codes.
-func QR(_ context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
-		p := d.Console().Palette()
+		c := d.Console()
+		p := c.Palette()
 		var sb strings.Builder
 		sb.WriteString(p.Bold.Sprint(b.Title + "\n"))
 		sb.WriteString(p.Italic.Sprint(b.URL + "\n"))
 		sb.WriteString(qrcode.String())
 		fmt.Fprint(d.Writer(), sb.String())
 
-		terminal.WaitForEnter()
+		if err := c.WaitForEnter(ctx); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return sys.ErrActionAborted
+			}
+			return err
+		}
 		terminal.ClearLine(txt.CountLines(sb.String()))
 
 		return nil

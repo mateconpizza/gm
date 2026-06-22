@@ -385,10 +385,23 @@ func buildPrompt(q, opts string) string {
 }
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
-func WaitForEnter() {
+func WaitForEnter(ctx context.Context) error {
 	fmt.Print("Press ENTER to continue...")
-	var input string
-	_, _ = fmt.Scanln(&input)
+
+	done := make(chan struct{})
+
+	go func() {
+		var input string
+		_, _ = fmt.Scanln(&input)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // redrawPromptWithSelection replaces the prompt line with the given prompt `q`

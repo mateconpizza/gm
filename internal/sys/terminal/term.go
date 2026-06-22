@@ -249,6 +249,9 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 	return t.promptWithChoicesErr(ctx, q, opts, def)
 }
 
+// WaitForEnter displays a prompt and waits for the user to press ENTER.
+func (t *Term) WaitForEnter(ctx context.Context) error { return WaitForEnter(ctx) }
+
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
 	h := &highlighter{}
