@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type Flags struct {
@@ -28,14 +29,15 @@ type Flags struct {
 	Tail int      // Tail limit
 
 	// Bookmark operations
-	Export   bool   // Exports the bookmarks into a Netscape HTML file
-	Snapshot bool   // Fetches lastets snapshot from Wayback Machine
-	Limit    int    // Limit to N
-	Year     int    // Year
-	Update   bool   // Update bookmarks
-	Status   bool   // Status checks URLs status code
-	Title    string // Bookmark's title
-	TagsStr  string // Bookmark's tags (tag1,tag2,...)
+	Export   bool          // Exports the bookmarks into a Netscape HTML file
+	Snapshot bool          // Fetches lastets snapshot from Wayback Machine
+	Limit    int           // Limit to N
+	Year     int           // Year
+	Update   bool          // Update bookmarks
+	Status   bool          // Status checks URLs status code
+	Title    string        // Bookmark's title
+	TagsStr  string        // Bookmark's tags (tag1,tag2,...)
+	Duration time.Duration // Timeout ops in seconds
 
 	// Configuration and behavior
 	Color    bool   // Application color enable

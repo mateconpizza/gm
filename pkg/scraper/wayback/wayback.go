@@ -50,14 +50,19 @@ const (
 type OptFn func(*Options)
 
 type Options struct {
-	limit int
-	year  int
+	limit   int
+	year    int
+	timeout time.Duration
 }
 
 // WaybackMachine provides methods to query the Internet Archive Wayback Machine.
 type WaybackMachine struct {
 	*Options
 	client *http.Client
+}
+
+func (wm *WaybackMachine) Timeout() time.Duration {
+	return wm.timeout
 }
 
 // New creates a new WaybackMachine with sensible defaults.
@@ -71,9 +76,13 @@ func New(opts ...OptFn) *WaybackMachine {
 		o.limit = MaxItems
 	}
 
+	if o.timeout == 0 {
+		o.timeout = defaultTimeout
+	}
+
 	return &WaybackMachine{
 		Options: o,
-		client:  &http.Client{Timeout: defaultTimeout},
+		client:  &http.Client{Timeout: o.timeout},
 	}
 }
 
@@ -88,6 +97,12 @@ func WithLimit(n int) OptFn {
 func WithByYear(n int) OptFn {
 	return func(o *Options) {
 		o.year = n
+	}
+}
+
+func WithTimeout(t time.Duration) OptFn {
+	return func(o *Options) {
+		o.timeout = t
 	}
 }
 

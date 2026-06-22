@@ -5,6 +5,7 @@ package archive
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -25,7 +26,10 @@ func newLookupCmd(app *application.App) *cobra.Command {
 		Use:   "fetch",
 		Short: "wayback lookup",
 		Example: app.Example(`  $ {cmd} url archive fetch 179 --latest
-  $ {cmd} url archive fetch 179 --limit 5 --year 2023`),
+  $ {cmd} url archive fetch 179 --limit 5
+  $ {cmd} url archive fetch 179 --limit 5 --year 2023
+  $ {cmd} url archive fetch --menu
+  $ {cmd} url archive fetch 179 --duration 10s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := picker.New[bookmark.Bookmark](
 				app,
@@ -50,8 +54,10 @@ func newLookupCmd(app *application.App) *cobra.Command {
 	f := c.Flags()
 	f.SortFlags = false
 	f.BoolVarP(&app.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
-	f.IntVarP(&app.Flags.Limit, "limit", "L", 0, "limit the number of snapshots returned")
-	f.IntVarP(&app.Flags.Year, "year", "Y", 0, "fetches the last N snapshots from a specific year")
+	f.IntVarP(&app.Flags.Limit, "limit", "L", 0, "return at most N snapshots")
+	f.IntVarP(&app.Flags.Year, "year", "Y", 0, "restrict snapshots to a specific year")
+	f.DurationVar(&app.Flags.Duration, "duration", 30*time.Second, "maximum time to wait for snapshot retrieval")
+
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 

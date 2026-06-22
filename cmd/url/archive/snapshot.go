@@ -3,6 +3,7 @@ package archive
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	runewidth "github.com/mattn/go-runewidth"
@@ -13,6 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -27,6 +29,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		Short:   "show archive URL",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+				if len(bs) == 0 {
+					slog.Debug("URL archive: no items found")
+					return sys.ErrExitFailure
+				}
+
 				var sb strings.Builder
 				for _, u := range bs {
 					sb.WriteString(u.ArchiveURL)
@@ -40,6 +47,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
+	cmdutil.FlagsFilter(c, app)
 	c.AddCommand(newLookupCmd(app), newOpenCmd(app))
 
 	return c

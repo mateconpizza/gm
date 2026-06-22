@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"runtime"
 	"sync/atomic"
 	"time"
@@ -99,7 +100,10 @@ func processBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) Sn
 		return newResult(u, "skipped", wayback.ErrAlreadyArchived.Error())
 	}
 
-	ct := wayback.New()
+	ct := wayback.New(
+		wayback.WithTimeout(app.Flags.Duration),
+	)
+
 	s, err := ct.ClosestSnapshot(ctx, b.URL)
 	if err != nil {
 		return newResult(u, "error", err.Error())
@@ -169,16 +173,12 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 	return nil
 }
 
-func waybackMenu[T wayback.SnapshotInfo](
-	c *ui.Console,
-	app *application.App,
-	opts ...menu.Option,
-) *menu.Menu[wayback.SnapshotInfo] {
+func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, app *application.App, opts ...menu.Option) *menu.Menu[wayback.SnapshotInfo] {
+	p := c.Palette()
 	opts = append(
 		opts,
-		menu.WithArgs("--color=header:italic:bold:bright-red"),
-		menu.WithOutputColor(c.Palette().Enabled()),
-		menu.WithHeaderOnly("donate <3 https://archive.org/donate"),
+		menu.WithOutputColor(p.Enabled()),
+		menu.WithHeaderOnly(p.BrightRed.Wrap("donate <3 https://archive.org/donate", p.Bold)),
 		menu.WithArgs("--cycle"),
 	)
 
@@ -213,6 +213,7 @@ func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark
 	ct := wayback.New(
 		wayback.WithByYear(app.Flags.Year),
 		wayback.WithLimit(app.Flags.Limit),
+		wayback.WithTimeout(app.Flags.Duration),
 	)
 
 	c := d.Console()
@@ -220,6 +221,7 @@ func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark
 	for _, b := range bs {
 		snapshots, err := fetchSnapshots(ctx, c, ct, b)
 		if err != nil {
+			slog.Debug("wayback snapshot:", "error", err)
 			continue
 		}
 
@@ -250,7 +252,9 @@ func fetchSnapshots(
 	p := c.Palette()
 	u := txt.Shorten(b.URL, 60)
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	timeout := ct.Timeout()
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	deadline, _ := ctx.Deadline()
@@ -261,7 +265,7 @@ func fetchSnapshots(
 			rotato.FgBrightGreen,
 			rotato.StyleBold,
 		),
-		rotato.WithMessage("Fetching "+p.Italic.Sprint(u)),
+		rotato.WithMessage("fetching "+p.Italic.Sprint(u)),
 		rotato.WithMessageDecorator(func(mesg string) string {
 			remaining := max(
 				time.Until(deadline).Round(time.Second),
@@ -288,9 +292,9 @@ func fetchSnapshots(
 	}
 
 	sp.Done(fmt.Sprintf(
-		"%d snapshots from %q",
+		"%d snapshots from %s",
 		len(snapshots),
-		u,
+		p.Dim.Wrap(u, p.Italic),
 	))
 
 	return snapshots, nil
