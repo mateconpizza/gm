@@ -535,6 +535,8 @@ func CreateTempFileWithData(d []byte, extension string) (*os.File, error) {
 	return tf, nil
 }
 
+// NormalizePath returns a valid path using def for missing or invalid
+// components.
 func NormalizePath(filename, def string) (string, error) {
 	if def == "" {
 		return "", fmt.Errorf("normalize path: %w: default cannot be empty", ErrInvalidFilename)

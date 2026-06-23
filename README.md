@@ -15,7 +15,7 @@
   <sub>💙 Gopher image by <a href="https://github.com/MariaLetta/free-gophers-pack">Maria Letta</a></sub>
 </div>
 <br>
-<span>Simple CLI tool for manage your bookmarks <sub><b>🚧 WIP</b></sub></span>
+<span>Simple CLI tool for manage your bookmarks</span>
 <br>
 <br>
 </div>
@@ -26,25 +26,25 @@
 
 https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
 
-A `web interface` is currently in development: [gmweb](https://github.com/mateconpizza/gmweb)
-
 ### Features
 
 - [x] Powered by [`Fzf`](https://github.com/junegunn/fzf)
-- [x] Track `bookmarks` with `git`
-  - [x] Sync `bookmarks` as `JSON` files and push to remote
-  - [x] Encrypt `bookmarks` with [`GPG`](https://gnupg.org/) and push to remote
-- [x] Encrypt local database with `AES-GCM`
+- [x] Track bookmarks with `git`
+  - [x] `Sync` bookmarks as `JSON` files and push to a remote
+  - [x] `Encrypt` bookmarks with [`GPG`](https://gnupg.org/) and push to a remote
+  - [x] `Import` from `git`
+- [x] Encrypt the local database with `AES-GCM`
 - [x] Support multiple `databases`
-- [x] Import `bookmarks` from `firefox` based browsers
-- [x] Import `bookmarks` from `chromium` based browsers
-- [x] Import `bookmarks` from `git`
-- [x] Fetch `title` and `description` from new bookmark
-- [x] Check bookmark `status` _(http status)_
-- [x] Fetch lasts snapshot from Wayback Machine
-- [x] Support for [`NO_COLOR`](https://no-color.org/) env variable.
-- [x] Configure menu `keybinds`, `prompt`, `header`, `preview` _(fzf)_ using a `YAML` file.
-- [x] Migrate items from one database to another
+- [x] Support for `backups`
+- [x] Generate `QR-Code`
+- [x] Import from `Firefox-based` browsers
+- [x] Import from `Chromium-based` browsers
+- [x] Fetch titles, descriptions, and keywords
+- [x] Check bookmark _(HTTP)_ status
+- [x] Clean unnecessary URL `parameters`
+- [x] Fetch latest snapshot from the `Wayback Machine`
+- [x] Support the `NO_COLOR` environment variable
+- [x] Configure [`Fzf`](https://github.com/junegunn/fzf) keybindings, prompt, header, and preview using a `YAML` file
 - [ ] Add `docker|podman` support <sub>_priority_</sub>
 
 ### Installation
@@ -69,9 +69,9 @@ commands:
   yank        copy URL
   notes       view notes
   qr          generate QR
-  url         URL utilities
-  tag         tags ops (wip)
-  db          database ops
+  url         URL operations
+  tag         tags operations (wip)
+  db          database operations
   git         git operations
   config      configuration
 
