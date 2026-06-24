@@ -233,6 +233,11 @@ linters:
         linters:
           - funlen
           - gosec
+      - path: "internal/ui/txt/tools.go"
+        linters:
+          - revive
+          - funlen
+        text: "confusing-naming:"
       - path: "pkg/ansi/palette.go"
         linters:
           - gosec

@@ -43,15 +43,15 @@ func (BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total in
 	sepTitle := txt.SpanCenter(width-2, label, char)
 
 	return f.
-		Headerln(separator). // -----------------
-		Midln(idTitleLine).  // ID Title
-		Rowln().             //
-		Midln(dbName).       // database: dbName
-		Midln(version).      // version: x.x.x
-		Midln(sepTitle).     // ----- label -----
-		Ln().
-		Text(string(b.Buffer())).
-		Text(footer).
+		Headerln(separator).      // -------------------
+		Midln(idTitleLine).       // ID Title
+		Rowln().                  //
+		Midln(dbName).            // database: dbName
+		Midln(version).           // version: x.x.x
+		Midln(sepTitle).          // ----- label -------
+		Ln().                     //
+		Text(string(b.Buffer())). // Data
+		Text(footer).             // ---------- [footer]
 		Bytes(), nil
 }
 

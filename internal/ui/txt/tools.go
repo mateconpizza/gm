@@ -92,7 +92,19 @@ func newDiffColor(text, add, del string) string {
 // ExtractBlock extracts a block of text starting from the first line
 // that has the startMarker until either the endMarker is found or EOF.
 // If endMarker is empty, it extracts until EOF.
+// Leading/trailing blank lines are removed.
 func ExtractBlock(content []string, startMarker, endMarker string) string {
+	return extractBlock(content, startMarker, endMarker, true)
+}
+
+// ExtractBlockRaw extracts a block of text starting from the first line
+// that has the startMarker until either the endMarker is found or EOF.
+// If endMarker is empty, it extracts until EOF.
+func ExtractBlockRaw(content []string, startMarker, endMarker string) string {
+	return extractBlock(content, startMarker, endMarker, false)
+}
+
+func extractBlock(content []string, startMarker, endMarker string, trim bool) string {
 	block := make([]string, 0, len(content))
 	inBlock := false
 
@@ -111,24 +123,37 @@ func ExtractBlock(content []string, startMarker, endMarker string) string {
 		block = append(block, line)
 	}
 
-	// Trim leading/trailing blank lines
-	start := 0
-	for start < len(block) && strings.TrimSpace(block[start]) == "" {
-		start++
-	}
-	end := len(block)
-	for end > start && strings.TrimSpace(block[end-1]) == "" {
-		end--
+	if trim {
+		start := 0
+		for start < len(block) && strings.TrimSpace(block[start]) == "" {
+			start++
+		}
+
+		end := len(block)
+		for end > start && strings.TrimSpace(block[end-1]) == "" {
+			end--
+		}
+
+		if start >= end {
+			return ""
+		}
+
+		block = block[start:end]
 	}
 
-	if start >= end {
+	if len(block) == 0 {
 		return ""
 	}
 
-	return strings.Join(block[start:end], "\n")
+	return strings.Join(block, "\n")
 }
 
 func ExtractBlockBytes(d []byte, startMarker, endMarker string) []byte {
 	lines := strings.Split(string(d), "\n")
 	return []byte(ExtractBlock(lines, startMarker, endMarker))
+}
+
+func ExtractBlockBytesRaw(d []byte, startMarker, endMarker string) []byte {
+	lines := strings.Split(string(d), "\n")
+	return []byte(ExtractBlockRaw(lines, startMarker, endMarker))
 }

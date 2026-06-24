@@ -51,7 +51,7 @@ func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total i
 }
 
 func (ns *NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, og *bookmark.Bookmark) (*bookmark.Bookmark, error) {
-	editedNotes := txt.ExtractBlockBytes(buf, ns.sectionMarker, "")
+	editedNotes := txt.ExtractBlockBytesRaw(buf, ns.sectionMarker, "")
 	if bytes.Equal([]byte(og.Notes), editedNotes) {
 		return nil, ErrBufferUnchanged
 	}
