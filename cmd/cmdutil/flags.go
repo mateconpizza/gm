@@ -43,7 +43,7 @@ global:
 `
 
 func FlagOutput(c *cobra.Command, app *application.App, supportedOutput []string) {
-	c.Flags().StringVarP(&app.Flags.Output, "output", "o", "", "output format: "+strings.Join(supportedOutput, ", "))
+	c.Flags().StringVarP(&app.Flags.Output, "output", "o", app.Format, "output format: "+strings.Join(supportedOutput, ", "))
 }
 
 func FlagFields(c *cobra.Command, app *application.App, fields string) {

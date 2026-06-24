@@ -27,6 +27,7 @@ const (
 	Command        string = "gm"             // Default name of the executable
 	MainDBName     string = "main.db"        // Default name of the main database
 	ConfigFilename string = "config.yml"     // Default config filename
+	OutputFormat   string = "frame"          // Default output format
 	EnvHome        string = "GOMARKS_HOME"   // Default Environment variable for app home
 	EnvEditor      string = "GOMARKS_EDITOR" // Default Environment variable for app editor
 )
@@ -36,6 +37,7 @@ type (
 		Name   string       `json:"name"          yaml:"-"`             // Name of the application
 		Cmd    string       `json:"cmd"           yaml:"-"`             // Name of the executable
 		DBName string       `json:"db"            yaml:"db,omitempty"`  // Database name
+		Format string       `json:"format"        yaml:"format"`        // Output bookmark format
 		Info   *Information `json:"data"          yaml:"-"`             // Application information
 		Env    *Env         `json:"env"           yaml:"-"`             // Application environment variables
 		Path   *Path        `json:"path"          yaml:"-"`             // Application path
@@ -97,6 +99,7 @@ func (app *App) Load() error {
 	}
 
 	app.Git.Load()
+	app.Flags.Output = app.Format
 
 	return app.SetDatabase(app.DBName)
 }
@@ -203,6 +206,7 @@ func New(info *Information) *App {
 		Name:   Name,
 		Cmd:    Command,
 		DBName: MainDBName,
+		Format: OutputFormat,
 		Flags:  &Flags{},
 		Info:   info,
 		Path:   &Path{},
