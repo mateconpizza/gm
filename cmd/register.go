@@ -55,7 +55,8 @@ func Setup(root *cobra.Command, app *application.App) {
 
 func initAppConfig(app *application.App) {
 	app.Flags.Color = app.Flags.ColorStr == "always" &&
-		!terminal.IsPiped() &&
+		!terminal.StdinPiped() &&
+		!terminal.StdoutPiped() &&
 		!terminal.NoColorEnv()
 
 	application.SetVerbosity(app.Flags.Verbose)
@@ -70,7 +71,7 @@ func initAppConfig(app *application.App) {
 	terminal.NonInteractiveMode(
 		app.Flags.Yes ||
 			app.Flags.Force ||
-			terminal.IsPiped(),
+			terminal.StdinPiped(),
 	)
 }
 

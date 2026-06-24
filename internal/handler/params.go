@@ -116,7 +116,7 @@ func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, a
 
 	t := c.Term()
 
-	if app.Flags.All || t.IsPiped() {
+	if app.Flags.All || t.StdinPiped() {
 		newURL, err := paramsStripAll(inputURL)
 		if err != nil {
 			return err
@@ -142,7 +142,7 @@ func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, a
 		return sys.ErrExitFailure
 	}
 
-	if !t.IsPiped() {
+	if !t.StdinPiped() {
 		newURL += "\n"
 	}
 

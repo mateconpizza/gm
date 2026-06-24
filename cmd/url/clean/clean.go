@@ -22,7 +22,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:   "clean [query|URL]",
 		Short: "strip URL params",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if terminal.IsPiped() {
+			if terminal.StdinPiped() {
 				terminal.ReadPipedInput(&args)
 			}
 

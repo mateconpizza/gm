@@ -152,7 +152,7 @@ func TestTermIsPiped(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			term := New(WithReader(tt.reader))
-			got := term.IsPiped()
+			got := term.StdinPiped()
 			if got != tt.want {
 				t.Errorf("IsPiped() = %v, want %v", got, tt.want)
 			}

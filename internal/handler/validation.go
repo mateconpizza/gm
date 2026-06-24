@@ -107,7 +107,7 @@ func validateRemove(bs []*bookmark.Bookmark, force bool) error {
 		return db.ErrRecordNotFound
 	}
 
-	if terminal.IsPiped() && !force {
+	if terminal.StdinPiped() && !force {
 		return fmt.Errorf(
 			"%w: input from pipe is not supported yet. use --force",
 			sys.ErrActionAborted,

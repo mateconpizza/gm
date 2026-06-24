@@ -98,7 +98,7 @@ func Password(ctx context.Context) (string, error) {
 
 // ReadPipedInput reads the input from a pipe.
 func ReadPipedInput(args *[]string) {
-	if !IsPiped() {
+	if !StdinPiped() {
 		return
 	}
 

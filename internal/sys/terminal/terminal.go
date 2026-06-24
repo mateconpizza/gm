@@ -131,10 +131,19 @@ func ReplaceLine(n int, s string) {
 	fmt.Println(s)
 }
 
-// IsPiped returns true if the input is piped.
-func IsPiped() bool {
+// StdinPiped returns true if the input is piped.
+func StdinPiped() bool {
 	fileInfo, _ := os.Stdin.Stat()
 	return (fileInfo.Mode() & os.ModeCharDevice) == 0
+}
+
+// StdoutPiped reports whether standard output is redirected or piped.
+func StdoutPiped() bool {
+	fi, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) == 0
 }
 
 // getWidth returns the terminal's width.

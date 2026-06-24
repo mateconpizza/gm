@@ -334,8 +334,8 @@ func (t *Term) CancelInterruptHandler() {
 	}
 }
 
-// IsPiped returns true if the terminal input is piped.
-func (t *Term) IsPiped() bool {
+// StdinPiped returns true if the terminal input is piped.
+func (t *Term) StdinPiped() bool {
 	if file, ok := t.reader.(*os.File); ok {
 		fileInfo, _ := file.Stat()
 		return (fileInfo.Mode() & os.ModeCharDevice) == 0
@@ -343,6 +343,17 @@ func (t *Term) IsPiped() bool {
 
 	// If reader is not an *os.File, assume it's piped (e.g., bytes.Buffer,
 	// strings.Reader)
+	return true
+}
+
+// StdoutPiped reports whether stdout is redirected or piped.
+func (t *Term) StdoutPiped() bool {
+	if file, ok := t.writer.(*os.File); ok {
+		fileInfo, _ := file.Stat()
+		return (fileInfo.Mode() & os.ModeCharDevice) == 0
+	}
+
+	// If writer is not an *os.File, assume it's redirected (e.g., bytes.Buffer).
 	return true
 }
 
