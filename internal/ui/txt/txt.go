@@ -425,7 +425,7 @@ func TagsWithPound(s string) string {
 		fmt.Fprintf(&sb, "#%s ", t)
 	}
 
-	return sb.String()
+	return strings.TrimSpace(sb.String())
 }
 
 // TagsWithColorPound returns a prettified tags with #.

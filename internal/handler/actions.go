@@ -433,7 +433,7 @@ func runEditSession(
 
 	opts = append(
 		opts,
-		editor.WithMeta(editor.NewMeta(app.DBName, app.Version())),
+		editor.WithMeta(editor.NewMeta(app.DBBaseName(), app.Version())),
 	)
 
 	r, err := d.Repository()

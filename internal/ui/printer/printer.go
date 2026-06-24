@@ -78,34 +78,62 @@ func TagsList(ctx context.Context, w io.Writer, p string) error {
 }
 
 // Print formats the bookmarks with the given fn.
-func Print(
-	ctx context.Context,
-	c *ui.Console,
-	bs []*bookmark.Bookmark,
-	fn func(*ui.Console, *bookmark.Bookmark) string,
-) error {
+func Print(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark, fn formatter.Func) error {
 	var buf strings.Builder
 	for i := range bs {
 		buf.WriteString(fn(c, bs[i]))
 	}
 
-	return c.Term().Print(context.Background(), buf.String())
+	return c.Term().Print(ctx, buf.String())
 }
 
 // Notes formats the bookmarks notes.
-func Notes(c *ui.Console, bs []*bookmark.Bookmark) error {
-	printed := false
-	for _, b := range bs {
+func Notes(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
+	f := frame.New(
+		frame.WithWriter(c.Writer()),
+		frame.WithBorders(frame.NewBorders("# ", "", "## ", "")),
+	)
+
+	maxWidth := c.MinWidth()
+	for i := range bs {
+		maxWidth = max(maxWidth, len(bs[i].URL))
+	}
+
+	bullet := func(header, val string) string {
+		return txt.PaddedLineWithPad("- **"+header+"**:", val, 12)
+	}
+
+	for i, b := range bs {
 		if b.Notes == "" {
 			continue
 		}
-		if printed {
-			fmt.Fprintln(c.Writer())
+
+		title := txt.Shorten(b.Title, maxWidth)
+		if title == "" {
+			title = txt.Shorten(b.URL, maxWidth)
 		}
-		fmt.Fprint(c.Writer(), formatter.Notes(c, b))
-		printed = true
+
+		f.Headerln(title)
+
+		f.Rowln(bullet("ID", strconv.Itoa(b.ID))).
+			Rowln(bullet("Tags", txt.TagsWithPound(b.Tags))).
+			Rowln(bullet("URL", b.URL))
+
+		if b.Desc != "" {
+			f.Rowln(bullet("Desc", b.Desc))
+		}
+
+		f.Ln().Textln(b.Notes)
+
+		// footer
+		if i != len(bs)-1 {
+			f.Ln().
+				Textln("---").
+				Ln()
+		}
 	}
-	return nil
+
+	return c.Print(ctx, f.String())
 }
 
 type fieldSpec struct {

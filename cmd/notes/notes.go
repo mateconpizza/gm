@@ -50,7 +50,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				if len(bs) == 0 {
 					return fmt.Errorf("%w: %v", ErrNotesNotFound, strings.Join(args, ""))
 				}
-				return printer.Notes(d.Console(), bs)
+				return printer.Notes(cmd.Context(), d.Console(), bs)
 			}
 
 			return cmdutil.Execute(cmd, args, m, a, onlyNotes)

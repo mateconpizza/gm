@@ -159,6 +159,12 @@ func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	return sb.String()
 }
 
+// FrameFunc formats a bookmark with a frame.
+//
+//   - ID [FLAGS] URL
+//   - Title
+//   - Desc
+//   - Tags
 func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	w, p, f := c.MaxWidth(), c.Palette(), c.Frame()
 
@@ -190,7 +196,6 @@ func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	header = append(header, txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), urlWidth))
 	f.Midln(strings.Join(header, " "))
 
-	// title ... (rest of function remains the same)
 	if b.Title != "" {
 		titleSplit := txt.SplitIntoChunks(b.Title, w)
 		f.Midln(ansi.StyleAll(titleSplit, p.BrightCyan)...)
@@ -204,21 +209,6 @@ func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	f.Footer(txt.TagsWithColorPound(c, b.Tags)).Ln()
 
 	return f.StringReset()
-}
-
-func Notes(c *ui.Console, b *bookmark.Bookmark) string {
-	w, p, f := c.MaxWidth(), c.Palette(), c.Frame()
-
-	// id + url
-	id := p.BrightYellow.With(p.Bold).Sprint(b.ID)
-	urlColor := txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w)
-	f.Header(fmt.Sprintf("%s %s", id, urlColor)).Ln()
-
-	// notes
-	notes := txt.SplitIntoChunks(b.Notes, w)
-	f.Footerln(ansi.StyleAll(notes, p.White)...)
-
-	return f.String()
 }
 
 func OnelineURLFunc(c *ui.Console, b *bookmark.Bookmark) string {

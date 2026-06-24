@@ -3,7 +3,6 @@ package editor
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -30,31 +29,29 @@ func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total i
 
 	// content
 	separator := txt.SpanCenter(width-len(bd.Header), "", "-")
-	idTitle := txt.PaddedLineWithPad("["+strconv.Itoa(b.ID)+"]", txt.Shorten(b.Title, width+padding), 6)
-	urlLine := txt.Shorten(b.URL, width-len(bd.Row))
-	dbAndVer := fmt.Sprintf("database: %s %s ver: %s", m.DBName, txt.GlyphBulletPoint, formatVersion(m.Version))
-	headerFooter := txt.SpanCenter(width-len(bd.Header)-len(bd.Footer), " bookmark notes ", "-")
+	idTitle := "[" + strconv.Itoa(b.ID) + "] " + txt.Shorten(b.Title, width+padding)
+	urlLine := txt.Shorten(b.URL, width-len(bd.Row)-padding-6)
+	headerFooter := txt.SpanCenter(width-len(bd.Header)-len(bd.Footer), " notes ", "-")
 
 	ns.sectionMarker = strings.TrimSpace(bd.Header) + txt.NBSP
 
+	bullet := func(header, val string) string {
+		return txt.PaddedLineWithPad(header+":", val, 11)
+	}
+
 	return f.
-		Headerln(separator).                   // <!-- ------------------
-		Rowln(idTitle).                        // [ID] Title
-		Rowln(urlLine).                        // URL
-		Rowln(dbAndVer).                       // dbName • ver: x.x.x
-		Text(ns.sectionMarker + headerFooter). // <!-- --- label ------->
-		Footerln().
-		Text(b.Notes).
+		Headerln(separator).                              // <!-- ------------------
+		Rowln(idTitle).                                   // [ID] Title
+		Rowln(bullet("Tags", txt.TagsWithPound(b.Tags))). // Tags:
+		Rowln(bullet("URL", urlLine)).                    // URL:
+		Rowln(bullet("Database", m.DBName)).              // Database:
+		Text(ns.sectionMarker + headerFooter).Footerln(). // <!-- --- label ------->
+		Text(b.Notes).                                    // Notes
 		Bytes(), nil
 }
 
-func (ns *NotesStrategy) ParseBuffer(
-	ctx context.Context,
-	buf []byte,
-	og *bookmark.Bookmark,
-) (*bookmark.Bookmark, error) {
+func (ns *NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, og *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 	editedNotes := txt.ExtractBlockBytes(buf, ns.sectionMarker, "")
-	fmt.Printf("%q\n", editedNotes)
 	if bytes.Equal([]byte(og.Notes), editedNotes) {
 		return nil, ErrBufferUnchanged
 	}
