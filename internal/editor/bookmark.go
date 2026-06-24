@@ -37,7 +37,8 @@ func (BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total in
 	}
 
 	separator := txt.SpanCenter(width-2, "", char)
-	idTitleLine := fmt.Sprintf("%d %s", b.ID, txt.Shorten(b.Title, width))
+	title := strings.ReplaceAll(b.Title, "\n", " ")
+	idTitleLine := fmt.Sprintf("%d %s", b.ID, txt.Shorten(title, width-6))
 	dbName := txt.PaddedLineWithPad("database:", m.DBName, pad)
 	version := txt.PaddedLineWithPad("version:", formatVersion(m.Version), pad)
 	sepTitle := txt.SpanCenter(width-2, label, char)

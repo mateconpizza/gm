@@ -56,13 +56,8 @@ func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark, strategy
 }
 
 // processSingleRecord handles the edit loop for a single record.
-func (e *EditSession) processSingleRecord(
-	ctx context.Context,
-	original *bookmark.Bookmark,
-	idx, total int,
-	strategy EditStrategy,
-) error {
-	currentRecord := original
+func (e *EditSession) processSingleRecord(ctx context.Context, og *bookmark.Bookmark, idx, total int, strategy EditStrategy) error {
+	currentRecord := og
 
 	// Loop to handle the "retry" action for a single record.
 	for {
@@ -86,7 +81,7 @@ func (e *EditSession) processSingleRecord(
 			CustomFunc(header, p.BrightYellow.Wrap("Diff:\n", p.Bold)).
 			Flush()
 
-		fmt.Println(strategy.Diff(original, updated))
+		fmt.Println(strategy.Diff(og, updated))
 
 		opt, err := e.Console.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
@@ -95,7 +90,7 @@ func (e *EditSession) processSingleRecord(
 
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			return e.saveRecordChanges(ctx, strategy, original, updated)
+			return e.saveRecordChanges(ctx, strategy, og, updated)
 		case "n", "no":
 			// Skip and continue
 			return nil

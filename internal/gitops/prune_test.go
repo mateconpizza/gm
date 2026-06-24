@@ -158,7 +158,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 			}
 
 			reconciler := newRepoReconciler(repo, tt.dbBookmarks, tt.saveFn)
-			err := reconciler.Reconcile(context.Background())
+			err := reconciler.Reconcile(t.Context())
 
 			if tt.wantErr != nil {
 				if err == nil {

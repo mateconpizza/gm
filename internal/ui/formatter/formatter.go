@@ -136,7 +136,7 @@ var Formatters = map[Format]Formatter{
 		Render: CardLiteFunc,
 		Menu: MenuConfig{
 			Placeholder: "{+1}",
-			Opts:        []menu.Option{menu.WithNth("2..")},
+			Opts:        []menu.Option{menu.WithNth("2.."), menu.WithMultilineView()},
 		},
 	},
 
@@ -186,7 +186,7 @@ func New(name Format) (Formatter, error) {
 	if f, ok := Formatters[name]; ok {
 		return f, nil
 	}
-	return Formatter{}, fmt.Errorf("%w: %q (use: %s)", ErrUnknownFormatter, name, strings.Join(ValidFormats(), "|"))
+	return Formatter{}, fmt.Errorf("%w: %q (use: %s)", ErrUnknownFormatter, name, strings.Join(ValidFormats(), ", "))
 }
 
 func RegisterFormatter(name string, f Formatter) {

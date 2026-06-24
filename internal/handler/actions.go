@@ -415,13 +415,7 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 	return updatedB, nil
 }
 
-func runEditSession(
-	ctx context.Context,
-	d *deps.Deps,
-	bs []*bookmark.Bookmark,
-	es editor.EditStrategy,
-	opts ...editor.SessionOption,
-) error {
+func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, es editor.EditStrategy, opts ...editor.SessionOption) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err

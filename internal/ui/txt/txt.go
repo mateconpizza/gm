@@ -67,6 +67,10 @@ const (
 
 	GlyphPillLeft  Glyph = ""
 	GlyphPillRight Glyph = ""
+
+	GlyphFavorite = "★" // ★
+	GlyphNotes    = "✎" // ✎
+	GlyphArchive  = "∞" // ∞
 )
 
 func (g Glyph) Prefix(text string) string           { return g.String() + text }

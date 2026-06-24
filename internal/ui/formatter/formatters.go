@@ -101,7 +101,7 @@ func BriefFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	overhead := bulletWidth + idMaxWidth + domainWidth + tagsBudget + spacing
 	maxTitleWidth := max(w-overhead, 1)
 
-	rawTitle := b.Title
+	rawTitle := strings.ReplaceAll(b.Title, "\n", " ")
 	if rawTitle == "" {
 		rawTitle = b.URL
 	}
@@ -150,7 +150,8 @@ func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	sb.WriteString("\n")
 
 	if b.Title != "" {
-		sb.WriteString(p.Cyan.Sprint(txt.Shorten(b.Title, w)))
+		title := strings.ReplaceAll(b.Title, "\n", " ")
+		sb.WriteString(p.Cyan.Sprint(txt.Shorten(title, w)))
 		sb.WriteString("\n")
 	}
 
@@ -348,7 +349,7 @@ func MinimalFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	}
 
 	// 3. Content: Title and Domain
-	displayTitle := b.Title
+	displayTitle := strings.ReplaceAll(b.Title, "\n", " ")
 	if displayTitle == "" {
 		displayTitle = b.URL
 	}
@@ -394,18 +395,18 @@ func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	if title == "" {
 		title = "Untitled"
 	}
-	title = p.Bold.Sprint(title)
+	title = p.BrightMagenta.Sprint(strings.ReplaceAll(title, "\n", " "))
 
 	// Minimalist Flag icons
 	flags := ""
 	if b.Favorite {
-		flags += " " + p.BrightYellow.Sprint("★")
+		flags += " " + p.BrightYellow.Sprint(txt.GlyphFavorite)
 	}
 	if b.Notes != "" {
-		flags += " " + p.BrightCyan.Sprint("✎")
+		flags += " " + p.BrightCyan.Sprint(txt.GlyphNotes)
 	}
 	if b.ArchiveURL != "" {
-		flags += " " + p.Dim.Sprint("∞")
+		flags += " " + p.Dim.Sprint(txt.GlyphArchive)
 	}
 
 	line1 := fmt.Sprintf("%s %s%s", idStr, title, flags)
@@ -428,7 +429,7 @@ func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	indent := strings.Repeat(" ", len(strconv.Itoa(b.ID))+1)
 	line2 := fmt.Sprintf("%s%s%s", indent, dimURL, tags)
 
-	return line1 + "\n" + line2 + "\n\n"
+	return line1 + "\n" + line2 + "\n"
 }
 
 // FlowFunc formats a bookmark as a single continuous path.
@@ -442,7 +443,7 @@ func FlowFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 	idPart := idStyle(fmt.Sprintf("%03d", b.ID))
 
-	titlePart := b.Title
+	titlePart := strings.ReplaceAll(b.Title, "\n", " ")
 	if titlePart == "" {
 		titlePart = "Untitled"
 	}
@@ -493,7 +494,7 @@ func BarFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 	idStr := fmt.Sprintf("%03d", b.ID)
 
-	titlePlain := b.Title
+	titlePlain := strings.ReplaceAll(b.Title, "\n", " ")
 	if titlePlain == "" {
 		titlePlain = b.URL
 	}
@@ -622,21 +623,21 @@ func ByFields(c *ui.Console, bs []*bookmark.Bookmark, fieldsInput string) error 
 //	? Broken link
 func formatFlags(b *bookmark.Bookmark) string {
 	const (
-		wayback   = "@" // @
-		tilde     = "~" // ~
-		broken    = "?" // ?
-		important = "*" // *
+		archive  = "@" // @
+		notes    = "~" // ~
+		broken   = "?" // ?
+		favorite = "*" // *
 	)
 	var flags strings.Builder
 
 	if b.ArchiveURL != "" {
-		flags.WriteString(wayback)
+		flags.WriteString(archive)
 	}
 	if b.Notes != "" {
-		flags.WriteString(tilde)
+		flags.WriteString(notes)
 	}
 	if b.Favorite {
-		flags.WriteString(important)
+		flags.WriteString(favorite)
 	}
 	if b.HTTPStatusCode == http.StatusNotFound {
 		flags.WriteString(broken)
