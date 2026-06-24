@@ -52,7 +52,7 @@ func Records(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error 
 	for i, b := range bs {
 		buf.WriteString(formatter.FrameFunc(c, b))
 		if i != lastIdx {
-			buf.WriteString("\n")
+			buf.WriteByte('\n')
 		}
 	}
 

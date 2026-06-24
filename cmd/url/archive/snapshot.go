@@ -37,7 +37,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				var sb strings.Builder
 				for _, u := range bs {
 					sb.WriteString(u.ArchiveURL)
-					sb.WriteString("\n")
+					sb.WriteByte('\n')
 				}
 				fmt.Fprint(d.Writer(), sb.String())
 				return nil

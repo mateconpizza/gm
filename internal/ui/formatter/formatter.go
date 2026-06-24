@@ -116,7 +116,7 @@ var Formatters = map[Format]Formatter{
 		Render: FrameFunc,
 		Menu: MenuConfig{
 			Placeholder: "{+2}",
-			Opts:        []menu.Option{menu.WithNth("3..")},
+			Opts:        []menu.Option{menu.WithNth("3.."), menu.WithMultilineView()},
 		},
 		Hidden: true,
 	},

@@ -147,15 +147,16 @@ func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	sb.WriteString(p.BrightYellow.With(p.Bold).Sprint(b.ID))
 	sb.WriteString(txt.NBSP)
 	sb.WriteString(txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w))
-	sb.WriteString("\n")
+	sb.WriteByte('\n')
 
 	if b.Title != "" {
 		title := strings.ReplaceAll(b.Title, "\n", " ")
 		sb.WriteString(p.Cyan.Sprint(txt.Shorten(title, w)))
-		sb.WriteString("\n")
+		sb.WriteByte('\n')
 	}
 
 	sb.WriteString(p.BrightWhite.Wrap(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()), p.Italic))
+	sb.WriteByte('\n')
 
 	return sb.String()
 }
@@ -239,7 +240,7 @@ func OnelineURLFunc(c *ui.Console, b *bookmark.Bookmark) string {
 		return " " + u.String() + ""
 	}))
 	sb.WriteString(b.URL)
-	sb.WriteString("\n")
+	sb.WriteByte('\n')
 
 	return sb.String()
 }
@@ -395,7 +396,7 @@ func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	if title == "" {
 		title = "Untitled"
 	}
-	title = p.BrightMagenta.Sprint(strings.ReplaceAll(title, "\n", " "))
+	title = p.BrightGreen.Sprint(strings.ReplaceAll(title, "\n", " "))
 
 	// Minimalist Flag icons
 	flags := ""
@@ -406,7 +407,7 @@ func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
 		flags += " " + p.BrightCyan.Sprint(txt.GlyphNotes)
 	}
 	if b.ArchiveURL != "" {
-		flags += " " + p.Dim.Sprint(txt.GlyphArchive)
+		flags += " " + p.Orange.With(p.Bold).Sprint(txt.GlyphArchive)
 	}
 
 	line1 := fmt.Sprintf("%s %s%s", idStr, title, flags)
