@@ -250,3 +250,38 @@ func TestApp_Version(t *testing.T) {
 		})
 	}
 }
+
+func TestColorEnabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		colorStr        string
+		stdinPiped      bool
+		stdoutPiped     bool
+		noColor         bool
+		expectedEnabled bool
+	}{
+		{"always", "always", true, true, true, true},
+		{"never", "never", false, false, false, false},
+		{"auto interactive terminal", "auto", false, false, false, true},
+		{"auto stdin piped", "auto", true, false, false, false},
+		{"auto stdout piped", "auto", false, true, false, false},
+		{"auto NO_COLOR set", "auto", false, false, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := application.ColorEnabled(
+				tt.colorStr,
+				func() bool { return tt.stdinPiped },
+				func() bool { return tt.stdoutPiped },
+				func() bool { return tt.noColor },
+			)
+			if result != tt.expectedEnabled {
+				t.Errorf("got %v, want %v", result, tt.expectedEnabled)
+			}
+		})
+	}
+}

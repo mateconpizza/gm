@@ -294,9 +294,14 @@ func WithPointer(s string) Option {
 	}
 }
 
+// PreviewCmd builds an fzf preview command.
 func PreviewCmd(command, dbName string, args ...string) string {
+	// FIX: Use `--color=always` for fzf previews.
+	// This will `force` the preview window in FZF to `always` display colors, but if
+	// color is disable, FZF will handle the color strip but keeps text styles
+	// (dim, bold, italic, etc)
 	return fmt.Sprintf(
-		"%s --preview frame --db %s %s",
+		"%s --preview frame --color always --db %s %s",
 		command,
 		dbName,
 		strings.Join(args, " "),

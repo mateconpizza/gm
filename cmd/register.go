@@ -54,10 +54,12 @@ func Setup(root *cobra.Command, app *application.App) {
 }
 
 func initAppConfig(app *application.App) {
-	app.Flags.Color = app.Flags.ColorStr == "always" &&
-		!terminal.StdinPiped() &&
-		!terminal.StdoutPiped() &&
-		!terminal.NoColorEnv()
+	app.Flags.Color = application.ColorEnabled(
+		app.Flags.ColorStr,
+		terminal.StdinPiped,
+		terminal.StdoutPiped,
+		terminal.NoColorEnv,
+	)
 
 	application.SetVerbosity(app.Flags.Verbose)
 
@@ -104,7 +106,7 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	// database selection
 	g.StringVar(&app.DBName, "db", app.DBName, "database name")
 	// output colorization policy
-	g.StringVar(&app.Flags.ColorStr, "color", "always", "colorize output: always, never")
+	g.StringVar(&app.Flags.ColorStr, "color", "auto", "colorize output: auto, always, never")
 	// non-interactive confirmation
 	g.BoolVarP(&app.Flags.Yes, "yes", "y", false, "assume yes")
 	// force execution even if safeguards would prevent it
