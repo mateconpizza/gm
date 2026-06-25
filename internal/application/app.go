@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -44,8 +45,13 @@ type (
 		Flags  *Flags       `json:"-"             yaml:"-"`             // Command line flags
 		Menu   *menu.Config `json:"menu"          yaml:"menu"`          // Menu configuration
 		Git    *Git         `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
+		UI     *UI          `json:"-"             yaml:"-"`             // UI
 
 		initialized bool
+	}
+
+	UI struct {
+		Formatter formatter.Formatter
 	}
 
 	Information struct {
@@ -202,14 +208,19 @@ func (app *App) Example(template string) string {
 }
 
 func New(info *Information) *App {
+	fm, _ := formatter.New(formatter.Format(OutputFormat))
+
 	return &App{
 		Name:   Name,
 		Cmd:    Command,
 		DBName: MainDBName,
 		Format: OutputFormat,
-		Flags:  &Flags{},
-		Info:   info,
-		Path:   &Path{},
+		UI: &UI{
+			Formatter: fm,
+		},
+		Flags: &Flags{},
+		Info:  info,
+		Path:  &Path{},
 		Git: &Git{
 			Enabled: false,
 			Log:     true,

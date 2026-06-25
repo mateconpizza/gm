@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -10,16 +11,24 @@ import (
 
 	runewidth "github.com/mattn/go-runewidth"
 
-	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
+type Console interface {
+	Frame() *frame.Frame
+	MaxWidth() int
+	MinWidth() int
+	Palette() *ansi.Palette
+	Writer() io.Writer
+}
+
 // OnelineFunc formats a bookmark in a single line with the given colorscheme.
 //
 //	ID • URL  #go #tools.
-func OnelineFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func OnelineFunc(c Console, b *bookmark.Bookmark) string {
 	w := c.MaxWidth()
 
 	const (
@@ -74,7 +83,7 @@ func OnelineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 // BriefFunc formats a bookmark as a simple, clean list item.
 //
 //	┃ ID Title (domain) #go #tools.
-func BriefFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func BriefFunc(c Console, b *bookmark.Bookmark) string {
 	p, w := c.Palette(), c.MaxWidth()
 
 	const (
@@ -140,7 +149,7 @@ func BriefFunc(c *ui.Console, b *bookmark.Bookmark) string {
 }
 
 // MultilineFunc formats a bookmark for fzf with max width.
-func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func MultilineFunc(c Console, b *bookmark.Bookmark) string {
 	p, w := c.Palette(), c.MaxWidth()
 
 	var sb strings.Builder
@@ -167,7 +176,7 @@ func MultilineFunc(c *ui.Console, b *bookmark.Bookmark) string {
 //   - Title
 //   - Desc
 //   - Tags
-func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func FrameFunc(c Console, b *bookmark.Bookmark) string {
 	w, p, f := c.MaxWidth(), c.Palette(), c.Frame()
 
 	// initial border adjustment
@@ -213,7 +222,7 @@ func FrameFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	return f.StringReset()
 }
 
-func OnelineURLFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func OnelineURLFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
 	const (
@@ -245,7 +254,7 @@ func OnelineURLFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	return sb.String()
 }
 
-func MiniFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func MiniFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
 	const (
@@ -330,7 +339,7 @@ func MiniFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 // MinimalFunc formats a bookmark with a focus on readability and clean spacing.
 // Layout:  ID  [Flags]  Title  (domain)  #tags.
-func MinimalFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func MinimalFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
 	// 1. ID with subtle color
@@ -385,7 +394,7 @@ func MinimalFunc(c *ui.Console, b *bookmark.Bookmark) string {
 // CardLiteFunc formats a bookmark in two thin lines.
 // Line 1: [ID] Title (Flags)
 // Line 2:      URL (dimmed) • #tags.
-func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
 	// --- Line 1: The Heading ---
@@ -396,7 +405,7 @@ func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
 	if title == "" {
 		title = "Untitled"
 	}
-	title = p.BrightGreen.Sprint(strings.ReplaceAll(title, "\n", " "))
+	title = strings.ReplaceAll(title, "\n", " ")
 
 	// Minimalist Flag icons
 	flags := ""
@@ -435,7 +444,7 @@ func CardLiteFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 // FlowFunc formats a bookmark as a single continuous path.
 // Layout: ID › Title — domain #tags.
-func FlowFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func FlowFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
 	idStyle := p.Dim.Sprint
@@ -480,7 +489,7 @@ func FlowFunc(c *ui.Console, b *bookmark.Bookmark) string {
 
 // BarFunc formats a bookmark as a clean dashboard-style entry.
 // Layout: ┃ ID Title  [tags] ... domain.
-func BarFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func BarFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
 	gutterStyle := p.Dim
@@ -573,7 +582,7 @@ type fieldSpec struct {
 	limit int // 0: no limit
 }
 
-func ByFields(c *ui.Console, bs []*bookmark.Bookmark, fieldsInput string) error {
+func ByFields(c Console, bs []*bookmark.Bookmark, fieldsInput string) error {
 	// parse input: "id,url:40,title:40"
 	parts := strings.Split(fieldsInput, ",")
 	specs := make([]fieldSpec, len(parts))
@@ -648,7 +657,7 @@ func formatFlags(b *bookmark.Bookmark) string {
 }
 
 // StatusCodeFunc formats a bookmark with its HTTP status and URL.
-func StatusCodeFunc(c *ui.Console, b *bookmark.Bookmark) string {
+func StatusCodeFunc(c Console, b *bookmark.Bookmark) string {
 	const statusWidth = 22
 
 	p := c.Palette()

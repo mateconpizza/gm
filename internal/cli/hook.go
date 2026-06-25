@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/files"
@@ -281,6 +282,21 @@ func HookInjectApp(app *application.App) HookE {
 			"command", cmd.Name(),
 			"args", args,
 		)
+
+		return nil
+	}
+}
+
+// HookFormatter sets and registers the application output formatter from CLI
+// flags.
+func HookFormatter(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		fm, err := formatter.New(formatter.Format(app.Flags.Output))
+		if err != nil {
+			return err
+		}
+
+		app.UI.Formatter = fm
 
 		return nil
 	}

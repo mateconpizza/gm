@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -43,7 +42,7 @@ func (f Format) String() string {
 }
 
 // Func formats a bookmark for console output.
-type Func func(*ui.Console, *bookmark.Bookmark) string
+type Func func(Console, *bookmark.Bookmark) string
 
 // Formatter defines a bookmark formatting function and optional transform.
 type Formatter struct {

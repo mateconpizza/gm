@@ -14,9 +14,12 @@ import (
 
 	runewidth "github.com/mattn/go-runewidth"
 
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
+
+type Console interface {
+	Palette() *ansi.Palette
+}
 
 type Glyph string
 
@@ -435,7 +438,7 @@ func TagsWithPound(s string) string {
 // TagsWithColorPound returns a prettified tags with #.
 //
 //	#tag1 #tag2 #tag3
-func TagsWithColorPound(c *ui.Console, s string) string {
+func TagsWithColorPound(c Console, s string) string {
 	p := c.Palette()
 	tagsSplit := strings.Split(s, ",")
 	sort.Strings(tagsSplit)
@@ -456,7 +459,7 @@ func TagsWithColorPound(c *ui.Console, s string) string {
 // TagsWithColorPills returns a prettified tags with #.
 //
 //	#tag1 #tag2 #tag3
-func TagsWithColorPills(c *ui.Console, s string) string {
+func TagsWithColorPills(c Console, s string) string {
 	p := c.Palette()
 	tagsSplit := strings.Split(s, ",")
 	sort.Strings(tagsSplit)
