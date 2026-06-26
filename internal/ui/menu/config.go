@@ -12,15 +12,15 @@ var (
 )
 
 const (
-	unicodePathBigSegment = "\u25B6" // ▶
-	unicodeMiddleDot      = "\u00b7" // ·
-	defaultPrompt         = unicodePathBigSegment + " "
-	defaultHeaderSep      = " " + unicodeMiddleDot + " "
+	defaultFormatter = "oneline"
+	defaultPrompt    = "\u25B6 "  // ▶
+	defaultHeaderSep = " \u00b7 " // ·
 )
 
 // Config holds the menu configuration.
 type Config struct {
 	Defaults       bool            `json:"defaults"  yaml:"defaults"`  // Use $FZF_DEFAULT_OPTS_FILE n $FZF_DEFAULT_OPTS
+	Format         string          `json:"format"    yaml:"format"`    // Fzf items format
 	Prompt         string          `json:"prompt"    yaml:"prompt"`    // Fzf prompt
 	Preview        bool            `json:"preview"   yaml:"preview"`   // Fzf enable preview
 	Header         Header          `json:"header"    yaml:"header"`    // Fzf header
@@ -81,6 +81,7 @@ func NewDefaultConfig() *Config {
 		Defaults: true,
 		Prompt:   defaultPrompt,
 		Preview:  true,
+		Format:   defaultFormatter,
 		Header: Header{
 			Enabled: true,
 			Sep:     defaultHeaderSep,

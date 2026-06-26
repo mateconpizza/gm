@@ -143,11 +143,13 @@ func parseCSVFields(f string) []string {
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
-	return picker.New[bookmark.Bookmark](
+	fm := app.UI.MenuFmt
+	p := fm.Menu.Placeholder
+	return picker.NewWithFormatter(
 		app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
 	)
 }

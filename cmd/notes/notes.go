@@ -32,12 +32,15 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} notes edit --tag golang,awesome
   $ {cmd} notes edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			p := "{+1}"
-			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
+			fm := app.UI.MenuFmt
+			p := fm.Menu.Placeholder
+			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+				WithPlaceholder(p)
+
 			k := app.Menu.DefaultKeymaps.Edit
 			k.Enabled = true
 
-			m := picker.New[bookmark.Bookmark](
+			m := picker.NewWithFormatter(
 				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
@@ -70,12 +73,14 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := picker.New[bookmark.Bookmark](
+			fm := app.UI.MenuFmt
+			p := fm.Menu.Placeholder
+			m := picker.NewWithFormatter(
 				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", "{1}")),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p)),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))

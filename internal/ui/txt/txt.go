@@ -14,9 +14,12 @@ import (
 
 	runewidth "github.com/mattn/go-runewidth"
 
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
+
+type Console interface {
+	Palette() *ansi.Palette
+}
 
 type Glyph string
 
@@ -140,7 +143,7 @@ func SplitAndAlign(s string, lineLength, indentation int) string {
 	for word := range strings.FieldsSeq(s) {
 		if currentLine.Len()+len(word)+1 > lineLength {
 			result.WriteString(currentLine.String())
-			result.WriteString("\n")
+			result.WriteByte('\n')
 			currentLine.Reset()
 			currentLine.WriteString(separator)
 			currentLine.WriteString(word)
@@ -435,7 +438,7 @@ func TagsWithPound(s string) string {
 // TagsWithColorPound returns a prettified tags with #.
 //
 //	#tag1 #tag2 #tag3
-func TagsWithColorPound(c *ui.Console, s string) string {
+func TagsWithColorPound(c Console, s string) string {
 	p := c.Palette()
 	tagsSplit := strings.Split(s, ",")
 	sort.Strings(tagsSplit)
@@ -456,7 +459,7 @@ func TagsWithColorPound(c *ui.Console, s string) string {
 // TagsWithColorPills returns a prettified tags with #.
 //
 //	#tag1 #tag2 #tag3
-func TagsWithColorPills(c *ui.Console, s string) string {
+func TagsWithColorPills(c Console, s string) string {
 	p := c.Palette()
 	tagsSplit := strings.Split(s, ",")
 	sort.Strings(tagsSplit)
@@ -589,7 +592,7 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 			b.WriteString(strings.Repeat("-", width+2))
 			b.WriteString("+")
 		}
-		b.WriteString("\n")
+		b.WriteByte('\n')
 	}
 
 	writeBorder()
@@ -604,7 +607,7 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 		b.WriteString(strings.Repeat(" ", padding))
 		b.WriteString(" |")
 	}
-	b.WriteString("\n")
+	b.WriteByte('\n')
 
 	writeBorder()
 
@@ -623,7 +626,7 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 			b.WriteString(strings.Repeat(" ", padding))
 			b.WriteString(" |")
 		}
-		b.WriteString("\n")
+		b.WriteByte('\n')
 	}
 
 	writeBorder()
@@ -642,7 +645,7 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 			leftPad := (totalWidth - lineLen) / 2
 			b.WriteString(strings.Repeat(" ", leftPad))
 			b.WriteString(line)
-			b.WriteString("\n")
+			b.WriteByte('\n')
 		}
 	}
 

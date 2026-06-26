@@ -57,13 +57,7 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	return d, r.Close, nil
 }
 
-func Execute(
-	cmd *cobra.Command,
-	args []string,
-	m *menu.Menu[bookmark.Bookmark],
-	action BookmarkAction,
-	filters ...Filter,
-) error {
+func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
 	d, cleanup, err := SetupDeps(cmd, &args)
 	if err != nil {
 		return err

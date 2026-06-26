@@ -148,12 +148,16 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 				return err
 			}
 
-			m := picker.New[*bookmark.Bookmark](
-				app,
-				menu.WithNth("3.."),
-				menu.WithMultiSelection(),
-			)
-			m.SetFormatter(func(b **bookmark.Bookmark) string { return formatter.OnelineFunc(c, *b) })
+			fm, err := formatter.New(formatter.Format(app.Flags.Output))
+			if err != nil {
+				return err
+			}
+
+			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())
+			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
+			m.SetFormatter(func(b **bookmark.Bookmark) string {
+				return fm.Render(c, *b)
+			})
 
 			bs, err = m.Select(bs)
 			if err != nil {

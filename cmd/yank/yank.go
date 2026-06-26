@@ -36,11 +36,20 @@ func NewCmd(app *application.App) *cobra.Command {
 }
 
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
-	return picker.New[bookmark.Bookmark](
+	keys := app.Menu.DefaultKeymaps
+	keys.Yank.Hidden = false
+
+	fm := app.UI.MenuFmt
+	p := fm.Menu.Placeholder
+	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+		WithPlaceholder(p)
+
+	return picker.NewWithFormatter(
 		app,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" yank URL "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")+" {1}"),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
+		menu.WithKeybinds(kb.From(keys.Yank).Execute("yank")),
 	)
 }
