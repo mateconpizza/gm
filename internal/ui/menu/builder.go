@@ -56,7 +56,8 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 		if m.withOutputColor {
 			p := ansi.NewPalette()
 
-			part = fmt.Sprintf("%s%s%s",
+			part = fmt.Sprintf(
+				"%s%s%s",
 				p.BrightYellow.Sprint(k.Bind),
 				p.Dim.Sprint(":"),
 				p.BrightBlue.Sprint(k.Desc),
@@ -203,7 +204,12 @@ func (m *Menu[T]) previewArgs() ([]string, error) {
 
 	args := make([]string, 0, 2)
 	args = append(args, cmd...)
-	args = append(args, previewWindowArg(m.args.previewWindow, m.cfg.Preview))
+
+	if m.previewWindow == "" {
+		m.previewWindow = previewWindowArg(m.args.previewWindow, m.cfg.Preview)
+	}
+
+	args = append(args, m.previewWindow)
 
 	return args, nil
 }
