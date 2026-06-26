@@ -34,11 +34,13 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
+	fm := app.UI.MenuFmt
+	p := fm.Menu.Placeholder
 	m := picker.New[*bookmark.Bookmark](
 		app,
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), srcDB.Name(), "{1}")),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), srcDB.Name(), p)),
 		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
 			srcDB.Close()
@@ -52,7 +54,9 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 	}
 
 	c := d.Console()
-	m.SetFormatter(func(b **bookmark.Bookmark) string { return formatter.OnelineFunc(c, *b) })
+	m.SetFormatter(func(b **bookmark.Bookmark) string {
+		return fm.Render(c, *b)
+	})
 
 	bs, err = m.Select(bs)
 	if err != nil {

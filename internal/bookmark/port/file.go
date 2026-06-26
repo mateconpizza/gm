@@ -198,17 +198,22 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 			return nil, sys.ErrActionAborted
 
 		case "s", "select":
-			m := picker.New[*bookmark.Bookmark](
-				app,
+			fm, err := formatter.New(formatter.Format(app.Flags.Output))
+			if err != nil {
+				return nil, err
+			}
+
+			fm.Menu.Opts = append(
+				fm.Menu.Opts,
 				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s to import"),
 				menu.WithInterruptFn(c.Term().InterruptFn()),
-				menu.WithNth("3.."),
 				menu.WithMultiSelection(),
 			)
 
+			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
 			m.SetFormatter(func(b **bookmark.Bookmark) string {
-				return formatter.OnelineFunc(c, *b)
+				return fm.Render(c, *b)
 			})
 
 			bs, err = m.Select(bs)

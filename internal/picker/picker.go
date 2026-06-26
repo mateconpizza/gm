@@ -16,13 +16,16 @@ import (
 var ErrNoItems = errors.New("no items")
 
 // NewMainMenu builds the interactive FZF menu for selecting records.
-func NewMainMenu(app *application.App, fm formatter.Formatter) *menu.Menu[bookmark.Bookmark] {
+func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	if !app.Flags.Menu {
 		return nil
 	}
 
+	fm := app.UI.MenuFmt
+
 	p := fm.Menu.Placeholder
-	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
+	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+		WithPlaceholder(p)
 	k := app.Menu.DefaultKeymaps
 
 	fm.Menu.Opts = append(
@@ -50,6 +53,18 @@ func NewMainMenu(app *application.App, fm formatter.Formatter) *menu.Menu[bookma
 	)
 
 	m := menu.New[bookmark.Bookmark](fm.Menu.Opts...)
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
+		return fm.Render(ui.NewConsole(), b)
+	})
+
+	return m
+}
+
+func NewWithFormatter(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
+	fm := app.UI.MenuFmt
+	fm.Menu.Opts = append(fm.Menu.Opts, opts...)
+
+	m := New[bookmark.Bookmark](app, fm.Menu.Opts...)
 	m.SetFormatter(func(b *bookmark.Bookmark) string {
 		return fm.Render(ui.NewConsole(), b)
 	})

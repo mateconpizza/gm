@@ -8,7 +8,6 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -21,12 +20,14 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} rm --tag golang,awesome
   $ {cmd} rm --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := picker.New[bookmark.Bookmark](
+			fm := app.UI.MenuFmt
+			p := fm.Menu.Placeholder
+			m := picker.NewWithFormatter(
 				app,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" deletion "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Remove)

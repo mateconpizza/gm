@@ -43,7 +43,8 @@ global:
 `
 
 func FlagOutput(c *cobra.Command, app *application.App, supportedOutput []string) {
-	c.Flags().StringVarP(&app.Flags.Output, "output", "o", app.Format, "output format: "+strings.Join(supportedOutput, ", "))
+	c.Flags().StringVarP(&app.Flags.Output, "output", "o", app.Format,
+		"output format: "+strings.Join(supportedOutput, ", "))
 }
 
 func FlagFields(c *cobra.Command, app *application.App, fields string) {
@@ -77,16 +78,6 @@ func HasFlags(c *cobra.Command) bool {
 		}
 	})
 	return hasVisible
-}
-
-func HideInheritedFlags(c *cobra.Command) {
-	c.SetHelpFunc(func(c *cobra.Command, args []string) {
-		c.InheritedFlags().VisitAll(func(f *pflag.Flag) {
-			f.Hidden = true
-		})
-
-		c.Parent().HelpFunc()(c, args)
-	})
 }
 
 func HideFlag(c *cobra.Command, names ...string) {

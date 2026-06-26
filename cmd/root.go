@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -65,12 +64,7 @@ func rootCmdFunc(app *application.App) cli.HookE {
 			return nil
 		}
 
-		fm, err := formatter.New(formatter.Format(app.Flags.Output))
-		if err != nil {
-			return err
-		}
-
-		m := picker.NewMainMenu(app, fm)
+		m := picker.NewMainMenu(app)
 		a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 			t, f := d.Console(), app.Flags
 

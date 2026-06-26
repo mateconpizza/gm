@@ -51,7 +51,7 @@ type (
 	}
 
 	UI struct {
-		Formatter formatter.Formatter
+		MenuFmt formatter.Formatter
 	}
 
 	Information struct {
@@ -216,7 +216,7 @@ func New(info *Information) *App {
 		DBName: MainDBName,
 		Format: OutputFormat,
 		UI: &UI{
-			Formatter: fm,
+			MenuFmt: fm,
 		},
 		Flags: &Flags{},
 		Info:  info,

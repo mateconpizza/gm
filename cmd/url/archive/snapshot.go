@@ -43,7 +43,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				return nil
 			}
 
-			return cmdutil.Execute(cmd, args, setupMenu(app), a, onlySnapshots)
+			return cmdutil.Execute(cmd, args, nil, a, onlySnapshots)
 		},
 	}
 

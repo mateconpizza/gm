@@ -9,7 +9,6 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -23,12 +22,16 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} open --tag golang --tag awesome`),
 		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder("{+1}")
-			m := picker.New[bookmark.Bookmark](
+			fm := app.UI.MenuFmt
+			p := fm.Menu.Placeholder
+			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+				WithPlaceholder(p)
+
+			m := picker.NewWithFormatter(
 				app,
 				menu.WithMultiSelection(),
 				menu.WithHeaderLabel(" open in browser "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
 				menu.WithKeybinds(kb.New("ctrl-o", "open-snapshot").Execute("archive open")),
 			)
 
