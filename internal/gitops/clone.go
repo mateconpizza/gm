@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -148,11 +147,7 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 				return err
 			}
 
-			fm, err := formatter.New(formatter.Format(app.Flags.Output))
-			if err != nil {
-				return err
-			}
-
+			fm := app.UI.MenuFmt
 			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())
 			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
 			m.SetFormatter(func(b **bookmark.Bookmark) string {

@@ -23,17 +23,28 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+const (
+	AnnotationSkipDBCheck   = "skip-db-check"
+	AnnotationSkipFormatter = "skip-formatter"
+	AnnotationSkipGitCheck  = "skip-git-check"
+	AnnotationSkipGitSync   = "skip-git-sync"
+)
+
 var (
 	// SkipDBCheck is used in subcmds declarations to skip the database
 	// existence check.
-	SkipDBCheck = map[string]string{"skip-db-check": "true"}
+	SkipDBCheck = map[string]string{AnnotationSkipDBCheck: "true"}
 
 	// SkipGitSync is used in subcmds declarations to skip the git commit.
-	SkipGitSync = map[string]string{"skip-git-sync": "true"}
+	SkipGitSync = map[string]string{AnnotationSkipGitSync: "true"}
 
 	// SkipGitCheck is used in subcmds declarations to skip the git existence
 	// check.
-	SkipGitCheck = map[string]string{"skip-git-check": "true"}
+	SkipGitCheck = map[string]string{AnnotationSkipGitCheck: "true"}
+
+	// SkipGitCheck is used in subcmds declarations to skip the git existence
+	// check.
+	SkipFormatter = map[string]string{AnnotationSkipFormatter: "true"}
 
 	// databaseChecked tracks whether the database check has already been
 	// performed in the current process.
@@ -88,7 +99,7 @@ func HookEnsureDatabase(app *application.App) HookE {
 
 		// Walk up the command chain: skip if any ancestor declares skip-db-check
 		for c := cmd; c != nil; c = c.Parent() {
-			if v, ok := c.Annotations["skip-db-check"]; ok && v == "true" {
+			if v, ok := c.Annotations[AnnotationSkipDBCheck]; ok && v == "true" {
 				slog.Debug("skipping db check for", "command", c.Name())
 				return nil
 			}
@@ -152,8 +163,8 @@ func HookGitEnsureEnv(app *application.App) HookE {
 		}
 
 		for c := cmd; c != nil; c = c.Parent() {
-			if v, ok := c.Annotations["skip-git-check"]; ok && v == "true" {
-				slog.Debug("skipping git sync for", "command", c.Name())
+			if v, ok := c.Annotations[AnnotationSkipGitCheck]; ok && v == "true" {
+				slog.Debug("skipping git environment check for", "command", c.Name())
 				return nil
 			}
 		}
@@ -194,7 +205,7 @@ func HookGitSync(app *application.App) HookE {
 
 		// Walk up the command chain: skip if any ancestor declares skip-git-sync
 		for c := cmd; c != nil; c = c.Parent() {
-			if v, ok := c.Annotations["skip-git-sync"]; ok && v == "true" {
+			if v, ok := c.Annotations[AnnotationSkipGitSync]; ok && v == "true" {
 				slog.Debug("skipping git sync", "command", cmd.CommandPath(), "skipped_by", c.CommandPath())
 				return nil
 			}
@@ -292,7 +303,7 @@ func HookInjectApp(app *application.App) HookE {
 func HookFormatter(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		for c := cmd; c != nil; c = c.Parent() {
-			if v, ok := c.Annotations["skip-formatter"]; ok && v == "true" {
+			if v, ok := c.Annotations[AnnotationSkipFormatter]; ok && v == "true" {
 				slog.Debug("skipping UI formatter set", "command", cmd.CommandPath(), "skipped_by", c.CommandPath())
 				return nil
 			}

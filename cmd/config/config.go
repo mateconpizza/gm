@@ -15,6 +15,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -23,9 +24,10 @@ import (
 
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "config",
-		Aliases: []string{"cfg", "conf"},
-		Short:   "configuration",
+		Use:         "config",
+		Aliases:     []string{"cfg", "conf"},
+		Short:       "configuration",
+		Annotations: cli.SkipFormatter,
 		Example: app.Example(`  $ {cmd} config create
   $ {cmd} config create --force
   $ {cmd} config edit

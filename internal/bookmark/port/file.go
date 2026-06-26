@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -198,11 +197,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 			return nil, sys.ErrActionAborted
 
 		case "s", "select":
-			fm, err := formatter.New(formatter.Format(app.Flags.Output))
-			if err != nil {
-				return nil, err
-			}
-
+			fm := app.UI.MenuFmt
 			fm.Menu.Opts = append(
 				fm.Menu.Opts,
 				menu.WithArgs("--cycle"),
