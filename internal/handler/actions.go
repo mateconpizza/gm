@@ -151,10 +151,6 @@ func Yank(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
-	if !app.Flags.Force && !app.Flags.Yes {
-		c.ClearLine(2)
-	}
-
 	if err := sys.CopyClipboard(content); err != nil {
 		return err
 	}

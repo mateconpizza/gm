@@ -128,10 +128,6 @@ func HookEnsureDatabase(app *application.App) HookE {
 	}
 }
 
-func HookHelp(cmd *cobra.Command, _ []string) error {
-	return cmd.Help()
-}
-
 // HookCheckIfDatabaseInitialized checks if database file exists and is initialized.
 // Returns error if database already exists to prevent accidental re-initialization.
 func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
@@ -318,10 +314,6 @@ func HookFormatter(app *application.App) HookE {
 
 		return nil
 	}
-}
-
-func HookNil(cmd *cobra.Command, _ []string) error {
-	return nil
 }
 
 func HookGitLoggingStatus(app *application.App) Hook {

@@ -19,7 +19,6 @@ func newImportCmd(app *application.App) *cobra.Command {
 		Aliases:            []string{"imp", "i"},
 		Short:              "import bookmarks",
 		PersistentPostRunE: cli.HookGitSync(app),
-		RunE:               cli.HookHelp,
 	}
 
 	c.AddCommand(

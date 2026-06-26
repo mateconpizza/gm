@@ -240,7 +240,6 @@ func newLoggingCmd(app *application.App) *cobra.Command {
   $ {cmd} git logging on
   $ {cmd} git logging disable
   $ {cmd} git logging off`),
-		RunE: cli.HookNil,
 	}
 
 	cmdutil.HideFlag(c, "db", "color", "yes", "force")

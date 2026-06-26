@@ -11,14 +11,12 @@ import (
 	"slices"
 	"strings"
 
+	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
 
-	prompt "github.com/c-bata/go-prompt"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
-
-const termPromptPrefix = "> "
 
 // defaultInterruptFn is the default interrupt function for the terminal.
 func defaultInterruptFn(err error) { slog.Debug("InterruptFn not set") }
@@ -51,9 +49,8 @@ type Term struct {
 // defaultOpts returns the default terminal options.
 func defaultOpts() Options {
 	return Options{
-		reader:    os.Stdin,
-		writer:    os.Stdout,
-		PromptStr: termPromptPrefix,
+		reader: os.Stdin,
+		writer: os.Stdout,
 	}
 }
 

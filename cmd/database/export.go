@@ -9,7 +9,6 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
@@ -24,7 +23,6 @@ func newExportCmd(app *application.App) *cobra.Command {
 		Use:     "export [id|query]",
 		Short:   "export bookmarks",
 		Aliases: []string{"ex"},
-		RunE:    cli.HookHelp,
 	}
 	cmds := []func(*application.App) *cobra.Command{newExportHTMLCmd, newExportJSONCmd, newExportCSVCmd}
 	for i := range cmds {

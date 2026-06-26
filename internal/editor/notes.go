@@ -29,7 +29,7 @@ func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total i
 
 	// content
 	separator := txt.SpanCenter(width-len(bd.Header), "", "-")
-	idTitle := "[" + strconv.Itoa(b.ID) + "] " + txt.Shorten(b.Title, width+padding)
+	idTitle := "[" + strconv.Itoa(b.ID) + "] " + txt.Shorten(b.Title, width-len(bd.Row)-padding)
 	urlLine := txt.Shorten(b.URL, width-len(bd.Row)-padding-6)
 	headerFooter := txt.SpanCenter(width-len(bd.Header)-len(bd.Footer), " notes ", "-")
 

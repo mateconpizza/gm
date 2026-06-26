@@ -7,14 +7,12 @@ import (
 	"github.com/mateconpizza/gm/cmd/url/check"
 	"github.com/mateconpizza/gm/cmd/url/clean"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "url",
 		Short: "URL operations",
-		RunE:  cli.HookHelp,
 	}
 
 	c.AddCommand(
