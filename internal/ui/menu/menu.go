@@ -80,8 +80,11 @@ type Options struct {
 
 	// previewCmd specifies the command for FZF's preview window.
 	// This command is executed for each item to generate preview content.
-	// Example: "bat --color=always {}"
 	previewCmd string
+
+	// previewWindow specifies the FZF preview window configuration.
+	// Controls the preview layout, size, position, and other preview window
+	previewWindow string
 
 	// enable output color
 	withOutputColor bool
@@ -201,6 +204,13 @@ func WithRunner(r MenuRunner) Option {
 func WithPreview(cmd string) Option {
 	return func(o *Options) {
 		o.previewCmd = cmd
+	}
+}
+
+// WithPreviewWindow determines the layout of the preview window.
+func WithPreviewWindow(args string) Option {
+	return func(o *Options) {
+		o.previewWindow = o.args.previewWindow + "=" + args
 	}
 }
 
