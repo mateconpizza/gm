@@ -127,8 +127,10 @@ flags:
 
 ```yaml
 db: main
+format: frame
 menu:
   defaults: true
+  format: oneline
   prompt: "▶ "
   preview: true
   header:
