@@ -107,5 +107,6 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" QR-code "),
 		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "qr", p)),
+		menu.WithPreviewWindow("right,40%"),
 	)
 }

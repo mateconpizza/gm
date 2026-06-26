@@ -29,16 +29,30 @@ func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	qrFn := func(b *bookmark.Bookmark) error {
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 
 		c := d.Console()
-		p := c.Palette()
+		interactive := !c.Term().StdinPiped() && !c.Term().StdoutPiped()
+
 		var sb strings.Builder
-		sb.WriteString(p.Bold.Sprint(b.Title + "\n"))
-		sb.WriteString(p.Italic.Sprint(b.URL + "\n"))
+
+		if interactive {
+			p := c.Palette()
+			sb.WriteString(p.Bold.Sprint(b.Title))
+			sb.WriteByte('\n')
+			sb.WriteString(p.Italic.Sprint(b.URL))
+			sb.WriteByte('\n')
+		}
+
 		sb.WriteString(qrcode.String())
-		fmt.Fprint(d.Writer(), sb.String())
+
+		output := sb.String()
+		fmt.Fprint(d.Writer(), output)
+
+		if !interactive {
+			return nil
+		}
 
 		if err := c.WaitForEnter(ctx); err != nil {
 			if errors.Is(err, context.Canceled) {
@@ -46,8 +60,8 @@ func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 			}
 			return err
 		}
-		terminal.ClearLine(txt.CountLines(sb.String()))
 
+		terminal.ClearLine(txt.CountLines(output))
 		return nil
 	}
 
