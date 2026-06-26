@@ -11,6 +11,9 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
+// FIX: NewCmd menu: current functionality exits the menu after editing a bookmark.
+// New functionality must keep menu after editing.
+
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "edit [query]",

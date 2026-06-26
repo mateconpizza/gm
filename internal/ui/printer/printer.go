@@ -94,36 +94,41 @@ func Notes(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 		frame.WithBorders(frame.NewBorders("# ", "", "## ", "")),
 	)
 
-	maxWidth := c.MinWidth()
+	w := c.MinWidth()
 	for i := range bs {
-		maxWidth = max(maxWidth, len(bs[i].URL))
+		w = max(w, len(bs[i].URL))
 	}
 
-	bullet := func(header, val string) string {
-		return txt.PaddedLineWithPad("- **"+header+"**:", val, 12)
-	}
+	bold := func(s string) string { return "**" + s + "**" }
+	italic := func(s string) string { return "*" + s + "*" }
+	bullet := func(header, val string) string { return txt.PaddedLineWithPad(bold("- "+header), val, 12) }
 
 	for i, b := range bs {
 		if b.Notes == "" {
 			continue
 		}
 
-		title := txt.Shorten(b.Title, maxWidth)
+		title := txt.Shorten(b.Title, w)
 		if title == "" {
-			title = txt.Shorten(b.URL, maxWidth)
+			title = txt.Shorten(b.URL, w)
 		}
 
-		f.Headerln(title)
+		tags := txt.TagsWithPound(b.Tags)
 
-		f.Rowln(bullet("ID", strconv.Itoa(b.ID))).
-			Rowln(bullet("Tags", txt.TagsWithPound(b.Tags))).
-			Rowln(bullet("URL", b.URL))
+		f.Headerln(title).
+			Rowln(bullet("ID:", strconv.Itoa(b.ID))).
+			Rowln(bullet("Tags:", italic(tags))).
+			Rowln(bullet("URL:", b.URL))
 
 		if b.Desc != "" {
-			f.Rowln(bullet("Desc", b.Desc))
+			f.Rowln(bullet("Desc:", b.Desc))
 		}
 
-		f.Ln().Textln(b.Notes)
+		f.Ln().Text(b.Notes)
+
+		if !strings.HasSuffix(b.Notes, "\n") {
+			f.Ln()
+		}
 
 		// footer
 		if i != len(bs)-1 {
