@@ -99,14 +99,15 @@ func newGenQR(app *application.App) *cobra.Command {
 }
 
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
-	fm := app.UI.MenuFmt
-	p := fm.Menu.Placeholder
+	fm := app.MenuFormatter()
+	p := fm.Menu.Placeholder()
 	return picker.NewWithFormatter(
 		app,
+		fm,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" QR-code "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "qr", p)),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "qr", p.Single())),
 		menu.WithPreviewWindow("right,40%"),
 	)
 }

@@ -310,7 +310,7 @@ func HookFormatter(app *application.App) HookE {
 			return err
 		}
 
-		app.UI.MenuFmt = fm
+		app.UI.MenuFormatter = fm
 
 		return nil
 	}

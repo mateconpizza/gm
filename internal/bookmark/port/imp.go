@@ -34,13 +34,13 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	fm := app.UI.MenuFmt
-	p := fm.Menu.Placeholder
+	fm := app.MenuFormatter()
+	p := fm.Menu.Placeholder()
 	m := picker.New[*bookmark.Bookmark](
 		app,
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), srcDB.Name(), p)),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), srcDB.Name(), p.Single())),
 		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
 			srcDB.Close()
@@ -85,6 +85,11 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 
 // FromBackup imports bookmarks from a backup.
 func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) error {
+	bookmarks, err := srcDB.All(ctx)
+	if err != nil {
+		return err
+	}
+
 	c := d.Console()
 
 	app, err := d.Application(ctx)
@@ -92,23 +97,20 @@ func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) err
 		return err
 	}
 
+	fm := formatter.Default()
+	p := fm.Menu.Placeholder()
 	m := picker.New[*bookmark.Bookmark](
 		app,
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 		menu.WithInterruptFn(c.Term().InterruptFn()),
 		menu.WithMultiSelection(),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), "./backup/"+srcDB.Name(), "{+1}")),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), "./backup/"+srcDB.Name(), p.Single())),
 	)
 
 	defer c.Term().CancelInterruptHandler()
 
-	bookmarks, err := srcDB.All(ctx)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
 	m.SetFormatter(func(b **bookmark.Bookmark) string {
-		return formatter.OnelineFunc(c, *b)
+		return fm.Render(c, *b)
 	})
 
 	bookmarks, err = m.Select(bookmarks)

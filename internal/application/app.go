@@ -51,7 +51,7 @@ type (
 	}
 
 	UI struct {
-		MenuFmt formatter.Formatter
+		MenuFormatter formatter.Formatter
 	}
 
 	Information struct {
@@ -199,6 +199,9 @@ func (app *App) GitEnabled() bool   { return app.Git.Enabled }
 func (app *App) Version() string    { return app.Info.Version }
 func (app *App) Command() string    { return app.Cmd }
 
+// MenuFormatter returns the current menu formatter.
+func (app *App) MenuFormatter() formatter.Formatter { return app.UI.MenuFormatter }
+
 func (app *App) Example(template string) string {
 	return strings.NewReplacer(
 		"{cmd}", app.Cmd,
@@ -216,7 +219,7 @@ func New(info *Information) *App {
 		DBName: MainDBName,
 		Format: OutputFormat,
 		UI: &UI{
-			MenuFmt: fm,
+			MenuFormatter: fm,
 		},
 		Flags: &Flags{},
 		Info:  info,

@@ -31,14 +31,15 @@ func newLookupCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive fetch --menu
   $ {cmd} url archive fetch 179 --duration 10s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.UI.MenuFmt
-			p := fm.Menu.Placeholder
+			fm := app.MenuFormatter()
+			p := fm.Menu.Placeholder()
 			m := picker.NewWithFormatter(
 				app,
+				fm,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" wayback machine lookup "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 			)
 
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {

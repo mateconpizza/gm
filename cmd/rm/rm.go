@@ -20,14 +20,15 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} rm --tag golang,awesome
   $ {cmd} rm --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.UI.MenuFmt
-			p := fm.Menu.Placeholder
+			fm := app.MenuFormatter()
+			p := fm.Menu.Placeholder()
 			m := picker.NewWithFormatter(
 				app,
+				fm,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" deletion "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Remove)

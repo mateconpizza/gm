@@ -92,13 +92,14 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
-	fm := app.UI.MenuFmt
-	p := fm.Menu.Placeholder
+	fm := app.MenuFormatter()
+	p := fm.Menu.Placeholder()
 	return picker.NewWithFormatter(
 		app,
+		fm,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 	)
 }

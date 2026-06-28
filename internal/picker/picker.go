@@ -3,7 +3,6 @@ package picker
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -21,11 +20,11 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		return nil
 	}
 
-	fm := app.UI.MenuFmt
+	fm := app.MenuFormatter()
 
-	p := fm.Menu.Placeholder
+	p := fm.Menu.Placeholder()
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
-		WithPlaceholder(p)
+		WithPlaceholder(p.Multi())
 	k := app.Menu.DefaultKeymaps
 
 	fm.Menu.Opts = append(
@@ -34,7 +33,7 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithConfig(app.Menu),
 		menu.WithMultiSelection(),
 		menu.WithOutputColor(app.Flags.Color),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), strings.ReplaceAll(p, "+", ""))),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 		menu.WithPrompt(app.Menu.Prompt),
 		menu.WithHeaderFirst(),
 		menu.WithHeaderLabel(" keybinds "),
@@ -60,8 +59,7 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	return m
 }
 
-func NewWithFormatter(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
-	fm := app.UI.MenuFmt
+func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
 	fm.Menu.Opts = append(fm.Menu.Opts, opts...)
 
 	m := New[bookmark.Bookmark](app, fm.Menu.Opts...)
@@ -113,7 +111,9 @@ func BookmarkWithMenu(m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) 
 		bsCopy = append(bsCopy, *b)
 	}
 
-	defFormatter := func(b *bookmark.Bookmark) string { return formatter.OnelineFunc(ui.NewConsole(), b) }
+	defFormatter := func(b *bookmark.Bookmark) string {
+		return formatter.Default().Render(ui.NewConsole(), b)
+	}
 	if m.Formatter == nil {
 		m.SetFormatter(defFormatter)
 	}

@@ -577,6 +577,30 @@ func BarFunc(c Console, b *bookmark.Bookmark) string {
 	)
 }
 
+func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
+	w, p := c.MaxWidth(), c.Palette()
+
+	absolute, relative := txt.TimeWithAgo(b.ArchiveTimestamp)
+	idStr := p.Dim.Sprintf("%d", b.ID)
+	title := p.Normal.Sprint(b.Title)
+	if b.Title == "" {
+		title = p.Dim.Sprint(b.URL)
+	}
+
+	title = txt.Shorten(title, w)
+	relative = p.BrightYellow.Wrap("("+relative+")", p.Italic)
+	padding := 28
+
+	return fmt.Sprintf(
+		"%s %s %-*s %s",
+		idStr,
+		absolute,
+		padding,
+		relative,
+		title,
+	)
+}
+
 type fieldSpec struct {
 	name  string
 	limit int // 0: no limit

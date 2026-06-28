@@ -22,16 +22,17 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} open --tag golang --tag awesome`),
 		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.UI.MenuFmt
-			p := fm.Menu.Placeholder
+			fm := app.MenuFormatter()
+			p := fm.Menu.Placeholder()
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
-				WithPlaceholder(p)
+				WithPlaceholder(p.Multi())
 
 			m := picker.NewWithFormatter(
 				app,
+				fm,
 				menu.WithMultiSelection(),
 				menu.WithHeaderLabel(" open in browser "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 				menu.WithKeybinds(kb.New("ctrl-o", "open-snapshot").Execute("archive open")),
 			)
 

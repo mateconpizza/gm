@@ -32,20 +32,21 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} notes edit --tag golang,awesome
   $ {cmd} notes edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.UI.MenuFmt
-			p := fm.Menu.Placeholder
+			fm := app.MenuFormatter()
+			p := fm.Menu.Placeholder()
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
-				WithPlaceholder(p)
+				WithPlaceholder(p.Multi())
 
 			k := app.Menu.DefaultKeymaps.Edit
 			k.Enabled = true
 
 			m := picker.NewWithFormatter(
 				app,
+				fm,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", strings.ReplaceAll(p, "+", ""))),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
 				menu.WithKeybinds(kb.New(k.Bind, k.Desc).Execute("edit notes")),
 			)
 
@@ -73,14 +74,15 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.UI.MenuFmt
-			p := fm.Menu.Placeholder
+			fm := app.MenuFormatter()
+			p := fm.Menu.Placeholder()
 			m := picker.NewWithFormatter(
 				app,
+				fm,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p)),
+				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))

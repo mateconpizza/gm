@@ -24,7 +24,6 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 	if err != nil {
 		return nil, err
 	}
-	m := picker.New[*bookmark.Bookmark](app, menu.WithMultiSelection())
 
 	for !app.Flags.Yes {
 		n := len(bs)
@@ -58,8 +57,12 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 		case "y", "yes":
 			return bs, nil
 		case "s", "select":
+			fm := app.MenuFormatter()
+
+			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())
+			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
 			m.SetFormatter(func(b **bookmark.Bookmark) string {
-				return formatter.OnelineFunc(d.Console(), *b)
+				return fm.Render(d.Console(), *b)
 			})
 
 			bs, err = m.Select(bs)

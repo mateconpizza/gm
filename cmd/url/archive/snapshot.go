@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"strings"
 
-	runewidth "github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -15,10 +14,8 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
-	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -68,20 +65,6 @@ func newOpenCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func formatArchiveURL(b *bookmark.Bookmark) string {
-	absolute, relative := txt.TimeWithAgo(b.ArchiveTimestamp)
-	idStr := ansi.Dim.Sprintf("%d", b.ID)
-	title := ansi.Normal.Sprint(b.Title)
-	if b.Title == "" {
-		title = ansi.Dim.Sprint(b.URL)
-	}
-
-	title = runewidth.Truncate(title, terminal.MaxWidth(), "…")
-	relative = ansi.BrightYellow.Wrap("("+relative+")", ansi.Italic)
-	padding := 28
-	return fmt.Sprintf("%s %s %-*s %s", idStr, absolute, padding, relative, title)
-}
-
 func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	filtered := make([]*bookmark.Bookmark, 0, len(bs))
 	for i := range bs {
@@ -111,18 +94,19 @@ func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 }
 
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
-	p := "{+1}"
-	kb := menu.NewBindBuilder(app.Cmd, app.DBName).WithPlaceholder(p)
-	m := picker.New[bookmark.Bookmark](
+	fm, _ := formatter.New(formatter.ArchiveURL)
+
+	p := fm.Menu.Placeholder()
+	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+		WithPlaceholder(p.Multi())
+
+	return picker.NewWithFormatter(
 		app,
+		fm,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" archive URL "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "{1}")),
-		menu.WithNth("2.."),
-		menu.WithKeybinds(kb.New("enter", "open-in-browser").ExecuteSilent("archive open")),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithKeybinds(kb.New("enter", "open-in-browser").Execute("url archive open")),
 	)
-	m.SetFormatter(formatArchiveURL)
-
-	return m
 }

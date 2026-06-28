@@ -197,7 +197,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 			return nil, sys.ErrActionAborted
 
 		case "s", "select":
-			fm := app.UI.MenuFmt
+			fm := app.MenuFormatter()
 			fm.Menu.Opts = append(
 				fm.Menu.Opts,
 				menu.WithArgs("--cycle"),

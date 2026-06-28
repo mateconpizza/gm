@@ -39,17 +39,18 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	keys := app.Menu.DefaultKeymaps
 	keys.Yank.Hidden = false
 
-	fm := app.UI.MenuFmt
-	p := fm.Menu.Placeholder
+	fm := app.MenuFormatter()
+	p := fm.Menu.Placeholder()
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
-		WithPlaceholder(p)
+		WithPlaceholder(p.Multi())
 
 	return picker.NewWithFormatter(
 		app,
+		fm,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" yank URL "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p)),
+		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 		menu.WithKeybinds(kb.From(keys.Yank).Execute("yank")),
 	)
 }

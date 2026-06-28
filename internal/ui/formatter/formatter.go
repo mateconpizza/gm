@@ -33,6 +33,7 @@ const (
 	bar       Format = "bar"
 	Frame     Format = "frame"
 
+	ArchiveURL     Format = "archiveURL"
 	Parameters     Format = "parameters"
 	HTTPStatusCode Format = "statusCode"
 )
@@ -52,11 +53,27 @@ type Formatter struct {
 	Hidden bool
 }
 
+type Placeholder string
+
+func (p Placeholder) String() string { return string(p) }
+
+// Single returns the placeholder for the current item.
+func (p Placeholder) Single() string { return strings.ReplaceAll(string(p), "+", "") }
+
+// Multi returns the placeholder modified for fzf multi-selection.
+func (p Placeholder) Multi() string {
+	s := string(p)
+	if strings.Contains(s, "{+") {
+		return s
+	}
+	return strings.Replace(s, "{", "{+", 1)
+}
+
 type MenuConfig struct {
 	// Placeholder defines the fzf field expression used to reference
 	// the selected item(s) in preview commands and keybindings.
 	// Examples: "{1}", "{+1}", "{2}".
-	Placeholder string
+	placeholder Placeholder
 
 	// Opts contains additional menu options applied when building
 	// the FZF menu. These typically control rendering behavior
@@ -64,12 +81,14 @@ type MenuConfig struct {
 	Opts []menu.Option
 }
 
+func (m MenuConfig) Placeholder() Placeholder { return m.placeholder }
+
 var Formatters = map[Format]Formatter{
 	Brief: {
 		Name:   Brief,
 		Render: BriefFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+2}",
+			placeholder: "{2}",
 			Opts:        []menu.Option{menu.WithNth("3..")},
 		},
 	},
@@ -78,7 +97,7 @@ var Formatters = map[Format]Formatter{
 		Name:   Flow,
 		Render: FlowFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+1}",
+			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithNth("3..")},
 		},
 	},
@@ -87,7 +106,7 @@ var Formatters = map[Format]Formatter{
 		Name:   Oneline,
 		Render: OnelineFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+1}",
+			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithNth("3..")},
 		},
 	},
@@ -96,7 +115,7 @@ var Formatters = map[Format]Formatter{
 		Name:   Multiline,
 		Render: MultilineFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+1}",
+			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithMultilineView()},
 		},
 	},
@@ -105,7 +124,7 @@ var Formatters = map[Format]Formatter{
 		Name:   bar,
 		Render: BarFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+2}",
+			placeholder: "{2}",
 			Opts:        []menu.Option{menu.WithNth("3..")},
 		},
 	},
@@ -114,7 +133,7 @@ var Formatters = map[Format]Formatter{
 		Name:   Frame,
 		Render: FrameFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+2}",
+			placeholder: "{2}",
 			Opts:        []menu.Option{menu.WithNth("3.."), menu.WithMultilineView()},
 		},
 		Hidden: true,
@@ -124,7 +143,7 @@ var Formatters = map[Format]Formatter{
 		Name:   Parameters,
 		Render: OnelineURLFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+2}",
+			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithNth("3..")},
 		},
 		Hidden: true,
@@ -134,7 +153,7 @@ var Formatters = map[Format]Formatter{
 		Name:   Card,
 		Render: CardLiteFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+1}",
+			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithNth("2.."), menu.WithMultilineView()},
 		},
 	},
@@ -143,7 +162,7 @@ var Formatters = map[Format]Formatter{
 		Name:   Mini,
 		Render: MiniFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+1}",
+			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithNth("2..")},
 		},
 	},
@@ -151,9 +170,18 @@ var Formatters = map[Format]Formatter{
 	Minimal: {
 		Render: MinimalFunc,
 		Menu: MenuConfig{
-			Placeholder: "{+1}",
+			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithNth("2..")},
 		},
+	},
+
+	ArchiveURL: {
+		Render: ArchiveURLFunc,
+		Menu: MenuConfig{
+			placeholder: "{1}",
+			Opts:        []menu.Option{menu.WithNth("2..")},
+		},
+		Hidden: true,
 	},
 
 	HTTPStatusCode: {
@@ -191,3 +219,6 @@ func New(name Format) (Formatter, error) {
 func RegisterFormatter(name string, f Formatter) {
 	Formatters[Format(name)] = f
 }
+
+// Default returns the default formatter: oneline.
+func Default() Formatter { return Formatters[DefFormatter] }
