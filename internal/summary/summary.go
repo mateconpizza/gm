@@ -36,8 +36,8 @@ func Repo(ctx context.Context, d *deps.Deps) (string, error) {
 
 	p := d.Console().Palette()
 
-	name := r.Name()
-	if name == application.MainDBName {
+	name := p.Bold.Sprint(r.Name())
+	if r.Name() == application.MainDBName {
 		name += p.Gray.Wrap(" (main) ", p.Italic)
 	}
 
@@ -111,7 +111,7 @@ func RepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) 
 // RepoRecordsFromPath generates a summary of record counts for a given SQLite
 // repository and bookmark.
 //
-//	repositoryName (main: n) | (locked)
+//	repositoryName (n bookmarks n tags) | (locked)
 func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 	p := c.Palette()
 	if strings.HasSuffix(fp, ".enc") {
@@ -130,21 +130,9 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 		return p.BrightRed.Sprint("err")
 	}
 
-	main := fmt.Sprintf("(%d bookmarks)", stats.Bookmarks)
+	main := fmt.Sprintf("(%d bookmarks %d tags)", stats.Bookmarks, stats.Tags)
 
 	return txt.PaddedLine(r.Name(), p.Gray.Wrap(main, p.Italic))
-}
-
-// BackupWithFmtDate generates a summary of record counts for a given
-// SQLite repository.
-//
-//	repositoryName (main: n) (time)
-func BackupWithFmtDate(ctx context.Context, c *ui.Console, r *db.SQLite) string {
-	main := fmt.Sprintf("(main: %d)", r.Count(ctx, "bookmarks"))
-	t, _, _ := strings.Cut(r.Name(), "_")
-	p := c.Palette()
-
-	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
 }
 
 // BackupWithFmtDateFromPath generates a summary of record counts for a given
@@ -217,45 +205,25 @@ func Backups(ctx context.Context, d *deps.Deps) (string, error) {
 		return "", err
 	}
 
-	var (
-		p              = d.Console().Palette()
-		backupPath     = app.Path.Backup()
-		empty          = "n/a"
-		backupsColor   = p.BrightMagenta.Wrap("backups:", p.Italic)
-		backupsInfo    = txt.PaddedLine("found:", empty)
-		lastBackup     = empty
-		lastBackupDate = empty
-	)
-
+	backupPath := app.Path.Backup()
 	fs, err := files.List(backupPath, "*_"+app.DBBaseName()+".db*")
-	if len(fs) == 0 {
-		return "", nil
+	if err != nil || len(fs) == 0 {
+		return "", err
 	}
 
-	var n int
+	lastBackup, lastDate, err := lastBackupInfo(ctx, d, fs[len(fs)-1])
 	if err != nil {
-		n = 0
-	} else {
-		n = len(fs)
+		return "", err
 	}
 
-	if n > 0 {
-		backupsInfo = txt.PaddedLine("found:", strconv.Itoa(n)+" backups found")
-		lastItem := fs[n-1]
-		lastBackup = RepoRecordsFromPath(ctx, d.Console(), lastItem)
-		s := txt.RelativeTime(strings.Split(filepath.Base(lastBackup), "_")[0])
-		lastBackupDate = p.BrightGreen.Wrap(s, p.Italic)
-	}
-
-	path := txt.PaddedLine("path:", files.CollapseHomeDir(backupPath))
-	last := txt.PaddedLine("last:", lastBackup)
-	lastDate := txt.PaddedLine("date:", lastBackupDate)
+	backupsInfo := txt.PaddedLine("found:", strconv.Itoa(len(fs))+" backups found")
+	p := d.Console().Palette()
 
 	return d.Console().Frame().
-		HeaderCln(p.BrightMagenta, backupsColor).
-		Rowln(path).
-		Rowln(last).
-		Rowln(lastDate).
+		HeaderCln(p.BrightMagenta, p.BrightMagenta.Wrap("backups:", p.Italic)).
+		Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(backupPath))).
+		Rowln(txt.PaddedLine("last:", lastBackup)).
+		Rowln(txt.PaddedLine("date:", p.BrightGreen.Wrap(lastDate, p.Italic))).
 		Rowln(backupsInfo).
 		StringReset(), nil
 }
@@ -298,4 +266,35 @@ func createdAt(r *db.SQLite, p *ansi.Palette) string {
 	}
 
 	return createdAt + p.Gray.Sprintf(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
+}
+
+func backupAt(r *db.SQLite) (string, error) {
+	backupAt, err := db.Metadata(r, "backup_at")
+	if err != nil {
+		return "", err
+	}
+
+	parsed, err := time.Parse(db.TimeFormatSqlite, backupAt)
+	if err != nil {
+		return "", err
+	}
+
+	return txt.RelativeTime(parsed.Format(txt.TimeLayout)), nil
+}
+
+func lastBackupInfo(ctx context.Context, d *deps.Deps, path string) (filename, relative string, err error) {
+	filename = RepoRecordsFromPath(ctx, d.Console(), path)
+	r, err := db.New(ctx, path)
+	if err != nil {
+		return "", "", err
+	}
+	defer r.Close()
+
+	relative, err = backupAt(r)
+	if err != nil {
+		return filename, relative, nil
+	}
+
+	timestamp, _, _ := strings.Cut(filename, "_")
+	return filename, txt.RelativeTime(timestamp), nil
 }

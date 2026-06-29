@@ -402,17 +402,17 @@ func RelativeISOTime(ts string) string {
 // TimeWithAgo formats a Unix timestamp as absolute time and relative duration.
 //
 // YYYY MMM DD HH:MM (N days ago).
-func TimeWithAgo(unixTime string) (absolute, relative string) {
+func TimeWithAgo(unixTime string) (absolute, relative string, err error) {
 	// Parse the Unix timestamp string
 	parsedTime, err := time.Parse("20060102150405", unixTime)
 	if err != nil {
-		panic(err)
+		return "", "", err
 	}
 
 	absolute = parsedTime.Local().Format("2006 Jan 02 15:04")
-	relative = RelativeTime(parsedTime.Format("20060102-150405"))
+	relative = RelativeTime(parsedTime.Format(TimeLayout))
 
-	return absolute, relative
+	return absolute, relative, err
 }
 
 // TagsWithPound returns a prettified tags with #.

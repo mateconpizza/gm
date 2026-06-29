@@ -186,7 +186,10 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, app *application.App, op
 
 	// format each item `YYYY MMM DD HH:MM (N days ago)`
 	m.SetFormatter(func(s *wayback.SnapshotInfo) string {
-		absolute, relative := txt.TimeWithAgo(s.ArchiveTimestamp)
+		absolute, relative, err := txt.TimeWithAgo(s.ArchiveTimestamp)
+		if err != nil {
+			return p.BrightYellow.Wrap("wayback: error", p.Italic)
+		}
 		return absolute + dimmer(relative)
 	})
 
@@ -195,7 +198,10 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, app *application.App, op
 
 // formatTime returns a string formatted YYYY MMM DD HH:MM (N days ago).
 func formatTime(label, ts string) string {
-	absolute, relative := txt.TimeWithAgo(ts)
+	absolute, relative, err := txt.TimeWithAgo(ts)
+	if err != nil {
+		return err.Error()
+	}
 
 	return txt.PaddedLine(
 		label,
