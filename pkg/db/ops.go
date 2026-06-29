@@ -12,8 +12,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Default date format for timestamps.
-const defaultDateFormat = "20060102-150405"
+const (
+	// Default date format for timestamps.
+	defaultDateFormat = "20060102-150405"
+
+	TimeFormatSqlite = "2006-01-02 15:04:05"
+)
 
 // IsInitializedFromPath checks if the database is initialized.
 func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
@@ -148,6 +152,7 @@ func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) 
 	if destRoot == "" {
 		return "", ErrDBEmptyPath
 	}
+
 	// destDSN -> 20060102-150405_dbName.db
 	destDSN := fmt.Sprintf("%s_%s", now.Format(defaultDateFormat), r.Name())
 	destPath := filepath.Join(destRoot, destDSN)
@@ -162,6 +167,11 @@ func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) 
 
 	backup, err := New(ctx, destPath)
 	if err != nil {
+		return "", err
+	}
+	defer backup.Close()
+
+	if err := SetBackupAt(ctx, backup, now); err != nil {
 		return "", err
 	}
 
@@ -189,12 +199,21 @@ func (r *SQLite) CheckIntegrity(ctx context.Context) error {
 	return nil
 }
 
-func UpdateAppVersion(ctx context.Context, r *SQLite, version string) error {
-	query := `
-		INSERT INTO metadata (key, value)
-		VALUES ('app_version', ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value;
-	`
-	_, err := r.DB.ExecContext(ctx, query, version)
+// SetMetadata sets or updates a metadata key.
+func (r *SQLite) SetMetadata(ctx context.Context, key, value string) error {
+	const query = `
+INSERT INTO metadata (key, value)
+VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value;`
+
+	_, err := r.DB.ExecContext(ctx, query, key, value)
 	return err
+}
+
+func UpdateAppVersion(ctx context.Context, r *SQLite, version string) error {
+	return r.SetMetadata(ctx, "app_version", version)
+}
+
+func SetBackupAt(ctx context.Context, r *SQLite, now time.Time) error {
+	return r.SetMetadata(ctx, "backup_at", now.UTC().Format(TimeFormatSqlite))
 }

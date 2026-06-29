@@ -580,7 +580,12 @@ func BarFunc(c Console, b *bookmark.Bookmark) string {
 func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
-	absolute, relative := txt.TimeWithAgo(b.ArchiveTimestamp)
+	absolute, relative, err := txt.TimeWithAgo(b.ArchiveTimestamp)
+	if err != nil {
+		absolute = "error"
+		relative = "error"
+	}
+
 	idStr := p.Dim.Sprintf("%d", b.ID)
 	title := p.Normal.Sprint(b.Title)
 	if b.Title == "" {
