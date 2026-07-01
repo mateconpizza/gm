@@ -95,6 +95,7 @@ func (c *Console) Term() *terminal.Term         { return c.term }
 func (c *Console) Frame() *frame.Frame          { return c.frame }
 func (c *Console) Palette() *ansi.Palette       { return c.palette }
 func (c *Console) Writer() io.Writer            { return c.writer }
+func (c *Console) IsPiped() bool                { return c.term.IsPiped() }
 func (c *Console) ClearLine(n int)              { c.term.ClearLine(n) }
 func (c *Console) ReplaceLine(s string)         { c.term.ReplaceLine(1, s) }
 func (c *Console) ReplaceLines(n int, s string) { c.term.ReplaceLine(n, s) }
@@ -143,7 +144,9 @@ func (c *Console) PromptWithSuggestions(p string, items []string) string {
 	return c.term.PromptWithSuggestions(p, items)
 }
 
-func (c *Console) WaitForEnter(ctx context.Context) error { return c.term.WaitForEnter(ctx) }
+func (c *Console) WaitForEnter(ctx context.Context, mesg string) error {
+	return c.term.WaitForEnter(ctx, mesg)
+}
 
 // SuccessMesg returns a prettified success message.
 func (c *Console) SuccessMesg(a ...any) string {

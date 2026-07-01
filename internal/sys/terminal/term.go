@@ -247,7 +247,7 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 }
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
-func (t *Term) WaitForEnter(ctx context.Context) error { return WaitForEnter(ctx) }
+func (t *Term) WaitForEnter(ctx context.Context, mesg string) error { return WaitForEnter(ctx, mesg) }
 
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
@@ -353,6 +353,8 @@ func (t *Term) StdoutPiped() bool {
 	// If writer is not an *os.File, assume it's redirected (e.g., bytes.Buffer).
 	return true
 }
+
+func (t *Term) IsPiped() bool { return t.StdinPiped() || t.StdoutPiped() }
 
 // isInteractiveTerminal checks if the input is valid and the terminal is
 // interactive.

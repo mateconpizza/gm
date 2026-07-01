@@ -26,35 +26,32 @@ var QRFormats = []string{".jpeg", ".png", ".jpg"}
 
 // QR handles creation, rendering or opening of QR-Codes.
 func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-	qrFn := func(b *bookmark.Bookmark) error {
+	c, p := d.Console(), d.Console().Palette()
+	n := len(bs)
+
+	for i := range bs {
+		b := bs[i]
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return err
 		}
 
-		c := d.Console()
-		interactive := !c.Term().StdinPiped() && !c.Term().StdoutPiped()
-
 		var sb strings.Builder
 
-		if interactive {
-			p := c.Palette()
-			sb.WriteString(p.Bold.Sprint(b.Title))
-			sb.WriteByte('\n')
-			sb.WriteString(p.Italic.Sprint(b.URL))
-			sb.WriteByte('\n')
-		}
-
+		sb.WriteString(p.Bold.Sprint(b.Title))
+		sb.WriteByte('\n')
+		sb.WriteString(p.Italic.Sprint(b.URL))
+		sb.WriteByte('\n')
 		sb.WriteString(qrcode.String())
 
 		output := sb.String()
 		fmt.Fprint(d.Writer(), output)
 
-		if !interactive {
-			return nil
+		if c.IsPiped() {
+			continue
 		}
 
-		if err := c.WaitForEnter(ctx); err != nil {
+		if err := c.WaitForEnter(ctx, fmt.Sprintf("[%d/%d] Press ENTER to continue...", i+1, n)); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return sys.ErrActionAborted
 			}
@@ -62,13 +59,6 @@ func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		}
 
 		terminal.ClearLine(txt.CountLines(output))
-		return nil
-	}
-
-	for i := range bs {
-		if err := qrFn(bs[i]); err != nil {
-			return err
-		}
 	}
 
 	return nil
