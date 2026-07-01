@@ -156,11 +156,9 @@ func (m *Menu[T]) buildPreviewArgs() error {
 	togglePreview := builtinKeymaps(m.args, "toggle-preview")
 	previewKey := m.keymaps.find(togglePreview)
 	if previewKey != nil {
-		if !previewKey.Enabled {
-			return nil
-		}
-
 		togglePreview.Bind = previewKey.Bind
+		togglePreview.Enabled = previewKey.Enabled
+		togglePreview.Hidden = previewKey.Hidden
 	}
 
 	m.keymaps.register(togglePreview)

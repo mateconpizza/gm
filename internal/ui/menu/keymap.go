@@ -55,10 +55,13 @@ func (km *keyManager) register(keys ...*Keymap) {
 		k := keys[i]
 		if key, exists := km.keymaps[k.Action]; exists &&
 			strings.EqualFold(string(k.Bind), string(key.Bind)) {
-			slog.Warn("keybind conflict, replacing bind-1",
-				"bind-1", k.Bind, "action-1", k.Action,
-				"bind-2", key.Bind, "action-2", key.Action)
 			km.remove(k)
+
+			slog.Warn(
+				"keybind conflict, replacing bind-1",
+				"bind-1", k.Bind, "action-1", k.Action,
+				"bind-2", key.Bind, "action-2", key.Action,
+			)
 		}
 
 		km.keymaps[k.Action] = k
