@@ -36,6 +36,7 @@ const (
 	ArchiveURL     Format = "archiveURL"
 	Parameters     Format = "parameters"
 	HTTPStatusCode Format = "statusCode"
+	Notes          Format = "notes"
 )
 
 func (f Format) String() string { return string(f) }
@@ -183,12 +184,21 @@ var Formatters = map[Format]Formatter{
 
 	HTTPStatusCode: {
 		Render: StatusCodeFunc,
+		Menu: MenuConfig{
+			placeholder: "{1}",
+			Opts:        []menu.Option{menu.WithNth("2..")},
+		},
 		Hidden: true,
 	},
 
-	// Compact:   {Format: CompactFunc, Transform: "3..", Preview: "{+2}"},
-	// Label:     {Format: LabelFunc, Transform: "3..", Preview: "{+2}"},
-	// Lean:      {Format: LeanFunc, Transform: "3..", Preview: "{+2}"},
+	Notes: {
+		Render: NotesFunc,
+		Menu: MenuConfig{
+			placeholder: "{1}",
+			Opts:        []menu.Option{menu.WithMultilineView()},
+		},
+		Hidden: true,
+	},
 }
 
 var ValidFormats = func() []string {

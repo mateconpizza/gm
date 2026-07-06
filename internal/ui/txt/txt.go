@@ -68,8 +68,10 @@ const (
 	GlyphHalfBlock      Glyph = "▄" // ▄
 	GlyphUpperHalfBlock Glyph = "▀" // ▀
 
-	GlyphPillLeft  Glyph = ""
-	GlyphPillRight Glyph = ""
+	GlyphSepPillLeft   Glyph = "" // 
+	GlyphSepPillRight  Glyph = "" // 
+	GlyphSepPowerLeft  Glyph = "" // 
+	GlyphSepPowerRight Glyph = "" // 
 
 	GlyphFavorite = "★" // ★
 	GlyphNotes    = "✎" // ✎
@@ -456,29 +458,33 @@ func TagsWithColorPound(c Console, s string) string {
 	return sb.String()
 }
 
-// TagsWithColorPills returns a prettified tags with #.
+// TagsWithColorPills returns a prettified tags.
 //
-//	#tag1 #tag2 #tag3
+//	#browser #neovim
 func TagsWithColorPills(c Console, s string) string {
-	p := c.Palette()
-	tagsSplit := strings.Split(s, ",")
-	sort.Strings(tagsSplit)
+	tags := TagsWithPound(s)
+	return TagsColoredWithDelimiters(c, strings.Split(tags, " "), GlyphSepPillLeft, GlyphSepPillRight)
+}
 
+// TagsColoredWithDelimiters returns prettified tags with custom left/right icons.
+//
+//	TagsColoredWithDelimiters(c, "tag1,tag2", "«", "»")  // «tag1» «tag2»
+func TagsColoredWithDelimiters(c Console, tags []string, left, right Glyph) string {
+	p := c.Palette()
+	sort.Strings(tags)
 	var sb strings.Builder
-	for _, t := range tagsSplit {
+	for _, t := range tags {
 		if t == "" {
 			continue
 		}
-
 		rc := p.Random()
-		pill1, pill2 := rc.Sprint(GlyphPillLeft), rc.Sprint(GlyphPillRight)
-		tag := rc.Wrap("#"+t, p.Inverse)
+		pill1, pill2 := rc.Sprint(left), rc.Sprint(right)
+		tag := rc.Wrap(t, p.Inverse, p.Bold)
 		sb.WriteString(pill1)
 		sb.WriteString(tag)
 		sb.WriteString(pill2)
 		sb.WriteString(" ")
 	}
-
 	return sb.String()
 }
 
@@ -729,9 +735,9 @@ func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.SGR {
 func Pill(color ansi.SGR, msg string) string {
 	var sb strings.Builder
 
-	sb.WriteString(color.Sprint(GlyphPillLeft))
+	sb.WriteString(color.Sprint(GlyphSepPillLeft))
 	sb.WriteString(color.Wrap(msg, ansi.Inverse))
-	sb.WriteString(color.Sprint(GlyphPillRight))
+	sb.WriteString(color.Sprint(GlyphSepPillRight))
 
 	return sb.String()
 }

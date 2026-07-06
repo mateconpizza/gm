@@ -81,7 +81,9 @@ func TagsList(ctx context.Context, w io.Writer, p string) error {
 func Print(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark, fn formatter.Func) error {
 	var buf strings.Builder
 	for i := range bs {
-		buf.WriteString(fn(c, bs[i]))
+		line := fn(c, bs[i])
+		buf.WriteString(line)
+		buf.WriteByte('\n')
 	}
 
 	return c.Term().Print(ctx, buf.String())

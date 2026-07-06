@@ -75,7 +75,7 @@ func OnelineFunc(c Console, b *bookmark.Bookmark) string {
 	sb.Grow(w + 20)
 	sb.WriteString(coloredID)
 	sb.WriteString(sep)
-	fmt.Fprintf(&sb, "%-*s %-*s\n", urlLen, colorURL, tagsLen, tagsColor)
+	fmt.Fprintf(&sb, "%-*s %-*s", urlLen, colorURL, tagsLen, tagsColor)
 
 	return sb.String()
 }
@@ -139,7 +139,7 @@ func BriefFunc(c Console, b *bookmark.Bookmark) string {
 	tagsColored := p.Blue.Wrap(tagsPlain, p.Italic)
 
 	return fmt.Sprintf(
-		"%s %s %s%s  %s\n",
+		"%s %s %s%s  %s",
 		bulletColored,
 		p.Dim.Sprintf("%-*s", idMaxWidth, idStr),
 		titleColored,
@@ -217,9 +217,8 @@ func FrameFunc(c Console, b *bookmark.Bookmark) string {
 		f.Midln(ansi.StyleAll(descSplit, p.Dim)...)
 	}
 
-	f.Footer(txt.TagsWithColorPound(c, b.Tags)).Ln()
-
-	return f.StringReset()
+	return f.Footerln(txt.TagsWithColorPound(c, b.Tags)).
+		StringReset()
 }
 
 func OnelineURLFunc(c Console, b *bookmark.Bookmark) string {
@@ -245,11 +244,10 @@ func OnelineURLFunc(c Console, b *bookmark.Bookmark) string {
 	var sb strings.Builder
 	sb.Grow(w + 20)
 	sb.WriteString(coloredID)
-	sb.WriteString(txt.GlyphMiddleDot.With(func(u txt.Glyph) string {
-		return " " + u.String() + ""
-	}))
+	sb.WriteByte(' ')
+	sb.WriteString(txt.GlyphMiddleDot.String())
+	sb.WriteByte(' ')
 	sb.WriteString(b.URL)
-	sb.WriteByte('\n')
 
 	return sb.String()
 }
@@ -332,8 +330,6 @@ func MiniFunc(c Console, b *bookmark.Bookmark) string {
 		sb.WriteString(tagsStr)
 	}
 
-	sb.WriteByte('\n')
-
 	return sb.String()
 }
 
@@ -387,8 +383,7 @@ func MinimalFunc(c Console, b *bookmark.Bookmark) string {
 		tags,
 	)
 
-	// Trim if it exceeds terminal width
-	return runewidth.Truncate(line, w, "…") + "\n"
+	return runewidth.Truncate(line, w, "…")
 }
 
 // CardLiteFunc formats a bookmark in two thin lines.
@@ -440,7 +435,7 @@ func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 	indent := strings.Repeat(" ", len(strconv.Itoa(b.ID))+1)
 	line2 := fmt.Sprintf("%s%s%s", indent, dimURL, tags)
 
-	return line1 + "\n" + line2 + "\n"
+	return line1 + "\n" + line2
 }
 
 // FlowFunc formats a bookmark as a single continuous path.
@@ -485,7 +480,7 @@ func FlowFunc(c Console, b *bookmark.Bookmark) string {
 		tags,
 	)
 
-	return runewidth.Truncate(line, w, "…") + "\n"
+	return runewidth.Truncate(line, w, "…")
 }
 
 // BarFunc formats a bookmark as a clean dashboard-style entry.
@@ -568,7 +563,7 @@ func BarFunc(c Console, b *bookmark.Bookmark) string {
 	}
 
 	return fmt.Sprintf(
-		"%s %s %s %s %s %s\n",
+		"%s %s %s %s %s %s",
 		gutter,
 		idCol,
 		titleCol,
@@ -583,7 +578,7 @@ func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 
 	absolute, relative, err := txt.TimeWithAgo(b.ArchiveTimestamp)
 	if err != nil {
-		absolute = "error"
+		absolute = "---- --- -- -----"
 		relative = "error"
 	}
 
@@ -597,15 +592,24 @@ func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 	}
 	domain = p.Dim.Sprintf("(%s)", domain)
 
-	idStr := p.Dim.Sprintf("%d", b.ID)
-	title := p.Normal.Sprint(b.Title)
+	idStr := p.Dim.Sprintf("%*d", 3, b.ID)
+	title := p.Normal.Sprint(strings.ReplaceAll(b.Title, "\n", " "))
 	if b.Title == "" {
 		title = p.Dim.Sprint(b.URL)
 	}
 
-	title = txt.Shorten(title, w)
+	yearWidth := runewidth.StringWidth(year)
+	restWidth := runewidth.StringWidth(rest)
+	domainWidth := runewidth.StringWidth(domain)
+	idWidth := runewidth.StringWidth(idStr)
+
+	reservedWidth := yearWidth + restWidth
+	maxTitleWidth := reservedWidth + domainWidth/2
+
+	title = txt.Shorten(title, w-maxTitleWidth)
 	relative = p.BrightYellow.Wrap("("+relative+")", p.Italic)
-	padding := 28
+
+	padding := reservedWidth + idWidth - 6
 
 	return fmt.Sprintf(
 		"%s %s %s %-*s %s %s",
@@ -617,6 +621,46 @@ func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 		title,
 		domain,
 	)
+}
+
+func NotesFunc(c Console, b *bookmark.Bookmark) string {
+	const labelWidth = 8
+
+	maxWidth := c.MinWidth()
+	p := c.Palette()
+
+	var header string
+	if b.Title != "" {
+		header = txt.SplitAndAlign(b.Title, maxWidth, 0)
+	} else {
+		header = b.URL
+	}
+
+	field := func(label, value string) string {
+		return txt.PaddedLineWithPad(
+			p.Dim.Sprint(label+":"),
+			value,
+			labelWidth,
+		)
+	}
+
+	f := frame.New(
+		frame.WithWriter(c.Writer()),
+		frame.WithBorders(frame.NewBorders("", "", "", "")),
+	)
+
+	f.Ln()
+	f.Headerln(p.BgBlue.Wrap(header, p.Black, p.Bold))
+	f.Rowln(field("ID", p.Bold.Sprint(strconv.Itoa(b.ID))))
+	f.Rowln(field("Tags", txt.TagsWithColorPills(c, b.Tags)))
+	f.Rowln(field("URL", p.BrightCyan.Wrap(b.URL, p.Bold, p.Underline)))
+
+	if b.Desc != "" {
+		desc := txt.SplitAndAlign(b.Desc, maxWidth, labelWidth+1)
+		f.Rowln(field("Desc", desc))
+	}
+
+	return f.Text(b.Notes).StringReset()
 }
 
 type fieldSpec struct {
