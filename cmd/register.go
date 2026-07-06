@@ -94,7 +94,7 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	// interactive mode
 	cmdutil.FlagMenu(c, app)
 	// output formatting
-	cmdutil.FlagOutput(c, app, formatter.ValidFormats())
+	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
 	// sorting strategy (domain-specific ordering options)
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	// field selection for output projection

@@ -27,12 +27,12 @@ type Flags struct {
 	Tail int      // Tail limit
 
 	// Bookmark operations
-	Limit    int           // Limit to N
-	Year     int           // Year
-	Update   bool          // Update bookmarks
-	Title    string        // Bookmark's title
-	TagsStr  string        // Bookmark's tags (tag1,tag2,...)
-	Duration time.Duration // Timeout ops
+	Limit   int           // Limit to N
+	Year    int           // Year
+	Update  bool          // Update bookmarks
+	Title   string        // Bookmark's title
+	TagsStr string        // Bookmark's tags (tag1,tag2,...)
+	Timeout time.Duration // Timeout ops
 
 	// Configuration and behavior
 	Color    bool   // Application color enable

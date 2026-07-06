@@ -29,7 +29,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive fetch 179 --limit 5
   $ {cmd} url archive fetch 179 --limit 5 --year 2023
   $ {cmd} url archive fetch --menu
-  $ {cmd} url archive fetch 179 --duration 10s`),
+  $ {cmd} url archive fetch 179 --timeout 45s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := app.MenuFormatter()
 			p := fm.Menu.Placeholder()
@@ -59,7 +59,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
 	f.BoolVarP(&app.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
 	f.IntVarP(&app.Flags.Limit, "limit", "L", 0, "return at most N snapshots")
 	f.IntVarP(&app.Flags.Year, "year", "Y", 0, "restrict snapshots to a specific year")
-	f.DurationVar(&app.Flags.Duration, "duration", 30*time.Second, "maximum time to wait for snapshot retrieval")
+	f.DurationVar(&app.Flags.Timeout, "timeout", 30*time.Second, "maximum time to wait for snapshot retrieval")
 
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)

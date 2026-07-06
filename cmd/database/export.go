@@ -22,9 +22,15 @@ func newExportCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "export [id|query]",
 		Short:   "export bookmarks",
-		Aliases: []string{"ex"},
+		Aliases: []string{"ex", "x"},
 	}
-	cmds := []func(*application.App) *cobra.Command{newExportHTMLCmd, newExportJSONCmd, newExportCSVCmd}
+
+	cmds := []func(*application.App) *cobra.Command{
+		newExportHTMLCmd,
+		newExportJSONCmd,
+		newExportCSVCmd,
+	}
+
 	for i := range cmds {
 		cmd := cmds[i](app)
 		cmdutil.FlagSort(cmd, app, handler.SortSupported)
@@ -92,7 +98,8 @@ func wrapFields(fields []string, sep string, maxLen int) string {
 		}
 
 		if len(line)+len(part) > maxLen && line != "" {
-			sb.WriteString(line + "\n")
+			sb.WriteString(line)
+			sb.WriteByte('\n')
 			line = part
 		} else {
 			line += part

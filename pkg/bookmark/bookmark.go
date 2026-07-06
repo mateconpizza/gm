@@ -206,7 +206,7 @@ func (b *Bookmark) GenChecksum() {
 //
 //	hashDomain + Checksum
 func (b *Bookmark) HashPath() (string, error) {
-	s, err := domain(b.URL)
+	s, err := Domain(b.URL)
 	if err != nil {
 		return "", err
 	}
@@ -231,14 +231,14 @@ func (b *Bookmark) HashDomain() (string, error) {
 
 // Domain returns the domain of a bookmark.
 func (b *Bookmark) Domain() (string, error) {
-	return domain(b.URL)
+	return Domain(b.URL)
 }
 
 // JSONPath returns the path to the JSON file.
 //
 //	domain -> urlHash.json
 func (b *Bookmark) JSONPath() (string, error) {
-	domain, err := domain(b.URL)
+	domain, err := Domain(b.URL)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}

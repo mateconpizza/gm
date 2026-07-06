@@ -23,7 +23,7 @@ import (
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "db",
-		Aliases: []string{"database", "d"},
+		Aliases: []string{"database", "d", "repo"},
 		Short:   "database operations",
 	}
 

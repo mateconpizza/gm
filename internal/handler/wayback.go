@@ -101,7 +101,7 @@ func processBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) Sn
 	}
 
 	ct := wayback.New(
-		wayback.WithTimeout(app.Flags.Duration),
+		wayback.WithTimeout(app.Flags.Timeout),
 	)
 
 	s, err := ct.ClosestSnapshot(ctx, b.URL)
@@ -219,7 +219,7 @@ func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark
 	ct := wayback.New(
 		wayback.WithByYear(app.Flags.Year),
 		wayback.WithLimit(app.Flags.Limit),
-		wayback.WithTimeout(app.Flags.Duration),
+		wayback.WithTimeout(app.Flags.Timeout),
 	)
 
 	c := d.Console()
@@ -249,12 +249,7 @@ func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark
 }
 
 // fetchSnapshots fetches the wayback snapshots for a single bookmark.
-func fetchSnapshots(
-	ctx context.Context,
-	c *ui.Console,
-	ct *wayback.WaybackMachine,
-	b *bookmark.Bookmark,
-) ([]wayback.SnapshotInfo, error) {
+func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachine, b *bookmark.Bookmark) ([]wayback.SnapshotInfo, error) {
 	p := c.Palette()
 	u := txt.Shorten(b.URL, 60)
 

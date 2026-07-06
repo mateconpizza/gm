@@ -406,6 +406,7 @@ func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 		title = "Untitled"
 	}
 	title = strings.ReplaceAll(title, "\n", " ")
+	title = p.BrightMagenta.Sprint(title)
 
 	// Minimalist Flag icons
 	flags := ""
@@ -416,7 +417,7 @@ func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 		flags += " " + p.BrightCyan.Sprint(txt.GlyphNotes)
 	}
 	if b.ArchiveURL != "" {
-		flags += " " + p.Orange.With(p.Bold).Sprint(txt.GlyphArchive)
+		flags += " " + p.BrightYellow.With(p.Bold).Sprint(txt.GlyphArchive)
 	}
 
 	line1 := fmt.Sprintf("%s %s%s", idStr, title, flags)
@@ -458,9 +459,9 @@ func FlowFunc(c Console, b *bookmark.Bookmark) string {
 		titlePart = "Untitled"
 	}
 
-	sep := " › "
+	sep := " " + txt.GlyphSingleAngleMark.String() + " "
 	if b.Favorite {
-		sep = p.BrightYellow.Sprint(" » ")
+		sep = p.BrightYellow.Sprintf(" %s ", txt.GlyphRightDoubleAngle)
 	} else if b.HTTPStatusCode >= 400 {
 		sep = p.Red.Sprint(" ! ")
 	}
@@ -586,6 +587,16 @@ func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 		relative = "error"
 	}
 
+	year, rest, _ := strings.Cut(absolute, " ")
+	year = yearColor(year, p).Wrap(year, p.Bold)
+
+	actual, _ := extractArchiveURL(b.URL)
+	domain, err := bookmark.Domain(actual)
+	if err != nil {
+		domain = "no-domain"
+	}
+	domain = p.Dim.Sprintf("(%s)", domain)
+
 	idStr := p.Dim.Sprintf("%d", b.ID)
 	title := p.Normal.Sprint(b.Title)
 	if b.Title == "" {
@@ -597,12 +608,14 @@ func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 	padding := 28
 
 	return fmt.Sprintf(
-		"%s %s %-*s %s",
+		"%s %s %s %-*s %s %s",
 		idStr,
-		absolute,
+		year,
+		rest,
 		padding,
 		relative,
 		title,
+		domain,
 	)
 }
 
@@ -727,4 +740,52 @@ func StatusCodeFunc(c Console, b *bookmark.Bookmark) string {
 	sb.WriteByte('\n')
 
 	return sb.String()
+}
+
+func extractArchiveURL(urlStr string) (string, error) {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Host == "web.archive.org" {
+		// Path is: /web/YYYYMMDDXXXXXX/https://github.com/imputnet/helium
+		parts := strings.SplitN(u.Path, "/", 4)
+		if len(parts) >= 4 {
+			return parts[3], nil
+		}
+	}
+
+	return urlStr, nil
+}
+
+func yearColor(year string, p *ansi.Palette) ansi.SGR {
+	const (
+		startYear = 2000
+		endYear   = 2050
+	)
+
+	y, err := strconv.Atoi(year)
+	if err != nil || y < startYear || y > endYear {
+		return p.BrightYellow
+	}
+
+	colorCycle := []ansi.SGR{
+		p.Cyan,
+		p.BrightCyan,
+		p.Blue,
+		p.BrightBlue,
+		p.Magenta,
+		p.BrightMagenta,
+		p.Red,
+		p.BrightRed,
+		p.Green,
+		p.BrightGreen,
+	}
+
+	// 4. Calculate the index offset from your starting year (2000)
+	// Using modulo (%) ensures that if the difference is larger than the array, it loops back around smoothly.
+	index := (y - startYear) % len(colorCycle)
+
+	return colorCycle[index]
 }

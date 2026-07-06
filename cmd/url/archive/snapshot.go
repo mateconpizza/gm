@@ -24,6 +24,9 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:     "archive [query]",
 		Aliases: []string{"snap", "ar", "a"},
 		Short:   "show archive URL",
+		Example: app.Example(`  $ {cmd} url archive <query>
+  $ {cmd} url archive --menu
+  $ {cmd} url archive --tag golang`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				if len(bs) == 0 {
@@ -40,11 +43,12 @@ func NewCmd(app *application.App) *cobra.Command {
 				return nil
 			}
 
-			return cmdutil.Execute(cmd, args, nil, a, onlySnapshots)
+			return cmdutil.Execute(cmd, args, setupMenu(app), a, onlySnapshots)
 		},
 	}
 
 	cmdutil.FlagsFilter(c, app)
+	cmdutil.FlagMenu(c, app)
 	c.AddCommand(newLookupCmd(app), newOpenCmd(app))
 
 	return c
@@ -55,6 +59,7 @@ func newOpenCmd(app *application.App) *cobra.Command {
 		Use:     "open [query]",
 		Aliases: []string{"o"},
 		Short:   "open archive URL in browser",
+		Hidden:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Execute(cmd, args, setupMenu(app), handler.Open, onlySnapshots)
 		},
@@ -81,8 +86,7 @@ func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	for i := range filtered {
 		f := filtered[i]
 		b := bookmark.New()
-		// TODO: use `f.Title` or keep `f.URL`?
-		b.Title = f.URL
+		b.Title = f.Title
 		b.ID = f.ID
 		b.URL = f.ArchiveURL
 		b.ArchiveTimestamp = f.ArchiveTimestamp
@@ -97,7 +101,7 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.ArchiveURL)
 
 	p := fm.Menu.Placeholder()
-	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+	kb := menu.NewBindBuilder(app.Command(), app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
 	return picker.NewWithFormatter(

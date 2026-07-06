@@ -97,8 +97,8 @@ func UniqueTags(t []string) []string {
 	return tags
 }
 
-// domain extracts the domain from a URL.
-func domain(rawURL string) (string, error) {
+// Domain extracts the Domain from a URL.
+func Domain(rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("parsing url: %w", err)

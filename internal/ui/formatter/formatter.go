@@ -38,9 +38,7 @@ const (
 	HTTPStatusCode Format = "statusCode"
 )
 
-func (f Format) String() string {
-	return string(f)
-}
+func (f Format) String() string { return string(f) }
 
 // Func formats a bookmark for console output.
 type Func func(Console, *bookmark.Bookmark) string
@@ -98,7 +96,6 @@ var Formatters = map[Format]Formatter{
 		Render: FlowFunc,
 		Menu: MenuConfig{
 			placeholder: "{1}",
-			Opts:        []menu.Option{menu.WithNth("3..")},
 		},
 	},
 

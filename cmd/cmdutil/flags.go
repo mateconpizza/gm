@@ -42,8 +42,8 @@ global:
 {{- end}}
 `
 
-func FlagOutput(c *cobra.Command, app *application.App, supportedOutput []string) {
-	c.Flags().StringVarP(&app.Flags.Output, "output", "o", app.Format,
+func FlagOutput(c *cobra.Command, app *application.App, def string, supportedOutput []string) {
+	c.Flags().StringVarP(&app.Flags.Output, "output", "o", def,
 		"output format: "+strings.Join(supportedOutput, ", "))
 }
 
