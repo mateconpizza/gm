@@ -381,21 +381,10 @@ func (t *Term) ShowCursor() error {
 	return err
 }
 
-func (t *Term) Height() int {
-	return t.size.height
-}
-
-func (t *Term) Width() int {
-	return t.size.width
-}
-
-func (t *Term) MaxWidth() int {
-	return t.size.maxWidth
-}
-
-func (t *Term) MinWidth() int {
-	return t.size.minWidth
-}
+func (t *Term) Height() int   { return t.size.height }
+func (t *Term) Width() int    { return t.size.width }
+func (t *Term) MaxWidth() int { return t.size.maxWidth }
+func (t *Term) MinWidth() int { return t.size.minWidth }
 
 // Print writes content to the terminal, paginating if the output
 // exceeds the terminal height.
@@ -421,14 +410,20 @@ func (t *Term) needsPager(content string) bool {
 
 // paginate pipes content through $PAGER (default: less).
 func (t *Term) paginate(ctx context.Context, content string) error {
-	pager := os.Getenv("PAGER")
-	if pager == "" {
-		pager = "less"
-	}
-	args := strings.Fields(pager)
+	pager, ok := os.LookupEnv("PAGER")
 
-	//nolint:gosec // false positive: we explicitly want to allow the user to
-	// define their own PAGER command
+	// user explicitly disabled paging
+	if ok && pager == "" {
+		_, err := fmt.Fprint(t.writer, content)
+		return err
+	}
+
+	// unset case
+	if pager == "" {
+		pager = "less -RFX"
+	}
+
+	args := strings.Fields(pager)
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Stdin = strings.NewReader(content)
 	cmd.Stdout = os.Stdout
