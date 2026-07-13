@@ -51,6 +51,10 @@ func (m *Menu[T]) buildHeaderStrings() []string {
 			continue
 		}
 
+		if k.Desc == "" {
+			k.Desc = "?"
+		}
+
 		// single string per keymap, with color applied (optional)
 		part := fmt.Sprintf("%s:%s", k.Bind, k.Desc)
 		if m.withOutputColor {

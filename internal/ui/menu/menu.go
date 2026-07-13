@@ -110,6 +110,10 @@ type Menu[T comparable] struct {
 
 // Select executes Fzf with the set elements and returns the selected item/s.
 func (m *Menu[T]) Select(items []T) ([]T, error) {
+	if err := m.Validate(); err != nil {
+		return nil, err
+	}
+
 	if err := m.buildArgs(); err != nil {
 		return nil, err
 	}
@@ -124,13 +128,6 @@ func (m *Menu[T]) Select(items []T) ([]T, error) {
 	}
 
 	return selected, nil
-}
-
-// AddOpts adds options to the menu.
-func (m *Menu[T]) AddOpts(opts ...Option) {
-	for _, fn := range opts {
-		fn(&m.Options)
-	}
 }
 
 // callInterruptFn safely executes the interrupt callback if set.
@@ -341,33 +338,25 @@ func New[T comparable](opts ...Option) *Menu[T] {
 }
 
 func (m Menu[T]) Validate() error {
-	for _, k := range m.keymaps.list() {
-		if !k.Enabled {
-			continue
-		}
-
-		if k.Bind == "" {
-			return fmt.Errorf("%w: empty keybind", ErrInvalidConfigKeymap)
-		}
+	if err := m.cfg.Keymaps().Validate(); err != nil {
+		return err
 	}
 
 	// set default prompt
 	if m.cfg.Prompt == "" {
 		slog.Warn("empty prompt, loading default prompt")
-
 		m.cfg.Prompt = defaultPrompt
 	}
 
 	// set default header separator
 	if m.cfg.Header.Sep == "" {
 		slog.Warn("empty header separator, loading default header separator")
-
 		m.cfg.Header.Sep = defaultHeaderSep
 	}
 
 	// set default settings
 	if len(m.cfg.Arguments) == 0 {
-		slog.Warn("empty settings, loading default settings")
+		slog.Debug("empty settings, loading default settings")
 	}
 
 	return m.args.Validate()

@@ -46,6 +46,39 @@ type BuiltinKeymaps struct {
 	Yank      *Keymap `json:"yank"       yaml:"yank"`
 }
 
+func (k *BuiltinKeymaps) Validate() error {
+	check := func(name string, km *Keymap) error {
+		if km == nil || !km.Enabled {
+			return nil
+		}
+		if km.Bind == "" {
+			return fmt.Errorf("%w: keymap %q: missing bind", ErrInvalidConfigKeymap, name)
+		}
+		return nil
+	}
+
+	for _, entry := range []struct {
+		name string
+		km   *Keymap
+	}{
+		{"edit", k.Edit},
+		{"notes", k.EditNotes},
+		{"open", k.Open},
+		{"preview", k.Preview},
+		{"qr", k.QR},
+		{"open_qr", k.OpenQR},
+		{"toggle_all", k.ToggleAll},
+		{"toggle-preview", k.ToggleAll},
+		{"yank", k.Yank},
+	} {
+		if err := check(entry.name, entry.km); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 type keyManager struct {
 	keymaps map[action]*Keymap // keymaps action:keymap
 }
@@ -107,10 +140,6 @@ func (km *keyManager) find(bind *Keymap) *Keymap {
 	return nil
 }
 
-func newKeyManager() *keyManager {
-	return &keyManager{keymaps: make(map[action]*Keymap)}
-}
+func newKeyManager() *keyManager { return &keyManager{keymaps: make(map[action]*Keymap)} }
 
-func NewKeymap() *Keymap {
-	return &Keymap{Enabled: true}
-}
+func NewKeymap() *Keymap { return &Keymap{Enabled: true} }

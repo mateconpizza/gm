@@ -43,7 +43,8 @@ func TestBuildHeaderStrings(t *testing.T) {
 				{Bind: "a", Desc: "Add", Enabled: true},
 				{Bind: "x", Desc: "Hidden", Enabled: true, Hidden: true},
 				{Bind: "d", Desc: "Delete", Enabled: true},
-			}...))
+			}...),
+		)
 
 		got := m.buildHeaderStrings()
 

@@ -1,6 +1,9 @@
 package menu
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestNewArgsBuilder(t *testing.T) {
 	t.Parallel()
@@ -485,12 +488,80 @@ func TestArgsBuilder_Chaining(t *testing.T) {
 	}
 }
 
-func TestArgsBuilder_EmptyBuild(t *testing.T) {
+func TestArgsBuilder_Validate(t *testing.T) {
 	t.Parallel()
-	builder := newArgsBuilder()
-	result := builder.build()
 
-	if result != nil {
-		t.Errorf("build() on empty builder = %v, expected nil", result)
+	tests := []struct {
+		name    string
+		builder *ArgsBuilder
+		wantErr error
+	}{
+		{
+			name:    "normal_all_populated_via_constructor",
+			builder: newArgsBuilder(),
+			wantErr: nil,
+		},
+		{
+			name:    "edge_case_zero_value_struct",
+			builder: &ArgsBuilder{},
+			wantErr: ErrArgEmpty,
+		},
+		{
+			name: "boundary_first_field_empty",
+			builder: func() *ArgsBuilder {
+				b := newArgsBuilder()
+				b.ansi = ""
+				return b
+			}(),
+			wantErr: ErrArgEmpty,
+		},
+		{
+			name: "boundary_middle_field_empty",
+			builder: func() *ArgsBuilder {
+				b := newArgsBuilder()
+				b.layout = ""
+				return b
+			}(),
+			wantErr: ErrArgEmpty,
+		},
+		{
+			name: "boundary_last_field_empty",
+			builder: func() *ArgsBuilder {
+				b := newArgsBuilder()
+				b.withNth = ""
+				return b
+			}(),
+			wantErr: ErrArgEmpty,
+		},
+		{
+			name: "normal_whitespace_is_technically_not_empty",
+			builder: func() *ArgsBuilder {
+				b := newArgsBuilder()
+				b.preview = " "
+				return b
+			}(),
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := tt.builder.Validate()
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Validate() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Validate() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Validate() unexpected error: %v", err)
+			}
+		})
 	}
 }
