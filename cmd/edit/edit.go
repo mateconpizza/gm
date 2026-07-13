@@ -31,7 +31,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
 				WithPlaceholder(p.Multi())
 
-			k := app.Menu.DefaultKeymaps
+			k := app.Menu.Keymaps()
 			k.Edit.Enabled = true
 
 			m := picker.NewWithFormatter(

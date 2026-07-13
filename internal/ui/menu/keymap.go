@@ -12,6 +12,19 @@ type (
 	bind   string // (e.g., "ctrl-a", "ctrl-e", etc...)
 )
 
+const (
+	// Binds.
+	KeyEnter     bind = "enter"
+	KeyCtrlA     bind = "ctrl-a"
+	KeyCtrlE     bind = "ctrl-e"
+	KeyCtrlK     bind = "ctrl-k"
+	KeyCtrlL     bind = "ctrl-l"
+	KeyCtrlO     bind = "ctrl-o"
+	KeyCtrlW     bind = "ctrl-w"
+	KeyCtrlY     bind = "ctrl-y"
+	KeyCtrlSlash bind = "ctrl-/"
+)
+
 // Keymap holds the keymap configuration.
 type Keymap struct {
 	Bind    bind   `json:"bind"           yaml:"bind"`           // keybind combination

@@ -72,14 +72,14 @@ func NewDefaultConfig() *Config {
 			Sep:     defaultHeaderSep,
 		},
 		DefaultKeymaps: &BuiltinKeymaps{
-			Edit:      &Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
-			EditNotes: &Keymap{Bind: "ctrl-w", Desc: "edit-notes", Enabled: true, Hidden: false},
-			Open:      &Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
-			OpenQR:    &Keymap{Bind: "ctrl-l", Desc: "open-qr", Enabled: true, Hidden: false},
-			Preview:   &Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
-			QR:        &Keymap{Bind: "ctrl-k", Desc: "qr-code", Enabled: true, Hidden: false},
-			ToggleAll: &Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
-			Yank:      &Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
+			Edit:      &Keymap{Bind: KeyCtrlE, Desc: "edit", Enabled: true, Hidden: false},
+			EditNotes: &Keymap{Bind: KeyCtrlW, Desc: "edit-notes", Enabled: true, Hidden: false},
+			Open:      &Keymap{Bind: KeyCtrlO, Desc: "open", Enabled: true, Hidden: false},
+			OpenQR:    &Keymap{Bind: KeyCtrlL, Desc: "open-qr", Enabled: true, Hidden: false},
+			Preview:   &Keymap{Bind: KeyCtrlSlash, Desc: "toggle-preview", Enabled: true, Hidden: false},
+			QR:        &Keymap{Bind: KeyCtrlK, Desc: "qr-code", Enabled: true, Hidden: false},
+			ToggleAll: &Keymap{Bind: KeyCtrlA, Desc: "toggle-all", Enabled: true, Hidden: false},
+			Yank:      &Keymap{Bind: KeyCtrlY, Desc: "yank", Enabled: true, Hidden: false},
 		},
 		Arguments: newArgsBuilder().withAnsi().
 			withLayout("default").
@@ -97,7 +97,7 @@ func NewDefaultConfig() *Config {
 func builtinKeymaps(a *ArgsBuilder, action string) *Keymap {
 	binds := map[string]*Keymap{
 		"toggle-all": {
-			Bind:    "ctrl-a",
+			Bind:    KeyCtrlA,
 			Desc:    "toggle-all",
 			Action:  "toggle-all",
 			Enabled: true,
@@ -106,7 +106,7 @@ func builtinKeymaps(a *ArgsBuilder, action string) *Keymap {
 		},
 
 		"toggle-preview": {
-			Bind:    "ctrl-/",
+			Bind:    KeyCtrlSlash,
 			Desc:    "toggle-preview",
 			Action:  "toggle-preview",
 			Enabled: true,

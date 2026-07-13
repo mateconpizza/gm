@@ -15,13 +15,13 @@ func testValidConfig(t *testing.T) *Config {
 			Sep:     " ",
 		},
 		DefaultKeymaps: &BuiltinKeymaps{
-			Edit:      &Keymap{Bind: "ctrl-e", Desc: "edit", Enabled: true, Hidden: false},
-			Open:      &Keymap{Bind: "ctrl-o", Desc: "open", Enabled: true, Hidden: false},
-			QR:        &Keymap{Bind: "ctrl-k", Desc: "QRcode", Enabled: true, Hidden: false},
-			OpenQR:    &Keymap{Bind: "ctrl-l", Desc: "openQR", Enabled: true, Hidden: false},
-			Yank:      &Keymap{Bind: "ctrl-y", Desc: "yank", Enabled: true, Hidden: false},
-			Preview:   &Keymap{Bind: "ctrl-/", Desc: "toggle-preview", Enabled: true, Hidden: false},
-			ToggleAll: &Keymap{Bind: "ctrl-a", Desc: "toggle-all", Enabled: true, Hidden: false},
+			Edit:      &Keymap{Bind: KeyCtrlE, Desc: "edit", Enabled: true, Hidden: false},
+			Open:      &Keymap{Bind: KeyCtrlO, Desc: "open", Enabled: true, Hidden: false},
+			QR:        &Keymap{Bind: KeyCtrlK, Desc: "QRcode", Enabled: true, Hidden: false},
+			OpenQR:    &Keymap{Bind: KeyCtrlL, Desc: "openQR", Enabled: true, Hidden: false},
+			Yank:      &Keymap{Bind: KeyCtrlY, Desc: "yank", Enabled: true, Hidden: false},
+			Preview:   &Keymap{Bind: KeyCtrlSlash, Desc: "toggle-preview", Enabled: true, Hidden: false},
+			ToggleAll: &Keymap{Bind: KeyCtrlA, Desc: "toggle-all", Enabled: true, Hidden: false},
 		},
 		Arguments: newArgsBuilder().withAnsi().
 			withLayout("default").

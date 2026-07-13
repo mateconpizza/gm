@@ -25,7 +25,7 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	p := fm.Menu.Placeholder()
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
 		WithPlaceholder(p.Multi())
-	k := app.Menu.DefaultKeymaps
+	k := app.Menu.Keymaps()
 
 	fm.Menu.Opts = append(
 		fm.Menu.Opts,

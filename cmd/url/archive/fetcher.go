@@ -42,15 +42,13 @@ func newLookupCmd(app *application.App) *cobra.Command {
 				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 			)
 
-			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				op := waybackOperation(app.Flags)
 				if !confirmWayback(cmd.Context(), d, bs, op) {
 					return sys.ErrExitFailure
 				}
 				return runWayback(ctx, d, app.Flags, bs)
-			}
-
-			return cmdutil.Execute(cmd, args, m, a)
+			})
 		},
 	}
 

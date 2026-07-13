@@ -111,6 +111,6 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" archive URL "),
 		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-		menu.WithKeybinds(kb.New("enter", "open-in-browser").Execute("url archive open")),
+		menu.WithKeybinds(kb.New(menu.KeyEnter, "open-in-browser").Execute("url archive open")),
 	)
 }

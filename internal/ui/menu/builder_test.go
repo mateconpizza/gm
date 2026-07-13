@@ -100,7 +100,7 @@ func TestBuildPreview(t *testing.T) {
 		{
 			name:       "generates args from template with valid keymap",
 			previewCmd: "echo {1}",
-			previewKey: &Keymap{Bind: "ctrl-/", Enabled: true},
+			previewKey: &Keymap{Bind: KeyCtrlSlash, Enabled: true},
 			wantArgs:   2,
 		},
 		{
@@ -112,7 +112,7 @@ func TestBuildPreview(t *testing.T) {
 		{
 			name:       "handles command without placeholders",
 			previewCmd: "echo preview",
-			previewKey: &Keymap{Bind: "ctrl-/", Enabled: true},
+			previewKey: &Keymap{Bind: KeyCtrlSlash, Enabled: true},
 			wantArgs:   2,
 		},
 	}

@@ -37,8 +37,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
 				WithPlaceholder(p.Multi())
 
-			k := app.Menu.DefaultKeymaps.Edit
-			k.Enabled = true
+			k := app.Menu.Keymaps()
+			k.Edit.Enabled = true
 
 			m := picker.NewWithFormatter(
 				app,
@@ -47,7 +47,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
 				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
-				menu.WithKeybinds(kb.New(k.Bind, k.Desc).Execute("edit notes")),
+				menu.WithKeybinds(kb.New(k.Edit.Bind, k.Edit.Desc).Execute("edit notes")),
 			)
 
 			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
