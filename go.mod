@@ -7,7 +7,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/junegunn/fzf v0.73.1
+	github.com/junegunn/fzf v0.74.0
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
 	github.com/mateconpizza/rotato v0.1.17
 	github.com/mattn/go-runewidth v0.0.24
