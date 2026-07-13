@@ -17,7 +17,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/image v0.43.0
 	golang.org/x/net v0.56.0
-	golang.org/x/sync v0.21.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.44.0
 	gopkg.in/ini.v1 v1.67.3
 	gopkg.in/yaml.v3 v3.0.1
