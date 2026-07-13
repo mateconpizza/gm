@@ -56,7 +56,7 @@ func Records(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error 
 		}
 	}
 
-	return c.Term().Print(ctx, buf.String())
+	return c.Print(ctx, buf.String())
 }
 
 // TagsList lists the tags.
@@ -86,7 +86,7 @@ func Print(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark, fn forma
 		buf.WriteByte('\n')
 	}
 
-	return c.Term().Print(ctx, buf.String())
+	return c.Print(ctx, buf.String())
 }
 
 // Notes formats the bookmarks notes.
@@ -184,7 +184,7 @@ func ByField(ctx context.Context, c *ui.Console, fields string, bs []*bookmark.B
 		return err
 	}
 
-	return c.Term().Print(ctx, buf.String())
+	return c.Print(ctx, buf.String())
 }
 
 // DatabasesTable shows a simple table in database information.

@@ -20,7 +20,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} rm --tag golang,awesome
   $ {cmd} rm --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.MenuFormatter()
+			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
 			m := picker.NewWithFormatter(
 				app,

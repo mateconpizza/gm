@@ -131,11 +131,11 @@ format: frame
 menu:
   defaults: true
   format: oneline
-  prompt: "▶ "
+  prompt: '▶ '
   preview: true
   header:
     enabled: true
-    separator: " / "
+    separator: ' · '
   keymaps:
     edit:
       bind: ctrl-e
@@ -148,7 +148,7 @@ menu:
       enabled: true
       hidden: false
     open:
-      bind: ctrl-o
+      bind: enter
       description: open
       enabled: true
       hidden: false

@@ -47,10 +47,9 @@ func newExportHTMLCmd(app *application.App) *cobra.Command {
 		Short: "export to HTML Netscape",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to HTML ")
-			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.ExportToNetscapeHTML(bs, os.Stdout)
-			}
-			return cmdutil.Execute(cmd, args, m, a)
+			})
 		},
 	}
 	return c
@@ -62,10 +61,9 @@ func newExportJSONCmd(app *application.App) *cobra.Command {
 		Short: "export to JSON",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to JSON ")
-			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return printer.RecordsJSON(bs)
-			}
-			return cmdutil.Execute(cmd, args, m, a)
+			})
 		},
 	}
 	return c
@@ -148,7 +146,7 @@ func parseCSVFields(f string) []string {
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
-	fm := app.MenuFormatter()
+	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
 	return picker.NewWithFormatter(
 		app,

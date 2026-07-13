@@ -39,7 +39,7 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	keys := app.Menu.Keymaps()
 	keys.Yank.Hidden = false
 
-	fm := app.MenuFormatter()
+	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
 		WithPlaceholder(p.Multi())

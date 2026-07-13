@@ -42,7 +42,7 @@ func Init(ctx context.Context, app *application.App, m *git.Mgr) error {
 		return err
 	}
 
-	if err := c.Term().Print(ctx, c.SuccessMesg("git initialized\n")); err != nil {
+	if err := c.Print(ctx, c.SuccessMesg("git initialized\n")); err != nil {
 		return err
 	}
 

@@ -389,6 +389,8 @@ func (t *Term) MinWidth() int { return t.size.minWidth }
 // Print writes content to the terminal, paginating if the output
 // exceeds the terminal height.
 func (t *Term) Print(ctx context.Context, content string) error {
+	// FIX: stream output to the pager instead of buffering the entire content in
+	// memory.
 	if t.needsPager(content) {
 		return t.paginate(ctx, content)
 	}

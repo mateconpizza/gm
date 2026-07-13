@@ -74,14 +74,15 @@ func NewDefaultConfig() *Config {
 		DefaultKeymaps: &BuiltinKeymaps{
 			Edit:      &Keymap{Bind: KeyCtrlE, Desc: "edit", Enabled: true, Hidden: false},
 			EditNotes: &Keymap{Bind: KeyCtrlW, Desc: "edit-notes", Enabled: true, Hidden: false},
-			Open:      &Keymap{Bind: KeyCtrlO, Desc: "open", Enabled: true, Hidden: false},
+			Open:      &Keymap{Bind: KeyEnter, Desc: "open", Enabled: true, Hidden: false},
 			OpenQR:    &Keymap{Bind: KeyCtrlL, Desc: "open-qr", Enabled: true, Hidden: false},
-			Preview:   &Keymap{Bind: KeyCtrlSlash, Desc: "toggle-preview", Enabled: true, Hidden: false},
 			QR:        &Keymap{Bind: KeyCtrlK, Desc: "qr-code", Enabled: true, Hidden: false},
-			ToggleAll: &Keymap{Bind: KeyCtrlA, Desc: "toggle-all", Enabled: true, Hidden: false},
 			Yank:      &Keymap{Bind: KeyCtrlY, Desc: "yank", Enabled: true, Hidden: false},
+			ToggleAll: &Keymap{Bind: KeyCtrlA, Desc: "toggle-all", Enabled: true, Hidden: false},
+			Preview:   &Keymap{Bind: KeyCtrlSlash, Desc: "toggle-preview", Enabled: true, Hidden: false},
 		},
-		Arguments: newArgsBuilder().withAnsi().
+		Arguments: newArgsBuilder().
+			withAnsi().
 			withLayout("default").
 			withSync().
 			withInfo("inline-right").
@@ -90,7 +91,8 @@ func NewDefaultConfig() *Config {
 			withNoScrollbar().
 			withCycle().
 			withColor("prompt", "bold").
-			withColor("header", "italic", "bright-blue").build(),
+			withColor("header", "italic", "bright-blue").
+			build(),
 	}
 }
 

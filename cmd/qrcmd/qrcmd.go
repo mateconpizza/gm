@@ -99,7 +99,7 @@ func newGenQR(app *application.App) *cobra.Command {
 }
 
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
-	fm := app.MenuFormatter()
+	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
 	return picker.NewWithFormatter(
 		app,

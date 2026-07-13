@@ -34,7 +34,7 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	fm := app.MenuFormatter()
+	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
 	m := picker.New[*bookmark.Bookmark](
 		app,

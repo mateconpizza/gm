@@ -63,7 +63,7 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 		return err
 	}
 
-	return c.Term().Print(ctx, c.SuccessMesg("bookmark added\n"))
+	return c.Print(ctx, c.SuccessMesg("bookmark added\n"))
 }
 
 func HTTPStatusCodeFilter(code string) func([]*bookmark.Bookmark) []*bookmark.Bookmark {

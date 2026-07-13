@@ -31,7 +31,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive fetch --menu
   $ {cmd} url archive fetch 179 --timeout 45s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.MenuFormatter()
+			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
 			m := picker.NewWithFormatter(
 				app,

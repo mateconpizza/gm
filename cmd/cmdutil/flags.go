@@ -9,8 +9,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 )
 
-var GlobalFlags = []string{"fields", "head", "menu", "output", "sort", "tag", "tail"}
-
 const UsageTemplate = `usage: {{if .Runnable}}{{.UseLine}}{{end}}{{if .HasAvailableSubCommands}} [command]{{end}}
 {{- if gt (len .Aliases) 0}}
 

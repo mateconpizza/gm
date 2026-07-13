@@ -401,7 +401,6 @@ func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 		title = "Untitled"
 	}
 	title = strings.ReplaceAll(title, "\n", " ")
-	title = p.BrightMagenta.Sprint(title)
 
 	// Minimalist Flag icons
 	flags := ""

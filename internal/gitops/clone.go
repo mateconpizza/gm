@@ -147,7 +147,7 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 				return err
 			}
 
-			fm := app.MenuFormatter()
+			fm := app.Formatter()
 			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())
 			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
 			m.SetFormatter(func(b **bookmark.Bookmark) string {
@@ -200,7 +200,7 @@ func insertRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 
 	c := d.Console()
 	if len(bs) == 0 {
-		_ = c.Term().Print(ctx, c.Warning("nothing to import\n").StringReset())
+		_ = c.Print(ctx, c.Warning("nothing to import\n").StringReset())
 		return nil
 	}
 
@@ -208,7 +208,7 @@ func insertRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		return err
 	}
 
-	return c.Term().Print(
+	return c.Print(
 		ctx,
 		c.SuccessMesg("inserted ", len(bs), " into ", r.Name()+"\n"),
 	)

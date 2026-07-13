@@ -57,7 +57,7 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 		case "y", "yes":
 			return bs, nil
 		case "s", "select":
-			fm := app.MenuFormatter()
+			fm := app.Formatter()
 
 			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())
 			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)

@@ -89,7 +89,7 @@ func cfgToJSON(ctx context.Context, app *application.App) error {
 	if err != nil {
 		return err
 	}
-	return ui.DefaultConsole.Term().Print(ctx, string(j))
+	return ui.DefaultConsole.Print(ctx, string(j))
 }
 
 // createConfig dumps the app configuration to a YAML file.

@@ -51,7 +51,7 @@ type (
 	}
 
 	UI struct {
-		MenuFormatter formatter.Formatter
+		Formatter formatter.Formatter
 	}
 
 	Information struct {
@@ -190,12 +190,12 @@ func (app *App) SetDatabase(name string) error {
 	return nil
 }
 
-func (app *App) DBBaseName() string                 { return files.StripSuffixes(app.DBName) }
-func (app *App) CreatePaths() error                 { return app.Path.setup() }
-func (app *App) GitEnabled() bool                   { return app.Git.Enabled }
-func (app *App) Version() string                    { return app.Info.Version }
-func (app *App) Command() string                    { return app.Cmd }
-func (app *App) MenuFormatter() formatter.Formatter { return app.UI.MenuFormatter }
+func (app *App) DBBaseName() string             { return files.StripSuffixes(app.DBName) }
+func (app *App) CreatePaths() error             { return app.Path.setup() }
+func (app *App) GitEnabled() bool               { return app.Git.Enabled }
+func (app *App) Version() string                { return app.Info.Version }
+func (app *App) Command() string                { return app.Cmd }
+func (app *App) Formatter() formatter.Formatter { return app.UI.Formatter }
 
 func (app *App) Example(template string) string {
 	return strings.NewReplacer(
@@ -214,7 +214,7 @@ func New(info *Information) *App {
 		DBName: MainDBName,
 		Format: OutputFormat,
 		UI: &UI{
-			MenuFormatter: fm,
+			Formatter: fm,
 		},
 		Flags: &Flags{},
 		Info:  info,

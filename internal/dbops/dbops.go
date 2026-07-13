@@ -173,7 +173,7 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	return c.Term().Print(ctx, c.SuccessMesg("database dropped\n"))
+	return c.Print(ctx, c.SuccessMesg("database dropped\n"))
 }
 
 // Remove removes a repo.

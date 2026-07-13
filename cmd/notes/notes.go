@@ -32,7 +32,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} notes edit --tag golang,awesome
   $ {cmd} notes edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.MenuFormatter()
+			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
 				WithPlaceholder(p.Multi())
@@ -74,7 +74,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.MenuFormatter()
+			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
 			m := picker.NewWithFormatter(
 				app,

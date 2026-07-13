@@ -22,7 +22,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} open --tag golang --tag awesome`),
 		Annotations: cli.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.MenuFormatter()
+			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
 			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
 				WithPlaceholder(p.Multi())

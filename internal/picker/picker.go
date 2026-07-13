@@ -20,7 +20,7 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		return nil
 	}
 
-	fm := app.MenuFormatter()
+	fm := app.Formatter()
 
 	p := fm.Menu.Placeholder()
 	kb := menu.NewBindBuilder(app.Cmd, app.DBName).

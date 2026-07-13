@@ -205,7 +205,6 @@ func Random(styles ...SGR) SGR {
 		Magenta.With(styles...),
 		Cyan.With(styles...),
 		White.With(styles...),
-		BrightBlack.With(styles...),
 		BrightRed.With(styles...),
 		BrightGreen.With(styles...),
 		BrightYellow.With(styles...),
@@ -214,6 +213,7 @@ func Random(styles ...SGR) SGR {
 		BrightCyan.With(styles...),
 
 		// BrightWhite.With(styles...),
+		// BrightBlack.With(styles...),
 	}
 
 	return colors[rand.Intn(len(colors))]
