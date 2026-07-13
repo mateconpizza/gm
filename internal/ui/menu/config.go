@@ -2,7 +2,6 @@ package menu
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 )
 
@@ -28,6 +27,8 @@ type Config struct {
 	Arguments      Args            `json:"arguments" yaml:"arguments"` // Fzf arguments
 }
 
+func (c *Config) Keymaps() *BuiltinKeymaps { return c.DefaultKeymaps }
+
 // Header holds the header configuration for FZF.
 type Header struct {
 	Enabled bool   `yaml:"enabled"`
@@ -36,35 +37,19 @@ type Header struct {
 
 // Validate validates the menu configuration.
 func (c *Config) Validate() error {
-	keymaps := []*Keymap{
-		c.DefaultKeymaps.Edit,
-		c.DefaultKeymaps.Open,
-		c.DefaultKeymaps.QR,
-		c.DefaultKeymaps.OpenQR,
-		c.DefaultKeymaps.Yank,
-		c.DefaultKeymaps.Preview,
-		c.DefaultKeymaps.ToggleAll,
-	}
-
-	for _, k := range keymaps {
-		if !k.Enabled {
-			continue
-		}
-
-		if k.Bind == "" {
-			return fmt.Errorf("%w: empty keybind", ErrInvalidConfigKeymap)
-		}
+	if err := c.Keymaps().Validate(); err != nil {
+		return err
 	}
 
 	// set default prompt
 	if c.Prompt == "" {
-		slog.Warn("empty prompt, loading default prompt")
+		slog.Debug("empty prompt, loading default prompt")
 		c.Prompt = defaultPrompt
 	}
 
 	// set default header separator
 	if c.Header.Sep == "" {
-		slog.Warn("empty header separator, loading default header separator")
+		slog.Debug("empty header separator, loading default header separator")
 		c.Header.Sep = defaultHeaderSep
 	}
 

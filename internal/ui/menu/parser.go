@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strconv"
 )
 
 const ExitSuccess = 0
@@ -44,7 +45,9 @@ func selectFromItems[T comparable](m *Menu[T], items []T) ([]T, error) {
 		m.Formatter = defaultPreprocessor
 	}
 
-	slog.Debug("menu args", "args", m.args.list)
+	for i, arg := range m.args.list {
+		slog.Debug("menu args", strconv.Itoa(i), arg)
+	}
 
 	// Pre-process all items once for better performance
 	formattedItems := make([]string, len(items))

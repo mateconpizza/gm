@@ -130,9 +130,6 @@ func (app *App) Validate() error {
 	if app.Path.DB() == "" {
 		return ErrDatabasePathNotSet
 	}
-	if app.Menu != nil {
-		return app.Menu.Validate()
-	}
 	return nil
 }
 
@@ -193,13 +190,11 @@ func (app *App) SetDatabase(name string) error {
 	return nil
 }
 
-func (app *App) DBBaseName() string { return files.StripSuffixes(app.DBName) }
-func (app *App) CreatePaths() error { return app.Path.setup() }
-func (app *App) GitEnabled() bool   { return app.Git.Enabled }
-func (app *App) Version() string    { return app.Info.Version }
-func (app *App) Command() string    { return app.Cmd }
-
-// MenuFormatter returns the current menu formatter.
+func (app *App) DBBaseName() string                 { return files.StripSuffixes(app.DBName) }
+func (app *App) CreatePaths() error                 { return app.Path.setup() }
+func (app *App) GitEnabled() bool                   { return app.Git.Enabled }
+func (app *App) Version() string                    { return app.Info.Version }
+func (app *App) Command() string                    { return app.Cmd }
 func (app *App) MenuFormatter() formatter.Formatter { return app.UI.MenuFormatter }
 
 func (app *App) Example(template string) string {
