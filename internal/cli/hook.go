@@ -305,6 +305,10 @@ func HookFormatter(app *application.App) HookE {
 			}
 		}
 
+		if app.Flags.Menu && app.Flags.Output != app.Format {
+			app.Menu.Format = app.Flags.Output
+		}
+
 		fm, err := formatter.New(formatter.Format(app.Menu.Format))
 		if err != nil {
 			return err
