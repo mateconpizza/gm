@@ -104,6 +104,21 @@ func (r *SQLite) associateTags(ctx context.Context, tx *sqlx.Tx, b *bookmark.Boo
 	return nil
 }
 
+// cleanOrphanTagsTx removes all tags that are not associated with any
+// bookmark.
+func (r *SQLite) cleanOrphanTagsTx(ctx context.Context, tx *sqlx.Tx) error {
+	_, err := tx.ExecContext(ctx, `
+		DELETE FROM tags
+		WHERE id NOT IN (
+			SELECT DISTINCT tag_id FROM bookmark_tags
+		);`)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // getTag returns the tag ID.
 func getTag(ctx context.Context, tx *sqlx.Tx, tag string) (int64, error) {
 	var tagID int64

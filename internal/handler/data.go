@@ -353,7 +353,12 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		return err
 	}
 
-	if err := r.DeleteMany(ctx, bs); err != nil {
+	ids := make([]int, 0, len(bs))
+	for i := range bs {
+		ids = append(ids, bs[i].ID)
+	}
+
+	if err := r.DeleteMany(ctx, ids); err != nil {
 		return err
 	}
 

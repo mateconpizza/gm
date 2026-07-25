@@ -38,18 +38,11 @@ func (r *SQLite) InsertMany(ctx context.Context, bs []*bookmark.Bookmark) error 
 }
 
 // DeleteMany deletes multiple records from the main table.
-func (r *SQLite) DeleteMany(ctx context.Context, bs []*bookmark.Bookmark) error {
-	n := len(bs)
+func (r *SQLite) DeleteMany(ctx context.Context, ids []int) error {
+	n := len(ids)
 	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
-	slog.DebugContext(ctx, "deleting many records", "count", n)
-
-	ids := make([]int, 0, len(bs))
-	for i := range bs {
-		ids = append(ids, bs[i].ID)
-	}
-
 	slog.DebugContext(ctx, "delete many", "ids", ids)
 
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {

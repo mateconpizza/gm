@@ -255,12 +255,12 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 }
 
 func createdAt(r *db.SQLite, p *ansi.Palette) string {
-	createdAt, err := db.Metadata(r, "created_at")
+	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
 	if err != nil {
 		return ""
 	}
 
-	parsed, err := time.Parse("2006-01-02 15:04:05", createdAt)
+	parsed, err := time.Parse(db.TimeFormatSqlite, createdAt)
 	if err != nil {
 		return ""
 	}
@@ -269,7 +269,7 @@ func createdAt(r *db.SQLite, p *ansi.Palette) string {
 }
 
 func backupAt(r *db.SQLite) (string, error) {
-	backupAt, err := db.Metadata(r, "backup_at")
+	backupAt, err := r.Metadata(db.MetaKeyBackupAt)
 	if err != nil {
 		return "", err
 	}

@@ -432,16 +432,16 @@ func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	if err = db.UpdateAppVersion(ctx, r, app.Version()); err != nil {
+	if err = r.UpdateAppVersion(ctx, app.Version()); err != nil {
 		return fmt.Errorf("app version update failed: %w", err)
 	}
 
-	schemaVer, err := db.CurrentSchemaVersion(ctx, r)
+	schemaVer, err := r.CurrentSchemaVersion(ctx)
 	if err != nil {
 		return err
 	}
 
-	sqlVer, err := db.SQLiteVersion(ctx, r)
+	sqlVer, err := r.SQLiteVersion(ctx)
 	if err != nil {
 		return err
 	}

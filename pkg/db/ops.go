@@ -12,12 +12,142 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type MetaKey string
+
 const (
 	// Default date format for timestamps.
 	defaultDateFormat = "20060102-150405"
 
+	// SQLite date format for timestamps.
 	TimeFormatSqlite = "2006-01-02 15:04:05"
+
+	// metadata keys.
+	MetaKeyAppVersion MetaKey = "app_version"
+	MetaKeyBackupAt   MetaKey = "backup_at"
+	MetaKeyCreatedAt  MetaKey = "created_at"
 )
+
+func (r *SQLite) ReorderIDs(ctx context.Context) error {
+	slog.DebugContext(ctx, "Reordering bookmark IDs")
+
+	bs, err := r.All(ctx)
+	if err != nil && !errors.Is(err, ErrRecordNotFound) {
+		return err
+	}
+	if len(bs) == 0 {
+		return nil
+	}
+
+	mainTables := []Table{TableBookmarks, TableTags, TableRelation}
+
+	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
+		for _, tbl := range mainTables {
+			slog.DebugContext(ctx, "deleting records from", "table", tbl)
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tbl)); err != nil {
+				return fmt.Errorf("clearing table %q: %w", tbl, err)
+			}
+		}
+
+		return resetSQLiteSequence(ctx, tx, mainTables...)
+	})
+	if err != nil {
+		return err
+	}
+
+	// Reinsert bookmarks with new IDs
+	return r.InsertMany(ctx, bs)
+}
+
+// Backup creates a timestamped backup of the SQLite database at the specified destination.
+// The backup filename follows the format: YYYYMMDD-HHMMSS_dbname.db.
+func (r *SQLite) Backup(ctx context.Context, destRoot string) (string, error) {
+	return r.newBackup(ctx, destRoot, time.Now())
+}
+
+func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) (string, error) {
+	if destRoot == "" {
+		return "", ErrDBEmptyPath
+	}
+
+	// destDSN -> 20060102-150405_dbName.db
+	destDSN := fmt.Sprintf("%s_%s", now.Format(defaultDateFormat), r.Name())
+	destPath := filepath.Join(destRoot, destDSN)
+	slog.InfoContext(ctx, "creating SQLite backup", "src", r.Cfg.Fullpath(), "dest", destPath)
+
+	_, err := os.Stat(destPath)
+	if !os.IsNotExist(err) {
+		return "", fmt.Errorf("%w: %q", ErrBackupExists, destPath)
+	}
+
+	_ = r.DB.MustExecContext(ctx, "VACUUM INTO ?", destPath)
+
+	backup, err := New(ctx, destPath)
+	if err != nil {
+		return "", err
+	}
+	defer backup.Close()
+
+	if err := backup.SetBackupAt(ctx, now); err != nil {
+		return "", err
+	}
+
+	if err := backup.CheckIntegrity(ctx); err != nil {
+		return "", err
+	}
+
+	return destPath, nil
+}
+
+// CheckIntegrity performs a PRAGMA integrity_check on the SQLite database.
+func (r *SQLite) CheckIntegrity(ctx context.Context) error {
+	var result string
+	row := r.DB.QueryRowContext(ctx, "PRAGMA integrity_check;")
+	if err := row.Scan(&result); err != nil {
+		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
+	}
+
+	if result != "ok" {
+		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
+	}
+
+	slog.DebugContext(ctx, "SQLite integrity verified", "result", result)
+
+	return nil
+}
+
+func (r *SQLite) Metadata(key MetaKey) (string, error) {
+	type metadata struct {
+		Key   string `db:"key"`
+		Value string `db:"value"`
+	}
+
+	var m metadata
+	query := `SELECT key, value FROM metadata WHERE key = ?`
+	err := r.DB.Get(&m, query, key)
+	if err != nil {
+		return "", err
+	}
+	return m.Value, nil
+}
+
+// SetMetadata sets or updates a metadata key.
+func (r *SQLite) SetMetadata(ctx context.Context, key MetaKey, value string) error {
+	const query = `
+INSERT INTO metadata (key, value)
+VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value;`
+
+	_, err := r.DB.ExecContext(ctx, query, key, value)
+	return err
+}
+
+func (r *SQLite) UpdateAppVersion(ctx context.Context, version string) error {
+	return r.SetMetadata(ctx, MetaKeyAppVersion, version)
+}
+
+func (r *SQLite) SetBackupAt(ctx context.Context, now time.Time) error {
+	return r.SetMetadata(ctx, MetaKeyBackupAt, now.UTC().Format(TimeFormatSqlite))
+}
 
 // IsInitializedFromPath checks if the database is initialized.
 func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
@@ -94,126 +224,4 @@ func ensureDBSuffix(s string) string {
 	}
 
 	return fmt.Sprintf("%s%s", s, suffix)
-}
-
-// cleanOrphanTagsTx removes all tags that are not associated with any
-// bookmark.
-func (r *SQLite) cleanOrphanTagsTx(ctx context.Context, tx *sqlx.Tx) error {
-	_, err := tx.ExecContext(ctx, `
-		DELETE FROM tags
-		WHERE id NOT IN (
-			SELECT DISTINCT tag_id FROM bookmark_tags
-		);`)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *SQLite) ReorderIDs(ctx context.Context) error {
-	slog.DebugContext(ctx, "Reordering bookmark IDs")
-
-	bs, err := r.All(ctx)
-	if err != nil && !errors.Is(err, ErrRecordNotFound) {
-		return err
-	}
-	if len(bs) == 0 {
-		return nil
-	}
-
-	mainTables := []Table{TableBookmarks, TableTags, TableRelation}
-
-	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		for _, tbl := range mainTables {
-			slog.DebugContext(ctx, "deleting records from", "table", tbl)
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tbl)); err != nil {
-				return fmt.Errorf("clearing table %q: %w", tbl, err)
-			}
-		}
-
-		return resetSQLiteSequence(ctx, tx, mainTables...)
-	})
-	if err != nil {
-		return err
-	}
-
-	// Reinsert bookmarks with new IDs
-	return r.InsertMany(ctx, bs)
-}
-
-// Backup creates a timestamped backup of the SQLite database at the specified destination.
-// The backup filename follows the format: YYYYMMDD-HHMMSS_dbname.db.
-func (r *SQLite) Backup(ctx context.Context, destRoot string) (string, error) {
-	return r.newBackup(ctx, destRoot, time.Now())
-}
-
-func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) (string, error) {
-	if destRoot == "" {
-		return "", ErrDBEmptyPath
-	}
-
-	// destDSN -> 20060102-150405_dbName.db
-	destDSN := fmt.Sprintf("%s_%s", now.Format(defaultDateFormat), r.Name())
-	destPath := filepath.Join(destRoot, destDSN)
-	slog.InfoContext(ctx, "creating SQLite backup", "src", r.Cfg.Fullpath(), "dest", destPath)
-
-	_, err := os.Stat(destPath)
-	if !os.IsNotExist(err) {
-		return "", fmt.Errorf("%w: %q", ErrBackupExists, destPath)
-	}
-
-	_ = r.DB.MustExecContext(ctx, "VACUUM INTO ?", destPath)
-
-	backup, err := New(ctx, destPath)
-	if err != nil {
-		return "", err
-	}
-	defer backup.Close()
-
-	if err := SetBackupAt(ctx, backup, now); err != nil {
-		return "", err
-	}
-
-	if err := backup.CheckIntegrity(ctx); err != nil {
-		return "", err
-	}
-
-	return destPath, nil
-}
-
-// CheckIntegrity performs a PRAGMA integrity_check on the SQLite database.
-func (r *SQLite) CheckIntegrity(ctx context.Context) error {
-	var result string
-	row := r.DB.QueryRowContext(ctx, "PRAGMA integrity_check;")
-	if err := row.Scan(&result); err != nil {
-		return fmt.Errorf("%w: %w", ErrDBCorrupted, err)
-	}
-
-	if result != "ok" {
-		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
-	}
-
-	slog.DebugContext(ctx, "SQLite integrity verified", "result", result)
-
-	return nil
-}
-
-// SetMetadata sets or updates a metadata key.
-func (r *SQLite) SetMetadata(ctx context.Context, key, value string) error {
-	const query = `
-INSERT INTO metadata (key, value)
-VALUES (?, ?)
-ON CONFLICT(key) DO UPDATE SET value = excluded.value;`
-
-	_, err := r.DB.ExecContext(ctx, query, key, value)
-	return err
-}
-
-func UpdateAppVersion(ctx context.Context, r *SQLite, version string) error {
-	return r.SetMetadata(ctx, "app_version", version)
-}
-
-func SetBackupAt(ctx context.Context, r *SQLite, now time.Time) error {
-	return r.SetMetadata(ctx, "backup_at", now.UTC().Format(TimeFormatSqlite))
 }

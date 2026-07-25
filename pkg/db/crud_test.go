@@ -115,8 +115,13 @@ func TestDeleteMany(t *testing.T) {
 				t.Errorf("After insert: Expected %d bookmarks, got %d", wantAfterInsert, len(inserted))
 			}
 
+			ids := make([]int, 0, len(bsToInsert))
+			for i := range bsToInsert {
+				ids = append(ids, bsToInsert[i].ID)
+			}
+
 			// Delete the records
-			err = r.DeleteMany(t.Context(), bsToInsert)
+			err = r.DeleteMany(t.Context(), ids)
 			if (err != nil) != tt.expectErrOnDelete {
 				t.Errorf("DeleteMany() error = %v, expectErrOnDelete %v", err, tt.expectErrOnDelete)
 				return

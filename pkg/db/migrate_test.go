@@ -423,7 +423,7 @@ func TestMigrate_Scenarios(t *testing.T) {
 
 			// post-condition validation for successful steps
 			if !tt.wantErr && len(tt.migrations) > 0 {
-				current, err := CurrentSchemaVersion(ctx, r)
+				current, err := r.CurrentSchemaVersion(ctx)
 				if err != nil {
 					t.Fatalf("failed to check post-migration schema version: %v", err)
 				}

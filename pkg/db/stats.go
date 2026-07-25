@@ -45,18 +45,3 @@ func NewStats() *RepoStats {
 func (r *SQLite) Stats(ctx context.Context, dest any) error {
 	return r.DB.GetContext(ctx, dest, `SELECT * FROM stats`)
 }
-
-func Metadata(r *SQLite, key string) (string, error) {
-	type metadata struct {
-		Key   string `db:"key"`
-		Value string `db:"value"`
-	}
-
-	var m metadata
-	query := `SELECT key, value FROM metadata WHERE key = ?`
-	err := r.DB.Get(&m, query, key)
-	if err != nil {
-		return "", err
-	}
-	return m.Value, nil
-}

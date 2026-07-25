@@ -41,7 +41,7 @@ func Migrate(ctx context.Context, r *SQLite, ms []Migration) error {
 
 	slog.DebugContext(ctx, "starting database migration")
 
-	current, err := CurrentSchemaVersion(ctx, r)
+	current, err := r.CurrentSchemaVersion(ctx)
 	if err != nil {
 		slog.DebugContext(ctx, "failed to get current version", "error", err)
 		return err
@@ -93,7 +93,7 @@ func LoadMigrations() ([]Migration, error) {
 	return loadMigrations(migrationFS)
 }
 
-func SQLiteVersion(ctx context.Context, r *SQLite) (string, error) {
+func (r *SQLite) SQLiteVersion(ctx context.Context) (string, error) {
 	var ver string
 	err := r.DB.QueryRowContext(ctx, `SELECT sqlite_version()`).Scan(&ver)
 	if err != nil {
@@ -103,7 +103,7 @@ func SQLiteVersion(ctx context.Context, r *SQLite) (string, error) {
 	return ver, nil
 }
 
-func CurrentSchemaVersion(ctx context.Context, r *SQLite) (int, error) {
+func (r *SQLite) CurrentSchemaVersion(ctx context.Context) (int, error) {
 	var ver int
 	err := r.DB.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&ver)
 	if err != nil {
@@ -114,7 +114,7 @@ func CurrentSchemaVersion(ctx context.Context, r *SQLite) (int, error) {
 }
 
 func NeedsMigration(ctx context.Context, r *SQLite, ms []Migration) (bool, error) {
-	current, err := CurrentSchemaVersion(ctx, r)
+	current, err := r.CurrentSchemaVersion(ctx)
 	if err != nil {
 		return false, err
 	}

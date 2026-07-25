@@ -65,7 +65,7 @@ func (r *SQLite) DropSecure(ctx context.Context) error {
 
 // IsInitialized reports whether the database schema has been initialized.
 func (r *SQLite) IsInitialized(ctx context.Context) bool {
-	v, err := CurrentSchemaVersion(ctx, r)
+	v, err := r.CurrentSchemaVersion(ctx)
 	if err != nil {
 		slog.DebugContext(ctx, "getting schema version", "error", err)
 		return false

@@ -58,7 +58,11 @@ func TestRecordIDs(t *testing.T) {
 
 	// delete records at indices 1, 2, 5 (ids 2, 3, 6)
 	toDelete := []*bookmark.Bookmark{bs[1], bs[2], bs[5]}
-	if err := r.DeleteMany(t.Context(), toDelete); err != nil {
+	ids := make([]int, 0, len(toDelete))
+	for i := range toDelete {
+		ids = append(ids, toDelete[i].ID)
+	}
+	if err := r.DeleteMany(t.Context(), ids); err != nil {
 		t.Fatalf("DeleteMany failed: %v", err)
 	}
 
