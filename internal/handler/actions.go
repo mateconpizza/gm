@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )

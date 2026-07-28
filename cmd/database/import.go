@@ -1,6 +1,7 @@
 package database
 
 import (
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -10,7 +11,6 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func newImportCmd(app *application.App) *cobra.Command {
@@ -81,7 +81,7 @@ func newImportFromBackupCmd(app *application.App) *cobra.Command {
 			}
 			defer destRepo.Close()
 
-			dbName := files.StripSuffixes(destRepo.Name())
+			dbName := files.StripExts(destRepo.Name())
 			bks, err := files.List(app.Path.Backup(), "*_"+dbName+".db*")
 			if err != nil {
 				return err

@@ -7,9 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	files "github.com/mateconpizza/gofiles"
 	gap "github.com/muesli/go-app-paths"
-
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func TestPaths_LoadDataPath(t *testing.T) {
@@ -152,7 +151,7 @@ func TestRead_Fails_When_File_Does_Not_Exist(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for non-existent file")
 	}
-	if !errors.Is(err, files.ErrFileNotFound) {
+	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("expected ErrFileNotFound, got %v", err)
 	}
 	if !strings.Contains(err.Error(), fn) {

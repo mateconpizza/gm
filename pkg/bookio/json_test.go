@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"testing"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func TestSaveAsJSON_CreatesFile(t *testing.T) {
@@ -69,7 +70,7 @@ func TestSaveAsJSON_ConflictChecksumUpdate(t *testing.T) {
 	hash := b2.HashURL()
 	path := filepath.Join(root, domain, hash+".json")
 	bj := bookmark.NewJSON()
-	err = files.JSONRead(path, bj)
+	err = files.ReadJSON(path, bj)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

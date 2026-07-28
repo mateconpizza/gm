@@ -13,6 +13,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
@@ -24,7 +26,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -189,7 +190,7 @@ func ByField(ctx context.Context, c *ui.Console, fields string, bs []*bookmark.B
 
 // DatabasesTable shows a simple table in database information.
 func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName string) error {
-	fs, err := files.FindByExtList(dataPath, ".db", ".enc")
+	fs, err := files.FindByExtension(dataPath, ".db", ".enc")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -205,7 +206,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 	for _, fpath := range fs {
 		dir, fname, ext := filepath.Dir(fpath), filepath.Base(fpath), filepath.Ext(fpath)
 		collapsePath := files.CollapseHomeDir(dir)
-		cleanName := files.StripSuffixes(fname)
+		cleanName := files.StripExts(fname)
 		fsize := files.SizeFormatted(fpath)
 
 		fnameColor := p.BrightBlue.Sprint

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -17,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func TestDatabase_Drop(t *testing.T) {
@@ -109,7 +110,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		}
 
 		output := buf.String()
-		name := files.StripSuffixes(app.DBName)
+		name := files.StripExts(app.DBName)
 		if !strings.Contains(output, "Successfully database "+name+" removed") {
 			t.Fatalf("%v", output)
 		}

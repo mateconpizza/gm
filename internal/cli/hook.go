@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -19,7 +20,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -105,7 +105,7 @@ func HookEnsureDatabase(app *application.App) HookE {
 			}
 		}
 
-		if files.StripSuffixes(app.DBName) == "" {
+		if app.DBBaseName() == "" {
 			return fmt.Errorf("%w: %q", application.ErrDatabaseInvalidName, app.DBName)
 		}
 

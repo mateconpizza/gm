@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -11,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func newBackupCmd(app *application.App) *cobra.Command {
@@ -132,7 +132,7 @@ func newBackupListCmd(app *application.App) *cobra.Command {
 				Sprint("latest backup snapshots")
 
 			name := p.BrightYellow.With(p.Bold).
-				Sprint(files.StripSuffixes(r.Name()))
+				Sprint(files.StripExts(r.Name()))
 
 			repo := p.Dim.With(p.Italic).
 				Sprint("repo: " + name)

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -22,7 +23,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var ErrInvalidOption = errors.New("invalid option")
@@ -99,7 +99,7 @@ func VacuumDatabase(ctx context.Context, app *application.App) error {
 }
 
 func SetDefault(ctx context.Context, app *application.App, filename string) error {
-	filename = files.StripSuffixes(filename)
+	filename = files.StripExts(filename)
 	if filename == "" {
 		return fmt.Errorf("%w: %q", ErrInvalidOption, filename)
 	}
@@ -222,7 +222,7 @@ func Remove(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	dbName := files.StripSuffixes(filepath.Base(app.Path.DB()))
+	dbName := files.StripExts(filepath.Base(app.Path.DB()))
 	fmt.Fprintln(d.Writer(), c.SuccessMesg("database "+dbName+" removed"))
 
 	return nil
@@ -276,7 +276,7 @@ func Lock(ctx context.Context, d *deps.Deps, rToLock string) error {
 	}
 
 	if !files.Exists(rToLock) {
-		return fmt.Errorf("%w: %q", files.ErrFileNotFound, filepath.Base(rToLock))
+		return fmt.Errorf("%w: %q", os.ErrNotExist, filepath.Base(rToLock))
 	}
 
 	if err := c.ConfirmErr(ctx, fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
@@ -330,12 +330,12 @@ func Unlock(ctx context.Context, d *deps.Deps, rToUnlock string) error {
 		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
 	}
 
-	rToUnlock = files.EnsureSuffix(rToUnlock, locker.Extension)
+	rToUnlock = files.EnsureExt(rToUnlock, locker.Extension)
 	slog.Debug("unlocking database", "name", rToUnlock)
 
 	if !files.Exists(rToUnlock) {
 		s := filepath.Base(strings.TrimSuffix(rToUnlock, ".enc"))
-		return fmt.Errorf("%w: %q", files.ErrFileNotFound, s)
+		return fmt.Errorf("%w: %q", os.ErrNotExist, s)
 	}
 
 	c := d.Console()
@@ -370,7 +370,7 @@ func NewBackup(ctx context.Context, d *deps.Deps) error {
 		return fmt.Errorf("%w: %q", db.ErrDBNotFound, srcPath)
 	}
 
-	if files.Empty(srcPath) {
+	if files.IsEmpty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
 	s, err := summary.Info(ctx, d)

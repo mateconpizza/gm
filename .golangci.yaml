@@ -293,7 +293,7 @@ linters:
     presets:
       - common-false-positives
     paths:
-      - cmd/Test.go
+      - experimental
       - third_party$
       - builtin$
       - examples$
@@ -306,7 +306,6 @@ formatters:
   exclusions:
     generated: lax
     paths:
-      - cmd/Test.go
       - third_party$
       - builtin$
       - examples$

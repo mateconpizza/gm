@@ -9,6 +9,8 @@ import (
 	"slices"
 	"time"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/dbops"
@@ -20,7 +22,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -173,7 +174,7 @@ func handleCreateRepoMode(ctx context.Context, d *deps.Deps, gr *git.Repo, bs []
 	}
 
 	p := filepath.Join(app.Path.Home(), gr.Name())
-	p = files.EnsureSuffix(p, ".db")
+	p = files.EnsureExt(p, ".db")
 
 	if files.Exists(p) {
 		c := d.Console()
@@ -236,11 +237,11 @@ func createRepo(ctx context.Context, d *deps.Deps, repoPath string, bs []*bookma
 
 func renameRepo(path string) string {
 	t := time.Now().Format(txt.TimeLayout)
-	base := files.StripSuffixes(path)
+	base := files.StripExts(path)
 	root := filepath.Dir(base)
-	name := files.StripSuffixes(filepath.Base(path))
+	name := files.StripExts(filepath.Base(path))
 
-	return files.EnsureSuffix(
+	return files.EnsureExt(
 		filepath.Join(root, name+"-"+t),
 		".db",
 	)

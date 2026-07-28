@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func TestConfig_Create(t *testing.T) {
@@ -78,7 +80,7 @@ func TestConfig_Create(t *testing.T) {
 
 		dir := t.TempDir()
 		path := filepath.Join(dir, application.ConfigFilename)
-		_, err := files.Touch(path, false)
+		_, err := files.New(path, false)
 		if err != nil {
 			t.Fatalf("setup failed: %v", err)
 		}
@@ -88,8 +90,8 @@ func TestConfig_Create(t *testing.T) {
 
 		c := ui.NewConsole()
 		err = createConfig(t.Context(), c, app)
-		if !errors.Is(err, files.ErrFileExists) {
-			t.Fatalf("got error %v, want %v", err, files.ErrFileExists)
+		if !errors.Is(err, os.ErrExist) {
+			t.Fatalf("got error %v, want %v", err, os.ErrExist)
 		}
 
 		wantErrStr := "file already exists."

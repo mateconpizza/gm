@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 const (
@@ -29,7 +30,7 @@ var JSONStrategy = &RepositoryLoader{
 
 func jsonLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 	bj := &bookmark.BookmarkJSON{}
-	if err := files.JSONRead(path, bj); err != nil {
+	if err := files.ReadJSON(path, bj); err != nil {
 		return nil, fmt.Errorf("%w: %s", err, path)
 	}
 
@@ -54,12 +55,12 @@ func SaveAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error)
 
 	urlHash := b.HashURL()
 	filePathJSON := filepath.Join(domainPath, urlHash+jsonExt)
-	updated, err := files.JSONWrite(filePathJSON, b.JSON(), force)
+	updated, err := files.WriteJSONIfChanged(filePathJSON, b.JSON(), force)
 
 	// Handle file conflict
 	if errors.Is(err, os.ErrExist) {
 		bj := bookmark.BookmarkJSON{}
-		if err := files.JSONRead(filePathJSON, &bj); err != nil {
+		if err := files.ReadJSON(filePathJSON, &bj); err != nil {
 			return false, fmt.Errorf("%w", err)
 		}
 

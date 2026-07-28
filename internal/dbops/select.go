@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
@@ -14,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func Select(ctx context.Context, d *deps.Deps, ignoreDBPath string) (string, error) {
@@ -103,7 +104,7 @@ func SelectEncrypted(ctx context.Context, d *deps.Deps, root string) (string, er
 		return summary.BackupWithFmtDateFromPath(ctx, d.Console(), *p)
 	})
 
-	f, err := files.FindByExtList(root, "enc")
+	f, err := files.FindByExtension(root, "enc")
 	if err != nil {
 		return "", err
 	}
@@ -126,7 +127,7 @@ func selectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, 
 		return nil, err
 	}
 
-	fs, err := files.FindByExtList(app.Path.Backup(), "db")
+	fs, err := files.FindByExtension(app.Path.Backup(), "db")
 	if err != nil {
 		return fs, fmt.Errorf("selectBackups: %w", err)
 	}

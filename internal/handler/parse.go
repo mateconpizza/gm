@@ -19,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -40,7 +39,7 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 	comment := p.Dim.With(p.Italic).
 		Sprint(" (ctrl-c to exit)")
 	name := p.BrightYellow.With(p.Bold).
-		Sprint(files.StripSuffixes(r.Name()))
+		Sprint(r.BaseName())
 	info := p.Dim.With(p.Italic).
 		Sprintf(" (%d bookmarks)", r.Count(ctx, "bookmarks"))
 	subtitle := p.Dim.With(p.Italic).

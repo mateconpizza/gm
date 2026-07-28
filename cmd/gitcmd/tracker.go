@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -14,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func newTrackerCmd(app *application.App) *cobra.Command {
