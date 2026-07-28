@@ -71,6 +71,14 @@ type (
 	}
 )
 
+func NewApp(dataHome string) *App {
+	return &App{
+		Path: &Path{
+			Data: dataHome,
+		},
+	}
+}
+
 // Initialize prepares the config after flags are parsed.
 func (app *App) Initialize() {
 	if app.initialized {
@@ -230,14 +238,6 @@ func New(info *Information) *App {
 			Editor: EnvEditor,
 		},
 		Menu: menu.NewDefaultConfig(),
-	}
-}
-
-func NewApp(dataHome string) *App {
-	return &App{
-		Path: &Path{
-			Data: dataHome,
-		},
 	}
 }
 

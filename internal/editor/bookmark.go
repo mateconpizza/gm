@@ -18,6 +18,10 @@ var _ EditStrategy = (*BookmarkStrategy)(nil)
 
 type BookmarkStrategy struct{}
 
+func NewBookmarkStrategy() *BookmarkStrategy {
+	return &BookmarkStrategy{}
+}
+
 func (BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	var (
 		pad   = 10
@@ -77,6 +81,7 @@ func (BookmarkStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
 }
 
 func (BookmarkStrategy) FileType() string { return application.Name }
+
 func (BookmarkStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {
 	return r.UpdateOne(ctx, bm)
 }
@@ -87,10 +92,6 @@ func bookmarkFromBytes(buf []byte, b *bookmark.Bookmark) {
 	b.Title = txt.CleanLines(txt.ExtractBlock(lines, "# Title:", "# Tags:"))
 	b.Tags = bookmark.ParseTags(txt.CleanLines(txt.ExtractBlock(lines, "# Tags:", "# Description:")))
 	b.Desc = txt.CleanLines(txt.ExtractBlock(lines, "# Description:", "# end"))
-}
-
-func NewBookmarkStrategy() *BookmarkStrategy {
-	return &BookmarkStrategy{}
 }
 
 // formatVersion formats the version string.

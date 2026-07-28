@@ -21,6 +21,7 @@ linters:
     - fatcontext
     - forcetypeassert
     - funlen
+    - funcorder
     - gocritic
     - goheader
     - godot

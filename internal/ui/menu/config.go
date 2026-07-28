@@ -27,40 +27,6 @@ type Config struct {
 	Arguments      Args            `json:"arguments" yaml:"arguments"` // Fzf arguments
 }
 
-func (c *Config) Keymaps() *BuiltinKeymaps { return c.DefaultKeymaps }
-
-// Header holds the header configuration for FZF.
-type Header struct {
-	Enabled bool   `yaml:"enabled"`
-	Sep     string `yaml:"separator"`
-}
-
-// Validate validates the menu configuration.
-func (c *Config) Validate() error {
-	if err := c.Keymaps().Validate(); err != nil {
-		return err
-	}
-
-	// set default prompt
-	if c.Prompt == "" {
-		slog.Debug("empty prompt, loading default prompt")
-		c.Prompt = defaultPrompt
-	}
-
-	// set default header separator
-	if c.Header.Sep == "" {
-		slog.Debug("empty header separator, loading default header separator")
-		c.Header.Sep = defaultHeaderSep
-	}
-
-	// set default settings
-	if len(c.Arguments) == 0 {
-		slog.Warn("empty settings, loading default settings")
-	}
-
-	return nil
-}
-
 func NewDefaultConfig() *Config {
 	return &Config{
 		Defaults: true,
@@ -94,6 +60,40 @@ func NewDefaultConfig() *Config {
 			withColor("header", "italic", "bright-blue").
 			build(),
 	}
+}
+
+func (c *Config) Keymaps() *BuiltinKeymaps { return c.DefaultKeymaps }
+
+// Header holds the header configuration for FZF.
+type Header struct {
+	Enabled bool   `yaml:"enabled"`
+	Sep     string `yaml:"separator"`
+}
+
+// Validate validates the menu configuration.
+func (c *Config) Validate() error {
+	if err := c.Keymaps().Validate(); err != nil {
+		return err
+	}
+
+	// set default prompt
+	if c.Prompt == "" {
+		slog.Debug("empty prompt, loading default prompt")
+		c.Prompt = defaultPrompt
+	}
+
+	// set default header separator
+	if c.Header.Sep == "" {
+		slog.Debug("empty header separator, loading default header separator")
+		c.Header.Sep = defaultHeaderSep
+	}
+
+	// set default settings
+	if len(c.Arguments) == 0 {
+		slog.Warn("empty settings, loading default settings")
+	}
+
+	return nil
 }
 
 func builtinKeymaps(a *ArgsBuilder, action string) *Keymap {

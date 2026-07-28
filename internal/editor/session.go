@@ -19,6 +19,10 @@ type Meta struct {
 	Version string
 }
 
+func NewMeta(s, ver string) *Meta {
+	return &Meta{DBName: s, Version: ver}
+}
+
 type postRunEditionFunc func(original, updated *bookmark.Bookmark) error
 
 type SessionOption func(*EditSession)
@@ -30,6 +34,25 @@ type EditSession struct {
 	DB          *db.SQLite
 	postEdition postRunEditionFunc
 	meta        *Meta
+}
+
+// NewEditSession creates a new editing session.
+func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...SessionOption) *EditSession {
+	s := &EditSession{
+		Console: c,
+		Editor:  e,
+		DB:      r,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	if s.meta == nil {
+		s.meta = NewMeta("dbname?", "0.0.1")
+	}
+
+	return s
 }
 
 func WithPostEditionRunE(fn postRunEditionFunc) SessionOption {
@@ -124,27 +147,4 @@ func (e *EditSession) saveRecordChanges(ctx context.Context, strategy EditStrate
 
 	fmt.Print(e.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID)))
 	return nil
-}
-
-func NewMeta(s, ver string) *Meta {
-	return &Meta{DBName: s, Version: ver}
-}
-
-// NewEditSession creates a new editing session.
-func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...SessionOption) *EditSession {
-	s := &EditSession{
-		Console: c,
-		Editor:  e,
-		DB:      r,
-	}
-
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	if s.meta == nil {
-		s.meta = NewMeta("dbname?", "0.0.1")
-	}
-
-	return s
 }

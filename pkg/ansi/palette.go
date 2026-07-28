@@ -12,67 +12,6 @@ func DisableColor() {
 	ColorEnabled = false
 }
 
-func NewPalette() *Palette {
-	return &Palette{
-		Reset:  Reset,
-		Normal: Normal,
-
-		// Standard foreground colors (30-37).
-		Black:   Black,
-		Red:     Red,
-		Green:   Green,
-		Yellow:  Yellow,
-		Blue:    Blue,
-		Magenta: Magenta,
-		Cyan:    Cyan,
-		White:   White,
-		Gray:    BrightWhite.With(Dim),
-		Orange:  Orange,
-
-		// Bright foreground colors (90-97).
-		BrightBlack:   BrightBlack,
-		BrightRed:     BrightRed,
-		BrightGreen:   BrightGreen,
-		BrightYellow:  BrightYellow,
-		BrightBlue:    BrightBlue,
-		BrightMagenta: BrightMagenta,
-		BrightCyan:    BrightCyan,
-		BrightWhite:   BrightWhite,
-
-		// Standard background colors (40-47).
-		BgBlack:   BgBlack,
-		BgRed:     BgRed,
-		BgGreen:   BgGreen,
-		BgYellow:  BgYellow,
-		BgBlue:    BgBlue,
-		BgMagenta: BgMagenta,
-		BgCyan:    BgCyan,
-		BgWhite:   BgWhite,
-
-		// Bright background colors (100-107).
-		BgBrightBlack:   BgBrightBlack,
-		BgBrightRed:     BgBrightRed,
-		BgBrightGreen:   BgBrightGreen,
-		BgBrightYellow:  BgBrightYellow,
-		BgBrightBlue:    BgBrightBlue,
-		BgBrightMagenta: BgBrightMagenta,
-		BgBrightCyan:    BgBrightCyan,
-		BgBrightWhite:   BgBrightWhite,
-
-		// Text styles.
-		Bold:          Bold,
-		Dim:           Dim,
-		Italic:        Italic,
-		Underline:     Underline,
-		Undercurl:     Undercurl,
-		Blink:         Blink,
-		BlinkRapid:    BlinkRapid,
-		Inverse:       Inverse,
-		Hidden:        Hidden,
-		Strikethrough: Strikethrough,
-	}
-}
-
 // Wrap wraps the given text with the provided styles and resets afterwards.
 func (s SGR) Wrap(text string, styles ...SGR) string {
 	if !ColorEnabled {
@@ -181,6 +120,67 @@ type Palette struct {
 	Inverse       SGR // Inverse/reverse video
 	Hidden        SGR // Conceal/hidden
 	Strikethrough SGR // Crossed-out/strikethrough
+}
+
+func NewPalette() *Palette {
+	return &Palette{
+		Reset:  Reset,
+		Normal: Normal,
+
+		// Standard foreground colors (30-37).
+		Black:   Black,
+		Red:     Red,
+		Green:   Green,
+		Yellow:  Yellow,
+		Blue:    Blue,
+		Magenta: Magenta,
+		Cyan:    Cyan,
+		White:   White,
+		Gray:    BrightWhite.With(Dim),
+		Orange:  Orange,
+
+		// Bright foreground colors (90-97).
+		BrightBlack:   BrightBlack,
+		BrightRed:     BrightRed,
+		BrightGreen:   BrightGreen,
+		BrightYellow:  BrightYellow,
+		BrightBlue:    BrightBlue,
+		BrightMagenta: BrightMagenta,
+		BrightCyan:    BrightCyan,
+		BrightWhite:   BrightWhite,
+
+		// Standard background colors (40-47).
+		BgBlack:   BgBlack,
+		BgRed:     BgRed,
+		BgGreen:   BgGreen,
+		BgYellow:  BgYellow,
+		BgBlue:    BgBlue,
+		BgMagenta: BgMagenta,
+		BgCyan:    BgCyan,
+		BgWhite:   BgWhite,
+
+		// Bright background colors (100-107).
+		BgBrightBlack:   BgBrightBlack,
+		BgBrightRed:     BgBrightRed,
+		BgBrightGreen:   BgBrightGreen,
+		BgBrightYellow:  BgBrightYellow,
+		BgBrightBlue:    BgBrightBlue,
+		BgBrightMagenta: BgBrightMagenta,
+		BgBrightCyan:    BgBrightCyan,
+		BgBrightWhite:   BgBrightWhite,
+
+		// Text styles.
+		Bold:          Bold,
+		Dim:           Dim,
+		Italic:        Italic,
+		Underline:     Underline,
+		Undercurl:     Undercurl,
+		Blink:         Blink,
+		BlinkRapid:    BlinkRapid,
+		Inverse:       Inverse,
+		Hidden:        Hidden,
+		Strikethrough: Strikethrough,
+	}
 }
 
 func (p *Palette) Enabled() bool { return ColorEnabled }

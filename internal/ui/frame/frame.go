@@ -116,14 +116,6 @@ func (f *Frame) Textln(t ...string) *Frame {
 	return f.Ln()
 }
 
-// build handles the core logic of applying styles/colors and formatting the border.
-func (f *Frame) build(borderStr string, c Color, s []string, applyFn func(string, []string) *Frame) *Frame {
-	if c == nil {
-		return applyFn(f.applyStyle(borderStr), s)
-	}
-	return applyFn(c.Sprint(borderStr), s)
-}
-
 func (f *Frame) Header(s ...string) *Frame             { return f.HeaderC(nil, s...) }
 func (f *Frame) Headerln(s ...string) *Frame           { return f.HeaderC(nil, s...).Ln() }
 func (f *Frame) HeaderCln(c Color, s ...string) *Frame { return f.HeaderC(c, s...).Ln() }
@@ -223,6 +215,14 @@ func (f *Frame) StringReset() string {
 
 // Bytes returns the frame content as a byte slice.
 func (f *Frame) Bytes() []byte { return fmt.Appendf(nil, `%s`, f.StringReset()) }
+
+// build handles the core logic of applying styles/colors and formatting the border.
+func (f *Frame) build(borderStr string, c Color, s []string, applyFn func(string, []string) *Frame) *Frame {
+	if c == nil {
+		return applyFn(f.applyStyle(borderStr), s)
+	}
+	return applyFn(c.Sprint(borderStr), s)
+}
 
 func (f *Frame) applyStyle(s string) string {
 	colorMutex.Lock()

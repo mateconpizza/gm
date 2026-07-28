@@ -35,6 +35,10 @@ type Keymap struct {
 	Args    Args   `json:"args,omitempty" yaml:"args,omitempty"` // keybind arguments
 }
 
+func NewKeymap() *Keymap {
+	return &Keymap{Enabled: true}
+}
+
 // WithAction returns a new Keymap with the given action command.
 func (k *Keymap) WithAction(cmd string) *Keymap {
 	k.Action = action(fmt.Sprintf("execute(%s)", cmd))
@@ -154,5 +158,3 @@ func (km *keyManager) find(bind *Keymap) *Keymap {
 }
 
 func newKeyManager() *keyManager { return &keyManager{keymaps: make(map[action]*Keymap)} }
-
-func NewKeymap() *Keymap { return &Keymap{Enabled: true} }

@@ -17,6 +17,10 @@ type RepoStats struct {
 	TotalVisits int    `db:"total_visits"    json:"total_visits"`
 }
 
+func NewStats() *RepoStats {
+	return &RepoStats{}
+}
+
 func (rs *RepoStats) String() string {
 	var parts []string
 	if rs.Bookmarks > 0 {
@@ -36,10 +40,6 @@ func (rs *RepoStats) String() string {
 	}
 
 	return strings.Join(parts, ", ")
-}
-
-func NewStats() *RepoStats {
-	return &RepoStats{}
 }
 
 func (r *SQLite) Stats(ctx context.Context, dest any) error {

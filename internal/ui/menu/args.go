@@ -44,6 +44,25 @@ type ArgsBuilder struct {
 	withNth       string // Transform the presentation of each line using the field index expressions
 }
 
+// Validate checks that all string fields in ArgsBuilder are not empty.
+func (a *ArgsBuilder) Validate() error {
+	v := reflect.ValueOf(*a)
+	t := reflect.TypeFor[ArgsBuilder]()
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldName := t.Field(i).Name
+
+		if field.Kind() == reflect.String {
+			if field.String() == "" {
+				return fmt.Errorf("%w: %q", ErrArgEmpty, fieldName)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (a *ArgsBuilder) add(s ...string) *ArgsBuilder {
 	a.list = append(a.list, s...)
 	return a
@@ -75,25 +94,6 @@ func (a *ArgsBuilder) withColor(target string, styles ...string) *ArgsBuilder {
 	}
 
 	return a.add(color)
-}
-
-// Validate checks that all string fields in ArgsBuilder are not empty.
-func (a *ArgsBuilder) Validate() error {
-	v := reflect.ValueOf(*a)
-	t := reflect.TypeFor[ArgsBuilder]()
-
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		fieldName := t.Field(i).Name
-
-		if field.Kind() == reflect.String {
-			if field.String() == "" {
-				return fmt.Errorf("%w: %q", ErrArgEmpty, fieldName)
-			}
-		}
-	}
-
-	return nil
 }
 
 func newArgsBuilder() *ArgsBuilder {

@@ -71,6 +71,20 @@ type Repo struct {
 	*RepoOptions
 }
 
+func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
+	o := &RepoOptions{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return &Repo{
+		name:        name,
+		fullpath:    dstDir,
+		summaryFile: filepath.Join(dstDir, SummaryFileName),
+		RepoOptions: o,
+	}
+}
+
 func (gr *Repo) Name() string     { return gr.name }
 func (gr *Repo) Root() string     { return filepath.Dir(gr.fullpath) }
 func (gr *Repo) DB() RepoDB       { return gr.db }
@@ -235,18 +249,4 @@ func (gr *Repo) WriteSummary(s *Summary) error {
 	slog.Debug("git summary: writing", "file", gr.summaryFile)
 
 	return writeFile(gr.summaryFile, s)
-}
-
-func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
-	o := &RepoOptions{}
-	for _, opt := range opts {
-		opt(o)
-	}
-
-	return &Repo{
-		name:        name,
-		fullpath:    dstDir,
-		summaryFile: filepath.Join(dstDir, SummaryFileName),
-		RepoOptions: o,
-	}
 }

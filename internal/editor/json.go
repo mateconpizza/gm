@@ -13,6 +13,10 @@ var _ EditStrategy = (*JSONStrategy)(nil)
 
 type JSONStrategy struct{}
 
+func NewJSONStrategy() *JSONStrategy {
+	return &JSONStrategy{}
+}
+
 func (JSONStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	return b.Bytes(), nil
 }
@@ -42,7 +46,3 @@ func (JSONStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmar
 }
 
 func (JSONStrategy) FileType() string { return "json" }
-
-func NewJSONStrategy() *JSONStrategy {
-	return &JSONStrategy{}
-}

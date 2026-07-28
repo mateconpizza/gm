@@ -19,6 +19,10 @@ type NotesStrategy struct {
 	sectionMarker string
 }
 
+func NewNotesStrategy() *NotesStrategy {
+	return &NotesStrategy{}
+}
+
 func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	var (
 		bd      = frame.NewBorders("<!-- ", " ", "<!-", "-->")
@@ -69,7 +73,3 @@ func (ns *NotesStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bo
 }
 
 func (ns *NotesStrategy) FileType() string { return "md" }
-
-func NewNotesStrategy() *NotesStrategy {
-	return &NotesStrategy{}
-}

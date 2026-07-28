@@ -21,6 +21,19 @@ type FileLoader struct {
 	Loader  LoaderFileFunc
 }
 
+// NewFileLoader creates a concurrent file loader with a CPU-sized worker
+// limit.
+func NewFileLoader(loader LoaderFileFunc) *FileLoader {
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.NumCPU())
+
+	return &FileLoader{
+		g:      g,
+		Loader: loader,
+		mu:     &sync.Mutex{},
+	}
+}
+
 // LoadAsync loads a bookmark asynchronously from the given path.
 func (f *FileLoader) LoadAsync(ctx context.Context, path string) {
 	f.g.Go(func() error {
@@ -40,13 +53,6 @@ func (f *FileLoader) LoadAsync(ctx context.Context, path string) {
 	})
 }
 
-// add appends a bookmark to the result set.
-func (f *FileLoader) add(b *bookmark.Bookmark) {
-	f.mu.Lock()
-	f.results = append(f.results, b)
-	f.mu.Unlock()
-}
-
 // Results waits for all loads to complete and returns the results.
 func (f *FileLoader) Results() ([]*bookmark.Bookmark, error) {
 	if err := f.g.Wait(); err != nil {
@@ -61,22 +67,16 @@ func (f *FileLoader) Count(n uint32) uint32 {
 	return f.current.Add(n)
 }
 
+// add appends a bookmark to the result set.
+func (f *FileLoader) add(b *bookmark.Bookmark) {
+	f.mu.Lock()
+	f.results = append(f.results, b)
+	f.mu.Unlock()
+}
+
 // RepositoryLoader configures how a repository is loaded.
 type RepositoryLoader struct {
 	Func       LoaderFileFunc
 	Prefix     string
 	FileFilter FileFilterFunc
-}
-
-// NewFileLoader creates a concurrent file loader with a CPU-sized worker
-// limit.
-func NewFileLoader(loader LoaderFileFunc) *FileLoader {
-	g := new(errgroup.Group)
-	g.SetLimit(runtime.NumCPU())
-
-	return &FileLoader{
-		g:      g,
-		Loader: loader,
-		mu:     &sync.Mutex{},
-	}
 }

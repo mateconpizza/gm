@@ -37,6 +37,32 @@ type Mgr struct {
 	*MgrOptions
 }
 
+func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
+	o := &MgrOptions{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	t := NewTracker(rootDir)
+	if err := t.Load(); err != nil {
+		return nil, err
+	}
+
+	if o.g == nil {
+		g, err := New(rootDir)
+		if err != nil {
+			return nil, err
+		}
+		o.g = g
+	}
+
+	return &Mgr{
+		root:       rootDir,
+		track:      t,
+		MgrOptions: o,
+	}, nil
+}
+
 func (m *Mgr) Root() string                                  { return m.root }
 func (m *Mgr) IsEnabled() bool                               { return fileExists(m.root) }
 func (m *Mgr) Git() *Git                                     { return m.g }
@@ -75,12 +101,7 @@ func (m *Mgr) Update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmar
 	return updateRepo(ctx, gr, old, fresh, postRm)
 }
 
-func (m *Mgr) UpdateAndSave(
-	ctx context.Context,
-	gr *Repo,
-	old, fresh *bookmark.Bookmark,
-	postRm PostRemovalFunc,
-) error {
+func (m *Mgr) UpdateAndSave(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
 	if m.version == "" {
 		return ErrNoVersionFound
 	}
@@ -94,30 +115,4 @@ func (m *Mgr) UpdateAndSave(
 		gr,
 		fmt.Sprintf("[%s] update bookmark", gr.Name()),
 	)
-}
-
-func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
-	o := &MgrOptions{}
-	for _, opt := range opts {
-		opt(o)
-	}
-
-	t := NewTracker(rootDir)
-	if err := t.Load(); err != nil {
-		return nil, err
-	}
-
-	if o.g == nil {
-		g, err := New(rootDir)
-		if err != nil {
-			return nil, err
-		}
-		o.g = g
-	}
-
-	return &Mgr{
-		root:       rootDir,
-		track:      t,
-		MgrOptions: o,
-	}, nil
 }

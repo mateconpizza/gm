@@ -32,6 +32,26 @@ type FileRemover struct {
 	genFullpath GenFullpathFn
 }
 
+func NewFileRemover(root string, fm FileManager, genFullpath GenFullpathFn) (*FileRemover, error) {
+	if root == "" {
+		return nil, ErrFileRemoverRootEmpty
+	}
+
+	if fm == nil {
+		return nil, ErrFileMgrNil
+	}
+
+	if genFullpath == nil {
+		return nil, ErrFileRemoveGenFullpath
+	}
+
+	return &FileRemover{
+		root:        root,
+		genFullpath: genFullpath,
+		fm:          fm,
+	}, nil
+}
+
 func (fr *FileRemover) Rm(ctx context.Context, bs []*bookmark.Bookmark) error {
 	if len(bs) == 0 {
 		return nil
@@ -78,24 +98,4 @@ func (fr *FileRemover) Rm(ctx context.Context, bs []*bookmark.Bookmark) error {
 	}
 
 	return nil
-}
-
-func NewFileRemover(root string, fm FileManager, genFullpath GenFullpathFn) (*FileRemover, error) {
-	if root == "" {
-		return nil, ErrFileRemoverRootEmpty
-	}
-
-	if fm == nil {
-		return nil, ErrFileMgrNil
-	}
-
-	if genFullpath == nil {
-		return nil, ErrFileRemoveGenFullpath
-	}
-
-	return &FileRemover{
-		root:        root,
-		genFullpath: genFullpath,
-		fm:          fm,
-	}, nil
 }

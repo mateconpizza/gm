@@ -22,6 +22,19 @@ type SQLite struct {
 	closeOnce sync.Once
 }
 
+// New returns a new SQLiteRepository from an existing database path.
+func New(ctx context.Context, p string) (*SQLite, error) {
+	return newRepository(ctx, p, func(path string) error {
+		slog.DebugContext(ctx, "new repo: checking if database exists")
+
+		if !fileExists(path) {
+			return fmt.Errorf("%w: %q", ErrDBNotFound, filepath.Base(path))
+		}
+
+		return nil
+	})
+}
+
 func (r *SQLite) Name() string     { return r.Cfg.Name }
 func (r *SQLite) BaseName() string { return strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name)) }
 func (r *SQLite) Fullpath() string { return r.Cfg.Fullpath() }
@@ -46,19 +59,6 @@ func newSQLiteRepository(db *sqlx.DB, cfg *Cfg) *SQLite {
 		DB:  db,
 		Cfg: cfg,
 	}
-}
-
-// New returns a new SQLiteRepository from an existing database path.
-func New(ctx context.Context, p string) (*SQLite, error) {
-	return newRepository(ctx, p, func(path string) error {
-		slog.DebugContext(ctx, "new repo: checking if database exists")
-
-		if !fileExists(path) {
-			return fmt.Errorf("%w: %q", ErrDBNotFound, filepath.Base(path))
-		}
-
-		return nil
-	})
 }
 
 // Init initializes a new SQLiteRepository at the provided path.
@@ -184,16 +184,6 @@ type Cfg struct {
 	MaxLifetimeConn time.Duration
 }
 
-// Fullpath returns the full path to the SQLite database.
-func (c *Cfg) Fullpath() string {
-	return filepath.Join(c.Path, c.Name)
-}
-
-// Exists returns true if the SQLite database exists.
-func (c *Cfg) Exists() bool {
-	return fileExists(c.Fullpath())
-}
-
 // NewSQLiteCfg returns the default settings for the database.
 func NewSQLiteCfg(p string) (*Cfg, error) {
 	abs, err := filepath.Abs(p)
@@ -210,4 +200,14 @@ func NewSQLiteCfg(p string) (*Cfg, error) {
 		MaxIdleConns:    1,
 		MaxLifetimeConn: time.Hour,
 	}, nil
+}
+
+// Fullpath returns the full path to the SQLite database.
+func (c *Cfg) Fullpath() string {
+	return filepath.Join(c.Path, c.Name)
+}
+
+// Exists returns true if the SQLite database exists.
+func (c *Cfg) Exists() bool {
+	return fileExists(c.Fullpath())
 }

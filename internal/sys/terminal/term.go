@@ -249,25 +249,6 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
 func (t *Term) WaitForEnter(ctx context.Context, mesg string) error { return WaitForEnter(ctx, mesg) }
 
-// promptWithChoices prompts the user to enter one of the given options.
-func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
-	h := &highlighter{}
-	dimmer := h.dim
-	sep := dimmer("/")
-	s := dimmer("[")
-	e := dimmer("]:")
-
-	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
-
-	return getUserInputWithAttempts(ctx, &PromptInput{
-		Reader:  t.reader,
-		Writer:  t.writer,
-		Prompt:  p,
-		Options: opts,
-		Default: def,
-	})
-}
-
 // ClearLine deletes n lines in the console.
 func (t *Term) ClearLine(n int) {
 	if !t.isInteractiveTerminal(n) {
@@ -356,19 +337,6 @@ func (t *Term) StdoutPiped() bool {
 
 func (t *Term) IsPiped() bool { return t.StdinPiped() || t.StdoutPiped() }
 
-// isInteractiveTerminal checks if the input is valid and the terminal is
-// interactive.
-func (t *Term) isInteractiveTerminal(n int) bool {
-	if n <= 0 {
-		return false
-	}
-
-	// check if the term's reader is an *os.file and is a terminal
-	file, ok := t.reader.(*os.File)
-
-	return ok && term.IsTerminal(int(file.Fd()))
-}
-
 // HideCursor hides cursor.
 func (t *Term) HideCursor() error {
 	_, err := fmt.Fprint(t.writer, ansi.CursorHide)
@@ -396,6 +364,38 @@ func (t *Term) Print(ctx context.Context, content string) error {
 	}
 	_, err := fmt.Fprint(t.writer, content)
 	return err
+}
+
+// promptWithChoices prompts the user to enter one of the given options.
+func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
+	h := &highlighter{}
+	dimmer := h.dim
+	sep := dimmer("/")
+	s := dimmer("[")
+	e := dimmer("]:")
+
+	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
+
+	return getUserInputWithAttempts(ctx, &PromptInput{
+		Reader:  t.reader,
+		Writer:  t.writer,
+		Prompt:  p,
+		Options: opts,
+		Default: def,
+	})
+}
+
+// isInteractiveTerminal checks if the input is valid and the terminal is
+// interactive.
+func (t *Term) isInteractiveTerminal(n int) bool {
+	if n <= 0 {
+		return false
+	}
+
+	// check if the term's reader is an *os.file and is a terminal
+	file, ok := t.reader.(*os.File)
+
+	return ok && term.IsTerminal(int(file.Fd()))
 }
 
 // needsPager returns true if content exceeds the terminal height.

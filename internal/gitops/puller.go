@@ -32,31 +32,17 @@ type GitPuller struct {
 	console *ui.Console
 }
 
-// scan finds matching subdirectories in the working root.
-func (gp *GitPuller) scan() error {
-	repos, err := files.ListRootFolders(gp.srcDir, ".git")
-	if err != nil {
-		return err
+func NewPuller(c *ui.Console, srcDir, dstDir string) *GitPuller {
+	return &GitPuller{
+		srcDir:  srcDir,
+		dstDir:  dstDir,
+		console: c,
 	}
-	if len(repos) == 0 {
-		return git.ErrGitNoRepos
-	}
-
-	gp.found = repos
-
-	return nil
 }
 
-// loadAll discovers and loads metadata for all available repositories.
-func (gp *GitPuller) loadAll() error {
-	for _, repoName := range gp.found {
-		fullpath := filepath.Join(gp.srcDir, repoName)
-		gr := git.NewRepo(repoName, fullpath, RepoFileReader())
-
-		gp.repos = append(gp.repos, gr)
-	}
-
-	return nil
+// Repos returns the loaded repositories if processing has been initiated.
+func (gp *GitPuller) Repos() []*git.Repo {
+	return gp.repos
 }
 
 // Pull pulls bookmarks from remote git repository and replicate the
@@ -92,6 +78,39 @@ func (gp *GitPuller) Read(ctx context.Context) error {
 	return nil
 }
 
+func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
+	opts := []string{"yes", "no"}
+	n := len(gp.found)
+	if n > 1 {
+		opts = append(opts, "select")
+	}
+
+	opt, err := t.Choose(ctx, "import repositories?", opts, "n")
+	if err != nil {
+		return err
+	}
+
+	if n == 1 {
+		return nil
+	}
+
+	switch opt {
+	case "y", "yes":
+		return nil
+	case "n", "no":
+		return sys.ErrActionAborted
+	case "s", "select":
+		repos, err := m.Select(gp.repos)
+		if err != nil {
+			return err
+		}
+
+		gp.repos = repos
+	}
+
+	return nil
+}
+
 // PrintDetails outputs a repository's metadata profile and summary metrics.
 func (gp *GitPuller) PrintDetails(gr *git.Repo) error {
 	f, p := gp.console.Frame(), gp.console.Palette()
@@ -109,6 +128,33 @@ func (gp *GitPuller) PrintDetails(gr *git.Repo) error {
 	}
 
 	printStats(gp.console, stats)
+	return nil
+}
+
+// scan finds matching subdirectories in the working root.
+func (gp *GitPuller) scan() error {
+	repos, err := files.ListRootFolders(gp.srcDir, ".git")
+	if err != nil {
+		return err
+	}
+	if len(repos) == 0 {
+		return git.ErrGitNoRepos
+	}
+
+	gp.found = repos
+
+	return nil
+}
+
+// loadAll discovers and loads metadata for all available repositories.
+func (gp *GitPuller) loadAll() error {
+	for _, repoName := range gp.found {
+		fullpath := filepath.Join(gp.srcDir, repoName)
+		gr := git.NewRepo(repoName, fullpath, RepoFileReader())
+
+		gp.repos = append(gp.repos, gr)
+	}
+
 	return nil
 }
 
@@ -169,50 +215,4 @@ func printHeader(rp *GitPuller) {
 	}
 
 	f.Rowln().Flush()
-}
-
-func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
-	opts := []string{"yes", "no"}
-	n := len(gp.found)
-	if n > 1 {
-		opts = append(opts, "select")
-	}
-
-	opt, err := t.Choose(ctx, "import repositories?", opts, "n")
-	if err != nil {
-		return err
-	}
-
-	if n == 1 {
-		return nil
-	}
-
-	switch opt {
-	case "y", "yes":
-		return nil
-	case "n", "no":
-		return sys.ErrActionAborted
-	case "s", "select":
-		repos, err := m.Select(gp.repos)
-		if err != nil {
-			return err
-		}
-
-		gp.repos = repos
-	}
-
-	return nil
-}
-
-// Repos returns the loaded repositories if processing has been initiated.
-func (gp *GitPuller) Repos() []*git.Repo {
-	return gp.repos
-}
-
-func NewPuller(c *ui.Console, srcDir, dstDir string) *GitPuller {
-	return &GitPuller{
-		srcDir:  srcDir,
-		dstDir:  dstDir,
-		console: c,
-	}
 }

@@ -43,11 +43,6 @@ func (b *Builder) WithPlaceholder(p string) *Builder {
 	return b
 }
 
-// cmd builds the full CLI command string.
-func (b *Builder) baseCmd(action string) string {
-	return fmt.Sprintf("%s --db=%s %s", b.cmd, b.dbName, action)
-}
-
 // From clones a Keymap from user config and prepares it for modification.
 func (b *Builder) From(k *Keymap) *KeymapConfig {
 	clone := *k
@@ -67,6 +62,11 @@ func (b *Builder) Builtin(k *Keymap, a BuiltinAction) *Keymap {
 	clone := *k
 	clone.Action = action(a.String())
 	return &clone
+}
+
+// cmd builds the full CLI command string.
+func (b *Builder) baseCmd(action string) string {
+	return fmt.Sprintf("%s --db=%s %s", b.cmd, b.dbName, action)
 }
 
 // KeymapConfig builds a single Keymap with a resolved action and placeholder.

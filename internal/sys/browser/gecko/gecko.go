@@ -99,6 +99,13 @@ type GeckoBrowser struct {
 	paths Paths
 }
 
+func New(name string) *GeckoBrowser {
+	return &GeckoBrowser{
+		name:  name,
+		short: strings.ToLower(string(name[0])),
+	}
+}
+
 func (b *GeckoBrowser) Name() string   { return b.name }
 func (b *GeckoBrowser) Short() string  { return b.short }
 func (b *GeckoBrowser) String() string { return ansi.Orange.Sprint(b.name) }
@@ -112,18 +119,6 @@ func (b *GeckoBrowser) LoadPaths() error {
 	b.paths = p
 
 	return nil
-}
-
-func (b *GeckoBrowser) processPaths() (profilePath, bookmarksPath string) {
-	for i := range b.paths.profiles {
-		if files.Exists(b.paths.profiles[i]) {
-			profilePath = b.paths.profiles[i]
-			bookmarksPath = b.paths.bookmarks[i]
-			break
-		}
-	}
-
-	return profilePath, bookmarksPath
 }
 
 func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
@@ -181,11 +176,16 @@ func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 	return bs, nil
 }
 
-func New(name string) *GeckoBrowser {
-	return &GeckoBrowser{
-		name:  name,
-		short: strings.ToLower(string(name[0])),
+func (b *GeckoBrowser) processPaths() (profilePath, bookmarksPath string) {
+	for i := range b.paths.profiles {
+		if files.Exists(b.paths.profiles[i]) {
+			profilePath = b.paths.profiles[i]
+			bookmarksPath = b.paths.bookmarks[i]
+			break
+		}
 	}
+
+	return profilePath, bookmarksPath
 }
 
 type geckoBookmark struct {

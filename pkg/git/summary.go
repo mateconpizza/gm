@@ -39,6 +39,10 @@ type Summary struct {
 	Checksum           string      `json:"checksum"`            // Checksum is the summary's generated checksum.
 }
 
+func NewSummary() *Summary {
+	return &Summary{}
+}
+
 // GenChecksum generates a checksum for the SyncGitSummary.
 func (s *Summary) GenChecksum() {
 	const length = 12
@@ -89,6 +93,10 @@ type RepoStats struct {
 	Archived    int    `db:"archived"        json:"archived"`
 	DeadLinks   int    `db:"dead_links"      json:"dead_links"`
 	TotalVisits int    `db:"total_visits"    json:"total_visits"`
+}
+
+func NewRepoStats() *RepoStats {
+	return &RepoStats{}
 }
 
 func (rs *RepoStats) Validate() error {
@@ -165,12 +173,4 @@ func summaryComplete(ctx context.Context, g *Git, s *RepoStats, ver string) (*Su
 	summary.GenChecksum()
 
 	return summary, nil
-}
-
-func NewSummary() *Summary {
-	return &Summary{}
-}
-
-func NewRepoStats() *RepoStats {
-	return &RepoStats{}
 }

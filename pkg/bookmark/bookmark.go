@@ -64,6 +64,11 @@ type Bookmark struct {
 	Checksum string `db:"checksum" json:"checksum"` // Checksum or hash (URL, Title, Description and Tags)
 }
 
+// New creates a new bookmark.
+func New() *Bookmark {
+	return &Bookmark{}
+}
+
 type BookmarkJSON struct {
 	// FIX: remove this struct
 	ID                int      `json:"id"`
@@ -86,6 +91,21 @@ type BookmarkJSON struct {
 	HTTPStatusCode    int      `json:"status_code"`       // HTTP status code (200, 404, etc.)
 	HTTPStatusText    string   `json:"status_text"`       // OK, Not Found, etc
 	IsActive          bool     `json:"is_active"`         // true if the URL is active (200-299)
+}
+
+func NewFromBuffer(buf []byte) (*Bookmark, error) {
+	return fromBytes(buf)
+}
+
+func NewFromJSON(j *BookmarkJSON) *Bookmark {
+	var b Bookmark
+	data, _ := json.Marshal(j)
+	_ = json.Unmarshal(data, &b)
+
+	// convert tags back to string
+	b.Tags = ParseTags(strings.Join(j.Tags, ","))
+
+	return &b
 }
 
 func (b *Bookmark) JSON() *BookmarkJSON {
@@ -272,26 +292,6 @@ func (b *Bookmark) String() string {
 	return fmt.Sprintf("%d - %s", b.ID, b.URL)
 }
 
-// New creates a new bookmark.
-func New() *Bookmark {
-	return &Bookmark{}
-}
-
 func NewJSON() *BookmarkJSON {
 	return &BookmarkJSON{}
-}
-
-func NewFromJSON(j *BookmarkJSON) *Bookmark {
-	var b Bookmark
-	data, _ := json.Marshal(j)
-	_ = json.Unmarshal(data, &b)
-
-	// convert tags back to string
-	b.Tags = ParseTags(strings.Join(j.Tags, ","))
-
-	return &b
-}
-
-func NewFromBuffer(buf []byte) (*Bookmark, error) {
-	return fromBytes(buf)
 }
