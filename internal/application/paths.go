@@ -6,10 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	files "github.com/mateconpizza/gofiles"
 	gap "github.com/muesli/go-app-paths"
 	yaml "gopkg.in/yaml.v3"
-
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 type Path struct {
@@ -65,7 +64,7 @@ func loadDataPath(appName, envVar string) (string, error) {
 // getConfig loads the config file.
 func getConfig(p string, app *App) error {
 	if !files.Exists(p) {
-		return fmt.Errorf("config %w", files.ErrFileNotFound)
+		return fmt.Errorf("config %w", os.ErrNotExist)
 	}
 
 	if err := ReadYAML(p, &app); err != nil {
@@ -73,7 +72,7 @@ func getConfig(p string, app *App) error {
 	}
 
 	if app == nil {
-		return fmt.Errorf("config %w", files.ErrFileNotFound)
+		return fmt.Errorf("config %w", os.ErrNotExist)
 	}
 
 	return app.Validate()
@@ -82,7 +81,7 @@ func getConfig(p string, app *App) error {
 // ReadYAML unmarshals the YAML data from the specified file.
 func ReadYAML[T any](p string, v *T) error {
 	if !files.Exists(p) {
-		return fmt.Errorf("%w: %q", files.ErrFileNotFound, p)
+		return fmt.Errorf("%w: %q", os.ErrNotExist, p)
 	}
 
 	content, err := os.ReadFile(p)
@@ -102,7 +101,7 @@ func ReadYAML[T any](p string, v *T) error {
 
 // WriteYAML writes the provided YAML data to the specified file.
 func WriteYAML[T any](p string, v *T, force bool) error {
-	f, err := files.Touch(p, force)
+	f, err := files.New(p, force)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}

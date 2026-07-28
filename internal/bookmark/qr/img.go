@@ -9,13 +9,12 @@ import (
 	"log/slog"
 	"os"
 
+	files "github.com/mateconpizza/gofiles"
 	qrcode "github.com/skip2/go-qrcode"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/font/inconsolata"
 	"golang.org/x/image/math/fixed"
-
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -103,7 +102,7 @@ func addLabel(path, text string, pos labelPosition) error {
 	fd.DrawString(text)
 
 	// Save the image with the label
-	f, err := files.Touch(path, true)
+	f, err := files.New(path, true)
 	if err != nil {
 		return fmt.Errorf("creating output file: %w", err)
 	}
@@ -159,7 +158,7 @@ func generatePNG(qr *qrcode.QRCode, prefix string) (*os.File, error) {
 	qr.ForegroundColor = defaultBackground
 	qr.BackgroundColor = defaultForeground
 
-	qrfile, err := files.CreateTempFile(prefix, "png")
+	qrfile, err := files.NewTempFile(prefix, "png")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp file: %w", err)
 	}

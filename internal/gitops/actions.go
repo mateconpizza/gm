@@ -7,6 +7,9 @@ import (
 	"log/slog"
 	"path/filepath"
 
+	files "github.com/mateconpizza/gofiles"
+	"github.com/mateconpizza/rotato"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -14,9 +17,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
-	"github.com/mateconpizza/rotato"
 )
 
 var _ bookio.FileManager = (*files.FileManager)(nil)

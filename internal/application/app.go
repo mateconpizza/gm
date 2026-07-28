@@ -10,10 +10,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -100,7 +101,7 @@ func (app *App) Setup() error {
 // Load loads the user configurations file.
 func (app *App) Load() error {
 	err := getConfig(app.Path.ConfigFile(), app)
-	if err != nil && !errors.Is(err, files.ErrFileNotFound) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
@@ -124,7 +125,7 @@ func (app *App) Validate() error {
 	if app.DBName == "" {
 		return ErrDatabaseNameNotSet
 	}
-	if files.StripSuffixes(app.DBName) == "" {
+	if files.StripExts(app.DBName) == "" {
 		return ErrDatabaseInvalidName
 	}
 	if app.Path.DB() == "" {
@@ -176,7 +177,7 @@ func (app *App) PrettyVersion() string {
 
 // SetDatabase sets the database name and path.
 func (app *App) SetDatabase(name string) error {
-	app.DBName = files.StripSuffixes(name)
+	app.DBName = files.StripExts(name)
 	if app.DBName == "" {
 		return ErrDatabaseNameNotSet
 	}
@@ -190,7 +191,7 @@ func (app *App) SetDatabase(name string) error {
 	return nil
 }
 
-func (app *App) DBBaseName() string             { return files.StripSuffixes(app.DBName) }
+func (app *App) DBBaseName() string             { return files.StripExts(app.DBName) }
 func (app *App) CreatePaths() error             { return app.Path.setup() }
 func (app *App) GitEnabled() bool               { return app.Git.Enabled }
 func (app *App) Version() string                { return app.Info.Version }

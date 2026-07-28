@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
@@ -16,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var ErrInvalidFormat = errors.New("invalid format")

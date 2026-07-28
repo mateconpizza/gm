@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 	ini "gopkg.in/ini.v1"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -137,7 +137,7 @@ func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 	}
 
 	if !files.Exists(profilesPath) {
-		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, profilesPath)
+		return nil, fmt.Errorf("%w: %q", os.ErrNotExist, profilesPath)
 	}
 
 	profiles, err := allProfiles(profilesPath)

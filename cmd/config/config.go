@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -19,7 +20,6 @@ import (
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -98,7 +98,7 @@ func createConfig(ctx context.Context, c *ui.Console, app *application.App) erro
 	if files.Exists(cfgFile) && !app.Flags.Force {
 		p := c.Palette()
 		f := p.BrightYellow.Wrap("--force", p.Italic, p.Bold)
-		return fmt.Errorf("%w. use %s to overwrite", files.ErrFileExists, f)
+		return fmt.Errorf("%w. use %s to overwrite", os.ErrExist, f)
 	}
 
 	if !app.Flags.Force && !c.Confirm(ctx, fmt.Sprintf("create configfile %q", cfgFile), "y") {
@@ -118,7 +118,7 @@ func createConfig(ctx context.Context, c *ui.Console, app *application.App) erro
 func editConfig(ctx context.Context, app *application.App) error {
 	p := app.Path.ConfigFile()
 	if !files.Exists(p) {
-		return fmt.Errorf("config %w", files.ErrFileNotFound)
+		return fmt.Errorf("config %w", os.ErrNotExist)
 	}
 
 	te, err := editor.NewEditor(app.Env.Editor)
@@ -131,7 +131,7 @@ func editConfig(ctx context.Context, app *application.App) error {
 
 func showPathFile(w io.Writer, p string) error {
 	if !files.Exists(p) {
-		return fmt.Errorf("config %w", files.ErrFileNotFound)
+		return fmt.Errorf("config %w", os.ErrNotExist)
 	}
 
 	fmt.Fprintln(w, p)

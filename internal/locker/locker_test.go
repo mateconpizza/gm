@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/pkg/files"
+	files "github.com/mateconpizza/gofiles"
 )
 
 func testTempFile(t *testing.T) *os.File {
@@ -73,7 +73,7 @@ func TestValidateInput(t *testing.T) {
 			t.Error("Expected error for invalid filepath, got nil")
 		}
 
-		if !errors.Is(err, files.ErrFileNotFound) {
+		if !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("Expected files.ErrFileNotFound, got %v", err)
 		}
 	})
@@ -112,7 +112,7 @@ func TestBackupFile(t *testing.T) {
 			t.Error("Expected error for invalid filepath, got nil")
 		}
 
-		if !errors.Is(err, files.ErrFileNotFound) {
+		if !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("Expected files.ErrFileNotFound, got %v", err)
 		}
 	})

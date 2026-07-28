@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -17,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 // FromFile import bookmarks from database.
@@ -49,7 +50,7 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 		return err
 	}
 
-	printImportHeader(c, source, files.StripSuffixes(r.Name()), from, len(bs))
+	printImportHeader(c, source, files.StripExts(r.Name()), from, len(bs))
 
 	deduplicated, err := DeduplicateReport(ctx, c, r, bs)
 	if err != nil {
@@ -184,7 +185,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 
 		opt, err := c.Choose(
 			ctx,
-			fmt.Sprintf("import %d bookmarks into %q?", n, files.StripSuffixes(app.DBName)),
+			fmt.Sprintf("import %d bookmarks into %q?", n, files.StripExts(app.DBName)),
 			options,
 			"y",
 		)

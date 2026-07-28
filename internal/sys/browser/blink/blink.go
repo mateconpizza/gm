@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/sys/browser"
@@ -18,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 var (
@@ -92,7 +92,7 @@ func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 	}
 
 	if !files.Exists(b.paths.profiles) {
-		return nil, fmt.Errorf("%w: %q", files.ErrFileNotFound, b.paths.profiles)
+		return nil, fmt.Errorf("%w: %q", os.ErrNotExist, b.paths.profiles)
 	}
 
 	jsonData, err := os.ReadFile(b.paths.profiles)

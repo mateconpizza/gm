@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
@@ -14,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -128,7 +129,7 @@ func TrackStatus(c *ui.Console, m *git.Mgr, gr *git.Repo) string {
 		repoType = p.BrightMagenta.Wrap("GPG ", p.Bold)
 	}
 
-	if name == files.StripSuffixes(application.MainDBName) {
+	if name == files.StripExts(application.MainDBName) {
 		name = "main"
 	}
 
@@ -167,7 +168,7 @@ func TrackManager(ctx context.Context, m *git.Mgr, c *ui.Console, dbFiles []stri
 			return err
 		}
 
-		name := files.StripSuffixes(filepath.Base(dbPath))
+		name := files.StripExts(filepath.Base(dbPath))
 		if m.IsTracked(name) {
 			fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", name)))
 			continue

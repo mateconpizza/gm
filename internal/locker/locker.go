@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateconpizza/gm/pkg/files"
+	files "github.com/mateconpizza/gofiles"
 )
 
 const Extension = ".enc"
@@ -168,7 +168,7 @@ func decrypt(ciphertext []byte, passphrase string) ([]byte, error) {
 func IsLocked(s string) error {
 	slog.Debug("checking if file is locked")
 
-	s = files.EnsureSuffix(s, Extension)
+	s = files.EnsureExt(s, Extension)
 	if files.Exists(s) {
 		return fmt.Errorf("%w: %q", ErrFileLocked, filepath.Base(s))
 	}
@@ -194,7 +194,7 @@ func validateInput(path, passphrase string) error {
 	}
 
 	if !files.Exists(path) {
-		return fmt.Errorf("%w: %s", files.ErrFileNotFound, path)
+		return fmt.Errorf("%w: %s", os.ErrNotExist, path)
 	}
 
 	return nil
@@ -203,7 +203,7 @@ func validateInput(path, passphrase string) error {
 // backupFile creates a backup of the given file.
 func backupFile(filePath string) (string, error) {
 	if !files.Exists(filePath) {
-		return "", fmt.Errorf("%w: %s", files.ErrFileNotFound, filePath)
+		return "", fmt.Errorf("%w: %s", os.ErrNotExist, filePath)
 	}
 	// Generate backup filename with timestamp
 	timestamp := time.Now().Format("20060102_150405")

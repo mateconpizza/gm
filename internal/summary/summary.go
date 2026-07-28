@@ -11,13 +11,14 @@ import (
 	"strings"
 	"time"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/files"
 )
 
 // Repo returns a summary of the repository.
@@ -56,7 +57,7 @@ func Repo(ctx context.Context, d *deps.Deps) (string, error) {
 		f.Rowln(txt.PaddedLine("visits:", stats.TotalVisits))
 	}
 
-	f.Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(r.Cfg.Fullpath())))
+	f.Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(r.Fullpath())))
 
 	createdAt := createdAt(r, p)
 	if createdAt != "" {
@@ -99,7 +100,7 @@ func RepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) 
 	}
 
 	f.Headerln(name).Rowln(records).Rowln(tags)
-	dbName := files.StripSuffixes(r.Name())
+	dbName := files.StripExts(r.Name())
 	backups, _ := files.List(backupPath, "*_"+dbName+".db*")
 	if len(backups) > 0 {
 		f.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
