@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -13,9 +14,9 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -28,22 +29,26 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive --menu
   $ {cmd} url archive --tag golang`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				if len(bs) == 0 {
-					slog.Debug("URL archive: no items found")
-					return sys.ErrExitFailure
-				}
+			return cmdutil.Execute(
+				cmd,
+				args,
+				setupMenu(app),
+				func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+					if len(bs) == 0 {
+						slog.Debug("URL archive: no items found")
+						return sys.ErrExitFailure
+					}
 
-				var sb strings.Builder
-				for _, u := range bs {
-					sb.WriteString(u.ArchiveURL)
-					sb.WriteByte('\n')
-				}
-				fmt.Fprint(d.Writer(), sb.String())
-				return nil
-			}
-
-			return cmdutil.Execute(cmd, args, setupMenu(app), a, onlySnapshots)
+					var sb strings.Builder
+					for _, u := range bs {
+						sb.WriteString(u.ArchiveURL)
+						sb.WriteByte('\n')
+					}
+					fmt.Fprint(d.Writer(), sb.String())
+					return nil
+				},
+				onlySnapshots,
+			)
 		},
 	}
 
@@ -101,8 +106,15 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.ArchiveURL)
 
 	p := fm.Menu.Placeholder()
-	kb := menu.NewBindBuilder(app.Command(), app.DBBaseName()).
+	kb := menucfg.NewBindBuilder(app.Command(), app.DBBaseName()).
 		WithPlaceholder(p.Multi())
+
+	k := app.Menu.Keymaps()
+	keybinds := []*menu.Keymap{
+		kb.New(menu.KeyEnter, "open-in-browser").
+			Execute("url archive open"),
+		kb.Builtin(k.Preview, menucfg.TogglePreview),
+	}
 
 	return picker.NewWithFormatter(
 		app,
@@ -110,7 +122,7 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" archive URL "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-		menu.WithKeybinds(kb.New(menu.KeyEnter, "open-in-browser").Execute("url archive open")),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithKeybinds(keybinds...),
 	)
 }

@@ -9,6 +9,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/junegunn/fzf v0.74.1
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
+	github.com/mateconpizza/go-fzf v0.1.0
 	github.com/mateconpizza/gofiles v0.1.1
 	github.com/mateconpizza/rotato v0.1.17
 	github.com/mattn/go-runewidth v0.0.27

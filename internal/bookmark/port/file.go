@@ -8,13 +8,13 @@ import (
 	"os"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -201,15 +201,14 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 			fm := app.Formatter()
 			fm.Menu.Opts = append(
 				fm.Menu.Opts,
-				menu.WithArgs("--cycle"),
 				menu.WithHeader("select record/s to import"),
 				menu.WithInterruptFn(c.Term().InterruptFn()),
 				menu.WithMultiSelection(),
 			)
 
 			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
-			m.SetFormatter(func(b **bookmark.Bookmark) string {
-				return fm.Render(c, *b)
+			m.SetFormatter(func(b *bookmark.Bookmark) string {
+				return fm.Render(c, b)
 			})
 
 			bs, err = m.Select(bs)

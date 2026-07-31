@@ -3,6 +3,7 @@ package clean
 import (
 	"net/url"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -12,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -86,15 +86,14 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	m := picker.New[bookmark.Bookmark](
 		app,
 		menu.WithMultiSelection(),
-		menu.WithArgs("--cycle"),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" parameters highlighted "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 	)
 
-	m.SetFormatter(func(bm *bookmark.Bookmark) string {
+	m.SetFormatter(func(bm bookmark.Bookmark) string {
 		bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
-		return fm.Render(ui.NewConsole(), bm)
+		return fm.Render(ui.NewConsole(), &bm)
 	})
 
 	return m

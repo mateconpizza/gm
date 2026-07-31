@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -18,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -83,7 +83,6 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 	m := picker.New[*git.Repo](
 		app,
 		menu.WithHeader("select repo/s"),
-		menu.WithArgs("--cycle"),
 		menu.WithHeaderLabel(" import from git "),
 		menu.WithHeader("select record/s to import"),
 		menu.WithInterruptFn(d.Console().Term().InterruptFn()),
@@ -92,7 +91,7 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 
 	p := d.Console().Palette()
 	dimmer := p.Dim.With(p.Italic)
-	m.SetFormatter(func(gr **git.Repo) string {
+	m.SetFormatter(func(gr *git.Repo) string {
 		r := *gr
 		name := p.BrightYellow.Wrap(r.Name(), p.Bold)
 		return txt.PaddedLine(name, dimmer.Sprintf("(%s)", r.String()))
@@ -151,8 +150,8 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 			fm := app.Formatter()
 			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())
 			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
-			m.SetFormatter(func(b **bookmark.Bookmark) string {
-				return fm.Render(c, *b)
+			m.SetFormatter(func(b *bookmark.Bookmark) string {
+				return fm.Render(c, b)
 			})
 
 			bs, err = m.Select(bs)

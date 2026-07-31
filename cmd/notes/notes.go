@@ -14,9 +14,10 @@ import (
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	menu "github.com/mateconpizza/go-fzf"
 )
 
 var ErrNotesNotFound = errors.New("notes not found")
@@ -34,7 +35,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
-			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+			kb := menucfg.NewBindBuilder(app.Cmd, app.DBName).
 				WithPlaceholder(p.Multi())
 
 			k := app.Menu.Keymaps()
@@ -46,7 +47,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
+				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
 				menu.WithKeybinds(kb.New(k.Edit.Bind, k.Edit.Desc).Execute("edit notes")),
 			)
 
@@ -82,7 +83,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
+				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))

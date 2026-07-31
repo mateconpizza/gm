@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -178,14 +178,14 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, app *application.App, op
 	opts = append(
 		opts,
 		menu.WithOutputColor(p.Enabled()),
-		menu.WithHeaderOnly(p.BrightRed.Wrap("donate <3 https://archive.org/donate", p.Bold)),
-		menu.WithArgs("--cycle"),
+		menu.WithHeader(p.BrightRed.Wrap("donate <3 https://archive.org/donate", p.Bold)),
+		menu.WithCycle(),
 	)
 
 	m := picker.New[wayback.SnapshotInfo](app, opts...)
 
 	// format each item `YYYY MMM DD HH:MM (N days ago)`
-	m.SetFormatter(func(s *wayback.SnapshotInfo) string {
+	m.SetFormatter(func(s wayback.SnapshotInfo) string {
 		absolute, relative, err := txt.TimeWithAgo(s.ArchiveTimestamp)
 		if err != nil {
 			return p.BrightYellow.Wrap("wayback: error", p.Italic)
@@ -233,7 +233,7 @@ func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark
 
 		snap, err := selectSnapshot(ctx, d, b, snapshots)
 		if err != nil {
-			if errors.Is(err, menu.ErrFzfActionAborted) {
+			if errors.Is(err, menu.ErrActionAborted) {
 				continue
 			}
 
@@ -302,12 +302,7 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 }
 
 // selectSnapshot shows the current archive info.
-func selectSnapshot(
-	ctx context.Context,
-	d *deps.Deps,
-	b *bookmark.Bookmark,
-	snaps []wayback.SnapshotInfo,
-) (wayback.SnapshotInfo, error) {
+func selectSnapshot(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, snaps []wayback.SnapshotInfo) (wayback.SnapshotInfo, error) {
 	c := d.Console()
 
 	if b.ArchiveURL != "" {

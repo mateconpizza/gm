@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -264,24 +264,22 @@ func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Finger
 
 	m := picker.New[*gpg.Fingerprint](
 		app,
-		menu.WithArgs("--no-bold"),
 		menu.WithHeader(" select a fingerprint "),
 		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
 		menu.WithMultilineView(),
-		menu.WithPreview(gpg.Command+" --list-keys {+4}"),
+		menu.WithPreviewCmd(gpg.Command+" --list-keys {+4}"),
 	)
 
-	m.SetFormatter(func(f **gpg.Fingerprint) string {
-		fp := *f
+	m.SetFormatter(func(f *gpg.Fingerprint) string {
 		return fmt.Sprintf(
 			"[Trusted: %s] %s: %s %s: %s\n%s: %s",
-			trustColor(fp),
+			trustColor(f),
 			p.BrightBlue.Wrap("KeyID", p.Bold),
-			fp.KeyID,
+			f.KeyID,
 			p.BrightMagenta.Wrap("UserID", p.Bold),
-			fp.UserID,
+			f.UserID,
 			p.BrightYellow.Wrap("Fingerprint", p.Bold),
-			fp.Fingerprint,
+			f.Fingerprint,
 		)
 	})
 

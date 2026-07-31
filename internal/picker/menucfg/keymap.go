@@ -1,9 +1,56 @@
-package menu
+package menucfg
 
 import (
 	"fmt"
 	"strings"
+
+	menu "github.com/mateconpizza/go-fzf"
 )
+
+// Keymaps holds the keymaps for FZF.
+type Keymaps struct {
+	Edit      *menu.Keymap `json:"edit"       yaml:"edit"`
+	EditNotes *menu.Keymap `json:"notes"      yaml:"notes"`
+	Open      *menu.Keymap `json:"open"       yaml:"open"`
+	Preview   *menu.Keymap `json:"preview"    yaml:"preview"`
+	QR        *menu.Keymap `json:"qr"         yaml:"qr"`
+	OpenQR    *menu.Keymap `json:"open_qr"    yaml:"open_qr"`
+	ToggleAll *menu.Keymap `json:"toggle_all" yaml:"toggle_all"`
+	Yank      *menu.Keymap `json:"yank"       yaml:"yank"`
+}
+
+func (k *Keymaps) Validate() error {
+	check := func(name string, km *menu.Keymap) error {
+		if km == nil || !km.IsEnabled() {
+			return nil
+		}
+		if km.Bind == "" {
+			return fmt.Errorf("%w: keymap %q: missing bind", ErrInvalidConfigKeymap, name)
+		}
+		return nil
+	}
+
+	for _, entry := range []struct {
+		name string
+		km   *menu.Keymap
+	}{
+		{"edit", k.Edit},
+		{"notes", k.EditNotes},
+		{"open", k.Open},
+		{"preview", k.Preview},
+		{"qr", k.QR},
+		{"open_qr", k.OpenQR},
+		{"toggle_all", k.ToggleAll},
+		{"toggle-preview", k.ToggleAll},
+		{"yank", k.Yank},
+	} {
+		if err := check(entry.name, entry.km); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // BuiltinAction represents a native FZF action.
 type BuiltinAction int
@@ -44,23 +91,23 @@ func (b *Builder) WithPlaceholder(p string) *Builder {
 }
 
 // From clones a Keymap from user config and prepares it for modification.
-func (b *Builder) From(k *Keymap) *KeymapConfig {
+func (b *Builder) From(k *menu.Keymap) *KeymapConfig {
 	clone := *k
 	return &KeymapConfig{base: &clone, builder: b}
 }
 
 // New creates a new Keymap with the given bind and description.
-func (b *Builder) New(keybind bind, desc string) *KeymapConfig {
+func (b *Builder) New(keybind menu.Keybind, desc string) *KeymapConfig {
 	return &KeymapConfig{
-		base:    &Keymap{Bind: keybind, Desc: desc, Enabled: true},
+		base:    &menu.Keymap{Bind: keybind, Desc: desc, Enabled: true},
 		builder: b,
 	}
 }
 
 // Builtin creates a Keymap using a native FZF action (no CLI command).
-func (b *Builder) Builtin(k *Keymap, a BuiltinAction) *Keymap {
+func (b *Builder) Builtin(k *menu.Keymap, a BuiltinAction) *menu.Keymap {
 	clone := *k
-	clone.Action = action(a.String())
+	clone.Action = menu.KeybindAction(a.String())
 	return &clone
 }
 
@@ -71,7 +118,7 @@ func (b *Builder) baseCmd(action string) string {
 
 // KeymapConfig builds a single Keymap with a resolved action and placeholder.
 type KeymapConfig struct {
-	base        *Keymap
+	base        *menu.Keymap
 	builder     *Builder
 	placeholder string
 }
@@ -90,16 +137,19 @@ func (kc *KeymapConfig) Desc(d string) *KeymapConfig {
 }
 
 // Execute sets an execute action with the given CLI subcommand.
-func (kc *KeymapConfig) Execute(action string) *Keymap {
-	kc.base.WithAction(kc.builder.baseCmd(kc.applyPlaceholder(action)))
+func (kc *KeymapConfig) Execute(action string) *menu.Keymap {
+	kc.base.WithExecute(kc.builder.baseCmd(kc.applyPlaceholder(action)))
 	return kc.base
 }
 
 // ExecuteSilent sets an execute-silent action with the given CLI subcommand.
-func (kc *KeymapConfig) ExecuteSilent(action string) *Keymap {
-	kc.base.WithSilentAction(kc.builder.baseCmd(kc.applyPlaceholder(action)))
+func (kc *KeymapConfig) ExecuteSilent(action string) *menu.Keymap {
+	kc.base.WithSilentExecute(kc.builder.baseCmd(kc.applyPlaceholder(action)))
 	return kc.base
 }
+
+// func (kc *KeymapConfig) WithAction(action menu.KeybindAction) *menu.Keymap {
+// }
 
 func (kc *KeymapConfig) resolvePlaceholder() string {
 	if kc.placeholder != "" {

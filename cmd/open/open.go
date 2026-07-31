@@ -1,6 +1,7 @@
 package open
 
 import (
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -8,7 +9,7 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -24,7 +25,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
-			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+			kb := menucfg.NewBindBuilder(app.Cmd, app.DBName).
 				WithPlaceholder(p.Multi())
 
 			m := picker.NewWithFormatter(
@@ -32,7 +33,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				fm,
 				menu.WithMultiSelection(),
 				menu.WithHeaderLabel(" open in browser "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 				menu.WithKeybinds(kb.New(menu.KeyCtrlO, "open-snapshot").Execute("archive open")),
 			)
 

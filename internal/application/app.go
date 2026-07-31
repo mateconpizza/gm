@@ -12,8 +12,8 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/git"
 )
@@ -36,17 +36,17 @@ const (
 
 type (
 	App struct {
-		Name   string       `json:"name"          yaml:"-"`             // Name of the application
-		Cmd    string       `json:"cmd"           yaml:"-"`             // Name of the executable
-		DBName string       `json:"db"            yaml:"db,omitempty"`  // Database name
-		Format string       `json:"format"        yaml:"format"`        // Output bookmark format
-		Info   *Information `json:"data"          yaml:"-"`             // Application information
-		Env    *Env         `json:"env"           yaml:"-"`             // Application environment variables
-		Path   *Path        `json:"path"          yaml:"-"`             // Application path
-		Flags  *Flags       `json:"-"             yaml:"-"`             // Command line flags
-		Menu   *menu.Config `json:"menu"          yaml:"menu"`          // Menu configuration
-		Git    *Git         `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
-		UI     *UI          `json:"-"             yaml:"-"`             // UI
+		Name   string          `json:"name"          yaml:"-"`             // Name of the application
+		Cmd    string          `json:"cmd"           yaml:"-"`             // Name of the executable
+		DBName string          `json:"db"            yaml:"db,omitempty"`  // Database name
+		Format string          `json:"format"        yaml:"format"`        // Output bookmark format
+		Info   *Information    `json:"data"          yaml:"-"`             // Application information
+		Env    *Env            `json:"env"           yaml:"-"`             // Application environment variables
+		Path   *Path           `json:"path"          yaml:"-"`             // Application path
+		Flags  *Flags          `json:"-"             yaml:"-"`             // Command line flags
+		Menu   *menucfg.Config `json:"menu"          yaml:"menu"`          // Menu configuration
+		Git    *Git            `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
+		UI     *UI             `json:"-"             yaml:"-"`             // UI
 
 		initialized bool
 	}
@@ -237,7 +237,7 @@ func New(info *Information) *App {
 			Home:   EnvHome,
 			Editor: EnvEditor,
 		},
-		Menu: menu.NewDefaultConfig(),
+		Menu: menucfg.NewDefault(),
 	}
 }
 
