@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -71,6 +72,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
 	c.AddCommand(newEditNotesCmd(app))
 
 	return c
@@ -89,6 +91,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
 
 	return c
 }

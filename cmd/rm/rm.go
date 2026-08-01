@@ -8,6 +8,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -38,6 +39,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	}
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
 	cmdutil.FlagsFilter(c, app)
 	return c
 }

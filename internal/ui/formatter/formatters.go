@@ -780,8 +780,6 @@ func StatusCodeFunc(c Console, b *bookmark.Bookmark) string {
 		),
 	)
 
-	sb.WriteByte('\n')
-
 	return sb.String()
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
@@ -66,6 +67,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
 
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
 
 	return c
 }
