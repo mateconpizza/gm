@@ -7,8 +7,6 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/junegunn/fzf v0.74.1
-	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741
 	github.com/mateconpizza/go-fzf v0.1.0
 	github.com/mateconpizza/gofiles v0.1.1
 	github.com/mateconpizza/rotato v0.1.17
@@ -35,6 +33,8 @@ require (
 	github.com/gdamore/tcell/v2 v2.13.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/junegunn/fzf v0.74.1 // indirect
+	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
