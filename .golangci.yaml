@@ -295,6 +295,7 @@ linters:
       - common-false-positives
     paths:
       - experimental
+      - assets
       - third_party$
       - builtin$
       - examples$

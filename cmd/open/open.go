@@ -25,16 +25,24 @@ func NewCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
-			kb := menucfg.NewBindBuilder(app.Cmd, app.DBName).
+
+			kb := menucfg.NewBindBuilder().
+				WithCommand(app.Command()).
+				WithDBName(app.DBBaseName()).
 				WithPlaceholder(p.Multi())
 
 			m := picker.NewWithFormatter(
 				app,
 				fm,
 				menu.WithMultiSelection(),
+				menu.WithHeaderKeymaps(),
+				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" open in browser "),
 				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-				menu.WithKeybinds(kb.New(menu.KeyCtrlO, "open-snapshot").Execute("archive open")),
+				menu.WithKeybinds(
+					kb.New(menu.KeyCtrlO, "open-snapshot").Execute("archive open"),
+					menu.KeymapTogglePreview(),
+				),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Open)

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -15,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	menu "github.com/mateconpizza/go-fzf"
 )
 
 // confirmRemove prompts the user to confirm the action.

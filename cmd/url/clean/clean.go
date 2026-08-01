@@ -82,15 +82,20 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.Parameters)
 	p := fm.Menu.Placeholder()
-
-	m := picker.New[bookmark.Bookmark](
-		app,
+	fm.Menu.Opts = append(
+		fm.Menu.Opts,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" parameters highlighted "),
+		menu.WithHeaderKeymaps(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithKeybinds(
+			menu.KeymapToggleAll(),
+			menu.KeymapTogglePreview(),
+		),
 	)
 
+	m := picker.New[bookmark.Bookmark](app, fm.Menu.Opts...)
 	m.SetFormatter(func(bm bookmark.Bookmark) string {
 		bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
 		return fm.Render(ui.NewConsole(), &bm)

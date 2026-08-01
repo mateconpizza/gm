@@ -150,14 +150,16 @@ func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark]
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
 
-	kb := menucfg.NewBindBuilder(app.Command(), app.DBBaseName()).
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
 	k := app.Menu.Keymaps()
 	keys := []*menu.Keymap{
-		kb.Builtin(k.ToggleAll, menucfg.ToggleAll),
-		kb.Builtin(k.Preview, menucfg.TogglePreview),
-		menu.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+		kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+		kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+		kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
 	}
 
 	return picker.NewWithFormatter(
@@ -165,11 +167,10 @@ func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark]
 		fm,
 		menu.WithMultiSelection(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 		menu.WithKeybinds(keys...),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),
 		menu.WithHeaderKeymaps(),
-		menu.WithHeaderKeymapFmt(picker.HeaderKeymapFmt),
-		menu.WithHeaderSeparatorFmt(picker.HeaderSeparatorFmt),
 	)
 }

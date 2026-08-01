@@ -52,25 +52,6 @@ func (k *Keymaps) Validate() error {
 	return nil
 }
 
-// BuiltinAction represents a native FZF action.
-type BuiltinAction int
-
-const (
-	ToggleAll BuiltinAction = iota
-	TogglePreview
-)
-
-func (b BuiltinAction) String() string {
-	switch b {
-	case ToggleAll:
-		return "toggle-all"
-	case TogglePreview:
-		return "toggle-preview"
-	default:
-		panic("menu: invalid builtin action")
-	}
-}
-
 // Builder constructs CLI-backed keybinds for a specific command and database.
 type Builder struct {
 	cmd         string
@@ -80,13 +61,25 @@ type Builder struct {
 
 // NewBindBuilder creates a new keybind builder for the given command and
 // database.
-func NewBindBuilder(cmd, dbName string) *Builder {
-	return &Builder{cmd: cmd, dbName: dbName}
+func NewBindBuilder() *Builder {
+	return &Builder{}
 }
 
 // WithPlaceholder sets the default FZF placeholder (e.g. "{+1}", "{+2}").
 func (b *Builder) WithPlaceholder(p string) *Builder {
 	b.placeholder = p
+	return b
+}
+
+// WithCommand sets the CLI command to be executed.
+func (b *Builder) WithCommand(cmd string) *Builder {
+	b.cmd = cmd
+	return b
+}
+
+// WithDBName sets the database name for the command.
+func (b *Builder) WithDBName(dbName string) *Builder {
+	b.dbName = dbName
 	return b
 }
 
@@ -104,10 +97,14 @@ func (b *Builder) New(keybind menu.Keybind, desc string) *KeymapConfig {
 	}
 }
 
+func (b *Builder) NewKeymap() *menu.Keymap {
+	return menu.NewKeymap()
+}
+
 // Builtin creates a Keymap using a native FZF action (no CLI command).
-func (b *Builder) Builtin(k *menu.Keymap, a BuiltinAction) *menu.Keymap {
+func (b *Builder) Builtin(k *menu.Keymap, a menu.KeybindAction) *menu.Keymap {
 	clone := *k
-	clone.Action = menu.KeybindAction(a.String())
+	clone.Action = a
 	return &clone
 }
 
@@ -147,9 +144,6 @@ func (kc *KeymapConfig) ExecuteSilent(action string) *menu.Keymap {
 	kc.base.WithSilentExecute(kc.builder.baseCmd(kc.applyPlaceholder(action)))
 	return kc.base
 }
-
-// func (kc *KeymapConfig) WithAction(action menu.KeybindAction) *menu.Keymap {
-// }
 
 func (kc *KeymapConfig) resolvePlaceholder() string {
 	if kc.placeholder != "" {

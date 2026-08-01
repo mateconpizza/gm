@@ -29,34 +29,31 @@ func NewCmd(app *application.App) *cobra.Command {
 			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
 
-			kb := menucfg.NewBindBuilder(app.Cmd, app.DBName).
+			kb := menucfg.NewBindBuilder().
+				WithCommand(app.Command()).
+				WithDBName(app.DBBaseName()).
 				WithPlaceholder(p.Multi())
 
 			k := app.Menu.Keymaps()
 			k.Edit.Enabled = true
 
-			keys := []*menu.Keymap{
-				kb.New(k.Edit.Bind, "as-json").Execute("edit --json"),
-				kb.New(k.EditNotes.Bind, "notes").Execute("edit notes"),
-				kb.Builtin(k.ToggleAll, menucfg.ToggleAll),
-				kb.Builtin(k.Preview, menucfg.TogglePreview),
-				menu.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
-			}
-
-			fm.Menu.Opts = append(
-				fm.Menu.Opts,
+			m := picker.NewWithFormatter(
+				app, fm,
 				menu.WithMultiSelection(),
+				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-				menu.WithKeybinds(keys...),
+				menu.WithKeybinds(
+					kb.New(k.Edit.Bind, "as-json").Execute("edit --json"),
+					kb.New(k.EditNotes.Bind, "notes").Execute("edit notes"),
+					kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+					kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+					kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+				),
 				// header
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" edition "),
 				menu.WithHeaderKeymaps(),
-				menu.WithHeaderKeymapFmt(picker.HeaderKeymapFmt),
-				menu.WithHeaderSeparatorFmt(picker.HeaderSeparatorFmt),
 			)
-
-			m := picker.NewWithFormatter(app, fm)
 
 			var strategy editor.EditStrategy
 			strategy = editor.NewBookmarkStrategy()
@@ -96,6 +93,9 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
 				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
+				menu.WithKeybinds(menu.KeymapTogglePreview()),
+				menu.WithHeaderKeymaps(),
+				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 			)
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
 		},

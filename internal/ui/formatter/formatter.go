@@ -6,8 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mateconpizza/gm/pkg/bookmark"
 	menu "github.com/mateconpizza/go-fzf"
+
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var (

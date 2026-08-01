@@ -42,7 +42,9 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
-	kb := menucfg.NewBindBuilder(app.Cmd, app.DBName).
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
 	return picker.NewWithFormatter(
@@ -51,7 +53,12 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" yank URL "),
+		menu.WithHeaderKeymaps(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-		menu.WithKeybinds(kb.From(keys.Yank).Execute("yank")),
+		menu.WithKeybinds(
+			kb.From(keys.Yank).Execute("yank"),
+			menu.KeymapToggleAll(),
+			menu.KeymapTogglePreview(),
+		),
 	)
 }

@@ -106,15 +106,12 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.ArchiveURL)
 
 	p := fm.Menu.Placeholder()
-	kb := menucfg.NewBindBuilder(app.Command(), app.DBBaseName()).
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
 	k := app.Menu.Keymaps()
-	keybinds := []*menu.Keymap{
-		kb.New(menu.KeyEnter, "open-in-browser").
-			Execute("url archive open"),
-		kb.Builtin(k.Preview, menucfg.TogglePreview),
-	}
 
 	return picker.NewWithFormatter(
 		app,
@@ -122,7 +119,12 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" archive URL "),
+		menu.WithHeaderKeymaps(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-		menu.WithKeybinds(keybinds...),
+		menu.WithKeybinds(
+			kb.New(menu.KeyEnter, "open-in-browser").Execute("url archive open"),
+			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+			kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+		),
 	)
 }

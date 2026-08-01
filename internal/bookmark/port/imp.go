@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -17,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	menu "github.com/mateconpizza/go-fzf"
 )
 
 var ErrNothingToImport = errors.New("nothing to import")

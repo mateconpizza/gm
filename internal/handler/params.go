@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
@@ -17,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	menu "github.com/mateconpizza/go-fzf"
 )
 
 var ErrURLParamsNotFound = errors.New("params not found")

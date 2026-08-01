@@ -43,26 +43,26 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	opts := fm.Menu.Opts
 
 	p := fm.Menu.Placeholder()
-	kb := menucfg.NewBindBuilder(app.Command(), app.DBBaseName()).
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
 	k := app.Menu.Keymaps()
 
-	keys := []*menu.Keymap{
-		kb.From(k.Edit).Execute("edit"),
-		kb.From(k.EditNotes).Execute("notes edit"),
-		kb.From(k.Open).Execute("open"),
-		kb.From(k.QR).Execute("qr"),
-		kb.From(k.OpenQR).Execute("qr open"),
-		kb.From(k.Yank).Execute("yank"),
-		kb.Builtin(k.ToggleAll, menucfg.ToggleAll),
-		kb.Builtin(k.Preview, menucfg.TogglePreview),
-	}
-
 	opts = append(
 		opts,
 		menu.WithMultiSelection(),
-		menu.WithKeybinds(keys...),
+		menu.WithKeybinds(
+			kb.From(k.Edit).Execute("edit"),
+			kb.From(k.EditNotes).Execute("notes edit"),
+			kb.From(k.Open).Execute("open"),
+			kb.From(k.QR).Execute("qr"),
+			kb.From(k.OpenQR).Execute("qr open"),
+			kb.From(k.Yank).Execute("yank"),
+			kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+		),
 
 		// preview window
 		menu.WithPreviewBorder(menu.BorderRounded),
@@ -71,8 +71,6 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 
 		// header
 		menu.WithHeaderKeymaps(),
-		menu.WithHeaderKeymapFmt(HeaderKeymapFmt),
-		menu.WithHeaderSeparatorFmt(HeaderSeparatorFmt),
 	)
 
 	m := New[bookmark.Bookmark](app, opts...)
@@ -122,6 +120,8 @@ func New[T comparable](app *application.App, opts ...menu.Option) *menu.Menu[T] 
 		// header
 		menu.WithHeaderFirst(),
 		menu.WithHeaderBorder(menu.BorderRounded),
+		menu.WithHeaderKeymapFmt(HeaderKeymapFmt),
+		menu.WithHeaderSeparatorFmt(HeaderSeparatorFmt),
 	)
 
 	return menu.New[T](opts...)
@@ -133,8 +133,6 @@ func Select[T comparable](items []T, opts ...menu.Option) ([]T, error) {
 		menu.WithHeaderFirst(),
 		menu.WithHeaderBorder(menu.BorderRounded),
 		menu.WithPreviewBorder(menu.BorderRounded),
-		// menu.WithKeymapFormatter(keymapFmt),
-		// menu.WithSeparatorFormatter(sepFmt),
 	)
 
 	m := menu.New[T](opts...)

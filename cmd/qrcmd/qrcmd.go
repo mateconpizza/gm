@@ -103,27 +103,26 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
 
-	kb := menucfg.NewBindBuilder(app.Command(), app.DBBaseName()).
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
 	k := app.Menu.Keymaps()
-	keys := []*menu.Keymap{
-		kb.Builtin(k.ToggleAll, menucfg.ToggleAll),
-		kb.Builtin(k.Preview, menucfg.TogglePreview),
-		menu.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
-	}
 
 	return picker.NewWithFormatter(
 		app, fm,
 		menu.WithMultiSelection(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "qr", p.Single())),
 		menu.WithPreviewWindow("right,40%"),
-		menu.WithKeybinds(keys...),
+		menu.WithKeybinds(
+			kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+			kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+		),
 		// header
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" QR-code "),
 		menu.WithHeaderKeymaps(),
-		menu.WithHeaderKeymapFmt(picker.HeaderKeymapFmt),
-		menu.WithHeaderSeparatorFmt(picker.HeaderSeparatorFmt),
 	)
 }
