@@ -1,13 +1,13 @@
 package rm
 
 import (
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -21,14 +21,16 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} rm --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := app.Formatter()
-			p := fm.Menu.Placeholder()
+
 			m := picker.NewWithFormatter(
 				app,
 				fm,
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" deletion "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+				menu.WithHeaderKeymaps(),
+				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), fm.Menu.Placeholder().Single())),
+				menu.WithKeybinds(menu.KeymapToggleAll(), menu.KeymapTogglePreview()),
 			)
 
 			return cmdutil.Execute(cmd, args, m, handler.Remove)

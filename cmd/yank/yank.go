@@ -1,13 +1,14 @@
 package yank
 
 import (
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -41,7 +42,9 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
-	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
 	return picker.NewWithFormatter(
@@ -50,7 +53,12 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" yank URL "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-		menu.WithKeybinds(kb.From(keys.Yank).Execute("yank")),
+		menu.WithHeaderKeymaps(),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithKeybinds(
+			kb.From(keys.Yank).Execute("yank"),
+			menu.KeymapToggleAll(),
+			menu.KeymapTogglePreview(),
+		),
 	)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -14,7 +15,7 @@ import (
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -34,30 +35,36 @@ func NewCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
-			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+
+			kb := menucfg.NewBindBuilder().
+				WithCommand(app.Command()).
+				WithDBName(app.DBBaseName()).
 				WithPlaceholder(p.Multi())
 
 			k := app.Menu.Keymaps()
 			k.Edit.Enabled = true
 
-			m := picker.NewWithFormatter(
+			m := setupMenu(
 				app,
-				fm,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
-				menu.WithKeybinds(kb.New(k.Edit.Bind, k.Edit.Desc).Execute("edit notes")),
+				menu.WithHeaderKeymaps(),
+				menu.WithKeybinds(
+					kb.New(k.Edit.Bind, k.Edit.Desc).Execute("edit notes"),
+					menu.KeymapTogglePreview(),
+				),
 			)
 
-			a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				if len(bs) == 0 {
-					return fmt.Errorf("%w: %v", ErrNotesNotFound, strings.Join(args, ""))
-				}
-				return printer.Notes(cmd.Context(), d.Console(), bs)
-			}
-
-			return cmdutil.Execute(cmd, args, m, a, onlyNotes)
+			return cmdutil.Execute(
+				cmd,
+				args,
+				m,
+				func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+					if len(bs) == 0 {
+						return fmt.Errorf("%w: %v", ErrNotesNotFound, strings.Join(args, ""))
+					}
+					return printer.Notes(cmd.Context(), d.Console(), bs)
+				},
+				onlyNotes,
+			)
 		},
 	}
 
@@ -74,17 +81,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.Formatter()
-			p := fm.Menu.Placeholder()
-			m := picker.NewWithFormatter(
-				app,
-				fm,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
-			)
-
+			m := setupMenu(app, menu.WithKeybinds(menu.KeymapTogglePreview()))
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
 		},
 	}
@@ -107,4 +104,19 @@ func onlyNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	}
 
 	return filtered
+}
+
+func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
+	p := app.Formatter().Menu.Placeholder()
+
+	opts = append(
+		opts,
+		menu.WithMultiSelection(),
+		menu.WithHeader("select record/s"),
+		menu.WithBorderLabel(" notes "),
+		menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
+	)
+
+	return picker.NewWithFormatter(app, app.Formatter(), opts...)
 }

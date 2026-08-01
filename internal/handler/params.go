@@ -8,13 +8,14 @@ import (
 	"net/url"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -35,7 +36,6 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 
 	m := picker.New[string](
 		app,
-		menu.WithArgs("--cycle"),
 		menu.WithBorderLabel("URL Parameters"),
 		menu.WithHeader("Select with <TAB> which params to remove"),
 		menu.WithMultiSelection(),
@@ -212,7 +212,6 @@ func selectParams(m *menu.Menu[string], u *url.URL) ([]string, error) {
 		return nil, ErrNoItems
 	}
 
-	m.UpdatePreview(fmt.Sprintf("echo %q", u.String()))
 	params, err := m.Select(items)
 	if err != nil {
 		return nil, err

@@ -9,12 +9,13 @@ import (
 	"errors"
 	"fmt"
 
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -40,7 +41,7 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 		app,
 		menu.WithHeader("select record/s to import"),
 		menu.WithMultiSelection(),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), srcDB.Name(), p.Single())),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), srcDB.Name(), p.Single())),
 		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
 			srcDB.Close()
@@ -54,8 +55,8 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 	}
 
 	c := d.Console()
-	m.SetFormatter(func(b **bookmark.Bookmark) string {
-		return fm.Render(c, *b)
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
+		return fm.Render(c, b)
 	})
 
 	bs, err = m.Select(bs)
@@ -104,13 +105,13 @@ func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) err
 		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
 		menu.WithInterruptFn(c.Term().InterruptFn()),
 		menu.WithMultiSelection(),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), "./backup/"+srcDB.Name(), p.Single())),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "./backup/"+srcDB.Name(), p.Single())),
 	)
 
 	defer c.Term().CancelInterruptHandler()
 
-	m.SetFormatter(func(b **bookmark.Bookmark) string {
-		return fm.Render(c, *b)
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
+		return fm.Render(c, b)
 	})
 
 	bookmarks, err = m.Select(bookmarks)

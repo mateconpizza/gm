@@ -1,0 +1,164 @@
+package menucfg
+
+import (
+	"fmt"
+	"strings"
+
+	menu "github.com/mateconpizza/go-fzf"
+)
+
+// Keymaps holds the keymaps for FZF.
+type Keymaps struct {
+	Edit      *menu.Keymap `json:"edit"       yaml:"edit"`
+	EditNotes *menu.Keymap `json:"notes"      yaml:"notes"`
+	Open      *menu.Keymap `json:"open"       yaml:"open"`
+	Preview   *menu.Keymap `json:"preview"    yaml:"preview"`
+	QR        *menu.Keymap `json:"qr"         yaml:"qr"`
+	OpenQR    *menu.Keymap `json:"open_qr"    yaml:"open_qr"`
+	ToggleAll *menu.Keymap `json:"toggle_all" yaml:"toggle_all"`
+	Yank      *menu.Keymap `json:"yank"       yaml:"yank"`
+}
+
+func (k *Keymaps) Validate() error {
+	check := func(name string, km *menu.Keymap) error {
+		if km == nil || !km.IsEnabled() {
+			return nil
+		}
+		if km.Bind == "" {
+			return fmt.Errorf("%w: keymap %q: missing bind", ErrInvalidConfigKeymap, name)
+		}
+		return nil
+	}
+
+	for _, entry := range []struct {
+		name string
+		km   *menu.Keymap
+	}{
+		{"edit", k.Edit},
+		{"notes", k.EditNotes},
+		{"open", k.Open},
+		{"preview", k.Preview},
+		{"qr", k.QR},
+		{"open_qr", k.OpenQR},
+		{"toggle_all", k.ToggleAll},
+		{"toggle-preview", k.ToggleAll},
+		{"yank", k.Yank},
+	} {
+		if err := check(entry.name, entry.km); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Builder constructs CLI-backed keybinds for a specific command and database.
+type Builder struct {
+	cmd         string
+	dbName      string
+	placeholder string
+}
+
+// NewBindBuilder creates a new keybind builder for the given command and
+// database.
+func NewBindBuilder() *Builder {
+	return &Builder{}
+}
+
+// WithPlaceholder sets the default FZF placeholder (e.g. "{+1}", "{+2}").
+func (b *Builder) WithPlaceholder(p string) *Builder {
+	b.placeholder = p
+	return b
+}
+
+// WithCommand sets the CLI command to be executed.
+func (b *Builder) WithCommand(cmd string) *Builder {
+	b.cmd = cmd
+	return b
+}
+
+// WithDBName sets the database name for the command.
+func (b *Builder) WithDBName(dbName string) *Builder {
+	b.dbName = dbName
+	return b
+}
+
+// From clones a Keymap from user config and prepares it for modification.
+func (b *Builder) From(k *menu.Keymap) *KeymapConfig {
+	clone := *k
+	return &KeymapConfig{base: &clone, builder: b}
+}
+
+// New creates a new Keymap with the given bind and description.
+func (b *Builder) New(keybind menu.Keybind, desc string) *KeymapConfig {
+	return &KeymapConfig{
+		base:    &menu.Keymap{Bind: keybind, Desc: desc, Enabled: true},
+		builder: b,
+	}
+}
+
+func (b *Builder) NewKeymap() *menu.Keymap {
+	return menu.NewKeymap()
+}
+
+// Builtin creates a Keymap using a native FZF action (no CLI command).
+func (b *Builder) Builtin(k *menu.Keymap, a menu.KeybindAction) *menu.Keymap {
+	clone := *k
+	clone.Action = a
+	return &clone
+}
+
+// cmd builds the full CLI command string.
+func (b *Builder) baseCmd(action string) string {
+	return fmt.Sprintf("%s --db=%s %s", b.cmd, b.dbName, action)
+}
+
+// KeymapConfig builds a single Keymap with a resolved action and placeholder.
+type KeymapConfig struct {
+	base        *menu.Keymap
+	builder     *Builder
+	placeholder string
+}
+
+// WithPlaceholder overrides the builder-level placeholder for this keymap
+// only.
+func (kc *KeymapConfig) WithPlaceholder(p string) *KeymapConfig {
+	kc.placeholder = p
+	return kc
+}
+
+// Desc overrides the keymap description.
+func (kc *KeymapConfig) Desc(d string) *KeymapConfig {
+	kc.base.Desc = d
+	return kc
+}
+
+// Execute sets an execute action with the given CLI subcommand.
+func (kc *KeymapConfig) Execute(action string) *menu.Keymap {
+	kc.base.WithExecute(kc.builder.baseCmd(kc.applyPlaceholder(action)))
+	return kc.base
+}
+
+// ExecuteSilent sets an execute-silent action with the given CLI subcommand.
+func (kc *KeymapConfig) ExecuteSilent(action string) *menu.Keymap {
+	kc.base.WithSilentExecute(kc.builder.baseCmd(kc.applyPlaceholder(action)))
+	return kc.base
+}
+
+func (kc *KeymapConfig) resolvePlaceholder() string {
+	if kc.placeholder != "" {
+		return kc.placeholder
+	}
+	return kc.builder.placeholder
+}
+
+func (kc *KeymapConfig) applyPlaceholder(action string) string {
+	p := kc.resolvePlaceholder()
+	if p == "" {
+		return action
+	}
+	if strings.Contains(action, "{+1}") {
+		return strings.ReplaceAll(action, "{+1}", p)
+	}
+	return action + " " + p
+}

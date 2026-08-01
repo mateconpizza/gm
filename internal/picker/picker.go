@@ -3,16 +3,35 @@ package picker
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	menu "github.com/mateconpizza/go-fzf"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var ErrNoItems = errors.New("no items")
+
+var (
+	HeaderKeymapFmt = func(bind, sep, desc string) string {
+		return fmt.Sprintf(
+			"%s%s%s",
+			ansi.BrightYellow.Sprint(bind),
+			ansi.Gray.Sprint(sep),
+			ansi.BrightBlue.Sprint(desc),
+		)
+	}
+
+	HeaderSeparatorFmt = func(sep string) string {
+		return ansi.Dim.Sprint(sep)
+	}
+)
 
 // NewMainMenu builds the interactive FZF menu for selecting records.
 func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
@@ -21,24 +40,19 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	}
 
 	fm := app.Formatter()
+	opts := fm.Menu.Opts
 
 	p := fm.Menu.Placeholder()
-	kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
+
 	k := app.Menu.Keymaps()
 
-	fm.Menu.Opts = append(
-		fm.Menu.Opts,
-		menu.WithBorderLabel(" "+app.Name+" "),
-		menu.WithConfig(app.Menu),
+	opts = append(
+		opts,
 		menu.WithMultiSelection(),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-		menu.WithPrompt(app.Menu.Prompt),
-		menu.WithHeaderFirst(),
-		menu.WithHeaderLabel(" keybinds "),
-		menu.WithHeaderBorder(menu.BorderRounded),
-		menu.WithPreviewBorder(menu.BorderRounded),
 		menu.WithKeybinds(
 			kb.From(k.Edit).Execute("edit"),
 			kb.From(k.EditNotes).Execute("notes edit"),
@@ -46,25 +60,32 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 			kb.From(k.QR).Execute("qr"),
 			kb.From(k.OpenQR).Execute("qr open"),
 			kb.From(k.Yank).Execute("yank"),
-			kb.Builtin(k.ToggleAll, menu.ToggleAll),
-			kb.Builtin(k.Preview, menu.TogglePreview),
+			kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
 		),
+
+		// preview window
+		menu.WithPreviewBorder(menu.BorderRounded),
+		menu.WithPreviewCmd(PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithPreviewWindow(PreviewWindowArg(app.Menu.Preview)),
+
+		// header
+		menu.WithHeaderKeymaps(),
 	)
 
-	m := menu.New[bookmark.Bookmark](fm.Menu.Opts...)
-	m.SetFormatter(func(b *bookmark.Bookmark) string {
-		return fm.Render(ui.NewConsole(), b)
+	m := New[bookmark.Bookmark](app, opts...)
+	m.SetFormatter(func(b bookmark.Bookmark) string {
+		return fm.Render(ui.NewConsole(), &b)
 	})
 
 	return m
 }
 
 func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
-	fm.Menu.Opts = append(fm.Menu.Opts, opts...)
-
-	m := New[bookmark.Bookmark](app, fm.Menu.Opts...)
-	m.SetFormatter(func(b *bookmark.Bookmark) string {
-		return fm.Render(ui.NewConsole(), b)
+	opts = append(opts, fm.Menu.Opts...)
+	m := New[bookmark.Bookmark](app, opts...)
+	m.SetFormatter(func(b bookmark.Bookmark) string {
+		return fm.Render(ui.NewConsole(), &b)
 	})
 
 	return m
@@ -74,12 +95,33 @@ func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu
 func New[T comparable](app *application.App, opts ...menu.Option) *menu.Menu[T] {
 	opts = append(
 		opts,
+		// appearance
+		menu.WithAnsi(),
 		menu.WithBorderLabel(" "+app.Name+" "),
 		menu.WithOutputColor(app.Flags.Color),
-		menu.WithConfig(app.Menu),
-		menu.WithHeaderBorder(menu.BorderRounded),
+		menu.WithLayout(menu.LayoutDefault),
+		menu.WithHeaderSeparator(app.Menu.Header.Sep),
+
+		// prompt & defaults
+		menu.WithPrompt(app.Menu.Prompt),
+		menu.WithDefaults(app.Menu.Defaults),
+		menu.WithArgsCustom(app.Menu.Arguments...),
+		menu.WithoutHeader(!app.Menu.Header.Enabled),
+
+		// preview & info
 		menu.WithPreviewBorder(menu.BorderRounded),
+		menu.WithInfo(menu.InfoStyleInlineRight),
+
+		// behavior
+		menu.WithCycle(),
+		menu.WithSync(),
+		menu.WithNoScrollbar(),
+
+		// header
 		menu.WithHeaderFirst(),
+		menu.WithHeaderBorder(menu.BorderRounded),
+		menu.WithHeaderKeymapFmt(HeaderKeymapFmt),
+		menu.WithHeaderSeparatorFmt(HeaderSeparatorFmt),
 	)
 
 	return menu.New[T](opts...)
@@ -88,9 +130,9 @@ func New[T comparable](app *application.App, opts ...menu.Option) *menu.Menu[T] 
 func Select[T comparable](items []T, opts ...menu.Option) ([]T, error) {
 	opts = append(
 		opts,
+		menu.WithHeaderFirst(),
 		menu.WithHeaderBorder(menu.BorderRounded),
 		menu.WithPreviewBorder(menu.BorderRounded),
-		menu.WithHeaderFirst(),
 	)
 
 	m := menu.New[T](opts...)
@@ -111,8 +153,8 @@ func BookmarkWithMenu(m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) 
 		bsCopy = append(bsCopy, *b)
 	}
 
-	defFormatter := func(b *bookmark.Bookmark) string {
-		return formatter.Default().Render(ui.NewConsole(), b)
+	defFormatter := func(b bookmark.Bookmark) string {
+		return formatter.Default().Render(ui.NewConsole(), &b)
 	}
 	if m.Formatter == nil {
 		m.SetFormatter(defFormatter)
@@ -135,9 +177,9 @@ func BookmarkWithMenu(m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) 
 
 // selectionWithMenu allows the user to select multiple records in a menu
 // interface.
-func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) string) ([]T, error) {
+func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(T) string) ([]T, error) {
 	if len(items) == 0 {
-		return nil, menu.ErrFzfNoItems
+		return nil, menu.ErrNoItems
 	}
 
 	m.SetFormatter(fmtFn)
@@ -145,7 +187,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 	var result []T
 	result, err := m.Select(items)
 	if err != nil {
-		if errors.Is(err, menu.ErrFzfActionAborted) {
+		if errors.Is(err, menu.ErrActionAborted) {
 			return nil, sys.ErrActionAborted
 		}
 
@@ -157,4 +199,25 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(*T) 
 	}
 
 	return result, nil
+}
+
+// PreviewCmd builds an fzf preview command.
+func PreviewCmd(command, dbName string, args ...string) string {
+	// FIX: Use `--color=always` for fzf previews.
+	// This will `force` the preview window in FZF to `always` display colors, but if
+	// color is disable, FZF will handle the color strip but keeps text styles
+	// (dim, bold, italic, etc)
+	return fmt.Sprintf(
+		"%s --preview frame --color always --db %s %s",
+		command,
+		dbName,
+		strings.Join(args, " "),
+	)
+}
+
+func PreviewWindowArg(show bool) string {
+	if show {
+		return "~4,+{2}+4/3,<80(up)"
+	}
+	return "hidden,up"
 }

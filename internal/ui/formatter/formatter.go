@@ -6,7 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 

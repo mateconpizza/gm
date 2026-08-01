@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -14,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -32,11 +32,11 @@ func Select(ctx context.Context, d *deps.Deps, ignoreDBPath string) (string, err
 	m := picker.New[string](
 		app,
 		menu.WithHeader("choose a database to import from"),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), "{1}", "db info")),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "{1}", "db info")),
 	)
 
-	m.SetFormatter(func(p *string) string {
-		return summary.RepoRecordsFromPath(ctx, d.Console(), *p)
+	m.SetFormatter(func(p string) string {
+		return summary.RepoRecordsFromPath(ctx, d.Console(), p)
 	})
 
 	s, err := m.Select(dbs)
@@ -63,8 +63,8 @@ func SelectBackup(ctx context.Context, d *deps.Deps, bks []string) (string, erro
 
 	m := setupMenu(
 		app,
-		func(path *string) string {
-			return summary.BackupWithFmtDateFromPath(ctx, c, *path)
+		func(path string) string {
+			return summary.BackupWithFmtDateFromPath(ctx, c, path)
 		},
 		menu.WithHeader("choose a backup to import from"),
 	)
@@ -100,8 +100,8 @@ func SelectEncrypted(ctx context.Context, d *deps.Deps, root string) (string, er
 		menu.WithHeader("select backup to unlock"),
 	)
 
-	m.SetFormatter(func(p *string) string {
-		return summary.BackupWithFmtDateFromPath(ctx, d.Console(), *p)
+	m.SetFormatter(func(p string) string {
+		return summary.BackupWithFmtDateFromPath(ctx, d.Console(), p)
 	})
 
 	f, err := files.FindByExtension(root, "enc")
@@ -135,10 +135,10 @@ func selectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, 
 	p := d.Console().Palette()
 	m := setupMenu(
 		app,
-		func(path *string) string {
-			s := summary.RepoRecordsFromPath(ctx, d.Console(), *path)
+		func(path string) string {
+			s := summary.RepoRecordsFromPath(ctx, d.Console(), path)
 			if s == "error" {
-				s = *path + p.BrightRed.Sprint(" (err on read)")
+				s = path + p.BrightRed.Sprint(" (err on read)")
 			}
 			return s
 		},
@@ -193,8 +193,8 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 
 	m := setupMenu(
 		app,
-		func(item *string) string {
-			return summary.BackupWithFmtDateFromPath(ctx, c, *item)
+		func(item string) string {
+			return summary.BackupWithFmtDateFromPath(ctx, c, item)
 		},
 		menu.WithMultiSelection(),
 		menu.WithHeader(fmt.Sprintf("select backup/s from %q", app.DBBaseName())),
@@ -206,8 +206,8 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 func setupMenu[T comparable](app *application.App, formatter menu.FmtFunc[T], opts ...menu.Option) *menu.Menu[T] {
 	opts = append(
 		opts,
-		menu.WithArgs("--cycle"),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), "./backup/{1}", "db info")),
+		menu.WithCycle(),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "./backup/{1}", "db info")),
 	)
 
 	m := picker.New[T](app, opts...)

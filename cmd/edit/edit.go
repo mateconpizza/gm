@@ -1,6 +1,7 @@
 package edit
 
 import (
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -8,7 +9,7 @@ import (
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 )
 
 // FIX: NewCmd menu: current functionality exits the menu after editing a bookmark.
@@ -28,21 +29,30 @@ func NewCmd(app *application.App) *cobra.Command {
 			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
 
-			kb := menu.NewBindBuilder(app.Cmd, app.DBName).
+			kb := menucfg.NewBindBuilder().
+				WithCommand(app.Command()).
+				WithDBName(app.DBBaseName()).
 				WithPlaceholder(p.Multi())
 
 			k := app.Menu.Keymaps()
 			k.Edit.Enabled = true
 
 			m := picker.NewWithFormatter(
-				app,
-				fm,
+				app, fm,
 				menu.WithMultiSelection(),
+				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
+				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+				menu.WithKeybinds(
+					kb.New(k.Edit.Bind, "as-json").Execute("edit --json"),
+					kb.New(k.EditNotes.Bind, "notes").Execute("edit notes"),
+					kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+					kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+					kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+				),
+				// header
 				menu.WithHeader("select record/s"),
 				menu.WithHeaderLabel(" edition "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-				menu.WithKeybinds(kb.New(k.Edit.Bind, "as-json").Execute("edit --json")),
-				menu.WithKeybinds(kb.New(k.EditNotes.Bind, "notes").Execute("edit notes")),
+				menu.WithHeaderKeymaps(),
 			)
 
 			var strategy editor.EditStrategy
@@ -82,7 +92,10 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithMultiSelection(),
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
-				menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
+				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
+				menu.WithKeybinds(menu.KeymapTogglePreview()),
+				menu.WithHeaderKeymaps(),
+				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 			)
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
 		},

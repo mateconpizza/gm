@@ -3,6 +3,7 @@ package clean
 import (
 	"net/url"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -12,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -82,19 +82,23 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.Parameters)
 	p := fm.Menu.Placeholder()
-
-	m := picker.New[bookmark.Bookmark](
-		app,
+	fm.Menu.Opts = append(
+		fm.Menu.Opts,
 		menu.WithMultiSelection(),
-		menu.WithArgs("--cycle"),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" parameters highlighted "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithHeaderKeymaps(),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithKeybinds(
+			menu.KeymapToggleAll(),
+			menu.KeymapTogglePreview(),
+		),
 	)
 
-	m.SetFormatter(func(bm *bookmark.Bookmark) string {
+	m := picker.New[bookmark.Bookmark](app, fm.Menu.Opts...)
+	m.SetFormatter(func(bm bookmark.Bookmark) string {
 		bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
-		return fm.Render(ui.NewConsole(), bm)
+		return fm.Render(ui.NewConsole(), &bm)
 	})
 
 	return m

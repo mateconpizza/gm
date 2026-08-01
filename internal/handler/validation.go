@@ -8,12 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/menu"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -61,8 +62,8 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 
 			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())
 			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
-			m.SetFormatter(func(b **bookmark.Bookmark) string {
-				return fm.Render(d.Console(), *b)
+			m.SetFormatter(func(b *bookmark.Bookmark) string {
+				return fm.Render(d.Console(), b)
 			})
 
 			bs, err = m.Select(bs)

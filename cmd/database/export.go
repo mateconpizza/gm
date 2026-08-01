@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -12,7 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -148,12 +149,28 @@ func parseCSVFields(f string) []string {
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
+
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
+		WithPlaceholder(p.Multi())
+
+	k := app.Menu.Keymaps()
+	keys := []*menu.Keymap{
+		kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+		kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+		kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+	}
+
 	return picker.NewWithFormatter(
 		app,
 		fm,
 		menu.WithMultiSelection(),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
+		menu.WithKeybinds(keys...),
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithHeaderKeymaps(),
 	)
 }

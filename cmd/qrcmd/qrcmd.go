@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -12,7 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/menu"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -101,13 +102,27 @@ func newGenQR(app *application.App) *cobra.Command {
 func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
+
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
+		WithPlaceholder(p.Multi())
+
+	k := app.Menu.Keymaps()
+
 	return picker.NewWithFormatter(
-		app,
-		fm,
+		app, fm,
 		menu.WithMultiSelection(),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "qr", p.Single())),
+		menu.WithPreviewWindow("right,40%"),
+		menu.WithKeybinds(
+			kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+			kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+		),
+		// header
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(" QR-code "),
-		menu.WithPreview(menu.PreviewCmd(app.Command(), app.DBBaseName(), "qr", p.Single())),
-		menu.WithPreviewWindow("right,40%"),
+		menu.WithHeaderKeymaps(),
 	)
 }
