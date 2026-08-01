@@ -83,15 +83,7 @@ func (r *Response) String() string {
 func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	start := time.Now()
 
-	sp := rotato.New(
-		rotato.WithPrefix("Checking URL Status"),
-		rotato.WithMessage("processing..."),
-		rotato.WithPrefixColor(rotato.StyleDim),
-		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
-		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
-		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-	)
+	sp := setupSpinner(c.Palette())
 	sp.Start(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -117,6 +109,9 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*book
 			default:
 				old := *b
 				res := makeRequest(ctx, b)
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 
 				sp.Print(res.String())
 				current.Add(1)
@@ -326,4 +321,19 @@ func isNetworkUnreachableError(err error) bool {
 	}
 
 	return false
+}
+
+func setupSpinner(p *ansi.Palette) *rotato.Rotato {
+	return rotato.New(
+		rotato.WithPrefix("checking URL status"),
+		rotato.WithMessage("processing..."),
+		rotato.WithPrefixColor(rotato.StyleDim),
+		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
+		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
+		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		rotato.WithMessageDecorator(func(mesg string) string {
+			return mesg + p.Dim.With(p.Italic).Sprint(" (ctrl-c to cancel)")
+		}),
+	)
 }
