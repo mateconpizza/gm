@@ -122,7 +122,7 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithHeaderKeymaps(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 		menu.WithKeybinds(
-			kb.New(menu.KeyEnter, "open-in-browser").Execute("url archive open"),
+			kb.New(menu.KeyEnter, "open-in-browser").WithExecute("url archive open"),
 			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
 			kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
 		),

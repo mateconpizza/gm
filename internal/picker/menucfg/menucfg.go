@@ -17,13 +17,32 @@ const (
 
 // Config holds the menu configuration.
 type Config struct {
-	Defaults       bool      `json:"defaults"  yaml:"defaults"`  // Use $FZF_DEFAULT_OPTS_FILE n $FZF_DEFAULT_OPTS
-	Format         string    `json:"format"    yaml:"format"`    // Fzf items format
-	Prompt         string    `json:"prompt"    yaml:"prompt"`    // Fzf prompt
-	Preview        bool      `json:"preview"   yaml:"preview"`   // Fzf enable preview
-	Header         Header    `json:"header"    yaml:"header"`    // Fzf header
-	DefaultKeymaps *Keymaps  `json:"keymaps"   yaml:"keymaps"`   // Fzf keymaps
-	Arguments      menu.Args `json:"arguments" yaml:"arguments"` // Fzf arguments
+	// Use $FZF_DEFAULT_OPTS_FILE n $FZF_DEFAULT_OPTS
+	Defaults bool `json:"defaults" yaml:"defaults"`
+
+	// Fzf items format
+	Format string `json:"format" yaml:"format"`
+
+	// Fzf prompt
+	Prompt string `json:"prompt" yaml:"prompt"`
+
+	// Fzf enable preview
+	Preview bool `json:"preview" yaml:"preview"`
+
+	// Fzf header
+	Header Header `json:"header" yaml:"header"`
+
+	// Fzf keymaps
+	DefaultKeymaps *Keymaps `json:"keymaps" yaml:"keymaps"`
+
+	// Fzf arguments
+	Arguments menu.Args `json:"arguments,omitempty" yaml:"arguments,omitempty"`
+}
+
+// Header holds the header configuration for FZF.
+type Header struct {
+	Enabled bool   `yaml:"enabled"`
+	Sep     string `yaml:"separator"`
 }
 
 func NewDefault() *Config {
@@ -53,10 +72,18 @@ func (c *Config) Keymaps() *Keymaps {
 	return c.DefaultKeymaps
 }
 
-// Header holds the header configuration for FZF.
-type Header struct {
-	Enabled bool   `yaml:"enabled"`
-	Sep     string `yaml:"separator"`
+func (c *Config) KeymapsList() []*menu.Keymap {
+	k := c.Keymaps()
+	return []*menu.Keymap{
+		k.Edit,
+		k.EditNotes,
+		k.Open,
+		k.QR,
+		k.OpenQR,
+		k.Yank,
+		k.Preview,
+		k.ToggleAll,
+	}
 }
 
 // Validate validates the menu configuration.
@@ -83,4 +110,18 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) LoadKeymaps(kb *KeymapBuilder) []*menu.Keymap {
+	k := c.Keymaps()
+	k.Edit = kb.From(k.Edit).WithExecute("edit")
+	k.EditNotes = kb.From(k.EditNotes).WithExecute("notes edit")
+	k.Open = kb.From(k.Open).WithExecute("open")
+	k.QR = kb.From(k.QR).WithExecute("qr")
+	k.OpenQR = kb.From(k.OpenQR).WithExecute("qr open")
+	k.Yank = kb.From(k.Yank).WithExecute("yank")
+	k.ToggleAll = kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll)
+	k.Preview = kb.Builtin(k.Preview, menu.KeybindActionTogglePreview)
+
+	return c.KeymapsList()
 }

@@ -48,21 +48,12 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		WithDBName(app.DBBaseName()).
 		WithPlaceholder(p.Multi())
 
-	k := app.Menu.Keymaps()
+	builtinKeymaps := app.Menu.LoadKeymaps(kb)
 
 	opts = append(
 		opts,
 		menu.WithMultiSelection(),
-		menu.WithKeybinds(
-			kb.From(k.Edit).Execute("edit"),
-			kb.From(k.EditNotes).Execute("notes edit"),
-			kb.From(k.Open).Execute("open"),
-			kb.From(k.QR).Execute("qr"),
-			kb.From(k.OpenQR).Execute("qr open"),
-			kb.From(k.Yank).Execute("yank"),
-			kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
-			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
-		),
+		menu.WithKeybinds(builtinKeymaps...),
 
 		// preview window
 		menu.WithPreviewBorder(menu.BorderRounded),

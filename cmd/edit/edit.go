@@ -44,8 +44,8 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 				menu.WithKeybinds(
-					kb.New(k.Edit.Bind, "as-json").Execute("edit --json"),
-					kb.New(k.EditNotes.Bind, "notes").Execute("edit notes"),
+					kb.New(k.Edit.Bind, "as-json").WithExecute("edit --json"),
+					kb.New(k.EditNotes.Bind, "notes").WithExecute("edit notes"),
 					kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
 					kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
 					kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),

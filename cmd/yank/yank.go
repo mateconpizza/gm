@@ -58,7 +58,7 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithHeaderKeymaps(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 		menu.WithKeybinds(
-			kb.From(keys.Yank).Execute("yank"),
+			kb.From(keys.Yank).WithExecute("yank"),
 			menu.KeymapToggleAll(),
 			menu.KeymapTogglePreview(),
 		),

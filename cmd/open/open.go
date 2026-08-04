@@ -41,7 +41,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeaderLabel(" open in browser "),
 				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
 				menu.WithKeybinds(
-					kb.New(menu.KeyCtrlO, "open-snapshot").Execute("archive open"),
+					kb.New(menu.KeyCtrlO, "open-snapshot").WithExecute("archive open"),
 					menu.KeymapTogglePreview(),
 				),
 			)

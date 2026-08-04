@@ -49,7 +49,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				app,
 				menu.WithHeaderKeymaps(),
 				menu.WithKeybinds(
-					kb.New(k.Edit.Bind, k.Edit.Desc).Execute("edit notes"),
+					kb.New(k.Edit.Bind, k.Edit.Desc).WithExecute("edit notes"),
 					menu.KeymapTogglePreview(),
 				),
 			)
