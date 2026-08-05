@@ -26,6 +26,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Check local module replacements
+        run: |
+          if go list -m -f '{{if .Replace}}{{if not .Replace.Version}}{{.Path}} => {{.Replace.Path}}{{end}}{{end}}' all | grep -q .; then
+            echo "Error: local module replacement detected"
+            go list -m -f '{{if .Replace}}{{if not .Replace.Version}}{{.Path}} => {{.Replace.Path}}{{end}}{{end}}' all
+            exit 1
+          fi
+
       - name: Verify modules
         run: |
           go mod tidy
@@ -38,6 +46,10 @@ jobs:
       - name: Run tests
         run: |
           go test -v ./...
+
+      - name: Run race detector
+        run: |
+          go test -race ./...
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9

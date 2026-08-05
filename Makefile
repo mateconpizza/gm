@@ -114,6 +114,11 @@ tidy:
 	go mod tidy
 
 ci: lint
+	@if go list -m -f '{{if .Replace}}{{if not .Replace.Version}}{{.Path}} => {{.Replace.Path}}{{end}}{{end}}' all | grep -q .; then \
+		echo "error: local replace directive found in go.mod"; \
+		go list -m -f '{{if .Replace}}{{if not .Replace.Version}}{{.Path}} => {{.Replace.Path}}{{end}}{{end}}' all; \
+		exit 1; \
+	fi
 	go mod tidy
 	git diff --exit-code
 	go build ./...
