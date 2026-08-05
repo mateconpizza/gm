@@ -18,8 +18,10 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/editor"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/printer"
+	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -31,12 +33,10 @@ func NewCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} config create
   $ {cmd} config create --force
   $ {cmd} config edit
+  $ {cmd} config view
   $ {cmd} config --print
   $ {cmd} config --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if app.Flags.JSON {
-				return cfgToJSON(cmd.Context(), app)
-			}
 			if app.Flags.Print {
 				return showPathFile(os.Stdout, app.Path.ConfigFile())
 			}
@@ -45,10 +45,9 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 	c.Flags().BoolVar(&app.Flags.Print, "print", false, "print config file location")
-	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "JSON output")
 	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag")
 
-	c.AddCommand(newCreateCmd(app), newEditCmd(app))
+	c.AddCommand(newCreateCmd(app), newEditCmd(app), newViewCmd(app))
 
 	return c
 }
@@ -61,7 +60,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 			if err := app.Validate(); err != nil {
 				return err
 			}
-			return createConfig(cmd.Context(), ui.DefaultConsole, app)
+			return createConfig(ui.DefaultConsole, app)
 		},
 	}
 	cmdutil.HideFlag(c, "db")
@@ -83,6 +82,29 @@ func newEditCmd(app *application.App) *cobra.Command {
 	}
 }
 
+func newViewCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "view",
+		Short:   "view current configuration",
+		Aliases: []string{"v"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if app.Flags.JSON {
+				return cfgToJSON(cmd.Context(), app)
+			}
+
+			f := frame.New(
+				frame.WithBordersSmallBlock2(),
+				frame.WithWriter(os.Stdout),
+			)
+			return printer.AppConfig(app, f, ansi.NewPalette())
+		},
+	}
+
+	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "JSON output")
+
+	return c
+}
+
 func cfgToJSON(ctx context.Context, app *application.App) error {
 	app.DBName = strings.TrimSuffix(app.DBName, ".db")
 	j, err := port.ToJSON(app)
@@ -93,16 +115,12 @@ func cfgToJSON(ctx context.Context, app *application.App) error {
 }
 
 // createConfig dumps the app configuration to a YAML file.
-func createConfig(ctx context.Context, c *ui.Console, app *application.App) error {
+func createConfig(c *ui.Console, app *application.App) error {
 	cfgFile := app.Path.ConfigFile()
 	if files.Exists(cfgFile) && !app.Flags.Force {
 		p := c.Palette()
 		f := p.BrightYellow.Wrap("--force", p.Italic, p.Bold)
 		return fmt.Errorf("%w. use %s to overwrite", os.ErrExist, f)
-	}
-
-	if !app.Flags.Force && !c.Confirm(ctx, fmt.Sprintf("create configfile %q", cfgFile), "y") {
-		return sys.ErrActionAborted
 	}
 
 	if err := app.WriteConfig(app.Flags.Force); err != nil {
