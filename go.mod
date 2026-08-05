@@ -24,8 +24,6 @@ require (
 	modernc.org/sqlite v1.54.0
 )
 
-replace github.com/mateconpizza/go-fzf => ../go-fzf/
-
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/charlievieth/fastwalk v1.0.14 // indirect
