@@ -13,17 +13,21 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -359,4 +363,77 @@ func Display(ctx context.Context, c *ui.Console, f string, bs []*bookmark.Bookma
 	}
 
 	return Print(ctx, c, bs, fm.Render)
+}
+
+func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
+	header := func() string {
+		return p.BrightBlue.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+
+	const padding = 20
+	pad := func(label string, value any) string {
+		return txt.PaddedLineWithPad(label+":", value, padding)
+	}
+
+	f.CustomFunc(header, app.PrettyVersion()).
+		Rowln().
+		Rowln(pad("current db", p.BrightYellow.Wrap(app.DBBaseName(), p.Italic))).
+		Rowln(pad("format", app.Format))
+
+	// config file
+	if files.Exists(app.Path.ConfigFile()) {
+		f.Rowln(pad("config:", files.CollapseHomeDir(app.Path.ConfigFile())))
+	}
+
+	// menu.
+	m := app.Menu
+	f.MidCln(p.BrightRed.With(p.Bold), p.BrightRed.Wrap("menu", p.Bold)).
+		Rowln(pad("use defaults", boolFmt(m.Defaults))).
+		Rowln(pad("format", m.Format)).
+		Rowln(pad("prompt", m.Prompt)).
+		Rowln(pad("preview enabled", boolFmt(m.Preview))).
+		Rowln(pad("header enabled", boolFmt(m.Header.Enabled))).
+		Rowln(pad("header separator", m.Header.Sep))
+
+	// keymaps.
+	ph := app.Formatter().Menu.Placeholder()
+	keymaps := app.Menu.LoadKeymaps(
+		menucfg.NewBindBuilder().
+			WithCommand(app.Command()).
+			WithDBName(app.DBBaseName()).
+			WithPlaceholder(ph.Multi()),
+	)
+	f.MidCln(p.BrightMagenta.With(p.Bold), p.BrightMagenta.Wrap("keymaps", p.Bold))
+	for i := range keymaps {
+		k := keymaps[i]
+		f.Rowln(pad(k.Desc, formatKeymap(k)))
+	}
+
+	// git.
+	if g := app.Git; g.Enabled {
+		f.MidCln(p.BrightYellow.With(p.Bold), p.BrightYellow.Wrap("git", p.Bold)).
+			Rowln(pad("enabled", boolFmt(g.Enabled))).
+			Rowln(pad("logging", boolFmt(g.Log))).
+			Rowln(pad("remote", p.Italic.Sprint(g.Remote)))
+	}
+
+	f.Flush()
+
+	return nil
+}
+
+func formatKeymap(k *menu.Keymap) string {
+	keybind, action, _ := strings.Cut(k.String(), ":")
+	return txt.PaddedLineWithPad(
+		ansi.Bold.Sprint(keybind),
+		ansi.Italic.Sprint(":"+action),
+		8,
+	)
+}
+
+func boolFmt(b bool) string {
+	if !b {
+		return ansi.BrightRed.Sprint("false")
+	}
+	return ansi.BrightGreen.Sprint("true")
 }
