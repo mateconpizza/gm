@@ -41,6 +41,15 @@ func FromHTML(ctx context.Context, d *deps.Deps, f string) error {
 	return importPipeline(ctx, d, "from HTML", f, bs)
 }
 
+func FromJSON(ctx context.Context, d *deps.Deps, path string) error {
+	bs, err := bookmarksFromJSON(path)
+	if err != nil {
+		return err
+	}
+
+	return importPipeline(ctx, d, "from JSON", path, bs)
+}
+
 // importPipeline handles deduplication, user prompting, and persistence.
 func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs []*bookmark.Bookmark) error {
 	c := d.Console()
@@ -107,6 +116,20 @@ func bookmarksFromHTML(f string) ([]*bookmark.Bookmark, error) {
 	bs := make([]*bookmark.Bookmark, 0, len(nbs))
 	for i := range nbs {
 		bs = append(bs, bookio.FromNetscape(&nbs[i]))
+	}
+
+	return bs, nil
+}
+
+func bookmarksFromJSON(path string) ([]*bookmark.Bookmark, error) {
+	var jbs []*bookmark.BookmarkJSON
+	if err := files.ReadJSON(path, &jbs); err != nil {
+		return nil, err
+	}
+
+	bs := make([]*bookmark.Bookmark, 0, len(jbs))
+	for i := range jbs {
+		bs = append(bs, bookmark.NewFromJSON(jbs[i]))
 	}
 
 	return bs, nil
