@@ -32,6 +32,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		newUseCmd(app),            // switch context
 		newCurrentCmd(app),        // inspect current
 		newListCmd(app),           // inspect all
+		newDatabaseLoadCmd(app),   // select database to load
 		newStatsCmd(app),          // inspect one
 		newBackupCmd(app),         // safe management
 		newDatabaseRemoveCmd(app), // destructive
@@ -94,6 +95,18 @@ func newListCmd(app *application.App) *cobra.Command {
 	}
 
 	cmdutil.HideFlag(c, "force", "yes")
+
+	return c
+}
+
+func newDatabaseLoadCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:    "select",
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return dbops.LoadFromMenu(cmd.Context(), app)
+		},
+	}
 
 	return c
 }

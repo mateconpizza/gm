@@ -269,6 +269,15 @@ func createdAt(r *db.SQLite, p *ansi.Palette) string {
 	return createdAt + p.Gray.Sprintf(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
 }
 
+func RelativeDays(createdAt string) string {
+	parsed, err := time.Parse(db.TimeFormatSqlite, createdAt)
+	if err != nil {
+		return ""
+	}
+
+	return txt.RelativeTime(parsed.Format(txt.TimeLayout))
+}
+
 func backupAt(r *db.SQLite) (string, error) {
 	backupAt, err := r.Metadata(db.MetaKeyBackupAt)
 	if err != nil {
