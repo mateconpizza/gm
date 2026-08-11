@@ -27,6 +27,7 @@ func newImportCmd(app *application.App) *cobra.Command {
 		newImportFromDatabaseCmd(app),
 		newImportFromBackupCmd(app),
 		newImportFromGit(app),
+		newImportFromJSON(app),
 	)
 
 	return c
@@ -185,6 +186,27 @@ func newImportFromGit(app *application.App) *cobra.Command {
 			}
 		}
 	}
+
+	return c
+}
+
+func newImportFromJSON(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "json",
+		Short: "import from JSON file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
+			if err != nil {
+				return err
+			}
+			defer cancel()
+
+			return port.FromJSON(cmd.Context(), d, app.Flags.Path)
+		},
+	}
+
+	c.Flags().StringVarP(&app.Flags.Path, "filename", "f", "", "filename path")
+	_ = c.MarkFlagRequired("filename")
 
 	return c
 }
