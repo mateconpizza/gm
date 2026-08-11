@@ -2,9 +2,12 @@ package dbops
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
@@ -15,6 +18,8 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -121,6 +126,61 @@ func SelectEncrypted(ctx context.Context, d *deps.Deps, root string) (string, er
 	return f[0], nil
 }
 
+func LoadFromMenu(ctx context.Context, app *application.App) error {
+	dbs, err := files.ListWithExclude(app.Path.Data, "db")
+	if err != nil {
+		return err
+	}
+
+	var maxWidth int
+	for _, path := range dbs {
+		name := files.StripExts(filepath.Base(path))
+		maxWidth = max(maxWidth, utf8.RuneCountInString(name))
+	}
+
+	load := menu.NewKeymap().
+		WithBind(menu.KeyEnter).
+		WithDesc("load").
+		WithBecome(app.Command() + " --menu --db={1} --output=" + app.Menu.Format)
+
+	setDefault := menu.NewKeymap().
+		WithBind(menu.KeyCtrlS).
+		WithDesc("set-as-default").
+		WithExecute(app.Command() + " db use {1}")
+
+	p := ansi.NewPalette()
+	found := false
+	formatDB := func(path string) string {
+		formatted := formatDatabaseFn(ctx, p, path, maxWidth)
+		if found || filepath.Base(path) != app.DBName {
+			return formatted
+		}
+
+		found = true
+		return p.BrightYellow.Sprint(formatted)
+	}
+
+	m := picker.New[string](
+		app,
+		menu.WithDefaults(app.Menu.Defaults),
+		menu.WithAnsi(),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithKeybinds(load, setDefault),
+		menu.WithHeader("select a database"),
+		menu.WithHeaderKeymaps(),
+		menu.WithPreviewWindow("right,45%"),
+		menu.WithPreviewCmd(app.Command()+" db info --db {1} --color=always"),
+	)
+	m.SetFormatter(formatDB)
+
+	_, err = m.Select(dbs)
+	if errors.Is(err, menu.ErrActionAborted) {
+		return nil
+	}
+
+	return err
+}
+
 func selectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, error) {
 	app, err := d.Application(ctx)
 	if err != nil {
@@ -213,4 +273,41 @@ func setupMenu[T comparable](app *application.App, formatter menu.FmtFunc[T], op
 	m := picker.New[T](app, opts...)
 	m.SetFormatter(formatter)
 	return m
+}
+
+func formatDatabaseFn(ctx context.Context, p *ansi.Palette, path string, pad int) string {
+	name := filepath.Base(path)
+	r, err := db.New(ctx, path)
+	if err != nil {
+		return name + ": " + err.Error()
+	}
+	defer r.Close()
+
+	stats := db.NewStats()
+	if err := r.Stats(ctx, stats); err != nil {
+		return name + ": " + err.Error()
+	}
+
+	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
+	if err != nil {
+		createdAt = "err"
+	}
+
+	main := p.Gray.Sprintf(
+		"(%d bookmarks %d tags)",
+		stats.Bookmarks,
+		stats.Tags,
+	)
+
+	createdAt = summary.RelativeDays(createdAt)
+	if createdAt == "" {
+		createdAt = "err"
+	}
+
+	name = files.StripExts(r.Name())
+	return txt.PaddedLineWithPad(
+		name,
+		main+" "+createdAt,
+		pad,
+	)
 }
