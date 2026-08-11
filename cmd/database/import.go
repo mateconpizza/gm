@@ -146,7 +146,7 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return port.FromHTML(cmd.Context(), d, app.Flags.Path)
+			return port.ImportFromHTML(cmd.Context(), d, app.Flags.Path)
 		},
 	}
 
@@ -165,7 +165,7 @@ func newImportFromFileCmd(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return port.FromFile(cmd.Context(), d, app.Flags.Path)
+			return port.ImportFromDatabase(cmd.Context(), d, app.Flags.Path)
 		},
 	}
 
@@ -201,7 +201,7 @@ func newImportFromJSON(app *application.App) *cobra.Command {
 			}
 			defer cancel()
 
-			return port.FromJSON(cmd.Context(), d, app.Flags.Path)
+			return port.ImportFromJSON(cmd.Context(), d, app.Flags.Path)
 		},
 	}
 

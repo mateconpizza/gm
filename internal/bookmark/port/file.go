@@ -21,9 +21,9 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-// FromFile import bookmarks from database.
-func FromFile(ctx context.Context, d *deps.Deps, f string) error {
-	bs, err := bookmarksFromFile(ctx, f)
+// ImportFromDatabase import bookmarks from database.
+func ImportFromDatabase(ctx context.Context, d *deps.Deps, f string) error {
+	bs, err := ExtractFromDatabase(ctx, f)
 	if err != nil {
 		return err
 	}
@@ -31,9 +31,9 @@ func FromFile(ctx context.Context, d *deps.Deps, f string) error {
 	return importPipeline(ctx, d, "from file", f, bs)
 }
 
-// FromHTML import bookmarks from HTML Netscape file.
-func FromHTML(ctx context.Context, d *deps.Deps, f string) error {
-	bs, err := bookmarksFromHTML(f)
+// ImportFromHTML import bookmarks from HTML Netscape file.
+func ImportFromHTML(ctx context.Context, d *deps.Deps, f string) error {
+	bs, err := ExtractFromHTML(f)
 	if err != nil {
 		return err
 	}
@@ -41,13 +41,77 @@ func FromHTML(ctx context.Context, d *deps.Deps, f string) error {
 	return importPipeline(ctx, d, "from HTML", f, bs)
 }
 
-func FromJSON(ctx context.Context, d *deps.Deps, path string) error {
-	bs, err := bookmarksFromJSON(path)
+func ImportFromJSON(ctx context.Context, d *deps.Deps, path string) error {
+	bs, err := ExtractFromJSON(path)
 	if err != nil {
 		return err
 	}
 
 	return importPipeline(ctx, d, "from JSON", path, bs)
+}
+
+// ExtractFromHTML encapsulates all HTML-specific extraction logic.
+func ExtractFromHTML(f string) ([]*bookmark.Bookmark, error) {
+	file, err := os.Open(f)
+	if err != nil {
+		log.Printf("Error opening file: %v, %q\n", err, f)
+		return nil, err
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			slog.Error("Err closing file", "file", f)
+		}
+	}()
+
+	if err := bookio.IsValidNetscapeFile(file); err != nil {
+		return nil, err
+	}
+
+	bp := bookio.NewHTMLParser()
+	nbs, err := bp.ParseHTML(file)
+	if err != nil {
+		return nil, err
+	}
+
+	bs := make([]*bookmark.Bookmark, 0, len(nbs))
+	for i := range nbs {
+		bs = append(bs, bookio.FromNetscape(&nbs[i]))
+	}
+
+	return bs, nil
+}
+
+func ExtractFromJSON(path string) ([]*bookmark.Bookmark, error) {
+	var jbs []*bookmark.BookmarkJSON
+	if err := files.ReadJSON(path, &jbs); err != nil {
+		return nil, err
+	}
+
+	bs := make([]*bookmark.Bookmark, 0, len(jbs))
+	for i := range jbs {
+		bs = append(bs, bookmark.NewFromJSON(jbs[i]))
+	}
+
+	return bs, nil
+}
+
+func ExtractFromDatabase(ctx context.Context, f string) ([]*bookmark.Bookmark, error) {
+	if err := files.ExistsErr(f); err != nil {
+		return nil, err
+	}
+
+	repo, err := db.New(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := repo.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer repo.Close()
+
+	return bs, nil
 }
 
 // importPipeline handles deduplication, user prompting, and persistence.
@@ -88,70 +152,6 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 	}
 
 	return c.Print(ctx, c.SuccessMesg("imported ", len(deduplicated), " bookmarks\n"))
-}
-
-// bookmarksFromHTML encapsulates all HTML-specific extraction logic.
-func bookmarksFromHTML(f string) ([]*bookmark.Bookmark, error) {
-	file, err := os.Open(f)
-	if err != nil {
-		log.Printf("Error opening file: %v, %q\n", err, f)
-		return nil, err
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			slog.Error("Err closing file", "file", f)
-		}
-	}()
-
-	if err := bookio.IsValidNetscapeFile(file); err != nil {
-		return nil, err
-	}
-
-	bp := bookio.NewHTMLParser()
-	nbs, err := bp.ParseHTML(file)
-	if err != nil {
-		return nil, err
-	}
-
-	bs := make([]*bookmark.Bookmark, 0, len(nbs))
-	for i := range nbs {
-		bs = append(bs, bookio.FromNetscape(&nbs[i]))
-	}
-
-	return bs, nil
-}
-
-func bookmarksFromJSON(path string) ([]*bookmark.Bookmark, error) {
-	var jbs []*bookmark.BookmarkJSON
-	if err := files.ReadJSON(path, &jbs); err != nil {
-		return nil, err
-	}
-
-	bs := make([]*bookmark.Bookmark, 0, len(jbs))
-	for i := range jbs {
-		bs = append(bs, bookmark.NewFromJSON(jbs[i]))
-	}
-
-	return bs, nil
-}
-
-func bookmarksFromFile(ctx context.Context, f string) ([]*bookmark.Bookmark, error) {
-	if err := files.ExistsErr(f); err != nil {
-		return nil, err
-	}
-
-	repo, err := db.New(ctx, f)
-	if err != nil {
-		return nil, err
-	}
-
-	bs, err := repo.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer repo.Close()
-
-	return bs, nil
 }
 
 func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
