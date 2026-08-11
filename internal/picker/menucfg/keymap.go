@@ -2,6 +2,7 @@ package menucfg
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
@@ -17,6 +18,20 @@ type Keymaps struct {
 	OpenQR    *menu.Keymap `json:"open_qr"    yaml:"open_qr"`
 	ToggleAll *menu.Keymap `json:"toggle_all" yaml:"toggle_all"`
 	Yank      *menu.Keymap `json:"yank"       yaml:"yank"`
+	Repos     *menu.Keymap `json:"repos"      yaml:"repos"`
+}
+
+func (k *Keymaps) List() []*menu.Keymap {
+	v := reflect.ValueOf(k).Elem()
+
+	keymaps := make([]*menu.Keymap, 0, v.NumField())
+	for i := 0; i < v.NumField(); i++ {
+		if keymap, ok := v.Field(i).Interface().(*menu.Keymap); ok {
+			keymaps = append(keymaps, keymap)
+		}
+	}
+
+	return keymaps
 }
 
 func (k *Keymaps) Validate() error {
@@ -43,6 +58,7 @@ func (k *Keymaps) Validate() error {
 		{"toggle_all", k.ToggleAll},
 		{"toggle-preview", k.ToggleAll},
 		{"yank", k.Yank},
+		{"repos", k.Repos},
 	} {
 		if err := check(entry.name, entry.km); err != nil {
 			return err

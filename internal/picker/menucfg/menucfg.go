@@ -11,7 +11,7 @@ var ErrInvalidConfigKeymap = errors.New("invalid keymap")
 
 const (
 	defaultFormatter = "oneline"
-	defaultPrompt    = "\u25B6 "  // ▶
+	defaultPrompt    = "> "       // >
 	defaultHeaderSep = " \u00b7 " // ·
 )
 
@@ -62,28 +62,27 @@ func NewDefault() *Config {
 			OpenQR:    menu.NewKeymap().WithBind(menu.KeyCtrlL).WithDesc("open-qr"),
 			QR:        menu.NewKeymap().WithBind(menu.KeyCtrlK).WithDesc("qr-code"),
 			Yank:      menu.NewKeymap().WithBind(menu.KeyCtrlY).WithDesc("yank"),
-			ToggleAll: menu.NewKeymap().WithBind(menu.KeyCtrlA).WithDesc("toggle-all"),
-			Preview:   menu.NewKeymap().WithBind(menu.KeyCtrlSlash).WithDesc("toggle-preview"),
+			ToggleAll: menu.NewKeymap().WithBind(menu.KeyCtrlA).WithDesc("toggle-all").Hide(),
+			Preview:   menu.NewKeymap().WithBind(menu.KeyCtrlSlash).WithDesc("toggle-preview").Hide(),
+			Repos:     menu.NewKeymap().WithBind(menu.KeyCtrlO).WithDesc("repos").Hide(),
 		},
+		Arguments: menu.NewArgsBuilder().
+			WithAnsi().
+			WithLayout("default").
+			WithSync().
+			WithInfo("inline-right").
+			WithTac().
+			WithHeight("100%").
+			WithNoScrollbar().
+			WithCycle().
+			WithColor("prompt", "bold").
+			WithColor("header", "italic", "bright-blue").
+			Build(),
 	}
 }
 
 func (c *Config) Keymaps() *Keymaps {
 	return c.DefaultKeymaps
-}
-
-func (c *Config) KeymapsList() []*menu.Keymap {
-	k := c.Keymaps()
-	return []*menu.Keymap{
-		k.Edit,
-		k.EditNotes,
-		k.Open,
-		k.QR,
-		k.OpenQR,
-		k.Yank,
-		k.Preview,
-		k.ToggleAll,
-	}
 }
 
 // Validate validates the menu configuration.
@@ -122,6 +121,7 @@ func (c *Config) LoadKeymaps(kb *KeymapBuilder) []*menu.Keymap {
 	k.Yank = kb.From(k.Yank).WithExecute("yank")
 	k.ToggleAll = kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll)
 	k.Preview = kb.Builtin(k.Preview, menu.KeybindActionTogglePreview)
+	k.Repos = kb.From(k.Repos).WithExecute("db select")
 
-	return c.KeymapsList()
+	return k.List()
 }
