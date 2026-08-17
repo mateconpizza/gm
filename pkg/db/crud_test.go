@@ -718,3 +718,108 @@ func TestUpdateFavorite(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateVisit(t *testing.T) {
+	tests := []struct {
+		name         string
+		seedCount    int
+		targetIdx    int
+		useInvalidID bool
+		zeroID       bool
+		wantErr      bool
+	}{
+		{name: "normal_update_increments_visit", seedCount: 3, targetIdx: 0},
+		{name: "single_bookmark_boundary", seedCount: 1, targetIdx: 0},
+		{name: "last_element_in_populated_db", seedCount: 5, targetIdx: 4},
+		{name: "middle_element", seedCount: 4, targetIdx: 2},
+		{name: "nonexistent_id_no_error", seedCount: 1, useInvalidID: true, wantErr: false},
+		{name: "zero_id_no_matching_row", seedCount: 1, zeroID: true, wantErr: false},
+		{name: "repeated_updates_increment_multiple_times", seedCount: 1, targetIdx: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := testPopulatedDB(t, tt.seedCount)
+			ctx := t.Context()
+
+			var bID int
+			switch {
+			case tt.zeroID:
+				bID = 0
+			case tt.useInvalidID:
+				bID = 999999
+			default:
+				var ids []int
+				err := r.DB.SelectContext(ctx, &ids, "SELECT id FROM bookmarks ORDER BY id")
+				if err != nil {
+					t.Fatalf("failed to fetch seeded ids: %v", err)
+				}
+				if tt.targetIdx >= len(ids) {
+					t.Fatalf("targetIdx %d out of range for %d seeded rows", tt.targetIdx, len(ids))
+				}
+				bID = ids[tt.targetIdx]
+			}
+
+			var wantCount int
+			var beforeVisit string
+			if !tt.zeroID && !tt.useInvalidID {
+				var row struct {
+					VisitCount int    `db:"visit_count"`
+					LastVisit  string `db:"last_visit"`
+				}
+				if err := r.DB.GetContext(ctx, &row, "SELECT visit_count, last_visit FROM bookmarks WHERE id = ?", bID); err != nil {
+					t.Fatalf("failed to read initial state: %v", err)
+				}
+				wantCount = row.VisitCount + 1
+				beforeVisit = row.LastVisit
+			}
+
+			var err error
+			txErr := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+				err = updateVisit(ctx, tx, bID)
+				return err
+			})
+			if txErr != nil && err == nil {
+				err = txErr
+			}
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("updateVisit() expected an error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("updateVisit() unexpected error: %v", err)
+			}
+
+			if tt.name == "repeated_updates_increment_multiple_times" {
+				if err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+					return updateVisit(ctx, tx, bID)
+				}); err != nil {
+					t.Fatalf("second updateVisit() unexpected error: %v", err)
+				}
+				wantCount++
+			}
+
+			if !tt.zeroID && !tt.useInvalidID {
+				var row struct {
+					VisitCount int    `db:"visit_count"`
+					LastVisit  string `db:"last_visit"`
+				}
+				if err := r.DB.GetContext(ctx, &row, "SELECT visit_count, last_visit FROM bookmarks WHERE id = ?", bID); err != nil {
+					t.Fatalf("failed to read back state: %v", err)
+				}
+				if row.VisitCount != wantCount {
+					t.Fatalf("visit_count = %d; want %d", row.VisitCount, wantCount)
+				}
+				if row.LastVisit == beforeVisit {
+					t.Fatalf("last_visit was not updated, still %q", row.LastVisit)
+				}
+				if _, err := time.Parse(time.RFC3339, row.LastVisit); err != nil {
+					t.Fatalf("last_visit = %q; want RFC3339 timestamp: %v", row.LastVisit, err)
+				}
+			}
+		})
+	}
+}
