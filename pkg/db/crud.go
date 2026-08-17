@@ -568,8 +568,6 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 
 // insertIntoTx inserts a record inside an existing transaction.
 func (r *SQLite) insertIntoTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
-	b.GenChecksum()
-
 	// insert record and associate tags in the same transaction.
 	bID, err := insertRecord(ctx, tx, b)
 	if err != nil {
@@ -609,7 +607,10 @@ func insertRecord(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64
 			favicon_url,
 			favicon_local,
 			archive_url,
-			archive_timestamp
+			archive_timestamp,
+			last_checked,
+			status_code,
+			status_text
 		)
 		VALUES (
 			:url,
@@ -625,8 +626,11 @@ func insertRecord(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64
 			:favicon_url,
 			:favicon_local,
 			:archive_url,
-			:archive_timestamp
-	)`, &b,
+			:archive_timestamp,
+			:last_checked,
+			:status_code,
+			:status_text
+	)`, b,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("%w", err)

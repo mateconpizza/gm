@@ -163,6 +163,7 @@ func seedNewRepo(ctx context.Context, app *application.App, r *db.SQLite, c *ui.
 	ib.Title = app.Info.Title
 	ib.Tags = bookmark.ParseTags(app.Info.Tags)
 	ib.Desc = app.Info.Desc
+	ib.GenChecksum()
 
 	if _, err := r.InsertOne(ctx, ib); err != nil {
 		return fmt.Errorf("failed to seed initial bookmark: %w", err)
