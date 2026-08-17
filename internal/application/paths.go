@@ -91,7 +91,7 @@ func ReadYAML[T any](p string, v *T) error {
 
 	err = yaml.Unmarshal(content, &v)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling YAML: %w", err)
+		return fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 	}
 
 	slog.Debug("YamlRead", "path", p)
