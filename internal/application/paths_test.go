@@ -159,7 +159,7 @@ func TestRead_Fails_When_File_Does_Not_Exist(t *testing.T) {
 	}
 }
 
-func TestRead_Fails_With_Invalid_YAML_Syntax(t *testing.T) {
+func TestRead_Fails_With_Invalid_Config(t *testing.T) {
 	t.Parallel()
 	tempDir := t.TempDir()
 	fn := filepath.Join(tempDir, "invalid.yaml")
@@ -178,7 +178,7 @@ version: 1.0
 	if err == nil {
 		t.Fatal("expected error for invalid YAML")
 	}
-	if !strings.Contains(err.Error(), "unmarshalling YAML") {
+	if !errors.Is(err, ErrInvalidConfig) {
 		t.Errorf("expected unmarshalling error, got %q", err.Error())
 	}
 }

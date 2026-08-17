@@ -4,6 +4,7 @@ package application
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,6 +23,7 @@ var (
 	ErrDatabaseNameNotSet  = errors.New("database name not set")
 	ErrDatabaseInvalidName = errors.New("database name invalid")
 	ErrDatabasePathNotSet  = errors.New("database path not set")
+	ErrInvalidConfig       = errors.New("invalid config")
 )
 
 const (
@@ -37,8 +39,8 @@ const (
 type (
 	App struct {
 		Name   string          `json:"name"          yaml:"-"`             // Name of the application
-		Cmd    string          `json:"cmd"           yaml:"-"`             // Name of the executable
 		DBName string          `json:"db"            yaml:"db,omitempty"`  // Database name
+		Cmd    string          `json:"cmd"           yaml:"cmd"`           // Name of the executable
 		Format string          `json:"format"        yaml:"format"`        // Output bookmark format
 		Info   *Information    `json:"data"          yaml:"-"`             // Application information
 		Env    *Env            `json:"env"           yaml:"-"`             // Application environment variables
@@ -109,8 +111,14 @@ func (app *App) Setup() error {
 // Load loads the user configurations file.
 func (app *App) Load() error {
 	err := getConfig(app.Path.ConfigFile(), app)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err != nil &&
+		!errors.Is(err, os.ErrNotExist) &&
+		!errors.Is(err, ErrInvalidConfig) {
 		return err
+	}
+
+	if errors.Is(err, ErrInvalidConfig) {
+		slog.Debug("config file is invalid, using defaults", "error", err)
 	}
 
 	app.Git.Load()
