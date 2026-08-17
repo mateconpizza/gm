@@ -362,6 +362,7 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 
 // insertAndAddBookmark inserts a bookmark and applies git add.
 func insertAndAddBookmark(ctx context.Context, r *db.SQLite, app *application.App, b *bookmark.Bookmark) error {
+	b.GenChecksum()
 	newID, err := r.InsertOne(ctx, b)
 	if err != nil {
 		return err

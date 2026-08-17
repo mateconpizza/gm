@@ -120,22 +120,23 @@ flags:
   </tr>
 </table>
 
-### Configuration
+### Default Configuration
 
 <details>
 <summary><strong>YAML file structure</strong></summary>
 
 ```yaml
 db: main
+cmd: gm
 format: frame
 menu:
   defaults: true
   format: oneline
-  prompt: '▶ '
+  prompt: "> "
   preview: true
   header:
     enabled: true
-    separator: ' · '
+    separator: " · "
   keymaps:
     edit:
       bind: ctrl-e

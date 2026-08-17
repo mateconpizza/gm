@@ -406,7 +406,7 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 	f.MidCln(p.BrightMagenta.With(p.Bold), p.BrightMagenta.Wrap("keymaps", p.Bold))
 	for i := range keymaps {
 		k := keymaps[i]
-		f.Rowln(pad(k.Desc, formatKeymap(k)))
+		f.Rowln(pad(k.Desc, formatKeymap(p, k)))
 	}
 
 	// git.
@@ -422,11 +422,20 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 	return nil
 }
 
-func formatKeymap(k *menu.Keymap) string {
+func formatKeymap(p *ansi.Palette, k *menu.Keymap) string {
 	keybind, action, _ := strings.Cut(k.String(), ":")
+
+	status := p.Italic.Sprint(":" + action)
+	if k.Hidden {
+		status += p.Magenta.Sprint(" hidden")
+	}
+	if !k.Enabled {
+		status += p.Red.Sprint(" disabled")
+	}
+
 	return txt.PaddedLineWithPad(
-		ansi.Bold.Sprint(keybind),
-		ansi.Italic.Sprint(":"+action),
+		p.Bold.Sprint(keybind),
+		status,
 		8,
 	)
 }

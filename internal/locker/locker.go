@@ -28,6 +28,7 @@ var (
 	ErrFileUnlocked       = errors.New("file is unlocked")
 	ErrFileExtMismatch    = errors.New("file must have .enc extension")
 	ErrCipherTextShort    = errors.New("ciphertext too short")
+	ErrDBUnlockFirst      = errors.New("unlock database first")
 )
 
 // Lock encrypts the given file using AES-GCM encryption and adds .enc

@@ -61,10 +61,12 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithPreviewWindow(PreviewWindowArg(app.Menu.Preview)),
 
 		// header
+		menu.WithHeaderLabel(" keybinds "),
 		menu.WithHeaderKeymaps(),
 	)
 
 	m := New[bookmark.Bookmark](app, opts...)
+
 	m.SetFormatter(func(b bookmark.Bookmark) string {
 		return fm.Render(ui.NewConsole(), &b)
 	})
@@ -199,7 +201,7 @@ func PreviewCmd(command, dbName string, args ...string) string {
 	// color is disable, FZF will handle the color strip but keeps text styles
 	// (dim, bold, italic, etc)
 	return fmt.Sprintf(
-		"%s --preview frame --color always --db %s %s",
+		"%s --preview=frame --color=always --db=%s %s",
 		command,
 		dbName,
 		strings.Join(args, " "),

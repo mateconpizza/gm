@@ -20,13 +20,13 @@ type CmdLogger func(w io.Writer, commands []string)
 type GitOpt func(*GitOptions)
 
 type GitOptions struct {
-	w             io.Writer
+	writer        io.Writer
 	commandLogger CmdLogger
 }
 
 func WithGitWriter(w io.Writer) GitOpt {
 	return func(o *GitOptions) {
-		o.w = w
+		o.writer = w
 	}
 }
 
@@ -44,7 +44,7 @@ type Git struct {
 }
 
 func (g *Git) Root() string                                 { return g.fullpath }
-func (g *Git) Writer() io.Writer                            { return g.w }
+func (g *Git) Writer() io.Writer                            { return g.writer }
 func (g *Git) Bin() string                                  { return g.bin }
 func (g *Git) Branch(ctx context.Context) (string, error)   { return branch(ctx, g.fullpath) }
 func (g *Git) Remote(ctx context.Context) (string, error)   { return Remote(ctx, g.fullpath) }
@@ -140,12 +140,12 @@ func (g *Git) run(ctx context.Context, repoPath string, commands ...string) erro
 	logCmd := g.commandLogger
 	if logCmd == nil {
 		logCmd = func(w io.Writer, commands []string) {
-			fmt.Fprintln(g.w, strings.Join(commands, " "))
+			fmt.Fprintln(g.writer, strings.Join(commands, " "))
 		}
 	}
 
-	logCmd(g.w, commands)
-	return execCmdWithWriter(ctx, g.w, nil, commands...)
+	logCmd(g.writer, commands)
+	return execCmdWithWriter(ctx, g.writer, nil, commands...)
 }
 
 func (g *Git) doPush(ctx context.Context) error {
