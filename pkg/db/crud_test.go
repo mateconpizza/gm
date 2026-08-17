@@ -2,9 +2,11 @@ package db
 
 import (
 	"errors"
+	"math"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -43,10 +45,6 @@ func TestInsertOne(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to insert record into table %s: %v", mainTable, err)
 	}
-}
-
-func TestInsertMany(t *testing.T) {
-	t.Skip("not implemented yet")
 }
 
 func TestDeleteMany(t *testing.T) {
@@ -478,5 +476,126 @@ func TestDeleteAll(t *testing.T) {
 	_, err = r.ByID(t.Context(), testBookmark.ID)
 	if err == nil {
 		t.Error("expected error when getting bookmark by ID after deleteAll, got nil")
+	}
+}
+
+func TestInsertRecord(t *testing.T) {
+	tests := []struct {
+		name       string
+		b          *bookmark.Bookmark
+		preInsert  *bookmark.Bookmark // inserted first, to trigger constraint violations
+		wantErr    error
+		wantErrAny bool // true when we only care that some error occurred (DB constraint, etc.)
+	}{
+		{
+			name: "normal_insert",
+			b:    testSingleBookmark(),
+		},
+		{
+			name: "empty_checksum_returns_error",
+			b: &bookmark.Bookmark{
+				URL:      "https://www.example.com/no-checksum",
+				Title:    "No Checksum",
+				Checksum: "",
+			},
+			wantErr: ErrChecksumEmpty,
+		},
+		{
+			name: "zero_value_fields_except_checksum",
+			b: &bookmark.Bookmark{
+				Checksum: "checksum-zero-values",
+			},
+		},
+		{
+			name: "favorite_false_stored",
+			b: &bookmark.Bookmark{
+				URL:      "https://www.example.com/fav-false",
+				Favorite: false,
+				Checksum: "checksum-fav-false",
+			},
+		},
+		{
+			name: "long_field_values",
+			b: &bookmark.Bookmark{
+				URL:      "https://www.example.com/" + strings.Repeat("a", 2000),
+				Title:    strings.Repeat("t", 5000),
+				Desc:     strings.Repeat("d", 5000),
+				Checksum: "checksum-long-values",
+			},
+		},
+		{
+			name: "special_characters_in_fields",
+			b: &bookmark.Bookmark{
+				URL:      "https://www.example.com/?q='; DROP TABLE bookmarks;--",
+				Title:    "Title with 'quotes' and \"double quotes\" and unicode 日本語",
+				Desc:     "desc with\nnewlines\tand\ttabs",
+				Checksum: "checksum-special-chars",
+			},
+		},
+		{
+			name: "visit_count_boundary_max_int",
+			b: &bookmark.Bookmark{
+				URL:        "https://www.example.com/max-visits",
+				VisitCount: math.MaxInt32,
+				Checksum:   "checksum-max-visits",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := setupTestDB(t)
+			ctx := t.Context()
+
+			if tt.preInsert != nil {
+				err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+					_, err := r.insertIntoTx(ctx, tx, tt.preInsert)
+					return err
+				})
+				if err != nil {
+					t.Fatalf("preInsert failed: %v", err)
+				}
+			}
+
+			var gotID int64
+			err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+				id, err := r.insertIntoTx(ctx, tx, tt.b)
+				gotID = id
+				return err
+			})
+
+			if tt.wantErrAny {
+				if err == nil {
+					t.Fatalf("insertIntoTx() expected an error, got nil")
+				}
+				return
+			}
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("insertIntoTx() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("insertIntoTx() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("insertIntoTx() unexpected error: %v", err)
+			}
+			if gotID <= 0 {
+				t.Fatalf("insertIntoTx() = %d; want positive id", gotID)
+			}
+			if tt.b.ID != int(gotID) {
+				t.Fatalf("b.ID = %d; want %d", tt.b.ID, gotID)
+			}
+			if tt.b.CreatedAt == "" {
+				t.Fatalf("b.CreatedAt not set after insert")
+			}
+			if _, err := time.Parse(time.RFC3339, tt.b.CreatedAt); err != nil {
+				t.Fatalf("b.CreatedAt = %q; want RFC3339 timestamp: %v", tt.b.CreatedAt, err)
+			}
+		})
 	}
 }
