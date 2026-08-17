@@ -9,7 +9,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/mateconpizza/go-fzf v0.1.1
 	github.com/mateconpizza/gofiles v0.1.1
-	github.com/mateconpizza/rotato v0.1.17
+	github.com/mateconpizza/rotato v0.1.18
 	github.com/mattn/go-runewidth v0.0.27
 	github.com/muesli/go-app-paths v0.2.2
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e

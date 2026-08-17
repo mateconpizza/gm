@@ -47,8 +47,8 @@ github.com/mateconpizza/go-fzf v0.1.1 h1:w21zA+Z00/rwWkNpwsqJxkBMCBndS1oLmqNfCBo
 github.com/mateconpizza/go-fzf v0.1.1/go.mod h1:tSyovHb/v6VRXO3ibLebLZggh9MTDKUqRIu0SelitBU=
 github.com/mateconpizza/gofiles v0.1.1 h1:tAwXkRTufXy1t8B6eudleEhksl6ewvFumby6M8/fu0E=
 github.com/mateconpizza/gofiles v0.1.1/go.mod h1:4DEW5IPvPW99pbrzCum0tdDaZMybjBMWBSThma7jaRk=
-github.com/mateconpizza/rotato v0.1.17 h1:dZ4tx6C514mjxPQQ0LQizdbZye3IY8GvfrOssUgUHdQ=
-github.com/mateconpizza/rotato v0.1.17/go.mod h1:wAhvaLcUrHUieaateH1ye73D3CiGqXYK6Sq748vOodk=
+github.com/mateconpizza/rotato v0.1.18 h1:ligZIAfDr6sBV/4jvWIDccp/BDAVXEDqFJDbKWK8fKs=
+github.com/mateconpizza/rotato v0.1.18/go.mod h1:wAhvaLcUrHUieaateH1ye73D3CiGqXYK6Sq748vOodk=
 github.com/mattn/go-colorable v0.1.4/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVcfRqFIhoBtE=
 github.com/mattn/go-colorable v0.1.7/go.mod h1:u6P/XSegPjTcexA+o6vUJrdnUu04hMope9wVRipJSqc=
 github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=
