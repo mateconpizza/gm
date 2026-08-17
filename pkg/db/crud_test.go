@@ -599,3 +599,122 @@ func TestInsertRecord(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateFavorite(t *testing.T) {
+	tests := []struct {
+		name         string
+		seedCount    int  // number of bookmarks to pre-populate the db with
+		targetIdx    int  // index into the seeded slice to update (via its assigned ID)
+		useInvalidID bool // if true, use an ID that doesn't exist in the db
+		favorite     bool
+		wantErr      bool
+	}{
+		{
+			name:      "normal_set_favorite_true",
+			seedCount: 3,
+			targetIdx: 0,
+			favorite:  true,
+		},
+		{
+			name:      "normal_set_favorite_false",
+			seedCount: 3,
+			targetIdx: 1,
+			favorite:  false,
+		},
+		{
+			name:      "toggle_from_true_to_false",
+			seedCount: 1,
+			targetIdx: 0,
+			favorite:  false,
+		},
+		{
+			name:         "nonexistent_id_no_error",
+			seedCount:    1,
+			useInvalidID: true,
+			favorite:     true,
+			wantErr:      false, // ExecContext with no matching row is not an error
+		},
+		{
+			name:      "zero_id_no_matching_row",
+			seedCount: 1,
+			targetIdx: 0,
+			favorite:  true,
+			wantErr:   false,
+		},
+		{
+			name:      "single_bookmark_boundary",
+			seedCount: 1,
+			targetIdx: 0,
+			favorite:  true,
+		},
+		{
+			name:      "last_element_in_populated_db",
+			seedCount: 5,
+			targetIdx: 4,
+			favorite:  true,
+		},
+		{
+			name:      "update_same_value_no_change",
+			seedCount: 2,
+			targetIdx: 0,
+			favorite:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := testPopulatedDB(t, tt.seedCount)
+			ctx := t.Context()
+
+			b := &bookmark.Bookmark{}
+			switch {
+			case tt.name == "zero_id_no_matching_row":
+				b.ID = 0
+			case tt.useInvalidID:
+				b.ID = 999999
+			default:
+				// fetch the target bookmark's real assigned ID from the seeded db
+				var ids []int
+				err := r.DB.SelectContext(ctx, &ids, "SELECT id FROM bookmarks ORDER BY id")
+				if err != nil {
+					t.Fatalf("failed to fetch seeded ids: %v", err)
+				}
+				if tt.targetIdx >= len(ids) {
+					t.Fatalf("targetIdx %d out of range for %d seeded rows", tt.targetIdx, len(ids))
+				}
+				b.ID = ids[tt.targetIdx]
+			}
+			b.Favorite = tt.favorite
+
+			var err error
+			txErr := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+				err = updateFavorite(ctx, tx, b)
+				return err
+			})
+			if txErr != nil && err == nil {
+				err = txErr
+			}
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("updateFavorite() expected an error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("updateFavorite() unexpected error: %v", err)
+			}
+
+			if !tt.useInvalidID && tt.name != "zero_id_no_matching_row" {
+				var gotFavorite bool
+				selErr := r.DB.GetContext(ctx, &gotFavorite, "SELECT favorite FROM bookmarks WHERE id = ?", b.ID)
+				if selErr != nil {
+					t.Fatalf("failed to read back favorite: %v", selErr)
+				}
+				if gotFavorite != tt.favorite {
+					t.Fatalf("favorite = %v; want %v", gotFavorite, tt.favorite)
+				}
+			}
+		})
+	}
+}

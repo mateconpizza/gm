@@ -665,9 +665,9 @@ func updateVisit(ctx context.Context, tx *sqlx.Tx, bID int) error {
 func updateFavorite(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
 	_, err := tx.ExecContext(
 		ctx,
-		"UPDATE bookmarks SET favorite = ? WHERE url = ?",
+		"UPDATE bookmarks SET favorite = ? WHERE id = ?",
 		b.Favorite,
-		b.URL,
+		b.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update favorite: %w", err)
