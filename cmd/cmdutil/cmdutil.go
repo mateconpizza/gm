@@ -25,6 +25,9 @@ type (
 	// Filter is a predicate used to narrow down a slice of bookmarks
 	// before they are passed to an action or presented in a menu.
 	Filter func([]*bookmark.Bookmark) []*bookmark.Bookmark
+
+	// RunFunc is a command action that only requires dependency setup.
+	RunFunc func(ctx context.Context, d *deps.Deps) error
 )
 
 // SetupDeps initializes the config, db and app for the subcommands..
@@ -58,49 +61,53 @@ func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 }
 
 func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
+	return Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+		bs, err := handler.Data(ctx, d, args)
+		if err != nil {
+			return err
+		}
+
+		app, err := d.Application(ctx)
+		if err != nil {
+			return err
+		}
+
+		f := app.Flags
+
+		bs, err = handler.Sort(f.Sort, bs)
+		if err != nil {
+			return err
+		}
+
+		for _, filter := range filters {
+			bs = filter(bs)
+		}
+
+		if f.Head > 0 || f.Tail > 0 {
+			bs, err = handler.FilterByHeadAndTail(bs, f.Head, f.Tail)
+			if err != nil {
+				return fmt.Errorf("failed to filter by head/tail: %w", err)
+			}
+		}
+
+		if f.Menu && len(bs) > 0 {
+			bs, err = picker.BookmarkWithMenu(m, bs)
+			if err != nil {
+				return err
+			}
+		}
+
+		return action(ctx, d, bs)
+	})
+}
+
+// Run sets up command dependencies, runs action, and handles cleanup.
+func Run(cmd *cobra.Command, args []string, fn RunFunc) error {
 	d, cleanup, err := SetupDeps(cmd, &args)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	bs, err := handler.Data(cmd.Context(), d, args)
-	if err != nil {
-		return err
-	}
-
-	app, err := d.Application(cmd.Context())
-	if err != nil {
-		return err
-	}
-
-	// sort items
-	f := app.Flags
-	bs, err = handler.Sort(f.Sort, bs)
-	if err != nil {
-		return err
-	}
-
-	// custom filters
-	for _, filter := range filters {
-		bs = filter(bs)
-	}
-
-	// filter by head and tail
-	if f.Head > 0 || f.Tail > 0 {
-		bs, err = handler.FilterByHeadAndTail(bs, f.Head, f.Tail)
-		if err != nil {
-			return fmt.Errorf("failed to filter by head/tail: %w", err)
-		}
-	}
-
-	// menu selection
-	if f.Menu && len(bs) > 0 {
-		bs, err = picker.BookmarkWithMenu(m, bs)
-		if err != nil {
-			return err
-		}
-	}
-
-	return action(cmd.Context(), d, bs)
+	return fn(cmd.Context(), d)
 }
