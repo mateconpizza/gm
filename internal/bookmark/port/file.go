@@ -21,14 +21,14 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-// ImportFromDatabase import bookmarks from database.
-func ImportFromDatabase(ctx context.Context, d *deps.Deps, f string) error {
-	bs, err := ExtractFromDatabase(ctx, f)
+// ImportFromDatabasePath import bookmarks from database.
+func ImportFromDatabasePath(ctx context.Context, d *deps.Deps, f string) error {
+	bs, err := extractFromDatabase(ctx, f)
 	if err != nil {
 		return err
 	}
 
-	return importPipeline(ctx, d, "from file", f, bs)
+	return importPipeline(ctx, d, "from database file", f, bs)
 }
 
 // ImportFromHTML import bookmarks from HTML Netscape file.
@@ -95,7 +95,7 @@ func ExtractFromJSON(path string) ([]*bookmark.Bookmark, error) {
 	return bs, nil
 }
 
-func ExtractFromDatabase(ctx context.Context, f string) ([]*bookmark.Bookmark, error) {
+func extractFromDatabase(ctx context.Context, f string) ([]*bookmark.Bookmark, error) {
 	if err := files.ExistsErr(f); err != nil {
 		return nil, err
 	}
@@ -104,12 +104,12 @@ func ExtractFromDatabase(ctx context.Context, f string) ([]*bookmark.Bookmark, e
 	if err != nil {
 		return nil, err
 	}
+	defer repo.Close()
 
 	bs, err := repo.All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer repo.Close()
 
 	return bs, nil
 }
@@ -123,7 +123,7 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 		return err
 	}
 
-	printImportHeader(c, source, files.StripExts(r.Name()), from, len(bs))
+	printImportHeader(c, source, r.Fullpath(), from, len(bs))
 
 	deduplicated, err := DeduplicateReport(ctx, c, r, bs)
 	if err != nil {

@@ -22,8 +22,8 @@ func browsers() []browser.Supported {
 	return append(gecko.Supported, blink.Supported...)
 }
 
-// Browser imports bookmarks from a supported browser.
-func Browser(ctx context.Context, d *deps.Deps) error {
+// ImportFromBrowser imports bookmarks from a supported browser.
+func ImportFromBrowser(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err

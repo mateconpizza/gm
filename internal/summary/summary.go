@@ -154,7 +154,7 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 	r, err := db.New(ctx, fp)
 	if err != nil {
 		slog.Warn("creating repository from path", "path", fp, "error", err)
-		return ""
+		return p.Red.Sprint(err.Error())
 	}
 	defer r.Close()
 

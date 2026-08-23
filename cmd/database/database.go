@@ -2,6 +2,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 
 	files "github.com/mateconpizza/gofiles"
@@ -14,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -59,15 +59,7 @@ func newStatsCmd(app *application.App) *cobra.Command {
   $ {cmd} db stats --json
   $ {cmd} db stats --db {db} --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// FIX: add struct for building the RepoStats.
-			// - enable to port to JSON
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return printer.RepoStats(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, printer.RepoStats)
 		},
 	}
 
@@ -84,13 +76,9 @@ func newListCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipGitSync,
 		Example:     app.Example(`  $ {cmd} db list`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return printer.DatabasesTable(cmd.Context(), d.Console(), app.Path.Home(), app.DBName)
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return printer.DatabasesTable(cmd.Context(), d.Console(), app.Path.Home(), app.DBName)
+			})
 		},
 	}
 
@@ -143,18 +131,12 @@ func newDropCmd(app *application.App) *cobra.Command {
 			$ {cmd} db drop --db {db} --yes
 			$ {cmd} db drop --db work --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			ctx := cmd.Context()
-			if err := dbops.Drop(ctx, d); err != nil {
-				return err
-			}
-
-			return gitops.Drop(ctx, app, d.Console())
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				if err := dbops.Drop(ctx, d); err != nil {
+					return err
+				}
+				return gitops.Drop(ctx, app, d.Console())
+			})
 		},
 	}
 
@@ -171,13 +153,9 @@ func newLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db lock --db {db}
   $ {cmd} db lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return dbops.Lock(cmd.Context(), d, app.Path.DB())
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return dbops.Lock(cmd.Context(), d, app.Path.DB())
+			})
 		},
 	}
 
@@ -194,12 +172,9 @@ func newUnlockCmd(app *application.App) *cobra.Command {
   $ {cmd} db unlock --db work`),
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d := deps.New(
-				deps.WithApplication(app),
-				deps.WithConsole(ui.DefaultConsole),
-			)
-
-			return dbops.Unlock(cmd.Context(), d, app.Path.DB())
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return dbops.Unlock(cmd.Context(), d, app.Path.DB())
+			})
 		},
 	}
 

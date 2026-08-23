@@ -19,6 +19,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/gitops"
@@ -52,54 +53,6 @@ func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	return recordVisits(ctx, d, bs)
-}
-
-// openInBrowser concurrently opens each bookmark URL in the browser.
-func openInBrowser(ctx context.Context, bs []*bookmark.Bookmark) error {
-	sp := rotato.New(
-		rotato.WithMessage("opening bookmarks..."),
-		rotato.WithMessageColor(rotato.FgBrightGreen),
-		rotato.WithSpinnerColor(rotato.FgBrightGreen),
-	)
-
-	sp.Start(ctx)
-	defer sp.Done()
-
-	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(runtime.NumCPU())
-
-	for _, b := range bs {
-		g.Go(func() error {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-				if err := sys.OpenInBrowser(ctx, b.URL); err != nil {
-					return fmt.Errorf("open error: %w", err)
-				}
-
-				return nil
-			}
-		})
-	}
-
-	return g.Wait()
-}
-
-// recordVisits increments the visit counter for each bookmark.
-func recordVisits(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-
-	for _, b := range bs {
-		if err := r.AddVisit(ctx, b.ID); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Edit returns a BookmarkAction configured with a specific strategy.
@@ -282,6 +235,96 @@ func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) 
 		}
 
 		if err := processMetadataUpdate(ctx, d, b); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RemoveAndUntrack removes db file and untrack from the git repositorie if the
+// repo its been tracked.
+func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	bs, err := r.All(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := dbops.Remove(ctx, d); err != nil {
+		return err
+	}
+
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	m, err := gitops.NewManager(app)
+	if err != nil {
+		return err
+	}
+
+	gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
+	if !m.IsTracked(gr.Name()) {
+		return nil
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Name())
+	if len(bs) > 0 {
+		fmt.Fprintf(&sb, " (-del:%d)", len(bs))
+	}
+
+	return m.Untrack(ctx, gr, sb.String())
+}
+
+// openInBrowser concurrently opens each bookmark URL in the browser.
+func openInBrowser(ctx context.Context, bs []*bookmark.Bookmark) error {
+	sp := rotato.New(
+		rotato.WithMessage("opening bookmarks..."),
+		rotato.WithMessageColor(rotato.FgBrightGreen),
+		rotato.WithSpinnerColor(rotato.FgBrightGreen),
+	)
+
+	sp.Start(ctx)
+	defer sp.Done()
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(runtime.NumCPU())
+
+	for _, b := range bs {
+		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				if err := sys.OpenInBrowser(ctx, b.URL); err != nil {
+					return fmt.Errorf("open error: %w", err)
+				}
+
+				return nil
+			}
+		})
+	}
+
+	return g.Wait()
+}
+
+// recordVisits increments the visit counter for each bookmark.
+func recordVisits(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	for _, b := range bs {
+		if err := r.AddVisit(ctx, b.ID); err != nil {
 			return err
 		}
 	}

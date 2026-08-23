@@ -21,11 +21,11 @@ linters:
     - errorlint
     - fatcontext
     - forcetypeassert
-    - funlen
     - funcorder
+    - funlen
     - gocritic
-    - goheader
     - godot
+    - goheader
     - gosec
     - govet
     - iface

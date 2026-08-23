@@ -1,24 +1,22 @@
 package database
 
 import (
-	files "github.com/mateconpizza/gofiles"
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/gitcmd"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/cli"
-	"github.com/mateconpizza/gm/internal/dbops"
-	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/internal/deps"
 )
 
 func newImportCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:                "import",
-		Aliases:            []string{"imp", "i"},
-		Short:              "import bookmarks",
-		PersistentPostRunE: cli.HookGitSync(app),
+		Use:     "import",
+		Aliases: []string{"imp", "i"},
+		Short:   "import bookmarks",
 	}
 
 	c.AddCommand(
@@ -42,26 +40,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			if app.Flags.Path != "" {
 				return newImportFromFileCmd(app).RunE(cmd, args)
 			}
-
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			ctx := cmd.Context()
-			srcPath, err := dbops.Select(ctx, d, app.Path.DB())
-			if err != nil {
-				return err
-			}
-
-			rSrc, err := db.New(cmd.Context(), srcPath)
-			if err != nil {
-				return err
-			}
-			defer rSrc.Close()
-
-			return port.Database(ctx, d, rSrc)
+			return cmdutil.Run(cmd, args, port.ImportFromDatabase)
 		},
 	}
 
@@ -70,69 +49,25 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newImportFromBackupCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
+func newImportFromBackupCmd(_ *application.App) *cobra.Command {
+	return &cobra.Command{
 		Use:     "backup",
 		Short:   "import from backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			destRepo, err := db.New(cmd.Context(), app.Path.DB())
-			if err != nil {
-				return err
-			}
-			defer destRepo.Close()
-
-			dbName := files.StripExts(destRepo.Name())
-			bks, err := files.List(app.Path.Backup(), "*_"+dbName+".db*")
-			if err != nil {
-				return err
-			}
-
-			if len(bks) == 0 {
-				return db.ErrBackupNotFound
-			}
-
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			ctx := cmd.Context()
-			backupPath, err := dbops.SelectBackup(ctx, d, bks)
-			if err != nil {
-				return err
-			}
-
-			srcRepo, err := db.New(ctx, backupPath)
-			if err != nil {
-				return err
-			}
-			defer srcRepo.Close()
-
-			return port.FromBackup(ctx, d, destRepo, srcRepo)
+			return cmdutil.Run(cmd, args, port.ImportFromBackup)
 		},
 	}
-
-	return c
 }
 
 func newImportBrowserCmd(_ *application.App) *cobra.Command {
-	c := &cobra.Command{
+	return &cobra.Command{
 		Use:   "browser",
 		Short: "import from browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return port.Browser(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, port.ImportFromBrowser)
 		},
 	}
-
-	return c
 }
 
 func newImportHTMLCmd(app *application.App) *cobra.Command {
@@ -140,13 +75,9 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 		Use:   "html",
 		Short: "import from HTML Netscape file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return port.ImportFromHTML(cmd.Context(), d, app.Flags.Path)
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return port.ImportFromHTML(cmd.Context(), d, app.Flags.Path)
+			})
 		},
 	}
 
@@ -157,19 +88,13 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 }
 
 func newImportFromFileCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
+	return &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return port.ImportFromDatabase(cmd.Context(), d, app.Flags.Path)
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return port.ImportFromDatabasePath(cmd.Context(), d, app.Flags.Path)
+			})
 		},
 	}
-
-	return c
 }
 
 func newImportFromGit(app *application.App) *cobra.Command {
@@ -195,13 +120,9 @@ func newImportFromJSON(app *application.App) *cobra.Command {
 		Use:   "json",
 		Short: "import from JSON file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return port.ImportFromJSON(cmd.Context(), d, app.Flags.Path)
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return port.ImportFromJSON(cmd.Context(), d, app.Flags.Path)
+			})
 		},
 	}
 

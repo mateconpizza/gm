@@ -30,8 +30,8 @@ type (
 	RunFunc func(ctx context.Context, d *deps.Deps) error
 )
 
-// SetupDeps initializes the config, db and app for the subcommands..
-func SetupDeps(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
+// setup initializes the config, db and app for the subcommands..
+func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	ctx := cmd.Context()
 
 	app, err := application.FromContext(ctx)
@@ -103,7 +103,7 @@ func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark],
 
 // Run sets up command dependencies, runs action, and handles cleanup.
 func Run(cmd *cobra.Command, args []string, fn RunFunc) error {
-	d, cleanup, err := SetupDeps(cmd, &args)
+	d, cleanup, err := setup(cmd, &args)
 	if err != nil {
 		return err
 	}

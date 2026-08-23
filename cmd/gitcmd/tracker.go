@@ -2,6 +2,7 @@ package gitcmd
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -23,20 +25,13 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		Short:   "configure repository tracking",
 		Aliases: []string{"t", "track"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			m, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
-
-			reposStr := m.Repos()
-
-			return status(d.Console(), app, reposStr)
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				m, err := gitops.NewManager(app)
+				if err != nil {
+					return err
+				}
+				return status(d.Console(), app, m.Repos())
+			})
 		},
 	}
 
@@ -55,13 +50,7 @@ func newTrackCmd(_ *application.App) *cobra.Command {
 		Short:   "track a database",
 		Aliases: []string{"t", "add", "new"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return gitops.NewTrack(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, gitops.NewTrack)
 		},
 	}
 
@@ -74,13 +63,7 @@ func newUntrackCmd(_ *application.App) *cobra.Command {
 		Short:   "untrack a database",
 		Aliases: []string{"u", "remove", "rm", "r"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return gitops.Untrack(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, gitops.Untrack)
 		},
 	}
 

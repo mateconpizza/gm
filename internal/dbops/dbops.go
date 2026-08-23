@@ -301,7 +301,7 @@ func Lock(ctx context.Context, d *deps.Deps, rToLock string) error {
 }
 
 func LockBackup(ctx context.Context, d *deps.Deps) error {
-	fs, err := selectBackups(ctx, d, "select backup/s to lock")
+	fs, err := SelectBackups(ctx, d, "select backup/s to lock")
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
@@ -413,6 +413,29 @@ func NewBackup(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
+func Backups(ctx context.Context, d *deps.Deps) ([]string, error) {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := d.Repository()
+	if err != nil {
+		return nil, err
+	}
+
+	bks, err := files.List(app.Path.Backup(), "*_"+r.BaseName()+".db*")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(bks) == 0 {
+		return nil, db.ErrBackupNotFound
+	}
+
+	return bks, nil
+}
+
 // MigrationsStatus prints the current database schema and SQLite versions.
 func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 	r, err := d.Repository()
@@ -451,6 +474,77 @@ func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
 		Rowln().
 		Flush()
+
+	return nil
+}
+
+func BackupList(ctx context.Context, d *deps.Deps) error {
+	p, f := d.Console().Palette(), d.Console().Frame()
+
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
+	title := p.BrightMagenta.With(p.Bold).
+		Sprint("Repository Backups")
+
+	subtitle := p.Dim.With(p.Italic).
+		Sprint("latest backup snapshots")
+
+	name := p.BrightYellow.With(p.Bold).
+		Sprint(files.StripExts(r.Name()))
+
+	repo := p.Dim.With(p.Italic).
+		Sprint("repo: " + name)
+
+	stats := db.NewStats()
+	if err := r.Stats(ctx, stats); err != nil {
+		return err
+	}
+
+	info := p.Dim.With(p.Italic).
+		Sprintf(" (%d bookmarks)", stats.Bookmarks)
+
+	f.Headerln(title).
+		Headerln(subtitle).
+		Rowln().
+		Midln(repo + info).
+		Rowln().
+		Flush()
+
+	bkDetail, err := summary.BackupListDetail(ctx, d, true)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprint(d.Writer(), bkDetail)
+
+	return nil
+}
+
+func Diagnostic(ctx context.Context, d *deps.Deps) error {
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	f := d.Console().Frame()
+	p := d.Console().Palette()
+	defer f.Flush()
+
+	title := p.BrightYellow.
+		Wrap("Database Doctor", p.Bold)
+
+	f.Headerln(title).
+		Rowln().
+		Midln("integrity_check").
+		Midln("foreign_key_check").
+		Midln("missing indexes").
+		Midln("orphan tags").
+		Midln("invalid status").
+		Midln("duplicated checksums")
 
 	return nil
 }
