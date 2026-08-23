@@ -181,7 +181,7 @@ func LoadFromMenu(ctx context.Context, app *application.App) error {
 	return err
 }
 
-func selectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, error) {
+func SelectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, error) {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err

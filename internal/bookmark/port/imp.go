@@ -11,6 +11,7 @@ import (
 
 	menu "github.com/mateconpizza/go-fzf"
 
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -25,18 +26,25 @@ var ErrNothingToImport = errors.New("nothing to import")
 
 // Database imports bookmarks from a database.
 func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
-	destDB, err := d.Repository()
-	if err != nil {
-		return err
-	}
-
 	app, err := d.Application(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
+	bs, err := srcDB.All(ctx)
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	c := d.Console()
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
+
+	destDB, err := d.Repository()
+	if err != nil {
+		return err
+	}
+
 	m := picker.New[*bookmark.Bookmark](
 		app,
 		menu.WithHeader("select record/s to import"),
@@ -48,13 +56,6 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 			sys.ErrAndExit(err)
 		}),
 	)
-
-	bs, err := srcDB.All(ctx)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	c := d.Console()
 	m.SetFormatter(func(b *bookmark.Bookmark) string {
 		return fm.Render(c, b)
 	})
@@ -64,35 +65,55 @@ func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 		return err
 	}
 
-	bs, err = DeduplicateReport(ctx, c, destDB, bs)
+	return importPipeline(ctx, d, "from database", srcDB.Name(), bs)
+}
+
+func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 
-	if len(bs) == 0 {
-		p := c.Palette()
-		c.Frame().Error("no new bookmark found, ").
-			Textln(p.BrightYellow.Wrap("skipping import", p.Italic)).
-			Flush()
-		return sys.ErrExitFailure
-	}
-
-	if err := destDB.InsertMany(ctx, bs); err != nil {
+	srcPath, err := dbops.Select(ctx, d, app.Path.DB())
+	if err != nil {
 		return err
 	}
 
-	return c.Print(ctx, c.SuccessMesg("imported ", len(bs), " record/s from ", srcDB.Name()))
+	rSrc, err := db.New(ctx, srcPath)
+	if err != nil {
+		return err
+	}
+	defer rSrc.Close()
+
+	return Database(ctx, d, rSrc)
 }
 
-// FromBackup imports bookmarks from a backup.
-func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) error {
+func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
+	backups, err := dbops.Backups(ctx, d)
+	if err != nil {
+		return err
+	}
+	backupPath, err := dbops.SelectBackup(ctx, d, backups)
+	if err != nil {
+		return err
+	}
+	srcRepo, err := db.New(ctx, backupPath)
+	if err != nil {
+		return err
+	}
+	defer srcRepo.Close()
+
+	return importBookmarksFromBackup(ctx, d, srcRepo)
+}
+
+// importBookmarksFromBackup imports bookmarks from a backup.
+func importBookmarksFromBackup(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
 	bookmarks, err := srcDB.All(ctx)
 	if err != nil {
 		return err
 	}
 
 	c := d.Console()
-
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
@@ -118,9 +139,6 @@ func FromBackup(ctx context.Context, d *deps.Deps, destDB, srcDB *db.SQLite) err
 	if err != nil {
 		return err
 	}
-
-	// update which repo to insert
-	d.SetRepo(destDB)
 
 	r, err := d.Repository()
 	if err != nil {
@@ -153,7 +171,8 @@ func ToJSON(data any) ([]byte, error) {
 	return jsonData, nil
 }
 
-// DeduplicateReport removes duplicate bookmarks and reports skipped entries to the console.
+// DeduplicateReport removes duplicate bookmarks and reports skipped entries to
+// the console.
 func DeduplicateReport(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	const maxItemsToShow = 10
 

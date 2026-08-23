@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 
 	files "github.com/mateconpizza/gofiles"
@@ -10,7 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
-	"github.com/mateconpizza/gm/internal/summary"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -42,13 +43,7 @@ func newBackupAddCmd(app *application.App) *cobra.Command {
   $ {cmd} db backup new
   $ {cmd} db backup add --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return dbops.NewBackup(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, dbops.NewBackup)
 		},
 	}
 
@@ -62,13 +57,7 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup lock
   $ {cmd} db backup lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			return dbops.LockBackup(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, dbops.LockBackup)
 		},
 	}
 
@@ -82,22 +71,18 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup unlock
   $ {cmd} db backup unlock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				if !files.Exists(app.Path.Backup()) {
+					return db.ErrBackupNotFound
+				}
 
-			if !files.Exists(app.Path.Backup()) {
-				return fmt.Errorf("%w", db.ErrBackupNotFound)
-			}
+				repo, err := dbops.SelectEncrypted(cmd.Context(), d, app.Path.Backup())
+				if err != nil {
+					return fmt.Errorf("%w", err)
+				}
 
-			repo, err := dbops.SelectEncrypted(cmd.Context(), d, app.Path.Backup())
-			if err != nil {
-				return fmt.Errorf("%w", err)
-			}
-
-			return dbops.Unlock(cmd.Context(), d, repo)
+				return dbops.Unlock(cmd.Context(), d, repo)
+			})
 		},
 	}
 
@@ -113,47 +98,7 @@ func newBackupListCmd(app *application.App) *cobra.Command {
   $ {cmd} db backup list --db work
   $ {cmd} db backup ls`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			p, f := d.Console().Palette(), d.Console().Frame()
-			r, err := d.Repository()
-			if err != nil {
-				return err
-			}
-
-			title := p.BrightMagenta.With(p.Bold).
-				Sprint("Repository Backups")
-
-			subtitle := p.Dim.With(p.Italic).
-				Sprint("latest backup snapshots")
-
-			name := p.BrightYellow.With(p.Bold).
-				Sprint(files.StripExts(r.Name()))
-
-			repo := p.Dim.With(p.Italic).
-				Sprint("repo: " + name)
-
-			info := p.Dim.With(p.Italic).
-				Sprintf(" (%d bookmarks)", r.Count(cmd.Context(), "bookmarks"))
-
-			f.Headerln(title).
-				Headerln(subtitle).
-				Rowln().
-				Midln(repo + info).
-				Rowln().Flush()
-
-			bkDetail, err := summary.BackupListDetail(cmd.Context(), d, true)
-			if err != nil {
-				return err
-			}
-
-			fmt.Fprint(d.Writer(), bkDetail)
-
-			return nil
+			return cmdutil.Run(cmd, args, dbops.BackupList)
 		},
 	}
 

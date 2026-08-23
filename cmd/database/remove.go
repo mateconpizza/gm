@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"io"
 	"strings"
 
@@ -11,14 +10,13 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/git"
 )
 
 func newBackupRemoveCmd(app *application.App) *cobra.Command {
@@ -58,45 +56,9 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 		Use:     "rm",
 		Aliases: []string{"remove"},
 		Short:   "remove a database",
+		Example: app.Example(`  $ {cmd} db rm --db {db}`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cancel, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cancel()
-
-			r, err := d.Repository()
-			if err != nil {
-				return err
-			}
-
-			ctx := cmd.Context()
-			bs, err := r.All(ctx)
-			if err != nil {
-				return err
-			}
-
-			if err := dbops.Remove(ctx, d); err != nil {
-				return err
-			}
-
-			m, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
-
-			gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
-			if !m.IsTracked(gr.Name()) {
-				return nil
-			}
-
-			var sb strings.Builder
-			fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Name())
-			if len(bs) > 0 {
-				fmt.Fprintf(&sb, " (-del:%d)", len(bs))
-			}
-
-			return m.Untrack(cmd.Context(), gr, sb.String())
+			return cmdutil.Run(cmd, args, handler.RemoveAndUntrack)
 		},
 	}
 

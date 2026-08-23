@@ -151,15 +151,8 @@ func newCloneCmd(app *application.App) *cobra.Command {
 		PersistentPostRunE: cli.HookGitSync(app),
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cleanup()
-
 			app.Git.Remote = args[0]
-
-			return gitops.Clone(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, gitops.Clone)
 		},
 	}
 
@@ -285,13 +278,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 		Short:   "show repository status and configuration",
 		Example: app.Example(`  $ {cmd} git info`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			d, cleanup, err := cmdutil.SetupDeps(cmd, &args)
-			if err != nil {
-				return err
-			}
-			defer cleanup()
-
-			return gitops.InfoCmd(cmd.Context(), d)
+			return cmdutil.Run(cmd, args, gitops.InfoCmd)
 		},
 	}
 
