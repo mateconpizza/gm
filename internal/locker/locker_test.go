@@ -3,7 +3,6 @@ package locker
 import (
 	"bytes"
 	"errors"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,12 +81,9 @@ func TestValidateInput(t *testing.T) {
 func TestBackupFile(t *testing.T) {
 	t.Parallel()
 	tf := testTempFile(t)
-
-	defer func() {
-		if err := os.Remove(tf.Name()); err != nil {
-			slog.Error("err removing tempfile", "error", err.Error())
-		}
-	}()
+	t.Cleanup(func() {
+		os.Remove(tf.Name())
+	})
 
 	b := []byte(
 		"Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",

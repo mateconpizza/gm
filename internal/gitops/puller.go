@@ -3,6 +3,8 @@ package gitops
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 
 	files "github.com/mateconpizza/gofiles"
@@ -19,7 +21,7 @@ type Menu interface {
 }
 
 type Terminal interface {
-	Choose(context.Context, string, []string, string) (string, error)
+	Choose(ctx context.Context, q string, opts []string, def string) (string, error)
 }
 
 // GitPuller handles remote repository data ingestion.
@@ -30,6 +32,7 @@ type GitPuller struct {
 	repos  []*git.Repo // Parsed structural instances ready for ingestion
 
 	console *ui.Console
+	writer  io.Writer
 }
 
 func NewPuller(c *ui.Console, srcDir, dstDir string) *GitPuller {
@@ -37,7 +40,13 @@ func NewPuller(c *ui.Console, srcDir, dstDir string) *GitPuller {
 		srcDir:  srcDir,
 		dstDir:  dstDir,
 		console: c,
+		writer:  os.Stdout,
 	}
+}
+
+func (gp *GitPuller) WithWriter(w io.Writer) *GitPuller {
+	gp.writer = w
+	return gp
 }
 
 // Repos returns the loaded repositories if processing has been initiated.
@@ -66,7 +75,7 @@ func (gp *GitPuller) Read(ctx context.Context) error {
 	for _, gr := range gp.repos {
 		_, err := gr.Stats()
 		if err != nil {
-			fmt.Println("skipping "+gr.Name(), err.Error())
+			fmt.Fprintln(gp.writer, "skipping "+gr.Name(), err.Error())
 			continue
 		}
 

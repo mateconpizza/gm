@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/ui"
@@ -34,6 +36,7 @@ type EditSession struct {
 	DB          *db.SQLite
 	postEdition postRunEditionFunc
 	meta        *Meta
+	writer      io.Writer
 }
 
 // NewEditSession creates a new editing session.
@@ -42,6 +45,7 @@ func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...SessionO
 		Console: c,
 		Editor:  e,
 		DB:      r,
+		writer:  os.Stdout,
 	}
 
 	for _, opt := range opts {
@@ -64,6 +68,12 @@ func WithPostEditionRunE(fn postRunEditionFunc) SessionOption {
 func WithMeta(m *Meta) SessionOption {
 	return func(es *EditSession) {
 		es.meta = m
+	}
+}
+
+func WithWriter(w io.Writer) SessionOption {
+	return func(es *EditSession) {
+		es.writer = w
 	}
 }
 
@@ -104,7 +114,7 @@ func (e *EditSession) processSingleRecord(ctx context.Context, og *bookmark.Book
 			CustomFunc(header, p.BrightYellow.Wrap("Diff:\n", p.Bold)).
 			Flush()
 
-		fmt.Println(strategy.Diff(og, updated))
+		fmt.Fprintln(e.writer, strategy.Diff(og, updated))
 
 		opt, err := e.Console.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
@@ -145,6 +155,6 @@ func (e *EditSession) saveRecordChanges(ctx context.Context, strategy EditStrate
 		}
 	}
 
-	fmt.Print(e.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID)))
+	fmt.Fprint(e.writer, e.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID)))
 	return nil
 }

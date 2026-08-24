@@ -90,7 +90,7 @@ func status(ctx context.Context, repoPath string) (string, error) {
 		return "", ErrGitNoCommits
 	}
 
-	added, modified, deleted, err := countStagedChanges(repoPath)
+	added, modified, deleted, err := countStagedChanges(ctx, repoPath)
 	if err != nil {
 		return "", err
 	}
@@ -98,9 +98,9 @@ func status(ctx context.Context, repoPath string) (string, error) {
 	return formatStatus(added, modified, deleted), nil
 }
 
-func countStagedChanges(repoPath string) (added, modified, deleted int, err error) {
+func countStagedChanges(ctx context.Context, repoPath string) (added, modified, deleted int, err error) {
 	var out bytes.Buffer
-	cmd := exec.Command(command, "diff", "--cached", "--name-status")
+	cmd := exec.CommandContext(ctx, command, "diff", "--cached", "--name-status")
 	cmd.Stdout = &out
 	cmd.Dir = repoPath
 

@@ -210,7 +210,7 @@ func WithSignalContext(parent context.Context) (context.Context, context.CancelF
 			return // parent canceled
 		case s := <-signals:
 			slog.Debug("received signal", "signal", s)
-			fmt.Println()
+			fmt.Fprintln(os.Stdout)
 			cancelCause(fmt.Errorf("%w with signal %s", ErrActionAborted, s))
 		}
 	}()

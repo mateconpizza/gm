@@ -322,13 +322,13 @@ func HookFormatter(app *application.App) HookE {
 
 func HookGitLoggingStatus(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) {
-		fmt.Println(app.Git.Logging())
+		fmt.Fprintln(os.Stdout, app.Git.Logging())
 	}
 }
 
 func HookGitStatus(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) {
-		fmt.Println(app.Git.Status())
+		fmt.Fprintln(os.Stdout, app.Git.Status())
 	}
 }
 

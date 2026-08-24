@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -101,6 +102,8 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*book
 		return p.BrightCyan.Wrap(s, p.Bold) + mesg
 	})
 
+	w := c.Writer()
+
 	for _, b := range bs {
 		g.Go(func() error {
 			select {
@@ -108,7 +111,7 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*book
 				return ctx.Err()
 			default:
 				old := *b
-				res := makeRequest(ctx, b)
+				res := makeRequest(ctx, w, b)
 				if err := ctx.Err(); err != nil {
 					return err
 				}
@@ -278,7 +281,7 @@ func handleRequestError(b *bookmark.Bookmark, err error) Response {
 
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
 // returns a response.
-func makeRequest(ctx context.Context, b *bookmark.Bookmark) Response {
+func makeRequest(ctx context.Context, w io.Writer, b *bookmark.Bookmark) Response {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -302,7 +305,7 @@ func makeRequest(ctx context.Context, b *bookmark.Bookmark) Response {
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			fmt.Println("error closing response body:", err)
+			fmt.Fprintln(w, "error closing response body:", err)
 		}
 	}()
 

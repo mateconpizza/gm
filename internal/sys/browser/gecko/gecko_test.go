@@ -28,9 +28,9 @@ func TestIsNonGenericURL(t *testing.T) {
 	for _, tc := range testCases {
 		result := isNonGenericURL(tc.url)
 		if result != tc.expected {
-			println("Error for url:", tc.url)
-			println("Expected:", tc.expected)
-			println("Got:", result)
+			t.Logf("Error for url: %v", tc.url)
+			t.Logf("Expected: %v", tc.expected)
+			t.Logf("got: %v", result)
 		}
 	}
 }

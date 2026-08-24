@@ -62,6 +62,8 @@ func TestTermChoose(t *testing.T) {
 }
 
 func TestTermConfirm(t *testing.T) {
+	t.Parallel()
+
 	t.Run("confirm valid", func(t *testing.T) {
 		t.Parallel()
 		question := "Are you sure? "
@@ -161,6 +163,8 @@ func TestTermIsPiped(t *testing.T) {
 }
 
 func TestInputPassword(t *testing.T) {
+	t.Parallel()
+
 	t.Run("valid password input", func(t *testing.T) {
 		t.Parallel()
 		pwd := "123"

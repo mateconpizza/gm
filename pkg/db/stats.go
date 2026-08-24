@@ -43,5 +43,16 @@ func (rs *RepoStats) String() string {
 }
 
 func (r *SQLite) Stats(ctx context.Context, dest any) error {
-	return r.DB.GetContext(ctx, dest, `SELECT * FROM stats`)
+	const q = `
+		SELECT
+			total_bookmarks,
+			total_tags,
+			favorites,
+			archived,
+			dead_links,
+			total_visits
+		FROM stats
+	`
+
+	return r.DB.GetContext(ctx, dest, q)
 }

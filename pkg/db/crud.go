@@ -17,6 +17,28 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
+const bookmarkColumns = `
+	b.id,
+	b.url,
+	b.title,
+	b.desc,
+	b.notes,
+	b.created_at,
+	b.updated_at,
+	b.last_visit,
+	b.last_checked,
+	b.visit_count,
+	b.favorite,
+	b.status_code,
+	b.status_text,
+	b.is_active,
+	b.favicon_url,
+	b.favicon_local,
+	b.archive_url,
+	b.archive_timestamp,
+	b.checksum
+`
+
 // InsertOne creates a new record in the main table.
 func (r *SQLite) InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error) {
 	if err := bookmark.Validate(b); err != nil {
@@ -152,7 +174,7 @@ func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
 	slog.DebugContext(ctx, "fetching all bookmarks from database: "+r.Name())
 	q := `
     SELECT
-      b.*,
+			` + bookmarkColumns + `,
       COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
@@ -183,7 +205,7 @@ func (r *SQLite) ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error) 
 
 	q := `
     SELECT
-      b.*,
+			` + bookmarkColumns + `,
       COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
@@ -215,7 +237,7 @@ func (r *SQLite) ByIDList(ctx context.Context, bIDs []int) ([]*bookmark.Bookmark
 
 	q, args, err := sqlx.In(`
     SELECT
-      b.*,
+			`+bookmarkColumns+`,
       COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
@@ -244,7 +266,7 @@ func (r *SQLite) ByIDList(ctx context.Context, bIDs []int) ([]*bookmark.Bookmark
 func (r *SQLite) ByURL(ctx context.Context, bURL string) (*bookmark.Bookmark, error) {
 	row := r.DB.QueryRowxContext(ctx, `
     SELECT
-      b.*,
+			`+bookmarkColumns+`,
       COALESCE(GROUP_CONCAT(t.name, ','), '') AS tags
     FROM
       bookmarks b
@@ -270,7 +292,7 @@ func (r *SQLite) ByURL(ctx context.Context, bURL string) (*bookmark.Bookmark, er
 func (r *SQLite) ByTag(ctx context.Context, tag string) ([]*bookmark.Bookmark, error) {
 	query := `
 		SELECT
-			b.*,
+			` + bookmarkColumns + `,
 			GROUP_CONCAT(t2.name, ',') AS tags
 		FROM bookmarks b
 		JOIN bookmark_tags bt ON b.id = bt.bookmark_id
@@ -298,7 +320,7 @@ func (r *SQLite) ByQuery(ctx context.Context, query string) ([]*bookmark.Bookmar
 
 	q := `
     SELECT
-      b.*,
+			` + bookmarkColumns + `,
       GROUP_CONCAT(t.name, ',') AS tags
     FROM bookmarks b
 		LEFT JOIN bookmark_tags bt ON b.id = bt.bookmark_id
@@ -395,7 +417,7 @@ func (r *SQLite) SetFavorite(ctx context.Context, b *bookmark.Bookmark) error {
 func (r *SQLite) FavoritesList(ctx context.Context) ([]*bookmark.Bookmark, error) {
 	q := `
     SELECT
-      b.*,
+			` + bookmarkColumns + `,
       GROUP_CONCAT(t.name, ',') AS tags
     FROM
       bookmarks b
@@ -419,7 +441,7 @@ func (r *SQLite) ByOrder(ctx context.Context, column, sortBy string) ([]*bookmar
 
 	q := fmt.Sprintf(`
     SELECT
-      b.*,
+			`+bookmarkColumns+`,
       GROUP_CONCAT(t.name, ',') AS tags
     FROM
       bookmarks b
@@ -447,16 +469,6 @@ func (r *SQLite) ByOrder(ctx context.Context, column, sortBy string) ([]*bookmar
 func (r *SQLite) Count(ctx context.Context, table Table) int {
 	var n int
 	if err := r.DB.QueryRowxContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&n); err != nil {
-		return 0
-	}
-
-	return n
-}
-
-// CountFavorites returns the number of favorite records.
-func (r *SQLite) CountFavorites(ctx context.Context) int {
-	var n int
-	if err := r.DB.QueryRowxContext(ctx, "SELECT COUNT(*) FROM bookmarks WHERE favorite = 1").Scan(&n); err != nil {
 		return 0
 	}
 

@@ -32,7 +32,7 @@ func ExportToCSV(bs []*bookmark.Bookmark, writer io.Writer, fields []string) err
 	fieldMap := make(map[string]int)
 	t := reflect.TypeFor[bookmark.Bookmark]()
 
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		tag := t.Field(i).Tag.Get("db")
 		if tag != "" {
 			fieldMap[tag] = i
@@ -124,7 +124,7 @@ func ImportFromCSV(r io.Reader) ([]*bookmark.Bookmark, error) {
 			return ""
 		}
 
-		for i := 0; i < t.NumField(); i++ {
+		for i := range t.NumField() {
 			field := t.Field(i)
 			dbTag := field.Tag.Get("db")
 			if dbTag == "" {

@@ -58,6 +58,7 @@ type Options struct {
 // WaybackMachine provides methods to query the Internet Archive Wayback Machine.
 type WaybackMachine struct {
 	*Options
+
 	client *http.Client
 }
 

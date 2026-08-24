@@ -46,7 +46,7 @@ func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, 
 		return nil
 	}
 
-	fps, err := gpg.ListFingerprints()
+	fps, err := gpg.ListFingerprints(ctx)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func addGPGFiles(ctx context.Context, bs []*bookmark.Bookmark, sp *rotato.Rotato
 	root := filepath.Dir(repoPath)
 	fingerprintPath := gpg.GPGIDPath(root)
 
-	fp, err := gpg.LookupKey(fingerprintPath)
+	fp, err := gpg.LookupKey(ctx, fingerprintPath)
 	if err != nil {
 		return fmt.Errorf("gpg strategy: %w", err)
 	}
