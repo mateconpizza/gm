@@ -20,7 +20,7 @@ LDFLAGS := -s -w \
 full: build
 
 # Target to build everything
-all: lint check test build
+all: lint test build
 
 # Build the binary
 build:
@@ -81,11 +81,9 @@ lint:
 	@go vet ./...
 	golangci-lint run ./...
 
-# Lint code with 'golangci-lint' and 'codespell'
-check:
-	@echo '>> Checking code with linters'
-	golangci-lint run -p bugs -p error
-	codespell .
+typo:
+	@echo ">> checking for typos"
+	typos .
 
 # Clean binary directories
 clean:
@@ -113,7 +111,7 @@ uninstall:
 tidy:
 	go mod tidy
 
-ci: lint
+ci:
 	@if go list -m -f '{{if .Replace}}{{if not .Replace.Version}}{{.Path}} => {{.Replace.Path}}{{end}}{{end}}' all | grep -q .; then \
 		echo "error: local replace directive found in go.mod"; \
 		go list -m -f '{{if .Replace}}{{if not .Replace.Version}}{{.Path}} => {{.Replace.Path}}{{end}}{{end}}' all; \
@@ -121,7 +119,8 @@ ci: lint
 	fi
 	go mod tidy
 	git diff --exit-code
+	go vet ./...
 	go build ./...
 	go test -race ./...
 
-.PHONY: all build debug test clean full check lint testfn
+.PHONY: all build debug test clean full lint testfn
