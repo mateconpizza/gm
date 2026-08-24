@@ -126,12 +126,12 @@ flags:
 <summary><strong>YAML file structure</strong></summary>
 
 ```yaml
-db: main
-cmd: gm
-format: frame
+db: main                # database to use by default
+cmd: gm                 # command used by the FZF preview
+format: frame           # default output format
 menu:
-  defaults: true
-  format: oneline
+  defaults: true        # use $FZF_DEFAULT_OPTS_FILE and $FZF_DEFAULT_OPTS
+  format: oneline       # menu display format
   prompt: "> "
   preview: true
   header:
