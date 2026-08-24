@@ -76,7 +76,6 @@ func NewDefault() *Config {
 			WithNoScrollbar().
 			WithCycle().
 			WithColor("prompt", "bold").
-			WithColor("header", "italic", "bright-blue").
 			Build(),
 	}
 }

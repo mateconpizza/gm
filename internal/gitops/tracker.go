@@ -31,19 +31,19 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 	}
 	defer r.Close()
 
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
-	gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
+	gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
 
 	c := d.Console()
-	if m.IsTracked(gr.Name()) {
+	if gm.IsTracked(gr.Name()) {
 		fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Name())))
 	}
 
-	if err := Track(ctx, r, m, gr); err != nil {
+	if err := Track(ctx, r, gm, gr); err != nil {
 		return err
 	}
 
@@ -98,14 +98,14 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
-	gr := NewRepo(m, app.DBBaseName())
+	gr := NewRepo(gm, app.DBBaseName())
 	commitMsg := fmt.Sprintf("[%s] remove tracking", gr.Name())
-	if err := m.Untrack(ctx, gr, commitMsg); err != nil {
+	if err := gm.Untrack(ctx, gr, commitMsg); err != nil {
 		return err
 	}
 

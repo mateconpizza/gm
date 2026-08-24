@@ -232,12 +232,12 @@ func HookGitPrune(app *application.App) HookE {
 		}
 
 		slog.Debug("hook: checks for differences between database and local repo and syncs them")
-		m, err := gitops.NewManager(app)
+		gm, err := gitops.NewManager(app)
 		if err != nil {
 			return fmt.Errorf("hook git: new git manager: %w", err)
 		}
 
-		if !m.IsTracked(app.DBBaseName()) {
+		if !gm.IsTracked(app.DBBaseName()) {
 			slog.Debug("hook git: repo not tracked", "name", app.DBBaseName())
 			return nil
 		}

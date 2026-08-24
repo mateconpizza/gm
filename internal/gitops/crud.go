@@ -68,22 +68,22 @@ func Add(ctx context.Context, app *application.App, r *db.SQLite, b *bookmark.Bo
 		return nil
 	}
 
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	name := r.BaseName()
-	if !m.IsEnabled() || !m.IsTracked(name) {
+	if !gm.IsEnabled() || !gm.IsTracked(name) {
 		return nil
 	}
 
-	gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
+	gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
 	if err := gr.Add(ctx, []*bookmark.Bookmark{b}); err != nil {
 		return err
 	}
 
-	return m.SaveChanges(
+	return gm.SaveChanges(
 		ctx,
 		gr,
 		fmt.Sprintf("[%s] bookmark added", gr.Name()),
@@ -95,13 +95,13 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 		return nil
 	}
 
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	repoName := app.DBBaseName()
-	if !m.IsTracked(repoName) {
+	if !gm.IsTracked(repoName) {
 		return nil
 	}
 
@@ -111,12 +111,12 @@ func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) 
 	}
 	defer r.Close()
 
-	gr := NewRepo(m, repoName, RepoStatsReader(r))
+	gr := NewRepo(gm, repoName, RepoStatsReader(r))
 	if err := gr.RmMany(ctx, bs, files.RemoveEmptyDirs); err != nil {
 		return err
 	}
 
-	return m.SaveChanges(
+	return gm.SaveChanges(
 		ctx,
 		gr,
 		fmt.Sprintf("[%s] remove bookmarks", repoName),
@@ -130,13 +130,13 @@ func Drop(ctx context.Context, app *application.App, c *ui.Console) error {
 		return nil
 	}
 
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	name := app.DBBaseName()
-	if !m.IsTracked(name) || !files.Exists(app.Path.DB()) {
+	if !gm.IsTracked(name) || !files.Exists(app.Path.DB()) {
 		return nil
 	}
 
@@ -150,8 +150,8 @@ func Drop(ctx context.Context, app *application.App, c *ui.Console) error {
 		return nil
 	}
 
-	gr := NewRepo(m, r.Name(), RepoStatsReader(r))
-	if err := m.Drop(ctx, gr); err != nil {
+	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
+	if err := gm.Drop(ctx, gr); err != nil {
 		return err
 	}
 
@@ -159,7 +159,7 @@ func Drop(ctx context.Context, app *application.App, c *ui.Console) error {
 		return nil
 	}
 
-	if err := m.Untrack(ctx, gr, fmt.Sprintf("[%s] remove tracking", gr.Name())); err != nil {
+	if err := gm.Untrack(ctx, gr, fmt.Sprintf("[%s] remove tracking", gr.Name())); err != nil {
 		return err
 	}
 
@@ -171,12 +171,12 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 		return nil
 	}
 
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
-	if !m.IsEnabled() || !m.IsTracked(app.DBBaseName()) {
+	if !gm.IsEnabled() || !gm.IsTracked(app.DBBaseName()) {
 		return nil
 	}
 
@@ -190,6 +190,6 @@ func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Book
 		return err
 	}
 
-	gr := NewRepo(m, r.Name(), RepoStatsReader(r))
-	return m.UpdateAndSave(ctx, gr, old, fresh, files.RemoveEmptyDirs)
+	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
+	return gm.UpdateAndSave(ctx, gr, old, fresh, files.RemoveEmptyDirs)
 }

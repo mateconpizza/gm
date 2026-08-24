@@ -265,13 +265,13 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	m, err := gitops.NewManager(app)
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
 
-	gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
-	if !m.IsTracked(gr.Name()) {
+	gr := gitops.NewRepo(gm, r.Name(), git.WithRepoStore(r))
+	if !gm.IsTracked(gr.Name()) {
 		return nil
 	}
 
@@ -281,7 +281,7 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		fmt.Fprintf(&sb, " (-del:%d)", len(bs))
 	}
 
-	return m.Untrack(ctx, gr, sb.String())
+	return gm.Untrack(ctx, gr, sb.String())
 }
 
 // openInBrowser concurrently opens each bookmark URL in the browser.
@@ -490,13 +490,13 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		return err
 	}
 
-	m, err := gitops.NewManager(app)
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	gr := gitops.NewRepo(
-		m,
+		gm,
 		r.BaseName(),
 		gitops.RepoStatsReader(r),
 	)
@@ -511,14 +511,14 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		}
 
 		if app.GitEnabled() {
-			if err := m.Update(ctx, gr, b, b, files.RemoveEmptyDirs); err != nil {
+			if err := gm.Update(ctx, gr, b, b, files.RemoveEmptyDirs); err != nil {
 				return err
 			}
 		}
 	}
 
 	if app.GitEnabled() {
-		err := m.SaveChanges(
+		err := gm.SaveChanges(
 			ctx,
 			gr,
 			fmt.Sprintf("[%s] http status updated", gr.Name()),

@@ -26,11 +26,11 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"t", "track"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
-				m, err := gitops.NewManager(app)
+				gm, err := gitops.NewManager(app)
 				if err != nil {
 					return err
 				}
-				return status(d.Console(), app, m.Repos())
+				return status(d.Console(), app, gm.Repos())
 			})
 		},
 	}
@@ -81,12 +81,12 @@ func newMgrCmd(app *application.App) *cobra.Command {
 				return fmt.Errorf("finding db files: %w", err)
 			}
 
-			m, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
 
-			return gitops.TrackManager(cmd.Context(), m, ui.DefaultConsole, dbFiles)
+			return gitops.TrackManager(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
 		},
 	}
 
@@ -122,7 +122,7 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 		Rowln().
 		Flush()
 
-	m, err := gitops.NewManager(app)
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -131,9 +131,9 @@ func status(c *ui.Console, app *application.App, tracked []string) error {
 	dbFiles = prioritizeTracked(dbFiles, tracked)
 	for _, dbPath := range dbFiles {
 		name := filepath.Base(dbPath)
-		gr := gitops.NewRepo(m, name)
+		gr := gitops.NewRepo(gm, name)
 
-		s := gitops.TrackStatus(c, m, gr)
+		s := gitops.TrackStatus(c, gm, gr)
 		if s == "" {
 			continue
 		}

@@ -21,7 +21,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	f, p := d.Console().Frame(), d.Console().Palette()
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return "", err
 	}
@@ -32,15 +32,15 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 	defer r.Close()
 
-	if !m.IsTracked(app.DBBaseName()) || !m.IsEnabled() {
+	if !gm.IsTracked(app.DBBaseName()) || !gm.IsEnabled() {
 		return f.StringReset(), err
 	}
 
 	f.Reset().
 		HeaderCln(p.BrightRed, p.BrightRed.Wrap("git:", p.Italic))
 
-	gr := m.NewRepo(r.BaseName())
-	sum, err := m.Summary(gr)
+	gr := gm.NewRepo(r.BaseName())
+	sum, err := gm.Summary(gr)
 	if err != nil {
 		return f.StringReset(), err
 	}
@@ -71,7 +71,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	// unpushed commits
-	g := m.Git()
+	g := gm.Git()
 	unpushed, err := g.UnpushedCommits(ctx)
 	if err != nil && !errors.Is(err, git.ErrGitNoUpstream) {
 		return "", err

@@ -257,7 +257,12 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 			return summary.BackupWithFmtDateFromPath(ctx, c, item)
 		},
 		menu.WithMultiSelection(),
-		menu.WithHeader(fmt.Sprintf("select backup/s from %q", app.DBBaseName())),
+		menu.WithHeader(fmt.Sprintf(
+			"select backup/s from %q %s %s",
+			app.DBBaseName(),
+			txt.GlyphBulletPoint,
+			ansi.BrightRed.Wrap("this action cannot be undone", ansi.Bold),
+		)),
 	)
 
 	return m.Select(fs)

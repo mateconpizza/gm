@@ -89,17 +89,17 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return nil
 	}
 
-	m, err := NewManager(app)
+	gm, err := NewManager(app)
 	if err != nil {
 		return fmt.Errorf("git sync: failed to create git repo: %w", err)
 	}
 
-	if !m.IsEnabled() {
-		slog.Debug("git sync disabled, skipping", "enabled", m.IsEnabled())
+	if !gm.IsEnabled() {
+		slog.Debug("git sync disabled, skipping", "enabled", gm.IsEnabled())
 		return nil
 	}
 
-	if !m.IsTracked(app.DBBaseName()) {
+	if !gm.IsTracked(app.DBBaseName()) {
 		slog.Debug("database path not tracked in git, skipping sync")
 		return nil
 	}
@@ -115,12 +115,12 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
 	}
 
-	gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
+	gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
 
-	return m.SaveChanges(ctx, gr, msg)
+	return gm.SaveChanges(ctx, gr, msg)
 }
 
 func readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
