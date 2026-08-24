@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"strings"
@@ -455,27 +456,91 @@ func TestRollback(t *testing.T) {
 }
 
 func TestDeleteAll(t *testing.T) {
-	r := setupTestDB(t)
-
-	// Insert test data
-	bookmarks := testSliceBookmarks(10)
-	if err := r.insertBulkPtr(t.Context(), bookmarks); err != nil {
-		t.Fatalf("failed to insert bulk bookmarks: %v", err)
+	tests := []struct {
+		name      string
+		seedCount int     // number of bookmarks to pre-populate before deletion
+		tables    []Table // tables to pass to deleteAll
+		wantErr   bool
+	}{
+		{
+			name:      "normal_delete_single_table",
+			seedCount: 5,
+			tables:    []Table{TableBookmarks},
+		},
+		{
+			name:      "no_tables_given_noop",
+			seedCount: 3,
+			tables:    nil,
+		},
+		{
+			name:      "empty_slice_noop",
+			seedCount: 3,
+			tables:    []Table{},
+		},
+		{
+			name:      "delete_from_empty_table",
+			seedCount: 0,
+			tables:    []Table{TableBookmarks},
+		},
+		{
+			name:      "single_record_boundary",
+			seedCount: 1,
+			tables:    []Table{TableBookmarks},
+		},
+		{
+			name:      "duplicate_table_names",
+			seedCount: 4,
+			tables:    []Table{TableBookmarks, TableBookmarks},
+		},
+		{
+			name:      "nonexistent_table_returns_error",
+			seedCount: 2,
+			tables:    []Table{Table("not_a_real_table")},
+			wantErr:   true,
+		},
+		{
+			name:      "large_number_of_records",
+			seedCount: 100,
+			tables:    []Table{TableBookmarks},
+		},
 	}
 
-	// Run deleteAll inside a transaction
-	err := r.WithTx(t.Context(), func(tx *sqlx.Tx) error {
-		return r.deleteAll(t.Context(), tx, tables...)
-	})
-	if err != nil {
-		t.Fatalf("deleteAll failed: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := testPopulatedDB(t, tt.seedCount)
+			ctx := t.Context()
 
-	// Verify records were deleted by trying to retrieve one
-	testBookmark := bookmarks[0]
-	_, err = r.ByID(t.Context(), testBookmark.ID)
-	if err == nil {
-		t.Error("expected error when getting bookmark by ID after deleteAll, got nil")
+			err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
+				return r.deleteAll(ctx, tx, tt.tables...)
+			})
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("deleteAll() expected an error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("deleteAll() unexpected error: %v", err)
+			}
+
+			bs, err := r.All(t.Context())
+			if err != nil {
+				t.Fatalf("deleteAll() unexpected error: %v", err)
+			}
+			gotCount := len(bs)
+			if selErr := r.DB.GetContext(ctx, &gotCount, fmt.Sprintf("SELECT COUNT(*) FROM %s", TableBookmarks)); selErr != nil {
+				t.Fatalf("failed to count remaining rows: %v", selErr)
+			}
+
+			wantCount := tt.seedCount
+			if len(tt.tables) > 0 {
+				wantCount = 0
+			}
+			if gotCount != wantCount {
+				t.Fatalf("remaining rows = %d; want %d", gotCount, wantCount)
+			}
+		})
 	}
 }
 
