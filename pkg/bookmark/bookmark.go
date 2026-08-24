@@ -114,7 +114,7 @@ func (b *Bookmark) JSON() *BookmarkJSON {
 	bVal := reflect.ValueOf(b).Elem()
 	jsonVal := reflect.ValueOf(bj).Elem()
 
-	for i := 0; i < bVal.NumField(); i++ {
+	for i := range bVal.NumField() {
 		field := bVal.Type().Field(i)
 		if field.Name == "Tags" {
 			continue

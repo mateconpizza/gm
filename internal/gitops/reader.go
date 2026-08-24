@@ -33,7 +33,7 @@ func NewRepoReader(ctx context.Context, gitRoot, repoPath string, n int) ([]*boo
 
 	if gpg.IsInitialized(gitRoot) {
 		fingerprintPath := gpg.GPGIDPath(gitRoot)
-		fp, err := gpg.LookupKey(fingerprintPath)
+		fp, err := gpg.LookupKey(ctx, fingerprintPath)
 		if err != nil {
 			return nil, err
 		}

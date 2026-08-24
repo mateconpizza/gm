@@ -3,6 +3,7 @@ package gpg
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -83,7 +84,7 @@ func (f *Fingerprint) String() string {
 }
 
 // LookupKey looks up the GPG key for the fingerprint stored in path.
-func LookupKey(path string) (*Fingerprint, error) {
+func LookupKey(ctx context.Context, path string) (*Fingerprint, error) {
 	if !fileExists(path) {
 		return nil, fmt.Errorf("%w: %q", os.ErrNotExist, path)
 	}
@@ -97,7 +98,7 @@ func LookupKey(path string) (*Fingerprint, error) {
 		return nil, ErrNoGPGRecipient
 	}
 
-	fps, err := ListFingerprints()
+	fps, err := ListFingerprints(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +117,8 @@ func LookupKey(path string) (*Fingerprint, error) {
 }
 
 // ListFingerprints lists all public GPG keys with their fingerprints and subkeys.
-func ListFingerprints() ([]*Fingerprint, error) {
-	output, err := execGPGListKeys()
+func ListFingerprints(ctx context.Context) ([]*Fingerprint, error) {
+	output, err := execGPGListKeys(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -154,13 +155,14 @@ func loadFingerprint(f string) (string, error) {
 }
 
 // execGPGListKeys executes the GPG command and returns its raw colon-delimited output.
-func execGPGListKeys() ([]byte, error) {
+func execGPGListKeys(ctx context.Context) ([]byte, error) {
 	binPath, err := which()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", err, Command)
 	}
 
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		ctx,
 		binPath,
 		flags.listKeys,
 		flags.withColons,

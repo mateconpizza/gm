@@ -38,9 +38,10 @@ func WithGitCommandLogger(hook CmdLogger) GitOpt {
 
 // Git handles operational tasks on a local Git repository.
 type Git struct {
+	*GitOptions
+
 	bin      string
 	fullpath string
-	*GitOptions
 }
 
 func (g *Git) Root() string                                 { return g.fullpath }

@@ -5,6 +5,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -64,7 +65,7 @@ func Execute(c *cobra.Command) error {
 func rootCmdFunc(app *application.App) cli.HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		if app.Flags.Version {
-			fmt.Print(app.PrettyVersion())
+			fmt.Fprint(os.Stdout, app.PrettyVersion())
 			return nil
 		}
 

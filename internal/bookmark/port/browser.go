@@ -34,14 +34,14 @@ func ImportFromBrowser(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	if err := br.LoadPaths(); err != nil {
+	if err := br.Browser.LoadPaths(); err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
 	// find bookmarks
-	bs, err := br.Import(ctx, d.Console(), app.Flags.Yes)
+	bs, err := br.Browser.Import(ctx, d.Console(), app.Flags.Yes)
 	if err != nil {
-		return fmt.Errorf("import from browser %q: %w", strings.ToLower(br.Name()), err)
+		return fmt.Errorf("import from browser %q: %w", strings.ToLower(br.Browser.Name()), err)
 	}
 
 	// clean and process found bookmarks
@@ -50,7 +50,7 @@ func ImportFromBrowser(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	return importPipeline(ctx, d, "from browser", br.Name(), bs)
+	return importPipeline(ctx, d, "from browser", br.Browser.Name(), bs)
 }
 
 // parseFoundInBrowser processes the bookmarks found from the import
@@ -94,9 +94,9 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 }
 
 // selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(ctx context.Context, app *application.App, c *ui.Console) (browser.Browser, error) {
+func selectBrowser(ctx context.Context, app *application.App, c *ui.Console) (browser.Supported, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return browser.Supported{}, err
 	}
 
 	p := c.Palette()
@@ -115,10 +115,10 @@ func selectBrowser(ctx context.Context, app *application.App, c *ui.Console) (br
 	m := picker.New[browser.Supported](app)
 	browsers, err := m.Select(browsers())
 	if err != nil {
-		return nil, err
+		return browser.Supported{}, err
 	}
 
 	selected := browsers[0]
 
-	return selected.Browser, nil
+	return selected, nil
 }

@@ -4,6 +4,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"os"
 
 	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
@@ -207,7 +208,7 @@ func newCurrentCmd(app *application.App) *cobra.Command {
 		Short:       "current default",
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println(app.DBName)
+			fmt.Fprintln(os.Stdout, app.DBName)
 			return nil
 		},
 	}

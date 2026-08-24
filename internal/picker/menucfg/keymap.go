@@ -25,7 +25,7 @@ func (k *Keymaps) List() []*menu.Keymap {
 	v := reflect.ValueOf(k).Elem()
 
 	keymaps := make([]*menu.Keymap, 0, v.NumField())
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		if keymap, ok := reflect.TypeAssert[*menu.Keymap](v.Field(i)); ok {
 			keymaps = append(keymaps, keymap)
 		}

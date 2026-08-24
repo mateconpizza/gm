@@ -188,7 +188,7 @@ func TestTermFmtChoicesWithDefault(t *testing.T) {
 			t.Parallel()
 
 			result := fmtChoicesWithDefaultColor(tt.opts, tt.def)
-			for i := range len(result) {
+			for i := range result {
 				result[i] = ansi.Remover(result[i])
 			}
 

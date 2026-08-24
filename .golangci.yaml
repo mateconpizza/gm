@@ -5,60 +5,31 @@ run:
 output:
   path-prefix: ""
 linters:
-  default: none
-  enable:
-    - asasalint
-    - bidichk
-    - bodyclose
-    - containedctx
-    - decorder
-    - dogsled
-    - dupword
-    - durationcheck
-    - err113
-    - errcheck
-    - errname
-    - errorlint
-    - fatcontext
-    - forcetypeassert
-    - funcorder
+  default: all
+  disable:
+    - contextcheck
+    - nonamedreturns
+    - cyclop
+    - depguard
+    - exhaustruct
+    - exhaustruct_v5
     - funlen
-    - gocritic
-    - godot
-    - goheader
-    - gosec
-    - govet
-    - iface
-    - ineffassign
-    - makezero
-    - misspell
-    - modernize
-    - musttag
-    - nakedret
-    - nestif
+    - gochecknoglobals
+    - gocognit
+    - goconst
+    - godoclint
+    - godox
+    - gomodguard
+    - lll
+    - mnd
     - nilerr
-    - nilnil
-    - nolintlint
-    - paralleltest
-    - perfsprint
-    - prealloc
-    - predeclared
-    - protogetter
-    - reassign
-    - recvcheck
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - staticcheck
-    - tagalign
-    - thelper
-    - unconvert
-    - unparam
-    - unused
-    - usestdlibvars
-    - usetesting
-    - wastedassign
-    - whitespace
+    - nlreturn
+    - noinlineerr
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - wsl
+    - wsl_v5
   settings:
     errcheck:
       check-type-assertions: true
@@ -70,6 +41,11 @@ linters:
         - fmt.Print
         - fmt.Printf
         - fmt.Println
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+          yaml: snake
     errorlint:
       errorf: true
       asserts: false
@@ -195,6 +171,9 @@ linters:
       - path: "internal/git/repo.go"
         linters:
           - nilerr
+      - path: "pkg/git/repo.go"
+        linters:
+          - ireturn
       - path: "internal/sys/browser/blink/blink.go"
         linters:
           - nilerr
@@ -242,7 +221,17 @@ linters:
         text: "confusing-naming:"
       - path: "pkg/ansi/palette.go"
         linters:
+          - forbidigo
+      - path: "pkg/ansi/palette.go"
+        linters:
+          - tparallel
+      - path: "internal/application/paths_test.go"
+        linters:
+          - tparallel
+      - path: "pkg/ansi/palette.go"
+        linters:
           - gosec
+          - forbidigo
         text: "G404:"
       - path: "pkg/bookmark/bookmark.go"
         linters:
@@ -253,6 +242,7 @@ linters:
       - path: "pkg/db/crud_test.go"
         linters:
           - paralleltest
+          - gosmopolitan
       - path: "pkg/db/ops_test.go"
         linters:
           - paralleltest
@@ -266,6 +256,10 @@ linters:
       - path: "pkg/scraper/scraper_test.go"
         linters:
           - lll
+          - tparallel
+      - path: "pkg/bookmark/bookmark.go"
+        linters:
+          - errchkjson
       - path: _test\.go
         linters:
           - err113
@@ -280,6 +274,7 @@ linters:
         linters:
           - funlen
           - gocognit
+          - exhaustive
       - path: "internal/summary/summary.go"
         linters:
           - nilerr
@@ -291,6 +286,11 @@ linters:
           - revive
           - funlen
         text: "confusing-naming:"
+      - path: "internal/sys/terminal/terminal.go"
+        linters:
+          - gochecknoinit
+          - forbidigo
+          - gochecknoinits
     generated: lax
     presets:
       - common-false-positives

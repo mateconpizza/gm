@@ -38,10 +38,11 @@ func (p labelPosition) String() string {
 
 // QRCode represents a QR-Code.
 type QRCode struct {
+	Options
+
 	QR   *qrcode.QRCode
 	file *os.File
 	From string
-	Options
 }
 
 type OptFn func(*Options)

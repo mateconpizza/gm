@@ -42,6 +42,7 @@ type Options struct {
 // Term is a struct that represents a terminal.
 type Term struct {
 	Options
+
 	cancelFn context.CancelFunc
 	size     *termSize
 }
@@ -214,7 +215,7 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 
 	h := &highlighter{}
 	choices := fmtChoicesWithDefault(opts, def)
-	for i := range len(choices) {
+	for i := range choices {
 		choices[i] = h.dim(choices[i])
 	}
 

@@ -256,7 +256,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 }
 
 // RecordsJSON formats the bookmarks in RecordsJSON.
-func RecordsJSON(bs []*bookmark.Bookmark) error {
+func RecordsJSON(w io.Writer, bs []*bookmark.Bookmark) error {
 	slog.Debug("formatting bookmarks in JSON", "count", len(bs))
 	r := make([]*bookmark.BookmarkJSON, 0, len(bs))
 	for _, b := range bs {
@@ -268,7 +268,7 @@ func RecordsJSON(bs []*bookmark.Bookmark) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	fmt.Println(string(j))
+	fmt.Fprintln(w, string(j))
 
 	return nil
 }

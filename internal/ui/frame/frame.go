@@ -53,6 +53,7 @@ type Options struct {
 
 type Frame struct {
 	Options
+
 	buf string
 	mu  sync.Mutex
 }

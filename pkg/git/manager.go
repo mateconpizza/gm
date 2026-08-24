@@ -32,9 +32,10 @@ func WithVersion(ver string) MgrOptFunc {
 }
 
 type Mgr struct {
+	*MgrOptions
+
 	root  string
 	track *Tracker
-	*MgrOptions
 }
 
 func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {

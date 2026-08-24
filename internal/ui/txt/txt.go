@@ -367,8 +367,8 @@ func RelativeISOTime(ts string) string {
 
 	now := time.Now()
 	// Normalize to local date only (ignore hour/minute/second)
-	t = t.Local()
-	now = now.Local()
+	t = t.UTC()
+	now = now.UTC()
 
 	// Zero the time component for day comparison
 	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
@@ -411,7 +411,7 @@ func TimeWithAgo(unixTime string) (absolute, relative string, err error) {
 		return "", "", err
 	}
 
-	absolute = parsedTime.Local().Format("2006 Jan 02 15:04")
+	absolute = parsedTime.UTC().Format("2006 Jan 02 15:04")
 	relative = RelativeTime(parsedTime.Format(TimeLayout))
 
 	return absolute, relative, err

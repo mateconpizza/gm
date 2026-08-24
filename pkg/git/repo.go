@@ -63,12 +63,12 @@ func WithRepoStore(store RepoDB) RepoOptFunc {
 }
 
 type Repo struct {
+	*RepoOptions
+
 	name        string
 	fullpath    string
 	summaryFile string
 	bookmarks   []*bookmark.Bookmark
-
-	*RepoOptions
 }
 
 func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {

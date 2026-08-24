@@ -270,7 +270,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 func fmtChoicesWithDefaultColor(opts []string, def string) []string {
 	h := &highlighter{}
 	if def == "" {
-		for i := range len(opts) {
+		for i := range opts {
 			opts[i] = h.dim(opts[i])
 		}
 
@@ -358,7 +358,7 @@ func quitKeybind(f func(err error)) prompt.KeyBind {
 
 // isValidOption checks if input is a valid choice.
 func isValidOption(input string, opts []string) bool {
-	for i := range len(opts) {
+	for i := range opts {
 		opts[i] = ansi.Remover(opts[i])
 	}
 
@@ -386,7 +386,7 @@ func buildPrompt(q, opts string) string {
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
 func WaitForEnter(ctx context.Context, mesg string) error {
-	fmt.Print(mesg)
+	fmt.Fprint(os.Stdout, mesg)
 
 	done := make(chan struct{})
 
