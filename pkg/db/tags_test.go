@@ -58,11 +58,11 @@ func TestTagsCounter(t *testing.T) {
 			_, err := r.DB.ExecContext(
 				t.Context(),
 				"INSERT INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)",
-				record.url,
+				record.id,
 				tagID,
 			)
 			if err != nil {
-				t.Fatalf("failed to insert bookmark_tag for url %s and tagID %d: %v", record.url, tagID, err)
+				t.Fatalf("failed to insert bookmark_tag for url %d and tagID %d: %v", record.id, tagID, err)
 			}
 		}
 	}
