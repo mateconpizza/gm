@@ -10,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
 var _ EditStrategy = (*NotesStrategy)(nil)
@@ -48,7 +47,7 @@ func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total i
 		Rowln(idTitle).                                   // [ID] Title
 		Rowln(bullet("Tags", txt.TagsWithPound(b.Tags))). // Tags:
 		Rowln(bullet("URL", urlLine)).                    // URL:
-		Rowln(bullet("Database", m.DBName)).              // Database:
+		Rowln(bullet("Database", m.dbName)).              // Database:
 		Text(ns.sectionMarker + headerFooter).Footerln(). // <!-- --- label ------->
 		Text(b.Notes).                                    // Notes
 		Bytes(), nil
@@ -64,12 +63,8 @@ func (ns *NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, og *bookma
 	return clone, nil
 }
 
-func (ns *NotesStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
-	return txt.DiffColorize(txt.Diff([]byte(oldB.Notes), []byte(newB.Notes)))
-}
-
-func (ns *NotesStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {
-	return r.UpdateOne(ctx, bm)
+func (ns *NotesStrategy) Diff(old, fresh *bookmark.Bookmark) string {
+	return txt.DiffColorize(txt.Diff([]byte(old.Notes), []byte(fresh.Notes)))
 }
 
 func (ns *NotesStrategy) FileType() string { return "md" }

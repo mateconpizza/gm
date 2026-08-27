@@ -6,7 +6,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
 var _ EditStrategy = (*JSONStrategy)(nil)
@@ -23,13 +22,13 @@ func (JSONStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) (
 
 func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 	old := bytes.TrimRight(original.Bytes(), "\n")
-	newB := bytes.TrimRight(buf, "\n")
+	fresh := bytes.TrimRight(buf, "\n")
 
-	if bytes.Equal(old, newB) {
+	if bytes.Equal(old, fresh) {
 		return nil, ErrBufferUnchanged
 	}
 
-	bm, err := bookmark.NewFromBuffer(newB)
+	bm, err := bookmark.NewFromBuffer(fresh)
 	if err != nil {
 		return nil, err
 	}
@@ -39,10 +38,6 @@ func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookm
 
 func (JSONStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
 	return txt.DiffColorize(txt.Diff(oldB.Bytes(), newB.Bytes()))
-}
-
-func (JSONStrategy) Save(ctx context.Context, r *db.SQLite, bm *bookmark.Bookmark) error {
-	return r.UpdateOne(ctx, bm)
 }
 
 func (JSONStrategy) FileType() string { return "json" }

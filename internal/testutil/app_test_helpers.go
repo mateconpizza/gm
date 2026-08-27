@@ -81,14 +81,16 @@ func SetupInitializedDBWithBookmarks(t *testing.T, dbPath string, n int) *db.SQL
 	t.Helper()
 	r := SetupInitializedEmptyDB(t, dbPath)
 
-	if err := r.InsertMany(t.Context(), BookmarkSlice(n)); err != nil {
+	if err := r.InsertMany(t.Context(), BookmarkSlice(t, n)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	return r
 }
 
-func singleBookmark() *bookmark.Bookmark {
+func SingleBookmark(t *testing.T) *bookmark.Bookmark {
+	t.Helper()
+
 	return &bookmark.Bookmark{
 		URL:       "https://www.example.com",
 		Title:     "Title",
@@ -100,10 +102,12 @@ func singleBookmark() *bookmark.Bookmark {
 	}
 }
 
-func BookmarkSlice(n int) []*bookmark.Bookmark {
+func BookmarkSlice(t *testing.T, n int) []*bookmark.Bookmark {
+	t.Helper()
+
 	bs := make([]*bookmark.Bookmark, 0, n)
 	for i := range n {
-		b := singleBookmark()
+		b := SingleBookmark(t)
 		b.Title = fmt.Sprintf("Title %d", i)
 		b.URL = fmt.Sprintf("https://www.example%d.com", i)
 		b.Tags = fmt.Sprintf("test,tag%d,go", i)
