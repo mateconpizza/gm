@@ -56,7 +56,7 @@ func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 }
 
 // Edit returns a BookmarkAction configured with a specific strategy.
-func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *deps.Deps, []*bookmark.Bookmark) error {
+func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Context, *deps.Deps, []*bookmark.Bookmark) error {
 	return func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		const maxItems = 10
 
@@ -72,11 +72,22 @@ func Edit(ctx context.Context, es editor.EditStrategy) func(context.Context, *de
 			return err
 		}
 
-		opt := editor.WithPostEditionRunE(func(old, fresh *bookmark.Bookmark) error {
-			return gitops.Update(ctx, app, old, fresh)
-		})
+		r, err := d.Repository()
+		if err != nil {
+			return err
+		}
+		defer r.Close()
 
-		return runEditSession(ctx, d, bs, es, opt)
+		session := editor.NewEditSession().
+			WithStrategy(strategy).
+			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
+				if err := r.UpdateOne(ctx, fresh); err != nil {
+					return err
+				}
+				return gitops.Update(ctx, app, old, fresh)
+			})
+
+		return runEditSession(ctx, d, bs, session)
 	}
 }
 
@@ -396,17 +407,20 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 
 	case "e", "edit":
-		if err := runEditSession(
-			ctx,
-			d,
-			[]*bookmark.Bookmark{&updated},
-			editor.NewBookmarkStrategy(),
-			editor.WithPostEditionRunE(func(old, fresh *bookmark.Bookmark) error {
+		session := editor.NewEditSession().
+			WithStrategy(editor.NewBookmarkStrategy()).
+			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
+				if err := r.UpdateOne(ctx, fresh); err != nil {
+					return err
+				}
 				return gitops.Update(ctx, app, old, fresh)
-			}),
-		); err != nil {
+			})
+
+		err := runEditSession(ctx, d, []*bookmark.Bookmark{&updated}, session)
+		if err != nil {
 			return err
 		}
+
 		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 	}
 
@@ -454,7 +468,7 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 	return updatedB, nil
 }
 
-func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, es editor.EditStrategy, opts ...editor.SessionOption) error {
+func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, session *editor.EditSession) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
@@ -464,18 +478,18 @@ func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, 
 		return err
 	}
 
-	opts = append(
-		opts,
-		editor.WithMeta(editor.NewMeta(app.DBBaseName(), app.Version())),
-	)
-
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 
-	session := editor.NewEditSession(d.Console(), r, te, opts...)
-	return session.Run(ctx, bs, es)
+	return session.
+		WithTerminal(d.Console()).
+		WithEditor(te).
+		WithDBName(r.BaseName()).
+		WithVersion(app.Version()).
+		Run(ctx, bs)
 }
 
 func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {

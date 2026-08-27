@@ -291,6 +291,9 @@ linters:
           - gochecknoinit
           - forbidigo
           - gochecknoinits
+      - path: "internal/editor/session_test.go"
+        linters:
+          - paralleltest
     generated: lax
     presets:
       - common-false-positives

@@ -23,7 +23,7 @@ var (
 // Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
 var textEditors = []string{"vim", "nvim", "nano", "emacs"}
 
-type TextEditor struct {
+type Editor struct {
 	name string
 	cmd  string
 	args []string
@@ -36,7 +36,7 @@ type TextEditor struct {
 // `TextEditors`
 //
 // # fallbackEditors: `"vim", "nvim", "nano", "emacs"`.
-func NewEditor(s string) (*TextEditor, error) {
+func NewEditor(s string) (*Editor, error) {
 	envs := []string{s, DefTextEditorEnv}
 	// find $EDITOR and $GOMARKS_EDITOR
 	for _, e := range envs {
@@ -63,8 +63,8 @@ func NewEditor(s string) (*TextEditor, error) {
 }
 
 // Edit edits a byte slice with a text editor.
-func (te *TextEditor) Edit(ctx context.Context, content []byte, extension string) ([]byte, error) {
-	if te.cmd == "" {
+func (e *Editor) Edit(ctx context.Context, content []byte, extension string) ([]byte, error) {
+	if e.cmd == "" {
 		return nil, ErrCommandNotFound
 	}
 
@@ -74,9 +74,9 @@ func (te *TextEditor) Edit(ctx context.Context, content []byte, extension string
 	}
 	defer files.CloseAndRemove(f)
 
-	slog.Debug("editing file", "name", f.Name(), "editor", te.name)
+	slog.Debug("editing file", "name", f.Name(), "editor", e.name)
 
-	if err := sys.RunCmd(ctx, te.cmd, append(te.args, f.Name())...); err != nil {
+	if err := sys.RunCmd(ctx, e.cmd, append(e.args, f.Name())...); err != nil {
 		return nil, fmt.Errorf("error running editor: %w", err)
 	}
 
@@ -89,8 +89,8 @@ func (te *TextEditor) Edit(ctx context.Context, content []byte, extension string
 }
 
 // Open edits a file with a text editor.
-func (te *TextEditor) Open(ctx context.Context, p string) error {
-	if te.cmd == "" {
+func (e *Editor) Open(ctx context.Context, p string) error {
+	if e.cmd == "" {
 		return ErrCommandNotFound
 	}
 
@@ -98,7 +98,7 @@ func (te *TextEditor) Open(ctx context.Context, p string) error {
 		return fmt.Errorf("%w: %q", os.ErrNotExist, p)
 	}
 
-	if err := sys.RunCmd(ctx, te.cmd, append(te.args, p)...); err != nil {
+	if err := sys.RunCmd(ctx, e.cmd, append(e.args, p)...); err != nil {
 		return fmt.Errorf("error running editor: %w", err)
 	}
 
@@ -106,7 +106,7 @@ func (te *TextEditor) Open(ctx context.Context, p string) error {
 }
 
 // getEditorFromEnv finds an editor in the environment.
-func getEditorFromEnv(e string) (*TextEditor, bool) {
+func getEditorFromEnv(e string) (*Editor, bool) {
 	s := strings.Fields(sys.Env(e, ""))
 	if len(s) != 0 {
 		editor := newTextEditor(sys.BinPath(s[0]), s[0], s[1:])
@@ -119,7 +119,7 @@ func getEditorFromEnv(e string) (*TextEditor, bool) {
 }
 
 // getFallbackEditor finds a fallback editor.
-func getFallbackEditor(editors []string) (*TextEditor, bool) {
+func getFallbackEditor(editors []string) (*Editor, bool) {
 	for _, e := range editors {
 		if sys.BinExists(e) {
 			editor := newTextEditor(sys.BinPath(e), e, []string{})
@@ -132,8 +132,8 @@ func getFallbackEditor(editors []string) (*TextEditor, bool) {
 	return nil, false
 }
 
-func newTextEditor(c, n string, arg []string) *TextEditor {
-	return &TextEditor{
+func newTextEditor(c, n string, arg []string) *Editor {
+	return &Editor{
 		cmd:  c,
 		name: n,
 		args: arg,

@@ -8,80 +8,98 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
-var ErrBufferUnchanged = errors.New("buffer unchanged")
+var (
+	ErrBufferUnchanged = errors.New("buffer unchanged")
+	ErrMissingDep      = errors.New("missing required dependency")
+)
 
 type Meta struct {
-	DBName  string
-	Version string
+	dbName  string
+	version string
 }
 
-func NewMeta(s, ver string) *Meta {
-	return &Meta{DBName: s, Version: ver}
+func NewMeta(dbName, version string) *Meta {
+	return &Meta{dbName: dbName, version: version}
 }
 
-type postRunEditionFunc func(original, updated *bookmark.Bookmark) error
+type Terminal interface {
+	Choose(ctx context.Context, q string, opts []string, def string) (string, error)
+	SuccessMesg(a ...any) string
+}
 
-type SessionOption func(*EditSession)
+type TextEditor interface {
+	Edit(ctx context.Context, content []byte, extension string) ([]byte, error)
+}
+
+type PersistFunc func(
+	ctx context.Context,
+	old, fresh *bookmark.Bookmark,
+) error
 
 // EditSession build -> edit -> parse -> confirm -> save.
 type EditSession struct {
-	Console     *ui.Console
-	Editor      *TextEditor
-	DB          *db.SQLite
-	postEdition postRunEditionFunc
-	meta        *Meta
-	writer      io.Writer
+	term     Terminal
+	editor   TextEditor
+	persist  PersistFunc
+	meta     *Meta
+	strategy EditStrategy
+	writer   io.Writer
 }
 
-// NewEditSession creates a new editing session.
-func NewEditSession(c *ui.Console, r *db.SQLite, e *TextEditor, opts ...SessionOption) *EditSession {
-	s := &EditSession{
-		Console: c,
-		Editor:  e,
-		DB:      r,
-		writer:  os.Stdout,
-	}
-
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	if s.meta == nil {
-		s.meta = NewMeta("dbname?", "0.0.1")
-	}
-
-	return s
-}
-
-func WithPostEditionRunE(fn postRunEditionFunc) SessionOption {
-	return func(es *EditSession) {
-		es.postEdition = fn
+func NewEditSession() *EditSession {
+	return &EditSession{
+		meta:   &Meta{"main", "x.x.x"},
+		writer: os.Stdout,
 	}
 }
 
-func WithMeta(m *Meta) SessionOption {
-	return func(es *EditSession) {
-		es.meta = m
-	}
+func (e *EditSession) WithStrategy(es EditStrategy) *EditSession {
+	e.strategy = es
+	return e
 }
 
-func WithWriter(w io.Writer) SessionOption {
-	return func(es *EditSession) {
-		es.writer = w
-	}
+func (e *EditSession) WithTerminal(t Terminal) *EditSession {
+	e.term = t
+	return e
+}
+
+func (e *EditSession) WithEditor(te TextEditor) *EditSession {
+	e.editor = te
+	return e
+}
+
+func (e *EditSession) WithWriter(w io.Writer) *EditSession {
+	e.writer = w
+	return e
+}
+
+func (e *EditSession) WithDBName(s string) *EditSession {
+	e.meta.dbName = s
+	return e
+}
+
+func (e *EditSession) WithVersion(s string) *EditSession {
+	e.meta.version = s
+	return e
+}
+
+func (e *EditSession) WithPersistFunc(fn PersistFunc) *EditSession {
+	e.persist = fn
+	return e
 }
 
 // Run processes records for editing using the specified strategy.
-func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark, strategy EditStrategy) error {
+func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark) error {
+	if err := e.validate(); err != nil {
+		return err
+	}
+
 	n := len(bs)
 	for i, b := range bs {
-		if err := e.processSingleRecord(ctx, b, i+1, n, strategy); err != nil {
+		if err := e.processSingleRecord(ctx, b, i+1, n); err != nil {
 			return err
 		}
 	}
@@ -89,17 +107,17 @@ func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark, strategy
 }
 
 // processSingleRecord handles the edit loop for a single record.
-func (e *EditSession) processSingleRecord(ctx context.Context, og *bookmark.Bookmark, idx, total int, strategy EditStrategy) error {
-	currentRecord := og
+func (e *EditSession) processSingleRecord(ctx context.Context, original *bookmark.Bookmark, idx, total int) error {
+	currentRecord := original
 
 	// Loop to handle the "retry" action for a single record.
 	for {
-		editedBuf, err := e.buildAndEdit(ctx, currentRecord, idx, total, strategy)
+		editedBuf, err := e.buildAndEdit(ctx, currentRecord, idx, total, e.strategy)
 		if err != nil {
 			return err
 		}
 
-		updated, err := strategy.ParseBuffer(ctx, editedBuf, currentRecord)
+		updated, err := e.strategy.ParseBuffer(ctx, editedBuf, currentRecord)
 		if errors.Is(err, ErrBufferUnchanged) {
 			return nil // Success: nothing changed, move to the next record.
 		}
@@ -107,23 +125,16 @@ func (e *EditSession) processSingleRecord(ctx context.Context, og *bookmark.Book
 			return err
 		}
 
-		p := e.Console.Palette()
-		header := func() string { return p.BrightYellow.Wrap(txt.GlyphHeavyHorizontal.Prefix(" "), p.Bold) }
-		e.Console.Frame().
-			Reset().
-			CustomFunc(header, p.BrightYellow.Wrap("Diff:\n", p.Bold)).
-			Flush()
+		fmt.Fprintln(e.writer, e.strategy.Diff(original, updated))
 
-		fmt.Fprintln(e.writer, strategy.Diff(og, updated))
-
-		opt, err := e.Console.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
+		opt, err := e.term.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
 			return err
 		}
 
 		switch strings.ToLower(opt) {
 		case "y", "yes":
-			return e.saveRecordChanges(ctx, strategy, og, updated)
+			return e.saveRecordChanges(ctx, original, updated)
 		case "n", "no":
 			// Skip and continue
 			return nil
@@ -140,21 +151,41 @@ func (e *EditSession) buildAndEdit(ctx context.Context, r *bookmark.Bookmark, id
 	if err != nil {
 		return nil, err
 	}
-	return e.Editor.Edit(ctx, buf, s.FileType())
+	return e.editor.Edit(ctx, buf, s.FileType())
 }
 
-// saveRecordChanges persists updated record to database.
-func (e *EditSession) saveRecordChanges(ctx context.Context, strategy EditStrategy, original, updated *bookmark.Bookmark) error {
-	if err := strategy.Save(ctx, e.DB, updated); err != nil {
+func (e *EditSession) saveRecordChanges(ctx context.Context, original, updated *bookmark.Bookmark) error {
+	if err := e.persist(ctx, original, updated); err != nil {
 		return err
 	}
 
-	if e.postEdition != nil {
-		if err := e.postEdition(original, updated); err != nil {
-			return err
-		}
+	fmt.Fprintf(
+		e.writer,
+		"%s",
+		e.term.SuccessMesg(
+			fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID),
+		),
+	)
+
+	return nil
+}
+
+func (e *EditSession) validate() error {
+	fn := func(opt string) error {
+		return fmt.Errorf("%w: call With%s", ErrMissingDep, opt)
 	}
 
-	fmt.Fprint(e.writer, e.Console.SuccessMesg(fmt.Sprintf("bookmark [%d] changes saved\n", updated.ID)))
+	if e.strategy == nil {
+		return fn("Strategy")
+	}
+	if e.term == nil {
+		return fn("Terminal")
+	}
+	if e.editor == nil {
+		return fn("Editor")
+	}
+	if e.persist == nil {
+		return fn("PersistFunc")
+	}
 	return nil
 }

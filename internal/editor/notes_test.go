@@ -40,7 +40,7 @@ func testBuildBuffer(t *testing.T) {
 	}
 
 	s := NotesStrategy{}
-	m := &Meta{DBName: "main.db", Version: "1.0.0"}
+	m := &Meta{dbName: "main.db", version: "1.0.0"}
 	buf, err := s.BuildBuffer(m, b, 1, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -91,11 +91,11 @@ func testParseBufferChanged(t *testing.T) {
 
 func testDiff(t *testing.T) {
 	t.Helper()
-	oldB := &bookmark.Bookmark{Notes: "foo"}
-	newB := &bookmark.Bookmark{Notes: "bar"}
+	old := &bookmark.Bookmark{Notes: "foo"}
+	fresh := &bookmark.Bookmark{Notes: "bar"}
 	s := NotesStrategy{}
 
-	diff := s.Diff(oldB, newB)
+	diff := s.Diff(old, fresh)
 	if diff == "" {
 		t.Errorf("expected non-empty diff for different notes")
 	}
