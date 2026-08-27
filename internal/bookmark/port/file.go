@@ -147,10 +147,6 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 		}
 	}
 
-	for i := range deduplicated {
-		deduplicated[i].GenChecksum()
-	}
-
 	if err := r.InsertMany(ctx, deduplicated); err != nil {
 		return err
 	}
