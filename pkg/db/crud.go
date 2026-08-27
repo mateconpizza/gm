@@ -96,9 +96,6 @@ func (r *SQLite) DeleteMany(ctx context.Context, ids []int) error {
 // UpdateOne updates an existing bookmark by ID (or URL).
 func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		// Generate checksum before saving
-		b.GenChecksum()
-
 		// Update record
 		if err := r.updateRecordTx(ctx, tx, b); err != nil {
 			return fmt.Errorf("update record: %w", err)
@@ -118,25 +115,9 @@ func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 	})
 }
 
-// UpdateNotes updates the bookmak's notes.
-func (r *SQLite) UpdateNotes(ctx context.Context, bID int, notes string) error {
-	slog.DebugContext(ctx, "updating notes", "id", bID)
-
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
-		_, err := tx.ExecContext(
-			ctx,
-			"UPDATE bookmarks SET notes = ? WHERE id = ?",
-			notes, bID,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to update notes (id=%d): %w", bID, err)
-		}
-		return nil
-	})
-}
-
 // updateRecordTx updates a bookmark inside a transaction.
 func (r *SQLite) updateRecordTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
+	b.GenChecksum()
 	b.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	query := `
@@ -597,10 +578,7 @@ func (r *SQLite) insertIntoTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Book
 
 // insertRecord inserts a new record into the table.
 func insertRecord(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64, error) {
-	if b.Checksum == "" {
-		return 0, ErrChecksumEmpty
-	}
-
+	b.GenChecksum()
 	b.CreatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	r, err := tx.NamedExecContext(

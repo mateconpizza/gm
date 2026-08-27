@@ -557,15 +557,6 @@ func TestInsertRecord(t *testing.T) {
 			b:    testSingleBookmark(),
 		},
 		{
-			name: "empty_checksum_returns_error",
-			b: &bookmark.Bookmark{
-				URL:      "https://www.example.com/no-checksum",
-				Title:    "No Checksum",
-				Checksum: "",
-			},
-			wantErr: ErrChecksumEmpty,
-		},
-		{
 			name: "zero_value_fields_except_checksum",
 			b: &bookmark.Bookmark{
 				Checksum: "checksum-zero-values",
