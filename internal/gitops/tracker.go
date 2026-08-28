@@ -139,7 +139,7 @@ func TrackStatus(c *ui.Console, m *git.Mgr, gr *git.Repo) string {
 	return c.Success(sb.String() + "\n").String()
 }
 
-func TrackManager(ctx context.Context, m *git.Mgr, c *ui.Console, dbFiles []string) error {
+func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
 	p := c.Palette()
 	title := p.BrightYellow.With(p.Bold).
 		Sprint("Git Tracker Databases")
@@ -169,7 +169,7 @@ func TrackManager(ctx context.Context, m *git.Mgr, c *ui.Console, dbFiles []stri
 		}
 
 		name := files.StripExts(filepath.Base(dbPath))
-		if m.IsTracked(name) {
+		if gm.IsTracked(name) {
 			fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", name)))
 			continue
 		}
@@ -183,8 +183,8 @@ func TrackManager(ctx context.Context, m *git.Mgr, c *ui.Console, dbFiles []stri
 			return err
 		}
 
-		gr := NewRepo(m, r.Name(), git.WithRepoStore(r))
-		if err := Track(ctx, r, m, gr); err != nil {
+		gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
+		if err := Track(ctx, r, gm, gr); err != nil {
 			return err
 		}
 
@@ -195,6 +195,66 @@ func TrackManager(ctx context.Context, m *git.Mgr, c *ui.Console, dbFiles []stri
 			fmt.Fprintln(c.Writer())
 		}
 	}
+
+	return nil
+}
+
+func TrackMgrStatus(c *ui.Console, app *application.App) error {
+	gm, err := NewManager(app)
+	if err != nil {
+		return err
+	}
+
+	if len(gm.Repos()) == 0 {
+		return nil
+	}
+
+	p := c.Palette()
+
+	title := p.BrightYellow.With(p.Bold).
+		Sprint("Git Tracked Databases")
+	subtitle := p.Dim.With(p.Italic).
+		Sprint("showing tracked databases with git")
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+
+	dbFiles, err := files.Find(app.Path.Home(), "*.db")
+	if err != nil {
+		return fmt.Errorf("finding db files: %w", err)
+	}
+
+	// move main database to the top
+	files.PrioritizeFile(dbFiles, app.DBName)
+
+	c.Frame().
+		CustomFunc(header, title).Ln().
+		Headerln(subtitle).
+		Rowln().
+		Flush()
+
+	var tracked strings.Builder
+	var untracked strings.Builder
+
+	for _, dbPath := range dbFiles {
+		name := filepath.Base(dbPath)
+		gr := NewRepo(gm, name)
+
+		s := TrackStatus(c, gm, gr)
+		if s == "" {
+			continue
+		}
+
+		if gm.IsTracked(gr.Name()) {
+			tracked.WriteString(s)
+			continue
+		}
+
+		untracked.WriteString(s)
+	}
+
+	fmt.Fprint(c.Writer(), tracked.String())
+	fmt.Fprint(c.Writer(), untracked.String())
 
 	return nil
 }

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 
 	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -115,12 +117,62 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
 	}
 
-	gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
+	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
 
 	return gm.SaveChanges(ctx, gr, msg)
+}
+
+func SyncAll(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	gm, err := NewManager(app)
+	if err != nil {
+		return err
+	}
+
+	c := d.Console()
+	w := c.Writer()
+	p := c.Palette()
+
+	for _, name := range gm.Repos() {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		var sb strings.Builder
+		app.Git.SetWriter(&sb)
+
+		path := filepath.Join(app.Path.Home(), name)
+		path = files.EnsureExt(path, "db")
+		if !files.Exists(path) {
+			continue
+		}
+
+		r, err := db.New(ctx, path)
+		if err != nil {
+			return fmt.Errorf("%w: %q", err, path)
+		}
+
+		if err := pruneRepo(ctx, gm, r); err != nil {
+			if errors.Is(err, git.ErrGitUpToDate) {
+				fmt.Fprintf(w, "git: repo %s up-to-date\n", p.BrightYellow.Sprint(name))
+				continue
+			}
+			return err
+		}
+
+		fmt.Fprint(w, sb.String())
+	}
+
+	fmt.Fprintln(w, git.ErrGitUpToDate.Error())
+
+	return nil
 }
 
 func readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {

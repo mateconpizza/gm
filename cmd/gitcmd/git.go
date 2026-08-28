@@ -124,7 +124,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 
 			fmt.Fprintln(os.Stdout)
 
-			return gitops.TrackManager(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
+			return gitops.TrackMgr(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
 		},
 	}
 
@@ -226,15 +226,22 @@ func newSyncCmd(app *application.App) *cobra.Command {
 		Short:  "synchronize bookmarks with the repository",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := db.New(cmd.Context(), app.Path.DB())
+			ctx := cmd.Context()
+			if app.Flags.All {
+				return cmdutil.Run(cmd, args, gitops.SyncAll)
+			}
+
+			r, err := db.New(ctx, app.Path.DB())
 			if err != nil {
 				return err
 			}
 			defer r.Close()
 
-			return gitops.Prune(cmd.Context(), app, r)
+			return gitops.Prune(ctx, app, r)
 		},
 	}
+
+	c.Flags().BoolVar(&app.Flags.All, "all", false, "sync all tracked databases")
 
 	return c
 }
