@@ -1,8 +1,11 @@
 package gitcmd
 
 import (
+	"fmt"
 	"log/slog"
+	"os"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -10,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
@@ -109,7 +113,18 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			return gitops.Init(cmd.Context(), app, gm)
+			if err := gitops.Init(cmd.Context(), app, gm); err != nil {
+				return err
+			}
+
+			dbFiles, err := files.Find(app.Path.Home(), "*.db")
+			if err != nil {
+				return fmt.Errorf("finding db files: %w", err)
+			}
+
+			fmt.Fprintln(os.Stdout)
+
+			return gitops.TrackManager(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
 		},
 	}
 
