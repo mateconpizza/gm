@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/cmd/qrcmd"
 	"github.com/mateconpizza/gm/cmd/rm"
 	"github.com/mateconpizza/gm/cmd/setup"
-	"github.com/mateconpizza/gm/cmd/tag"
 	urlcmd "github.com/mateconpizza/gm/cmd/url"
 	"github.com/mateconpizza/gm/cmd/yank"
 	"github.com/mateconpizza/gm/internal/application"
@@ -40,12 +39,12 @@ func Setup(root *cobra.Command, app *application.App) {
 		notes.NewCmd,
 		qrcmd.NewCmd,
 		urlcmd.NewCmd,
-		tag.NewCmd,
 		database.NewCmd,
 		gitcmd.NewCmd,
 		config.NewCmd,
 		setup.NewCmd,
 	}
+
 	for i := range cmds {
 		c := cmds[i](app)
 		cmdutil.DisableFlagSorting(c)

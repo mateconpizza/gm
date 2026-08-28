@@ -181,7 +181,7 @@ func HookGitEnsureEnv(app *application.App) HookE {
 		}
 
 		if !isInitialized {
-			i := ansi.BrightYellow.With(ansi.Italic).Sprint("git init")
+			i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s git init", app.Cmd)
 			return fmt.Errorf("%w: use %s to setup", git.ErrGitNotInitialized, i)
 		}
 

@@ -61,7 +61,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 		Short:  "commit bookmark database changes",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
@@ -71,8 +71,8 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			gr := gitops.NewRepo(m, r.Name(), git.WithRepoStore(r))
-			return m.SaveChanges(cmd.Context(), gr, cmd.Short)
+			gr := gitops.NewRepo(gm, r.Name(), git.WithRepoStore(r))
+			return gm.SaveChanges(cmd.Context(), gr, cmd.Short)
 		},
 	}
 }
@@ -84,12 +84,12 @@ func newPushCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
 
-			return gitops.Push(cmd.Context(), app, m)
+			return gitops.Push(cmd.Context(), app, gm)
 		},
 	}
 
@@ -104,12 +104,12 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipGitSync,
 		PreRun:      cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
 
-			return gitops.Init(cmd.Context(), app, m)
+			return gitops.Init(cmd.Context(), app, gm)
 		},
 	}
 

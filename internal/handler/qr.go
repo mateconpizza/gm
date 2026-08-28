@@ -83,8 +83,8 @@ func QROpen(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	sp := rotato.New(
-		rotato.WithSpinnerColor(rotato.FgBrightMagenta.With(rotato.StyleBold)),
-		rotato.WithSpinnerStyle("block"),
+		rotato.WithSpinnerStyle(rotato.SpinnerBlock),
+		rotato.WithSpinnerColor(rotato.FgBrightMagenta, rotato.StyleBold),
 		rotato.WithMessage("QR-Code"),
 		rotato.WithMessageColor(rotato.FgBrightGreen),
 		rotato.WithMessageDecorator(func(prefix string) string {
