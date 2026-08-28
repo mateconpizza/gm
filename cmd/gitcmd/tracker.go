@@ -1,22 +1,15 @@
 package gitcmd
 
 import (
-	"cmp"
-	"context"
 	"fmt"
-	"path/filepath"
-	"slices"
-	"strings"
 
 	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 )
 
 func newTrackerCmd(app *application.App) *cobra.Command {
@@ -25,13 +18,7 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		Short:   "configure repository tracking",
 		Aliases: []string{"t", "track"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
-				gm, err := gitops.NewManager(app)
-				if err != nil {
-					return err
-				}
-				return status(d.Console(), app, gm.Repos())
-			})
+			return gitops.TrackMgrStatus(ui.DefaultConsole, app)
 		},
 	}
 
@@ -86,90 +73,9 @@ func newMgrCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			return gitops.TrackManager(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
+			return gitops.TrackMgr(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
 		},
 	}
 
 	return c
-}
-
-func status(c *ui.Console, app *application.App, tracked []string) error {
-	if len(tracked) == 0 {
-		return nil
-	}
-
-	dbFiles, err := files.Find(app.Path.Home(), "*.db")
-	if err != nil {
-		return fmt.Errorf("finding db files: %w", err)
-	}
-
-	// move main database to the top
-	files.PrioritizeFile(dbFiles, app.DBName)
-
-	p := c.Palette()
-
-	title := p.BrightYellow.With(p.Bold).
-		Sprint("Git Tracked Databases")
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("showing tracked databases with git")
-	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-
-	c.Frame().
-		CustomFunc(header, title).Ln().
-		Headerln(subtitle).
-		Rowln().
-		Flush()
-
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	var sb strings.Builder
-	dbFiles = prioritizeTracked(dbFiles, tracked)
-	for _, dbPath := range dbFiles {
-		name := filepath.Base(dbPath)
-		gr := gitops.NewRepo(gm, name)
-
-		s := gitops.TrackStatus(c, gm, gr)
-		if s == "" {
-			continue
-		}
-
-		sb.WriteString(s)
-	}
-
-	fmt.Fprint(c.Writer(), sb.String())
-
-	return nil
-}
-
-func prioritizeTracked(dbFiles, tracked []string) []string {
-	trackedSet := make(map[string]int, len(tracked))
-	for i, name := range tracked {
-		trackedSet[name] = i
-	}
-
-	priority := make([]string, 0, len(tracked))
-	rest := make([]string, 0, len(dbFiles)-len(tracked))
-
-	for _, path := range dbFiles {
-		name := strings.TrimSuffix(filepath.Base(path), ".db")
-		if _, ok := trackedSet[name]; ok {
-			priority = append(priority, path)
-		} else {
-			rest = append(rest, path)
-		}
-	}
-
-	// sort priority slice by tracked order
-	slices.SortFunc(priority, func(a, b string) int {
-		nameA := strings.TrimSuffix(filepath.Base(a), ".db")
-		nameB := strings.TrimSuffix(filepath.Base(b), ".db")
-		return cmp.Compare(trackedSet[nameA], trackedSet[nameB])
-	})
-
-	return append(priority, rest...)
 }

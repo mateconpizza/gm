@@ -157,7 +157,11 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 				tt.dbBookmarks[i].GenChecksum()
 			}
 
-			reconciler := newRepoReconciler(repo, tt.dbBookmarks, tt.saveFn)
+			reconciler := newRepoReconciler().
+				WithRepo(repo).
+				WithBookmarks(tt.dbBookmarks).
+				WithPersistFunc(tt.saveFn)
+
 			err := reconciler.Reconcile(t.Context())
 
 			if tt.wantErr != nil {

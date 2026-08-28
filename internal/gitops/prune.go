@@ -24,17 +24,28 @@ type gitRepo interface {
 }
 
 type RepoReconciler struct {
-	repo        gitRepo
-	dbBookmarks []*bookmark.Bookmark
-	saveChanges saveChangesFunc
+	repo           gitRepo
+	dbBookmarks    []*bookmark.Bookmark
+	persistChanges saveChangesFunc
 }
 
-func newRepoReconciler(gr gitRepo, bs []*bookmark.Bookmark, save saveChangesFunc) *RepoReconciler {
-	return &RepoReconciler{
-		repo:        gr,
-		dbBookmarks: bs,
-		saveChanges: save,
-	}
+func newRepoReconciler() *RepoReconciler {
+	return &RepoReconciler{}
+}
+
+func (r *RepoReconciler) WithPersistFunc(fn saveChangesFunc) *RepoReconciler {
+	r.persistChanges = fn
+	return r
+}
+
+func (r *RepoReconciler) WithRepo(gr gitRepo) *RepoReconciler {
+	r.repo = gr
+	return r
+}
+
+func (r *RepoReconciler) WithBookmarks(bs []*bookmark.Bookmark) *RepoReconciler {
+	r.dbBookmarks = bs
+	return r
 }
 
 func (r *RepoReconciler) Reconcile(ctx context.Context) error {
@@ -78,7 +89,7 @@ func (r *RepoReconciler) addMissing(ctx context.Context) error {
 		return err
 	}
 
-	return r.saveChanges(ctx, r.msg("add missing"))
+	return r.persistChanges(ctx, r.msg("add missing"))
 }
 
 // pruneStale removes repository bookmarks not found in the database.
@@ -95,7 +106,7 @@ func (r *RepoReconciler) pruneStale(ctx context.Context) error {
 		return err
 	}
 
-	return r.saveChanges(ctx, r.msg("prune stale"))
+	return r.persistChanges(ctx, r.msg("prune stale"))
 }
 
 // removeOrphans removes orphaned bookmarks from the repository.
@@ -110,22 +121,14 @@ func (r *RepoReconciler) removeOrphans(ctx context.Context) error {
 		return err
 	}
 
-	return r.saveChanges(ctx, r.msg("remove orphans"))
+	return r.persistChanges(ctx, r.msg("remove orphans"))
 }
 
-func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
-	if !app.GitEnabled() {
-		return git.ErrGitDisabled
-	}
-
-	m, err := NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	gr := NewRepo(m, r.Name(), RepoStatsReader(r))
-	if !m.IsTracked(gr.Name()) {
-		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBBaseName())
+// pruneRepo runs the reconcile-and-persist cycle for a single repo.
+func pruneRepo(ctx context.Context, gm *git.Mgr, r *db.SQLite) error {
+	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
+	if !gm.IsTracked(gr.Name()) {
+		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, r.BaseName())
 	}
 
 	bs, err := r.All(ctx)
@@ -133,9 +136,26 @@ func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
 		return err
 	}
 
-	saveChanges := func(ctx context.Context, msg string) error {
-		return m.SaveChanges(ctx, gr, msg)
+	persistFn := func(ctx context.Context, msg string) error {
+		return gm.SaveChanges(ctx, gr, msg)
 	}
 
-	return newRepoReconciler(gr, bs, saveChanges).Reconcile(ctx)
+	return newRepoReconciler().
+		WithRepo(gr).
+		WithBookmarks(bs).
+		WithPersistFunc(persistFn).
+		Reconcile(ctx)
+}
+
+func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
+	if !app.GitEnabled() {
+		return git.ErrGitDisabled
+	}
+
+	gm, err := NewManager(app)
+	if err != nil {
+		return err
+	}
+
+	return pruneRepo(ctx, gm, r)
 }
