@@ -27,12 +27,12 @@ var _ bookio.FileManager = (*files.FileManager)(nil)
 func RepoFileReader() git.RepoOptFunc              { return git.WithRepoReader(readFiles) }
 func RepoFileWriter() git.RepoOptFunc              { return git.WithRepoWriter(addFiles) }
 func RepoFileRemover() git.RepoOptFunc             { return git.WithRepoRemover(removeFiles) }
-func RepoStatsReader(r *db.SQLite) git.RepoOptFunc { return git.WithRepoStore(r) }
+func RepoStatsReader(r bookmarkStore) git.RepoOptFunc { return git.WithRepoStore(r) }
 func MgrVersion(ver string) git.MgrOptFunc         { return git.WithVersion(ver) }
 
 // Init initializes Git support and configures repository encryption.
-func Init(ctx context.Context, app *application.App, m *git.Mgr) error {
-	if err := m.Init(ctx, app.Flags.Reinit); err != nil {
+func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
+	if err := gm.Init(ctx, app.Flags.Reinit); err != nil {
 		if errors.Is(err, git.ErrGitInitialized) {
 			s := ansi.BrightYellow.With(ansi.Italic).Sprint("git init --reinit")
 			return fmt.Errorf("%w, use %s", err, s)
@@ -41,7 +41,7 @@ func Init(ctx context.Context, app *application.App, m *git.Mgr) error {
 	}
 
 	c := ui.DefaultConsole
-	if err := AskForEncryption(ctx, c, app, m); err != nil {
+	if err := AskForEncryption(ctx, c, app, gm); err != nil {
 		return err
 	}
 
@@ -54,8 +54,8 @@ func Init(ctx context.Context, app *application.App, m *git.Mgr) error {
 }
 
 // Push pushes any unpushed commits to the configured upstream remote.
-func Push(ctx context.Context, app *application.App, m *git.Mgr) error {
-	g := m.Git()
+func Push(ctx context.Context, app *application.App, gm *git.Mgr) error {
+	g := gm.Git()
 	remote, err := g.Remote(ctx)
 	if err != nil || remote == "" {
 		return git.ErrGitNoUpstream

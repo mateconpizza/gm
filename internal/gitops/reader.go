@@ -44,7 +44,8 @@ func NewRepoReader(ctx context.Context, gitRoot, repoPath string, n int) ([]*boo
 			})
 		}
 
-		loader, err := gpgStrategy(fp.Fingerprint)
+		repoName := filepath.Base(repoPath)
+		loader, err := gpgStrategy(repoName, fp.Fingerprint)
 		if err != nil {
 			return nil, err
 		}

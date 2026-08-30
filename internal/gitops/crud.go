@@ -18,7 +18,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-type BookmarkStore interface {
+type bookmarkStore interface {
 	Name() string
 	BaseName() string
 	Stats(ctx context.Context, dest any) error
@@ -26,6 +26,7 @@ type BookmarkStore interface {
 }
 
 func NewManager(app *application.App) (*git.Mgr, error) {
+	// FIX: remove `app`
 	g, err := NewGit(app)
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func NewManager(app *application.App) (*git.Mgr, error) {
 	)
 }
 
-func NewRepo(m *git.Mgr, name string, opts ...git.RepoOptFunc) *git.Repo {
+func NewRepo(gm *git.Mgr, name string, opts ...git.RepoOptFunc) *git.Repo {
 	opts = append(
 		opts,
 		RepoFileReader(),
@@ -46,10 +47,11 @@ func NewRepo(m *git.Mgr, name string, opts ...git.RepoOptFunc) *git.Repo {
 		RepoFileWriter(),
 	)
 
-	return m.NewRepo(name, opts...)
+	return gm.NewRepo(name, opts...)
 }
 
 func NewGit(app *application.App) (*git.Git, error) {
+	// FIX: remove `app`
 	return git.New(
 		app.Path.Git(),
 		[]git.GitOpt{
@@ -70,7 +72,7 @@ func NewGit(app *application.App) (*git.Git, error) {
 	)
 }
 
-func Add(ctx context.Context, app *application.App, r BookmarkStore, b *bookmark.Bookmark) error {
+func Add(ctx context.Context, app *application.App, r bookmarkStore, b *bookmark.Bookmark) error {
 	// FIX: remove `app`
 	if !app.GitEnabled() {
 		return nil

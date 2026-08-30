@@ -9,7 +9,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -125,7 +124,7 @@ func (r *RepoReconciler) removeOrphans(ctx context.Context) error {
 }
 
 // pruneRepo runs the reconcile-and-persist cycle for a single repo.
-func pruneRepo(ctx context.Context, gm *git.Mgr, r *db.SQLite) error {
+func pruneRepo(ctx context.Context, gm *git.Mgr, r bookmarkStore) error {
 	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
 	if !gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, r.BaseName())
@@ -147,7 +146,7 @@ func pruneRepo(ctx context.Context, gm *git.Mgr, r *db.SQLite) error {
 		Reconcile(ctx)
 }
 
-func Prune(ctx context.Context, app *application.App, r *db.SQLite) error {
+func Prune(ctx context.Context, app *application.App, r bookmarkStore) error {
 	if !app.GitEnabled() {
 		return git.ErrGitDisabled
 	}

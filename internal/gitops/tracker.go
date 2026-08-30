@@ -50,8 +50,8 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Name())))
 }
 
-func Track(ctx context.Context, r *db.SQLite, m *git.Mgr, gr *git.Repo) error {
-	if m.IsTracked(gr.Name()) {
+func Track(ctx context.Context, r bookmarkStore, gm *git.Mgr, gr *git.Repo) error {
+	if gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitTracked, gr.Name())
 	}
 
@@ -77,11 +77,11 @@ func Track(ctx context.Context, r *db.SQLite, m *git.Mgr, gr *git.Repo) error {
 		return err
 	}
 
-	if err := m.Track(gr.Name()); err != nil {
+	if err := gm.Track(gr.Name()); err != nil {
 		return err
 	}
 
-	if err := m.WriteRepos(); err != nil {
+	if err := gm.WriteRepos(); err != nil {
 		return err
 	}
 
@@ -89,7 +89,7 @@ func Track(ctx context.Context, r *db.SQLite, m *git.Mgr, gr *git.Repo) error {
 		return err
 	}
 
-	return m.Commit(ctx, fmt.Sprintf("[%s] add tracking", gr.Name()))
+	return gm.Commit(ctx, fmt.Sprintf("[%s] add tracking", gr.Name()))
 }
 
 func Untrack(ctx context.Context, d *deps.Deps) error {
@@ -113,19 +113,19 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q untracked\n", gr.Name())))
 }
 
-func TrackStatus(c *ui.Console, m *git.Mgr, gr *git.Repo) string {
+func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 	p := c.Palette()
 	name := gr.Name()
 
 	var sb strings.Builder
-	if !m.IsTracked(name) {
+	if !gm.IsTracked(name) {
 		sb.WriteString(txt.PaddedLine(name, p.Gray.Wrap("(not tracked)\n", p.Italic)))
 		return c.Error(sb.String()).StringReset()
 	}
 
 	var repoType string
 	repoType = p.BrightMagenta.Wrap("JSON ", p.Bold)
-	if gpg.IsInitialized(m.Root()) {
+	if gpg.IsInitialized(gm.Root()) {
 		repoType = p.BrightMagenta.Wrap("GPG ", p.Bold)
 	}
 
