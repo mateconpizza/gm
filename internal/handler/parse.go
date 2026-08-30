@@ -16,11 +16,53 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
+
+type tagStore interface {
+	TagsCounter(ctx context.Context) (map[string]int, error)
+}
+
+type storeReader interface {
+	BaseName() string
+	Name() string
+	Stats(ctx context.Context, dest any) error
+}
+
+type bookmarkStore interface {
+	storeReader
+
+	InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error)
+	ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error)
+	All(ctx context.Context) ([]*bookmark.Bookmark, error)
+}
+
+type metadataScraper interface {
+	Start(ctx context.Context) error
+
+	Title() (string, error)
+	Desc() (string, error)
+	Favicon() (string, error)
+	Keywords() (string, error)
+	TagsRepo() ([]string, error)
+}
+
+type tagTerminal interface {
+	ChooseTags(prompt string, items map[string]int) string
+	ClearLine(n int)
+}
+
+type console interface {
+	Frame() *frame.Frame
+	Palette() *ansi.Palette
+	Term() *terminal.Term
+
+	SuccessMesg(a ...any) string
+}
 
 type bookmarkTemp struct {
 	title, desc, tags, favicon string
@@ -44,7 +86,9 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 		Sprintf(" (%d bookmarks)", r.Count(ctx, "bookmarks"))
 	subtitle := p.Dim.With(p.Italic).
 		Sprint(txt.PaddedLine("repository", name))
-	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	header := func() string {
+		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
 
 	c.Frame().
 		CustomFunc(header, title+comment).Ln().
@@ -141,8 +185,8 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	if err != nil {
 		return err
 	}
-	if b, exists := r.Has(ctx, newURL); exists {
-		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, b.ID)
+	if bm, exists := r.Has(ctx, newURL); exists {
+		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, bm.ID)
 	}
 
 	bTemp := &bookmarkTemp{}
@@ -156,7 +200,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(ctx, c, sc, bTemp)
-	if err := tagsFromArgs(ctx, d, sc, bTemp); err != nil {
+	if err := tagsFromArgs(ctx, d, c.Term(), sc, bTemp); err != nil {
 		return err
 	}
 
@@ -177,7 +221,9 @@ func readURLFromClipboard(ctx context.Context, c *ui.Console) string {
 	}
 
 	f, p := c.Frame(), c.Palette()
-	dot := func() string { return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	dot := func() string {
+		return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
 	f.CustomFunc(dot, p.BrightMagenta.Sprint("URL\t:")).
 		Textln(" " + p.Gray.Sprint(cb))
 
@@ -198,7 +244,10 @@ func readURLFromClipboard(ctx context.Context, c *ui.Console) string {
 // newURLFromArgs parse URL from args.
 func newURLFromArgs(ctx context.Context, c *ui.Console, args []string) (string, error) {
 	f, t, p := c.Frame(), c.Term(), c.Palette()
-	dot := func() string { return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+
+	dot := func() string {
+		return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
 
 	// checks if url is provided
 	if len(args) > 0 {
@@ -225,73 +274,56 @@ func newURLFromArgs(ctx context.Context, c *ui.Console, args []string) (string, 
 	return bURL, nil
 }
 
-// tagsFromArgs retrieves the Tags from args or prompts the user for input.
-func tagsFromArgs(ctx context.Context, d *deps.Deps, sc *scraper.Scraper, b *bookmarkTemp) error {
+func tagsFromArgs(ctx context.Context, d *deps.Deps, t tagTerminal, sc metadataScraper, b *bookmarkTemp) error {
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 
-	dot := func() string { return p.BrightBlue.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	dot := func() string {
+		return p.BrightBlue.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+
 	f.CustomFunc(dot, p.BrightBlue.Sprint("Tags\t:"))
 
-	// Use existing tags if provided
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
 		f.Textln(" " + p.Gray.Wrap(b.tags, p.Italic)).Flush()
 		return nil
 	}
 
-	// Try to get keywords from scraper
-	_ = sc.Start(ctx)
-	if keywords, _ := sc.Keywords(); keywords != "" {
-		b.tags = bookmark.ParseTags(keywords)
-		f.Textln(" " + p.Gray.Wrap(b.tags, p.Italic)).Flush()
-		return nil
-	}
-
-	// Use default if force flag is set
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-	if app.Flags.Force {
-		b.tags = bookmark.DefaultTag
-		f.Textln(" " + p.Gray.Wrap(b.tags, p.Italic)).Flush()
-		return nil
-	}
-
-	// Display prompt for tag input format
-	f.Text(p.Gray.Sprint(" (spaces|comma separated)\n")).Flush()
-
-	// Get existing tags from database with their usage counts
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
-	mTags, _ := r.TagsCounter(ctx)
 
-	// Let user select tags and parse them into proper format
-	tags := c.Term().ChooseTags(txt.GlyphTriangleRight.Prefix(" "), mTags)
-	b.tags = bookmark.ParseTags(tags)
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
 
-	// Clear and display the selected tags
-	f.Reset().
-		CustomFunc(dot, p.BrightBlue.Sprint("Tags\t:")).
-		Textln(" " + p.Gray.Wrap(b.tags, p.Italic))
+	tr := newTagResolver(r, sc, t)
+	tags, err := tr.resolve(ctx, app.Flags.Force, b.tags)
+	if err != nil {
+		return err
+	}
 
-	// Clear previous input lines from terminal
-	c.ClearLine(txt.CountLines(f.String()))
-	f.Flush()
+	t.ClearLine(1)
+	b.tags = tags
+	f.Textln(" " + p.Gray.Wrap(b.tags, p.Italic)).Flush()
+
 	return nil
 }
 
 // fetchTitleAndDesc fetch and display title and description.
-func fetchTitleAndDesc(ctx context.Context, c *ui.Console, sc *scraper.Scraper, b *bookmarkTemp) {
+func fetchTitleAndDesc(ctx context.Context, c console, sc metadataScraper, b *bookmarkTemp) {
 	f, p := c.Frame(), c.Palette()
 	const indentation int = 10
 
 	borders := f.Borders()
 	width := terminal.MinWidth() - len(borders.Row)
-	dot := func() string { return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+
+	dot := func() string {
+		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
 
 	if b.title != "" {
 		t := p.Gray.Sprint(txt.SplitAndAlign(b.title, width, indentation))
@@ -304,13 +336,7 @@ func fetchTitleAndDesc(ctx context.Context, c *ui.Console, sc *scraper.Scraper, 
 	_ = sc.Start(ctx)
 	b.title, _ = sc.Title()
 	b.desc, _ = sc.Desc()
-	b.tags, _ = sc.Keywords()
 	b.favicon, _ = sc.Favicon()
-
-	if b.tags == "" {
-		tags, _ := sc.TagsRepo()
-		b.tags = strings.Join(tags, ",")
-	}
 
 	// title
 	t := p.Gray.Sprint(txt.SplitAndAlign(b.title, width, indentation))
@@ -319,8 +345,23 @@ func fetchTitleAndDesc(ctx context.Context, c *ui.Console, sc *scraper.Scraper, 
 	// description
 	if b.desc != "" {
 		descColor := p.Gray.Sprint(txt.SplitAndAlign(b.desc, width, indentation))
-		dot := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+		dot := func() string {
+			return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		}
 		f.CustomFunc(dot, p.BrightYellow.Sprint("Desc\t: ")).Textln(descColor)
+	}
+
+	// tags
+	if b.tags == "" {
+		if keywords, _ := sc.Keywords(); keywords != "" {
+			b.tags = keywords
+		}
+
+		// codeberg, gitlab, github
+		if tags, _ := sc.TagsRepo(); len(tags) > 0 {
+			tags, _ := sc.TagsRepo()
+			b.tags = strings.Join(tags, ",")
+		}
 	}
 
 	f.Flush()
@@ -363,7 +404,7 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 }
 
 // insertAndAddBookmark inserts a bookmark and applies git add.
-func insertAndAddBookmark(ctx context.Context, r *db.SQLite, app *application.App, b *bookmark.Bookmark) error {
+func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application.App, b *bookmark.Bookmark) error {
 	newID, err := r.InsertOne(ctx, b)
 	if err != nil {
 		return err
@@ -374,5 +415,48 @@ func insertAndAddBookmark(ctx context.Context, r *db.SQLite, app *application.Ap
 		return err
 	}
 
+	if !app.GitEnabled() {
+		return nil
+	}
+
 	return gitops.Add(ctx, app, r, fresh)
+}
+
+type tagResolver struct {
+	store   tagStore
+	scraper metadataScraper
+	term    tagTerminal
+}
+
+func newTagResolver(r tagStore, sc metadataScraper, t tagTerminal) *tagResolver {
+	return &tagResolver{
+		store:   r,
+		scraper: sc,
+		term:    t,
+	}
+}
+
+func (tr *tagResolver) resolve(ctx context.Context, force bool, initial string) (string, error) {
+	if initial != "" {
+		return bookmark.ParseTags(initial), nil
+	}
+
+	_ = tr.scraper.Start(ctx)
+
+	if keywords, _ := tr.scraper.Keywords(); keywords != "" {
+		return bookmark.ParseTags(keywords), nil
+	}
+
+	if force {
+		return bookmark.DefaultTag, nil
+	}
+
+	tags, err := tr.store.TagsCounter(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	selected := tr.term.ChooseTags(txt.GlyphSmallSquare.Prefix(" Tags  : "), tags)
+
+	return bookmark.ParseTags(selected), nil
 }

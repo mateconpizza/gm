@@ -42,7 +42,7 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 		}
 
 		c, p := d.Console(), d.Console().Palette()
-		c.ClearLine(1)            // clean empty line from FrameFunc
+		c.Term().ClearLine(1)     // clean empty line from FrameFunc
 		c.Frame().Rowln().Flush() // connect FrameFunc with prompt
 		name := p.Bold.Sprint(app.DBBaseName())
 

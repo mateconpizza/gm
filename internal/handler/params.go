@@ -151,7 +151,7 @@ func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, a
 
 // PrintParamChanges displays the original and cleaned URL with removed
 // parameters.
-func diffParams(c *ui.Console, flagYes bool, originalURL string, params []string) int {
+func diffParams(c console, flagYes bool, originalURL string, params []string) int {
 	f, p := c.Frame(), c.Palette()
 	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
 	subtitle := p.Dim.With(p.Italic).
@@ -161,7 +161,7 @@ func diffParams(c *ui.Console, flagYes bool, originalURL string, params []string
 		Midln(subtitle).
 		Rowln().
 		Midln("Original URL:").
-		Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, c.MaxWidth()))).
+		Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, c.Term().MaxWidth()))).
 		Rowln().
 		Midln(fmt.Sprintf("Parameters to remove (%d) ", len(params)))
 
@@ -227,7 +227,7 @@ func selectParams(m *menu.Menu[string], u *url.URL) ([]string, error) {
 
 // processBookmarkParams prompts for param removal and persists updates if
 // confirmed.
-func processBookmarkParams(ctx context.Context, app *application.App, c *ui.Console, m *menu.Menu[string], urlStr string) (string, error) {
+func processBookmarkParams(ctx context.Context, app *application.App, c console, m *menu.Menu[string], urlStr string) (string, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return "", err
@@ -248,7 +248,7 @@ func processBookmarkParams(ctx context.Context, app *application.App, c *ui.Cons
 	}
 
 	// clear the terminal lines after receiving input
-	c.ClearLine(linesToClear)
+	c.Term().ClearLine(linesToClear)
 
 	newURL, skipped, err := computeNewURL(m, u, opt)
 	if err != nil {
@@ -265,7 +265,7 @@ func processBookmarkParams(ctx context.Context, app *application.App, c *ui.Cons
 }
 
 // promptParamRemoval displays URL param diff and asks whether to remove them.
-func promptParamRemoval(ctx context.Context, app *application.App, c *ui.Console, urlStr string, q url.Values) (opt string, lines int, err error) {
+func promptParamRemoval(ctx context.Context, app *application.App, c console, urlStr string, q url.Values) (opt string, lines int, err error) {
 	f, p := c.Frame(), c.Palette()
 	sep := "="
 
@@ -284,7 +284,7 @@ func promptParamRemoval(ctx context.Context, app *application.App, c *ui.Console
 	if len(q) > 1 {
 		opts = append(opts, "select")
 	}
-	opt, err = c.Choose(ctx, p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
+	opt, err = c.Term().Choose(ctx, p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
 
 	return opt, lines, err
 }

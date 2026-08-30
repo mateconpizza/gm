@@ -18,6 +18,13 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+type BookmarkStore interface {
+	Name() string
+	BaseName() string
+	Stats(ctx context.Context, dest any) error
+	All(ctx context.Context) ([]*bookmark.Bookmark, error)
+}
+
 func NewManager(app *application.App) (*git.Mgr, error) {
 	g, err := NewGit(app)
 	if err != nil {
@@ -63,7 +70,8 @@ func NewGit(app *application.App) (*git.Git, error) {
 	)
 }
 
-func Add(ctx context.Context, app *application.App, r *db.SQLite, b *bookmark.Bookmark) error {
+func Add(ctx context.Context, app *application.App, r BookmarkStore, b *bookmark.Bookmark) error {
+	// FIX: remove `app`
 	if !app.GitEnabled() {
 		return nil
 	}
