@@ -13,7 +13,7 @@ import (
 )
 
 func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 
@@ -66,7 +66,7 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 }
 
 func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -94,7 +94,7 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 
 func TestFailsWhenDatabaseAlreadyInitializedWithoutForceFlag(t *testing.T) {
 	t.Skip("Update database initialization")
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 
 	// Initialize database first time
 	err := initializeAction(t.Context(), d)
@@ -114,7 +114,7 @@ func TestFailsWhenDatabaseAlreadyInitializedWithoutForceFlag(t *testing.T) {
 
 func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 	t.Skip("Update database initialization")
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 
 	// Initialize database first time
 	err := initializeAction(t.Context(), d)
@@ -136,7 +136,7 @@ func TestSucceedsWhenDatabaseAlreadyInitializedWithForceFlag(t *testing.T) {
 }
 
 func TestFailsWhenInitReturnsErr(t *testing.T) {
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -152,7 +152,7 @@ func TestFailsWhenInitReturnsErr(t *testing.T) {
 }
 
 func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -167,7 +167,7 @@ func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
 }
 
 func TestParseAndStoreBookmarkTags(t *testing.T) {
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	var buf bytes.Buffer
 	d.SetWriter(&buf)
 

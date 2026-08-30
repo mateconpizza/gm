@@ -33,7 +33,7 @@ func TestConfig_Create(t *testing.T) {
 		)
 
 		dir := t.TempDir()
-		app := testutil.SetupApp(t)
+		app := testutil.NewApp(t)
 		app.Path.Data = dir
 		fn := application.ConfigFilename
 
@@ -58,7 +58,7 @@ func TestConfig_Create(t *testing.T) {
 			t.Fatalf("setup failed: %v", err)
 		}
 
-		app := testutil.SetupApp(t)
+		app := testutil.NewApp(t)
 		app.Path.Data = dir
 
 		c := ui.NewConsole()

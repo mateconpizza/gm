@@ -3,44 +3,16 @@ package bookio
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
-
-func testSingleBookmark() *bookmark.Bookmark {
-	return &bookmark.Bookmark{
-		URL:       "https://www.example.com",
-		Title:     "Title",
-		Tags:      "test,tag1,go",
-		Desc:      "Description",
-		CreatedAt: "2023-01-01T12:00:00Z",
-		LastVisit: "2023-01-01T12:00:00Z",
-		Favorite:  true,
-		Checksum:  "checksum",
-	}
-}
-
-func testSliceBookmarks(n int) []*bookmark.Bookmark {
-	bs := make([]*bookmark.Bookmark, 0, n)
-	for i := range n {
-		b := testSingleBookmark()
-		b.ID = i + 1
-		b.Title = fmt.Sprintf("Title %d", i)
-		b.URL = fmt.Sprintf("https://www.example%d.com", i)
-		b.Tags = fmt.Sprintf("test,tag%d,go", i)
-		b.Desc = fmt.Sprintf("Description %d", i)
-		bs = append(bs, b)
-	}
-
-	return bs
-}
 
 func TestHTMLParse(t *testing.T) {
 	t.Parallel()
 	want := 10
-	bs := testSliceBookmarks(want)
+	bs := testutil.NewBookmarkSlice(t, want)
 
 	if len(bs) != want {
 		t.Fatal("unexpected number of bookmarks.")

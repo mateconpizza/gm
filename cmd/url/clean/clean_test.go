@@ -23,7 +23,7 @@ func testBookmarksWithParameters(t *testing.T) []*bookmark.Bookmark {
 		"https://example.edu/course/view.php?id=123&utm_source=newsletter&utm_medium=email&utm_campaign=june2023&trk=profile_certification_title",
 	}
 
-	bs := testutil.BookmarkSlice(t, len(urls))
+	bs := testutil.NewBookmarkSlice(t, len(urls))
 	for i := range bs {
 		b := bs[i]
 		b.URL = urls[i]

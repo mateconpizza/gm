@@ -16,7 +16,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func SetupApp(t *testing.T) *application.App {
+func NewApp(t *testing.T) *application.App {
 	t.Helper()
 
 	return &application.App{
@@ -43,26 +43,46 @@ func SetupApp(t *testing.T) *application.App {
 	}
 }
 
-func SetupDeps(t *testing.T) *deps.Deps {
+func NewConsole(t *testing.T, w io.Writer) *ui.Console {
 	t.Helper()
 
-	app := SetupApp(t)
+	if w == nil {
+		w = io.Discard
+	}
+	tm := terminal.New(terminal.WithWriter(w))
+
+	return ui.NewConsole(
+		ui.WithTerminal(tm),
+		ui.WithFrame(frame.New()),
+	)
+}
+
+func NewTerminal(t *testing.T, w io.Writer) *terminal.Term {
+	t.Helper()
+	if w == nil {
+		w = io.Discard
+	}
+	return terminal.New(terminal.WithWriter(w))
+}
+
+func NewDeps(t *testing.T) *deps.Deps {
+	t.Helper()
+
+	app := NewApp(t)
 	temp := t.TempDir()
 
 	app.Path.Database = filepath.Join(temp, app.DBName)
 	app.Path.Data = temp
-	tm := terminal.New(terminal.WithWriter(io.Discard))
+
+	c := NewConsole(t, io.Discard)
 
 	return deps.New(
 		deps.WithApplication(app),
-		deps.WithConsole(ui.NewConsole(
-			ui.WithTerminal(tm),
-			ui.WithFrame(frame.New()),
-		)),
+		deps.WithConsole(c),
 	)
 }
 
-func SetupInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {
+func NewInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {
 	t.Helper()
 
 	r, err := db.Init(t.Context(), dbPath)
@@ -77,18 +97,18 @@ func SetupInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {
 	return r
 }
 
-func SetupInitializedDBWithBookmarks(t *testing.T, dbPath string, n int) *db.SQLite {
+func NewInitializedDBWithBookmarks(t *testing.T, dbPath string, n int) *db.SQLite {
 	t.Helper()
-	r := SetupInitializedEmptyDB(t, dbPath)
+	r := NewInitializedEmptyDB(t, dbPath)
 
-	if err := r.InsertMany(t.Context(), BookmarkSlice(t, n)); err != nil {
+	if err := r.InsertMany(t.Context(), NewBookmarkSlice(t, n)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	return r
 }
 
-func SingleBookmark(t *testing.T) *bookmark.Bookmark {
+func NewBookmark(t *testing.T) *bookmark.Bookmark {
 	t.Helper()
 
 	return &bookmark.Bookmark{
@@ -102,12 +122,12 @@ func SingleBookmark(t *testing.T) *bookmark.Bookmark {
 	}
 }
 
-func BookmarkSlice(t *testing.T, n int) []*bookmark.Bookmark {
+func NewBookmarkSlice(t *testing.T, n int) []*bookmark.Bookmark {
 	t.Helper()
 
 	bs := make([]*bookmark.Bookmark, 0, n)
 	for i := range n {
-		b := SingleBookmark(t)
+		b := NewBookmark(t)
 		b.Title = fmt.Sprintf("Title %d", i)
 		b.URL = fmt.Sprintf("https://www.example%d.com", i)
 		b.Tags = fmt.Sprintf("test,tag%d,go", i)
@@ -121,7 +141,7 @@ func BookmarkSlice(t *testing.T, n int) []*bookmark.Bookmark {
 	return bs
 }
 
-func ConsoleWithInput(t *testing.T, input string) *ui.Console {
+func NewConsoleWithInput(t *testing.T, input string) *ui.Console {
 	t.Helper()
 	term := terminal.New(terminal.WithReader(strings.NewReader(input)))
 	return ui.NewConsole(ui.WithTerminal(term))
