@@ -24,8 +24,18 @@ import (
 
 var ErrNothingToImport = errors.New("nothing to import")
 
+type selector[T any] interface {
+	Select(items []T) ([]T, error)
+}
+
+type storeReader interface {
+	Name() string
+	All(ctx context.Context) ([]*bookmark.Bookmark, error)
+	Close()
+}
+
 // Database imports bookmarks from a database.
-func Database(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
+func Database(ctx context.Context, d *deps.Deps, srcDB storeReader) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
@@ -103,16 +113,6 @@ func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
 	}
 	defer srcRepo.Close()
 
-	return importBookmarksFromBackup(ctx, d, srcRepo)
-}
-
-// importBookmarksFromBackup imports bookmarks from a backup.
-func importBookmarksFromBackup(ctx context.Context, d *deps.Deps, srcDB *db.SQLite) error {
-	bookmarks, err := srcDB.All(ctx)
-	if err != nil {
-		return err
-	}
-
 	c := d.Console()
 	app, err := d.Application(ctx)
 	if err != nil {
@@ -123,42 +123,35 @@ func importBookmarksFromBackup(ctx context.Context, d *deps.Deps, srcDB *db.SQLi
 	p := fm.Menu.Placeholder()
 	m := picker.New[*bookmark.Bookmark](
 		app,
-		menu.WithHeader("select record/s to import from '"+srcDB.Name()+"'"),
+		menu.WithHeader("select record/s to import from '"+srcRepo.Name()+"'"),
 		menu.WithInterruptFn(c.Term().InterruptFn()),
 		menu.WithMultiSelection(),
-		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "./backup/"+srcDB.Name(), p.Single())),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "./backup/"+srcRepo.Name(), p.Single())),
 	)
-
-	defer c.Term().CancelInterruptHandler()
 
 	m.SetFormatter(func(b *bookmark.Bookmark) string {
 		return fm.Render(c, b)
 	})
+
+	return importBookmarksFromBackup(ctx, d, srcRepo, m)
+}
+
+// importBookmarksFromBackup imports bookmarks from a backup.
+func importBookmarksFromBackup(ctx context.Context, d *deps.Deps, srcDB storeReader, m selector[*bookmark.Bookmark]) error {
+	bookmarks, err := srcDB.All(ctx)
+	if err != nil {
+		return err
+	}
+
+	c := d.Console()
+	defer c.Term().CancelInterruptHandler()
 
 	bookmarks, err = m.Select(bookmarks)
 	if err != nil {
 		return err
 	}
 
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-
-	result, err := DeduplicateReport(ctx, c, r, bookmarks)
-	if err != nil {
-		return err
-	}
-
-	if len(result) == 0 {
-		p := c.Palette()
-		c.Frame().Error("no new bookmark found, ").
-			Textln(p.BrightYellow.Wrap("skipping import", p.Italic)).
-			Flush()
-		return sys.ErrExitFailure
-	}
-
-	return importPipeline(ctx, d, "from backup", srcDB.Name(), result)
+	return importPipeline(ctx, d, "from backup", srcDB.Name(), bookmarks)
 }
 
 // ToJSON converts an interface to JSON.
@@ -173,7 +166,7 @@ func ToJSON(data any) ([]byte, error) {
 
 // DeduplicateReport removes duplicate bookmarks and reports skipped entries to
 // the console.
-func DeduplicateReport(ctx context.Context, c *ui.Console, r *db.SQLite, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func DeduplicateReport(ctx context.Context, c *ui.Console, r storeReader, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	const maxItemsToShow = 10
 
 	existing, err := r.All(ctx)

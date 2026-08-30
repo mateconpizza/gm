@@ -17,11 +17,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-// browsers the list of supported browsers.
-func browsers() []browser.Supported {
-	return append(gecko.Supported, blink.Supported...)
-}
-
 // ImportFromBrowser imports bookmarks from a supported browser.
 func ImportFromBrowser(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
@@ -51,6 +46,11 @@ func ImportFromBrowser(ctx context.Context, d *deps.Deps) error {
 	}
 
 	return importPipeline(ctx, d, "from browser", br.Browser.Name(), bs)
+}
+
+// browsers the list of supported browsers.
+func browsers() []browser.Supported {
+	return append(gecko.Supported, blink.Supported...)
 }
 
 // parseFoundInBrowser processes the bookmarks found from the import
