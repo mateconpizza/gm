@@ -65,10 +65,11 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 			return err
 		}
 
-		p := d.Console().Palette()
+		c := d.Console()
+		p := c.Palette()
 		q := fmt.Sprintf("%s %d bookmarks", p.BrightGreen.Wrap("edit", p.Bold), len(bs))
 
-		if err := d.Console().ConfirmLimit(ctx, len(bs), maxItems, q, app.Flags.Force); err != nil {
+		if err := c.ConfirmLimit(ctx, len(bs), maxItems, q, app.Flags.Force); err != nil {
 			return err
 		}
 

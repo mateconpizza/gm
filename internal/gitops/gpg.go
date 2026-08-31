@@ -27,7 +27,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, m *git.Mgr) error {
+func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, gm *git.Mgr) error {
 	if gpg.IsInitialized(app.Path.Git()) {
 		return nil
 	}
@@ -57,10 +57,10 @@ func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, 
 		return err
 	}
 
-	return initGPG(ctx, c, m, key)
+	return initGPG(ctx, c, gm, key)
 }
 
-func gpgStrategy(recipient string) (*bookio.RepositoryLoader, error) {
+func gpgStrategy(name, recipient string) (*bookio.RepositoryLoader, error) {
 	g, err := gpg.New(recipient)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func gpgStrategy(recipient string) (*bookio.RepositoryLoader, error) {
 
 	return &bookio.RepositoryLoader{
 		Func:   gpgBookmarkFileLoader(g),
-		Prefix: "GPG bookmarks [%d/%d]",
+		Prefix: fmt.Sprintf("[%s] %s", name, "GPG bookmarks [%d/%d]"),
 		FileFilter: bookio.And(
 			bookio.IsFile,
 			bookio.HasExtension(gpg.Extension),
@@ -297,23 +297,23 @@ func selectFingerprint(m *menu.Menu[*gpg.Fingerprint], fps []*gpg.Fingerprint) (
 	return key, nil
 }
 
-func initGPG(ctx context.Context, c *ui.Console, m *git.Mgr, k *gpg.Fingerprint) error {
+func initGPG(ctx context.Context, c *ui.Console, gm *git.Mgr, k *gpg.Fingerprint) error {
 	if err := k.Validate(); err != nil {
 		return fmt.Errorf("gpg init: %w", err)
 	}
 
-	if err := gpg.Init(m.Root(), git.AttributesFile, k); err != nil {
+	if err := gpg.Init(gm.Root(), git.AttributesFile, k); err != nil {
 		return fmt.Errorf("gpg init: %w", err)
 	}
 
 	// add diff to git config
 	for k, v := range gpg.GitDiffConf {
-		if err := m.SetCfg(ctx, k, strings.Join(v, " ")); err != nil {
+		if err := gm.SetCfg(ctx, k, strings.Join(v, " ")); err != nil {
 			return err
 		}
 	}
 
-	if err := m.Commit(ctx, "[core] gpg repo initialized"); err != nil {
+	if err := gm.Commit(ctx, "[core] gpg repo initialized"); err != nil {
 		return err
 	}
 

@@ -21,7 +21,7 @@ func TestAppValidate(t *testing.T) {
 			"valid_config",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Database = filepath.Join(t.TempDir(), app.DBName)
 				return app
 			},
@@ -31,7 +31,7 @@ func TestAppValidate(t *testing.T) {
 			"missing_db_name",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Database = filepath.Join(t.TempDir(), app.DBName)
 				app.DBName = ""
 				return app
@@ -42,7 +42,7 @@ func TestAppValidate(t *testing.T) {
 			"db_name_only_suffixes",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Database = filepath.Join(t.TempDir(), app.DBName)
 				app.DBName = ".db"
 				return app
@@ -53,7 +53,7 @@ func TestAppValidate(t *testing.T) {
 			"missing_db_path",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				return testutil.SetupApp(t) // Path.Database is empty by default
+				return testutil.NewApp(t) // Path.Database is empty by default
 			},
 			application.ErrDatabasePathNotSet,
 		},
@@ -61,7 +61,7 @@ func TestAppValidate(t *testing.T) {
 			"db_name_priority_over_path",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.DBName = ""
 				// Path.Database also empty — DBName error should win
 				return app
@@ -104,7 +104,7 @@ func TestAppSetDatabasePath(t *testing.T) {
 			"mydb",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Data = t.TempDir()
 				return app
 			},
@@ -116,7 +116,7 @@ func TestAppSetDatabasePath(t *testing.T) {
 			"mydb.db",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Data = t.TempDir()
 				return app
 			},
@@ -128,7 +128,7 @@ func TestAppSetDatabasePath(t *testing.T) {
 			"mydb.tar.gz",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Data = t.TempDir()
 				return app
 			},
@@ -140,7 +140,7 @@ func TestAppSetDatabasePath(t *testing.T) {
 			"",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Data = t.TempDir()
 				return app
 			},
@@ -152,7 +152,7 @@ func TestAppSetDatabasePath(t *testing.T) {
 			".db",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 				app.Path.Data = t.TempDir()
 				return app
 			},
@@ -164,7 +164,7 @@ func TestAppSetDatabasePath(t *testing.T) {
 			"mydb",
 			func(t *testing.T) *application.App {
 				t.Helper()
-				return testutil.SetupApp(t) // Path.Data is empty by default
+				return testutil.NewApp(t) // Path.Data is empty by default
 			},
 			application.ErrDatabasePathNotSet,
 			"",
@@ -216,7 +216,7 @@ func TestApp_GitEnabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			app := testutil.SetupApp(t)
+			app := testutil.NewApp(t)
 			app.Git = tt.git
 			got := app.GitEnabled()
 			if got != tt.want {
@@ -241,7 +241,7 @@ func TestApp_Version(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			app := testutil.SetupApp(t)
+			app := testutil.NewApp(t)
 			app.Info = tt.info
 			got := app.Version()
 			if got != tt.want {

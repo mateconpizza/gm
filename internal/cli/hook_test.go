@@ -316,7 +316,7 @@ func TestHookGitSync(t *testing.T) {
 					}
 				}()
 
-				app := testutil.SetupApp(t)
+				app := testutil.NewApp(t)
 
 				_ = HookGitSync(app)(nil, nil)
 				return
@@ -324,7 +324,7 @@ func TestHookGitSync(t *testing.T) {
 
 			tt.setupCtx(cmd)
 
-			app := testutil.SetupApp(t)
+			app := testutil.NewApp(t)
 			err := HookGitSync(app)(cmd, nil)
 
 			if tt.wantErr {

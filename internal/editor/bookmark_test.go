@@ -155,7 +155,7 @@ func TestBookmarkStrategyZeroValueFallsBackToDefault(t *testing.T) {
 
 	var bs BookmarkStrategy // zero value, no NewBookmarkStrategy call
 
-	original := testutil.SingleBookmark(t)
+	original := testutil.NewBookmark(t)
 	original.Tags = bookmark.ParseTags(original.Tags)
 	_, err := bs.ParseBuffer(t.Context(), original.Buffer(), original)
 	if !errors.Is(err, ErrBufferUnchanged) {
@@ -276,7 +276,7 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 func TestBookmarkFromBytes(t *testing.T) {
 	t.Parallel()
 
-	validB := testutil.SingleBookmark(t)
+	validB := testutil.NewBookmark(t)
 	validBuffer := validB.Buffer()
 
 	tests := []struct {
@@ -356,19 +356,19 @@ func TestDefaultParseBuffer(t *testing.T) {
 	}{
 		{
 			name:     "normal_edit_changes_title_and_tags",
-			original: testutil.SingleBookmark(t),
-			buf: editBuffer(testutil.SingleBookmark(t),
+			original: testutil.NewBookmark(t),
+			buf: editBuffer(testutil.NewBookmark(t),
 				"https://www.example.com", "New Title", "new,tag", "Description"),
 		},
 		{
 			name: "buffer_unchanged_returns_sentinel",
 			original: func() *bookmark.Bookmark {
-				b := testutil.SingleBookmark(t)
+				b := testutil.NewBookmark(t)
 				b.Tags = bookmark.ParseTags(b.Tags)
 				return b
 			}(),
 			buf: func() []byte {
-				b := testutil.SingleBookmark(t)
+				b := testutil.NewBookmark(t)
 				b.Tags = bookmark.ParseTags(b.Tags)
 				return b.Buffer()
 			}(),
@@ -376,47 +376,47 @@ func TestDefaultParseBuffer(t *testing.T) {
 		},
 		{
 			name:     "empty_url_fails_validation",
-			original: testutil.SingleBookmark(t),
-			buf: editBuffer(testutil.SingleBookmark(t),
+			original: testutil.NewBookmark(t),
+			buf: editBuffer(testutil.NewBookmark(t),
 				"", "Title", "test,tag1,go", "Description"),
 			wantErrAny: true,
 		},
 		{
 			name:     "empty_tags_field",
-			original: testutil.SingleBookmark(t),
-			buf: editBuffer(testutil.SingleBookmark(t),
+			original: testutil.NewBookmark(t),
+			buf: editBuffer(testutil.NewBookmark(t),
 				"https://www.example.com", "Title", "", "Description"),
 		},
 		{
 			name:     "multiline_title_collapsed",
-			original: testutil.SingleBookmark(t),
-			buf: editBuffer(testutil.SingleBookmark(t),
+			original: testutil.NewBookmark(t),
+			buf: editBuffer(testutil.NewBookmark(t),
 				"https://www.example.com", "Line one\nLine two", "test,tag1,go", "Description"),
 		},
 		{
 			name: "new_bookmark_zero_id",
 			original: func() *bookmark.Bookmark {
-				b := testutil.SingleBookmark(t)
+				b := testutil.NewBookmark(t)
 				b.ID = 0
 				return b
 			}(),
-			buf: editBuffer(testutil.SingleBookmark(t),
+			buf: editBuffer(testutil.NewBookmark(t),
 				"https://www.example.com", "Final Title", "test,tag1,go", "Description"),
 		},
 		{
 			name: "notes_preserved_regardless_of_buffer",
 			original: func() *bookmark.Bookmark {
-				b := testutil.SingleBookmark(t)
+				b := testutil.NewBookmark(t)
 				b.Notes = "important notes"
 				return b
 			}(),
-			buf: editBuffer(testutil.SingleBookmark(t),
+			buf: editBuffer(testutil.NewBookmark(t),
 				"https://www.example.com", "New Title", "test,tag1,go", "Description"),
 		},
 		{
 			name:     "whitespace_only_description",
-			original: testutil.SingleBookmark(t),
-			buf: editBuffer(testutil.SingleBookmark(t),
+			original: testutil.NewBookmark(t),
+			buf: editBuffer(testutil.NewBookmark(t),
 				"https://www.example.com", "Title", "test,tag1,go", "   \n  "),
 		},
 	}

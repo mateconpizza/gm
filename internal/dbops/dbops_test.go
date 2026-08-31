@@ -23,15 +23,15 @@ import (
 
 func TestDatabase_Drop(t *testing.T) {
 	t.Parallel()
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	want := 10
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.DB(), want)
+	r := testutil.NewInitializedDBWithBookmarks(t, app.Path.DB(), want)
 	d.SetRepo(r)
-	c := testutil.ConsoleWithInput(t, "y\n")
+	c := testutil.NewConsoleWithInput(t, "y\n")
 	d.SetConsole(c)
 
 	got, err := r.All(t.Context())
@@ -63,13 +63,13 @@ func TestRemoveRepo_Success(t *testing.T) {
 
 	t.Run("successfully remove main database", func(t *testing.T) {
 		t.Parallel()
-		d := testutil.SetupDeps(t)
+		d := testutil.NewDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		app.Flags.Force = true
-		r := testutil.SetupInitializedEmptyDB(t, app.Path.DB())
+		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
 		d.SetRepo(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
@@ -91,7 +91,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 
 	t.Run("successfully remove a database", func(t *testing.T) {
 		t.Parallel()
-		d := testutil.SetupDeps(t)
+		d := testutil.NewDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -99,7 +99,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 		app.DBName = "somedatabase.db"
 		app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
 		app.Flags.Force = true
-		r := testutil.SetupInitializedEmptyDB(t, app.Path.DB())
+		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
 		d.SetRepo(r)
 		var buf bytes.Buffer
 		d.SetWriter(&buf)
@@ -126,7 +126,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 
 	t.Run("fails with database not found", func(t *testing.T) {
 		t.Parallel()
-		d := testutil.SetupDeps(t)
+		d := testutil.NewDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -141,12 +141,12 @@ func TestRemoveRepo_Fail(t *testing.T) {
 
 	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
 		t.Parallel()
-		d := testutil.SetupDeps(t)
+		d := testutil.NewDeps(t)
 		app, err := d.Application(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		r := testutil.SetupInitializedEmptyDB(t, app.Path.DB())
+		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
 		d.SetRepo(r)
 
 		err = Remove(t.Context(), d)
@@ -213,7 +213,7 @@ func TestPasswordInput(t *testing.T) {
 
 func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
 	t.Parallel()
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -231,7 +231,7 @@ func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
 
 func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 	t.Parallel()
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -256,7 +256,7 @@ func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
 
 func TestNewBackup_Successfully_Created(t *testing.T) {
 	t.Parallel()
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -264,7 +264,7 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 	app.Flags.Yes = true
 	app.Flags.Force = true
 
-	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.DB(), 5)
+	r := testutil.NewInitializedDBWithBookmarks(t, app.Path.DB(), 5)
 	d.SetRepo(r)
 
 	var buf bytes.Buffer
@@ -291,12 +291,12 @@ func TestNewBackup_Successfully_Created(t *testing.T) {
 
 func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
 	t.Parallel()
-	d := testutil.SetupDeps(t)
+	d := testutil.NewDeps(t)
 	app, err := d.Application(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	r := testutil.SetupInitializedDBWithBookmarks(t, app.Path.DB(), 5)
+	r := testutil.NewInitializedDBWithBookmarks(t, app.Path.DB(), 5)
 	d.SetRepo(r)
 
 	// Update terminal for reject confirmation prompt.
