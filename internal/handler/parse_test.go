@@ -7,11 +7,119 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
+
+func Test_NewURLFromArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		args          []string
+		clipboardData string
+		terminalInput string
+		want          string
+		wantErr       error
+	}{
+		{
+			name:          "url_provided_in_args_skips_clipboard_and_prompt",
+			args:          []string{"https://example.com"},
+			clipboardData: "https://clipboard.com",
+			terminalInput: "https://terminal.com",
+			want:          "https://example.com",
+			wantErr:       nil,
+		},
+		{
+			name:          "url_in_args_with_trailing_newline_is_trimmed",
+			args:          []string{"https://example.com\n"},
+			clipboardData: "",
+			terminalInput: "",
+			want:          "https://example.com",
+			wantErr:       nil,
+		},
+		{
+			name:          "multiple_args_uses_only_the_first",
+			args:          []string{"https://primary.com", "https://ignored.com"},
+			clipboardData: "",
+			terminalInput: "",
+			want:          "https://primary.com",
+			wantErr:       nil,
+		},
+		{
+			name:          "empty_args_uses_clipboard",
+			args:          []string{},
+			clipboardData: "https://clipboard.com",
+			terminalInput: "https://terminal.com", // should be ignored
+			want:          "https://clipboard.com",
+			wantErr:       nil,
+		},
+		{
+			name:          "nil_args_uses_clipboard",
+			args:          nil,
+			clipboardData: "https://clipboard.com",
+			terminalInput: "https://terminal.com",
+			want:          "https://clipboard.com",
+			wantErr:       nil,
+		},
+		{
+			name:          "empty_args_and_clipboard_uses_terminal",
+			args:          []string{},
+			clipboardData: "", // no clipboard data
+			terminalInput: "https://from-terminal.com",
+			want:          "https://from-terminal.com",
+			wantErr:       nil,
+		},
+		{
+			name:          "empty_terminal_input_returns_error",
+			args:          []string{},
+			clipboardData: "",
+			terminalInput: "", // user hits enter without typing
+			want:          "",
+			wantErr:       metadata.ErrURLEmpty,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := testutil.NewDeps(t)
+			c := d.Console()
+
+			mockClipReader := func(ctx context.Context, c console) string {
+				return tt.clipboardData
+			}
+
+			mockTakeInput := func(prompt string) string {
+				return tt.terminalInput
+			}
+
+			got, err := newURLFromArgs(t.Context(), c, tt.args, mockTakeInput, mockClipReader)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("newURLFromArgs() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("newURLFromArgs() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("newURLFromArgs() unexpected error: %v", err)
+			}
+
+			if got != tt.want {
+				t.Errorf("newURLFromArgs() = %q; want %q", got, tt.want)
+			}
+		})
+	}
+}
 
 func Test_SaveNewBookmark(t *testing.T) {
 	t.Parallel()

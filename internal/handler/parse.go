@@ -15,13 +15,16 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
+
+type clipboardReader func(ctx context.Context, c console) string
+
+type takeInput func(prompt string) string
 
 type tagStore interface {
 	TagsCounter(ctx context.Context) (map[string]int, error)
@@ -166,7 +169,7 @@ func HTTPStatusCodeFilter(code string) func([]*bookmark.Bookmark) []*bookmark.Bo
 }
 
 // parseNewBookmark fetch metadata and parses the new bookmark.
-func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, args []string) error {
+func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a []string) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
@@ -176,7 +179,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	tags := app.Flags.TagsStr
 
 	c := d.Console()
-	newURL, err := newURLFromArgs(ctx, c, args)
+	newURL, err := newURLFromArgs(ctx, c, a, c.Term().Input, readURLFromClipboard)
 	if err != nil {
 		return err
 	}
@@ -214,7 +217,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 }
 
 // readURLFromClipboard checks if there a valid URL in the clipboard.
-func readURLFromClipboard(ctx context.Context, c *ui.Console) string {
+func readURLFromClipboard(ctx context.Context, c console) string {
 	cb := sys.ReadClipboard()
 	if !ValidURL(cb) {
 		return ""
@@ -231,7 +234,7 @@ func readURLFromClipboard(ctx context.Context, c *ui.Console) string {
 	f.Flush()
 
 	t := c.Term()
-	if err := c.ConfirmErr(ctx, "found valid URL in clipboard, use URL?", "y"); err != nil {
+	if err := c.Term().ConfirmErr(ctx, "found valid URL in clipboard, use URL?", "y"); err != nil {
 		t.ClearLine(lines)
 		return ""
 	}
@@ -242,8 +245,8 @@ func readURLFromClipboard(ctx context.Context, c *ui.Console) string {
 }
 
 // newURLFromArgs parse URL from args.
-func newURLFromArgs(ctx context.Context, c *ui.Console, args []string) (string, error) {
-	f, t, p := c.Frame(), c.Term(), c.Palette()
+func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput, cr clipboardReader) (string, error) {
+	f, p := c.Frame(), c.Palette()
 
 	dot := func() string {
 		return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
@@ -259,14 +262,14 @@ func newURLFromArgs(ctx context.Context, c *ui.Console, args []string) (string, 
 	}
 
 	// checks clipboard
-	cb := readURLFromClipboard(ctx, c)
+	cb := cr(ctx, c)
 	if cb != "" {
 		return cb, nil
 	}
 
 	f.CustomFunc(dot, p.BrightMagenta.Sprint("URL\t:")).Flush()
 
-	bURL := t.Input(" ")
+	bURL := ti(" ")
 	if bURL == "" {
 		return bURL, metadata.ErrURLEmpty
 	}
@@ -393,6 +396,8 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 		return sys.ErrActionAborted
 	case "e", "edit":
 		session := editor.NewEditSession().
+			// WithChooseFunc(c.Term().Choose).
+			// WithSuccessFunc(c.SuccessMesg).
 			WithStrategy(editor.NewBookmarkStrategy()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return insertAndAddBookmark(ctx, r, app, fresh)

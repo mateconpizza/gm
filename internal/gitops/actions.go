@@ -24,11 +24,11 @@ import (
 
 var _ bookio.FileManager = (*files.FileManager)(nil)
 
-func RepoFileReader() git.RepoOptFunc              { return git.WithRepoReader(readFiles) }
-func RepoFileWriter() git.RepoOptFunc              { return git.WithRepoWriter(addFiles) }
-func RepoFileRemover() git.RepoOptFunc             { return git.WithRepoRemover(removeFiles) }
+func RepoFileReader() git.RepoOptFunc                 { return git.WithRepoReader(readFiles) }
+func RepoFileWriter() git.RepoOptFunc                 { return git.WithRepoWriter(addFiles) }
+func RepoFileRemover() git.RepoOptFunc                { return git.WithRepoRemover(removeFiles) }
 func RepoStatsReader(r bookmarkStore) git.RepoOptFunc { return git.WithRepoStore(r) }
-func MgrVersion(ver string) git.MgrOptFunc         { return git.WithVersion(ver) }
+func MgrVersion(ver string) git.MgrOptFunc            { return git.WithVersion(ver) }
 
 // Init initializes Git support and configures repository encryption.
 func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
