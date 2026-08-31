@@ -18,11 +18,11 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
-	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -305,7 +305,7 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 
 	// FIX: Test RepoInfo()
 	if err := locker.IsLocked(app.Path.DB()); err != nil {
-		sum := summary.RepoFromPath(
+		sum := dbops.SummaryRepoFromPath(
 			ctx,
 			d,
 			app.Path.DB()+".enc",
@@ -334,7 +334,7 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 	f := d.Console().Frame()
 	f.SetBorders(frame.WithBordersSmallBlock2())
 
-	s, err := summary.Info(ctx, d)
+	s, err := dbops.RepoInfo(ctx, d)
 	if err != nil {
 		return err
 	}

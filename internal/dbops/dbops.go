@@ -17,7 +17,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -149,7 +148,7 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 		return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
 	}
 
-	s, err := summary.Info(ctx, d)
+	s, err := RepoInfo(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -205,7 +204,7 @@ func Remove(ctx context.Context, d *deps.Deps) error {
 			Rowln().
 			Flush()
 
-		fmt.Fprint(d.Writer(), summary.RepoFromPath(ctx, d, app.Path.DB(), app.Path.Backup()))
+		fmt.Fprint(d.Writer(), SummaryRepoFromPath(ctx, d, app.Path.DB(), app.Path.Backup()))
 		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.DB())+"?", "n")
 		if err != nil {
 			return err
@@ -373,7 +372,7 @@ func NewBackup(ctx context.Context, d *deps.Deps) error {
 	if files.IsEmpty(srcPath) {
 		return fmt.Errorf("%w", db.ErrDBEmpty)
 	}
-	s, err := summary.Info(ctx, d)
+	s, err := RepoInfo(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -513,7 +512,7 @@ func BackupList(ctx context.Context, d *deps.Deps) error {
 		Rowln().
 		Flush()
 
-	bkDetail, err := summary.BackupListDetail(ctx, d, true)
+	bkDetail, err := repoBackupListDetail(ctx, d, true)
 	if err != nil {
 		return err
 	}
@@ -564,7 +563,7 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 	}
 	if n > 1 && !app.Flags.Yes {
 		for i := range n {
-			f.Midln(summary.RepoRecordsFromPath(ctx, d.Console(), dbs[i]))
+			f.Midln(repoRecordsFromPath(ctx, d.Console(), dbs[i]))
 		}
 		f.Flush()
 

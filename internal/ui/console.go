@@ -96,7 +96,6 @@ func (c *Console) Frame() *frame.Frame          { return c.frame }
 func (c *Console) Palette() *ansi.Palette       { return c.palette }
 func (c *Console) Writer() io.Writer            { return c.writer }
 func (c *Console) IsPiped() bool                { return c.term.IsPiped() }
-func (c *Console) ClearLine(n int)              { c.term.ClearLine(n) }
 func (c *Console) ReplaceLine(s string)         { c.term.ReplaceLine(1, s) }
 func (c *Console) ReplaceLines(n int, s string) { c.term.ReplaceLine(n, s) }
 func (c *Console) SetReader(r io.Reader)        { c.term.SetReader(r) }

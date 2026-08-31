@@ -1,6 +1,4 @@
-// Package summary provides repository and backup summary generation.
-// It formats database metadata, statistics, and backup information for display.
-package summary
+package dbops
 
 import (
 	"context"
@@ -21,8 +19,12 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-// Repo returns a summary of the repository.
-func Repo(ctx context.Context, d *deps.Deps) (string, error) {
+type RepositoryMetadata interface {
+	Metadata(key db.MetaKey) (string, error)
+}
+
+// repository returns a summary of the repository.
+func repository(ctx context.Context, d *deps.Deps) (string, error) {
 	r, err := d.Repository()
 	if err != nil {
 		return "", err
@@ -67,8 +69,8 @@ func Repo(ctx context.Context, d *deps.Deps) (string, error) {
 	return f.StringReset(), nil
 }
 
-// RepoFromPath returns a summary of the repository.
-func RepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) string {
+// SummaryRepoFromPath returns a summary of the repository.
+func SummaryRepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) string {
 	f, p := d.Console().Frame(), d.Console().Palette()
 
 	if base, found := strings.CutSuffix(dbPath, ".enc"); found {
@@ -109,11 +111,11 @@ func RepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) 
 	return f.Rowln(path).StringReset()
 }
 
-// RepoRecordsFromPath generates a summary of record counts for a given SQLite
+// repoRecordsFromPath generates a summary of record counts for a given SQLite
 // repository and bookmark.
 //
 //	repositoryName (n bookmarks n tags) | (locked)
-func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
+func repoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 	p := c.Palette()
 	if strings.HasSuffix(fp, ".enc") {
 		s := strings.TrimSuffix(filepath.Base(fp), ".enc")
@@ -136,11 +138,11 @@ func RepoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 	return txt.PaddedLine(r.Name(), p.Gray.Wrap(main, p.Italic))
 }
 
-// BackupWithFmtDateFromPath generates a summary of record counts for a given
+// repoBackupWithFmtDateFromPath generates a summary of record counts for a given
 // SQLite repository.
 //
 //	repositoryName (main: n) or (locked) (time)
-func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) string {
+func repoBackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) string {
 	p := c.Palette()
 	name := filepath.Base(fp)
 	t, _, _ := strings.Cut(name, "_")
@@ -163,8 +165,8 @@ func BackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) st
 	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + bkTime
 }
 
-// BackupListDetail returns the details of a backup.
-func BackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string, error) {
+// repoBackupListDetail returns the details of a backup.
+func repoBackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string, error) {
 	const maxItems = 3
 
 	app, err := d.Application(ctx)
@@ -191,16 +193,16 @@ func BackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (string,
 	}
 
 	for i := range fs {
-		f.Rowln(BackupWithFmtDateFromPath(ctx, d.Console(), fs[i]))
+		f.Rowln(repoBackupWithFmtDateFromPath(ctx, d.Console(), fs[i]))
 	}
 
 	return f.StringReset(), nil
 }
 
-// Backups returns a summary of the backups.
+// repoBackups returns a summary of the backups.
 //
 // last, path and number of backups.
-func Backups(ctx context.Context, d *deps.Deps) (string, error) {
+func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return "", err
@@ -229,8 +231,8 @@ func Backups(ctx context.Context, d *deps.Deps) (string, error) {
 		StringReset(), nil
 }
 
-// Info returns the repository info.
-func Info(ctx context.Context, d *deps.Deps) (string, error) {
+// RepoInfo returns the repository info.
+func RepoInfo(ctx context.Context, d *deps.Deps) (string, error) {
 	var sb strings.Builder
 
 	fn := func(s string, err error) error {
@@ -242,20 +244,20 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 		return nil
 	}
 
-	if err := fn(Repo(ctx, d)); err != nil {
+	if err := fn(repository(ctx, d)); err != nil {
 		return "", err
 	}
-	if err := fn(Backups(ctx, d)); err != nil {
+	if err := fn(repoBackups(ctx, d)); err != nil {
 		return "", err
 	}
-	if err := fn(BackupListDetail(ctx, d, false)); err != nil {
+	if err := fn(repoBackupListDetail(ctx, d, false)); err != nil {
 		return "", err
 	}
 
 	return sb.String(), nil
 }
 
-func createdAt(r *db.SQLite, p *ansi.Palette) string {
+func createdAt(r RepositoryMetadata, p *ansi.Palette) string {
 	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
 	if err != nil {
 		return ""
@@ -278,7 +280,7 @@ func RelativeDays(createdAt string) string {
 	return txt.RelativeTime(parsed.Format(txt.TimeLayout))
 }
 
-func backupAt(r *db.SQLite) (string, error) {
+func backupAt(r RepositoryMetadata) (string, error) {
 	backupAt, err := r.Metadata(db.MetaKeyBackupAt)
 	if err != nil {
 		return "", err
@@ -293,7 +295,7 @@ func backupAt(r *db.SQLite) (string, error) {
 }
 
 func lastBackupInfo(ctx context.Context, d *deps.Deps, path string) (filename, relative string, err error) {
-	filename = RepoRecordsFromPath(ctx, d.Console(), path)
+	filename = repoRecordsFromPath(ctx, d.Console(), path)
 	r, err := db.New(ctx, path)
 	if err != nil {
 		return "", "", err
