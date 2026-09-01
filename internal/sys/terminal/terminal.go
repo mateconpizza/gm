@@ -5,6 +5,7 @@ package terminal
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -107,28 +108,28 @@ func loadMaxWidth() {
 }
 
 // clearTerminal clears the terminal.
-func clearTerminal() {
-	fmt.Print("\033[H\033[2J")
+func clearTerminal(w io.Writer) {
+	fmt.Fprint(w, "\033[H\033[2J")
 }
 
 // ClearChars deletes n characters in the console.
-func ClearChars(n int) {
+func ClearChars(w io.Writer, n int) {
 	for range n {
-		fmt.Print("\b \b")
+		fmt.Fprint(w, "\b \b")
 	}
 }
 
 // ClearLine deletes n lines in the console.
-func ClearLine(n int) {
+func ClearLine(w io.Writer, n int) {
 	for range n {
-		fmt.Print("\033[F\033[K")
+		fmt.Fprint(w, "\033[F\033[K")
 	}
 }
 
 // ReplaceLine replaces a line in the console.
-func ReplaceLine(n int, s string) {
-	ClearLine(n)
-	fmt.Println(s)
+func ReplaceLine(w io.Writer, n int, s string) {
+	ClearLine(w, n)
+	fmt.Fprintln(w, s)
 }
 
 // StdinPiped returns true if the input is piped.

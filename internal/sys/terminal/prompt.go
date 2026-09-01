@@ -256,7 +256,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 
 			count++
 			if count <= maxRetries-1 {
-				ClearLine(len(strings.Split(pi.Prompt, "\n")))
+				ClearLine(pi.Writer, len(strings.Split(pi.Prompt, "\n")))
 			}
 		}
 	}
