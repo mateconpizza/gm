@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/summary"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -41,7 +40,7 @@ func Select(ctx context.Context, d *deps.Deps, ignoreDBPath string) (string, err
 	)
 
 	m.SetFormatter(func(p string) string {
-		return summary.RepoRecordsFromPath(ctx, d.Console(), p)
+		return repoRecordsFromPath(ctx, d.Console(), p)
 	})
 
 	s, err := m.Select(dbs)
@@ -69,7 +68,7 @@ func SelectBackup(ctx context.Context, d *deps.Deps, bks []string) (string, erro
 	m := setupMenu(
 		app,
 		func(path string) string {
-			return summary.BackupWithFmtDateFromPath(ctx, c, path)
+			return repoBackupWithFmtDateFromPath(ctx, c, path)
 		},
 		menu.WithHeader("choose a backup to import from"),
 	)
@@ -106,7 +105,7 @@ func SelectEncrypted(ctx context.Context, d *deps.Deps, root string) (string, er
 	)
 
 	m.SetFormatter(func(p string) string {
-		return summary.BackupWithFmtDateFromPath(ctx, d.Console(), p)
+		return repoBackupWithFmtDateFromPath(ctx, d.Console(), p)
 	})
 
 	f, err := files.FindByExtension(root, "enc")
@@ -196,7 +195,7 @@ func SelectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, 
 	m := setupMenu(
 		app,
 		func(path string) string {
-			s := summary.RepoRecordsFromPath(ctx, d.Console(), path)
+			s := repoRecordsFromPath(ctx, d.Console(), path)
 			if s == "error" {
 				s = path + p.BrightRed.Sprint(" (err on read)")
 			}
@@ -254,7 +253,7 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 	m := setupMenu(
 		app,
 		func(item string) string {
-			return summary.BackupWithFmtDateFromPath(ctx, c, item)
+			return repoBackupWithFmtDateFromPath(ctx, c, item)
 		},
 		menu.WithMultiSelection(),
 		menu.WithHeader(fmt.Sprintf(
@@ -304,7 +303,7 @@ func formatDatabaseFn(ctx context.Context, p *ansi.Palette, path string, pad int
 		stats.Tags,
 	)
 
-	createdAt = summary.RelativeDays(createdAt)
+	createdAt = RelativeDays(createdAt)
 	if createdAt == "" {
 		createdAt = "err"
 	}

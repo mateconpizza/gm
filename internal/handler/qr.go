@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -58,7 +57,7 @@ func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 			return err
 		}
 
-		terminal.ClearLine(txt.CountLines(output))
+		d.Console().Term().ClearLine(txt.CountLines(output))
 	}
 
 	return nil

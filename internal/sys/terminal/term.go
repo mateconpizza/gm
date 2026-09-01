@@ -257,7 +257,7 @@ func (t *Term) ClearLine(n int) {
 		return
 	}
 
-	ClearLine(n)
+	ClearLine(t.writer, n)
 }
 
 // ReplaceLine deletes n lines in the console and prints the given string.
@@ -267,7 +267,7 @@ func (t *Term) ReplaceLine(n int, s string) {
 		return
 	}
 
-	ReplaceLine(n, s)
+	ReplaceLine(t.writer, n, s)
 }
 
 // ClearChars deletes n characters in the console.
@@ -277,7 +277,7 @@ func (t *Term) ClearChars(n int) {
 		return
 	}
 
-	ClearChars(n)
+	ClearChars(t.writer, n)
 }
 
 // Clear clears the terminal.
@@ -287,7 +287,7 @@ func (t *Term) Clear() {
 		return
 	}
 
-	clearTerminal()
+	clearTerminal(t.writer)
 }
 
 // SetInterruptFn sets the interrupt function for the terminal, canceling the
