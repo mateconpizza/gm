@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -268,92 +270,154 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 }
 
 // Lock locks the database.
-func Lock(ctx context.Context, d *deps.Deps, rToLock string) error {
-	c := d.Console()
-	if err := locker.IsLocked(rToLock); err != nil {
-		return fmt.Errorf("%w", err)
-	}
+func Lock(ctx context.Context, c *ui.Console, items []string) error {
+	for i := range items {
+		toLock := items[i]
 
-	if !files.Exists(rToLock) {
-		return fmt.Errorf("%w: %q", os.ErrNotExist, filepath.Base(rToLock))
-	}
-
-	if err := c.ConfirmErr(ctx, fmt.Sprintf("Lock %q?", filepath.Base(rToLock)), "n"); err != nil {
-		if errors.Is(err, sys.ErrActionAborted) {
-			return nil
+		if err := locker.IsLocked(toLock); err != nil {
+			return fmt.Errorf("%w", err)
 		}
-		return err
-	}
 
-	pass, err := passwordConfirm(ctx, c)
-	if err != nil {
-		return err
-	}
+		if !files.Exists(toLock) {
+			return fmt.Errorf("%w: %q", os.ErrNotExist, filepath.Base(toLock))
+		}
 
-	if err := locker.Lock(rToLock, pass); err != nil {
-		return err
-	}
+		if err := c.ConfirmErr(ctx, fmt.Sprintf("Lock %q?", filepath.Base(toLock)), "n"); err != nil {
+			if errors.Is(err, sys.ErrActionAborted) {
+				return nil
+			}
+			return err
+		}
 
-	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("database locked: %q", filepath.Base(rToLock))))
+		pass, err := passwordConfirm(ctx, c)
+		if err != nil {
+			return err
+		}
+
+		if err := locker.Lock(toLock, pass); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("database locked: %q", filepath.Base(toLock))))
+	}
 
 	return nil
 }
 
-func LockBackup(ctx context.Context, d *deps.Deps) error {
-	fs, err := SelectBackups(ctx, d, "select backup/s to lock")
-	if err != nil {
-		return fmt.Errorf("%w", err)
+// LockDatabase select and lock a database.
+func LockDatabase(ctx context.Context, app *application.App) error {
+	found := false
+	formatter := func(s string) string {
+		if !found {
+			name, rest, _ := strings.Cut(s, " ")
+			if name == app.DBBaseName() {
+				return ansi.BrightYellow.Sprint(name) + " " + rest
+			}
+		}
+		return s
 	}
 
-	c := d.Console()
+	selected, err := NewDatabaseSelector(app).
+		WithCustomFormatter(formatter).
+		Select(ctx, menu.WithHeader("select a database to lock"))
+	if err != nil {
+		return err
+	}
+
+	return Lock(ctx, ui.DefaultConsole, selected)
+}
+
+// UnlockDatabase select and unlock a database.
+func UnlockDatabase(ctx context.Context, app *application.App, c *ui.Console) error {
+	selected, err := NewDatabaseEncryptedSelector(app).
+		Select(ctx, menu.WithHeader("select a encrypted database to unlock"))
+	if err != nil {
+		return err
+	}
+
+	return Unlock(ctx, c, selected)
+}
+
+// UnlockBackup select and unlock a backup.
+func UnlockBackup(ctx context.Context, app *application.App, c *ui.Console) error {
+	if !files.Exists(app.Path.Backup()) {
+		return db.ErrBackupNotFound
+	}
+
+	selected, err := NewBackupEncryptedSelector(app).
+		WithCustomFormatter(filepath.Base).
+		Select(
+			ctx,
+			menu.WithKeybinds(menu.KeymapToggleAll()),
+			menu.WithHeaderKeymaps(),
+			menu.WithHeader("select a database to unlock"),
+		)
+	if err != nil {
+		return err
+	}
+
+	return Unlock(ctx, c, selected)
+}
+
+// LockBackup select and lock a backup.
+func LockBackup(ctx context.Context, app *application.App, c *ui.Console) error {
+	selected, err := NewBackupSelector(app).
+		Select(
+			ctx,
+			menu.WithKeybinds(menu.KeymapToggleAll()),
+			menu.WithHeader("select backup/s to lock"),
+		)
+	if err != nil {
+		return err
+	}
+
 	f, p := c.Frame(), c.Palette()
-	f.Header(fmt.Sprintf("locking %d backups\n", len(fs))).Row("\n").Flush()
+	f.Header(fmt.Sprintf("locking %d backups\n", len(selected))).Row("\n").Flush()
 
-	for _, r := range fs {
-		if err := Lock(ctx, d, r); err != nil {
-			if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
-				f.Warning(p.Gray.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
-				continue
-			}
-
-			return err
+	if err := Lock(ctx, c, selected); err != nil {
+		if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
+			f.Warning(p.Gray.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
 		}
+
+		return err
 	}
 
 	return nil
 }
 
 // Unlock unlocks the database.
-func Unlock(ctx context.Context, d *deps.Deps, rToUnlock string) error {
-	if err := locker.IsLocked(rToUnlock); err == nil {
-		return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
+func Unlock(ctx context.Context, c *ui.Console, items []string) error {
+	for i := range items {
+		rToUnlock := items[i]
+		if err := locker.IsLocked(rToUnlock); err == nil {
+			return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
+		}
+
+		rToUnlock = files.EnsureExt(rToUnlock, locker.Extension)
+		slog.Debug("unlocking database", "name", rToUnlock)
+
+		if !files.Exists(rToUnlock) {
+			s := filepath.Base(strings.TrimSuffix(rToUnlock, ".enc"))
+			return fmt.Errorf("%w: %q", os.ErrNotExist, s)
+		}
+
+		if err := c.Term().ConfirmErr(ctx, fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		s, err := c.InputPassword(ctx, "Password: ")
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		if err := locker.Unlock(rToUnlock, s); err != nil {
+			fmt.Fprintln(c.Writer())
+			return fmt.Errorf("%w", err)
+		}
+
+		fmt.Fprintln(c.Writer())
+		fmt.Fprintln(c.Writer(), c.SuccessMesg("database unlocked"))
 	}
-
-	rToUnlock = files.EnsureExt(rToUnlock, locker.Extension)
-	slog.Debug("unlocking database", "name", rToUnlock)
-
-	if !files.Exists(rToUnlock) {
-		s := filepath.Base(strings.TrimSuffix(rToUnlock, ".enc"))
-		return fmt.Errorf("%w: %q", os.ErrNotExist, s)
-	}
-
-	c := d.Console()
-	if err := c.ConfirmErr(ctx, fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	s, err := c.InputPassword(ctx, "Password: ")
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	if err := locker.Unlock(rToUnlock, s); err != nil {
-		fmt.Fprintln(d.Writer())
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprintln(d.Writer())
-	fmt.Fprintln(d.Writer(), c.SuccessMesg("database unlocked"))
 
 	return nil
 }

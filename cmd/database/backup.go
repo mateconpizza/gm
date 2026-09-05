@@ -1,18 +1,13 @@
 package database
 
 import (
-	"context"
-	"fmt"
-
-	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
-	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/internal/ui"
 )
 
 func newBackupCmd(app *application.App) *cobra.Command {
@@ -24,28 +19,11 @@ func newBackupCmd(app *application.App) *cobra.Command {
 	}
 
 	c.AddCommand(
-		newBackupAddCmd(app),
 		newBackupListCmd(app),
 		newBackupRemoveCmd(app),
 		newBackupLockCmd(app),
 		newBackupUnlockCmd(app),
 	)
-
-	return c
-}
-
-func newBackupAddCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:     "create",
-		Short:   "create a new backup",
-		Aliases: []string{"add", "new", "create"},
-		Example: app.Example(`  $ {cmd} db backup create
-  $ {cmd} db backup new
-  $ {cmd} db backup add --db work`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, dbops.NewBackup)
-		},
-	}
 
 	return c
 }
@@ -57,7 +35,7 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup lock
   $ {cmd} db backup lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, dbops.LockBackup)
+			return dbops.LockBackup(cmd.Context(), app, ui.DefaultConsole)
 		},
 	}
 
@@ -71,18 +49,7 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup unlock
   $ {cmd} db backup unlock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
-				if !files.Exists(app.Path.Backup()) {
-					return db.ErrBackupNotFound
-				}
-
-				repo, err := dbops.SelectEncrypted(cmd.Context(), d, app.Path.Backup())
-				if err != nil {
-					return fmt.Errorf("%w", err)
-				}
-
-				return dbops.Unlock(cmd.Context(), d, repo)
-			})
+			return dbops.UnlockBackup(cmd.Context(), app, ui.DefaultConsole)
 		},
 	}
 

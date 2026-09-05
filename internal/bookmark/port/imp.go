@@ -84,12 +84,14 @@ func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	srcPath, err := dbops.Select(ctx, d, app.Path.DB())
+	selected, err := dbops.NewDatabaseSelector(app).
+		WithExclutions(app.Path.DB()).
+		Select(ctx, menu.WithHeader("choose a database to import from"))
 	if err != nil {
 		return err
 	}
 
-	rSrc, err := db.New(ctx, srcPath)
+	rSrc, err := db.New(ctx, selected[0])
 	if err != nil {
 		return err
 	}
@@ -99,14 +101,19 @@ func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
 }
 
 func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
-	backups, err := dbops.Backups(ctx, d)
+	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
-	backupPath, err := dbops.SelectBackup(ctx, d, backups)
+
+	selected, err := dbops.NewBackupSelector(app).
+		Select(ctx, menu.WithHeader("choose a backup to import from"))
 	if err != nil {
 		return err
 	}
+
+	backupPath := selected[0]
+
 	srcRepo, err := db.New(ctx, backupPath)
 	if err != nil {
 		return err
@@ -114,10 +121,6 @@ func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
 	defer srcRepo.Close()
 
 	c := d.Console()
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
 
 	fm := formatter.Default()
 	p := fm.Menu.Placeholder()

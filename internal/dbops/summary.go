@@ -23,6 +23,83 @@ type RepositoryMetadata interface {
 	Metadata(key db.MetaKey) (string, error)
 }
 
+// SummaryRepoFromPath returns a summary of the repository.
+func SummaryRepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) string {
+	f, p := d.Console().Frame(), d.Console().Palette()
+
+	if base, found := strings.CutSuffix(dbPath, ".enc"); found {
+		dbPath = base
+		s := p.BrightMagenta.Wrap(filepath.Base(dbPath), p.Italic)
+
+		e := "(locked)"
+		if filepath.Base(dbPath) == application.MainDBName {
+			e = "(main locked)"
+		}
+
+		return f.Mid(txt.PaddedLine(s, p.Gray.Wrap(e, p.Italic))).Ln().StringReset()
+	}
+
+	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
+
+	r, err := db.New(ctx, dbPath)
+	if err != nil {
+		return f.Row(path).StringReset()
+	}
+	defer r.Close()
+
+	records := txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
+	tags := txt.PaddedLine("tags:", r.Count(ctx, "tags"))
+	name := p.Yellow.Wrap(r.Name(), p.Italic)
+
+	if r.Name() == application.MainDBName {
+		name = txt.PaddedLine(name, p.Gray.Wrap("(main)", p.Italic))
+	}
+
+	f.Headerln(name).Rowln(records).Rowln(tags)
+	dbName := files.StripExts(r.Name())
+	backups, _ := files.List(backupPath, "*_"+dbName+".db*")
+	if len(backups) > 0 {
+		f.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
+	}
+
+	return f.Rowln(path).StringReset()
+}
+
+// RepoInfo returns the repository info.
+func RepoInfo(ctx context.Context, d *deps.Deps) (string, error) {
+	var sb strings.Builder
+
+	fn := func(s string, err error) error {
+		if err != nil {
+			return err
+		}
+
+		sb.WriteString(s)
+		return nil
+	}
+
+	if err := fn(repository(ctx, d)); err != nil {
+		return "", err
+	}
+	if err := fn(repoBackups(ctx, d)); err != nil {
+		return "", err
+	}
+	if err := fn(repoBackupListDetail(ctx, d, false)); err != nil {
+		return "", err
+	}
+
+	return sb.String(), nil
+}
+
+func RelativeDays(createdAt string) string {
+	parsed, err := time.Parse(db.TimeFormatSqlite, createdAt)
+	if err != nil {
+		return ""
+	}
+
+	return txt.RelativeTime(parsed.Format(txt.TimeLayout))
+}
+
 // repository returns a summary of the repository.
 func repository(ctx context.Context, d *deps.Deps) (string, error) {
 	r, err := d.Repository()
@@ -69,48 +146,6 @@ func repository(ctx context.Context, d *deps.Deps) (string, error) {
 	return f.StringReset(), nil
 }
 
-// SummaryRepoFromPath returns a summary of the repository.
-func SummaryRepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) string {
-	f, p := d.Console().Frame(), d.Console().Palette()
-
-	if base, found := strings.CutSuffix(dbPath, ".enc"); found {
-		dbPath = base
-		s := p.BrightMagenta.Wrap(filepath.Base(dbPath), p.Italic)
-
-		e := "(locked)"
-		if filepath.Base(dbPath) == application.MainDBName {
-			e = "(main locked)"
-		}
-
-		return f.Mid(txt.PaddedLine(s, p.Gray.Wrap(e, p.Italic))).Ln().StringReset()
-	}
-
-	path := txt.PaddedLine("path:", files.CollapseHomeDir(dbPath))
-
-	r, err := db.New(ctx, dbPath)
-	if err != nil {
-		return f.Row(path).StringReset()
-	}
-	defer r.Close()
-
-	records := txt.PaddedLine("records:", r.Count(ctx, "bookmarks"))
-	tags := txt.PaddedLine("tags:", r.Count(ctx, "tags"))
-	name := p.Yellow.Wrap(r.Name(), p.Italic)
-
-	if r.Name() == application.MainDBName {
-		name = txt.PaddedLine(name, p.Gray.Wrap("(main)", p.Italic))
-	}
-
-	f.Headerln(name).Rowln(records).Rowln(tags)
-	dbName := files.StripExts(r.Name())
-	backups, _ := files.List(backupPath, "*_"+dbName+".db*")
-	if len(backups) > 0 {
-		f.Row(txt.PaddedLine("backups:", strconv.Itoa(len(backups)))).Ln()
-	}
-
-	return f.Rowln(path).StringReset()
-}
-
 // repoRecordsFromPath generates a summary of record counts for a given SQLite
 // repository and bookmark.
 //
@@ -136,33 +171,6 @@ func repoRecordsFromPath(ctx context.Context, c *ui.Console, fp string) string {
 	main := fmt.Sprintf("(%d bookmarks %d tags)", stats.Bookmarks, stats.Tags)
 
 	return txt.PaddedLine(r.Name(), p.Gray.Wrap(main, p.Italic))
-}
-
-// repoBackupWithFmtDateFromPath generates a summary of record counts for a given
-// SQLite repository.
-//
-//	repositoryName (main: n) or (locked) (time)
-func repoBackupWithFmtDateFromPath(ctx context.Context, c *ui.Console, fp string) string {
-	p := c.Palette()
-	name := filepath.Base(fp)
-	t, _, _ := strings.Cut(name, "_")
-	bkTime := p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
-
-	if base, found := strings.CutSuffix(name, ".enc"); found {
-		name = base + p.Gray.Wrap(" (locked) ", p.Italic)
-		return name + bkTime
-	}
-
-	r, err := db.New(ctx, fp)
-	if err != nil {
-		slog.Warn("creating repository from path", "path", fp, "error", err)
-		return p.Red.Sprint(err.Error())
-	}
-	defer r.Close()
-
-	main := fmt.Sprintf("(%d bookmarks)", r.Count(ctx, "bookmarks"))
-
-	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + bkTime
 }
 
 // repoBackupListDetail returns the details of a backup.
@@ -193,7 +201,7 @@ func repoBackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (str
 	}
 
 	for i := range fs {
-		f.Rowln(repoBackupWithFmtDateFromPath(ctx, d.Console(), fs[i]))
+		f.Rowln(formatBackupFn(ctx, p, fs[i], 0))
 	}
 
 	return f.StringReset(), nil
@@ -231,32 +239,6 @@ func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 		StringReset(), nil
 }
 
-// RepoInfo returns the repository info.
-func RepoInfo(ctx context.Context, d *deps.Deps) (string, error) {
-	var sb strings.Builder
-
-	fn := func(s string, err error) error {
-		if err != nil {
-			return err
-		}
-
-		sb.WriteString(s)
-		return nil
-	}
-
-	if err := fn(repository(ctx, d)); err != nil {
-		return "", err
-	}
-	if err := fn(repoBackups(ctx, d)); err != nil {
-		return "", err
-	}
-	if err := fn(repoBackupListDetail(ctx, d, false)); err != nil {
-		return "", err
-	}
-
-	return sb.String(), nil
-}
-
 func createdAt(r RepositoryMetadata, p *ansi.Palette) string {
 	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
 	if err != nil {
@@ -269,15 +251,6 @@ func createdAt(r RepositoryMetadata, p *ansi.Palette) string {
 	}
 
 	return createdAt + p.Gray.Sprintf(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
-}
-
-func RelativeDays(createdAt string) string {
-	parsed, err := time.Parse(db.TimeFormatSqlite, createdAt)
-	if err != nil {
-		return ""
-	}
-
-	return txt.RelativeTime(parsed.Format(txt.TimeLayout))
 }
 
 func backupAt(r RepositoryMetadata) (string, error) {
@@ -309,4 +282,67 @@ func lastBackupInfo(ctx context.Context, d *deps.Deps, path string) (filename, r
 
 	timestamp, _, _ := strings.Cut(filename, "_")
 	return filename, txt.RelativeTime(timestamp), nil
+}
+
+func formatDatabaseFn(ctx context.Context, p *ansi.Palette, path string, pad int) string {
+	name := filepath.Base(path)
+	r, err := db.New(ctx, path)
+	if err != nil {
+		return name + ": " + err.Error()
+	}
+	defer r.Close()
+
+	stats := db.NewStats()
+	if err := r.Stats(ctx, stats); err != nil {
+		return name + ": " + err.Error()
+	}
+
+	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
+	if err != nil {
+		createdAt = "err"
+	}
+
+	main := p.Gray.Sprintf(
+		"(%d bookmarks %d tags)",
+		stats.Bookmarks,
+		stats.Tags,
+	)
+
+	createdAt = RelativeDays(createdAt)
+	if createdAt == "" {
+		createdAt = "err"
+	}
+
+	name = files.StripExts(r.Name())
+	return txt.PaddedLineWithPad(
+		name,
+		main+" "+createdAt,
+		pad,
+	)
+}
+
+// formatBackupFn generates a summary of record counts for a given
+// SQLite repository.
+//
+//	repositoryName (main: n) or (locked) (time)
+func formatBackupFn(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string {
+	name := filepath.Base(path)
+	t, _, _ := strings.Cut(name, "_")
+	bkTime := p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
+
+	if base, found := strings.CutSuffix(name, ".enc"); found {
+		name = base + p.Gray.Wrap(" (locked) ", p.Italic)
+		return name + bkTime
+	}
+
+	r, err := db.New(ctx, path)
+	if err != nil {
+		slog.Warn("creating repository from path", "path", path, "error", err)
+		return p.Red.Sprint(err.Error())
+	}
+	defer r.Close()
+
+	main := fmt.Sprintf("(%d bookmarks)", r.Count(ctx, "bookmarks"))
+
+	return r.Name() + " " + p.Gray.Wrap(main, p.Italic) + " " + bkTime
 }
