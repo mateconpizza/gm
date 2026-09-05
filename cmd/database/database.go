@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"os"
 
-	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
-	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
 // NewCmd database management.
@@ -29,7 +27,6 @@ func NewCmd(app *application.App) *cobra.Command {
 	}
 
 	c.AddCommand(
-		newAddCmd(app),            // create
 		newUseCmd(app),            // switch context
 		newCurrentCmd(app),        // inspect current
 		newListCmd(app),           // inspect all
@@ -100,30 +97,6 @@ func newDatabaseLoadCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newAddCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:     "add",
-		Short:   "add a database",
-		Aliases: []string{"create", "new"},
-		Example: app.Example(`  $ {cmd} db add --db <name>
-  $ {cmd} db new --db <name>
-  $ {cmd} db create --db <name>`),
-		Annotations: cli.SkipDBCheck,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if files.Exists(app.Path.DB()) {
-				return fmt.Errorf("%w: %q", db.ErrDBExists, app.DBName)
-			}
-
-			return setup.InitCmd.RunE(cmd, args)
-		},
-		PostRunE: setup.InitCmd.PostRunE,
-	}
-
-	cmdutil.FlagDBRequired(c, app)
-
-	return c
-}
-
 func newDropCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "drop",
@@ -154,13 +127,9 @@ func newLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db lock --db {db}
   $ {cmd} db lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
-				return dbops.Lock(cmd.Context(), d, app.Path.DB())
-			})
+			return dbops.LockDatabase(cmd.Context(), app)
 		},
 	}
-
-	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }
@@ -173,13 +142,9 @@ func newUnlockCmd(app *application.App) *cobra.Command {
   $ {cmd} db unlock --db work`),
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
-				return dbops.Unlock(cmd.Context(), d, app.Path.DB())
-			})
+			return dbops.UnlockDatabase(cmd.Context(), app, ui.DefaultConsole)
 		},
 	}
-
-	cmdutil.FlagDBRequired(c, app)
 
 	return c
 }

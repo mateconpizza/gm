@@ -19,113 +19,154 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func Select(ctx context.Context, d *deps.Deps, ignoreDBPath string) (string, error) {
-	app, err := d.Application(ctx)
-	if err != nil {
-		return "", err
-	}
+var ErrNoItems = errors.New("no items")
 
-	dbs, err := files.ListWithExclude(app.Path.Home(), ".db", ignoreDBPath)
-	if err != nil {
-		return "", err
-	}
+type FmtFunc func(string) string
 
-	m := picker.New[string](
-		app,
-		menu.WithHeader("choose a database to import from"),
-		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "{1}", "db info")),
-	)
-
-	m.SetFormatter(func(p string) string {
-		return repoRecordsFromPath(ctx, d.Console(), p)
-	})
-
-	s, err := m.Select(dbs)
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	if !files.Exists(s[0]) {
-		return "", fmt.Errorf("%w: %q", db.ErrDBNotFound, s)
-	}
-
-	return s[0], nil
+// DatabaseSelector encapsulates options for listing and picking databases or backups.
+type DatabaseSelector struct {
+	app        *application.App
+	root       string
+	ext        string
+	exclutions []string
+	preview    string
+	itemFmt    func(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string
+	fmtFunc    FmtFunc
 }
 
-// SelectBackup lets the user choose a backup and handles decryption if
-// needed.
-func SelectBackup(ctx context.Context, d *deps.Deps, bks []string) (string, error) {
-	app, err := d.Application(ctx)
+// NewDatabaseSelector creates a default selector for main databases.
+func NewDatabaseSelector(app *application.App) *DatabaseSelector {
+	return &DatabaseSelector{
+		app:     app,
+		root:    app.Path.Home(),
+		ext:     "db",
+		preview: app.Command() + " db info --db {1} --color=always",
+		itemFmt: formatDatabaseFn,
+	}
+}
+
+// NewBackupSelector creates a selector specifically for backup files.
+func NewBackupSelector(app *application.App) *DatabaseSelector {
+	return &DatabaseSelector{
+		app:     app,
+		root:    app.Path.Backup(),
+		ext:     "db",
+		preview: app.Command() + " --color=always --db=./backup/{1} db info",
+		itemFmt: formatBackupFn,
+	}
+}
+
+// NewDatabaseEncryptedSelector creates a selector specifically for encrypted
+// backup files.
+func NewDatabaseEncryptedSelector(app *application.App) *DatabaseSelector {
+	return &DatabaseSelector{
+		app:     app,
+		root:    app.Path.Home(),
+		ext:     locker.Extension,
+		itemFmt: formatBackupFn,
+	}
+}
+
+// NewBackupEncryptedSelector creates a default selector for encrypted
+// databases.
+func NewBackupEncryptedSelector(app *application.App) *DatabaseSelector {
+	return &DatabaseSelector{
+		app:     app,
+		root:    app.Path.Backup(),
+		ext:     locker.Extension,
+		itemFmt: formatBackupFn,
+	}
+}
+
+// WithCustomFormatter allows overriding the external modifier format function.
+func (s *DatabaseSelector) WithCustomFormatter(fn FmtFunc) *DatabaseSelector {
+	s.fmtFunc = fn
+	return s
+}
+
+func (s *DatabaseSelector) WithExclutions(exc ...string) *DatabaseSelector {
+	s.exclutions = append(s.exclutions, exc...)
+	return s
+}
+
+// Select runs the interactive picker dialog.
+func (s *DatabaseSelector) Select(ctx context.Context, opts ...menu.Option) ([]string, error) {
+	dbs, err := files.ListWithExclude(s.root, s.ext, s.exclutions...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	c := d.Console()
-
-	m := setupMenu(
-		app,
-		func(path string) string {
-			return repoBackupWithFmtDateFromPath(ctx, c, path)
-		},
-		menu.WithHeader("choose a backup to import from"),
-	)
-	selected, err := m.Select(bks)
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
+	if len(dbs) == 0 {
+		return nil, ErrNoItems
 	}
 
-	backupPath := selected[0]
+	var maxWidth int
+	for _, path := range dbs {
+		name := files.StripExts(filepath.Base(path))
+		maxWidth = max(maxWidth, utf8.RuneCountInString(name))
+	}
 
-	// Handle locked backups
-	if err := locker.IsLocked(backupPath); err != nil {
-		if err := Unlock(ctx, d, backupPath); err != nil {
-			return "", fmt.Errorf("%w", err)
+	p := ansi.NewPalette()
+	if s.itemFmt == nil {
+		s.itemFmt = defaultFmt
+	}
+
+	formatItem := func(path string) string {
+		formatted := s.itemFmt(ctx, p, path, maxWidth)
+		if s.fmtFunc != nil {
+			return s.fmtFunc(formatted)
 		}
-
-		backupPath = strings.TrimSuffix(backupPath, ".enc")
+		return formatted
 	}
 
-	return backupPath, nil
-}
-
-// SelectEncrypted prompts the user to select an encrypted backup file from a
-// directory.
-func SelectEncrypted(ctx context.Context, d *deps.Deps, root string) (string, error) {
-	app, err := d.Application(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	m := picker.New[string](
-		app,
-		menu.WithHeader("select backup to unlock"),
+	opts = append(opts,
+		menu.WithDefaults(s.app.Menu.Defaults),
+		menu.WithAnsi(),
+		menu.WithOutputColor(s.app.Flags.Color),
+		menu.WithHeaderKeymaps(),
+		menu.WithPreviewWindow("right,45%"),
+		menu.WithMultiSelection(),
+		menu.WithPreviewCmd(s.preview),
 	)
 
-	m.SetFormatter(func(p string) string {
-		return repoBackupWithFmtDateFromPath(ctx, d.Console(), p)
-	})
+	m := picker.New[string](s.app, opts...)
+	m.SetFormatter(formatItem)
 
-	f, err := files.FindByExtension(root, "enc")
-	if err != nil {
-		return "", err
+	selected, err := m.Select(dbs)
+	if errors.Is(err, menu.ErrActionAborted) {
+		return nil, sys.ErrActionAborted
 	}
 
-	if len(f) == 0 {
-		return "", sys.ErrExitFailure
-	}
+	return selected, nil
+}
 
-	f, err = m.Select(f)
-	if err != nil {
-		return "", err
-	}
-
-	return f[0], nil
+func defaultFmt(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string {
+	return path
 }
 
 func LoadFromMenu(ctx context.Context, app *application.App) error {
+	load := menu.NewKeymap().
+		WithBind(menu.KeyEnter).
+		WithDesc("load").
+		WithBecome(app.Command() + " --menu --db={1} --output=" + app.Menu.Format)
+
+	setDefault := menu.NewKeymap().
+		WithBind(menu.KeyCtrlS).
+		WithDesc("set-as-default").
+		WithExecute(app.Command() + " db use {1}")
+
+	_, err := NewDatabaseSelector(app).
+		Select(ctx, menu.WithKeybinds(load, setDefault))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func LoadFromMenuOld(ctx context.Context, app *application.App) error {
 	dbs, err := files.ListWithExclude(app.Path.Data, "db")
 	if err != nil {
 		return err
@@ -180,39 +221,6 @@ func LoadFromMenu(ctx context.Context, app *application.App) error {
 	return err
 }
 
-func SelectBackups(ctx context.Context, d *deps.Deps, header string) ([]string, error) {
-	app, err := d.Application(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	fs, err := files.FindByExtension(app.Path.Backup(), "db")
-	if err != nil {
-		return fs, fmt.Errorf("selectBackups: %w", err)
-	}
-
-	p := d.Console().Palette()
-	m := setupMenu(
-		app,
-		func(path string) string {
-			s := repoRecordsFromPath(ctx, d.Console(), path)
-			if s == "error" {
-				s = path + p.BrightRed.Sprint(" (err on read)")
-			}
-			return s
-		},
-		menu.WithHeader(header),
-		menu.WithMultiSelection(),
-	)
-
-	repos, err := m.Select(fs)
-	if err != nil {
-		return repos, fmt.Errorf("%w", err)
-	}
-
-	return repos, nil
-}
-
 // selectBackupsInteractive prompts user for backup selection.
 func selectBackupsInteractive(ctx context.Context, d *deps.Deps, fs []string) ([]string, error) {
 	c, p := d.Console(), d.Console().Palette()
@@ -250,68 +258,14 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 	c.SetReader(os.Stdin)
 	c.SetWriter(os.Stdout)
 
-	m := setupMenu(
-		app,
-		func(item string) string {
-			return repoBackupWithFmtDateFromPath(ctx, c, item)
-		},
-		menu.WithMultiSelection(),
-		menu.WithHeader(fmt.Sprintf(
-			"select backup/s from %q %s %s",
-			app.DBBaseName(),
-			txt.GlyphBulletPoint,
-			ansi.BrightRed.Wrap("this action cannot be undone", ansi.Bold),
-		)),
-	)
-
-	return m.Select(fs)
-}
-
-func setupMenu[T comparable](app *application.App, formatter menu.FmtFunc[T], opts ...menu.Option) *menu.Menu[T] {
-	opts = append(
-		opts,
-		menu.WithCycle(),
-		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "./backup/{1}", "db info")),
-	)
-
-	m := picker.New[T](app, opts...)
-	m.SetFormatter(formatter)
-	return m
-}
-
-func formatDatabaseFn(ctx context.Context, p *ansi.Palette, path string, pad int) string {
-	name := filepath.Base(path)
-	r, err := db.New(ctx, path)
-	if err != nil {
-		return name + ": " + err.Error()
-	}
-	defer r.Close()
-
-	stats := db.NewStats()
-	if err := r.Stats(ctx, stats); err != nil {
-		return name + ": " + err.Error()
-	}
-
-	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
-	if err != nil {
-		createdAt = "err"
-	}
-
-	main := p.Gray.Sprintf(
-		"(%d bookmarks %d tags)",
-		stats.Bookmarks,
-		stats.Tags,
-	)
-
-	createdAt = RelativeDays(createdAt)
-	if createdAt == "" {
-		createdAt = "err"
-	}
-
-	name = files.StripExts(r.Name())
-	return txt.PaddedLineWithPad(
-		name,
-		main+" "+createdAt,
-		pad,
-	)
+	return NewBackupSelector(app).
+		Select(ctx,
+			menu.WithMultiSelection(),
+			menu.WithHeader(fmt.Sprintf(
+				"select backup/s from %q %s %s",
+				app.DBBaseName(),
+				txt.GlyphBulletPoint,
+				ansi.BrightRed.Wrap("this action cannot be undone", ansi.Bold),
+			)),
+		)
 }
