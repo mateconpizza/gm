@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
@@ -28,6 +31,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
@@ -294,6 +298,119 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 	}
 
 	return gm.Untrack(ctx, gr, sb.String())
+}
+
+func RemoveRepos(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	gm, err := gitops.NewManager(app)
+	if err != nil {
+		return err
+	}
+
+	p := ansi.NewPalette()
+	boldRed := p.BrightRed.With(p.Bold)
+
+	items, err := dbops.NewDatabaseSelector(app).
+		WithCustomFormatter(gitTrackedMarker(gm.IsTracked)).
+		Select(
+			ctx,
+			menu.WithMultiSelection(),
+			menu.WithHeaderLabel("remove database"),
+			menu.WithHeader(fmt.Sprintf(
+				"select database %s %s",
+				txt.GlyphBulletPoint,
+				boldRed.Sprint("this action cannot be undone"),
+			)),
+		)
+	if err != nil {
+		return err
+	}
+
+	c := d.Console()
+	printRemoveHeader(c)
+
+	for i := range items {
+		if err := ctx.Err(); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return sys.ErrActionAborted
+			}
+			return err
+		}
+		if err := removeOneDB(ctx, c, gm, items[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type isTracked func(name string) bool
+
+func gitTrackedMarker(f isTracked) func(string) string {
+	return func(s string) string {
+		name, _, _ := strings.Cut(ansi.Remover(s), " ")
+
+		var icon strings.Builder
+		if f(name) {
+			icon.WriteString(ansi.BrightYellow.Sprint(" g"))
+		}
+
+		return s + icon.String()
+	}
+}
+
+// printRemoveHeader renders the "Remove Database/s" section header.
+func printRemoveHeader(c console) {
+	p := c.Palette()
+	title := p.BrightRed.With(p.Bold).Sprint("Remove Database/s")
+	subtitle := p.Dim.With(p.Italic).Sprint("this action cannot be undone")
+	header := func() string {
+		return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+
+	c.Frame().
+		CustomFunc(header, title).Ln().
+		Headerln(subtitle).
+		Rowln().
+		Flush()
+}
+
+func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) error {
+	name := files.StripExts(filepath.Base(dbPath))
+
+	p := c.Palette()
+	if !c.Term().Confirm(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+name+"?", "n") {
+		return nil
+	}
+
+	if err := os.Remove(dbPath); err != nil {
+		return err
+	}
+
+	var result strings.Builder
+	result.WriteString("removed ")
+	fmt.Fprintf(&result, "%q", name)
+
+	if gm.IsTracked(name) {
+		result.WriteString(" and untracked")
+		gr := gitops.NewRepo(gm, name)
+		if !gm.IsTracked(gr.Name()) {
+			return nil
+		}
+
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Name())
+		if err := gm.Untrack(ctx, gr, sb.String()); err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintln(c.Writer(), c.SuccessMesg(result.String()))
+	return nil
 }
 
 // openInBrowser concurrently opens each bookmark URL in the browser.

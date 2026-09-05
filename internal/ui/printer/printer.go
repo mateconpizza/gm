@@ -307,7 +307,7 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 	if err := locker.IsLocked(app.Path.DB()); err != nil {
 		sum := dbops.SummaryRepoFromPath(
 			ctx,
-			d,
+			d.Console(),
 			app.Path.DB()+".enc",
 			app.Path.Backup(),
 		)

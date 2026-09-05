@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -63,6 +64,7 @@ type console interface {
 	Frame() *frame.Frame
 	Palette() *ansi.Palette
 	Term() *terminal.Term
+	Writer() io.Writer
 
 	SuccessMesg(a ...any) string
 }
