@@ -20,7 +20,6 @@ func newBackupCmd(app *application.App) *cobra.Command {
 
 	c.AddCommand(
 		newBackupListCmd(app),
-		newBackupRemoveCmd(app),
 		newBackupLockCmd(app),
 		newBackupUnlockCmd(app),
 	)

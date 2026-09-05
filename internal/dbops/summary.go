@@ -2,6 +2,7 @@ package dbops
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -24,8 +26,8 @@ type RepositoryMetadata interface {
 }
 
 // SummaryRepoFromPath returns a summary of the repository.
-func SummaryRepoFromPath(ctx context.Context, d *deps.Deps, dbPath, backupPath string) string {
-	f, p := d.Console().Frame(), d.Console().Palette()
+func SummaryRepoFromPath(ctx context.Context, c *ui.Console, dbPath, backupPath string) string {
+	f, p := c.Frame(), c.Palette()
 
 	if base, found := strings.CutSuffix(dbPath, ".enc"); found {
 		dbPath = base
@@ -91,7 +93,7 @@ func RepoInfo(ctx context.Context, d *deps.Deps) (string, error) {
 	return sb.String(), nil
 }
 
-func RelativeDays(createdAt string) string {
+func relativeDays(createdAt string) string {
 	parsed, err := time.Parse(db.TimeFormatSqlite, createdAt)
 	if err != nil {
 		return ""
@@ -217,25 +219,46 @@ func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	backupPath := app.Path.Backup()
-	fs, err := files.List(backupPath, "*_"+app.DBBaseName()+".db*")
-	if err != nil || len(fs) == 0 {
+	fs, err := Backups(ctx, d)
+	if !errors.Is(err, db.ErrBackupNotFound) {
 		return "", err
 	}
-
-	lastBackup, lastDate, err := lastBackupInfo(ctx, d, fs[len(fs)-1])
-	if err != nil {
-		return "", err
+	if len(fs) == 0 {
+		return "", nil
 	}
 
-	backupsInfo := txt.PaddedLine("found:", strconv.Itoa(len(fs))+" backups found")
 	p := d.Console().Palette()
+	f := d.Console().Frame()
 
-	return d.Console().Frame().
-		HeaderCln(p.BrightMagenta, p.BrightMagenta.Wrap("backups:", p.Italic)).
+	f.HeaderCln(p.BrightMagenta, p.BrightMagenta.Wrap("backups:", p.Italic)).
 		Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(backupPath))).
+		Rowln(txt.PaddedLine("found:", strconv.Itoa(len(fs))+" backups found"))
+
+	last := fs[len(fs)-1]
+
+	// check lock
+	if err := locker.IsLocked(last); err != nil {
+		// YYYYMMDD-HHMMSS_name.db (locked) today
+		lastBackup := formatBackupFn(ctx, p, last, 10)
+		lastDate := "-"
+		parts := strings.Fields(lastBackup)
+		if len(parts) >= 3 {
+			lastDate = strings.Fields(lastBackup)[2]
+		}
+		return f.
+			Rowln(txt.PaddedLine("last:", lastBackup)).
+			Rowln(txt.PaddedLine("date:", p.BrightGreen.Wrap(p.Remover(lastDate), p.Italic))).
+			StringReset(), nil
+	}
+
+	lastBackup, lastDate, err := lastBackupInfo(ctx, d, last)
+	if err != nil {
+		return "", fmt.Errorf("%w: %q", err, last)
+	}
+
+	return f.
 		Rowln(txt.PaddedLine("last:", lastBackup)).
 		Rowln(txt.PaddedLine("date:", p.BrightGreen.Wrap(lastDate, p.Italic))).
-		Rowln(backupsInfo).
 		StringReset(), nil
 }
 
@@ -308,7 +331,7 @@ func formatDatabaseFn(ctx context.Context, p *ansi.Palette, path string, pad int
 		stats.Tags,
 	)
 
-	createdAt = RelativeDays(createdAt)
+	createdAt = relativeDays(createdAt)
 	if createdAt == "" {
 		createdAt = "err"
 	}
@@ -329,6 +352,9 @@ func formatBackupFn(ctx context.Context, p *ansi.Palette, path string, maxWidth 
 	name := filepath.Base(path)
 	t, _, _ := strings.Cut(name, "_")
 	bkTime := p.Gray.Wrap(txt.RelativeTime(t), p.Italic)
+	if p.Remover(bkTime) == "invalid timestamp" {
+		bkTime = "-"
+	}
 
 	if base, found := strings.CutSuffix(name, ".enc"); found {
 		name = base + p.Gray.Wrap(" (locked) ", p.Italic)

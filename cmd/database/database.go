@@ -27,20 +27,19 @@ func NewCmd(app *application.App) *cobra.Command {
 	}
 
 	c.AddCommand(
-		newUseCmd(app),            // switch context
-		newCurrentCmd(app),        // inspect current
-		newListCmd(app),           // inspect all
-		newDatabaseLoadCmd(app),   // select database to load
-		newStatsCmd(app),          // inspect one
-		newBackupCmd(app),         // safe management
-		newDatabaseRemoveCmd(app), // destructive
-		newDropCmd(app),           // most destructive
-		newLockCmd(app),           // restrict access
-		newUnlockCmd(app),         // restore access
-		newImportCmd(app),         // data in
-		newExportCmd(app),         // data out
-		newReorderCmd(app),        // reorder IDs
-		newVacuumCmd(app),         // compact database file
+		newUseCmd(app),          // switch context
+		newCurrentCmd(app),      // inspect current
+		newListCmd(app),         // inspect all
+		newDatabaseLoadCmd(app), // select database to load
+		newStatsCmd(app),        // inspect one
+		newBackupCmd(app),       // safe management
+		newDropCmd(app),         // most destructive
+		newLockCmd(app),         // restrict access
+		newUnlockCmd(app),       // restore access
+		newImportCmd(app),       // data in
+		newExportCmd(app),       // data out
+		newReorderCmd(app),      // reorder IDs
+		newVacuumCmd(app),       // compact database file
 	)
 
 	return c

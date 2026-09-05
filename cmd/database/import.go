@@ -9,14 +9,16 @@ import (
 	"github.com/mateconpizza/gm/cmd/gitcmd"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
 )
 
 func newImportCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "import",
-		Aliases: []string{"imp", "i"},
-		Short:   "import bookmarks",
+		Use:                "import",
+		Aliases:            []string{"imp", "i"},
+		Short:              "import bookmarks",
+		PersistentPostRunE: cli.HookGitSync(app),
 	}
 
 	c.AddCommand(

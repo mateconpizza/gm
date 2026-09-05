@@ -206,7 +206,7 @@ func Remove(ctx context.Context, d *deps.Deps) error {
 			Rowln().
 			Flush()
 
-		fmt.Fprint(d.Writer(), SummaryRepoFromPath(ctx, d, app.Path.DB(), app.Path.Backup()))
+		fmt.Fprint(d.Writer(), SummaryRepoFromPath(ctx, d.Console(), app.Path.DB(), app.Path.Backup()))
 		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.DB())+"?", "n")
 		if err != nil {
 			return err
@@ -236,14 +236,11 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	fs, err := files.List(app.Path.Backup(), "*_"+app.DBBaseName()+".db*") // match YYYYMMDD-HHMMSS_dbname.db
+	fs, err := Backups(ctx, d)
 	if err != nil {
 		return err
 	}
 
-	if len(fs) == 0 {
-		return db.ErrBackupNotFound
-	}
 	if app.Flags.Yes || app.Flags.Force {
 		return removeSlicePath(ctx, d, fs)
 	}
@@ -282,11 +279,8 @@ func Lock(ctx context.Context, c *ui.Console, items []string) error {
 			return fmt.Errorf("%w: %q", os.ErrNotExist, filepath.Base(toLock))
 		}
 
-		if err := c.ConfirmErr(ctx, fmt.Sprintf("Lock %q?", filepath.Base(toLock)), "n"); err != nil {
-			if errors.Is(err, sys.ErrActionAborted) {
-				return nil
-			}
-			return err
+		if !c.Confirm(ctx, fmt.Sprintf("Lock %q?", filepath.Base(toLock)), "n") {
+			continue
 		}
 
 		pass, err := passwordConfirm(ctx, c)
@@ -319,7 +313,10 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 
 	selected, err := NewDatabaseSelector(app).
 		WithCustomFormatter(formatter).
-		Select(ctx, menu.WithHeader("select a database to lock"))
+		Select(ctx,
+			menu.WithMultiSelection(),
+			menu.WithHeader("select a database to lock"),
+		)
 	if err != nil {
 		return err
 	}
@@ -330,7 +327,13 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 // UnlockDatabase select and unlock a database.
 func UnlockDatabase(ctx context.Context, app *application.App, c *ui.Console) error {
 	selected, err := NewDatabaseEncryptedSelector(app).
-		Select(ctx, menu.WithHeader("select a encrypted database to unlock"))
+		Select(
+			ctx,
+			menu.WithMultiSelection(),
+			menu.WithKeybinds(menu.KeymapToggleAll()),
+			menu.WithHeaderKeymaps(),
+			menu.WithHeader("select a encrypted database/s to unlock"),
+		)
 	if err != nil {
 		return err
 	}
@@ -345,12 +348,12 @@ func UnlockBackup(ctx context.Context, app *application.App, c *ui.Console) erro
 	}
 
 	selected, err := NewBackupEncryptedSelector(app).
-		WithCustomFormatter(filepath.Base).
 		Select(
 			ctx,
+			menu.WithMultiSelection(),
 			menu.WithKeybinds(menu.KeymapToggleAll()),
 			menu.WithHeaderKeymaps(),
-			menu.WithHeader("select a database to unlock"),
+			menu.WithHeader("select a database/s to unlock"),
 		)
 	if err != nil {
 		return err
@@ -364,6 +367,7 @@ func LockBackup(ctx context.Context, app *application.App, c *ui.Console) error 
 	selected, err := NewBackupSelector(app).
 		Select(
 			ctx,
+			menu.WithMultiSelection(),
 			menu.WithKeybinds(menu.KeymapToggleAll()),
 			menu.WithHeader("select backup/s to lock"),
 		)
@@ -487,7 +491,7 @@ func Backups(ctx context.Context, d *deps.Deps) ([]string, error) {
 		return nil, err
 	}
 
-	bks, err := files.List(app.Path.Backup(), "*_"+r.BaseName()+".db*")
+	bks, err := files.List(app.Path.Backup(), "*_"+r.BaseName()+".db*") // match YYYYMMDD-HHMMSS_dbname.db
 	if err != nil {
 		return nil, err
 	}

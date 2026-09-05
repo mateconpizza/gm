@@ -31,6 +31,7 @@ type DatabaseSelector struct {
 	root       string
 	ext        string
 	exclutions []string
+	filter     func(string) bool
 	preview    string
 	itemFmt    func(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string
 	fmtFunc    FmtFunc
@@ -91,11 +92,27 @@ func (s *DatabaseSelector) WithExclutions(exc ...string) *DatabaseSelector {
 	return s
 }
 
+func (s *DatabaseSelector) WithFilter(fn func(string) bool) *DatabaseSelector {
+	s.filter = fn
+	return s
+}
+
 // Select runs the interactive picker dialog.
 func (s *DatabaseSelector) Select(ctx context.Context, opts ...menu.Option) ([]string, error) {
 	dbs, err := files.ListWithExclude(s.root, s.ext, s.exclutions...)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.filter != nil {
+		filtered := make([]string, 0, len(dbs))
+		for i := range dbs {
+			if s.filter(dbs[i]) {
+				filtered = append(filtered, dbs[i])
+			}
+		}
+
+		dbs = filtered
 	}
 
 	if len(dbs) == 0 {
@@ -127,7 +144,6 @@ func (s *DatabaseSelector) Select(ctx context.Context, opts ...menu.Option) ([]s
 		menu.WithOutputColor(s.app.Flags.Color),
 		menu.WithHeaderKeymaps(),
 		menu.WithPreviewWindow("right,45%"),
-		menu.WithMultiSelection(),
 		menu.WithPreviewCmd(s.preview),
 	)
 
@@ -258,12 +274,30 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 	c.SetReader(os.Stdin)
 	c.SetWriter(os.Stdout)
 
+	all := app.Flags.All
+	filter := func(s string) bool {
+		if all {
+			return true
+		}
+		base := filepath.Base(s)
+		_, name, _ := strings.Cut(base, "_")
+		return name == filepath.Base(app.Path.DB())
+	}
+
+	header := func() string {
+		if all {
+			return "all"
+		}
+		return app.DBBaseName()
+	}
+
 	return NewBackupSelector(app).
+		WithFilter(filter).
 		Select(ctx,
 			menu.WithMultiSelection(),
 			menu.WithHeader(fmt.Sprintf(
 				"select backup/s from %q %s %s",
-				app.DBBaseName(),
+				header(),
 				txt.GlyphBulletPoint,
 				ansi.BrightRed.Wrap("this action cannot be undone", ansi.Bold),
 			)),
