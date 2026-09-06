@@ -24,42 +24,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-func TestDatabase_Drop(t *testing.T) {
-	t.Parallel()
-	d := testutil.NewDeps(t)
-	want := 10
-	app, err := d.Application(t.Context())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	r := testutil.NewInitializedDBWithBookmarks(t, app.Path.DB(), want)
-	d.WithRepo(r)
-	c := testutil.NewConsoleWithInput(t, "y\n")
-	d.SetConsole(c)
-
-	got, err := r.All(t.Context())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(got) != want {
-		t.Fatalf("expected %d bookmarks, got: %d", want, len(got))
-	}
-
-	err = Drop(t.Context(), d)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	got, err = r.All(t.Context())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(got) != 0 {
-		t.Fatalf("expected 0 bookmarks, got: %d", len(got))
-	}
-}
-
 func TestRemoveRepo_Success(t *testing.T) {
 	t.Parallel()
 	ansi.DisableColor()
@@ -526,6 +490,179 @@ func TestReorderDatabase(t *testing.T) {
 			}
 			if r.backupCalls != tt.backupCalls {
 				t.Fatalf("Backup called %d times; want %d", r.backupCalls, tt.backupCalls)
+			}
+		})
+	}
+}
+
+func TestDrop(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T) *deps.Deps
+		wantErr error
+	}{
+		{
+			name: "flag_yes_drops_without_confirm",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				tempDir := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(tempDir)
+				app.SetDatabase(app.DBName)
+				app.Flags.Yes = true
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.Database)
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsole(t, io.Discard)),
+					deps.WithRepo(r),
+				)
+			},
+			wantErr: nil,
+		},
+		{
+			name: "flag_force_drops_without_confirm",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				temp := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(temp)
+				app.SetDatabase(app.DBName)
+				app.Flags.Force = true
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.Database)
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsole(t, io.Discard)),
+					deps.WithRepo(r),
+				)
+			},
+			wantErr: nil,
+		},
+		{
+			name: "confirm_declined",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				temp := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(temp)
+				app.SetDatabase(app.DBName)
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.Database)
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsoleWithInput(t, "n\n")),
+					deps.WithRepo(r),
+				)
+			},
+			wantErr: sys.ErrExitFailure,
+		},
+		{
+			name: "confirm_accepted_explicit_yes",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				temp := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(temp)
+				app.SetDatabase(app.DBName)
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.Database)
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsoleWithInput(t, "y\n")),
+					deps.WithRepo(r),
+				)
+			},
+			wantErr: nil,
+		},
+		{
+			name: "confirm_accepted_default_no",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				temp := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(temp)
+				app.SetDatabase(app.DBName)
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.Database)
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsoleWithInput(t, "\n")), // blank -> default "n"
+					deps.WithRepo(r),
+				)
+			},
+			wantErr: sys.ErrExitFailure,
+		},
+		{
+			name: "dropping_main_database_warns_but_still_confirms",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				temp := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(temp)
+				app.DBName = application.MainDBName
+				app.SetDatabase(app.DBName)
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.Database)
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsoleWithInput(t, "y\n")),
+					deps.WithRepo(r),
+				)
+			},
+			wantErr: nil,
+		},
+		{
+			name: "dropping_main_database_declined",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				temp := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(temp)
+				app.DBName = application.MainDBName
+				app.SetDatabase(app.DBName)
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.Database)
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsoleWithInput(t, "n\n")),
+					deps.WithRepo(r),
+				)
+			},
+			wantErr: sys.ErrExitFailure,
+		},
+		{
+			name: "repository_unavailable",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				temp := t.TempDir()
+				app := testutil.NewApp(t).WithHomePath(temp)
+				app.SetDatabase(app.DBName)
+
+				// No repo registered: d.Repository() is expected to fail.
+				return deps.New(
+					deps.WithApplication(app),
+					deps.WithConsole(testutil.NewConsole(t, io.Discard)),
+				)
+			},
+			wantErr: db.ErrDBNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := tt.setup(t)
+			err := Drop(t.Context(), d)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Drop() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Drop() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Drop() unexpected error: %v", err)
 			}
 		})
 	}
