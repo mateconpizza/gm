@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+	"sync"
 
 	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
@@ -43,16 +44,10 @@ type Options struct {
 type Term struct {
 	Options
 
+	mu       sync.Mutex
+	br       *bufio.Reader
 	cancelFn context.CancelFunc
 	size     *termSize
-}
-
-// defaultOpts returns the default terminal options.
-func defaultOpts() Options {
-	return Options{
-		reader: os.Stdin,
-		writer: os.Stdout,
-	}
 }
 
 // WithReader sets the reader for the terminal.
@@ -78,7 +73,10 @@ func WithInterruptFn(fn func(error)) TermOptFn {
 
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.reader = r
+	t.br = bufio.NewReader(r)
 }
 
 // SetWriter sets the writer for the terminal.
@@ -143,7 +141,7 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 
 // Prompt get the input data from the user and return it.
 func (t *Term) Prompt(ctx context.Context, p string) (string, error) {
-	r := bufio.NewReader(t.reader)
+	br := t.currentReader()
 	fmt.Fprint(t.writer, p)
 
 	type inputResult struct {
@@ -154,7 +152,7 @@ func (t *Term) Prompt(ctx context.Context, p string) (string, error) {
 	resultChan := make(chan inputResult, 1)
 
 	go func() {
-		userInput, err := r.ReadString('\n')
+		userInput, err := br.ReadString('\n')
 		resultChan <- inputResult{input: userInput, err: err}
 	}()
 
@@ -367,6 +365,13 @@ func (t *Term) Print(ctx context.Context, content string) error {
 	return err
 }
 
+// currentReader returns the active buffered reader under a short lock.
+func (t *Term) currentReader() *bufio.Reader {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.br
+}
+
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
 	h := &highlighter{}
@@ -378,7 +383,7 @@ func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 
 	return getUserInputWithAttempts(ctx, &PromptInput{
-		Reader:  t.reader,
+		Reader:  t.br,
 		Writer:  t.writer,
 		Prompt:  p,
 		Options: opts,
@@ -442,7 +447,10 @@ func (t *Term) paginate(ctx context.Context, content string) error {
 // New returns a new terminal with the provided options.
 func New(opts ...TermOptFn) *Term {
 	t := &Term{
-		Options: defaultOpts(),
+		Options: Options{
+			reader: os.Stdin,
+			writer: os.Stdout,
+		},
 		size: &termSize{
 			maxWidth: maxWidth,
 			minWidth: minWidth,
@@ -459,6 +467,8 @@ func New(opts ...TermOptFn) *Term {
 	if t.interruptFn == nil {
 		t.interruptFn = defaultInterruptFn
 	}
+
+	t.br = bufio.NewReader(t.reader)
 
 	return t
 }
