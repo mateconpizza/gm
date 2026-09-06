@@ -2,6 +2,7 @@ package dbops
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -357,6 +359,173 @@ func TestNewBackup(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("NewBackup() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+type fakeReorderStore struct {
+	reorderIDs   func(context.Context) error
+	backup       func(context.Context, string) (string, error)
+	reorderCalls int
+	backupCalls  int
+}
+
+func (f *fakeReorderStore) ReorderIDs(ctx context.Context) error {
+	f.reorderCalls++
+	if f.reorderIDs != nil {
+		return f.reorderIDs(ctx)
+	}
+	return nil
+}
+
+func (f *fakeReorderStore) Backup(ctx context.Context, destRoot string) (string, error) {
+	f.backupCalls++
+	if f.backup != nil {
+		return f.backup(ctx, destRoot)
+	}
+	return filepath.Join(destRoot, "backup.db"), nil
+}
+
+func TestReorderDatabase(t *testing.T) {
+	t.Parallel()
+	errBackup := errors.New("backup failed")
+	errReorder := errors.New("reorder failed")
+
+	tests := []struct {
+		name         string
+		input        string
+		cancelCtx    bool
+		setup        func(t *testing.T, app *application.App, r *fakeReorderStore)
+		wantErr      error
+		wantErrMsg   string
+		backupCalls  int
+		reorderCalls int
+	}{
+		{
+			name:         "normal_reorder_with_backup",
+			input:        "y\ny\n",
+			reorderCalls: 1,
+			backupCalls:  1,
+		},
+		{
+			name:         "normal_reorder_without_backup",
+			input:        "y\nn\n",
+			reorderCalls: 1,
+		},
+		{
+			name:    "abort_at_continue_prompt",
+			input:   "n\n",
+			wantErr: sys.ErrExitFailure,
+		},
+		{
+			name:  "backup_error",
+			input: "y\ny\n",
+			setup: func(t *testing.T, app *application.App, r *fakeReorderStore) {
+				t.Helper()
+				r.backup = func(context.Context, string) (string, error) {
+					return "", errBackup
+				}
+			},
+			wantErr: errBackup,
+		},
+		{
+			name:      "reorder_error",
+			input:     "y\nn\n",
+			cancelCtx: false,
+			setup: func(t *testing.T, app *application.App, r *fakeReorderStore) {
+				t.Helper()
+				r.reorderIDs = func(context.Context) error {
+					return errReorder
+				}
+			},
+			wantErr: errReorder,
+		},
+		{
+			name:  "reorder_context_canceled",
+			input: "y\nn\n",
+			setup: func(t *testing.T, app *application.App, r *fakeReorderStore) {
+				t.Helper()
+				r.reorderIDs = func(context.Context) error {
+					return context.Canceled
+				}
+			},
+			wantErr: context.Canceled,
+		},
+		{
+			name:  "backup_directory_is_file",
+			input: "y\ny\n",
+			setup: func(t *testing.T, app *application.App, r *fakeReorderStore) {
+				t.Helper()
+				backupPath := app.Path.Backup()
+				if err := os.MkdirAll(filepath.Dir(backupPath), 0o755); err != nil {
+					t.Fatalf("failed to create backup parent: %v", err)
+				}
+				if err := os.WriteFile(backupPath, []byte("conflict"), 0o644); err != nil {
+					t.Fatalf("failed to create backup conflict: %v", err)
+				}
+			},
+			wantErrMsg: "not a directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := application.NewApp(t.TempDir())
+
+			if err := app.SetDatabase("test.db"); err != nil {
+				t.Fatalf("SetDatabase() unexpected error: %v", err)
+			}
+
+			c := ui.NewConsole(ui.WithWriter(io.Discard))
+			c.Frame().SetWriter(io.Discard)
+			c.Term().SetReader(strings.NewReader(tt.input))
+
+			r := &fakeReorderStore{}
+
+			if tt.setup != nil {
+				tt.setup(t, app, r)
+			}
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+
+			if tt.cancelCtx {
+				cancel()
+			}
+
+			err := ReorderDatabase(ctx, app, r, c)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("ReorderDatabase() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("ReorderDatabase() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if tt.wantErrMsg != "" {
+				if err == nil {
+					t.Fatalf("ReorderDatabase() expected error containing %q, got nil", tt.wantErrMsg)
+				}
+				if !strings.Contains(err.Error(), tt.wantErrMsg) {
+					t.Fatalf("ReorderDatabase() error = %q; want substring %q", err, tt.wantErrMsg)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("ReorderDatabase() unexpected error: %v", err)
+			}
+			if r.reorderCalls != tt.reorderCalls {
+				t.Fatalf("ReorderIDs called %d times; want %d", r.reorderCalls, tt.reorderCalls)
+			}
+			if r.backupCalls != tt.backupCalls {
+				t.Fatalf("Backup called %d times; want %d", r.backupCalls, tt.backupCalls)
 			}
 		})
 	}

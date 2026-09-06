@@ -28,14 +28,12 @@ import (
 
 var ErrInvalidOption = errors.New("invalid option")
 
-func ReorderDatabase(ctx context.Context, app *application.App) error {
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
+type reorderStore interface {
+	ReorderIDs(ctx context.Context) error
+	Backup(ctx context.Context, destRoot string) (string, error)
+}
 
-	c := ui.NewDefaultConsole(nil)
+func ReorderDatabase(ctx context.Context, app *application.App, r reorderStore, c *ui.Console) error {
 	f, p := c.Frame(), c.Palette()
 
 	header := func() string {
@@ -75,7 +73,7 @@ sequential IDs.`
 		if err != nil {
 			return err
 		}
-		_ = c.Print(ctx, c.Success(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))).String())
+		_ = c.Term().Print(ctx, c.Success(fmt.Sprintf("backup created: %q\n", filepath.Base(newBkPath))).String())
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -84,7 +82,7 @@ sequential IDs.`
 	if err := r.ReorderIDs(ctx); err != nil {
 		return err
 	}
-	return c.Print(ctx, c.SuccessMesg("renumber bookmark IDs sequentially.\n"))
+	return c.Term().Print(ctx, c.SuccessMesg("renumber bookmark IDs sequentially.\n"))
 }
 
 func VacuumDatabase(ctx context.Context, app *application.App) error {
@@ -471,11 +469,6 @@ func NewBackup(ctx context.Context, d *deps.Deps) error {
 	}
 
 	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("backup created: %q", filepath.Base(newBkPath))))
-
-	if app.Flags.Force {
-		slog.Debug("skipping lock", "path", newBkPath)
-		return nil
-	}
 
 	return nil
 }

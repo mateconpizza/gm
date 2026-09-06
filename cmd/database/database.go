@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 // NewCmd database management.
@@ -183,7 +184,12 @@ func newReorderCmd(app *application.App) *cobra.Command {
 		Use:   "reorder",
 		Short: "renumber bookmark IDs sequentially",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.ReorderDatabase(cmd.Context(), app)
+			r, err := db.New(cmd.Context(), app.Path.DB())
+			if err != nil {
+				return err
+			}
+			defer r.Close()
+			return dbops.ReorderDatabase(cmd.Context(), app, r, ui.DefaultConsole)
 		},
 	}
 }

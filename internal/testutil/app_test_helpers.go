@@ -3,7 +3,6 @@ package testutil
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -67,12 +66,11 @@ func NewTerminal(t *testing.T, w io.Writer) *terminal.Term {
 
 func NewDeps(t *testing.T) *deps.Deps {
 	t.Helper()
+	tempDir := t.TempDir()
 
-	app := NewApp(t)
-	temp := t.TempDir()
-
-	app.Path.Database = filepath.Join(temp, app.DBName)
-	app.Path.Data = temp
+	app := NewApp(t).
+		WithHomePath(tempDir)
+	_ = app.SetDatabase(app.DBName)
 
 	c := NewConsole(t, io.Discard)
 
@@ -93,6 +91,10 @@ func NewInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {
 	if err := r.Init(t.Context()); err != nil {
 		t.Fatalf("failed to initialize schema: %v", err)
 	}
+
+	t.Cleanup(func() {
+		r.Close()
+	})
 
 	return r
 }
