@@ -29,7 +29,7 @@ func (h *highlighter) dim(s string) string     { return ansi.Dim.Wrap(s) }
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
-	Reader  io.Reader
+	Reader  *bufio.Reader
 	Writer  io.Writer
 	Prompt  string
 	Options []string
@@ -213,7 +213,6 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 // getUserInputWithAttempts reads user input and validates against the options,
 // with a limited number of attempts (3).
 func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, error) {
-	r := bufio.NewReader(pi.Reader)
 	var count int
 	h := &highlighter{}
 
@@ -229,7 +228,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 
 		// read in a goroutine so context can interrupt it
 		go func() {
-			userInput, err := r.ReadString('\n')
+			userInput, err := pi.Reader.ReadString('\n')
 			resultChan <- inputResult{input: userInput, err: err}
 		}()
 

@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"bufio"
 	"strings"
 	"testing"
 
@@ -116,7 +117,7 @@ func TestTermGetUserInput(t *testing.T) {
 			t.Parallel()
 
 			mockPromptInput := &PromptInput{
-				Reader:  strings.NewReader(tt.input),
+				Reader:  bufio.NewReader(strings.NewReader(tt.input)),
 				Writer:  &strings.Builder{},
 				Prompt:  tt.prompt,
 				Options: tt.options,
