@@ -222,6 +222,16 @@ func (app *App) Example(template string) string {
 	).Replace(template)
 }
 
+func (app *App) WithHomePath(path string) *App {
+	app.Path.Data = path
+	return app
+}
+
+func (app *App) WithDatabasePath(path string) *App {
+	app.Path.Database = path
+	return app
+}
+
 func New(info *Information) *App {
 	fm, _ := formatter.New(formatter.Format(OutputFormat))
 

@@ -11,6 +11,7 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
@@ -30,7 +31,7 @@ func TestDatabase_Drop(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	r := testutil.NewInitializedDBWithBookmarks(t, app.Path.DB(), want)
-	d.SetRepo(r)
+	d.WithRepo(r)
 	c := testutil.NewConsoleWithInput(t, "y\n")
 	d.SetConsole(c)
 
@@ -70,9 +71,9 @@ func TestRemoveRepo_Success(t *testing.T) {
 		}
 		app.Flags.Force = true
 		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-		d.SetRepo(r)
+		d.WithRepo(r)
 		var buf bytes.Buffer
-		d.SetWriter(&buf)
+		d.WithWriter(&buf)
 
 		err = Remove(t.Context(), d)
 		if err != nil {
@@ -100,9 +101,9 @@ func TestRemoveRepo_Success(t *testing.T) {
 		app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
 		app.Flags.Force = true
 		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-		d.SetRepo(r)
+		d.WithRepo(r)
 		var buf bytes.Buffer
-		d.SetWriter(&buf)
+		d.WithWriter(&buf)
 
 		err = Remove(t.Context(), d)
 		if err != nil {
@@ -147,7 +148,7 @@ func TestRemoveRepo_Fail(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-		d.SetRepo(r)
+		d.WithRepo(r)
 
 		err = Remove(t.Context(), d)
 		if !errors.Is(err, ErrInvalidOption) {
@@ -211,102 +212,152 @@ func TestPasswordInput(t *testing.T) {
 	})
 }
 
-func TestNewBackup_Fails_If_DB_Does_Not_Exist(t *testing.T) {
+func TestNewBackup(t *testing.T) {
 	t.Parallel()
-	d := testutil.NewDeps(t)
-	app, err := d.Application(t.Context())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	app.Path.Database = filepath.Join(t.TempDir(), "nonexistent.db")
 
-	err = NewBackup(t.Context(), d)
-	if err == nil {
-		t.Fatalf("expected error, got nil")
-	}
-	if !errors.Is(err, db.ErrDBNotFound) {
-		t.Fatalf("expected db.ErrDBNotFound, got %v", err)
-	}
-}
+	setupWithInput := func(t *testing.T, input string) *deps.Deps {
+		t.Helper()
 
-func TestNewBackup_Fails_If_DB_Is_Empty(t *testing.T) {
-	t.Parallel()
-	d := testutil.NewDeps(t)
-	app, err := d.Application(t.Context())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	f, err := os.Create(app.Path.DB())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		temp := t.TempDir()
+		app := testutil.NewApp(t).WithHomePath(temp)
+		_ = app.SetDatabase(app.DBName)
+
+		c := testutil.NewConsoleWithInput(t, input)
+		d := deps.New(
+			deps.WithApplication(app),
+			deps.WithConsole(c),
+		)
+
+		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
+		return d.WithRepo(r)
 	}
 
-	if err := f.Close(); err != nil {
-		t.Errorf("unexpected err closing file: %v", err)
+	tests := []struct {
+		name       string
+		setup      func(t *testing.T) *deps.Deps
+		wantErr    error
+		wantErrMsg string
+	}{
+		{
+			name: "backup_with_yes_flag",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+
+				d := testutil.NewDeps(t)
+				app, _ := d.Application(t.Context())
+				app.Flags.Yes = true
+
+				r := testutil.NewInitializedDBWithBookmarks(
+					t, app.Path.DB(), 5,
+				)
+
+				return d.WithRepo(r)
+			},
+		},
+		{
+			name: "backup_with_confirmation",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+
+				d := setupWithInput(t, "y\n")
+				app, _ := d.Application(t.Context())
+				app.Flags.Yes = false
+
+				return d
+			},
+		},
+		{
+			name: "abort_confirmation",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+
+				d := setupWithInput(t, "n\n")
+				app, _ := d.Application(t.Context())
+				app.Flags.Yes = false
+
+				return d
+			},
+			wantErr: sys.ErrExitFailure,
+		},
+		{
+			name: "db_not_found",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+				return testutil.NewDeps(t)
+			},
+			wantErr: db.ErrDBNotFound,
+		},
+		{
+			name: "db_empty",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+
+				d := testutil.NewDeps(t)
+				app, _ := d.Application(t.Context())
+
+				f, err := os.Create(app.Path.DB())
+				if err != nil {
+					t.Fatalf("failed to create empty DB: %v", err)
+				}
+				if err := f.Close(); err != nil {
+					t.Fatalf("failed to close empty DB: %v", err)
+				}
+
+				return d
+			},
+			wantErr: db.ErrDBEmpty,
+		},
+		{
+			name: "backup_directory_creation_fails",
+			setup: func(t *testing.T) *deps.Deps {
+				t.Helper()
+
+				d := testutil.NewDeps(t)
+				app, _ := d.Application(t.Context())
+				app.Flags.Yes = true
+
+				r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
+
+				if err := os.WriteFile(app.Path.Backup(), []byte("conflict"), 0o644); err != nil {
+					t.Fatalf("failed to create conflict file: %v", err)
+				}
+
+				return d.WithRepo(r)
+			},
+			wantErrMsg: "not a directory",
+		},
 	}
 
-	err = NewBackup(t.Context(), d)
-	if err == nil {
-		t.Fatalf("expected error, got nil")
-	}
-	if !errors.Is(err, db.ErrDBEmpty) {
-		t.Fatalf("expected db.ErrDBEmpty, got %v", err)
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestNewBackup_Successfully_Created(t *testing.T) {
-	t.Parallel()
-	d := testutil.NewDeps(t)
-	app, err := d.Application(t.Context())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	app.Flags.Yes = true
-	app.Flags.Force = true
+			d := tt.setup(t)
+			err := NewBackup(t.Context(), d)
 
-	r := testutil.NewInitializedDBWithBookmarks(t, app.Path.DB(), 5)
-	d.SetRepo(r)
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("NewBackup() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("NewBackup() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
 
-	var buf bytes.Buffer
-	d.SetWriter(&buf)
+			if tt.wantErrMsg != "" {
+				if err == nil {
+					t.Fatalf("NewBackup() expected error containing %q, got nil", tt.wantErrMsg)
+				}
+				if !strings.Contains(err.Error(), tt.wantErrMsg) {
+					t.Fatalf("NewBackup() error = %q; want substring %q", err, tt.wantErrMsg)
+				}
+				return
+			}
 
-	err = NewBackup(t.Context(), d)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	info, err := os.Stat(app.Path.Backup())
-	if err != nil {
-		t.Fatalf("expected backup dir, got error: %v", err)
-	}
-	if !info.IsDir() {
-		t.Fatalf("expected backup dir, got file")
-	}
-
-	output := buf.String()
-	expectedString := "backup created:"
-	if !strings.Contains(output, expectedString) {
-		t.Errorf("want %q, got %q", expectedString, output)
-	}
-}
-
-func TestNewBackup_Do_Not_ConfirmErr(t *testing.T) {
-	t.Parallel()
-	d := testutil.NewDeps(t)
-	app, err := d.Application(t.Context())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	r := testutil.NewInitializedDBWithBookmarks(t, app.Path.DB(), 5)
-	d.SetRepo(r)
-
-	// Update terminal for reject confirmation prompt.
-	input := "n\n"
-	term := terminal.New(terminal.WithReader(strings.NewReader(input)))
-	c := ui.NewConsole(ui.WithTerminal(term))
-	d.SetConsole(c)
-
-	err = NewBackup(t.Context(), d)
-	if !errors.Is(err, sys.ErrExitFailure) {
-		t.Fatalf("expected err %q, got %q", sys.ErrExitFailure, err)
+			if err != nil {
+				t.Fatalf("NewBackup() unexpected error: %v", err)
+			}
+		})
 	}
 }

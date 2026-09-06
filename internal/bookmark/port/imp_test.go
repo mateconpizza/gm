@@ -120,7 +120,7 @@ func Test_ImportBookmarksFromBackup(t *testing.T) {
 			}
 
 			r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-			d.SetRepo(r)
+			d.WithRepo(r)
 
 			if tt.promptInput != "" {
 				d.Console().SetReader(strings.NewReader(tt.promptInput))

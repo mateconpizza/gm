@@ -62,14 +62,20 @@ func (d *Deps) Repository() (*db.SQLite, error) {
 	return d.repo, nil
 }
 
-func (d *Deps) SetRepo(r *db.SQLite)      { d.repo = r }
 func (d *Deps) SetConsole(uc *ui.Console) { d.console = uc }
 func (d *Deps) Console() *ui.Console      { return d.console }
 func (d *Deps) Writer() io.Writer         { return d.writer }
-func (d *Deps) SetWriter(w io.Writer) {
+
+func (d *Deps) WithRepo(r *db.SQLite) *Deps {
+	d.repo = r
+	return d
+}
+
+func (d *Deps) WithWriter(w io.Writer) *Deps {
 	d.writer = w
 	d.console.Frame().SetWriter(w)
 	d.console.Term().SetWriter(w)
+	return d
 }
 
 func New(opts ...Option) *Deps {
