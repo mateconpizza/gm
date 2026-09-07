@@ -34,6 +34,15 @@ type reorderStore interface {
 	Backup(ctx context.Context, destRoot string) (string, error)
 }
 
+type consolePass interface {
+	Confirm(ctx context.Context, q, def string) bool
+	ConfirmErr(ctx context.Context, q, def string) error
+	InputPassword(ctx context.Context, s string) (string, error)
+	InputPasswordConfirm(ctx context.Context) (string, error)
+	SuccessMesg(a ...any) string
+	Writer() io.Writer
+}
+
 func ReorderDatabase(ctx context.Context, app *application.App, r reorderStore, c *ui.Console) error {
 	f, p := c.Frame(), c.Palette()
 
@@ -389,7 +398,7 @@ func LockBackup(ctx context.Context, app *application.App, c *ui.Console) error 
 }
 
 // Unlock unlocks the database.
-func Unlock(ctx context.Context, c *ui.Console, items []string) error {
+func Unlock(ctx context.Context, c consolePass, items []string) error {
 	for i := range items {
 		rToUnlock := items[i]
 		if err := locker.IsLocked(rToUnlock); err == nil {
@@ -404,7 +413,7 @@ func Unlock(ctx context.Context, c *ui.Console, items []string) error {
 			return fmt.Errorf("%w: %q", os.ErrNotExist, s)
 		}
 
-		if err := c.Term().ConfirmErr(ctx, fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
+		if err := c.ConfirmErr(ctx, fmt.Sprintf("Unlock %q?", filepath.Base(rToUnlock)), "y"); err != nil {
 			return fmt.Errorf("%w", err)
 		}
 
@@ -631,27 +640,20 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 
 		msg := fmt.Sprintf("%s %d item/s", c.Palette().BrightRed.Sprint("removing"), n)
 		if err := c.ConfirmErr(ctx, msg+", continue?", "n"); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 	}
 
 	sp := rotato.New(
 		rotato.WithMessage("removing database..."),
 		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithWriter(c.Writer()),
 	)
 	sp.Start(ctx)
 
-	rmRepo := func(p string) error {
-		if err := files.Remove(p); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		return nil
-	}
-
 	for i := range n {
-		if err := rmRepo(dbs[i]); err != nil {
-			return fmt.Errorf("%w", err)
+		if err := files.Remove(dbs[i]); err != nil {
+			return err
 		}
 	}
 
@@ -660,36 +662,4 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("%d item/s removed", n)))
 
 	return nil
-}
-
-type consolePass interface {
-	Confirm(ctx context.Context, q, def string) bool
-	ConfirmErr(ctx context.Context, q, def string) error
-	InputPassword(ctx context.Context, s string) (string, error)
-	InputPasswordConfirm(ctx context.Context) (string, error)
-	SuccessMesg(a ...any) string
-	Writer() io.Writer
-}
-
-// passwordConfirm prompts user for password input.
-func passwordConfirm(ctx context.Context, c consolePass) (string, error) {
-	s, err := c.InputPassword(ctx, "Password: ")
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprintln(c.Writer())
-
-	s2, err := c.InputPassword(ctx, "Confirm Password: ")
-	if err != nil {
-		return "", fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprintln(c.Writer())
-
-	if s != s2 {
-		return "", locker.ErrPassphraseMismatch
-	}
-
-	return s, nil
 }
