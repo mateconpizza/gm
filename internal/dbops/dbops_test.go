@@ -667,3 +667,151 @@ func TestDrop(t *testing.T) {
 		})
 	}
 }
+
+func TestLock(t *testing.T) {
+	t.Parallel()
+
+	newUnlockedFile := func(t *testing.T, dir, name string) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("db-content"), 0o644); err != nil {
+			t.Fatalf("failed to create test file: %v", err)
+		}
+		return p
+	}
+
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T) (c *ui.Console, items []string, wantLocked, wantUnlocked []string)
+		wantErr error
+	}{
+		{
+			name: "normal_locks_single_file",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				tempDir := t.TempDir()
+				f := newUnlockedFile(t, tempDir, "main.db")
+				c := testutil.NewConsoleWithInput(t, "y\nsecret\nsecret\n")
+				return c, []string{f}, []string{f}, nil
+			},
+			wantErr: nil,
+		},
+		{
+			name: "already_locked_returns_error",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				tempDir := t.TempDir()
+				f := newUnlockedFile(t, tempDir, "main.db")
+				// create the .enc counterpart so IsLocked reports it as locked.
+				encPath := f + locker.Extension
+				if err := os.WriteFile(encPath, []byte("locked"), 0o644); err != nil {
+					t.Fatalf("failed to create locked marker file: %v", err)
+				}
+				c := testutil.NewConsoleWithInput(t, "")
+				return c, []string{f}, nil, nil
+			},
+			wantErr: locker.ErrFileLocked,
+		},
+		{
+			name: "file_does_not_exist",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				tempDir := t.TempDir()
+				missing := filepath.Join(tempDir, "missing.db")
+				c := testutil.NewConsoleWithInput(t, "\n\n")
+				return c, []string{missing}, nil, nil
+			},
+			wantErr: os.ErrNotExist,
+		},
+		{
+			name: "confirm_declined_skips_file",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				tempDir := t.TempDir()
+				f := newUnlockedFile(t, tempDir, "main.db")
+				c := testutil.NewConsoleWithInput(t, "n\n")
+				return c, []string{f}, nil, []string{f}
+			},
+			wantErr: nil,
+		},
+		{
+			name: "password_mismatch",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				tempDir := t.TempDir()
+				f := newUnlockedFile(t, tempDir, "main.db")
+				c := testutil.NewConsoleWithInput(t, "y\nsecret1\nsecret2\n")
+				return c, []string{f}, nil, []string{f}
+			},
+			wantErr: locker.ErrPassphraseMismatch,
+		},
+		{
+			name: "empty_items_returns_nil",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				c := testutil.NewConsoleWithInput(t, "")
+				return c, []string{}, nil, nil
+			},
+			wantErr: nil,
+		},
+		{
+			name: "multiple_items_first_declined_second_locked",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				tempDir := t.TempDir()
+				f1 := newUnlockedFile(t, tempDir, "one.db")
+				f2 := newUnlockedFile(t, tempDir, "two.db")
+				c := testutil.NewConsoleWithInput(t, "n\ny\nsecret\nsecret\n")
+				return c, []string{f1, f2}, []string{f2}, []string{f1}
+			},
+			wantErr: nil,
+		},
+		{
+			name: "multiple_items_all_locked",
+			setup: func(t *testing.T) (*ui.Console, []string, []string, []string) {
+				t.Helper()
+				tempDir := t.TempDir()
+				f1 := newUnlockedFile(t, tempDir, "one.db")
+				f2 := newUnlockedFile(t, tempDir, "two.db")
+				c := testutil.NewConsoleWithInput(t, "y\nsecretA\nsecretA\ny\nsecretB\nsecretB\n")
+				return c, []string{f1, f2}, []string{f1, f2}, nil
+			},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, items, wantLocked, wantUnlocked := tt.setup(t)
+			err := Lock(t.Context(), c, items)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Lock() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Lock() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Lock() unexpected error: %v", err)
+			}
+
+			for _, p := range wantLocked {
+				encPath := p + locker.Extension
+				if !files.Exists(encPath) {
+					t.Errorf("expected %q to be locked (missing %q)", filepath.Base(p), encPath)
+				}
+			}
+			for _, p := range wantUnlocked {
+				encPath := p + locker.Extension
+				if files.Exists(encPath) {
+					t.Errorf("expected %q to remain unlocked, but found %q", filepath.Base(p), encPath)
+				}
+			}
+		})
+	}
+}

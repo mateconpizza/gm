@@ -100,7 +100,7 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	// if not a terminal (piped or test), read plain input
 	if !term.IsTerminal(fd) {
 		var password string
-		if _, err := fmt.Fscanln(t.reader, &password); err != nil {
+		if _, err := fmt.Fscanln(t.currentReader(), &password); err != nil {
 			return "", fmt.Errorf("reading password: %w", err)
 		}
 		return password, nil
@@ -383,11 +383,11 @@ func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 
 	return getUserInputWithAttempts(ctx, &PromptInput{
-		Reader:  t.br,
-		Writer:  t.writer,
-		Prompt:  p,
-		Options: opts,
-		Default: def,
+		reader:  t.currentReader(),
+		writer:  t.writer,
+		rompt:   p,
+		options: opts,
+		def:     def,
 	})
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -265,12 +266,12 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 }
 
 // Lock locks the database.
-func Lock(ctx context.Context, c *ui.Console, items []string) error {
+func Lock(ctx context.Context, c consolePass, items []string) error {
 	for i := range items {
 		toLock := items[i]
 
 		if err := locker.IsLocked(toLock); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 
 		if !files.Exists(toLock) {
@@ -281,7 +282,7 @@ func Lock(ctx context.Context, c *ui.Console, items []string) error {
 			continue
 		}
 
-		pass, err := passwordConfirm(ctx, c)
+		pass, err := c.InputPasswordConfirm(ctx)
 		if err != nil {
 			return err
 		}
@@ -661,8 +662,17 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 	return nil
 }
 
+type consolePass interface {
+	Confirm(ctx context.Context, q, def string) bool
+	ConfirmErr(ctx context.Context, q, def string) error
+	InputPassword(ctx context.Context, s string) (string, error)
+	InputPasswordConfirm(ctx context.Context) (string, error)
+	SuccessMesg(a ...any) string
+	Writer() io.Writer
+}
+
 // passwordConfirm prompts user for password input.
-func passwordConfirm(ctx context.Context, c *ui.Console) (string, error) {
+func passwordConfirm(ctx context.Context, c consolePass) (string, error) {
 	s, err := c.InputPassword(ctx, "Password: ")
 	if err != nil {
 		return "", fmt.Errorf("%w", err)

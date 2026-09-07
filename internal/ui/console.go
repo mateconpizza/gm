@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -132,6 +133,32 @@ func (c *Console) Input(p string) string {
 func (c *Console) InputPassword(ctx context.Context, s string) (string, error) {
 	c.frame.Reset().Question(s).Flush()
 	return c.term.InputPassword(ctx)
+}
+
+func (c *Console) InputPasswordConfirm(ctx context.Context) (string, error) {
+	s, err := c.InputPassword(ctx, "Password: ")
+	if err != nil {
+		return "", err
+	}
+
+	if err := c.Print(ctx, "\n"); err != nil {
+		return "", err
+	}
+
+	s2, err := c.InputPassword(ctx, "Confirm Password: ")
+	if err != nil {
+		return "", err
+	}
+
+	if err := c.Print(ctx, "\n"); err != nil {
+		return "", err
+	}
+
+	if s != s2 {
+		return "", locker.ErrPassphraseMismatch
+	}
+
+	return s, nil
 }
 
 // Prompt get the input data from the user and return it.
