@@ -81,13 +81,13 @@ func RepoInfo(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	if err := fn(repository(ctx, d)); err != nil {
-		return "", err
+		return "", fmt.Errorf("repo: %w", err)
 	}
 	if err := fn(repoBackups(ctx, d)); err != nil {
-		return "", err
+		return "", fmt.Errorf("backups: %w", err)
 	}
 	if err := fn(repoBackupListDetail(ctx, d, false)); err != nil {
-		return "", err
+		return "", fmt.Errorf("backups-detail: %w", err)
 	}
 
 	return sb.String(), nil
@@ -111,7 +111,7 @@ func repository(ctx context.Context, d *deps.Deps) (string, error) {
 
 	stats := db.NewStats()
 	if err := r.Stats(ctx, stats); err != nil {
-		return "", err
+		return "", fmt.Errorf("stats: %w", err)
 	}
 
 	stats.Name = r.Name()

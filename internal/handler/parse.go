@@ -66,6 +66,7 @@ type console interface {
 	Term() *terminal.Term
 	Writer() io.Writer
 
+	Confirm(ctx context.Context, q, def string) bool
 	SuccessMesg(a ...any) string
 }
 
@@ -81,24 +82,18 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 	defer r.Close()
 
 	c, p := d.Console(), d.Console().Palette()
-	title := p.BrightYellow.With(p.Bold).
-		Sprint("Add Bookmark")
-	comment := p.Dim.With(p.Italic).
-		Sprint(" (ctrl-c to exit)")
-	name := p.BrightYellow.With(p.Bold).
-		Sprint(r.BaseName())
-	info := p.Dim.With(p.Italic).
-		Sprintf(" (%d bookmarks)", r.Count(ctx, "bookmarks"))
-	subtitle := p.Dim.With(p.Italic).
-		Sprint(txt.PaddedLine("repository", name))
-	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
+	name := p.BrightYellow.With(p.Bold).Sprint(r.BaseName())
+	info := p.Dim.With(p.Italic).Sprintf(" (%d bookmarks)", r.Count(ctx, "bookmarks"))
+	subtitle := p.Dim.With(p.Italic).Sprint(txt.PaddedLine("repository", name)) + info
 
-	c.Frame().
-		CustomFunc(header, title+comment).Ln().
-		Headerln(subtitle + info).
-		Rowln().Flush()
+	c.NewBannerBuilder().
+		WithTitle("Add Bookmark").
+		WithTitleColor(p.BrightYellow.With(p.Bold)).
+		WithComment(" (ctrl-c to exit)").
+		WithSubtitle(subtitle).
+		Build().
+		Rowln().
+		Flush()
 
 	b := bookmark.New()
 	if err := parseNewBookmark(ctx, d, b, args); err != nil {

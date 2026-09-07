@@ -17,13 +17,11 @@ func newBackupCmd(app *application.App) *cobra.Command {
 		Short:       "backup management",
 		Annotations: cli.SkipGitSync,
 	}
-
 	c.AddCommand(
 		newBackupListCmd(app),
 		newBackupLockCmd(app),
 		newBackupUnlockCmd(app),
 	)
-
 	return c
 }
 
@@ -37,7 +35,6 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 			return dbops.LockBackup(cmd.Context(), app, ui.DefaultConsole)
 		},
 	}
-
 	return c
 }
 
@@ -51,7 +48,6 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 			return dbops.UnlockBackup(cmd.Context(), app, ui.DefaultConsole)
 		},
 	}
-
 	return c
 }
 
@@ -67,8 +63,6 @@ func newBackupListCmd(app *application.App) *cobra.Command {
 			return cmdutil.Run(cmd, args, dbops.BackupList)
 		},
 	}
-
 	cmdutil.HideFlag(c, "yes", "force")
-
 	return c
 }

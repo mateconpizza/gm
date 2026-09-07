@@ -44,32 +44,18 @@ type consolePass interface {
 }
 
 func ReorderDatabase(ctx context.Context, app *application.App, r reorderStore, c *ui.Console) error {
-	f, p := c.Frame(), c.Palette()
-
-	header := func() string {
-		return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-	title := p.BrightRed.
-		Wrap("Reorder records IDs", p.Bold)
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("this action cannot be undone")
-	warn := `This operation deletes and recreates all bookmark records to assign new
-sequential IDs.`
-
-	f.CustomFunc(header, title).Ln().
-		Headerln(subtitle).
-		Rowln()
-
-	w := strings.SplitSeq(warn, "\n")
-	for s := range w {
-		if s == "" {
-			f.Rowln()
-			continue
-		}
-		f.Warning(p.BrightYellow.With(p.Italic).Sprint(s)).Ln()
-	}
-
-	f.Rowln().Flush()
+	p := c.Palette()
+	y := p.BrightYellow.With(p.Italic).Sprint
+	c.NewBannerBuilder().
+		WithTitle("Reorder records IDs").
+		WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithSubtitle("this action cannot be undone").
+		Build().
+		Rowln().
+		Warning(y("This operation deletes and recreates all bookmark records to assign new\n")).
+		Warning(y("sequential IDs.\n")).
+		Rowln().
+		Flush()
 
 	if !c.Confirm(ctx, "continue?", "n") {
 		return sys.ErrExitFailure
@@ -147,27 +133,21 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 		return r.DropSecure(ctx)
 	}
 
-	f, p := c.Frame(), c.Palette()
-	title := p.BrightRed.
-		Wrap("Drop All Records", p.Bold)
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("this action cannot be undone")
-	comment := p.Dim.With(p.Italic).
-		Sprint(" (ctrl-c to exit)")
-	header := func() string {
-		return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-
 	s, err := RepoInfo(ctx, d)
 	if err != nil {
 		return err
 	}
 
-	f.CustomFunc(header, title+comment).Ln().
-		Headerln(subtitle).
+	c.NewBannerBuilder().
+		WithTitle("Drop All Records").
+		WithTitleColor(c.Palette().BrightRed.With(c.Palette().Bold)).
+		WithSubtitle("this action cannot be undone").
+		WithComment(" (ctrl-c to exit)").
+		Build().
 		Rowln().
 		Text(s).
-		Rowln().Flush()
+		Rowln().
+		Flush()
 
 	q := "continue?"
 	if r.Name() == application.MainDBName {
@@ -202,19 +182,12 @@ func Remove(ctx context.Context, d *deps.Deps) error {
 	}
 
 	if !app.Flags.Force && !app.Flags.Yes {
-		title := p.BrightRed.With(p.Bold).Sprint("Remove Database/s")
-		subtitle := p.Dim.With(p.Italic).Sprint("this action cannot be undone")
-		header := func() string {
-			return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-		}
+		c.NewBannerBuilder().
+			WithTitle("Remove Database/s").WithTitleColor(p.BrightRed.With(p.Bold)).
+			WithSubtitle("this action cannot be undone").
+			Render()
 
-		c.Frame().
-			CustomFunc(header, title).Ln().
-			Headerln(subtitle).
-			Rowln().
-			Flush()
-
-		fmt.Fprint(d.Writer(), SummaryRepoFromPath(ctx, d.Console(), app.Path.DB(), app.Path.Backup()))
+		fmt.Fprint(d.Writer(), SummaryRepoFromPath(ctx, c, app.Path.DB(), app.Path.Backup()))
 		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.DB())+"?", "n")
 		if err != nil {
 			return err
@@ -254,15 +227,11 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 	}
 
 	p := d.Console().Palette()
-	header := func() string { return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
-	comment := p.Dim.With(p.Italic).
-		Sprint(" (ctrl-c to exit)")
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("this action cannot be undone")
-
-	f := d.Console().Frame()
-	f.CustomFunc(header, p.BrightRed.Sprint("Remove")+" backups"+comment).Ln().
-		Headerln(subtitle).
+	d.Console().NewBannerBuilder().
+		WithTitle("Remove backups").WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithComment(" (ctrl-c to exit)").
+		WithSubtitle("this action cannot be undone").
+		Build().
 		Rowln().
 		Flush()
 
@@ -549,35 +518,24 @@ func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 }
 
 func BackupList(ctx context.Context, d *deps.Deps) error {
-	p, f := d.Console().Palette(), d.Console().Frame()
-
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
-
-	title := p.BrightMagenta.With(p.Bold).
-		Sprint("Repository Backups")
-
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("latest backup snapshots")
-
-	name := p.BrightYellow.With(p.Bold).
-		Sprint(files.StripExts(r.Name()))
-
-	repo := p.Dim.With(p.Italic).
-		Sprint("repo: " + name)
 
 	stats := db.NewStats()
 	if err := r.Stats(ctx, stats); err != nil {
 		return err
 	}
 
-	info := p.Dim.With(p.Italic).
-		Sprintf(" (%d bookmarks)", stats.Bookmarks)
-
-	f.Headerln(title).
-		Headerln(subtitle).
+	p := d.Console().Palette()
+	info := p.Dim.With(p.Italic).Sprintf(" (%d bookmarks)", stats.Bookmarks)
+	name := p.BrightYellow.With(p.Bold).Sprint(files.StripExts(r.Name()))
+	repo := p.Dim.With(p.Italic).Sprint("repo: " + name)
+	d.Console().NewBannerBuilder().
+		WithTitle("Repository Backups").WithTitleColor(p.BrightMagenta.With(p.Bold)).
+		WithSubtitle("latest backup snapshots").
+		Build().
 		Rowln().
 		Midln(repo + info).
 		Rowln().

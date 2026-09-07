@@ -3,12 +3,10 @@ package gitops
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/git"
 )
@@ -36,8 +34,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 		return f.StringReset(), err
 	}
 
-	f.Reset().
-		HeaderCln(p.BrightRed, p.BrightRed.Wrap("git:", p.Italic))
+	f.Reset().Textln(p.BrightRed.Wrap("git:", p.Italic))
 
 	gr := gm.NewRepo(r.BaseName())
 	sum, err := gm.Summary(gr)
@@ -94,31 +91,19 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 }
 
 func InfoCmd(ctx context.Context, d *deps.Deps) error {
-	c := d.Console()
-	p := c.Palette()
-
-	title := p.BrightYellow.With(p.Bold).
-		Sprint("Git Information")
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("showing current git status")
-	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-
-	d.Console().Frame().SetBorders(frame.WithBordersSmallBlock2())
-
-	c.Frame().
-		CustomFunc(header, title).Ln().
-		Headerln(subtitle).
-		Rowln().
-		Flush()
-
 	i, err := Info(ctx, d)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprint(d.Writer(), i)
+	d.Console().NewBannerBuilder().
+		WithTitle("Git Information").
+		WithTitleColor(d.Console().Palette().BrightYellow).
+		WithSubtitle("showing current git status").
+		Build().
+		Rowln().
+		HeaderC(d.Console().Palette().BrightRed, i).
+		Flush()
 
 	return nil
 }

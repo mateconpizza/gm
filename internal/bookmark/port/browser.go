@@ -99,24 +99,19 @@ func selectBrowser(ctx context.Context, app *application.App, c *ui.Console) (br
 		return browser.Supported{}, err
 	}
 
-	p := c.Palette()
-	title := p.BrightGreen.With(p.Bold).
-		Sprint("Import Bookmarks from Browser")
-
-	comment := p.Dim.With(p.Italic).
-		Sprint(" (ctrl-c to exit)")
-
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("merge bookmarks into your collection")
-
-	c.Frame().Headerln(title + comment).
-		Headerln(subtitle)
-
 	m := picker.New[browser.Supported](app)
 	browsers, err := m.Select(browsers())
 	if err != nil {
 		return browser.Supported{}, err
 	}
+
+	p := c.Palette()
+	c.NewBannerBuilder().
+		WithTitle("Import Bookmarks from Browser").
+		WithTitleColor(p.BrightGreen.With(p.Bold)).
+		WithSubtitle("merge bookmarks into your collection").
+		WithComment(" (ctrl-c to exit)").
+		Render()
 
 	selected := browsers[0]
 
