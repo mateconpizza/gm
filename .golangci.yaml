@@ -294,6 +294,9 @@ linters:
       - path: "internal/editor/session_test.go"
         linters:
           - paralleltest
+      - path: "internal/dbops/dbops_test.go"
+        linters:
+          - dupword
     generated: lax
     presets:
       - common-false-positives

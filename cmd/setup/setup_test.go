@@ -15,7 +15,7 @@ import (
 func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	d := testutil.NewDeps(t)
 	var buf bytes.Buffer
-	d.SetWriter(&buf)
+	d.WithWriter(&buf)
 
 	ansi.DisableColor()
 
@@ -74,7 +74,7 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 	app.DBName = "test-db"
 	app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
 	var buf bytes.Buffer
-	d.SetWriter(&buf)
+	d.WithWriter(&buf)
 
 	err = initializeAction(t.Context(), d)
 	if err != nil {
@@ -169,7 +169,7 @@ func TestFailsWhenBookmarkInsertionFails(t *testing.T) {
 func TestParseAndStoreBookmarkTags(t *testing.T) {
 	d := testutil.NewDeps(t)
 	var buf bytes.Buffer
-	d.SetWriter(&buf)
+	d.WithWriter(&buf)
 
 	err := initializeAction(t.Context(), d)
 	if err != nil {

@@ -199,9 +199,9 @@ func Test_SaveNewBookmark(t *testing.T) {
 			// Conditionally setup repository to test missing repo boundary
 			if !tt.repoUnset {
 				r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-				d.SetRepo(r)
+				d.WithRepo(r)
 			} else {
-				d.SetRepo(nil)
+				d.WithRepo(nil)
 			}
 
 			c := d.Console()
@@ -336,7 +336,7 @@ func TestTagsFromArgs(t *testing.T) {
 			app.Flags.Force = tt.force
 
 			r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-			d.SetRepo(r)
+			d.WithRepo(r)
 
 			if tt.userInput != "" {
 				d.Console().SetReader(strings.NewReader(tt.userInput))

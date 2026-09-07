@@ -117,11 +117,11 @@ func TestTermGetUserInput(t *testing.T) {
 			t.Parallel()
 
 			mockPromptInput := &PromptInput{
-				Reader:  bufio.NewReader(strings.NewReader(tt.input)),
-				Writer:  &strings.Builder{},
-				Prompt:  tt.prompt,
-				Options: tt.options,
-				Default: tt.defaultVal,
+				reader:  bufio.NewReader(strings.NewReader(tt.input)),
+				writer:  &strings.Builder{},
+				rompt:   tt.prompt,
+				options: tt.options,
+				def:     tt.defaultVal,
 			}
 
 			result, err := getUserInputWithAttempts(t.Context(), mockPromptInput)

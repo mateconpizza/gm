@@ -29,11 +29,11 @@ func (h *highlighter) dim(s string) string     { return ansi.Dim.Wrap(s) }
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
-	Reader  *bufio.Reader
-	Writer  io.Writer
-	Prompt  string
-	Options []string
-	Default string
+	reader  *bufio.Reader
+	writer  io.Writer
+	rompt   string
+	options []string
+	def     string
 }
 
 // PromptSuggester is a function that generates suggestions for a given prompt.
@@ -217,7 +217,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 	h := &highlighter{}
 
 	for count < maxRetries {
-		_, _ = fmt.Fprint(pi.Writer, pi.Prompt)
+		_, _ = fmt.Fprint(pi.writer, pi.rompt)
 
 		// ch to receive input result
 		type inputResult struct {
@@ -228,7 +228,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 
 		// read in a goroutine so context can interrupt it
 		go func() {
-			userInput, err := pi.Reader.ReadString('\n')
+			userInput, err := pi.reader.ReadString('\n')
 			resultChan <- inputResult{input: userInput, err: err}
 		}()
 
@@ -243,24 +243,24 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 			}
 
 			userInput := strings.ToLower(strings.TrimSpace(result.input))
-			if userInput == "" && pi.Default != "" || userInput == pi.Default {
-				redrawPromptWithSelection(pi.Writer, pi.Prompt, pi.Default, pi.Options, h.green)
-				return pi.Default, nil
+			if userInput == "" && pi.def != "" || userInput == pi.def {
+				redrawPromptWithSelection(pi.writer, pi.rompt, pi.def, pi.options, h.green)
+				return pi.def, nil
 			}
 
-			if isValidOption(userInput, pi.Options) {
-				redrawPromptWithSelection(pi.Writer, pi.Prompt, userInput, pi.Options, h.magenta)
+			if isValidOption(userInput, pi.options) {
+				redrawPromptWithSelection(pi.writer, pi.rompt, userInput, pi.options, h.magenta)
 				return userInput, nil
 			}
 
 			count++
 			if count <= maxRetries-1 {
-				ClearLine(pi.Writer, len(strings.Split(pi.Prompt, "\n")))
+				ClearLine(pi.writer, len(strings.Split(pi.rompt, "\n")))
 			}
 		}
 	}
 
-	redrawPromptWithSelection(pi.Writer, pi.Prompt, "error", []string{"error"}, h.red)
+	redrawPromptWithSelection(pi.writer, pi.rompt, "error", []string{"error"}, h.red)
 	return "", fmt.Errorf("%d %w", maxRetries, ErrIncorrectAttempts)
 }
 

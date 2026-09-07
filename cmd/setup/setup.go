@@ -75,7 +75,7 @@ func initializeAction(ctx context.Context, d *deps.Deps) error {
 	if err != nil {
 		return fmt.Errorf("database init failed: %w", err)
 	}
-	d.SetRepo(r)
+	d.WithRepo(r)
 
 	if err := dbops.MigrationsStatus(ctx, d); err != nil {
 		return err
