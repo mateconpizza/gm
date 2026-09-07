@@ -2,13 +2,16 @@ package setup
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/ansi"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -216,5 +219,116 @@ func TestParseAndStoreBookmarkTags(t *testing.T) {
 		if !found {
 			t.Errorf("expected tag %q not found in %v", tag, bm.Tags)
 		}
+	}
+}
+
+type mockInserter struct {
+	err error
+}
+
+func (m *mockInserter) InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error) {
+	return int64(42), m.err
+}
+
+func TestSeedNewRepo(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		url        string
+		title      string
+		tags       string
+		desc       string
+		mockErr    error
+		wantErrMsg string
+	}{
+		{
+			name:       "normal_https_url",
+			url:        "https://example.com",
+			title:      "Example Setup",
+			tags:       "setup, init",
+			desc:       "Initial bookmark",
+			mockErr:    nil,
+			wantErrMsg: "",
+		},
+		{
+			name:       "http_url_no_replacement",
+			url:        "http://example.com",
+			title:      "Insecure Setup",
+			tags:       "http",
+			desc:       "",
+			mockErr:    nil,
+			wantErrMsg: "",
+		},
+		{
+			name:       "empty_values_edge_case",
+			url:        "",
+			title:      "",
+			tags:       "",
+			desc:       "",
+			mockErr:    nil,
+			wantErrMsg: "",
+		},
+		{
+			name:       "multiple_https_occurrences_boundary",
+			url:        "https://example.com/redirect?to=https://other.com",
+			title:      "Multiple HTTPS",
+			tags:       "redirect",
+			desc:       "Should only replace the first https:// prefix",
+			mockErr:    nil,
+			wantErrMsg: "",
+		},
+		{
+			name:       "complex_tags_parsing",
+			url:        "https://tags-example.com",
+			title:      "Tags parsing",
+			tags:       " tag1 , tag2,  tag3 ",
+			desc:       "Checks that messy tags don't break the seeding process",
+			mockErr:    nil,
+			wantErrMsg: "",
+		},
+		{
+			name:       "insert_fails_returns_wrapped_error",
+			url:        "https://error.com",
+			title:      "Error Site",
+			tags:       "",
+			desc:       "",
+			mockErr:    errors.New("database locked"),
+			wantErrMsg: "failed to seed initial bookmark",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := testutil.NewApp(t)
+			app.Info.URL = tt.url
+			app.Info.Title = tt.title
+			app.Info.Tags = tt.tags
+			app.Info.Desc = tt.desc
+
+			r := &mockInserter{err: tt.mockErr}
+			c := testutil.NewConsole(t, io.Discard)
+
+			err := seedNewRepo(t.Context(), app, r, c)
+
+			if tt.wantErrMsg != "" {
+				if err == nil {
+					t.Fatalf("seedNewRepo() expected error containing %q, got nil", tt.wantErrMsg)
+				}
+				if !strings.Contains(err.Error(), tt.wantErrMsg) {
+					t.Fatalf("seedNewRepo() expected error containing %q, got %v", tt.wantErrMsg, err)
+				}
+				if !errors.Is(err, tt.mockErr) {
+					t.Fatalf("seedNewRepo() expected wrapped error %v, got %v", tt.mockErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("seedNewRepo() unexpected error: %v", err)
+			}
+		})
 	}
 }

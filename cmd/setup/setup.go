@@ -22,6 +22,10 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+type Inserter interface {
+	InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error)
+}
+
 const padding = 28
 
 var InitCmd = &cobra.Command{
@@ -157,7 +161,7 @@ func initWorkspace(c *ui.Console, app *application.App) error {
 	return nil
 }
 
-func seedNewRepo(ctx context.Context, app *application.App, r *db.SQLite, c *ui.Console) error {
+func seedNewRepo(ctx context.Context, app *application.App, r Inserter, c *ui.Console) error {
 	ib := bookmark.New()
 	ib.URL = app.Info.URL
 	ib.Title = app.Info.Title
