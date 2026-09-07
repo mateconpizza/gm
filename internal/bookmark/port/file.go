@@ -156,16 +156,6 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 
 func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 	p := c.Palette()
-	title := p.BrightGreen.With(p.Bold).
-		Sprint("Import Bookmarks " + header)
-
-	h := func() string {
-		return p.BrightGreen.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("merge bookmarks into your collection")
-
 	bs := p.BrightGreen.With(p.Bold).Sprint("found") +
 		p.Italic.Sprintf(" %d bookmarks found\n", n)
 
@@ -175,9 +165,10 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 		)
 	}
 
-	c.Frame().
-		CustomFunc(h, title).Ln().
-		Headerln(subtitle).
+	c.NewBannerBuilder().
+		WithTitle("Import Bookmarks " + header).WithTitleColor(p.BrightGreen.With(p.Bold)).
+		WithSubtitle("merge bookmarks into your collection").
+		Build().
 		Rowln().
 		Info(txt.PaddedLine("source:", value(toName+"\n"))).
 		Info(txt.PaddedLine("destination:", value(fromName+"\n"))).

@@ -330,8 +330,13 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	c := d.Console()
-	printRemoveHeader(c)
+	d.Console().NewBannerBuilder().
+		WithTitle("Remove Database/s").
+		WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithSubtitle("this action cannot be undone").
+		Build().
+		Rowln().
+		Flush()
 
 	for i := range items {
 		if err := ctx.Err(); err != nil {
@@ -340,7 +345,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 			}
 			return err
 		}
-		if err := removeOneDB(ctx, c, gm, items[i]); err != nil {
+		if err := removeOneDB(ctx, d.Console(), gm, items[i]); err != nil {
 			return err
 		}
 	}
@@ -363,27 +368,11 @@ func gitTrackedMarker(f isTracked) func(string) string {
 	}
 }
 
-// printRemoveHeader renders the "Remove Database/s" section header.
-func printRemoveHeader(c console) {
-	p := c.Palette()
-	title := p.BrightRed.With(p.Bold).Sprint("Remove Database/s")
-	subtitle := p.Dim.With(p.Italic).Sprint("this action cannot be undone")
-	header := func() string {
-		return p.BrightRed.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-
-	c.Frame().
-		CustomFunc(header, title).Ln().
-		Headerln(subtitle).
-		Rowln().
-		Flush()
-}
-
 func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) error {
 	name := files.StripExts(filepath.Base(dbPath))
 
 	p := c.Palette()
-	if !c.Term().Confirm(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+name+"?", "n") {
+	if !c.Confirm(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+name+"?", "n") {
 		return nil
 	}
 

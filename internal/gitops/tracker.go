@@ -141,19 +141,12 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 
 func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
 	p := c.Palette()
-	title := p.BrightYellow.With(p.Bold).
-		Sprint("Git Tracker Databases")
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("select which databases to track")
-	comment := p.Dim.With(p.Italic).
-		Sprint(" (ctrl-c to exit)")
-	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-
-	c.Frame().
-		CustomFunc(header, title+comment).Ln().
-		Headerln(subtitle).
+	c.NewBannerBuilder().
+		WithTitle("Git Tracker Databases").
+		WithTitleColor(p.BrightYellow.With(p.Bold)).
+		WithComment(" (ctrl-c to exit)").
+		WithSubtitle("select which databases to track").
+		Build().
 		Rowln().
 		Flush()
 
@@ -209,32 +202,25 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		return nil
 	}
 
-	p := c.Palette()
-
-	title := p.BrightYellow.With(p.Bold).
-		Sprint("Git Tracked Databases")
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("showing tracked databases with git")
-	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
-
 	dbFiles, err := files.Find(app.Path.Home(), "*.db")
 	if err != nil {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	// move main database to the top
-	files.PrioritizeFile(dbFiles, app.DBName)
-
-	c.Frame().
-		CustomFunc(header, title).Ln().
-		Headerln(subtitle).
+	p := c.Palette()
+	c.NewBannerBuilder().
+		WithTitle("Git Tracked Databases").
+		WithTitleColor(p.BrightYellow.With(p.Bold)).
+		WithSubtitle("showing tracked databases with git").
+		Build().
 		Rowln().
 		Flush()
 
 	var tracked strings.Builder
 	var untracked strings.Builder
+
+	// move main database to the top
+	files.PrioritizeFile(dbFiles, app.DBName)
 
 	for _, dbPath := range dbFiles {
 		name := filepath.Base(dbPath)

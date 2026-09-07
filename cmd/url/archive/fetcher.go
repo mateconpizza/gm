@@ -82,23 +82,17 @@ func runWayback(ctx context.Context, d *deps.Deps, flags *application.Flags, bs 
 func confirmWayback(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
 	f, p := d.Console().Frame(), d.Console().Palette()
 
-	title := p.BrightYellow.
-		Wrap("Wayback Machine: Fetch "+op, p.Bold)
-
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("confirm bookmarks to query in the wayback machine")
-
 	items := p.BrightCyan.
-		Sprintf("[%d] selected bookmarks:", len(bs))
-	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
-	}
+		Sprintf("%d selected bookmarks:", len(bs))
 	selected := func() string {
 		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
 	}
 
-	f.CustomFunc(header, title).Ln().
-		Headerln(subtitle).
+	d.Console().NewBannerBuilder().
+		WithTitle("Wayback Machine: Fetch "+op).
+		WithTitleColor(p.BrightYellow.With(p.Bold)).
+		WithSubtitle("confirm bookmarks to query in the wayback machine").
+		Build().
 		Rowln().
 		CustomFunc(selected, items).Ln().
 		Rowln()

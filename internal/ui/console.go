@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/frame"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
@@ -91,16 +92,6 @@ func WithDefaultTerminal(f func(error)) Option {
 		terminal.WithInterruptFn(f),
 	))
 }
-
-func (c *Console) Term() *terminal.Term         { return c.term }
-func (c *Console) Frame() *frame.Frame          { return c.frame }
-func (c *Console) Palette() *ansi.Palette       { return c.palette }
-func (c *Console) Writer() io.Writer            { return c.writer }
-func (c *Console) IsPiped() bool                { return c.term.IsPiped() }
-func (c *Console) ReplaceLine(s string)         { c.term.ReplaceLine(1, s) }
-func (c *Console) ReplaceLines(n int, s string) { c.term.ReplaceLine(n, s) }
-func (c *Console) SetReader(r io.Reader)        { c.term.SetReader(r) }
-func (c *Console) SetWriter(w io.Writer)        { c.term.SetWriter(w) }
 
 // ConfirmErr prompts the user with a question and options.
 func (c *Console) ConfirmErr(ctx context.Context, q, def string) error {
@@ -202,6 +193,15 @@ func (c *Console) InfoMesg(a ...any) string {
 	return c.frame.Reset().Info(info + mesg).StringReset()
 }
 
+func (c *Console) Term() *terminal.Term                      { return c.term }
+func (c *Console) Frame() *frame.Frame                       { return c.frame }
+func (c *Console) Palette() *ansi.Palette                    { return c.palette }
+func (c *Console) Writer() io.Writer                         { return c.writer }
+func (c *Console) IsPiped() bool                             { return c.term.IsPiped() }
+func (c *Console) ReplaceLine(s string)                      { c.term.ReplaceLine(1, s) }
+func (c *Console) ReplaceLines(n int, s string)              { c.term.ReplaceLine(n, s) }
+func (c *Console) SetReader(r io.Reader)                     { c.term.SetReader(r) }
+func (c *Console) SetWriter(w io.Writer)                     { c.term.SetWriter(w) }
 func (c *Console) Error(s string) *frame.Frame               { return c.frame.Reset().Error(s) }
 func (c *Console) Info(s string) *frame.Frame                { return c.frame.Reset().Info(s) }
 func (c *Console) Success(s string) *frame.Frame             { return c.frame.Reset().Success(s) }
@@ -213,3 +213,65 @@ func (c *Console) MinWidth() int                             { return c.Term().M
 func (c *Console) Width() int                                { return c.Term().Width() }
 func (c *Console) Height() int                               { return c.Term().Height() }
 func (c *Console) Print(ctx context.Context, s string) error { return c.Term().Print(ctx, s) }
+
+type BannerConfig struct {
+	title        string
+	titleColor   ansi.SGR
+	comment      string
+	subtitle     string
+	defaultColor ansi.SGR
+	console      *Console
+}
+
+func (c *Console) NewBannerBuilder() *BannerConfig {
+	return &BannerConfig{
+		console:      c,
+		defaultColor: c.Palette().White,
+	}
+}
+
+func (b *BannerConfig) WithConsole(c *Console) *BannerConfig {
+	b.console = c
+	return b
+}
+
+func (b *BannerConfig) WithTitle(s string) *BannerConfig {
+	b.title = s
+	return b
+}
+
+func (b *BannerConfig) WithTitleColor(c ansi.SGR) *BannerConfig {
+	b.titleColor = c
+	return b
+}
+
+func (b *BannerConfig) WithSubtitle(s string) *BannerConfig {
+	b.subtitle = s
+	return b
+}
+
+func (b *BannerConfig) WithComment(s string) *BannerConfig {
+	b.comment = s
+	return b
+}
+
+func (b *BannerConfig) Render() *BannerConfig {
+	b.Build().Flush()
+	return b
+}
+
+func (b *BannerConfig) Build() *frame.Frame {
+	p := b.console.Palette()
+	title := b.titleColor.Sprint(b.title)
+	if b.comment != "" {
+		title += p.Dim.With(p.Italic).Sprint(b.comment)
+	}
+	header := func() string {
+		return b.titleColor.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+	return b.console.
+		Frame().
+		CustomFunc(header, title).
+		Ln().
+		Headerln(p.Dim.With(p.Italic).Sprint(b.subtitle))
+}
