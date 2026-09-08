@@ -3,6 +3,7 @@ package cmdutil
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
@@ -110,4 +111,29 @@ func Run(cmd *cobra.Command, args []string, fn RunFunc) error {
 	defer cleanup()
 
 	return fn(cmd.Context(), d)
+}
+
+// WrapFields formats fields into lines no longer than maxLen,
+// joining fields with sep and inserting newlines when needed.
+func WrapFields(fields []string, sep string, maxLen int) string {
+	var sb strings.Builder
+	line := ""
+
+	for i, f := range fields {
+		part := f
+		if i < len(fields)-1 {
+			part += sep
+		}
+
+		if len(line)+len(part) > maxLen && line != "" {
+			sb.WriteString(line)
+			sb.WriteByte('\n')
+			line = part
+		} else {
+			line += part
+		}
+	}
+
+	sb.WriteString(line)
+	return sb.String()
 }

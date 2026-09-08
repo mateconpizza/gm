@@ -79,7 +79,7 @@ func NewDatabaseEncryptedSelector(app *application.App) *Selector {
 	return &Selector{
 		app:           app,
 		root:          app.Path.Home(),
-		ext:           locker.Extension,
+		ext:           locker.Extension.String(),
 		itemFormatter: formatBackupFn,
 	}
 }
@@ -90,7 +90,7 @@ func NewBackupEncryptedSelector(app *application.App) *Selector {
 	return &Selector{
 		app:           app,
 		root:          app.Path.Backup(),
-		ext:           locker.Extension,
+		ext:           locker.Extension.String(),
 		itemFormatter: formatBackupFn,
 	}
 }

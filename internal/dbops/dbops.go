@@ -375,7 +375,7 @@ func Unlock(ctx context.Context, c consolePass, items []string) error {
 			return fmt.Errorf("%w: %q", locker.ErrFileUnlocked, filepath.Base(rToUnlock))
 		}
 
-		rToUnlock = files.EnsureExt(rToUnlock, locker.Extension)
+		rToUnlock = locker.Extension.Join(rToUnlock)
 		slog.Debug("unlocking database", "name", rToUnlock)
 
 		if !files.Exists(rToUnlock) {

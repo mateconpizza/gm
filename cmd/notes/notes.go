@@ -50,6 +50,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithHeaderKeymaps(),
 				menu.WithKeybinds(
 					kb.New(k.Edit.Bind, k.Edit.Desc).WithExecute("edit notes"),
+					menu.KeymapToggleAll(),
 					menu.KeymapTogglePreview(),
 				),
 			)

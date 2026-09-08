@@ -652,7 +652,7 @@ func TestLock(t *testing.T) {
 				tempDir := t.TempDir()
 				f := newUnlockedFile(t, tempDir, "main.db")
 				// create the .enc counterpart so IsLocked reports it as locked.
-				encPath := f + locker.Extension
+				encPath := locker.Extension.Join(f)
 				if err := os.WriteFile(encPath, []byte("locked"), 0o644); err != nil {
 					t.Fatalf("failed to create locked marker file: %v", err)
 				}
@@ -750,13 +750,13 @@ func TestLock(t *testing.T) {
 			}
 
 			for _, p := range wantLocked {
-				encPath := p + locker.Extension
+				encPath := locker.Extension.Join(p)
 				if !files.Exists(encPath) {
 					t.Errorf("expected %q to be locked (missing %q)", filepath.Base(p), encPath)
 				}
 			}
 			for _, p := range wantUnlocked {
-				encPath := p + locker.Extension
+				encPath := locker.Extension.Join(p)
 				if files.Exists(encPath) {
 					t.Errorf("expected %q to remain unlocked, but found %q", filepath.Base(p), encPath)
 				}

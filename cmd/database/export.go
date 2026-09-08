@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"os"
-	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
@@ -79,72 +78,12 @@ func newExportCSVCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to CSV ")
 			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				return bookio.ExportToCSV(bs, os.Stdout, parseCSVFields(app.Flags.Field))
+				return bookio.ExportToCSV(bs, os.Stdout, bookio.ParseCSVFields(app.Flags.Field))
 			})
 		},
 	}
-	cmdutil.FlagFields(c, app, "all,"+wrapFields(bookmark.Fields(), ",", 50))
+	cmdutil.FlagFields(c, app, "all,"+cmdutil.WrapFields(bookmark.Fields(), ",", 50))
 	return c
-}
-
-func wrapFields(fields []string, sep string, maxLen int) string {
-	var sb strings.Builder
-	line := ""
-
-	for i, f := range fields {
-		part := f
-		if i < len(fields)-1 {
-			part += sep
-		}
-
-		if len(line)+len(part) > maxLen && line != "" {
-			sb.WriteString(line)
-			sb.WriteByte('\n')
-			line = part
-		} else {
-			line += part
-		}
-	}
-
-	sb.WriteString(line)
-	return sb.String()
-}
-
-// parseCSVFields normalises the --fields flag value into a deduplicated,
-// lowercase slice of field names ready for ExportToCSV.
-//
-//   - empty string  → CSVDefaultHeader
-//   - "all"         → bookmark.Fields()
-//   - "id,URL, url" → ["id", "url"]  (trimmed, lowercased, deduplicated)
-func parseCSVFields(f string) []string {
-	f = strings.TrimSpace(f)
-	if f == "" {
-		return bookio.CSVDefaultHeader
-	}
-
-	f = strings.Trim(f, ",")
-	parts := strings.Split(f, ",")
-
-	// Normalise each part.
-	seen := make(map[string]struct{}, len(parts))
-	out := make([]string, 0, len(parts))
-
-	for _, p := range parts {
-		p = strings.ToLower(strings.TrimSpace(p))
-		if p == "" {
-			continue
-		}
-		// A single "all" token anywhere in the list wins immediately.
-		if p == "all" {
-			return bookmark.Fields()
-		}
-		if _, dup := seen[p]; !dup {
-			seen[p] = struct{}{}
-			out = append(out, p)
-		}
-	}
-
-	return out
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {

@@ -167,3 +167,42 @@ func ImportFromCSV(r io.Reader) ([]*bookmark.Bookmark, error) {
 
 	return out, nil
 }
+
+// ParseCSVFields normalises a comma-separated field list by trimming whitespace,
+// lowercasing names, and removing duplicates.
+//
+// An empty value returns CSVDefaultHeader, while the "all" token returns all
+// available bookmark fields.
+//
+// Examples:
+//   - ""           → CSVDefaultHeader
+//   - "all"        → bookmark.Fields()
+//   - "id,URL, url" → ["id", "url"]
+func ParseCSVFields(f string) []string {
+	f = strings.TrimSpace(f)
+	if f == "" {
+		return CSVDefaultHeader
+	}
+
+	f = strings.Trim(f, ",")
+	parts := strings.Split(f, ",")
+
+	seen := make(map[string]struct{}, len(parts))
+	out := make([]string, 0, len(parts))
+
+	for _, p := range parts {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p == "" {
+			continue
+		}
+		if p == "all" {
+			return bookmark.Fields()
+		}
+		if _, dup := seen[p]; !dup {
+			seen[p] = struct{}{}
+			out = append(out, p)
+		}
+	}
+
+	return out
+}

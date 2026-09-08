@@ -218,6 +218,8 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 				menu.WithHeader("select record/s to import"),
 				menu.WithInterruptFn(c.Term().InterruptFn()),
 				menu.WithMultiSelection(),
+				menu.WithKeybinds(menu.KeymapToggleAll()),
+				menu.WithHeaderKeymaps(),
 			)
 
 			m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)

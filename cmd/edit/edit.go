@@ -95,7 +95,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithHeader("select record/s"),
 				menu.WithBorderLabel(" notes "),
 				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
-				menu.WithKeybinds(menu.KeymapTogglePreview()),
+				menu.WithKeybinds(menu.KeymapTogglePreview(), menu.KeymapToggleAll()),
 				menu.WithHeaderKeymaps(),
 				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 			)

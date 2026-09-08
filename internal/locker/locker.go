@@ -19,7 +19,17 @@ import (
 	files "github.com/mateconpizza/gofiles"
 )
 
-const Extension = ".enc"
+type Ext string
+
+func (e Ext) Join(filename string) string {
+	return files.EnsureExt(filename, string(e))
+}
+
+func (e Ext) String() string {
+	return string(e)
+}
+
+const Extension Ext = ".enc"
 
 var (
 	ErrPassphraseEmpty    = errors.New("password cannot be empty")
@@ -55,7 +65,7 @@ func Lock(path, passphrase string) error {
 		return err
 	}
 	// Write encrypted data to disk
-	lockedPath := path + Extension
+	lockedPath := Extension.Join(path)
 
 	err = writeAndReplaceFile(lockedPath, ciphertext, path, backupPath)
 	if err != nil {
@@ -77,7 +87,7 @@ func Unlock(path, passphrase string) error {
 		return err
 	}
 
-	if !strings.HasSuffix(path, Extension) {
+	if !strings.HasSuffix(path, Extension.String()) {
 		return fmt.Errorf("%w: got %q", ErrFileExtMismatch, filepath.Ext(path))
 	}
 	// Read the encrypted content
@@ -96,7 +106,7 @@ func Unlock(path, passphrase string) error {
 		return fmt.Errorf("backup creation failed: %w", err)
 	}
 	// Write decrypted data to disk
-	decryptedPath := strings.TrimSuffix(path, Extension)
+	decryptedPath := strings.TrimSuffix(path, Extension.String())
 
 	err = writeAndReplaceFile(decryptedPath, plaintext, path, backupPath)
 	if err != nil {
@@ -169,7 +179,7 @@ func decrypt(ciphertext []byte, passphrase string) ([]byte, error) {
 func IsLocked(s string) error {
 	slog.Debug("checking if file is locked")
 
-	s = files.EnsureExt(s, Extension)
+	s = Extension.Join(s)
 	if files.Exists(s) {
 		return fmt.Errorf("%w: %q", ErrFileLocked, filepath.Base(s))
 	}

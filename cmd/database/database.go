@@ -50,14 +50,16 @@ func newStatsCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "stats",
 		Short:       "show database stats",
-		Aliases:     []string{"i", "show", "info"},
+		Aliases:     []string{"i", "show", "info", "status"},
 		Annotations: cli.SkipGitSync,
 		Example: app.Example(`  $ {cmd} db stats
   $ {cmd} db stats --db work
   $ {cmd} db stats --json
   $ {cmd} db stats --db {db} --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, printer.RepoStats)
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return printer.RepoStats(ctx, d, gitops.Info)
+			})
 		},
 	}
 

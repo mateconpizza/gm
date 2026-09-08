@@ -76,6 +76,10 @@ const (
 	GlyphFavorite = "★" // ★
 	GlyphNotes    = "✎" // ✎
 	GlyphArchive  = "∞" // ∞
+
+	GlyphGit  = "" // 
+	GlyphJSON = "" // 
+	GlyphLock = "󰌾" // 󰌾
 )
 
 func (g Glyph) Prefix(text string) string           { return g.String() + text }

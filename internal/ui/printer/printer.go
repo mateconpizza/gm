@@ -20,7 +20,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -215,7 +214,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 
 		fnameColor := p.BrightBlue.Sprint
 
-		if ext == locker.Extension {
+		if ext == locker.Extension.String() {
 			fnameColor = p.BrightMagenta.Sprint
 			cleanName = fnameColor(cleanName)
 			rows = append(
@@ -296,8 +295,10 @@ func TagsJSON(ctx context.Context, w io.Writer, p string) error {
 	return nil
 }
 
+type GitInfoFunc func(ctx context.Context, d *deps.Deps) (string, error)
+
 // RepoStats prints the database info.
-func RepoStats(ctx context.Context, d *deps.Deps) error {
+func RepoStats(ctx context.Context, d *deps.Deps, gitInfo GitInfoFunc) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
@@ -323,7 +324,7 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 		}
 		b, err := port.ToJSON(r)
 		if err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 
 		fmt.Fprintln(d.Writer(), string(b))
@@ -336,13 +337,13 @@ func RepoStats(ctx context.Context, d *deps.Deps) error {
 
 	s, err := dbops.RepoInfo(ctx, d)
 	if err != nil {
-		return err
+		return fmt.Errorf("info: %w", err)
 	}
 
 	var sb strings.Builder
 	sb.WriteString(s)
 
-	g, err := gitops.Info(ctx, d)
+	g, err := gitInfo(ctx, d)
 	if err != nil {
 		return fmt.Errorf("git: %w", err)
 	}
