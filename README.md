@@ -33,7 +33,7 @@ https://github.com/user-attachments/assets/b8d8f0fa-e453-421b-b27d-eebb3da7f51f
   - [x] `Sync` bookmarks as `JSON` files and push to a remote
   - [x] `Encrypt` bookmarks with [`GPG`](https://gnupg.org/) and push to a remote
   - [x] `Import` from `git`
-- [x] Encrypt the local database with `AES-GCM`
+- [x] Encrypt the local database/backup with `AES-GCM`
 - [x] Support multiple `databases`
 - [x] Support for `backups`
 - [x] Generate `QR-Code`
@@ -62,7 +62,7 @@ $ gm --help
 usage: gm [query] [flags] [command]
 
 commands:
-  add         add a bookmark
+  new         new bookmark or database
   edit        edit bookmark
   rm          remove bookmark
   open        open in browser
