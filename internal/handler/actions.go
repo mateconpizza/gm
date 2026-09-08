@@ -315,9 +315,8 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 	boldRed := p.BrightRed.With(p.Bold)
 
 	items, err := dbops.NewDatabaseSelector(app).
-		WithCustomFormatter(gitTrackedMarker(gm.IsTracked)).
-		Select(
-			ctx,
+		WithItemDecorator(gitTrackedMarker(gm.IsTracked)).
+		WithOpts(
 			menu.WithMultiSelection(),
 			menu.WithHeaderLabel("remove database"),
 			menu.WithHeader(fmt.Sprintf(
@@ -325,7 +324,8 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 				txt.GlyphBulletPoint,
 				boldRed.Sprint("this action cannot be undone"),
 			)),
-		)
+		).
+		Select(ctx)
 	if err != nil {
 		return err
 	}
