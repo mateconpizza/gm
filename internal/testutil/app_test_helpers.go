@@ -8,6 +8,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -39,6 +40,7 @@ func NewApp(t *testing.T) *application.App {
 			Home:   application.EnvHome,
 			Editor: application.EnvEditor,
 		},
+		Menu: &menucfg.Config{},
 	}
 }
 

@@ -23,82 +23,116 @@ import (
 
 var ErrNoItems = errors.New("no items")
 
-type FmtFunc func(string) string
+type ItemDecorator func(string) string
 
-// DatabaseSelector encapsulates options for listing and picking databases or backups.
-type DatabaseSelector struct {
+type ItemFormatter func(ctx context.Context, p *ansi.Palette, path string, w int) string
+
+// Selector encapsulates options for listing and picking databases or backups.
+type Selector struct {
 	app        *application.App
 	root       string
 	ext        string
 	exclutions []string
 	filter     func(string) bool
 	preview    string
-	itemFmt    func(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string
-	fmtFunc    FmtFunc
+
+	itemFormatter ItemFormatter
+	itemDecorator ItemDecorator
+
+	opts []menu.Option
+}
+
+func NewSelector(app *application.App, root string) *Selector {
+	return &Selector{
+		app:  app,
+		root: root,
+		ext:  "db",
+		opts: make([]menu.Option, 0),
+	}
 }
 
 // NewDatabaseSelector creates a default selector for main databases.
-func NewDatabaseSelector(app *application.App) *DatabaseSelector {
-	return &DatabaseSelector{
-		app:     app,
-		root:    app.Path.Home(),
-		ext:     "db",
-		preview: app.Command() + " db info --db {1} --color=always",
-		itemFmt: formatDatabaseFn,
+func NewDatabaseSelector(app *application.App) *Selector {
+	return &Selector{
+		app:           app,
+		root:          app.Path.Home(),
+		ext:           "db",
+		preview:       app.Command() + " db info --db {1} --color=always",
+		itemFormatter: formatDatabaseFn,
 	}
 }
 
 // NewBackupSelector creates a selector specifically for backup files.
-func NewBackupSelector(app *application.App) *DatabaseSelector {
-	return &DatabaseSelector{
-		app:     app,
-		root:    app.Path.Backup(),
-		ext:     "db",
-		preview: app.Command() + " --color=always --db=./backup/{1} db info",
-		itemFmt: formatBackupFn,
+func NewBackupSelector(app *application.App) *Selector {
+	return &Selector{
+		app:           app,
+		root:          app.Path.Backup(),
+		ext:           "db",
+		preview:       app.Command() + " --color=always --db=./backup/{1} db info",
+		itemFormatter: formatBackupFn,
 	}
 }
 
 // NewDatabaseEncryptedSelector creates a selector specifically for encrypted
 // backup files.
-func NewDatabaseEncryptedSelector(app *application.App) *DatabaseSelector {
-	return &DatabaseSelector{
-		app:     app,
-		root:    app.Path.Home(),
-		ext:     locker.Extension,
-		itemFmt: formatBackupFn,
+func NewDatabaseEncryptedSelector(app *application.App) *Selector {
+	return &Selector{
+		app:           app,
+		root:          app.Path.Home(),
+		ext:           locker.Extension,
+		itemFormatter: formatBackupFn,
 	}
 }
 
 // NewBackupEncryptedSelector creates a default selector for encrypted
 // databases.
-func NewBackupEncryptedSelector(app *application.App) *DatabaseSelector {
-	return &DatabaseSelector{
-		app:     app,
-		root:    app.Path.Backup(),
-		ext:     locker.Extension,
-		itemFmt: formatBackupFn,
+func NewBackupEncryptedSelector(app *application.App) *Selector {
+	return &Selector{
+		app:           app,
+		root:          app.Path.Backup(),
+		ext:           locker.Extension,
+		itemFormatter: formatBackupFn,
 	}
 }
 
-// WithCustomFormatter allows overriding the external modifier format function.
-func (s *DatabaseSelector) WithCustomFormatter(fn FmtFunc) *DatabaseSelector {
-	s.fmtFunc = fn
+// WithItemDecorator allows overriding the external modifier format function.
+func (s *Selector) WithItemDecorator(fn ItemDecorator) *Selector {
+	s.itemDecorator = fn
 	return s
 }
 
-func (s *DatabaseSelector) WithExclutions(exc ...string) *DatabaseSelector {
+func (s *Selector) WithOpts(opts ...menu.Option) *Selector {
+	s.opts = append(s.opts, opts...)
+	return s
+}
+
+func (s *Selector) WithRoot(path string) *Selector {
+	s.root = path
+	return s
+}
+
+func (s *Selector) WithExtension(ext string) *Selector {
+	s.ext = ext
+	return s
+}
+
+func (s *Selector) WithItemFormatter(fn ItemFormatter) *Selector {
+	s.itemFormatter = fn
+	return s
+}
+
+func (s *Selector) WithExclutions(exc ...string) *Selector {
 	s.exclutions = append(s.exclutions, exc...)
 	return s
 }
 
-func (s *DatabaseSelector) WithFilter(fn func(string) bool) *DatabaseSelector {
+func (s *Selector) WithFilter(fn func(string) bool) *Selector {
 	s.filter = fn
 	return s
 }
 
 // Select runs the interactive picker dialog.
-func (s *DatabaseSelector) Select(ctx context.Context, opts ...menu.Option) ([]string, error) {
+func (s *Selector) Select(ctx context.Context, opts ...menu.Option) ([]string, error) {
 	dbs, err := files.ListWithExclude(s.root, s.ext, s.exclutions...)
 	if err != nil {
 		return nil, err
@@ -126,26 +160,22 @@ func (s *DatabaseSelector) Select(ctx context.Context, opts ...menu.Option) ([]s
 	}
 
 	p := ansi.NewPalette()
-	if s.itemFmt == nil {
-		s.itemFmt = defaultFmt
+	if s.itemFormatter == nil {
+		s.itemFormatter = defaultFmt
 	}
 
 	formatItem := func(path string) string {
-		formatted := s.itemFmt(ctx, p, path, maxWidth)
-		if s.fmtFunc != nil {
-			return s.fmtFunc(formatted)
+		formatted := s.itemFormatter(ctx, p, path, maxWidth)
+
+		if s.itemDecorator != nil {
+			return s.itemDecorator(formatted)
 		}
+
 		return formatted
 	}
 
-	opts = append(opts,
-		menu.WithDefaults(s.app.Menu.Defaults),
-		menu.WithAnsi(),
-		menu.WithOutputColor(s.app.Flags.Color),
-		menu.WithHeaderKeymaps(),
-		menu.WithPreviewWindow("right,45%"),
-		menu.WithPreviewCmd(s.preview),
-	)
+	opts = append(opts, defaultMenuOpts(s)...)
+	opts = append(opts, s.opts...)
 
 	m := picker.New[string](s.app, opts...)
 	m.SetFormatter(formatItem)
@@ -156,6 +186,17 @@ func (s *DatabaseSelector) Select(ctx context.Context, opts ...menu.Option) ([]s
 	}
 
 	return selected, nil
+}
+
+func defaultMenuOpts(s *Selector) []menu.Option {
+	return append([]menu.Option{},
+		menu.WithDefaults(s.app.Menu.Defaults),
+		menu.WithAnsi(),
+		menu.WithOutputColor(s.app.Flags.Color),
+		menu.WithHeaderKeymaps(),
+		menu.WithPreviewWindow("right,45%"),
+		menu.WithPreviewCmd(s.preview),
+	)
 }
 
 func defaultFmt(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string {
@@ -174,67 +215,13 @@ func LoadFromMenu(ctx context.Context, app *application.App) error {
 		WithExecute(app.Command() + " db use {1}")
 
 	_, err := NewDatabaseSelector(app).
-		Select(ctx, menu.WithKeybinds(load, setDefault))
+		WithOpts(menu.WithKeybinds(load, setDefault)).
+		Select(ctx)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func LoadFromMenuOld(ctx context.Context, app *application.App) error {
-	dbs, err := files.ListWithExclude(app.Path.Data, "db")
-	if err != nil {
-		return err
-	}
-
-	var maxWidth int
-	for _, path := range dbs {
-		name := files.StripExts(filepath.Base(path))
-		maxWidth = max(maxWidth, utf8.RuneCountInString(name))
-	}
-
-	load := menu.NewKeymap().
-		WithBind(menu.KeyEnter).
-		WithDesc("load").
-		WithBecome(app.Command() + " --menu --db={1} --output=" + app.Menu.Format)
-
-	setDefault := menu.NewKeymap().
-		WithBind(menu.KeyCtrlS).
-		WithDesc("set-as-default").
-		WithExecute(app.Command() + " db use {1}")
-
-	p := ansi.NewPalette()
-	found := false
-	formatDB := func(path string) string {
-		formatted := formatDatabaseFn(ctx, p, path, maxWidth)
-		if found || filepath.Base(path) != app.DBName {
-			return formatted
-		}
-
-		found = true
-		return p.BrightYellow.Sprint(formatted)
-	}
-
-	m := picker.New[string](
-		app,
-		menu.WithDefaults(app.Menu.Defaults),
-		menu.WithAnsi(),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithKeybinds(load, setDefault),
-		menu.WithHeader("select a database"),
-		menu.WithHeaderKeymaps(),
-		menu.WithPreviewWindow("right,45%"),
-		menu.WithPreviewCmd(app.Command()+" db info --db {1} --color=always"),
-	)
-	m.SetFormatter(formatDB)
-
-	_, err = m.Select(dbs)
-	if errors.Is(err, menu.ErrActionAborted) {
-		return nil
-	}
-
-	return err
 }
 
 // selectBackupsInteractive prompts user for backup selection.
@@ -293,13 +280,13 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 
 	return NewBackupSelector(app).
 		WithFilter(filter).
-		Select(ctx,
+		WithOpts(
 			menu.WithMultiSelection(),
 			menu.WithHeader(fmt.Sprintf(
 				"select backup/s from %q %s %s",
 				header(),
 				txt.GlyphBulletPoint,
 				ansi.BrightRed.Wrap("this action cannot be undone", ansi.Bold),
-			)),
-		)
+			))).
+		Select(ctx)
 }

@@ -289,11 +289,12 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 	}
 
 	selected, err := NewDatabaseSelector(app).
-		WithCustomFormatter(formatter).
-		Select(ctx,
-			menu.WithMultiSelection(),
+		WithItemDecorator(formatter).
+		WithOpts(
 			menu.WithHeader("select a database to lock"),
-		)
+			menu.WithMultiSelection(),
+		).
+		Select(ctx)
 	if err != nil {
 		return err
 	}
@@ -304,13 +305,13 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 // UnlockDatabase select and unlock a database.
 func UnlockDatabase(ctx context.Context, app *application.App, c *ui.Console) error {
 	selected, err := NewDatabaseEncryptedSelector(app).
-		Select(
-			ctx,
+		WithOpts(
 			menu.WithMultiSelection(),
 			menu.WithKeybinds(menu.KeymapToggleAll()),
 			menu.WithHeaderKeymaps(),
 			menu.WithHeader("select a encrypted database/s to unlock"),
-		)
+		).
+		Select(ctx)
 	if err != nil {
 		return err
 	}
@@ -325,13 +326,13 @@ func UnlockBackup(ctx context.Context, app *application.App, c *ui.Console) erro
 	}
 
 	selected, err := NewBackupEncryptedSelector(app).
-		Select(
-			ctx,
+		WithOpts(
 			menu.WithMultiSelection(),
 			menu.WithKeybinds(menu.KeymapToggleAll()),
 			menu.WithHeaderKeymaps(),
 			menu.WithHeader("select a database/s to unlock"),
-		)
+		).
+		Select(ctx)
 	if err != nil {
 		return err
 	}
@@ -342,12 +343,12 @@ func UnlockBackup(ctx context.Context, app *application.App, c *ui.Console) erro
 // LockBackup select and lock a backup.
 func LockBackup(ctx context.Context, app *application.App, c *ui.Console) error {
 	selected, err := NewBackupSelector(app).
-		Select(
-			ctx,
+		WithOpts(
 			menu.WithMultiSelection(),
 			menu.WithKeybinds(menu.KeymapToggleAll()),
 			menu.WithHeader("select backup/s to lock"),
-		)
+		).
+		Select(ctx)
 	if err != nil {
 		return err
 	}

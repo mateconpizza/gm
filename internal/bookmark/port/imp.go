@@ -86,7 +86,8 @@ func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
 
 	selected, err := dbops.NewDatabaseSelector(app).
 		WithExclutions(app.Path.DB()).
-		Select(ctx, menu.WithHeader("choose a database to import from"))
+		WithOpts(menu.WithHeader("choose a database to import from")).
+		Select(ctx)
 	if err != nil {
 		return err
 	}
@@ -107,7 +108,8 @@ func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
 	}
 
 	selected, err := dbops.NewBackupSelector(app).
-		Select(ctx, menu.WithHeader("choose a backup to import from"))
+		WithOpts(menu.WithHeader("choose a backup to import from")).
+		Select(ctx)
 	if err != nil {
 		return err
 	}
