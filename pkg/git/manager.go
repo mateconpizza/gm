@@ -75,7 +75,7 @@ func (m *Mgr) WriteRepos() error                             { return m.track.Wr
 func (m *Mgr) Version() string                               { return m.version }
 func (m *Mgr) Track(names ...string) error                   { return m.track.Track(names...) }
 func (m *Mgr) Drop(ctx context.Context, gr *Repo) error      { return dropRepo(ctx, m, gr) }
-func (m *Mgr) Commit(ctx context.Context, msg string) error  { return commitIfChanged(ctx, m.g, msg) }
+func (m *Mgr) Commit(ctx context.Context, msg string) error  { return m.g.commitIfChanged(ctx, msg) }
 func (m *Mgr) SetCfg(ctx context.Context, k, v string) error { return m.g.SetCfgLocal(ctx, k, v) }
 
 func (m *Mgr) Untrack(ctx context.Context, gr *Repo, msg string) error {

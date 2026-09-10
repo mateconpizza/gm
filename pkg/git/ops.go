@@ -4,53 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-func commitIfChanged(ctx context.Context, g *Git, msg string) error {
-	changed, err := g.HasChanges(ctx)
-	if err != nil {
-		return fmt.Errorf("checking for changes: %w", err)
-	}
-	if !changed {
-		slog.Debug("git commit: no changes found")
-		return nil
-	}
-
-	if err := g.AddAll(ctx); err != nil {
-		return fmt.Errorf("staging changes: %w", err)
-	}
-
-	status, err := g.Status(ctx)
-	if err != nil {
-		status = ""
-	}
-
-	if status != "" {
-		status = " (" + status + ")"
-	}
-
-	if err := g.Commit(ctx, fmt.Sprintf("%s%s", strings.ToLower(msg), status)); err != nil {
-		return fmt.Errorf("committing: %w", err)
-	}
-
-	return nil
-}
-
-func untrackRemoveRepo(ctx context.Context, m *Mgr, gr *Repo, msg string) error {
-	if !m.IsTracked(gr.Name()) {
+func untrackRemoveRepo(ctx context.Context, gm *Mgr, gr *Repo, msg string) error {
+	if !gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", ErrGitNotTracked, gr.Name())
 	}
 
-	if err := m.track.Untrack(gr.Name()); err != nil {
+	if err := gm.track.Untrack(gr.Name()); err != nil {
 		return err
 	}
 
-	if err := m.WriteRepos(); err != nil {
+	if err := gm.WriteRepos(); err != nil {
 		return err
 	}
 
@@ -58,7 +26,7 @@ func untrackRemoveRepo(ctx context.Context, m *Mgr, gr *Repo, msg string) error 
 		return err
 	}
 
-	return commitIfChanged(ctx, m.Git(), msg)
+	return gm.Commit(ctx, msg)
 }
 
 func updateRepo(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
@@ -90,7 +58,8 @@ func saveChanges(ctx context.Context, gm *Mgr, gr *Repo, ver, msg string) error 
 		return err
 	}
 
-	changed, err := gm.Git().HasChanges(ctx)
+	g := gm.Git()
+	changed, err := g.HasChanges(ctx)
 	if err != nil {
 		return err
 	}
@@ -100,7 +69,7 @@ func saveChanges(ctx context.Context, gm *Mgr, gr *Repo, ver, msg string) error 
 	}
 
 	// FIX: update full summary only in git push.
-	sum, err := summaryComplete(ctx, gm.Git(), freshStats, ver)
+	sum, err := summaryComplete(ctx, g, freshStats, ver)
 	if err != nil {
 		return err
 	}
@@ -113,10 +82,10 @@ func saveChanges(ctx context.Context, gm *Mgr, gr *Repo, ver, msg string) error 
 		return err
 	}
 
-	return commitIfChanged(ctx, gm.Git(), msg)
+	return g.commitIfChanged(ctx, msg)
 }
 
-func dropRepo(ctx context.Context, m *Mgr, gr *Repo) error {
+func dropRepo(ctx context.Context, gm *Mgr, gr *Repo) error {
 	keep := map[string]struct{}{
 		SummaryFileName: {},
 	}
@@ -126,5 +95,5 @@ func dropRepo(ctx context.Context, m *Mgr, gr *Repo) error {
 		return err
 	}
 
-	return m.SaveChanges(ctx, gr, fmt.Sprintf("[%s] drop repo", gr.Name()))
+	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] drop repo", gr.Name()))
 }

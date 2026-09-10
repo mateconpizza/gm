@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	ErrGit               = errors.New("exit status 128")
 	ErrGitInitialized    = errors.New("git: is initialized")
 	ErrGitNotInitialized = errors.New("git: is not initialized")
 	ErrGitDisabled       = errors.New("git: is disabled")

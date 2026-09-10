@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -195,10 +196,6 @@ func (g *Git) HasUnpushedCommits(ctx context.Context) (bool, error) {
 	return n != 0, nil
 }
 
-// func (g *Git) Clone(ctx context.Context, repoURL string) error {
-// 	return g.run(ctx, "", "clone", repoURL, g.fullpath)
-// }
-
 func (g *Git) UnpushedCommits(ctx context.Context) (int, error) {
 	if err := g.HasUpstream(ctx); err != nil {
 		return 0, err
@@ -234,22 +231,21 @@ func (g *Git) Push(ctx context.Context) error {
 
 // Init creates a new Git repository.
 func (g *Git) Init(ctx context.Context, force bool) error {
-	p := g.fullpath
-	if IsInitialized(p) && !force {
+	if IsInitialized(g.fullpath) && !force {
 		return ErrGitInitialized
 	}
 
-	if fileExists(p) && force {
-		if err := os.RemoveAll(p); err != nil {
+	if fileExists(g.fullpath) && force {
+		if err := os.RemoveAll(g.fullpath); err != nil {
 			return err
 		}
 	}
 
-	if err := os.MkdirAll(p, DirPerm); err != nil {
+	if err := os.MkdirAll(g.fullpath, DirPerm); err != nil {
 		return err
 	}
 
-	return g.run(ctx, p, "init")
+	return g.run(ctx, g.fullpath, "init")
 }
 
 // AddRemote adds a remote repository.
@@ -334,4 +330,34 @@ func (g *Git) countStagedChanges(ctx context.Context) (added, modified, deleted 
 		}
 	}
 	return added, modified, deleted, nil
+}
+
+func (g *Git) commitIfChanged(ctx context.Context, msg string) error {
+	changed, err := g.HasChanges(ctx)
+	if err != nil {
+		return fmt.Errorf("checking for changes: %w", err)
+	}
+	if !changed {
+		slog.Debug("git commit: no changes found")
+		return nil
+	}
+
+	if err := g.AddAll(ctx); err != nil {
+		return fmt.Errorf("staging changes: %w", err)
+	}
+
+	status, err := g.Status(ctx)
+	if err != nil {
+		status = ""
+	}
+
+	if status != "" {
+		status = " (" + status + ")"
+	}
+
+	if err := g.Commit(ctx, fmt.Sprintf("%s%s", strings.ToLower(msg), status)); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	return nil
 }
