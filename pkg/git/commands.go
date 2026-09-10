@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 )
 
@@ -24,110 +24,72 @@ var (
 	ErrGitRepoEmpty      = errors.New("git: empty repository")
 )
 
-// hasUnpushedCommits checks if there are any unpushed commits.
-func hasUnpushedCommits(ctx context.Context, repoPath string) (bool, error) {
-	n, err := unpushedCommitsCount(ctx, repoPath)
-	if err != nil {
-		return false, fmt.Errorf("count unpushed commits: %w", err)
-	}
-
-	return n != 0, nil
+// Commander runs a single named binary, routing every invocation through
+// an injectable ExecuterFunc.
+type Commander struct {
+	bin      string
+	executer ExecuterFunc
 }
 
-func unpushedCommitsCount(ctx context.Context, repoPath string) (int, error) {
-	s, err := runWithOutput(ctx, repoPath, "rev-list", "--count", "HEAD", "^@{u}")
-	if err != nil {
-		return 0, fmt.Errorf("count unpushed commits: %w", err)
-	}
-
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, fmt.Errorf("parse unpushed commit count %q: %w", s, err)
-	}
-
-	return n, nil
+func NewCommander(bin string) *Commander {
+	return &Commander{bin: bin, executer: defaultExecuter}
 }
 
-// HasUnpulledCommits checks if there are commits on the upstream
-// branch that have not yet been pulled locally.
-func HasUnpulledCommits(ctx context.Context, repoPath string) (bool, error) {
-	if err := HasUpstream(ctx, repoPath); err != nil {
-		return false, err
-	}
-
-	// Count commits present in the upstream but not locally
-	out, err := runWithOutput(ctx, repoPath, "rev-list", "--count", "@{u}", "^HEAD")
-	if err != nil {
-		return false, fmt.Errorf("checking unpulled commits: %w", err)
-	}
-
-	return strings.TrimSpace(out) != "0", nil
+func (c *Commander) WithExecutor(fn ExecuterFunc) *Commander {
+	c.executer = fn
+	return c
 }
 
-// HasUpstream checks whether the current branch has an upstream (remote tracking branch) configured.
-func HasUpstream(ctx context.Context, repoPath string) error {
-	err := runWithWriter(ctx, io.Discard, repoPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
-	if err != nil {
-		return ErrGitNoUpstream
-	}
+// Output runs the command in dir and returns trimmed combined output.
+func (c *Commander) Output(ctx context.Context, dir string, args ...string) (string, error) {
+	var buf bytes.Buffer
+	err := c.executer(ctx, dir, &buf, nil, append([]string{c.bin}, args...)...)
+	return strings.TrimSpace(buf.String()), err
+}
 
+// Run executes the command in dir and streams trimmed output to w. A
+// failing exit is turned into an error carrying that output, matching the
+// original runWithWriter behavior.
+func (c *Commander) Run(ctx context.Context, w io.Writer, dir string, args ...string) error {
+	var buf bytes.Buffer
+	err := c.executer(ctx, dir, &buf, nil, append([]string{c.bin}, args...)...)
+	o := strings.TrimSpace(buf.String())
+	if err != nil {
+		//nolint:err113 //dynamic error is fine for command output
+		return fmt.Errorf("%s", o)
+	}
+	if o != "" {
+		fmt.Fprintf(w, "%s\n", o)
+	}
 	return nil
 }
 
-// HasChanges checks if there are any staged or unstaged changes in the repo.
-func HasChanges(ctx context.Context, repoPath string) (bool, error) {
-	output, err := runWithOutput(ctx, repoPath, "status", "--porcelain")
-	if err != nil {
-		return false, fmt.Errorf("git status failed: %w", err)
-	}
-
-	return strings.TrimSpace(output) != "", nil
+func (c *Commander) Exec(ctx context.Context, w io.Writer, dir string, args ...string) error {
+	return c.executer(ctx, dir, w, nil, append([]string{c.bin}, args...)...)
 }
 
-// status returns the status of the repo.
-func status(ctx context.Context, repoPath string) (string, error) {
-	if !hasCommits(ctx, repoPath) {
-		return "", ErrGitNoCommits
-	}
-
-	added, modified, deleted, err := countStagedChanges(ctx, repoPath)
-	if err != nil {
-		return "", err
-	}
-
-	return formatStatus(added, modified, deleted), nil
+// Remote returns the origin of the repository.
+func Remote(ctx context.Context, repoPath string) (string, error) {
+	return NewCommander(command).Output(ctx, repoPath, "config", "--get", "remote.origin.url")
 }
 
-func countStagedChanges(ctx context.Context, repoPath string) (added, modified, deleted int, err error) {
-	var out bytes.Buffer
-	cmd := exec.CommandContext(ctx, command, "diff", "--cached", "--name-status")
-	cmd.Stdout = &out
-	cmd.Dir = repoPath
+func Run(ctx context.Context, repoPath string, commands ...string) error {
+	return NewCommander(command).Run(ctx, os.Stdout, repoPath, commands...)
+}
 
+// defaultExecuter runs a command with the given arguments and writes the
+// output to the writer.
+func defaultExecuter(ctx context.Context, dir string, w io.Writer, r io.Reader, s ...string) error {
+	slog.Debug("ExecCmdWithWriter", "cmds", s)
+	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
+	cmd.Dir = dir
+	cmd.Stdin = r
+	cmd.Stdout = w
+	cmd.Stderr = w
 	if err := cmd.Run(); err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to run git diff-tree: %w", err)
+		return fmt.Errorf("%w", err)
 	}
-
-	for line := range strings.SplitSeq(strings.TrimSpace(out.String()), "\n") {
-		if line == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 2 || filepath.Base(fields[1]) == SummaryFileName {
-			continue
-		}
-
-		switch fields[0] {
-		case "A":
-			added++
-		case "M":
-			modified++
-		case "D":
-			deleted++
-		}
-	}
-	return added, modified, deleted, nil
+	return nil
 }
 
 func formatStatus(added, modified, deleted int) string {
@@ -144,73 +106,5 @@ func formatStatus(added, modified, deleted int) string {
 	return strings.Join(parts, " ")
 }
 
-// branch returns the current branch.
-func branch(ctx context.Context, repoPath string) (string, error) {
-	return runWithOutput(ctx, repoPath, "rev-parse", "--abbrev-ref", "HEAD")
-}
-
-// Remote returns the origin of the repository.
-func Remote(ctx context.Context, repoPath string) (string, error) {
-	return runWithOutput(ctx, repoPath, "config", "--get", "remote.origin.url")
-}
-
 // IsInitialized checks if the repo is initialized.
-func IsInitialized(repoPath string) bool {
-	return fileExists(filepath.Join(repoPath, ".git"))
-}
-
-// hasCommits checks if the repo has commits.
-func hasCommits(ctx context.Context, repoPath string) bool {
-	err := runWithWriter(ctx, io.Discard, repoPath, "rev-parse", "--verify", "HEAD")
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() != 0 {
-			return false
-		}
-
-		return false
-	}
-
-	return true
-}
-
-// runWithOutput executes a git command and returns the output.
-func runWithOutput(ctx context.Context, repoPath string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, command, args...)
-	cmd.Dir = repoPath
-	output, err := cmd.CombinedOutput()
-
-	return strings.TrimSpace(string(output)), err
-}
-
-// runWithWriter executes a Git command and writes output to the provided io.Writer.
-func runWithWriter(ctx context.Context, w io.Writer, repoPath string, args ...string) error {
-	cmd := exec.CommandContext(ctx, command, args...)
-	cmd.Dir = repoPath
-	output, err := cmd.CombinedOutput()
-	o := strings.TrimSpace(string(output))
-
-	if err != nil {
-		//nolint:err113 //dynamic error is fine for command output
-		return fmt.Errorf("%s", o)
-	}
-
-	if o != "" {
-		_, _ = fmt.Fprintf(w, "%s\n", o)
-	}
-
-	return nil
-}
-
-// execCmdWithWriter runs a command with the given arguments and writes the
-// output to the writer.
-func execCmdWithWriter(ctx context.Context, w io.Writer, r io.Reader, s ...string) error {
-	slog.Debug("ExecCmdWithWriter", "cmds", s)
-	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
-	cmd.Stdin = r
-	cmd.Stdout = w
-	cmd.Stderr = w
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-	return nil
-}
+func IsInitialized(repoPath string) bool { return fileExists(filepath.Join(repoPath, ".git")) }

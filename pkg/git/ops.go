@@ -75,7 +75,7 @@ func updateRepo(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, po
 	return gr.Add(ctx, []*bookmark.Bookmark{fresh})
 }
 
-func saveChanges(ctx context.Context, m *Mgr, gr *Repo, ver, msg string) error {
+func saveChanges(ctx context.Context, gm *Mgr, gr *Repo, ver, msg string) error {
 	if gr.DB() == nil {
 		return fmt.Errorf("%w: stats loader", ErrNoFunctionFound)
 	}
@@ -90,7 +90,7 @@ func saveChanges(ctx context.Context, m *Mgr, gr *Repo, ver, msg string) error {
 		return err
 	}
 
-	changed, err := HasChanges(ctx, m.Root())
+	changed, err := gm.Git().HasChanges(ctx)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func saveChanges(ctx context.Context, m *Mgr, gr *Repo, ver, msg string) error {
 	}
 
 	// FIX: update full summary only in git push.
-	sum, err := summaryComplete(ctx, m.Git(), freshStats, ver)
+	sum, err := summaryComplete(ctx, gm.Git(), freshStats, ver)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func saveChanges(ctx context.Context, m *Mgr, gr *Repo, ver, msg string) error {
 		return err
 	}
 
-	return commitIfChanged(ctx, m.Git(), msg)
+	return commitIfChanged(ctx, gm.Git(), msg)
 }
 
 func dropRepo(ctx context.Context, m *Mgr, gr *Repo) error {
