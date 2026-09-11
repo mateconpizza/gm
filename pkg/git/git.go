@@ -113,6 +113,10 @@ func (g *Git) Exec(ctx context.Context, commands ...string) error {
 	return g.run(ctx, g.fullpath, commands...)
 }
 
+func (g *Git) Output(ctx context.Context, commands ...string) (string, error) {
+	return g.cmd.Output(ctx, g.fullpath, commands...)
+}
+
 func (g *Git) SetCfgLocal(ctx context.Context, k, v string) error {
 	return g.run(ctx, g.fullpath, "config", "--local", k, v)
 }

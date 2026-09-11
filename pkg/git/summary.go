@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 var (
 	ErrSummaryMissingName   = errors.New("summary: missing repo name")
 	ErrSummaryChecksumEmpty = errors.New("summary: checksum empty")
+	ErrSummaryStatsNil      = errors.New("git: summary repo stats is nil")
 )
 
 const SummaryFileName = "summary.json" // summary.json
@@ -71,16 +71,16 @@ func (s *Summary) GenChecksum() {
 }
 
 func (s *Summary) Validate() error {
+	if s.RepoStats == nil {
+		return ErrSummaryStatsNil
+	}
 	if err := s.RepoStats.Validate(); err != nil {
 		return err
 	}
-
 	if s.Checksum == "" {
 		return ErrSummaryChecksumEmpty
 	}
-
 	s.GenChecksum()
-
 	return nil
 }
 
@@ -139,7 +139,9 @@ func (rs *RepoStats) String() string {
 	return strings.Join(parts, ", ")
 }
 
-func summaryComplete(ctx context.Context, g *Git, s *RepoStats, ver string) (*Summary, error) {
+type hostnameFunc func() (string, error)
+
+func summaryComplete(ctx context.Context, g *Git, s *RepoStats, host hostnameFunc, ver string) (*Summary, error) {
 	branch, err := g.Branch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting branch: %w", err)
@@ -150,7 +152,7 @@ func summaryComplete(ctx context.Context, g *Git, s *RepoStats, ver string) (*Su
 		remote = ""
 	}
 
-	hostname, err := os.Hostname()
+	h, err := host()
 	if err != nil {
 		return nil, fmt.Errorf("getting hostname: %w", err)
 	}
@@ -162,7 +164,7 @@ func summaryComplete(ctx context.Context, g *Git, s *RepoStats, ver string) (*Su
 		ConflictResolution: "timestamp",
 		HashAlgorithm:      "SHA-256",
 		ClientInfo: &ClientInfo{
-			Hostname:   hostname,
+			Hostname:   h,
 			Platform:   runtime.GOOS,
 			Architect:  runtime.GOARCH,
 			AppVersion: ver,

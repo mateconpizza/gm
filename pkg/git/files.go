@@ -58,6 +58,13 @@ func readFile[T any](path string, v *T) error {
 	return nil
 }
 
+func decodeJSON[T any](data []byte, v *T) error {
+	if err := json.Unmarshal(data, v); err != nil {
+		return fmt.Errorf("error unmarshalling JSON: %w", err)
+	}
+	return nil
+}
+
 func removeAllExcept(dir string, keep map[string]struct{}) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {

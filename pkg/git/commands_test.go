@@ -28,7 +28,7 @@ func TestCommander_Output(t *testing.T) {
 func TestHasUnpushedCommits(t *testing.T) {
 	t.Parallel()
 
-	fe := &fakeExecuter{out: "3\n"}
+	fe := &fakeGitExecuter{out: "3\n"}
 	g, err := New("/repo", WithExecuter(fe.run))
 	if err != nil {
 		t.Fatalf("New: %v", err)

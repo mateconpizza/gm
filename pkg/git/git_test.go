@@ -14,23 +14,81 @@ import (
 	"testing"
 )
 
-type fakeExecuter struct {
-	calls [][]string
-	out   string
-	err   error
+type response struct {
+	out string
+	err error
 }
 
-func (f *fakeExecuter) Output(ctx context.Context, dir string, args ...string) (string, error) {
-	f.calls = append(f.calls, args)
+type tokenResponse struct {
+	token string
+	resp  response
+}
+
+type fakeGitExecuter struct {
+	calls          [][]string
+	out            string // fallback output for unconfigured subcommands
+	err            error  // fallback error for unconfigured subcommands
+	responses      map[string]response
+	tokenResponses []tokenResponse
+}
+
+func (f *fakeGitExecuter) Output(ctx context.Context, dir string, args ...string) (string, error) {
+	cmds := append([]string(nil), args...) // defensive copy — args' backing array can be reused by the caller
+	f.calls = append(f.calls, cmds)
+
+	if resp, ok := f.lookup(cmds); ok {
+		return resp.out, resp.err
+	}
 	return f.out, f.err
 }
 
-func (f *fakeExecuter) run(ctx context.Context, dir string, w io.Writer, r io.Reader, cmds ...string) error {
-	f.calls = append(f.calls, cmds)
-	if f.out != "" {
-		fmt.Fprint(w, f.out)
+func (f *fakeGitExecuter) run(ctx context.Context, dir string, w io.Writer, r io.Reader, cmds ...string) error {
+	cp := append([]string(nil), cmds...)
+	f.calls = append(f.calls, cp)
+
+	resp, ok := f.lookup(cp)
+	if !ok {
+		resp = response{out: f.out, err: f.err}
 	}
-	return f.err
+	if resp.out != "" {
+		fmt.Fprint(w, resp.out)
+	}
+	return resp.err
+}
+
+// lookup now checks subcommand-keyed responses first, then falls back to
+// token matches in registration order, then f.out/f.err.
+func (f *fakeGitExecuter) lookup(cmds []string) (response, bool) {
+	if len(cmds) >= 2 {
+		if resp, ok := f.responses[cmds[1]]; ok {
+			return resp, true
+		}
+	}
+	for _, tr := range f.tokenResponses {
+		if slices.Contains(cmds, tr.token) {
+			return tr.resp, true
+		}
+	}
+	return response{}, false
+}
+
+// on configures a canned response for a subcommand (cmds[1] in
+// "git <subcommand> ..."). Unconfigured subcommands fall back to out/err.
+func (f *fakeGitExecuter) on(subcommand, out string, err error) *fakeGitExecuter {
+	if f.responses == nil {
+		f.responses = make(map[string]response)
+	}
+	f.responses[subcommand] = response{out: out, err: err}
+	return f
+}
+
+// onContains configures a response for any call whose args contain token
+// anywhere. Useful when subcommand alone (cmds[1]) doesn't disambiguate —
+// e.g. "rev-parse" is shared by Branch() and the upstream check, and only
+// their trailing args differ.
+func (f *fakeGitExecuter) onContains(token, out string, err error) *fakeGitExecuter {
+	f.tokenResponses = append(f.tokenResponses, tokenResponse{token: token, resp: response{out: out, err: err}})
+	return f
 }
 
 func TestGit_Commit(t *testing.T) {
@@ -39,18 +97,18 @@ func TestGit_Commit(t *testing.T) {
 	tests := []struct {
 		name    string
 		msg     string
-		fake    *fakeExecuter
+		fake    *fakeGitExecuter
 		wantErr bool
 	}{
 		{
 			name: "success",
 			msg:  "fix: update readme",
-			fake: &fakeExecuter{},
+			fake: &fakeGitExecuter{},
 		},
 		{
 			name:    "nothing to commit",
 			msg:     "fix: update readme",
-			fake:    &fakeExecuter{out: "nothing to commit, working tree clean", err: ErrGit},
+			fake:    &fakeGitExecuter{out: "nothing to commit, working tree clean", err: ErrGit},
 			wantErr: true,
 		},
 	}
@@ -85,50 +143,50 @@ func TestGit_SetCfgLocal(t *testing.T) {
 		name    string
 		k       string
 		v       string
-		fake    *fakeExecuter
+		fake    *fakeGitExecuter
 		wantErr bool
 	}{
 		{
 			name: "typical_config",
 			k:    "user.name",
 			v:    "Test User",
-			fake: &fakeExecuter{},
+			fake: &fakeGitExecuter{},
 		},
 		{
 			name: "empty_value",
 			k:    "core.editor",
 			v:    "",
-			fake: &fakeExecuter{},
+			fake: &fakeGitExecuter{},
 		},
 		{
 			name: "empty_key",
 			k:    "",
 			v:    "some_value",
-			fake: &fakeExecuter{},
+			fake: &fakeGitExecuter{},
 		},
 		{
 			name: "empty_key_and_value",
 			k:    "",
 			v:    "",
-			fake: &fakeExecuter{},
+			fake: &fakeGitExecuter{},
 		},
 		{
 			name: "boolean_string_value",
 			k:    "core.filemode",
 			v:    "false",
-			fake: &fakeExecuter{},
+			fake: &fakeGitExecuter{},
 		},
 		{
 			name: "special_characters_in_value",
 			k:    "remote.origin.url",
 			v:    "https://user:pass@github.com/repo.git",
-			fake: &fakeExecuter{},
+			fake: &fakeGitExecuter{},
 		},
 		{
 			name:    "git_command_failure",
 			k:       "invalid.key",
 			v:       "value",
-			fake:    &fakeExecuter{err: errors.New("exit status 1")},
+			fake:    &fakeGitExecuter{err: errors.New("exit status 1")},
 			wantErr: true,
 		},
 	}
@@ -221,7 +279,7 @@ func TestGit_HasUnpushedCommits(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			fake := &fakeExecuter{
+			fake := &fakeGitExecuter{
 				out: tt.cmdOut,
 				err: tt.cmdErr,
 			}
@@ -887,7 +945,7 @@ func TestGit_unpushedCommitsCount(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			fake := fakeExecuter{
+			fake := fakeGitExecuter{
 				out: tt.cmdOutput,
 				err: tt.cmdErr,
 			}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"slices"
 
@@ -16,6 +17,7 @@ var (
 	ErrIgnoreFilepath  = errors.New("git: ignore filepath")
 	ErrNoFunctionFound = errors.New("git: no function provided")
 	ErrNoStoreFound    = errors.New("git: no store found")
+	ErrSummaryFile     = errors.New("git: summary file")
 )
 
 type RepoDB interface {
@@ -211,7 +213,12 @@ func (gr *Repo) Summary() (*Summary, error) {
 		return sum, nil
 	}
 
-	if err := readFile(gr.summaryFile, sum); err != nil {
+	content, err := os.ReadFile(gr.summaryFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := decodeJSON(content, sum); err != nil {
 		return nil, err
 	}
 
@@ -226,8 +233,11 @@ func (gr *Repo) Stats() (*RepoStats, error) {
 
 	sum := NewSummary()
 	err := readFile(gr.summaryFile, &sum)
+	if err != nil {
+		return &RepoStats{}, err
+	}
 	sum.RepoStats.Name = gr.Name()
-	return sum.RepoStats, err
+	return sum.RepoStats, nil
 }
 
 // StatsFromDB returns fresh stats from the current database.
