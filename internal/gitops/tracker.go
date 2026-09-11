@@ -31,13 +31,21 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 	}
 	defer r.Close()
 
-	gm, err := NewManager(app)
+	gm, err := NewManager(&ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return err
 	}
 
-	gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
-
+	gr := gm.NewRepo(r.Name(),
+		RepoFileReader(),
+		RepoFileRemover(),
+		RepoFileWriter(),
+		git.WithRepoStore(r),
+	)
 	c := d.Console()
 	if gm.IsTracked(gr.Name()) {
 		fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Name())))
@@ -50,7 +58,7 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Name())))
 }
 
-func Track(ctx context.Context, r bookmarkStore, gm *git.Mgr, gr *git.Repo) error {
+func Track(ctx context.Context, r store, gm *git.Mgr, gr *git.Repo) error {
 	if gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitTracked, gr.Name())
 	}
@@ -98,12 +106,16 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := NewManager(app)
+	gm, err := NewManager(&ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return err
 	}
 
-	gr := NewRepo(gm, app.DBBaseName())
+	gr := gm.NewRepo(app.DBBaseName())
 	commitMsg := fmt.Sprintf("[%s] remove tracking", gr.Name())
 	if err := gm.Untrack(ctx, gr, commitMsg); err != nil {
 		return err
@@ -176,7 +188,12 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 			return err
 		}
 
-		gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
+		gr := gm.NewRepo(r.Name(),
+			RepoFileReader(),
+			RepoFileRemover(),
+			RepoFileWriter(),
+			git.WithRepoStore(r),
+		)
 		if err := Track(ctx, r, gm, gr); err != nil {
 			return err
 		}
@@ -193,7 +210,11 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 }
 
 func TrackMgrStatus(c *ui.Console, app *application.App) error {
-	gm, err := NewManager(app)
+	gm, err := NewManager(&ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return err
 	}
@@ -224,7 +245,7 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 
 	for _, dbPath := range dbFiles {
 		name := filepath.Base(dbPath)
-		gr := NewRepo(gm, name)
+		gr := gm.NewRepo(name)
 
 		s := TrackStatus(c, gm, gr)
 		if s == "" {

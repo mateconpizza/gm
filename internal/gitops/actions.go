@@ -27,7 +27,7 @@ var _ bookio.FileManager = (*files.FileManager)(nil)
 func RepoFileReader() git.RepoOptFunc                 { return git.WithRepoReader(readFiles) }
 func RepoFileWriter() git.RepoOptFunc                 { return git.WithRepoWriter(addFiles) }
 func RepoFileRemover() git.RepoOptFunc                { return git.WithRepoRemover(removeFiles) }
-func RepoStatsReader(r bookmarkStore) git.RepoOptFunc { return git.WithRepoStore(r) }
+func RepoStatsReader(r store) git.RepoOptFunc { return git.WithRepoStore(r) }
 func MgrVersion(ver string) git.MgrOptFunc            { return git.WithVersion(ver) }
 
 // Init initializes Git support and configures repository encryption.
@@ -84,16 +84,11 @@ func Push(ctx context.Context, app *application.App, gm *git.Mgr) error {
 }
 
 // Sync stages tracked bookmark data and commits any resulting changes to Git.
-func Sync(ctx context.Context, app *application.App, msg string) error {
+func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg string) error {
 	slog.Debug("starting git sync")
 	if !app.GitEnabled() {
 		slog.Warn("git sync: disabled")
 		return nil
-	}
-
-	gm, err := NewManager(app)
-	if err != nil {
-		return fmt.Errorf("git sync: failed to create git repo: %w", err)
 	}
 
 	if !gm.IsEnabled() {
@@ -117,7 +112,12 @@ func Sync(ctx context.Context, app *application.App, msg string) error {
 		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
 	}
 
-	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
+	gr := gm.NewRepo(r.Name(),
+		RepoFileReader(),
+		RepoFileRemover(),
+		RepoFileWriter(),
+		RepoStatsReader(r),
+	)
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
@@ -131,7 +131,11 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := NewManager(app)
+	gm, err := NewManager(&ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return err
 	}
@@ -159,7 +163,19 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 			return fmt.Errorf("%w: %q", err, path)
 		}
 
-		if err := pruneRepo(ctx, gm, r); err != nil {
+		bs, err := r.All(ctx)
+		if err != nil {
+			return err
+		}
+
+		gr := gm.NewRepo(r.Name(),
+			RepoFileReader(),
+			RepoFileRemover(),
+			RepoFileWriter(),
+			RepoStatsReader(r),
+		)
+
+		if err := PruneRepo(ctx, gm, gr, bs); err != nil {
 			if errors.Is(err, git.ErrGitUpToDate) {
 				fmt.Fprintf(w, "git: repo %s up-to-date\n", p.BrightYellow.Sprint(name))
 				continue

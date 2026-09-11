@@ -352,6 +352,7 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 
 	ids := make([]int, 0, len(bs))
 	for i := range bs {
@@ -366,7 +367,24 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 	if err != nil {
 		return err
 	}
-	if err := gitops.Remove(ctx, app, bs); err != nil {
+
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  d.Writer(),
+		Version: app.Version(),
+	})
+	if err != nil {
+		return err
+	}
+
+	gr := gm.NewRepo(r.Name(),
+		gitops.RepoFileReader(),
+		gitops.RepoFileRemover(),
+		gitops.RepoFileWriter(),
+		gitops.RepoStatsReader(r),
+	)
+
+	if err := gitops.Remove(ctx, gm, gr, bs); err != nil {
 		return err
 	}
 

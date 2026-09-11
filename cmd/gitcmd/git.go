@@ -28,7 +28,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		PersistentPreRunE:  cli.HookGitEnsureEnv(app),
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app)
+			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git())
 			if err != nil {
 				return err
 			}
@@ -65,7 +65,11 @@ func newCommitCmd(app *application.App) *cobra.Command {
 		Short:  "commit bookmark database changes",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(&gitops.ManagerConfig{
+				Root:    app.Path.Git(),
+				Writer:  app.Git.Writer(),
+				Version: app.Version(),
+			})
 			if err != nil {
 				return err
 			}
@@ -75,7 +79,12 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			gr := gitops.NewRepo(gm, r.Name(), git.WithRepoStore(r))
+			gr := gm.NewRepo(r.Name(),
+				gitops.RepoFileReader(),
+				gitops.RepoFileRemover(),
+				gitops.RepoFileWriter(),
+				git.WithRepoStore(r),
+			)
 			return gm.SaveChanges(cmd.Context(), gr, cmd.Short)
 		},
 	}
@@ -88,7 +97,11 @@ func newPushCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(&gitops.ManagerConfig{
+				Root:    app.Path.Git(),
+				Writer:  app.Git.Writer(),
+				Version: app.Version(),
+			})
 			if err != nil {
 				return err
 			}
@@ -108,7 +121,11 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipGitSync,
 		PreRun:      cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(&gitops.ManagerConfig{
+				Root:    app.Path.Git(),
+				Writer:  app.Git.Writer(),
+				Version: app.Version(),
+			})
 			if err != nil {
 				return err
 			}
@@ -141,7 +158,7 @@ func newRawCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app)
+			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git())
 			if err != nil {
 				return err
 			}
@@ -237,7 +254,28 @@ func newSyncCmd(app *application.App) *cobra.Command {
 			}
 			defer r.Close()
 
-			return gitops.Prune(ctx, app, r)
+			gm, err := gitops.NewManager(&gitops.ManagerConfig{
+				Root:    app.Path.Git(),
+				Writer:  app.Git.Writer(),
+				Version: app.Version(),
+			})
+			if err != nil {
+				return err
+			}
+
+			gr := gm.NewRepo(r.Name(),
+				gitops.RepoFileReader(),
+				gitops.RepoFileRemover(),
+				gitops.RepoFileWriter(),
+				gitops.RepoStatsReader(r),
+			)
+
+			bs, err := r.All(ctx)
+			if err != nil {
+				return err
+			}
+
+			return gitops.PruneRepo(ctx, gm, gr, bs)
 		},
 	}
 

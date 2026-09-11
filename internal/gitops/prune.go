@@ -7,12 +7,9 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 
-	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
 )
-
-type saveChangesFunc func(ctx context.Context, msg string) error
 
 type gitRepo interface {
 	Name() string
@@ -21,6 +18,18 @@ type gitRepo interface {
 	Bookmarks() []*bookmark.Bookmark
 	Add(ctx context.Context, bs []*bookmark.Bookmark) error
 }
+
+type manager interface {
+	Drop(ctx context.Context, gr *git.Repo) error
+	Repos() []string
+	Untrack(ctx context.Context, gr *git.Repo, msg string) error
+	SaveChanges(ctx context.Context, gr *git.Repo, msg string) error
+	IsTracked(name string) bool
+	IsEnabled() bool
+	UpdateAndSave(ctx context.Context, gr *git.Repo, old, fresh *bookmark.Bookmark, postRm git.PostRemovalFunc) error
+}
+
+type saveChangesFunc func(ctx context.Context, msg string) error
 
 type RepoReconciler struct {
 	repo           gitRepo
@@ -123,16 +132,10 @@ func (r *RepoReconciler) removeOrphans(ctx context.Context) error {
 	return r.persistChanges(ctx, r.msg("remove orphans"))
 }
 
-// pruneRepo runs the reconcile-and-persist cycle for a single repo.
-func pruneRepo(ctx context.Context, gm *git.Mgr, r bookmarkStore) error {
-	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
+// PruneRepo runs the reconcile-and-persist cycle for a single repo.
+func PruneRepo(ctx context.Context, gm manager, gr *git.Repo, bs []*bookmark.Bookmark) error {
 	if !gm.IsTracked(gr.Name()) {
-		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, r.BaseName())
-	}
-
-	bs, err := r.All(ctx)
-	if err != nil {
-		return err
+		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.Name())
 	}
 
 	persistFn := func(ctx context.Context, msg string) error {
@@ -144,17 +147,4 @@ func pruneRepo(ctx context.Context, gm *git.Mgr, r bookmarkStore) error {
 		WithBookmarks(bs).
 		WithPersistFunc(persistFn).
 		Reconcile(ctx)
-}
-
-func Prune(ctx context.Context, app *application.App, r bookmarkStore) error {
-	if !app.GitEnabled() {
-		return git.ErrGitDisabled
-	}
-
-	gm, err := NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	return pruneRepo(ctx, gm, r)
 }

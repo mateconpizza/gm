@@ -68,7 +68,11 @@ func newMgrCmd(app *application.App) *cobra.Command {
 				return fmt.Errorf("finding db files: %w", err)
 			}
 
-			gm, err := gitops.NewManager(app)
+			gm, err := gitops.NewManager(&gitops.ManagerConfig{
+				Root:    app.Path.Git(),
+				Writer:  app.Git.Writer(),
+				Version: app.Version(),
+			})
 			if err != nil {
 				return err
 			}
