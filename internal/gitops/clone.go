@@ -66,7 +66,7 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 }
 
 func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*GitPuller, error) {
-	g, err := NewGit(app)
+	g, err := NewGit(d.Writer(), app.Path.Git())
 	if err != nil {
 		return nil, err
 	}
@@ -92,9 +92,11 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 	p := d.Console().Palette()
 	dimmer := p.Dim.With(p.Italic)
 	m.SetFormatter(func(gr *git.Repo) string {
-		r := *gr
-		name := p.BrightYellow.Wrap(r.Name(), p.Bold)
-		return txt.PaddedLine(name, dimmer.Sprintf("(%s)", r.String()))
+		name := gr.Name()
+		if name == files.StripExts(application.MainDBName) {
+			name = p.BrightYellow.Wrap(gr.Name(), p.Bold)
+		}
+		return txt.PaddedLine(name, dimmer.Sprintf("(%s)", gr.String()))
 	})
 
 	err = gp.Select(ctx, m, d.Console())

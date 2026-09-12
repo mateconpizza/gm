@@ -19,7 +19,12 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	f, p := d.Console().Frame(), d.Console().Palette()
-	gm, err := NewManager(app)
+
+	gm, err := NewManager(&ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return "", err
 	}
@@ -37,7 +42,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	f.Reset().Textln(p.BrightRed.Wrap("git:", p.Italic))
 
 	gr := gm.NewRepo(r.BaseName())
-	sum, err := gm.Summary(gr)
+	sum, err := gr.Summary()
 	if err != nil {
 		return f.StringReset(), err
 	}

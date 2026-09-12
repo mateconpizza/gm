@@ -12,7 +12,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -345,12 +344,7 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	if err != nil {
 		return err
 	}
-
-	if err := r.UpdateOne(ctx, &newB); err != nil {
-		return err
-	}
-
-	return gitops.Update(ctx, app, b, &newB)
+	return persistFunc(ctx, app, r, b, &newB)
 }
 
 func paramsStripAll(rawURL string) (string, error) {

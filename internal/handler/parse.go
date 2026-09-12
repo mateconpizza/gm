@@ -20,6 +20,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -31,18 +32,12 @@ type tagStore interface {
 	TagsCounter(ctx context.Context) (map[string]int, error)
 }
 
-type storeReader interface {
-	BaseName() string
-	Name() string
-	Stats(ctx context.Context, dest any) error
-}
-
 type bookmarkStore interface {
-	storeReader
-
-	InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error)
-	ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error)
+	Stats(ctx context.Context, dest any) error
 	All(ctx context.Context) ([]*bookmark.Bookmark, error)
+	ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error)
+	InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error)
+	UpdateOne(ctx context.Context, b *bookmark.Bookmark) error
 }
 
 type metadataScraper interface {
@@ -421,7 +416,23 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		return nil
 	}
 
-	return gitops.Add(ctx, app, r, fresh)
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+	})
+	if err != nil {
+		return err
+	}
+
+	gr := gm.NewRepo(app.DBBaseName(),
+		gitops.RepoFileReader(),
+		gitops.RepoFileRemover(),
+		gitops.RepoFileWriter(),
+		git.WithRepoStore(r),
+	)
+
+	return gitops.Add(ctx, gm, gr, fresh)
 }
 
 type tagResolver struct {

@@ -216,7 +216,16 @@ func HookGitSync(app *application.App) HookE {
 			msg = cmd.Name() + " hook sync"
 		}
 
-		return gitops.Sync(ctx, app, fmt.Sprintf("[%s] %s", app.DBBaseName(), msg))
+		gm, err := gitops.NewManager(&gitops.ManagerConfig{
+			Root:    app.Path.Git(),
+			Writer:  os.Stdout,
+			Version: app.Version(),
+		})
+		if err != nil {
+			return err
+		}
+
+		return gitops.Sync(ctx, app, gm, fmt.Sprintf("[%s] %s", app.DBBaseName(), msg))
 	}
 }
 
@@ -232,7 +241,11 @@ func HookGitPrune(app *application.App) HookE {
 		}
 
 		slog.Debug("hook: checks for differences between database and local repo and syncs them")
-		gm, err := gitops.NewManager(app)
+		gm, err := gitops.NewManager(&gitops.ManagerConfig{
+			Root:    app.Path.Git(),
+			Writer:  os.Stdout,
+			Version: app.Version(),
+		})
 		if err != nil {
 			return fmt.Errorf("hook git: new git manager: %w", err)
 		}
@@ -248,7 +261,19 @@ func HookGitPrune(app *application.App) HookE {
 		}
 		defer r.Close()
 
-		return gitops.Prune(cmd.Context(), app, r)
+		gr := gm.NewRepo(r.Name(),
+			gitops.RepoFileReader(),
+			gitops.RepoFileRemover(),
+			gitops.RepoFileWriter(),
+			gitops.RepoStatsReader(r),
+		)
+
+		bs, err := r.All(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		return gitops.PruneRepo(cmd.Context(), gm, gr, bs)
 	}
 }
 

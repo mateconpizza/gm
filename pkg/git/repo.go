@@ -16,6 +16,7 @@ var (
 	ErrIgnoreFilepath  = errors.New("git: ignore filepath")
 	ErrNoFunctionFound = errors.New("git: no function provided")
 	ErrNoStoreFound    = errors.New("git: no store found")
+	ErrSummaryFile     = errors.New("git: summary file")
 )
 
 type RepoDB interface {
@@ -226,8 +227,11 @@ func (gr *Repo) Stats() (*RepoStats, error) {
 
 	sum := NewSummary()
 	err := readFile(gr.summaryFile, &sum)
+	if err != nil {
+		return &RepoStats{}, err
+	}
 	sum.RepoStats.Name = gr.Name()
-	return sum.RepoStats, err
+	return sum.RepoStats, nil
 }
 
 // StatsFromDB returns fresh stats from the current database.

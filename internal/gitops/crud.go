@@ -5,55 +5,62 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"strings"
 
 	files "github.com/mateconpizza/gofiles"
 
-	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-type bookmarkStore interface {
-	Name() string
-	BaseName() string
+type store interface {
 	Stats(ctx context.Context, dest any) error
 	All(ctx context.Context) ([]*bookmark.Bookmark, error)
 }
 
-func NewManager(app *application.App) (*git.Mgr, error) {
-	// FIX: remove `app`
-	g, err := NewGit(app)
+type console interface {
+	Confirm(ctx context.Context, q, def string) bool
+	SuccessMesg(a ...any) string
+	Print(ctx context.Context, s string) error
+}
+
+type ManagerConfig struct {
+	Root    string
+	Writer  io.Writer
+	Version string
+}
+
+func (mc *ManagerConfig) Validate() error {
+	if mc.Writer == nil {
+		mc.Writer = os.Stdout
+	}
+
+	return nil
+}
+
+func NewManager(cfg *ManagerConfig) (*git.Mgr, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	g, err := NewGit(cfg.Writer, cfg.Root)
 	if err != nil {
 		return nil, err
 	}
 
 	return git.NewManager(
-		app.Path.Git(),
+		cfg.Root,
 		git.WithGit(g),
-		git.WithVersion(app.Version()),
+		git.WithVersion(cfg.Version),
 	)
 }
 
-func NewRepo(gm *git.Mgr, name string, opts ...git.RepoOptFunc) *git.Repo {
-	opts = append(
-		opts,
-		RepoFileReader(),
-		RepoFileRemover(),
-		RepoFileWriter(),
-	)
-
-	return gm.NewRepo(name, opts...)
-}
-
-func NewGit(app *application.App) (*git.Git, error) {
-	// FIX: remove `app`
+func NewGit(w io.Writer, root string) (*git.Git, error) {
 	return git.New(
-		app.Path.Git(),
+		root,
 		[]git.GitOpt{
 			// add Command logger
 			git.WithGitCommandLogger(func(w io.Writer, commands []string) {
@@ -67,100 +74,50 @@ func NewGit(app *application.App) (*git.Git, error) {
 			}),
 
 			// writer
-			git.WithGitWriter(app.Git.Writer()),
+			git.WithGitWriter(w),
 		}...,
 	)
 }
 
-func Add(ctx context.Context, app *application.App, r bookmarkStore, b *bookmark.Bookmark) error {
-	// FIX: remove `app`
-	if !app.GitEnabled() {
+func Add(ctx context.Context, gm manager, gr *git.Repo, b *bookmark.Bookmark) error {
+	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}
 
-	gm, err := NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	name := r.BaseName()
-	if !gm.IsEnabled() || !gm.IsTracked(name) {
-		return nil
-	}
-
-	gr := NewRepo(gm, r.Name(), git.WithRepoStore(r))
 	if err := gr.Add(ctx, []*bookmark.Bookmark{b}); err != nil {
 		return err
 	}
 
-	return gm.SaveChanges(
-		ctx,
-		gr,
-		fmt.Sprintf("[%s] bookmark added", gr.Name()),
-	)
+	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] bookmark added", gr.Name()))
 }
 
-func Remove(ctx context.Context, app *application.App, bs []*bookmark.Bookmark) error {
-	if !app.GitEnabled() {
+func Remove(ctx context.Context, gm manager, gr *git.Repo, bs []*bookmark.Bookmark) error {
+	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}
 
-	gm, err := NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	repoName := app.DBBaseName()
-	if !gm.IsTracked(repoName) {
-		return nil
-	}
-
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	gr := NewRepo(gm, repoName, RepoStatsReader(r))
 	if err := gr.RmMany(ctx, bs, files.RemoveEmptyDirs); err != nil {
 		return err
 	}
 
-	return gm.SaveChanges(
-		ctx,
-		gr,
-		fmt.Sprintf("[%s] remove bookmarks", repoName),
-	)
+	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] remove bookmarks", gr.Name()))
 }
 
-func Drop(ctx context.Context, app *application.App, c *ui.Console) error {
-	slog.Debug("git repo: start repo drop")
-	if !app.GitEnabled() {
+func Drop(ctx context.Context, gm manager, gr *git.Repo, c console) error {
+	if !gm.IsEnabled() {
 		slog.Debug("git repo: git disable")
 		return nil
 	}
 
-	gm, err := NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	name := app.DBBaseName()
-	if !gm.IsTracked(name) || !files.Exists(app.Path.DB()) {
+	slog.Debug("git repo: start repo drop")
+	if !gm.IsTracked(gr.Name()) {
 		return nil
 	}
-
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
 
 	if !c.Confirm(ctx, "drop git repo?", "n") {
 		return nil
 	}
 
-	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
 	if err := gm.Drop(ctx, gr); err != nil {
 		return err
 	}
@@ -176,30 +133,10 @@ func Drop(ctx context.Context, app *application.App, c *ui.Console) error {
 	return c.Print(ctx, c.SuccessMesg("database untracked\n"))
 }
 
-func Update(ctx context.Context, app *application.App, old, fresh *bookmark.Bookmark) error {
-	if !app.GitEnabled() {
+func Update(ctx context.Context, gm manager, gr *git.Repo, old, fresh *bookmark.Bookmark) error {
+	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}
 
-	gm, err := NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	if !gm.IsEnabled() || !gm.IsTracked(app.DBBaseName()) {
-		return nil
-	}
-
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	if err := r.UpdateOne(ctx, fresh); err != nil {
-		return err
-	}
-
-	gr := NewRepo(gm, r.Name(), RepoStatsReader(r))
 	return gm.UpdateAndSave(ctx, gr, old, fresh, files.RemoveEmptyDirs)
 }

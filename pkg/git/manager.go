@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -64,56 +65,118 @@ func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
 	}, nil
 }
 
-func (m *Mgr) Root() string                                  { return m.root }
-func (m *Mgr) IsEnabled() bool                               { return fileExists(m.root) }
-func (m *Mgr) Git() *Git                                     { return m.g }
-func (m *Mgr) Init(ctx context.Context, force bool) error    { return m.g.Init(ctx, force) }
-func (m *Mgr) Summary(gr *Repo) (*Summary, error)            { return gr.Summary() }
-func (m *Mgr) IsTracked(name string) bool                    { return m.track.Contains(name) }
-func (m *Mgr) Repos() []string                               { return m.track.Repos() }
-func (m *Mgr) WriteRepos() error                             { return m.track.Write() }
-func (m *Mgr) Version() string                               { return m.version }
-func (m *Mgr) Track(names ...string) error                   { return m.track.Track(names...) }
-func (m *Mgr) Drop(ctx context.Context, gr *Repo) error      { return dropRepo(ctx, m, gr) }
-func (m *Mgr) Commit(ctx context.Context, msg string) error  { return commitIfChanged(ctx, m.g, msg) }
-func (m *Mgr) SetCfg(ctx context.Context, k, v string) error { return m.g.SetCfgLocal(ctx, k, v) }
+func (gm *Mgr) Root() string                                  { return gm.root }
+func (gm *Mgr) IsEnabled() bool                               { return fileExists(gm.root) }
+func (gm *Mgr) Git() *Git                                     { return gm.g }
+func (gm *Mgr) Init(ctx context.Context, force bool) error    { return gm.g.Init(ctx, force) }
+func (gm *Mgr) IsTracked(name string) bool                    { return gm.track.Contains(name) }
+func (gm *Mgr) Repos() []string                               { return gm.track.Repos() }
+func (gm *Mgr) WriteRepos() error                             { return gm.track.Write() }
+func (gm *Mgr) Version() string                               { return gm.version }
+func (gm *Mgr) Track(names ...string) error                   { return gm.track.Track(names...) }
+func (gm *Mgr) Commit(ctx context.Context, msg string) error  { return gm.g.commitIfChanged(ctx, msg) }
+func (gm *Mgr) SetCfg(ctx context.Context, k, v string) error { return gm.g.SetCfgLocal(ctx, k, v) }
 
-func (m *Mgr) Untrack(ctx context.Context, gr *Repo, msg string) error {
-	return untrackRemoveRepo(ctx, m, gr, msg)
-}
-
-func (m *Mgr) SaveChanges(ctx context.Context, gr *Repo, msg string) error {
-	if m.version == "" {
+func (gm *Mgr) SaveChanges(ctx context.Context, gr *Repo, msg string) error {
+	if gm.version == "" {
 		return ErrNoVersionFound
 	}
-	return saveChanges(ctx, m, gr, m.version, msg)
-}
-
-func (m *Mgr) NewRepo(name string, opts ...RepoOptFunc) *Repo {
-	name = strings.TrimSuffix(name, filepath.Ext(name))
-	return NewRepo(name, filepath.Join(m.Root(), name), opts...)
-}
-
-func (m *Mgr) Update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
-	if m.version == "" {
-		return ErrNoVersionFound
+	if gr.DB() == nil {
+		return fmt.Errorf("%w: stats loader", ErrNoFunctionFound)
 	}
-
-	return updateRepo(ctx, gr, old, fresh, postRm)
-}
-
-func (m *Mgr) UpdateAndSave(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
-	if m.version == "" {
-		return ErrNoVersionFound
-	}
-
-	if err := updateRepo(ctx, gr, old, fresh, postRm); err != nil {
+	oldStats, err := gr.Stats()
+	if err != nil {
 		return err
 	}
+	freshStats, err := gr.StatsFromDB(ctx, gr.db)
+	if err != nil {
+		return err
+	}
+	should, err := gm.shouldSave(ctx, oldStats, freshStats)
+	if err != nil {
+		return err
+	}
+	if !should {
+		return ErrGitUpToDate
+	}
+	// FIX: update full summary only in git push.
+	sum, err := summaryComplete(ctx, gm.g, freshStats, os.Hostname, gm.version)
+	if err != nil {
+		return err
+	}
+	if err := sum.Validate(); err != nil {
+		return err
+	}
+	if err := gr.WriteSummary(sum); err != nil {
+		return err
+	}
+	return gm.g.commitIfChanged(ctx, msg)
+}
 
-	return m.SaveChanges(
-		ctx,
-		gr,
-		fmt.Sprintf("[%s] update bookmark", gr.Name()),
-	)
+func (gm *Mgr) NewRepo(name string, opts ...RepoOptFunc) *Repo {
+	name = strings.TrimSuffix(name, filepath.Ext(name))
+	return NewRepo(name, filepath.Join(gm.Root(), name), opts...)
+}
+
+func (gm *Mgr) Update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
+	if gm.version == "" {
+		return ErrNoVersionFound
+	}
+	if gr.db == nil {
+		return fmt.Errorf("%w: in repo %q", ErrNoStoreFound, gr.name)
+	}
+	if err := gr.Rm(ctx, old, postRm); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("removing %s: %w", old.URL, err)
+		}
+	}
+	return gr.Add(ctx, []*bookmark.Bookmark{fresh})
+}
+
+func (gm *Mgr) Drop(ctx context.Context, gr *Repo) error {
+	keep := map[string]struct{}{
+		SummaryFileName: {},
+	}
+	err := removeAllExcept(gr.fullpath, keep)
+	if err != nil {
+		return err
+	}
+	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] drop repo", gr.Name()))
+}
+
+func (gm *Mgr) Untrack(ctx context.Context, gr *Repo, msg string) error {
+	if !gm.IsTracked(gr.Name()) {
+		return fmt.Errorf("%w: %q", ErrGitNotTracked, gr.Name())
+	}
+	if err := gm.track.Untrack(gr.Name()); err != nil {
+		return err
+	}
+	if err := gm.WriteRepos(); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(gr.Fullpath()); err != nil {
+		return err
+	}
+	return gm.Commit(ctx, msg)
+}
+
+func (gm *Mgr) UpdateAndSave(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
+	if gm.version == "" {
+		return ErrNoVersionFound
+	}
+	if err := gm.Update(ctx, gr, old, fresh, postRm); err != nil {
+		return err
+	}
+	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] update bookmark", gr.Name()))
+}
+
+func (gm *Mgr) shouldSave(ctx context.Context, old, fresh *RepoStats) (bool, error) {
+	changed, err := gm.g.HasChanges(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !changed && old.Equal(fresh) {
+		return false, nil
+	}
+	return true, nil
 }

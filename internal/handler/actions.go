@@ -20,6 +20,7 @@ import (
 	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/bookmark/status"
 	"github.com/mateconpizza/gm/internal/dbops"
@@ -86,10 +87,7 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 		session := editor.NewEditSession().
 			WithStrategy(strategy).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
-				if err := r.UpdateOne(ctx, fresh); err != nil {
-					return err
-				}
-				return gitops.Update(ctx, app, old, fresh)
+				return persistFunc(ctx, app, r, old, fresh)
 			})
 
 		return runEditSession(ctx, d, bs, session)
@@ -281,12 +279,21 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := gitops.NewManager(app)
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  d.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return err
 	}
 
-	gr := gitops.NewRepo(gm, r.Name(), git.WithRepoStore(r))
+	gr := gm.NewRepo(r.Name(),
+		gitops.RepoFileReader(),
+		gitops.RepoFileRemover(),
+		gitops.RepoFileWriter(),
+		git.WithRepoStore(r),
+	)
 	if !gm.IsTracked(gr.Name()) {
 		return nil
 	}
@@ -306,7 +313,11 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := gitops.NewManager(app)
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  d.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return err
 	}
@@ -386,7 +397,11 @@ func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) err
 
 	if gm.IsTracked(name) {
 		result.WriteString(" and untracked")
-		gr := gitops.NewRepo(gm, name)
+		gr := gm.NewRepo(name,
+			gitops.RepoFileReader(),
+			gitops.RepoFileRemover(),
+			gitops.RepoFileWriter(),
+		)
 		if !gm.IsTracked(gr.Name()) {
 			return nil
 		}
@@ -505,10 +520,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		return nil
 
 	case "y", "yes":
-		if err := r.UpdateOne(ctx, &updated); err != nil {
-			return fmt.Errorf("updating record: %w", err)
-		}
-		if err := gitops.Update(ctx, app, b, &updated); err != nil {
+		if err := persistFunc(ctx, app, r, b, &updated); err != nil {
 			return err
 		}
 		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
@@ -517,10 +529,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		session := editor.NewEditSession().
 			WithStrategy(editor.NewBookmarkStrategy()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
-				if err := r.UpdateOne(ctx, fresh); err != nil {
-					return err
-				}
-				return gitops.Update(ctx, app, old, fresh)
+				return persistFunc(ctx, app, r, old, fresh)
 			})
 
 		err := runEditSession(ctx, d, []*bookmark.Bookmark{&updated}, session)
@@ -611,14 +620,19 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		return err
 	}
 
-	gm, err := gitops.NewManager(app)
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  d.Writer(),
+		Version: app.Version(),
+	})
 	if err != nil {
 		return err
 	}
 
-	gr := gitops.NewRepo(
-		gm,
-		r.BaseName(),
+	gr := gm.NewRepo(r.BaseName(),
+		gitops.RepoFileReader(),
+		gitops.RepoFileRemover(),
+		gitops.RepoFileWriter(),
 		gitops.RepoStatsReader(r),
 	)
 
@@ -651,4 +665,27 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 	}
 
 	return nil
+}
+
+func persistFunc(ctx context.Context, app *application.App, r bookmarkStore, old, fresh *bookmark.Bookmark) error {
+	if err := r.UpdateOne(ctx, fresh); err != nil {
+		return err
+	}
+
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Version: app.Version(),
+	})
+	if err != nil {
+		return err
+	}
+
+	gr := gm.NewRepo(app.DBBaseName(),
+		gitops.RepoFileReader(),
+		gitops.RepoFileRemover(),
+		gitops.RepoFileWriter(),
+		gitops.RepoStatsReader(r),
+	)
+
+	return gitops.Update(ctx, gm, gr, old, fresh)
 }

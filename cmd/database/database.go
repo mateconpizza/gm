@@ -108,10 +108,33 @@ func newDropCmd(app *application.App) *cobra.Command {
 			$ {cmd} db drop --db work --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				r, err := d.Repository()
+				if err != nil {
+					return err
+				}
+				defer r.Close()
+
 				if err := dbops.Drop(ctx, d); err != nil {
 					return err
 				}
-				return gitops.Drop(ctx, app, d.Console())
+
+				gm, err := gitops.NewManager(&gitops.ManagerConfig{
+					Root:    app.Path.Git(),
+					Writer:  app.Git.Writer(),
+					Version: app.Version(),
+				})
+				if err != nil {
+					return err
+				}
+
+				gr := gm.NewRepo(r.Name(),
+					gitops.RepoFileReader(),
+					gitops.RepoFileRemover(),
+					gitops.RepoFileWriter(),
+					gitops.RepoStatsReader(r),
+				)
+
+				return gitops.Drop(ctx, gm, gr, d.Console())
 			})
 		},
 	}
