@@ -297,6 +297,9 @@ linters:
       - path: "internal/dbops/dbops_test.go"
         linters:
           - dupword
+      - path: "internal/sys/terminal/state_test.go"
+        linters:
+          - nilnil
     generated: lax
     presets:
       - common-false-positives

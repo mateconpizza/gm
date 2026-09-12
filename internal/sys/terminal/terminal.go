@@ -20,7 +20,6 @@ var (
 	ErrTermWidthTooSmall   = errors.New("terminal width too small")
 	ErrTermHeightTooSmall  = errors.New("terminal height too small")
 	ErrUnsupportedPlatform = errors.New("unsupported platform")
-	ErrNoStateToRestore    = errors.New("no term state to restore")
 	ErrNotInteractive      = errors.New("not an interactive terminal")
 	ErrIncorrectAttempts   = errors.New("incorrect attempts")
 	ErrCannotBeEmpty       = errors.New("cannot be empty")
