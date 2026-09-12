@@ -438,7 +438,7 @@ func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 }
 
 // FlowFunc formats a bookmark as a single continuous path.
-// Layout: ID › Title — domain #tags.
+// Layout: ID › Title - domain #tags.
 func FlowFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 

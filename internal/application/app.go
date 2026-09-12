@@ -193,6 +193,7 @@ func (app *App) PrettyVersion() string {
 
 // SetDatabase sets the database name and path.
 func (app *App) SetDatabase(name string) error {
+	name = filepath.Clean(name)
 	app.DBName = files.StripExts(name)
 	if app.DBName == "" {
 		return ErrDatabaseNameNotSet

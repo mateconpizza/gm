@@ -97,7 +97,7 @@ func TestManager_CloseAll(t *testing.T) {
 
 	done := make(chan struct{})
 
-	// Run CloseAll() in a goroutine — if it hangs, test will timeout
+	// Run CloseAll() in a goroutine - if it hangs, test will timeout
 	go func() {
 		mgr.CloseAll()
 		close(done)
@@ -107,7 +107,7 @@ func TestManager_CloseAll(t *testing.T) {
 	case <-done:
 		// success
 	case <-time.After(2 * time.Second):
-		t.Fatal("CloseAll() timed out — possible deadlock")
+		t.Fatal("CloseAll() timed out - possible deadlock")
 	}
 
 	// Verify registry is empty

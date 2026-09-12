@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	menu "github.com/mateconpizza/go-fzf"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
@@ -15,6 +17,34 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
+
+type MenuRunner struct {
+	retcode int
+	output  string
+}
+
+func NewMenuRunner() *MenuRunner {
+	return &MenuRunner{}
+}
+
+func (f *MenuRunner) Parse(defaults bool, settings menu.Args) (*menu.RunOptions, error) {
+	return &menu.RunOptions{}, nil
+}
+
+func (f *MenuRunner) Run(opts *menu.RunOptions) (int, error) {
+	opts.Output <- f.output
+	return f.retcode, nil
+}
+
+func (f *MenuRunner) WithOutput(s string) *MenuRunner {
+	f.output = s
+	return f
+}
+
+func (f *MenuRunner) WithRetCode(i int) *MenuRunner {
+	f.retcode = i
+	return f
+}
 
 func NewApp(t *testing.T) *application.App {
 	t.Helper()
@@ -80,6 +110,12 @@ func NewDeps(t *testing.T) *deps.Deps {
 		deps.WithApplication(app),
 		deps.WithConsole(c),
 	)
+}
+
+func NewDepsWithRepo(t *testing.T, r *db.SQLite) *deps.Deps {
+	t.Helper()
+	return NewDeps(t).
+		WithRepo(r)
 }
 
 func NewInitializedEmptyDB(t *testing.T, dbPath string) *db.SQLite {

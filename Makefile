@@ -7,6 +7,7 @@ BIN_DIR		:= $(CURDIR)/bin
 BIN_PATH	:= $(BIN_DIR)/$(BINARY_NAME)
 INSTALL_DIR	:= /usr/local/bin
 FN		?= .
+L		?= .
 
 VERSION ?= dev
 COMMIT  := $(shell git rev-parse --short HEAD)
@@ -80,6 +81,9 @@ lint:
 	@echo '>> Linting code'
 	@go vet ./...
 	golangci-lint run ./...
+lname:
+	@echo '>> Linting code with $(L)'
+	golangci-lint run --enable-only=$(L) ./...
 
 typo:
 	@echo ">> checking for typos"

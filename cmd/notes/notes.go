@@ -112,7 +112,6 @@ func onlyNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 
 func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
 	p := app.Formatter().Menu.Placeholder()
-
 	opts = append(
 		opts,
 		menu.WithMultiSelection(),
@@ -121,6 +120,5 @@ func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bo
 		menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
 	)
-
 	return picker.NewWithFormatter(app, app.Formatter(), opts...)
 }

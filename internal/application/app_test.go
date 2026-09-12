@@ -63,7 +63,7 @@ func TestAppValidate(t *testing.T) {
 				t.Helper()
 				app := testutil.NewApp(t)
 				app.DBName = ""
-				// Path.Database also empty — DBName error should win
+				// Path.Database also empty - DBName error should win
 				return app
 			},
 			application.ErrDatabaseNameNotSet,
@@ -73,6 +73,7 @@ func TestAppValidate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			err := tt.setup(t).Validate()
 			if tt.wantErr != nil {
 				if err == nil {
@@ -85,118 +86,6 @@ func TestAppValidate(t *testing.T) {
 			}
 			if err != nil {
 				t.Fatalf("Validate() unexpected error: %v", err)
-			}
-		})
-	}
-}
-
-func TestAppSetDatabasePath(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name       string
-		input      string
-		setup      func(t *testing.T) *application.App
-		wantErr    error
-		wantDBName string
-	}{
-		{
-			"valid_name_no_extension",
-			"mydb",
-			func(t *testing.T) *application.App {
-				t.Helper()
-				app := testutil.NewApp(t)
-				app.Path.Data = t.TempDir()
-				return app
-			},
-			nil,
-			"mydb.db",
-		},
-		{
-			"valid_name_with_db_extension",
-			"mydb.db",
-			func(t *testing.T) *application.App {
-				t.Helper()
-				app := testutil.NewApp(t)
-				app.Path.Data = t.TempDir()
-				return app
-			},
-			nil,
-			"mydb.db",
-		},
-		{
-			"strips_extra_suffixes",
-			"mydb.tar.gz",
-			func(t *testing.T) *application.App {
-				t.Helper()
-				app := testutil.NewApp(t)
-				app.Path.Data = t.TempDir()
-				return app
-			},
-			nil,
-			"mydb.db",
-		},
-		{
-			"empty_name_returns_error",
-			"",
-			func(t *testing.T) *application.App {
-				t.Helper()
-				app := testutil.NewApp(t)
-				app.Path.Data = t.TempDir()
-				return app
-			},
-			application.ErrDatabaseNameNotSet,
-			"",
-		},
-		{
-			"only_suffixes_returns_error",
-			".db",
-			func(t *testing.T) *application.App {
-				t.Helper()
-				app := testutil.NewApp(t)
-				app.Path.Data = t.TempDir()
-				return app
-			},
-			application.ErrDatabaseNameNotSet,
-			"",
-		},
-		{
-			"empty_data_path_returns_error",
-			"mydb",
-			func(t *testing.T) *application.App {
-				t.Helper()
-				return testutil.NewApp(t) // Path.Data is empty by default
-			},
-			application.ErrDatabasePathNotSet,
-			"",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			app := tt.setup(t)
-			err := app.SetDatabase(tt.input)
-
-			if tt.wantErr != nil {
-				if err == nil {
-					t.Fatalf("SetDatabasePath(%q) expected error %v, got nil", tt.input, tt.wantErr)
-				}
-				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("SetDatabasePath(%q) expected error %v, got %v", tt.input, tt.wantErr, err)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("SetDatabasePath(%q) unexpected error: %v", tt.input, err)
-			}
-
-			if app.DBName != tt.wantDBName {
-				t.Errorf("DBName = %q; want %q", app.DBName, tt.wantDBName)
-			}
-
-			wantPath := filepath.Join(app.Path.Home(), tt.wantDBName)
-			if app.Path.DB() != wantPath {
-				t.Errorf("Path.Database = %q; want %q", app.Path.DB(), wantPath)
 			}
 		})
 	}
@@ -281,6 +170,214 @@ func TestColorEnabled(t *testing.T) {
 			)
 			if result != tt.expectedEnabled {
 				t.Errorf("got %v, want %v", result, tt.expectedEnabled)
+			}
+		})
+	}
+}
+
+func TestApp_Setup(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		app     *application.App
+		wantErr error
+	}{
+		{
+			name: "normal_setup",
+			app: &application.App{
+				Name:   "myapp",
+				DBName: "main.db",
+				Env:    &application.Env{Home: "/home/user"},
+				Path:   &application.Path{},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "empty_home_directory_uses_system_default",
+			app: &application.App{
+				Name:   "myapp",
+				DBName: "main.db",
+				Env:    &application.Env{Home: ""}, // gap.NewScope(gap.User, appName) resolves the OS default automatically,
+				Path:   &application.Path{},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "empty_db_name_edge_case",
+			app: &application.App{
+				Name:   "myapp",
+				DBName: "",
+				Env:    &application.Env{Home: "/home/user"},
+				Path:   &application.Path{},
+			},
+			wantErr: application.ErrDatabaseNameNotSet,
+		},
+		{
+			name: "empty_app_name_boundary",
+			app: &application.App{
+				Name:   "",
+				DBName: "main.db",
+				Env:    &application.Env{Home: "/home/user"},
+				Path:   &application.Path{},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "nested_database_name_boundary",
+			app: &application.App{
+				Name:   "myapp",
+				DBName: "subdir/nested.db",
+				Env:    &application.Env{Home: "/home/user"},
+				Path:   &application.Path{},
+			},
+			wantErr: nil,
+		},
+		{
+			name: "special_characters_in_name",
+			app: &application.App{
+				Name:   "my-app_1.0!",
+				DBName: "main.db",
+				Env:    &application.Env{Home: "/home/user"},
+				Path:   &application.Path{},
+			},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tt.app.Setup()
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("(*App).Setup() expected error, got nil")
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("(*App).Setup() expected error %q, got %q", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("(*App).Setup() unexpected error: %v", err)
+			}
+
+			// Verify that the side effect (setting app.Path.Data) occurred
+			if tt.app.Path.Data == "" {
+				t.Errorf("(*App).Setup() expected app.Path.Data to be populated, got empty string")
+			}
+		})
+	}
+}
+
+func TestApp_SetDatabase(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		dbNameInput string
+		dataDir     string
+		wantDBName  string
+		wantDBPath  string
+		wantErr     error
+	}{
+		{
+			name:        "normal_typical_input",
+			dbNameInput: "bookmarks",
+			dataDir:     "/home/user/.local/share/app",
+			wantDBName:  "bookmarks.db",
+			wantDBPath:  filepath.Join("/home/user/.local/share/app", "bookmarks.db"),
+			wantErr:     nil,
+		},
+		{
+			name:        "normal_with_existing_extension",
+			dbNameInput: "data.db",
+			dataDir:     "/opt/app/data",
+			wantDBName:  "data.db",
+			wantDBPath:  filepath.Join("/opt/app/data", "data.db"),
+			wantErr:     nil,
+		},
+		{
+			name:        "empty_db_name_edge_case",
+			dbNameInput: "",
+			dataDir:     "/var/lib/app",
+			wantDBName:  "",
+			wantDBPath:  "",
+			wantErr:     application.ErrDatabaseNameNotSet,
+		},
+		{
+			name:        "empty_data_path_boundary",
+			dbNameInput: "main",
+			dataDir:     "",
+			wantDBName:  "main.db",
+			wantDBPath:  "",
+			wantErr:     application.ErrDatabasePathNotSet,
+		},
+		{
+			// StripExts removes all extensions in a loop
+			name:        "multiple_extensions_stripped_boundary",
+			dbNameInput: "my-app.tar.gz",
+			dataDir:     "/tmp/data",
+			wantDBName:  "my-app.db",
+			wantDBPath:  filepath.Join("/tmp/data", "my-app.db"),
+			wantErr:     nil,
+		},
+		{
+			// Changed from my-app_1.0 to avoid .0 being stripped by StripExts
+			name:        "special_characters_in_name",
+			dbNameInput: "my-app_1!@",
+			dataDir:     "/tmp/data",
+			wantDBName:  "my-app_1!@.db",
+			wantDBPath:  filepath.Join("/tmp/data", "my-app_1!@.db"),
+			wantErr:     nil,
+		},
+		{
+			name:        "whitespace_in_db_name",
+			dbNameInput: "my db",
+			dataDir:     "/data/store",
+			wantDBName:  "my db.db",
+			wantDBPath:  filepath.Join("/data/store", "my db.db"),
+			wantErr:     nil,
+		},
+		{
+			name:        "only_suffixes_returns_error",
+			dbNameInput: ".db",
+			dataDir:     "/data/store",
+			wantDBName:  "",
+			wantDBPath:  "",
+			wantErr:     application.ErrDatabaseNameNotSet,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := application.NewApp(tt.dataDir)
+			err := app.SetDatabase(tt.dbNameInput)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("(*App).SetDatabase(%q) expected error %v, got nil", tt.dbNameInput, tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("(*App).SetDatabase(%q) expected error %q, got %q", tt.dbNameInput, tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("(*App).SetDatabase(%q) unexpected error: %v", tt.dbNameInput, err)
+			}
+
+			if app.DBName != tt.wantDBName {
+				t.Errorf("(*App).SetDatabase() DBName = %v, want %v", app.DBName, tt.wantDBName)
+			}
+			if app.Path.Database != tt.wantDBPath {
+				t.Errorf("(*App).SetDatabase() Path.Database = %v, want %v", app.Path.Database, tt.wantDBPath)
 			}
 		})
 	}

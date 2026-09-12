@@ -16,20 +16,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-type fakeRunner struct {
-	retcode int
-	output  string
-}
-
-func (f *fakeRunner) Parse(defaults bool, settings menu.Args) (*menu.RunOptions, error) {
-	return &menu.RunOptions{}, nil
-}
-
-func (f *fakeRunner) Run(opts *menu.RunOptions) (int, error) {
-	opts.Output <- f.output
-	return f.retcode, nil
-}
-
 func TestSelector_Select(t *testing.T) {
 	t.Parallel()
 
@@ -62,8 +48,12 @@ func TestSelector_Select(t *testing.T) {
 				targetPath := newTestFile(t, tempDir, "data2.db")
 				app := testutil.NewApp(t).WithHomePath(tempDir)
 
+				r := testutil.NewMenuRunner().
+					WithRetCode(0).
+					WithOutput(targetPath)
+
 				return NewSelector(app, app.Path.Home()).
-					WithOpts(menu.WithRunner(&fakeRunner{retcode: 0, output: targetPath}))
+					WithOpts(menu.WithRunner(r))
 			},
 			want:    []string{"data2.db"},
 			wantErr: nil,
@@ -106,11 +96,15 @@ func TestSelector_Select(t *testing.T) {
 				app := testutil.NewApp(t).
 					WithHomePath(dir)
 
+				r := testutil.NewMenuRunner().
+					WithRetCode(0).
+					WithOutput("")
+
 				return NewSelector(app, app.Path.Home()).
 					WithFilter(func(s string) bool {
 						return s != skip1 && s != skip2
 					}).
-					WithOpts(menu.WithRunner(&fakeRunner{retcode: 0, output: ""}))
+					WithOpts(menu.WithRunner(r))
 			},
 			want:    nil,
 			wantErr: ErrNoItems,
@@ -122,11 +116,16 @@ func TestSelector_Select(t *testing.T) {
 				tempDir := t.TempDir()
 				newTestFile(t, tempDir, "match.db")
 				newTestFile(t, tempDir, "other.db")
-				app := testutil.NewApp(t).WithHomePath(tempDir)
+				app := testutil.NewApp(t).
+					WithHomePath(tempDir)
+
+				r := testutil.NewMenuRunner().
+					WithRetCode(0).
+					WithOutput("")
 
 				return NewSelector(app, app.Path.Home()).
 					WithFilter(func(path string) bool { return false }). // filter rejects everything
-					WithOpts(menu.WithRunner(&fakeRunner{retcode: 0, output: ""}))
+					WithOpts(menu.WithRunner(r))
 			},
 			want:    nil,
 			wantErr: ErrNoItems,
@@ -139,8 +138,11 @@ func TestSelector_Select(t *testing.T) {
 				newTestFile(t, tempDir, "data.db")
 				app := testutil.NewApp(t).WithHomePath(tempDir)
 
+				r := testutil.NewMenuRunner().
+					WithRetCode(130)
+
 				return NewSelector(app, app.Path.Home()).
-					WithOpts(menu.WithRunner(&fakeRunner{retcode: 130, output: ""}))
+					WithOpts(menu.WithRunner(r))
 			},
 			want:    nil,
 			wantErr: sys.ErrActionAborted,
@@ -164,10 +166,13 @@ func TestSelector_Select(t *testing.T) {
 					return "WRAP_" + in
 				}
 
+				r := testutil.NewMenuRunner().
+					WithOutput(formattedOutput)
+
 				return NewSelector(app, tempDir).
 					WithItemFormatter(itemFmt).
 					WithItemDecorator(customFmt).
-					WithOpts(menu.WithRunner(&fakeRunner{retcode: 0, output: formattedOutput}))
+					WithOpts(menu.WithRunner(r))
 			},
 			want:    []string{"custom.db"},
 			wantErr: nil,

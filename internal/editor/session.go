@@ -34,10 +34,7 @@ type TextEditor interface {
 	Edit(ctx context.Context, content []byte, extension string) ([]byte, error)
 }
 
-type PersistFunc func(
-	ctx context.Context,
-	old, fresh *bookmark.Bookmark,
-) error
+type PersistFunc func(ctx context.Context, old, fresh *bookmark.Bookmark) error
 
 // EditSession build -> edit -> parse -> confirm -> save.
 type EditSession struct {

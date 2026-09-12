@@ -329,7 +329,8 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		WithItemDecorator(gitTrackedMarker(gm.IsTracked)).
 		WithOpts(
 			menu.WithMultiSelection(),
-			menu.WithHeaderLabel("remove database"),
+			menu.WithHeaderLabel(" remove database "),
+			menu.WithColor("header-label", menu.ColorBrightRed, menu.AttributeBold),
 			menu.WithHeader(fmt.Sprintf(
 				"select database %s %s",
 				txt.GlyphBulletPoint,
