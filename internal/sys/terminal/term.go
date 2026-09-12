@@ -46,6 +46,8 @@ type Options struct {
 
 	isTerminal   isTerminalFunc
 	readPassword readPasswordFunc
+
+	state *State
 }
 
 // Term is a struct that represents a terminal.
@@ -56,6 +58,38 @@ type Term struct {
 	br       *bufio.Reader
 	cancelFn context.CancelFunc
 	size     *termSize
+}
+
+// New returns a new terminal with the provided options.
+func New(opts ...TermOptFn) *Term {
+	t := &Term{
+		Options: Options{
+			reader:       os.Stdin,
+			writer:       os.Stdout,
+			isTerminal:   term.IsTerminal,
+			readPassword: term.ReadPassword,
+			state:        NewState(),
+		},
+		size: &termSize{
+			maxWidth: maxWidth,
+			minWidth: minWidth,
+			width:    width,
+			height:   height,
+		},
+	}
+
+	for _, opt := range opts {
+		opt(&t.Options)
+	}
+
+	// Set default interrupt handler if not provided
+	if t.interruptFn == nil {
+		t.interruptFn = defaultInterruptFn
+	}
+
+	t.br = bufio.NewReader(t.reader)
+
+	return t
 }
 
 // WithReader sets the reader for the terminal.
@@ -79,6 +113,12 @@ func WithInterruptFn(fn func(error)) TermOptFn {
 	}
 }
 
+func WithTermState(s *State) TermOptFn {
+	return func(o *Options) {
+		o.state = s
+	}
+}
+
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
 	t.mu.Lock()
@@ -94,7 +134,7 @@ func (t *Term) SetWriter(w io.Writer) {
 
 // Input get the Input data from the user and return it.
 func (t *Term) Input(p string) string {
-	o, restore := prepareInputState(t.interruptFn)
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerDummy(), o...)
@@ -115,11 +155,11 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	}
 
 	// Save and restore terminal state
-	if err := saveState(); err != nil {
+	if err := t.saveTermState(); err != nil {
 		return "", err
 	}
 	defer func() {
-		if err := restoreState(); err != nil {
+		if err := t.restoreTermState(); err != nil {
 			slog.Warn("restoring terminal state", "error", err)
 		}
 	}()
@@ -178,18 +218,18 @@ func (t *Term) Prompt(ctx context.Context, p string) (string, error) {
 // PromptWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
 func (t *Term) PromptWithSuggestions(p string, items []string) string {
-	return inputWithSuggestions(p, items, t.interruptFn)
+	return inputWithSuggestions(t, p, items)
 }
 
 // PromptWithFuzzySuggestions prompts the user for input with fuzzy suggestions.
 func (t *Term) PromptWithFuzzySuggestions(p string, items []string) string {
-	return inputWithFuzzySuggestions(p, items, t.interruptFn)
+	return inputWithFuzzySuggestions(t, p, items)
 }
 
 // ChooseTags prompts the user for input with suggestions based on
 // the provided tags.
 func (t *Term) ChooseTags(p string, items map[string]int) string {
-	return inputWithTags(p, items, t.interruptFn)
+	return inputWithTags(t, p, items)
 }
 
 // Confirm prompts the user with a question and options.
@@ -445,40 +485,48 @@ func (t *Term) paginate(ctx context.Context, content string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := withRestoredTerminal(cmd.Run); err != nil {
+	if err := t.withRestoredTerminal(cmd.Run); err != nil {
 		_, err = fmt.Fprint(t.writer, content)
 		return err
 	}
 	return nil
 }
 
-// New returns a new terminal with the provided options.
-func New(opts ...TermOptFn) *Term {
-	t := &Term{
-		Options: Options{
-			reader:       os.Stdin,
-			writer:       os.Stdout,
-			isTerminal:   term.IsTerminal,
-			readPassword: term.ReadPassword,
-		},
-		size: &termSize{
-			maxWidth: maxWidth,
-			minWidth: minWidth,
-			width:    width,
-			height:   height,
-		},
+// withRestoredTerminal saves the terminal state, runs fn, then restores it
+// regardless of how fn exits. Safe to call even if stdin is not a terminal.
+func (t *Term) withRestoredTerminal(fn func() error) error {
+	if !t.isTerminal(int(os.Stdin.Fd())) {
+		return fn()
 	}
 
-	for _, opt := range opts {
-		opt(&t.Options)
+	if err := t.state.Save(); err != nil {
+		slog.Debug("failed to save terminal state", "err", err)
+		return fn()
 	}
 
-	// Set default interrupt handler if not provided
-	if t.interruptFn == nil {
-		t.interruptFn = defaultInterruptFn
+	defer func() {
+		if err := t.state.Restore(); err != nil {
+			slog.Debug("failed to restore terminal state", "err", err)
+		}
+	}()
+
+	return fn()
+}
+
+func (t *Term) saveTermState() error {
+	slog.Debug("saving terminal state")
+	if !t.isTerminal(int(os.Stdin.Fd())) {
+		slog.Debug("not a terminal, skipping saveState")
+		return nil
 	}
+	return t.state.Save()
+}
 
-	t.br = bufio.NewReader(t.reader)
-
-	return t
+func (t *Term) restoreTermState() error {
+	slog.Debug("restoring terminal state")
+	if !t.isTerminal(int(os.Stdin.Fd())) {
+		slog.Debug("not a terminal, skipping restoreState")
+		return nil
+	}
+	return t.state.Restore()
 }

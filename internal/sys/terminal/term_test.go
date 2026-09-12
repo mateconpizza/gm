@@ -1,12 +1,17 @@
 package terminal
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
+	"testing/iotest"
+
+	"golang.org/x/term"
 
 	"github.com/mateconpizza/gm/internal/sys"
 )
@@ -195,4 +200,123 @@ func TestInputPassword(t *testing.T) {
 			t.Errorf("expected passwords to differ, got same value: %q", s1)
 		}
 	})
+}
+
+func TestTerm_InputPassword(t *testing.T) {
+	t.Parallel()
+
+	errRead := errors.New("broken pipe")
+	errTermRead := errors.New("read /dev/tty: input/output error")
+
+	tests := []struct {
+		name         string
+		isTerminal   bool
+		input        string // used only when isTerminal == false
+		readErr      error  // used only when isTerminal == false
+		readPassword string // used only when isTerminal == true
+		readPassErr  error  // used only when isTerminal == true
+		cancelBefore bool   // cancel ctx before readPassword resolves
+		want         string
+		wantErr      error
+		wantErrMsg   string
+	}{
+		{
+			name:       "normal_password_with_newline",
+			isTerminal: false,
+			input:      "hunter2\n",
+			want:       "hunter2",
+		},
+		{
+			name:       "empty_password_with_newline",
+			isTerminal: false,
+			input:      "\n",
+			want:       "",
+		},
+		{
+			name:       "password_no_trailing_newline_eof",
+			isTerminal: false,
+			input:      "hunter2",
+			want:       "hunter2",
+		},
+		{
+			name:       "reader_error_non_eof",
+			isTerminal: false,
+			readErr:    errRead,
+			wantErrMsg: "reading password",
+		},
+		{
+			name:         "terminal_reads_password_successfully",
+			isTerminal:   true,
+			readPassword: "hunter2",
+			want:         "hunter2",
+		},
+		{
+			name:        "terminal_read_password_fails",
+			isTerminal:  true,
+			readPassErr: errTermRead,
+			wantErrMsg:  "reading password",
+		},
+		{
+			name:         "context_cancelled_before_password_read",
+			isTerminal:   true,
+			readPassword: "hunter2",
+			cancelBefore: true,
+			wantErr:      sys.ErrActionAborted,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var r *bufio.Reader
+			if tt.readErr != nil {
+				r = bufio.NewReader(iotest.ErrReader(tt.readErr))
+			} else {
+				r = bufio.NewReader(strings.NewReader(tt.input))
+			}
+
+			blockChan := make(chan struct{})
+
+			state := NewState().
+				WithSaveFunc(func() (*term.State, error) { return &term.State{}, nil }).
+				WithRestoreFunc(func(state *term.State) error { return nil })
+
+			te := New(WithReader(r), WithTermState(state))
+			te.isTerminal = func(fd int) bool { return tt.isTerminal }
+			te.readPassword = func(fd int) ([]byte, error) {
+				if tt.cancelBefore {
+					<-blockChan // block until the test cancels ctx and releases us
+				}
+				return []byte(tt.readPassword), tt.readPassErr
+			}
+
+			ctx := t.Context()
+			if tt.cancelBefore {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+				close(blockChan) // let the goroutine proceed after cancellation is observed
+			}
+
+			got, err := te.InputPassword(ctx)
+
+			switch {
+			case tt.wantErr != nil:
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("InputPassword() error = %v, want %v", err, tt.wantErr)
+				}
+			case tt.wantErrMsg != "":
+				if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
+					t.Fatalf("InputPassword() error = %v, want containing %q", err, tt.wantErrMsg)
+				}
+			case err != nil:
+				t.Fatalf("InputPassword() unexpected error: %v", err)
+			default:
+				if got != tt.want {
+					t.Errorf("InputPassword() = %q, want %q", got, tt.want)
+				}
+			}
+		})
+	}
 }

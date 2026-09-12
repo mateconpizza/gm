@@ -44,8 +44,8 @@ type filterFn = func(completions []prompt.Suggest, sub string, ignoreCase bool) 
 
 // inputWithTags prompts the user for input with suggestions based on
 // the provided tags.
-func inputWithTags[T comparable, V any](p string, items map[T]V, exitFn func(error)) string {
-	o, restore := prepareInputState(exitFn)
+func inputWithTags[T comparable, V any](t *Term, p string, items map[T]V) string {
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerTagsWithCount(items, prompt.FilterHasPrefix), o...)
@@ -55,8 +55,8 @@ func inputWithTags[T comparable, V any](p string, items map[T]V, exitFn func(err
 
 // inputWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
-func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string {
-	o, restore := prepareInputState(exitFn)
+func inputWithSuggestions[T any](t *Term, p string, items []T) string {
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerPrefix(items), o...)
@@ -65,8 +65,8 @@ func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string
 
 // inputWithFuzzySuggestions prompts the user for input with fuzzy suggestions
 // based on the provided items and exit function.
-func inputWithFuzzySuggestions[T any](p string, items []T, exitFn func(error)) string {
-	o, restore := prepareInputState(exitFn)
+func inputWithFuzzySuggestions[T any](t *Term, p string, items []T) string {
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerFuzzy(items), o...)
@@ -113,20 +113,20 @@ func ReadPipedInput(args *[]string) {
 
 // prepareInputState prepares the input state and options, handling errors with
 // exitFn.
-func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
+func prepareInputState(t *Term) (o []prompt.Option, restore func()) {
 	// BUG: https://github.com/c-bata/go-prompt/issues/233#issuecomment-1076162632
-	if err := saveState(); err != nil {
-		exitFn(err)
+	if err := t.saveTermState(); err != nil {
+		t.interruptFn(err)
 	}
 
 	// opts
 	o = promptOptions(ansi.ColorEnabled)
-	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
+	o = append(o, prompt.OptionAddKeyBind(quitKeybind(t)))
 
 	// restores term state
 	restore = func() {
-		if err := restoreState(); err != nil {
-			exitFn(err)
+		if err := t.restoreTermState(); err != nil {
+			t.interruptFn(err)
 		}
 	}
 
@@ -340,17 +340,17 @@ func getQueryFromPipe(r io.Reader) string {
 }
 
 // quitKeybind returns the quitKeybind for the completer.
-func quitKeybind(f func(err error)) prompt.KeyBind {
+func quitKeybind(t *Term) prompt.KeyBind {
 	return prompt.KeyBind{
 		Key: prompt.ControlC,
 		Fn: func(*prompt.Buffer) {
-			if termState != nil {
-				if err := restoreState(); err != nil {
-					f(err)
+			if t.state.Current() != nil {
+				if err := t.restoreTermState(); err != nil {
+					t.interruptFn(err)
 				}
 			}
 
-			f(sys.ErrActionAborted)
+			t.interruptFn(sys.ErrActionAborted)
 		},
 	}
 }

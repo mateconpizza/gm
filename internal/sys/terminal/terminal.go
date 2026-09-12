@@ -25,9 +25,6 @@ var (
 	ErrCannotBeEmpty       = errors.New("cannot be empty")
 )
 
-// termState contains the state of the terminal.
-var termState *term.State
-
 // force is a flag to force the terminal to run in non-interactive mode.
 var force bool = false
 
@@ -52,45 +49,6 @@ func NoColorEnv() bool {
 	c := sys.Env(noColorEnv, "")
 	slog.Debug("Environment", slog.String("NO_COLOR", c))
 	return c != ""
-}
-
-// saveState the current terminal state.
-func saveState() error {
-	slog.Debug("saving terminal state")
-
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		slog.Debug("not a terminal, skipping saveState")
-		return nil
-	}
-
-	oldState, err := term.GetState(int(os.Stdin.Fd()))
-	if err != nil {
-		return fmt.Errorf("saving state: %w", err)
-	}
-
-	termState = oldState
-
-	return nil
-}
-
-// restoreState the previously saved terminal state.
-func restoreState() error {
-	slog.Debug("restoring terminal state")
-
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		slog.Debug("not a terminal, skipping restoreState")
-		return nil
-	}
-
-	if termState == nil {
-		return ErrNoStateToRestore
-	}
-
-	if err := term.Restore(int(os.Stdin.Fd()), termState); err != nil {
-		return fmt.Errorf("restoring state: %w", err)
-	}
-
-	return nil
 }
 
 // loadMaxWidth updates `MaxWidth` to the current width if it is smaller than
@@ -169,24 +127,4 @@ func init() {
 
 func NonInteractiveMode(b bool) {
 	force = b
-}
-
-// withRestoredTerminal saves the terminal state, runs fn, then restores it
-// regardless of how fn exits. Safe to call even if stdin is not a terminal.
-func withRestoredTerminal(fn func() error) error {
-	fd := int(os.Stdin.Fd())
-	if !term.IsTerminal(fd) {
-		return fn()
-	}
-	saved, err := term.GetState(fd)
-	if err != nil {
-		slog.Debug("failed to save terminal state", "err", err)
-		return fn()
-	}
-	defer func() {
-		if err := term.Restore(fd, saved); err != nil {
-			slog.Debug("failed to restore terminal state", "err", err)
-		}
-	}()
-	return fn()
 }
