@@ -23,13 +23,6 @@ import (
 // defaultInterruptFn is the default interrupt function for the terminal.
 func defaultInterruptFn(err error) { slog.Debug("InterruptFn not set") }
 
-type termSize struct {
-	width    int
-	maxWidth int
-	minWidth int
-	height   int
-}
-
 type pagerRunFunc func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error
 
 type isTerminalFunc func(fd int) bool
@@ -60,7 +53,7 @@ type Term struct {
 	mu       sync.Mutex
 	br       *bufio.Reader
 	cancelFn context.CancelFunc
-	size     *termSize
+	size     *TermSize
 }
 
 // New returns a new terminal with the provided options.
@@ -75,12 +68,7 @@ func New(opts ...TermOptFn) *Term {
 			pagerFunc:    defaultPagerRun,
 			inputRetries: 3,
 		},
-		size: &termSize{
-			maxWidth: maxWidth,
-			minWidth: minWidth,
-			width:    width,
-			height:   height,
-		},
+		size: NewSize(),
 	}
 
 	for _, opt := range opts {

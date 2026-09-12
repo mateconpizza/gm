@@ -387,3 +387,99 @@ func TestTerm_paginate(t *testing.T) {
 		})
 	}
 }
+
+func TestNewSize(t *testing.T) {
+	t.Parallel()
+
+	errMock := errors.New("mock error")
+
+	tests := []struct {
+		name        string
+		getSizeFunc func() (width int, height int, err error)
+		wantWidth   int
+		wantHeight  int
+		wantMaxW    int
+		wantMinW    int
+	}{
+		{
+			name: "normal_typical_size",
+			getSizeFunc: func() (width int, height int, err error) {
+				return 100, 30, nil
+			},
+			wantWidth:  100,
+			wantHeight: 30,
+			wantMaxW:   100, // 100 > 0 && 100 < 120, so maxWidth becomes 100
+			wantMinW:   80,
+		},
+		{
+			name: "error_from_getsize",
+			getSizeFunc: func() (width int, height int, err error) {
+				return 0, 0, errMock
+			},
+			wantWidth:  0,
+			wantHeight: 0,
+			wantMaxW:   120, // default
+			wantMinW:   80,  // default
+		},
+		{
+			name: "zero_dimensions",
+			getSizeFunc: func() (width int, height int, err error) {
+				return 0, 0, nil
+			},
+			wantWidth:  0,
+			wantHeight: 0,
+			wantMaxW:   120, // 0 is not > 0, so maxWidth remains default
+			wantMinW:   80,
+		},
+		{
+			name: "width_exact_upper_bound",
+			getSizeFunc: func() (width int, height int, err error) {
+				return 120, 40, nil
+			},
+			wantWidth:  120,
+			wantHeight: 40,
+			wantMaxW:   120, // 120 is not < 120, so maxWidth remains default
+			wantMinW:   80,
+		},
+		{
+			name: "width_above_upper_bound",
+			getSizeFunc: func() (width int, height int, err error) {
+				return 150, 40, nil
+			},
+			wantWidth:  150,
+			wantHeight: 40,
+			wantMaxW:   120, // 150 is not < 120, so maxWidth remains default
+			wantMinW:   80,
+		},
+		{
+			name: "width_just_below_upper_bound",
+			getSizeFunc: func() (width int, height int, err error) {
+				return 119, 40, nil
+			},
+			wantWidth:  119,
+			wantHeight: 40,
+			wantMaxW:   119, // 119 > 0 && 119 < 120, so maxWidth becomes 119
+			wantMinW:   80,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := NewSize(withLoadSizeFunc(tt.getSizeFunc))
+			if got.Width() != tt.wantWidth {
+				t.Errorf("Width() = %d, want %d", got.Width(), tt.wantWidth)
+			}
+			if got.Height() != tt.wantHeight {
+				t.Errorf("Height() = %d, want %d", got.Height(), tt.wantHeight)
+			}
+			if got.MaxWidth() != tt.wantMaxW {
+				t.Errorf("MaxWidth() = %d, want %d", got.MaxWidth(), tt.wantMaxW)
+			}
+			if got.MinWidth() != tt.wantMinW {
+				t.Errorf("MinWidth() = %d, want %d", got.MinWidth(), tt.wantMinW)
+			}
+		})
+	}
+}

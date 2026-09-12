@@ -23,18 +23,66 @@ var (
 // force is a flag to force the terminal to run in non-interactive mode.
 var force bool = false
 
-// Default terminal settings.
-var (
-	maxWidth int = 120
-	minWidth int = 80
-	width    int
-	height   int
-)
+func NonInteractiveMode(b bool) {
+	force = b
+}
 
-func MinWidth() int { return minWidth }
-func MaxWidth() int { return maxWidth }
-func Width() int    { return width }
-func Height() int   { return height }
+type loadSizeFunc func() (width int, height int, err error)
+
+type TermSizeOptions struct {
+	loadSize loadSizeFunc
+}
+
+type TermSizeOptFn func(*TermSizeOptions)
+
+type TermSize struct {
+	TermSizeOptions
+
+	width    int
+	maxWidth int
+	minWidth int
+	height   int
+}
+
+func NewSize(opts ...TermSizeOptFn) *TermSize {
+	s := &TermSize{
+		maxWidth: 120,
+		minWidth: 80,
+		TermSizeOptions: TermSizeOptions{
+			loadSize: getSize,
+		},
+	}
+
+	for _, opt := range opts {
+		opt(&s.TermSizeOptions)
+	}
+
+	width, height, err := s.loadSize()
+	if err != nil {
+		slog.Debug("could not determine terminal size", "error", err)
+		return s
+	}
+
+	s.width = width
+	s.height = height
+
+	if width > 0 && width < s.maxWidth {
+		s.maxWidth = width
+	}
+
+	return s
+}
+
+func withLoadSizeFunc(fn loadSizeFunc) TermSizeOptFn {
+	return func(o *TermSizeOptions) {
+		o.loadSize = fn
+	}
+}
+
+func (s *TermSize) Height() int   { return s.height }
+func (s *TermSize) MaxWidth() int { return s.maxWidth }
+func (s *TermSize) MinWidth() int { return s.minWidth }
+func (s *TermSize) Width() int    { return s.width }
 
 // NoColorEnv disables color output if the NO_COLOR environment variable is
 // set.
@@ -44,19 +92,6 @@ func NoColorEnv() bool {
 	c := sys.Env(noColorEnv, "")
 	slog.Debug("Environment", slog.String("NO_COLOR", c))
 	return c != ""
-}
-
-// loadMaxWidth updates `MaxWidth` to the current width if it is smaller than
-// the existing `MaxWidth`.
-func loadMaxWidth() {
-	w, _ := getWidth()
-	if w == 0 {
-		return
-	}
-
-	if w < maxWidth {
-		maxWidth = w
-	}
 }
 
 // clearTerminal clears the terminal.
@@ -99,27 +134,17 @@ func StdoutPiped() bool {
 	return (fi.Mode() & os.ModeCharDevice) == 0
 }
 
-// getWidth returns the terminal's width.
-func getWidth() (int, error) {
+func getSize() (width, height int, err error) {
 	fd := int(os.Stdout.Fd())
+
 	if !term.IsTerminal(fd) {
-		return 0, ErrNotTTY
+		return width, height, ErrNotTTY
 	}
 
-	var err error
 	width, height, err = term.GetSize(fd)
 	if err != nil {
-		return 0, fmt.Errorf("getting console width: %w", err)
+		return width, height, fmt.Errorf("getting console size: %w", err)
 	}
 
-	return width, nil
-}
-
-func init() {
-	// Loads the terminal settings.
-	loadMaxWidth()
-}
-
-func NonInteractiveMode(b bool) {
-	force = b
+	return width, height, nil
 }
