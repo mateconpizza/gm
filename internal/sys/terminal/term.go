@@ -41,10 +41,11 @@ type TermOptFn func(*Options)
 
 // Options represents the options for the terminal.
 type Options struct {
-	reader      io.Reader
-	writer      io.Writer
-	interruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
-	state       *State
+	reader       io.Reader
+	writer       io.Writer
+	interruptFn  func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
+	inputRetries int         // retries specifies the maximum number of retries allowed for user input.
+	state        *State
 
 	isTerminal   isTerminalFunc
 	readPassword readPasswordFunc
@@ -72,6 +73,7 @@ func New(opts ...TermOptFn) *Term {
 			readPassword: term.ReadPassword,
 			state:        NewState(),
 			pagerFunc:    defaultPagerRun,
+			inputRetries: 3,
 		},
 		size: &termSize{
 			maxWidth: maxWidth,
@@ -119,6 +121,12 @@ func WithInterruptFn(fn func(error)) TermOptFn {
 func WithTermState(s *State) TermOptFn {
 	return func(o *Options) {
 		o.state = s
+	}
+}
+
+func WithMaxRetries(n int) TermOptFn {
+	return func(o *Options) {
+		o.inputRetries = n
 	}
 }
 
@@ -434,11 +442,12 @@ func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 
 	return getUserInputWithAttempts(ctx, &PromptInput{
-		reader:  t.currentReader(),
-		writer:  t.writer,
-		rompt:   p,
-		options: opts,
-		def:     def,
+		reader:     t.currentReader(),
+		writer:     t.writer,
+		rompt:      p,
+		options:    opts,
+		def:        def,
+		maxRetries: t.inputRetries,
 	})
 }
 

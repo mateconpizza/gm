@@ -15,9 +15,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-// maxRetries specifies the maximum number of retries allowed for user input.
-const maxRetries = 3
-
 type highlightFn func(string) string
 
 type highlighter struct{}
@@ -29,11 +26,12 @@ func (h *highlighter) dim(s string) string     { return ansi.Dim.Wrap(s) }
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
-	reader  *bufio.Reader
-	writer  io.Writer
-	rompt   string
-	options []string
-	def     string
+	reader     *bufio.Reader
+	writer     io.Writer
+	rompt      string
+	options    []string
+	def        string
+	maxRetries int // maxRetries specifies the maximum number of retries allowed for user input.
 }
 
 // PromptSuggester is a function that generates suggestions for a given prompt.
@@ -216,7 +214,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 	var count int
 	h := &highlighter{}
 
-	for count < maxRetries {
+	for count < pi.maxRetries {
 		_, _ = fmt.Fprint(pi.writer, pi.rompt)
 
 		// ch to receive input result
@@ -254,14 +252,14 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 			}
 
 			count++
-			if count <= maxRetries-1 {
+			if count <= pi.maxRetries-1 {
 				ClearLine(pi.writer, len(strings.Split(pi.rompt, "\n")))
 			}
 		}
 	}
 
 	redrawPromptWithSelection(pi.writer, pi.rompt, "error", []string{"error"}, h.red)
-	return "", fmt.Errorf("%d %w", maxRetries, ErrIncorrectAttempts)
+	return "", fmt.Errorf("%d %w", pi.maxRetries, ErrIncorrectAttempts)
 }
 
 // fmtChoicesWithDefaultColor capitalizes and highlights the default option,
