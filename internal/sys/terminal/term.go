@@ -3,6 +3,7 @@ package terminal
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -29,6 +30,10 @@ type termSize struct {
 	height   int
 }
 
+type isTerminalFunc func(fd int) bool
+
+type readPasswordFunc func(fd int) ([]byte, error)
+
 // TermOptFn is an option function for the terminal.
 type TermOptFn func(*Options)
 
@@ -38,6 +43,9 @@ type Options struct {
 	writer      io.Writer
 	PromptStr   string
 	interruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
+
+	isTerminal   isTerminalFunc
+	readPassword readPasswordFunc
 }
 
 // Term is a struct that represents a terminal.
@@ -98,12 +106,12 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	fd := int(os.Stdin.Fd())
 
 	// if not a terminal (piped or test), read plain input
-	if !term.IsTerminal(fd) {
-		var password string
-		if _, err := fmt.Fscanln(t.currentReader(), &password); err != nil {
+	if !t.isTerminal(fd) {
+		password, err := t.currentReader().ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
 			return "", fmt.Errorf("reading password: %w", err)
 		}
-		return password, nil
+		return strings.TrimSuffix(password, "\n"), nil
 	}
 
 	// Save and restore terminal state
@@ -124,7 +132,7 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	resultChan := make(chan passwordResult, 1)
 
 	go func() {
-		p, err := term.ReadPassword(fd)
+		p, err := t.readPassword(fd)
 		resultChan <- passwordResult{password: string(p), err: err}
 	}()
 
@@ -448,8 +456,10 @@ func (t *Term) paginate(ctx context.Context, content string) error {
 func New(opts ...TermOptFn) *Term {
 	t := &Term{
 		Options: Options{
-			reader: os.Stdin,
-			writer: os.Stdout,
+			reader:       os.Stdin,
+			writer:       os.Stdout,
+			isTerminal:   term.IsTerminal,
+			readPassword: term.ReadPassword,
 		},
 		size: &termSize{
 			maxWidth: maxWidth,
