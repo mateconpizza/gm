@@ -42,7 +42,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	f.Reset().Textln(p.BrightRed.Wrap("git:", p.Italic))
 
 	gr := gm.NewRepo(r.BaseName())
-	sum, err := gm.Summary(gr)
+	sum, err := gr.Summary()
 	if err != nil {
 		return f.StringReset(), err
 	}

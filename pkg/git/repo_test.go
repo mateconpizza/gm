@@ -452,8 +452,6 @@ func TestRepo_Read(t *testing.T) {
 				}
 				return
 			case tt.summaryFile != nil:
-				// corrupt-file case with no confirmed error shape yet — only
-				// assert an error occurred and the reader was never reached.
 				if err == nil {
 					t.Fatalf("Read() error = nil, want an error from Count()")
 				}

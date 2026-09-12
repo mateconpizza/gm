@@ -50,12 +50,7 @@ func readFile[T any](path string, v *T) error {
 		return err
 	}
 
-	err = json.Unmarshal(content, &v)
-	if err != nil {
-		return fmt.Errorf("error unmarshalling JSON: %w", err)
-	}
-
-	return nil
+	return decodeJSON(content, &v)
 }
 
 func decodeJSON[T any](data []byte, v *T) error {

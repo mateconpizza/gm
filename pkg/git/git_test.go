@@ -33,7 +33,7 @@ type fakeGitExecuter struct {
 }
 
 func (f *fakeGitExecuter) Output(ctx context.Context, dir string, args ...string) (string, error) {
-	cmds := append([]string(nil), args...) // defensive copy — args' backing array can be reused by the caller
+	cmds := append([]string(nil), args...) // defensive copy - args' backing array can be reused by the caller
 	f.calls = append(f.calls, cmds)
 
 	if resp, ok := f.lookup(cmds); ok {
@@ -72,8 +72,7 @@ func (f *fakeGitExecuter) lookup(cmds []string) (response, bool) {
 	return response{}, false
 }
 
-// on configures a canned response for a subcommand (cmds[1] in
-// "git <subcommand> ..."). Unconfigured subcommands fall back to out/err.
+// on configures a canned response for a subcommand.
 func (f *fakeGitExecuter) on(subcommand, out string, err error) *fakeGitExecuter {
 	if f.responses == nil {
 		f.responses = make(map[string]response)
@@ -83,9 +82,7 @@ func (f *fakeGitExecuter) on(subcommand, out string, err error) *fakeGitExecuter
 }
 
 // onContains configures a response for any call whose args contain token
-// anywhere. Useful when subcommand alone (cmds[1]) doesn't disambiguate —
-// e.g. "rev-parse" is shared by Branch() and the upstream check, and only
-// their trailing args differ.
+// anywhere.
 func (f *fakeGitExecuter) onContains(token, out string, err error) *fakeGitExecuter {
 	f.tokenResponses = append(f.tokenResponses, tokenResponse{token: token, resp: response{out: out, err: err}})
 	return f

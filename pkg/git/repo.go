@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"slices"
 
@@ -213,12 +212,7 @@ func (gr *Repo) Summary() (*Summary, error) {
 		return sum, nil
 	}
 
-	content, err := os.ReadFile(gr.summaryFile)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := decodeJSON(content, sum); err != nil {
+	if err := readFile(gr.summaryFile, sum); err != nil {
 		return nil, err
 	}
 

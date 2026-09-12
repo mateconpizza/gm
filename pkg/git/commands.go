@@ -48,9 +48,9 @@ func (c *Commander) Output(ctx context.Context, dir string, args ...string) (str
 	return strings.TrimSpace(buf.String()), err
 }
 
-// Run executes the command in dir and streams trimmed output to w. A
-// failing exit is turned into an error carrying that output, matching the
-// original runWithWriter behavior.
+// Run executes the command in dir and streams trimmed output to the writer.
+//
+// A failing exit is turned into an error carrying that output.
 func (c *Commander) Run(ctx context.Context, w io.Writer, dir string, args ...string) error {
 	var buf bytes.Buffer
 	err := c.executer(ctx, dir, &buf, nil, append([]string{c.bin}, args...)...)
@@ -76,6 +76,14 @@ func Remote(ctx context.Context, repoPath string) (string, error) {
 
 func Run(ctx context.Context, repoPath string, commands ...string) error {
 	return NewCommander(command).Run(ctx, os.Stdout, repoPath, commands...)
+}
+
+func Output(ctx context.Context, dir string, args ...string) (string, error) {
+	return NewCommander(command).Output(ctx, dir, args...)
+}
+
+func Exec(ctx context.Context, repoPath string, commands ...string) error {
+	return NewCommander(command).Exec(ctx, os.Stdout, repoPath, commands...)
 }
 
 // defaultExecuter runs a command with the given arguments and writes the
