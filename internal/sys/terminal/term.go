@@ -30,6 +30,8 @@ type termSize struct {
 	height   int
 }
 
+type pagerRunFunc func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error
+
 type isTerminalFunc func(fd int) bool
 
 type readPasswordFunc func(fd int) ([]byte, error)
@@ -41,13 +43,13 @@ type TermOptFn func(*Options)
 type Options struct {
 	reader      io.Reader
 	writer      io.Writer
-	PromptStr   string
 	interruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
+	state       *State
 
 	isTerminal   isTerminalFunc
 	readPassword readPasswordFunc
 
-	state *State
+	pagerFunc pagerRunFunc
 }
 
 // Term is a struct that represents a terminal.
@@ -69,6 +71,7 @@ func New(opts ...TermOptFn) *Term {
 			isTerminal:   term.IsTerminal,
 			readPassword: term.ReadPassword,
 			state:        NewState(),
+			pagerFunc:    defaultPagerRun,
 		},
 		size: &termSize{
 			maxWidth: maxWidth,
@@ -480,12 +483,16 @@ func (t *Term) paginate(ctx context.Context, content string) error {
 	}
 
 	args := strings.Fields(pager)
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	cmd.Stdin = strings.NewReader(content)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if len(args) == 0 {
+		_, err := fmt.Fprint(t.writer, content)
+		return err
+	}
 
-	if err := t.withRestoredTerminal(cmd.Run); err != nil {
+	run := func() error {
+		return t.pagerFunc(ctx, args, strings.NewReader(content), os.Stdout, os.Stderr)
+	}
+
+	if err := t.withRestoredTerminal(run); err != nil {
 		_, err = fmt.Fprint(t.writer, content)
 		return err
 	}
@@ -529,4 +536,12 @@ func (t *Term) restoreTermState() error {
 		return nil
 	}
 	return t.state.Restore()
+}
+
+func defaultPagerRun(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	return cmd.Run()
 }

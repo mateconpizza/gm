@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -28,8 +29,8 @@ func TestTermPrompt(t *testing.T) {
 	want := "golang"
 	input := want + "\n"
 	mockInput := strings.NewReader(input)
-	term := New(WithReader(mockInput))
-	got, err := term.Prompt(t.Context(), question)
+	te := New(WithReader(mockInput))
+	got, err := te.Prompt(t.Context(), question)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -51,8 +52,8 @@ func TestTermChoose(t *testing.T) {
 		capturedErr = err
 	}
 
-	term := New(WithReader(mockInput), WithInterruptFn(exitFn))
-	result, err := term.Choose(t.Context(), question, []string{"golang", "python", "javascript"}, "python")
+	te := New(WithReader(mockInput), WithInterruptFn(exitFn))
+	result, err := te.Choose(t.Context(), question, []string{"golang", "python", "javascript"}, "python")
 	if err != nil {
 		t.Errorf("expected no error during input, got: %v", err)
 	}
@@ -72,11 +73,11 @@ func TestTermConfirm(t *testing.T) {
 	t.Run("confirm valid", func(t *testing.T) {
 		t.Parallel()
 		question := "Are you sure? "
-		term := New(WithReader(strings.NewReader("y\n")))
-		if !term.Confirm(t.Context(), question, "y") {
+		te := New(WithReader(strings.NewReader("y\n")))
+		if !te.Confirm(t.Context(), question, "y") {
 			t.Errorf("expected confirmation to be true")
 		}
-		if term.Confirm(t.Context(), question, "n") {
+		if te.Confirm(t.Context(), question, "n") {
 			t.Errorf("expected confirmation to be false")
 		}
 	})
@@ -84,20 +85,20 @@ func TestTermConfirm(t *testing.T) {
 	t.Run("confirm with ENTER (default)", func(t *testing.T) {
 		t.Parallel()
 		question := "Continue? "
-		term := New(WithReader(strings.NewReader("\n")))
-		if !term.Confirm(t.Context(), question, "y") {
+		te := New(WithReader(strings.NewReader("\n")))
+		if !te.Confirm(t.Context(), question, "y") {
 			t.Errorf("expected default confirmation to be true")
 		}
-		if term.Confirm(t.Context(), question, "n") {
+		if te.Confirm(t.Context(), question, "n") {
 			t.Errorf("expected default confirmation to be false")
 		}
 	})
 
 	t.Run("confirm with invalid input", func(t *testing.T) {
 		t.Parallel()
-		term := New(WithReader(strings.NewReader("invalid\n")))
+		te := New(WithReader(strings.NewReader("invalid\n")))
 		question := "Continue? "
-		if term.Confirm(t.Context(), question, "y") {
+		if te.Confirm(t.Context(), question, "y") {
 			t.Errorf("expected confirmation to be false for invalid input")
 		}
 	})
@@ -108,8 +109,8 @@ func TestTestConfirmErr(t *testing.T) {
 
 	t.Run("user cancels", func(t *testing.T) {
 		t.Parallel()
-		term := New(WithReader(strings.NewReader("n\n")))
-		err := term.ConfirmErr(t.Context(), "continue?", "y")
+		te := New(WithReader(strings.NewReader("n\n")))
+		err := te.ConfirmErr(t.Context(), "continue?", "y")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -121,8 +122,8 @@ func TestTestConfirmErr(t *testing.T) {
 	t.Run("exceed attempts", func(t *testing.T) {
 		t.Parallel()
 		input := "bad\nalso\nwrong\n"
-		term := New(WithReader(strings.NewReader(input)))
-		err := term.ConfirmErr(t.Context(), "continue?", "y")
+		te := New(WithReader(strings.NewReader(input)))
+		err := te.ConfirmErr(t.Context(), "continue?", "y")
 		if err == nil {
 			t.Fatal("expected error due to incorrect attempts, got nil")
 		}
@@ -133,8 +134,8 @@ func TestTestConfirmErr(t *testing.T) {
 
 	t.Run("valid input", func(t *testing.T) {
 		t.Parallel()
-		term := New(WithReader(strings.NewReader("y\n")))
-		err := term.ConfirmErr(t.Context(), "continue?", "y")
+		te := New(WithReader(strings.NewReader("y\n")))
+		err := te.ConfirmErr(t.Context(), "continue?", "y")
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
@@ -158,8 +159,8 @@ func TestTermIsPiped(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			term := New(WithReader(tt.reader))
-			got := term.StdinPiped()
+			te := New(WithReader(tt.reader))
+			got := te.StdinPiped()
 			if got != tt.want {
 				t.Errorf("IsPiped() = %v, want %v", got, tt.want)
 			}
@@ -174,8 +175,8 @@ func TestInputPassword(t *testing.T) {
 		t.Parallel()
 		pwd := "123"
 		input := strings.NewReader(pwd + "\n")
-		term := New(WithWriter(io.Discard), WithReader(input))
-		s, err := term.InputPassword(t.Context())
+		te := New(WithWriter(io.Discard), WithReader(input))
+		s, err := te.InputPassword(t.Context())
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
@@ -187,12 +188,12 @@ func TestInputPassword(t *testing.T) {
 	t.Run("password mismatch", func(t *testing.T) {
 		t.Parallel()
 		input := strings.NewReader("password1\npassword2\n")
-		term := New(WithWriter(io.Discard), WithReader(input))
-		s1, err := term.InputPassword(t.Context())
+		te := New(WithWriter(io.Discard), WithReader(input))
+		s1, err := te.InputPassword(t.Context())
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
-		s2, err := term.InputPassword(t.Context())
+		s2, err := te.InputPassword(t.Context())
 		if err != nil {
 			t.Errorf("expected no error, got: %v", err)
 		}
@@ -316,6 +317,72 @@ func TestTerm_InputPassword(t *testing.T) {
 				if got != tt.want {
 					t.Errorf("InputPassword() = %q, want %q", got, tt.want)
 				}
+			}
+		})
+	}
+}
+
+func TestTerm_paginate(t *testing.T) {
+	tests := []struct {
+		name       string
+		pagerEnv   string // "" and unset are different cases below
+		envUnset   bool
+		runErr     error
+		wantRunCmd []string // expected args passed to pagerRun; nil = pagerRun should not be called
+		wantOutput string   // content written to t.writer
+	}{
+		{
+			name:       "pager_explicitly_disabled",
+			pagerEnv:   "",
+			wantOutput: "hello world",
+		},
+		{
+			name:       "default_pager_when_unset",
+			envUnset:   true,
+			wantRunCmd: []string{"less", "-RFX"},
+		},
+		{
+			name:       "custom_pager_with_args",
+			pagerEnv:   "bat --paging=always",
+			wantRunCmd: []string{"bat", "--paging=always"},
+		},
+		{
+			name:       "pager_run_fails_falls_back_to_writer",
+			pagerEnv:   "less",
+			runErr:     errors.New("exit status 1"),
+			wantRunCmd: []string{"less"},
+			wantOutput: "hello world",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envUnset {
+				t.Setenv("PAGER", "")
+				os.Unsetenv("PAGER") // t.Setenv alone can't represent "unset"; belt and suspenders
+			} else {
+				t.Setenv("PAGER", tt.pagerEnv)
+			}
+
+			var gotArgs []string
+			var buf bytes.Buffer
+
+			te := New(WithWriter(&buf))
+			te.pagerFunc = func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+				gotArgs = args
+				return tt.runErr
+			}
+
+			err := te.paginate(t.Context(), "hello world")
+			if err != nil {
+				t.Fatalf("paginate() unexpected error: %v", err)
+			}
+
+			if !slices.Equal(gotArgs, tt.wantRunCmd) {
+				t.Errorf("pagerRun args = %v, want %v", gotArgs, tt.wantRunCmd)
+			}
+			if buf.String() != tt.wantOutput {
+				t.Errorf("writer content = %q, want %q", buf.String(), tt.wantOutput)
 			}
 		})
 	}

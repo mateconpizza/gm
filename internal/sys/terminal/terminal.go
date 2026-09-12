@@ -15,14 +15,9 @@ import (
 )
 
 var (
-	ErrNotTTY              = errors.New("not a terminal")
-	ErrGetTermSize         = errors.New("getting terminal size")
-	ErrTermWidthTooSmall   = errors.New("terminal width too small")
-	ErrTermHeightTooSmall  = errors.New("terminal height too small")
-	ErrUnsupportedPlatform = errors.New("unsupported platform")
-	ErrNotInteractive      = errors.New("not an interactive terminal")
-	ErrIncorrectAttempts   = errors.New("incorrect attempts")
-	ErrCannotBeEmpty       = errors.New("cannot be empty")
+	ErrNotTTY            = errors.New("not a terminal")
+	ErrNotInteractive    = errors.New("not an interactive terminal")
+	ErrIncorrectAttempts = errors.New("incorrect attempts")
 )
 
 // force is a flag to force the terminal to run in non-interactive mode.
