@@ -80,7 +80,10 @@ func NewConsole(t *testing.T, w io.Writer) *ui.Console {
 	if w == nil {
 		w = io.Discard
 	}
-	tm := terminal.New(terminal.WithWriter(w))
+
+	tm := terminal.New(
+		terminal.WithWriter(w),
+	)
 
 	return ui.NewConsole(
 		ui.WithTerminal(tm),

@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"strings"
 	"testing"
-
-	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 func TestTermGetUserInput(t *testing.T) {
@@ -117,11 +115,13 @@ func TestTermGetUserInput(t *testing.T) {
 			t.Parallel()
 
 			mockPromptInput := &PromptInput{
-				reader:  bufio.NewReader(strings.NewReader(tt.input)),
-				writer:  &strings.Builder{},
-				rompt:   tt.prompt,
-				options: tt.options,
-				def:     tt.defaultVal,
+				reader:     bufio.NewReader(strings.NewReader(tt.input)),
+				writer:     &strings.Builder{},
+				rompt:      tt.prompt,
+				options:    tt.options,
+				def:        tt.defaultVal,
+				maxRetries: 3,
+				colorizer:  &Colorizer{},
 			}
 
 			result, err := getUserInputWithAttempts(t.Context(), mockPromptInput)
@@ -188,9 +188,9 @@ func TestTermFmtChoicesWithDefault(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := fmtChoicesWithDefaultColor(tt.opts, tt.def)
+			result := fmtChoicesWithDefaultColor(&Colorizer{}, tt.opts, tt.def)
 			for i := range result {
-				result[i] = ansi.Remover(result[i])
+				result[i] = ansiRemover(result[i])
 			}
 
 			if len(result) != len(tt.want) {

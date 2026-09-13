@@ -47,7 +47,7 @@ func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 
 	terminal.ReadPipedInput(args)
 
-	c := ui.NewDefaultConsole(func(err error) {
+	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
 		r.Close()
 		sys.ErrAndExit(err)
 	})

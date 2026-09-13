@@ -3,6 +3,7 @@ package terminal
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,28 +17,34 @@ import (
 	"golang.org/x/term"
 
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 // defaultInterruptFn is the default interrupt function for the terminal.
 func defaultInterruptFn(err error) { slog.Debug("InterruptFn not set") }
 
-type termSize struct {
-	width    int
-	maxWidth int
-	minWidth int
-	height   int
-}
+type pagerRunFunc func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error
+
+type isTerminalFunc func(fd int) bool
+
+type readPasswordFunc func(fd int) ([]byte, error)
 
 // TermOptFn is an option function for the terminal.
 type TermOptFn func(*Options)
 
 // Options represents the options for the terminal.
 type Options struct {
-	reader      io.Reader
-	writer      io.Writer
-	PromptStr   string
-	interruptFn func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
+	reader       io.Reader
+	writer       io.Writer
+	interruptFn  func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
+	inputRetries int         // retries specifies the maximum number of retries allowed for user input.
+	state        *State
+
+	isTerminal   isTerminalFunc
+	readPassword readPasswordFunc
+
+	pagerFunc pagerRunFunc
+
+	colorizer *Colorizer
 }
 
 // Term is a struct that represents a terminal.
@@ -47,29 +54,45 @@ type Term struct {
 	mu       sync.Mutex
 	br       *bufio.Reader
 	cancelFn context.CancelFunc
-	size     *termSize
+	size     *TermSize
 }
 
-// WithReader sets the reader for the terminal.
-func WithReader(r io.Reader) TermOptFn {
-	return func(o *Options) {
-		o.reader = r
+// New returns a new terminal with the provided options.
+func New(opts ...TermOptFn) *Term {
+	t := &Term{
+		Options: Options{
+			reader:       os.Stdin,
+			writer:       os.Stdout,
+			isTerminal:   term.IsTerminal,
+			readPassword: term.ReadPassword,
+			state:        NewState(),
+			pagerFunc:    defaultPagerRun,
+			inputRetries: 3,
+			colorizer:    &Colorizer{},
+		},
+		size: NewSize(),
 	}
+
+	for _, opt := range opts {
+		opt(&t.Options)
+	}
+
+	// Set default interrupt handler if not provided
+	if t.interruptFn == nil {
+		t.interruptFn = defaultInterruptFn
+	}
+
+	t.br = bufio.NewReader(t.reader)
+
+	return t
 }
 
-// WithWriter sets the writer for the terminal.
-func WithWriter(w io.Writer) TermOptFn {
-	return func(o *Options) {
-		o.writer = w
-	}
-}
-
-// WithInterruptFn sets a callback that executes on terminal interruption.
-func WithInterruptFn(fn func(error)) TermOptFn {
-	return func(o *Options) {
-		o.interruptFn = fn
-	}
-}
+func WithColorizer(c *Colorizer) TermOptFn     { return func(o *Options) { o.colorizer = c } }
+func WithInterruptFn(fn func(error)) TermOptFn { return func(o *Options) { o.interruptFn = fn } }
+func WithMaxRetries(n int) TermOptFn           { return func(o *Options) { o.inputRetries = n } }
+func WithReader(r io.Reader) TermOptFn         { return func(o *Options) { o.reader = r } }
+func WithTermState(s *State) TermOptFn         { return func(o *Options) { o.state = s } }
+func WithWriter(w io.Writer) TermOptFn         { return func(o *Options) { o.writer = w } }
 
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
@@ -86,7 +109,7 @@ func (t *Term) SetWriter(w io.Writer) {
 
 // Input get the Input data from the user and return it.
 func (t *Term) Input(p string) string {
-	o, restore := prepareInputState(t.interruptFn)
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerDummy(), o...)
@@ -98,20 +121,20 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	fd := int(os.Stdin.Fd())
 
 	// if not a terminal (piped or test), read plain input
-	if !term.IsTerminal(fd) {
-		var password string
-		if _, err := fmt.Fscanln(t.currentReader(), &password); err != nil {
+	if !t.isTerminal(fd) {
+		password, err := t.currentReader().ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
 			return "", fmt.Errorf("reading password: %w", err)
 		}
-		return password, nil
+		return strings.TrimSuffix(password, "\n"), nil
 	}
 
 	// Save and restore terminal state
-	if err := saveState(); err != nil {
+	if err := t.saveTermState(); err != nil {
 		return "", err
 	}
 	defer func() {
-		if err := restoreState(); err != nil {
+		if err := t.restoreTermState(); err != nil {
 			slog.Warn("restoring terminal state", "error", err)
 		}
 	}()
@@ -124,7 +147,7 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	resultChan := make(chan passwordResult, 1)
 
 	go func() {
-		p, err := term.ReadPassword(fd)
+		p, err := t.readPassword(fd)
 		resultChan <- passwordResult{password: string(p), err: err}
 	}()
 
@@ -170,18 +193,18 @@ func (t *Term) Prompt(ctx context.Context, p string) (string, error) {
 // PromptWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
 func (t *Term) PromptWithSuggestions(p string, items []string) string {
-	return inputWithSuggestions(p, items, t.interruptFn)
+	return inputWithSuggestions(t, p, items)
 }
 
 // PromptWithFuzzySuggestions prompts the user for input with fuzzy suggestions.
 func (t *Term) PromptWithFuzzySuggestions(p string, items []string) string {
-	return inputWithFuzzySuggestions(p, items, t.interruptFn)
+	return inputWithFuzzySuggestions(t, p, items)
 }
 
 // ChooseTags prompts the user for input with suggestions based on
 // the provided tags.
 func (t *Term) ChooseTags(p string, items map[string]int) string {
-	return inputWithTags(p, items, t.interruptFn)
+	return inputWithTags(t, p, items)
 }
 
 // Confirm prompts the user with a question and options.
@@ -211,10 +234,9 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 		def = "n"
 	}
 
-	h := &highlighter{}
 	choices := fmtChoicesWithDefault(opts, def)
 	for i := range choices {
-		choices[i] = h.dim(choices[i])
+		choices[i] = t.colorizer.Muted(choices[i])
 	}
 
 	chosen, err := t.promptWithChoicesErr(ctx, q, choices, def)
@@ -240,7 +262,7 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 		opts[i] = strings.ToLower(opts[i])
 	}
 
-	opts = fmtChoicesWithDefaultColor(opts, def)
+	opts = fmtChoicesWithDefaultColor(t.colorizer, opts, def)
 
 	return t.promptWithChoicesErr(ctx, q, opts, def)
 }
@@ -338,13 +360,13 @@ func (t *Term) IsPiped() bool { return t.StdinPiped() || t.StdoutPiped() }
 
 // HideCursor hides cursor.
 func (t *Term) HideCursor() error {
-	_, err := fmt.Fprint(t.writer, ansi.CursorHide)
+	_, err := fmt.Fprint(t.writer, cursorHide)
 	return err
 }
 
 // ShowCursor unhide cursor.
 func (t *Term) ShowCursor() error {
-	_, err := fmt.Fprint(t.writer, ansi.CursorShow)
+	_, err := fmt.Fprint(t.writer, cursorShow)
 	return err
 }
 
@@ -374,8 +396,7 @@ func (t *Term) currentReader() *bufio.Reader {
 
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
-	h := &highlighter{}
-	dimmer := h.dim
+	dimmer := t.colorizer.Muted
 	sep := dimmer("/")
 	s := dimmer("[")
 	e := dimmer("]:")
@@ -383,11 +404,13 @@ func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
 
 	return getUserInputWithAttempts(ctx, &PromptInput{
-		reader:  t.currentReader(),
-		writer:  t.writer,
-		rompt:   p,
-		options: opts,
-		def:     def,
+		reader:     t.currentReader(),
+		writer:     t.writer,
+		rompt:      p,
+		options:    opts,
+		def:        def,
+		maxRetries: t.inputRetries,
+		colorizer:  t.colorizer,
 	})
 }
 
@@ -432,43 +455,65 @@ func (t *Term) paginate(ctx context.Context, content string) error {
 	}
 
 	args := strings.Fields(pager)
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	cmd.Stdin = strings.NewReader(content)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if len(args) == 0 {
+		_, err := fmt.Fprint(t.writer, content)
+		return err
+	}
 
-	if err := withRestoredTerminal(cmd.Run); err != nil {
+	run := func() error {
+		return t.pagerFunc(ctx, args, strings.NewReader(content), os.Stdout, os.Stderr)
+	}
+
+	if err := t.withRestoredTerminal(run); err != nil {
 		_, err = fmt.Fprint(t.writer, content)
 		return err
 	}
 	return nil
 }
 
-// New returns a new terminal with the provided options.
-func New(opts ...TermOptFn) *Term {
-	t := &Term{
-		Options: Options{
-			reader: os.Stdin,
-			writer: os.Stdout,
-		},
-		size: &termSize{
-			maxWidth: maxWidth,
-			minWidth: minWidth,
-			width:    width,
-			height:   height,
-		},
+// withRestoredTerminal saves the terminal state, runs fn, then restores it
+// regardless of how fn exits. Safe to call even if stdin is not a terminal.
+func (t *Term) withRestoredTerminal(fn func() error) error {
+	if !t.isTerminal(int(os.Stdin.Fd())) {
+		return fn()
 	}
 
-	for _, opt := range opts {
-		opt(&t.Options)
+	if err := t.state.Save(); err != nil {
+		slog.Debug("failed to save terminal state", "err", err)
+		return fn()
 	}
 
-	// Set default interrupt handler if not provided
-	if t.interruptFn == nil {
-		t.interruptFn = defaultInterruptFn
+	defer func() {
+		if err := t.state.Restore(); err != nil {
+			slog.Debug("failed to restore terminal state", "err", err)
+		}
+	}()
+
+	return fn()
+}
+
+func (t *Term) saveTermState() error {
+	slog.Debug("saving terminal state")
+	if !t.isTerminal(int(os.Stdin.Fd())) {
+		slog.Debug("not a terminal, skipping saveState")
+		return nil
 	}
+	return t.state.Save()
+}
 
-	t.br = bufio.NewReader(t.reader)
+func (t *Term) restoreTermState() error {
+	slog.Debug("restoring terminal state")
+	if !t.isTerminal(int(os.Stdin.Fd())) {
+		slog.Debug("not a terminal, skipping restoreState")
+		return nil
+	}
+	return t.state.Restore()
+}
 
-	return t
+func defaultPagerRun(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	return cmd.Run()
 }

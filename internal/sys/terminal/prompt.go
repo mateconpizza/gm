@@ -7,33 +7,90 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"regexp"
 	"strings"
 
 	prompt "github.com/c-bata/go-prompt"
 
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-// maxRetries specifies the maximum number of retries allowed for user input.
-const maxRetries = 3
+const (
+	cursorUp       = "\x1b[1A"
+	cursorReturn   = "\r"
+	eraseLineToEnd = "\x1b[0K"
+	cursorHide     = "\x1b[?25l"
+	cursorShow     = "\x1b[?25h"
+)
+
+var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 type highlightFn func(string) string
 
-type highlighter struct{}
+type color interface {
+	Sprint(a ...any) string
+}
 
-func (h *highlighter) red(s string) string     { return ansi.BrightRed.Wrap(s, ansi.Bold) }
-func (h *highlighter) green(s string) string   { return ansi.BrightGreen.Wrap(s, ansi.Bold) }
-func (h *highlighter) magenta(s string) string { return ansi.BrightMagenta.Wrap(s, ansi.Bold) }
-func (h *highlighter) dim(s string) string     { return ansi.Dim.Wrap(s) }
+type Colorizer struct {
+	enabled bool
+
+	muted    color
+	success  color
+	selected color
+	error    color
+	hotkey   color
+}
+
+func NewColorizer(enabled bool) *Colorizer {
+	return &Colorizer{enabled: enabled}
+}
+
+func (cz *Colorizer) WithError(c color) *Colorizer {
+	cz.error = c
+	return cz
+}
+
+func (cz *Colorizer) WithSuccess(c color) *Colorizer {
+	cz.success = c
+	return cz
+}
+
+func (cz *Colorizer) WithSelected(c color) *Colorizer {
+	cz.selected = c
+	return cz
+}
+
+func (cz *Colorizer) WithMuted(c color) *Colorizer {
+	cz.muted = c
+	return cz
+}
+
+func (cz *Colorizer) WithHotkey(c color) *Colorizer {
+	cz.hotkey = c
+	return cz
+}
+
+func (cz *Colorizer) Error(s string) string    { return cz.apply(s, cz.error) }
+func (cz *Colorizer) Hotkey(s string) string   { return cz.apply(s, cz.hotkey) }
+func (cz *Colorizer) Muted(s string) string    { return cz.apply(s, cz.muted) }
+func (cz *Colorizer) Selected(s string) string { return cz.apply(s, cz.selected) }
+func (cz *Colorizer) Success(s string) string  { return cz.apply(s, cz.success) }
+func (cz *Colorizer) apply(s string, col color) string {
+	if !cz.enabled || col == nil {
+		return s
+	}
+	return col.Sprint(s)
+}
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
-	reader  *bufio.Reader
-	writer  io.Writer
-	rompt   string
-	options []string
-	def     string
+	reader     *bufio.Reader
+	writer     io.Writer
+	rompt      string
+	options    []string
+	def        string
+	colorizer  *Colorizer
+	maxRetries int // maxRetries specifies the maximum number of retries allowed for user input.
 }
 
 // PromptSuggester is a function that generates suggestions for a given prompt.
@@ -44,8 +101,8 @@ type filterFn = func(completions []prompt.Suggest, sub string, ignoreCase bool) 
 
 // inputWithTags prompts the user for input with suggestions based on
 // the provided tags.
-func inputWithTags[T comparable, V any](p string, items map[T]V, exitFn func(error)) string {
-	o, restore := prepareInputState(exitFn)
+func inputWithTags[T comparable, V any](t *Term, p string, items map[T]V) string {
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerTagsWithCount(items, prompt.FilterHasPrefix), o...)
@@ -55,8 +112,8 @@ func inputWithTags[T comparable, V any](p string, items map[T]V, exitFn func(err
 
 // inputWithSuggestions prompts the user for input with suggestions based on
 // the provided items.
-func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string {
-	o, restore := prepareInputState(exitFn)
+func inputWithSuggestions[T any](t *Term, p string, items []T) string {
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerPrefix(items), o...)
@@ -65,8 +122,8 @@ func inputWithSuggestions[T any](p string, items []T, exitFn func(error)) string
 
 // inputWithFuzzySuggestions prompts the user for input with fuzzy suggestions
 // based on the provided items and exit function.
-func inputWithFuzzySuggestions[T any](p string, items []T, exitFn func(error)) string {
-	o, restore := prepareInputState(exitFn)
+func inputWithFuzzySuggestions[T any](t *Term, p string, items []T) string {
+	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerFuzzy(items), o...)
@@ -113,20 +170,20 @@ func ReadPipedInput(args *[]string) {
 
 // prepareInputState prepares the input state and options, handling errors with
 // exitFn.
-func prepareInputState(exitFn func(error)) (o []prompt.Option, restore func()) {
+func prepareInputState(t *Term) (o []prompt.Option, restore func()) {
 	// BUG: https://github.com/c-bata/go-prompt/issues/233#issuecomment-1076162632
-	if err := saveState(); err != nil {
-		exitFn(err)
+	if err := t.saveTermState(); err != nil {
+		t.interruptFn(err)
 	}
 
 	// opts
-	o = promptOptions(ansi.ColorEnabled)
-	o = append(o, prompt.OptionAddKeyBind(quitKeybind(exitFn)))
+	o = promptOptions(t.colorizer.enabled)
+	o = append(o, prompt.OptionAddKeyBind(quitKeybind(t)))
 
 	// restores term state
 	restore = func() {
-		if err := restoreState(); err != nil {
-			exitFn(err)
+		if err := t.restoreTermState(); err != nil {
+			t.interruptFn(err)
 		}
 	}
 
@@ -214,9 +271,7 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 // with a limited number of attempts (3).
 func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, error) {
 	var count int
-	h := &highlighter{}
-
-	for count < maxRetries {
+	for count < pi.maxRetries {
 		_, _ = fmt.Fprint(pi.writer, pi.rompt)
 
 		// ch to receive input result
@@ -243,34 +298,37 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 			}
 
 			userInput := strings.ToLower(strings.TrimSpace(result.input))
+
+			// user accepted the default
 			if userInput == "" && pi.def != "" || userInput == pi.def {
-				redrawPromptWithSelection(pi.writer, pi.rompt, pi.def, pi.options, h.green)
+				redrawPromptWithSelection(pi.writer, pi.rompt, pi.def, pi.options, pi.colorizer.Success)
 				return pi.def, nil
 			}
 
+			// user typed a specific valid option
 			if isValidOption(userInput, pi.options) {
-				redrawPromptWithSelection(pi.writer, pi.rompt, userInput, pi.options, h.magenta)
+				redrawPromptWithSelection(pi.writer, pi.rompt, userInput, pi.options, pi.colorizer.Selected)
 				return userInput, nil
 			}
 
 			count++
-			if count <= maxRetries-1 {
+			// user ran out of retries
+			if count <= pi.maxRetries-1 {
 				ClearLine(pi.writer, len(strings.Split(pi.rompt, "\n")))
 			}
 		}
 	}
 
-	redrawPromptWithSelection(pi.writer, pi.rompt, "error", []string{"error"}, h.red)
-	return "", fmt.Errorf("%d %w", maxRetries, ErrIncorrectAttempts)
+	redrawPromptWithSelection(pi.writer, pi.rompt, "error", []string{"error"}, pi.colorizer.Error)
+	return "", fmt.Errorf("%d %w", pi.maxRetries, ErrIncorrectAttempts)
 }
 
 // fmtChoicesWithDefaultColor capitalizes and highlights the default option,
 // and highlights the first letter of each option in red.
-func fmtChoicesWithDefaultColor(opts []string, def string) []string {
-	h := &highlighter{}
+func fmtChoicesWithDefaultColor(cz *Colorizer, opts []string, def string) []string {
 	if def == "" {
 		for i := range opts {
-			opts[i] = h.dim(opts[i])
+			opts[i] = cz.Muted(opts[i])
 		}
 
 		return opts
@@ -284,11 +342,11 @@ func fmtChoicesWithDefaultColor(opts []string, def string) []string {
 	for _, opt := range opts {
 		if strings.HasPrefix(opt, def) {
 			// Capitalize and color the first letter of the default
-			colored := h.red(strings.ToUpper(opt[:1])) + h.dim(opt[1:])
+			colored := cz.Hotkey(strings.ToUpper(opt[:1])) + cz.Muted(opt[1:])
 			defaultOpt = colored
 		} else {
 			// Highlight first letter of non-default
-			colored := h.red(opt[:1]) + h.dim(opt[1:])
+			colored := cz.Hotkey(opt[:1]) + cz.Muted(opt[1:])
 			formatted = append(formatted, colored)
 		}
 	}
@@ -340,17 +398,17 @@ func getQueryFromPipe(r io.Reader) string {
 }
 
 // quitKeybind returns the quitKeybind for the completer.
-func quitKeybind(f func(err error)) prompt.KeyBind {
+func quitKeybind(t *Term) prompt.KeyBind {
 	return prompt.KeyBind{
 		Key: prompt.ControlC,
 		Fn: func(*prompt.Buffer) {
-			if termState != nil {
-				if err := restoreState(); err != nil {
-					f(err)
+			if t.state.Current() != nil {
+				if err := t.restoreTermState(); err != nil {
+					t.interruptFn(err)
 				}
 			}
 
-			f(sys.ErrActionAborted)
+			t.interruptFn(sys.ErrActionAborted)
 		},
 	}
 }
@@ -358,7 +416,7 @@ func quitKeybind(f func(err error)) prompt.KeyBind {
 // isValidOption checks if input is a valid choice.
 func isValidOption(input string, opts []string) bool {
 	for i := range opts {
-		opts[i] = ansi.Remover(opts[i])
+		opts[i] = ansiRemover(opts[i])
 	}
 
 	for _, opt := range opts {
@@ -410,7 +468,7 @@ func redrawPromptWithSelection(w io.Writer, q, selected string, opts []string, c
 	selected = strings.TrimSpace(selected)
 
 	for _, o := range opts {
-		o = ansi.Remover(o)
+		o = ansiRemover(o)
 		if strings.EqualFold(selected, o) || strings.EqualFold(selected, o[:1]) {
 			result = strings.Title(strings.ToLower(o))
 			break
@@ -423,8 +481,13 @@ func redrawPromptWithSelection(w io.Writer, q, selected string, opts []string, c
 	}
 
 	// Redraw line
-	_, _ = fmt.Fprint(w, ansi.CursorUp, ansi.CursorReturn)
+	_, _ = fmt.Fprint(w, cursorUp, cursorReturn)
 	_, _ = fmt.Fprint(w, q)
-	_, _ = fmt.Fprint(w, ansi.EraseLineToEnd)
+	_, _ = fmt.Fprint(w, eraseLineToEnd)
 	_, _ = fmt.Fprintln(w, c(result))
+}
+
+// ansiRemover removes ANSI codes from a given string.
+func ansiRemover(s string) string {
+	return ansiEscapeRe.ReplaceAllString(s, "")
 }

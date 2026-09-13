@@ -197,7 +197,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 			options = append(options, "select")
 		}
 
-		opt, err := c.Term().Choose(
+		opt, err := c.Choose(
 			ctx,
 			fmt.Sprintf("import %d bookmarks into %q?", n, app.DBBaseName()),
 			options,
