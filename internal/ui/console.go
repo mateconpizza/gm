@@ -15,7 +15,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-var DefaultConsole = NewDefaultConsole(func(err error) { sys.ErrAndExit(err) })
+var DefaultConsole = NewDefaultConsole(true, func(err error) { sys.ErrAndExit(err) })
 
 type Console struct {
 	term    *terminal.Term
@@ -57,13 +57,13 @@ var DefaultIconStyle = &frame.Icons{
 	Success:  frame.IconStyle{Symbol: "✓", Color: ansi.BrightGreen.With(ansi.Bold)},
 }
 
-func NewDefaultConsole(fn func(error)) *Console {
+func NewDefaultConsole(withColor bool, fn func(error)) *Console {
 	return NewConsole(
 		WithFrame(frame.New(
 			frame.WithColorBorder(ansi.Gray),
 			frame.WithIcons(DefaultIconStyle),
 		)),
-		WithDefaultTerminal(fn),
+		WithDefaultTerminal(withColor, fn),
 	)
 }
 
@@ -87,9 +87,18 @@ func WithWriter(w io.Writer) Option {
 	}
 }
 
-func WithDefaultTerminal(f func(error)) Option {
+func WithDefaultTerminal(withColor bool, f func(error)) Option {
+	p := ansi.NewPalette()
+	cz := terminal.NewColorizer(withColor).
+		WithHotkey(p.Red).
+		WithError(p.BrightRed.With(p.Bold)).
+		WithSuccess(p.BrightGreen.With(p.Bold)).
+		WithSelected(p.BrightMagenta.With(p.Bold)).
+		WithMuted(p.Dim)
+
 	return WithTerminal(terminal.New(
 		terminal.WithInterruptFn(f),
+		terminal.WithColorizer(cz),
 	))
 }
 

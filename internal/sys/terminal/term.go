@@ -17,7 +17,6 @@ import (
 	"golang.org/x/term"
 
 	"github.com/mateconpizza/gm/internal/sys"
-	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 // defaultInterruptFn is the default interrupt function for the terminal.
@@ -44,6 +43,8 @@ type Options struct {
 	readPassword readPasswordFunc
 
 	pagerFunc pagerRunFunc
+
+	colorizer *Colorizer
 }
 
 // Term is a struct that represents a terminal.
@@ -67,6 +68,7 @@ func New(opts ...TermOptFn) *Term {
 			state:        NewState(),
 			pagerFunc:    defaultPagerRun,
 			inputRetries: 3,
+			colorizer:    &Colorizer{},
 		},
 		size: NewSize(),
 	}
@@ -85,38 +87,12 @@ func New(opts ...TermOptFn) *Term {
 	return t
 }
 
-// WithReader sets the reader for the terminal.
-func WithReader(r io.Reader) TermOptFn {
-	return func(o *Options) {
-		o.reader = r
-	}
-}
-
-// WithWriter sets the writer for the terminal.
-func WithWriter(w io.Writer) TermOptFn {
-	return func(o *Options) {
-		o.writer = w
-	}
-}
-
-// WithInterruptFn sets a callback that executes on terminal interruption.
-func WithInterruptFn(fn func(error)) TermOptFn {
-	return func(o *Options) {
-		o.interruptFn = fn
-	}
-}
-
-func WithTermState(s *State) TermOptFn {
-	return func(o *Options) {
-		o.state = s
-	}
-}
-
-func WithMaxRetries(n int) TermOptFn {
-	return func(o *Options) {
-		o.inputRetries = n
-	}
-}
+func WithColorizer(c *Colorizer) TermOptFn     { return func(o *Options) { o.colorizer = c } }
+func WithInterruptFn(fn func(error)) TermOptFn { return func(o *Options) { o.interruptFn = fn } }
+func WithMaxRetries(n int) TermOptFn           { return func(o *Options) { o.inputRetries = n } }
+func WithReader(r io.Reader) TermOptFn         { return func(o *Options) { o.reader = r } }
+func WithTermState(s *State) TermOptFn         { return func(o *Options) { o.state = s } }
+func WithWriter(w io.Writer) TermOptFn         { return func(o *Options) { o.writer = w } }
 
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
@@ -258,10 +234,9 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 		def = "n"
 	}
 
-	h := &highlighter{}
 	choices := fmtChoicesWithDefault(opts, def)
 	for i := range choices {
-		choices[i] = h.dim(choices[i])
+		choices[i] = t.colorizer.Muted(choices[i])
 	}
 
 	chosen, err := t.promptWithChoicesErr(ctx, q, choices, def)
@@ -287,7 +262,7 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 		opts[i] = strings.ToLower(opts[i])
 	}
 
-	opts = fmtChoicesWithDefaultColor(opts, def)
+	opts = fmtChoicesWithDefaultColor(t.colorizer, opts, def)
 
 	return t.promptWithChoicesErr(ctx, q, opts, def)
 }
@@ -385,13 +360,13 @@ func (t *Term) IsPiped() bool { return t.StdinPiped() || t.StdoutPiped() }
 
 // HideCursor hides cursor.
 func (t *Term) HideCursor() error {
-	_, err := fmt.Fprint(t.writer, ansi.CursorHide)
+	_, err := fmt.Fprint(t.writer, cursorHide)
 	return err
 }
 
 // ShowCursor unhide cursor.
 func (t *Term) ShowCursor() error {
-	_, err := fmt.Fprint(t.writer, ansi.CursorShow)
+	_, err := fmt.Fprint(t.writer, cursorShow)
 	return err
 }
 
@@ -421,8 +396,7 @@ func (t *Term) currentReader() *bufio.Reader {
 
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
-	h := &highlighter{}
-	dimmer := h.dim
+	dimmer := t.colorizer.Muted
 	sep := dimmer("/")
 	s := dimmer("[")
 	e := dimmer("]:")
@@ -436,6 +410,7 @@ func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string
 		options:    opts,
 		def:        def,
 		maxRetries: t.inputRetries,
+		colorizer:  t.colorizer,
 	})
 }
 
