@@ -141,7 +141,10 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 
 			fmt.Fprintln(os.Stdout)
 
-			return gitops.TrackMgr(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
+			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			})
+			return gitops.TrackMgr(cmd.Context(), gm, c, dbFiles)
 		},
 	}
 
@@ -342,7 +345,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.HideFlag(c, "db", "color", "yes", "force")
+	cmdutil.HideFlag(c, "db", "yes", "force")
 
 	return c
 }

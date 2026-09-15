@@ -14,6 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -40,7 +41,9 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 		return err
 	}
 
-	c := ui.DefaultConsole
+	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+		sys.ErrAndExit(err)
+	})
 	if err := AskForEncryption(ctx, c, app, gm); err != nil {
 		return err
 	}

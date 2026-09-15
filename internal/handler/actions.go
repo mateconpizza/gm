@@ -647,20 +647,15 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 			return err
 		}
 
-		if app.GitEnabled() {
+		if gm.IsTracked(gr.Name()) {
 			if err := gm.Update(ctx, gr, b, b, files.RemoveEmptyDirs); err != nil {
 				return err
 			}
 		}
 	}
 
-	if app.GitEnabled() {
-		err := gm.SaveChanges(
-			ctx,
-			gr,
-			fmt.Sprintf("[%s] http status updated", gr.Name()),
-		)
-
+	if gm.IsTracked(gr.Name()) {
+		err := gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] http status updated", gr.Name()))
 		if err != nil && !errors.Is(err, git.ErrGitUpToDate) {
 			return err
 		}

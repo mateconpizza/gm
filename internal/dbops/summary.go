@@ -140,7 +140,7 @@ func repository(ctx context.Context, d *deps.Deps) (string, error) {
 
 	f.Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(r.Fullpath())))
 
-	createdAt := createdAt(r, p)
+	createdAt := createdAt(r, p.Dim.Sprintf)
 	if createdAt != "" {
 		f.Rowln(txt.PaddedLine("created:", createdAt))
 	}
@@ -262,7 +262,7 @@ func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 		StringReset(), nil
 }
 
-func createdAt(r RepositoryMetadata, p *ansi.Palette) string {
+func createdAt(r RepositoryMetadata, mutedFn func(f string, a ...any) string) string {
 	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
 	if err != nil {
 		return ""
@@ -273,7 +273,7 @@ func createdAt(r RepositoryMetadata, p *ansi.Palette) string {
 		return ""
 	}
 
-	return createdAt + p.Gray.Sprintf(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
+	return createdAt + mutedFn(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
 }
 
 func backupAt(r RepositoryMetadata) (string, error) {

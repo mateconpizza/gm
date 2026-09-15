@@ -158,7 +158,7 @@ func TestSelector_Select(t *testing.T) {
 				targetPath := filepath.Join(tempDir, "custom.db")
 				formattedOutput := "WRAP_FMT_" + targetPath
 
-				itemFmt := func(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string {
+				itemFmt := func(_ context.Context, _ *ansi.Palette, path string, _ int) string {
 					return "FMT_" + path
 				}
 

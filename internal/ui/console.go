@@ -15,8 +15,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-var DefaultConsole = NewDefaultConsole(true, func(err error) { sys.ErrAndExit(err) })
-
 type Console struct {
 	term    *terminal.Term
 	frame   *frame.Frame
@@ -209,29 +207,29 @@ func (c *Console) WaitForEnter(ctx context.Context, mesg string) error {
 
 // SuccessMesg returns a prettified success message.
 func (c *Console) SuccessMesg(a ...any) string {
-	success := c.palette.BrightGreen.Wrap("Successfully ", c.palette.Italic)
-	mesg := c.palette.Italic.Sprint(a...)
+	success := c.Palette().BrightGreen.Sprint("Successfully ")
+	mesg := c.Palette().Italic.Sprint(a...)
 	return c.frame.Reset().Success(success + mesg).StringReset()
 }
 
 // ErrorMesg returns a prettified error message.
 func (c *Console) ErrorMesg(a ...any) string {
-	err := c.palette.BrightRed.Wrap("Error ", c.palette.Italic)
-	mesg := c.palette.Italic.Sprint(a...)
+	err := c.Palette().BrightRed.Sprint("Error ")
+	mesg := c.Palette().Italic.Sprint(a...)
 	return c.frame.Reset().Error(err + mesg).StringReset()
 }
 
 // WarningMesg returns a prettified warning message.
 func (c *Console) WarningMesg(a ...any) string {
-	wanr := c.palette.BrightYellow.Wrap("Warning ", c.palette.Italic)
-	mesg := c.palette.Italic.Sprint(a...)
-	return c.frame.Reset().Warning(wanr + mesg).StringReset()
+	warn := c.Palette().BrightYellow.Sprint("Warning ")
+	mesg := c.Palette().Italic.Sprint(a...)
+	return c.frame.Reset().Warning(warn + mesg).StringReset()
 }
 
 // InfoMesg returns a prettified info message.
 func (c *Console) InfoMesg(a ...any) string {
-	info := c.palette.BrightBlue.Wrap("Info ", c.palette.Italic)
-	mesg := c.palette.Italic.Sprint(a...)
+	info := c.Palette().BrightBlue.Sprint("Info ")
+	mesg := c.Palette().Italic.Sprint(a...)
 	return c.frame.Reset().Info(info + mesg).StringReset()
 }
 

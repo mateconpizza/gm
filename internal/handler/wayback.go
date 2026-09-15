@@ -18,12 +18,9 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
-
-var dimmer = func(s string) string { return ansi.Gray.Wrap(" ("+s+")", ansi.Italic) }
 
 type SnapshotResult struct {
 	URL   string
@@ -141,6 +138,8 @@ func printSummary(c *ui.Console, results <-chan SnapshotResult) error {
 	}
 
 	p := c.Palette()
+	dimmer := func(s string) string { return p.Gray.Wrap(" ("+s+")", p.Italic) }
+
 	f := c.Frame().Reset()
 	if len(skipped) > 0 {
 		msg := p.BrightYellow.Sprintf("Skipped %d bookmarks", len(skipped))
@@ -182,6 +181,7 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, app *application.App, op
 		menu.WithCycle(),
 	)
 
+	dimmer := func(s string) string { return p.Gray.Wrap(" ("+s+")", p.Italic) }
 	m := picker.New[wayback.SnapshotInfo](app, opts...)
 
 	// format each item `YYYY MMM DD HH:MM (N days ago)`
@@ -197,7 +197,7 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, app *application.App, op
 }
 
 // formatTime returns a string formatted YYYY MMM DD HH:MM (N days ago).
-func formatTime(label, ts string) string {
+func formatTime(label, ts string, muted func(s string) string) string {
 	absolute, relative, err := txt.TimeWithAgo(ts)
 	if err != nil {
 		return err.Error()
@@ -205,7 +205,7 @@ func formatTime(label, ts string) string {
 
 	return txt.PaddedLine(
 		label,
-		absolute+dimmer(relative),
+		absolute+muted(relative),
 	)
 }
 
@@ -305,9 +305,11 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 func selectSnapshot(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, snaps []wayback.SnapshotInfo) (wayback.SnapshotInfo, error) {
 	c := d.Console()
 
+	dimmer := func(s string) string { return c.Palette().Gray.Wrap(" ("+s+")", c.Palette().Italic) }
+
 	if b.ArchiveURL != "" {
 		c.Frame().
-			Midln(formatTime("Current:", b.ArchiveTimestamp)).
+			Midln(formatTime("Current:", b.ArchiveTimestamp, dimmer)).
 			Flush()
 	}
 
@@ -331,12 +333,7 @@ func selectSnapshot(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, sna
 }
 
 // applySnapshot persists the selected snapshot to the bookmark and reports the result.
-func applySnapshot(
-	ctx context.Context,
-	d *deps.Deps,
-	b *bookmark.Bookmark,
-	snap wayback.SnapshotInfo,
-) error {
+func applySnapshot(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, snap wayback.SnapshotInfo) error {
 	b.ArchiveURL = snap.ArchiveURL
 	b.ArchiveTimestamp = snap.ArchiveTimestamp
 
@@ -353,9 +350,10 @@ func applySnapshot(
 	}
 
 	c := d.Console()
+	dimmer := func(s string) string { return c.Palette().Gray.Wrap(" ("+s+")", c.Palette().Italic) }
 
 	c.Frame().
-		Midln(formatTime("New:", b.ArchiveTimestamp)).
+		Midln(formatTime("New:", b.ArchiveTimestamp, dimmer)).
 		Flush()
 
 	return c.Print(

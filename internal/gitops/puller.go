@@ -197,20 +197,19 @@ func printHeader(rp *GitPuller) {
 
 	path := files.CollapseHomeDir(rp.dstDir)
 
-	comment := p.Dim.With(p.Italic).
-		Sprint(" (ctrl-c to exit)")
+	fmt.Fprintln(rp.console.Writer())
 
-	f.Ln().
-		CustomFunc(square, y("Repository cloned successfully")).Ln().
-		Midln(p.Dim.Wrap("Path: "+path, p.Italic)).Rowln().
-		CustomFunc(func() string {
-			return txt.GlyphSmallSquare.Prefix(" ")
-		}, p.Bold.Sprint("Found repositories")).
-		Textln(comment)
+	rp.console.NewBannerBuilder().
+		WithTitle("Repository cloned successfully").
+		WithSubtitle("Path: "+path).
+		Build().
+		CustomFunc(square, p.Bold.Sprint("Found repositories")).
+		Ln().
+		Flush()
 
-	t := p.BrightCyan.Wrap("JSON", p.Bold)
+	t := p.BrightCyan.Sprint("JSON")
 	if gpg.IsInitialized(rp.srcDir) {
-		t = p.BrightMagenta.Wrap("GPG", p.Bold)
+		t = p.BrightMagenta.Sprint("GPG")
 	}
 
 	for _, gr := range rp.repos {

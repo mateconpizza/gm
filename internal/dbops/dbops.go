@@ -13,7 +13,6 @@ import (
 
 	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
-	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -610,20 +609,11 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 		}
 	}
 
-	sp := rotato.New(
-		rotato.WithMessage("removing database..."),
-		rotato.WithMessageColor(rotato.FgYellow),
-		rotato.WithWriter(c.Writer()),
-	)
-	sp.Start(ctx)
-
 	for i := range n {
 		if err := files.Remove(dbs[i]); err != nil {
 			return err
 		}
 	}
-
-	sp.Done()
 
 	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("%d item/s removed", n)))
 

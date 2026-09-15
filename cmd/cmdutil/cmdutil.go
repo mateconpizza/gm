@@ -92,7 +92,7 @@ func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark],
 		}
 
 		if f.Menu && len(bs) > 0 {
-			bs, err = picker.BookmarkWithMenu(m, bs)
+			bs, err = picker.BookmarkWithMenu(d.Console(), m, bs)
 			if err != nil {
 				return err
 			}

@@ -386,6 +386,13 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 		f.Rowln(pad("config:", files.CollapseHomeDir(app.Path.ConfigFile())))
 	}
 
+	boolFmt := func(b bool) string {
+		if !b {
+			return p.BrightRed.Sprint("false")
+		}
+		return p.BrightGreen.Sprint("true")
+	}
+
 	// menu.
 	m := app.Menu
 	f.MidCln(p.BrightRed.With(p.Bold).Sprint, p.BrightRed.Wrap("menu", p.Bold)).
@@ -439,11 +446,4 @@ func formatKeymap(p *ansi.Palette, k *menu.Keymap) string {
 		status,
 		8,
 	)
-}
-
-func boolFmt(b bool) string {
-	if !b {
-		return ansi.BrightRed.Sprint("false")
-	}
-	return ansi.BrightGreen.Sprint("true")
 }

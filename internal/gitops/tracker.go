@@ -136,9 +136,9 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 	}
 
 	var repoType string
-	repoType = p.BrightMagenta.Wrap("JSON ", p.Bold)
+	repoType = p.BrightMagenta.Sprint("JSON ")
 	if gpg.IsInitialized(gm.Root()) {
-		repoType = p.BrightMagenta.Wrap("GPG ", p.Bold)
+		repoType = p.BrightMagenta.Sprint("GPG ")
 	}
 
 	if name == files.StripExts(application.MainDBName) {
