@@ -24,7 +24,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -62,11 +61,6 @@ func initAppConfig(app *application.App) {
 	)
 
 	application.SetVerbosity(app.Flags.Verbose)
-
-	// enable global color
-	if !app.Flags.Color {
-		ansi.DisableColor()
-	}
 
 	// terminal interactive mode
 	terminal.NonInteractiveMode(

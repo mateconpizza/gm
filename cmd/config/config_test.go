@@ -37,7 +37,7 @@ func TestConfig_Create(t *testing.T) {
 		app.Path.Data = dir
 		fn := application.ConfigFilename
 
-		err := createConfig(c, app)
+		err := createConfig(app, c)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -62,7 +62,7 @@ func TestConfig_Create(t *testing.T) {
 		app.Path.Data = dir
 
 		c := ui.NewConsole()
-		err = createConfig(c, app)
+		err = createConfig(app, c)
 		if !errors.Is(err, os.ErrExist) {
 			t.Fatalf("got error %v, want %v", err, os.ErrExist)
 		}

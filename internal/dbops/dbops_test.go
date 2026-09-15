@@ -18,13 +18,11 @@ import (
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
 func TestRemoveRepo_Success(t *testing.T) {
 	t.Parallel()
-	ansi.DisableColor()
 
 	t.Run("successfully remove main database", func(t *testing.T) {
 		t.Parallel()

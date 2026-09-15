@@ -50,7 +50,7 @@ func NewConsole(opts ...Option) *Console {
 	}
 
 	if c.palette == nil {
-		c.palette = ansi.NewPalette()
+		c.palette = ansi.NewPalette(c.colorEnabled)
 	}
 
 	if c.differ == nil {
@@ -121,7 +121,7 @@ func (c *Console) Height() int                               { return c.Term().H
 func (c *Console) Print(ctx context.Context, s string) error { return c.Term().Print(ctx, s) }
 
 func WithDefaultTerminal(withColor bool, f func(error)) Option {
-	p := ansi.NewPalette()
+	p := ansi.NewPalette(withColor)
 	cz := terminal.NewColorizer(withColor).
 		WithHotkey(p.Red).
 		WithError(p.BrightRed.With(p.Bold)).

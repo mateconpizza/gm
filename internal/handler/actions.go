@@ -197,8 +197,7 @@ func HTTPStatus(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) erro
 		}
 
 		r := newItems[b.HTTPStatusCode]
-		r.description = txt.HTTPStatusCodeColor(b.HTTPStatusCode, p).
-			Sprint(statusText)
+		r.description = txt.HTTPStatusCodeColor(b.HTTPStatusCode, p).Sprint(statusText)
 		r.count++
 		newItems[b.HTTPStatusCode] = r
 	}
@@ -323,7 +322,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	p := ansi.NewPalette()
+	p := d.Console().Palette()
 	boldRed := p.BrightRed.With(p.Bold)
 
 	items, err := dbops.NewDatabaseSelector(app).

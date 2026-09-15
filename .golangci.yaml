@@ -219,7 +219,7 @@ linters:
           - revive
           - funlen
         text: "confusing-naming:"
-      - path: "pkg/ansi/palette.go"
+      - path: "pkg/ansi/ansi.go"
         linters:
           - forbidigo
       - path: "pkg/ansi/palette.go"

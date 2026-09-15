@@ -2,197 +2,181 @@ package ansi
 
 import (
 	"fmt"
+	"io"
 	"math/rand"
 	"strings"
 )
 
-var ColorEnabled bool = true
-
-func DisableColor() {
-	ColorEnabled = false
+type Style struct {
+	code    SGR
+	enabled bool
 }
 
-// Wrap wraps the given text with the provided styles and resets afterwards.
-func (s SGR) Wrap(text string, styles ...SGR) string {
-	if !ColorEnabled {
+func (s Style) Enabled() bool { return s.enabled }
+
+func newStyle(code SGR, enabled bool) Style {
+	return Style{code: code, enabled: enabled}
+}
+
+// Wrap wraps the given text with the style and resets afterward, or
+// returns text unchanged if disabled.
+func (s Style) Wrap(text string, styles ...Style) string {
+	if !s.enabled {
 		return text
 	}
-
-	return string(s) + combine(styles...) + text + string(Reset)
+	return string(s.code) + combineStyles(styles...) + text + string(Reset)
 }
 
-// With combines the receiver style with additional styles and returns a new
-// SGR value.
-func (s SGR) With(styles ...SGR) SGR {
-	return SGR(string(s) + combine(styles...))
+// With combines the receiver style with additional styles, carrying the
+// same enabled flag.
+func (s Style) With(styles ...Style) Style {
+	return Style{code: SGR(string(s.code) + combineCodes(styles...)), enabled: s.enabled}
 }
 
-// Sprint wraps the formatted text with the receiver style and returns it as a
-// string.
-func (s SGR) Sprint(a ...any) string {
-	return s.Wrap(fmt.Sprint(a...))
-}
+func (s Style) Sprint(a ...any) string                      { return s.Wrap(fmt.Sprint(a...)) }
+func (s Style) Sprintf(f string, a ...any) string           { return s.Wrap(fmt.Sprintf(f, a...)) }
+func (s Style) Fprint(w io.Writer, a ...any)                { fmt.Fprint(w, s.Sprint(a...)) }
+func (s Style) Fprintln(w io.Writer, a ...any)              { fmt.Fprintln(w, s.Sprint(a...)) }
+func (s Style) Printf(w io.Writer, format string, a ...any) { fmt.Fprint(w, s.Sprintf(format, a...)) }
 
-// Sprintf wraps the formatted text using the provided format string with the
-// receiver style and returns it as a string.
-func (s SGR) Sprintf(f string, a ...any) string {
-	return s.Wrap(fmt.Sprintf(f, a...))
-}
-
-// Print prints styled text to the standard output.
-func (s SGR) Print(a ...any) {
-	fmt.Print(s.Wrap(s.Sprint(a...)))
-}
-
-// Println prints styled text with a newline.
-func (s SGR) Println(a ...any) {
-	fmt.Println(s.Wrap(s.Sprint(a...)))
-}
-
-// Printf prints styled text using a format string.
-func (s SGR) Printf(format string, a ...any) {
-	fmt.Print(s.Wrap(fmt.Sprintf(format, a...)))
-}
-
-// combine merges multiple SGR codes into a single string.
-func combine(codes ...SGR) string {
+func combineStyles(styles ...Style) string {
 	var sb strings.Builder
-	for _, code := range codes {
-		sb.WriteString(string(code))
+	for _, st := range styles {
+		sb.WriteString(string(st.code))
 	}
 	return sb.String()
 }
 
-type Palette struct {
-	Reset  SGR // Reset all attributes
-	Normal SGR
-
-	// Standard foreground colors (30-37).
-	Black   SGR
-	Red     SGR
-	Green   SGR
-	Yellow  SGR
-	Blue    SGR
-	Magenta SGR
-	Cyan    SGR
-	White   SGR
-	Gray    SGR
-	Orange  SGR
-
-	// Bright foreground colors (90-97).
-	BrightBlack   SGR
-	BrightRed     SGR
-	BrightGreen   SGR
-	BrightYellow  SGR
-	BrightBlue    SGR
-	BrightMagenta SGR
-	BrightCyan    SGR
-	BrightWhite   SGR
-
-	// Standard background colors (40-47).
-	BgBlack   SGR
-	BgRed     SGR
-	BgGreen   SGR
-	BgYellow  SGR
-	BgBlue    SGR
-	BgMagenta SGR
-	BgCyan    SGR
-	BgWhite   SGR
-
-	// Bright background colors (100-107).
-	BgBrightBlack   SGR
-	BgBrightRed     SGR
-	BgBrightGreen   SGR
-	BgBrightYellow  SGR
-	BgBrightBlue    SGR
-	BgBrightMagenta SGR
-	BgBrightCyan    SGR
-	BgBrightWhite   SGR
-
-	// Text styles.
-	Bold          SGR // Bold or increased intensity
-	Dim           SGR // Faint or dim
-	Italic        SGR // Italic
-	Underline     SGR // Underline
-	Undercurl     SGR // Undercurl
-	Blink         SGR // Slow blink
-	BlinkRapid    SGR // Rapid blink
-	Inverse       SGR // Inverse/reverse video
-	Hidden        SGR // Conceal/hidden
-	Strikethrough SGR // Crossed-out/strikethrough
+func combineCodes(styles ...Style) string {
+	return combineStyles(styles...)
 }
 
-func NewPalette() *Palette {
+type Palette struct {
+	enabled bool
+
+	Reset  Style
+	Normal Style
+
+	// Standard foreground colors (30-37).
+	Black, Red, Green, Yellow, Blue, Magenta, Cyan, White, Gray, Orange Style
+
+	// Bright foreground colors (90-97).
+	BrightBlack, BrightRed, BrightGreen, BrightYellow,
+	BrightBlue, BrightMagenta, BrightCyan, BrightWhite Style
+
+	// Standard background colors (40-47).
+	BgBlack, BgRed, BgGreen, BgYellow, BgBlue, BgMagenta, BgCyan, BgWhite Style
+
+	// Bright background colors (100-107).
+	BgBrightBlack, BgBrightRed, BgBrightGreen, BgBrightYellow,
+	BgBrightBlue, BgBrightMagenta, BgBrightCyan, BgBrightWhite Style
+
+	// Text styles.
+	Bold, Dim, Italic, Underline, Undercurl, Blink, BlinkRapid, Inverse, Hidden, Strikethrough Style
+}
+
+func NewPalette(enabled bool) *Palette {
+	s := func(code SGR) Style { return newStyle(code, enabled) }
 	return &Palette{
-		Reset:  Reset,
-		Normal: Normal,
+		enabled: enabled,
+
+		Reset:  s(Reset),
+		Normal: s(Normal),
 
 		// Standard foreground colors (30-37).
-		Black:   Black,
-		Red:     Red,
-		Green:   Green,
-		Yellow:  Yellow,
-		Blue:    Blue,
-		Magenta: Magenta,
-		Cyan:    Cyan,
-		White:   White,
-		Gray:    BrightWhite.With(Dim),
-		Orange:  Orange,
+		Black:   s(Black),
+		Red:     s(Red),
+		Green:   s(Green),
+		Yellow:  s(Yellow),
+		Blue:    s(Blue),
+		Magenta: s(Magenta),
+		Cyan:    s(Cyan),
+		White:   s(White),
+		Gray:    s(Gray),
+		Orange:  s(Orange),
 
 		// Bright foreground colors (90-97).
-		BrightBlack:   BrightBlack,
-		BrightRed:     BrightRed,
-		BrightGreen:   BrightGreen,
-		BrightYellow:  BrightYellow,
-		BrightBlue:    BrightBlue,
-		BrightMagenta: BrightMagenta,
-		BrightCyan:    BrightCyan,
-		BrightWhite:   BrightWhite,
+		BrightBlack:   s(BrightBlack),
+		BrightRed:     s(BrightRed),
+		BrightGreen:   s(BrightGreen),
+		BrightYellow:  s(BrightYellow),
+		BrightBlue:    s(BrightBlue),
+		BrightMagenta: s(BrightMagenta),
+		BrightCyan:    s(BrightCyan),
+		BrightWhite:   s(BrightWhite),
 
 		// Standard background colors (40-47).
-		BgBlack:   BgBlack,
-		BgRed:     BgRed,
-		BgGreen:   BgGreen,
-		BgYellow:  BgYellow,
-		BgBlue:    BgBlue,
-		BgMagenta: BgMagenta,
-		BgCyan:    BgCyan,
-		BgWhite:   BgWhite,
+		BgBlack:   s(BgBlack),
+		BgRed:     s(BgRed),
+		BgGreen:   s(BgGreen),
+		BgYellow:  s(BgYellow),
+		BgBlue:    s(BgBlue),
+		BgMagenta: s(BgMagenta),
+		BgCyan:    s(BgCyan),
+		BgWhite:   s(BgWhite),
 
 		// Bright background colors (100-107).
-		BgBrightBlack:   BgBrightBlack,
-		BgBrightRed:     BgBrightRed,
-		BgBrightGreen:   BgBrightGreen,
-		BgBrightYellow:  BgBrightYellow,
-		BgBrightBlue:    BgBrightBlue,
-		BgBrightMagenta: BgBrightMagenta,
-		BgBrightCyan:    BgBrightCyan,
-		BgBrightWhite:   BgBrightWhite,
+		BgBrightBlack:   s(BgBrightBlack),
+		BgBrightRed:     s(BgBrightRed),
+		BgBrightGreen:   s(BgBrightGreen),
+		BgBrightYellow:  s(BgBrightYellow),
+		BgBrightBlue:    s(BgBrightBlue),
+		BgBrightMagenta: s(BgBrightMagenta),
+		BgBrightCyan:    s(BgBrightCyan),
+		BgBrightWhite:   s(BgBrightWhite),
 
 		// Text styles.
-		Bold:          Bold,
-		Dim:           Dim,
-		Italic:        Italic,
-		Underline:     Underline,
-		Undercurl:     Undercurl,
-		Blink:         Blink,
-		BlinkRapid:    BlinkRapid,
-		Inverse:       Inverse,
-		Hidden:        Hidden,
-		Strikethrough: Strikethrough,
+		Bold:          s(Bold),
+		Dim:           s(Dim),
+		Italic:        s(Italic),
+		Underline:     s(Underline),
+		Undercurl:     s(Undercurl),
+		Blink:         s(Blink),
+		BlinkRapid:    s(BlinkRapid),
+		Inverse:       s(Inverse),
+		Hidden:        s(Hidden),
+		Strikethrough: s(Strikethrough),
 	}
 }
 
-func (p *Palette) Enabled() bool { return ColorEnabled }
-
-// Random returns a random color with the given styles.
-func (p *Palette) Random(styles ...SGR) SGR {
-	return Random(styles...)
-}
+func (p *Palette) Enabled() bool { return p.enabled }
 
 // Remover removes ANSI codes from a given string.
 func (p *Palette) Remover(s string) string {
 	return Remover(s)
+}
+
+// StyleAll applies styles to all elements in the slice.
+func (p *Palette) StyleAll(a []string, styles ...Style) []string {
+	for i := range a {
+		for _, c := range styles {
+			a[i] = c.Sprint(a[i])
+		}
+	}
+
+	return a
+}
+
+// Random returns a random color Style from the palette, combined with the
+// given additional styles.
+func (p *Palette) Random(styles ...Style) Style {
+	colors := []Style{
+		p.Red.With(styles...),
+		p.Green.With(styles...),
+		p.Yellow.With(styles...),
+		p.Blue.With(styles...),
+		p.Magenta.With(styles...),
+		p.Cyan.With(styles...),
+		p.White.With(styles...),
+		p.BrightRed.With(styles...),
+		p.BrightGreen.With(styles...),
+		p.BrightYellow.With(styles...),
+		p.BrightBlue.With(styles...),
+		p.BrightMagenta.With(styles...),
+		p.BrightCyan.With(styles...),
+	}
+
+	return colors[rand.Intn(len(colors))]
 }
 
 // Random returns a random color with the given styles.
@@ -211,9 +195,6 @@ func Random(styles ...SGR) SGR {
 		BrightBlue.With(styles...),
 		BrightMagenta.With(styles...),
 		BrightCyan.With(styles...),
-
-		// BrightWhite.With(styles...),
-		// BrightBlack.With(styles...),
 	}
 
 	return colors[rand.Intn(len(colors))]
