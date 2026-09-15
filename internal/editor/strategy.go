@@ -15,8 +15,14 @@ type EditStrategy interface {
 	ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error)
 
 	// Compares old/new for diff display
-	Diff(old, fresh *bookmark.Bookmark) string
+	Diff(d Differ, old, fresh *bookmark.Bookmark) string
 
 	// Strategy type
 	FileType() string
+}
+
+type Differ interface {
+	Added(s string) string
+	Deleted(s string) string
+	Muted(s string) string
 }

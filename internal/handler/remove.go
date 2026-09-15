@@ -31,7 +31,7 @@ func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	p := d.Console().Palette()
 	d.Console().NewBannerBuilder().
 		WithTitle("Remove Bookmarks").
-		WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 		WithSubtitle("this action cannot be undone").
 		WithComment(" (ctrl-c to exit)").
 		Build().

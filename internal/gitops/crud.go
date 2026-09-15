@@ -59,13 +59,14 @@ func NewManager(cfg *ManagerConfig) (*git.Mgr, error) {
 }
 
 func NewGit(w io.Writer, root string) (*git.Git, error) {
+	// FIX: dont use `ansi.SGR`, use `*ansi.Palette`
 	return git.New(
 		root,
 		[]git.GitOpt{
 			// add Command logger
 			git.WithGitCommandLogger(func(w io.Writer, commands []string) {
 				headerFrame := frame.New(
-					frame.WithColorBorder(ansi.BrightYellow),
+					frame.WithColorBorder(ansi.BrightYellow.Sprint),
 					frame.WithBordersSmallBlock(),
 					frame.WithWriter(w),
 				)

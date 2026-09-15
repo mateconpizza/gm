@@ -7,6 +7,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/dbops"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 )
 
@@ -32,7 +33,9 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup lock
   $ {cmd} db backup lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.LockBackup(cmd.Context(), app, ui.DefaultConsole)
+			return dbops.LockBackup(cmd.Context(), app, ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			}))
 		},
 	}
 	return c
@@ -45,7 +48,9 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup unlock
   $ {cmd} db backup unlock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.UnlockBackup(cmd.Context(), app, ui.DefaultConsole)
+			return dbops.UnlockBackup(cmd.Context(), app, ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			}))
 		},
 	}
 	return c

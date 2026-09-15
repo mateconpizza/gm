@@ -39,7 +39,8 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 		return f.StringReset(), err
 	}
 
-	f.Reset().Textln(p.BrightRed.Wrap("git:", p.Italic))
+	f.Reset().
+		HeaderCln(p.Red.With(p.Bold).Sprint, p.Red.Wrap("git:", p.Italic))
 
 	gr := gm.NewRepo(r.BaseName())
 	sum, err := gr.Summary()
@@ -87,9 +88,9 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 
 	// enable status
 	if app.GitEnabled() {
-		f.Success(txt.PaddedLine("sync:", p.BrightGreen.Wrap("true", p.Bold))).Ln()
+		f.Success(txt.PaddedLine("sync:", p.BrightGreen.Sprint("true"))).Ln()
 	} else {
-		f.Error(txt.PaddedLine("sync:", p.BrightRed.Wrap("false", p.Bold))).Ln()
+		f.Error(txt.PaddedLine("sync:", p.BrightRed.Sprint("false"))).Ln()
 	}
 
 	return f.StringReset(), nil
@@ -101,13 +102,13 @@ func InfoCmd(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	d.Console().NewBannerBuilder().
+	c := d.Console()
+	c.NewBannerBuilder().
 		WithTitle("Git Information").
-		WithTitleColor(d.Console().Palette().BrightYellow).
 		WithSubtitle("showing current git status").
 		Build().
 		Rowln().
-		HeaderC(d.Console().Palette().BrightRed, i).
+		Text(i).
 		Flush()
 
 	return nil

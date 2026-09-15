@@ -13,7 +13,6 @@ import (
 
 	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
-	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -48,7 +47,7 @@ func ReorderDatabase(ctx context.Context, app *application.App, r reorderStore, 
 	y := p.BrightYellow.With(p.Italic).Sprint
 	c.NewBannerBuilder().
 		WithTitle("Reorder records IDs").
-		WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 		WithSubtitle("this action cannot be undone").
 		Build().
 		Rowln().
@@ -140,7 +139,7 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 
 	c.NewBannerBuilder().
 		WithTitle("Drop All Records").
-		WithTitleColor(c.Palette().BrightRed.With(c.Palette().Bold)).
+		WithTitleColor(c.Palette().BrightRed.With(c.Palette().Bold).Sprint).
 		WithSubtitle("this action cannot be undone").
 		WithComment(" (ctrl-c to exit)").
 		Build().
@@ -183,7 +182,8 @@ func Remove(ctx context.Context, d *deps.Deps) error {
 
 	if !app.Flags.Force && !app.Flags.Yes {
 		c.NewBannerBuilder().
-			WithTitle("Remove Database/s").WithTitleColor(p.BrightRed.With(p.Bold)).
+			WithTitle("Remove Database/s").
+			WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 			WithSubtitle("this action cannot be undone").
 			Render()
 
@@ -228,7 +228,8 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 
 	p := d.Console().Palette()
 	d.Console().NewBannerBuilder().
-		WithTitle("Remove backups").WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithTitle("Remove backups").
+		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 		WithComment(" (ctrl-c to exit)").
 		WithSubtitle("this action cannot be undone").
 		Build().
@@ -299,7 +300,11 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 		return err
 	}
 
-	return Lock(ctx, ui.DefaultConsole, selected)
+	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+		sys.ErrAndExit(err)
+	})
+
+	return Lock(ctx, c, selected)
 }
 
 // UnlockDatabase select and unlock a database.
@@ -534,7 +539,8 @@ func BackupList(ctx context.Context, d *deps.Deps) error {
 	name := p.BrightYellow.With(p.Bold).Sprint(files.StripExts(r.Name()))
 	repo := p.Dim.With(p.Italic).Sprint("repo: " + name)
 	d.Console().NewBannerBuilder().
-		WithTitle("Repository Backups").WithTitleColor(p.BrightMagenta.With(p.Bold)).
+		WithTitle("Repository Backups").
+		WithTitleColor(p.BrightMagenta.With(p.Bold).Sprint).
 		WithSubtitle("latest backup snapshots").
 		Build().
 		Rowln().
@@ -603,20 +609,11 @@ func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 		}
 	}
 
-	sp := rotato.New(
-		rotato.WithMessage("removing database..."),
-		rotato.WithMessageColor(rotato.FgYellow),
-		rotato.WithWriter(c.Writer()),
-	)
-	sp.Start(ctx)
-
 	for i := range n {
 		if err := files.Remove(dbs[i]); err != nil {
 			return err
 		}
 	}
-
-	sp.Done()
 
 	fmt.Fprintln(d.Writer(), c.SuccessMesg(fmt.Sprintf("%d item/s removed", n)))
 

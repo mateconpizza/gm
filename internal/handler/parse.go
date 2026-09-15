@@ -83,7 +83,6 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 
 	c.NewBannerBuilder().
 		WithTitle("Add Bookmark").
-		WithTitleColor(p.BrightYellow.With(p.Bold)).
 		WithComment(" (ctrl-c to exit)").
 		WithSubtitle(subtitle).
 		Build().
@@ -388,12 +387,12 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 		return sys.ErrActionAborted
 	case "e", "edit":
 		session := editor.NewEditSession().
-			// WithChooseFunc(c.Term().Choose).
-			// WithSuccessFunc(c.SuccessMesg).
 			WithStrategy(editor.NewBookmarkStrategy()).
+			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return insertAndAddBookmark(ctx, r, app, fresh)
 			})
+
 		return runEditSession(ctx, d, []*bookmark.Bookmark{b}, session)
 	default:
 		return insertAndAddBookmark(ctx, r, app, b)

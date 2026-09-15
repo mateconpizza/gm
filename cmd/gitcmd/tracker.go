@@ -9,6 +9,7 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 )
 
@@ -18,7 +19,10 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		Short:   "configure repository tracking",
 		Aliases: []string{"t", "track"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return gitops.TrackMgrStatus(ui.DefaultConsole, app)
+			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			})
+			return gitops.TrackMgrStatus(c, app)
 		},
 	}
 
@@ -76,8 +80,10 @@ func newMgrCmd(app *application.App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			return gitops.TrackMgr(cmd.Context(), gm, ui.DefaultConsole, dbFiles)
+			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			})
+			return gitops.TrackMgr(cmd.Context(), gm, c, dbFiles)
 		},
 	}
 

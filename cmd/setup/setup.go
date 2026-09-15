@@ -15,6 +15,7 @@ import (
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -42,11 +43,15 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("failed to get config: %w", err)
 		}
 
+		c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+			sys.ErrAndExit(err)
+		})
+
 		return initializeAction(
 			cmd.Context(),
 			deps.New(
 				deps.WithApplication(app),
-				deps.WithConsole(ui.DefaultConsole),
+				deps.WithConsole(c),
 			),
 		)
 	},
@@ -119,7 +124,9 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	c := ui.DefaultConsole
+	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+		sys.ErrAndExit(err)
+	})
 	if !c.Confirm(cmd.Context(), fmt.Sprintf("Track database %q?", name), "n") {
 		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", name)).String())
 		return nil

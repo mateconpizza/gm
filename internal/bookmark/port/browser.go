@@ -108,7 +108,7 @@ func selectBrowser(ctx context.Context, app *application.App, c *ui.Console) (br
 	p := c.Palette()
 	c.NewBannerBuilder().
 		WithTitle("Import Bookmarks from Browser").
-		WithTitleColor(p.BrightGreen.With(p.Bold)).
+		WithTitleColor(p.BrightGreen.With(p.Bold).Sprint).
 		WithSubtitle("merge bookmarks into your collection").
 		WithComment(" (ctrl-c to exit)").
 		Render()

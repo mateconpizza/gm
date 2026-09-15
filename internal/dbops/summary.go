@@ -124,7 +124,7 @@ func repository(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	f := d.Console().Frame()
-	f.HeaderCln(p.Yellow, p.Yellow.Wrap(name, p.Italic)).
+	f.HeaderCln(p.Yellow.Sprint, p.Yellow.Wrap(name, p.Italic)).
 		Rowln(txt.PaddedLine("records:", stats.Bookmarks)).
 		Rowln(txt.PaddedLine("tags:", stats.Tags))
 
@@ -140,7 +140,7 @@ func repository(ctx context.Context, d *deps.Deps) (string, error) {
 
 	f.Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(r.Fullpath())))
 
-	createdAt := createdAt(r, p)
+	createdAt := createdAt(r, p.Dim.Sprintf)
 	if createdAt != "" {
 		f.Rowln(txt.PaddedLine("created:", createdAt))
 	}
@@ -192,7 +192,7 @@ func repoBackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (str
 
 	f := c.Frame()
 
-	f.HeaderCln(p.BrightCyan, p.BrightCyan.Wrap("summary:", p.Italic))
+	f.HeaderCln(p.BrightCyan.Sprint, p.BrightCyan.Wrap("summary:", p.Italic))
 	if err != nil {
 		return f.Row(txt.PaddedLine("found:", "n/a\n")).String(), nil
 	}
@@ -230,7 +230,7 @@ func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 	p := d.Console().Palette()
 	f := d.Console().Frame()
 
-	f.HeaderCln(p.BrightMagenta, p.BrightMagenta.Wrap("backups:", p.Italic)).
+	f.HeaderCln(p.BrightMagenta.Sprint, p.BrightMagenta.Wrap("backups:", p.Italic)).
 		Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(backupPath))).
 		Rowln(txt.PaddedLine("found:", strconv.Itoa(len(fs))+" backups found"))
 
@@ -262,7 +262,7 @@ func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 		StringReset(), nil
 }
 
-func createdAt(r RepositoryMetadata, p *ansi.Palette) string {
+func createdAt(r RepositoryMetadata, mutedFn func(f string, a ...any) string) string {
 	createdAt, err := r.Metadata(db.MetaKeyCreatedAt)
 	if err != nil {
 		return ""
@@ -273,7 +273,7 @@ func createdAt(r RepositoryMetadata, p *ansi.Palette) string {
 		return ""
 	}
 
-	return createdAt + p.Gray.Sprintf(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
+	return createdAt + mutedFn(" (%s)", txt.RelativeTime(parsed.Format(txt.TimeLayout)))
 }
 
 func backupAt(r RepositoryMetadata) (string, error) {

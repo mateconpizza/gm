@@ -10,6 +10,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -73,7 +74,10 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 		Use:   "text [url]",
 		Short: "strip URL params from input",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return handler.ParamsUserInput(cmd.Context(), app, ui.DefaultConsole, args)
+			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			})
+			return handler.ParamsUserInput(cmd.Context(), app, c, args)
 		},
 	}
 	return c
@@ -98,7 +102,7 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	m := picker.New[bookmark.Bookmark](app, fm.Menu.Opts...)
 	m.SetFormatter(func(bm bookmark.Bookmark) string {
 		bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
-		return fm.Render(ui.NewConsole(), &bm)
+		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), &bm)
 	})
 
 	return m

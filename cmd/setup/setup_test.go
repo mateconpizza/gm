@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/testutil"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -19,8 +18,6 @@ func TestSuccessfulInitializationWithMainDatabase(t *testing.T) {
 	d := testutil.NewDeps(t)
 	var buf bytes.Buffer
 	d.WithWriter(&buf)
-
-	ansi.DisableColor()
 
 	err := initializeAction(t.Context(), d)
 	if err != nil {

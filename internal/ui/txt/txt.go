@@ -17,9 +17,7 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-type Console interface {
-	Palette() *ansi.Palette
-}
+type ColorFunc func(c func(a ...any) string) func(a ...any) string
 
 type Glyph string
 
@@ -444,8 +442,7 @@ func TagsWithPound(s string) string {
 // TagsWithColorPound returns a prettified tags with #.
 //
 //	#tag1 #tag2 #tag3
-func TagsWithColorPound(c Console, s string) string {
-	p := c.Palette()
+func TagsWithColorPound(p *ansi.Palette, s string) string {
 	tagsSplit := strings.Split(s, ",")
 	sort.Strings(tagsSplit)
 
@@ -465,16 +462,15 @@ func TagsWithColorPound(c Console, s string) string {
 // TagsWithColorPills returns a prettified tags.
 //
 //	#browser #neovim
-func TagsWithColorPills(c Console, s string) string {
+func TagsWithColorPills(p *ansi.Palette, s string) string {
 	tags := TagsWithPound(s)
-	return TagsColoredWithDelimiters(c, strings.Split(tags, " "), GlyphSepPillLeft, GlyphSepPillRight)
+	return TagsColoredWithDelimiters(p, strings.Split(tags, " "), GlyphSepPillLeft, GlyphSepPillRight)
 }
 
 // TagsColoredWithDelimiters returns prettified tags with custom left/right icons.
 //
 //	TagsColoredWithDelimiters(c, "tag1,tag2", "«", "»")  // «tag1» «tag2»
-func TagsColoredWithDelimiters(c Console, tags []string, left, right Glyph) string {
-	p := c.Palette()
+func TagsColoredWithDelimiters(p *ansi.Palette, tags []string, left, right Glyph) string {
 	sort.Strings(tags)
 	var sb strings.Builder
 	for _, t := range tags {
@@ -681,7 +677,7 @@ func CleanLines(s string) string {
 	return strings.Join(result, "\n")
 }
 
-func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.SGR {
+func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.Style {
 	switch {
 	case statusCode == 0:
 		return p.BrightRed.With(p.Italic)
@@ -736,11 +732,11 @@ func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.SGR {
 	}
 }
 
-func Pill(color ansi.SGR, msg string) string {
+func Pill(color, inverse ansi.Style, msg string) string {
 	var sb strings.Builder
 
 	sb.WriteString(color.Sprint(GlyphSepPillLeft))
-	sb.WriteString(color.Wrap(msg, ansi.Inverse))
+	sb.WriteString(color.Wrap(msg, inverse))
 	sb.WriteString(color.Sprint(GlyphSepPillRight))
 
 	return sb.String()

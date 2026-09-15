@@ -14,6 +14,7 @@ import (
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -167,7 +168,9 @@ func newUnlockCmd(app *application.App) *cobra.Command {
   $ {cmd} db unlock --db work`),
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.UnlockDatabase(cmd.Context(), app, ui.DefaultConsole)
+			return dbops.UnlockDatabase(cmd.Context(), app, ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			}))
 		},
 	}
 
@@ -214,7 +217,9 @@ func newReorderCmd(app *application.App) *cobra.Command {
 				return err
 			}
 			defer r.Close()
-			return dbops.ReorderDatabase(cmd.Context(), app, r, ui.DefaultConsole)
+			return dbops.ReorderDatabase(cmd.Context(), app, r, ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			}))
 		},
 	}
 }

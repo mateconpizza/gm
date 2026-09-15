@@ -76,8 +76,8 @@ func (bs *BookmarkStrategy) ParseBuffer(ctx context.Context, buf []byte, origina
 	return parse(ctx, buf, original)
 }
 
-func (bs *BookmarkStrategy) Diff(old, fresh *bookmark.Bookmark) string {
-	return txt.DiffColorize(txt.Diff(old.Buffer(), fresh.Buffer()))
+func (bs *BookmarkStrategy) Diff(d Differ, old, fresh *bookmark.Bookmark) string {
+	return txt.DiffColorize(d, txt.Diff(old.Buffer(), fresh.Buffer()))
 }
 
 func (bs *BookmarkStrategy) FileType() string { return application.Name }

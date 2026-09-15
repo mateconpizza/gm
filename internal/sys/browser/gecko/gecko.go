@@ -307,7 +307,7 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 
 	r, err := openSQLite(ctx, c, path)
 	if err != nil {
-		handleDBError(c, p, profile, err)
+		handleDBError(c, profile, err)
 		return err
 	}
 
@@ -355,7 +355,8 @@ func confirmImport(ctx context.Context, c *ui.Console, profile string, force boo
 	return true
 }
 
-func handleDBError(c *ui.Console, p *ansi.Palette, profile string, err error) {
+func handleDBError(c *ui.Console, profile string, err error) {
+	p := c.Palette()
 	slog.Error("opening database for profile", "profile", profile, "err", err)
 	if errors.Is(err, ErrBrowserIsOpen) {
 		c.Error("database is " + p.BrightRed.Sprint("locked") + ", maybe browser is open?\n").Flush()

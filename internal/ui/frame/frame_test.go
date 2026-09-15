@@ -7,14 +7,6 @@ import (
 	"testing"
 )
 
-type mockANSIColor struct {
-	code string
-}
-
-func (m *mockANSIColor) Sprint(args ...any) string {
-	return m.code + fmt.Sprint(args...) + "\x1b[0m" // code + text + reset
-}
-
 func containsANSICodes(t *testing.T, s string) bool {
 	t.Helper()
 	return strings.Contains(s, "\x1b[") || strings.Contains(s, "\033[")
@@ -39,14 +31,7 @@ func setupFrame(t *testing.T, opts []OptFn) *Frame {
 
 func TestFrame_String_ColorHandling(t *testing.T) {
 	t.Run("color disabled excludes ANSI codes", func(t *testing.T) {
-		DisableColor()
-		t.Cleanup(func() {
-			colorMutex.Lock()
-			colorEnabled = true
-			colorMutex.Unlock()
-		})
-
-		mockColor := &mockANSIColor{code: "\x1b[38;5;208m"}
+		mockColor := fmt.Sprint
 		f := setupFrame(t, []OptFn{WithColorBorder(mockColor)})
 		output := f.String()
 
@@ -60,7 +45,7 @@ func TestFrame_String_ColorHandling(t *testing.T) {
 	})
 
 	t.Run("color enabled includes ANSI codes", func(t *testing.T) {
-		mockColor := &mockANSIColor{code: "\x1b[38;5;208m"}
+		mockColor := func(a ...any) string { return "\x1b[38;5;208m %s" }
 		f := setupFrame(t, []OptFn{WithColorBorder(mockColor)})
 		output := f.String()
 
@@ -95,10 +80,9 @@ create mode 100644 somerepo/atlassian.com/wxMO5eY45hTo.json`
 	wantLines := 20
 	lines := strings.Split(lines20, "\n")
 
-	mockColor := &mockANSIColor{code: "\x1b[38;5;208m"}
 	for range 100 {
 		var buf bytes.Buffer
-		f := New(WithColorBorder(mockColor), WithWriter(&buf))
+		f := New(WithColorBorder(fmt.Sprint), WithWriter(&buf))
 		f.Reset()
 
 		for _, l := range lines {
@@ -191,7 +175,6 @@ func TestFrame_Write(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			DisableColor()
 			f := New()
 
 			for _, write := range tt.writes {

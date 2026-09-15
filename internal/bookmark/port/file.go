@@ -166,7 +166,8 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 	}
 
 	c.NewBannerBuilder().
-		WithTitle("Import Bookmarks " + header).WithTitleColor(p.BrightGreen.With(p.Bold)).
+		WithTitle("Import Bookmarks " + header).
+		WithTitleColor(p.BrightGreen.With(p.Bold).Sprint).
 		WithSubtitle("merge bookmarks into your collection").
 		Build().
 		Rowln().

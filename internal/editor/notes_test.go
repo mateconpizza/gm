@@ -8,6 +8,12 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
+type mockDiffer struct{}
+
+func (m *mockDiffer) Added(s string) string   { return "" }
+func (m *mockDiffer) Deleted(s string) string { return "" }
+func (m *mockDiffer) Muted(s string) string   { return "" }
+
 func TestNotesStrategy(t *testing.T) {
 	t.Parallel()
 
@@ -95,7 +101,7 @@ func testDiff(t *testing.T) {
 	fresh := &bookmark.Bookmark{Notes: "bar"}
 	s := NotesStrategy{}
 
-	diff := s.Diff(old, fresh)
+	diff := s.Diff(&mockDiffer{}, old, fresh)
 	if diff == "" {
 		t.Errorf("expected non-empty diff for different notes")
 	}

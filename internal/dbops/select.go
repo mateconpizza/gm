@@ -159,13 +159,12 @@ func (s *Selector) Select(ctx context.Context, opts ...menu.Option) ([]string, e
 		maxWidth = max(maxWidth, utf8.RuneCountInString(name))
 	}
 
-	p := ansi.NewPalette()
 	if s.itemFormatter == nil {
 		s.itemFormatter = defaultFmt
 	}
 
 	formatItem := func(path string) string {
-		formatted := s.itemFormatter(ctx, p, path, maxWidth)
+		formatted := s.itemFormatter(ctx, ansi.NewPalette(s.app.Flags.Color), path, maxWidth)
 
 		if s.itemDecorator != nil {
 			return s.itemDecorator(formatted)
@@ -199,7 +198,7 @@ func defaultMenuOpts(s *Selector) []menu.Option {
 	)
 }
 
-func defaultFmt(ctx context.Context, p *ansi.Palette, path string, maxWidth int) string {
+func defaultFmt(_ context.Context, _ *ansi.Palette, path string, _ int) string {
 	return path
 }
 

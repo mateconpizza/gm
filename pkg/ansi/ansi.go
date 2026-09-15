@@ -2,7 +2,13 @@
 // cursor manipulation, screen clearing, colors, and text styles.
 package ansi
 
-import "regexp"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 // CursorCode control sequences for showing, hiding, and moving the cursor.
 type CursorCode string
@@ -121,21 +127,56 @@ const (
 	DefaultBgColor  SGR = "\x1b[49m" // Default background color
 )
 
-// Remover removes ANSI codes from a given string.
-func Remover(s string) string {
-	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	return re.ReplaceAllString(s, "")
+// Wrap wraps the given text with the provided styles and resets afterwards.
+func (s SGR) Wrap(text string, styles ...SGR) string {
+	return string(s) + combine(styles...) + text + string(Reset)
 }
 
-// StyleAll applies styles to all elements in the slice.
-func StyleAll(a []string, styles ...SGR) []string {
-	for i := range a {
-		for _, c := range styles {
-			a[i] = c.Sprint(a[i])
-		}
-	}
+// With combines the receiver style with additional styles and returns a new
+// SGR value.
+func (s SGR) With(styles ...SGR) SGR {
+	return SGR(string(s) + combine(styles...))
+}
 
-	return a
+// Sprint wraps the formatted text with the receiver style and returns it as a
+// string.
+func (s SGR) Sprint(a ...any) string {
+	return s.Wrap(fmt.Sprint(a...))
+}
+
+// Sprintf wraps the formatted text using the provided format string with the
+// receiver style and returns it as a string.
+func (s SGR) Sprintf(f string, a ...any) string {
+	return s.Wrap(fmt.Sprintf(f, a...))
+}
+
+// Print prints styled text to the standard output.
+func (s SGR) Print(a ...any) {
+	fmt.Print(s.Wrap(s.Sprint(a...)))
+}
+
+// Println prints styled text with a newline.
+func (s SGR) Println(a ...any) {
+	fmt.Println(s.Wrap(s.Sprint(a...)))
+}
+
+// Printf prints styled text using a format string.
+func (s SGR) Printf(format string, a ...any) {
+	fmt.Print(s.Wrap(fmt.Sprintf(format, a...)))
+}
+
+// combine merges multiple SGR codes into a single string.
+func combine(codes ...SGR) string {
+	var sb strings.Builder
+	for _, code := range codes {
+		sb.WriteString(string(code))
+	}
+	return sb.String()
+}
+
+// Remover removes ANSI codes from a given string.
+func Remover(s string) string {
+	return ansiEscapeRe.ReplaceAllString(s, "")
 }
 
 type Codes struct {
@@ -144,9 +185,9 @@ type Codes struct {
 	*Erase
 }
 
-func NewCodes() *Codes {
+func NewCodes(enabled bool) *Codes {
 	return &Codes{
-		Palette: NewPalette(),
+		Palette: NewPalette(enabled),
 		Cursor:  NewCursorCodes(),
 		Erase:   NewEraseCodes(),
 	}

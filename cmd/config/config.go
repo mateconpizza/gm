@@ -18,6 +18,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/editor"
+	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -60,7 +61,9 @@ func newCreateCmd(app *application.App) *cobra.Command {
 			if err := app.Validate(); err != nil {
 				return err
 			}
-			return createConfig(ui.DefaultConsole, app)
+			return createConfig(app, ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+				sys.ErrAndExit(err)
+			}))
 		},
 	}
 	cmdutil.HideFlag(c, "db")
@@ -89,14 +92,14 @@ func newViewCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"v"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.Flags.JSON {
-				return cfgToJSON(cmd.Context(), app)
+				return cfgToJSON(app)
 			}
 
 			f := frame.New(
 				frame.WithBordersSmallBlock2(),
 				frame.WithWriter(os.Stdout),
 			)
-			return printer.AppConfig(app, f, ansi.NewPalette())
+			return printer.AppConfig(app, f, ansi.NewPalette(app.Flags.Color))
 		},
 	}
 
@@ -105,17 +108,18 @@ func newViewCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func cfgToJSON(ctx context.Context, app *application.App) error {
+func cfgToJSON(app *application.App) error {
 	app.DBName = strings.TrimSuffix(app.DBName, ".db")
 	j, err := port.ToJSON(app)
 	if err != nil {
 		return err
 	}
-	return ui.DefaultConsole.Print(ctx, string(j))
+	fmt.Fprintln(os.Stdout, string(j))
+	return nil
 }
 
 // createConfig dumps the app configuration to a YAML file.
-func createConfig(c *ui.Console, app *application.App) error {
+func createConfig(app *application.App, c *ui.Console) error {
 	cfgFile := app.Path.ConfigFile()
 	if files.Exists(cfgFile) && !app.Flags.Force {
 		p := c.Palette()

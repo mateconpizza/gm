@@ -68,7 +68,7 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	m := New[bookmark.Bookmark](app, opts...)
 
 	m.SetFormatter(func(b bookmark.Bookmark) string {
-		return fm.Render(ui.NewConsole(), &b)
+		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), &b)
 	})
 
 	return m
@@ -78,7 +78,7 @@ func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu
 	opts = append(opts, fm.Menu.Opts...)
 	m := New[bookmark.Bookmark](app, opts...)
 	m.SetFormatter(func(b bookmark.Bookmark) string {
-		return fm.Render(ui.NewConsole(), &b)
+		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), &b)
 	})
 
 	return m
@@ -139,7 +139,7 @@ func Select[T comparable](items []T, opts ...menu.Option) ([]T, error) {
 }
 
 // BookmarkWithMenu applies menu selection to bookmarks.
-func BookmarkWithMenu(m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func BookmarkWithMenu(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	// Create copy for menu selection
 	bsCopy := make([]bookmark.Bookmark, 0, len(bs))
 	for _, b := range bs {
@@ -147,7 +147,7 @@ func BookmarkWithMenu(m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) 
 	}
 
 	defFormatter := func(b bookmark.Bookmark) string {
-		return formatter.Default().Render(ui.NewConsole(), &b)
+		return formatter.Default().Render(c, &b)
 	}
 	if m.Formatter == nil {
 		m.SetFormatter(defFormatter)

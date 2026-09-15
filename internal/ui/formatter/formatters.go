@@ -209,15 +209,15 @@ func FrameFunc(c Console, b *bookmark.Bookmark) string {
 
 	if b.Title != "" {
 		titleSplit := txt.SplitIntoChunks(b.Title, w)
-		f.Midln(ansi.StyleAll(titleSplit, p.BrightCyan)...)
+		f.Midln(p.StyleAll(titleSplit, p.BrightCyan)...)
 	}
 
 	if b.Desc != "" {
 		descSplit := txt.SplitIntoChunks(b.Desc, w)
-		f.Midln(ansi.StyleAll(descSplit, p.Dim)...)
+		f.Midln(p.StyleAll(descSplit, p.Dim)...)
 	}
 
-	return f.Footerln(txt.TagsWithColorPound(c, b.Tags)).
+	return f.Footerln(txt.TagsWithColorPound(p, b.Tags)).
 		StringReset()
 }
 
@@ -651,7 +651,7 @@ func NotesFunc(c Console, b *bookmark.Bookmark) string {
 	f.Ln()
 	f.Headerln(p.BgBlue.Wrap(header, p.Black, p.Bold))
 	f.Rowln(field("ID", p.Bold.Sprint(strconv.Itoa(b.ID))))
-	f.Rowln(field("Tags", txt.TagsWithColorPills(c, b.Tags)))
+	f.Rowln(field("Tags", txt.TagsWithColorPills(p, b.Tags)))
 	f.Rowln(field("URL", p.BrightCyan.Wrap(b.URL, p.Bold, p.Underline)))
 
 	if b.Desc != "" {
@@ -800,7 +800,7 @@ func extractArchiveURL(urlStr string) (string, error) {
 	return urlStr, nil
 }
 
-func yearColor(year string, p *ansi.Palette) ansi.SGR {
+func yearColor(year string, p *ansi.Palette) ansi.Style {
 	const (
 		startYear = 2000
 		endYear   = 2050
@@ -811,7 +811,7 @@ func yearColor(year string, p *ansi.Palette) ansi.SGR {
 		return p.BrightYellow
 	}
 
-	colorCycle := []ansi.SGR{
+	colorCycle := []ansi.Style{
 		p.Cyan,
 		p.BrightCyan,
 		p.Blue,

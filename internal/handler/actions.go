@@ -86,6 +86,7 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 
 		session := editor.NewEditSession().
 			WithStrategy(strategy).
+			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, r, old, fresh)
 			})
@@ -196,8 +197,7 @@ func HTTPStatus(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) erro
 		}
 
 		r := newItems[b.HTTPStatusCode]
-		r.description = txt.HTTPStatusCodeColor(b.HTTPStatusCode, p).
-			Sprint(statusText)
+		r.description = txt.HTTPStatusCodeColor(b.HTTPStatusCode, p).Sprint(statusText)
 		r.count++
 		newItems[b.HTTPStatusCode] = r
 	}
@@ -322,7 +322,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	p := ansi.NewPalette()
+	p := d.Console().Palette()
 	boldRed := p.BrightRed.With(p.Bold)
 
 	items, err := dbops.NewDatabaseSelector(app).
@@ -344,7 +344,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 
 	d.Console().NewBannerBuilder().
 		WithTitle("Remove Database/s").
-		WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 		WithSubtitle("this action cannot be undone").
 		Build().
 		Rowln().
@@ -529,6 +529,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	case "e", "edit":
 		session := editor.NewEditSession().
 			WithStrategy(editor.NewBookmarkStrategy()).
+			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, r, old, fresh)
 			})
@@ -555,12 +556,12 @@ func displayBookmarkChanges(w io.Writer, c *ui.Console, b, updated *bookmark.Boo
 
 	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Title:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColorize(txt.Diff([]byte(b.Title), []byte(updated.Title))))
+		fmt.Fprintln(w, txt.DiffColorize(c.Differ(), txt.Diff([]byte(b.Title), []byte(updated.Title))))
 	}
 
 	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColorize(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
+		fmt.Fprintln(w, txt.DiffColorize(c.Differ(), txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
 }
 
@@ -646,20 +647,15 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 			return err
 		}
 
-		if app.GitEnabled() {
+		if gm.IsTracked(gr.Name()) {
 			if err := gm.Update(ctx, gr, b, b, files.RemoveEmptyDirs); err != nil {
 				return err
 			}
 		}
 	}
 
-	if app.GitEnabled() {
-		err := gm.SaveChanges(
-			ctx,
-			gr,
-			fmt.Sprintf("[%s] http status updated", gr.Name()),
-		)
-
+	if gm.IsTracked(gr.Name()) {
+		err := gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] http status updated", gr.Name()))
 		if err != nil && !errors.Is(err, git.ErrGitUpToDate) {
 			return err
 		}
