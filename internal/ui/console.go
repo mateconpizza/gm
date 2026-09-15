@@ -274,23 +274,25 @@ func (d *Differ) apply(s string, dc func(a ...any) string) string {
 type ColorFunc func(a ...any) string
 
 type BannerConfig struct {
-	title        string
-	titleColor   ansi.SGR
-	comment      string
-	subtitle     string
-	defaultColor ansi.SGR
-	console      *Console
+	title       string
+	titleColor  ColorFunc
+	comment     string
+	mutedtColor ColorFunc
+	subtitle    string
+
+	frame *frame.Frame
 }
 
 func (c *Console) NewBannerBuilder() *BannerConfig {
 	return &BannerConfig{
-		console:      c,
-		defaultColor: c.Palette().White,
+		frame:       c.Frame(),
+		titleColor:  c.Palette().BrightYellow.Sprint,
+		mutedtColor: c.Palette().Dim.Sprint,
 	}
 }
 
-func (b *BannerConfig) WithConsole(c *Console) *BannerConfig {
-	b.console = c
+func (b *BannerConfig) WithFrame(f *frame.Frame) *BannerConfig {
+	b.frame = f
 	return b
 }
 
@@ -299,7 +301,7 @@ func (b *BannerConfig) WithTitle(s string) *BannerConfig {
 	return b
 }
 
-func (b *BannerConfig) WithTitleColor(c ansi.SGR) *BannerConfig {
+func (b *BannerConfig) WithTitleColor(c ColorFunc) *BannerConfig {
 	b.titleColor = c
 	return b
 }
@@ -320,17 +322,15 @@ func (b *BannerConfig) Render() *BannerConfig {
 }
 
 func (b *BannerConfig) Build() *frame.Frame {
-	p := b.console.Palette()
-	title := b.titleColor.Sprint(b.title)
+	title := b.titleColor(b.title)
 	if b.comment != "" {
-		title += p.Dim.With(p.Italic).Sprint(b.comment)
+		title += b.mutedtColor(b.comment)
 	}
 	header := func() string {
-		return b.titleColor.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return b.titleColor(txt.GlyphSmallSquare.Prefix(" "))
 	}
-	return b.console.
-		Frame().
+	return b.frame.
 		CustomFunc(header, title).
 		Ln().
-		Headerln(p.Dim.With(p.Italic).Sprint(b.subtitle))
+		Headerln(b.mutedtColor(b.subtitle))
 }

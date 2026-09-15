@@ -152,10 +152,8 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 }
 
 func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
-	p := c.Palette()
 	c.NewBannerBuilder().
 		WithTitle("Git Tracker Databases").
-		WithTitleColor(p.BrightYellow.With(p.Bold)).
 		WithComment(" (ctrl-c to exit)").
 		WithSubtitle("select which databases to track").
 		Build().
@@ -228,10 +226,8 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		return fmt.Errorf("finding db files: %w", err)
 	}
 
-	p := c.Palette()
 	c.NewBannerBuilder().
 		WithTitle("Git Tracked Databases").
-		WithTitleColor(p.BrightYellow.With(p.Bold)).
 		WithSubtitle("showing tracked databases with git").
 		Build().
 		Rowln().

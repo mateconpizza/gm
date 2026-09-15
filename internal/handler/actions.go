@@ -345,7 +345,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 
 	d.Console().NewBannerBuilder().
 		WithTitle("Remove Database/s").
-		WithTitleColor(p.BrightRed.With(p.Bold)).
+		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 		WithSubtitle("this action cannot be undone").
 		Build().
 		Rowln().

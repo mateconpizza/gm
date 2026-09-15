@@ -88,9 +88,9 @@ func confirmWayback(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, 
 		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
 	}
 
-	d.Console().NewBannerBuilder().
+	d.Console().
+		NewBannerBuilder().
 		WithTitle("Wayback Machine: Fetch "+op).
-		WithTitleColor(p.BrightYellow.With(p.Bold)).
 		WithSubtitle("confirm bookmarks to query in the wayback machine").
 		Build().
 		Rowln().

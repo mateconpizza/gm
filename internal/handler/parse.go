@@ -83,7 +83,6 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 
 	c.NewBannerBuilder().
 		WithTitle("Add Bookmark").
-		WithTitleColor(p.BrightYellow.With(p.Bold)).
 		WithComment(" (ctrl-c to exit)").
 		WithSubtitle(subtitle).
 		Build().
