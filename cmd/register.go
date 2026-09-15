@@ -24,7 +24,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -67,7 +66,6 @@ func initAppConfig(app *application.App) {
 	// enable global color
 	if !app.Flags.Color {
 		ansi.DisableColor()
-		frame.DisableColor()
 	}
 
 	// terminal interactive mode

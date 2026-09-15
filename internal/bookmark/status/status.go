@@ -45,35 +45,34 @@ func (r *Results) Add(res *Response) {
 type Response struct {
 	bookmark   *bookmark.Bookmark
 	statusCode int
+	icons      *frame.Icons
+	p          *ansi.Palette
 }
 
 func (r *Response) String() string {
-	p := ansi.NewPalette()
-	colorStatus, colorCode := prettifyURLStatus(p, r.statusCode)
+	colorStatus, colorCode := prettifyURLStatus(r.p, r.statusCode)
 
 	statusCategory := r.statusCode / 100
-
-	icons := ui.DefaultIconStyle
 
 	var icon frame.IconStyle
 
 	switch statusCategory {
 	case 2: // 2xx status codes
-		icon = icons.Success
+		icon = r.icons.Success
 	case 3: // 3xx status codes
-		icon = icons.Warning
+		icon = r.icons.Warning
 	case 4: // 4xx status codes
-		icon = icons.Error
+		icon = r.icons.Error
 	case 5: // 5xx status codes
-		icon = icons.Error
+		icon = r.icons.Error
 	default: // Other status codes
-		icon = icons.Question
+		icon = r.icons.Question
 	}
 
 	return fmt.Sprintf(
 		"%s %s (%s %s) %s",
-		icon,
-		p.Bold.Sprintf("%-3d", r.bookmark.ID),
+		icon.Symbol,
+		r.p.Bold.Sprintf("%-3d", r.bookmark.ID),
 		colorCode,
 		colorStatus,
 		txt.Shorten(r.bookmark.URL, terminal.NewSize().MinWidth()),
@@ -84,7 +83,7 @@ func (r *Response) String() string {
 func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	start := time.Now()
 
-	sp := setupSpinner(c.Palette())
+	sp := setupSpinner()
 	sp.Start(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -111,7 +110,7 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*book
 				return ctx.Err()
 			default:
 				old := *b
-				res := makeRequest(ctx, w, b)
+				res := makeRequest(ctx, w, p, c.Frame().IconsStyle(), b)
 				if err := ctx.Err(); err != nil {
 					return err
 				}
@@ -166,12 +165,11 @@ func prettifyURLStatus(p *ansi.Palette, code int) (status, statusCode string) {
 }
 
 // fmtSummary formats the summary of the status codes.
-func fmtSummary(c *ui.Console, n, statusCode int, colorFn func(...any) string) string {
+func fmtSummary(p *ansi.Palette, n, statusCode int, colorFn func(...any) string) string {
 	total := fmt.Sprintf(colorFn("%-3d"), n)
 	code := colorFn(statusCode)
 	s := http.StatusText(statusCode)
 
-	p := c.Palette()
 	statusText := p.Italic.Sprint(s)
 	if s == "" {
 		statusText = p.Italic.Sprint("non-standard code")
@@ -210,15 +208,15 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 
 		switch statusCategory {
 		case 2: // 2xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.BrightGreen.With(p.Bold).Sprint))
+			f.Midln(fmtSummary(p, n, statusCode, p.BrightGreen.With(p.Bold).Sprint))
 		case 3: // 3xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.Yellow.With(p.Bold).Sprint))
+			f.Midln(fmtSummary(p, n, statusCode, p.Yellow.With(p.Bold).Sprint))
 		case 4: // 4xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.BrightRed.With(p.Bold).Sprint))
+			f.Midln(fmtSummary(p, n, statusCode, p.BrightRed.With(p.Bold).Sprint))
 		case 5: // 5xx status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.Red.With(p.Bold).Sprint))
+			f.Midln(fmtSummary(p, n, statusCode, p.Red.With(p.Bold).Sprint))
 		default: // Other status codes
-			f.Midln(fmtSummary(c, n, statusCode, p.Yellow.With(p.Bold).Sprint))
+			f.Midln(fmtSummary(p, n, statusCode, p.Yellow.With(p.Bold).Sprint))
 		}
 
 		// adds URLs detail
@@ -248,7 +246,7 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 }
 
 // buildResponse builds a Response from an HTTP response.
-func buildResponse(b *bookmark.Bookmark, statusCode int) Response {
+func buildResponse(p *ansi.Palette, icons *frame.Icons, b *bookmark.Bookmark, statusCode int) Response {
 	b.HTTPStatusCode = statusCode
 	b.HTTPStatusText = http.StatusText(statusCode)
 	b.IsActive = statusCode >= 200 && statusCode <= 299
@@ -257,12 +255,14 @@ func buildResponse(b *bookmark.Bookmark, statusCode int) Response {
 	return Response{
 		bookmark:   b,
 		statusCode: statusCode,
+		p:          p,
+		icons:      icons,
 	}
 }
 
 // handleRequestError handles errors from the HTTP request and determines the
 // appropriate status code.
-func handleRequestError(b *bookmark.Bookmark, err error) Response {
+func handleRequestError(p *ansi.Palette, icons *frame.Icons, b *bookmark.Bookmark, err error) Response {
 	var statusCode int
 
 	switch {
@@ -276,12 +276,12 @@ func handleRequestError(b *bookmark.Bookmark, err error) Response {
 		statusCode = http.StatusNotFound
 	}
 
-	return buildResponse(b, statusCode)
+	return buildResponse(p, icons, b, statusCode)
 }
 
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
 // returns a response.
-func makeRequest(ctx context.Context, w io.Writer, b *bookmark.Bookmark) Response {
+func makeRequest(ctx context.Context, w io.Writer, p *ansi.Palette, icons *frame.Icons, b *bookmark.Bookmark) Response {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -293,13 +293,13 @@ func makeRequest(ctx context.Context, w io.Writer, b *bookmark.Bookmark) Respons
 	)
 	if err != nil {
 		slog.Error("creating request", "url", b.URL, "error", err)
-		return buildResponse(b, http.StatusNotFound)
+		return buildResponse(p, icons, b, http.StatusNotFound)
 	}
 
 	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
-		return handleRequestError(b, err)
+		return handleRequestError(p, icons, b, err)
 	}
 
 	defer func() {
@@ -309,7 +309,7 @@ func makeRequest(ctx context.Context, w io.Writer, b *bookmark.Bookmark) Respons
 		}
 	}()
 
-	return buildResponse(b, resp.StatusCode)
+	return buildResponse(p, icons, b, resp.StatusCode)
 }
 
 func isNetworkUnreachableError(err error) bool {
@@ -326,7 +326,7 @@ func isNetworkUnreachableError(err error) bool {
 	return false
 }
 
-func setupSpinner(p *ansi.Palette) *rotato.Rotato {
+func setupSpinner() *rotato.Rotato {
 	return rotato.New(
 		rotato.WithPrefix("checking URL status"),
 		rotato.WithMessage("processing..."),
@@ -336,7 +336,7 @@ func setupSpinner(p *ansi.Palette) *rotato.Rotato {
 		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
 		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
 		rotato.WithMessageDecorator(func(mesg string) string {
-			return mesg + p.Dim.With(p.Italic).Sprint(" (ctrl-c to cancel)")
+			return mesg + rotato.StyleDim.With(rotato.StyleItalic).Sprint(" (ctrl-c to cancel)")
 		}),
 	)
 }

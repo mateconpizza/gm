@@ -388,7 +388,7 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 
 	// menu.
 	m := app.Menu
-	f.MidCln(p.BrightRed.With(p.Bold), p.BrightRed.Wrap("menu", p.Bold)).
+	f.MidCln(p.BrightRed.With(p.Bold).Sprint, p.BrightRed.Wrap("menu", p.Bold)).
 		Rowln(pad("use defaults", boolFmt(m.Defaults))).
 		Rowln(pad("format", m.Format)).
 		Rowln(pad("prompt", m.Prompt)).
@@ -404,7 +404,7 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 			WithDBName(app.DBBaseName()).
 			WithPlaceholder(ph.Multi()),
 	)
-	f.MidCln(p.BrightMagenta.With(p.Bold), p.BrightMagenta.Wrap("keymaps", p.Bold))
+	f.MidCln(p.BrightMagenta.With(p.Bold).Sprint, p.BrightMagenta.Wrap("keymaps", p.Bold))
 	for i := range keymaps {
 		k := keymaps[i]
 		f.Rowln(pad(k.Desc, formatKeymap(p, k)))
@@ -412,7 +412,7 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 
 	// git.
 	if g := app.Git; g.Enabled {
-		f.MidCln(p.BrightYellow.With(p.Bold), p.BrightYellow.Wrap("git", p.Bold)).
+		f.MidCln(p.BrightYellow.With(p.Bold).Sprint, p.BrightYellow.Wrap("git", p.Bold)).
 			Rowln(pad("enabled", boolFmt(g.Enabled))).
 			Rowln(pad("logging", boolFmt(g.Log))).
 			Rowln(pad("remote", p.Italic.Sprint(g.Remote)))

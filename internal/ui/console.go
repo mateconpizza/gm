@@ -22,6 +22,9 @@ type Console struct {
 	frame   *frame.Frame
 	palette *ansi.Palette
 	writer  io.Writer
+
+	differ       *Differ
+	colorEnabled bool
 }
 
 // Option is a function type for configuring Console.
@@ -49,43 +52,60 @@ func NewConsole(opts ...Option) *Console {
 	return c
 }
 
-var DefaultIconStyle = &frame.Icons{
-	Error:    frame.IconStyle{Symbol: "✗", Color: ansi.BrightRed.With(ansi.Bold)},
-	Warning:  frame.IconStyle{Symbol: "!", Color: ansi.BrightYellow.With(ansi.Bold)},
-	Info:     frame.IconStyle{Symbol: "i", Color: ansi.BrightBlue.With(ansi.Bold)},
-	Question: frame.IconStyle{Symbol: "?", Color: ansi.BrightGreen.With(ansi.Bold)},
-	Success:  frame.IconStyle{Symbol: "✓", Color: ansi.BrightGreen.With(ansi.Bold)},
-}
-
 func NewDefaultConsole(withColor bool, fn func(error)) *Console {
-	return NewConsole(
-		WithFrame(frame.New(
-			frame.WithColorBorder(ansi.Gray),
-			frame.WithIcons(DefaultIconStyle),
-		)),
+	c := NewConsole(
+		WithColor(withColor),
 		WithDefaultTerminal(withColor, fn),
 	)
+
+	p := c.Palette()
+	frameOpts := []frame.OptFn{
+		frame.WithColorBorder(p.Gray.Sprint),
+	}
+
+	if withColor {
+		p := c.Palette()
+		frameOpts = append(frameOpts,
+			frame.WithIcons(&frame.Icons{
+				Error:    frame.IconStyle{Symbol: "✗", Color: p.BrightRed.Sprint},
+				Warning:  frame.IconStyle{Symbol: "!", Color: p.BrightYellow.Sprint},
+				Info:     frame.IconStyle{Symbol: "i", Color: p.BrightBlue.Sprint},
+				Question: frame.IconStyle{Symbol: "?", Color: p.BrightGreen.Sprint},
+				Success:  frame.IconStyle{Symbol: "✓", Color: p.BrightGreen.Sprint},
+			}),
+		)
+	}
+	c.frame = frame.New(frameOpts...)
+
+	return c
 }
 
-// WithTerminal sets a custom terminal.
-func WithTerminal(t *terminal.Term) Option {
-	return func(c *Console) {
-		c.term = t
-	}
-}
+func WithColor(enabled bool) Option        { return func(c *Console) { c.colorEnabled = enabled } }
+func WithFrame(f *frame.Frame) Option      { return func(c *Console) { c.frame = f } }
+func WithTerminal(t *terminal.Term) Option { return func(c *Console) { c.term = t } }
+func WithWriter(w io.Writer) Option        { return func(c *Console) { c.writer = w } }
 
-// WithFrame sets a custom frame.
-func WithFrame(f *frame.Frame) Option {
-	return func(c *Console) {
-		c.frame = f
-	}
-}
-
-func WithWriter(w io.Writer) Option {
-	return func(c *Console) {
-		c.writer = w
-	}
-}
+func (c *Console) Term() *terminal.Term                      { return c.term }
+func (c *Console) Frame() *frame.Frame                       { return c.frame }
+func (c *Console) Palette() *ansi.Palette                    { return c.palette }
+func (c *Console) Differ() *Differ                           { return c.differ }
+func (c *Console) Writer() io.Writer                         { return c.writer }
+func (c *Console) IsPiped() bool                             { return c.term.IsPiped() }
+func (c *Console) ReplaceLine(s string)                      { c.term.ReplaceLine(1, s) }
+func (c *Console) ReplaceLines(n int, s string)              { c.term.ReplaceLine(n, s) }
+func (c *Console) SetReader(r io.Reader)                     { c.term.SetReader(r) }
+func (c *Console) SetWriter(w io.Writer)                     { c.term.SetWriter(w) }
+func (c *Console) Error(s string) *frame.Frame               { return c.frame.Reset().Error(s) }
+func (c *Console) Info(s string) *frame.Frame                { return c.frame.Reset().Info(s) }
+func (c *Console) Success(s string) *frame.Frame             { return c.frame.Reset().Success(s) }
+func (c *Console) Warning(s string) *frame.Frame             { return c.frame.Reset().Warning(s) }
+func (c *Console) Flush() *frame.Frame                       { return c.frame.Flush() }
+func (c *Console) Reset() *frame.Frame                       { return c.frame.Reset() }
+func (c *Console) MaxWidth() int                             { return c.Term().MaxWidth() }
+func (c *Console) MinWidth() int                             { return c.Term().MinWidth() }
+func (c *Console) Width() int                                { return c.Term().Width() }
+func (c *Console) Height() int                               { return c.Term().Height() }
+func (c *Console) Print(ctx context.Context, s string) error { return c.Term().Print(ctx, s) }
 
 func WithDefaultTerminal(withColor bool, f func(error)) Option {
 	p := ansi.NewPalette()
@@ -202,26 +222,43 @@ func (c *Console) InfoMesg(a ...any) string {
 	return c.frame.Reset().Info(info + mesg).StringReset()
 }
 
-func (c *Console) Term() *terminal.Term                      { return c.term }
-func (c *Console) Frame() *frame.Frame                       { return c.frame }
-func (c *Console) Palette() *ansi.Palette                    { return c.palette }
-func (c *Console) Writer() io.Writer                         { return c.writer }
-func (c *Console) IsPiped() bool                             { return c.term.IsPiped() }
-func (c *Console) ReplaceLine(s string)                      { c.term.ReplaceLine(1, s) }
-func (c *Console) ReplaceLines(n int, s string)              { c.term.ReplaceLine(n, s) }
-func (c *Console) SetReader(r io.Reader)                     { c.term.SetReader(r) }
-func (c *Console) SetWriter(w io.Writer)                     { c.term.SetWriter(w) }
-func (c *Console) Error(s string) *frame.Frame               { return c.frame.Reset().Error(s) }
-func (c *Console) Info(s string) *frame.Frame                { return c.frame.Reset().Info(s) }
-func (c *Console) Success(s string) *frame.Frame             { return c.frame.Reset().Success(s) }
-func (c *Console) Warning(s string) *frame.Frame             { return c.frame.Reset().Warning(s) }
-func (c *Console) Flush() *frame.Frame                       { return c.frame.Flush() }
-func (c *Console) Reset() *frame.Frame                       { return c.frame.Reset() }
-func (c *Console) MaxWidth() int                             { return c.Term().MaxWidth() }
-func (c *Console) MinWidth() int                             { return c.Term().MinWidth() }
-func (c *Console) Width() int                                { return c.Term().Width() }
-func (c *Console) Height() int                               { return c.Term().Height() }
-func (c *Console) Print(ctx context.Context, s string) error { return c.Term().Print(ctx, s) }
+type Differ struct {
+	enabled bool
+
+	muted func(a ...any) string
+	add   func(a ...any) string
+	del   func(a ...any) string
+}
+
+type DifferOpts struct {
+	Enabled bool
+
+	Muted func(a ...any) string
+	Add   func(a ...any) string
+	Del   func(a ...any) string
+}
+
+func NewDiffer(opts *DifferOpts) *Differ {
+	return &Differ{
+		enabled: opts.Enabled,
+		muted:   opts.Muted,
+		add:     opts.Add,
+		del:     opts.Del,
+	}
+}
+
+func (d *Differ) Added(s string) string   { return d.apply(s, d.add) }
+func (d *Differ) Deleted(s string) string { return d.apply(s, d.del) }
+func (d *Differ) Muted(s string) string   { return d.apply(s, d.muted) }
+
+func (d *Differ) apply(s string, dc func(a ...any) string) string {
+	if !d.enabled || dc == nil {
+		return s
+	}
+	return dc(s)
+}
+
+type ColorFunc func(a ...any) string
 
 type BannerConfig struct {
 	title        string

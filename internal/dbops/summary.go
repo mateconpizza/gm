@@ -124,7 +124,7 @@ func repository(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	f := d.Console().Frame()
-	f.HeaderCln(p.Yellow, p.Yellow.Wrap(name, p.Italic)).
+	f.HeaderCln(p.Yellow.Sprint, p.Yellow.Wrap(name, p.Italic)).
 		Rowln(txt.PaddedLine("records:", stats.Bookmarks)).
 		Rowln(txt.PaddedLine("tags:", stats.Tags))
 
@@ -192,7 +192,7 @@ func repoBackupListDetail(ctx context.Context, d *deps.Deps, complete bool) (str
 
 	f := c.Frame()
 
-	f.HeaderCln(p.BrightCyan, p.BrightCyan.Wrap("summary:", p.Italic))
+	f.HeaderCln(p.BrightCyan.Sprint, p.BrightCyan.Wrap("summary:", p.Italic))
 	if err != nil {
 		return f.Row(txt.PaddedLine("found:", "n/a\n")).String(), nil
 	}
@@ -230,7 +230,7 @@ func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 	p := d.Console().Palette()
 	f := d.Console().Frame()
 
-	f.HeaderCln(p.BrightMagenta, p.BrightMagenta.Wrap("backups:", p.Italic)).
+	f.HeaderCln(p.BrightMagenta.Sprint, p.BrightMagenta.Wrap("backups:", p.Italic)).
 		Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(backupPath))).
 		Rowln(txt.PaddedLine("found:", strconv.Itoa(len(fs))+" backups found"))
 
