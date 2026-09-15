@@ -152,7 +152,10 @@ func (app *App) Validate() error {
 
 // PrettyVersion formats version information.
 func (app *App) PrettyVersion() string {
-	name := ansi.BrightBlue.Wrap(app.Name, ansi.Bold)
+	name := app.Name
+	if app.Flags.Color {
+		name = ansi.BrightBlue.Wrap(app.Name, ansi.Bold)
+	}
 
 	ver := app.Version()
 	if ver != "dev" {

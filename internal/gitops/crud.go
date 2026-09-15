@@ -31,6 +31,7 @@ type ManagerConfig struct {
 	Root    string
 	Writer  io.Writer
 	Version string
+	Color   bool
 }
 
 func (mc *ManagerConfig) Validate() error {
@@ -46,7 +47,7 @@ func NewManager(cfg *ManagerConfig) (*git.Mgr, error) {
 		return nil, err
 	}
 
-	g, err := NewGit(cfg.Writer, cfg.Root)
+	g, err := NewGit(cfg.Writer, cfg.Root, cfg.Color)
 	if err != nil {
 		return nil, err
 	}
@@ -58,19 +59,19 @@ func NewManager(cfg *ManagerConfig) (*git.Mgr, error) {
 	)
 }
 
-func NewGit(w io.Writer, root string) (*git.Git, error) {
-	// FIX: dont use `ansi.SGR`, use `*ansi.Palette`
+func NewGit(w io.Writer, root string, withColor bool) (*git.Git, error) {
+	p := ansi.NewPalette(withColor)
 	return git.New(
 		root,
 		[]git.GitOpt{
-			// add Command logger
+			// command logger
 			git.WithGitCommandLogger(func(w io.Writer, commands []string) {
 				headerFrame := frame.New(
-					frame.WithColorBorder(ansi.BrightYellow.Sprint),
+					frame.WithColorBorder(p.BrightYellow.Sprint),
 					frame.WithBordersSmallBlock(),
 					frame.WithWriter(w),
 				)
-				fullCmd := ansi.BrightYellow.Wrap(strings.Join(commands, " "), ansi.Italic)
+				fullCmd := p.BrightYellow.Wrap(strings.Join(commands, " "), p.Italic)
 				headerFrame.Midln(fullCmd).Flush()
 			}),
 

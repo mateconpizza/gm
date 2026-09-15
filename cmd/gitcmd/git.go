@@ -28,7 +28,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		PersistentPreRunE:  cli.HookGitEnsureEnv(app),
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git())
+			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git(), app.Flags.Color)
 			if err != nil {
 				return err
 			}
@@ -69,6 +69,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				Root:    app.Path.Git(),
 				Writer:  app.Git.Writer(),
 				Version: app.Version(),
+				Color:   app.Flags.Color,
 			})
 			if err != nil {
 				return err
@@ -101,6 +102,7 @@ func newPushCmd(app *application.App) *cobra.Command {
 				Root:    app.Path.Git(),
 				Writer:  app.Git.Writer(),
 				Version: app.Version(),
+				Color:   app.Flags.Color,
 			})
 			if err != nil {
 				return err
@@ -125,6 +127,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 				Root:    app.Path.Git(),
 				Writer:  app.Git.Writer(),
 				Version: app.Version(),
+				Color:   app.Flags.Color,
 			})
 			if err != nil {
 				return err
@@ -161,7 +164,7 @@ func newRawCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git())
+			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git(), app.Flags.Color)
 			if err != nil {
 				return err
 			}
@@ -261,6 +264,7 @@ func newSyncCmd(app *application.App) *cobra.Command {
 				Root:    app.Path.Git(),
 				Writer:  app.Git.Writer(),
 				Version: app.Version(),
+				Color:   app.Flags.Color,
 			})
 			if err != nil {
 				return err

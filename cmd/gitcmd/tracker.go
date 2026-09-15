@@ -76,6 +76,7 @@ func newMgrCmd(app *application.App) *cobra.Command {
 				Root:    app.Path.Git(),
 				Writer:  app.Git.Writer(),
 				Version: app.Version(),
+				Color:   app.Flags.Color,
 			})
 			if err != nil {
 				return err

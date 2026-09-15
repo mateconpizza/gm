@@ -114,6 +114,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		Root:    app.Path.Git(),
 		Writer:  app.Git.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err

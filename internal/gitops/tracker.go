@@ -35,6 +35,7 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		Root:    app.Path.Git(),
 		Writer:  app.Git.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err
@@ -110,6 +111,7 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 		Root:    app.Path.Git(),
 		Writer:  app.Git.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err
@@ -212,6 +214,7 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		Root:    app.Path.Git(),
 		Writer:  app.Git.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err

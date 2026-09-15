@@ -220,6 +220,7 @@ func HookGitSync(app *application.App) HookE {
 			Root:    app.Path.Git(),
 			Writer:  os.Stdout,
 			Version: app.Version(),
+			Color:   app.Flags.Color,
 		})
 		if err != nil {
 			return err
@@ -245,6 +246,7 @@ func HookGitPrune(app *application.App) HookE {
 			Root:    app.Path.Git(),
 			Writer:  os.Stdout,
 			Version: app.Version(),
+			Color:   app.Flags.Color,
 		})
 		if err != nil {
 			return fmt.Errorf("hook git: new git manager: %w", err)

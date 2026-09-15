@@ -372,6 +372,7 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		Root:    app.Path.Git(),
 		Writer:  d.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err

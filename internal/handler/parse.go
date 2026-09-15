@@ -419,6 +419,7 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		Root:    app.Path.Git(),
 		Writer:  app.Git.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err
