@@ -154,7 +154,7 @@ func (gr *Repo) Rm(ctx context.Context, b *bookmark.Bookmark, postRemoval PostRe
 	}
 
 	if err := gr.remover(ctx, gr.Fullpath(), []*bookmark.Bookmark{b}); err != nil {
-		return fmt.Errorf("remove bookmark %q from repo %q: %w", b.ID, gr.Fullpath(), err)
+		return fmt.Errorf("remove bookmark %d from repo %q: %w", b.ID, gr.Fullpath(), err)
 	}
 
 	gr.bookmarks = slices.DeleteFunc(

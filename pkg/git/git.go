@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -276,7 +277,7 @@ func (g *Git) SetUpstream(ctx context.Context, repoPath string) error {
 }
 
 func (g *Git) run(ctx context.Context, repoPath string, commands ...string) error {
-	g.commandLogger(g.writer, commands)
+	g.commandLogger(g.writer, slices.Insert(commands, 0, g.cmd.bin))
 	return g.cmd.Exec(ctx, g.writer, repoPath, commands...)
 }
 
