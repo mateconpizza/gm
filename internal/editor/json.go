@@ -36,8 +36,8 @@ func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookm
 	return bm, nil
 }
 
-func (JSONStrategy) Diff(oldB, newB *bookmark.Bookmark) string {
-	return txt.DiffColorize(txt.Diff(oldB.Bytes(), newB.Bytes()))
+func (JSONStrategy) Diff(d Differ, old, fresh *bookmark.Bookmark) string {
+	return txt.DiffColorize(d, txt.Diff(old.Bytes(), fresh.Bytes()))
 }
 
 func (JSONStrategy) FileType() string { return "json" }

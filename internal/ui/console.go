@@ -32,7 +32,7 @@ type Option func(*Console)
 
 // NewConsole creates a new Console with the given options.
 func NewConsole(opts ...Option) *Console {
-	c := &Console{palette: ansi.NewPalette()}
+	c := &Console{}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -47,6 +47,19 @@ func NewConsole(opts ...Option) *Console {
 
 	if c.writer == nil {
 		c.writer = os.Stdout
+	}
+
+	if c.palette == nil {
+		c.palette = ansi.NewPalette()
+	}
+
+	if c.differ == nil {
+		c.differ = NewDiffer(&DifferOpts{
+			Enabled: c.colorEnabled,
+			Add:     c.palette.BrightGreen.Sprint,
+			Del:     c.palette.BrightRed.Sprint,
+			Muted:   c.palette.Dim.Sprint,
+		})
 	}
 
 	return c

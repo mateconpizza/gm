@@ -10,6 +10,12 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
+type mockDiffer struct{}
+
+func (m *mockDiffer) Added(s string) string   { return "" }
+func (m *mockDiffer) Deleted(s string) string { return "" }
+func (m *mockDiffer) Muted(s string) string   { return "" }
+
 type fakeTerminal struct {
 	chooseAnswer string
 	chooseErr    error
@@ -46,8 +52,8 @@ func (f *fakeStrategy) ParseBuffer(_ context.Context, _ []byte, _ *bookmark.Book
 	return f.parsed, f.parseErr
 }
 
-func (f *fakeStrategy) Diff(_, _ *bookmark.Bookmark) string { return "diff" }
-func (f *fakeStrategy) FileType() string                    { return "bm" }
+func (f *fakeStrategy) Diff(_ editor.Differ, _, _ *bookmark.Bookmark) string { return "diff" }
+func (f *fakeStrategy) FileType() string                                     { return "bm" }
 
 func TestEditSessionRun(t *testing.T) {
 	t.Parallel()
@@ -95,6 +101,7 @@ func TestEditSessionRun(t *testing.T) {
 				WithStrategy(strategy).
 				WithTerminal(term).
 				WithEditor(&fakeEditor{out: []byte("edited")}).
+				WithDiffer(&mockDiffer{}).
 				WithPersistFunc(func(_ context.Context, _, _ *bookmark.Bookmark) error {
 					persistCalls++
 					return nil
@@ -125,6 +132,7 @@ func TestEditSessionValidate(t *testing.T) {
 		withTerm     bool
 		withEditor   bool
 		withPersist  bool
+		withDiffer   bool
 		wantErrMsg   string // substring expected in the error, empty means no error
 	}{
 		{
@@ -133,6 +141,7 @@ func TestEditSessionValidate(t *testing.T) {
 			withTerm:     true,
 			withEditor:   true,
 			withPersist:  true,
+			withDiffer:   true,
 		},
 		{
 			name:         "missing_strategy_checked_first",
@@ -140,6 +149,7 @@ func TestEditSessionValidate(t *testing.T) {
 			withTerm:     true,
 			withEditor:   true,
 			withPersist:  true,
+			withDiffer:   true,
 			wantErrMsg:   "WithStrategy",
 		},
 		{
@@ -148,6 +158,7 @@ func TestEditSessionValidate(t *testing.T) {
 			withTerm:     false,
 			withEditor:   true,
 			withPersist:  true,
+			withDiffer:   true,
 			wantErrMsg:   "WithTerminal",
 		},
 		{
@@ -156,6 +167,7 @@ func TestEditSessionValidate(t *testing.T) {
 			withTerm:     true,
 			withEditor:   false,
 			withPersist:  true,
+			withDiffer:   true,
 			wantErrMsg:   "WithEditor",
 		},
 		{
@@ -164,7 +176,17 @@ func TestEditSessionValidate(t *testing.T) {
 			withTerm:     true,
 			withEditor:   true,
 			withPersist:  false,
+			withDiffer:   true,
 			wantErrMsg:   "WithPersistFunc",
+		},
+		{
+			name:         "missing_differ_func",
+			withStrategy: true,
+			withTerm:     true,
+			withEditor:   true,
+			withPersist:  true,
+			withDiffer:   false,
+			wantErrMsg:   "WithDiffer",
 		},
 	}
 
@@ -185,6 +207,9 @@ func TestEditSessionValidate(t *testing.T) {
 				session = session.WithPersistFunc(func(context.Context, *bookmark.Bookmark, *bookmark.Bookmark) error {
 					return nil
 				})
+			}
+			if tt.withDiffer {
+				session = session.WithDiffer(&mockDiffer{})
 			}
 
 			err := session.Run(t.Context(), []*bookmark.Bookmark{})

@@ -63,8 +63,8 @@ func (ns *NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, og *bookma
 	return clone, nil
 }
 
-func (ns *NotesStrategy) Diff(old, fresh *bookmark.Bookmark) string {
-	return txt.DiffColorize(txt.Diff([]byte(old.Notes), []byte(fresh.Notes)))
+func (ns *NotesStrategy) Diff(d Differ, old, fresh *bookmark.Bookmark) string {
+	return txt.DiffColorize(d, txt.Diff([]byte(old.Notes), []byte(fresh.Notes)))
 }
 
 func (ns *NotesStrategy) FileType() string { return "md" }

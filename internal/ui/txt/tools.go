@@ -1,10 +1,6 @@
 package txt
 
-import (
-	"strings"
-
-	"github.com/mateconpizza/gm/pkg/ansi"
-)
+import "strings"
 
 const (
 	addMarker = "+\u00A0"
@@ -16,9 +12,15 @@ func Diff(a, b []byte) string {
 	return newDiff(a, b, addMarker, delMarker)
 }
 
+type Colors interface {
+	Muted(s string) string
+	Added(s string) string
+	Deleted(s string) string
+}
+
 // DiffColorize colorizes the diff output.
-func DiffColorize(text string) string {
-	return newDiffColor(text, addMarker, delMarker)
+func DiffColorize(c Colors, text string) string {
+	return newDiffColor(c, text, addMarker, delMarker)
 }
 
 func newDiff(a, b []byte, add, del string) string {
@@ -71,18 +73,16 @@ func newDiff(a, b []byte, add, del string) string {
 	return strings.Join(diffLines, "\n")
 }
 
-func newDiffColor(text, add, del string) string {
-	p := ansi.NewPalette()
+func newDiffColor(c Colors, text, add, del string) string {
 	var r []string
-
 	for l := range strings.SplitSeq(text, "\n") {
 		switch {
 		case strings.HasPrefix(l, add):
-			r = append(r, " "+p.BrightGreen.Sprint(l))
+			r = append(r, " "+c.Added(l))
 		case strings.HasPrefix(l, del):
-			r = append(r, " "+p.BrightRed.Sprint(l))
+			r = append(r, " "+c.Deleted(l))
 		default:
-			r = append(r, " "+p.Dim.Sprint(l))
+			r = append(r, " "+c.Muted(l))
 		}
 	}
 

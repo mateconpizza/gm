@@ -86,6 +86,7 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 
 		session := editor.NewEditSession().
 			WithStrategy(strategy).
+			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, r, old, fresh)
 			})
@@ -529,6 +530,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	case "e", "edit":
 		session := editor.NewEditSession().
 			WithStrategy(editor.NewBookmarkStrategy()).
+			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, r, old, fresh)
 			})
@@ -555,12 +557,12 @@ func displayBookmarkChanges(w io.Writer, c *ui.Console, b, updated *bookmark.Boo
 
 	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Title:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColorize(txt.Diff([]byte(b.Title), []byte(updated.Title))))
+		fmt.Fprintln(w, txt.DiffColorize(c.Differ(), txt.Diff([]byte(b.Title), []byte(updated.Title))))
 	}
 
 	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
 		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColorize(txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
+		fmt.Fprintln(w, txt.DiffColorize(c.Differ(), txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
 	}
 }
 

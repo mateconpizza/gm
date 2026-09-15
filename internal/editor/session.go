@@ -44,6 +44,8 @@ type EditSession struct {
 	meta     *Meta
 	strategy EditStrategy
 	writer   io.Writer
+
+	diffColor Differ
 }
 
 func NewEditSession() *EditSession {
@@ -88,6 +90,11 @@ func (e *EditSession) WithPersistFunc(fn PersistFunc) *EditSession {
 	return e
 }
 
+func (e *EditSession) WithDiffer(dc Differ) *EditSession {
+	e.diffColor = dc
+	return e
+}
+
 // Run processes records for editing using the specified strategy.
 func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark) error {
 	if err := e.validate(); err != nil {
@@ -122,7 +129,7 @@ func (e *EditSession) processSingleRecord(ctx context.Context, original *bookmar
 			return err
 		}
 
-		fmt.Fprintln(e.writer, e.strategy.Diff(original, updated))
+		fmt.Fprintln(e.writer, e.strategy.Diff(e.diffColor, original, updated))
 
 		opt, err := e.term.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
@@ -183,6 +190,9 @@ func (e *EditSession) validate() error {
 	}
 	if e.persist == nil {
 		return fn("PersistFunc")
+	}
+	if e.diffColor == nil {
+		return fn("Differ")
 	}
 	return nil
 }
