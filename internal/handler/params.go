@@ -13,7 +13,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -110,7 +109,7 @@ func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {
 func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, args []string) error {
 	inputURL := args[0]
 	if inputURL == "" || !ValidURL(args[0]) {
-		return sys.ErrExitFailure
+		return app.Failure()
 	}
 
 	t := c.Term()
@@ -138,7 +137,7 @@ func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, a
 	}
 
 	if newURL == "" {
-		return sys.ErrExitFailure
+		return app.Failure()
 	}
 
 	if !t.StdinPiped() {

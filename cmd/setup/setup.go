@@ -15,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -44,7 +43,7 @@ var InitCmd = &cobra.Command{
 		}
 
 		c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-			sys.ErrAndExit(err)
+			app.Exit(err)
 		})
 
 		return initializeAction(
@@ -126,7 +125,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	}
 
 	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-		sys.ErrAndExit(err)
+		app.Exit(err)
 	})
 	if !c.Confirm(cmd.Context(), fmt.Sprintf("Track database %q?", name), "n") {
 		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", name)).String())

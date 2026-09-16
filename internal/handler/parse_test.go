@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -158,14 +158,14 @@ func Test_SaveNewBookmark(t *testing.T) {
 			force:     false,
 			repoUnset: false,
 			input:     "no\n",
-			wantErr:   sys.ErrActionAborted,
+			wantErr:   application.ErrActionAborted,
 		},
 		{
 			name:      "prompt_case_insensitive_n",
 			force:     false,
 			repoUnset: false,
 			input:     "N\n",
-			wantErr:   sys.ErrActionAborted,
+			wantErr:   application.ErrActionAborted,
 		},
 		{
 			name:      "repo_not_found",

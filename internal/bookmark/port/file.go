@@ -13,7 +13,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -130,14 +129,14 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 		return err
 	}
 
-	if len(deduplicated) == 0 {
-		c.Frame().Error(ErrNothingToImport.Error() + "\n").Flush()
-		return sys.ErrExitFailure
-	}
-
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
+	}
+
+	if len(deduplicated) == 0 {
+		c.Frame().Error(ErrNothingToImport.Error() + "\n").Flush()
+		return app.Failure()
 	}
 
 	if !app.Flags.Force && !app.Flags.Yes {
@@ -210,7 +209,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 
 		switch strings.ToLower(opt) {
 		case "n", "no":
-			return nil, sys.ErrActionAborted
+			return nil, app.Abort()
 
 		case "s", "select":
 			fm := app.Formatter()

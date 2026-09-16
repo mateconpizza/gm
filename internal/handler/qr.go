@@ -13,7 +13,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -50,9 +49,14 @@ func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 			continue
 		}
 
+		app, err := d.Application(ctx)
+		if err != nil {
+			return err
+		}
+
 		if err := c.WaitForEnter(ctx, fmt.Sprintf("[%d/%d] Press ENTER to continue...", i+1, n)); err != nil {
 			if errors.Is(err, context.Canceled) {
-				return sys.ErrActionAborted
+				return app.Abort()
 			}
 			return err
 		}

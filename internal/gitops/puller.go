@@ -9,8 +9,8 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -107,7 +107,7 @@ func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
 	case "y", "yes":
 		return nil
 	case "n", "no":
-		return sys.ErrActionAborted
+		return application.ErrActionAborted
 	case "s", "select":
 		repos, err := m.Select(gp.repos)
 		if err != nil {

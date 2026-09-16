@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	"github.com/mateconpizza/gm/internal/sys/browser/blink"
 	"github.com/mateconpizza/gm/internal/sys/browser/gecko"
@@ -36,6 +36,9 @@ func ImportFromBrowser(ctx context.Context, d *deps.Deps) error {
 	// find bookmarks
 	bs, err := br.Browser.Import(ctx, d.Console(), app.Flags.Yes)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return app.Abort()
+		}
 		return fmt.Errorf("import from browser %q: %w", strings.ToLower(br.Browser.Name()), err)
 	}
 
@@ -68,17 +71,17 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 		return nil, err
 	}
 
+	app, err := d.Application(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(bs) == 0 {
 		p := c.Palette()
 		c.Frame().Error("no new bookmark found, ").
 			Textln(p.BrightYellow.Wrap("skipping import", p.Italic)).
 			Flush()
-		return bs, sys.ErrExitFailure
-	}
-
-	app, err := d.Application(ctx)
-	if err != nil {
-		return nil, err
+		return bs, app.Failure()
 	}
 
 	if !app.Flags.Yes &&

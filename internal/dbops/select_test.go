@@ -11,7 +11,7 @@ import (
 
 	menu "github.com/mateconpizza/go-fzf"
 
-	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
@@ -145,7 +145,7 @@ func TestSelector_Select(t *testing.T) {
 					WithOpts(menu.WithRunner(r))
 			},
 			want:    nil,
-			wantErr: sys.ErrActionAborted,
+			wantErr: application.ErrActionAborted,
 		},
 		{
 			name: "custom_formatters_applied",

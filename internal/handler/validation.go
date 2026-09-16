@@ -12,7 +12,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -54,7 +53,7 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 
 		switch strings.ToLower(opt) {
 		case "n", "no":
-			return nil, sys.ErrActionAborted
+			return nil, app.Abort()
 		case "y", "yes":
 			return bs, nil
 		case "s", "select":
@@ -106,7 +105,7 @@ func extractIDsFrom(args []string) ([]int, error) {
 }
 
 // validateRemove checks if the remove operation is valid.
-func validateRemove(bs []*bookmark.Bookmark, force bool) error {
+func validateRemove(bs []*bookmark.Bookmark, force bool, err error) error {
 	if len(bs) == 0 {
 		return db.ErrRecordNotFound
 	}
@@ -114,7 +113,7 @@ func validateRemove(bs []*bookmark.Bookmark, force bool) error {
 	if terminal.StdinPiped() && !force {
 		return fmt.Errorf(
 			"%w: input from pipe is not supported yet. use --force",
-			sys.ErrActionAborted,
+			err,
 		)
 	}
 

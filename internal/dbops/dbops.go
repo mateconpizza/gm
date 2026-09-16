@@ -18,7 +18,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -57,7 +56,7 @@ func ReorderDatabase(ctx context.Context, app *application.App, r reorderStore, 
 		Flush()
 
 	if !c.Confirm(ctx, "continue?", "n") {
-		return sys.ErrExitFailure
+		return app.Failure()
 	}
 
 	if c.Confirm(ctx, "create backup?", "y") {
@@ -222,6 +221,10 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	if len(fs) == 0 {
+		return db.ErrBackupNotFound
+	}
+
 	if app.Flags.Yes || app.Flags.Force {
 		return removeSlicePath(ctx, d, fs)
 	}
@@ -247,6 +250,10 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 // Lock locks the database.
 func Lock(ctx context.Context, c consolePass, items []string) error {
 	for i := range items {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		toLock := items[i]
 
 		if err := locker.IsLocked(toLock); err != nil {
@@ -301,7 +308,7 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 	}
 
 	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-		sys.ErrAndExit(err)
+		app.Exit(err)
 	})
 
 	return Lock(ctx, c, selected)
@@ -362,7 +369,7 @@ func LockBackup(ctx context.Context, app *application.App, c *ui.Console) error 
 	f.Header(fmt.Sprintf("locking %d backups\n", len(selected))).Row("\n").Flush()
 
 	if err := Lock(ctx, c, selected); err != nil {
-		if errors.Is(err, sys.ErrActionAborted) || errors.Is(err, terminal.ErrIncorrectAttempts) {
+		if errors.Is(err, app.Abort()) || errors.Is(err, terminal.ErrIncorrectAttempts) {
 			f.Warning(p.Gray.With(p.Italic).Sprintf("skipped: %s\n", err.Error())).Flush()
 		}
 
@@ -474,10 +481,6 @@ func Backups(ctx context.Context, d *deps.Deps) ([]string, error) {
 		return nil, err
 	}
 
-	if len(bks) == 0 {
-		return nil, db.ErrBackupNotFound
-	}
-
 	return bks, nil
 }
 
@@ -554,32 +557,6 @@ func BackupList(ctx context.Context, d *deps.Deps) error {
 	}
 
 	fmt.Fprint(d.Writer(), bkDetail)
-
-	return nil
-}
-
-func Diagnostic(ctx context.Context, d *deps.Deps) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	f := d.Console().Frame()
-	p := d.Console().Palette()
-	defer f.Flush()
-
-	title := p.BrightYellow.
-		Wrap("Database Doctor", p.Bold)
-
-	f.Headerln(title).
-		Rowln().
-		Midln("integrity_check").
-		Midln("foreign_key_check").
-		Midln("missing indexes").
-		Midln("orphan tags").
-		Midln("invalid status").
-		Midln("duplicated checksums")
 
 	return nil
 }

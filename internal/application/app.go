@@ -217,6 +217,9 @@ func (app *App) GitEnabled() bool               { return app.Git.Enabled }
 func (app *App) Version() string                { return app.Info.Version }
 func (app *App) Command() string                { return app.Cmd }
 func (app *App) Formatter() formatter.Formatter { return app.UI.Formatter }
+func (app *App) Abort() error                   { return ErrActionAborted }
+func (app *App) Failure() error                 { return ErrExitFailure }
+func (app *App) Exit(err error)                 { Exit(err) }
 
 func (app *App) Example(template string) string {
 	return strings.NewReplacer(

@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -145,7 +144,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 			fmt.Fprintln(os.Stdout)
 
 			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-				sys.ErrAndExit(err)
+				app.Exit(err)
 			})
 			return gitops.TrackMgr(cmd.Context(), gm, c, dbFiles)
 		},
@@ -207,7 +206,7 @@ func newDisableCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !app.GitEnabled() {
 				slog.Warn("git: already disable")
-				return sys.ErrExitFailure
+				return app.Failure()
 			}
 
 			app.Git.Enabled = false
@@ -230,7 +229,7 @@ func newEnableCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.GitEnabled() {
 				slog.Warn("git: already enabled")
-				return sys.ErrExitFailure
+				return app.Failure()
 			}
 
 			app.Git.Enabled = true
@@ -311,7 +310,7 @@ func newLoggingCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.Git.Log {
 				slog.Warn("git: output logging already enable")
-				return sys.ErrExitFailure
+				return app.Failure()
 			}
 
 			app.Git.Log = true
@@ -327,7 +326,7 @@ func newLoggingCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !app.Git.Log {
 				slog.Warn("git: output logging already disable")
-				return sys.ErrExitFailure
+				return app.Failure()
 			}
 
 			app.Git.Log = false

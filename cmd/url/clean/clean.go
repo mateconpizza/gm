@@ -10,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -75,7 +74,7 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 		Short: "strip URL params from input",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-				sys.ErrAndExit(err)
+				app.Exit(err)
 			})
 			return handler.ParamsUserInput(cmd.Context(), app, c, args)
 		},

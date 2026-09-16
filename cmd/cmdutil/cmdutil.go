@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -49,7 +48,7 @@ func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 
 	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
 		r.Close()
-		sys.ErrAndExit(err)
+		app.Exit(err)
 	})
 
 	d := deps.New(

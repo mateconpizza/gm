@@ -143,7 +143,7 @@ func HTTPStatusCheck(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark)
 	c, p := d.Console(), d.Console().Palette()
 	q := fmt.Sprintf("checking %s of %d bookmarks", p.BrightGreen.Wrap("status", p.Bold), len(bs))
 	if err = c.ConfirmLimit(ctx, len(bs), 15, q, app.Flags.Force); err != nil {
-		return sys.ErrActionAborted
+		return app.Abort()
 	}
 
 	bs, err = status.Check(ctx, c, bs)
@@ -233,7 +233,7 @@ func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) 
 
 	s := fmt.Sprintf("update metadata of %d bookmarks", len(bs))
 	if err := c.ConfirmLimit(ctx, len(bs), 10, s, app.Flags.Force); err != nil {
-		return sys.ErrActionAborted
+		return app.Abort()
 	}
 
 	if len(bs) > 1 {
@@ -283,6 +283,7 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		Root:    app.Path.Git(),
 		Writer:  d.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err
@@ -317,6 +318,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		Root:    app.Path.Git(),
 		Writer:  d.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err
@@ -353,7 +355,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 	for i := range items {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
-				return sys.ErrActionAborted
+				return app.Abort()
 			}
 			return err
 		}
@@ -626,6 +628,7 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		Root:    app.Path.Git(),
 		Writer:  d.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err
@@ -671,7 +674,9 @@ func persistFunc(ctx context.Context, app *application.App, r bookmarkStore, old
 
 	gm, err := gitops.NewManager(&gitops.ManagerConfig{
 		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
 		Version: app.Version(),
+		Color:   app.Flags.Color,
 	})
 	if err != nil {
 		return err

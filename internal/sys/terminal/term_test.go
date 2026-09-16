@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/application"
 )
 
 func TestHelper(t *testing.T) {
@@ -114,7 +114,7 @@ func TestTestConfirmErr(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !errors.Is(err, sys.ErrExitFailure) {
+		if !errors.Is(err, application.ErrExitFailure) {
 			t.Errorf("expected ErrActionAborted, got: %v", err)
 		}
 	})
@@ -262,7 +262,7 @@ func TestTerm_InputPassword(t *testing.T) {
 			isTerminal:   true,
 			readPassword: "hunter2",
 			cancelBefore: true,
-			wantErr:      sys.ErrActionAborted,
+			wantErr:      application.ErrActionAborted,
 		},
 	}
 

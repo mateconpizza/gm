@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
@@ -181,7 +180,7 @@ func (s *Selector) Select(ctx context.Context, opts ...menu.Option) ([]string, e
 
 	selected, err := m.Select(dbs)
 	if errors.Is(err, menu.ErrActionAborted) {
-		return nil, sys.ErrActionAborted
+		return nil, application.ErrActionAborted
 	}
 
 	return selected, nil
