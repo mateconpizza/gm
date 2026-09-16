@@ -9,7 +9,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -181,7 +180,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(T) s
 	result, err := m.Select(items)
 	if err != nil {
 		if errors.Is(err, menu.ErrActionAborted) {
-			return nil, sys.ErrActionAborted
+			return nil, application.ErrActionAborted
 		}
 
 		return nil, fmt.Errorf("%w", err)

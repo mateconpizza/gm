@@ -220,7 +220,7 @@ func repoBackups(ctx context.Context, d *deps.Deps) (string, error) {
 
 	backupPath := app.Path.Backup()
 	fs, err := Backups(ctx, d)
-	if !errors.Is(err, db.ErrBackupNotFound) {
+	if errors.Is(err, db.ErrBackupNotFound) {
 		return "", err
 	}
 	if len(fs) == 0 {

@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -63,7 +62,7 @@ func Database(ctx context.Context, d *deps.Deps, srcDB storeReader) error {
 		menu.WithInterruptFn(func(err error) {
 			destDB.Close()
 			srcDB.Close()
-			sys.ErrAndExit(err)
+			app.Exit(err)
 		}),
 	)
 	m.SetFormatter(func(b *bookmark.Bookmark) string {

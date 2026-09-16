@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
@@ -124,7 +124,7 @@ func WithDefaultTerminal(withColor bool, f func(error)) Option {
 		WithHotkey(p.Red).
 		WithError(p.BrightRed.With(p.Bold)).
 		WithSuccess(p.BrightGreen.With(p.Bold)).
-		WithSelected(p.BrightMagenta.With(p.Bold)).
+		WithSelected(p.BrightYellow).
 		WithMuted(p.Dim)
 
 	return WithTerminal(terminal.New(
@@ -147,7 +147,7 @@ func (c *Console) ConfirmLimit(ctx context.Context, count, maxItems int, q strin
 		return nil
 	}
 	if !c.Confirm(ctx, q+", continue?", "n") {
-		return sys.ErrActionAborted
+		return application.ErrActionAborted
 	}
 	c.ReplaceLine(c.Frame().Midln(q).StringReset())
 	return nil

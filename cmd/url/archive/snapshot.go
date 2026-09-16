@@ -15,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -36,7 +35,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 					if len(bs) == 0 {
 						slog.Debug("URL archive: no items found")
-						return sys.ErrExitFailure
+						return app.Failure()
 					}
 
 					var sb strings.Builder

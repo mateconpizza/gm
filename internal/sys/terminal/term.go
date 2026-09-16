@@ -16,7 +16,7 @@ import (
 	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
 
-	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/application"
 )
 
 // defaultInterruptFn is the default interrupt function for the terminal.
@@ -153,7 +153,7 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 
 	select {
 	case <-ctx.Done():
-		return "", sys.ErrActionAborted
+		return "", application.ErrActionAborted
 	case result := <-resultChan:
 		if result.err != nil {
 			return "", fmt.Errorf("reading password: %w", result.err)
@@ -181,7 +181,7 @@ func (t *Term) Prompt(ctx context.Context, p string) (string, error) {
 
 	select {
 	case <-ctx.Done():
-		return "", sys.ErrActionAborted
+		return "", application.ErrActionAborted
 	case result := <-resultChan:
 		if result.err != nil {
 			return "", result.err
@@ -245,7 +245,7 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 	}
 
 	if !strings.EqualFold(chosen, "y") {
-		return sys.ErrExitFailure
+		return application.ErrExitFailure
 	}
 
 	return nil

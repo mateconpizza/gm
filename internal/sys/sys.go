@@ -16,29 +16,11 @@ import (
 	"time"
 
 	"github.com/atotto/clipboard"
-
-	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/sys/cleanup"
 )
 
 var (
-	ErrCopyToClipboard   = errors.New("copy to clipboard")
-	ErrNotImplementedYet = errors.New("not implemented yet")
-	ErrActionAborted     = errors.New("action aborted")
-	ErrExitFailure       = errors.New("exit failure")
-	ErrSysCmdNotFound    = errors.New("command not found")
-)
-
-// Exit codes used by the application.
-const (
-	// ExitSuccess indicates normal termination.
-	ExitSuccess = 0
-
-	// ExitInterrupted is the conventional exit code for Ctrl+C (SIGINT).
-	ExitInterrupted = 130
-
-	// ExitFailure indicates a general failure or unhandled error.
-	ExitFailure = 1
+	ErrCopyToClipboard = errors.New("copy to clipboard")
+	ErrSysCmdNotFound  = errors.New("command not found")
 )
 
 // Env retrieves an environment variable.
@@ -169,31 +151,9 @@ func ReadClipboard() string {
 	return s
 }
 
-// ErrAndExit logs the error and exits the program.
-func ErrAndExit(err error) {
-	cleanup.Run()
-
-	switch {
-	case err == nil:
-		os.Exit(ExitSuccess)
-
-	case errors.Is(err, ErrExitFailure):
-		os.Exit(ExitFailure)
-
-	case errors.Is(err, ErrActionAborted):
-		slog.Debug("interrupted by user")
-		os.Exit(ExitInterrupted)
-
-	default:
-		slog.Warn("exit", "error", err)
-		fmt.Fprintf(os.Stderr, "%s: %s\n", application.Name, err)
-		os.Exit(ExitFailure)
-	}
-}
-
 // WithSignalContext returns a context that is canceled when an interrupt or
 // termination signal is received.
-func WithSignalContext(parent context.Context) (context.Context, context.CancelFunc) {
+func WithSignalContext(parent context.Context, err error) (context.Context, context.CancelFunc) {
 	ctx, cancelCause := context.WithCancelCause(parent)
 
 	signals := make(chan os.Signal, 1)
@@ -211,7 +171,7 @@ func WithSignalContext(parent context.Context) (context.Context, context.CancelF
 		case s := <-signals:
 			slog.Debug("received signal", "signal", s)
 			fmt.Fprintln(os.Stdout)
-			cancelCause(fmt.Errorf("%w with signal %s", ErrActionAborted, s))
+			cancelCause(fmt.Errorf("%w with signal %s", err, s))
 		}
 	}()
 

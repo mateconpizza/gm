@@ -20,7 +20,7 @@ func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
-	if err := validateRemove(bs, app.Flags.Force); err != nil {
+	if err := validateRemove(bs, app.Flags.Force, app.Abort()); err != nil {
 		return err
 	}
 

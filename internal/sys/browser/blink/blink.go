@@ -166,12 +166,7 @@ type blinkBookmark struct {
 }
 
 // Define a function to traverse the bookmark folder.
-func traverseBmFolder(
-	children []any,
-	uniqueTag string,
-	parentName string,
-	addParentFolderAsTag bool,
-) [][]string {
+func traverseBmFolder(children []any, uniqueTag, parentName string, addParentFolderAsTag bool) [][]string {
 	var results [][]string
 
 	for _, child := range children {

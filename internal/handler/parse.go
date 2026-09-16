@@ -384,7 +384,7 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 
 	switch strings.ToLower(opt) {
 	case "n", "no":
-		return sys.ErrActionAborted
+		return app.Abort()
 	case "e", "edit":
 		session := editor.NewEditSession().
 			WithStrategy(editor.NewBookmarkStrategy()).

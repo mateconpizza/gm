@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -167,7 +166,7 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 	for i, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
-				return sys.ErrExitFailure
+				return application.ErrExitFailure
 			}
 
 			return err

@@ -12,7 +12,7 @@ import (
 
 	prompt "github.com/c-bata/go-prompt"
 
-	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/application"
 )
 
 const (
@@ -132,24 +132,24 @@ func inputWithFuzzySuggestions[T any](t *Term, p string, items []T) string {
 
 // Confirm prompts the user with a question and options.
 func Confirm(ctx context.Context, q, def string) bool {
-	t := New(WithInterruptFn(sys.ErrAndExit))
+	t := New(WithInterruptFn(application.Exit))
 	return t.Confirm(ctx, q, def)
 }
 
 // ConfirmErr prompts the user with a question and options.
 func ConfirmErr(ctx context.Context, q, def string) error {
-	t := New(WithInterruptFn(sys.ErrAndExit))
+	t := New(WithInterruptFn(application.Exit))
 	return t.ConfirmErr(ctx, q, def)
 }
 
 // Choose prompts the user to enter one of the given options.
 func Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
-	t := New(WithInterruptFn(sys.ErrAndExit))
+	t := New(WithInterruptFn(application.Exit))
 	return t.Choose(ctx, q, opts, def)
 }
 
 func Password(ctx context.Context) (string, error) {
-	t := New(WithInterruptFn(sys.ErrAndExit))
+	t := New(WithInterruptFn(application.Exit))
 	return t.InputPassword(ctx)
 }
 
@@ -290,7 +290,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 		// wait for input, context cancellation, or timeout
 		select {
 		case <-ctx.Done():
-			return "", sys.ErrActionAborted
+			return "", application.ErrActionAborted
 		case result := <-resultChan:
 			if result.err != nil {
 				slog.Error("error reading input", "error", result.err)
@@ -408,7 +408,7 @@ func quitKeybind(t *Term) prompt.KeyBind {
 				}
 			}
 
-			t.interruptFn(sys.ErrActionAborted)
+			t.interruptFn(application.ErrActionAborted)
 		},
 	}
 }

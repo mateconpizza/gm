@@ -18,7 +18,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/editor"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -62,7 +61,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 				return err
 			}
 			return createConfig(app, ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-				sys.ErrAndExit(err)
+				app.Exit(err)
 			}))
 		},
 	}

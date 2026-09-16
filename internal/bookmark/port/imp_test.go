@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -66,7 +66,7 @@ func Test_ImportBookmarksFromBackup(t *testing.T) {
 			name:         "empty_selection_returns_exit_failure",
 			srcBookmarks: testutil.NewBookmarkSlice(t, 3),
 			selected:     []*bookmark.Bookmark{},
-			wantErr:      sys.ErrExitFailure,
+			wantErr:      application.ErrExitFailure,
 			// no promptInput needed: short-circuits before the prompt
 		},
 		{
@@ -90,7 +90,7 @@ func Test_ImportBookmarksFromBackup(t *testing.T) {
 			name:         "no_bookmarks_in_source_empty_selection",
 			srcBookmarks: []*bookmark.Bookmark{},
 			selected:     []*bookmark.Bookmark{},
-			wantErr:      sys.ErrExitFailure,
+			wantErr:      application.ErrExitFailure,
 		},
 		{
 			name:         "large_number_of_bookmarks",

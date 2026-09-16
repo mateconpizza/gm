@@ -265,7 +265,7 @@ func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Finger
 	m := picker.New[*gpg.Fingerprint](
 		app,
 		menu.WithHeader(" select a fingerprint "),
-		menu.WithInterruptFn(func(err error) { sys.ErrAndExit(err) }),
+		menu.WithInterruptFn(func(err error) { app.Exit(err) }),
 		menu.WithMultilineView(),
 		menu.WithPreviewCmd(gpg.Command+" --list-keys {+4}"),
 	)

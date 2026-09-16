@@ -18,7 +18,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -43,7 +42,7 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 	t := d.Console().Term()
 	t.SetInterruptFn(func(err error) {
 		fn()
-		sys.ErrAndExit(err)
+		app.Exit(err)
 	})
 
 	gp, err := fetchGitRepos(ctx, d, app, tmpPath)

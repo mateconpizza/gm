@@ -15,7 +15,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -51,7 +50,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				op := waybackOperation(app.Flags)
 				if !confirmWayback(cmd.Context(), d, bs, op) {
-					return sys.ErrExitFailure
+					return app.Failure()
 				}
 				return runWayback(ctx, d, app.Flags, bs)
 			})
