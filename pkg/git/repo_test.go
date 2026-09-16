@@ -1107,8 +1107,7 @@ func TestDecodeJSON(t *testing.T) {
 			err := decodeJSON([]byte(tt.data), &got)
 
 			if tt.wantErr {
-				var syntaxErr *json.SyntaxError
-				if !errors.As(err, &syntaxErr) {
+				if _, ok := errors.AsType[*json.SyntaxError](err); !ok {
 					t.Fatalf("decodeJSON() error = %v, want *json.SyntaxError", err)
 				}
 				return

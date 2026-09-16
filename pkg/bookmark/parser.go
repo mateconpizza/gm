@@ -133,8 +133,8 @@ func ValidateChecksumJSON(b *BookmarkJSON) bool {
 func Fields() []string {
 	t := reflect.TypeFor[Bookmark]()
 	fields := make([]string, 0, t.NumField())
-	for i := range t.NumField() {
-		if tag := t.Field(i).Tag.Get("db"); tag != "" && tag != "-" {
+	for field := range t.Fields() {
+		if tag := field.Tag.Get("db"); tag != "" && tag != "-" {
 			fields = append(fields, tag)
 		}
 	}

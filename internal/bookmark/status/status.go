@@ -313,9 +313,7 @@ func makeRequest(ctx context.Context, w io.Writer, p *ansi.Palette, icons *frame
 }
 
 func isNetworkUnreachableError(err error) bool {
-	var netOpErr *net.OpError
-
-	if errors.As(err, &netOpErr) {
+	if netOpErr, ok := errors.AsType[*net.OpError](err); ok {
 		return netOpErr.Op == "connect" &&
 			strings.Contains(
 				netOpErr.Err.Error(),
