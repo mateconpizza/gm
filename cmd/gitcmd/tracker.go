@@ -18,10 +18,7 @@ func newTrackerCmd(app *application.App) *cobra.Command {
 		Short:   "configure repository tracking",
 		Aliases: []string{"t", "track"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-				app.Exit(err)
-			})
-			return gitops.TrackMgrStatus(c, app)
+			return gitops.TrackMgrStatus(ui.NewDefaultConsole(app.Flags.Color, app.Exit), app)
 		},
 	}
 
@@ -80,10 +77,7 @@ func newMgrCmd(app *application.App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-				app.Exit(err)
-			})
-			return gitops.TrackMgr(cmd.Context(), gm, c, dbFiles)
+			return gitops.TrackMgr(cmd.Context(), gm, ui.NewDefaultConsole(app.Flags.Color, app.Exit), dbFiles)
 		},
 	}
 

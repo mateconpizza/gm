@@ -60,9 +60,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 			if err := app.Validate(); err != nil {
 				return err
 			}
-			return createConfig(app, ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-				app.Exit(err)
-			}))
+			return createConfig(app, ui.NewDefaultConsole(app.Flags.Color, app.Exit))
 		},
 	}
 	cmdutil.HideFlag(c, "db")

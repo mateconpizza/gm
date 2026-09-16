@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -21,6 +20,7 @@ import (
 var (
 	ErrCopyToClipboard = errors.New("copy to clipboard")
 	ErrSysCmdNotFound  = errors.New("command not found")
+	ErrNoArguments     = errors.New("no arguments provided")
 )
 
 // Env retrieves an environment variable.
@@ -28,9 +28,10 @@ var (
 // If the environment variable is not set, returns the default value.
 func Env(s, def string) string {
 	if v, ok := os.LookupEnv(s); ok {
+		slog.Debug("environment variable found", "variable", s)
 		return v
 	}
-
+	slog.Debug("environment variable not set, using default", "variable", s)
 	return def
 }
 
@@ -41,65 +42,65 @@ func BinPath(s string) string {
 		slog.Debug("binary not found", "which", s, "error", err)
 		return ""
 	}
-
 	slog.Debug("binary path", "which", s, "found", path)
 	return path
 }
 
 // BinExists checks if the binary exists in $PATH.
 func BinExists(s string) bool {
-	return BinPath(s) != ""
+	_, err := exec.LookPath(s)
+	exists := err == nil
+	slog.Debug("checked binary", "binary", s, "exists", exists)
+	return exists
 }
 
 // Which checks if the command exists in $PATH.
 func Which(cmd string) (string, error) {
+	slog.Debug("looking up command", "command", cmd)
 	path, err := exec.LookPath(cmd)
 	if err != nil {
+		slog.Debug("command not found", "command", cmd, "error", err)
 		return "", ErrSysCmdNotFound
 	}
+	slog.Debug("command found", "command", cmd, "path", path)
 	return path, nil
 }
 
 // ExecuteCmd runs a command with the given arguments and returns an error if
 // the command fails.
 func ExecuteCmd(ctx context.Context, arg ...string) error {
-	slog.Debug("execute", "exe", arg[0], "with args", arg[1:])
+	if len(arg) == 0 {
+		slog.Error("cannot execute command: no arguments provided")
+		return fmt.Errorf("executing command: %w", ErrNoArguments)
+	}
+
+	slog.Debug("executing command", "command", arg[0], "args", arg[1:])
+
 	cmd := exec.CommandContext(ctx, arg[0], arg[1:]...)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("running command: %w", err)
+		slog.Error("command failed", "command", arg[0], "args", arg[1:], "error", err)
+		return fmt.Errorf("running %s: %w", arg[0], err)
 	}
 
-	return nil
-}
-
-// ExecCmdWithWriter runs a command with the given arguments and writes the
-// output to the writer.
-func ExecCmdWithWriter(ctx context.Context, w io.Writer, r io.Reader, s ...string) error {
-	slog.Debug("ExecCmdWithWriter", "cmds", s)
-	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
-	cmd.Stdin = r
-	cmd.Stdout = w
-	cmd.Stderr = w
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
+	slog.Debug("command completed", "command", arg[0])
 	return nil
 }
 
 // RunCmd returns an *exec.Cmd with the given arguments.
 func RunCmd(ctx context.Context, s string, arg ...string) error {
+	slog.Debug("running command", "command", s, "args", arg)
+
 	cmd := exec.CommandContext(ctx, s, arg...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	slog.Debug("running command", "command", s, "args", arg)
-
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("%w", err)
+	if err := cmd.Run(); err != nil {
+		slog.Error("command failed", "command", s, "args", arg, "error", err)
+		return fmt.Errorf("running %s: %w", s, err)
 	}
 
+	slog.Debug("command completed", "command", s)
 	return nil
 }
 
@@ -115,7 +116,7 @@ func OSArgs() []string {
 	default:
 		args = []string{"xdg-open"}
 	}
-
+	slog.Debug("selected OS command", "os", runtime.GOOS, "args", args)
 	return args
 }
 
@@ -123,31 +124,35 @@ func OSArgs() []string {
 func OpenInBrowser(ctx context.Context, s string) error {
 	args := OSArgs()
 	args = append(args, s)
+	slog.Debug("opening URL in browser", "url", s)
 	return ExecuteCmd(ctx, args...)
 }
 
 // CopyClipboard copies a string to the clipboard.
 func CopyClipboard(s string) error {
-	err := clipboard.WriteAll(s)
-	if err != nil {
+	if err := clipboard.WriteAll(s); err != nil {
+		slog.Error("failed to copy text to clipboard", "error", err)
 		return fmt.Errorf("%w: %w", ErrCopyToClipboard, err)
 	}
 
 	time.Sleep(150 * time.Millisecond)
 
-	slog.Debug("text copied to clipboard", "text", s)
+	slog.Debug("text copied to clipboard", "length", len(s))
 
 	return nil
 }
 
 // ReadClipboard reads the contents of the clipboard.
 func ReadClipboard() string {
+	slog.Debug("reading clipboard")
+
 	s, err := clipboard.ReadAll()
 	if err != nil {
-		slog.Warn("could not read clipboard", "err", err)
+		slog.Warn("failed to read clipboard", "error", err)
 		return ""
 	}
 
+	slog.Debug("clipboard read successfully", "length", len(s))
 	return s
 }
 
@@ -164,19 +169,28 @@ func WithSignalContext(parent context.Context, err error) (context.Context, cont
 		syscall.SIGHUP,  // Terminal closed
 	)
 
+	slog.Debug("signal context initialized")
+
 	go func() {
 		select {
 		case <-ctx.Done():
-			return // parent canceled
+			slog.Debug("signal context canceled", "cause", context.Cause(ctx))
+			return
 		case s := <-signals:
-			slog.Debug("received signal", "signal", s)
+			cause := fmt.Errorf("%w with signal %s", err, s)
+			slog.Debug("received termination signal",
+				"signal", s,
+				"cause", cause,
+			)
 			fmt.Fprintln(os.Stdout)
-			cancelCause(fmt.Errorf("%w with signal %s", err, s))
+			cancelCause(cause)
 		}
 	}()
 
 	return ctx, func() {
+		slog.Debug("canceling signal context")
 		signal.Stop(signals)
-		cancelCause(nil) // normal cancel
+		cancelCause(nil)
+		slog.Debug("signal context canceled")
 	}
 }

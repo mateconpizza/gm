@@ -307,11 +307,7 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 		return err
 	}
 
-	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-		app.Exit(err)
-	})
-
-	return Lock(ctx, c, selected)
+	return Lock(ctx, ui.NewDefaultConsole(app.Flags.Color, app.Exit), selected)
 }
 
 // UnlockDatabase select and unlock a database.

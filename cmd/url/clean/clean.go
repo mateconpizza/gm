@@ -73,10 +73,7 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 		Use:   "text [url]",
 		Short: "strip URL params from input",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-				app.Exit(err)
-			})
-			return handler.ParamsUserInput(cmd.Context(), app, c, args)
+			return handler.ParamsUserInput(cmd.Context(), app, ui.NewDefaultConsole(app.Flags.Color, app.Exit), args)
 		},
 	}
 	return c

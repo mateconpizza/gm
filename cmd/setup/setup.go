@@ -42,15 +42,11 @@ var InitCmd = &cobra.Command{
 			return fmt.Errorf("failed to get config: %w", err)
 		}
 
-		c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-			app.Exit(err)
-		})
-
 		return initializeAction(
 			cmd.Context(),
 			deps.New(
 				deps.WithApplication(app),
-				deps.WithConsole(c),
+				deps.WithConsole(ui.NewDefaultConsole(app.Flags.Color, app.Exit)),
 			),
 		)
 	},
@@ -124,9 +120,8 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
-		app.Exit(err)
-	})
+	c := ui.NewDefaultConsole(app.Flags.Color, app.Exit)
+
 	if !c.Confirm(cmd.Context(), fmt.Sprintf("Track database %q?", name), "n") {
 		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", name)).String())
 		return nil

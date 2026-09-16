@@ -89,7 +89,7 @@ func Exec(ctx context.Context, repoPath string, commands ...string) error {
 // defaultExecuter runs a command with the given arguments and writes the
 // output to the writer.
 func defaultExecuter(ctx context.Context, dir string, w io.Writer, r io.Reader, s ...string) error {
-	slog.Debug("ExecCmdWithWriter", "cmds", s)
+	slog.Debug("defaultExecuter", "cmds", s)
 	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
 	cmd.Dir = dir
 	cmd.Stdin = r

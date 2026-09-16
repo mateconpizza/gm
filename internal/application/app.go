@@ -121,7 +121,6 @@ func (app *App) Load() error {
 		slog.Debug("config file is invalid, using defaults", "error", err)
 	}
 
-	app.Git.Load()
 	app.Flags.Output = app.Format
 
 	return app.SetDatabase(app.DBName)

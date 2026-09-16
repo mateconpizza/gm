@@ -36,10 +36,11 @@ func Exit(err error) {
 		os.Exit(ExitSuccess)
 
 	case errors.Is(err, ErrExitFailure):
+		slog.Debug(ErrExitFailure.Error())
 		os.Exit(ExitFailure)
 
 	case errors.Is(err, ErrActionAborted):
-		slog.Debug("interrupted by user")
+		slog.Debug(ErrActionAborted.Error())
 		os.Exit(ExitInterrupted)
 
 	default:

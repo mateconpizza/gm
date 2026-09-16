@@ -1,6 +1,10 @@
 package application
 
-import "io"
+import (
+	"fmt"
+	"io"
+	"log/slog"
+)
 
 type Git struct {
 	Enabled bool   `json:"enabled" yaml:"enabled"` // Enable git
@@ -31,4 +35,8 @@ func (g *Git) Load() {
 	if !g.Log {
 		g.writer = io.Discard
 	}
+	slog.Info("git initialized",
+		"log_enabled", g.Log,
+		"writer", fmt.Sprintf("%T", g.writer),
+	)
 }

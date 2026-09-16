@@ -68,6 +68,9 @@ func initAppConfig(app *application.App) {
 			app.Flags.Force ||
 			terminal.StdinPiped(),
 	)
+
+	// git
+	app.Git.Load()
 }
 
 func registerCleanups(_ *application.App) {
