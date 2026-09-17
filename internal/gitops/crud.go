@@ -56,11 +56,12 @@ func NewManager(cfg *ManagerConfig) (*git.Mgr, error) {
 		cfg.Root,
 		git.WithGit(g),
 		git.WithVersion(cfg.Version),
+		git.WithColor(cfg.Color),
 	)
 }
 
-func NewGit(w io.Writer, root string, withColor bool) (*git.Git, error) {
-	p := ansi.NewPalette(withColor)
+func NewGit(w io.Writer, root string, color bool) (*git.Git, error) {
+	p := ansi.NewPalette(color)
 	return git.New(
 		root,
 		[]git.GitOpt{
@@ -81,7 +82,7 @@ func NewGit(w io.Writer, root string, withColor bool) (*git.Git, error) {
 	)
 }
 
-func Add(ctx context.Context, gm manager, gr *git.Repo, b *bookmark.Bookmark) error {
+func Add(ctx context.Context, gm gitManager, gr *git.Repo, b *bookmark.Bookmark) error {
 	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}
@@ -93,7 +94,7 @@ func Add(ctx context.Context, gm manager, gr *git.Repo, b *bookmark.Bookmark) er
 	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] bookmark added", gr.Name()))
 }
 
-func Remove(ctx context.Context, gm manager, gr *git.Repo, bs []*bookmark.Bookmark) error {
+func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Bookmark) error {
 	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}
@@ -105,7 +106,7 @@ func Remove(ctx context.Context, gm manager, gr *git.Repo, bs []*bookmark.Bookma
 	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] remove bookmarks", gr.Name()))
 }
 
-func Drop(ctx context.Context, gm manager, gr *git.Repo, c console) error {
+func Drop(ctx context.Context, gm gitManager, gr *git.Repo, c console) error {
 	if !gm.IsEnabled() {
 		slog.Debug("git repo: git disable")
 		return nil
@@ -135,7 +136,7 @@ func Drop(ctx context.Context, gm manager, gr *git.Repo, c console) error {
 	return c.Print(ctx, c.SuccessMesg("database untracked\n"))
 }
 
-func Update(ctx context.Context, gm manager, gr *git.Repo, old, fresh *bookmark.Bookmark) error {
+func Update(ctx context.Context, gm gitManager, gr *git.Repo, old, fresh *bookmark.Bookmark) error {
 	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}

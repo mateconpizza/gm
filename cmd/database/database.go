@@ -129,9 +129,9 @@ func newDropCmd(app *application.App) *cobra.Command {
 				}
 
 				gr := gm.NewRepo(r.Name(),
-					gitops.RepoFileReader(),
+					gitops.RepoFileReader(gm.Color()),
 					gitops.RepoFileRemover(),
-					gitops.RepoFileWriter(),
+					gitops.RepoFileWriter(gm.Color()),
 					gitops.RepoStatsReader(r),
 				)
 

@@ -159,7 +159,11 @@ func (gp *GitPuller) scan() error {
 func (gp *GitPuller) loadAll() error {
 	for _, repoName := range gp.found {
 		fullpath := filepath.Join(gp.srcDir, repoName)
-		gr := git.NewRepo(repoName, fullpath, RepoFileReader())
+		gr := git.NewRepo(
+			repoName,
+			fullpath,
+			RepoFileReader(gp.console.Palette().Enabled()),
+		)
 
 		gp.repos = append(gp.repos, gr)
 	}

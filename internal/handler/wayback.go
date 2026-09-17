@@ -42,6 +42,7 @@ func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 	results := make(chan SnapshotResult, len(bs))
 
 	sp := rotato.New(
+		rotato.WithColor(d.Console().Palette().Enabled()),
 		rotato.WithPrefix("Snapshots"),
 		rotato.WithPrefixDecorator(func(prefix string) string { // n/N <prefix>
 			current := count.Load()
@@ -261,11 +262,9 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 	deadline, _ := ctx.Deadline()
 
 	sp := rotato.New(
+		rotato.WithColor(c.Palette().Enabled()),
 		rotato.WithPrefix("Snapshots"),
-		rotato.WithSpinnerColor(
-			rotato.FgBrightGreen,
-			rotato.StyleBold,
-		),
+		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
 		rotato.WithMessage("fetching "+p.Italic.Sprint(u)),
 		rotato.WithMessageDecorator(func(mesg string) string {
 			remaining := max(

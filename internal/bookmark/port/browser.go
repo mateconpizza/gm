@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mateconpizza/rotato"
+
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -89,7 +91,16 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 		return bs, nil
 	}
 
-	if err := metadata.ScrapeDescriptions(ctx, bs); err != nil {
+	sp := rotato.New(
+		rotato.WithColor(app.Flags.Color),
+		rotato.WithSpinnerColor(rotato.FgGray),
+		rotato.WithMessage("scraping missing data..."),
+		rotato.WithMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
+		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
+		rotato.WithDoneSymbolColor(rotato.FgBrightGreen, rotato.StyleBold),
+	)
+
+	if err := metadata.ScrapeDescriptions(ctx, sp, bs); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 

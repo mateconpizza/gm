@@ -11,6 +11,11 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
+type fakeSpinner struct{}
+
+func (sp fakeSpinner) Start(ctx context.Context) {}
+func (sp fakeSpinner) Done(mesg ...string)       {}
+
 func TestBookmarkStrategyParseBufferDelegates(t *testing.T) {
 	t.Parallel()
 
@@ -425,7 +430,7 @@ func TestDefaultParseBuffer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := defaultParseBuffer(t.Context(), tt.buf, tt.original)
+			got, err := defaultParseBuffer(t.Context(), tt.buf, tt.original, &fakeSpinner{})
 
 			if tt.wantErrAny {
 				if err == nil {

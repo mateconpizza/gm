@@ -53,7 +53,18 @@ func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
-	if err := openInBrowser(ctx, bs); err != nil {
+	sp := rotato.New(
+		rotato.WithColor(app.Flags.Color),
+		rotato.WithMessage("opening bookmarks..."),
+		rotato.WithMessageColor(rotato.FgBrightGreen),
+		rotato.WithSpinnerColor(rotato.FgBrightGreen),
+	)
+
+	if err := openInBrowser(ctx, &openOpts{
+		spinner:   sp,
+		bookmarks: bs,
+		opener:    sys.OpenInBrowser,
+	}); err != nil {
 		return err
 	}
 
@@ -290,9 +301,9 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(),
+		gitops.RepoFileReader(gm.Color()),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(),
+		gitops.RepoFileWriter(gm.Color()),
 		git.WithRepoStore(r),
 	)
 	if !gm.IsTracked(gr.Name()) {
@@ -401,9 +412,9 @@ func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) err
 	if gm.IsTracked(name) {
 		result.WriteString(" and untracked")
 		gr := gm.NewRepo(name,
-			gitops.RepoFileReader(),
+			gitops.RepoFileReader(gm.Color()),
 			gitops.RepoFileRemover(),
-			gitops.RepoFileWriter(),
+			gitops.RepoFileWriter(gm.Color()),
 		)
 		if !gm.IsTracked(gr.Name()) {
 			return nil
@@ -420,27 +431,32 @@ func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) err
 	return nil
 }
 
-// openInBrowser concurrently opens each bookmark URL in the browser.
-func openInBrowser(ctx context.Context, bs []*bookmark.Bookmark) error {
-	sp := rotato.New(
-		rotato.WithMessage("opening bookmarks..."),
-		rotato.WithMessageColor(rotato.FgBrightGreen),
-		rotato.WithSpinnerColor(rotato.FgBrightGreen),
-	)
+type spinner interface {
+	Start(ctx context.Context)
+	Done(mesg ...string)
+}
 
-	sp.Start(ctx)
-	defer sp.Done()
+type openOpts struct {
+	spinner   spinner
+	bookmarks []*bookmark.Bookmark
+	opener    func(ctx context.Context, s string) error
+}
+
+// openInBrowser concurrently opens each bookmark URL in the browser.
+func openInBrowser(ctx context.Context, opts *openOpts) error {
+	opts.spinner.Start(ctx)
+	defer opts.spinner.Done()
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(runtime.NumCPU())
 
-	for _, b := range bs {
+	for _, b := range opts.bookmarks {
 		g.Go(func() error {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				if err := sys.OpenInBrowser(ctx, b.URL); err != nil {
+				if err := opts.opener(ctx, b.URL); err != nil {
 					return fmt.Errorf("open error: %w", err)
 				}
 
@@ -529,8 +545,14 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 
 	case "e", "edit":
+		sp := rotato.New(
+			rotato.WithColor(app.Flags.Color),
+			rotato.WithMessage("scraping webpage..."),
+			rotato.WithMessageColor(rotato.FgYellow),
+			rotato.WithSpinnerColor(rotato.FgBrightMagenta),
+		)
 		session := editor.NewEditSession().
-			WithStrategy(editor.NewBookmarkStrategy()).
+			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(sp)).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, r, old, fresh)
@@ -573,11 +595,14 @@ func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark
 	p := c.Palette()
 	bid := p.Bold.With(p.Blue).Sprintf("[%d]", b.ID)
 
-	sc := scraper.New(
-		updatedB.URL,
-		scraper.WithSpinner(c.Info(bid+" updating bookmark "+p.BrightCyan.Wrap(su, p.Italic)).String()),
+	sp := rotato.New(
+		rotato.WithColor(c.Palette().Enabled()),
+		rotato.WithMessage(c.Info(bid+" updating bookmark "+p.BrightCyan.Wrap(su, p.Italic)).String()),
+		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithSpinnerColor(rotato.FgBrightMagenta),
 	)
 
+	sc := scraper.New(updatedB.URL, scraper.WithSpinner(sp))
 	if err := sc.Start(ctx); err != nil {
 		return updatedB, err
 	}
@@ -635,9 +660,9 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 	}
 
 	gr := gm.NewRepo(r.BaseName(),
-		gitops.RepoFileReader(),
+		gitops.RepoFileReader(gm.Color()),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(),
+		gitops.RepoFileWriter(gm.Color()),
 		gitops.RepoStatsReader(r),
 	)
 
@@ -683,9 +708,9 @@ func persistFunc(ctx context.Context, app *application.App, r bookmarkStore, old
 	}
 
 	gr := gm.NewRepo(app.DBBaseName(),
-		gitops.RepoFileReader(),
+		gitops.RepoFileReader(gm.Color()),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(),
+		gitops.RepoFileWriter(gm.Color()),
 		gitops.RepoStatsReader(r),
 	)
 

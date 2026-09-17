@@ -80,9 +80,9 @@ func newCommitCmd(app *application.App) *cobra.Command {
 			}
 
 			gr := gm.NewRepo(r.Name(),
-				gitops.RepoFileReader(),
+				gitops.RepoFileReader(gm.Color()),
 				gitops.RepoFileRemover(),
-				gitops.RepoFileWriter(),
+				gitops.RepoFileWriter(gm.Color()),
 				git.WithRepoStore(r),
 			)
 			return gm.SaveChanges(cmd.Context(), gr, cmd.Short)
@@ -267,9 +267,9 @@ func newSyncCmd(app *application.App) *cobra.Command {
 			}
 
 			gr := gm.NewRepo(r.Name(),
-				gitops.RepoFileReader(),
+				gitops.RepoFileReader(gm.Color()),
 				gitops.RepoFileRemover(),
-				gitops.RepoFileWriter(),
+				gitops.RepoFileWriter(gm.Color()),
 				gitops.RepoStatsReader(r),
 			)
 

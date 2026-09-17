@@ -29,6 +29,10 @@ func NewTracker(destDir string) *Tracker {
 	}
 }
 
+func (t *Tracker) Contains(name string) bool { return slices.Contains(t.repos, name) }
+func (t *Tracker) List() []string            { return t.repos }
+func (t *Tracker) Reset()                    { t.repos = make([]string, 0) }
+
 // Load loads the tracked repositories from the file (if exists).
 func (t *Tracker) Load() error {
 	if fileExists(t.filename) {
@@ -76,14 +80,4 @@ func (t *Tracker) Untrack(name string) error {
 
 	slog.Debug("result", "repos", t.repos)
 	return nil
-}
-
-// Contains checks if a repository is tracked.
-func (t *Tracker) Contains(name string) bool {
-	return slices.Contains(t.repos, name)
-}
-
-// Repos returns the tracked repositories.
-func (t *Tracker) Repos() []string {
-	return t.repos
 }

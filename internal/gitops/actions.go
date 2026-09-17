@@ -24,11 +24,11 @@ import (
 
 var _ bookio.FileManager = (*files.FileManager)(nil)
 
-func RepoFileReader() git.RepoOptFunc         { return git.WithRepoReader(readFiles) }
-func RepoFileRemover() git.RepoOptFunc        { return git.WithRepoRemover(removeFiles) }
-func RepoFileWriter() git.RepoOptFunc         { return git.WithRepoWriter(addFiles) }
-func RepoStatsReader(r store) git.RepoOptFunc { return git.WithRepoStore(r) }
-func MgrVersion(ver string) git.MgrOptFunc    { return git.WithVersion(ver) }
+func RepoFileReader(color bool) git.RepoOptFunc { return git.WithRepoReader(readFiles(color)) }
+func RepoFileRemover() git.RepoOptFunc          { return git.WithRepoRemover(removeFiles) }
+func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(addFiles(color)) }
+func RepoStatsReader(r store) git.RepoOptFunc   { return git.WithRepoStore(r) }
+func MgrVersion(ver string) git.MgrOptFunc      { return git.WithVersion(ver) }
 
 // Init initializes Git support and configures repository encryption.
 func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
@@ -113,9 +113,9 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg string) er
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(),
+		RepoFileReader(gm.Color()),
 		RepoFileRemover(),
-		RepoFileWriter(),
+		RepoFileWriter(gm.Color()),
 		RepoStatsReader(r),
 	)
 	if err := gr.Add(ctx, bs); err != nil {
@@ -170,9 +170,9 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		}
 
 		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(),
+			RepoFileReader(gm.Color()),
 			RepoFileRemover(),
-			RepoFileWriter(),
+			RepoFileWriter(gm.Color()),
 			RepoStatsReader(r),
 		)
 
@@ -192,19 +192,10 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
-func readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
-	root := filepath.Dir(path)
-	return NewRepoReader(ctx, root, path, total)
-}
-
-func addFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
+func readFiles(color bool) func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
 	sp := rotato.New(
+		rotato.WithColor(color),
 		rotato.WithMessage("starting..."),
-		rotato.WithPrefix("Git Tracker"),
 		rotato.WithPrefixColor(rotato.StyleDim),
 		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
 		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
@@ -212,21 +203,50 @@ func addFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) err
 		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
 	)
 
-	sp.Start(ctx)
-	defer sp.Done()
-
-	root := filepath.Dir(repoPath)
-	if gpg.IsInitialized(root) {
-		return addGPGFiles(ctx, bs, sp, repoPath)
+	return func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
+		return newRepoReader(ctx, &RepoReaderCfg{
+			name:     filepath.Base(path),
+			root:     filepath.Dir(path),
+			fullpath: path,
+			total:    total,
+			spinner:  sp,
+		})
 	}
+}
 
-	for i := range bs {
-		if _, err := bookio.SaveAsJSON(repoPath, bs[i], true); err != nil {
+func addFiles(color bool) func(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
+	return func(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
-	}
 
-	return nil
+		sp := rotato.New(
+			rotato.WithColor(color),
+			rotato.WithMessage("starting..."),
+			rotato.WithPrefix("Git Tracker"),
+			rotato.WithPrefixColor(rotato.StyleDim),
+			rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
+			rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
+			rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+			rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		)
+
+		sp.Start(ctx)
+		defer sp.Done()
+
+		root := filepath.Dir(repoPath)
+		if gpg.IsInitialized(root) {
+			return addGPGFiles(ctx, bs, sp, repoPath)
+		}
+
+		for i := range bs {
+			if _, err := bookio.SaveAsJSON(repoPath, bs[i], true); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 }
 
 func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {

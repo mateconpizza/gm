@@ -263,7 +263,7 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 	uniqueTag := getTodayFormatted()
 	addParentFolderAsTag := true
 
-	result, err := loadChromeDatabase(ctx, path, uniqueTag, addParentFolderAsTag)
+	result, err := loadChromeDatabase(ctx, path, uniqueTag, addParentFolderAsTag, c.Palette().Enabled())
 	if err != nil {
 		fmt.Fprintln(c.Writer(), "Error loading Chrome database:", err)
 	}
@@ -299,10 +299,11 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 }
 
 // Define the main function to load the Chrome database.
-func loadChromeDatabase(ctx context.Context, path, uniqueTag string, addParentFolderAsTag bool) ([]blinkBookmark, error) {
+func loadChromeDatabase(ctx context.Context, path, uniqueTag string, addParentFolderAsTag, color bool) ([]blinkBookmark, error) {
 	byteValue, _ := os.ReadFile(path)
 
 	s := rotato.New(
+		rotato.WithColor(color),
 		rotato.WithMessage("parsing bookmark file..."),
 		rotato.WithMessageColor(rotato.FgBrightBlue),
 		rotato.WithSpinnerColor(rotato.FgGray),

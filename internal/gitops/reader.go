@@ -13,66 +13,61 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-// RepoReaderCfg groups the configuration needed to read a repository.
-type RepoReaderCfg struct {
-	root   string
-	loader *bookio.RepositoryLoader
-	sp     *rotato.Rotato
-	total  int
+type spinner interface {
+	Start(ctx context.Context)
+	Done(mesg ...string)
+	Fail(mesg ...string)
+
+	AddPrefixDecorator(fn rotato.MessageDecorator)
+	SetMessageDecorator(fn rotato.MessageDecorator)
+	UpdateMesg(s string)
+	UpdatePrefix(s string)
 }
 
-func NewRepoReader(ctx context.Context, gitRoot, repoPath string, n int) ([]*bookmark.Bookmark, error) {
-	sp := rotato.New(
-		rotato.WithMessage("starting..."),
-		rotato.WithPrefixColor(rotato.StyleDim),
-		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
-		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
-		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-	)
+// RepoReaderCfg groups the configuration needed to read a repository.
+type RepoReaderCfg struct {
+	name     string // repo name
+	root     string // git root path
+	fullpath string // repo fullpath
+	total    int    // total bookmarks
+	loader   *bookio.RepositoryLoader
+	spinner  spinner
+}
 
-	if gpg.IsInitialized(gitRoot) {
-		fingerprintPath := gpg.GPGIDPath(gitRoot)
+func newRepoReader(ctx context.Context, opts *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+	if gpg.IsInitialized(opts.root) {
+		fingerprintPath := gpg.GPGIDPath(opts.root)
 		fp, err := gpg.LookupKey(ctx, fingerprintPath)
 		if err != nil {
 			return nil, err
 		}
 
 		if fp.Expired() {
-			sp.AddPrefixDecorator(func(mesg string) string {
+			opts.spinner.AddPrefixDecorator(func(mesg string) string {
 				return mesg + rotato.FgBrightYellow.Wrap(" warn: key has expired", rotato.StyleItalic)
 			})
 		}
 
-		repoName := filepath.Base(repoPath)
-		loader, err := gpgStrategy(repoName, fp.Fingerprint)
+		loader, err := gpgStrategy(opts.name, fp.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
+		opts.loader = loader
 
-		return ReadGPGRepo(ctx, RepoReaderCfg{
-			root:   repoPath,
-			loader: loader,
-			sp:     sp,
-			total:  n,
-		})
+		return ReadGPGRepo(ctx, opts)
 	}
 
-	return ReadJSONRepo(ctx, RepoReaderCfg{
-		root:   repoPath,
-		loader: bookio.JSONStrategy,
-		sp:     sp,
-		total:  n,
-	})
+	opts.loader = bookio.JSONStrategy
+	return ReadJSONRepo(ctx, opts)
 }
 
 // ReadJSONRepo handles reading standard JSON bookmark repositories.
-func ReadJSONRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+func ReadJSONRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
 	f := bookio.NewFileLoader(cfg.loader.Func)
 
-	cfg.sp.UpdatePrefix(cfg.loader.Prefix)
-	cfg.sp.Start(ctx)
-	defer cfg.sp.Done()
+	cfg.spinner.UpdatePrefix(cfg.loader.Prefix)
+	cfg.spinner.Start(ctx)
+	defer cfg.spinner.Done()
 
 	if err := filepath.WalkDir(cfg.root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -87,14 +82,14 @@ func ReadJSONRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark,
 			return nil
 		}
 
-		cfg.sp.UpdatePrefix(fmt.Sprintf("%s [%d/%d]", cfg.loader.Prefix, f.Count(1), cfg.total))
-		cfg.sp.UpdateMesg("reading..." + filepath.Base(path))
+		cfg.spinner.UpdatePrefix(fmt.Sprintf("%s [%d/%d]", cfg.loader.Prefix, f.Count(1), cfg.total))
+		cfg.spinner.UpdateMesg("reading..." + filepath.Base(path))
 
 		f.LoadAsync(ctx, path)
 
 		return nil
 	}); err != nil {
-		cfg.sp.Fail(err.Error())
+		cfg.spinner.Fail(err.Error())
 		return nil, err
 	}
 

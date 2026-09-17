@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/mateconpizza/rotato"
 )
 
 var ErrScrapeNotStarted = errors.New("scrape not started")
@@ -24,34 +23,25 @@ const (
 	defaultFaviconPath string = "/static/favicon.png"
 )
 
+type spinner interface {
+	Start(ctx context.Context)
+	Done(mesg ...string)
+}
+
 type OptFn func(*Options)
 
 type Options struct {
 	uri     string
 	doc     *goquery.Document
 	started bool
-	sp      *rotato.Rotato
+	sp      spinner
 }
 
 type Scraper struct {
 	Options
 }
 
-func WithCustomSpinner(sp *rotato.Rotato) OptFn {
-	return func(o *Options) {
-		o.sp = sp
-	}
-}
-
-func WithSpinner(mesg string) OptFn {
-	return func(o *Options) {
-		o.sp = rotato.New(
-			rotato.WithMessage(mesg),
-			rotato.WithMessageColor(rotato.FgYellow),
-			rotato.WithSpinnerColor(rotato.FgBrightMagenta),
-		)
-	}
-}
+func WithSpinner(sp spinner) OptFn { return func(o *Options) { o.sp = sp } }
 
 // Start fetches and parses the URL content.
 func (s *Scraper) Start(ctx context.Context) error {

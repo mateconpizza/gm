@@ -41,9 +41,9 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(),
+		RepoFileReader(gm.Color()),
 		RepoFileRemover(),
-		RepoFileWriter(),
+		RepoFileWriter(gm.Color()),
 		git.WithRepoStore(r),
 	)
 	c := d.Console()
@@ -188,9 +188,9 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 		}
 
 		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(),
+			RepoFileReader(gm.Color()),
 			RepoFileRemover(),
-			RepoFileWriter(),
+			RepoFileWriter(gm.Color()),
 			git.WithRepoStore(r),
 		)
 		if err := Track(ctx, r, gm, gr); err != nil {
