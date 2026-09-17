@@ -28,39 +28,25 @@ type (
 	WriterFunc      func(ctx context.Context, path string, bs []*bookmark.Bookmark) error
 	RemoverFunc     func(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error
 	PostRemovalFunc func(path string) error
+	SumWriterFunc   func(path string, sum *Summary) error
 )
 
 type RepoOptFunc func(*RepoOptions)
 
 type RepoOptions struct {
-	reader  ReaderFunc
-	writer  WriterFunc
-	remover RemoverFunc
-	db      RepoDB
+	db        RepoDB
+	reader    ReaderFunc
+	writer    WriterFunc
+	remover   RemoverFunc
+	sumWriter SumWriterFunc
 }
 
-func WithRepoWriter(w WriterFunc) RepoOptFunc {
-	return func(ro *RepoOptions) {
-		ro.writer = w
-	}
-}
-
-func WithRepoReader(r ReaderFunc) RepoOptFunc {
-	return func(ro *RepoOptions) {
-		ro.reader = r
-	}
-}
-
-func WithRepoRemover(rm RemoverFunc) RepoOptFunc {
-	return func(ro *RepoOptions) {
-		ro.remover = rm
-	}
-}
-
-func WithRepoStore(store RepoDB) RepoOptFunc {
-	return func(ro *RepoOptions) {
-		ro.db = store
-	}
+func WithRepoWriter(w WriterFunc) RepoOptFunc    { return func(ro *RepoOptions) { ro.writer = w } }
+func WithRepoReader(r ReaderFunc) RepoOptFunc    { return func(ro *RepoOptions) { ro.reader = r } }
+func WithRepoRemover(rm RemoverFunc) RepoOptFunc { return func(ro *RepoOptions) { ro.remover = rm } }
+func WithRepoStore(store RepoDB) RepoOptFunc     { return func(ro *RepoOptions) { ro.db = store } }
+func WithSummaryPersist(fn SumWriterFunc) RepoOptFunc {
+	return func(ro *RepoOptions) { ro.sumWriter = fn }
 }
 
 type Repo struct {
@@ -76,6 +62,10 @@ func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
 	o := &RepoOptions{}
 	for _, opt := range opts {
 		opt(o)
+	}
+
+	if o.sumWriter == nil {
+		o.sumWriter = defPersistSummary
 	}
 
 	return &Repo{
@@ -252,5 +242,7 @@ func (gr *Repo) WriteSummary(s *Summary) error {
 	}
 	slog.Debug("git summary: writing", "file", gr.summaryFile)
 
-	return writeFile(gr.summaryFile, s)
+	return gr.sumWriter(gr.summaryFile, s)
 }
+
+func defPersistSummary(path string, sum *Summary) error { return writeFile(path, sum) }

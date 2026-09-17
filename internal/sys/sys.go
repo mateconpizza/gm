@@ -95,13 +95,7 @@ func RunCmd(ctx context.Context, s string, arg ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		slog.Error("command failed", "command", s, "args", arg, "error", err)
-		return fmt.Errorf("running %s: %w", s, err)
-	}
-
-	slog.Debug("command completed", "command", s)
-	return nil
+	return cmd.Run()
 }
 
 // OSArgs returns the correct arguments for the OS.

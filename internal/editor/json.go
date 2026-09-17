@@ -16,7 +16,7 @@ func NewJSONStrategy() *JSONStrategy {
 	return &JSONStrategy{}
 }
 
-func (JSONStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+func (JSONStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	return b.Bytes(), nil
 }
 

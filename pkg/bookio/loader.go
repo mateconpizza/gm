@@ -28,9 +28,10 @@ func NewFileLoader(loader LoaderFileFunc) *FileLoader {
 	g.SetLimit(runtime.NumCPU())
 
 	return &FileLoader{
-		g:      g,
-		Loader: loader,
-		mu:     &sync.Mutex{},
+		g:       g,
+		Loader:  loader,
+		mu:      &sync.Mutex{},
+		results: make([]*bookmark.Bookmark, 0),
 	}
 }
 

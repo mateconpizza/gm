@@ -46,8 +46,7 @@ func testBuildBuffer(t *testing.T) {
 	}
 
 	s := NotesStrategy{}
-	m := &Meta{dbName: "main.db", version: "1.0.0"}
-	buf, err := s.BuildBuffer(m, b, 1, 1)
+	buf, err := s.BuildBuffer("main.db", "1.0.0", b, 1, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

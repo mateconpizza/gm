@@ -36,7 +36,7 @@ func (bs *BookmarkStrategy) WithParseBuffer(fn BookmarkParseBufFunc) *BookmarkSt
 	return bs
 }
 
-func (bs *BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+func (bs *BookmarkStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	var (
 		pad   = 10
 		f     = frame.New(frame.WithBordersCustom("# ", "# ", "# ", "# "))
@@ -57,8 +57,8 @@ func (bs *BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, tota
 	separator := txt.SpanCenter(width-2, "", char)
 	title := strings.ReplaceAll(b.Title, "\n", " ")
 	idTitleLine := fmt.Sprintf("%d %s", b.ID, txt.Shorten(title, width-6))
-	dbName := txt.PaddedLineWithPad("database:", m.dbName, pad)
-	version := txt.PaddedLineWithPad("version:", formatVersion(m.version), pad)
+	dbName = txt.PaddedLineWithPad("database:", dbName, pad)
+	version = txt.PaddedLineWithPad("version:", formatVersion(version), pad)
 	sepTitle := txt.SpanCenter(width-2, label, char)
 
 	return f.

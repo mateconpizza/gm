@@ -39,8 +39,7 @@ func testJSONBuildBuffer(t *testing.T) {
 	}
 
 	s := JSONStrategy{}
-	m := &Meta{}
-	buf, err := s.BuildBuffer(m, b, 1, 1)
+	buf, err := s.BuildBuffer("", "", b, 1, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

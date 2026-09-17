@@ -2,6 +2,7 @@ package gitops
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
+
+var ErrRepoReader = errors.New("reading repository")
 
 type spinner interface {
 	Start(ctx context.Context)
@@ -90,7 +93,7 @@ func ReadJSONRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark
 		return nil
 	}); err != nil {
 		cfg.spinner.Fail(err.Error())
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrRepoReader, err)
 	}
 
 	return f.Results()

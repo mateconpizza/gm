@@ -27,6 +27,50 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+// ReadGPGRepo handles reading encrypted GPG bookmark repositories.
+func ReadGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+	f := bookio.NewFileLoader(cfg.loader.Func)
+
+	cfg.spinner.Start(ctx)
+	defer cfg.spinner.Done()
+
+	var passphrasePrompted bool
+
+	if err := filepath.WalkDir(cfg.root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("%w: walking root: %s, on file: %s", err, cfg.root, path)
+		}
+
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if !cfg.loader.FileFilter(path, d) {
+			return nil
+		}
+
+		// handle prompt for GPG passphrase on the first valid file
+		if !passphrasePrompted {
+			if err := promptGPGPassphrase(ctx, f, cfg.spinner, path, &passphrasePrompted); err != nil {
+				return err
+			}
+			passphrasePrompted = true
+		}
+
+		f.LoadAsync(ctx, path)
+
+		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.loader.Prefix, f.Count(1), cfg.total))
+		cfg.spinner.UpdateMesg("decrypting..." + filepath.Base(path))
+
+		return nil
+	}); err != nil {
+		cfg.spinner.Fail(err.Error())
+		return nil, err
+	}
+
+	return f.Results()
+}
+
 func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, gm *git.Mgr) error {
 	if gpg.IsInitialized(app.Path.Git()) {
 		return nil
@@ -134,50 +178,6 @@ func createGPGFile(ctx context.Context, g *gpg.GPG, repoPath string, b *bookmark
 	}
 
 	return nil
-}
-
-// ReadGPGRepo handles reading encrypted GPG bookmark repositories.
-func ReadGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	f := bookio.NewFileLoader(cfg.loader.Func)
-
-	cfg.spinner.Start(ctx)
-	defer cfg.spinner.Done()
-
-	var passphrasePrompted bool
-
-	if err := filepath.WalkDir(cfg.root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return fmt.Errorf("%w: walking root: %s, on file: %s", err, cfg.root, path)
-		}
-
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
-		if !cfg.loader.FileFilter(path, d) {
-			return nil
-		}
-
-		// Handle prompt for GPG passphrase on the first valid file
-		if !passphrasePrompted {
-			if err := promptGPGPassphrase(ctx, f, cfg.spinner, path, &passphrasePrompted); err != nil {
-				return err
-			}
-			passphrasePrompted = true
-		}
-
-		f.LoadAsync(ctx, path)
-
-		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.loader.Prefix, f.Count(1), cfg.total))
-		cfg.spinner.UpdateMesg("decrypting..." + filepath.Base(path))
-
-		return nil
-	}); err != nil {
-		cfg.spinner.Fail(err.Error())
-		return nil, err
-	}
-
-	return f.Results()
 }
 
 // gpgBookmarkFileLoader returns a loader function that decrypts and parses

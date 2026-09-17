@@ -44,7 +44,7 @@ type fakeStrategy struct {
 	parseErr error
 }
 
-func (f *fakeStrategy) BuildBuffer(_ *editor.Meta, _ *bookmark.Bookmark, _, _ int) ([]byte, error) {
+func (f *fakeStrategy) BuildBuffer(dbName, version string, _ *bookmark.Bookmark, _, _ int) ([]byte, error) {
 	return f.buf, nil
 }
 

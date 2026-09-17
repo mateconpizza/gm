@@ -51,7 +51,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 
 	// repo type
 	t := p.BrightCyan.Wrap("JSON", p.Bold)
-	if gpg.IsInitialized(app.Path.Home()) {
+	if gpg.IsInitialized(app.Path.Git()) {
 		t = p.BrightMagenta.Wrap("GPG", p.Bold)
 	}
 	f.Rowln(txt.PaddedLine("type:", t))

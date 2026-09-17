@@ -16,15 +16,6 @@ var (
 	ErrMissingDep      = errors.New("missing required dependency")
 )
 
-type Meta struct {
-	dbName  string
-	version string
-}
-
-func NewMeta(dbName, version string) *Meta {
-	return &Meta{dbName: dbName, version: version}
-}
-
 type Terminal interface {
 	Choose(ctx context.Context, q string, opts []string, def string) (string, error)
 	SuccessMesg(a ...any) string
@@ -41,17 +32,19 @@ type EditSession struct {
 	term     Terminal
 	editor   TextEditor
 	persist  PersistFunc
-	meta     *Meta
+	dbName   string
+	version  string
 	strategy EditStrategy
 	writer   io.Writer
 
-	diffColor Differ
+	differ Differ
 }
 
 func NewEditSession() *EditSession {
 	return &EditSession{
-		meta:   &Meta{"main", "x.x.x"},
-		writer: os.Stdout,
+		dbName:  "main",
+		version: "x.x.x",
+		writer:  os.Stdout,
 	}
 }
 
@@ -76,12 +69,12 @@ func (e *EditSession) WithWriter(w io.Writer) *EditSession {
 }
 
 func (e *EditSession) WithDBName(s string) *EditSession {
-	e.meta.dbName = s
+	e.dbName = s
 	return e
 }
 
 func (e *EditSession) WithVersion(s string) *EditSession {
-	e.meta.version = s
+	e.version = s
 	return e
 }
 
@@ -91,7 +84,7 @@ func (e *EditSession) WithPersistFunc(fn PersistFunc) *EditSession {
 }
 
 func (e *EditSession) WithDiffer(dc Differ) *EditSession {
-	e.diffColor = dc
+	e.differ = dc
 	return e
 }
 
@@ -129,7 +122,7 @@ func (e *EditSession) processSingleRecord(ctx context.Context, original *bookmar
 			return err
 		}
 
-		fmt.Fprintln(e.writer, e.strategy.Diff(e.diffColor, original, updated))
+		fmt.Fprintln(e.writer, e.strategy.Diff(e.differ, original, updated))
 
 		opt, err := e.term.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
@@ -151,7 +144,7 @@ func (e *EditSession) processSingleRecord(ctx context.Context, original *bookmar
 
 // buildAndEdit prepares record for editing and launches editor.
 func (e *EditSession) buildAndEdit(ctx context.Context, r *bookmark.Bookmark, idx, total int, s EditStrategy) ([]byte, error) {
-	buf, err := s.BuildBuffer(e.meta, r, idx, total)
+	buf, err := s.BuildBuffer(e.dbName, e.version, r, idx, total)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +184,7 @@ func (e *EditSession) validate() error {
 	if e.persist == nil {
 		return fn("PersistFunc")
 	}
-	if e.diffColor == nil {
+	if e.differ == nil {
 		return fn("Differ")
 	}
 	return nil

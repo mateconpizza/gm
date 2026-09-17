@@ -918,6 +918,9 @@ func TestRepo_WriteSummary(t *testing.T) {
 			r := &Repo{
 				name:        tt.name,
 				summaryFile: summaryPath,
+				RepoOptions: &RepoOptions{
+					sumWriter: defPersistSummary,
+				},
 			}
 
 			err := r.WriteSummary(tt.summary)

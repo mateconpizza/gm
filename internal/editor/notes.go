@@ -22,7 +22,7 @@ func NewNotesStrategy() *NotesStrategy {
 	return &NotesStrategy{}
 }
 
-func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+func (ns *NotesStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	var (
 		bd      = frame.NewBorders("<!-- ", " ", "<!-", "-->")
 		f       = frame.New(frame.WithBorders(bd))
@@ -47,7 +47,7 @@ func (ns *NotesStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total i
 		Rowln(idTitle).                                   // [ID] Title
 		Rowln(bullet("Tags", txt.TagsWithPound(b.Tags))). // Tags:
 		Rowln(bullet("URL", urlLine)).                    // URL:
-		Rowln(bullet("Database", m.dbName)).              // Database:
+		Rowln(bullet("Database", dbName)).                // Database:
 		Text(ns.sectionMarker + headerFooter).Footerln(). // <!-- --- label ------->
 		Text(b.Notes).                                    // Notes
 		Bytes(), nil

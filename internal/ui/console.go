@@ -21,8 +21,8 @@ type Console struct {
 	palette *ansi.Palette
 	writer  io.Writer
 
-	differ       *Differ
-	colorEnabled bool
+	differ *Differ
+	color  bool
 }
 
 // Option is a function type for configuring Console.
@@ -48,12 +48,12 @@ func NewConsole(opts ...Option) *Console {
 	}
 
 	if c.palette == nil {
-		c.palette = ansi.NewPalette(c.colorEnabled)
+		c.palette = ansi.NewPalette(c.color)
 	}
 
 	if c.differ == nil {
 		c.differ = NewDiffer(&DifferOpts{
-			Enabled: c.colorEnabled,
+			Enabled: c.color,
 			Add:     c.palette.BrightGreen.Sprint,
 			Del:     c.palette.BrightRed.Sprint,
 			Muted:   c.palette.Dim.Sprint,
@@ -63,10 +63,10 @@ func NewConsole(opts ...Option) *Console {
 	return c
 }
 
-func NewDefaultConsole(withColor bool, fn func(error)) *Console {
+func NewDefaultConsole(color bool, fn func(error)) *Console {
 	c := NewConsole(
-		WithColor(withColor),
-		WithDefaultTerminal(withColor, fn),
+		WithColor(color),
+		WithDefaultTerminal(color, fn),
 	)
 
 	p := c.Palette()
@@ -74,7 +74,7 @@ func NewDefaultConsole(withColor bool, fn func(error)) *Console {
 		frame.WithColorBorder(p.Gray.Sprint),
 	}
 
-	if withColor {
+	if color {
 		p := c.Palette()
 		frameOpts = append(frameOpts,
 			frame.WithIcons(&frame.Icons{
@@ -91,7 +91,7 @@ func NewDefaultConsole(withColor bool, fn func(error)) *Console {
 	return c
 }
 
-func WithColor(enabled bool) Option        { return func(c *Console) { c.colorEnabled = enabled } }
+func WithColor(enabled bool) Option        { return func(c *Console) { c.color = enabled } }
 func WithFrame(f *frame.Frame) Option      { return func(c *Console) { c.frame = f } }
 func WithTerminal(t *terminal.Term) Option { return func(c *Console) { c.term = t } }
 func WithWriter(w io.Writer) Option        { return func(c *Console) { c.writer = w } }
@@ -118,9 +118,9 @@ func (c *Console) Width() int                                { return c.Term().W
 func (c *Console) Height() int                               { return c.Term().Height() }
 func (c *Console) Print(ctx context.Context, s string) error { return c.Term().Print(ctx, s) }
 
-func WithDefaultTerminal(withColor bool, f func(error)) Option {
-	p := ansi.NewPalette(withColor)
-	cz := terminal.NewColorizer(withColor).
+func WithDefaultTerminal(color bool, f func(error)) Option {
+	p := ansi.NewPalette(color)
+	cz := terminal.NewColorizer(color).
 		WithHotkey(p.Red).
 		WithError(p.BrightRed.With(p.Bold)).
 		WithSuccess(p.BrightGreen.With(p.Bold)).

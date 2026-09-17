@@ -172,7 +172,8 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 	t.Parallel()
 
 	bs := NewBookmarkStrategy()
-	m := NewMeta("test_db", "1.2.3")
+	dbName := "test_db"
+	version := "1.2.3"
 
 	padded := func(s, v any) string {
 		return txt.PaddedLineWithPad(s, v, 10)
@@ -199,7 +200,7 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 				" bookmark edition ",
 				"[3/5]",
 				"10 Existing Bookmark",
-				padded("database:", m.dbName),
+				padded("database:", dbName),
 				"v1.2.3",
 				"https://existing.com",
 			},
@@ -218,7 +219,7 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 				" bookmark addition ",
 				"[New]",
 				"0 New Bookmark",
-				padded("database:", m.dbName),
+				padded("database:", dbName),
 				"https://new.com",
 			},
 			notTexts: []string{"[1/1]", " bookmark edition "},
@@ -246,7 +247,7 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 			wantTexts: []string{
 				" bookmark addition ",
 				"[New]",
-				padded("database:", m.dbName),
+				padded("database:", dbName),
 			},
 		},
 	}
@@ -255,7 +256,7 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := bs.BuildBuffer(m, tt.b, tt.idx, tt.total)
+			got, err := bs.BuildBuffer(dbName, version, tt.b, tt.idx, tt.total)
 			if err != nil {
 				t.Fatalf("BuildBuffer() unexpected error: %v", err)
 			}

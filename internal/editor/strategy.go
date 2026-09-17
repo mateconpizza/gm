@@ -9,7 +9,7 @@ import (
 
 type EditStrategy interface {
 	// Builds the buffer shown in the editor
-	BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, total int) ([]byte, error)
+	BuildBuffer(dbName, version string, b *bookmark.Bookmark, idx, total int) ([]byte, error)
 
 	// Parses buffer back into a bookmark
 	ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error)
