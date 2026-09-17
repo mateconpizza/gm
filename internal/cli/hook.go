@@ -264,9 +264,9 @@ func HookGitPrune(app *application.App) HookE {
 		defer r.Close()
 
 		gr := gm.NewRepo(r.Name(),
-			gitops.RepoFileReader(),
+			gitops.RepoFileReader(gm.Color()),
 			gitops.RepoFileRemover(),
-			gitops.RepoFileWriter(),
+			gitops.RepoFileWriter(gm.Color()),
 			gitops.RepoStatsReader(r),
 		)
 

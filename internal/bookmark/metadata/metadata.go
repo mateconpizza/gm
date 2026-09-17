@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateconpizza/rotato"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -22,9 +21,14 @@ var (
 	ErrLineNotFound = errors.New("line not found")
 )
 
+type spinner interface {
+	Start(ctx context.Context)
+	Done(mesg ...string)
+}
+
 // ScrapeDescriptions scrapes missing data from bookmarks found from the import
 // process.
-func ScrapeDescriptions(ctx context.Context, bs []*bookmark.Bookmark) error {
+func ScrapeDescriptions(ctx context.Context, sp spinner, bs []*bookmark.Bookmark) error {
 	if len(bs) == 0 {
 		return nil
 	}
@@ -32,21 +36,14 @@ func ScrapeDescriptions(ctx context.Context, bs []*bookmark.Bookmark) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	return scrapeDescriptionsConcurrent(ctx, bs)
+	return scrapeDescriptionsConcurrent(ctx, sp, bs)
 }
 
-func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) error {
+func scrapeDescriptionsConcurrent(ctx context.Context, sp spinner, bs []*bookmark.Bookmark) error {
 	if len(bs) == 0 {
 		return nil
 	}
 
-	sp := rotato.New(
-		rotato.WithSpinnerColor(rotato.FgGray),
-		rotato.WithMessage("scraping missing data..."),
-		rotato.WithMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
-		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
-		rotato.WithDoneSymbolColor(rotato.FgBrightGreen, rotato.StyleBold),
-	)
 	sp.Start(ctx)
 	defer sp.Done("Scraping done")
 
@@ -80,14 +77,14 @@ func scrapeDescriptionsConcurrent(ctx context.Context, bs []*bookmark.Bookmark) 
 
 // EnrichBookmark updates a Bookmark's title and description by scraping the
 // webpage if they are missing.
-func EnrichBookmark(ctx context.Context, b *bookmark.Bookmark) *bookmark.Bookmark {
+func EnrichBookmark(ctx context.Context, sp spinner, b *bookmark.Bookmark) *bookmark.Bookmark {
 	if b.Title != "" {
 		return b
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	sc := scraper.New(b.URL, scraper.WithSpinner("scraping webpage..."))
+	sc := scraper.New(b.URL, scraper.WithSpinner(sp))
 	if err := sc.Start(ctx); err != nil {
 		slog.Error("scraping error", "error", err)
 	}

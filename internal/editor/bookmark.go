@@ -19,10 +19,16 @@ type BookmarkParseBufFunc func(ctx context.Context, buf []byte, original *bookma
 
 type BookmarkStrategy struct {
 	parseBuffer BookmarkParseBufFunc
+	spinner     spinner
 }
 
 func NewBookmarkStrategy() *BookmarkStrategy {
-	return &BookmarkStrategy{parseBuffer: defaultParseBuffer}
+	return &BookmarkStrategy{}
+}
+
+func (bs *BookmarkStrategy) WithSpinner(sp spinner) *BookmarkStrategy {
+	bs.spinner = sp
+	return bs
 }
 
 func (bs *BookmarkStrategy) WithParseBuffer(fn BookmarkParseBufFunc) *BookmarkStrategy {
@@ -71,7 +77,7 @@ func (bs *BookmarkStrategy) BuildBuffer(m *Meta, b *bookmark.Bookmark, idx, tota
 func (bs *BookmarkStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 	parse := bs.parseBuffer
 	if parse == nil {
-		parse = defaultParseBuffer
+		return defaultParseBuffer(ctx, buf, original, bs.spinner)
 	}
 	return parse(ctx, buf, original)
 }
@@ -98,7 +104,12 @@ func formatVersion(v string) string {
 	return "v" + v
 }
 
-func defaultParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+type spinner interface {
+	Start(ctx context.Context)
+	Done(mesg ...string)
+}
+
+func defaultParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark, sp spinner) (*bookmark.Bookmark, error) {
 	edited := original.Copy()
 	bookmarkFromBytes(buf, edited)
 	edited.Notes = original.Notes
@@ -106,7 +117,7 @@ func defaultParseBuffer(ctx context.Context, buf []byte, original *bookmark.Book
 		return nil, ErrBufferUnchanged
 	}
 
-	edited = metadata.EnrichBookmark(ctx, edited)
+	edited = metadata.EnrichBookmark(ctx, sp, edited)
 	if err := bookmark.Validate(edited); err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package edit
 
 import (
 	menu "github.com/mateconpizza/go-fzf"
+	"github.com/mateconpizza/rotato"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -57,9 +58,15 @@ func NewCmd(app *application.App) *cobra.Command {
 			)
 
 			var strategy editor.EditStrategy
-			strategy = editor.NewBookmarkStrategy()
-			if app.Flags.JSON {
-				strategy = editor.NewJSONStrategy()
+			strategy = editor.NewJSONStrategy()
+			if !app.Flags.JSON {
+				sp := rotato.New(
+					rotato.WithColor(app.Flags.Color),
+					rotato.WithMessage("scraping webpage..."),
+					rotato.WithMessageColor(rotato.FgYellow),
+					rotato.WithSpinnerColor(rotato.FgBrightMagenta),
+				)
+				strategy = editor.NewBookmarkStrategy().WithSpinner(sp)
 			}
 
 			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), strategy))

@@ -137,11 +137,11 @@ func createGPGFile(ctx context.Context, g *gpg.GPG, repoPath string, b *bookmark
 }
 
 // ReadGPGRepo handles reading encrypted GPG bookmark repositories.
-func ReadGPGRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+func ReadGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
 	f := bookio.NewFileLoader(cfg.loader.Func)
 
-	cfg.sp.Start(ctx)
-	defer cfg.sp.Done()
+	cfg.spinner.Start(ctx)
+	defer cfg.spinner.Done()
 
 	var passphrasePrompted bool
 
@@ -160,7 +160,7 @@ func ReadGPGRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark, 
 
 		// Handle prompt for GPG passphrase on the first valid file
 		if !passphrasePrompted {
-			if err := promptGPGPassphrase(ctx, f, cfg.sp, path, &passphrasePrompted); err != nil {
+			if err := promptGPGPassphrase(ctx, f, cfg.spinner, path, &passphrasePrompted); err != nil {
 				return err
 			}
 			passphrasePrompted = true
@@ -168,12 +168,12 @@ func ReadGPGRepo(ctx context.Context, cfg RepoReaderCfg) ([]*bookmark.Bookmark, 
 
 		f.LoadAsync(ctx, path)
 
-		cfg.sp.UpdatePrefix(fmt.Sprintf(cfg.loader.Prefix, f.Count(1), cfg.total))
-		cfg.sp.UpdateMesg("decrypting..." + filepath.Base(path))
+		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.loader.Prefix, f.Count(1), cfg.total))
+		cfg.spinner.UpdateMesg("decrypting..." + filepath.Base(path))
 
 		return nil
 	}); err != nil {
-		cfg.sp.Fail(err.Error())
+		cfg.spinner.Fail(err.Error())
 		return nil, err
 	}
 
@@ -203,13 +203,7 @@ func gpgBookmarkFileLoader(g *gpg.GPG) bookio.LoaderFileFunc {
 }
 
 // promptGPGPassphrase handles unlocking and initializing the first GPG file.
-func promptGPGPassphrase(
-	ctx context.Context,
-	f *bookio.FileLoader,
-	sp *rotato.Rotato,
-	path string,
-	prompted *bool,
-) error {
+func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, sp spinner, path string, prompted *bool) error {
 	unlocked, err := gpg.Unlocked(ctx, path)
 	if err != nil {
 		return err

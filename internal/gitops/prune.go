@@ -19,7 +19,7 @@ type gitRepo interface {
 	Add(ctx context.Context, bs []*bookmark.Bookmark) error
 }
 
-type manager interface {
+type gitManager interface {
 	Drop(ctx context.Context, gr *git.Repo) error
 	Repos() []string
 	Untrack(ctx context.Context, gr *git.Repo, msg string) error
@@ -133,7 +133,7 @@ func (r *RepoReconciler) removeOrphans(ctx context.Context) error {
 }
 
 // PruneRepo runs the reconcile-and-persist cycle for a single repo.
-func PruneRepo(ctx context.Context, gm manager, gr *git.Repo, bs []*bookmark.Bookmark) error {
+func PruneRepo(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Bookmark) error {
 	if !gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.Name())
 	}

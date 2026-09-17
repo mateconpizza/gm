@@ -83,7 +83,7 @@ func (r *Response) String() string {
 func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	start := time.Now()
 
-	sp := setupSpinner()
+	sp := setupSpinner(c.Palette().Enabled())
 	sp.Start(ctx)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -324,8 +324,9 @@ func isNetworkUnreachableError(err error) bool {
 	return false
 }
 
-func setupSpinner() *rotato.Rotato {
+func setupSpinner(color bool) *rotato.Rotato {
 	return rotato.New(
+		rotato.WithColor(color),
 		rotato.WithPrefix("checking URL status"),
 		rotato.WithMessage("processing..."),
 		rotato.WithPrefixColor(rotato.StyleDim),

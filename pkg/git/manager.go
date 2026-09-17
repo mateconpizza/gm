@@ -18,19 +18,12 @@ type MgrOptFunc func(*MgrOptions)
 type MgrOptions struct {
 	g       *Git
 	version string
+	color   bool
 }
 
-func WithGit(g *Git) MgrOptFunc {
-	return func(mo *MgrOptions) {
-		mo.g = g
-	}
-}
-
-func WithVersion(ver string) MgrOptFunc {
-	return func(mo *MgrOptions) {
-		mo.version = ver
-	}
-}
+func WithGit(g *Git) MgrOptFunc         { return func(mo *MgrOptions) { mo.g = g } }
+func WithVersion(ver string) MgrOptFunc { return func(mo *MgrOptions) { mo.version = ver } }
+func WithColor(b bool) MgrOptFunc       { return func(mo *MgrOptions) { mo.color = b } }
 
 type Mgr struct {
 	*MgrOptions
@@ -67,15 +60,22 @@ func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
 
 func (gm *Mgr) Root() string                                  { return gm.root }
 func (gm *Mgr) IsEnabled() bool                               { return fileExists(gm.root) }
+func (gm *Mgr) Color() bool                                   { return gm.color }
 func (gm *Mgr) Git() *Git                                     { return gm.g }
-func (gm *Mgr) Init(ctx context.Context, force bool) error    { return gm.g.Init(ctx, force) }
 func (gm *Mgr) IsTracked(name string) bool                    { return gm.track.Contains(name) }
-func (gm *Mgr) Repos() []string                               { return gm.track.Repos() }
+func (gm *Mgr) Repos() []string                               { return gm.track.List() }
 func (gm *Mgr) WriteRepos() error                             { return gm.track.Write() }
 func (gm *Mgr) Version() string                               { return gm.version }
 func (gm *Mgr) Track(names ...string) error                   { return gm.track.Track(names...) }
 func (gm *Mgr) Commit(ctx context.Context, msg string) error  { return gm.g.commitIfChanged(ctx, msg) }
 func (gm *Mgr) SetCfg(ctx context.Context, k, v string) error { return gm.g.SetCfgLocal(ctx, k, v) }
+
+func (gm *Mgr) Init(ctx context.Context, force bool) error {
+	if force {
+		gm.track.Reset()
+	}
+	return gm.g.Init(ctx, force)
+}
 
 func (gm *Mgr) SaveChanges(ctx context.Context, gr *Repo, msg string) error {
 	if gm.version == "" {
