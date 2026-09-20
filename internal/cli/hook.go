@@ -213,7 +213,7 @@ func HookGitSync(app *application.App) HookE {
 
 		msg := cmd.Short
 		if msg == "" {
-			msg = cmd.Name() + " hook sync"
+			msg = cmd.Name()
 		}
 
 		gm, err := gitops.NewManager(&gitops.ManagerConfig{
@@ -226,7 +226,8 @@ func HookGitSync(app *application.App) HookE {
 			return err
 		}
 
-		return gitops.Sync(ctx, app, gm, fmt.Sprintf("[%s] %s", app.DBBaseName(), msg))
+		return gitops.Sync(ctx, app, gm, gm.NewRepo(app.DBBaseName()).
+			CommitMsg(git.RepoAction(msg), ""))
 	}
 }
 

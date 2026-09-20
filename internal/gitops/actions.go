@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	files "github.com/mateconpizza/gofiles"
@@ -84,7 +85,7 @@ func Push(ctx context.Context, app *application.App, gm *git.Mgr) error {
 }
 
 // Sync stages tracked bookmark data and commits any resulting changes to Git.
-func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg string) error {
+func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.CommitMessage) error {
 	slog.Debug("starting git sync")
 	if !app.GitEnabled() {
 		slog.Warn("git sync: disabled")
@@ -192,6 +193,35 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
+func StreamLog(ctx context.Context, g *git.Git) error {
+	p := ansi.NewPalette(g.Color())
+	logger := &git.LogStyle{
+		Hash:         func(s string) string { return p.BrightYellow.Sprint(s) },
+		Repo:         func(s string) string { return p.BrightGreen.Sprint(s) },
+		Message:      func(s string) string { return s },
+		Status:       func(s string) string { return p.Gray.With(p.Italic).Sprint(s) },
+		Info:         func(s string) string { return p.BrightBlue.Sprint(s) },
+		PreProcessor: newHighlighter(p),
+	}
+
+	status, err := g.Output(ctx, "log", "--oneline", "--reverse")
+	if err != nil {
+		return err
+	}
+
+	e := git.NewLogEntry().
+		WithStyler(logger)
+
+	if err := git.StreamLogs(ctx, strings.NewReader(status), g.Writer(), e); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return application.ErrExitFailure
+		}
+		return err
+	}
+
+	return nil
+}
+
 func readFiles(color bool) func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
 	sp := rotato.New(
 		rotato.WithColor(color),
@@ -206,7 +236,7 @@ func readFiles(color bool) func(ctx context.Context, path string, total int) ([]
 	return func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
 		return newRepoReader(ctx, &RepoReaderCfg{
 			name:     filepath.Base(path),
-			root:     filepath.Dir(path),
+			root:     path,
 			fullpath: path,
 			total:    total,
 			spinner:  sp,
@@ -282,4 +312,29 @@ func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {
 	fullpath := filepath.Join(repoPath, filename)
 
 	return fullpath, nil
+}
+
+var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg)\b`)
+
+// newHighlighter returns a function that closes over the pre-computed map.
+func newHighlighter(p *ansi.Palette) func(string) string {
+	replacements := map[string]string{
+		"add":     p.BrightCyan.Sprint("add"),
+		"update":  p.BrightBlue.Sprint("update"),
+		"del":     p.BrightRed.Sprint("del"),
+		"edit":    p.Orange.Sprint("edit"),
+		"import":  p.BrightYellow.Sprint("import"),
+		"sync":    p.Cyan.Sprint("sync"),
+		"http":    p.Magenta.Sprint("http"),
+		"wayback": p.Red.Sprint("wayback"),
+		"commit":  p.BrightMagenta.Sprint("commit"),
+		"params":  p.Blue.Sprint("params"),
+		"gpg":     p.Red.Sprint("gpg"),
+	}
+
+	return func(msg string) string {
+		return actionRe.ReplaceAllStringFunc(msg, func(v string) string {
+			return replacements[v]
+		})
+	}
 }

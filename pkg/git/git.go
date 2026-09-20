@@ -32,31 +32,14 @@ type GitOptions struct {
 	commandLogger CmdLogger
 	executer      ExecuterFunc
 	cmd           *Commander
+	color         bool
 }
 
-func WithGitWriter(w io.Writer) GitOpt {
-	return func(o *GitOptions) {
-		o.writer = w
-	}
-}
-
-func WithGitCommandLogger(hook CmdLogger) GitOpt {
-	return func(o *GitOptions) {
-		o.commandLogger = hook
-	}
-}
-
-func WithExecuter(fn ExecuterFunc) GitOpt {
-	return func(o *GitOptions) {
-		o.executer = fn
-	}
-}
-
-func WithCommander(c *Commander) GitOpt {
-	return func(o *GitOptions) {
-		o.cmd = c
-	}
-}
+func WithGitWriter(w io.Writer) GitOpt       { return func(o *GitOptions) { o.writer = w } }
+func WithGitCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.commandLogger = hook } }
+func WithExecuter(fn ExecuterFunc) GitOpt    { return func(o *GitOptions) { o.executer = fn } }
+func WithCommander(c *Commander) GitOpt      { return func(o *GitOptions) { o.cmd = c } }
+func WithGitColor(b bool) GitOpt             { return func(o *GitOptions) { o.color = b } }
 
 // Git handles operational tasks on a local Git repository.
 type Git struct {
@@ -104,6 +87,7 @@ func Initialized(root string) bool              { return fileExists(root) }
 func (g *Git) Root() string                     { return g.fullpath }
 func (g *Git) Writer() io.Writer                { return g.writer }
 func (g *Git) Bin() string                      { return g.cmd.bin }
+func (g *Git) Color() bool                      { return g.color }
 func (g *Git) AddAll(ctx context.Context) error { return g.run(ctx, g.fullpath, "add", ".") }
 
 func (g *Git) Commit(ctx context.Context, msg string) error {
@@ -146,7 +130,11 @@ func (g *Git) Status(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	return formatStatus(added, modified, deleted), nil
+	return Stats{
+		Add: added,
+		Del: deleted,
+		Mod: modified,
+	}.String(), nil
 }
 
 // HasUnpulledCommits checks if there are commits on the upstream
@@ -337,7 +325,7 @@ func (g *Git) countStagedChanges(ctx context.Context) (added, modified, deleted 
 	return added, modified, deleted, nil
 }
 
-func (g *Git) commitIfChanged(ctx context.Context, msg string) error {
+func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 	changed, err := g.HasChanges(ctx)
 	if err != nil {
 		return fmt.Errorf("checking for changes: %w", err)
@@ -360,9 +348,28 @@ func (g *Git) commitIfChanged(ctx context.Context, msg string) error {
 		status = " (" + status + ")"
 	}
 
-	if err := g.Commit(ctx, fmt.Sprintf("%s%s", strings.ToLower(msg), status)); err != nil {
+	if err := g.Commit(ctx, fmt.Sprintf("%s%s", string(msg), status)); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
 
 	return nil
+}
+
+type Stats struct {
+	Add, Del, Mod int
+}
+
+// String renders "+add:1 -del:2 ~mod:3", skipping zero counts.
+func (s Stats) String() string {
+	var parts []string
+	if s.Add > 0 {
+		parts = append(parts, fmt.Sprintf("+add:%d", s.Add))
+	}
+	if s.Del > 0 {
+		parts = append(parts, fmt.Sprintf("-del:%d", s.Del))
+	}
+	if s.Mod > 0 {
+		parts = append(parts, fmt.Sprintf("~mod:%d", s.Mod))
+	}
+	return strings.Join(parts, " ")
 }

@@ -16,7 +16,7 @@ type mockManager struct {
 	isTracked bool
 
 	saveChangesErr error
-	savedMsg       string
+	savedMsg       git.CommitMessage
 
 	dropErr error
 
@@ -33,13 +33,12 @@ func (gm *mockManager) IsEnabled() bool                                        {
 func (gm *mockManager) Drop(ctx context.Context, gr *git.Repo) error           { return gm.dropErr }
 func (gm *mockManager) Repos() []string                                        { return []string{} }
 func (gm *mockManager) NewRepo(name string, opts ...git.RepoOptFunc) *git.Repo { return nil }
-func (gm *mockManager) SaveChanges(ctx context.Context, gr *git.Repo, msg string) error {
-	gm.savedMsg = msg
+func (gm *mockManager) SaveChanges(ctx context.Context, gr *git.Repo, mesg git.CommitMessage) error {
+	gm.savedMsg = mesg
 	return gm.saveChangesErr
 }
 
-func (gm *mockManager) Untrack(ctx context.Context, gr *git.Repo, msg string) error {
-	gm.untrackMsg = msg
+func (gm *mockManager) Untrack(ctx context.Context, gr *git.Repo) error {
 	return gm.untrackErr
 }
 
@@ -48,7 +47,7 @@ func (gm *mockManager) IsTracked(name string) bool {
 	return gm.isTracked
 }
 
-func (gm *mockManager) UpdateAndSave(ctx context.Context, gr *git.Repo, old, fresh *bookmark.Bookmark, postRm git.PostRemovalFunc) error {
+func (gm *mockManager) UpdateAndSave(ctx context.Context, gr *git.Repo, old, fresh *bookmark.Bookmark, mesg git.CommitMessage, postRm git.PostRemovalFunc) error {
 	gm.updateAndSaveCalled = true
 	gm.gotOld = old
 	gm.gotFresh = fresh
@@ -164,7 +163,7 @@ func TestAdd(t *testing.T) {
 			}
 
 			if tt.wantSavedMsg {
-				want := fmt.Sprintf("[%s] bookmark added", tt.name)
+				want := git.NewRepo(tt.name, "").CommitMsg(git.Add, "bookmark")
 				if want != mgr.savedMsg {
 					t.Fatalf("Add() savedMsg = %q; want %q", mgr.savedMsg, want)
 				}
@@ -235,7 +234,7 @@ func TestRemove(t *testing.T) {
 			removerErr:   nil,
 			saveErr:      nil,
 			bookmarks:    []*bookmark.Bookmark{b1, b2},
-			wantSavedMsg: "[test-repo] remove bookmarks",
+			wantSavedMsg: "[test-repo] del bookmarks",
 			wantErr:      nil,
 		},
 		{
@@ -245,7 +244,7 @@ func TestRemove(t *testing.T) {
 			removerErr:   nil,
 			saveErr:      nil,
 			bookmarks:    []*bookmark.Bookmark{},
-			wantSavedMsg: "[test-repo] remove bookmarks",
+			wantSavedMsg: "[test-repo] del bookmark",
 			wantErr:      nil,
 		},
 		{
@@ -255,7 +254,7 @@ func TestRemove(t *testing.T) {
 			removerErr:   nil,
 			saveErr:      nil,
 			bookmarks:    nil,
-			wantSavedMsg: "[test-repo] remove bookmarks",
+			wantSavedMsg: "[test-repo] del bookmark",
 			wantErr:      nil,
 		},
 	}
@@ -292,7 +291,7 @@ func TestRemove(t *testing.T) {
 				t.Fatalf("Remove() unexpected error: %v", err)
 			}
 
-			if tt.wantSavedMsg != "" && mgr.savedMsg != tt.wantSavedMsg {
+			if tt.wantSavedMsg != "" && mgr.savedMsg.String() != tt.wantSavedMsg {
 				t.Fatalf("Remove() savedMsg = %q; want %q", mgr.savedMsg, tt.wantSavedMsg)
 			}
 		})
@@ -399,7 +398,7 @@ func TestDrop(t *testing.T) {
 			confirmDrop:    true,
 			confirmUntrack: true,
 			printErr:       errPrint,
-			wantUntrackMsg: "[test-repo] remove tracking",
+			wantUntrackMsg: "[test-repo] del tracking",
 			wantErr:        errPrint,
 		},
 		{
@@ -408,7 +407,7 @@ func TestDrop(t *testing.T) {
 			tracked:        true,
 			confirmDrop:    true,
 			confirmUntrack: true,
-			wantUntrackMsg: "[test-repo] remove tracking",
+			wantUntrackMsg: "[test-repo] del tracking",
 			wantPrintedMsg: "Successfully: database untracked\n",
 			wantErr:        nil,
 		},
@@ -423,6 +422,7 @@ func TestDrop(t *testing.T) {
 				isTracked:  tt.tracked,
 				dropErr:    tt.dropErr,
 				untrackErr: tt.untrackErr,
+				untrackMsg: tt.wantUntrackMsg,
 			}
 
 			cons := &mockConsole{
@@ -566,7 +566,7 @@ func TestUpdate(t *testing.T) {
 
 			gr := git.NewRepo(tt.repoName, t.TempDir())
 
-			err := Update(t.Context(), fm, gr, tt.old, tt.fresh)
+			err := Update(t.Context(), fm, gr, tt.old, tt.fresh, "")
 
 			if tt.want != nil {
 				if !errors.Is(err, tt.want) {

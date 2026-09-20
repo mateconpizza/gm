@@ -21,9 +21,12 @@ type mockGitRepo struct {
 	removedBooks []*bookmark.Bookmark
 }
 
-func (m *mockGitRepo) Name() string                    { return m.name }
-func (m *mockGitRepo) Read(ctx context.Context) error  { return m.readErr }
-func (m *mockGitRepo) Bookmarks() []*bookmark.Bookmark { return m.bookmarks }
+func (m *mockGitRepo) Bookmarks() []*bookmark.Bookmark                          { return m.bookmarks }
+func (m *mockGitRepo) CommitMsg(a git.RepoAction, obj string) git.CommitMessage { return "" }
+func (m *mockGitRepo) Fullpath() string                                         { return "" }
+func (m *mockGitRepo) Name() string                                             { return m.name }
+func (m *mockGitRepo) Read(ctx context.Context) error                           { return m.readErr }
+
 func (m *mockGitRepo) Add(ctx context.Context, bs []*bookmark.Bookmark) error {
 	m.addedBooks = bs
 	m.bookmarks = append(m.bookmarks, bs...)
@@ -56,7 +59,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 				m.addErr = nil
 				m.rmManyErr = nil
 			},
-			saveFn:  func(ctx context.Context, msg string) error { return nil },
+			saveFn:  func(ctx context.Context, msg git.CommitMessage) error { return nil },
 			wantErr: git.ErrGitUpToDate,
 		},
 		{
@@ -70,7 +73,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 				m.addErr = nil
 				m.rmManyErr = nil
 			},
-			saveFn:  func(ctx context.Context, msg string) error { return nil },
+			saveFn:  func(ctx context.Context, msg git.CommitMessage) error { return nil },
 			wantErr: git.ErrGitUpToDate,
 		},
 		{
@@ -81,7 +84,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 			repoSetup: func(m *mockGitRepo) {
 				m.readErr = errors.New("read failed")
 			},
-			saveFn:  func(ctx context.Context, msg string) error { return nil },
+			saveFn:  func(ctx context.Context, msg git.CommitMessage) error { return nil },
 			wantErr: errors.New("read failed"),
 		},
 		{
@@ -94,7 +97,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 				m.bookmarks = []*bookmark.Bookmark{}
 				m.addErr = errors.New("add failed")
 			},
-			saveFn:  func(ctx context.Context, msg string) error { return nil },
+			saveFn:  func(ctx context.Context, msg git.CommitMessage) error { return nil },
 			wantErr: errors.New("add failed"),
 		},
 		{
@@ -110,7 +113,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 				m.addErr = nil
 				m.rmManyErr = errors.New("remove failed")
 			},
-			saveFn:  func(ctx context.Context, msg string) error { return nil },
+			saveFn:  func(ctx context.Context, msg git.CommitMessage) error { return nil },
 			wantErr: errors.New("remove failed"),
 		},
 		{
@@ -128,7 +131,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 				m.addErr = nil
 				m.rmManyErr = nil
 			},
-			saveFn:  func(ctx context.Context, msg string) error { return nil },
+			saveFn:  func(ctx context.Context, msg git.CommitMessage) error { return nil },
 			wantErr: git.ErrGitUpToDate,
 		},
 		{
@@ -142,7 +145,7 @@ func TestRepoReconcilerReconcile(t *testing.T) {
 				m.addErr = nil
 				m.rmManyErr = nil
 			},
-			saveFn:  func(ctx context.Context, msg string) error { return errors.New("save failed") },
+			saveFn:  func(ctx context.Context, msg git.CommitMessage) error { return errors.New("save failed") },
 			wantErr: errors.New("save failed"),
 		},
 	}

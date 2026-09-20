@@ -99,7 +99,8 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 			WithStrategy(strategy).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
-				return persistFunc(ctx, app, r, old, fresh)
+				mesg := git.NewRepo(r.BaseName(), "").CommitMsg(git.Edit, "bookmark")
+				return persistFunc(ctx, app, r, old, fresh, mesg)
 			})
 
 		return runEditSession(ctx, d, bs, session)
@@ -276,11 +277,6 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 	}
 	defer r.Close()
 
-	bs, err := r.All(ctx)
-	if err != nil {
-		return err
-	}
-
 	if err := dbops.Remove(ctx, d); err != nil {
 		return err
 	}
@@ -310,13 +306,7 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		return nil
 	}
 
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Name())
-	if len(bs) > 0 {
-		fmt.Fprintf(&sb, " (-del:%d)", len(bs))
-	}
-
-	return gm.Untrack(ctx, gr, sb.String())
+	return gm.Untrack(ctx, gr)
 }
 
 func RemoveRepos(ctx context.Context, d *deps.Deps) error {
@@ -420,9 +410,7 @@ func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) err
 			return nil
 		}
 
-		var sb strings.Builder
-		fmt.Fprintf(&sb, "[%s] removed and untracked", gr.Name())
-		if err := gm.Untrack(ctx, gr, sb.String()); err != nil {
+		if err := gm.Untrack(ctx, gr); err != nil {
 			return err
 		}
 	}
@@ -534,12 +522,15 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		return fmt.Errorf("choose: %w", err)
 	}
 
+	mesg := git.NewRepo(app.DBBaseName(), "").
+		CommitMsg(git.Update, "metadata")
+
 	switch strings.ToLower(opt) {
 	case "n", "no":
 		return nil
 
 	case "y", "yes":
-		if err := persistFunc(ctx, app, r, b, &updated); err != nil {
+		if err := persistFunc(ctx, app, r, b, &updated, mesg); err != nil {
 			return err
 		}
 		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
@@ -555,7 +546,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(sp)).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
-				return persistFunc(ctx, app, r, old, fresh)
+				return persistFunc(ctx, app, r, old, fresh, mesg)
 			})
 
 		err := runEditSession(ctx, d, []*bookmark.Bookmark{&updated}, session)
@@ -683,7 +674,7 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 	}
 
 	if gm.IsTracked(gr.Name()) {
-		err := gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] http status updated", gr.Name()))
+		err := gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Update, "status"))
 		if err != nil && !errors.Is(err, git.ErrGitUpToDate) {
 			return err
 		}
@@ -692,7 +683,7 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 	return nil
 }
 
-func persistFunc(ctx context.Context, app *application.App, r bookmarkStore, old, fresh *bookmark.Bookmark) error {
+func persistFunc(ctx context.Context, app *application.App, r bookmarkStore, old, fresh *bookmark.Bookmark, mesg git.CommitMessage) error {
 	if err := r.UpdateOne(ctx, fresh); err != nil {
 		return err
 	}
@@ -714,5 +705,5 @@ func persistFunc(ctx context.Context, app *application.App, r bookmarkStore, old
 		gitops.RepoStatsReader(r),
 	)
 
-	return gitops.Update(ctx, gm, gr, old, fresh)
+	return gitops.Update(ctx, gm, gr, old, fresh, mesg)
 }

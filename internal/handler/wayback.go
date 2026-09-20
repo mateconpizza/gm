@@ -50,7 +50,7 @@ func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 		}),
 		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
 		rotato.WithMessageColor(rotato.FgYellow),
-		rotato.WithMessageDecorator(func(mesg string) string { return "Fetching " + mesg }),
+		rotato.WithMessageDecorator(func(msg string) string { return "Fetching " + msg }),
 		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
 		rotato.WithFailMessageColor(rotato.FgBrightRed),
 	)
@@ -266,13 +266,12 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 		rotato.WithPrefix("Snapshots"),
 		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
 		rotato.WithMessage("fetching "+p.Italic.Sprint(u)),
-		rotato.WithMessageDecorator(func(mesg string) string {
+		rotato.WithMessageDecorator(func(msg string) string {
 			remaining := max(
 				time.Until(deadline).Round(time.Second),
 				0,
 			)
-
-			return mesg + " " + rotato.DimCountdownDecorator(remaining)
+			return msg + " " + rotato.DimCountdownDecorator(remaining)
 		}),
 	)
 

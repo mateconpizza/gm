@@ -67,8 +67,11 @@ func (gm *Mgr) Repos() []string                               { return gm.track.
 func (gm *Mgr) WriteRepos() error                             { return gm.track.Write() }
 func (gm *Mgr) Version() string                               { return gm.version }
 func (gm *Mgr) Track(names ...string) error                   { return gm.track.Track(names...) }
-func (gm *Mgr) Commit(ctx context.Context, msg string) error  { return gm.g.commitIfChanged(ctx, msg) }
 func (gm *Mgr) SetCfg(ctx context.Context, k, v string) error { return gm.g.SetCfgLocal(ctx, k, v) }
+
+func (gm *Mgr) Commit(ctx context.Context, msg CommitMessage) error {
+	return gm.g.commitIfChanged(ctx, msg)
+}
 
 func (gm *Mgr) Init(ctx context.Context, force bool) error {
 	if force {
@@ -77,7 +80,7 @@ func (gm *Mgr) Init(ctx context.Context, force bool) error {
 	return gm.g.Init(ctx, force)
 }
 
-func (gm *Mgr) SaveChanges(ctx context.Context, gr *Repo, msg string) error {
+func (gm *Mgr) SaveChanges(ctx context.Context, gr *Repo, msg CommitMessage) error {
 	if gm.version == "" {
 		return ErrNoVersionFound
 	}
@@ -141,10 +144,10 @@ func (gm *Mgr) Drop(ctx context.Context, gr *Repo) error {
 	if err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] drop repo", gr.Name()))
+	return gm.SaveChanges(ctx, gr, gr.CommitMsg(Del, "repo"))
 }
 
-func (gm *Mgr) Untrack(ctx context.Context, gr *Repo, msg string) error {
+func (gm *Mgr) Untrack(ctx context.Context, gr *Repo) error {
 	if !gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", ErrGitNotTracked, gr.Name())
 	}
@@ -157,17 +160,17 @@ func (gm *Mgr) Untrack(ctx context.Context, gr *Repo, msg string) error {
 	if err := os.RemoveAll(gr.Fullpath()); err != nil {
 		return err
 	}
-	return gm.Commit(ctx, msg)
+	return gm.Commit(ctx, gr.CommitMsg(Del, "tracking"))
 }
 
-func (gm *Mgr) UpdateAndSave(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
+func (gm *Mgr) UpdateAndSave(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, msg CommitMessage, fn PostRemovalFunc) error {
 	if gm.version == "" {
 		return ErrNoVersionFound
 	}
-	if err := gm.Update(ctx, gr, old, fresh, postRm); err != nil {
+	if err := gm.Update(ctx, gr, old, fresh, fn); err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] update bookmark", gr.Name()))
+	return gm.SaveChanges(ctx, gr, msg)
 }
 
 func (gm *Mgr) shouldSave(ctx context.Context, old, fresh *RepoStats) (bool, error) {

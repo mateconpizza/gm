@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/testutil"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
@@ -81,7 +82,7 @@ func TestSuccessfulInitializationWithNonMainDatabase(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	output := buf.String()
+	output := ansi.Remover(buf.String())
 	want := "Initialized database: test-db"
 	if !strings.Contains(output, want) {
 		t.Errorf("expected output to contain '%s', got %q", want, output)
