@@ -126,9 +126,9 @@ func NewPalette(enabled bool) *Palette {
 		BgBrightWhite:   s(BgBrightWhite),
 
 		// Text styles.
-		Bold:          s(Bold),
+		Bold:          newStyle(Bold, true),
 		Dim:           s(Dim),
-		Italic:        s(Italic),
+		Italic:        newStyle(Italic, true),
 		Underline:     s(Underline),
 		Undercurl:     s(Undercurl),
 		Blink:         s(Blink),

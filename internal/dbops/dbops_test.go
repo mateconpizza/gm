@@ -17,6 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -41,7 +42,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		output := buf.String()
+		output := ansi.Remover(buf.String())
 		if !strings.Contains(output, "Successfully database main removed") {
 			t.Fatalf("%v", output)
 		}
@@ -71,7 +72,7 @@ func TestRemoveRepo_Success(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		output := buf.String()
+		output := ansi.Remover(buf.String())
 		name := files.StripExts(app.DBName)
 		if !strings.Contains(output, "Successfully database "+name+" removed") {
 			t.Fatalf("%v", output)
