@@ -101,19 +101,5 @@ func defaultExecuter(ctx context.Context, dir string, w io.Writer, r io.Reader, 
 	return nil
 }
 
-func formatStatus(added, modified, deleted int) string {
-	var parts []string
-	if added > 0 {
-		parts = append(parts, fmt.Sprintf("+add:%d", added))
-	}
-	if deleted > 0 {
-		parts = append(parts, fmt.Sprintf("-del:%d", deleted))
-	}
-	if modified > 0 {
-		parts = append(parts, fmt.Sprintf("~mod:%d", modified))
-	}
-	return strings.Join(parts, " ")
-}
-
 // IsInitialized checks if the repo is initialized.
 func IsInitialized(repoPath string) bool { return fileExists(filepath.Join(repoPath, ".git")) }

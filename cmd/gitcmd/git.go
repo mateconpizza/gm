@@ -33,7 +33,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			}
 
 			if len(args) == 0 {
-				args = append(args, "log", "--oneline", "--reverse")
+				return gitops.StreamLog(cmd.Context(), g)
 			}
 
 			return g.Exec(cmd.Context(), args...)
@@ -61,7 +61,7 @@ func NewCmd(app *application.App) *cobra.Command {
 func newCommitCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:    "commit",
-		Short:  "commit bookmark database changes",
+		Short:  "commit changes",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gm, err := gitops.NewManager(&gitops.ManagerConfig{
@@ -85,7 +85,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				gitops.RepoFileWriter(gm.Color()),
 				git.WithRepoStore(r),
 			)
-			return gm.SaveChanges(cmd.Context(), gr, cmd.Short)
+			return gm.SaveChanges(cmd.Context(), gr, git.CommitMessage(cmd.Short))
 		},
 	}
 }
@@ -179,7 +179,8 @@ func newRawCmd(app *application.App) *cobra.Command {
 func newCloneCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:                "clone",
-		Short:              "clone bookmarks from a remote repository",
+		Short:              "import git",
+		Long:               "clone bookmarks from a remote repository",
 		Aliases:            []string{"import"},
 		Args:               cobra.MinimumNArgs(1),
 		PersistentPostRunE: cli.HookGitSync(app),

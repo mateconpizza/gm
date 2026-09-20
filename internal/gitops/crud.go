@@ -2,7 +2,6 @@ package gitops
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -66,7 +65,7 @@ func NewGit(w io.Writer, root string, color bool) (*git.Git, error) {
 		root,
 		[]git.GitOpt{
 			// command logger
-			git.WithGitCommandLogger(func(w io.Writer, commands []string) {
+			git.WithGitCmdLogger(func(w io.Writer, commands []string) {
 				headerFrame := frame.New(
 					frame.WithColorBorder(p.BrightYellow.Sprint),
 					frame.WithBordersSmallBlock(),
@@ -78,6 +77,8 @@ func NewGit(w io.Writer, root string, color bool) (*git.Git, error) {
 
 			// writer
 			git.WithGitWriter(w),
+
+			git.WithGitColor(color),
 		}...,
 	)
 }
@@ -91,7 +92,7 @@ func Add(ctx context.Context, gm gitManager, gr *git.Repo, b *bookmark.Bookmark)
 		return err
 	}
 
-	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] bookmark added", gr.Name()))
+	return gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Add, "bookmark"))
 }
 
 func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Bookmark) error {
@@ -103,7 +104,12 @@ func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Boo
 		return err
 	}
 
-	return gm.SaveChanges(ctx, gr, fmt.Sprintf("[%s] remove bookmarks", gr.Name()))
+	o := "bookmark"
+	if len(bs) > 1 {
+		o += "s"
+	}
+
+	return gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Del, o))
 }
 
 func Drop(ctx context.Context, gm gitManager, gr *git.Repo, c console) error {
@@ -129,17 +135,16 @@ func Drop(ctx context.Context, gm gitManager, gr *git.Repo, c console) error {
 		return nil
 	}
 
-	if err := gm.Untrack(ctx, gr, fmt.Sprintf("[%s] remove tracking", gr.Name())); err != nil {
+	if err := gm.Untrack(ctx, gr); err != nil {
 		return err
 	}
 
 	return c.Print(ctx, c.SuccessMesg("database untracked\n"))
 }
 
-func Update(ctx context.Context, gm gitManager, gr *git.Repo, old, fresh *bookmark.Bookmark) error {
+func Update(ctx context.Context, gm gitManager, gr *git.Repo, old, fresh *bookmark.Bookmark, mesg git.CommitMessage) error {
 	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}
-
-	return gm.UpdateAndSave(ctx, gr, old, fresh, files.RemoveEmptyDirs)
+	return gm.UpdateAndSave(ctx, gr, old, fresh, mesg, files.RemoveEmptyDirs)
 }

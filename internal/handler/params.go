@@ -17,6 +17,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 var ErrURLParamsNotFound = errors.New("params not found")
@@ -51,8 +52,11 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 
 		b.URL = newURL
 
+		mesg := git.NewRepo(app.DBBaseName(), "").
+			CommitMsg(git.Update, "params")
+
 		// save to db and git
-		if err := persistBookmarkUpdate(ctx, d, b, newURL); err != nil {
+		if err := persistBookmarkUpdate(ctx, d, b, newURL, mesg); err != nil {
 			return err
 		}
 	}
@@ -319,7 +323,7 @@ func computeNewURL(m *menu.Menu[string], u *url.URL, opt string) (newURL string,
 
 // persistBookmarkUpdate updates the bookmark URL in the DB and Git if no
 // duplicate exists.
-func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, newURL string) error {
+func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, newURL string, mesg git.CommitMessage) error {
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 	id := func(val any) string { return p.Bold.Sprint("[", val, "] ") }
@@ -343,7 +347,7 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	if err != nil {
 		return err
 	}
-	return persistFunc(ctx, app, r, b, &newB)
+	return persistFunc(ctx, app, r, b, &newB, mesg)
 }
 
 func paramsStripAll(rawURL string) (string, error) {

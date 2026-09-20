@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -17,6 +18,19 @@ var (
 	ErrNoFunctionFound = errors.New("git: no function provided")
 	ErrNoStoreFound    = errors.New("git: no store found")
 	ErrSummaryFile     = errors.New("git: summary file")
+)
+
+type CommitMessage string
+
+func (cm CommitMessage) String() string { return string(cm) }
+
+type RepoAction string
+
+const (
+	Add    RepoAction = "add"
+	Del    RepoAction = "del"
+	Edit   RepoAction = "edit"
+	Update RepoAction = "update"
 )
 
 type RepoDB interface {
@@ -69,7 +83,7 @@ func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
 	}
 
 	return &Repo{
-		name:        name,
+		name:        strings.ToLower(name),
 		fullpath:    dstDir,
 		summaryFile: filepath.Join(dstDir, SummaryFileName),
 		RepoOptions: o,
@@ -243,6 +257,13 @@ func (gr *Repo) WriteSummary(s *Summary) error {
 	slog.Debug("git summary: writing", "file", gr.summaryFile)
 
 	return gr.sumWriter(gr.summaryFile, s)
+}
+
+// CommitMsg construct the repo commit message.
+//
+//	[repoName] action object
+func (gr *Repo) CommitMsg(a RepoAction, obj string) CommitMessage {
+	return CommitMessage(fmt.Sprintf("[%s] %s %s", gr.Name(), a, obj))
 }
 
 func defPersistSummary(path string, sum *Summary) error { return writeFile(path, sum) }

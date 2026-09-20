@@ -17,19 +17,21 @@ type gitRepo interface {
 	RmMany(ctx context.Context, bs []*bookmark.Bookmark, postRm git.PostRemovalFunc) error
 	Bookmarks() []*bookmark.Bookmark
 	Add(ctx context.Context, bs []*bookmark.Bookmark) error
+	Fullpath() string
+	CommitMsg(a git.RepoAction, obj string) git.CommitMessage
 }
 
 type gitManager interface {
 	Drop(ctx context.Context, gr *git.Repo) error
 	Repos() []string
-	Untrack(ctx context.Context, gr *git.Repo, msg string) error
-	SaveChanges(ctx context.Context, gr *git.Repo, msg string) error
+	Untrack(ctx context.Context, gr *git.Repo) error
+	SaveChanges(ctx context.Context, gr *git.Repo, msg git.CommitMessage) error
 	IsTracked(name string) bool
 	IsEnabled() bool
-	UpdateAndSave(ctx context.Context, gr *git.Repo, old, fresh *bookmark.Bookmark, postRm git.PostRemovalFunc) error
+	UpdateAndSave(ctx context.Context, gr *git.Repo, old, fresh *bookmark.Bookmark, mesg git.CommitMessage, postRm git.PostRemovalFunc) error
 }
 
-type saveChangesFunc func(ctx context.Context, msg string) error
+type saveChangesFunc func(ctx context.Context, msg git.CommitMessage) error
 
 type RepoReconciler struct {
 	repo           gitRepo
@@ -80,8 +82,8 @@ func (r *RepoReconciler) readRepo(ctx context.Context) error {
 	return r.repo.Read(ctx)
 }
 
-func (r *RepoReconciler) msg(msg string) string {
-	return fmt.Sprintf("[%s] repo sync: %s", r.repo.Name(), msg)
+func (r *RepoReconciler) msg(action git.RepoAction, msg string) git.CommitMessage {
+	return r.repo.CommitMsg(action, msg)
 }
 
 // addMissing adds bookmarks missing from the repository.
@@ -97,7 +99,7 @@ func (r *RepoReconciler) addMissing(ctx context.Context) error {
 		return err
 	}
 
-	return r.persistChanges(ctx, r.msg("add missing"))
+	return r.persistChanges(ctx, r.msg(git.Add, "missing"))
 }
 
 // pruneStale removes repository bookmarks not found in the database.
@@ -114,7 +116,7 @@ func (r *RepoReconciler) pruneStale(ctx context.Context) error {
 		return err
 	}
 
-	return r.persistChanges(ctx, r.msg("prune stale"))
+	return r.persistChanges(ctx, r.msg(git.Del, "stale"))
 }
 
 // removeOrphans removes orphaned bookmarks from the repository.
@@ -129,7 +131,7 @@ func (r *RepoReconciler) removeOrphans(ctx context.Context) error {
 		return err
 	}
 
-	return r.persistChanges(ctx, r.msg("remove orphans"))
+	return r.persistChanges(ctx, r.msg(git.Del, "orphans"))
 }
 
 // PruneRepo runs the reconcile-and-persist cycle for a single repo.
@@ -138,7 +140,7 @@ func PruneRepo(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, gr.Name())
 	}
 
-	persistFn := func(ctx context.Context, msg string) error {
+	persistFn := func(ctx context.Context, msg git.CommitMessage) error {
 		return gm.SaveChanges(ctx, gr, msg)
 	}
 

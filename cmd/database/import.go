@@ -36,7 +36,7 @@ func newImportCmd(app *application.App) *cobra.Command {
 func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "database",
-		Short:   "import from database",
+		Short:   "import database",
 		Aliases: []string{"db"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.Flags.Path != "" {
@@ -54,7 +54,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 func newImportFromBackupCmd(_ *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "backup",
-		Short:   "import from backup",
+		Short:   "import backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd, args, port.ImportFromBackup)
@@ -65,7 +65,7 @@ func newImportFromBackupCmd(_ *application.App) *cobra.Command {
 func newImportBrowserCmd(_ *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "browser",
-		Short: "import from browser",
+		Short: "import browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd, args, port.ImportFromBrowser)
 		},
@@ -75,7 +75,7 @@ func newImportBrowserCmd(_ *application.App) *cobra.Command {
 func newImportHTMLCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "html",
-		Short: "import from HTML Netscape file",
+		Short: "import html",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromHTML(cmd.Context(), d, app.Flags.Path)
@@ -107,7 +107,7 @@ func newImportFromGit(app *application.App) *cobra.Command {
 		if cmd.Name() == "clone" {
 			c = &cobra.Command{
 				Use:   "git",
-				Short: "import from git repository",
+				Short: "import git",
 				Args:  cobra.MinimumNArgs(1),
 				RunE:  cmd.RunE,
 			}
@@ -120,7 +120,7 @@ func newImportFromGit(app *application.App) *cobra.Command {
 func newImportFromJSON(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "json",
-		Short: "import from JSON file",
+		Short: "import json",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromJSON(cmd.Context(), d, app.Flags.Path)

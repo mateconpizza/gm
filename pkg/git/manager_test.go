@@ -305,7 +305,7 @@ func TestMgr_Untrack(t *testing.T) {
 				}
 			}
 
-			err := m.Untrack(t.Context(), gr, "untrack message")
+			err := m.Untrack(t.Context(), gr)
 
 			switch {
 			case tt.want != nil:

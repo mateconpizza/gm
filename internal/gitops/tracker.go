@@ -97,7 +97,7 @@ func Track(ctx context.Context, r store, gm *git.Mgr, gr *git.Repo) error {
 		return err
 	}
 
-	return gm.Commit(ctx, fmt.Sprintf("[%s] add tracking", gr.Name()))
+	return gm.Commit(ctx, gr.CommitMsg(git.Add, "tracking"))
 }
 
 func Untrack(ctx context.Context, d *deps.Deps) error {
@@ -117,8 +117,7 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 	}
 
 	gr := gm.NewRepo(app.DBBaseName())
-	commitMsg := fmt.Sprintf("[%s] remove tracking", gr.Name())
-	if err := gm.Untrack(ctx, gr, commitMsg); err != nil {
+	if err := gm.Untrack(ctx, gr); err != nil {
 		return err
 	}
 
