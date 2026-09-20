@@ -123,8 +123,9 @@ func HookEnsureDatabase(app *application.App) HookE {
 			return err
 		}
 
-		i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s init", app.Cmd)
-		return fmt.Errorf("%w %q: use %s to initialize", db.ErrDBNotFound, strings.TrimSuffix(app.DBName, ".db"), i)
+		p := ansi.NewPalette(app.Flags.Color)
+		i := p.BrightYellow.With(p.Italic).Sprintf("%s init", app.Cmd)
+		return fmt.Errorf("%w %q: use '%s' to initialize", db.ErrDBNotFound, strings.TrimSuffix(app.DBName, ".db"), i)
 	}
 }
 
@@ -181,8 +182,9 @@ func HookGitEnsureEnv(app *application.App) HookE {
 		}
 
 		if !isInitialized {
-			i := ansi.BrightYellow.With(ansi.Italic).Sprintf("%s git init", app.Cmd)
-			return fmt.Errorf("%w: use %s to setup", git.ErrGitNotInitialized, i)
+			p := ansi.NewPalette(app.Flags.Color)
+			i := p.BrightYellow.With(p.Italic).Sprintf("%s git init", app.Cmd)
+			return fmt.Errorf("%w: use '%s' to setup", git.ErrGitNotInitialized, i)
 		}
 
 		return nil

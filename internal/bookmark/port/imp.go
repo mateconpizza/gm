@@ -131,6 +131,8 @@ func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
 		menu.WithInterruptFn(c.Term().InterruptFn()),
 		menu.WithMultiSelection(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), "./backup/"+srcRepo.Name(), p.Single())),
+		menu.WithHeaderKeymaps(),
+		menu.WithKeybinds(menu.KeymapToggleAll()),
 	)
 
 	m.SetFormatter(func(b *bookmark.Bookmark) string {

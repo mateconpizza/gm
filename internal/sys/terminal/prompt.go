@@ -442,8 +442,8 @@ func buildPrompt(q, opts string) string {
 }
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
-func WaitForEnter(ctx context.Context, mesg string) error {
-	fmt.Fprint(os.Stdout, mesg)
+func WaitForEnter(ctx context.Context, msg string) error {
+	fmt.Fprint(os.Stdout, msg)
 
 	done := make(chan struct{})
 

@@ -276,6 +276,7 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 		return app.DBBaseName()
 	}
 
+	p := c.Palette()
 	return NewBackupSelector(app).
 		WithFilter(filter).
 		WithOpts(
@@ -284,7 +285,7 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 				"select backup/s from %q %s %s",
 				header(),
 				txt.GlyphBulletPoint,
-				ansi.BrightRed.Wrap("this action cannot be undone", ansi.Bold),
+				p.BrightRed.Wrap("this action cannot be undone", p.Bold),
 			))).
 		Select(ctx)
 }

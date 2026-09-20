@@ -201,8 +201,8 @@ func (c *Console) PromptWithSuggestions(p string, items []string) string {
 	return c.term.PromptWithSuggestions(p, items)
 }
 
-func (c *Console) WaitForEnter(ctx context.Context, mesg string) error {
-	return c.term.WaitForEnter(ctx, mesg)
+func (c *Console) WaitForEnter(ctx context.Context, msg string) error {
+	return c.term.WaitForEnter(ctx, msg)
 }
 
 // SuccessMesg returns a prettified success message.

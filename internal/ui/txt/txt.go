@@ -734,10 +734,8 @@ func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.Style {
 
 func Pill(color, inverse ansi.Style, msg string) string {
 	var sb strings.Builder
-
 	sb.WriteString(color.Sprint(GlyphSepPillLeft))
 	sb.WriteString(color.Wrap(msg, inverse))
 	sb.WriteString(color.Sprint(GlyphSepPillRight))
-
 	return sb.String()
 }

@@ -96,9 +96,9 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*book
 		p       = c.Palette()
 	)
 
-	sp.AddPrefixDecorator(func(mesg string) string {
+	sp.AddPrefixDecorator(func(msg string) string {
 		s := fmt.Sprintf("[%-*d/%d] ", 3, current.Load(), total)
-		return p.BrightCyan.Wrap(s, p.Bold) + mesg
+		return p.BrightCyan.Wrap(s, p.Bold) + msg
 	})
 
 	w := c.Writer()
@@ -334,8 +334,8 @@ func setupSpinner(color bool) *rotato.Rotato {
 		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
 		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
 		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-		rotato.WithMessageDecorator(func(mesg string) string {
-			return mesg + rotato.StyleDim.With(rotato.StyleItalic).Sprint(" (ctrl-c to cancel)")
+		rotato.WithMessageDecorator(func(msg string) string {
+			return msg + rotato.StyleDim.With(rotato.StyleItalic).Sprint(" (ctrl-c to cancel)")
 		}),
 	)
 }

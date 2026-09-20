@@ -223,13 +223,13 @@ func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, sp spinner, 
 	dimmer := rotato.FgYellow.With(rotato.StyleDim, rotato.StyleBold)
 
 	sp.UpdateMesg("waiting for GPG passphrase")
-	sp.SetMessageDecorator(func(mesg string) string {
+	sp.SetMessageDecorator(func(msg string) string {
 		remaining := max(time.Until(deadline).Round(time.Second), 0)
 		// *prompted will be true for any subsequent spinner updates after this function returns
 		if remaining == 0 || *prompted {
-			return mesg
+			return msg
 		}
-		return mesg + " " + dimmer.Sprintf("(%.0fs left)", remaining.Seconds())
+		return msg + " " + dimmer.Sprintf("(%.0fs left)", remaining.Seconds())
 	})
 
 	// blocks until the user types their passphrase in the GPG prompt

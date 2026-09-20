@@ -35,7 +35,8 @@ func MgrVersion(ver string) git.MgrOptFunc      { return git.WithVersion(ver) }
 func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 	if err := gm.Init(ctx, app.Flags.Reinit); err != nil {
 		if errors.Is(err, git.ErrGitInitialized) {
-			s := ansi.BrightYellow.With(ansi.Italic).Sprint("git init --reinit")
+			p := ansi.NewPalette(app.Flags.Color)
+			s := p.BrightYellow.With(p.Italic).Sprint("git init --reinit")
 			return fmt.Errorf("%w, use %s", err, s)
 		}
 		return err

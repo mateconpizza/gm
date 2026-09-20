@@ -268,7 +268,7 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 }
 
 // WaitForEnter displays a prompt and waits for the user to press ENTER.
-func (t *Term) WaitForEnter(ctx context.Context, mesg string) error { return WaitForEnter(ctx, mesg) }
+func (t *Term) WaitForEnter(ctx context.Context, msg string) error { return WaitForEnter(ctx, msg) }
 
 // ClearLine deletes n lines in the console.
 func (t *Term) ClearLine(n int) {

@@ -46,8 +46,8 @@ func newRepoReader(ctx context.Context, opts *RepoReaderCfg) ([]*bookmark.Bookma
 		}
 
 		if fp.Expired() {
-			opts.spinner.AddPrefixDecorator(func(mesg string) string {
-				return mesg + rotato.FgBrightYellow.Wrap(" warn: key has expired", rotato.StyleItalic)
+			opts.spinner.AddPrefixDecorator(func(msg string) string {
+				return msg + rotato.FgBrightYellow.Wrap(" warn: key has expired", rotato.StyleItalic)
 			})
 		}
 
