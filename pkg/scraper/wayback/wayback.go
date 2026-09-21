@@ -132,6 +132,8 @@ func (wm *WaybackMachine) ClosestSnapshot(ctx context.Context, urlStr string) (*
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
+	setHeaders(req)
+
 	q := req.URL.Query()
 	q.Add("url", urlStr)
 	req.URL.RawQuery = q.Encode()
@@ -172,6 +174,8 @@ func (wm *WaybackMachine) Snapshots(ctx context.Context, urlStr string) ([]Snaps
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
+
+	setHeaders(req)
 
 	resp, err := wm.client.Do(req)
 	if err != nil {
@@ -224,6 +228,8 @@ func (wm *WaybackMachine) SaveSnapshot(ctx context.Context, urlStr string) (stri
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
+	setHeaders(req)
+
 	resp, err := wm.client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to save snapshot: %w", err)
@@ -256,4 +262,15 @@ func (wm *WaybackMachine) params(u string) string {
 	}
 
 	return p.Encode()
+}
+
+func setHeaders(r *http.Request) {
+	r.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0")
+	r.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	r.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	r.Header.Set("Connection", "keep-alive")
+	r.Header.Set("Upgrade-Insecure-Requests", "1")
+	r.Header.Set("Sec-Fetch-Dest", "document")
+	r.Header.Set("Sec-Fetch-Mode", "navigate")
+	r.Header.Set("Sec-Fetch-Site", "none")
 }
