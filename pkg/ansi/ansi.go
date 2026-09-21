@@ -129,6 +129,9 @@ const (
 
 // Wrap wraps the given text with the provided styles and resets afterwards.
 func (s SGR) Wrap(text string, styles ...SGR) string {
+	if text == "" {
+		return text
+	}
 	return string(s) + combine(styles...) + text + string(Reset)
 }
 

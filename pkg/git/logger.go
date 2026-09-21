@@ -51,32 +51,37 @@ func (e *LogEntry) WithStyler(c *LogStyle) *LogEntry {
 }
 
 // Colored returns the LogEntry formatted with ANSI colors.
+//
+//	hash [repoName] message (status)
 func (e *LogEntry) Colored() string {
 	var sb strings.Builder
-
-	f := func(s string) {
+	fn := func(s string) {
+		if s == "" {
+			return
+		}
 		sb.WriteString(s)
 		sb.WriteByte(' ')
 	}
 
-	//	hash [repo] message (status)
-	f(e.styler.Hash(e.Hash))
-	f(e.styler.Repo(e.Repo))
-	f(e.styler.Message(e.Mesg))
-	if e.Status != "" {
-		f(e.styler.Status(e.Status))
-	}
+	fn(e.styler.Hash(e.Hash))
+	fn(e.styler.Repo(e.Repo))
+	fn(e.styler.Message(e.Mesg))
+	fn(e.styler.Status(e.Status))
 
 	return sb.String()
 }
 
 // parseLogLine parses a single line into a LogEntry.
+//
+//	hash [repoName] message (status)
 func parseLogLine(e *LogEntry, l string) bool {
-	// hash [repo] message (status)
 	l = strings.TrimSpace(l)
 	if l == "" {
 		return false
 	}
+
+	e.Repo = ""
+	e.Status = ""
 
 	// extract hash
 	hashSpace := strings.IndexByte(l, ' ')
