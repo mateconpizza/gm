@@ -1,6 +1,15 @@
 package git
 
-import "testing"
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"strings"
+	"testing"
+	"testing/iotest"
+)
 
 func TestParseLogLine(t *testing.T) {
 	t.Parallel()
@@ -121,6 +130,96 @@ func TestParseLogLine(t *testing.T) {
 			}
 			if e.Status != tt.want.Status {
 				t.Errorf("Status = %q; want %q", e.Status, tt.want.Status)
+			}
+		})
+	}
+}
+
+func TestStreamLogs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		r       io.Reader
+		entry   *LogEntry
+		wantErr error
+	}{
+		{
+			name:    "normal_input",
+			r:       strings.NewReader("e7e92be [main] initial commit (ok)\n"),
+			entry:   NewLogEntry(),
+			wantErr: nil,
+		},
+		{
+			name:    "empty_input",
+			r:       strings.NewReader(""),
+			entry:   NewLogEntry(),
+			wantErr: nil,
+		},
+		{
+			name: "context_canceled_pre_scan",
+			r:    strings.NewReader("e7e92be [main] message (ok)\n"),
+			entry: &LogEntry{
+				styler: &LogStyle{},
+			},
+			wantErr: context.Canceled,
+		},
+		{
+			name:    "reader_error_returned",
+			r:       iotest.ErrReader(io.ErrUnexpectedEOF),
+			entry:   NewLogEntry(),
+			wantErr: io.ErrUnexpectedEOF,
+		},
+		{
+			name:    "token_too_long_boundary",
+			r:       strings.NewReader(strings.Repeat("a", bufio.MaxScanTokenSize+1)),
+			entry:   NewLogEntry(),
+			wantErr: bufio.ErrTooLong,
+		},
+		{
+			name: "with_pre_processor_configured",
+			r:    strings.NewReader("e7e92be [main] msg (ok)\n"),
+			entry: &LogEntry{
+				styler: &LogStyle{
+					Hash:    func(s string) string { return s },
+					Repo:    func(s string) string { return s },
+					Message: func(s string) string { return s },
+					Status:  func(s string) string { return s },
+					Info:    func(s string) string { return s },
+					PreProcessor: func(s string) string {
+						return "MODIFIED: " + s
+					},
+				},
+			},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			if errors.Is(tt.wantErr, context.Canceled) {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(context.Background())
+				cancel()
+			}
+
+			var w bytes.Buffer
+			err := StreamLogs(ctx, tt.r, &w, tt.entry)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("StreamLogs() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("StreamLogs() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("StreamLogs() unexpected error: %v", err)
 			}
 		})
 	}

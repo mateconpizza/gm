@@ -134,7 +134,3 @@ func StreamLogs(ctx context.Context, r io.Reader, w io.Writer, entry *LogEntry) 
 
 	return scanner.Err()
 }
-
-func CommitMsg(verb, object string, s Stats) string {
-	return fmt.Sprintf("%s %s (%s)", verb, object, s)
-}

@@ -79,7 +79,7 @@ func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
 	}
 
 	if o.sumWriter == nil {
-		o.sumWriter = defPersistSummary
+		o.sumWriter = writeFile
 	}
 
 	return &Repo{
@@ -264,5 +264,3 @@ func (gr *Repo) WriteSummary(s *Summary) error {
 func (gr *Repo) CommitMsg(a RepoAction, obj string) CommitMessage {
 	return CommitMessage(fmt.Sprintf("[%s] %s %s", gr.Name(), a, obj))
 }
-
-func defPersistSummary(path string, sum *Summary) error { return writeFile(path, sum) }

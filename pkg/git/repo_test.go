@@ -919,7 +919,7 @@ func TestRepo_WriteSummary(t *testing.T) {
 				name:        tt.name,
 				summaryFile: summaryPath,
 				RepoOptions: &RepoOptions{
-					sumWriter: defPersistSummary,
+					sumWriter: writeFile[Summary],
 				},
 			}
 
@@ -1122,6 +1122,76 @@ func TestDecodeJSON(t *testing.T) {
 
 			if got.Bookmarks != tt.want {
 				t.Errorf("Bookmarks = %d, want %d", got.Bookmarks, tt.want)
+			}
+		})
+	}
+}
+
+func TestRepoStats_String(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		stats *RepoStats
+		want  string
+	}{
+		{
+			name: "all_active_fields_present",
+			stats: &RepoStats{
+				Bookmarks:   15,
+				Tags:        4,
+				Favorites:   2,
+				TotalVisits: 150,
+			},
+			want: "15 bookmarks, 4 tags, 2 favorites, 150 visits",
+		},
+		{
+			name:  "zero_values_empty_struct",
+			stats: NewRepoStats(),
+			want:  "no bookmarks",
+		},
+		{
+			name: "single_field_bookmarks_only",
+			stats: &RepoStats{
+				Bookmarks: 1,
+			},
+			want: "1 bookmarks",
+		},
+		{
+			name: "skipped_middle_fields",
+			stats: &RepoStats{
+				Bookmarks:   42,
+				TotalVisits: 9000,
+			},
+			want: "42 bookmarks, 9000 visits",
+		},
+		{
+			name: "ignored_fields_only",
+			stats: &RepoStats{
+				Archived:  50,
+				DeadLinks: 20,
+			},
+			want: "no bookmarks",
+		},
+		{
+			name: "negative_values_are_ignored",
+			stats: &RepoStats{
+				Bookmarks:   -1,
+				Tags:        -5,
+				Favorites:   -10,
+				TotalVisits: -100,
+			},
+			want: "no bookmarks",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tt.stats.String()
+			if got != tt.want {
+				t.Fatalf("RepoStats.String() = %q; want %q", got, tt.want)
 			}
 		})
 	}
