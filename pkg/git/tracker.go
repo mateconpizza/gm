@@ -22,19 +22,19 @@ type Tracker struct {
 	filename string   // Filename is the path to the JSON file.
 }
 
-// NewTracker returns a new Tracker for the given root directory.
-func NewTracker(destDir string) *Tracker {
+// newTracker returns a new Tracker for the given root directory.
+func newTracker(destDir string) *Tracker {
 	return &Tracker{
 		filename: filepath.Join(destDir, TrackerFile),
 	}
 }
 
-func (t *Tracker) Contains(name string) bool { return slices.Contains(t.repos, name) }
-func (t *Tracker) List() []string            { return t.repos }
-func (t *Tracker) Reset()                    { t.repos = make([]string, 0) }
+func (t *Tracker) contains(name string) bool { return slices.Contains(t.repos, name) }
+func (t *Tracker) list() []string            { return t.repos }
+func (t *Tracker) reset()                    { t.repos = make([]string, 0) }
 
-// Load loads the tracked repositories from the file (if exists).
-func (t *Tracker) Load() error {
+// load loads the tracked repositories from the file (if exists).
+func (t *Tracker) load() error {
 	if fileExists(t.filename) {
 		return readFile(t.filename, &t.repos)
 	}
@@ -42,15 +42,15 @@ func (t *Tracker) Load() error {
 	return nil
 }
 
-// Write writes the tracked repositories to the file.
-func (t *Tracker) Write() error {
+// write writes the tracked repositories to the file.
+func (t *Tracker) write() error {
 	t.repos = slices.Compact(t.repos)
 	slog.Debug("writing tracker file", "repos", t.repos)
 	return writeFile(t.filename, &t.repos)
 }
 
-// Track adds a new repository to the tracker.
-func (t *Tracker) Track(names ...string) error {
+// track adds a new repository to the tracker.
+func (t *Tracker) track(names ...string) error {
 	slog.Debug("adding tracker", "repos", names)
 	if len(names) == 0 {
 		return ErrGitRepoNameEmpty
@@ -59,8 +59,8 @@ func (t *Tracker) Track(names ...string) error {
 	return nil
 }
 
-// Untrack removes a repository from the tracker.
-func (t *Tracker) Untrack(name string) error {
+// untrack removes a repository from the tracker.
+func (t *Tracker) untrack(name string) error {
 	slog.Debug("untracking repo", "name", name)
 	if name == "" {
 		return ErrGitRepoNameEmpty

@@ -116,7 +116,6 @@ func (gr *Repo) Add(ctx context.Context, bs []*bookmark.Bookmark) error {
 	if gr.writer == nil {
 		return fmt.Errorf("%w: file writer", ErrNoFunctionFound)
 	}
-
 	if err := gr.writer(ctx, gr.fullpath, bs); err != nil {
 		return err
 	}

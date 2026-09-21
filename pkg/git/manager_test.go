@@ -429,7 +429,12 @@ func TestMgr_Update(t *testing.T) {
 
 			postRm := func(path string) error { return tt.postRmErr }
 
-			err = m.Update(t.Context(), gr, old, fresh, postRm)
+			err = m.Update(t.Context(), UpdateParams{
+				Repo:     gr,
+				Old:      old,
+				Fresh:    fresh,
+				PostRmFn: postRm,
+			})
 
 			if tt.want != nil {
 				if !errors.Is(err, tt.want) {

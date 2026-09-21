@@ -55,36 +55,6 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 	return app.WriteConfig(true)
 }
 
-// Push pushes any unpushed commits to the configured upstream remote.
-func Push(ctx context.Context, app *application.App, gm *git.Mgr) error {
-	g := gm.Git()
-	remote, err := g.Remote(ctx)
-	if err != nil || remote == "" {
-		return git.ErrGitNoUpstream
-	}
-
-	if err := g.SetUpstream(ctx, app.Path.Git()); err != nil {
-		if !errors.Is(err, git.ErrGitUpstreamExists) {
-			return err
-		}
-	}
-
-	// Check if there are unpushed commits
-	proceed, err := g.HasUnpushedCommits(ctx)
-	if err != nil {
-		return err
-	}
-	if !proceed {
-		return git.ErrGitUpToDate
-	}
-
-	if err := g.Push(ctx); err != nil {
-		return fmt.Errorf("git push: %w", err)
-	}
-
-	return nil
-}
-
 // Sync stages tracked bookmark data and commits any resulting changes to Git.
 func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.CommitMessage) error {
 	slog.Debug("starting git sync")
@@ -271,6 +241,10 @@ func addFiles(color bool) func(ctx context.Context, repoPath string, bs []*bookm
 		}
 
 		for i := range bs {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
 			if _, err := bookio.SaveAsJSON(repoPath, bs[i], true); err != nil {
 				return err
 			}
