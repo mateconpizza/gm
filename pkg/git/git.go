@@ -99,6 +99,7 @@ func (g *Git) Exec(ctx context.Context, commands ...string) error {
 }
 
 func (g *Git) Output(ctx context.Context, commands ...string) (string, error) {
+	g.commandLogger(g.writer, slices.Insert(commands, 0, g.cmd.bin))
 	return g.cmd.Output(ctx, g.fullpath, commands...)
 }
 

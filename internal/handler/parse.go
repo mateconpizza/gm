@@ -35,6 +35,7 @@ type tagStore interface {
 }
 
 type bookmarkStore interface {
+	BaseName() string
 	Stats(ctx context.Context, dest any) error
 	All(ctx context.Context) ([]*bookmark.Bookmark, error)
 	ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error)

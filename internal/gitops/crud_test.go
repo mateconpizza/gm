@@ -47,10 +47,10 @@ func (gm *mockManager) IsTracked(name string) bool {
 	return gm.isTracked
 }
 
-func (gm *mockManager) UpdateAndSave(ctx context.Context, gr *git.Repo, old, fresh *bookmark.Bookmark, mesg git.CommitMessage, postRm git.PostRemovalFunc) error {
+func (gm *mockManager) UpdateAndSave(ctx context.Context, p git.UpdateParams, msg git.CommitMessage) error {
 	gm.updateAndSaveCalled = true
-	gm.gotOld = old
-	gm.gotFresh = fresh
+	gm.gotOld = p.Old
+	gm.gotFresh = p.Fresh
 	return gm.updateAndSaveErr
 }
 
@@ -316,6 +316,7 @@ func (c *mockConsole) Confirm(ctx context.Context, prompt, defaultAns string) bo
 }
 
 func (c *mockConsole) SuccessMesg(a ...any) string { return fmt.Sprintf("Successfully: %s", a[0]) }
+
 func (c *mockConsole) Print(ctx context.Context, msg string) error {
 	c.printedMsg = msg
 	return c.printErr
@@ -455,141 +456,6 @@ func TestDrop(t *testing.T) {
 
 			if tt.wantPrintedMsg != "" && cons.printedMsg != tt.wantPrintedMsg {
 				t.Fatalf("Drop() printedMsg = %q; want %q", cons.printedMsg, tt.wantPrintedMsg)
-			}
-		})
-	}
-}
-
-func TestUpdate(t *testing.T) {
-	t.Parallel()
-
-	errUpdateAndSave := errors.New("update and save failed")
-
-	old := &bookmark.Bookmark{ID: 1, URL: "https://old.com"}
-	fresh := &bookmark.Bookmark{ID: 1, URL: "https://fresh.com"}
-
-	tests := []struct {
-		name                    string
-		isEnabled               bool
-		isTracked               bool
-		repoName                string
-		updateAndSaveErr        error
-		old, fresh              *bookmark.Bookmark
-		want                    error
-		wantUpdateAndSaveCalled bool
-	}{
-		{
-			name:                    "enabled_and_tracked_calls_update_and_save",
-			isEnabled:               true,
-			isTracked:               true,
-			repoName:                "myrepo",
-			old:                     old,
-			fresh:                   fresh,
-			wantUpdateAndSaveCalled: true,
-		},
-		{
-			name:                    "disabled_manager_skips_update",
-			isEnabled:               false,
-			isTracked:               true,
-			repoName:                "myrepo",
-			old:                     old,
-			fresh:                   fresh,
-			wantUpdateAndSaveCalled: false,
-		},
-		{
-			name:                    "untracked_repo_skips_update",
-			isEnabled:               true,
-			isTracked:               false,
-			repoName:                "myrepo",
-			old:                     old,
-			fresh:                   fresh,
-			wantUpdateAndSaveCalled: false,
-		},
-		{
-			name:                    "disabled_and_untracked_skips_update",
-			isEnabled:               false,
-			isTracked:               false,
-			repoName:                "myrepo",
-			old:                     old,
-			fresh:                   fresh,
-			wantUpdateAndSaveCalled: false,
-		},
-		{
-			name:                    "update_and_save_fails",
-			isEnabled:               true,
-			isTracked:               true,
-			repoName:                "myrepo",
-			old:                     old,
-			fresh:                   fresh,
-			updateAndSaveErr:        errUpdateAndSave,
-			want:                    errUpdateAndSave,
-			wantUpdateAndSaveCalled: true,
-		},
-		{
-			name:                    "empty_repo_name_still_checked",
-			isEnabled:               true,
-			isTracked:               false,
-			repoName:                "",
-			old:                     old,
-			fresh:                   fresh,
-			wantUpdateAndSaveCalled: false,
-		},
-		{
-			name:                    "nil_old_bookmark_passed_through",
-			isEnabled:               true,
-			isTracked:               true,
-			repoName:                "myrepo",
-			old:                     nil,
-			fresh:                   fresh,
-			wantUpdateAndSaveCalled: true,
-		},
-		{
-			name:                    "nil_fresh_bookmark_passed_through",
-			isEnabled:               true,
-			isTracked:               true,
-			repoName:                "myrepo",
-			old:                     old,
-			fresh:                   nil,
-			wantUpdateAndSaveCalled: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			fm := &mockManager{
-				isEnabled:        tt.isEnabled,
-				isTracked:        tt.isTracked,
-				updateAndSaveErr: tt.updateAndSaveErr,
-			}
-
-			gr := git.NewRepo(tt.repoName, t.TempDir())
-
-			err := Update(t.Context(), fm, gr, tt.old, tt.fresh, "")
-
-			if tt.want != nil {
-				if !errors.Is(err, tt.want) {
-					t.Fatalf("Update() error = %v, want %v", err, tt.want)
-				}
-			} else if err != nil {
-				t.Fatalf("Update() unexpected error: %v", err)
-			}
-
-			if fm.updateAndSaveCalled != tt.wantUpdateAndSaveCalled {
-				t.Errorf("UpdateAndSave called = %v, want %v", fm.updateAndSaveCalled, tt.wantUpdateAndSaveCalled)
-			}
-
-			if tt.wantUpdateAndSaveCalled {
-				if fm.trackedName != tt.repoName {
-					t.Errorf("IsTracked called with %q, want %q", fm.trackedName, tt.repoName)
-				}
-				if fm.gotOld != tt.old {
-					t.Errorf("UpdateAndSave got old = %v, want %v (same pointer)", fm.gotOld, tt.old)
-				}
-				if fm.gotFresh != tt.fresh {
-					t.Errorf("UpdateAndSave got fresh = %v, want %v (same pointer)", fm.gotFresh, tt.fresh)
-				}
 			}
 		})
 	}

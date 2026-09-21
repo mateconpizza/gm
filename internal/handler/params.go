@@ -323,7 +323,7 @@ func computeNewURL(m *menu.Menu[string], u *url.URL, opt string) (newURL string,
 
 // persistBookmarkUpdate updates the bookmark URL in the DB and Git if no
 // duplicate exists.
-func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, newURL string, mesg git.CommitMessage) error {
+func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, newURL string, msg git.CommitMessage) error {
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 	id := func(val any) string { return p.Bold.Sprint("[", val, "] ") }
@@ -347,7 +347,12 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	if err != nil {
 		return err
 	}
-	return persistFunc(ctx, app, r, b, &newB, mesg)
+	return persistFunc(ctx, app, PersistParams{
+		repo:  r,
+		old:   b,
+		fresh: &newB,
+		msg:   msg,
+	})
 }
 
 func paramsStripAll(rawURL string) (string, error) {

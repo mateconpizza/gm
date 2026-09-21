@@ -28,7 +28,7 @@ type gitManager interface {
 	SaveChanges(ctx context.Context, gr *git.Repo, msg git.CommitMessage) error
 	IsTracked(name string) bool
 	IsEnabled() bool
-	UpdateAndSave(ctx context.Context, gr *git.Repo, old, fresh *bookmark.Bookmark, mesg git.CommitMessage, postRm git.PostRemovalFunc) error
+	UpdateAndSave(ctx context.Context, p git.UpdateParams, msg git.CommitMessage) error
 }
 
 type saveChangesFunc func(ctx context.Context, msg git.CommitMessage) error

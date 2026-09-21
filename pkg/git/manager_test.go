@@ -429,7 +429,12 @@ func TestMgr_Update(t *testing.T) {
 
 			postRm := func(path string) error { return tt.postRmErr }
 
-			err = m.Update(t.Context(), gr, old, fresh, postRm)
+			err = m.Update(t.Context(), UpdateParams{
+				Repo:     gr,
+				Old:      old,
+				Fresh:    fresh,
+				PostRmFn: postRm,
+			})
 
 			if tt.want != nil {
 				if !errors.Is(err, tt.want) {
@@ -458,6 +463,98 @@ func TestMgr_Update(t *testing.T) {
 			}
 			if got := !hasID(old.ID); got != tt.wantOldGone {
 				t.Errorf("old absent from bookmarks = %v, want %v", got, tt.wantOldGone)
+			}
+		})
+	}
+}
+
+func TestMgr_Push(t *testing.T) {
+	t.Parallel()
+
+	errTestBoom := errors.New("test execution error")
+
+	tests := []struct {
+		name              string
+		configOut         string
+		configErr         error
+		setUpstreamOut    string
+		setUpstreamErr    error
+		hasUnpushedComOut string
+		hasUnpushedComErr error
+		pushErr           error
+		wantErr           error
+	}{
+		{
+			name:              "happy_path_successful_push",
+			configOut:         "git@github.com:user/repo.git",
+			hasUnpushedComOut: "3",
+			wantErr:           nil,
+		},
+		{
+			name:      "no_upstream_empty_remote",
+			configOut: "",
+			wantErr:   ErrGitNoUpstream,
+		},
+		{
+			name:      "no_upstream_remote_error",
+			configErr: errTestBoom,
+			wantErr:   ErrGitNoUpstream,
+		},
+		{
+			name:              "set_upstream_exists_continues",
+			configOut:         "origin",
+			setUpstreamErr:    ErrGitUpstreamExists,
+			hasUnpushedComOut: "1",
+			wantErr:           nil,
+		},
+		{
+			name:              "has_unpushed_commits_error",
+			configOut:         "origin",
+			hasUnpushedComErr: errTestBoom,
+			wantErr:           errTestBoom,
+		},
+		{
+			name:              "up_to_date_no_commits",
+			configOut:         "origin",
+			hasUnpushedComOut: "0",
+			wantErr:           ErrGitUpToDate,
+		},
+		{
+			name:              "final_push_fails",
+			configOut:         "origin",
+			hasUnpushedComOut: "2",
+			pushErr:           errTestBoom,
+			wantErr:           errTestBoom,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			fake := (&fakeGitExecuter{}).
+				onContains("remote.origin.url", tt.configOut, tt.configErr).
+				on("remote", tt.configOut, tt.configErr).
+				onContains("set-upstream", tt.setUpstreamOut, tt.setUpstreamErr).
+				on("rev-list", tt.hasUnpushedComOut, tt.hasUnpushedComErr).
+				on("push", "", tt.pushErr)
+
+			m, _ := newTestMgrRepo(t, fake, nil, "1.0.0")
+
+			err := m.Push(t.Context())
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Push() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Push() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Push() unexpected error: %v", err)
 			}
 		})
 	}

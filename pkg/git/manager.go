@@ -38,8 +38,8 @@ func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
 		opt(o)
 	}
 
-	t := NewTracker(rootDir)
-	if err := t.Load(); err != nil {
+	t := newTracker(rootDir)
+	if err := t.load(); err != nil {
 		return nil, err
 	}
 
@@ -62,11 +62,11 @@ func (gm *Mgr) Root() string                                  { return gm.root }
 func (gm *Mgr) IsEnabled() bool                               { return fileExists(gm.root) }
 func (gm *Mgr) Color() bool                                   { return gm.color }
 func (gm *Mgr) Git() *Git                                     { return gm.g }
-func (gm *Mgr) IsTracked(name string) bool                    { return gm.track.Contains(name) }
-func (gm *Mgr) Repos() []string                               { return gm.track.List() }
-func (gm *Mgr) WriteRepos() error                             { return gm.track.Write() }
+func (gm *Mgr) IsTracked(name string) bool                    { return gm.track.contains(name) }
+func (gm *Mgr) Repos() []string                               { return gm.track.list() }
+func (gm *Mgr) WriteRepos() error                             { return gm.track.write() }
 func (gm *Mgr) Version() string                               { return gm.version }
-func (gm *Mgr) Track(names ...string) error                   { return gm.track.Track(names...) }
+func (gm *Mgr) Track(names ...string) error                   { return gm.track.track(names...) }
 func (gm *Mgr) SetCfg(ctx context.Context, k, v string) error { return gm.g.SetCfgLocal(ctx, k, v) }
 
 func (gm *Mgr) Commit(ctx context.Context, msg CommitMessage) error {
@@ -75,7 +75,7 @@ func (gm *Mgr) Commit(ctx context.Context, msg CommitMessage) error {
 
 func (gm *Mgr) Init(ctx context.Context, force bool) error {
 	if force {
-		gm.track.Reset()
+		gm.track.reset()
 	}
 	return gm.g.Init(ctx, force)
 }
@@ -121,19 +121,19 @@ func (gm *Mgr) NewRepo(name string, opts ...RepoOptFunc) *Repo {
 	return NewRepo(name, filepath.Join(gm.Root(), name), opts...)
 }
 
-func (gm *Mgr) Update(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
+func (gm *Mgr) Update(ctx context.Context, p UpdateParams) error {
 	if gm.version == "" {
 		return ErrNoVersionFound
 	}
-	if gr.db == nil {
-		return fmt.Errorf("%w: in repo %q", ErrNoStoreFound, gr.name)
+	if p.Repo.db == nil {
+		return fmt.Errorf("%w: in repo %q", ErrNoStoreFound, p.Repo.name)
 	}
-	if err := gr.Rm(ctx, old, postRm); err != nil {
+	if err := p.Repo.Rm(ctx, p.Old, p.PostRmFn); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("removing %s: %w", old.URL, err)
+			return fmt.Errorf("removing %s: %w", p.Old.URL, err)
 		}
 	}
-	return gr.Add(ctx, []*bookmark.Bookmark{fresh})
+	return p.Repo.Add(ctx, []*bookmark.Bookmark{p.Fresh})
 }
 
 func (gm *Mgr) Drop(ctx context.Context, gr *Repo) error {
@@ -151,7 +151,7 @@ func (gm *Mgr) Untrack(ctx context.Context, gr *Repo) error {
 	if !gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", ErrGitNotTracked, gr.Name())
 	}
-	if err := gm.track.Untrack(gr.Name()); err != nil {
+	if err := gm.track.untrack(gr.Name()); err != nil {
 		return err
 	}
 	if err := gm.WriteRepos(); err != nil {
@@ -163,14 +163,44 @@ func (gm *Mgr) Untrack(ctx context.Context, gr *Repo) error {
 	return gm.Commit(ctx, gr.CommitMsg(Del, "tracking"))
 }
 
-func (gm *Mgr) UpdateAndSave(ctx context.Context, gr *Repo, old, fresh *bookmark.Bookmark, msg CommitMessage, fn PostRemovalFunc) error {
-	if gm.version == "" {
-		return ErrNoVersionFound
+// Push pushes any unpushed commits to the configured upstream remote.
+func (gm *Mgr) Push(ctx context.Context) error {
+	g := gm.Git()
+	remote, err := g.Remote(ctx)
+	if err != nil || remote == "" {
+		return ErrGitNoUpstream
 	}
-	if err := gm.Update(ctx, gr, old, fresh, fn); err != nil {
+
+	if err := g.SetUpstream(ctx, gm.root); err != nil {
+		if !errors.Is(err, ErrGitUpstreamExists) {
+			return err
+		}
+	}
+
+	// check if there are unpushed commits
+	should, err := g.HasUnpushedCommits(ctx)
+	if err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, msg)
+	if !should {
+		return ErrGitUpToDate
+	}
+
+	return g.Push(ctx)
+}
+
+type UpdateParams struct {
+	Repo     *Repo
+	Old      *bookmark.Bookmark
+	Fresh    *bookmark.Bookmark
+	PostRmFn PostRemovalFunc
+}
+
+func (gm *Mgr) UpdateAndSave(ctx context.Context, p UpdateParams, msg CommitMessage) error {
+	if err := gm.Update(ctx, p); err != nil {
+		return err
+	}
+	return gm.SaveChanges(ctx, p.Repo, msg)
 }
 
 func (gm *Mgr) shouldSave(ctx context.Context, old, fresh *RepoStats) (bool, error) {

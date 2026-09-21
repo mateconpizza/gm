@@ -79,13 +79,13 @@ func newCommitCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			gr := gm.NewRepo(r.Name(),
+			gr := gm.NewRepo(r.BaseName(),
 				gitops.RepoFileReader(gm.Color()),
 				gitops.RepoFileRemover(),
 				gitops.RepoFileWriter(gm.Color()),
 				git.WithRepoStore(r),
 			)
-			return gm.SaveChanges(cmd.Context(), gr, git.CommitMessage(cmd.Short))
+			return gm.SaveChanges(cmd.Context(), gr, gr.CommitMsg(git.RepoAction(cmd.Short), ""))
 		},
 	}
 }
@@ -107,7 +107,7 @@ func newPushCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			return gitops.Push(cmd.Context(), app, gm)
+			return gm.Push(cmd.Context())
 		},
 	}
 

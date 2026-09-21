@@ -21,7 +21,7 @@ func newStyle(code SGR, enabled bool) Style {
 // Wrap wraps the given text with the style and resets afterward, or
 // returns text unchanged if disabled.
 func (s Style) Wrap(text string, styles ...Style) string {
-	if !s.enabled {
+	if !s.enabled || text == "" {
 		return text
 	}
 	return string(s.code) + combineStyles(styles...) + text + string(Reset)
