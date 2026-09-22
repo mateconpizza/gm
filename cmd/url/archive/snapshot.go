@@ -1,20 +1,17 @@
+// Package archive provides commands for querying the Internet Archive Wayback
+// Machine to retrieve historical snapshots of bookmarked URLs.
 package archive
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
-	"strings"
+	"time"
 
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -22,7 +19,7 @@ import (
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "archive [query]",
-		Aliases: []string{"snap", "ar", "a"},
+		Aliases: []string{"snap", "ar", "wm", "wayback"},
 		Short:   "show archive URL",
 		Example: app.Example(`  $ {cmd} url archive <query>
   $ {cmd} url archive --menu
@@ -32,40 +29,65 @@ func NewCmd(app *application.App) *cobra.Command {
 				cmd,
 				args,
 				setupMenu(app),
-				func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-					if len(bs) == 0 {
-						slog.Debug("URL archive: no items found")
-						return app.Failure()
-					}
-
-					var sb strings.Builder
-					for _, u := range bs {
-						sb.WriteString(u.ArchiveURL)
-						sb.WriteByte('\n')
-					}
-					fmt.Fprint(d.Writer(), sb.String())
-					return nil
-				},
-				onlySnapshots,
+				handler.WaybackList,
+				handler.WithSnapshots,
 			)
 		},
 	}
-
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagMenu(c, app)
-	c.AddCommand(newLookupCmd(app), newOpenCmd(app))
+	c.AddCommand(newLookupCmd(app), newSaveCmd(app))
 
 	return c
 }
 
-func newOpenCmd(app *application.App) *cobra.Command {
+func newLookupCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "open [query]",
-		Aliases: []string{"o"},
-		Short:   "open archive URL in browser",
-		Hidden:  true,
+		Use:     "fetch",
+		Short:   "wayback lookup",
+		Aliases: []string{"get"},
+		Example: app.Example(`  $ {cmd} url archive fetch 179 --latest
+  $ {cmd} url archive fetch 179 --limit 5
+  $ {cmd} url archive fetch 179 --limit 5 --year 2023
+  $ {cmd} url archive get --menu
+  $ {cmd} url archive fetch 179 --timeout 45s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd, args, setupMenu(app), handler.Open, onlySnapshots)
+			m := setupMenu(app,
+				menu.WithKeybinds(
+					menu.KeymapTogglePreview(),
+					menu.KeymapToggleAll(),
+				),
+			)
+			return cmdutil.Execute(cmd, args, m, handler.WaybackLookup)
+		},
+	}
+
+	f := c.Flags()
+	f.SortFlags = false
+	f.BoolVarP(&app.Flags.Update, "latest", "l", false, "fetches lasts snapshot from Wayback Machine")
+	f.IntVarP(&app.Flags.Limit, "limit", "L", 0, "return at most N snapshots")
+	f.IntVarP(&app.Flags.Year, "year", "Y", 0, "restrict snapshots to a specific year")
+	f.DurationVar(&app.Flags.Timeout, "timeout", 30*time.Second, "maximum time to wait for snapshot retrieval")
+
+	cmdutil.FlagMenu(c, app)
+	cmdutil.FlagsFilter(c, app)
+	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
+
+	return c
+}
+
+func newSaveCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "add",
+		Short: "wayback request",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmdutil.Execute(
+				cmd,
+				args,
+				setupMenu(app),
+				handler.WaybackMakeSnapshot,
+				handler.WithoutSnapshots,
+			)
 		},
 	}
 	cmdutil.FlagSort(c, app, handler.SortSupported)
@@ -74,56 +96,14 @@ func newOpenCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func onlySnapshots(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
-	filtered := make([]*bookmark.Bookmark, 0, len(bs))
-	for i := range bs {
-		if bs[i].ArchiveURL != "" {
-			filtered = append(filtered, bs[i])
-		}
-	}
-
-	if len(filtered) == 0 {
-		return filtered
-	}
-
-	result := make([]*bookmark.Bookmark, 0, len(filtered))
-	for i := range filtered {
-		f := filtered[i]
-		b := bookmark.New()
-		b.Title = f.Title
-		b.ID = f.ID
-		b.URL = f.ArchiveURL
-		b.ArchiveTimestamp = f.ArchiveTimestamp
-		b.ArchiveURL = b.URL
-		result = append(result, b)
-	}
-
-	return result
-}
-
-func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.ArchiveURL)
-
 	p := fm.Menu.Placeholder()
-	kb := menucfg.NewBindBuilder().
-		WithCommand(app.Command()).
-		WithDBName(app.DBBaseName()).
-		WithPlaceholder(p.Multi())
-
-	k := app.Menu.Keymaps()
-
-	return picker.NewWithFormatter(
-		app,
-		fm,
+	return picker.NewWithFormatter(app, fm, append(opts,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
-		menu.WithHeaderLabel(" archive URL "),
+		menu.WithHeaderLabel(" wayback machine "),
 		menu.WithHeaderKeymaps(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-		menu.WithKeybinds(
-			kb.New(menu.KeyEnter, "open-in-browser").WithExecute("url archive open"),
-			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
-			kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
-		),
-	)
+	)...)
 }

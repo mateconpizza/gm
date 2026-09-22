@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper/wayback"
 )
 
@@ -89,6 +91,155 @@ func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 	sp.Done()
 
 	return printSummary(d.Console(), results)
+}
+
+// WaybackSnapshots fetches and updates archive snapshots for each bookmark.
+func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	ct := wayback.New(
+		wayback.WithByYear(app.Flags.Year),
+		wayback.WithLimit(app.Flags.Limit),
+		wayback.WithTimeout(app.Flags.Timeout),
+	)
+
+	c := d.Console()
+
+	for _, b := range bs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		snapshots, err := fetchSnapshots(ctx, c, ct, b)
+		if err != nil {
+			slog.Debug("wayback snapshot:", "error", err)
+			continue
+		}
+
+		snap, err := selectSnapshot(ctx, d, b, snapshots)
+		if err != nil {
+			if !errors.Is(err, menu.ErrActionAborted) {
+				return err
+			}
+		}
+
+		if snap.ArchiveURL == "" {
+			continue
+		}
+
+		if err := applySnapshot(ctx, d, b, snap); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func WaybackLookup(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	f := app.Flags
+	op := waybackOp(f.Update, f.Limit, f.Year)
+	if !confirmWayback(ctx, d, bs, op) {
+		return app.Failure()
+	}
+
+	if f.Update {
+		return WaybackLatestSnapshot(ctx, d, bs)
+	}
+	return WaybackSnapshots(ctx, d, bs)
+}
+
+func WaybackList(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(bs) == 0 {
+		slog.Debug("URL archive: no items found")
+		return app.Failure()
+	}
+
+	var sb strings.Builder
+	for _, u := range bs {
+		sb.WriteString(u.ArchiveURL)
+		sb.WriteByte('\n')
+	}
+	fmt.Fprint(d.Writer(), sb.String())
+	return nil
+}
+
+func WaybackMakeSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	c := d.Console()
+	p := c.Palette()
+
+	s := fmt.Sprintf("wayback machine: %s %d bookmarks", p.BrightGreen.Wrap("add", p.Bold), len(bs))
+	if err := c.ConfirmLimit(ctx, len(bs), 10, s, false); err != nil {
+		return err
+	}
+
+	for range bs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+
+	return application.ErrNotImplementedYet
+}
+
+func confirmWayback(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
+	f, p := d.Console().Frame(), d.Console().Palette()
+
+	items := p.BrightCyan.
+		Sprintf("%d selected bookmarks:", len(bs))
+	selected := func() string {
+		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+	}
+
+	d.Console().
+		NewBannerBuilder().
+		WithTitle("Wayback Machine: Fetch "+op).
+		WithSubtitle("confirm bookmarks to query in the wayback machine").
+		Build().
+		Rowln().
+		CustomFunc(selected, items).Ln().
+		Rowln()
+
+	for i := range bs {
+		if i >= wayback.MaxItems {
+			f.Midln(p.Gray.With(p.Italic).
+				Sprintf("... and %d more", len(bs)-i))
+			break
+		}
+		f.Midln(p.Gray.Sprintf("[%d] ", bs[i].ID) + bs[i].URL)
+	}
+
+	f.Rowln().Flush()
+
+	return d.Console().Confirm(ctx, "continue?", "n")
+}
+
+func waybackOp(update bool, limit, year int) string {
+	op := "all available snapshots"
+
+	if update {
+		return "latest snapshot"
+	}
+	if limit > 0 {
+		op = fmt.Sprintf("up to %d snapshot(s)", limit)
+	}
+	if year > 0 {
+		op += fmt.Sprintf(" from %d", year)
+	}
+
+	return op
 }
 
 func processBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) SnapshotResult {
@@ -210,45 +361,6 @@ func formatTime(label, ts string, muted func(s string) string) string {
 	)
 }
 
-// WaybackSnapshots fetches and updates archive snapshots for each bookmark.
-func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
-	ct := wayback.New(
-		wayback.WithByYear(app.Flags.Year),
-		wayback.WithLimit(app.Flags.Limit),
-		wayback.WithTimeout(app.Flags.Timeout),
-	)
-
-	c := d.Console()
-
-	for _, b := range bs {
-		snapshots, err := fetchSnapshots(ctx, c, ct, b)
-		if err != nil {
-			slog.Debug("wayback snapshot:", "error", err)
-			continue
-		}
-
-		snap, err := selectSnapshot(ctx, d, b, snapshots)
-		if err != nil {
-			if errors.Is(err, menu.ErrActionAborted) {
-				continue
-			}
-
-			return err
-		}
-
-		if err := applySnapshot(ctx, d, b, snap); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // fetchSnapshots fetches the wayback snapshots for a single bookmark.
 func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachine, b *bookmark.Bookmark) ([]wayback.SnapshotInfo, error) {
 	p := c.Palette()
@@ -267,10 +379,7 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
 		rotato.WithMessage("fetching "+p.Italic.Sprint(u)),
 		rotato.WithMessageDecorator(func(msg string) string {
-			remaining := max(
-				time.Until(deadline).Round(time.Second),
-				0,
-			)
+			remaining := max(time.Until(deadline).Round(time.Second), 0)
 			return msg + " " + rotato.DimCountdownDecorator(remaining)
 		}),
 	)
@@ -279,21 +388,14 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 
 	snapshots, err := ct.Snapshots(ctx, b.URL)
 	if err != nil {
-		sp.Fail(
-			p.Red.Sprintf(
-				"Failed to fetch %s: %v",
-				u,
-				err,
-			),
-		)
-
+		sp.Fail(p.Red.Sprintf("Failed to fetch %s: %v", u, err))
 		return nil, err
 	}
 
 	sp.Done(fmt.Sprintf(
 		"%d snapshots from %s",
 		len(snapshots),
-		p.Dim.Wrap(u, p.Italic),
+		p.Dim.Wrap(txt.Shorten(u, c.MinWidth()), p.Italic),
 	))
 
 	return snapshots, nil
@@ -354,8 +456,21 @@ func applySnapshot(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, snap
 		Midln(formatTime("New:", b.ArchiveTimestamp, dimmer)).
 		Flush()
 
-	return c.Print(
-		ctx,
-		c.SuccessMesg("bookmark updated\n"),
-	)
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	msg := git.NewRepo(r.BaseName(), "").
+		CommitMsg(git.RepoAction("wayback lookup"), "")
+
+	return persistFunc(ctx, app, PersistParams{
+		Repo:  r,
+		Old:   b,
+		Fresh: b,
+		Msg:   msg,
+		OnPersisted: func() error {
+			return c.Print(ctx, c.SuccessMesg("bookmark updated\n"))
+		},
+	})
 }
