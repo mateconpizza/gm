@@ -348,10 +348,10 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		return err
 	}
 	return persistFunc(ctx, app, PersistParams{
-		repo:  r,
-		old:   b,
-		fresh: &newB,
-		msg:   msg,
+		Repo:  r,
+		Old:   b,
+		Fresh: &newB,
+		Msg:   msg,
 	})
 }
 

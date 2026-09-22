@@ -29,7 +29,7 @@ func NewCheckCmd(app *application.App) *cobra.Command {
 				args,
 				setupMenu(app, " bookmark status "),
 				handler.HTTPStatusCheck,
-				handler.HTTPStatusCodeFilter(app.Flags.Field),
+				handler.WithStatusCode(app.Flags.Field),
 			)
 		},
 	}
@@ -52,12 +52,8 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		Use:   "update [id|query]",
 		Short: "update metadata: title, desc, tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
-				cmd,
-				args,
-				setupMenu(app, " update metadata "),
-				handler.UpdateMetadata,
-			)
+			m := setupMenu(app, " update metadata ")
+			return cmdutil.Execute(cmd, args, m, handler.UpdateMetadata)
 		},
 	}
 
@@ -83,7 +79,7 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 				args,
 				nil,
 				handler.HTTPStatus,
-				handler.HTTPStatusCodeFilter(app.Flags.Field),
+				handler.WithStatusCode(app.Flags.Field),
 			)
 		},
 	}

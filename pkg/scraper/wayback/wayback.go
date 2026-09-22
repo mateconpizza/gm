@@ -149,7 +149,7 @@ func (wm *WaybackMachine) ClosestSnapshot(ctx context.Context, urlStr string) (*
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: %d", ErrAPIRequestFail, resp.StatusCode)
+		return nil, fmt.Errorf("%w: %s", ErrAPIRequestFail, resp.Status)
 	}
 
 	var data AvailableSnapshot
@@ -188,7 +188,7 @@ func (wm *WaybackMachine) Snapshots(ctx context.Context, urlStr string) ([]Snaps
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: %d", ErrAPIRequestFail, resp.StatusCode)
+		return nil, fmt.Errorf("%w: %s", ErrAPIRequestFail, resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -245,7 +245,7 @@ func (wm *WaybackMachine) SaveSnapshot(ctx context.Context, urlStr string) (stri
 		return resp.Request.URL.String(), nil
 	}
 
-	return "", fmt.Errorf("%w status: %d", ErrSaveFailed, resp.StatusCode)
+	return "", fmt.Errorf("%w status: %s", ErrSaveFailed, resp.Status)
 }
 
 func (wm *WaybackMachine) params(u string) string {

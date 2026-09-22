@@ -591,7 +591,7 @@ func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 	}
 	domain = p.Dim.Sprintf("(%s)", domain)
 
-	idStr := p.Dim.Sprintf("%*d", 3, b.ID)
+	idStr := p.Dim.Sprint(b.ID)
 	title := p.Normal.Sprint(strings.ReplaceAll(b.Title, "\n", " "))
 	if b.Title == "" {
 		title = p.Dim.Sprint(b.URL)
@@ -824,8 +824,7 @@ func yearColor(year string, p *ansi.Palette) ansi.Style {
 		p.BrightGreen,
 	}
 
-	// 4. Calculate the index offset from your starting year (2000)
-	// Using modulo (%) ensures that if the difference is larger than the array, it loops back around smoothly.
+	// calculate the index offset from your starting year (2000)
 	index := (y - startYear) % len(colorCycle)
 
 	return colorCycle[index]

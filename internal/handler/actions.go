@@ -2,11 +2,9 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -100,10 +98,10 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, PersistParams{
-					repo:  r,
-					old:   old,
-					fresh: fresh,
-					msg:   git.NewRepo(r.BaseName(), "").CommitMsg(git.Edit, "bookmark"),
+					Repo:  r,
+					Old:   old,
+					Fresh: fresh,
+					Msg:   git.NewRepo(r.BaseName(), "").CommitMsg(git.Edit, "bookmark"),
 				})
 			})
 
@@ -252,9 +250,13 @@ func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) 
 		return app.Abort()
 	}
 
-	if len(bs) > 1 {
-		c.Frame().Reset().
-			Headerln(p.Yellow.Sprintf("Updating %d bookmarks", len(bs))).
+	n := len(bs)
+	if n > 1 {
+		c.NewBannerBuilder().
+			WithTitle(fmt.Sprintf("Updating %d bookmarks", n)).
+			WithTitleColor(p.BrightGreen.With(p.Bold).Sprint).
+			WithSubtitle("metadata: title, desc").
+			WithComment(" (ctrl-c to exit)").Build().
 			Rowln().
 			Flush()
 	}
@@ -498,17 +500,14 @@ func clipboardContent(bs []*bookmark.Bookmark, asJSON bool) (string, error) {
 // processMetadataUpdate updates a bookmark's metadata after user confirmation.
 func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) error {
 	c := d.Console()
-	updated, err := updateBookmarkData(ctx, c, b)
+	updated, err := updateBookmarkData(ctx, c.Palette(), b)
 	if err != nil {
 		return err
 	}
 
-	if bytes.Equal([]byte(b.Title), []byte(updated.Title)) &&
-		bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
+	if changes := displayBookmarkChanges(c, b, &updated); !changes {
 		return nil
 	}
-
-	displayBookmarkChanges(d.Writer(), c, b, &updated)
 
 	r, err := d.Repository()
 	if err != nil {
@@ -520,23 +519,26 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		return err
 	}
 
-	// Handle user choice
-	opt, err := c.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
+	// handle user choice
+	opt, err := c.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "n")
 	if err != nil {
 		return fmt.Errorf("choose: %w", err)
 	}
 
-	msg := git.NewRepo(app.DBBaseName(), "").CommitMsg(git.Update, "metadata")
+	msg := git.NewRepo(app.DBBaseName(), "").
+		CommitMsg(git.Update, "metadata")
 
 	switch strings.ToLower(opt) {
 	case "n", "no":
 		return nil
 
 	case "y", "yes":
-		if err := persistFunc(ctx, app, PersistParams{repo: r, old: b, fresh: &updated, msg: msg}); err != nil {
+		p := PersistParams{Repo: r, Old: b, Fresh: &updated, Msg: msg, OnPersisted: func() error {
+			return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+		}}
+		if err := persistFunc(ctx, app, p); err != nil {
 			return err
 		}
-		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 
 	case "e", "edit":
 		sp := rotato.New(
@@ -550,10 +552,13 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, PersistParams{
-					repo:  r,
-					old:   old,
-					fresh: fresh,
-					msg:   msg,
+					Repo:  r,
+					Old:   old,
+					Fresh: fresh,
+					Msg:   msg,
+					OnPersisted: func() error {
+						return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
+					},
 				})
 			})
 
@@ -561,43 +566,38 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		if err != nil {
 			return err
 		}
-
-		fmt.Fprint(d.Writer(), c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 	}
 
 	return nil
 }
 
-// displayBookmarkChanges shows the differences between original and updated bookmarks.
-func displayBookmarkChanges(w io.Writer, c *ui.Console, b, updated *bookmark.Bookmark) {
+func displayBookmarkChanges(c *ui.Console, b, updated *bookmark.Bookmark) bool {
 	p := c.Palette()
-	bid := p.Bold.Sprintf("[%d]", b.ID)
-	su := txt.Shorten(updated.URL, 60)
-	f := c.Frame()
+	su := p.Italic.Sprint(txt.Shorten(b.URL, c.MinWidth()))
 
-	f.Reset().Warning(bid + " Found changes in " + p.BrightBlue.Wrap(su, p.Italic) + "\n").Flush()
-
-	if !bytes.Equal([]byte(b.Title), []byte(updated.Title)) {
-		f.Reset().Midln(p.BrightCyan.Wrap("Title:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColorize(c.Differ(), txt.Diff([]byte(b.Title), []byte(updated.Title))))
+	if b.Equals(updated) {
+		nc := p.Dim.With(p.Italic).Sprint(" (no changes)")
+		c.Warning(p.BrightYellow.Sprint("skipping ")).
+			Textln(su + nc).
+			Flush()
+		return false
 	}
 
-	if !bytes.Equal([]byte(b.Desc), []byte(updated.Desc)) {
-		f.Reset().Midln(p.BrightCyan.Wrap("Description:", p.Italic)).Flush()
-		fmt.Fprintln(w, txt.DiffColorize(c.Differ(), txt.Diff([]byte(b.Desc), []byte(updated.Desc))))
-	}
+	c.Frame().
+		Info(p.BrightBlue.Wrap("changes  ", p.Italic) + p.Italic.Sprint(su)).Ln().
+		Textln(txt.DiffColorize(c.Differ(), txt.Diff(b.Buffer(), updated.Buffer()))).
+		Flush()
+
+	return true
 }
 
-func updateBookmarkData(ctx context.Context, c *ui.Console, b *bookmark.Bookmark) (bookmark.Bookmark, error) {
+func updateBookmarkData(ctx context.Context, p *ansi.Palette, b *bookmark.Bookmark) (bookmark.Bookmark, error) {
 	updatedB := *b
 	su := txt.Shorten(updatedB.URL, 60)
-	p := c.Palette()
-	bid := p.Bold.With(p.Blue).Sprintf("[%d]", b.ID)
 
 	sp := rotato.New(
-		rotato.WithColor(c.Palette().Enabled()),
-		rotato.WithMessage(c.Info(bid+" updating bookmark "+p.BrightCyan.Wrap(su, p.Italic)).String()),
-		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithColor(p.Enabled()),
+		rotato.WithMessage("scraping "+p.Italic.Sprint(su)),
 		rotato.WithSpinnerColor(rotato.FgBrightMagenta),
 	)
 
@@ -626,7 +626,6 @@ func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, 
 	if err != nil {
 		return err
 	}
-	defer r.Close()
 
 	return session.
 		WithTerminal(d.Console()).
@@ -697,14 +696,18 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 }
 
 type PersistParams struct {
-	repo  bookmarkStore
-	old   *bookmark.Bookmark
-	fresh *bookmark.Bookmark
-	msg   git.CommitMessage
+	Repo  bookmarkStore
+	Old   *bookmark.Bookmark
+	Fresh *bookmark.Bookmark
+	Msg   git.CommitMessage
+
+	// OnPersisted runs after the bookmark and git sync have both
+	// succeeded. Optional; nil is a no-op.
+	OnPersisted func() error
 }
 
 func persistFunc(ctx context.Context, app *application.App, p PersistParams) error {
-	if err := p.repo.UpdateOne(ctx, p.fresh); err != nil {
+	if err := p.Repo.UpdateOne(ctx, p.Fresh); err != nil {
 		return err
 	}
 
@@ -722,17 +725,28 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		gitops.RepoFileReader(gm.Color()),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(gm.Color()),
-		gitops.RepoStatsReader(p.repo),
+		gitops.RepoStatsReader(p.Repo),
 	)
 
 	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
 		return nil
 	}
 
-	return gm.UpdateAndSave(ctx, git.UpdateParams{
-		Repo:     gr,
-		Old:      p.old,
-		Fresh:    p.fresh,
-		PostRmFn: files.RemoveEmptyDirs,
-	}, p.msg)
+	if gm.IsEnabled() && gm.IsTracked(gr.Name()) {
+		up := git.UpdateParams{
+			Repo:     gr,
+			Old:      p.Old,
+			Fresh:    p.Fresh,
+			PostRmFn: files.RemoveEmptyDirs,
+		}
+		if err := gm.UpdateAndSave(ctx, up, p.Msg); err != nil {
+			return err
+		}
+	}
+
+	if p.OnPersisted != nil {
+		return p.OnPersisted()
+	}
+
+	return nil
 }

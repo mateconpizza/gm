@@ -3,8 +3,6 @@ package notes
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
@@ -59,13 +57,8 @@ func NewCmd(app *application.App) *cobra.Command {
 				cmd,
 				args,
 				m,
-				func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-					if len(bs) == 0 {
-						return fmt.Errorf("%w: %v", ErrNotesNotFound, strings.Join(args, ""))
-					}
-					return printer.Notes(cmd.Context(), d.Console(), bs)
-				},
-				onlyNotes,
+				printNotes,
+				handler.WithNotes,
 			)
 		},
 	}
@@ -97,28 +90,21 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func onlyNotes(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
-	filtered := make([]*bookmark.Bookmark, 0, len(bs))
-	for i := range bs {
-		if bs[i].Notes == "" {
-			continue
-		}
-
-		filtered = append(filtered, bs[i])
+func printNotes(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	if len(bs) == 0 {
+		return ErrNotesNotFound
 	}
-
-	return filtered
+	return printer.Notes(ctx, d.Console(), bs)
 }
 
 func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
 	p := app.Formatter().Menu.Placeholder()
-	opts = append(
+	return picker.NewWithFormatter(app, app.Formatter(), append(
 		opts,
 		menu.WithMultiSelection(),
 		menu.WithHeader("select record/s"),
 		menu.WithBorderLabel(" notes "),
 		menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
-	)
-	return picker.NewWithFormatter(app, app.Formatter(), opts...)
+	)...)
 }

@@ -132,13 +132,18 @@ func HookEnsureDatabase(app *application.App) HookE {
 // HookCheckIfDatabaseInitialized checks if database file exists and is initialized.
 // Returns error if database already exists to prevent accidental re-initialization.
 func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
-	app, err := application.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	app, err := application.FromContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
 	if files.Exists(app.Path.DB()) {
-		if ok, _ := db.IsInitializedFromPath(cmd.Context(), app.Path.DB()); ok {
+		if ok, _ := db.IsInitializedFromPath(ctx, app.Path.DB()); ok {
 			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, app.DBName)
 		}
 
@@ -194,6 +199,11 @@ func HookGitEnsureEnv(app *application.App) HookE {
 // HookGitSync synchronizes Git repository with current database state.
 func HookGitSync(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		for _, arg := range args {
 			if arg == "-h" || arg == "--help" || arg == "help" {
 				_ = cmd.Help()
@@ -210,7 +220,7 @@ func HookGitSync(app *application.App) HookE {
 		}
 
 		slog.Debug("hook: git sync, checking for changes")
-		ctx, cancel := context.WithTimeout(cmd.Context(), 100*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 100*time.Second)
 		defer cancel()
 
 		msg := cmd.Short
@@ -237,6 +247,11 @@ func HookGitSync(app *application.App) HookE {
 // syncs them.
 func HookGitPrune(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		for _, arg := range args {
 			if arg == "-h" || arg == "--help" || arg == "help" {
 				_ = cmd.Help()
@@ -260,7 +275,7 @@ func HookGitPrune(app *application.App) HookE {
 			return nil
 		}
 
-		r, err := db.New(cmd.Context(), app.Path.DB())
+		r, err := db.New(ctx, app.Path.DB())
 		if err != nil {
 			return fmt.Errorf("hook git: %w", err)
 		}
@@ -273,12 +288,12 @@ func HookGitPrune(app *application.App) HookE {
 			gitops.RepoStatsReader(r),
 		)
 
-		bs, err := r.All(cmd.Context())
+		bs, err := r.All(ctx)
 		if err != nil {
 			return err
 		}
 
-		return gitops.PruneRepo(cmd.Context(), gm, gr, bs)
+		return gitops.PruneRepo(ctx, gm, gr, bs)
 	}
 }
 
