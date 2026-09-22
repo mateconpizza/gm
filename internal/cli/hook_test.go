@@ -1,8 +1,8 @@
 package cli
 
 import (
+	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -254,11 +254,9 @@ func TestChainHooks(t *testing.T) {
 func TestHookGitSync(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name        string
-		setupCmd    func() *cobra.Command
-		setupCtx    func(*cobra.Command)
-		wantErr     bool
-		errContains string
+		name     string
+		setupCmd func() *cobra.Command
+		wantErr  error
 	}{
 		{
 			name: "skip_git_sync_on_current_command",
@@ -268,10 +266,7 @@ func TestHookGitSync(t *testing.T) {
 					Annotations: SkipGitSync,
 				}
 			},
-			setupCtx: func(cmd *cobra.Command) {
-				// No context needed because function exits early.
-			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "skip_git_sync_on_parent_command",
@@ -279,28 +274,30 @@ func TestHookGitSync(t *testing.T) {
 				parent := &cobra.Command{
 					Use:         "parent",
 					Annotations: SkipGitSync,
+					RunE: func(cmd *cobra.Command, args []string) error {
+						return nil
+					},
 				}
 
 				child := &cobra.Command{
 					Use: "child",
+					RunE: func(cmd *cobra.Command, args []string) error {
+						return nil
+					},
 				}
 
 				parent.AddCommand(child)
 
 				return child
 			},
-			setupCtx: func(cmd *cobra.Command) {
-				// No context needed because function exits early.
-			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
-			name: "nil_command_panics",
+			name: "context_canceled",
 			setupCmd: func() *cobra.Command {
-				return nil
+				return &cobra.Command{}
 			},
-			setupCtx: func(cmd *cobra.Command) {},
-			wantErr:  false,
+			wantErr: context.Canceled,
 		},
 	}
 
@@ -308,6 +305,14 @@ func TestHookGitSync(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			cmd := tt.setupCmd()
+
+			ctx := t.Context()
+			if errors.Is(tt.wantErr, context.Canceled) {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+			cmd.SetContext(ctx)
 
 			if cmd == nil {
 				defer func() {
@@ -322,18 +327,12 @@ func TestHookGitSync(t *testing.T) {
 				return
 			}
 
-			tt.setupCtx(cmd)
-
 			app := testutil.NewApp(t)
 			err := HookGitSync(app)(cmd, nil)
 
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error, got nil")
-				}
-
-				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-					t.Fatalf("expected error containing %q, got %v", tt.errContains, err)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %v, got %v", tt.wantErr, err)
 				}
 
 				return
