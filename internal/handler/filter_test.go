@@ -1,4 +1,4 @@
-package clean
+package handler
 
 import (
 	"testing"
@@ -109,7 +109,7 @@ func TestFilterWithParams(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := WithURLParametersOnly(tt.bs)
+			got := WithURLParams(tt.bs)
 
 			if len(got) != len(tt.want) {
 				t.Fatalf("FilterWithParams() returned %d bookmarks; want %d", len(got), len(tt.want))

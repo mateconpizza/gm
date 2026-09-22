@@ -29,7 +29,7 @@ func NewCheckCmd(app *application.App) *cobra.Command {
 				args,
 				setupMenu(app, " bookmark status "),
 				handler.HTTPStatusCheck,
-				handler.HTTPStatusCodeFilter(app.Flags.Field),
+				handler.WithStatusCode(app.Flags.Field),
 			)
 		},
 	}
@@ -79,7 +79,7 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 				args,
 				nil,
 				handler.HTTPStatus,
-				handler.HTTPStatusCodeFilter(app.Flags.Field),
+				handler.WithStatusCode(app.Flags.Field),
 			)
 		},
 	}

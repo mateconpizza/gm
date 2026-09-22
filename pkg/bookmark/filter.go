@@ -56,3 +56,14 @@ func Difference(a, b []*Bookmark) []*Bookmark {
 
 	return diff
 }
+
+// Filter returns bookmarks matching predicate.
+func Filter(bs []*Bookmark, predicate func(b *Bookmark) bool) []*Bookmark {
+	filtered := make([]*Bookmark, 0, len(bs))
+	for _, item := range bs {
+		if predicate(item) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}

@@ -1,8 +1,6 @@
 package clean
 
 import (
-	"net/url"
-
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
@@ -35,7 +33,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				args,
 				setupMenu(app),
 				handler.ParamsURL,
-				WithURLParametersOnly,
+				handler.WithURLParams,
 			)
 		},
 	}
@@ -45,26 +43,6 @@ func NewCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagsFilter(c, app)
 
 	return c
-}
-
-// WithURLParametersOnly returns bookmarks that contain URL query parameters.
-func WithURLParametersOnly(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
-	cleanup := make([]*bookmark.Bookmark, 0, len(bs))
-
-	for i := range bs {
-		u, err := url.Parse(bs[i].URL)
-		if err != nil {
-			continue
-		}
-
-		if len(u.Query()) == 0 {
-			continue
-		}
-
-		cleanup = append(cleanup, bs[i])
-	}
-
-	return cleanup
 }
 
 // newCleanURLUser takes URL from input and strip useless parameters.
