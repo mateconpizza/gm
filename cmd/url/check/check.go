@@ -52,12 +52,8 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		Use:   "update [id|query]",
 		Short: "update metadata: title, desc, tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
-				cmd,
-				args,
-				setupMenu(app, " update metadata "),
-				handler.UpdateMetadata,
-			)
+			m := setupMenu(app, " update metadata ")
+			return cmdutil.Execute(cmd, args, m, handler.UpdateMetadata)
 		},
 	}
 
