@@ -350,7 +350,7 @@ func HookFormatter(app *application.App) HookE {
 			}
 		}
 
-		if app.Flags.Menu && app.Flags.Output != app.Format {
+		if app.Flags.Menu && app.Flags.Output != app.Format() {
 			app.Menu.Format = app.Flags.Output
 		}
 
@@ -359,7 +359,7 @@ func HookFormatter(app *application.App) HookE {
 			return err
 		}
 
-		app.UI.Formatter = fm
+		app.WithFormatter(fm)
 
 		return nil
 	}

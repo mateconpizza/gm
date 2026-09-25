@@ -379,11 +379,12 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 	f.CustomFunc(header, app.PrettyVersion()).
 		Rowln().
 		Rowln(pad("current db", p.BrightYellow.Wrap(app.DBBaseName(), p.Italic))).
-		Rowln(pad("format", app.Format))
+		Rowln(pad("format", app.Format())).
+		Rowln(pad("glyphs", app.UI.GlyphMode))
 
 	// config file
 	if files.Exists(app.Path.ConfigFile()) {
-		f.Rowln(pad("config:", files.CollapseHomeDir(app.Path.ConfigFile())))
+		f.Rowln(pad("config", files.CollapseHomeDir(app.Path.ConfigFile())))
 	}
 
 	boolFmt := func(b bool) string {

@@ -41,20 +41,15 @@ type (
 		Name   string          `json:"name"          yaml:"-"`             // Name of the application
 		DBName string          `json:"db"            yaml:"db,omitempty"`  // Database name
 		Cmd    string          `json:"cmd"           yaml:"cmd"`           // Name of the executable
-		Format string          `json:"format"        yaml:"format"`        // Output bookmark format
+		UI     *UI             `json:"ui"            yaml:"ui"`            // UI
 		Info   *Information    `json:"data"          yaml:"-"`             // Application information
 		Env    *Env            `json:"env"           yaml:"-"`             // Application environment variables
 		Path   *Path           `json:"path"          yaml:"-"`             // Application path
 		Flags  *Flags          `json:"-"             yaml:"-"`             // Command line flags
 		Menu   *menucfg.Config `json:"menu"          yaml:"menu"`          // Menu configuration
 		Git    *Git            `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
-		UI     *UI             `json:"-"             yaml:"-"`             // UI
 
 		initialized bool
-	}
-
-	UI struct {
-		Formatter formatter.Formatter
 	}
 
 	Information struct {
@@ -121,8 +116,10 @@ func (app *App) Load() error {
 		slog.Debug("config file is invalid, using defaults", "error", err)
 	}
 
-	app.Flags.Output = app.Format
+	app.Flags.Output = app.Format()
+	app.WithGlyphs(formatter.NewGlyphs(app.UI.GlyphMode, app.UI.Custom))
 
+	// update default database
 	return app.SetDatabase(app.DBName)
 }
 
@@ -215,10 +212,12 @@ func (app *App) CreatePaths() error             { return app.Path.setup() }
 func (app *App) GitEnabled() bool               { return app.Git.Enabled }
 func (app *App) Version() string                { return app.Info.Version }
 func (app *App) Command() string                { return app.Cmd }
-func (app *App) Formatter() formatter.Formatter { return app.UI.Formatter }
 func (app *App) Abort() error                   { return ErrActionAborted }
 func (app *App) Failure() error                 { return ErrExitFailure }
 func (app *App) Exit(err error)                 { Exit(err) }
+func (app *App) Formatter() formatter.Formatter { return app.UI.formatter }
+func (app *App) Glyphs() *formatter.Glyphs      { return app.UI.glyphs }
+func (app *App) Format() string                 { return app.UI.Format }
 
 func (app *App) Example(template string) string {
 	return strings.NewReplacer(
@@ -238,20 +237,25 @@ func (app *App) WithDatabasePath(path string) *App {
 	return app
 }
 
-func New(info *Information) *App {
-	fm, _ := formatter.New(formatter.Format(OutputFormat))
+func (app *App) WithFormatter(f formatter.Formatter) *App {
+	app.UI.formatter = f
+	return app
+}
 
+func (app *App) WithGlyphs(g *formatter.Glyphs) *App {
+	app.UI.glyphs = g
+	return app
+}
+
+func New(info *Information) *App {
 	return &App{
 		Name:   Name,
 		Cmd:    Command,
 		DBName: MainDBName,
-		Format: OutputFormat,
-		UI: &UI{
-			Formatter: fm,
-		},
-		Flags: &Flags{},
-		Info:  info,
-		Path:  &Path{},
+		UI:     newUI(),
+		Flags:  &Flags{},
+		Info:   info,
+		Path:   &Path{},
 		Git: &Git{
 			Enabled: false,
 			Log:     true,

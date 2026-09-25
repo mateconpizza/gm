@@ -71,7 +71,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
 
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
+	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }

@@ -40,7 +40,7 @@ func NewCheckCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
+	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	c.AddCommand(newUpdateCmd(app))
 
@@ -60,7 +60,7 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
+	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }
