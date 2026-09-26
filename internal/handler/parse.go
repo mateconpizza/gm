@@ -15,6 +15,8 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -60,6 +62,8 @@ type console interface {
 	Palette() *ansi.Palette
 	Term() *terminal.Term
 	Writer() io.Writer
+	Glyphs() *formatter.Glyphs
+	NewBannerBuilder() *ui.BannerConfig
 
 	Confirm(ctx context.Context, q, def string) bool
 	SuccessMesg(a ...any) string
@@ -83,6 +87,7 @@ func AddBookmark(ctx context.Context, d *deps.Deps, args []string) error {
 
 	c.NewBannerBuilder().
 		WithTitle("Add Bookmark").
+		WithTitleGlyph(c.Glyphs().Add).
 		WithComment(" (ctrl-c to exit)").
 		WithSubtitle(subtitle).
 		Build().
@@ -164,7 +169,7 @@ func readURLFromClipboard(ctx context.Context, c console) string {
 
 	f, p := c.Frame(), c.Palette()
 	dot := func() string {
-		return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightMagenta.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 	f.CustomFunc(dot, p.BrightMagenta.Sprint("URL\t:")).
 		Textln(" " + p.Gray.Sprint(cb))
@@ -188,7 +193,7 @@ func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput,
 	f, p := c.Frame(), c.Palette()
 
 	dot := func() string {
-		return p.BrightMagenta.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightMagenta.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 
 	// checks if url is provided
@@ -221,7 +226,7 @@ func tagsFromArgs(ctx context.Context, d *deps.Deps, t tagTerminal, sc metadataS
 	f, p := c.Frame(), c.Palette()
 
 	dot := func() string {
-		return p.BrightBlue.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightBlue.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 
 	f.CustomFunc(dot, p.BrightBlue.Sprint("Tags\t:"))
@@ -243,7 +248,7 @@ func tagsFromArgs(ctx context.Context, d *deps.Deps, t tagTerminal, sc metadataS
 	}
 
 	tr := newTagResolver(r, sc, t)
-	tags, err := tr.resolve(ctx, app.Flags.Force, b.tags)
+	tags, err := tr.resolve(ctx, app.Flags.Force, b.tags, d.Console().Glyphs().Square)
 	if err != nil {
 		return err
 	}
@@ -264,7 +269,7 @@ func fetchTitleAndDesc(ctx context.Context, c console, sc metadataScraper, b *bo
 	width := c.Term().MinWidth() - len(borders.Row)
 
 	dot := func() string {
-		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightCyan.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 
 	if b.title != "" {
@@ -288,7 +293,7 @@ func fetchTitleAndDesc(ctx context.Context, c console, sc metadataScraper, b *bo
 	if b.desc != "" {
 		descColor := p.Gray.Sprint(txt.SplitAndAlign(b.desc, width, indentation))
 		dot := func() string {
-			return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+			return p.BrightYellow.Wrap(c.Glyphs().Square+" ", p.Bold)
 		}
 		f.CustomFunc(dot, p.BrightYellow.Sprint("Desc\t: ")).Textln(descColor)
 	}
@@ -404,7 +409,7 @@ func newTagResolver(r tagStore, sc metadataScraper, t tagTerminal) *tagResolver 
 	}
 }
 
-func (tr *tagResolver) resolve(ctx context.Context, force bool, initial string) (string, error) {
+func (tr *tagResolver) resolve(ctx context.Context, force bool, initial, glyph string) (string, error) {
 	if initial != "" {
 		return bookmark.ParseTags(initial), nil
 	}
@@ -424,7 +429,7 @@ func (tr *tagResolver) resolve(ctx context.Context, force bool, initial string) 
 		return "", err
 	}
 
-	selected := tr.term.ChooseTags(txt.GlyphSmallSquare.Prefix(" Tags  : "), tags)
+	selected := tr.term.ChooseTags(glyph+" Tags  : ", tags)
 
 	return bookmark.ParseTags(selected), nil
 }

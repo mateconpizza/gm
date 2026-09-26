@@ -195,17 +195,19 @@ func WaybackMakeSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 }
 
 func confirmWayback(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
-	f, p := d.Console().Frame(), d.Console().Palette()
+	c := d.Console()
+	f, p := c.Frame(), c.Palette()
 
 	items := p.BrightCyan.
 		Sprintf("%d selected bookmarks:", len(bs))
 	selected := func() string {
-		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightCyan.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 
 	d.Console().
 		NewBannerBuilder().
 		WithTitle("Wayback Machine: Fetch "+op).
+		WithTitleGlyph(d.Console().Glyphs().Add).
 		WithSubtitle("confirm bookmarks to query in the wayback machine").
 		Build().
 		Rowln().

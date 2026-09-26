@@ -155,12 +155,11 @@ func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, a
 // parameters.
 func diffParams(c console, flagYes bool, originalURL string, params []string) int {
 	f, p := c.Frame(), c.Palette()
-	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
-	subtitle := p.Dim.With(p.Italic).
-		Sprint("query parameters detected in the URL")
 
-	f.CustomFunc(header, p.Bold.Wrap("Clean URL parameters", p.Yellow)).Ln().
-		Midln(subtitle).
+	c.NewBannerBuilder().
+		WithTitle("Clean URL parameters").
+		WithSubtitle("query parameters detected in the URL").
+		Build().
 		Rowln().
 		Midln("Original URL:").
 		Rowln(" " + p.Dim.Sprint(txt.Shorten(originalURL, c.Term().MaxWidth()))).
@@ -286,7 +285,8 @@ func promptParamRemoval(ctx context.Context, app *application.App, c console, ur
 	if len(q) > 1 {
 		opts = append(opts, "select")
 	}
-	opt, err = c.Term().Choose(ctx, p.BrightRed.Wrap("continue?", p.Bold), opts, "n")
+	s := p.BrightGreen.Wrap(c.Glyphs().Question, p.Bold) + p.BrightRed.Wrap(" continue?", p.Bold)
+	opt, err = c.Term().Choose(ctx, s, opts, "n")
 
 	return opt, lines, err
 }

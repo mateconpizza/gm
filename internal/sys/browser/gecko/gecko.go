@@ -164,7 +164,7 @@ func (b *GeckoBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 			c.Term().ClearLine(1)
 
 			pf := p.Italic.Wrap(profileName+":", p.Bold)
-			skip := p.BrightYellow.Wrap("skipping", p.Italic)
+			skip := p.BrightYellow.Wrap("skipping")
 			reason := p.Italic.Sprint("no bookmarks found")
 
 			c.Warning(fmt.Sprintf("%s profile %s %s", skip, pf, reason)).
@@ -348,7 +348,7 @@ func confirmImport(ctx context.Context, c *ui.Console, profile string, force boo
 		c.Term().ClearLine(1)
 		pf := p.Italic.Wrap(profile, p.Bold)
 		reason := p.Italic.Sprint(": skipped by user")
-		c.Warning(p.BrightYellow.Wrap("skipping", p.Italic) + " profile " + pf + reason).
+		c.Warning(p.BrightYellow.Wrap("skipping") + " profile " + pf + reason).
 			Ln().Flush()
 		return false
 	}

@@ -19,9 +19,7 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/printer"
-	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -60,7 +58,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 			if err := app.Validate(); err != nil {
 				return err
 			}
-			return createConfig(app, ui.NewDefaultConsole(app.Flags.Color, app.Exit))
+			return createConfig(app, ui.NewDefaultConsole(app, app.Exit))
 		},
 	}
 	cmdutil.HideFlag(c, "db")
@@ -91,12 +89,8 @@ func newViewCmd(app *application.App) *cobra.Command {
 			if app.Flags.JSON {
 				return cfgToJSON(app)
 			}
-
-			f := frame.New(
-				frame.WithBordersSmallBlock2(),
-				frame.WithWriter(os.Stdout),
-			)
-			return printer.AppConfig(app, f, ansi.NewPalette(app.Flags.Color))
+			c := ui.NewDefaultConsole(app, func(err error) { app.Exit(err) })
+			return printer.AppConfig(cmd.Context(), app, c)
 		},
 	}
 

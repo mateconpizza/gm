@@ -143,7 +143,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 
 			fmt.Fprintln(os.Stdout)
 
-			return gitops.TrackMgr(cmd.Context(), gm, ui.NewDefaultConsole(app.Flags.Color, app.Exit), dbFiles)
+			return gitops.TrackMgr(cmd.Context(), gm, ui.NewDefaultConsole(app, app.Exit), dbFiles)
 		},
 	}
 

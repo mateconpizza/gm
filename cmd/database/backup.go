@@ -32,7 +32,7 @@ func newBackupLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup lock
   $ {cmd} db backup lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.LockBackup(cmd.Context(), app, ui.NewDefaultConsole(app.Flags.Color, app.Exit))
+			return dbops.LockBackup(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit))
 		},
 	}
 	return c
@@ -45,7 +45,7 @@ func newBackupUnlockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db backup unlock
   $ {cmd} db backup unlock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.UnlockBackup(cmd.Context(), app, ui.NewDefaultConsole(app.Flags.Color, app.Exit))
+			return dbops.UnlockBackup(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit))
 		},
 	}
 	return c

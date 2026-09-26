@@ -193,10 +193,11 @@ func printStats(c *ui.Console, stats *git.RepoStats) {
 // printHeader writes the operational overview to the terminal.
 func printHeader(rp *GitPuller) {
 	var (
-		p      = rp.console.Palette()
-		f      = rp.console.Frame()
+		c      = rp.console
+		p      = c.Palette()
+		f      = c.Frame()
 		y      = func(s string) string { return p.BrightYellow.Wrap(s, p.Bold) }
-		square = func() string { return y(txt.GlyphSmallSquare.Prefix(" ")) }
+		square = func() string { return y(c.Glyphs().Square + " ") }
 	)
 
 	path := files.CollapseHomeDir(rp.dstDir)
@@ -205,6 +206,7 @@ func printHeader(rp *GitPuller) {
 
 	rp.console.NewBannerBuilder().
 		WithTitle("Repository cloned successfully").
+		WithTitleGlyph(rp.console.Glyphs().Git).
 		WithSubtitle("Path: "+path).
 		Build().
 		CustomFunc(square, p.Bold.Sprint("Found repositories")).

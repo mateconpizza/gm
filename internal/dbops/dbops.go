@@ -47,6 +47,7 @@ func ReorderDatabase(ctx context.Context, app *application.App, r reorderStore, 
 	c.NewBannerBuilder().
 		WithTitle("Reorder records IDs").
 		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
+		WithTitleGlyph(c.Glyphs().Warning).
 		WithSubtitle("this action cannot be undone").
 		Build().
 		Rowln().
@@ -139,6 +140,7 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 	c.NewBannerBuilder().
 		WithTitle("Drop All Records").
 		WithTitleColor(c.Palette().BrightRed.With(c.Palette().Bold).Sprint).
+		WithTitleGlyph(c.Glyphs().Warning).
 		WithSubtitle("this action cannot be undone").
 		WithComment(" (ctrl-c to exit)").
 		Build().
@@ -182,6 +184,7 @@ func Remove(ctx context.Context, d *deps.Deps) error {
 	if !app.Flags.Force && !app.Flags.Yes {
 		c.NewBannerBuilder().
 			WithTitle("Remove Database/s").
+			WithTitleGlyph(c.Glyphs().Del).
 			WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 			WithSubtitle("this action cannot be undone").
 			Render()
@@ -233,6 +236,7 @@ func RemoveBackups(ctx context.Context, d *deps.Deps) error {
 	d.Console().NewBannerBuilder().
 		WithTitle("Remove backups").
 		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
+		WithTitleGlyph(app.Glyphs().Del).
 		WithComment(" (ctrl-c to exit)").
 		WithSubtitle("this action cannot be undone").
 		Build().
@@ -307,7 +311,7 @@ func LockDatabase(ctx context.Context, app *application.App) error {
 		return err
 	}
 
-	return Lock(ctx, ui.NewDefaultConsole(app.Flags.Color, app.Exit), selected)
+	return Lock(ctx, ui.NewDefaultConsole(app, app.Exit), selected)
 }
 
 // UnlockDatabase select and unlock a database.
@@ -490,7 +494,7 @@ func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 	c := d.Console()
 	p, f := c.Palette(), c.Frame()
 	header := func() string {
-		return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightYellow.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 	f.CustomFunc(header, p.Bold.Sprint("Configuring database")).Ln()
 

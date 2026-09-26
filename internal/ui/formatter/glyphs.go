@@ -30,6 +30,16 @@ type Glyphs struct {
 	Ellipsis string `json:"ellipsis,omitempty" yaml:"ellipsis,omitempty"`
 	Sep      string `json:"sep,omitempty"      yaml:"sep,omitempty"`
 	Pointer  string `json:"pointer,omitempty"  yaml:"pointer,omitempty"`
+	Git      string `json:"git,omitempty"      yaml:"git,omitempty"`
+	JSON     string `json:"json,omitempty"     yaml:"json,omitempty"`
+	GPG      string `json:"gpg,omitempty"      yaml:"gpg,omitempty"`
+
+	// logs
+	Warning  string `json:"warning,omitempty"  yaml:"warning,omitempty"`
+	Question string `json:"question,omitempty" yaml:"question,omitempty"`
+	Info     string `json:"info,omitempty"     yaml:"info,omitempty"`
+	Error    string `json:"error,omitempty"    yaml:"error,omitempty"`
+	Success  string `json:"success,omitempty"  yaml:"success,omitempty"`
 
 	// bookmark
 	Favorite string `json:"favorite,omitempty" yaml:"favorite,omitempty"`
@@ -44,7 +54,7 @@ type Glyphs struct {
 	Del    string `json:"del,omitempty"    yaml:"del,omitempty"`
 
 	// misc
-	BlackSquare      string `json:"black_square,omitempty"       yaml:"black_square,omitempty"`
+	Square           string `json:"black_square,omitempty"       yaml:"black_square,omitempty"`
 	HeavyVertical    string `json:"heavy_vertical,omitempty"     yaml:"heavy_vertical,omitempty"`
 	RightDoubleAngle string `json:"right_double_angle,omitempty" yaml:"right_double_angle,omitempty"`
 	SeparatorLeft    string `json:"separator_left,omitempty"     yaml:"separator_left,omitempty"`
@@ -72,6 +82,16 @@ var (
 		Ellipsis: "…",
 		Sep:      "·",
 		Pointer:  "›",
+		Git:      "",
+		JSON:     "",
+		GPG:      "󰌾",
+
+		// log
+		Warning:  "",
+		Question: "",
+		Info:     "",
+		Error:    "",
+		Success:  "󰸞",
 
 		// bookmark
 		Favorite: " ",
@@ -86,9 +106,11 @@ var (
 		Del:    "󰆴",
 
 		// misc
-		BlackSquare:      "■",
+		Square:           "▪",
 		HeavyVertical:    "┃",
 		RightDoubleAngle: "»",
+		SeparatorLeft:    "",
+		SeparatorRight:   "",
 	}
 
 	ASCII = &Glyphs{
@@ -96,6 +118,16 @@ var (
 		Ellipsis: "...",
 		Sep:      "-",
 		Pointer:  ">",
+		Git:      "git",
+		JSON:     "JSON",
+		GPG:      "GPG",
+
+		// log
+		Warning:  "!",
+		Question: "?",
+		Info:     "i",
+		Error:    "x",
+		Success:  "+",
 
 		// bookmark
 		Favorite: "*",
@@ -110,9 +142,11 @@ var (
 		Del:    "▪",
 
 		// misc
-		BlackSquare:      "■",
+		Square:           "▪",
 		HeavyVertical:    "|",
 		RightDoubleAngle: ">>",
+		SeparatorLeft:    "[",
+		SeparatorRight:   "]",
 	}
 )
 

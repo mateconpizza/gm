@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
@@ -284,7 +283,7 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 			menu.WithHeader(fmt.Sprintf(
 				"select backup/s from %q %s %s",
 				header(),
-				txt.GlyphBulletPoint,
+				app.Glyphs().Sep,
 				p.BrightRed.Wrap("this action cannot be undone", p.Bold),
 			))).
 		Select(ctx)

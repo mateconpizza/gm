@@ -254,6 +254,7 @@ func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) 
 	if n > 1 {
 		c.NewBannerBuilder().
 			WithTitle(fmt.Sprintf("Updating %d bookmarks", n)).
+			WithTitleGlyph(c.Glyphs().Update).
 			WithTitleColor(p.BrightGreen.With(p.Bold).Sprint).
 			WithSubtitle("metadata: title, desc").
 			WithComment(" (ctrl-c to exit)").Build().
@@ -331,18 +332,19 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	p := d.Console().Palette()
+	c := d.Console()
+	p := c.Palette()
 	boldRed := p.BrightRed.With(p.Bold)
 
 	items, err := dbops.NewDatabaseSelector(app).
-		WithItemDecorator(gitTrackedMarker(gm.IsTracked)).
+		WithItemDecorator(gitTrackedMarker(app.Glyphs(), gm.IsTracked)).
 		WithOpts(
 			menu.WithMultiSelection(),
 			menu.WithHeaderLabel(" remove database "),
 			menu.WithColor("header-label", menu.ColorBrightRed, menu.AttributeBold),
 			menu.WithHeader(fmt.Sprintf(
 				"select database %s %s",
-				txt.GlyphBulletPoint,
+				app.Glyphs().Sep,
 				boldRed.Sprint("this action cannot be undone"),
 			)),
 		).
@@ -351,8 +353,9 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	d.Console().NewBannerBuilder().
+	c.NewBannerBuilder().
 		WithTitle("Remove Database/s").
+		WithTitleGlyph(c.Glyphs().Warning).
 		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 		WithSubtitle("this action cannot be undone").
 		Build().
@@ -376,13 +379,13 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 
 type isTracked func(name string) bool
 
-func gitTrackedMarker(f isTracked) func(string) string {
+func gitTrackedMarker(g *formatter.Glyphs, f isTracked) func(string) string {
 	return func(s string) string {
 		name, _, _ := strings.Cut(ansi.Remover(s), " ")
 
 		var icon strings.Builder
 		if f(name) {
-			icon.WriteString(ansi.BrightYellow.Sprint(" g"))
+			icon.WriteString(ansi.BrightYellow.Sprint(" " + g.Git))
 		}
 
 		return s + icon.String()

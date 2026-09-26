@@ -10,8 +10,8 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/frame"
-	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
@@ -19,6 +19,7 @@ type Console struct {
 	term    *terminal.Term
 	frame   *frame.Frame
 	palette *ansi.Palette
+	glyphs  *formatter.Glyphs
 	writer  io.Writer
 
 	differ *Differ
@@ -51,6 +52,10 @@ func NewConsole(opts ...Option) *Console {
 		c.palette = ansi.NewPalette(c.color)
 	}
 
+	if c.glyphs == nil {
+		c.glyphs = formatter.ASCII
+	}
+
 	if c.differ == nil {
 		c.differ = NewDiffer(&DifferOpts{
 			Enabled: c.color,
@@ -63,10 +68,13 @@ func NewConsole(opts ...Option) *Console {
 	return c
 }
 
-func NewDefaultConsole(color bool, fn func(error)) *Console {
+func NewDefaultConsole(app *application.App, fn func(error)) *Console {
+	g := app.Glyphs()
+	color := app.Flags.Color
 	c := NewConsole(
 		WithColor(color),
 		WithDefaultTerminal(color, fn),
+		WithGlyphs(g),
 	)
 
 	p := c.Palette()
@@ -78,11 +86,11 @@ func NewDefaultConsole(color bool, fn func(error)) *Console {
 		p := c.Palette()
 		frameOpts = append(frameOpts,
 			frame.WithIcons(&frame.Icons{
-				Error:    frame.IconStyle{Symbol: "✗", Color: p.BrightRed.Sprint},
-				Warning:  frame.IconStyle{Symbol: "!", Color: p.BrightYellow.Sprint},
-				Info:     frame.IconStyle{Symbol: "i", Color: p.BrightBlue.Sprint},
-				Question: frame.IconStyle{Symbol: "?", Color: p.BrightGreen.Sprint},
-				Success:  frame.IconStyle{Symbol: "✓", Color: p.BrightGreen.Sprint},
+				Error:    frame.NewIconStyle(g.Error, p.BrightRed.Sprint),
+				Warning:  frame.NewIconStyle(g.Warning, p.BrightYellow.Sprint),
+				Info:     frame.NewIconStyle(g.Info, p.BrightBlue.Sprint),
+				Question: frame.NewIconStyle(g.Question, p.BrightGreen.Sprint),
+				Success:  frame.NewIconStyle(g.Success, p.BrightGreen.Sprint),
 			}),
 		)
 	}
@@ -91,15 +99,17 @@ func NewDefaultConsole(color bool, fn func(error)) *Console {
 	return c
 }
 
-func WithColor(enabled bool) Option        { return func(c *Console) { c.color = enabled } }
-func WithFrame(f *frame.Frame) Option      { return func(c *Console) { c.frame = f } }
-func WithTerminal(t *terminal.Term) Option { return func(c *Console) { c.term = t } }
-func WithWriter(w io.Writer) Option        { return func(c *Console) { c.writer = w } }
+func WithColor(enabled bool) Option         { return func(c *Console) { c.color = enabled } }
+func WithFrame(f *frame.Frame) Option       { return func(c *Console) { c.frame = f } }
+func WithTerminal(t *terminal.Term) Option  { return func(c *Console) { c.term = t } }
+func WithWriter(w io.Writer) Option         { return func(c *Console) { c.writer = w } }
+func WithGlyphs(g *formatter.Glyphs) Option { return func(c *Console) { c.glyphs = g } }
 
 func (c *Console) Term() *terminal.Term                      { return c.term }
 func (c *Console) Frame() *frame.Frame                       { return c.frame }
 func (c *Console) Palette() *ansi.Palette                    { return c.palette }
 func (c *Console) Differ() *Differ                           { return c.differ }
+func (c *Console) Glyphs() *formatter.Glyphs                 { return c.glyphs }
 func (c *Console) Writer() io.Writer                         { return c.writer }
 func (c *Console) IsPiped() bool                             { return c.term.IsPiped() }
 func (c *Console) ReplaceLine(s string)                      { c.term.ReplaceLine(1, s) }
@@ -274,6 +284,7 @@ type ColorFunc func(a ...any) string
 type BannerConfig struct {
 	title       string
 	titleColor  ColorFunc
+	titleGlyph  string
 	comment     string
 	mutedtColor ColorFunc
 	subtitle    string
@@ -285,6 +296,7 @@ func (c *Console) NewBannerBuilder() *BannerConfig {
 	return &BannerConfig{
 		frame:       c.Frame(),
 		titleColor:  c.Palette().BrightYellow.Sprint,
+		titleGlyph:  c.Glyphs().Square,
 		mutedtColor: c.Palette().Dim.Sprint,
 	}
 }
@@ -301,6 +313,11 @@ func (b *BannerConfig) WithTitle(s string) *BannerConfig {
 
 func (b *BannerConfig) WithTitleColor(c ColorFunc) *BannerConfig {
 	b.titleColor = c
+	return b
+}
+
+func (b *BannerConfig) WithTitleGlyph(g string) *BannerConfig {
+	b.titleGlyph = g
 	return b
 }
 
@@ -325,7 +342,7 @@ func (b *BannerConfig) Build() *frame.Frame {
 		title += b.mutedtColor(b.comment)
 	}
 	header := func() string {
-		return b.titleColor(txt.GlyphSmallSquare.Prefix(" "))
+		return b.titleColor(b.titleGlyph + " ")
 	}
 	return b.frame.
 		CustomFunc(header, title).

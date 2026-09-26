@@ -221,7 +221,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 				rows,
 				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
 			)
-			footer = append(footer, fnameColor(txt.GlyphBlackSquare+" locked"))
+			footer = append(footer, fnameColor(c.Glyphs().Square+" locked"))
 			continue
 		}
 
@@ -240,7 +240,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 			fnameColor = p.BrightYellow.With(p.Bold).Sprint
 			cleanName = fnameColor(cleanName)
 			cleanName += p.Gray.Wrap(" (default)", p.Italic)
-			footer = append(footer, fnameColor(txt.GlyphBlackSquare.Prefix(" default")))
+			footer = append(footer, fnameColor(c.Glyphs().Square+" default"))
 		}
 
 		rows = append(
@@ -366,9 +366,10 @@ func Display(ctx context.Context, c *ui.Console, f string, bs []*bookmark.Bookma
 	return Print(ctx, c, bs, fm.Render)
 }
 
-func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
+func AppConfig(ctx context.Context, app *application.App, c *ui.Console) error {
+	f, p := c.Frame(), c.Palette()
 	header := func() string {
-		return p.BrightBlue.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightBlue.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 
 	const padding = 20
@@ -426,9 +427,7 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 			Rowln(pad("remote", p.Italic.Sprint(g.Remote)))
 	}
 
-	f.Flush()
-
-	return nil
+	return c.Print(ctx, f.String())
 }
 
 func formatKeymap(p *ansi.Palette, k *menu.Keymap) string {
