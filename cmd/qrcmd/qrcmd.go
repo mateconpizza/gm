@@ -90,6 +90,7 @@ func newGenQR(app *application.App) *cobra.Command {
 				return handler.QRSave(qrcode, app.Flags.Path)
 			}
 
+			fmt.Fprint(os.Stdout, text)
 			fmt.Fprint(os.Stdout, qrcode.String())
 
 			return nil

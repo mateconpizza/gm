@@ -2,9 +2,6 @@
 package txt
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,112 +14,47 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 )
 
-type ColorFunc func(c func(a ...any) string) func(a ...any) string
-
-type Glyph string
-
-const (
-	GlyphBlackSquare      Glyph = "■" // ■
-	GlyphBulletPoint      Glyph = "•" // •
-	GlyphDash             Glyph = "—" // —
-	GlyphEllipsis         Glyph = "…" // …
-	GlyphHeavyVertical    Glyph = "┃" // ┃
-	GlyphLightDiagCross   Glyph = "╱" // ╱
-	GlyphMiddleDot        Glyph = "·" // ·
-	GlyphRightDoubleAngle Glyph = "»" // »
-	GlyphSingleAngleMark  Glyph = "›" // ›
-
-	GlyphPipe            Glyph = "|" // |
-	GlyphBrokenPipe      Glyph = "¦" // ¦
-	GlyphLightHorizontal Glyph = "─" // ─
-	GlyphHeavyHorizontal Glyph = "━" // ━
-	GlyphLightVertical   Glyph = "│" // │
-	GlyphLightTripleDash Glyph = "┄" // ┄
-	GlyphHeavyTripleDash Glyph = "┅" // ┅
-	GlyphLightQuadDash   Glyph = "┈" // ┈
-	GlyphHeavyQuadDash   Glyph = "┉" // ┉
-
-	GlyphArrowRight       Glyph = "→" // →
-	GlyphArrowLeft        Glyph = "←" // ←
-	GlyphArrowUp          Glyph = "↑" // ↑
-	GlyphArrowDown        Glyph = "↓" // ↓
-	GlyphDoubleArrowRight Glyph = "⇒" // ⇒
-	GlyphLongArrowRight   Glyph = "⟶" // ⟶
-	GlyphHookArrow        Glyph = "↳" // ↳
-
-	GlyphSmallSquare   Glyph = "▪" // ▪
-	GlyphWhiteSquare   Glyph = "□" // □
-	GlyphBlackCircle   Glyph = "●" // ●
-	GlyphWhiteCircle   Glyph = "○" // ○
-	GlyphDiamond       Glyph = "◆" // ◆
-	GlyphWhiteDiamond  Glyph = "◇" // ◇
-	GlyphTriangleRight Glyph = "▶" // ▶
-	GlyphTriangleSmall Glyph = "▸" // ▸
-
-	GlyphFullBlock      Glyph = "█" // █
-	GlyphDarkShade      Glyph = "▓" // ▓
-	GlyphMediumShade    Glyph = "▒" // ▒
-	GlyphLightShade     Glyph = "░" // ░
-	GlyphHalfBlock      Glyph = "▄" // ▄
-	GlyphUpperHalfBlock Glyph = "▀" // ▀
-
-	GlyphSepPillLeft   Glyph = "" // 
-	GlyphSepPillRight  Glyph = "" // 
-	GlyphSepPowerLeft  Glyph = "" // 
-	GlyphSepPowerRight Glyph = "" // 
-
-	GlyphFavorite = "★" // ★
-	GlyphNotes    = "✎" // ✎
-	GlyphArchive  = "∞" // ∞
-
-	GlyphGit  = "" // 
-	GlyphJSON = "" // 
-	GlyphLock = "󰌾" // 󰌾
-)
-
-func (g Glyph) Prefix(text string) string           { return g.String() + text }
-func (g Glyph) Suffix(text string) string           { return text + g.String() }
-func (g Glyph) With(fn func(g Glyph) string) string { return fn(g) }
-func (g Glyph) String() string                      { return string(g) }
-
 // TimeLayout is the default layout for time formatting.
 const TimeLayout = "20060102-150405"
 
 // NBSP represents a non-breaking space character.
 const NBSP = "\u00A0"
 
-// spaces returns a string with n spaces.
-func spaces(n int) string {
-	return fmt.Sprintf("%*s", n, "")
+// PadRight pads s with spaces to width w, measured on visible width.
+func PadRight(s string, w int) string {
+	if n := w - VisibleWidth(s); n > 0 {
+		return s + strings.Repeat(" ", n)
+	}
+	return s
 }
 
-// PaddedLine formats a label and value into a left-aligned bullet point with fixed padding.
-func PaddedLine(s, v any) string {
-	const pad = 15
-
-	str := fmt.Sprint(s)
-	visibleLen := len(ansi.Remover(str))
-	padding := max(pad-visibleLen, 0)
-
-	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
+// PadLeft pads s with spaces to width w, measured on visible width.
+func PadLeft(s string, w int) string {
+	if n := w - VisibleWidth(s); n > 0 {
+		return strings.Repeat(" ", n) + s
+	}
+	return s
 }
 
-func PaddedLineWithPad(s, v any, pad int) string {
-	str := fmt.Sprint(s)
-	visibleLen := len(ansi.Remover(str))
-	padding := max(pad-visibleLen, 0)
+// PaddedLine formats a label and value into a left-aligned bullet point with
+// fixed padding.
+func PaddedLine(s, v any) string { return PaddedLineWithWidth(s, v, 14) }
 
-	return fmt.Sprintf("%s%s %v", str, spaces(padding), v)
+func PaddedLineWithWidth(s, v any, w int) string {
+	str := fmt.Sprint(s)
+	return fmt.Sprintf("%s %v", PadRight(str, w), v)
 }
 
-func PaddedLineWithPadChar(s, v any, pad int, padChar string) string {
+func PaddedLineWithPadChar(s, v any, w int, padChar string) string {
 	str := fmt.Sprint(s)
-	visibleLen := len(ansi.Remover(str))
-	padding := max(pad-visibleLen, 0)
+	padding := max(w-VisibleWidth(str), 0)
 
-	paddingStr := strings.Repeat(padChar, padding)
-
-	return fmt.Sprintf("%s%s%v", str, paddingStr, v)
+	return fmt.Sprintf(
+		"%s%s%v",
+		str,
+		strings.Repeat(padChar, padding),
+		v,
+	)
 }
 
 // Shorten shortens a string to a maximum length.
@@ -131,7 +63,7 @@ func PaddedLineWithPadChar(s, v any, pad int, padChar string) string {
 //
 // Shorten shortens a string to a maximum visual width.
 func Shorten(s string, maxWidth int) string {
-	return runewidth.Truncate(s, maxWidth, GlyphEllipsis.String())
+	return runewidth.Truncate(s, maxWidth, "…")
 }
 
 // SplitAndAlign splits a string into multiple lines and aligns the
@@ -195,73 +127,15 @@ func SplitIntoChunks(s string, maxLen int) []string {
 	return result
 }
 
-// wrapParagraph wraps a single paragraph (no newlines) into multiple lines.
-func wrapParagraph(para string, maxLen int) []string {
-	var lines []string
-	var currentLine strings.Builder
-
-	words := strings.FieldsSeq(para) // Remove extra spaces within paragraph
-
-	for word := range words {
-		// First word in line
-		if currentLine.Len() == 0 {
-			currentLine.WriteString(word)
-			continue
-		}
-
-		// Check if adding word exceeds max length
-		if currentLine.Len()+1+len(word) > maxLen {
-			lines = append(lines, currentLine.String())
-			currentLine.Reset()
-			currentLine.WriteString(word)
-		} else {
-			currentLine.WriteString(" ")
-			currentLine.WriteString(word)
-		}
-	}
-
-	// Add last line
-	if currentLine.Len() > 0 {
-		lines = append(lines, currentLine.String())
-	}
-
-	return lines
-}
+func VisibleWidth(s string) int        { return runewidth.StringWidth(ansi.Remover(s)) }
+func StringWidth(s string) int         { return runewidth.StringWidth(s) }
+func FillRight(s string, w int) string { return runewidth.FillRight(s, w) }
+func FillLeft(s string, w int) string  { return runewidth.FillLeft(s, w) }
 
 // NormalizeSpace removes extra whitespace from a string, leaving only single
 // spaces between words.
 func NormalizeSpace(s string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
-}
-
-// URLBreadCrumbs returns a prettified URL with color.
-//
-//	https://example.org/title/some-title
-//	https://example.org > title > some-title
-func URLBreadCrumbs(s string) string {
-	u, err := url.Parse(s)
-	if err != nil {
-		return ""
-	}
-	if u.Host == "" || u.Path == "" {
-		return s
-	}
-
-	host := u.Host
-	pathSegments := strings.FieldsFunc(
-		strings.TrimLeft(u.Path, "/"),
-		func(r rune) bool { return r == '/' },
-	)
-
-	if len(pathSegments) == 0 {
-		return host
-	}
-
-	g := GlyphSingleAngleMark
-	segments := strings.Join(pathSegments, fmt.Sprintf(" %s ", g))
-	pathSeg := g.String() + " " + segments
-
-	return fmt.Sprintf("%s %s", host, pathSeg)
 }
 
 // URLBreadCrumbsColor returns a prettified URL with color.
@@ -329,9 +203,7 @@ func URLBreadCrumbsColor(p *ansi.Palette, s, uc string, width int) string {
 }
 
 // CountLines counts the number of lines in a string.
-func CountLines(s string) int {
-	return len(strings.Split(s, "\n"))
-}
+func CountLines(s string) int { return len(strings.Split(s, "\n")) }
 
 // RelativeTime takes a timestamp string in the format "20060102-150405"
 // and returns a relative description.
@@ -459,18 +331,10 @@ func TagsWithColorPound(p *ansi.Palette, s string) string {
 	return sb.String()
 }
 
-// TagsWithColorPills returns a prettified tags.
-//
-//	#browser #neovim
-func TagsWithColorPills(p *ansi.Palette, s string) string {
-	tags := TagsWithPound(s)
-	return TagsColoredWithDelimiters(p, strings.Split(tags, " "), GlyphSepPillLeft, GlyphSepPillRight)
-}
-
 // TagsColoredWithDelimiters returns prettified tags with custom left/right icons.
 //
 //	TagsColoredWithDelimiters(c, "tag1,tag2", "«", "»")  // «tag1» «tag2»
-func TagsColoredWithDelimiters(p *ansi.Palette, tags []string, left, right Glyph) string {
+func TagsColoredWithDelimiters(p *ansi.Palette, tags []string, left, right string) string {
 	sort.Strings(tags)
 	var sb strings.Builder
 	for _, t := range tags {
@@ -552,18 +416,6 @@ func Span(width int, left, right, char string) string {
 	const spaces = 2
 	dashCount := width - len(left) - len(right) - spaces
 	return left + strings.Repeat(char, dashCount) + right
-}
-
-// GenHash generates a hash from a string with the given length.
-func GenHash(s string, c int) string {
-	hash := sha256.Sum256([]byte(s))
-	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
-}
-
-// GenHashPath generates a hash from a full path.
-func GenHashPath(fullPath string) string {
-	hash := sha256.Sum256([]byte(fullPath))
-	return hex.EncodeToString(hash[:])
 }
 
 // CreateSimpleTable generates a simple ASCII table with basic borders.
@@ -732,10 +584,43 @@ func HTTPStatusCodeColor(statusCode int, p *ansi.Palette) ansi.Style {
 	}
 }
 
-func Pill(color, inverse ansi.Style, msg string) string {
+func Pill(color, inverse ansi.Style, msg, sepLeft, sepRight string) string {
 	var sb strings.Builder
-	sb.WriteString(color.Sprint(GlyphSepPillLeft))
+	sb.WriteString(color.Sprint(sepLeft))
 	sb.WriteString(color.Wrap(msg, inverse))
-	sb.WriteString(color.Sprint(GlyphSepPillRight))
+	sb.WriteString(color.Sprint(sepRight))
 	return sb.String()
+}
+
+// wrapParagraph wraps a single paragraph (no newlines) into multiple lines.
+func wrapParagraph(para string, maxLen int) []string {
+	var lines []string
+	var currentLine strings.Builder
+
+	words := strings.FieldsSeq(para) // Remove extra spaces within paragraph
+
+	for word := range words {
+		// First word in line
+		if currentLine.Len() == 0 {
+			currentLine.WriteString(word)
+			continue
+		}
+
+		// Check if adding word exceeds max length
+		if currentLine.Len()+1+len(word) > maxLen {
+			lines = append(lines, currentLine.String())
+			currentLine.Reset()
+			currentLine.WriteString(word)
+		} else {
+			currentLine.WriteString(" ")
+			currentLine.WriteString(word)
+		}
+	}
+
+	// Add last line
+	if currentLine.Len() > 0 {
+		lines = append(lines, currentLine.String())
+	}
+
+	return lines
 }

@@ -107,7 +107,7 @@ func Notes(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 
 	bold := func(s string) string { return "**" + s + "**" }
 	italic := func(s string) string { return "*" + s + "*" }
-	bullet := func(header, val string) string { return txt.PaddedLineWithPad(bold("- "+header), val, 12) }
+	bullet := func(header, val string) string { return txt.PaddedLineWithWidth(bold("- "+header), val, 12) }
 
 	for i, b := range bs {
 		if b.Notes == "" {
@@ -374,7 +374,7 @@ func AppConfig(ctx context.Context, app *application.App, c *ui.Console) error {
 
 	const padding = 20
 	pad := func(label string, value any) string {
-		return txt.PaddedLineWithPad(label+":", value, padding)
+		return txt.PaddedLineWithWidth(label+":", value, padding)
 	}
 
 	f.CustomFunc(header, app.PrettyVersion()).
@@ -441,7 +441,7 @@ func formatKeymap(p *ansi.Palette, k *menu.Keymap) string {
 		status += p.Red.Sprint(" disabled")
 	}
 
-	return txt.PaddedLineWithPad(
+	return txt.PaddedLineWithWidth(
 		p.Bold.Sprint(keybind),
 		status,
 		8,

@@ -187,9 +187,6 @@ func (s *Selector) Select(ctx context.Context, opts ...menu.Option) ([]string, e
 
 func defaultMenuOpts(s *Selector) []menu.Option {
 	return append([]menu.Option{},
-		menu.WithDefaults(s.app.Menu.Defaults),
-		menu.WithAnsi(),
-		menu.WithOutputColor(s.app.Flags.Color),
 		menu.WithHeaderKeymaps(),
 		menu.WithPreviewWindow("right,45%"),
 		menu.WithPreviewCmd(s.preview),

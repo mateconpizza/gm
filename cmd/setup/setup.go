@@ -160,8 +160,8 @@ func initWorkspace(c *ui.Console, app *application.App) error {
 	dimmer := func(s string) string { return p.Dim.Wrap(s, p.Italic) }
 	header := func() string { return p.BrightYellow.Wrap(c.Glyphs().Square+" ", p.Bold) }
 	f.CustomFunc(header, p.Bold.Sprint("Initializing workspace")).Ln().
-		Mid(txt.PaddedLineWithPad("path", dimmer(app.Path.Home()), padding)).Ln().
-		Mid(txt.PaddedLineWithPad("database", dimmer(app.DBName), padding)).Ln().
+		Mid(txt.PaddedLineWithWidth("path", dimmer(app.Path.Home()), padding)).Ln().
+		Mid(txt.PaddedLineWithWidth("database", dimmer(app.DBName), padding)).Ln().
 		Rowln().
 		Flush()
 
@@ -189,7 +189,7 @@ func seedNewRepo(ctx context.Context, app *application.App, r Inserter, c *ui.Co
 
 	u := strings.Replace(ib.URL, "https://", "", 1)
 
-	f.Success(txt.PaddedLineWithPad("inserted", p.Dim.Wrap(u, p.Italic), padding)).Ln().
+	f.Success(txt.PaddedLineWithWidth("inserted", p.Dim.Wrap(u, p.Italic), padding)).Ln().
 		Rowln().
 		Success("Setup complete\n").
 		Flush()

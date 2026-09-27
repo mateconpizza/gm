@@ -518,8 +518,8 @@ func MigrationsStatus(ctx context.Context, d *deps.Deps) error {
 	}
 
 	const padding = 28
-	f.Success(txt.PaddedLineWithPad("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
-		Success(txt.PaddedLineWithPad("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
+	f.Success(txt.PaddedLineWithWidth("schema version", p.BrightGreen.Sprint(schemaVer)+"\n", padding)).
+		Success(txt.PaddedLineWithWidth("sqlite version", p.BrightMagenta.Sprint(sqlVer)+"\n", padding)).
 		Rowln().
 		Flush()
 

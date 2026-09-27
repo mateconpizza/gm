@@ -9,8 +9,6 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	runewidth "github.com/mattn/go-runewidth"
-
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -22,60 +20,56 @@ type Console interface {
 	MaxWidth() int
 	MinWidth() int
 	Palette() *ansi.Palette
+	Glyphs() *Glyphs
 	Writer() io.Writer
 }
 
 // OnelineFunc formats a bookmark in a single line with the given colorscheme.
 //
-//	ID • URL  #go #tools.
+//	ID URL  @~*?  #go #tools
 func OnelineFunc(c Console, b *bookmark.Bookmark) string {
-	w := c.MaxWidth()
-
 	const (
-		idPadding      = 3
-		idWithColor    = 4 // visible width for IDS up to 9999
-		defaultTagsLen = 24
-		minTagsLen     = 34
+		idWidth   = 4 // IDs up to 9999
+		tagsWidth = 24
+		gaps      = 2 // spaces between id|cell and cell|tags
+		minURLLen = 10
 	)
 
-	idLen := idPadding
-	tagsLen := minTagsLen
-
 	p := c.Palette()
-	if !p.Enabled() {
-		idLen = idWithColor
-		tagsLen = defaultTagsLen
-	}
 
-	// ID padding con color sin romper el formato
+	// id (right-aligned, padded before coloring)
 	idStr := strconv.Itoa(b.ID)
-	paddedID := fmt.Sprintf("%*s", idLen, idStr)
-	coloredID := strings.Replace(paddedID, idStr, p.BrightYellow.Wrap(idStr, p.Bold), 1)
+	id := strings.Repeat(" ", max(idWidth-txt.StringWidth(idStr), 0)) +
+		p.BrightYellow.Wrap(idStr, p.Bold)
 
-	// Calculate long available for URL
-	const urlPadding = 3 // 3 = ' ' + '·' + ' '.
-	urlLen := w - idLen - urlPadding - tagsLen
-	shortURL := txt.Shorten(b.URL, urlLen)
-	colorURL := p.Dim.Sprint(shortURL)
-	urlLen += len(colorURL) - len(shortURL)
+	// url + flags share one cell
+	cellWidth := max(c.MaxWidth()-idWidth-tagsWidth-gaps, minURLLen)
 
-	// tags
-	tagsColor := p.Blue.Wrap(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()), p.Italic)
+	flags := formatColorFlags(p, c.Glyphs(), b)
+	urlWidth := cellWidth
 
-	sep := txt.GlyphMiddleDot.With(func(g txt.Glyph) string {
-		return " " + txt.GlyphMiddleDot.String() + " "
-	})
-	if b.Notes != "" || b.Favorite || b.ArchiveURL != "" {
-		sep = p.BrightMagenta.Wrap(txt.GlyphMiddleDot.With(func(u txt.Glyph) string {
-			return " " + u.String() + " "
-		}), p.Bold)
+	if fw := txt.VisibleWidth(flags); fw > 0 {
+		urlWidth = max(cellWidth-fw-1, minURLLen) // 1 = space before flags
 	}
+
+	u := p.Dim.Sprint(txt.Shorten(b.URL, urlWidth))
+
+	cell := u
+	if txt.VisibleWidth(flags) > 0 {
+		cell += " " + flags
+	}
+
+	// tags (last column: truncated, not padded)
+	tags := txt.Shorten(txt.TagsWith(b.Tags, c.Glyphs().Sep), tagsWidth)
+	tags = p.Blue.Wrap(tags, p.Italic)
 
 	var sb strings.Builder
-	sb.Grow(w + 20)
-	sb.WriteString(coloredID)
-	sb.WriteString(sep)
-	fmt.Fprintf(&sb, "%-*s %-*s", urlLen, colorURL, tagsLen, tagsColor)
+	sb.Grow(c.MaxWidth() + 40)
+	sb.WriteString(id)
+	sb.WriteByte(' ')
+	sb.WriteString(txt.PadRight(cell, cellWidth))
+	sb.WriteByte(' ')
+	sb.WriteString(tags)
 
 	return sb.String()
 }
@@ -99,11 +93,11 @@ func BriefFunc(c Console, b *bookmark.Bookmark) string {
 	if pu, err := url.Parse(b.URL); err == nil && pu.Host != "" {
 		domainPlain = fmt.Sprintf(" (%s)", pu.Host)
 	}
-	domainWidth := runewidth.StringWidth(domainPlain)
+	domainWidth := txt.StringWidth(domainPlain)
 
 	tagsPlain := ""
 	if b.Tags != "" {
-		tagsPlain = txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String())
+		tagsPlain = txt.TagsWith(b.Tags, c.Glyphs().Sep)
 	}
 
 	// width = total - (bullet + id + domain + tags + 3 spaces)
@@ -114,12 +108,12 @@ func BriefFunc(c Console, b *bookmark.Bookmark) string {
 	if rawTitle == "" {
 		rawTitle = b.URL
 	}
-	truncatedTitle := runewidth.Truncate(rawTitle, maxTitleWidth, "…")
+	truncatedTitle := txt.Shorten(rawTitle, maxTitleWidth)
 	// ensure the title block always occupies exactly maxtitlewidth on screen
-	paddedTitle := runewidth.FillRight(truncatedTitle, maxTitleWidth)
+	paddedTitle := txt.FillRight(truncatedTitle, maxTitleWidth)
 
 	// bullet
-	g := txt.GlyphHeavyVertical
+	g := c.Glyphs().HeavyVertical
 	bulletColored := p.Normal.Sprint(g)
 	switch {
 	case b.Favorite:
@@ -150,12 +144,12 @@ func BriefFunc(c Console, b *bookmark.Bookmark) string {
 
 // MultilineFunc formats a bookmark for fzf with max width.
 func MultilineFunc(c Console, b *bookmark.Bookmark) string {
-	p, w := c.Palette(), c.MaxWidth()
+	p, w, g := c.Palette(), c.MaxWidth(), c.Glyphs()
 
 	var sb strings.Builder
 	sb.WriteString(p.BrightYellow.With(p.Bold).Sprint(b.ID))
 	sb.WriteString(txt.NBSP)
-	sb.WriteString(txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), w))
+	sb.WriteString(txt.URLBreadCrumbsColor(p, b.URL, g.Pointer, w))
 	sb.WriteByte('\n')
 
 	if b.Title != "" {
@@ -164,7 +158,7 @@ func MultilineFunc(c Console, b *bookmark.Bookmark) string {
 		sb.WriteByte('\n')
 	}
 
-	sb.WriteString(p.BrightWhite.Wrap(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()), p.Italic))
+	sb.WriteString(p.BrightWhite.Wrap(txt.TagsWith(b.Tags, g.Sep), p.Italic))
 	sb.WriteByte('\n')
 
 	return sb.String()
@@ -185,26 +179,27 @@ func FrameFunc(c Console, b *bookmark.Bookmark) string {
 
 	idStr := strconv.Itoa(b.ID)
 	// calculate visual width of id
-	usedWidth := runewidth.StringWidth(idStr)
+	usedWidth := txt.StringWidth(idStr)
 
 	idColor := p.BrightYellow.With(p.Bold).Sprint(idStr)
 	header := []string{idColor}
 
 	// prepare flags (if any) and accumulate width
-	if flags := formatFlags(b); flags != "" {
+	if flags := formatFlags(c.Glyphs(), b); flags != "" {
+		flags = strings.TrimSpace(flags)
 		// " [" + flags + "]"
 		flagRaw := "[" + flags + "]"
 		header = append(header, p.Dim.Sprint(flagRaw))
 
 		// add flag width + 1 (for the space strings.join will add)
-		usedWidth += runewidth.StringWidth(flagRaw) + 1
+		usedWidth += txt.StringWidth(flagRaw) + 1
 	}
 
 	// calculate space for url
 	// we subtract 'usedwidth' and 1 extra for the final space before the url
 	urlWidth := w - usedWidth - 1
 
-	header = append(header, txt.URLBreadCrumbsColor(p, b.URL, txt.GlyphSingleAngleMark.String(), urlWidth))
+	header = append(header, txt.URLBreadCrumbsColor(p, b.URL, c.Glyphs().Pointer, urlWidth))
 	f.Midln(strings.Join(header, " "))
 
 	if b.Title != "" {
@@ -245,7 +240,7 @@ func OnelineURLFunc(c Console, b *bookmark.Bookmark) string {
 	sb.Grow(w + 20)
 	sb.WriteString(coloredID)
 	sb.WriteByte(' ')
-	sb.WriteString(txt.GlyphMiddleDot.String())
+	sb.WriteString(c.Glyphs().Sep)
 	sb.WriteByte(' ')
 	sb.WriteString(b.URL)
 
@@ -267,9 +262,10 @@ func MiniFunc(c Console, b *bookmark.Bookmark) string {
 		idStr = p.Dim.Sprint(idStr)
 	}
 
-	flags := formatFlags(b)
+	flags := formatFlags(c.Glyphs(), b)
 	flagsStr := ""
 	if flags != "" {
+		flags = strings.TrimSpace(flags)
 		if p.Enabled() {
 			flagsStr = p.BrightMagenta.Wrap(flags, p.Bold)
 		} else {
@@ -294,7 +290,7 @@ func MiniFunc(c Console, b *bookmark.Bookmark) string {
 		urlStr = p.BrightCyan.Sprint(shortURL)
 	}
 
-	urlWidth := runewidth.StringWidth(shortURL)
+	urlWidth := txt.StringWidth(shortURL)
 	if urlWidth < minURL {
 		padding := minURL - urlWidth
 		urlStr += strings.Repeat(" ", padding)
@@ -302,7 +298,7 @@ func MiniFunc(c Console, b *bookmark.Bookmark) string {
 
 	tagsStr := ""
 	if b.Tags != "" {
-		tags := txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()) // "#tag #tag"
+		tags := txt.TagsWith(b.Tags, c.Glyphs().Sep) // "#tag #tag"
 		if p.Enabled() {
 			tagsStr = p.Dim.Sprint(tags)
 		} else {
@@ -383,7 +379,7 @@ func MinimalFunc(c Console, b *bookmark.Bookmark) string {
 		tags,
 	)
 
-	return runewidth.Truncate(line, w, "…")
+	return txt.Shorten(line, w)
 }
 
 // CardLiteFunc formats a bookmark in two thin lines.
@@ -402,19 +398,8 @@ func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 	}
 	title = strings.ReplaceAll(title, "\n", " ")
 
-	// Minimalist Flag icons
-	flags := ""
-	if b.Favorite {
-		flags += " " + p.BrightYellow.Sprint(txt.GlyphFavorite)
-	}
-	if b.Notes != "" {
-		flags += " " + p.BrightCyan.Sprint(txt.GlyphNotes)
-	}
-	if b.ArchiveURL != "" {
-		flags += " " + p.BrightYellow.With(p.Bold).Sprint(txt.GlyphArchive)
-	}
-
-	line1 := fmt.Sprintf("%s %s%s", idStr, title, flags)
+	flags := formatColorFlags(p, c.Glyphs(), b)
+	line1 := fmt.Sprintf("%s %s %s", idStr, title, flags)
 
 	// --- Line 2: The Context ---
 	// Shorten URL and dim it
@@ -425,9 +410,9 @@ func CardLiteFunc(c Console, b *bookmark.Bookmark) string {
 	tags := ""
 	if b.Tags != "" {
 		tags = " " +
-			txt.GlyphMiddleDot.String() +
+			c.Glyphs().Sep +
 			" " +
-			p.Blue.Sprint(txt.TagsWith(b.Tags, txt.GlyphMiddleDot.String()))
+			p.Blue.Sprint(txt.TagsWith(b.Tags, c.Glyphs().Sep))
 	}
 
 	// Indent line 2 to align under the title (past the ID)
@@ -453,9 +438,10 @@ func FlowFunc(c Console, b *bookmark.Bookmark) string {
 		titlePart = "Untitled"
 	}
 
-	sep := " " + txt.GlyphSingleAngleMark.String() + " "
+	g := c.Glyphs()
+	sep := " " + g.Pointer + " "
 	if b.Favorite {
-		sep = p.BrightYellow.Sprintf(" %s ", txt.GlyphRightDoubleAngle)
+		sep = p.BrightYellow.Sprintf(" %s ", g.RightDoubleAngle)
 	} else if b.HTTPStatusCode >= 400 {
 		sep = p.Red.Sprint(" ! ")
 	}
@@ -479,7 +465,7 @@ func FlowFunc(c Console, b *bookmark.Bookmark) string {
 		tags,
 	)
 
-	return runewidth.Truncate(line, w, "…")
+	return txt.Shorten(line, w)
 }
 
 // BarFunc formats a bookmark as a clean dashboard-style entry.
@@ -518,19 +504,19 @@ func BarFunc(c Console, b *bookmark.Bookmark) string {
 
 	// ┃ + space + ID(3) + space + space + [tags] + space + space + domain
 	// calculate "occupied" width to see how much title we can fit
-	staticWidth := 1 + 1 + 3 + 1 + 1 + runewidth.StringWidth(tagsPlain) + 2 + runewidth.StringWidth(domainPlain)
+	staticWidth := 1 + 1 + 3 + 1 + 1 + txt.StringWidth(tagsPlain) + 2 + txt.StringWidth(domainPlain)
 
 	// title truncation
 	maxTitleW := w - staticWidth
 	if maxTitleW < 10 { // if it's too cramped, hide tags to save space
 		tagsPlain = ""
-		staticWidth = 1 + 1 + 3 + 1 + 1 + 2 + runewidth.StringWidth(domainPlain)
+		staticWidth = 1 + 1 + 3 + 1 + 1 + 2 + txt.StringWidth(domainPlain)
 		maxTitleW = w - staticWidth
 	}
 
-	titleTrunc := runewidth.Truncate(titlePlain, max(maxTitleW, 5), "…")
+	titleTrunc := txt.Shorten(titlePlain, max(maxTitleW, 5))
 
-	gutter := gutterStyle.Sprint(txt.GlyphHeavyVertical)
+	gutter := gutterStyle.Sprint(c.Glyphs().HeavyVertical)
 	idCol := p.Dim.Sprint(idStr)
 
 	var titleCol string
@@ -547,11 +533,11 @@ func BarFunc(c Console, b *bookmark.Bookmark) string {
 
 	// calculate spacer (the dots)
 	// current width = gutter(1) + id(3) + title + tags + domain + spaces
-	currentVisualWidth := 1 + 1 + 3 + 1 + runewidth.StringWidth(
+	currentVisualWidth := 1 + 1 + 3 + 1 + txt.StringWidth(
 		titleTrunc,
-	) + 1 + runewidth.StringWidth(
+	) + 1 + txt.StringWidth(
 		tagsPlain,
-	) + 1 + runewidth.StringWidth(
+	) + 1 + txt.StringWidth(
 		domainPlain,
 	)
 	dotCount := w - currentVisualWidth
@@ -597,15 +583,15 @@ func ArchiveURLFunc(c Console, b *bookmark.Bookmark) string {
 		title = p.Dim.Sprint(b.URL)
 	}
 
-	yearWidth := runewidth.StringWidth(year)
-	restWidth := runewidth.StringWidth(rest)
-	domainWidth := runewidth.StringWidth(domain)
-	idWidth := runewidth.StringWidth(idStr)
+	yearWidth := txt.StringWidth(year)
+	restWidth := txt.StringWidth(rest)
+	domainWidth := txt.StringWidth(domain)
+	idWidth := txt.StringWidth(idStr)
 
 	reservedWidth := yearWidth + restWidth
 	maxTitleWidth := reservedWidth + domainWidth/2
 
-	title = txt.Shorten(title, w-maxTitleWidth)
+	title = txt.Shorten(title, w-maxTitleWidth-6)
 	relative = p.BrightYellow.Wrap("("+relative+")", p.Italic)
 
 	padding := reservedWidth + idWidth - 6
@@ -636,7 +622,7 @@ func NotesFunc(c Console, b *bookmark.Bookmark) string {
 	}
 
 	field := func(label, value string) string {
-		return txt.PaddedLineWithPad(
+		return txt.PaddedLineWithWidth(
 			p.Dim.Sprint(label+":"),
 			value,
 			labelWidth,
@@ -648,11 +634,20 @@ func NotesFunc(c Console, b *bookmark.Bookmark) string {
 		frame.WithBorders(frame.NewBorders("", "", "", "")),
 	)
 
-	f.Ln()
-	f.Headerln(p.BgBlue.Wrap(header, p.Black, p.Bold))
-	f.Rowln(field("ID", p.Bold.Sprint(strconv.Itoa(b.ID))))
-	f.Rowln(field("Tags", txt.TagsWithColorPills(p, b.Tags)))
-	f.Rowln(field("URL", p.BrightCyan.Wrap(b.URL, p.Bold, p.Underline)))
+	g := c.Glyphs()
+	tags := txt.TagsWithPound(b.Tags)
+	tags = txt.TagsColoredWithDelimiters(
+		p,
+		strings.Split(tags, " "),
+		g.SeparatorLeft,
+		g.SeparatorRight,
+	)
+
+	f.Ln().
+		Headerln(p.BgBlue.Wrap(header, p.Black, p.Bold)).
+		Rowln(field("ID", p.Bold.Sprint(strconv.Itoa(b.ID)))).
+		Rowln(field("Tags", tags)).
+		Rowln(field("URL", p.BrightCyan.Wrap(b.URL, p.Bold, p.Underline)))
 
 	if b.Desc != "" {
 		desc := txt.SplitAndAlign(b.Desc, maxWidth, labelWidth+1)
@@ -711,34 +706,47 @@ func ByFields(c Console, bs []*bookmark.Bookmark, fieldsInput string) error {
 }
 
 // formatFlags returns a string representation of bookmark status flags.
-//
-//	~ Notes attached
-//	@ Wayback snapshot available
-//	* Favorite
-//	? Broken link
-func formatFlags(b *bookmark.Bookmark) string {
-	const (
-		archive  = "@" // @
-		notes    = "~" // ~
-		broken   = "?" // ?
-		favorite = "*" // *
-	)
+func formatFlags(g *Glyphs, b *bookmark.Bookmark) string {
 	var flags strings.Builder
-
-	if b.ArchiveURL != "" {
-		flags.WriteString(archive)
+	if b.Favorite {
+		flags.WriteString(g.Favorite)
 	}
 	if b.Notes != "" {
-		flags.WriteString(notes)
+		flags.WriteString(g.Notes)
 	}
-	if b.Favorite {
-		flags.WriteString(favorite)
+	if b.ArchiveURL != "" {
+		flags.WriteString(g.Archive)
 	}
 	if b.HTTPStatusCode == http.StatusNotFound {
-		flags.WriteString(broken)
+		flags.WriteString(g.Broken)
+	}
+	if !b.IsActive {
+		flags.WriteString(g.Inactive)
 	}
 
 	return flags.String()
+}
+
+// formatColorFlags returns a string representation of bookmark status flags.
+func formatColorFlags(p *ansi.Palette, g *Glyphs, b *bookmark.Bookmark) string {
+	var flags strings.Builder
+	if b.Favorite {
+		flags.WriteString(p.BrightYellow.Code() + g.Favorite)
+	}
+	if b.Notes != "" {
+		flags.WriteString(p.BrightCyan.Code() + g.Notes)
+	}
+	if b.ArchiveURL != "" {
+		flags.WriteString(p.BrightMagenta.Code() + g.Archive)
+	}
+	if b.HTTPStatusCode == http.StatusNotFound {
+		flags.WriteString(p.BrightRed.Code() + g.Broken)
+	}
+	if !b.IsActive {
+		flags.WriteString(p.Orange.Code() + g.Inactive)
+	}
+
+	return p.Dim.Sprint(flags.String())
 }
 
 // StatusCodeFunc formats a bookmark with its HTTP status and URL.
@@ -770,7 +778,7 @@ func StatusCodeFunc(c Console, b *bookmark.Bookmark) string {
 	sb.WriteString(p.Bold.Sprintf("%-*d ", 4, b.ID))
 
 	sb.WriteString(
-		txt.PaddedLineWithPad(
+		txt.PaddedLineWithWidth(
 			txt.HTTPStatusCodeColor(
 				b.HTTPStatusCode,
 				p,
