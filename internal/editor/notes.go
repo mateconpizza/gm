@@ -39,7 +39,7 @@ func (ns *NotesStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmar
 	ns.sectionMarker = strings.TrimSpace(bd.Header) + txt.NBSP
 
 	bullet := func(header, val string) string {
-		return txt.PaddedLineWithPad(header+":", val, 11)
+		return txt.PaddedLineWithWidth(header+":", val, 11)
 	}
 
 	return f.

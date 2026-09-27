@@ -69,23 +69,25 @@ func rootCmdFunc(app *application.App) cli.HookE {
 			return nil
 		}
 
-		m := picker.NewMainMenu(app)
-		a := func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-			t, f := d.Console(), app.Flags
+		return cmdutil.Execute(
+			cmd,
+			args,
+			picker.NewMainMenu(app),
+			func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+				c, f := d.Console(), app.Flags
 
-			switch {
-			case app.Flags.Field != "":
-				return printer.ByField(ctx, t, f.Field, bs) // TODO: experimental
-			case app.Flags.Preview != "":
-				return printer.MenuPreview(t, bs, f.Preview)
-			case app.Flags.Output == application.OutputFormat:
-				return printer.Records(ctx, t, bs)
-			default:
-				return printer.Display(ctx, t, f.Output, bs)
-			}
-		}
-
-		return cmdutil.Execute(cmd, args, m, a)
+				switch {
+				case app.Flags.Field != "":
+					return printer.ByField(ctx, c, f.Field, bs) // TODO: experimental
+				case app.Flags.Preview != "":
+					return printer.MenuPreview(c, bs, f.Preview)
+				case app.Flags.Output == application.OutputFormat:
+					return printer.Records(ctx, c, bs)
+				default:
+					return printer.Display(ctx, c, f.Output, bs)
+				}
+			},
+		)
 	}
 }
 

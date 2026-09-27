@@ -337,7 +337,7 @@ func formatDatabaseFn(ctx context.Context, p *ansi.Palette, path string, pad int
 	}
 
 	name = files.StripExts(r.Name())
-	return txt.PaddedLineWithPad(
+	return txt.PaddedLineWithWidth(
 		name,
 		main+" "+createdAt,
 		pad,

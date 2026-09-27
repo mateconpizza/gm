@@ -176,7 +176,7 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 	version := "1.2.3"
 
 	padded := func(s, v any) string {
-		return txt.PaddedLineWithPad(s, v, 10)
+		return txt.PaddedLineWithWidth(s, v, 10)
 	}
 
 	tests := []struct {

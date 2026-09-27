@@ -10,17 +10,18 @@ import (
 	"sync"
 )
 
-// Color defines the minimal interface for coloring text.
-type Color interface {
-	Sprint(args ...any) string
-}
-
 type IconStyle struct {
-	Symbol string
-	Color  func(args ...any) string
+	symbol string
+	color  func(args ...any) string
 }
 
-func (i IconStyle) String() string { return i.Color(i.Symbol) }
+func NewIconStyle(s string, fn func(args ...any) string) IconStyle {
+	return IconStyle{symbol: s, color: fn}
+}
+
+func (i IconStyle) Symbol() string                  { return i.symbol }
+func (i IconStyle) Color() func(args ...any) string { return i.color }
+func (i IconStyle) String() string                  { return i.color(i.symbol) }
 
 type Icons struct {
 	Error    IconStyle
@@ -60,11 +61,11 @@ func defaultOpts() Options {
 		borderColor: nil,
 		text:        make([]string, 0),
 		icons: &Icons{
-			Error:    IconStyle{Symbol: "✗"},
-			Info:     IconStyle{Symbol: "i"},
-			Question: IconStyle{Symbol: "?"},
-			Success:  IconStyle{Symbol: "✓"},
-			Warning:  IconStyle{Symbol: "!"},
+			Error:    IconStyle{symbol: "✗"},
+			Info:     IconStyle{symbol: "i"},
+			Question: IconStyle{symbol: "?"},
+			Success:  IconStyle{symbol: "✓"},
+			Warning:  IconStyle{symbol: "!"},
 		},
 	}
 }
@@ -308,7 +309,7 @@ func (f *Frame) applyIcon(icon IconStyle, s []string) *Frame {
 
 	// middle lines
 	for _, line := range s[1:n] {
-		f.Ln().RowC(icon.Color, line)
+		f.Ln().RowC(icon.color, line)
 	}
 
 	return f
@@ -316,11 +317,11 @@ func (f *Frame) applyIcon(icon IconStyle, s []string) *Frame {
 
 // Helper method to format an icon with its color.
 func (f *Frame) formatIcon(style IconStyle) string {
-	if style.Color == nil {
-		return style.Symbol + " "
+	if style.color == nil {
+		return style.symbol + " "
 	}
 
-	return style.Color(style.Symbol) + " "
+	return style.color(style.symbol) + " "
 }
 
 // New creates a new Frame instance with the provided options.

@@ -30,7 +30,7 @@ const (
 	Mini      Format = "mini"
 	Minimal   Format = "minimal"
 	Multiline Format = "multiline"
-	Oneline   Format = "oneline"
+	Oneline   Format = DefFormatter
 	bar       Format = "bar"
 	Frame     Format = "frame"
 
@@ -106,7 +106,7 @@ var Formatters = map[Format]Formatter{
 		Render: OnelineFunc,
 		Menu: MenuConfig{
 			placeholder: "{1}",
-			Opts:        []menu.Option{menu.WithNth("3..")},
+			Opts:        []menu.Option{menu.WithNth("2..")},
 		},
 	},
 

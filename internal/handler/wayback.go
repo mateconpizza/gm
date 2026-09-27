@@ -195,18 +195,21 @@ func WaybackMakeSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 }
 
 func confirmWayback(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, op string) bool {
-	f, p := d.Console().Frame(), d.Console().Palette()
+	c := d.Console()
+	f, p := c.Frame(), c.Palette()
 
 	items := p.BrightCyan.
 		Sprintf("%d selected bookmarks:", len(bs))
 	selected := func() string {
-		return p.BrightCyan.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightCyan.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 
 	d.Console().
 		NewBannerBuilder().
 		WithTitle("Wayback Machine: Fetch "+op).
+		WithTitleGlyph(d.Console().Glyphs().Add).
 		WithSubtitle("confirm bookmarks to query in the wayback machine").
+		WithComment(" (ctrl-c to exit)").
 		Build().
 		Rowln().
 		CustomFunc(selected, items).Ln().
@@ -388,7 +391,7 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 
 	snapshots, err := ct.Snapshots(ctx, b.URL)
 	if err != nil {
-		sp.Fail(p.Red.Sprintf("Failed to fetch %s: %v", u, err))
+		sp.Fail(p.Red.Sprint(err.Error()))
 		return nil, err
 	}
 

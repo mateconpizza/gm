@@ -37,7 +37,7 @@ func newExportCmd(app *application.App) *cobra.Command {
 		cmdutil.FlagSort(cmd, app, handler.SortSupported)
 		cmdutil.FlagMenu(cmd, app)
 		cmdutil.FlagsFilter(cmd, app)
-		cmdutil.FlagOutput(cmd, app, app.Format, formatter.ValidFormats())
+		cmdutil.FlagOutput(cmd, app, app.Format(), formatter.ValidFormats())
 		c.AddCommand(cmd)
 	}
 	return c

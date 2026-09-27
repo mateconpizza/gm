@@ -38,6 +38,7 @@ func (s Style) Sprintf(f string, a ...any) string           { return s.Wrap(fmt.
 func (s Style) Fprint(w io.Writer, a ...any)                { fmt.Fprint(w, s.Sprint(a...)) }
 func (s Style) Fprintln(w io.Writer, a ...any)              { fmt.Fprintln(w, s.Sprint(a...)) }
 func (s Style) Printf(w io.Writer, format string, a ...any) { fmt.Fprint(w, s.Sprintf(format, a...)) }
+func (s Style) Code() string                                { return string(s.code) }
 
 func combineStyles(styles ...Style) string {
 	var sb strings.Builder
@@ -126,9 +127,9 @@ func NewPalette(enabled bool) *Palette {
 		BgBrightWhite:   s(BgBrightWhite),
 
 		// Text styles.
-		Bold:          newStyle(Bold, true),
+		Bold:          s(Bold),
 		Dim:           s(Dim),
-		Italic:        newStyle(Italic, true),
+		Italic:        s(Italic),
 		Underline:     s(Underline),
 		Undercurl:     s(Undercurl),
 		Blink:         s(Blink),

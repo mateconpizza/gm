@@ -52,13 +52,12 @@ func newLookupCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive get --menu
   $ {cmd} url archive fetch 179 --timeout 45s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := setupMenu(app,
-				menu.WithKeybinds(
-					menu.KeymapTogglePreview(),
-					menu.KeymapToggleAll(),
-				),
+			return cmdutil.Execute(
+				cmd,
+				args,
+				setupMenu(app),
+				handler.WaybackLookup,
 			)
-			return cmdutil.Execute(cmd, args, m, handler.WaybackLookup)
 		},
 	}
 
@@ -71,7 +70,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
 
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
+	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }
@@ -105,5 +104,9 @@ func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bo
 		menu.WithHeaderLabel(" wayback machine "),
 		menu.WithHeaderKeymaps(),
 		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithKeybinds(
+			menu.KeymapTogglePreview(),
+			menu.KeymapToggleAll(),
+		),
 	)...)
 }

@@ -57,8 +57,8 @@ func (bs *BookmarkStrategy) BuildBuffer(dbName, version string, b *bookmark.Book
 	separator := txt.SpanCenter(width-2, "", char)
 	title := strings.ReplaceAll(b.Title, "\n", " ")
 	idTitleLine := fmt.Sprintf("%d %s", b.ID, txt.Shorten(title, width-6))
-	dbName = txt.PaddedLineWithPad("database:", dbName, pad)
-	version = txt.PaddedLineWithPad("version:", formatVersion(version), pad)
+	dbName = txt.PaddedLineWithWidth("database:", dbName, pad)
+	version = txt.PaddedLineWithWidth("version:", formatVersion(version), pad)
 	sepTitle := txt.SpanCenter(width-2, label, char)
 
 	return f.

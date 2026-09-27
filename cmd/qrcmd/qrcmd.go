@@ -35,7 +35,7 @@ func NewCmd(app *application.App) *cobra.Command {
 
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
+	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 	cmdutil.FlagsFilter(c, app)
 
 	c.AddCommand(newOpenCmd(app), newGenQR(app))
@@ -60,7 +60,7 @@ func newOpenCmd(app *application.App) *cobra.Command {
 
 	cmdutil.FlagSort(c, app, handler.SortSupported)
 	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagOutput(c, app, app.Format, formatter.ValidFormats())
+	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 	cmdutil.FlagsFilter(c, app)
 
 	return c
@@ -90,6 +90,7 @@ func newGenQR(app *application.App) *cobra.Command {
 				return handler.QRSave(qrcode, app.Flags.Path)
 			}
 
+			fmt.Fprint(os.Stdout, text)
 			fmt.Fprint(os.Stdout, qrcode.String())
 
 			return nil

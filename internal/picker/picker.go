@@ -65,9 +65,11 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 	)
 
 	m := New[bookmark.Bookmark](app, opts...)
-
 	m.SetFormatter(func(b bookmark.Bookmark) string {
-		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), &b)
+		return fm.Render(ui.NewConsole(
+			ui.WithColor(app.Flags.Color),
+			ui.WithGlyphs(app.Glyphs()),
+		), &b)
 	})
 
 	return m
@@ -76,8 +78,12 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
 	opts = append(opts, fm.Menu.Opts...)
 	m := New[bookmark.Bookmark](app, opts...)
+
 	m.SetFormatter(func(b bookmark.Bookmark) string {
-		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), &b)
+		return fm.Render(ui.NewConsole(
+			ui.WithColor(app.Flags.Color),
+			ui.WithGlyphs(app.Glyphs()),
+		), &b)
 	})
 
 	return m
@@ -145,15 +151,14 @@ func BookmarkWithMenu(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs []*book
 		bsCopy = append(bsCopy, *b)
 	}
 
-	defFormatter := func(b bookmark.Bookmark) string {
-		return formatter.Default().Render(c, &b)
-	}
 	if m.Formatter == nil {
-		m.SetFormatter(defFormatter)
+		m.SetFormatter(func(b bookmark.Bookmark) string {
+			return formatter.Default().Render(c, &b)
+		})
 	}
 
 	// Select with menu
-	items, err := selectionWithMenu(m, bsCopy, m.Formatter)
+	items, err := selectionWithMenu(m, bsCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -169,12 +174,10 @@ func BookmarkWithMenu(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs []*book
 
 // selectionWithMenu allows the user to select multiple records in a menu
 // interface.
-func selectionWithMenu[T comparable](m *menu.Menu[T], items []T, fmtFn func(T) string) ([]T, error) {
+func selectionWithMenu[T comparable](m *menu.Menu[T], items []T) ([]T, error) {
 	if len(items) == 0 {
 		return nil, menu.ErrNoItems
 	}
-
-	m.SetFormatter(fmtFn)
 
 	var result []T
 	result, err := m.Select(items)

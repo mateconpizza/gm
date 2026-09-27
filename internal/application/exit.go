@@ -44,7 +44,7 @@ func Exit(err error) {
 		os.Exit(ExitInterrupted)
 
 	default:
-		slog.Warn("exit", "error", err)
+		slog.Debug("exit", "error", err)
 		fmt.Fprintf(os.Stderr, "%s: %s\n", Name, err)
 		os.Exit(ExitFailure)
 	}

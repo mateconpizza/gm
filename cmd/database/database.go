@@ -168,7 +168,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
   $ {cmd} db unlock --db work`),
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.UnlockDatabase(cmd.Context(), app, ui.NewDefaultConsole(app.Flags.Color, app.Exit))
+			return dbops.UnlockDatabase(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit))
 		},
 	}
 
@@ -215,7 +215,7 @@ func newReorderCmd(app *application.App) *cobra.Command {
 				return err
 			}
 			defer r.Close()
-			return dbops.ReorderDatabase(cmd.Context(), app, r, ui.NewDefaultConsole(app.Flags.Color, app.Exit))
+			return dbops.ReorderDatabase(cmd.Context(), app, r, ui.NewDefaultConsole(app, app.Exit))
 		},
 	}
 }

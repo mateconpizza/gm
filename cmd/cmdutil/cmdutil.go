@@ -33,7 +33,6 @@ type (
 // setup initializes the config, db and app for the subcommands..
 func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	ctx := cmd.Context()
-
 	app, err := application.FromContext(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
@@ -46,7 +45,7 @@ func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 
 	terminal.ReadPipedInput(args)
 
-	c := ui.NewDefaultConsole(app.Flags.Color, func(err error) {
+	c := ui.NewDefaultConsole(app, func(err error) {
 		r.Close()
 		app.Exit(err)
 	})
@@ -73,7 +72,6 @@ func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark],
 		}
 
 		f := app.Flags
-
 		bs, err = handler.Sort(f.Sort, bs)
 		if err != nil {
 			return err

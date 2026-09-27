@@ -179,7 +179,7 @@ func (wm *WaybackMachine) Snapshots(ctx context.Context, urlStr string) ([]Snaps
 
 	resp, err := wm.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetch: %w", err)
+		return nil, err
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {

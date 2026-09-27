@@ -42,7 +42,7 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 		return err
 	}
 
-	c := ui.NewDefaultConsole(app.Flags.Color, app.Exit)
+	c := ui.NewDefaultConsole(app, app.Exit)
 	if err := AskForEncryption(ctx, c, app, gm); err != nil {
 		return err
 	}

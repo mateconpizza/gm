@@ -106,6 +106,7 @@ func InfoCmd(ctx context.Context, d *deps.Deps) error {
 	c := d.Console()
 	c.NewBannerBuilder().
 		WithTitle("Git Information").
+		WithTitleGlyph(d.Console().Glyphs().Git).
 		WithSubtitle("showing current git status").
 		Build().
 		Rowln().

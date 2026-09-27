@@ -107,7 +107,7 @@ func Notes(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) error {
 
 	bold := func(s string) string { return "**" + s + "**" }
 	italic := func(s string) string { return "*" + s + "*" }
-	bullet := func(header, val string) string { return txt.PaddedLineWithPad(bold("- "+header), val, 12) }
+	bullet := func(header, val string) string { return txt.PaddedLineWithWidth(bold("- "+header), val, 12) }
 
 	for i, b := range bs {
 		if b.Notes == "" {
@@ -221,7 +221,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 				rows,
 				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
 			)
-			footer = append(footer, fnameColor(txt.GlyphBlackSquare+" locked"))
+			footer = append(footer, fnameColor(c.Glyphs().Square+" locked"))
 			continue
 		}
 
@@ -240,7 +240,7 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 			fnameColor = p.BrightYellow.With(p.Bold).Sprint
 			cleanName = fnameColor(cleanName)
 			cleanName += p.Gray.Wrap(" (default)", p.Italic)
-			footer = append(footer, fnameColor(txt.GlyphBlackSquare.Prefix(" default")))
+			footer = append(footer, fnameColor(c.Glyphs().Square+" default"))
 		}
 
 		rows = append(
@@ -366,24 +366,26 @@ func Display(ctx context.Context, c *ui.Console, f string, bs []*bookmark.Bookma
 	return Print(ctx, c, bs, fm.Render)
 }
 
-func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
+func AppConfig(ctx context.Context, app *application.App, c *ui.Console) error {
+	f, p := c.Frame(), c.Palette()
 	header := func() string {
-		return p.BrightBlue.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold)
+		return p.BrightBlue.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 
 	const padding = 20
 	pad := func(label string, value any) string {
-		return txt.PaddedLineWithPad(label+":", value, padding)
+		return txt.PaddedLineWithWidth(label+":", value, padding)
 	}
 
 	f.CustomFunc(header, app.PrettyVersion()).
 		Rowln().
 		Rowln(pad("current db", p.BrightYellow.Wrap(app.DBBaseName(), p.Italic))).
-		Rowln(pad("format", app.Format))
+		Rowln(pad("format", app.Format())).
+		Rowln(pad("glyphs", app.UI.GlyphMode))
 
 	// config file
 	if files.Exists(app.Path.ConfigFile()) {
-		f.Rowln(pad("config:", files.CollapseHomeDir(app.Path.ConfigFile())))
+		f.Rowln(pad("config", files.CollapseHomeDir(app.Path.ConfigFile())))
 	}
 
 	boolFmt := func(b bool) string {
@@ -425,9 +427,7 @@ func AppConfig(app *application.App, f *frame.Frame, p *ansi.Palette) error {
 			Rowln(pad("remote", p.Italic.Sprint(g.Remote)))
 	}
 
-	f.Flush()
-
-	return nil
+	return c.Print(ctx, f.String())
 }
 
 func formatKeymap(p *ansi.Palette, k *menu.Keymap) string {
@@ -441,7 +441,7 @@ func formatKeymap(p *ansi.Palette, k *menu.Keymap) string {
 		status += p.Red.Sprint(" disabled")
 	}
 
-	return txt.PaddedLineWithPad(
+	return txt.PaddedLineWithWidth(
 		p.Bold.Sprint(keybind),
 		status,
 		8,

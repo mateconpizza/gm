@@ -46,7 +46,7 @@ var InitCmd = &cobra.Command{
 			cmd.Context(),
 			deps.New(
 				deps.WithApplication(app),
-				deps.WithConsole(ui.NewDefaultConsole(app.Flags.Color, app.Exit)),
+				deps.WithConsole(ui.NewDefaultConsole(app, app.Exit)),
 			),
 		)
 	},
@@ -65,7 +65,7 @@ func initializeAction(ctx context.Context, d *deps.Deps) error {
 	c, p := d.Console(), d.Console().Palette()
 
 	// announce app version
-	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	header := func() string { return p.BrightYellow.Wrap(c.Glyphs().Square+" ", p.Bold) }
 	c.Frame().
 		CustomFunc(header, app.PrettyVersion()).
 		Rowln().
@@ -120,7 +120,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	c := ui.NewDefaultConsole(app.Flags.Color, app.Exit)
+	c := ui.NewDefaultConsole(app, app.Exit)
 
 	if !c.Confirm(cmd.Context(), fmt.Sprintf("Track database %q?", name), "n") {
 		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", name)).String())
@@ -158,10 +158,10 @@ func initWorkspace(c *ui.Console, app *application.App) error {
 
 	p, f := c.Palette(), c.Frame()
 	dimmer := func(s string) string { return p.Dim.Wrap(s, p.Italic) }
-	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	header := func() string { return p.BrightYellow.Wrap(c.Glyphs().Square+" ", p.Bold) }
 	f.CustomFunc(header, p.Bold.Sprint("Initializing workspace")).Ln().
-		Mid(txt.PaddedLineWithPad("path", dimmer(app.Path.Home()), padding)).Ln().
-		Mid(txt.PaddedLineWithPad("database", dimmer(app.DBName), padding)).Ln().
+		Mid(txt.PaddedLineWithWidth("path", dimmer(app.Path.Home()), padding)).Ln().
+		Mid(txt.PaddedLineWithWidth("database", dimmer(app.DBName), padding)).Ln().
 		Rowln().
 		Flush()
 
@@ -184,12 +184,12 @@ func seedNewRepo(ctx context.Context, app *application.App, r Inserter, c *ui.Co
 	}
 
 	p, f := c.Palette(), c.Frame()
-	header := func() string { return p.BrightYellow.Wrap(txt.GlyphSmallSquare.Prefix(" "), p.Bold) }
+	header := func() string { return p.BrightYellow.Wrap(c.Glyphs().Square+" ", p.Bold) }
 	f.CustomFunc(header, p.Bold.Sprint("Seeding initial bookmark")).Ln()
 
 	u := strings.Replace(ib.URL, "https://", "", 1)
 
-	f.Success(txt.PaddedLineWithPad("inserted", p.Dim.Wrap(u, p.Italic), padding)).Ln().
+	f.Success(txt.PaddedLineWithWidth("inserted", p.Dim.Wrap(u, p.Italic), padding)).Ln().
 		Rowln().
 		Success("Setup complete\n").
 		Flush()
