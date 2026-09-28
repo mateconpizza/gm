@@ -33,7 +33,7 @@ var (
 )
 
 // NewMainMenu builds the interactive FZF menu for selecting records.
-func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+func NewMainMenu(app *application.App) *menu.Menu[*bookmark.Bookmark] {
 	if !app.Flags.Menu {
 		return nil
 	}
@@ -64,26 +64,26 @@ func NewMainMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		menu.WithHeaderKeymaps(),
 	)
 
-	m := New[bookmark.Bookmark](app, opts...)
-	m.SetFormatter(func(b bookmark.Bookmark) string {
+	m := New[*bookmark.Bookmark](app, opts...)
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
 		return fm.Render(ui.NewConsole(
 			ui.WithColor(app.Flags.Color),
 			ui.WithGlyphs(app.Glyphs()),
-		), &b)
+		), b)
 	})
 
 	return m
 }
 
-func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
+func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu.Option) *menu.Menu[*bookmark.Bookmark] {
 	opts = append(opts, fm.Menu.Opts...)
-	m := New[bookmark.Bookmark](app, opts...)
+	m := New[*bookmark.Bookmark](app, opts...)
 
-	m.SetFormatter(func(b bookmark.Bookmark) string {
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
 		return fm.Render(ui.NewConsole(
 			ui.WithColor(app.Flags.Color),
 			ui.WithGlyphs(app.Glyphs()),
-		), &b)
+		), b)
 	})
 
 	return m
@@ -144,32 +144,13 @@ func Select[T comparable](items []T, opts ...menu.Option) ([]T, error) {
 }
 
 // BookmarkWithMenu applies menu selection to bookmarks.
-func BookmarkWithMenu(c *ui.Console, m *menu.Menu[bookmark.Bookmark], bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
-	// Create copy for menu selection
-	bsCopy := make([]bookmark.Bookmark, 0, len(bs))
-	for _, b := range bs {
-		bsCopy = append(bsCopy, *b)
-	}
-
+func BookmarkWithMenu(c *ui.Console, m *menu.Menu[*bookmark.Bookmark], bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	if m.Formatter == nil {
-		m.SetFormatter(func(b bookmark.Bookmark) string {
-			return formatter.Default().Render(c, &b)
+		m.SetFormatter(func(b *bookmark.Bookmark) string {
+			return formatter.Default().Render(c, b)
 		})
 	}
-
-	// Select with menu
-	items, err := selectionWithMenu(m, bsCopy)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert selected items back to pointers
-	result := make([]*bookmark.Bookmark, len(items))
-	for i := range items {
-		result[i] = &items[i]
-	}
-
-	return result, nil
+	return selectionWithMenu(m, bs)
 }
 
 // selectionWithMenu allows the user to select multiple records in a menu
@@ -186,7 +167,7 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T) ([]T, error) {
 			return nil, application.ErrActionAborted
 		}
 
-		return nil, fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("menu: %w", err)
 	}
 
 	if len(result) == 0 {

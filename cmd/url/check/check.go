@@ -90,7 +90,7 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func setupMenu(app *application.App, label string) *menu.Menu[bookmark.Bookmark] {
+func setupMenu(app *application.App, label string) *menu.Menu[*bookmark.Bookmark] {
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
 

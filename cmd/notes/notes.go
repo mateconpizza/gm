@@ -97,7 +97,7 @@ func printNotes(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) erro
 	return printer.Notes(ctx, d.Console(), bs)
 }
 
-func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
+func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[*bookmark.Bookmark] {
 	p := app.Formatter().Menu.Placeholder()
 	return picker.NewWithFormatter(app, app.Formatter(), append(
 		opts,
