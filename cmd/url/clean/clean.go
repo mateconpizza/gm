@@ -57,7 +57,7 @@ func newCleanURLUser(app *application.App) *cobra.Command {
 	return c
 }
 
-func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+func setupMenu(app *application.App) *menu.Menu[*bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.Parameters)
 	p := fm.Menu.Placeholder()
 	fm.Menu.Opts = append(
@@ -73,10 +73,10 @@ func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
 		),
 	)
 
-	m := picker.New[bookmark.Bookmark](app, fm.Menu.Opts...)
-	m.SetFormatter(func(bm bookmark.Bookmark) string {
-		bm.URL = handler.ParamHighlight(bm.URL, ansi.BrightRed, ansi.Italic)
-		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), &bm)
+	m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
+	m.SetFormatter(func(b *bookmark.Bookmark) string {
+		b.URL = handler.ParamHighlight(b.URL, ansi.BrightRed, ansi.Italic)
+		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), b)
 	})
 
 	return m

@@ -95,7 +95,7 @@ func newSaveCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[bookmark.Bookmark] {
+func setupMenu(app *application.App, opts ...menu.Option) *menu.Menu[*bookmark.Bookmark] {
 	fm, _ := formatter.New(formatter.ArchiveURL)
 	p := fm.Menu.Placeholder()
 	return picker.NewWithFormatter(app, fm, append(opts,

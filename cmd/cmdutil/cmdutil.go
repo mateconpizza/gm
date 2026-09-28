@@ -59,7 +59,7 @@ func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	return d, r.Close, nil
 }
 
-func Execute(cmd *cobra.Command, args []string, m *menu.Menu[bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
+func Execute(cmd *cobra.Command, args []string, m *menu.Menu[*bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
 	return Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
 		bs, err := handler.Data(ctx, d, args)
 		if err != nil {

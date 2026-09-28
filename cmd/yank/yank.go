@@ -38,7 +38,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func setupMenu(app *application.App) *menu.Menu[bookmark.Bookmark] {
+func setupMenu(app *application.App) *menu.Menu[*bookmark.Bookmark] {
 	keys := app.Menu.Keymaps()
 	keys.Yank.Hidden = false
 
