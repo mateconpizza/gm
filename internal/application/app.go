@@ -255,10 +255,10 @@ func New(info *Information) *App {
 		Name:   Name,
 		Cmd:    Command,
 		DBName: MainDBName,
-		UI:     newUI(),
+		UI:     NewUI(),
 		Flags:  &Flags{},
 		Info:   info,
-		Path:   &Path{},
+		Path:   NewPath(),
 		Git: &Git{
 			Enabled: false,
 			Log:     true,

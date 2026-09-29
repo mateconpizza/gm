@@ -11,7 +11,7 @@ type UI struct {
 	glyphs    *formatter.Glyphs
 }
 
-func newUI() *UI {
+func NewUI() *UI {
 	fm, _ := formatter.New(formatter.Format(OutputFormat))
 	return &UI{
 		Format:    OutputFormat,
