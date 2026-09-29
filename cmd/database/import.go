@@ -67,7 +67,7 @@ func newImportBrowserCmd(_ *application.App) *cobra.Command {
 		Use:   "browser",
 		Short: "import browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, port.ImportFromBrowser)
+			return cmdutil.Run(cmd, args, port.ImportFromBrowser(args))
 		},
 	}
 }
