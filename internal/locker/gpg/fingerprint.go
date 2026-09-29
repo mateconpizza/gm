@@ -8,15 +8,20 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
 var (
-	ErrKeyExpired    = errors.New("gpg: key has expired")
-	ErrKeyNotFound   = errors.New("gpg: key not found")
-	ErrKeyNotTrusted = errors.New("gpg: key not trusted")
-	ErrKeyUnusable   = errors.New("gpg: unusable public key")
+	ErrKeyExpired     = errors.New("gpg: key has expired")
+	ErrKeyNotFound    = errors.New("gpg: key not found")
+	ErrKeyNotTrusted  = errors.New("gpg: key not trusted")
+	ErrKeyUnusable    = errors.New("gpg: unusable public key")
+	ErrNotInitialized = errors.New("gpg: not initialized")
 )
+
+// fingerprintIDFilename is the filename storing the GPG recipient fingerprint.
+const fingerprintIDFilename = ".gpg-id"
 
 type TrustLevel string
 
@@ -83,13 +88,52 @@ func (f *Fingerprint) String() string {
 	return fmt.Sprintf("ID: %s  User: %s\nFingerprint: %s", f.KeyID, f.UserID, f.Fingerprint)
 }
 
-// LookupKey looks up the GPG key for the fingerprint stored in path.
-func LookupKey(ctx context.Context, path string) (*Fingerprint, error) {
-	if !fileExists(path) {
-		return nil, fmt.Errorf("%w: %q", os.ErrNotExist, path)
+type KeyResolverOpt func(*KeyResolver)
+
+// KeyResolver resolves a GPG fingerprint from a configured path.
+type KeyResolver struct {
+	keyPath string
+	loader  func(path string) (string, error)
+	List    func(context.Context) ([]*Fingerprint, error)
+}
+
+// NewKeyResolver returns a new fingerprint resolver.
+func NewKeyResolver(root string, opts ...KeyResolverOpt) *KeyResolver {
+	fr := &KeyResolver{
+		keyPath: filepath.Join(root, fingerprintIDFilename),
+		loader:  loadFingerprint,
+		List:    listFingerprints,
+	}
+	for _, opt := range opts {
+		opt(fr)
+	}
+	return fr
+}
+
+func WithLoader(fn func(path string) (string, error)) KeyResolverOpt {
+	return func(fr *KeyResolver) { fr.loader = fn }
+}
+
+func WithLister(fn func(context.Context) ([]*Fingerprint, error)) KeyResolverOpt {
+	return func(fr *KeyResolver) { fr.List = fn }
+}
+
+// Initialized reports whether a valid fingerprint exists.
+func (fr *KeyResolver) Initialized() bool {
+	if !fileExists(fr.keyPath) {
+		return false
+	}
+	recipient, err := fr.loader(fr.keyPath)
+	return err == nil && recipient != ""
+}
+
+// Resolve finds and returns the associated fingerprint.
+func (fr *KeyResolver) Resolve(ctx context.Context) (*Fingerprint, error) {
+	if !fileExists(fr.keyPath) {
+		return nil, ErrNotInitialized
 	}
 
-	recipient, err := loadFingerprint(path)
+	recipient, err := fr.loader(fr.keyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +142,7 @@ func LookupKey(ctx context.Context, path string) (*Fingerprint, error) {
 		return nil, ErrNoGPGRecipient
 	}
 
-	fps, err := ListFingerprints(ctx)
+	fps, err := fr.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +160,14 @@ func LookupKey(ctx context.Context, path string) (*Fingerprint, error) {
 	return nil, ErrNoFingerprint
 }
 
-// ListFingerprints lists all public GPG keys with their fingerprints and subkeys.
-func ListFingerprints(ctx context.Context) ([]*Fingerprint, error) {
+// LookupKey looks up the GPG key for the fingerprint stored in path.
+func LookupKey(ctx context.Context, path string) (*Fingerprint, error) {
+	return NewKeyResolver(path).Resolve(ctx)
+}
+
+// listFingerprints lists all public GPG keys with their fingerprints and
+// subkeys.
+func listFingerprints(ctx context.Context) ([]*Fingerprint, error) {
 	output, err := execGPGListKeys(ctx)
 	if err != nil {
 		return nil, err

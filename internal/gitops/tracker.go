@@ -154,7 +154,6 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
 	c.NewBannerBuilder().
 		WithTitle("Git Tracker Databases").
-		WithTitleGlyph(c.Glyphs().Git).
 		WithComment(" (ctrl-c to exit)").
 		WithSubtitle("select which databases to track").
 		Build().
@@ -230,7 +229,6 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 
 	c.NewBannerBuilder().
 		WithTitle("Git Tracked Databases").
-		WithTitleGlyph(c.Glyphs().Git).
 		WithSubtitle("showing tracked databases with git").
 		Build().
 		Rowln().

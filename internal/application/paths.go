@@ -68,7 +68,7 @@ func getConfig(p string, app *App) error {
 	}
 
 	if err := ReadYAML(p, &app); err != nil {
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	if app == nil {

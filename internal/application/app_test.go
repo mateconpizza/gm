@@ -2,14 +2,18 @@ package application_test
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/testutil"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 )
 
-func TestAppValidate(t *testing.T) {
+func TestApp_Validate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -110,66 +114,6 @@ func TestApp_GitEnabled(t *testing.T) {
 			got := app.GitEnabled()
 			if got != tt.want {
 				t.Fatalf("App.GitEnabled() = %v; want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestApp_Version(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name string
-		info *application.Information
-		want string
-	}{
-		{"normal_version", &application.Information{Version: "1.0.0"}, "1.0.0"},
-		{"empty_version", &application.Information{Version: ""}, ""},
-		{"pre_release_version", &application.Information{Version: "2.1.0-alpha"}, "2.1.0-alpha"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			app := testutil.NewApp(t)
-			app.Info = tt.info
-			got := app.Version()
-			if got != tt.want {
-				t.Fatalf("App.Version() = %q; want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestColorEnabled(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name            string
-		colorStr        string
-		stdinPiped      bool
-		stdoutPiped     bool
-		noColor         bool
-		expectedEnabled bool
-	}{
-		{"always", "always", true, true, true, true},
-		{"never", "never", false, false, false, false},
-		{"auto interactive terminal", "auto", false, false, false, true},
-		{"auto stdin piped", "auto", true, false, false, false},
-		{"auto stdout piped", "auto", false, true, false, false},
-		{"auto NO_COLOR set", "auto", false, false, true, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			result := application.ColorEnabled(
-				tt.colorStr,
-				func() bool { return tt.stdinPiped },
-				func() bool { return tt.stdoutPiped },
-				func() bool { return tt.noColor },
-			)
-			if result != tt.expectedEnabled {
-				t.Errorf("got %v, want %v", result, tt.expectedEnabled)
 			}
 		})
 	}
@@ -378,6 +322,330 @@ func TestApp_SetDatabase(t *testing.T) {
 			}
 			if app.Path.Database != tt.wantDBPath {
 				t.Errorf("(*App).SetDatabase() Path.Database = %v, want %v", app.Path.Database, tt.wantDBPath)
+			}
+		})
+	}
+}
+
+func TestApp_Load(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T, tmpDir string) *application.App
+		wantErr error
+	}{
+		{
+			name: "normal_valid_config_file",
+			setup: func(t *testing.T, tmpDir string) *application.App {
+				t.Helper()
+
+				content := []byte("db: main.db\ncmd: app\nui:\n  format: text\n  glyphs: ascii\n")
+				testutil.NewFile(t, tmpDir, application.ConfigFilename, content)
+				return &application.App{
+					DBName: "main.db",
+					Path: &application.Path{
+						Data:     tmpDir,
+						Database: filepath.Join(tmpDir, "main.db"),
+					},
+					Flags: &application.Flags{},
+					UI:    application.NewUI(),
+				}
+			},
+			wantErr: nil,
+		},
+		{
+			name: "normal_config_not_exist_uses_defaults",
+			setup: func(t *testing.T, tmpDir string) *application.App {
+				t.Helper()
+
+				return &application.App{
+					DBName: "default.db",
+					Path: &application.Path{
+						Data:     tmpDir,
+						Database: filepath.Join(tmpDir, "default.db"),
+					},
+					Flags: &application.Flags{},
+					UI:    application.NewUI(),
+				}
+			},
+			wantErr: nil,
+		},
+		{
+			name: "normal_invalid_config_uses_defaults",
+			setup: func(t *testing.T, tmpDir string) *application.App {
+				t.Helper()
+
+				content := []byte("invalid_yaml: [unclosed_list")
+				testutil.NewFile(t, tmpDir, application.ConfigFilename, content)
+				return &application.App{
+					DBName: "default.db",
+					Path: &application.Path{
+						Data:     tmpDir,
+						Database: filepath.Join(tmpDir, "default.db"),
+					},
+					Flags: &application.Flags{},
+					UI:    application.NewUI(),
+				}
+			},
+			wantErr: nil,
+		},
+		{
+			name: "error_get_config_io_failure",
+			setup: func(t *testing.T, tmpDir string) *application.App {
+				t.Helper()
+
+				unreadableDir := filepath.Join(tmpDir, "unreadable")
+				if err := os.MkdirAll(unreadableDir, 0o000); err != nil {
+					t.Fatalf("failed to create unreadable directory: %v", err)
+				}
+				return &application.App{
+					Path: &application.Path{
+						Data:     unreadableDir,
+						Database: filepath.Join(unreadableDir, "default.db"),
+					},
+					Flags: &application.Flags{},
+					UI:    application.NewUI(),
+				}
+			},
+			wantErr: os.ErrPermission,
+		},
+		{
+			name: "error_invalid_glyph_mode",
+			setup: func(t *testing.T, tmpDir string) *application.App {
+				t.Helper()
+
+				app := &application.App{
+					DBName: "default.db",
+					Path: &application.Path{
+						Data:     tmpDir,
+						Database: filepath.Join(tmpDir, "default.db"),
+					},
+					Flags: &application.Flags{},
+					UI:    application.NewUI(),
+				}
+				app.UI.GlyphMode = formatter.GlyphMode("invalid_mode")
+				return app
+			},
+			wantErr: formatter.ErrGlyphModeInvalid,
+		},
+		{
+			name: "boundary_empty_db_name",
+			setup: func(t *testing.T, tmpDir string) *application.App {
+				t.Helper()
+
+				return &application.App{
+					DBName: "",
+					Path: &application.Path{
+						Data:     tmpDir,
+						Database: filepath.Join(tmpDir, "default.db"),
+					},
+					Flags: &application.Flags{},
+					UI:    application.NewUI(),
+				}
+			},
+			wantErr: application.ErrDatabaseNameNotSet,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpDir := t.TempDir()
+			app := tt.setup(t, tmpDir)
+
+			err := app.Load()
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Load() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Load() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Load() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Load() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestApp_PrettyVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+
+		appName string
+		version string
+		color   bool
+		verbose int
+		commit  string
+		date    string
+
+		wantContains    []string // substrings that must appear
+		wantNotContains []string // substrings that must NOT appear
+	}{
+		{
+			name:         "normal_quiet_no_color",
+			appName:      "gm",
+			version:      "1.2.3",
+			color:        false,
+			verbose:      0,
+			wantContains: []string{"gm", "v1.2.3", runtime.GOOS + "/" + runtime.GOARCH},
+		},
+		{
+			name:            "dev_version_no_v_prefix",
+			appName:         "gm",
+			version:         "dev",
+			color:           false,
+			verbose:         0,
+			wantContains:    []string{"gm", "dev", runtime.GOOS + "/" + runtime.GOARCH},
+			wantNotContains: []string{"vdev"},
+		},
+		{
+			name:         "empty_name_and_version",
+			appName:      "",
+			version:      "",
+			color:        false,
+			verbose:      0,
+			wantContains: []string{"v", runtime.GOOS + "/" + runtime.GOARCH},
+		},
+		{
+			name:         "color_enabled_wraps_name",
+			appName:      "gm",
+			version:      "1.0.0",
+			color:        true,
+			verbose:      0,
+			wantContains: []string{"\x1b[", "gm", "v1.0.0"},
+		},
+		{
+			name:         "verbose_shows_commit_and_date",
+			appName:      "gm",
+			version:      "1.2.3",
+			color:        false,
+			verbose:      1,
+			commit:       "abc123",
+			date:         "2026-01-01T00:00:00Z",
+			wantContains: []string{"commit:", "abc123", "built:", "2026-01-01T00:00:00Z", "go version:", runtime.Version(), "platform:", runtime.GOOS + "/" + runtime.GOARCH},
+		},
+		{
+			name:            "verbose_omits_none_commit",
+			appName:         "gm",
+			version:         "1.2.3",
+			color:           false,
+			verbose:         1,
+			commit:          "none",
+			date:            "2026-01-01T00:00:00Z",
+			wantContains:    []string{"built:", "2026-01-01T00:00:00Z"},
+			wantNotContains: []string{"commit:"},
+		},
+		{
+			name:            "verbose_omits_unknown_date",
+			appName:         "gm",
+			version:         "1.2.3",
+			color:           false,
+			verbose:         1,
+			commit:          "abc123",
+			date:            "unknown",
+			wantContains:    []string{"commit:", "abc123"},
+			wantNotContains: []string{"built:"},
+		},
+		{
+			name:            "verbose_omits_empty_commit_and_date",
+			appName:         "gm",
+			version:         "1.2.3",
+			color:           false,
+			verbose:         1,
+			commit:          "",
+			date:            "",
+			wantContains:    []string{"go version:", runtime.Version(), "platform:", runtime.GOOS + "/" + runtime.GOARCH},
+			wantNotContains: []string{"commit:", "built:"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := &application.App{
+				Name: tt.appName,
+				Info: &application.Information{
+					Version: tt.version,
+					Commit:  tt.commit,
+					Date:    tt.date,
+				},
+				Flags: &application.Flags{
+					Color:   tt.color,
+					Verbose: tt.verbose,
+				},
+			}
+
+			got := app.PrettyVersion()
+
+			for _, sub := range tt.wantContains {
+				if !strings.Contains(got, sub) {
+					t.Fatalf("PrettyVersion() = %q; want it to contain %q", got, sub)
+				}
+			}
+
+			for _, sub := range tt.wantNotContains {
+				if strings.Contains(got, sub) {
+					t.Fatalf("PrettyVersion() = %q; want it to NOT contain %q", got, sub)
+				}
+			}
+
+			// Sanity check: quiet mode is a single line, verbose mode spans multiple.
+			if tt.verbose == 0 {
+				if strings.Count(got, "\n") != 1 {
+					t.Fatalf("PrettyVersion() quiet mode = %q; want exactly one newline", got)
+				}
+			}
+		})
+	}
+}
+
+func TestColorEnabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		colorStr        string
+		stdinPiped      bool
+		stdoutPiped     bool
+		noColor         bool
+		expectedEnabled bool
+	}{
+		{"always", "always", true, true, true, true},
+		{"never", "never", false, false, false, false},
+		{"auto interactive terminal", "auto", false, false, false, true},
+		{"auto stdin piped", "auto", true, false, false, false},
+		{"auto stdout piped", "auto", false, true, false, false},
+		{"auto NO_COLOR set", "auto", false, false, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := application.ColorEnabled(
+				tt.colorStr,
+				func() bool { return tt.stdinPiped },
+				func() bool { return tt.stdoutPiped },
+				func() bool { return tt.noColor },
+			)
+			if result != tt.expectedEnabled {
+				t.Errorf("got %v, want %v", result, tt.expectedEnabled)
 			}
 		})
 	}

@@ -185,10 +185,11 @@ func WaybackMakeSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 		return err
 	}
 
-	for range bs {
+	for i := range bs {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		fmt.Fprintf(d.Console().Writer(), "%v\n", bs[i])
 	}
 
 	return application.ErrNotImplementedYet

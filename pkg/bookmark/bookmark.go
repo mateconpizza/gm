@@ -93,6 +93,10 @@ type BookmarkJSON struct {
 	IsActive          bool     `json:"is_active"`         // true if the URL is active (200-299)
 }
 
+func NewJSON() *BookmarkJSON {
+	return &BookmarkJSON{}
+}
+
 func NewFromBuffer(buf []byte) (*Bookmark, error) {
 	return fromBytes(buf)
 }
@@ -289,9 +293,16 @@ func (b *Bookmark) Copy() *Bookmark {
 }
 
 func (b *Bookmark) String() string {
-	return fmt.Sprintf("%d - %s", b.ID, b.URL)
-}
-
-func NewJSON() *BookmarkJSON {
-	return &BookmarkJSON{}
+	return fmt.Sprintf(
+		"[%d] %s - %s %s (visits: %d, favorite: %t, status: %d %s, active: %t)",
+		b.ID,
+		b.Title,
+		b.URL,
+		strings.Split(strings.TrimSuffix(b.Tags, ","), ","),
+		b.VisitCount,
+		b.Favorite,
+		b.HTTPStatusCode,
+		b.HTTPStatusText,
+		b.IsActive,
+	)
 }

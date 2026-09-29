@@ -7,8 +7,6 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/mateconpizza/rotato"
-
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -21,11 +19,15 @@ type spinner interface {
 	Done(mesg ...string)
 	Fail(mesg ...string)
 
-	AddPrefixDecorator(fn rotato.MessageDecorator)
-	SetMessageDecorator(fn rotato.MessageDecorator)
+	AddPrefixDecorator(fn func(mesg string) string)
+	SetMessageDecorator(fn func(mesg string) string)
 	UpdateMesg(s string)
 	UpdatePrefix(s string)
 }
+
+// PassphrasePrompt prompts for (and caches) the GPG passphrase before
+// decrypting repository files.
+type PassphrasePrompt func(ctx context.Context, f *bookio.FileLoader, sp spinner, path string, done *bool) error
 
 // RepoReaderCfg groups the configuration needed to read a repository.
 type RepoReaderCfg struct {
@@ -35,33 +37,42 @@ type RepoReaderCfg struct {
 	total    int    // total bookmarks
 	loader   *bookio.RepositoryLoader
 	spinner  spinner
+
+	promptPassphrase PassphrasePrompt
 }
 
-func newRepoReader(ctx context.Context, opts *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	if gpg.IsInitialized(opts.root) {
-		fingerprintPath := gpg.GPGIDPath(opts.root)
-		fp, err := gpg.LookupKey(ctx, fingerprintPath)
+func (c *RepoReaderCfg) passphrasePrompt() PassphrasePrompt {
+	if c.promptPassphrase != nil {
+		return c.promptPassphrase
+	}
+	return promptGPGPassphrase
+}
+
+func newRepoReader(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+	if gpg.IsInitialized(cfg.root) {
+		k := gpg.NewKeyResolver(cfg.root)
+		fp, err := k.Resolve(ctx)
 		if err != nil {
 			return nil, err
 		}
 
 		if fp.Expired() {
-			opts.spinner.AddPrefixDecorator(func(msg string) string {
-				return msg + rotato.FgBrightYellow.Wrap(" warn: key has expired", rotato.StyleItalic)
+			cfg.spinner.AddPrefixDecorator(func(msg string) string {
+				return msg + " warn: key has expired"
 			})
 		}
 
-		loader, err := gpgStrategy(opts.name, fp.Fingerprint)
+		loader, err := gpgStrategy(cfg.name, fp.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
-		opts.loader = loader
+		cfg.loader = loader
 
-		return ReadGPGRepo(ctx, opts)
+		return ReadGPGRepo(ctx, cfg)
 	}
 
-	opts.loader = bookio.JSONStrategy
-	return ReadJSONRepo(ctx, opts)
+	cfg.loader = bookio.JSONStrategy
+	return ReadJSONRepo(ctx, cfg)
 }
 
 // ReadJSONRepo handles reading standard JSON bookmark repositories.

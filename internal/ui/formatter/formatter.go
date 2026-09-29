@@ -140,7 +140,7 @@ var Formatters = map[Format]Formatter{
 
 	Parameters: {
 		Name:   Parameters,
-		Render: OnelineURLFunc,
+		Render: ParametersFunc,
 		Menu: MenuConfig{
 			placeholder: "{1}",
 			Opts:        []menu.Option{menu.WithNth("3..")},

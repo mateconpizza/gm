@@ -206,7 +206,6 @@ func printHeader(rp *GitPuller) {
 
 	rp.console.NewBannerBuilder().
 		WithTitle("Repository cloned successfully").
-		WithTitleGlyph(rp.console.Glyphs().Git).
 		WithSubtitle("Path: "+path).
 		Build().
 		CustomFunc(square, p.Bold.Sprint("Found repositories")).

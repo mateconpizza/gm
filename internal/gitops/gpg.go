@@ -51,7 +51,7 @@ func ReadGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark,
 
 		// handle prompt for GPG passphrase on the first valid file
 		if !passphrasePrompted {
-			if err := promptGPGPassphrase(ctx, f, cfg.spinner, path, &passphrasePrompted); err != nil {
+			if err := cfg.passphrasePrompt()(ctx, f, cfg.spinner, path, &passphrasePrompted); err != nil {
 				return err
 			}
 			passphrasePrompted = true
@@ -71,8 +71,9 @@ func ReadGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark,
 	return f.Results()
 }
 
-func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, gm *git.Mgr) error {
-	if gpg.IsInitialized(app.Path.Git()) {
+func askForEncryption(ctx context.Context, c *ui.Console, app *application.App, gm *git.Mgr) error {
+	fr := gpg.NewKeyResolver(app.Path.Git())
+	if fr.Initialized() {
 		return nil
 	}
 
@@ -90,13 +91,13 @@ func AskForEncryption(ctx context.Context, c *ui.Console, app *application.App, 
 		return nil
 	}
 
-	fps, err := gpg.ListFingerprints(ctx)
+	fps, err := fr.List(ctx)
 	if err != nil {
 		return err
 	}
 
-	mf := menuFingerprint(c, app)
-	key, err := selectFingerprint(mf, fps)
+	m := menuFingerprint(c, app)
+	key, err := selectFingerprint(m, fps)
 	if err != nil {
 		return err
 	}
@@ -121,11 +122,11 @@ func gpgStrategy(name, recipient string) (*bookio.RepositoryLoader, error) {
 	}, nil
 }
 
-func addGPGFiles(ctx context.Context, bs []*bookmark.Bookmark, sp *rotato.Rotato, repoPath string) error {
+func addGPGFiles(ctx context.Context, bs []*bookmark.Bookmark, sp spinner, repoPath string) error {
 	root := filepath.Dir(repoPath)
-	fingerprintPath := gpg.GPGIDPath(root)
 
-	fp, err := gpg.LookupKey(ctx, fingerprintPath)
+	k := gpg.NewKeyResolver(root)
+	fp, err := k.Resolve(ctx)
 	if err != nil {
 		return fmt.Errorf("gpg strategy: %w", err)
 	}

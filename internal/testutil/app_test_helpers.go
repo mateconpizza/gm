@@ -202,6 +202,13 @@ func NewFile(t *testing.T, root, name string, content []byte) error {
 	return nil
 }
 
+func NewDir(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		t.Fatalf("failed to setup mock repo path: %v", err)
+	}
+}
+
 type FakeResponse struct {
 	out string
 	err error

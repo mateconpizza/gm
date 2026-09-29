@@ -216,7 +216,7 @@ func FrameFunc(c Console, b *bookmark.Bookmark) string {
 		StringReset()
 }
 
-func OnelineURLFunc(c Console, b *bookmark.Bookmark) string {
+func ParametersFunc(c Console, b *bookmark.Bookmark) string {
 	w, p := c.MaxWidth(), c.Palette()
 
 	const (
@@ -235,6 +235,7 @@ func OnelineURLFunc(c Console, b *bookmark.Bookmark) string {
 	idStr := strconv.Itoa(b.ID)
 	paddedID := fmt.Sprintf("%*s", idLen, idStr)
 	coloredID := strings.Replace(paddedID, idStr, p.BrightYellow.Wrap(idStr, p.Bold), 1)
+	urlColor := parametersHighlight(b.URL, p.BrightRed.With(p.Italic).Sprint, p.Dim.Sprint)
 
 	var sb strings.Builder
 	sb.Grow(w + 20)
@@ -242,7 +243,7 @@ func OnelineURLFunc(c Console, b *bookmark.Bookmark) string {
 	sb.WriteByte(' ')
 	sb.WriteString(c.Glyphs().Sep)
 	sb.WriteByte(' ')
-	sb.WriteString(b.URL)
+	sb.WriteString(urlColor)
 
 	return sb.String()
 }
@@ -836,4 +837,50 @@ func yearColor(year string, p *ansi.Palette) ansi.Style {
 	index := (y - startYear) % len(colorCycle)
 
 	return colorCycle[index]
+}
+
+// parametersHighlight returns the URL with its query parameters highlighted with
+// the given color func.
+func parametersHighlight(raw string, hlFn, mutedFn func(a ...any) string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.RawQuery == "" {
+		return raw
+	}
+
+	// preserve original ordering
+	parts := strings.Split(u.RawQuery, "&")
+
+	var highlighted []string
+	highlighted = make([]string, 0, len(parts))
+
+	for _, p := range parts {
+		if p == "" {
+			continue
+		}
+
+		kv := strings.SplitN(p, "=", 2)
+
+		if len(kv) == 1 {
+			// parameter without value: ?flag
+			highlighted = append(highlighted, hlFn(kv[0]))
+			continue
+		}
+
+		key := kv[0]
+		val := kv[1]
+
+		colored := hlFn(key + "=" + val)
+		highlighted = append(highlighted, colored)
+	}
+
+	// rebuild manually so we don't lose encoding or formatting
+	var sb strings.Builder
+	sb.Grow(len(raw) + len(parts)*10)
+
+	// base URL without query
+	base := raw[:strings.Index(raw, "?")+1]
+	sb.WriteString(mutedFn(base))
+	sb.WriteString(strings.Join(highlighted, "&"))
+
+	return sb.String()
 }

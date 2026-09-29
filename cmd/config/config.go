@@ -89,7 +89,7 @@ func newViewCmd(app *application.App) *cobra.Command {
 			if app.Flags.JSON {
 				return cfgToJSON(app)
 			}
-			c := ui.NewDefaultConsole(app, func(err error) { app.Exit(err) })
+			c := ui.NewDefaultConsole(app, app.Exit)
 			return printer.AppConfig(cmd.Context(), app, c)
 		},
 	}

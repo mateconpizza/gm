@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -20,37 +21,39 @@ import (
 )
 
 // ImportFromBrowser imports bookmarks from a supported browser.
-func ImportFromBrowser(ctx context.Context, d *deps.Deps) error {
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
-	br, err := selectBrowser(ctx, app, d.Console())
-	if err != nil {
-		return err
-	}
-
-	if err := br.Browser.LoadPaths(); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	// find bookmarks
-	bs, err := br.Browser.Import(ctx, d.Console(), app.Flags.Yes)
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return app.Abort()
+func ImportFromBrowser(args []string) func(ctx context.Context, d *deps.Deps) error {
+	return func(ctx context.Context, d *deps.Deps) error {
+		app, err := d.Application(ctx)
+		if err != nil {
+			return err
 		}
-		return fmt.Errorf("import from browser %q: %w", strings.ToLower(br.Browser.Name()), err)
-	}
 
-	// clean and process found bookmarks
-	bs, err = parseFoundInBrowser(ctx, d, bs)
-	if err != nil {
-		return err
-	}
+		br, err := selectBrowser(ctx, app, d.Console(), args)
+		if err != nil {
+			return err
+		}
 
-	return importPipeline(ctx, d, "from browser", br.Browser.Name(), bs)
+		if err := br.Browser.LoadPaths(); err != nil {
+			return fmt.Errorf("%w", err)
+		}
+
+		// find bookmarks
+		bs, err := br.Browser.Import(ctx, d.Console(), app.Flags.Yes)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return app.Abort()
+			}
+			return fmt.Errorf("import from browser %q: %w", strings.ToLower(br.Browser.Name()), err)
+		}
+
+		// clean and process found bookmarks
+		bs, err = parseFoundInBrowser(ctx, d, bs)
+		if err != nil {
+			return err
+		}
+
+		return importPipeline(ctx, d, "from browser", br.Browser.Name(), bs)
+	}
 }
 
 // browsers the list of supported browsers.
@@ -108,12 +111,21 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 }
 
 // selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(ctx context.Context, app *application.App, c *ui.Console) (browser.Supported, error) {
+func selectBrowser(ctx context.Context, app *application.App, c *ui.Console, args []string) (browser.Supported, error) {
 	if err := ctx.Err(); err != nil {
 		return browser.Supported{}, err
 	}
 
-	m := picker.New[browser.Supported](app)
+	m := picker.New[browser.Supported](
+		app,
+		menu.WithArgs(func(b *menu.ArgsBuilder) *menu.ArgsBuilder {
+			if len(args) > 0 {
+				return b.Custom("--query=" + args[0])
+			}
+			return b
+		}),
+	)
+
 	browsers, err := m.Select(browsers())
 	if err != nil {
 		return browser.Supported{}, err

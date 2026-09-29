@@ -117,7 +117,10 @@ func (app *App) Load() error {
 	}
 
 	app.Flags.Output = app.Format()
-	app.WithGlyphs(formatter.NewGlyphs(app.UI.GlyphMode, app.UI.Custom))
+
+	if err := loadGlyphs(app); err != nil {
+		return err
+	}
 
 	// update default database
 	return app.SetDatabase(app.DBName)
@@ -252,10 +255,10 @@ func New(info *Information) *App {
 		Name:   Name,
 		Cmd:    Command,
 		DBName: MainDBName,
-		UI:     newUI(),
+		UI:     NewUI(),
 		Flags:  &Flags{},
 		Info:   info,
-		Path:   &Path{},
+		Path:   NewPath(),
 		Git: &Git{
 			Enabled: false,
 			Log:     true,
