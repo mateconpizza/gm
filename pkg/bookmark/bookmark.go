@@ -292,7 +292,7 @@ func (b *Bookmark) Copy() *Bookmark {
 	return &cp
 }
 
-func (b Bookmark) String() string {
+func (b *Bookmark) String() string {
 	return fmt.Sprintf(
 		"[%d] %s - %s %s (visits: %d, favorite: %t, status: %d %s, active: %t)",
 		b.ID,

@@ -7,8 +7,6 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/mateconpizza/rotato"
-
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -21,8 +19,8 @@ type spinner interface {
 	Done(mesg ...string)
 	Fail(mesg ...string)
 
-	AddPrefixDecorator(fn rotato.MessageDecorator)
-	SetMessageDecorator(fn rotato.MessageDecorator)
+	AddPrefixDecorator(fn func(mesg string) string)
+	SetMessageDecorator(fn func(mesg string) string)
 	UpdateMesg(s string)
 	UpdatePrefix(s string)
 }

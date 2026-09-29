@@ -10,8 +10,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/mateconpizza/rotato"
-
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -20,13 +18,13 @@ import (
 
 type fakeSpinner struct{}
 
-func (sp fakeSpinner) Start(ctx context.Context)                      {}
-func (sp fakeSpinner) Done(mesg ...string)                            {}
-func (sp fakeSpinner) Fail(mesg ...string)                            {}
-func (sp fakeSpinner) AddPrefixDecorator(fn rotato.MessageDecorator)  {}
-func (sp fakeSpinner) SetMessageDecorator(fn rotato.MessageDecorator) {}
-func (sp fakeSpinner) UpdateMesg(s string)                            {}
-func (sp fakeSpinner) UpdatePrefix(s string)                          {}
+func (sp fakeSpinner) Start(ctx context.Context)                       {}
+func (sp fakeSpinner) Done(mesg ...string)                             {}
+func (sp fakeSpinner) Fail(mesg ...string)                             {}
+func (sp fakeSpinner) AddPrefixDecorator(fn func(mesg string) string)  {}
+func (sp fakeSpinner) SetMessageDecorator(fn func(mesg string) string) {}
+func (sp fakeSpinner) UpdateMesg(s string)                             {}
+func (sp fakeSpinner) UpdatePrefix(s string)                           {}
 
 func TestReadJSONRepo(t *testing.T) {
 	t.Parallel()
