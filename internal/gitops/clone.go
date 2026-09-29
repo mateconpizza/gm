@@ -211,7 +211,7 @@ func insertRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 
 	return c.Print(
 		ctx,
-		c.SuccessMesg("inserted ", len(bs), " into ", r.Name()+"\n"),
+		c.SuccessMesg("inserted ", len(bs), " into ", r.BaseName()+"\n"),
 	)
 }
 

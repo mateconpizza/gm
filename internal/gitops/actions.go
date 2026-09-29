@@ -43,7 +43,7 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 	}
 
 	c := ui.NewDefaultConsole(app, app.Exit)
-	if err := AskForEncryption(ctx, c, app, gm); err != nil {
+	if err := askForEncryption(ctx, c, app, gm); err != nil {
 		return err
 	}
 
@@ -268,19 +268,14 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 }
 
 func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {
-	var filename string
-	var err error
+	genFunc := b.JSONPath
+	if gpg.IsInitialized(filepath.Dir(repoPath)) { // root path
+		genFunc = b.GPGPath
+	}
 
-	if gpg.IsInitialized(filepath.Dir(repoPath)) {
-		filename, err = b.GPGPath()
-		if err != nil {
-			return "", err
-		}
-	} else {
-		filename, err = b.JSONPath()
-		if err != nil {
-			return "", err
-		}
+	filename, err := genFunc()
+	if err != nil {
+		return "", err
 	}
 
 	// [[GOMARKS_HOME/git]/[repoName][domain/bookmark.ext]]

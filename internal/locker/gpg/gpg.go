@@ -22,10 +22,9 @@ var (
 )
 
 const (
-	Command               = "gpg"            // Command is the GPG executable name.
-	gitAttContent         = "*.gpg diff=gpg" // gitAttContent defines the Git attributes rule for encrypted files.
-	fingerprintIDFilename = ".gpg-id"        // fingerprintIDFilename is the filename storing the GPG recipient fingerprint.
-	Extension             = ".gpg"           // Extension is the file extension for encrypted files.
+	Command       = "gpg"            // Command is the GPG executable name.
+	Extension     = ".gpg"           // Extension is the file extension for encrypted files.
+	gitAttContent = "*.gpg diff=gpg" // gitAttContent defines the Git attributes rule for encrypted files.
 )
 
 const (
@@ -154,15 +153,7 @@ func New(recipient string) (*GPG, error) {
 }
 
 // IsInitialized returns true if GPG is active.
-func IsInitialized(path string) bool {
-	f := GPGIDPath(path)
-	recipientKey, err := loadFingerprint(f)
-	if err != nil {
-		return false
-	}
-
-	return recipientKey != ""
-}
+func IsInitialized(path string) bool { return NewKeyResolver(path).Initialized() }
 
 // Unlocked reports whether the given encrypted file can be decrypted without a
 // passphrase prompt.
