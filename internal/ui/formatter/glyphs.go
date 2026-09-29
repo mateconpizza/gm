@@ -14,6 +14,8 @@ const (
 	GlyphModeUnicode       GlyphMode = "unicode"
 	GlyphModeCustom        GlyphMode = "custom"
 	GlyphModeCustomUnicode GlyphMode = "custom-unicode"
+
+	GlyphDefault GlyphMode = GlyphModeASCII
 )
 
 func (m GlyphMode) Valid() error {

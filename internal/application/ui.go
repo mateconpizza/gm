@@ -15,9 +15,9 @@ func newUI() *UI {
 	fm, _ := formatter.New(formatter.Format(OutputFormat))
 	return &UI{
 		Format:    OutputFormat,
-		GlyphMode: formatter.GlyphModeASCII,
+		GlyphMode: formatter.GlyphDefault,
 		formatter: fm,
-		glyphs:    formatter.NewGlyphs(formatter.GlyphModeASCII, nil),
+		glyphs:    formatter.NewGlyphs(formatter.GlyphDefault, nil),
 	}
 }
 
@@ -29,4 +29,19 @@ func (u *UI) WithFormatter(f formatter.Formatter) *UI {
 func (u *UI) WithGlyphs(g *formatter.Glyphs) *UI {
 	u.glyphs = g
 	return u
+}
+
+func loadGlyphs(app *App) error {
+	if err := app.UI.GlyphMode.Valid(); err != nil {
+		return err
+	}
+
+	app.WithGlyphs(
+		formatter.NewGlyphs(
+			app.UI.GlyphMode,
+			app.UI.Custom,
+		),
+	)
+
+	return nil
 }

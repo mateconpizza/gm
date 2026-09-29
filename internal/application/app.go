@@ -117,7 +117,10 @@ func (app *App) Load() error {
 	}
 
 	app.Flags.Output = app.Format()
-	app.WithGlyphs(formatter.NewGlyphs(app.UI.GlyphMode, app.UI.Custom))
+
+	if err := loadGlyphs(app); err != nil {
+		return err
+	}
 
 	// update default database
 	return app.SetDatabase(app.DBName)

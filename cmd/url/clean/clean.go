@@ -11,7 +11,6 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -75,7 +74,6 @@ func setupMenu(app *application.App) *menu.Menu[*bookmark.Bookmark] {
 
 	m := picker.New[*bookmark.Bookmark](app, fm.Menu.Opts...)
 	m.SetFormatter(func(b *bookmark.Bookmark) string {
-		b.URL = handler.ParamHighlight(b.URL, ansi.BrightRed, ansi.Italic)
 		return fm.Render(ui.NewConsole(ui.WithColor(app.Flags.Color)), b)
 	})
 

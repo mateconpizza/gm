@@ -43,7 +43,7 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 	for _, b := range bs {
 		newURL, err := processBookmarkParams(ctx, app, d.Console(), m, b.URL)
 		if err != nil {
-			return err
+			return fmt.Errorf("processing: %w", err)
 		}
 
 		if newURL == "" {
@@ -62,52 +62,6 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 	}
 
 	return nil
-}
-
-// ParamHighlight returns the URL with its query parameters highlighted with
-// the given ansi code.
-func ParamHighlight(raw string, color ansi.SGR, styles ...ansi.SGR) string {
-	u, err := url.Parse(raw)
-	if err != nil || u.RawQuery == "" {
-		return raw
-	}
-
-	// Preserve original ordering
-	parts := strings.Split(u.RawQuery, "&")
-
-	var highlighted []string
-	highlighted = make([]string, 0, len(parts))
-
-	for _, p := range parts {
-		if p == "" {
-			continue
-		}
-
-		kv := strings.SplitN(p, "=", 2)
-
-		if len(kv) == 1 {
-			// parameter without value: ?flag
-			highlighted = append(highlighted, color.Wrap(kv[0], styles...))
-			continue
-		}
-
-		key := kv[0]
-		val := kv[1]
-
-		colored := color.Wrap(key+"="+val, styles...)
-		highlighted = append(highlighted, colored)
-	}
-
-	// rebuild manually so we don't lose encoding or formatting
-	var sb strings.Builder
-	sb.Grow(len(raw) + len(parts)*10)
-
-	// base URL without query
-	base := raw[:strings.Index(raw, "?")+1]
-	sb.WriteString(base)
-	sb.WriteString(strings.Join(highlighted, "&"))
-
-	return sb.String()
 }
 
 func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, args []string) error {
