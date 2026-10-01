@@ -15,6 +15,20 @@ const (
 	FilePerm = 0o644 // Permissions for new files.
 )
 
+type fileManager struct {
+	rename       func(oldpath, newpath string) error
+	remove       func(path string) error
+	removeExcept func(dir string, keep map[string]struct{}) error
+}
+
+func newFileManager() *fileManager {
+	return &fileManager{
+		rename:       os.Rename,
+		remove:       os.RemoveAll,
+		removeExcept: removeAllExcept,
+	}
+}
+
 // Exists checks if a file fileExists.
 func fileExists(s string) bool {
 	_, err := os.Stat(s)

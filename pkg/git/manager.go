@@ -19,6 +19,7 @@ type MgrOptions struct {
 	g       *Git
 	version string
 	color   bool
+	fileMgr *fileManager
 }
 
 func WithGit(g *Git) MgrOptFunc         { return func(mo *MgrOptions) { mo.g = g } }
@@ -28,12 +29,14 @@ func WithColor(b bool) MgrOptFunc       { return func(mo *MgrOptions) { mo.color
 type Mgr struct {
 	*MgrOptions
 
-	root  string
-	track *Tracker
+	root    string
+	tracker *Tracker
 }
 
 func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
-	o := &MgrOptions{}
+	o := &MgrOptions{
+		fileMgr: newFileManager(),
+	}
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -53,7 +56,7 @@ func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
 
 	return &Mgr{
 		root:       rootDir,
-		track:      t,
+		tracker:    t,
 		MgrOptions: o,
 	}, nil
 }
@@ -62,11 +65,11 @@ func (gm *Mgr) Root() string                                  { return gm.root }
 func (gm *Mgr) IsEnabled() bool                               { return fileExists(gm.root) }
 func (gm *Mgr) Color() bool                                   { return gm.color }
 func (gm *Mgr) Git() *Git                                     { return gm.g }
-func (gm *Mgr) IsTracked(name string) bool                    { return gm.track.contains(name) }
-func (gm *Mgr) Repos() []string                               { return gm.track.list() }
-func (gm *Mgr) WriteRepos() error                             { return gm.track.write() }
+func (gm *Mgr) IsTracked(name string) bool                    { return gm.tracker.contains(name) }
+func (gm *Mgr) Repos() []string                               { return gm.tracker.list() }
+func (gm *Mgr) WriteRepos() error                             { return gm.tracker.write() }
 func (gm *Mgr) Version() string                               { return gm.version }
-func (gm *Mgr) Track(names ...string) error                   { return gm.track.track(names...) }
+func (gm *Mgr) Track(names ...string) error                   { return gm.tracker.track(names...) }
 func (gm *Mgr) SetCfg(ctx context.Context, k, v string) error { return gm.g.SetCfgLocal(ctx, k, v) }
 
 func (gm *Mgr) Commit(ctx context.Context, msg CommitMessage) error {
@@ -75,7 +78,7 @@ func (gm *Mgr) Commit(ctx context.Context, msg CommitMessage) error {
 
 func (gm *Mgr) Init(ctx context.Context, force bool) error {
 	if force {
-		gm.track.reset()
+		gm.tracker.reset()
 	}
 	return gm.g.Init(ctx, force)
 }
@@ -140,8 +143,7 @@ func (gm *Mgr) Drop(ctx context.Context, gr *Repo) error {
 	keep := map[string]struct{}{
 		SummaryFileName: {},
 	}
-	err := removeAllExcept(gr.fullpath, keep)
-	if err != nil {
+	if err := gm.fileMgr.removeExcept(gr.fullpath, keep); err != nil {
 		return err
 	}
 	return gm.SaveChanges(ctx, gr, gr.CommitMsg(Del, "repo"))
@@ -151,13 +153,13 @@ func (gm *Mgr) Untrack(ctx context.Context, gr *Repo) error {
 	if !gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", ErrGitNotTracked, gr.Name())
 	}
-	if err := gm.track.untrack(gr.Name()); err != nil {
+	if err := gm.tracker.untrack(gr.Name()); err != nil {
 		return err
 	}
 	if err := gm.WriteRepos(); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(gr.Fullpath()); err != nil {
+	if err := gm.fileMgr.remove(gr.Fullpath()); err != nil {
 		return err
 	}
 	return gm.Commit(ctx, gr.CommitMsg(Del, "tracking"))
