@@ -327,6 +327,10 @@ func (g *Git) countStagedChanges(ctx context.Context) (added, modified, deleted 
 }
 
 func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	changed, err := g.HasChanges(ctx)
 	if err != nil {
 		return fmt.Errorf("checking for changes: %w", err)
@@ -349,7 +353,7 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 		status = " (" + status + ")"
 	}
 
-	if err := g.Commit(ctx, fmt.Sprintf("%s%s", string(msg), status)); err != nil {
+	if err := g.Commit(ctx, fmt.Sprintf("%s%s", msg, status)); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
 

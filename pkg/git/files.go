@@ -83,15 +83,10 @@ func writeFile[T any](path string, v *T) error {
 func readFile[T any](path string, v *T) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("read file %q: %w", path, err)
 	}
-
-	return decodeJSON(content, &v)
-}
-
-func decodeJSON[T any](data []byte, v *T) error {
-	if err := json.Unmarshal(data, v); err != nil {
-		return fmt.Errorf("error unmarshalling JSON: %w", err)
+	if err := json.Unmarshal(content, v); err != nil {
+		return fmt.Errorf("decode JSON from %q: %w", path, err)
 	}
 	return nil
 }

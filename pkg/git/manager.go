@@ -191,6 +191,54 @@ func (gm *Mgr) Push(ctx context.Context) error {
 	return g.Push(ctx)
 }
 
+func (gm *Mgr) Rename(ctx context.Context, oldName, newName string) error {
+	strip := func(s string) string { return strings.TrimSuffix(s, filepath.Ext(s)) }
+
+	oldBase := strip(oldName)
+	newBase := strip(newName)
+
+	if oldBase == "" || newBase == "" {
+		return fmt.Errorf("%w: name cannot be empty: old: %q, new: %q", os.ErrInvalid, oldBase, newBase)
+	}
+
+	if oldBase == newBase || !gm.IsTracked(oldBase) {
+		return nil
+	}
+
+	src := filepath.Join(gm.root, oldBase)
+	dest := filepath.Join(gm.root, newBase)
+
+	if err := gm.fileMgr.rename(src, dest); err != nil {
+		return fmt.Errorf(
+			"failed to move git repo from %q to %q: %w",
+			oldBase, newBase, err,
+		)
+	}
+
+	// untrack oldRepo and track newRepo
+	if err := gm.tracker.untrack(oldBase); err != nil {
+		return err
+	}
+	if err := gm.tracker.track(newBase); err != nil {
+		return err
+	}
+	if err := gm.WriteRepos(); err != nil {
+		return fmt.Errorf("failed to update tracker after rename: %w", err)
+	}
+
+	gr := gm.NewRepo(newBase)
+
+	sum, err := gr.Summary()
+	if err != nil {
+		return err
+	}
+	if err := gr.WriteSummary(sum); err != nil {
+		return err
+	}
+
+	return gm.Commit(ctx, gr.CommitMsg(Rename, oldBase))
+}
+
 type UpdateParams struct {
 	Repo     *Repo
 	Old      *bookmark.Bookmark

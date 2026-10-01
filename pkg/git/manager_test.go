@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -555,6 +556,178 @@ func TestMgr_Push(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Push() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestMgr_Rename(t *testing.T) {
+	t.Parallel()
+
+	errRename := errors.New("rename failed")
+
+	tests := []struct {
+		name    string
+		oldName string
+		newName string
+		tracked bool
+		rename  func(src, dest string) error
+		wantErr error
+	}{
+		{
+			name:    "success",
+			oldName: "main.db",
+			newName: "archive.db",
+			tracked: true,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: nil,
+		},
+		{
+			name:    "untracked_repo",
+			oldName: "main.db",
+			newName: "archive.db",
+			tracked: false,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: nil,
+		},
+		{
+			name:    "same_name",
+			oldName: "main.db",
+			newName: "main.db",
+			tracked: true,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: nil,
+		},
+		{
+			name:    "same_base_name_different_extension",
+			oldName: "main.db",
+			newName: "main.sqlite",
+			tracked: true,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: nil,
+		},
+		{
+			name:    "empty_old_name",
+			oldName: "",
+			newName: "archive.db",
+			tracked: false,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: os.ErrInvalid,
+		},
+		{
+			name:    "empty_new_name",
+			oldName: "main.db",
+			newName: "",
+			tracked: true,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: os.ErrInvalid,
+		},
+		{
+			name:    "rename_error",
+			oldName: "main.db",
+			newName: "archive.db",
+			tracked: true,
+			rename:  func(src, dest string) error { return errRename },
+			wantErr: errRename,
+		},
+		{
+			name:    "extensionless_names",
+			oldName: "main",
+			newName: "archive",
+			tracked: true,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: nil,
+		},
+		{
+			name:    "context_canceled",
+			oldName: "palan",
+			newName: "palandri",
+			tracked: true,
+			rename:  func(src, dest string) error { return nil },
+			wantErr: context.Canceled,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			root := t.TempDir()
+
+			gitFake := &fakeGitExecuter{}
+			g, err := New(
+				root,
+				WithExecuter(gitFake.run),
+			)
+			if err != nil {
+				t.Fatalf("New() unexpected error: %v", err)
+			}
+
+			mgr, err := NewManager(
+				root,
+				WithGit(g),
+				WithVersion("v0.1.0"),
+			)
+			if err != nil {
+				t.Fatalf("NewManager() unexpected error: %v", err)
+			}
+
+			if tt.tracked {
+				if err := mgr.Track(strings.TrimSuffix(tt.oldName, filepath.Ext(tt.oldName))); err != nil {
+					t.Fatalf("Track() unexpected error: %v", err)
+				}
+			}
+
+			var gotSrc, gotDest string
+
+			mgr.fileMgr.rename = func(src, dest string) error {
+				gotSrc = src
+				gotDest = dest
+				return tt.rename(src, dest)
+			}
+
+			ctx := t.Context()
+			if errors.Is(tt.wantErr, context.Canceled) {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+
+			err = mgr.Rename(ctx, tt.oldName, tt.newName)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Rename() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Rename() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Rename() unexpected error: %v", err)
+			}
+
+			if !tt.tracked || strings.TrimSuffix(tt.oldName, filepath.Ext(tt.oldName)) ==
+				strings.TrimSuffix(tt.newName, filepath.Ext(tt.newName)) {
+				if gotSrc != "" || gotDest != "" {
+					t.Fatalf("Rename() called renameFn unexpectedly: %q -> %q", gotSrc, gotDest)
+				}
+				return
+			}
+
+			oldBase := strings.TrimSuffix(tt.oldName, filepath.Ext(tt.oldName))
+			newBase := strings.TrimSuffix(tt.newName, filepath.Ext(tt.newName))
+
+			wantSrc := filepath.Join(root, oldBase)
+			wantDest := filepath.Join(root, newBase)
+
+			if gotSrc != wantSrc {
+				t.Fatalf("Rename() source = %q; want %q", gotSrc, wantSrc)
+			}
+			if gotDest != wantDest {
+				t.Fatalf("Rename() destination = %q; want %q", gotDest, wantDest)
 			}
 		})
 	}

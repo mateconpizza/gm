@@ -31,6 +31,7 @@ const (
 	Del    RepoAction = "del"
 	Edit   RepoAction = "edit"
 	Update RepoAction = "update"
+	Rename RepoAction = "rename"
 )
 
 type RepoDB interface {
