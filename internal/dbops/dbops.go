@@ -25,7 +25,10 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
-var ErrInvalidOption = errors.New("invalid option")
+var (
+	ErrInvalidOption = errors.New("invalid option")
+	ErrInvalidRename = errors.New("invalid rename")
+)
 
 type reorderStore interface {
 	ReorderIDs(ctx context.Context) error

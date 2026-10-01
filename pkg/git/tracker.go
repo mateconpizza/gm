@@ -18,35 +18,34 @@ const TrackerFile = ".tracked.json"
 
 // Tracker manages a list of tracked repositories stored in a file.
 type Tracker struct {
-	repos    []string // Repos holds tracked repository names or paths.
-	filename string   // Filename is the path to the JSON file.
+	file *JSONFile[[]string] // ["main", "work", "org", ... ]
 }
 
 // newTracker returns a new Tracker for the given root directory.
 func newTracker(destDir string) *Tracker {
 	return &Tracker{
-		filename: filepath.Join(destDir, TrackerFile),
+		file: newJSONFile[[]string](filepath.Join(destDir, TrackerFile)),
 	}
 }
-
-func (t *Tracker) contains(name string) bool { return slices.Contains(t.repos, name) }
-func (t *Tracker) list() []string            { return t.repos }
-func (t *Tracker) reset()                    { t.repos = make([]string, 0) }
 
 // load loads the tracked repositories from the file (if exists).
 func (t *Tracker) load() error {
-	if fileExists(t.filename) {
-		return readFile(t.filename, &t.repos)
+	if t.file.exists() {
+		return t.file.read()
 	}
-
 	return nil
 }
 
+func (t *Tracker) contains(name string) bool { return slices.Contains(t.file.value, name) }
+func (t *Tracker) list() []string            { return t.file.value }
+func (t *Tracker) reset()                    { t.file.value = make([]string, 0) }
+
 // write writes the tracked repositories to the file.
 func (t *Tracker) write() error {
-	t.repos = slices.Compact(t.repos)
-	slog.Debug("writing tracker file", "repos", t.repos)
-	return writeFile(t.filename, &t.repos)
+	slices.Sort(t.file.value)
+	t.file.value = slices.Compact(t.file.value)
+	slog.Debug("writing tracker file", "repos", t.file.value)
+	return t.file.write()
 }
 
 // track adds a new repository to the tracker.
@@ -55,7 +54,7 @@ func (t *Tracker) track(names ...string) error {
 	if len(names) == 0 {
 		return ErrGitRepoNameEmpty
 	}
-	t.repos = append(t.repos, names...)
+	t.file.value = append(t.file.value, names...)
 	return nil
 }
 
@@ -66,18 +65,18 @@ func (t *Tracker) untrack(name string) error {
 		return ErrGitRepoNameEmpty
 	}
 
-	if !slices.Contains(t.repos, name) {
+	if !slices.Contains(t.file.value, name) {
 		slog.Debug("untrack repo not found", "name", name)
 		return nil
 	}
 
-	t.repos = slices.DeleteFunc(
-		t.repos,
+	t.file.value = slices.DeleteFunc(
+		t.file.value,
 		func(r string) bool {
 			return r == name
 		},
 	)
 
-	slog.Debug("result", "repos", t.repos)
+	slog.Debug("result", "repos", t.file.value)
 	return nil
 }

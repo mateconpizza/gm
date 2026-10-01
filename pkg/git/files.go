@@ -15,6 +15,42 @@ const (
 	FilePerm = 0o644 // Permissions for new files.
 )
 
+type fileManager struct {
+	rename       func(oldpath, newpath string) error
+	remove       func(path string) error
+	removeExcept func(dir string, keep map[string]struct{}) error
+}
+
+func newFileManager() *fileManager {
+	return &fileManager{
+		rename:       os.Rename,
+		remove:       os.RemoveAll,
+		removeExcept: removeAllExcept,
+	}
+}
+
+type JSONFile[T any] struct {
+	path       string
+	value      T
+	readFunc   func(path string, value *T) error
+	writeFunc  func(path string, value *T) error
+	existsFunc func(path string) bool
+}
+
+func newJSONFile[T any](path string) *JSONFile[T] {
+	return &JSONFile[T]{
+		path:       path,
+		readFunc:   readFile[T],
+		writeFunc:  writeFile[T],
+		existsFunc: fileExists,
+	}
+}
+
+func (f *JSONFile[T]) exists() bool { return f.existsFunc(f.path) }
+func (f *JSONFile[T]) read() error  { return f.readFunc(f.path, &f.value) }
+func (f *JSONFile[T]) set(v T)      { f.value = v }
+func (f *JSONFile[T]) write() error { return f.writeFunc(f.path, &f.value) }
+
 // Exists checks if a file fileExists.
 func fileExists(s string) bool {
 	_, err := os.Stat(s)
@@ -47,15 +83,10 @@ func writeFile[T any](path string, v *T) error {
 func readFile[T any](path string, v *T) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("read file %q: %w", path, err)
 	}
-
-	return decodeJSON(content, &v)
-}
-
-func decodeJSON[T any](data []byte, v *T) error {
-	if err := json.Unmarshal(data, v); err != nil {
-		return fmt.Errorf("error unmarshalling JSON: %w", err)
+	if err := json.Unmarshal(content, v); err != nil {
+		return fmt.Errorf("decode JSON from %q: %w", path, err)
 	}
 	return nil
 }

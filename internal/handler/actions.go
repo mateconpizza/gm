@@ -377,6 +377,98 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
+func DropRepo(ctx context.Context, d *deps.Deps) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	if err := dbops.Drop(ctx, d); err != nil {
+		return err
+	}
+
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+		Color:   app.Flags.Color,
+	})
+	if err != nil {
+		return err
+	}
+
+	gr := gm.NewRepo(r.Name(),
+		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileRemover(),
+		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoStatsReader(r),
+	)
+
+	return gitops.Drop(ctx, gm, gr, d.Console())
+}
+
+func Rename(ctx context.Context, d *deps.Deps, name string, renameFunc func(src, dest string) error) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	// names and file paths
+	oldName := app.DBBaseName()
+	newName := files.EnsureExt(app.Flags.Rename, ".db")
+
+	srcDBPath := app.Path.DB()
+	destDBPath := filepath.Join(app.Path.Data, newName)
+
+	if files.Exists(destDBPath) {
+		return fmt.Errorf("%w: %q", os.ErrExist, app.Flags.Output)
+	}
+
+	// prompt for confirmation
+	c := d.Console()
+
+	showRenameBanner(c, app, srcDBPath, destDBPath, newName)
+
+	if !c.Confirm(ctx, "continue?", "n") {
+		return app.Abort()
+	}
+
+	// close connection
+	oldRepo, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	oldRepo.Close()
+
+	// database file
+	if err := renameFunc(srcDBPath, destDBPath); err != nil {
+		return fmt.Errorf("failed to move database file: %w", err)
+	}
+
+	if !git.IsInitialized(app.Path.Git()) {
+		return nil
+	}
+
+	// git manager
+	gm, err := gitops.NewManager(&gitops.ManagerConfig{
+		Root:    app.Path.Git(),
+		Writer:  app.Git.Writer(),
+		Version: app.Version(),
+		Color:   app.Flags.Color,
+	})
+	if err != nil {
+		return err
+	}
+
+	return gm.Rename(ctx, oldName, newName)
+}
+
 type isTracked func(name string) bool
 
 func gitTrackedMarker(g *formatter.Glyphs, f isTracked) func(string) string {
@@ -752,4 +844,24 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 	}
 
 	return nil
+}
+
+// showRenameBanner prints the confirmation banner for a database rename.
+func showRenameBanner(c *ui.Console, app *application.App, srcName, destName, newName string) {
+	p := c.Palette()
+
+	srcNameColor := strings.Replace(srcName, app.DBName, p.BrightYellow.Sprint(app.DBName), 1)
+	destNameColor := strings.Replace(destName, newName, p.BrightBlue.Sprint(newName), 1)
+
+	c.NewBannerBuilder().
+		WithTitle("Rename a database").
+		WithTitleColor(p.BrightRed.Sprint).
+		WithTitleGlyph(app.Glyphs().Warning).
+		WithSubtitle("this action cannot be undone").
+		Build().
+		Rowln().
+		Midln(txt.PaddedLine("From:", srcNameColor)).
+		Midln(txt.PaddedLine("Dest:", destNameColor)).
+		Rowln().
+		Flush()
 }

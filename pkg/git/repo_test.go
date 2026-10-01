@@ -2,7 +2,6 @@ package git
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -438,7 +437,7 @@ func TestRepo_Read(t *testing.T) {
 			gr := NewRepo(tt.name, tempDir, opts...)
 
 			if tt.summaryFile != nil {
-				if err := os.WriteFile(gr.summaryFile, tt.summaryFile, 0o644); err != nil {
+				if err := os.WriteFile(gr.file.path, tt.summaryFile, 0o644); err != nil {
 					t.Fatalf("setup: writing summary file: %v", err)
 				}
 			}
@@ -524,7 +523,9 @@ func TestRepo_Count(t *testing.T) {
 			}
 
 			r := &Repo{
-				summaryFile: summaryPath,
+				RepoOptions: &RepoOptions{
+					file: newJSONFile[Summary](summaryPath),
+				},
 			}
 
 			got, err := r.Count()
@@ -595,7 +596,9 @@ func TestRepo_Summary(t *testing.T) {
 			}
 
 			r := &Repo{
-				summaryFile: summaryPath,
+				RepoOptions: &RepoOptions{
+					file: newJSONFile[Summary](summaryPath),
+				},
 			}
 
 			got, err := r.Summary()
@@ -683,8 +686,10 @@ func TestRepo_Stats(t *testing.T) {
 			}
 
 			r := &Repo{
-				name:        tt.repoName,
-				summaryFile: summaryPath,
+				name: tt.repoName,
+				RepoOptions: &RepoOptions{
+					file: newJSONFile[Summary](summaryPath),
+				},
 			}
 
 			got, err := r.Stats()
@@ -916,10 +921,9 @@ func TestRepo_WriteSummary(t *testing.T) {
 			tempDir := t.TempDir()
 			summaryPath := filepath.Join(tempDir, "summary.json")
 			r := &Repo{
-				name:        tt.name,
-				summaryFile: summaryPath,
+				name: tt.name,
 				RepoOptions: &RepoOptions{
-					sumWriter: writeFile[Summary],
+					file: newJSONFile[Summary](summaryPath),
 				},
 			}
 
@@ -1073,55 +1077,6 @@ func TestSummaryComplete(t *testing.T) {
 			}
 			if gotSync.Before(before.Truncate(time.Second)) || gotSync.After(after.Add(time.Second)) {
 				t.Errorf("LastSync = %v, want between %v and %v", gotSync, before, after)
-			}
-		})
-	}
-}
-
-func TestDecodeJSON(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		data    string
-		want    int
-		wantErr bool
-	}{
-		{
-			name: "valid",
-			data: `{"bookmarks":42}`,
-			want: 42,
-		},
-		{
-			name:    "invalid",
-			data:    `[invalid}`,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			var got struct {
-				Bookmarks int `json:"bookmarks"`
-			}
-
-			err := decodeJSON([]byte(tt.data), &got)
-
-			if tt.wantErr {
-				if _, ok := errors.AsType[*json.SyntaxError](err); !ok {
-					t.Fatalf("decodeJSON() error = %v, want *json.SyntaxError", err)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("decodeJSON() unexpected error: %v", err)
-			}
-
-			if got.Bookmarks != tt.want {
-				t.Errorf("Bookmarks = %d, want %d", got.Bookmarks, tt.want)
 			}
 		})
 	}
