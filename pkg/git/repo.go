@@ -48,11 +48,11 @@ type (
 type RepoOptFunc func(*RepoOptions)
 
 type RepoOptions struct {
-	db        RepoDB
-	reader    ReaderFunc
-	writer    WriterFunc
-	remover   RemoverFunc
-	sumWriter SumWriterFunc
+	db      RepoDB
+	reader  ReaderFunc
+	writer  WriterFunc
+	remover RemoverFunc
+	file    *JSONFile[Summary]
 }
 
 func WithRepoWriter(w WriterFunc) RepoOptFunc    { return func(ro *RepoOptions) { ro.writer = w } }
@@ -60,32 +60,29 @@ func WithRepoReader(r ReaderFunc) RepoOptFunc    { return func(ro *RepoOptions) 
 func WithRepoRemover(rm RemoverFunc) RepoOptFunc { return func(ro *RepoOptions) { ro.remover = rm } }
 func WithRepoStore(store RepoDB) RepoOptFunc     { return func(ro *RepoOptions) { ro.db = store } }
 func WithSummaryPersist(fn SumWriterFunc) RepoOptFunc {
-	return func(ro *RepoOptions) { ro.sumWriter = fn }
+	return func(ro *RepoOptions) { ro.file.writeFunc = fn }
 }
 
 type Repo struct {
 	*RepoOptions
 
-	name        string
-	fullpath    string
-	summaryFile string
-	bookmarks   []*bookmark.Bookmark
+	name      string
+	fullpath  string
+	bookmarks []*bookmark.Bookmark
 }
 
 func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
-	o := &RepoOptions{}
+	sumFilepath := filepath.Join(dstDir, SummaryFileName)
+	o := &RepoOptions{
+		file: newJSONFile[Summary](sumFilepath),
+	}
 	for _, opt := range opts {
 		opt(o)
-	}
-
-	if o.sumWriter == nil {
-		o.sumWriter = writeFile
 	}
 
 	return &Repo{
 		name:        strings.ToLower(name),
 		fullpath:    dstDir,
-		summaryFile: filepath.Join(dstDir, SummaryFileName),
 		RepoOptions: o,
 	}
 }
@@ -207,32 +204,35 @@ func (gr *Repo) Count() (int, error) {
 	return sum.RepoStats.Bookmarks, nil
 }
 
-// Summary returns current summary from the git repository.
+// Summary returns the current summary from the git repository, loading it
+// from disk if present. If no summary file exists yet, it returns a zero
+// Summary with the repo name set.
 func (gr *Repo) Summary() (*Summary, error) {
-	sum := NewSummary()
-
-	if !fileExists(gr.summaryFile) {
-		return sum, nil
+	if gr.file.exists() {
+		if err := gr.file.read(); err != nil {
+			return nil, err
+		}
 	}
 
-	if err := readFile(gr.summaryFile, sum); err != nil {
-		return nil, err
-	}
+	sum := gr.file.value
+	sum.normalize()
+	sum.RepoStats.Name = gr.Name()
 
-	return sum, nil
+	return &sum, nil
 }
 
 // Stats returns current stats from the git repository.
 func (gr *Repo) Stats() (*RepoStats, error) {
-	if !fileExists(gr.summaryFile) {
+	if !gr.file.exists() {
 		return &RepoStats{}, nil
 	}
 
-	sum := NewSummary()
-	err := readFile(gr.summaryFile, &sum)
+	err := gr.file.read()
 	if err != nil {
 		return &RepoStats{}, err
 	}
+
+	sum := gr.file.value
 	sum.RepoStats.Name = gr.Name()
 	return sum.RepoStats, nil
 }
@@ -244,7 +244,6 @@ func (gr *Repo) StatsFromDB(ctx context.Context, db RepoDB) (*RepoStats, error) 
 		return nil, err
 	}
 	stats.Name = gr.Name()
-
 	return stats, nil
 }
 
@@ -253,9 +252,10 @@ func (gr *Repo) WriteSummary(s *Summary) error {
 	if err := s.Validate(); err != nil {
 		return err
 	}
-	slog.Debug("git summary: writing", "file", gr.summaryFile)
-
-	return gr.sumWriter(gr.summaryFile, s)
+	slog.Debug("git summary: writing", "file", gr.file.path)
+	s.RepoStats.Name = gr.Name()
+	gr.file.set(*s)
+	return gr.file.write()
 }
 
 // CommitMsg construct the repo commit message.

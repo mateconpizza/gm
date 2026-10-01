@@ -29,6 +29,28 @@ func newFileManager() *fileManager {
 	}
 }
 
+type JSONFile[T any] struct {
+	path       string
+	value      T
+	readFunc   func(path string, value *T) error
+	writeFunc  func(path string, value *T) error
+	existsFunc func(path string) bool
+}
+
+func newJSONFile[T any](path string) *JSONFile[T] {
+	return &JSONFile[T]{
+		path:       path,
+		readFunc:   readFile[T],
+		writeFunc:  writeFile[T],
+		existsFunc: fileExists,
+	}
+}
+
+func (f *JSONFile[T]) exists() bool { return f.existsFunc(f.path) }
+func (f *JSONFile[T]) read() error  { return f.readFunc(f.path, &f.value) }
+func (f *JSONFile[T]) set(v T)      { f.value = v }
+func (f *JSONFile[T]) write() error { return f.writeFunc(f.path, &f.value) }
+
 // Exists checks if a file fileExists.
 func fileExists(s string) bool {
 	_, err := os.Stat(s)

@@ -84,6 +84,15 @@ func (s *Summary) Validate() error {
 	return nil
 }
 
+func (s *Summary) normalize() {
+	if s.RepoStats == nil {
+		s.RepoStats = &RepoStats{}
+	}
+	if s.ClientInfo == nil {
+		s.ClientInfo = &ClientInfo{}
+	}
+}
+
 // RepoStats holds metadata about a bookmark repository.
 type RepoStats struct {
 	Name        string `db:"-"               json:"name"`
