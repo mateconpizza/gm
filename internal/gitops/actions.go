@@ -284,7 +284,7 @@ func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {
 	return fullpath, nil
 }
 
-var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg)\b`)
+var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg|rename)\b`)
 
 // newHighlighter returns a function that closes over the pre-computed map.
 func newHighlighter(p *ansi.Palette) func(string) string {
@@ -300,6 +300,7 @@ func newHighlighter(p *ansi.Palette) func(string) string {
 		"commit":  p.BrightMagenta.Sprint("commit"),
 		"params":  p.Blue.Sprint("params"),
 		"gpg":     p.Red.Sprint("gpg"),
+		"rename":  p.Orange.Sprint("rename"),
 	}
 
 	return func(msg string) string {

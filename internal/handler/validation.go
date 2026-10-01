@@ -5,18 +5,42 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
 
+	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
+
+// ValidateRenameTarget rejects renaming the main or default database,
+// since both are protected names the app relies on internally.
+func ValidateRenameTarget(app *application.App) error {
+	strip := func(s string) string { return strings.TrimSuffix(s, filepath.Ext(s)) }
+
+	m := application.MainDBName
+	if app.DBName == m {
+		p := ansi.NewPalette(app.Flags.Color)
+		return fmt.Errorf("%w: cannot rename %s database", dbops.ErrInvalidRename, p.Italic.Sprint(m))
+	}
+
+	// prevent renaming the default database file.
+	base := app.DBBaseName()
+	if strip(base) == strip(app.DefaultDB()) {
+		return fmt.Errorf("%w: cannot rename default database: %q", dbops.ErrInvalidRename, base)
+	}
+
+	return nil
+}
 
 // confirmRemove prompts the user to confirm the action.
 func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {

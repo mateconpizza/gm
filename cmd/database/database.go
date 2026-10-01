@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -14,6 +15,7 @@ import (
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -41,6 +43,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		newExportCmd(app),       // data out
 		newReorderCmd(app),      // reorder IDs
 		newVacuumCmd(app),       // compact database file
+		newRenameCmd(app),       // rename database
 	)
 
 	return c
@@ -107,36 +110,7 @@ func newDropCmd(app *application.App) *cobra.Command {
 			$ {cmd} db drop --db {db} --yes
 			$ {cmd} db drop --db work --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
-				r, err := d.Repository()
-				if err != nil {
-					return err
-				}
-				defer r.Close()
-
-				if err := dbops.Drop(ctx, d); err != nil {
-					return err
-				}
-
-				gm, err := gitops.NewManager(&gitops.ManagerConfig{
-					Root:    app.Path.Git(),
-					Writer:  app.Git.Writer(),
-					Version: app.Version(),
-					Color:   app.Flags.Color,
-				})
-				if err != nil {
-					return err
-				}
-
-				gr := gm.NewRepo(r.Name(),
-					gitops.RepoFileReader(gm.Color()),
-					gitops.RepoFileRemover(),
-					gitops.RepoFileWriter(gm.Color()),
-					gitops.RepoStatsReader(r),
-				)
-
-				return gitops.Drop(ctx, gm, gr, d.Console())
-			})
+			return cmdutil.Run(cmd, args, handler.DropRepo)
 		},
 	}
 
@@ -228,4 +202,23 @@ func newVacuumCmd(app *application.App) *cobra.Command {
 			return dbops.VacuumDatabase(cmd.Context(), app)
 		},
 	}
+}
+
+func newRenameCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "rename",
+		Short:   "rename database",
+		Aliases: []string{"mv"},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return handler.ValidateRenameTarget(app)
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+				return handler.Rename(ctx, d, files.EnsureExt(app.Flags.Rename, ".db"), os.Rename)
+			})
+		},
+	}
+	c.Flags().StringVarP(&app.Flags.Rename, "name", "n", "", "new name")
+	_ = c.MarkFlagRequired("name")
+	return c
 }

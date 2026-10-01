@@ -230,6 +230,16 @@ func (app *App) Example(template string) string {
 	).Replace(template)
 }
 
+func (app *App) DefaultDB() string {
+	tempApp := NewApp("")
+	err := ReadYAML(app.Path.ConfigFile(), &tempApp)
+	if err != nil {
+		// config not found, use main defaults
+		return MainDBName
+	}
+	return tempApp.DBBaseName()
+}
+
 func (app *App) WithHomePath(path string) *App {
 	app.Path.Data = path
 	return app
