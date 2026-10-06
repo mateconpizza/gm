@@ -8,7 +8,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/mateconpizza/go-fzf v0.1.3
-	github.com/mateconpizza/gofiles v0.1.1
+	github.com/mateconpizza/gofiles v0.1.2
 	github.com/mateconpizza/rotato v0.1.21
 	github.com/mattn/go-runewidth v0.0.30
 	github.com/muesli/go-app-paths v0.2.2
