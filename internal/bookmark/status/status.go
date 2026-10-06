@@ -71,7 +71,7 @@ func (r *Response) String() string {
 
 	return fmt.Sprintf(
 		"%s %s (%s %s) %s",
-		icon.Symbol(),
+		icon,
 		r.p.Bold.Sprintf("%-3d", r.bookmark.ID),
 		colorCode,
 		colorStatus,
@@ -187,15 +187,11 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 
 	p := c.Palette()
 	codes := make(map[int][]Response)
-	f := c.Frame()
+	f := c.Frame().Rowln()
 
-	header := func() string {
-		return p.BrightYellow.Wrap(c.Glyphs().Square+" ", p.Bold)
-	}
-	title := p.BrightYellow.
-		Wrap("Summary URLs status\n", p.Bold)
-
-	f.Rowln().CustomFunc(header, title)
+	c.NewBannerBuilder().
+		WithTitle("Summary URLs status").
+		Build()
 
 	for _, res := range r {
 		codes[res.statusCode] = append(codes[res.statusCode], *res)
@@ -236,7 +232,7 @@ func printSummaryStatus(c *ui.Console, r []*Response, d time.Duration) {
 
 	took := fmt.Sprintf("%.2fs\n", d.Seconds())
 	total := fmt.Sprintf("Total %s checked,", p.Blue.Sprint(len(r)))
-	header = func() string {
+	header := func() string {
 		return p.BrightBlue.Wrap(c.Glyphs().Square+" ", p.Bold)
 	}
 

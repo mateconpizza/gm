@@ -79,9 +79,13 @@ func newListCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipGitSync,
 		Example:     app.Example(`  $ {cmd} db list`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
-				return printer.DatabasesTable(cmd.Context(), d.Console(), app.Path.Home(), app.DBName)
-			})
+			return printer.DatabasesTable(cmd.Context(), os.Stdout, app.Path.Home(),
+				printer.WithDecorator(printer.DatabaseDecorator(app)),
+				printer.WithPreprocessor(func(paths []string) []string {
+					files.PrioritizeFile(paths, app.DBName)
+					return paths
+				}),
+			)
 		},
 	}
 

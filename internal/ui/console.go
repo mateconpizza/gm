@@ -86,11 +86,11 @@ func NewDefaultConsole(app *application.App, fn func(error)) *Console {
 		p := c.Palette()
 		frameOpts = append(frameOpts,
 			frame.WithIcons(&frame.Icons{
-				Error:    frame.NewIconStyle(g.Error, p.BrightRed.Sprint),
-				Warning:  frame.NewIconStyle(g.Warning, p.BrightYellow.Sprint),
-				Info:     frame.NewIconStyle(g.Info, p.BrightBlue.Sprint),
-				Question: frame.NewIconStyle(g.Question, p.BrightGreen.Sprint),
-				Success:  frame.NewIconStyle(g.Success, p.BrightGreen.Sprint),
+				Error:    frame.NewIconStyle(g.Error+" ", p.BrightRed.Sprint),
+				Warning:  frame.NewIconStyle(g.Warning+" ", p.BrightYellow.Sprint),
+				Info:     frame.NewIconStyle(g.Info+" ", p.BrightBlue.Sprint),
+				Question: frame.NewIconStyle(g.Question+" ", p.BrightGreen.Sprint),
+				Success:  frame.NewIconStyle(g.Success+" ", p.BrightGreen.Sprint),
 			}),
 		)
 	}

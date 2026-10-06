@@ -77,11 +77,11 @@ func rootCmdFunc(app *application.App) cli.HookE {
 				c, f := d.Console(), app.Flags
 
 				switch {
-				case app.Flags.Field != "":
+				case f.Field != "":
 					return printer.ByField(ctx, c, f.Field, bs) // TODO: experimental
-				case app.Flags.Preview != "":
+				case f.Preview != "":
 					return printer.MenuPreview(c, bs, f.Preview)
-				case app.Flags.Output == application.OutputFormat:
+				case f.Output == application.OutputFormat:
 					return printer.Records(ctx, c, bs)
 				default:
 					return printer.Display(ctx, c, f.Output, bs)
