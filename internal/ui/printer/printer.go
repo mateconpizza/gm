@@ -20,6 +20,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -191,37 +192,110 @@ func ByField(ctx context.Context, c *ui.Console, fields string, bs []*bookmark.B
 	return c.Print(ctx, buf.String())
 }
 
-// DatabasesTable shows a simple table in database information.
-func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName string) error {
-	fs, err := files.FindByExtension(dataPath, ".db", ".enc")
-	if err != nil {
-		return fmt.Errorf("%w", err)
+type FileInfo struct {
+	Path string // Database file path
+	Name string // Database name with ext
+	Base string // Database name without ext
+	Ext  string
+	Size string
+	Skip bool
+}
+
+type FileFilterFunc func(info *FileInfo) bool
+
+type FileDecorator func(info *FileInfo) *FileInfo
+
+type FileListPreprocessor func(paths []string) []string
+
+type DatabasesTableOpt struct {
+	decorators    []FileDecorator
+	filters       []FileFilterFunc
+	preprocessors []FileListPreprocessor
+	footer        []string
+}
+
+type FileTableOptFunc func(*DatabasesTableOpt)
+
+func WithDecorator(fn func(info *FileInfo) *FileInfo) FileTableOptFunc {
+	return func(o *DatabasesTableOpt) { o.decorators = append(o.decorators, fn) }
+}
+
+func WithFilter(fn FileFilterFunc) FileTableOptFunc {
+	return func(o *DatabasesTableOpt) { o.filters = append(o.filters, fn) }
+}
+
+func WithPreprocessor(fn func(paths []string) []string) FileTableOptFunc {
+	return func(o *DatabasesTableOpt) { o.preprocessors = append(o.preprocessors, fn) }
+}
+
+func WithFooter(foo []string) FileTableOptFunc {
+	return func(o *DatabasesTableOpt) { o.footer = foo }
+}
+
+func (o *DatabasesTableOpt) include(info *FileInfo) (*FileInfo, bool) {
+	for _, fn := range o.decorators {
+		info = fn(info)
 	}
 
-	headers := []string{"Name", "Bookmarks", "Tags", "Size", "Path"}
-	rows := [][]string{}
-	footer := []string{}
+	if info.Skip {
+		return info, false
+	}
 
-	t := strconv.Itoa
-	p := c.Palette()
-	files.PrioritizeFile(fs, defaultName)
+	for _, fn := range o.filters {
+		if !fn(info) {
+			return info, false
+		}
+	}
+
+	return info, true
+}
+
+func (o *DatabasesTableOpt) preprocess(paths []string) []string {
+	for _, fn := range o.preprocessors {
+		paths = fn(paths)
+	}
+	return paths
+}
+
+// DatabasesTable shows a simple table in database information.
+func DatabasesTable(ctx context.Context, w io.Writer, dataPath string, opts ...FileTableOptFunc) error {
+	o := &DatabasesTableOpt{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	fs, err := files.FindByExtension(dataPath, ".db", ".enc")
+	if err != nil {
+		return err
+	}
+
+	fs = o.preprocess(fs)
+
+	headers := []string{"Name", "Records", "Tags", "Size", "Path"}
+	rows := [][]string{}
+	toStr := strconv.Itoa
 
 	for _, fpath := range fs {
-		dir, fname, ext := filepath.Dir(fpath), filepath.Base(fpath), filepath.Ext(fpath)
-		collapsePath := files.CollapseHomeDir(dir)
-		cleanName := files.StripExts(fname)
-		fsize := files.SizeFormatted(fpath)
+		info := &FileInfo{
+			Path: fpath,
+			Name: filepath.Base(fpath),
+			Base: filepath.Base(fpath),
+			Ext:  filepath.Ext(fpath),
+			Size: files.SizeFormatted(fpath),
+		}
 
-		fnameColor := p.BrightBlue.Sprint
+		info, ok := o.include(info)
+		if !ok {
+			continue
+		}
 
-		if ext == locker.Extension.String() {
-			fnameColor = p.BrightMagenta.Sprint
-			cleanName = fnameColor(cleanName)
+		h := files.CollapseHomeDir(filepath.Dir(fpath))
+
+		if info.Ext == locker.Extension.String() {
 			rows = append(
 				rows,
-				[]string{cleanName, "-", "-", fsize, filepath.Join(collapsePath, fnameColor(fname))},
+				[]string{info.Base, "-", "-", info.Size, filepath.Join(h, info.Name)},
 			)
-			footer = append(footer, fnameColor(c.Glyphs().Square+" locked"))
 			continue
 		}
 
@@ -229,29 +303,90 @@ func DatabasesTable(ctx context.Context, c *ui.Console, dataPath, defaultName st
 		if err != nil {
 			return err
 		}
+
 		s := db.NewStats()
 		if err := r.Stats(ctx, s); err != nil {
 			return err
 		}
-		s.Name = r.Name()
 		r.Close()
-
-		if r.Name() == defaultName {
-			fnameColor = p.BrightYellow.With(p.Bold).Sprint
-			cleanName = fnameColor(cleanName)
-			cleanName += p.Gray.Wrap(" (default)", p.Italic)
-			footer = append(footer, fnameColor(c.Glyphs().Square+" default"))
-		}
 
 		rows = append(
 			rows,
-			[]string{cleanName, t(s.Bookmarks), t(s.Tags), fsize, filepath.Join(collapsePath, fnameColor(fname))},
+			[]string{info.Base, toStr(s.Bookmarks), toStr(s.Tags), info.Size, filepath.Join(h, info.Name)},
 		)
 	}
 
-	fmt.Fprint(c.Writer(), txt.CreateSimpleTable(headers, rows, strings.Join(footer, " ")))
-
+	fmt.Fprint(w, txt.CreateSimpleTable(headers, rows, o.footer...))
 	return nil
+}
+
+func DatabaseDecorator(app *application.App) func(info *FileInfo) *FileInfo {
+	gm, _ := gitops.NewManager(&gitops.ManagerConfig{
+		Root: app.Path.Git(),
+	})
+
+	p := ansi.NewPalette(app.Flags.Color)
+	g := app.Glyphs()
+
+	return func(info *FileInfo) *FileInfo {
+		baseName := files.StripExts(info.Base)
+		isDefault := baseName == app.DBBaseName()
+		isTracked := gm.IsEnabled() && gm.IsTracked(baseName)
+		isLocked := filepath.Ext(info.Base) == locker.Extension.String()
+
+		var sb strings.Builder
+		var status strings.Builder
+
+		if isTracked {
+			status.WriteByte(' ')
+			status.WriteString(p.BrightYellow.Sprint(g.Git))
+		}
+
+		if isDefault {
+			sb.WriteString(p.BrightYellow.Sprint(baseName))
+			sb.WriteString(p.Gray.Wrap(" (default)", p.Italic))
+			sb.WriteString(status.String())
+
+			info.Name = p.BrightYellow.Sprint(info.Base)
+			info.Base = sb.String()
+
+			return info
+		}
+
+		if isLocked {
+			sb.WriteString(baseName)
+
+			status.WriteByte(' ')
+			status.WriteString(p.BrightMagenta.Sprint(g.GPG))
+
+			sb.WriteString(status.String())
+			info.Name = p.BrightMagenta.Sprint(info.Base)
+			info.Base = sb.String()
+			return info
+		}
+
+		sb.WriteString(baseName)
+		sb.WriteString(status.String())
+
+		info.Name = p.BrightBlue.Sprint(info.Base)
+		info.Base = sb.String()
+
+		return info
+	}
+}
+
+func TimestampDecorator(app *application.App) func(info *FileInfo) *FileInfo {
+	p := ansi.NewPalette(app.Flags.Color)
+
+	return func(info *FileInfo) *FileInfo {
+		name := p.Remover(info.Name)
+		t, _, _ := strings.Cut(name, "_")
+		rt := txt.RelativeTime(t)
+		if rt != "invalid timestamp" {
+			info.Base += " " + p.Gray.Wrap(rt, p.Italic)
+		}
+		return info
+	}
 }
 
 // RecordsJSON formats the bookmarks in RecordsJSON.
@@ -379,7 +514,7 @@ func AppConfig(ctx context.Context, app *application.App, c *ui.Console) error {
 
 	f.CustomFunc(header, app.PrettyVersion()).
 		Rowln().
-		Rowln(pad("current db", p.BrightYellow.Wrap(app.DBBaseName(), p.Italic))).
+		Rowln(pad("db", p.BrightYellow.Wrap(app.DBBaseName(), p.Italic))).
 		Rowln(pad("format", app.Format())).
 		Rowln(pad("glyphs", app.UI.GlyphMode))
 
@@ -400,10 +535,10 @@ func AppConfig(ctx context.Context, app *application.App, c *ui.Console) error {
 	f.MidCln(p.BrightRed.With(p.Bold).Sprint, p.BrightRed.Wrap("menu", p.Bold)).
 		Rowln(pad("use defaults", boolFmt(m.Defaults))).
 		Rowln(pad("format", m.Format)).
-		Rowln(pad("prompt", m.Prompt)).
+		Rowln(pad("prompt", fmt.Sprintf("%q", m.Prompt))).
 		Rowln(pad("preview enabled", boolFmt(m.Preview))).
 		Rowln(pad("header enabled", boolFmt(m.Header.Enabled))).
-		Rowln(pad("header separator", m.Header.Sep))
+		Rowln(pad("header separator", fmt.Sprintf("%q", m.Header.Sep)))
 
 	// keymaps.
 	ph := app.Formatter().Menu.Placeholder()

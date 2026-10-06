@@ -420,22 +420,20 @@ func Span(width int, left, right, char string) string {
 
 // CreateSimpleTable generates a simple ASCII table with basic borders.
 func CreateSimpleTable(headers []string, rows [][]string, footer ...string) string {
-	// FIX: refactor and use builder pattern???
 	if len(headers) == 0 {
 		return ""
 	}
 
-	// Compute column widths ignoring ANSI sequences
+	// compute column widths ignoring ansi sequences
 	colWidths := make([]int, len(headers))
 	for i, header := range headers {
-		colWidths[i] = len(ansi.Remover(header))
+		colWidths[i] = VisibleWidth(header)
 	}
 
 	for _, row := range rows {
 		for i, cell := range row {
 			if i < len(colWidths) {
-				w := len(ansi.Remover(cell))
-				if w > colWidths[i] {
+				if w := VisibleWidth(cell); w > colWidths[i] {
 					colWidths[i] = w
 				}
 			}
@@ -445,40 +443,24 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 	var b strings.Builder
 
 	writeBorder := func() {
-		b.WriteString("+")
+		b.WriteByte('+')
 		for _, width := range colWidths {
 			b.WriteString(strings.Repeat("-", width+2))
-			b.WriteString("+")
+			b.WriteByte('+')
 		}
 		b.WriteByte('\n')
 	}
 
-	writeBorder()
-
-	// Header
-	b.WriteString("|")
-	for i, header := range headers {
-		visibleLen := len(ansi.Remover(header))
-		padding := colWidths[i] - visibleLen
-		b.WriteByte(' ')
-		b.WriteString(header)
-		b.WriteString(strings.Repeat(" ", padding))
-		b.WriteString(" |")
-	}
-	b.WriteByte('\n')
-
-	writeBorder()
-
-	// Rows
-	for _, row := range rows {
-		b.WriteString("|")
+	writeRow := func(row []string) {
+		b.WriteByte('|')
 		for i, width := range colWidths {
 			cell := ""
 			if i < len(row) {
 				cell = row[i]
 			}
-			visibleLen := len(ansi.Remover(cell))
-			padding := width - visibleLen
+
+			padding := width - VisibleWidth(cell)
+
 			b.WriteByte(' ')
 			b.WriteString(cell)
 			b.WriteString(strings.Repeat(" ", padding))
@@ -488,19 +470,26 @@ func CreateSimpleTable(headers []string, rows [][]string, footer ...string) stri
 	}
 
 	writeBorder()
+	writeRow(headers)
+	writeBorder()
 
-	// Footer (centered, no borders)
+	for _, row := range rows {
+		writeRow(row)
+	}
+
+	writeBorder()
+
 	if len(footer) > 0 {
-		totalWidth := 1 // start with first "+"
-		for _, w := range colWidths {
-			totalWidth += w + 3 // "-" * width + 2 padding + "+"
+		totalWidth := 1
+		for _, width := range colWidths {
+			totalWidth += width + 3
 		}
+		totalWidth--
 
-		totalWidth-- // remove last "+"
 		for _, line := range footer {
-			lineStripped := ansi.Remover(line)
-			lineLen := min(len(lineStripped), totalWidth)
-			leftPad := (totalWidth - lineLen) / 2
+			lineWidth := min(VisibleWidth(line), totalWidth)
+			leftPad := (totalWidth - lineWidth) / 2
+
 			b.WriteString(strings.Repeat(" ", leftPad))
 			b.WriteString(line)
 			b.WriteByte('\n')

@@ -121,8 +121,8 @@ var (
 		Sep:      "-",
 		Pointer:  ">",
 		Git:      "git",
-		JSON:     "JSON",
-		GPG:      "GPG",
+		JSON:     "json",
+		GPG:      "gpg",
 
 		// log
 		Warning:  "!",

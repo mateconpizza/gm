@@ -318,10 +318,10 @@ func (f *Frame) applyIcon(icon IconStyle, s []string) *Frame {
 // Helper method to format an icon with its color.
 func (f *Frame) formatIcon(style IconStyle) string {
 	if style.color == nil {
-		return style.symbol + " "
+		return style.symbol
 	}
 
-	return style.color(style.symbol) + " "
+	return style.color(style.symbol)
 }
 
 // New creates a new Frame instance with the provided options.

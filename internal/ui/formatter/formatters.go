@@ -706,6 +706,48 @@ func ByFields(c Console, bs []*bookmark.Bookmark, fieldsInput string) error {
 	return w.Flush()
 }
 
+// StatusCodeFunc formats a bookmark with its HTTP status and URL.
+func StatusCodeFunc(c Console, b *bookmark.Bookmark) string {
+	const statusWidth = 22
+
+	p := c.Palette()
+
+	statusText := b.HTTPStatusText
+	if statusText == "" {
+		statusText = "Unassigned"
+	}
+
+	statusText = txt.Shorten(statusText, statusWidth-6)
+
+	statusLabel := fmt.Sprintf(
+		"(%d) %s",
+		b.HTTPStatusCode,
+		statusText,
+	)
+
+	bURL := txt.Shorten(
+		b.URL,
+		c.MaxWidth()-statusWidth,
+	)
+
+	var sb strings.Builder
+
+	sb.WriteString(p.Bold.Sprintf("%-*d ", 4, b.ID))
+
+	sb.WriteString(
+		txt.PaddedLineWithWidth(
+			txt.HTTPStatusCodeColor(
+				b.HTTPStatusCode,
+				p,
+			).Sprint(statusLabel),
+			bURL,
+			statusWidth,
+		),
+	)
+
+	return sb.String()
+}
+
 // formatFlags returns a string representation of bookmark status flags.
 func formatFlags(g *Glyphs, b *bookmark.Bookmark) string {
 	var flags strings.Builder
@@ -750,48 +792,6 @@ func formatColorFlags(p *ansi.Palette, g *Glyphs, b *bookmark.Bookmark) string {
 	return p.Dim.Sprint(flags.String())
 }
 
-// StatusCodeFunc formats a bookmark with its HTTP status and URL.
-func StatusCodeFunc(c Console, b *bookmark.Bookmark) string {
-	const statusWidth = 22
-
-	p := c.Palette()
-
-	statusText := b.HTTPStatusText
-	if statusText == "" {
-		statusText = "Unassigned"
-	}
-
-	statusText = txt.Shorten(statusText, statusWidth-6)
-
-	statusLabel := fmt.Sprintf(
-		"(%d) %s",
-		b.HTTPStatusCode,
-		statusText,
-	)
-
-	bURL := txt.Shorten(
-		b.URL,
-		c.MaxWidth()-statusWidth,
-	)
-
-	var sb strings.Builder
-
-	sb.WriteString(p.Bold.Sprintf("%-*d ", 4, b.ID))
-
-	sb.WriteString(
-		txt.PaddedLineWithWidth(
-			txt.HTTPStatusCodeColor(
-				b.HTTPStatusCode,
-				p,
-			).Sprint(statusLabel),
-			bURL,
-			statusWidth,
-		),
-	)
-
-	return sb.String()
-}
-
 func extractArchiveURL(urlStr string) (string, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
@@ -799,7 +799,7 @@ func extractArchiveURL(urlStr string) (string, error) {
 	}
 
 	if u.Host == "web.archive.org" {
-		// Path is: /web/YYYYMMDDXXXXXX/https://github.com/imputnet/helium
+		// Path is: /web/YYYYMMDDXXXXXX/https://github.com/mateconpizza/gm
 		parts := strings.SplitN(u.Path, "/", 4)
 		if len(parts) >= 4 {
 			return parts[3], nil
