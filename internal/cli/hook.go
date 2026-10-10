@@ -42,8 +42,8 @@ var (
 	// check.
 	SkipGitCheck = map[string]string{AnnotationSkipGitCheck: "true"}
 
-	// SkipGitCheck is used in subcmds declarations to skip the git existence
-	// check.
+	// SkipFormatter is used in subcmds declarations to skip the output format
+	// validation.
 	SkipFormatter = map[string]string{AnnotationSkipFormatter: "true"}
 
 	// databaseChecked tracks whether the database check has already been
@@ -350,7 +350,8 @@ func HookFormatter(app *application.App) HookE {
 			}
 		}
 
-		if app.Flags.Menu && app.Flags.Output != app.Format() {
+		isOutputFlagSet := cmd.Flags().Changed("output")
+		if app.Flags.Menu && isOutputFlagSet {
 			app.Menu.Format = app.Flags.Output
 		}
 

@@ -60,6 +60,7 @@ func NewApp(t *testing.T) *application.App {
 			ColorStr: "never",
 			Color:    false,
 		},
+		UI:  application.NewUI(),
 		Git: &application.Git{},
 		Info: &application.Information{
 			URL:     "https://github.com/mateconpizza/gm#readme",
