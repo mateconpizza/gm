@@ -35,8 +35,8 @@ func NewFileLoader(loader LoaderFileFunc) *FileLoader {
 	}
 }
 
-// LoadAsync loads a bookmark asynchronously from the given path.
-func (f *FileLoader) LoadAsync(ctx context.Context, path string) {
+// Load loads a bookmark asynchronously from the given path.
+func (f *FileLoader) Load(ctx context.Context, path string) {
 	f.g.Go(func() error {
 		select {
 		case <-ctx.Done():
@@ -59,7 +59,6 @@ func (f *FileLoader) Results() ([]*bookmark.Bookmark, error) {
 	if err := f.g.Wait(); err != nil {
 		return nil, err
 	}
-
 	return f.results, nil
 }
 

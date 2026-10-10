@@ -27,7 +27,7 @@ var _ bookio.FileManager = (*files.FileManager)(nil)
 
 func RepoFileReader(color bool) git.RepoOptFunc { return git.WithRepoReader(readFiles(color)) }
 func RepoFileRemover() git.RepoOptFunc          { return git.WithRepoRemover(removeFiles) }
-func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(addFiles(color)) }
+func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(writeFiles(color)) }
 func RepoStatsReader(r store) git.RepoOptFunc   { return git.WithRepoStore(r) }
 func MgrVersion(ver string) git.MgrOptFunc      { return git.WithVersion(ver) }
 
@@ -207,50 +207,11 @@ func readFiles(color bool) func(ctx context.Context, path string, total int) ([]
 	return func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
 		return newRepoReader(ctx, &RepoReaderCfg{
 			name:     filepath.Base(path),
-			root:     path,
-			fullpath: path,
+			root:     filepath.Dir(path),
+			repoPath: path,
 			total:    total,
 			spinner:  sp,
 		})
-	}
-}
-
-func addFiles(color bool) func(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
-	return func(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
-		sp := rotato.New(
-			rotato.WithColor(color),
-			rotato.WithMessage("starting..."),
-			rotato.WithPrefix("Git Tracker"),
-			rotato.WithPrefixColor(rotato.StyleDim),
-			rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
-			rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
-			rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-			rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-		)
-
-		sp.Start(ctx)
-		defer sp.Done()
-
-		root := filepath.Dir(repoPath)
-		if gpg.IsInitialized(root) {
-			return addGPGFiles(ctx, bs, sp, repoPath)
-		}
-
-		for i := range bs {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-
-			if _, err := bookio.SaveAsJSON(repoPath, bs[i], true); err != nil {
-				return err
-			}
-		}
-
-		return nil
 	}
 }
 

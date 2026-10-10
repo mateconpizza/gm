@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	menu "github.com/mateconpizza/go-fzf"
@@ -36,7 +35,7 @@ func ReadRepoFilesWithPrompt(ctx context.Context, cfg *RepoReaderCfg) ([]*bookma
 
 	var passphrasePrompted bool
 
-	if err := filepath.WalkDir(cfg.root, func(path string, d fs.DirEntry, err error) error {
+	if err := filepath.WalkDir(cfg.repoPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("%w: walking root: %s, on file: %s", err, cfg.root, path)
 		}
@@ -57,7 +56,7 @@ func ReadRepoFilesWithPrompt(ctx context.Context, cfg *RepoReaderCfg) ([]*bookma
 			passphrasePrompted = true
 		}
 
-		f.LoadAsync(ctx, path)
+		f.Load(ctx, path)
 
 		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.loader.Prefix, f.Count(1), cfg.total))
 		cfg.spinner.UpdateMesg("decrypting..." + filepath.Base(path))
@@ -303,35 +302,6 @@ func initGPG(ctx context.Context, c *ui.Console, gm *git.Mgr, k *gpg.Fingerprint
 	}
 
 	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("GPG repo initialized with key %q", k.UserID)))
-
-	return nil
-}
-
-func addGPGFiles(ctx context.Context, bs []*bookmark.Bookmark, sp spinner, repoPath string) error {
-	root := filepath.Dir(repoPath)
-
-	k := gpg.NewKeyResolver(root)
-	fp, err := k.Resolve(ctx)
-	if err != nil {
-		return fmt.Errorf("gpg strategy: %w", err)
-	}
-
-	if err := fp.Validate(); err != nil {
-		return err
-	}
-
-	var (
-		g       = gpg.New(fp.Fingerprint)
-		current atomic.Uint32
-		total   = len(bs)
-	)
-
-	for i := range bs {
-		sp.UpdateMesg(fmt.Sprintf("[%d/%d] encrypting bookmarks files", current.Add(1), total))
-		if err := createGPGFile(ctx, g, repoPath, bs[i]); err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
