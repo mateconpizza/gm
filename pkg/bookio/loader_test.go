@@ -93,7 +93,7 @@ func TestFileLoaderTwo(t *testing.T) {
 			}
 
 			for _, p := range tt.paths {
-				f.LoadAsync(ctx, p)
+				f.Load(ctx, p)
 			}
 
 			got, err := f.Results()

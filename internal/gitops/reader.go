@@ -33,7 +33,7 @@ type PassphrasePrompt func(ctx context.Context, f *bookio.FileLoader, sp spinner
 type RepoReaderCfg struct {
 	name     string // repo name
 	root     string // git root path
-	fullpath string // repo fullpath
+	repoPath string // repo fullpath
 	total    int    // total bookmarks
 	loader   *bookio.RepositoryLoader
 	spinner  spinner
@@ -66,7 +66,7 @@ func ReadRepoFiles(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmar
 	cfg.spinner.Start(ctx)
 	defer cfg.spinner.Done()
 
-	if err := filepath.WalkDir(cfg.root, func(path string, d fs.DirEntry, err error) error {
+	if err := filepath.WalkDir(cfg.repoPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("%w: walking root: %s, on file: %s", err, cfg.root, path)
 		}
@@ -82,7 +82,7 @@ func ReadRepoFiles(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmar
 		cfg.spinner.UpdatePrefix(fmt.Sprintf("%s [%d/%d]", cfg.loader.Prefix, f.Count(1), cfg.total))
 		cfg.spinner.UpdateMesg("reading..." + filepath.Base(path))
 
-		f.LoadAsync(ctx, path)
+		f.Load(ctx, path)
 
 		return nil
 	}); err != nil {

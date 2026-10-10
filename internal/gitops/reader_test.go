@@ -130,9 +130,10 @@ func TestReadJSONRepo(t *testing.T) {
 			}
 
 			cfg := &RepoReaderCfg{
-				root:    root,
-				total:   len(tt.files),
-				spinner: &fakeSpinner{},
+				root:     root,
+				repoPath: root,
+				total:    len(tt.files),
+				spinner:  &fakeSpinner{},
 				loader: &bookio.RepositoryLoader{
 					Func:       loaderFn,
 					FileFilter: filterFn,
@@ -285,10 +286,11 @@ func TestReadGPGRepo(t *testing.T) {
 			sp := &fakeSpinner{}
 
 			cfg := &RepoReaderCfg{
-				root:    root,
-				total:   len(tt.files),
-				loader:  loader,
-				spinner: sp,
+				root:     root,
+				total:    len(tt.files),
+				repoPath: root,
+				loader:   loader,
+				spinner:  sp,
 				promptPassphrase: func(_ context.Context, _ *bookio.FileLoader, _ spinner, _ string, done *bool) error {
 					if tt.promptErr != nil {
 						return tt.promptErr

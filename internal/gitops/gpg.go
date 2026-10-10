@@ -36,7 +36,7 @@ func ReadRepoFilesWithPrompt(ctx context.Context, cfg *RepoReaderCfg) ([]*bookma
 
 	var passphrasePrompted bool
 
-	if err := filepath.WalkDir(cfg.root, func(path string, d fs.DirEntry, err error) error {
+	if err := filepath.WalkDir(cfg.repoPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("%w: walking root: %s, on file: %s", err, cfg.root, path)
 		}
@@ -57,7 +57,7 @@ func ReadRepoFilesWithPrompt(ctx context.Context, cfg *RepoReaderCfg) ([]*bookma
 			passphrasePrompted = true
 		}
 
-		f.LoadAsync(ctx, path)
+		f.Load(ctx, path)
 
 		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.loader.Prefix, f.Count(1), cfg.total))
 		cfg.spinner.UpdateMesg("decrypting..." + filepath.Base(path))
