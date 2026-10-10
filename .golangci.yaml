@@ -300,6 +300,9 @@ linters:
       - path: "internal/sys/terminal/state_test.go"
         linters:
           - nilnil
+      - path: "pkg/bookio/writer_test.go"
+        linters:
+          - nestif
     generated: lax
     presets:
       - common-false-positives

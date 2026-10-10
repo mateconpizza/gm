@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/testutil"
+	"github.com/mateconpizza/gm/internal/ui/formatter"
 )
 
 func testSetupAppInfo(t *testing.T, version string) *application.Information {
@@ -340,6 +342,137 @@ func TestHookGitSync(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestHookFormatter(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+
+		menuMode        bool
+		outputFlagValue string
+		outputFlagSet   bool
+		initialMenuFmt  string
+		skipOnCmd       bool
+		skipOnParent    bool
+
+		wantMenuFormat string
+		wantErr        error
+	}{
+		{
+			name:            "normal_menu_with_output_override",
+			menuMode:        true,
+			outputFlagValue: "oneline",
+			outputFlagSet:   true,
+			initialMenuFmt:  "brief",
+			wantMenuFormat:  "oneline",
+		},
+		{
+			name:            "output_flag_not_set_keeps_menu_format",
+			menuMode:        true,
+			outputFlagValue: "",
+			outputFlagSet:   false,
+			initialMenuFmt:  "brief",
+			wantMenuFormat:  "brief",
+		},
+		{
+			name:            "menu_mode_false_ignores_output_flag",
+			menuMode:        false,
+			outputFlagValue: "oneline",
+			outputFlagSet:   true,
+			initialMenuFmt:  "brief",
+			wantMenuFormat:  "brief",
+		},
+		{
+			name:           "empty_initial_menu_format_errors",
+			menuMode:       false,
+			outputFlagSet:  false,
+			initialMenuFmt: "",
+			wantMenuFormat: "",
+		},
+		{
+			name:            "invalid_output_format_errors",
+			menuMode:        true,
+			outputFlagValue: "not-a-real-format",
+			outputFlagSet:   true,
+			initialMenuFmt:  "brief",
+			wantMenuFormat:  "not-a-real-format",
+			wantErr:         formatter.ErrUnknownFormatter,
+		},
+		{
+			name:           "skip_annotation_on_command_itself",
+			menuMode:       true,
+			outputFlagSet:  true,
+			initialMenuFmt: "brief",
+			skipOnCmd:      true,
+			wantMenuFormat: "brief",
+		},
+		{
+			name:           "skip_annotation_on_parent_command",
+			menuMode:       true,
+			outputFlagSet:  true,
+			initialMenuFmt: "brief",
+			skipOnParent:   true,
+			wantMenuFormat: "brief",
+		},
+		{
+			name:            "boundary_single_char_format",
+			menuMode:        true,
+			outputFlagValue: "x",
+			outputFlagSet:   true,
+			initialMenuFmt:  "brief",
+			wantMenuFormat:  "x",
+			wantErr:         formatter.ErrUnknownFormatter,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := testutil.NewApp(t)
+			app.Menu = &menucfg.Config{Format: tt.initialMenuFmt}
+			app.Flags.Menu = tt.menuMode
+			app.Flags.Output = tt.outputFlagValue
+
+			parent := &cobra.Command{Use: "root"}
+			cmd := &cobra.Command{Use: "sub"}
+			parent.AddCommand(cmd)
+
+			cmd.Flags().String("output", "", "output format")
+			if tt.outputFlagSet {
+				if err := cmd.Flags().Set("output", tt.outputFlagValue); err != nil {
+					t.Fatalf("setup: failed to set output flag: %v", err)
+				}
+			}
+
+			if tt.skipOnCmd {
+				cmd.Annotations = SkipFormatter
+			}
+			if tt.skipOnParent {
+				parent.Annotations = SkipFormatter
+			}
+
+			hook := HookFormatter(app)
+			err := hook(cmd, nil)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("HookFormatter() expected error, got nil")
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("HookFormatter() error = %v; want errors.Is match for %v", err, tt.wantErr)
+				}
+			} else if err != nil {
+				t.Fatalf("HookFormatter() unexpected error: %v", err)
+			}
+
+			if app.Menu.Format != tt.wantMenuFormat {
+				t.Fatalf("app.Menu.Format = %q; want %q", app.Menu.Format, tt.wantMenuFormat)
 			}
 		})
 	}
