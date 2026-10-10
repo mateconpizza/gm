@@ -292,7 +292,7 @@ func newHighlighter(p *ansi.Palette) func(string) string {
 		"add":     p.BrightCyan.Sprint("add"),
 		"update":  p.BrightBlue.Sprint("update"),
 		"del":     p.BrightRed.Sprint("del"),
-		"edit":    p.Orange.Sprint("edit"),
+		"edit":    p.BrightYellow.Sprint("edit"),
 		"import":  p.BrightYellow.Sprint("import"),
 		"sync":    p.Cyan.Sprint("sync"),
 		"http":    p.Magenta.Sprint("http"),
@@ -300,7 +300,7 @@ func newHighlighter(p *ansi.Palette) func(string) string {
 		"commit":  p.BrightMagenta.Sprint("commit"),
 		"params":  p.Blue.Sprint("params"),
 		"gpg":     p.Red.Sprint("gpg"),
-		"rename":  p.Orange.Sprint("rename"),
+		"rename":  p.BrightYellow.Sprint("rename"),
 	}
 
 	return func(msg string) string {
