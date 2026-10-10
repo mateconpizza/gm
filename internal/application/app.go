@@ -240,6 +240,11 @@ func (app *App) DefaultDB() string {
 	return tempApp.DBBaseName()
 }
 
+func (app *App) Databases() []string {
+	f, _ := files.FindByExtension(app.Path.Home(), ".db")
+	return f
+}
+
 func (app *App) WithHomePath(path string) *App {
 	app.Path.Data = path
 	return app

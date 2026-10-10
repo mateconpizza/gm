@@ -1,12 +1,15 @@
 package cmdutil
 
 import (
+	"path/filepath"
 	"strings"
 
+	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/pkg/db"
 )
 
 const UsageTemplate = `usage: {{if .Runnable}}{{.UseLine}}{{end}}{{if .HasAvailableSubCommands}} [command]{{end}}
@@ -43,10 +46,18 @@ global:
 func FlagOutput(c *cobra.Command, app *application.App, def string, supportedOutput []string) {
 	c.Flags().StringVarP(&app.Flags.Output, "output", "o", def,
 		"output format: "+strings.Join(supportedOutput, ", "))
+
+	FlagCompletion(c, "output", func(cmd *cobra.Command) ([]string, error) {
+		return supportedOutput, nil
+	})
 }
 
 func FlagFields(c *cobra.Command, app *application.App, fields string) {
 	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "", "select fields: "+fields)
+
+	FlagCompletion(c, "fields", func(cmd *cobra.Command) ([]string, error) {
+		return strings.Split(fields, ","), nil
+	})
 }
 
 func FlagDBRequired(c *cobra.Command, app *application.App) {
@@ -54,10 +65,28 @@ func FlagDBRequired(c *cobra.Command, app *application.App) {
 	_ = c.MarkFlagRequired("db")
 }
 
+func FlagDatabase(c *cobra.Command, app *application.App) {
+	g := c.PersistentFlags()
+	g.StringVar(&app.DBName, "db", app.DBName, "database name")
+
+	items, _ := files.FindByExtension(app.Path.Home(), ".db")
+	dbs := make([]string, 0, len(items))
+	for _, f := range items {
+		base := filepath.Base(f)
+		dbs = append(dbs, strings.TrimSuffix(base, ".db"))
+	}
+
+	FlagCompletion(c, "db", func(cmd *cobra.Command) ([]string, error) {
+		return dbs, nil
+	})
+}
+
 func FlagsFilter(c *cobra.Command, app *application.App) {
 	c.Flags().StringSliceVarP(&app.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
 	c.Flags().IntVarP(&app.Flags.Head, "head", "H", 0, "limit to first N bookmarks")
 	c.Flags().IntVarP(&app.Flags.Tail, "tail", "T", 0, "limit to last N bookmarks")
+
+	FlagCompletion(c, "tag", tagFetcher(app))
 }
 
 func FlagMenu(c *cobra.Command, app *application.App) {
@@ -66,6 +95,10 @@ func FlagMenu(c *cobra.Command, app *application.App) {
 
 func FlagSort(c *cobra.Command, app *application.App, sortSupported []string) {
 	c.Flags().StringVarP(&app.Flags.Sort, "sort", "s", "", "sort by: "+strings.Join(sortSupported, ", "))
+
+	FlagCompletion(c, "sort", func(cmd *cobra.Command) ([]string, error) {
+		return sortSupported, nil
+	})
 }
 
 func HasFlags(c *cobra.Command) bool {
@@ -106,4 +139,49 @@ func DisableFlagSorting(c *cobra.Command) *cobra.Command {
 		DisableFlagSorting(sub)
 	}
 	return c
+}
+
+type FlagItemsFetcher func(cmd *cobra.Command) ([]string, error)
+
+func FlagCompletion(c *cobra.Command, flag string, fetch FlagItemsFetcher) {
+	_ = c.RegisterFlagCompletionFunc(
+		flag,
+		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			items, err := fetch(cmd)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveError
+			}
+			return items, cobra.ShellCompDirectiveNoFileComp
+		},
+	)
+}
+
+func tagFetcher(app *application.App) FlagItemsFetcher {
+	return func(cmd *cobra.Command) ([]string, error) {
+		dbName := app.DBName
+
+		if cmd.Flags().Changed("db") {
+			if v, err := cmd.Flags().GetString("db"); err == nil {
+				dbName = v
+			}
+		}
+
+		dbPath := filepath.Join(app.Path.Data, files.EnsureExt(dbName, ".db"))
+		if !files.Exists(dbPath) {
+			return nil, nil
+		}
+
+		r, err := db.New(cmd.Context(), dbPath)
+		if err != nil {
+			return nil, err
+		}
+		defer r.Close()
+
+		tags, err := db.TagsList(cmd.Context(), r)
+		if err != nil {
+			return nil, err
+		}
+
+		return tags, nil
+	}
 }

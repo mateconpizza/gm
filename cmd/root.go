@@ -37,7 +37,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 	registerRootFlags(c, app)
 	setupRootCmd(c)
 
-	// Initialize application state before command execution
+	// initialize application state before command execution
 	cobra.OnInitialize(func() {
 		initAppConfig(app)
 
@@ -48,7 +48,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		app.Git.Remote = remote
 	})
 
-	// Register cleanup hooks to be executed on shutdown/exit
+	// register cleanup hooks to be executed on shutdown/exit
 	registerCleanups(app)
 
 	return c
@@ -92,33 +92,33 @@ func rootCmdFunc(app *application.App) cli.HookE {
 }
 
 func setupRootCmd(c *cobra.Command) {
-	// Add custom template function used inside usage/help templates
+	// add custom template function used inside usage/help templates
 	cobra.AddTemplateFunc("hasFlags", cmdutil.HasFlags)
 
-	// Override default usage template with a custom one
+	// override default usage template with a custom one
 	c.SetUsageTemplate(cmdutil.UsageTemplate)
 
-	// Keep flag order as defined (do not sort alphabetically)
+	// keep flag order as defined (do not sort alphabetically)
 	c.PersistentFlags().SortFlags = false
 
-	// Hide the default completion command from help output
+	// hide the default completion command from help output
 	c.CompletionOptions.HiddenDefaultCmd = true
 
-	// Suppress automatic error printing (handled manually elsewhere)
+	// suppress automatic error printing (handled manually elsewhere)
 	c.SilenceErrors = true
 
-	// Disable command suggestions on invalid input
+	// disable command suggestions on invalid input
 	c.DisableSuggestions = true
 
-	// Minimum edit distance for suggestions (irrelevant if disabled, but explicit)
+	// minimum edit distance for suggestions (irrelevant if disabled, but explicit)
 	c.SuggestionsMinimumDistance = 1
 
-	// Remove the default help command from the command tree
+	// remove the default help command from the command tree
 	c.SetHelpCommand(&cobra.Command{Hidden: true})
 
-	// Preserve command registration order (no automatic sorting)
+	// preserve command registration order (no automatic sorting)
 	cobra.EnableCommandSorting = false
 
-	// Ensure PersistentPreRun hooks are executed across command traversal
+	// ensure PersistentPreRun hooks are executed across command traversal
 	cobra.EnableTraverseRunHooks = true
 }
