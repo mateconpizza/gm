@@ -140,7 +140,7 @@ func TestReadJSONRepo(t *testing.T) {
 				},
 			}
 
-			got, err := ReadJSONRepo(ctx, cfg)
+			got, err := ReadRepoFiles(ctx, cfg)
 
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
@@ -192,42 +192,42 @@ func TestReadGPGRepo(t *testing.T) {
 		{
 			name:      "normal_multiple_matching_files",
 			files:     []fileSpec{{"a.gpg", []byte("1")}, {"b.gpg", []byte("2")}, {"skip.txt", []byte("3")}},
-			matchExt:  gpg.Extension,
+			matchExt:  gpg.Extension.String(),
 			wantCount: 2,
 			wantErr:   nil,
 		},
 		{
 			name:      "no_matching_files",
 			files:     []fileSpec{{"a.txt", []byte("1")}, {"b.txt", []byte("2")}},
-			matchExt:  gpg.Extension,
+			matchExt:  gpg.Extension.String(),
 			wantCount: 0,
 			wantErr:   nil,
 		},
 		{
 			name:      "empty_root_dir",
 			files:     nil,
-			matchExt:  gpg.Extension,
+			matchExt:  gpg.Extension.String(),
 			wantCount: 0,
 			wantErr:   nil,
 		},
 		{
 			name:      "single_file_boundary",
 			files:     []fileSpec{{"only.gpg", []byte("1")}},
-			matchExt:  gpg.Extension,
+			matchExt:  gpg.Extension.String(),
 			wantCount: 1,
 			wantErr:   nil,
 		},
 		{
 			name:        "missing_root_dir_walk_error",
 			missingRoot: true,
-			matchExt:    gpg.Extension,
+			matchExt:    gpg.Extension.String(),
 			wantCount:   0,
 			wantErr:     fs.ErrNotExist,
 		},
 		{
 			name:      "passphrase_prompt_error",
 			files:     []fileSpec{{"a.gpg", []byte("1")}},
-			matchExt:  gpg.Extension,
+			matchExt:  gpg.Extension.String(),
 			promptErr: errFakePrompt,
 			wantCount: 0,
 			wantErr:   errFakePrompt,
@@ -235,7 +235,7 @@ func TestReadGPGRepo(t *testing.T) {
 		{
 			name:      "loader_func_error",
 			files:     []fileSpec{{"a.gpg", []byte("1")}},
-			matchExt:  gpg.Extension,
+			matchExt:  gpg.Extension.String(),
 			loaderErr: errFakeLoader,
 			wantCount: 0,
 			wantErr:   errFakeLoader,
@@ -243,7 +243,7 @@ func TestReadGPGRepo(t *testing.T) {
 		{
 			name:      "context_canceled_before_walk",
 			files:     []fileSpec{{"a.gpg", []byte("1")}},
-			matchExt:  gpg.Extension,
+			matchExt:  gpg.Extension.String(),
 			wantCount: 0,
 			wantErr:   context.Canceled,
 		},
@@ -305,7 +305,7 @@ func TestReadGPGRepo(t *testing.T) {
 				cancel()
 			}
 
-			got, err := ReadGPGRepo(ctx, cfg)
+			got, err := ReadRepoFilesWithPrompt(ctx, cfg)
 
 			if tt.wantErr != nil {
 				if err == nil {

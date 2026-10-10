@@ -49,34 +49,17 @@ func (c *RepoReaderCfg) passphrasePrompt() PassphrasePrompt {
 }
 
 func newRepoReader(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	if gpg.IsInitialized(cfg.root) {
-		k := gpg.NewKeyResolver(cfg.root)
-		fp, err := k.Resolve(ctx)
-		if err != nil {
-			return nil, err
-		}
+	switch {
+	case gpg.IsInitialized(cfg.root):
+		return readGPGRepo(ctx, cfg)
 
-		if fp.Expired() {
-			cfg.spinner.AddPrefixDecorator(func(msg string) string {
-				return msg + " warn: key has expired"
-			})
-		}
-
-		loader, err := gpgStrategy(cfg.name, fp.Fingerprint)
-		if err != nil {
-			return nil, err
-		}
-		cfg.loader = loader
-
-		return ReadGPGRepo(ctx, cfg)
+	default:
+		return readJSONRepo(ctx, cfg)
 	}
-
-	cfg.loader = bookio.JSONStrategy
-	return ReadJSONRepo(ctx, cfg)
 }
 
-// ReadJSONRepo handles reading standard JSON bookmark repositories.
-func ReadJSONRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+// ReadRepoFiles handles reading standard JSON bookmark repositories.
+func ReadRepoFiles(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
 	f := bookio.NewFileLoader(cfg.loader.Func)
 
 	cfg.spinner.UpdatePrefix(cfg.loader.Prefix)
@@ -108,4 +91,10 @@ func ReadJSONRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark
 	}
 
 	return f.Results()
+}
+
+// readJSONRepo reads a plain, unencrypted JSON repository.
+func readJSONRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+	cfg.loader = bookio.JSONStrategy
+	return ReadRepoFiles(ctx, cfg)
 }

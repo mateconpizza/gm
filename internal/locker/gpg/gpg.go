@@ -21,10 +21,21 @@ var (
 	ErrNoGPGRecipient = errors.New("gpg: no GPG recipient configured")
 )
 
+type Ext string
+
+func (e Ext) Join(filename string) string {
+	if strings.HasSuffix(filename, e.String()) {
+		return filename
+	}
+	return filename + e.String()
+}
+
+func (e Ext) String() string { return string(e) }
+
 const (
-	Command       = "gpg"            // Command is the GPG executable name.
-	Extension     = ".gpg"           // Extension is the file extension for encrypted files.
-	gitAttContent = "*.gpg diff=gpg" // gitAttContent defines the Git attributes rule for encrypted files.
+	Command           = "gpg"            // Command is the GPG executable name.
+	gitAttContent     = "*.gpg diff=gpg" // gitAttContent defines the Git attributes rule for encrypted files.
+	Extension     Ext = ".gpg"           // Extension is the file extension for encrypted files.
 )
 
 const (
@@ -32,12 +43,29 @@ const (
 	filePerm = 0o644 // Permissions for new files.
 )
 
+type Executor func(ctx context.Context, args ...string) *exec.Cmd
+
+type GPGOpt func(*GPG)
+
 // GPG holds configuration for running GPG commands.
 type GPG struct {
 	recipient string
-	binPath   string
-	exec      func(context.Context, ...string) *exec.Cmd
+	exec      Executor
 }
+
+// New returns a new GPG instance after locating the gpg binary.
+func New(recipient string, opts ...GPGOpt) *GPG {
+	g := &GPG{
+		recipient: recipient,
+		exec:      defaultExecuter(Command),
+	}
+	for _, opt := range opts {
+		opt(g)
+	}
+	return g
+}
+
+func WithExecutor(fn Executor) GPGOpt { return func(g *GPG) { g.exec = fn } }
 
 // Decrypt decrypts a file using the configured GPG binary.
 func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error) {
@@ -132,38 +160,13 @@ func (g *GPG) Unlocked(ctx context.Context, filePath string) (bool, error) {
 	return u, nil
 }
 
-// New returns a new GPG instance after locating the gpg binary.
-func New(recipient string) (*GPG, error) {
-	binPath, err := which()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", err, Command)
-	}
-
-	e := func(binPath string) func(context.Context, ...string) *exec.Cmd {
-		return func(ctx context.Context, args ...string) *exec.Cmd {
-			return exec.CommandContext(ctx, binPath, args...)
-		}
-	}
-
-	return &GPG{
-		recipient: recipient,
-		binPath:   binPath,
-		exec:      e(binPath),
-	}, nil
-}
-
 // IsInitialized returns true if GPG is active.
 func IsInitialized(path string) bool { return NewKeyResolver(path).Initialized() }
 
 // Unlocked reports whether the given encrypted file can be decrypted without a
 // passphrase prompt.
 func Unlocked(ctx context.Context, filePath string) (bool, error) {
-	g, err := New("")
-	if err != nil {
-		return false, err
-	}
-
-	return g.Unlocked(ctx, filePath)
+	return New("").Unlocked(ctx, filePath)
 }
 
 // Decrypt decrypts the provided encrypted file.
@@ -172,13 +175,7 @@ func Decrypt(ctx context.Context, fingerprintPath, encryptedPath string) ([]byte
 	if err != nil {
 		return nil, err
 	}
-
-	g, err := New(recipientKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return g.Decrypt(ctx, encryptedPath)
+	return New(recipientKey).Decrypt(ctx, encryptedPath)
 }
 
 // Encrypt encrypts the provided data and saves it to the specified path.
@@ -187,13 +184,7 @@ func Encrypt(ctx context.Context, fingerprintPath, path string, content []byte) 
 	if err != nil {
 		return err
 	}
-
-	g, err := New(recipientKey)
-	if err != nil {
-		return err
-	}
-
-	return g.Encrypt(ctx, path, content)
+	return New(recipientKey).Encrypt(ctx, path, content)
 }
 
 // Init will extract the gpg fingerprint and save it to .gpg-id.
@@ -221,8 +212,12 @@ func Init(path, gitAttrFile string, fingerprint *Fingerprint) error {
 }
 
 // GPGIDPath returns the path to the .gpg-id file inside the given repo directory.
-func GPGIDPath(repoPath string) string {
-	return filepath.Join(repoPath, fingerprintIDFilename)
+func GPGIDPath(repoPath string) string { return filepath.Join(repoPath, fingerprintIDFilename) }
+
+func defaultExecuter(binPath string) func(context.Context, ...string) *exec.Cmd {
+	return func(ctx context.Context, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, binPath, args...)
+	}
 }
 
 func which() (string, error) {

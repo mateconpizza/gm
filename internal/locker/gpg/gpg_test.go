@@ -192,7 +192,6 @@ func TestGPGEncryptNoRecipient(t *testing.T) {
 	t.Parallel()
 	g := &GPG{
 		recipient: "",
-		binPath:   "/usr/bin/gpg",
 	}
 
 	err := g.Encrypt(t.Context(), "test.gpg", []byte("data"))
@@ -260,11 +259,10 @@ func mockExecFail(stderr string) func(ctx context.Context, args ...string) *exec
 func TestGPG_Encrypt_Success(t *testing.T) {
 	t.Parallel()
 
-	g := &GPG{
-		recipient: "user@example.com",
-		binPath:   "/usr/bin/gpg",
-		exec:      mockExecSuccess("encrypted ok"),
-	}
+	g := New(
+		"user@example.com",
+		WithExecutor(mockExecSuccess("encrypted ok")),
+	)
 
 	err := g.Encrypt(t.Context(), "output.gpg", []byte("hello"))
 	if err != nil {
@@ -284,11 +282,10 @@ func TestGPG_Encrypt_NoRecipient(t *testing.T) {
 func TestGPG_Encrypt_CommandFails(t *testing.T) {
 	t.Parallel()
 
-	g := &GPG{
-		recipient: "user@example.com",
-		binPath:   "/usr/bin/gpg",
-		exec:      mockExecFail("some gpg error"),
-	}
+	g := New(
+		"user@example.com",
+		WithExecutor(mockExecFail("some gpg error")),
+	)
 
 	err := g.Encrypt(t.Context(), "output.gpg", []byte("hello"))
 	if err == nil {
@@ -302,10 +299,7 @@ func TestGPG_Encrypt_CommandFails(t *testing.T) {
 func TestGPG_Decrypt_Success(t *testing.T) {
 	t.Parallel()
 
-	g := &GPG{
-		binPath: "/usr/bin/gpg",
-		exec:    mockExecSuccess("decrypted text"),
-	}
+	g := New("", WithExecutor(mockExecSuccess("decrypted text")))
 
 	out, err := g.Decrypt(t.Context(), "file.gpg")
 	if err != nil {
@@ -319,10 +313,7 @@ func TestGPG_Decrypt_Success(t *testing.T) {
 func TestGPG_Decrypt_CommandFails(t *testing.T) {
 	t.Parallel()
 
-	g := &GPG{
-		binPath: "/usr/bin/gpg",
-		exec:    mockExecFail("bad decrypt"),
-	}
+	g := New("", WithExecutor(mockExecFail("bad decrypt")))
 
 	_, err := g.Decrypt(t.Context(), "file.gpg")
 	if err == nil {
@@ -410,10 +401,7 @@ func TestGPG_Unlocked(t *testing.T) {
 				cancel()
 			}
 
-			g := &GPG{
-				binPath: "/usr/bin/gpg",
-				exec:    tt.exec,
-			}
+			g := New("", WithExecutor(tt.exec))
 
 			got, err := g.Unlocked(ctx, tt.filePath)
 			if err != nil {

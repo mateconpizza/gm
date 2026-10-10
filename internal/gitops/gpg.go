@@ -27,8 +27,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-// ReadGPGRepo handles reading encrypted GPG bookmark repositories.
-func ReadGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+// ReadRepoFilesWithPrompt handles reading encrypted GPG bookmark repositories.
+func ReadRepoFilesWithPrompt(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
 	f := bookio.NewFileLoader(cfg.loader.Func)
 
 	cfg.spinner.Start(ctx)
@@ -71,6 +71,27 @@ func ReadGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark,
 	return f.Results()
 }
 
+// readGPGRepo resolves the repo's GPG key, builds the matching loader
+// strategy, and reads the repository.
+func readGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
+	k := gpg.NewKeyResolver(cfg.root)
+
+	fp, err := k.Resolve(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if fp.Expired() {
+		cfg.spinner.AddPrefixDecorator(func(msg string) string {
+			return msg + " warn: key has expired"
+		})
+	}
+
+	cfg.loader = gpgStrategy(cfg.name, fp.Fingerprint)
+
+	return ReadRepoFilesWithPrompt(ctx, cfg)
+}
+
 func askForEncryption(ctx context.Context, c *ui.Console, app *application.App, gm *git.Mgr) error {
 	fr := gpg.NewKeyResolver(app.Path.Git())
 	if fr.Initialized() {
@@ -105,56 +126,25 @@ func askForEncryption(ctx context.Context, c *ui.Console, app *application.App, 
 	return initGPG(ctx, c, gm, key)
 }
 
-func gpgStrategy(name, recipient string) (*bookio.RepositoryLoader, error) {
-	g, err := gpg.New(recipient)
-	if err != nil {
-		return nil, err
-	}
+func gpgStrategy(name, recipient string) *bookio.RepositoryLoader {
+	g := gpg.New(recipient)
 
 	return &bookio.RepositoryLoader{
 		Func:   gpgBookmarkFileLoader(g),
 		Prefix: fmt.Sprintf("[%s] %s", name, "GPG bookmarks [%d/%d]"),
 		FileFilter: bookio.And(
 			bookio.IsFile,
-			bookio.HasExtension(gpg.Extension),
+			bookio.HasExtension(gpg.Extension.String()),
 			bookio.NotNamed(git.SummaryFileName),
 		),
-	}, nil
+	}
 }
 
-func addGPGFiles(ctx context.Context, bs []*bookmark.Bookmark, sp spinner, repoPath string) error {
-	root := filepath.Dir(repoPath)
-
-	k := gpg.NewKeyResolver(root)
-	fp, err := k.Resolve(ctx)
-	if err != nil {
-		return fmt.Errorf("gpg strategy: %w", err)
-	}
-
-	if err := fp.Validate(); err != nil {
-		return err
-	}
-
-	g, err := gpg.New(fp.Fingerprint)
-	if err != nil {
-		return err
-	}
-
-	var (
-		current atomic.Uint32
-		total   = len(bs)
-	)
-	for i := range bs {
-		sp.UpdateMesg(fmt.Sprintf("[%d/%d] encrypting bookmarks files", current.Add(1), total))
-		if err := createGPGFile(ctx, g, repoPath, bs[i]); err != nil {
-			return err
-		}
-	}
-
-	return nil
+type Encryptor interface {
+	Encrypt(ctx context.Context, path string, content []byte) error
 }
 
-func createGPGFile(ctx context.Context, g *gpg.GPG, repoPath string, b *bookmark.Bookmark) error {
+func createGPGFile(ctx context.Context, g Encryptor, repoPath string, b *bookmark.Bookmark) error {
 	fullpath, err := genFullpath(repoPath, b)
 	if err != nil {
 		return fmt.Errorf("gpgfile: %w", err)
@@ -313,6 +303,35 @@ func initGPG(ctx context.Context, c *ui.Console, gm *git.Mgr, k *gpg.Fingerprint
 	}
 
 	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("GPG repo initialized with key %q", k.UserID)))
+
+	return nil
+}
+
+func addGPGFiles(ctx context.Context, bs []*bookmark.Bookmark, sp spinner, repoPath string) error {
+	root := filepath.Dir(repoPath)
+
+	k := gpg.NewKeyResolver(root)
+	fp, err := k.Resolve(ctx)
+	if err != nil {
+		return fmt.Errorf("gpg strategy: %w", err)
+	}
+
+	if err := fp.Validate(); err != nil {
+		return err
+	}
+
+	var (
+		g       = gpg.New(fp.Fingerprint)
+		current atomic.Uint32
+		total   = len(bs)
+	)
+
+	for i := range bs {
+		sp.UpdateMesg(fmt.Sprintf("[%d/%d] encrypting bookmarks files", current.Add(1), total))
+		if err := createGPGFile(ctx, g, repoPath, bs[i]); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
