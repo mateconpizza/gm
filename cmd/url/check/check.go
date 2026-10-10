@@ -41,6 +41,9 @@ func NewCheckCmd(app *application.App) *cobra.Command {
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	cmdutil.FlagCompletion(c, "code", func(cmd *cobra.Command) ([]string, error) {
+		return fields, nil
+	})
 
 	c.AddCommand(newUpdateCmd(app))
 
@@ -86,6 +89,10 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 
 	fields := []string{"200", "300", "400", "500"}
 	c.Flags().StringVarP(&app.Flags.Field, "code", "c", "", "filter status code: "+strings.Join(fields, ", "))
+
+	cmdutil.FlagCompletion(c, "code", func(cmd *cobra.Command) ([]string, error) {
+		return fields, nil
+	})
 
 	return c
 }

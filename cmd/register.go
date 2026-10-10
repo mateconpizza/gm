@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/add"
@@ -84,29 +82,37 @@ func registerCleanups(_ *application.App) {
 func registerRootFlags(c *cobra.Command, app *application.App) {
 	c.Flags().SortFlags = false
 
-	// local
+	// -- local --
 	// limit results (head/tail semantics)
 	cmdutil.FlagsFilter(c, app)
+
 	// interactive mode
 	cmdutil.FlagMenu(c, app)
+
 	// output formatting
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+
 	// sorting strategy (domain-specific ordering options)
 	cmdutil.FlagSort(c, app, handler.SortSupported)
-	// field selection for output projection
-	fields := []string{"id", "url", "title", "tags", "desc"}
-	cmdutil.FlagFields(c, app, strings.Join(fields, ", "))
 
-	// global
+	// field selection for output projection
+	cmdutil.FlagFields(c, app, "id, url, title, tags, desc")
+
+	// -- global --
 	g := c.PersistentFlags()
+
 	// database selection
-	g.StringVar(&app.DBName, "db", app.DBName, "database name")
+	cmdutil.FlagDatabase(c, app)
+
 	// output colorization policy
 	g.StringVar(&app.Flags.ColorStr, "color", "auto", "colorize output: auto, always, never")
+
 	// non-interactive confirmation
 	g.BoolVarP(&app.Flags.Yes, "yes", "y", false, "assume yes")
+
 	// force execution even if safeguards would prevent it
 	g.BoolVar(&app.Flags.Force, "force", false, "force action")
+
 	// verbosity level
 	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
 
