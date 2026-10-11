@@ -20,11 +20,11 @@ const (
 	// ExitSuccess indicates normal termination.
 	ExitSuccess = 0
 
-	// ExitInterrupted is the conventional exit code for Ctrl+C (SIGINT).
-	ExitInterrupted = 130
-
 	// ExitFailure indicates a general failure or unhandled error.
 	ExitFailure = 1
+
+	// ExitInterrupted is the conventional exit code for Ctrl+C (SIGINT).
+	ExitInterrupted = 130
 )
 
 // Exit logs the error and exits the program.

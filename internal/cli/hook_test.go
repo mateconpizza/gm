@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -473,6 +474,126 @@ func TestHookFormatter(t *testing.T) {
 
 			if app.Menu.Format != tt.wantMenuFormat {
 				t.Fatalf("app.Menu.Format = %q; want %q", app.Menu.Format, tt.wantMenuFormat)
+			}
+		})
+	}
+}
+
+func TestHookEnsureAppInitialize(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+
+		cmdName     string
+		unlockFlag  bool
+		homeExists  bool
+		mainDBExist bool
+
+		wantErr error
+	}{
+		{
+			name:       "dispatch_skips_init_command",
+			cmdName:    "init",
+			homeExists: false, // would otherwise error, but dispatch returns early
+			wantErr:    nil,
+		},
+		{
+			name:        "dispatch_skips_unlock_flag",
+			cmdName:     "list",
+			unlockFlag:  true,
+			homeExists:  false, // would otherwise error, but dispatch returns early
+			mainDBExist: false,
+			wantErr:     nil,
+		},
+		{
+			name:        "home_missing_not_initialized",
+			cmdName:     "list",
+			homeExists:  false,
+			mainDBExist: false,
+			wantErr:     application.ErrAppNoSetup,
+		},
+		{
+			name:        "home_exists_main_db_missing",
+			cmdName:     "list",
+			homeExists:  true,
+			mainDBExist: false,
+			wantErr:     application.ErrMainNotFound,
+		},
+		{
+			name:        "home_exists_main_db_exists_success",
+			cmdName:     "list",
+			homeExists:  true,
+			mainDBExist: true,
+			wantErr:     nil,
+		},
+		{
+			name:        "unlock_flag_false_still_checks",
+			cmdName:     "list",
+			unlockFlag:  false,
+			homeExists:  false,
+			mainDBExist: false,
+			wantErr:     application.ErrAppNoSetup,
+		},
+		{
+			name:        "non_init_command_name_boundary",
+			cmdName:     "initialize", // close to "init" but not an exact match
+			homeExists:  false,
+			mainDBExist: false,
+			wantErr:     application.ErrAppNoSetup,
+		},
+		{
+			name:        "home_and_db_both_exist_nested_path",
+			cmdName:     "db",
+			homeExists:  true,
+			mainDBExist: true,
+			wantErr:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := testutil.NewApp(t)
+
+			dir := t.TempDir()
+			dataDir := filepath.Join(dir, "data")
+
+			if tt.homeExists {
+				testutil.NewDir(t, dataDir)
+			}
+
+			if tt.mainDBExist {
+				testutil.NewDir(t, dataDir)
+				testutil.NewFile(t, dataDir, application.MainDBName, []byte{})
+			}
+
+			app.Path.Data = dataDir
+
+			cmd := &cobra.Command{Use: tt.cmdName}
+			cmd.Flags().Bool("unlock", false, "unlock")
+			if tt.unlockFlag {
+				if err := cmd.Flags().Set("unlock", "true"); err != nil {
+					t.Fatalf("setup: failed to set unlock flag: %v", err)
+				}
+			}
+
+			hook := HookEnsureAppInitialize(app)
+			err := hook(cmd, nil)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("HookEnsureAppInitialize() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("HookEnsureAppInitialize() error = %v; want errors.Is match for %v", err, tt.wantErr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("HookEnsureAppInitialize() unexpected error: %v", err)
 			}
 		})
 	}
