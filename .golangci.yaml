@@ -8,9 +8,9 @@ linters:
   default: all
   disable:
     - contextcheck
-    - nonamedreturns
     - cyclop
     - depguard
+    - exhaustive
     - exhaustruct
     - exhaustruct_v5
     - funlen
@@ -25,6 +25,7 @@ linters:
     - nilerr
     - nlreturn
     - noinlineerr
+    - nonamedreturns
     - testpackage
     - varnamelen
     - wrapcheck

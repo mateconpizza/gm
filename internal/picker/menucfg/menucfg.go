@@ -9,6 +9,14 @@ import (
 
 var ErrInvalidConfigKeymap = errors.New("invalid keymap")
 
+// Theme selects how the fzf menu is styled.
+type Theme string
+
+const (
+	ThemeNormal  Theme = "normal"
+	ThemeMinimal Theme = "minimal"
+)
+
 const (
 	defaultFormatter = "oneline"
 	defaultPrompt    = "> "       // >
@@ -22,6 +30,9 @@ type Config struct {
 
 	// Fzf items format
 	Format string `json:"format" yaml:"format"`
+
+	// Fzf UI
+	Theme Theme `json:"theme" yaml:"theme"`
 
 	// Fzf prompt
 	Prompt string `json:"prompt" yaml:"prompt"`
@@ -51,6 +62,7 @@ func NewDefault() *Config {
 		Prompt:   defaultPrompt,
 		Preview:  true,
 		Format:   defaultFormatter,
+		Theme:    ThemeNormal,
 		Header: Header{
 			Enabled: true,
 			Sep:     defaultHeaderSep,

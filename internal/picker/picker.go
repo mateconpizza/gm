@@ -17,20 +17,11 @@ import (
 
 var ErrNoItems = errors.New("no items")
 
-var (
-	HeaderKeymapFmt = func(bind, sep, desc string) string {
-		return fmt.Sprintf(
-			"%s%s%s",
-			ansi.BrightYellow.Sprint(bind),
-			ansi.Gray.Sprint(sep),
-			ansi.BrightBlue.Sprint(desc),
-		)
-	}
-
-	HeaderSeparatorFmt = func(sep string) string {
-		return ansi.Dim.Sprint(sep)
-	}
-)
+// New builds a simpler menu without all keybindings.
+func New[T comparable](app *application.App, opts ...menu.Option) *menu.Menu[T] {
+	all := append(themeOpts(app), opts...)
+	return menu.New[T](all...)
+}
 
 // NewMainMenu builds the interactive FZF menu for selecting records.
 func NewMainMenu(app *application.App) *menu.Menu[*bookmark.Bookmark] {
@@ -89,52 +80,8 @@ func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu
 	return m
 }
 
-// New builds a simpler menu without all keybindings.
-func New[T comparable](app *application.App, opts ...menu.Option) *menu.Menu[T] {
-	opts = append(
-		opts,
-		// appearance
-		menu.WithAnsi(),
-		menu.WithBorderLabel(" "+app.Name+" "),
-		menu.WithOutputColor(app.Flags.Color),
-		menu.WithLayout(menu.LayoutDefault),
-		menu.WithHeaderSeparator(app.Menu.Header.Sep),
-
-		// prompt & defaults
-		menu.WithPrompt(app.Menu.Prompt),
-		menu.WithDefaults(app.Menu.Defaults),
-		menu.WithArgsCustom(app.Menu.Arguments...),
-		menu.WithoutHeader(!app.Menu.Header.Enabled),
-
-		// preview & info
-		menu.WithPreviewBorder(menu.BorderRounded),
-		menu.WithInfo(menu.InfoStyleInlineRight),
-
-		// behavior
-		menu.WithCycle(),
-		menu.WithSync(),
-		menu.WithNoScrollbar(),
-
-		// header
-		menu.WithHeaderFirst(),
-		menu.WithHeaderBorder(menu.BorderRounded),
-		menu.WithHeaderKeymapFmt(HeaderKeymapFmt),
-		menu.WithHeaderSeparatorFmt(HeaderSeparatorFmt),
-	)
-
-	return menu.New[T](opts...)
-}
-
 func Select[T comparable](items []T, opts ...menu.Option) ([]T, error) {
-	opts = append(
-		opts,
-		menu.WithHeaderFirst(),
-		menu.WithHeaderBorder(menu.BorderRounded),
-		menu.WithPreviewBorder(menu.BorderRounded),
-	)
-
 	m := menu.New[T](opts...)
-
 	items, err := m.Select(items)
 	if err != nil {
 		return nil, err
@@ -196,4 +143,73 @@ func PreviewWindowArg(show bool) string {
 		return "~4,+{2}+4/3,<80(up)"
 	}
 	return "hidden,up"
+}
+
+// themeOpts returns the appearance/behavior options for the given theme.
+func themeOpts(app *application.App) []menu.Option {
+	switch app.Menu.Theme {
+	case menucfg.ThemeMinimal:
+		return minimalThemeOpts(app)
+	default:
+		return defaultThemeOpts(app)
+	}
+}
+
+func commonThemeOpts(app *application.App) []menu.Option {
+	return []menu.Option{
+		menu.WithAnsi(),
+		menu.WithOutputColor(app.Flags.Color),
+		menu.WithLayout(menu.LayoutDefault),
+
+		menu.WithPrompt(app.Menu.Prompt),
+		menu.WithDefaults(app.Menu.Defaults),
+		menu.WithArgsCustom(app.Menu.Arguments...),
+
+		menu.WithNoScrollbar(),
+		menu.WithSync(),
+		menu.WithCycle(),
+
+		menu.WithArgs(func(b *menu.ArgsBuilder) *menu.ArgsBuilder {
+			return b.Custom("--no-separator", "--ghost=search")
+		}),
+	}
+}
+
+// defaultThemeOpts is the full, bordered, decorated theme.
+func defaultThemeOpts(app *application.App) []menu.Option {
+	p := ansi.NewPalette(app.Flags.Color)
+	opts := commonThemeOpts(app)
+
+	opts = append(opts,
+		menu.WithBorderLabel(" "+app.Name+" "),
+		menu.WithHeaderSeparator(app.Menu.Header.Sep),
+		menu.WithoutHeader(!app.Menu.Header.Enabled),
+
+		menu.WithPreviewBorder(menu.BorderRounded),
+		menu.WithInfo(menu.InfoStyleInlineRight),
+
+		menu.WithHeaderFirst(),
+		menu.WithHeaderBorder(menu.BorderRounded),
+
+		menu.WithHeaderKeymapFmt(func(bind, sep, desc string) string {
+			return fmt.Sprintf(
+				"%s%s%s",
+				p.BrightYellow.Sprint(bind),
+				p.Gray.Sprint(sep),
+				p.BrightBlue.Sprint(desc),
+			)
+		}),
+
+		menu.WithHeaderSeparatorFmt(func(sep string) string {
+			return p.Dim.Sprint(sep)
+		}),
+	)
+
+	return opts
+}
+
+// minimalThemeOpts strips visual decorations.
+func minimalThemeOpts(app *application.App) []menu.Option {
+	opts := commonThemeOpts(app)
+	return append(opts, menu.WithoutHeader(true))
 }
