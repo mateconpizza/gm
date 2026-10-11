@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"maps"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -144,10 +145,9 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 
 	if files.Exists(app.Path.DB()) {
 		if ok, _ := db.IsInitializedFromPath(ctx, app.Path.DB()); ok {
-			return fmt.Errorf("%w: %q", db.ErrDBExistsAndInit, app.DBName)
+			return fmt.Errorf("%w: %q", db.ErrDBAlreadyInitialized, app.DBName)
 		}
-
-		return fmt.Errorf("%q %w", app.DBName, db.ErrDBExists)
+		return fmt.Errorf("%q %w", app.DBName, db.ErrDBAlreadyInitialized)
 	}
 
 	return nil
@@ -366,6 +366,29 @@ func HookFormatter(app *application.App) HookE {
 	}
 }
 
+func HookEnsureAppInitialize(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		if exit := dispatch(cmd); exit {
+			return nil
+		}
+
+		p := ansi.NewPalette(app.Flags.Color)
+		command := p.BrightYellow.With(p.Italic).
+			Sprintf("%s init", app.Cmd)
+
+		mainDBPath := filepath.Join(app.Path.Data, application.MainDBName)
+		if files.Exists(app.Path.Home()) && !files.Exists(mainDBPath) {
+			return fmt.Errorf("%w: run '%s' for setup", application.ErrMainNotFound, command)
+		}
+
+		if files.Exists(app.Path.Home()) {
+			return nil
+		}
+
+		return fmt.Errorf("%w: run '%s' for setup", application.ErrAppNoSetup, command)
+	}
+}
+
 func HookGitLoggingStatus(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stdout, app.Git.Logging())
@@ -393,6 +416,11 @@ func checkDatabaseLocked(p string) error {
 }
 
 func dispatch(cmd *cobra.Command) bool {
+	// Skip Home initialized check
+	if cmd.Name() == "init" {
+		return true
+	}
+
 	// Skip DB check if explicitly unlocking
 	if unlock, _ := cmd.Flags().GetBool("unlock"); unlock {
 		slog.Debug("ensure database dispatch", "unlock", unlock)

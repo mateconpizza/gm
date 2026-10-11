@@ -24,6 +24,8 @@ var (
 	ErrDatabaseInvalidName = errors.New("database name invalid")
 	ErrDatabasePathNotSet  = errors.New("database path not set")
 	ErrInvalidConfig       = errors.New("invalid config")
+	ErrAppNoSetup          = errors.New("not initialized")
+	ErrMainNotFound        = errors.New("main database not found")
 )
 
 const (
@@ -266,6 +268,8 @@ func (app *App) WithGlyphs(g *formatter.Glyphs) *App {
 }
 
 func New(info *Information) *App {
+	slog.SetDefault(slog.New(slog.DiscardHandler))
+
 	return &App{
 		Name:   Name,
 		Cmd:    Command,
