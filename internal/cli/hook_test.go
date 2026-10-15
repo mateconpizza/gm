@@ -571,7 +571,10 @@ func TestHookEnsureAppInitialize(t *testing.T) {
 
 			app.Path.Data = dataDir
 
+			root := &cobra.Command{Use: app.Cmd}
 			cmd := &cobra.Command{Use: tt.cmdName}
+			root.AddCommand(cmd)
+
 			cmd.Flags().Bool("unlock", false, "unlock")
 			if tt.unlockFlag {
 				if err := cmd.Flags().Set("unlock", "true"); err != nil {

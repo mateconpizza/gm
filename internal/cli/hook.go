@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
+
+var ErrInvalidOption = errors.New("invalid option")
 
 const (
 	AnnotationSkipDBCheck   = "skip-db-check"
@@ -94,7 +97,7 @@ func HookEnsureDatabase(app *application.App) HookE {
 		}
 		slog.Debug("ensure database", "command", cmd.Name())
 
-		if exit := dispatch(cmd); exit {
+		if exit := dispatch(cmd, app); exit {
 			return nil
 		}
 
@@ -366,9 +369,21 @@ func HookFormatter(app *application.App) HookE {
 	}
 }
 
+func HookValidateFlags(flag *string, supported []string) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		if !slices.Contains(supported, *flag) {
+			return fmt.Errorf("%w %q; valid options: %s",
+				ErrInvalidOption,
+				*flag,
+				strings.Join(supported, ", "))
+		}
+		return nil
+	}
+}
+
 func HookEnsureAppInitialize(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
-		if exit := dispatch(cmd); exit {
+		if exit := dispatch(cmd, app); exit {
 			return nil
 		}
 
@@ -415,9 +430,9 @@ func checkDatabaseLocked(p string) error {
 	return nil
 }
 
-func dispatch(cmd *cobra.Command) bool {
+func dispatch(cmd *cobra.Command, app *application.App) bool {
 	// Skip Home initialized check
-	if cmd.Name() == "init" {
+	if cmd.CommandPath() == app.Cmd+" init" {
 		return true
 	}
 
