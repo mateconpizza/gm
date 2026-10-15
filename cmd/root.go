@@ -27,6 +27,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		Args:         cobra.MinimumNArgs(0),
 		SilenceUsage: true,
 		PersistentPreRunE: cli.ChainHooks(
+			cli.HookEnsureAppInitialize(app),
 			cli.HookInjectApp(app),
 			cli.HookEnsureDatabase(app),
 			cli.HookFormatter(app),
