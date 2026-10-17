@@ -39,31 +39,88 @@ func TestTermPrompt(t *testing.T) {
 	}
 }
 
-func TestTermChoose(t *testing.T) {
+func TestChoose(t *testing.T) {
 	t.Parallel()
 
-	NoColorEnv()
-	question := "Enter your favorite language: "
-	input := "golang\n"
-	mockInput := strings.NewReader(input)
+	styles := []string{"table", "badges", "minimal"}
+	actions := []string{"action", "actor", "actually"}
 
-	var capturedErr error
-	exitFn := func(err error) {
-		capturedErr = err
+	tests := []struct {
+		name    string
+		opts    []string
+		def     string
+		input   string // what the user types, one answer per line
+		force   bool
+		cancel  bool // cancel the context while waiting for input
+		want    string
+		wantErr error
+	}{
+		{"unique_prefix_returns_full_option", styles, "", "b\n", false, false, "badges", nil},
+		{"full_option", styles, "", "minimal\n", false, false, "minimal", nil},
+		{"uppercase_input", styles, "", "B\n", false, false, "badges", nil},
+		{"input_with_spaces", styles, "", "  table  \n", false, false, "table", nil},
+		{"enter_accepts_default", styles, "table", "\n", false, false, "table", nil},
+		{"default_as_unique_prefix", styles, "b", "\n", false, false, "badges", nil},
+		{"default_overridden_by_input", styles, "table", "m\n", false, false, "minimal", nil},
+		{"invalid_then_valid", styles, "", "x\nb\n", false, false, "badges", nil},
+		{"ambiguous_then_resolved", actions, "", "a\nacti\n", false, false, "action", nil},
+		{"original_casing_preserved", []string{"Table", "Badges"}, "", "b\n", false, false, "Badges", nil},
+		{"force_returns_default", styles, "badges", "", true, false, "badges", nil},
+		{"force_resolves_prefix_default", styles, "b", "", true, false, "badges", nil},
+		{"force_without_default", styles, "", "", true, false, "", nil},
+		{"default_not_in_options", styles, "zzz", "", false, false, "", ErrOptNotFound},
+		{"default_ambiguous_prefix", actions, "a", "", false, false, "", ErrOptNotFound},
+		{"nil_opts_with_default", nil, "a", "", false, false, "", ErrOptNotFound},
+		{"too_many_invalid_attempts", styles, "", "x\ny\nz\n", false, false, "", ErrIncorrectAttempts},
+		{"eof_on_empty_input", styles, "", "", false, false, "", io.EOF},
+		{"context_canceled", styles, "", "", false, true, "", application.ErrActionAborted},
 	}
 
-	te := New(WithReader(mockInput), WithInterruptFn(exitFn))
-	result, err := te.Choose(t.Context(), question, []string{"golang", "python", "javascript"}, "python")
-	if err != nil {
-		t.Errorf("expected no error during input, got: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	if capturedErr != nil {
-		t.Errorf("expected no captured error, got: %v", capturedErr)
-	}
+			ctx := t.Context()
 
-	if result != "golang" {
-		t.Errorf("expected user input to be 'golang', got: %q", result)
+			var r io.Reader = strings.NewReader(tt.input)
+			if tt.cancel {
+				// a pipe that is never written blocks the read, so only
+				// the context can end the prompt
+				pr, pw := io.Pipe()
+				t.Cleanup(func() { pw.Close(); pr.Close() })
+				r = pr
+
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+
+			tm := New(func(o *Options) {
+				o.reader = r
+				o.writer = io.Discard
+			},
+				WithForce(tt.force),
+			)
+
+			got, err := tm.Choose(ctx, "Which style?", tt.opts, tt.def)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Choose(%v, def=%q) expected error %v, got nil", tt.opts, tt.def, tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Choose(%v, def=%q) error = %v; want errors.Is match for %v", tt.opts, tt.def, err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Choose(%v, def=%q) unexpected error: %v", tt.opts, tt.def, err)
+			}
+
+			if got != tt.want {
+				t.Fatalf("Choose(%v, def=%q) with input %q = %q; want %q", tt.opts, tt.def, tt.input, got, tt.want)
+			}
+		})
 	}
 }
 

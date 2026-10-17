@@ -229,8 +229,7 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 	}
 
 	if len(def) > 1 {
-		// get first char
-		def = def[:1]
+		def = def[:1] // "yes" -> "y"
 	}
 
 	opts := []string{"y", "n"}
@@ -238,17 +237,12 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 		def = "n"
 	}
 
-	choices := fmtChoicesWithDefault(opts, def)
-	for i := range choices {
-		choices[i] = t.colorizer.Muted(choices[i])
-	}
-
-	chosen, err := t.promptWithChoicesErr(ctx, q, choices, def)
+	chosen, err := t.promptWithChoicesErr(ctx, q, opts, def)
 	if err != nil {
 		return err
 	}
 
-	if !strings.EqualFold(chosen, "y") {
+	if chosen != "y" {
 		return application.ErrExitFailure
 	}
 
@@ -257,16 +251,19 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 
 // Choose prompts the user to enter one of the given options.
 func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
+	// the default can be a full option or a unique prefix ("b" -> "badges")
+	if def != "" {
+		full, ok := resolveOption(strings.ToLower(def), opts)
+		if !ok {
+			return "", fmt.Errorf("%q %w in [%s]", def, ErrOptNotFound, strings.Join(opts, "|"))
+		}
+		def = full
+	}
+
 	if t.force {
 		slog.Debug("choose", "def", def)
 		return def, nil
 	}
-
-	for i := range opts {
-		opts[i] = strings.ToLower(opts[i])
-	}
-
-	opts = fmtChoicesWithDefaultColor(t.colorizer, opts, def)
 
 	return t.promptWithChoicesErr(ctx, q, opts, def)
 }
@@ -384,6 +381,9 @@ func (t *Term) MinWidth() int { return t.size.minWidth }
 func (t *Term) Print(ctx context.Context, content string) error {
 	// FIX: stream output to the pager instead of buffering the entire content in
 	// memory.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if t.needsPager(content) {
 		return t.paginate(ctx, content)
 	}
@@ -401,17 +401,16 @@ func (t *Term) currentReader() *bufio.Reader {
 // promptWithChoices prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
 	dimmer := t.colorizer.Muted
-	sep := dimmer("/")
-	s := dimmer("[")
-	e := dimmer("]:")
+	sep, s, e := dimmer("/"), dimmer("["), dimmer("]:")
 
-	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(opts, sep), e))
+	display := fmtChoices(t.colorizer, opts, def)
+	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(display, sep), e))
 
 	return getUserInputWithAttempts(ctx, &PromptInput{
 		reader:     t.currentReader(),
 		writer:     t.writer,
 		rompt:      p,
-		options:    opts,
+		options:    opts, // raw options, used for matching
 		def:        def,
 		maxRetries: t.inputRetries,
 		colorizer:  t.colorizer,
@@ -520,4 +519,79 @@ func defaultPagerRun(ctx context.Context, args []string, stdin io.Reader, stdout
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd.Run()
+}
+
+// resolveOption matches input against opts, case-insensitively. An exact match
+// wins; otherwise the input must be a prefix of exactly one option.
+// It returns the option as it was passed in, not what the user typed.
+func resolveOption(input string, opts []string) (string, bool) {
+	if input == "" {
+		return "", false
+	}
+
+	var match string
+	var n int
+	for _, o := range opts {
+		lo := strings.ToLower(o)
+		if lo == input {
+			return o, true
+		}
+		if strings.HasPrefix(lo, input) {
+			match = o
+			n++
+		}
+	}
+
+	return match, n == 1
+}
+
+// uniquePrefixLen returns the length of the shortest prefix of opt that no
+// other option in all shares.
+func uniquePrefixLen(opt string, all []string) int {
+	for n := 1; n < len(opt); n++ {
+		count := 0
+		for _, o := range all {
+			if strings.HasPrefix(o, opt[:n]) {
+				count++
+			}
+		}
+		if count == 1 {
+			return n
+		}
+	}
+
+	return len(opt)
+}
+
+// fmtChoices lowercases the options, highlights the shortest prefix that
+// identifies each one, and capitalizes the default (placed last).
+func fmtChoices(cz *Colorizer, opts []string, def string) []string {
+	lower := make([]string, len(opts))
+	for i, o := range opts {
+		lower[i] = strings.ToLower(o)
+	}
+
+	var (
+		formatted []string
+		defOpt    string
+	)
+
+	for i, o := range lower {
+		n := uniquePrefixLen(o, lower)
+		hot, tail := o[:n], o[n:]
+
+		if opts[i] == def {
+			hot = strings.ToUpper(hot[:1]) + hot[1:]
+			defOpt = cz.Hotkey(hot) + cz.Muted(tail)
+			continue
+		}
+
+		formatted = append(formatted, cz.Hotkey(hot)+cz.Muted(tail))
+	}
+
+	if defOpt != "" {
+		formatted = append(formatted, defOpt)
+	}
+
+	return formatted
 }
