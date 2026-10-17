@@ -21,6 +21,7 @@ type Flags struct {
 	JSON    bool   // JSON output
 	Preview string // Menu preview
 	Sort    string // Sort by
+	Reverse bool   // Reverse output
 
 	// Filtering and pagination
 	Head int      // Head limit

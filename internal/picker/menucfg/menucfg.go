@@ -78,17 +78,6 @@ func NewDefault() *Config {
 			Preview:   menu.NewKeymap().WithBind(menu.KeyCtrlSlash).WithDesc("toggle-preview").Hide(),
 			Repos:     menu.NewKeymap().WithBind(menu.KeyCtrlO).WithDesc("repos").Hide(),
 		},
-		Arguments: menu.NewArgsBuilder().
-			WithAnsi().
-			WithLayout("default").
-			WithSync().
-			WithInfo("inline-right").
-			WithTac().
-			WithHeight("100%").
-			WithNoScrollbar().
-			WithCycle().
-			WithColor("prompt", "bold").
-			Build(),
 	}
 }
 
