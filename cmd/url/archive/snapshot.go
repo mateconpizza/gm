@@ -89,7 +89,7 @@ func newSaveCmd(app *application.App) *cobra.Command {
 			)
 		},
 	}
-	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 	return c

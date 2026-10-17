@@ -63,7 +63,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
@@ -82,7 +82,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())

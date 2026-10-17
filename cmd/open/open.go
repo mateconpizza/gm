@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 func NewCmd(app *application.App) *cobra.Command {
@@ -49,7 +50,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			return cmdutil.Execute(cmd, args, m, handler.Open)
 		},
 	}
-	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())

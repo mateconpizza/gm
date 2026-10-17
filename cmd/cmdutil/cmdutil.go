@@ -72,7 +72,7 @@ func Execute(cmd *cobra.Command, args []string, m *menu.Menu[*bookmark.Bookmark]
 		}
 
 		f := app.Flags
-		bs, err = handler.Sort(f.Sort, bs)
+		bs, err = bookmark.Sort(f.Sort, bs)
 		if err != nil {
 			return err
 		}
