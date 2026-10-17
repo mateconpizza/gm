@@ -19,6 +19,8 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 )
 
+var ErrOptNotFound = errors.New("option not found")
+
 // defaultInterruptFn is the default interrupt function for the terminal.
 func defaultInterruptFn(err error) { slog.Debug("InterruptFn not set") }
 
@@ -38,6 +40,7 @@ type Options struct {
 	interruptFn  func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
 	inputRetries int         // retries specifies the maximum number of retries allowed for user input.
 	state        *State
+	force        bool // force is a flag to force the terminal to run in non-interactive mode.
 
 	isTerminal   isTerminalFunc
 	readPassword readPasswordFunc
@@ -93,6 +96,7 @@ func WithMaxRetries(n int) TermOptFn           { return func(o *Options) { o.inp
 func WithReader(r io.Reader) TermOptFn         { return func(o *Options) { o.reader = r } }
 func WithTermState(s *State) TermOptFn         { return func(o *Options) { o.state = s } }
 func WithWriter(w io.Writer) TermOptFn         { return func(o *Options) { o.writer = w } }
+func WithForce(force bool) TermOptFn           { return func(o *Options) { o.force = force } }
 
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
@@ -103,9 +107,7 @@ func (t *Term) SetReader(r io.Reader) {
 }
 
 // SetWriter sets the writer for the terminal.
-func (t *Term) SetWriter(w io.Writer) {
-	t.writer = w
-}
+func (t *Term) SetWriter(w io.Writer) { t.writer = w }
 
 // Input get the Input data from the user and return it.
 func (t *Term) Input(p string) string {
@@ -219,7 +221,9 @@ func (t *Term) Confirm(ctx context.Context, q, def string) bool {
 
 // ConfirmErr prompts the user with a question and options.
 func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
-	if force {
+	def = strings.ToLower(def)
+
+	if t.force {
 		slog.Debug("force", "def", def)
 		return nil
 	}
@@ -253,7 +257,7 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 
 // Choose prompts the user to enter one of the given options.
 func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
-	if force {
+	if t.force {
 		slog.Debug("choose", "def", def)
 		return def, nil
 	}

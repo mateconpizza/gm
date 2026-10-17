@@ -69,11 +69,15 @@ func NewConsole(opts ...Option) *Console {
 }
 
 func NewDefaultConsole(app *application.App, fn func(error)) *Console {
+	force := app.Flags.Yes ||
+		app.Flags.Force ||
+		terminal.StdinPiped()
+
 	g := app.Glyphs()
 	color := app.Flags.Color
 	c := NewConsole(
 		WithColor(color),
-		WithDefaultTerminal(color, fn),
+		WithDefaultTerminal(color, force, fn),
 		WithGlyphs(g),
 	)
 
@@ -128,7 +132,7 @@ func (c *Console) Width() int                                { return c.Term().W
 func (c *Console) Height() int                               { return c.Term().Height() }
 func (c *Console) Print(ctx context.Context, s string) error { return c.Term().Print(ctx, s) }
 
-func WithDefaultTerminal(color bool, f func(error)) Option {
+func WithDefaultTerminal(color, force bool, f func(error)) Option {
 	p := ansi.NewPalette(color)
 	cz := terminal.NewColorizer(color).
 		WithHotkey(p.Red).
@@ -140,6 +144,7 @@ func WithDefaultTerminal(color bool, f func(error)) Option {
 	return WithTerminal(terminal.New(
 		terminal.WithInterruptFn(f),
 		terminal.WithColorizer(cz),
+		terminal.WithForce(force),
 	))
 }
 

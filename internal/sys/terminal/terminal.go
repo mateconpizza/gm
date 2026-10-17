@@ -21,11 +21,11 @@ var (
 )
 
 // force is a flag to force the terminal to run in non-interactive mode.
-var force bool = false
+// var force bool = false
 
-func NonInteractiveMode(b bool) {
-	force = b
-}
+// func NonInteractiveMode(b bool) {
+// 	force = b
+// }
 
 type loadSizeFunc func() (width int, height int, err error)
 
