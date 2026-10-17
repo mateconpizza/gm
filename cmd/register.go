@@ -113,6 +113,9 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	// force execution even if safeguards would prevent it
 	g.BoolVar(&app.Flags.Force, "force", false, "force action")
 
+	// reverse results
+	g.BoolVar(&app.Flags.Reverse, "reverse", false, "reverse result")
+
 	// verbosity level
 	g.CountVarP(&app.Flags.Verbose, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
 
