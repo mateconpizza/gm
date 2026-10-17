@@ -18,10 +18,10 @@ import (
 	urlcmd "github.com/mateconpizza/gm/cmd/url"
 	"github.com/mateconpizza/gm/cmd/yank"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -93,7 +93,7 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	// sorting strategy (domain-specific ordering options)
-	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 
 	// field selection for output projection
 	cmdutil.FlagFields(c, app, "id, url, title, tags, desc")

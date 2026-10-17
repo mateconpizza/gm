@@ -10,7 +10,6 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -34,7 +33,7 @@ func newExportCmd(app *application.App) *cobra.Command {
 
 	for i := range cmds {
 		cmd := cmds[i](app)
-		cmdutil.FlagSort(cmd, app, handler.SortSupported)
+		cmdutil.FlagSort(cmd, app, bookmark.SortSupported)
 		cmdutil.FlagMenu(cmd, app)
 		cmdutil.FlagsFilter(cmd, app)
 		cmdutil.FlagOutput(cmd, app, app.Format(), formatter.ValidFormats())

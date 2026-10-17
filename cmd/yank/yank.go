@@ -30,7 +30,7 @@ func NewCmd(app *application.App) *cobra.Command {
 	}
 
 	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "yank as JSON")
-	cmdutil.FlagSort(c, app, handler.SortSupported)
+	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
