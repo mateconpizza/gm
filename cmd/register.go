@@ -60,13 +60,6 @@ func initAppConfig(app *application.App) {
 
 	application.SetVerbosity(app.Flags.Verbose)
 
-	// terminal interactive mode
-	terminal.NonInteractiveMode(
-		app.Flags.Yes ||
-			app.Flags.Force ||
-			terminal.StdinPiped(),
-	)
-
 	// git
 	app.Git.Load()
 }

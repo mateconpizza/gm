@@ -9,6 +9,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	prompt "github.com/c-bata/go-prompt"
 
@@ -301,14 +303,18 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 
 			// user accepted the default
 			if userInput == "" && pi.def != "" || userInput == pi.def {
-				redrawPromptWithSelection(pi.writer, pi.rompt, pi.def, pi.options, pi.colorizer.Success)
+				redrawPromptWithSelection(pi.writer, pi.rompt, pi.def, pi.colorizer.Success)
 				return pi.def, nil
 			}
 
-			// user typed a specific valid option
-			if isValidOption(userInput, pi.options) {
-				redrawPromptWithSelection(pi.writer, pi.rompt, userInput, pi.options, pi.colorizer.Selected)
-				return userInput, nil
+			// exact match or unique prefix
+			if opt, ok := resolveOption(userInput, pi.options); ok {
+				c := pi.colorizer.Selected
+				if opt == pi.def {
+					c = pi.colorizer.Success
+				}
+				redrawPromptWithSelection(pi.writer, pi.rompt, opt, c)
+				return opt, nil
 			}
 
 			count++
@@ -319,7 +325,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 		}
 	}
 
-	redrawPromptWithSelection(pi.writer, pi.rompt, "error", []string{"error"}, pi.colorizer.Error)
+	redrawPromptWithSelection(pi.writer, pi.rompt, "error", pi.colorizer.Error)
 	return "", fmt.Errorf("%d %w", pi.maxRetries, ErrIncorrectAttempts)
 }
 
@@ -358,26 +364,6 @@ func fmtChoicesWithDefaultColor(cz *Colorizer, opts []string, def string) []stri
 	return formatted
 }
 
-// fmtChoicesWithDefault capitalizes the default option and appends to the end of
-// the slice.
-func fmtChoicesWithDefault(opts []string, def string) []string {
-	if def == "" {
-		return opts
-	}
-
-	for i := range opts {
-		if strings.HasPrefix(opts[i], def) {
-			w := opts[i]
-			// append to the end of the slice
-			opts[i] = opts[len(opts)-1]
-			opts = opts[:len(opts)-1]
-			opts = append(opts, strings.ToUpper(w[:1])+w[1:])
-		}
-	}
-
-	return opts
-}
-
 // getQueryFromPipe reads the input from the pipe.
 func getQueryFromPipe(r io.Reader) string {
 	var result strings.Builder
@@ -411,21 +397,6 @@ func quitKeybind(t *Term) prompt.KeyBind {
 			t.interruptFn(application.ErrActionAborted)
 		},
 	}
-}
-
-// isValidOption checks if input is a valid choice.
-func isValidOption(input string, opts []string) bool {
-	for i := range opts {
-		opts[i] = ansiRemover(opts[i])
-	}
-
-	for _, opt := range opts {
-		if strings.EqualFold(input, opt) || strings.EqualFold(input, opt[:1]) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // buildPrompt returns a formatted string with a question and options.
@@ -463,28 +434,20 @@ func WaitForEnter(ctx context.Context, msg string) error {
 
 // redrawPromptWithSelection replaces the prompt line with the given prompt `q`
 // and highlights the selected option with the given color.
-func redrawPromptWithSelection(w io.Writer, q, selected string, opts []string, c highlightFn) {
-	var result string
-	selected = strings.TrimSpace(selected)
-
-	for _, o := range opts {
-		o = ansiRemover(o)
-		if strings.EqualFold(selected, o) || strings.EqualFold(selected, o[:1]) {
-			result = strings.Title(strings.ToLower(o))
-			break
-		}
-	}
-
-	// Fallback if no match found
-	if result == "" {
-		result = strings.Title(strings.ToLower(selected))
-	}
-
-	// Redraw line
+func redrawPromptWithSelection(w io.Writer, q, selected string, c highlightFn) {
+	result := capitalize(strings.ToLower(strings.TrimSpace(selected)))
 	_, _ = fmt.Fprint(w, cursorUp, cursorReturn)
 	_, _ = fmt.Fprint(w, q)
 	_, _ = fmt.Fprint(w, eraseLineToEnd)
 	_, _ = fmt.Fprintln(w, c(result))
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 // ansiRemover removes ANSI codes from a given string.
