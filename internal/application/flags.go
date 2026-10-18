@@ -47,6 +47,11 @@ type Flags struct {
 
 	// git
 	Reinit bool // Reinitialize existing repository
+
+	// Export markdown
+	Type    string
+	Summary string
+	Glyphs  string
 }
 
 func SetVerbosity(verbose int) {

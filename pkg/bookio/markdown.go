@@ -11,12 +11,18 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-const ReadmeFile = "README.md"
+const (
+	DefaultGlyphs  = "emoji"
+	DefaultSummary = "badges"
+	DefaultType    = "default"
+
+	ReadmeFile = "README.md"
+)
 
 var (
-	SupportedGlyphs  = []string{"ascii", "emoji"}
+	SupportedGlyphs  = []string{"ascii", "emoji", "none"}
 	SupportedTypes   = []string{"default", "domain", "tag"}
-	SupportedSummary = []string{"badges", "minimal", "table"}
+	SupportedSummary = []string{"badges", "minimal", "table", "none"}
 )
 
 type (
@@ -128,19 +134,22 @@ func MarkdownGlyphsDecorator(s string) func(sb *strings.Builder, b *bookmark.Boo
 		Inactive: "\u23F8\uFE0F",
 	}
 
-	ascii := &markdownGlyphs{
-		Favorite: "Favorite",
-		Notes:    "Notes",
-		Archive:  "Archive",
-		Broken:   "Broken",
-		Inactive: "Inactive",
-	}
-
 	switch s {
 	case "ascii":
-		return glyphsDecorator(ascii)
+		return glyphsDecorator(&markdownGlyphs{
+			Favorite: "Favorite",
+			Notes:    "Notes",
+			Archive:  "Archive",
+			Broken:   "Broken",
+			Inactive: "Inactive",
+		})
+
 	case "emoji":
 		return glyphsDecorator(emoji)
+
+	case "none":
+		return glyphsDecorator(&markdownGlyphs{Archive: "@"})
+
 	default:
 		return glyphsDecorator(emoji)
 	}
