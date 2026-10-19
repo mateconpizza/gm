@@ -22,6 +22,7 @@ type Flags struct {
 	Preview string // Menu preview
 	Sort    string // Sort by
 	Reverse bool   // Reverse output
+	Filter  string // Filter by
 
 	// Filtering and pagination
 	Head int      // Head limit
