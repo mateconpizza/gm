@@ -44,9 +44,7 @@ global:
 `
 
 func FlagOutput(c *cobra.Command, app *application.App, def string, supportedOutput []string) {
-	c.Flags().StringVarP(&app.Flags.Output, "output", "o", def,
-		"output format: "+strings.Join(supportedOutput, ", "))
-
+	c.Flags().StringVarP(&app.Flags.Output, "output", "o", def, strings.Join(supportedOutput, ", "))
 	FlagCompletion(c, "output", func(cmd *cobra.Command) ([]string, error) {
 		return supportedOutput, nil
 	})
@@ -54,7 +52,6 @@ func FlagOutput(c *cobra.Command, app *application.App, def string, supportedOut
 
 func FlagFields(c *cobra.Command, app *application.App, fields string) {
 	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "", "select fields: "+fields)
-
 	FlagCompletion(c, "fields", func(cmd *cobra.Command) ([]string, error) {
 		return strings.Split(fields, ","), nil
 	})
@@ -85,7 +82,6 @@ func FlagsFilter(c *cobra.Command, app *application.App) {
 	c.Flags().StringSliceVarP(&app.Flags.Tags, "tag", "t", nil, "filter by tag(s)")
 	c.Flags().IntVarP(&app.Flags.Head, "head", "H", 0, "limit to first N bookmarks")
 	c.Flags().IntVarP(&app.Flags.Tail, "tail", "T", 0, "limit to last N bookmarks")
-
 	FlagCompletion(c, "tag", tagFetcher(app))
 }
 
@@ -94,10 +90,16 @@ func FlagMenu(c *cobra.Command, app *application.App) {
 }
 
 func FlagSort(c *cobra.Command, app *application.App, sortSupported []string) {
-	c.Flags().StringVarP(&app.Flags.Sort, "sort", "s", "", "sort by: "+strings.Join(sortSupported, ", "))
-
+	c.Flags().StringVarP(&app.Flags.Sort, "sort", "s", "", strings.Join(sortSupported, ", "))
 	FlagCompletion(c, "sort", func(cmd *cobra.Command) ([]string, error) {
 		return sortSupported, nil
+	})
+}
+
+func FlagFilter(c *cobra.Command, app *application.App, filterSupported []string) {
+	c.PersistentFlags().StringVarP(&app.Flags.Filter, "filter", "F", "", strings.Join(filterSupported, ", "))
+	FlagCompletion(c, "filter", func(cmd *cobra.Command) ([]string, error) {
+		return filterSupported, nil
 	})
 }
 

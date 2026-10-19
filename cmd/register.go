@@ -88,6 +88,8 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	// sorting strategy (domain-specific ordering options)
 	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 
+	cmdutil.FlagFilter(c, app, bookmark.FilterSupported)
+
 	// field selection for output projection
 	cmdutil.FlagFields(c, app, "id, url, title, tags, desc")
 

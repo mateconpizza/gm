@@ -81,6 +81,11 @@ func Execute(cmd *cobra.Command, args []string, m *menu.Menu[*bookmark.Bookmark]
 			bs, _ = bookmark.Sort("reverse", bs)
 		}
 
+		bs, err = bookmark.FilterBy(f.Filter, bs)
+		if err != nil {
+			return err
+		}
+
 		for _, filter := range filters {
 			bs = filter(bs)
 		}
