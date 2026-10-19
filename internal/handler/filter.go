@@ -82,6 +82,12 @@ func WithURLParams(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
 	})
 }
 
+func WithActive(bs []*bookmark.Bookmark) []*bookmark.Bookmark {
+	return bookmark.Filter(bs, func(b *bookmark.Bookmark) bool {
+		return b.IsActive
+	})
+}
+
 func statusCodePredicate(code string) (func(*bookmark.Bookmark) bool, bool) {
 	switch {
 	// exact status code: 200, 404, 503...

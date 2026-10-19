@@ -2,14 +2,18 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -29,6 +33,7 @@ func newExportCmd(app *application.App) *cobra.Command {
 		newExportHTMLCmd,
 		newExportJSONCmd,
 		newExportCSVCmd,
+		newExportMarkdownCmd,
 	}
 
 	for i := range cmds {
@@ -85,6 +90,32 @@ func newExportCSVCmd(app *application.App) *cobra.Command {
 	return c
 }
 
+func newExportMarkdownCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "markdown [id|query]",
+		Short:   "export to Markdown",
+		Aliases: []string{"readme", "md"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			f := app.Flags
+			m := setupMenu(app, " export to Markdown ")
+
+			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+				return handler.NewMarkdown(ctx, os.Stdout, d, &handler.MarkdownCfg{
+					Title:     fmt.Sprintf("Bookmarks from %q", app.DBBaseName()),
+					Summary:   f.Summary,
+					Glyphs:    f.Glyphs,
+					Sort:      f.Sort,
+					Bookmarks: bs,
+				})
+			})
+		},
+	}
+
+	flagsMarkdown(c, app)
+
+	return c
+}
+
 func setupMenu(app *application.App, label string) *menu.Menu[*bookmark.Bookmark] {
 	fm := app.Formatter()
 	p := fm.Menu.Placeholder()
@@ -111,5 +142,31 @@ func setupMenu(app *application.App, label string) *menu.Menu[*bookmark.Bookmark
 		menu.WithHeader("select record/s"),
 		menu.WithHeaderLabel(label),
 		menu.WithHeaderKeymaps(),
+	)
+}
+
+func flagCompletion(c *cobra.Command, flag string, items []string) {
+	cmdutil.FlagCompletion(c, flag, func(cmd *cobra.Command) ([]string, error) {
+		return items, nil
+	})
+}
+
+func flagsMarkdown(c *cobra.Command, app *application.App) {
+	f := c.Flags()
+
+	f.StringVar(&app.Flags.Summary, "summary", bookio.DefaultSummary, strings.Join(bookio.SupportedSummary, ", "))
+	flagCompletion(c, "summary", bookio.SupportedSummary)
+
+	f.StringVar(&app.Flags.Glyphs, "glyphs", bookio.DefaultGlyphs, strings.Join(bookio.SupportedGlyphs, ", "))
+	flagCompletion(c, "glyphs", bookio.SupportedGlyphs)
+
+	f.StringVar(&app.Flags.Type, "type", bookio.DefaultType, "")
+	flagCompletion(c, "type", bookio.SupportedTypes)
+	_ = f.MarkHidden("type")
+
+	c.PreRunE = cli.ChainHooks(
+		cli.HookValidateFlags(&app.Flags.Summary, bookio.SupportedSummary),
+		cli.HookValidateFlags(&app.Flags.Glyphs, bookio.SupportedGlyphs),
+		cli.HookValidateFlags(&app.Flags.Type, bookio.SupportedTypes),
 	)
 }
