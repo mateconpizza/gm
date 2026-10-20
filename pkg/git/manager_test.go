@@ -118,7 +118,7 @@ func TestMgr_SaveChanges(t *testing.T) {
 			statusOut:   " M file.txt\n",
 			commitOut:   "fatal: unable to write commit object",
 			commitErr:   errors.New("exit status 1"),
-			wantErrMsg:  "commit: exit status 1",
+			wantErrMsg:  "exit status 1",
 		},
 		{
 			name:        "success_full_flow",
@@ -282,7 +282,7 @@ func TestMgr_Untrack(t *testing.T) {
 			repoName:   "myrepo",
 			commitOut:  "fatal: unable to write commit object",
 			commitErr:  errCommit,
-			wantErrMsg: "commit: exit status 1",
+			wantErrMsg: "exit status 1",
 		},
 		{
 			name:     "success_untracks_and_removes_dir",

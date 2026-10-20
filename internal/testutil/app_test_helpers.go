@@ -18,6 +18,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 type MenuRunner struct {
@@ -61,7 +62,7 @@ func NewApp(t *testing.T) *application.App {
 			Color:    false,
 		},
 		UI:  application.NewUI(),
-		Git: &application.Git{},
+		Git: &git.Config{},
 		Info: &application.Information{
 			URL:     "https://github.com/mateconpizza/gm#readme",
 			Title:   "Gomarks: A bookmark manager",

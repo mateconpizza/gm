@@ -11,6 +11,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 func TestApp_Validate(t *testing.T) {
@@ -99,11 +100,11 @@ func TestApp_GitEnabled(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name string
-		git  *application.Git
+		git  *git.Config
 		want bool
 	}{
-		{"git_enabled", &application.Git{Enabled: true}, true},
-		{"git_disabled", &application.Git{Enabled: false}, false},
+		{"git_enabled", &git.Config{Enabled: true}, true},
+		{"git_disabled", &git.Config{Enabled: false}, false},
 	}
 
 	for _, tt := range tests {

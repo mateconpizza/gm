@@ -6,7 +6,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
@@ -25,12 +24,12 @@ func TestFileWriter(t *testing.T) {
 	}{
 		{
 			name:      "normal_multiple_bookmarks",
-			bookmarks: testutil.NewBookmarkSlice(t, 3),
+			bookmarks: newBookmarkSlice(t, 3),
 			wantCount: 3,
 		},
 		{
 			name:      "single_bookmark",
-			bookmarks: testutil.NewBookmarkSlice(t, 1),
+			bookmarks: newBookmarkSlice(t, 1),
 			wantCount: 1,
 		},
 		{
@@ -75,7 +74,7 @@ func TestFileWriter(t *testing.T) {
 		},
 		{
 			name:      "many_bookmarks_boundary",
-			bookmarks: testutil.NewBookmarkSlice(t, 50),
+			bookmarks: newBookmarkSlice(t, 50),
 			wantCount: 50,
 		},
 	}
