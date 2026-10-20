@@ -43,6 +43,10 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 		return err
 	}
 
+	if err := gm.CommitEmpty(ctx, CoreCommitMsg("initialized")); err != nil {
+		return err
+	}
+
 	c := ui.NewDefaultConsole(app, app.Exit)
 	if err := askForEncryption(ctx, c, app, gm); err != nil {
 		return err
@@ -192,8 +196,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
-func StreamLog(ctx context.Context, g *git.Git) error {
-	p := ansi.NewPalette(g.Color())
+func StreamLog(ctx context.Context, g *git.Git, p *ansi.Palette) error {
 	logger := &git.LogStyle{
 		Hash:         func(s string) string { return p.BrightYellow.Sprint(s) },
 		Repo:         func(s string) string { return p.BrightGreen.Sprint(s) },

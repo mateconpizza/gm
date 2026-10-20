@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
@@ -13,13 +12,14 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/handler"
+	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 func newExportCmd(app *application.App) *cobra.Command {
@@ -96,17 +96,15 @@ func newExportMarkdownCmd(app *application.App) *cobra.Command {
 		Short:   "export to Markdown",
 		Aliases: []string{"readme", "md"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f := app.Flags
 			m := setupMenu(app, " export to Markdown ")
-
 			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				return handler.NewMarkdown(ctx, os.Stdout, d, &handler.MarkdownCfg{
-					Title:     fmt.Sprintf("Bookmarks from %q", app.DBBaseName()),
-					Summary:   f.Summary,
-					Glyphs:    f.Glyphs,
-					Sort:      f.Sort,
-					Bookmarks: bs,
-				})
+				app.Git.Readme = &git.Readme{
+					Enabled: true,
+					Glyphs:  app.Flags.Glyphs,
+					Summary: app.Flags.Summary,
+				}
+
+				return gitops.NewReadmeFile(ctx, app, os.Stdout, bs)
 			})
 		},
 	}

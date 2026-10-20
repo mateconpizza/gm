@@ -38,14 +38,12 @@ type GitOptions struct {
 	executer      ExecuterFunc
 	cmd           *Commander
 	preCommit     []Hook
-	color         bool
 }
 
 func WithGitWriter(w io.Writer) GitOpt       { return func(o *GitOptions) { o.writer = w } }
 func WithGitCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.commandLogger = hook } }
 func WithExecuter(fn ExecuterFunc) GitOpt    { return func(o *GitOptions) { o.executer = fn } }
 func WithCommander(c *Commander) GitOpt      { return func(o *GitOptions) { o.cmd = c } }
-func WithGitColor(b bool) GitOpt             { return func(o *GitOptions) { o.color = b } }
 
 // WithPreCommit adds hooks that run, in order, before every commit.
 func WithPreCommit(hooks ...Hook) GitOpt {
@@ -98,7 +96,6 @@ func Initialized(root string) bool              { return fileExists(root) }
 func (g *Git) Root() string                     { return g.fullpath }
 func (g *Git) Writer() io.Writer                { return g.writer }
 func (g *Git) Bin() string                      { return g.cmd.bin }
-func (g *Git) Color() bool                      { return g.color }
 func (g *Git) AddAll(ctx context.Context) error { return g.run(ctx, g.fullpath, "add", ".") }
 
 func (g *Git) Commit(ctx context.Context, msg string) error {

@@ -297,7 +297,7 @@ func initGPG(ctx context.Context, c *ui.Console, gm *git.Mgr, k *gpg.Fingerprint
 		}
 	}
 
-	if err := gm.Commit(ctx, "[core] gpg initialized"); err != nil {
+	if err := gm.Commit(ctx, CoreCommitMsg("gpg initialized")); err != nil {
 		return err
 	}
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,9 +31,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
@@ -458,35 +455,6 @@ type MarkdownCfg struct {
 	Glyphs    string
 	Sort      string
 	Bookmarks []*bookmark.Bookmark
-}
-
-func NewMarkdown(ctx context.Context, w io.Writer, d *deps.Deps, cfg *MarkdownCfg) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	s := db.NewStats()
-	if err := r.Stats(ctx, s); err != nil {
-		return err
-	}
-
-	return bookio.NewMarkdown(
-		cfg.Bookmarks,
-		bookio.WithTitle(cfg.Title),
-		bookio.WithWriter(w),
-		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
-		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(cfg.Sort, bs) }),
-		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
-			Bookmarks:   s.Bookmarks,
-			Tags:        s.Tags,
-			Favorites:   s.Favorites,
-			Archived:    s.Archived,
-			DeadLinks:   s.DeadLinks,
-			TotalVisits: s.TotalVisits,
-		})),
-	).Render()
 }
 
 type isTracked func(name string) bool

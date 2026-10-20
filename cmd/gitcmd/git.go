@@ -13,6 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -36,7 +37,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			}
 
 			if len(args) == 0 {
-				return gitops.StreamLog(cmd.Context(), g)
+				return gitops.StreamLog(cmd.Context(), g, ansi.NewPalette(app.Flags.Color))
 			}
 
 			return g.Exec(cmd.Context(), args...)
@@ -55,6 +56,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		newSyncCmd(app),     // synchronize bookmarks with the repository
 		newInfoCmd(app),     // show repository status and configuration
 		newRawCmd(app),      // run arbitrary git commands
+		newReadmeCmd(app),   // generate a README.md
 	)
 
 	return c
@@ -319,5 +321,16 @@ func newInfoCmd(app *application.App) *cobra.Command {
 
 	cmdutil.HideFlag(c, "db", "yes", "force")
 
+	return c
+}
+
+func newReadmeCmd(_ *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "readme",
+		Short: "generate README.md",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmdutil.Run(cmd, args, gitops.ReadmePrompt)
+		},
+	}
 	return c
 }

@@ -131,11 +131,22 @@ func (app *App) Load() error {
 
 func (app *App) WriteConfig(force bool) error {
 	app.DBName = app.DBBaseName()
+
+	cfg := *app
+
 	if !git.Initialized(app.Path.Git()) {
-		app.Git = nil
+		cfg.Git = nil
+	} else if app.Git != nil {
+		gitCfg := *app.Git
+
+		if gitCfg.Readme != nil && !gitCfg.Readme.Enabled {
+			gitCfg.Readme = nil
+		}
+
+		cfg.Git = &gitCfg
 	}
 
-	return WriteYAML(app.Path.ConfigFile(), app, force)
+	return WriteYAML(app.Path.ConfigFile(), &cfg, force)
 }
 
 // Validate validates the configuration file.

@@ -304,6 +304,9 @@ linters:
       - path: "pkg/bookio/writer_test.go"
         linters:
           - nestif
+      - path: "internal/gitops/info.go"
+        linters:
+          - nestif
     generated: lax
     presets:
       - common-false-positives
