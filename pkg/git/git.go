@@ -21,17 +21,23 @@ const (
 	AttributesFile = ".gitattributes"
 )
 
-type CmdLogger func(w io.Writer, commands []string)
+type (
+	CmdLogger func(w io.Writer, commands []string)
 
-type ExecuterFunc func(ctx context.Context, dir string, w io.Writer, r io.Reader, cmds ...string) error
+	ExecuterFunc func(ctx context.Context, dir string, w io.Writer, r io.Reader, cmds ...string) error
 
-type GitOpt func(*GitOptions)
+	// Hook runs before a commit.
+	Hook func(ctx context.Context) error
+
+	GitOpt func(*GitOptions)
+)
 
 type GitOptions struct {
 	writer        io.Writer
 	commandLogger CmdLogger
 	executer      ExecuterFunc
 	cmd           *Commander
+	preCommit     []Hook
 	color         bool
 }
 
@@ -40,6 +46,11 @@ func WithGitCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.co
 func WithExecuter(fn ExecuterFunc) GitOpt    { return func(o *GitOptions) { o.executer = fn } }
 func WithCommander(c *Commander) GitOpt      { return func(o *GitOptions) { o.cmd = c } }
 func WithGitColor(b bool) GitOpt             { return func(o *GitOptions) { o.color = b } }
+
+// WithPreCommit adds hooks that run, in order, before every commit.
+func WithPreCommit(hooks ...Hook) GitOpt {
+	return func(o *GitOptions) { o.preCommit = append(o.preCommit, hooks...) }
+}
 
 // Git handles operational tasks on a local Git repository.
 type Git struct {
@@ -264,6 +275,8 @@ func (g *Git) SetUpstream(ctx context.Context, repoPath string) error {
 
 	return g.run(ctx, repoPath, "push", "--set-upstream", "origin", b)
 }
+
+func (g *Git) RegisterPreCommit(h Hook) { g.preCommit = append(g.preCommit, h) }
 
 func (g *Git) run(ctx context.Context, repoPath string, commands ...string) error {
 	g.commandLogger(g.writer, slices.Insert(commands, 0, g.cmd.bin))
