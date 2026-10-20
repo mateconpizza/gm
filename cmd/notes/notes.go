@@ -54,7 +54,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			)
 
 			return cmdutil.Execute(
-				cmd,
+				cmd.Context(),
 				args,
 				m,
 				printNotes,
@@ -78,7 +78,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, menu.WithKeybinds(menu.KeymapTogglePreview()))
-			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
+			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
 		},
 	}
 

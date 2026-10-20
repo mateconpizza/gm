@@ -221,6 +221,10 @@ func (t *Term) Confirm(ctx context.Context, q, def string) bool {
 
 // ConfirmErr prompts the user with a question and options.
 func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	def = strings.ToLower(def)
 
 	if t.force {

@@ -60,7 +60,7 @@ func newStatsCmd(app *application.App) *cobra.Command {
   $ {cmd} db stats --json
   $ {cmd} db stats --db {db} --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return printer.RepoStats(ctx, d, gitops.Info)
 			})
 		},
@@ -114,7 +114,7 @@ func newDropCmd(app *application.App) *cobra.Command {
 			$ {cmd} db drop --db {db} --yes
 			$ {cmd} db drop --db work --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, handler.DropRepo)
+			return cmdutil.Run(cmd.Context(), args, handler.DropRepo)
 		},
 	}
 
@@ -217,7 +217,7 @@ func newRenameCmd(app *application.App) *cobra.Command {
 			return handler.ValidateRenameTarget(app)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return handler.Rename(ctx, d, files.EnsureExt(app.Flags.Rename, ".db"), os.Rename)
 			})
 		},

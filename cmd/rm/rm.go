@@ -36,7 +36,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				menu.WithKeybinds(menu.KeymapToggleAll(), menu.KeymapTogglePreview()),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.Remove)
+			return cmdutil.Execute(cmd.Context(), args, m, handler.Remove)
 		},
 	}
 	cmdutil.FlagSort(c, app, bookmark.SortSupported)
@@ -60,7 +60,7 @@ func newBackupRemoveCmd(app *application.App) *cobra.Command {
   $ {cmd} rm bk --db work
   $ {cmd} rm backup --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, dbops.RemoveBackups)
+			return cmdutil.Run(cmd.Context(), args, dbops.RemoveBackups)
 		},
 	}
 
@@ -77,7 +77,7 @@ func newDatabaseRemoveCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} rm db --db {db}
   $ {cmd} rm db --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, handler.RemoveRepos)
+			return cmdutil.Run(cmd.Context(), args, handler.RemoveRepos)
 		},
 	}
 

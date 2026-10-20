@@ -37,7 +37,7 @@ func newTrackCmd(_ *application.App) *cobra.Command {
 		Short:   "track a database",
 		Aliases: []string{"t", "add", "new"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, gitops.NewTrack)
+			return cmdutil.Run(cmd.Context(), args, gitops.NewTrack)
 		},
 	}
 
@@ -50,7 +50,7 @@ func newUntrackCmd(_ *application.App) *cobra.Command {
 		Short:   "untrack a database",
 		Aliases: []string{"u", "remove", "rm", "r"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, gitops.Untrack)
+			return cmdutil.Run(cmd.Context(), args, gitops.Untrack)
 		},
 	}
 

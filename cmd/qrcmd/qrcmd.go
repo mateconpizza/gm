@@ -29,7 +29,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} qr text "https://golang.org" --output go.png
   $ {cmd} qr text "https://golang.org"`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd, args, setupMenu(app), handler.QR)
+			return cmdutil.Execute(cmd.Context(), args, setupMenu(app), handler.QR)
 		},
 	}
 
@@ -54,7 +54,7 @@ func newOpenCmd(app *application.App) *cobra.Command {
   $ {cmd} qr open --tag devops
   $ {cmd} qr open "api" --force`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd, args, setupMenu(app), handler.QROpen)
+			return cmdutil.Execute(cmd.Context(), args, setupMenu(app), handler.QROpen)
 		},
 	}
 

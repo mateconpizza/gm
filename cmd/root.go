@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -25,6 +26,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:          app.Cmd + " [query]",
 		Args:         cobra.MinimumNArgs(0),
+		Short:        strings.ToLower(app.Info.Short),
 		SilenceUsage: true,
 		PersistentPreRunE: cli.ChainHooks(
 			cli.HookEnsureAppInitialize(app),
@@ -71,7 +73,7 @@ func rootCmdFunc(app *application.App) cli.HookE {
 		}
 
 		return cmdutil.Execute(
-			cmd,
+			cmd.Context(),
 			args,
 			picker.NewMainMenu(app),
 			func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {

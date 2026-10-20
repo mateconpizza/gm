@@ -201,11 +201,13 @@ type FileInfo struct {
 	Skip bool
 }
 
-type FileFilterFunc func(info *FileInfo) bool
+type (
+	FileFilterFunc       func(info *FileInfo) bool
+	FileDecorator        func(info *FileInfo) *FileInfo
+	FileListPreprocessor func(paths []string) []string
 
-type FileDecorator func(info *FileInfo) *FileInfo
-
-type FileListPreprocessor func(paths []string) []string
+	FileTableOptFunc func(*DatabasesTableOpt)
+)
 
 type DatabasesTableOpt struct {
 	decorators    []FileDecorator
@@ -213,8 +215,6 @@ type DatabasesTableOpt struct {
 	preprocessors []FileListPreprocessor
 	footer        []string
 }
-
-type FileTableOptFunc func(*DatabasesTableOpt)
 
 func WithDecorator(fn func(info *FileInfo) *FileInfo) FileTableOptFunc {
 	return func(o *DatabasesTableOpt) { o.decorators = append(o.decorators, fn) }
@@ -557,7 +557,10 @@ func AppConfig(ctx context.Context, app *application.App, c *ui.Console) error {
 		f.MidCln(p.BrightYellow.With(p.Bold).Sprint, p.BrightYellow.Wrap("git", p.Bold)).
 			Rowln(pad("enabled", boolFmt(g.Enabled))).
 			Rowln(pad("logging", boolFmt(g.Log))).
-			Rowln(pad("remote", p.Italic.Sprint(g.Remote)))
+			Rowln(pad("remote", p.Italic.Sprint(g.Remote))).
+			Rowln(pad("readme", boolFmt(g.Readme.Enabled))).
+			Rowln(pad("glyphs", g.Readme.Glyphs)).
+			Rowln(pad("summary", g.Readme.Summary))
 	}
 
 	return c.Print(ctx, f.String())

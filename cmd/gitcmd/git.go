@@ -65,7 +65,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 		Short:  "commit changes",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd, args, nil, gitops.CommitChanges)
+			return cmdutil.Execute(cmd.Context(), args, nil, gitops.CommitChanges)
 		},
 	}
 }
@@ -161,7 +161,7 @@ func newCloneCmd(app *application.App) *cobra.Command {
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			app.Git.Remote = args[0]
-			return cmdutil.Run(cmd, args, gitops.Clone)
+			return cmdutil.Run(cmd.Context(), args, gitops.Clone)
 		},
 	}
 
@@ -222,7 +222,7 @@ func newSyncCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			if app.Flags.All {
-				return cmdutil.Run(cmd, args, gitops.SyncAll)
+				return cmdutil.Run(cmd.Context(), args, gitops.SyncAll)
 			}
 
 			r, err := db.New(ctx, app.Path.DB())
@@ -311,7 +311,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 		Short:   "show repository status and configuration",
 		Example: app.Example(`  $ {cmd} git info`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, gitops.InfoCmd)
+			return cmdutil.Run(cmd.Context(), args, gitops.InfoCmd)
 		},
 	}
 
@@ -325,7 +325,7 @@ func newReadmeCmd(_ *application.App) *cobra.Command {
 		Use:   "readme",
 		Short: "generate README.md",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, gitops.ReadmePrompt)
+			return cmdutil.Run(cmd.Context(), args, gitops.ReadmePrompt)
 		},
 	}
 	return c

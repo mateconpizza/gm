@@ -84,9 +84,9 @@ var (
 		Ellipsis: "…",
 		Sep:      "·",
 		Pointer:  "›",
-		Git:      "",
+		Git:      "",
 		JSON:     "",
-		GPG:      "󰌾",
+		GPG:      "󰌆",
 
 		// log
 		Warning:  "",

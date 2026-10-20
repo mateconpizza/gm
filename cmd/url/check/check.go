@@ -25,7 +25,7 @@ func NewCheckCmd(app *application.App) *cobra.Command {
   $ {cmd} url check --code 404,403`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Execute(
-				cmd,
+				cmd.Context(),
 				args,
 				setupMenu(app, " bookmark status "),
 				handler.HTTPStatusCheck,
@@ -56,7 +56,7 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		Short: "update metadata: title, desc, tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " update metadata ")
-			return cmdutil.Execute(cmd, args, m, handler.UpdateMetadata)
+			return cmdutil.Execute(cmd.Context(), args, m, handler.UpdateMetadata)
 		},
 	}
 
@@ -78,7 +78,7 @@ func NewStatusCmd(app *application.App) *cobra.Command {
   $ {cmd} url status --code 404,403`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Execute(
-				cmd,
+				cmd.Context(),
 				args,
 				nil,
 				handler.HTTPStatus,

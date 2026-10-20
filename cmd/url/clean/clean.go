@@ -28,7 +28,7 @@ func NewCmd(app *application.App) *cobra.Command {
 			}
 
 			return cmdutil.Execute(
-				cmd,
+				cmd.Context(),
 				args,
 				setupMenu(app),
 				handler.ParamsURL,

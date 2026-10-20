@@ -107,7 +107,6 @@ func selectionWithMenu[T comparable](m *menu.Menu[T], items []T) ([]T, error) {
 		return nil, menu.ErrNoItems
 	}
 
-	var result []T
 	result, err := m.Select(items)
 	if err != nil {
 		if errors.Is(err, menu.ErrActionAborted) {
@@ -164,6 +163,7 @@ func commonThemeOpts(app *application.App) []menu.Option {
 		menu.WithPrompt(app.Menu.Prompt),
 		menu.WithDefaults(app.Menu.Defaults),
 		menu.WithArgsCustom(app.Menu.Arguments...),
+		menu.WithInfo(menu.InfoStyleInlineRight),
 
 		menu.WithNoScrollbar(),
 		menu.WithSync(),
@@ -186,7 +186,6 @@ func defaultThemeOpts(app *application.App) []menu.Option {
 		menu.WithoutHeader(!app.Menu.Header.Enabled),
 
 		menu.WithPreviewBorder(menu.BorderRounded),
-		menu.WithInfo(menu.InfoStyleInlineRight),
 
 		menu.WithHeaderFirst(),
 		menu.WithHeaderBorder(menu.BorderRounded),

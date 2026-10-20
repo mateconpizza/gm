@@ -22,14 +22,14 @@ import (
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "new",
-		Short:   "new bookmark or database",
+		Short:   "new bookmark",
 		Aliases: []string{"add"},
 		Example: app.Example(`  $ {cmd} new
   $ {cmd} add <URL>
   $ {cmd} new <URL> --title <title>
   $ {cmd} new <URL> --title <title> --tags <golang,awesome>`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return handler.AddBookmark(cmd.Context(), d, args)
 			})
 		},
@@ -72,7 +72,7 @@ func newBackupAddCmd(app *application.App) *cobra.Command {
   $ {cmd} new bk
   $ {cmd} new bk --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, dbops.NewBackup)
+			return cmdutil.Run(cmd.Context(), args, dbops.NewBackup)
 		},
 	}
 	return c
