@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,9 +31,7 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
@@ -296,20 +293,15 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  d.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoFileWriter(app.Flags.Color),
 		git.WithRepoStore(r),
 	)
 	if !gm.IsTracked(gr.Name()) {
@@ -325,12 +317,7 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  d.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -396,20 +383,15 @@ func DropRepo(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoFileWriter(app.Flags.Color),
 		gitops.RepoStatsReader(r),
 	)
 
@@ -459,12 +441,7 @@ func Rename(ctx context.Context, d *deps.Deps, name string, renameFunc func(src,
 	}
 
 	// git manager
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -478,35 +455,6 @@ type MarkdownCfg struct {
 	Glyphs    string
 	Sort      string
 	Bookmarks []*bookmark.Bookmark
-}
-
-func NewMarkdown(ctx context.Context, w io.Writer, d *deps.Deps, cfg *MarkdownCfg) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	s := db.NewStats()
-	if err := r.Stats(ctx, s); err != nil {
-		return err
-	}
-
-	return bookio.NewMarkdown(
-		cfg.Bookmarks,
-		bookio.WithTitle(cfg.Title),
-		bookio.WithWriter(w),
-		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
-		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(cfg.Sort, bs) }),
-		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
-			Bookmarks:   s.Bookmarks,
-			Tags:        s.Tags,
-			Favorites:   s.Favorites,
-			Archived:    s.Archived,
-			DeadLinks:   s.DeadLinks,
-			TotalVisits: s.TotalVisits,
-		})),
-	).Render()
 }
 
 type isTracked func(name string) bool
@@ -543,9 +491,9 @@ func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) err
 	if gm.IsTracked(name) {
 		result.WriteString(" and untracked")
 		gr := gm.NewRepo(name,
-			gitops.RepoFileReader(gm.Color()),
+			gitops.RepoFileReader(p.Enabled()),
 			gitops.RepoFileRemover(),
-			gitops.RepoFileWriter(gm.Color()),
+			gitops.RepoFileWriter(p.Enabled()),
 		)
 		if !gm.IsTracked(gr.Name()) {
 			return nil
@@ -782,20 +730,15 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		return err
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  d.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	gr := gm.NewRepo(r.BaseName(),
-		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoFileWriter(app.Flags.Color),
 		gitops.RepoStatsReader(r),
 	)
 
@@ -846,26 +789,23 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		return err
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	if !app.GitEnabled() {
+		return runOnPersisted(p)
+	}
+
+	gm, err := gitops.NewManager(app,
+		git.WithPreCommit(gitops.PreCommitReadme(app)),
+	)
 	if err != nil {
 		return err
 	}
 
 	gr := gm.NewRepo(app.DBBaseName(),
-		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoFileWriter(app.Flags.Color),
 		gitops.RepoStatsReader(p.Repo),
 	)
-
-	if !gm.IsEnabled() || !gm.IsTracked(gr.Name()) {
-		return nil
-	}
 
 	if gm.IsEnabled() && gm.IsTracked(gr.Name()) {
 		up := git.UpdateParams{
@@ -879,10 +819,13 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		}
 	}
 
+	return runOnPersisted(p)
+}
+
+func runOnPersisted(p PersistParams) error {
 	if p.OnPersisted != nil {
 		return p.OnPersisted()
 	}
-
 	return nil
 }
 

@@ -105,12 +105,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -138,9 +133,9 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoFileWriter(app.Flags.Color),
 		git.WithRepoStore(r),
 	)
 	if err := gitops.Track(cmd.Context(), r, gm, gr); err != nil {

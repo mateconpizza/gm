@@ -9,6 +9,8 @@ import (
 	files "github.com/mateconpizza/gofiles"
 	gap "github.com/muesli/go-app-paths"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/mateconpizza/gm/pkg/bookio"
 )
 
 type Path struct {
@@ -16,16 +18,19 @@ type Path struct {
 	Database string `json:"store"` // Database fullpath
 }
 
-func NewPath() *Path {
-	return &Path{}
-}
+func NewPath() *Path { return &Path{} }
 
 func (p *Path) Home() string       { return p.Data }
 func (p *Path) Git() string        { return filepath.Join(p.Data, "git") }
 func (p *Path) Backup() string     { return filepath.Join(p.Data, "backup") }
 func (p *Path) DB() string         { return p.Database }
 func (p *Path) ConfigFile() string { return filepath.Join(p.Data, ConfigFilename) }
-func (p *Path) setup() error       { return files.MkdirAll(p.Home()) }
+
+func (p *Path) GitReadme(repoName string) string {
+	return filepath.Join(p.Git(), repoName, bookio.ReadmeFile)
+}
+
+func (p *Path) setup() error { return files.MkdirAll(p.Home()) }
 
 // dataPath returns the data path for the application.
 func dataPath(appName string) (string, error) {

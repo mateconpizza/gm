@@ -375,20 +375,17 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		return nil
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app,
+		git.WithPreCommit(gitops.PreCommitReadme(app)),
+	)
 	if err != nil {
 		return err
 	}
 
 	gr := gm.NewRepo(app.DBBaseName(),
-		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoFileWriter(app.Flags.Color),
 		git.WithRepoStore(r),
 	)
 

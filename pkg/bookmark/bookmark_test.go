@@ -6,7 +6,9 @@ import (
 	"testing"
 )
 
-func testSingleBookmark() *Bookmark {
+func testSingleBookmark(t *testing.T) *Bookmark {
+	t.Helper()
+
 	return &Bookmark{
 		URL:       "https://www.example.com",
 		Title:     "Title",
@@ -21,14 +23,14 @@ func testSingleBookmark() *Bookmark {
 func TestRecordIsValid(t *testing.T) {
 	t.Parallel()
 
-	validBookmark := testSingleBookmark()
+	validBookmark := testSingleBookmark(t)
 	err := Validate(validBookmark)
 	if err != nil {
 		t.Fatalf("unexpected error validating valid bookmark: %v", err)
 	}
 
 	// URL err
-	bookmarkWithoutURL := testSingleBookmark()
+	bookmarkWithoutURL := testSingleBookmark(t)
 	bookmarkWithoutURL.URL = ""
 	err = Validate(bookmarkWithoutURL)
 	if err == nil {
@@ -39,7 +41,7 @@ func TestRecordIsValid(t *testing.T) {
 	}
 
 	// Tags err
-	bookmarkWithoutTags := testSingleBookmark()
+	bookmarkWithoutTags := testSingleBookmark(t)
 	bookmarkWithoutTags.Tags = ""
 	err = Validate(bookmarkWithoutTags)
 	if err == nil {

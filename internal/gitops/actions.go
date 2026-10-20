@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"regexp"
@@ -42,6 +43,10 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 		return err
 	}
 
+	if err := gm.CommitEmpty(ctx, CoreCommitMsg("initialized")); err != nil {
+		return err
+	}
+
 	c := ui.NewDefaultConsole(app, app.Exit)
 	if err := askForEncryption(ctx, c, app, gm); err != nil {
 		return err
@@ -53,6 +58,38 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 
 	app.Git.Enabled = true
 	return app.WriteConfig(true)
+}
+
+func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	gm, err := NewManager(app,
+		git.WithPreCommit(PreCommitReadme(app)),
+	)
+	if err != nil {
+		return err
+	}
+
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	gr := gm.NewRepo(r.BaseName(),
+		RepoFileReader(app.Flags.Color),
+		RepoFileRemover(),
+		RepoFileWriter(app.Flags.Color),
+		git.WithRepoStore(r),
+	)
+
+	return gm.SaveChanges(ctx,
+		gr,
+		gr.CommitMsg(git.RepoAction("commit changes"), ""),
+	)
 }
 
 // Sync stages tracked bookmark data and commits any resulting changes to Git.
@@ -85,9 +122,9 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(gm.Color()),
+		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
-		RepoFileWriter(gm.Color()),
+		RepoFileWriter(app.Flags.Color),
 		RepoStatsReader(r),
 	)
 	if err := gr.Add(ctx, bs); err != nil {
@@ -103,12 +140,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := NewManager(&ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -142,9 +174,9 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		}
 
 		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(gm.Color()),
+			RepoFileReader(app.Flags.Color),
 			RepoFileRemover(),
-			RepoFileWriter(gm.Color()),
+			RepoFileWriter(app.Flags.Color),
 			RepoStatsReader(r),
 		)
 
@@ -164,8 +196,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
-func StreamLog(ctx context.Context, g *git.Git) error {
-	p := ansi.NewPalette(g.Color())
+func StreamLog(ctx context.Context, g *git.Git, p *ansi.Palette) error {
 	logger := &git.LogStyle{
 		Hash:         func(s string) string { return p.BrightYellow.Sprint(s) },
 		Repo:         func(s string) string { return p.BrightGreen.Sprint(s) },
@@ -191,6 +222,41 @@ func StreamLog(ctx context.Context, g *git.Git) error {
 	}
 
 	return nil
+}
+
+func NewReadmeFile(ctx context.Context, app *application.App, w io.Writer, bs []*bookmark.Bookmark) error {
+	cfg := app.Git.Readme
+
+	if !cfg.Enabled {
+		return nil
+	}
+
+	r, err := db.New(ctx, app.Path.DB())
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	s := db.NewStats()
+	if err := r.Stats(ctx, s); err != nil {
+		return err
+	}
+
+	return bookio.NewMarkdown(
+		bs,
+		bookio.WithTitle(fmt.Sprintf("Bookmarks from %q", app.DBBaseName())),
+		bookio.WithWriter(w),
+		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
+		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(app.Flags.Sort, bs) }),
+		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
+			Bookmarks:   s.Bookmarks,
+			Tags:        s.Tags,
+			Favorites:   s.Favorites,
+			Archived:    s.Archived,
+			DeadLinks:   s.DeadLinks,
+			TotalVisits: s.TotalVisits,
+		})),
+	).Render()
 }
 
 func readFiles(color bool) func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {

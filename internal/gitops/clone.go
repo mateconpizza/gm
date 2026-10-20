@@ -65,7 +65,11 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 }
 
 func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*GitPuller, error) {
-	g, err := NewGit(d.Writer(), app.Path.Git(), app.Flags.Color)
+	g, err := NewGit(
+		d.Writer(),
+		app.Path.Git(),
+		NewGitCommandLogger(app.Flags.Color),
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -18,13 +18,11 @@ type MgrOptFunc func(*MgrOptions)
 type MgrOptions struct {
 	g       *Git
 	version string
-	color   bool
 	fileMgr *fileManager
 }
 
 func WithGit(g *Git) MgrOptFunc         { return func(mo *MgrOptions) { mo.g = g } }
 func WithVersion(ver string) MgrOptFunc { return func(mo *MgrOptions) { mo.version = ver } }
-func WithColor(b bool) MgrOptFunc       { return func(mo *MgrOptions) { mo.color = b } }
 
 type Mgr struct {
 	*MgrOptions
@@ -63,7 +61,6 @@ func NewManager(rootDir string, opts ...MgrOptFunc) (*Mgr, error) {
 
 func (gm *Mgr) Root() string                                  { return gm.root }
 func (gm *Mgr) IsEnabled() bool                               { return fileExists(gm.root) }
-func (gm *Mgr) Color() bool                                   { return gm.color }
 func (gm *Mgr) Git() *Git                                     { return gm.g }
 func (gm *Mgr) IsTracked(name string) bool                    { return gm.tracker.contains(name) }
 func (gm *Mgr) Repos() []string                               { return gm.tracker.list() }
@@ -74,6 +71,10 @@ func (gm *Mgr) SetCfg(ctx context.Context, k, v string) error { return gm.g.SetC
 
 func (gm *Mgr) Commit(ctx context.Context, msg CommitMessage) error {
 	return gm.g.commitIfChanged(ctx, msg)
+}
+
+func (gm *Mgr) CommitEmpty(ctx context.Context, msg CommitMessage) error {
+	return gm.g.commitEmpty(ctx, msg)
 }
 
 func (gm *Mgr) Init(ctx context.Context, force bool) error {

@@ -21,25 +21,34 @@ const (
 	AttributesFile = ".gitattributes"
 )
 
-type CmdLogger func(w io.Writer, commands []string)
+type (
+	CmdLogger func(w io.Writer, commands []string)
 
-type ExecuterFunc func(ctx context.Context, dir string, w io.Writer, r io.Reader, cmds ...string) error
+	ExecuterFunc func(ctx context.Context, dir string, w io.Writer, r io.Reader, cmds ...string) error
 
-type GitOpt func(*GitOptions)
+	// Hook runs before a commit.
+	Hook func(ctx context.Context) error
+
+	GitOpt func(*GitOptions)
+)
 
 type GitOptions struct {
 	writer        io.Writer
 	commandLogger CmdLogger
 	executer      ExecuterFunc
 	cmd           *Commander
-	color         bool
+	preCommit     []Hook
 }
 
 func WithGitWriter(w io.Writer) GitOpt       { return func(o *GitOptions) { o.writer = w } }
 func WithGitCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.commandLogger = hook } }
 func WithExecuter(fn ExecuterFunc) GitOpt    { return func(o *GitOptions) { o.executer = fn } }
 func WithCommander(c *Commander) GitOpt      { return func(o *GitOptions) { o.cmd = c } }
-func WithGitColor(b bool) GitOpt             { return func(o *GitOptions) { o.color = b } }
+
+// WithPreCommit adds hooks that run, in order, before every commit.
+func WithPreCommit(hooks ...Hook) GitOpt {
+	return func(o *GitOptions) { o.preCommit = append(o.preCommit, hooks...) }
+}
 
 // Git handles operational tasks on a local Git repository.
 type Git struct {
@@ -87,7 +96,6 @@ func Initialized(root string) bool              { return fileExists(root) }
 func (g *Git) Root() string                     { return g.fullpath }
 func (g *Git) Writer() io.Writer                { return g.writer }
 func (g *Git) Bin() string                      { return g.cmd.bin }
-func (g *Git) Color() bool                      { return g.color }
 func (g *Git) AddAll(ctx context.Context) error { return g.run(ctx, g.fullpath, "add", ".") }
 
 func (g *Git) Commit(ctx context.Context, msg string) error {
@@ -265,6 +273,8 @@ func (g *Git) SetUpstream(ctx context.Context, repoPath string) error {
 	return g.run(ctx, repoPath, "push", "--set-upstream", "origin", b)
 }
 
+func (g *Git) RegisterPreCommit(h Hook) { g.preCommit = append(g.preCommit, h) }
+
 func (g *Git) run(ctx context.Context, repoPath string, commands ...string) error {
 	g.commandLogger(g.writer, slices.Insert(commands, 0, g.cmd.bin))
 	return g.cmd.Exec(ctx, g.writer, repoPath, commands...)
@@ -331,6 +341,10 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 		return err
 	}
 
+	if err := g.runHooks(ctx, g.preCommit); err != nil {
+		return fmt.Errorf("pre-commit hook: %w", err)
+	}
+
 	changed, err := g.HasChanges(ctx)
 	if err != nil {
 		return fmt.Errorf("checking for changes: %w", err)
@@ -353,8 +367,24 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 		status = " (" + status + ")"
 	}
 
-	if err := g.Commit(ctx, fmt.Sprintf("%s%s", msg, status)); err != nil {
-		return fmt.Errorf("commit: %w", err)
+	return g.Commit(ctx, fmt.Sprintf("%s%s", msg, status))
+}
+
+func (g *Git) commitEmpty(ctx context.Context, msg CommitMessage) error {
+	return g.run(ctx, g.fullpath, "commit", "-m", msg.String(), "--allow-empty")
+}
+
+func (g *Git) runHooks(ctx context.Context, hooks []Hook) error {
+	for _, h := range hooks {
+		if h == nil {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := h(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil

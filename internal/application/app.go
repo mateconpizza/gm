@@ -16,6 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/ansi"
+	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -49,7 +50,7 @@ type (
 		Path   *Path           `json:"path"          yaml:"-"`             // Application path
 		Flags  *Flags          `json:"-"             yaml:"-"`             // Command line flags
 		Menu   *menucfg.Config `json:"menu"          yaml:"menu"`          // Menu configuration
-		Git    *Git            `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
+		Git    *git.Config     `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
 
 		initialized bool
 	}
@@ -130,11 +131,22 @@ func (app *App) Load() error {
 
 func (app *App) WriteConfig(force bool) error {
 	app.DBName = app.DBBaseName()
+
+	cfg := *app
+
 	if !git.Initialized(app.Path.Git()) {
-		app.Git = nil
+		cfg.Git = nil
+	} else if app.Git != nil {
+		gitCfg := *app.Git
+
+		if gitCfg.Readme != nil && !gitCfg.Readme.Enabled {
+			gitCfg.Readme = nil
+		}
+
+		cfg.Git = &gitCfg
 	}
 
-	return WriteYAML(app.Path.ConfigFile(), app, force)
+	return WriteYAML(app.Path.ConfigFile(), &cfg, force)
 }
 
 // Validate validates the configuration file.
@@ -278,11 +290,10 @@ func New(info *Information) *App {
 		Flags:  &Flags{},
 		Info:   info,
 		Path:   NewPath(),
-		Git: &Git{
-			Enabled: false,
-			Log:     true,
-			writer:  os.Stdout,
-		},
+		Git: git.NewConfig(
+			git.WithConfigGlyphs(bookio.DefaultGlyphs),
+			git.WithConfigSummary(bookio.DefaultSummary),
+		),
 		Env: &Env{
 			Home:   EnvHome,
 			Editor: EnvEditor,

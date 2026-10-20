@@ -321,9 +321,7 @@ func DatabasesTable(ctx context.Context, w io.Writer, dataPath string, opts ...F
 }
 
 func DatabaseDecorator(app *application.App) func(info *FileInfo) *FileInfo {
-	gm, _ := gitops.NewManager(&gitops.ManagerConfig{
-		Root: app.Path.Git(),
-	})
+	gm, _ := gitops.NewManager(app)
 
 	p := ansi.NewPalette(app.Flags.Color)
 	g := app.Glyphs()

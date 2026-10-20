@@ -9,6 +9,8 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 	gap "github.com/muesli/go-app-paths"
+
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 func TestPaths_LoadDataPath(t *testing.T) {
@@ -102,7 +104,7 @@ func TestWriteRead_Successfully_Reads_And_Unmarshals_Valid_YAML(t *testing.T) {
 		Path: &Path{
 			Data: dir,
 		},
-		Git: &Git{
+		Git: &git.Config{
 			// Enabled: true,
 			Log:    false,
 			Remote: "git@github.com:ponzipalandri/bookmarks.git",
