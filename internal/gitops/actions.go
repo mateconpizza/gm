@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"path/filepath"
 	"regexp"
@@ -191,6 +192,41 @@ func StreamLog(ctx context.Context, g *git.Git) error {
 	}
 
 	return nil
+}
+
+func NewReadmeFile(ctx context.Context, app *application.App, w io.Writer, bs []*bookmark.Bookmark) error {
+	cfg := app.Git.Readme
+
+	if !cfg.Enabled {
+		return nil
+	}
+
+	r, err := db.New(ctx, app.Path.DB())
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	s := db.NewStats()
+	if err := r.Stats(ctx, s); err != nil {
+		return err
+	}
+
+	return bookio.NewMarkdown(
+		bs,
+		bookio.WithTitle(fmt.Sprintf("Bookmarks from %q", app.DBBaseName())),
+		bookio.WithWriter(w),
+		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
+		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(app.Flags.Sort, bs) }),
+		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
+			Bookmarks:   s.Bookmarks,
+			Tags:        s.Tags,
+			Favorites:   s.Favorites,
+			Archived:    s.Archived,
+			DeadLinks:   s.DeadLinks,
+			TotalVisits: s.TotalVisits,
+		})),
+	).Render()
 }
 
 func readFiles(color bool) func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {

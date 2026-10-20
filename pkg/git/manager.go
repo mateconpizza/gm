@@ -76,6 +76,10 @@ func (gm *Mgr) Commit(ctx context.Context, msg CommitMessage) error {
 	return gm.g.commitIfChanged(ctx, msg)
 }
 
+func (gm *Mgr) CommitEmpty(ctx context.Context, msg CommitMessage) error {
+	return gm.g.commitEmpty(ctx, msg)
+}
+
 func (gm *Mgr) Init(ctx context.Context, force bool) error {
 	if force {
 		gm.tracker.reset()

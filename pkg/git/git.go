@@ -344,6 +344,10 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 		return err
 	}
 
+	if err := g.runHooks(ctx, g.preCommit); err != nil {
+		return fmt.Errorf("pre-commit hook: %w", err)
+	}
+
 	changed, err := g.HasChanges(ctx)
 	if err != nil {
 		return fmt.Errorf("checking for changes: %w", err)
@@ -366,8 +370,24 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 		status = " (" + status + ")"
 	}
 
-	if err := g.Commit(ctx, fmt.Sprintf("%s%s", msg, status)); err != nil {
-		return fmt.Errorf("commit: %w", err)
+	return g.Commit(ctx, fmt.Sprintf("%s%s", msg, status))
+}
+
+func (g *Git) commitEmpty(ctx context.Context, msg CommitMessage) error {
+	return g.run(ctx, g.fullpath, "commit", "-m", msg.String(), "--allow-empty")
+}
+
+func (g *Git) runHooks(ctx context.Context, hooks []Hook) error {
+	for _, h := range hooks {
+		if h == nil {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := h(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
