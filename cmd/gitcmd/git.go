@@ -14,7 +14,6 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/git"
 )
 
 // NewCmd is the git command.
@@ -27,7 +26,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		PersistentPreRunE:  cli.HookGitEnsureEnv(app),
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git(), app.Flags.Color)
+			g, err := gitops.NewGit(
+				app.Git.Writer(),
+				app.Path.Git(),
+				gitops.NewGitCommandLogger(app.Flags.Color),
+			)
 			if err != nil {
 				return err
 			}
@@ -64,28 +67,7 @@ func newCommitCmd(app *application.App) *cobra.Command {
 		Short:  "commit changes",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(&gitops.ManagerConfig{
-				Root:    app.Path.Git(),
-				Writer:  app.Git.Writer(),
-				Version: app.Version(),
-				Color:   app.Flags.Color,
-			})
-			if err != nil {
-				return err
-			}
-
-			r, err := db.New(cmd.Context(), app.Path.DB())
-			if err != nil {
-				return err
-			}
-
-			gr := gm.NewRepo(r.BaseName(),
-				gitops.RepoFileReader(gm.Color()),
-				gitops.RepoFileRemover(),
-				gitops.RepoFileWriter(gm.Color()),
-				git.WithRepoStore(r),
-			)
-			return gm.SaveChanges(cmd.Context(), gr, gr.CommitMsg(git.RepoAction(cmd.Short), ""))
+			return cmdutil.Execute(cmd, args, nil, gitops.CommitChanges)
 		},
 	}
 }
@@ -97,12 +79,7 @@ func newPushCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(&gitops.ManagerConfig{
-				Root:    app.Path.Git(),
-				Writer:  app.Git.Writer(),
-				Version: app.Version(),
-				Color:   app.Flags.Color,
-			})
+			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
@@ -122,12 +99,7 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipGitSync,
 		PreRun:      cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(&gitops.ManagerConfig{
-				Root:    app.Path.Git(),
-				Writer:  app.Git.Writer(),
-				Version: app.Version(),
-				Color:   app.Flags.Color,
-			})
+			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
@@ -160,7 +132,11 @@ func newRawCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(app.Git.Writer(), app.Path.Git(), app.Flags.Color)
+			g, err := gitops.NewGit(
+				app.Git.Writer(),
+				app.Path.Git(),
+				gitops.NewGitCommandLogger(app.Flags.Color),
+			)
 			if err != nil {
 				return err
 			}
@@ -257,20 +233,15 @@ func newSyncCmd(app *application.App) *cobra.Command {
 			}
 			defer r.Close()
 
-			gm, err := gitops.NewManager(&gitops.ManagerConfig{
-				Root:    app.Path.Git(),
-				Writer:  app.Git.Writer(),
-				Version: app.Version(),
-				Color:   app.Flags.Color,
-			})
+			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
 
 			gr := gm.NewRepo(r.Name(),
-				gitops.RepoFileReader(gm.Color()),
+				gitops.RepoFileReader(app.Flags.Color),
 				gitops.RepoFileRemover(),
-				gitops.RepoFileWriter(gm.Color()),
+				gitops.RepoFileWriter(app.Flags.Color),
 				gitops.RepoStatsReader(r),
 			)
 

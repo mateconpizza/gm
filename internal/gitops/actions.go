@@ -56,6 +56,38 @@ func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
 	return app.WriteConfig(true)
 }
 
+func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	gm, err := NewManager(app,
+		git.WithPreCommit(PreCommitReadme(app)),
+	)
+	if err != nil {
+		return err
+	}
+
+	r, err := d.Repository()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	gr := gm.NewRepo(r.BaseName(),
+		RepoFileReader(app.Flags.Color),
+		RepoFileRemover(),
+		RepoFileWriter(app.Flags.Color),
+		git.WithRepoStore(r),
+	)
+
+	return gm.SaveChanges(ctx,
+		gr,
+		gr.CommitMsg(git.RepoAction("commit changes"), ""),
+	)
+}
+
 // Sync stages tracked bookmark data and commits any resulting changes to Git.
 func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.CommitMessage) error {
 	slog.Debug("starting git sync")
@@ -86,9 +118,9 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(gm.Color()),
+		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
-		RepoFileWriter(gm.Color()),
+		RepoFileWriter(app.Flags.Color),
 		RepoStatsReader(r),
 	)
 	if err := gr.Add(ctx, bs); err != nil {
@@ -104,12 +136,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := NewManager(&ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -143,9 +170,9 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		}
 
 		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(gm.Color()),
+			RepoFileReader(app.Flags.Color),
 			RepoFileRemover(),
-			RepoFileWriter(gm.Color()),
+			RepoFileWriter(app.Flags.Color),
 			RepoStatsReader(r),
 		)
 

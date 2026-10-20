@@ -12,6 +12,7 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 var (
@@ -327,20 +328,17 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		return err
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  d.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app,
+		git.WithPreCommit(gitops.PreCommitReadme(app)),
+	)
 	if err != nil {
 		return err
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(gm.Color()),
+		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(gm.Color()),
+		gitops.RepoFileWriter(app.Flags.Color),
 		gitops.RepoStatsReader(r),
 	)
 

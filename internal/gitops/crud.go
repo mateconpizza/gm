@@ -9,6 +9,7 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/ui/frame"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -41,46 +42,47 @@ func (mc *ManagerConfig) Validate() error {
 	return nil
 }
 
-func NewManager(cfg *ManagerConfig) (*git.Mgr, error) {
-	if err := cfg.Validate(); err != nil {
-		return nil, err
+func NewManager(app *application.App, opts ...git.GitOpt) (*git.Mgr, error) {
+	w := app.Git.Writer()
+	if w == nil {
+		w = os.Stdout
 	}
 
-	g, err := NewGit(cfg.Writer, cfg.Root, cfg.Color)
+	root := app.Path.Git()
+
+	g, err := NewGit(w, root, append(opts, NewGitCommandLogger(app.Flags.Color))...)
 	if err != nil {
 		return nil, err
 	}
 
-	return git.NewManager(
-		cfg.Root,
+	gm, err := git.NewManager(root,
 		git.WithGit(g),
-		git.WithVersion(cfg.Version),
-		git.WithColor(cfg.Color),
+		git.WithVersion(app.Version()),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	return gm, nil
 }
 
-func NewGit(w io.Writer, root string, color bool) (*git.Git, error) {
-	p := ansi.NewPalette(color)
-	return git.New(
-		root,
-		[]git.GitOpt{
-			// command logger
-			git.WithGitCmdLogger(func(w io.Writer, commands []string) {
-				headerFrame := frame.New(
-					frame.WithColorBorder(p.BrightYellow.Sprint),
-					frame.WithBordersSmallBlock(),
-					frame.WithWriter(w),
-				)
-				fullCmd := p.BrightYellow.Wrap(strings.Join(commands, " "), p.Italic)
-				headerFrame.Midln(fullCmd).Flush()
-			}),
+func NewGit(w io.Writer, root string, opts ...git.GitOpt) (*git.Git, error) {
+	return git.New(root, append(opts, git.WithGitWriter(w))...)
+}
 
-			// writer
-			git.WithGitWriter(w),
-			// color
-			git.WithGitColor(color),
-		}...,
-	)
+func NewGitCommandLogger(color bool) git.GitOpt {
+	p := ansi.NewPalette(color)
+
+	// command logger
+	return git.WithGitCmdLogger(func(w io.Writer, commands []string) {
+		headerFrame := frame.New(
+			frame.WithColorBorder(p.BrightYellow.Sprint),
+			frame.WithBordersSmallBlock(),
+			frame.WithWriter(w),
+		)
+		fullCmd := p.BrightYellow.Wrap(strings.Join(commands, " "), p.Italic)
+		headerFrame.Midln(fullCmd).Flush()
+	})
 }
 
 func Add(ctx context.Context, gm gitManager, gr *git.Repo, b *bookmark.Bookmark) error {

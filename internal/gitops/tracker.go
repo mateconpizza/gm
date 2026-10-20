@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
@@ -30,20 +31,15 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 	}
 	defer r.Close()
 
-	gm, err := NewManager(&ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(gm.Color()),
+		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
-		RepoFileWriter(gm.Color()),
+		RepoFileWriter(app.Flags.Color),
 		git.WithRepoStore(r),
 	)
 	c := d.Console()
@@ -106,12 +102,7 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := NewManager(&ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -145,8 +136,8 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 		name = "main"
 	}
 
-	s := strings.TrimSpace(fmt.Sprintf("(%s)", gr.String()))
-	sb.WriteString(txt.PaddedLine(name, repoType+p.Gray.Wrap(s, p.Italic)))
+	s := strings.TrimSpace(p.Gray.With(p.Italic).Sprintf("(%s)", gr.String()))
+	sb.WriteString(txt.PaddedLine(name, repoType+s))
 
 	return c.Success(sb.String() + "\n").String()
 }
@@ -161,6 +152,7 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 		Flush()
 
 	files.PrioritizeFile(dbFiles, application.MainDBName)
+	p := c.Palette()
 
 	for i, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
@@ -187,9 +179,9 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 		}
 
 		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(gm.Color()),
+			RepoFileReader(p.Enabled()),
 			RepoFileRemover(),
-			RepoFileWriter(gm.Color()),
+			RepoFileWriter(p.Enabled()),
 			git.WithRepoStore(r),
 		)
 		if err := Track(ctx, r, gm, gr); err != nil {
@@ -208,18 +200,14 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 }
 
 func TrackMgrStatus(c *ui.Console, app *application.App) error {
-	gm, err := NewManager(&ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := NewManager(app)
 	if err != nil {
 		return err
 	}
 
 	if len(gm.Repos()) == 0 {
-		return nil
+		slog.Debug("tracker: no repos found")
+		return app.Failure()
 	}
 
 	dbFiles, err := files.Find(app.Path.Home(), "*.db")

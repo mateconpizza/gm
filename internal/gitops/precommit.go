@@ -3,12 +3,10 @@ package gitops
 import (
 	"context"
 	"log/slog"
-	"path/filepath"
 
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
@@ -21,8 +19,7 @@ func PreCommitReadme(app *application.App) git.Hook {
 			return nil
 		}
 
-		root := app.Path.Git()
-		path := filepath.Join(root, app.DBBaseName(), bookio.ReadmeFile)
+		path := app.Path.GitReadme(app.DBBaseName())
 
 		f, err := files.New(path, true)
 		if err != nil {

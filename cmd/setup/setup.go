@@ -105,12 +105,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	gm, err := gitops.NewManager(&gitops.ManagerConfig{
-		Root:    app.Path.Git(),
-		Writer:  app.Git.Writer(),
-		Version: app.Version(),
-		Color:   app.Flags.Color,
-	})
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
