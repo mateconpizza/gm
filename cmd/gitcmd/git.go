@@ -47,16 +47,12 @@ func NewCmd(app *application.App) *cobra.Command {
 	c.AddCommand(
 		newInitRepoCmd(app), // initialize a bookmarks repository
 		newCloneCmd(app),    // clone bookmarks from a remote repository
-		newEnableCmd(app),   // enable git integration
-		newDisableCmd(app),  // disable git integration
 		newTrackerCmd(app),  // configure repository tracking
-		newLoggingCmd(app),  // configure git command logging
 		newCommitCmd(app),   // commit bookmark database changes
 		newPushCmd(app),     // push bookmark changes to a remote
 		newSyncCmd(app),     // synchronize bookmarks with the repository
-		newInfoCmd(app),     // show repository status and configuration
 		newRawCmd(app),      // run arbitrary git commands
-		newReadmeCmd(app),   // generate a README.md
+		newConfigCmd(app),   // configuration
 	)
 
 	return c
@@ -332,5 +328,34 @@ func newReadmeCmd(_ *application.App) *cobra.Command {
 			return cmdutil.Run(cmd, args, gitops.ReadmePrompt)
 		},
 	}
+	return c
+}
+
+func newConfigCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:         "config",
+		Short:       "configuration",
+		Aliases:     []string{"cfg"},
+		Annotations: cli.SkipFormatter,
+		Example: app.Example(`  $ {cmd} git config enable
+  $ {cmd} git config disable
+  $ {cmd} git config info
+  $ {cmd} git config logging enable
+  $ {cmd} git config logging disable
+  $ {cmd} git config readme`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	c.AddCommand(
+		newEnableCmd(app),  // enable git integration
+		newDisableCmd(app), // disable git integration
+		newInfoCmd(app),    // show repository status and configuration
+		newLoggingCmd(app), // configure git command logging
+		newReadmeCmd(app),  // generate a README.md
+	)
+	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag", "filter")
+
 	return c
 }
