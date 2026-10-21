@@ -86,7 +86,7 @@ func newExportCSVCmd(app *application.App) *cobra.Command {
 			})
 		},
 	}
-	cmdutil.FlagFields(c, app, "all,"+cmdutil.WrapFields(bookmark.Fields(), ",", 50))
+	cmdutil.FlagFields(c, app, append([]string{"all"}, bookmark.Fields()...))
 	return c
 }
 

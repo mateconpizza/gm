@@ -772,7 +772,7 @@ func TestUnlock(t *testing.T) {
 		if err := os.WriteFile(plain, []byte("db-content"), 0o644); err != nil {
 			t.Fatalf("failed to create test file: %v", err)
 		}
-		if err := locker.Lock(plain, pwd); err != nil {
+		if err := locker.Lock(t.Context(), plain, pwd); err != nil {
 			t.Fatalf("failed to lock fixture file: %v", err)
 		}
 		return plain // unlock takes the unextended path, same as Lock does

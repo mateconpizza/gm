@@ -92,7 +92,7 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 	cmdutil.FlagFilter(c, app, bookmark.FilterSupported)
 
 	// field selection for output projection
-	cmdutil.FlagFields(c, app, "id, url, title, tags, desc")
+	cmdutil.FlagFields(c, app, []string{"id", "url", "title", "tags", "desc"})
 
 	// -- global --
 	g := c.PersistentFlags()

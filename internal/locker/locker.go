@@ -3,6 +3,7 @@
 package locker
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -43,7 +44,11 @@ var (
 
 // Lock encrypts the given file using AES-GCM encryption and adds .enc
 // extension.
-func Lock(path, passphrase string) error {
+func Lock(ctx context.Context, path, passphrase string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	slog.Debug("locking file", "path", path)
 
 	if err := validateInput(path, passphrase); err != nil {
@@ -73,14 +78,20 @@ func Lock(path, passphrase string) error {
 	}
 
 	slog.Debug("file locked", "path", lockedPath)
+
 	// Cleanup successful operation
 	_ = os.Remove(backupPath)
 
 	return nil
 }
 
-// Unlock decrypts the given .enc file using AES-GCM decryption and removes the .enc extension.
-func Unlock(path, passphrase string) error {
+// Unlock decrypts the given .enc file using AES-GCM decryption and removes the
+// .enc extension.
+func Unlock(ctx context.Context, path, passphrase string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	slog.Debug("unlocking file", "path", path)
 
 	if err := validateInput(path, passphrase); err != nil {

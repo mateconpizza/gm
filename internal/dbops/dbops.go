@@ -280,7 +280,7 @@ func Lock(ctx context.Context, c consolePass, items []string) error {
 			return err
 		}
 
-		if err := locker.Lock(toLock, pass); err != nil {
+		if err := locker.Lock(ctx, toLock, pass); err != nil {
 			return err
 		}
 
@@ -407,7 +407,7 @@ func Unlock(ctx context.Context, c consolePass, items []string) error {
 			return fmt.Errorf("%w", err)
 		}
 
-		if err := locker.Unlock(rToUnlock, s); err != nil {
+		if err := locker.Unlock(ctx, rToUnlock, s); err != nil {
 			fmt.Fprintln(c.Writer())
 			return fmt.Errorf("%w", err)
 		}
