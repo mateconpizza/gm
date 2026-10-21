@@ -52,7 +52,7 @@ var GitDiffConf = map[string][]string{
 	"diff.gpg.textconv": {
 		Command,                // GPG executable.
 		"-d",                   // Decrypt input.
-		"--quiet",              // Try to be as quiet as possible.
+		"--quiet",              // Suppress non-error output.
 		"--yes",                // Assume "yes" on most questions
 		"--compress-algo=none", // Disable compression.
 		"--no-encrypt-to",      // Ignore default encryption recipients.

@@ -229,12 +229,12 @@ func selectBackupsInteractive(ctx context.Context, d *deps.Deps, fs []string) ([
 		}
 
 		switch strings.ToLower(opt) {
-		case "n", "no":
+		case "no":
 			c.ReplaceLine(c.Warning(p.BrightYellow.Sprint("skipping") + " backup/s").StringReset())
 			return nil, nil
-		case "a", "all":
+		case "all":
 			return fs, nil
-		case "s", "select":
+		case "select":
 			return selectBackupsToRemove(ctx, d, fs)
 		}
 	}

@@ -76,11 +76,11 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 		}
 
 		switch strings.ToLower(opt) {
-		case "n", "no":
+		case "no":
 			return nil, app.Abort()
-		case "y", "yes":
+		case "yes":
 			return bs, nil
-		case "s", "select":
+		case "select":
 			fm := app.Formatter()
 
 			fm.Menu.Opts = append(fm.Menu.Opts, menu.WithMultiSelection())

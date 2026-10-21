@@ -180,7 +180,7 @@ func gpgBookmarkFileLoader(g *gpg.GPG) bookio.LoaderFileFunc {
 
 		content, err := g.Decrypt(ctx, path)
 		if err != nil {
-			return nil, fmt.Errorf("decrypting %w", err)
+			return nil, fmt.Errorf("%w: %q", err, path)
 		}
 
 		bj := &bookmark.BookmarkJSON{}
@@ -231,7 +231,9 @@ func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, sp spinner, 
 }
 
 func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Fingerprint] {
+	// FIX: if the is invalid, Trusted: UNKNOWN, make it all dimmer.
 	p := c.Palette()
+
 	trustColor := func(key *gpg.Fingerprint) string {
 		t := key.TrustLevelString()
 		if key.IsTrusted() {
@@ -248,7 +250,9 @@ func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Finger
 
 	m := picker.New[*gpg.Fingerprint](
 		app,
-		menu.WithHeader(" select a fingerprint "),
+		menu.WithHeader("select a fingerprint"),
+		menu.WithKeybinds(menu.KeymapTogglePreview()),
+		menu.WithHeaderKeymaps(),
 		menu.WithInterruptFn(func(err error) { app.Exit(err) }),
 		menu.WithMultilineView(),
 		menu.WithPreviewCmd(gpg.Command+" --list-keys {+4}"),

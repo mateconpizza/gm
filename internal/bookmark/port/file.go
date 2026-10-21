@@ -209,10 +209,10 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 		}
 
 		switch strings.ToLower(opt) {
-		case "n", "no":
+		case "no":
 			return nil, app.Abort()
 
-		case "s", "select":
+		case "select":
 			fm := app.Formatter()
 			fm.Menu.Opts = append(
 				fm.Menu.Opts,
@@ -233,7 +233,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 				return nil, err
 			}
 
-		case "y", "yes":
+		case "yes":
 			return bs, nil
 		}
 	}
