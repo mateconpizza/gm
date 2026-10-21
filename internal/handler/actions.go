@@ -612,10 +612,10 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		CommitMsg(git.Update, "metadata")
 
 	switch strings.ToLower(opt) {
-	case "n", "no":
+	case "no":
 		return nil
 
-	case "y", "yes":
+	case "yes":
 		p := PersistParams{Repo: r, Old: b, Fresh: &updated, Msg: msg, OnPersisted: func() error {
 			return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("bookmark [%d] updated\n", updated.ID)))
 		}}
@@ -623,7 +623,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 			return err
 		}
 
-	case "e", "edit":
+	case "edit":
 		sp := rotato.New(
 			rotato.WithColor(app.Flags.Color),
 			rotato.WithMessage("scraping webpage..."),

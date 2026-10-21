@@ -67,7 +67,7 @@ func NewApp(t *testing.T) *application.App {
 			URL:     "https://github.com/mateconpizza/gm#readme",
 			Title:   "Gomarks: A bookmark manager",
 			Tags:    "golang,awesome,bookmarks,cli",
-			Desc:    "Simple yet powerful bookmark manager for your terminal",
+			Short:   "Simple yet powerful bookmark manager for your terminal",
 			Version: "0.0.1",
 		},
 		Env: &application.Env{

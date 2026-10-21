@@ -304,7 +304,7 @@ func TestSeedNewRepo(t *testing.T) {
 			app.Info.URL = tt.url
 			app.Info.Title = tt.title
 			app.Info.Tags = tt.tags
-			app.Info.Desc = tt.desc
+			app.Info.Short = tt.desc
 
 			r := &mockInserter{err: tt.mockErr}
 			c := testutil.NewConsole(t, io.Discard)

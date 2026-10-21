@@ -69,8 +69,6 @@ func WithExecutor(fn Executor) GPGOpt { return func(g *GPG) { g.exec = fn } }
 
 // Decrypt decrypts a file using the configured GPG binary.
 func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error) {
-	slog.Debug("gpg: starting decryption")
-
 	cmd := g.exec(
 		ctx,
 		flags.quiet,
@@ -78,21 +76,16 @@ func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error)
 		encryptedPath,
 	)
 
-	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-
+	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("gpg decrypt failed: %w: %s", err, stderr.String())
+		return nil, fmt.Errorf("gpg decrypt failed: %w: %s", err, strings.TrimSuffix(stderr.String(), "\n"))
 	}
 
 	output := stdout.Bytes()
-	slog.Info("gpg: decryption successful", "encrypted_path", encryptedPath, "output_size", len(output))
 
 	return output, nil
 }

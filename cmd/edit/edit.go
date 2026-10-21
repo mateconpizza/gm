@@ -70,7 +70,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				strategy = editor.NewBookmarkStrategy().WithSpinner(sp)
 			}
 
-			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), strategy))
+			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), strategy))
 		},
 	}
 
@@ -107,7 +107,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 				menu.WithHeaderKeymaps(),
 				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
 			)
-			return cmdutil.Execute(cmd, args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
+			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
 		},
 	}
 

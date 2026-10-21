@@ -26,7 +26,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive --tag golang`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Execute(
-				cmd,
+				cmd.Context(),
 				args,
 				setupMenu(app),
 				handler.WaybackList,
@@ -53,7 +53,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive fetch 179 --timeout 45s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Execute(
-				cmd,
+				cmd.Context(),
 				args,
 				setupMenu(app),
 				handler.WaybackLookup,
@@ -81,7 +81,7 @@ func newSaveCmd(app *application.App) *cobra.Command {
 		Short: "wayback request",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Execute(
-				cmd,
+				cmd.Context(),
 				args,
 				setupMenu(app),
 				handler.WaybackMakeSnapshot,

@@ -60,7 +60,7 @@ func newBackupListCmd(app *application.App) *cobra.Command {
   $ {cmd} db backup list --db work
   $ {cmd} db backup ls`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, dbops.BackupList)
+			return cmdutil.Run(cmd.Context(), args, dbops.BackupList)
 		},
 	}
 	cmdutil.HideFlag(c, "yes", "force")

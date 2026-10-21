@@ -24,35 +24,38 @@ type Terminal interface {
 	Choose(ctx context.Context, q string, opts []string, def string) (string, error)
 }
 
-// GitPuller handles remote repository data ingestion.
-type GitPuller struct {
-	srcDir string      // Base directory where cloned assets are held
-	dstDir string      // Output directory path for generated databases
-	found  []string    // Discovered directory names matching the lookup criteria
-	repos  []*git.Repo // Parsed structural instances ready for ingestion
+type (
+	// GitPuller handles remote repository data ingestion.
+	GitPuller struct {
+		srcDir string      // Base directory where cloned assets are held
+		dstDir string      // Output directory path for generated databases
+		found  []string    // Discovered directory names matching the lookup criteria
+		repos  []*git.Repo // Parsed structural instances ready for ingestion
 
-	console *ui.Console
-	writer  io.Writer
-}
+		console *ui.Console
+		writer  io.Writer
+	}
 
-func NewPuller(c *ui.Console, srcDir, dstDir string) *GitPuller {
-	return &GitPuller{
+	PullerOpt func(*GitPuller)
+)
+
+func NewPuller(c *ui.Console, srcDir, dstDir string, opts ...PullerOpt) *GitPuller {
+	gp := &GitPuller{
 		srcDir:  srcDir,
 		dstDir:  dstDir,
 		console: c,
 		writer:  os.Stdout,
 	}
-}
-
-func (gp *GitPuller) WithWriter(w io.Writer) *GitPuller {
-	gp.writer = w
+	for _, opt := range opts {
+		opt(gp)
+	}
 	return gp
 }
 
+func WithWriter(w io.Writer) PullerOpt { return func(gp *GitPuller) { gp.writer = w } }
+
 // Repos returns the loaded repositories if processing has been initiated.
-func (gp *GitPuller) Repos() []*git.Repo {
-	return gp.repos
-}
+func (gp *GitPuller) Repos() []*git.Repo { return gp.repos }
 
 // Pull pulls bookmarks from remote git repository and replicate the
 // repositories as databases.
@@ -71,20 +74,13 @@ func (gp *GitPuller) Pull() error {
 }
 
 // Read read bookmarks in the repository.
-func (gp *GitPuller) Read(ctx context.Context) error {
-	for _, gr := range gp.repos {
-		_, err := gr.Stats()
-		if err != nil {
-			fmt.Fprintln(gp.writer, "skipping "+gr.Name(), err.Error())
-			continue
-		}
-
-		if err := gr.Read(ctx); err != nil {
-			return err
-		}
+func (gp *GitPuller) Read(ctx context.Context, gr *git.Repo) error {
+	_, err := gr.Stats()
+	if err != nil {
+		fmt.Fprintln(gp.writer, "skipping "+gr.Name(), err.Error())
+		return nil
 	}
-
-	return nil
+	return gr.Read(ctx)
 }
 
 func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
@@ -104,11 +100,11 @@ func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
 	}
 
 	switch opt {
-	case "y", "yes":
+	case "yes":
 		return nil
-	case "n", "no":
+	case "no":
 		return application.ErrActionAborted
-	case "s", "select":
+	case "select":
 		repos, err := m.Select(gp.repos)
 		if err != nil {
 			return err

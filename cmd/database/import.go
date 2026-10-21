@@ -42,7 +42,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			if app.Flags.Path != "" {
 				return newImportFromFileCmd(app).RunE(cmd, args)
 			}
-			return cmdutil.Run(cmd, args, port.ImportFromDatabase)
+			return cmdutil.Run(cmd.Context(), args, port.ImportFromDatabase)
 		},
 	}
 
@@ -57,7 +57,7 @@ func newImportFromBackupCmd(_ *application.App) *cobra.Command {
 		Short:   "import backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, port.ImportFromBackup)
+			return cmdutil.Run(cmd.Context(), args, port.ImportFromBackup)
 		},
 	}
 }
@@ -67,7 +67,7 @@ func newImportBrowserCmd(_ *application.App) *cobra.Command {
 		Use:   "browser",
 		Short: "import browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, port.ImportFromBrowser(args))
+			return cmdutil.Run(cmd.Context(), args, port.ImportFromBrowser(args))
 		},
 	}
 }
@@ -77,7 +77,7 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 		Use:   "html",
 		Short: "import html",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromHTML(cmd.Context(), d, app.Flags.Path)
 			})
 		},
@@ -92,7 +92,7 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 func newImportFromFileCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromDatabasePath(cmd.Context(), d, app.Flags.Path)
 			})
 		},
@@ -122,7 +122,7 @@ func newImportFromJSON(app *application.App) *cobra.Command {
 		Use:   "json",
 		Short: "import json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromJSON(cmd.Context(), d, app.Flags.Path)
 			})
 		},

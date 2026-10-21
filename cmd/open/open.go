@@ -47,7 +47,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				),
 			)
 
-			return cmdutil.Execute(cmd, args, m, handler.Open)
+			return cmdutil.Execute(cmd.Context(), args, m, handler.Open)
 		},
 	}
 	cmdutil.FlagSort(c, app, bookmark.SortSupported)

@@ -111,7 +111,7 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 }
 
 func processRepo(ctx context.Context, d *deps.Deps, gp *GitPuller, gr *git.Repo) error {
-	if err := gp.Read(ctx); err != nil {
+	if err := gp.Read(ctx, gr); err != nil {
 		return err
 	}
 
@@ -129,7 +129,7 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 	var (
 		c    = d.Console()
 		p    = c.Palette()
-		opts = []string{"merge", "create", "select"}
+		opts = []string{"merge", "create", "select", "abort"}
 		bs   = gr.Bookmarks()
 	)
 
@@ -140,13 +140,13 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 		}
 
 		switch opt {
-		case "m":
+		case "abort":
+			return nil
+		case "merge":
 			return insertRecords(ctx, d, bs)
-
-		case "c":
+		case "create":
 			return handleCreateRepoMode(ctx, d, gr, bs)
-
-		case "s":
+		case "select":
 			app, err := d.Application(ctx)
 			if err != nil {
 				return err

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
-	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -31,8 +30,7 @@ type (
 )
 
 // setup initializes the config, db and app for the subcommands..
-func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
-	ctx := cmd.Context()
+func setup(ctx context.Context, args *[]string) (*deps.Deps, func(), error) {
 	app, err := application.FromContext(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
@@ -59,8 +57,8 @@ func setup(cmd *cobra.Command, args *[]string) (*deps.Deps, func(), error) {
 	return d, r.Close, nil
 }
 
-func Execute(cmd *cobra.Command, args []string, m *menu.Menu[*bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
-	return Run(cmd, args, func(ctx context.Context, d *deps.Deps) error {
+func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
+	return Run(ctx, args, func(ctx context.Context, d *deps.Deps) error {
 		bs, err := handler.Data(ctx, d, args)
 		if err != nil {
 			return err
@@ -109,14 +107,14 @@ func Execute(cmd *cobra.Command, args []string, m *menu.Menu[*bookmark.Bookmark]
 }
 
 // Run sets up command dependencies, runs action, and handles cleanup.
-func Run(cmd *cobra.Command, args []string, fn RunFunc) error {
-	d, cleanup, err := setup(cmd, &args)
+func Run(ctx context.Context, args []string, fn RunFunc) error {
+	d, cleanup, err := setup(ctx, &args)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	return fn(cmd.Context(), d)
+	return fn(ctx, d)
 }
 
 // WrapFields formats fields into lines no longer than maxLen,

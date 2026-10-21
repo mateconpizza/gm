@@ -59,7 +59,8 @@ type (
 		URL     string `json:"url"`     // Project homepage or repository URL.
 		Title   string `json:"title"`   // Human-readable application title.
 		Tags    string `json:"tags"`    // Comma-separated keywords describing the application.
-		Desc    string `json:"desc"`    // Short application description.
+		Short   string `json:"desc"`    // Short application description.
+		Long    string `json:"long"`    // Long application description.
 		Version string `json:"version"` // Application semantic version.
 		Commit  string `json:"commit"`  // Git commit hash used for the build.
 		Date    string `json:"date"`    // Build timestamp in UTC.
@@ -304,12 +305,16 @@ func New(info *Information) *App {
 
 func NewInfo(version, commit, date string) *Information {
 	return &Information{
-		URL:     "https://github.com/mateconpizza/gm",
-		Title:   "Gomarks: A bookmark manager",
-		Tags:    "awesome,bookmarks,cli,golang",
-		Desc:    "Simple yet powerful bookmark manager for your terminal",
 		Version: version,
 		Commit:  commit,
 		Date:    date,
+		URL:     "https://github.com/mateconpizza/gm",
+		Title:   "Gomarks: A bookmark manager",
+		Tags:    "awesome,bookmarks,cli,golang",
+		Short:   "simple yet powerful bookmark manager for your terminal",
+		Long: `CLI tool for managing bookmarks from the terminal.
+
+Add, search, tag, and organize bookmarks, with an interactive menu,
+git-backed sync, and support for multiple databases.`,
 	}
 }

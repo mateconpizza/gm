@@ -139,6 +139,7 @@ func repository(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	f.Rowln(txt.PaddedLine("path:", files.CollapseHomeDir(r.Fullpath())))
+	f.Rowln(txt.PaddedLine("size:", files.SizeFormatted(r.Fullpath())))
 
 	createdAt := createdAt(r, p.Dim.Sprintf)
 	if createdAt != "" {

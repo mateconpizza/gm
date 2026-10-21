@@ -449,7 +449,7 @@ func FlowFunc(c Console, b *bookmark.Bookmark) string {
 
 	domain := ""
 	if u, err := url.Parse(b.URL); err == nil {
-		domain = " — " + u.Host
+		domain = " - " + u.Host
 	}
 
 	tags := ""

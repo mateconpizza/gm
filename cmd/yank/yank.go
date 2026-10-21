@@ -25,7 +25,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} yank --tag golang,awesome
   $ {cmd} yank --json <query>`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd, args, setupMenu(app), handler.Yank)
+			return cmdutil.Execute(cmd.Context(), args, setupMenu(app), handler.Yank)
 		},
 	}
 

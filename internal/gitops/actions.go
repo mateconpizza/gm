@@ -311,23 +311,24 @@ func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {
 	return fullpath, nil
 }
 
-var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg|rename)\b`)
+var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg|rename|initialized)\b`)
 
 // newHighlighter returns a function that closes over the pre-computed map.
 func newHighlighter(p *ansi.Palette) func(string) string {
 	replacements := map[string]string{
-		"add":     p.BrightCyan.Sprint("add"),
-		"update":  p.BrightBlue.Sprint("update"),
-		"del":     p.BrightRed.Sprint("del"),
-		"edit":    p.BrightYellow.Sprint("edit"),
-		"import":  p.BrightYellow.Sprint("import"),
-		"sync":    p.Cyan.Sprint("sync"),
-		"http":    p.Magenta.Sprint("http"),
-		"wayback": p.Red.Sprint("wayback"),
-		"commit":  p.BrightMagenta.Sprint("commit"),
-		"params":  p.Blue.Sprint("params"),
-		"gpg":     p.Red.Sprint("gpg"),
-		"rename":  p.BrightYellow.Sprint("rename"),
+		"add":         p.BrightCyan.Sprint("add"),
+		"update":      p.BrightBlue.Sprint("update"),
+		"del":         p.BrightRed.Sprint("del"),
+		"edit":        p.BrightYellow.Sprint("edit"),
+		"import":      p.BrightYellow.Sprint("import"),
+		"sync":        p.Cyan.Sprint("sync"),
+		"http":        p.Magenta.Sprint("http"),
+		"wayback":     p.Red.Sprint("wayback"),
+		"commit":      p.BrightMagenta.Sprint("commit"),
+		"params":      p.Blue.Sprint("params"),
+		"gpg":         p.Red.Sprint("gpg"),
+		"rename":      p.BrightYellow.Sprint("rename"),
+		"initialized": p.Red.Sprint("initialized"),
 	}
 
 	return func(msg string) string {

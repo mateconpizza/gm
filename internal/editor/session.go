@@ -130,12 +130,12 @@ func (e *EditSession) processSingleRecord(ctx context.Context, original *bookmar
 		}
 
 		switch strings.ToLower(opt) {
-		case "y", "yes":
+		case "yes":
 			return e.saveRecordChanges(ctx, original, updated)
-		case "n", "no":
+		case "no":
 			// Skip and continue
 			return nil
-		case "e", "edit":
+		case "edit":
 			// Retry
 			currentRecord = updated
 		}

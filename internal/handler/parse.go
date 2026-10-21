@@ -211,6 +211,10 @@ func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput,
 		return cb, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
 	f.CustomFunc(dot, p.BrightMagenta.Sprint("URL\t:")).Flush()
 
 	bURL := ti(" ")
@@ -336,9 +340,9 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 	}
 
 	switch strings.ToLower(opt) {
-	case "n", "no":
+	case "no":
 		return app.Abort()
-	case "e", "edit":
+	case "edit":
 		sp := rotato.New(
 			rotato.WithColor(app.Flags.Color),
 			rotato.WithMessage("scraping webpage..."),

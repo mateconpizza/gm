@@ -136,8 +136,8 @@ func WithDefaultTerminal(color, force bool, f func(error)) Option {
 	p := ansi.NewPalette(color)
 	cz := terminal.NewColorizer(color).
 		WithHotkey(p.Red).
-		WithError(p.BrightRed.With(p.Bold)).
-		WithSuccess(p.BrightGreen.With(p.Bold)).
+		WithError(p.BrightRed).
+		WithSuccess(p.BrightGreen).
 		WithSelected(p.BrightYellow).
 		WithMuted(p.Dim)
 
@@ -158,6 +158,10 @@ func (c *Console) Confirm(ctx context.Context, q, def string) bool {
 }
 
 func (c *Console) ConfirmLimit(ctx context.Context, count, maxItems int, q string, force bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if force || count < maxItems {
 		return nil
 	}
@@ -172,7 +176,7 @@ func (c *Console) Choose(ctx context.Context, q string, opts []string, def strin
 	return c.term.Choose(ctx, c.frame.Reset().Question(q).StringReset(), opts, def)
 }
 
-func (c *Console) Input(p string) string {
+func (c *Console) Input(ctx context.Context, p string) string {
 	return c.term.Input(c.frame.Reset().Info(p).StringReset())
 }
 
@@ -182,7 +186,7 @@ func (c *Console) InputPassword(ctx context.Context, s string) (string, error) {
 }
 
 func (c *Console) InputPasswordConfirm(ctx context.Context) (string, error) {
-	s, err := c.InputPassword(ctx, "Password: ")
+	s, err := c.InputPassword(ctx, " Password: ")
 	if err != nil {
 		return "", err
 	}
@@ -191,7 +195,7 @@ func (c *Console) InputPasswordConfirm(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	s2, err := c.InputPassword(ctx, "Confirm Password: ")
+	s2, err := c.InputPassword(ctx, " Confirm Password: ")
 	if err != nil {
 		return "", err
 	}

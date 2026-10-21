@@ -53,7 +53,7 @@ func newExportHTMLCmd(app *application.App) *cobra.Command {
 		Short: "export to HTML Netscape",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to HTML ")
-			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.ExportToNetscapeHTML(bs, os.Stdout)
 			})
 		},
@@ -67,7 +67,7 @@ func newExportJSONCmd(app *application.App) *cobra.Command {
 		Short: "export to JSON",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to JSON ")
-			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return printer.RecordsJSON(os.Stdout, bs)
 			})
 		},
@@ -81,12 +81,12 @@ func newExportCSVCmd(app *application.App) *cobra.Command {
 		Short: "export to CSV",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to CSV ")
-			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.ExportToCSV(bs, os.Stdout, bookio.ParseCSVFields(app.Flags.Field))
 			})
 		},
 	}
-	cmdutil.FlagFields(c, app, "all,"+cmdutil.WrapFields(bookmark.Fields(), ",", 50))
+	cmdutil.FlagFields(c, app, append([]string{"all"}, bookmark.Fields()...))
 	return c
 }
 
@@ -97,7 +97,7 @@ func newExportMarkdownCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"readme", "md"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to Markdown ")
-			return cmdutil.Execute(cmd, args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				app.Git.Readme = &git.Readme{
 					Enabled: true,
 					Glyphs:  app.Flags.Glyphs,
