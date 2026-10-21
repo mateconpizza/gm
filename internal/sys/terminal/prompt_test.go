@@ -121,7 +121,7 @@ func TestTermGetUserInput(t *testing.T) {
 				options:    tt.options,
 				def:        tt.defaultVal,
 				maxRetries: 3,
-				colorizer:  &Colorizer{},
+				colorizer:  defaultColorizer,
 			}
 
 			result, err := getUserInputWithAttempts(t.Context(), mockPromptInput)
@@ -188,10 +188,7 @@ func TestTermFmtChoicesWithDefault(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := fmtChoicesWithDefaultColor(&Colorizer{}, tt.opts, tt.def)
-			for i := range result {
-				result[i] = ansiRemover(result[i])
-			}
+			result := fmtChoicesWithDefaultColor(defaultColorizer, tt.opts, tt.def)
 
 			if len(result) != len(tt.want) {
 				t.Fatalf("expected %d elements, got %d", len(tt.want), len(result))

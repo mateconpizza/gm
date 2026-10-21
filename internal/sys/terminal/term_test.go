@@ -13,8 +13,6 @@ import (
 	"testing/iotest"
 
 	"golang.org/x/term"
-
-	"github.com/mateconpizza/gm/internal/application"
 )
 
 func TestHelper(t *testing.T) {
@@ -73,7 +71,7 @@ func TestChoose(t *testing.T) {
 		{"nil_opts_with_default", nil, "a", "", false, false, "", ErrOptNotFound},
 		{"too_many_invalid_attempts", styles, "", "x\ny\nz\n", false, false, "", ErrIncorrectAttempts},
 		{"eof_on_empty_input", styles, "", "", false, false, "", io.EOF},
-		{"context_canceled", styles, "", "", false, true, "", application.ErrActionAborted},
+		{"context_canceled", styles, "", "", false, true, "", ErrActionAborted},
 	}
 
 	for _, tt := range tests {
@@ -100,6 +98,7 @@ func TestChoose(t *testing.T) {
 				o.writer = io.Discard
 			},
 				WithForce(tt.force),
+				WithCancelationError(ErrActionAborted),
 			)
 
 			got, err := tm.Choose(ctx, "Which style?", tt.opts, tt.def)
@@ -161,42 +160,71 @@ func TestTermConfirm(t *testing.T) {
 	})
 }
 
-func TestTestConfirmErr(t *testing.T) {
+func TestConfirmErr(t *testing.T) {
 	t.Parallel()
 
-	t.Run("user cancels", func(t *testing.T) {
-		t.Parallel()
-		te := New(WithReader(strings.NewReader("n\n")))
-		err := te.ConfirmErr(t.Context(), "continue?", "y")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !errors.Is(err, application.ErrExitFailure) {
-			t.Errorf("expected ErrActionAborted, got: %v", err)
-		}
-	})
+	errCancel := errors.New("canceled by user")
 
-	t.Run("exceed attempts", func(t *testing.T) {
-		t.Parallel()
-		input := "bad\nalso\nwrong\n"
-		te := New(WithReader(strings.NewReader(input)))
-		err := te.ConfirmErr(t.Context(), "continue?", "y")
-		if err == nil {
-			t.Fatal("expected error due to incorrect attempts, got nil")
-		}
-		if !errors.Is(err, ErrIncorrectAttempts) {
-			t.Errorf("expected ErrIncorrectAttempts, got: %v", err)
-		}
-	})
+	tests := []struct {
+		name    string
+		input   string // what the user types, one answer per line
+		def     string
+		force   bool
+		wantErr error
+	}{
+		{"yes_with_default_yes", "y\n", "y", false, nil},
+		{"no_with_default_yes", "n\n", "y", false, errCancel},
+		{"enter_accepts_default_yes", "\n", "y", false, nil},
+		{"enter_accepts_default_no", "\n", "n", false, errCancel},
+		{"empty_default_falls_back_to_no", "\n", "", false, errCancel},
+		{"long_default_is_truncated", "\n", "yes", false, nil},
+		{"uppercase_default", "\n", "Y", false, nil},
+		{"invalid_default_falls_back_to_no", "\n", "maybe", false, errCancel},
+		{"uppercase_input", "Y\n", "n", false, nil},
+		{"input_with_spaces", "  y  \n", "n", false, nil},
+		{"invalid_then_valid", "bad\ny\n", "n", false, nil},
+		{"exceed_attempts", "bad\nalso\nwrong\n", "y", false, ErrIncorrectAttempts},
+		{"eof_on_empty_input", "", "y", false, io.EOF},
+		{"force_skips_prompt_even_with_no", "", "n", true, nil},
+		{"canceled_context", "y\n", "y", false, context.Canceled},
+		// force is checked after the context, so a canceled context wins
+		{"canceled_context_with_force", "", "y", true, context.Canceled},
+	}
 
-	t.Run("valid input", func(t *testing.T) {
-		t.Parallel()
-		te := New(WithReader(strings.NewReader("y\n")))
-		err := te.ConfirmErr(t.Context(), "continue?", "y")
-		if err != nil {
-			t.Errorf("expected no error, got: %v", err)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := t.Context()
+			if errors.Is(tt.wantErr, context.Canceled) {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+
+			te := New(
+				WithReader(strings.NewReader(tt.input)),
+				WithCancelationError(errCancel),
+				WithForce(tt.force),
+				func(o *Options) { o.writer = io.Discard },
+			)
+
+			err := te.ConfirmErr(ctx, "continue?", tt.def)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("ConfirmErr(def=%q, input=%q) expected error %v, got nil", tt.def, tt.input, tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("ConfirmErr(def=%q, input=%q) error = %v; want errors.Is match for %v", tt.def, tt.input, err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ConfirmErr(def=%q, input=%q) unexpected error: %v", tt.def, tt.input, err)
+			}
+		})
+	}
 }
 
 func TestTermIsPiped(t *testing.T) {
@@ -319,7 +347,7 @@ func TestTerm_InputPassword(t *testing.T) {
 			isTerminal:   true,
 			readPassword: "hunter2",
 			cancelBefore: true,
-			wantErr:      application.ErrActionAborted,
+			wantErr:      context.Canceled,
 		},
 	}
 

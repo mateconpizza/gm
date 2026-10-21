@@ -15,6 +15,7 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
@@ -190,7 +191,7 @@ func TestNewBackup(t *testing.T) {
 
 				return d
 			},
-			wantErr: application.ErrExitFailure,
+			wantErr: terminal.ErrActionAborted,
 		},
 		{
 			name: "db_not_found",
@@ -501,7 +502,7 @@ func TestDrop(t *testing.T) {
 					deps.WithRepo(r),
 				)
 			},
-			wantErr: application.ErrExitFailure,
+			wantErr: terminal.ErrActionAborted,
 		},
 		{
 			name: "confirm_accepted_explicit_yes",
@@ -535,7 +536,7 @@ func TestDrop(t *testing.T) {
 					deps.WithRepo(r),
 				)
 			},
-			wantErr: application.ErrExitFailure,
+			wantErr: terminal.ErrActionAborted,
 		},
 		{
 			name: "dropping_main_database_warns_but_still_confirms",
@@ -571,7 +572,7 @@ func TestDrop(t *testing.T) {
 					deps.WithRepo(r),
 				)
 			},
-			wantErr: application.ErrExitFailure,
+			wantErr: terminal.ErrActionAborted,
 		},
 		{
 			name: "repository_unavailable",
@@ -824,7 +825,7 @@ func TestUnlock(t *testing.T) {
 				c := testutil.NewConsoleWithInput(t, "n\n")
 				return c, []string{p}
 			},
-			wantErr: application.ErrExitFailure,
+			wantErr: terminal.ErrActionAborted,
 		},
 		{
 			name: "confirm_accepted_default_yes",

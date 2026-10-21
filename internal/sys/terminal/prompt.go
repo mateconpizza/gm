@@ -7,14 +7,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	prompt "github.com/c-bata/go-prompt"
-
-	"github.com/mateconpizza/gm/internal/application"
 )
 
 const (
@@ -25,91 +22,66 @@ const (
 	cursorShow     = "\x1b[?25h"
 )
 
-var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+type (
+	HighlightFn func(string) string
 
-type highlightFn func(string) string
+	Colorizer struct {
+		Muted    HighlightFn
+		Success  HighlightFn
+		Selected HighlightFn
+		Error    HighlightFn
+		Hotkey   HighlightFn
 
-type color interface {
-	Sprint(a ...any) string
-}
-
-type Colorizer struct {
-	enabled bool
-
-	muted    color
-	success  color
-	selected color
-	error    color
-	hotkey   color
-}
-
-func NewColorizer(enabled bool) *Colorizer {
-	return &Colorizer{enabled: enabled}
-}
-
-func (cz *Colorizer) WithError(c color) *Colorizer {
-	cz.error = c
-	return cz
-}
-
-func (cz *Colorizer) WithSuccess(c color) *Colorizer {
-	cz.success = c
-	return cz
-}
-
-func (cz *Colorizer) WithSelected(c color) *Colorizer {
-	cz.selected = c
-	return cz
-}
-
-func (cz *Colorizer) WithMuted(c color) *Colorizer {
-	cz.muted = c
-	return cz
-}
-
-func (cz *Colorizer) WithHotkey(c color) *Colorizer {
-	cz.hotkey = c
-	return cz
-}
-
-func (cz *Colorizer) Error(s string) string    { return cz.apply(s, cz.error) }
-func (cz *Colorizer) Hotkey(s string) string   { return cz.apply(s, cz.hotkey) }
-func (cz *Colorizer) Muted(s string) string    { return cz.apply(s, cz.muted) }
-func (cz *Colorizer) Selected(s string) string { return cz.apply(s, cz.selected) }
-func (cz *Colorizer) Success(s string) string  { return cz.apply(s, cz.success) }
-func (cz *Colorizer) apply(s string, col color) string {
-	if !cz.enabled || col == nil {
-		return s
+		Enabled bool
 	}
-	return col.Sprint(s)
+)
+
+var defaultColorizer = &Colorizer{
+	Muted:    func(s string) string { return s },
+	Success:  func(s string) string { return s },
+	Selected: func(s string) string { return s },
+	Error:    func(s string) string { return s },
+	Hotkey:   func(s string) string { return s },
+	Enabled:  false,
 }
 
 // PromptInput contains all the information needed for a user prompt.
 type PromptInput struct {
-	reader     *bufio.Reader
-	writer     io.Writer
-	rompt      string
-	options    []string
-	def        string
-	colorizer  *Colorizer
-	maxRetries int // maxRetries specifies the maximum number of retries allowed for user input.
+	reader           *bufio.Reader
+	writer           io.Writer
+	rompt            string
+	options          []string
+	def              string
+	colorizer        *Colorizer
+	maxRetries       int // maxRetries specifies the maximum number of retries allowed for user input.
+	cancelationError error
 }
 
-// PromptSuggester is a function that generates suggestions for a given prompt.
-type PromptSuggester = func(in prompt.Document) []prompt.Suggest
+type (
+	// PromptSuggester is a function that generates suggestions for a given prompt.
+	PromptSuggester = func(in prompt.Document) []prompt.Suggest
 
-// filterFn is a function that filters suggestions based on a given string.
-type filterFn = func(completions []prompt.Suggest, sub string, ignoreCase bool) []prompt.Suggest
+	// filterFn is a function that filters suggestions based on a given string.
+	filterFn = func(completions []prompt.Suggest, sub string, ignoreCase bool) []prompt.Suggest
+)
 
 // inputWithTags prompts the user for input with suggestions based on
 // the provided tags.
-func inputWithTags[T comparable, V any](t *Term, p string, items map[T]V) string {
+func inputWithTags[T comparable, V any](ctx context.Context, t *Term, p string, items map[T]V) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
 	o, restore := prepareInputState(t)
 	defer restore()
 
 	s := prompt.Input(p, completerTagsWithCount(items, prompt.FilterHasPrefix), o...)
 
-	return s
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
+	return s, nil
 }
 
 // inputWithSuggestions prompts the user for input with suggestions based on
@@ -132,27 +104,11 @@ func inputWithFuzzySuggestions[T any](t *Term, p string, items []T) string {
 	return s
 }
 
-// Confirm prompts the user with a question and options.
-func Confirm(ctx context.Context, q, def string) bool {
-	t := New(WithInterruptFn(application.Exit))
-	return t.Confirm(ctx, q, def)
-}
-
-// ConfirmErr prompts the user with a question and options.
-func ConfirmErr(ctx context.Context, q, def string) error {
-	t := New(WithInterruptFn(application.Exit))
-	return t.ConfirmErr(ctx, q, def)
-}
-
-// Choose prompts the user to enter one of the given options.
+func Confirm(ctx context.Context, q, def string) bool     { return New().Confirm(ctx, q, def) }
+func Password(ctx context.Context) (string, error)        { return New().InputPassword(ctx) }
+func ConfirmErr(ctx context.Context, q, def string) error { return New().ConfirmErr(ctx, q, def) }
 func Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
-	t := New(WithInterruptFn(application.Exit))
-	return t.Choose(ctx, q, opts, def)
-}
-
-func Password(ctx context.Context) (string, error) {
-	t := New(WithInterruptFn(application.Exit))
-	return t.InputPassword(ctx)
+	return New().Choose(ctx, q, opts, def)
 }
 
 // ReadPipedInput reads the input from a pipe.
@@ -179,8 +135,8 @@ func prepareInputState(t *Term) (o []prompt.Option, restore func()) {
 	}
 
 	// opts
-	o = promptOptions(t.colorizer.enabled)
-	o = append(o, prompt.OptionAddKeyBind(quitKeybind(t)))
+	o = promptOptions(t.colorizer.Enabled)
+	o = append(o, quitKeybind(t), selectKeybind())
 
 	// restores term state
 	restore = func() {
@@ -193,34 +149,54 @@ func prepareInputState(t *Term) (o []prompt.Option, restore func()) {
 }
 
 // promptOptions generates default options for prompt.
-func promptOptions(c bool) (o []prompt.Option) {
-	o = append(
-		o,
-		prompt.OptionPrefixTextColor(prompt.White),
-		prompt.OptionInputTextColor(prompt.DefaultColor),
-		prompt.OptionSuggestionBGColor(prompt.Black),
-		prompt.OptionDescriptionBGColor(prompt.Black),
-		prompt.OptionSuggestionTextColor(prompt.DefaultColor),
-		prompt.OptionDescriptionTextColor(prompt.White),
-		prompt.OptionSelectedSuggestionTextColor(prompt.Color(prompt.DisplayBold)),
-		prompt.OptionSelectedDescriptionTextColor(prompt.Color(prompt.DisplayBold)),
-		prompt.OptionSelectedSuggestionBGColor(prompt.White),
-		prompt.OptionSelectedDescriptionBGColor(prompt.White),
-		prompt.OptionScrollbarBGColor(prompt.DefaultColor),
-		prompt.OptionScrollbarThumbColor(prompt.LightGray),
-	)
-
-	// color
-	if c {
-		o = append(
-			o,
-			prompt.OptionPrefixTextColor(prompt.DarkGray),
-			prompt.OptionPreviewSuggestionTextColor(prompt.Blue),
-			prompt.OptionInputTextColor(prompt.DarkGray),
-		)
+func promptOptions(color bool) []prompt.Option {
+	// plain: default text, gray selection
+	prefix, selectedBG, thumb := prompt.DefaultColor, prompt.DarkGray, prompt.DarkGray
+	if color {
+		prefix, selectedBG, thumb = prompt.Cyan, prompt.Blue, prompt.LightGray
 	}
 
-	return o
+	opts := []prompt.Option{
+		prompt.OptionMaxSuggestion(8),
+		prompt.OptionInputBGColor(prompt.DefaultColor),
+		prompt.OptionPrefixBackgroundColor(prompt.DefaultColor),
+		prompt.OptionPreviewSuggestionBGColor(prompt.DefaultColor),
+
+		prompt.OptionCompletionOnDown(),            // Down opens/moves the suggestions, not only Tab
+		prompt.OptionShowCompletionAtStart(),       // show suggestions before typing anything
+		prompt.OptionCompletionWordSeparator(" ,"), // complete each tag after a comma or space
+
+		prompt.OptionPrefixTextColor(prefix),
+		prompt.OptionInputTextColor(prompt.DefaultColor),
+
+		prompt.OptionSuggestionBGColor(prompt.DefaultColor),
+		prompt.OptionDescriptionBGColor(prompt.DefaultColor),
+
+		prompt.OptionSuggestionTextColor(prompt.DefaultColor),
+		prompt.OptionDescriptionTextColor(prompt.DefaultColor),
+
+		prompt.OptionSelectedSuggestionBGColor(selectedBG),
+		prompt.OptionSelectedDescriptionBGColor(selectedBG),
+
+		prompt.OptionSelectedSuggestionTextColor(prompt.White),
+		prompt.OptionSelectedDescriptionTextColor(prompt.White),
+
+		prompt.OptionScrollbarBGColor(prompt.DefaultColor),
+		prompt.OptionScrollbarThumbColor(thumb),
+
+		prompt.OptionSwitchKeyBindMode(prompt.EmacsKeyBind),
+
+		prompt.OptionSuggestionBGColor(prompt.DefaultColor),
+		prompt.OptionScrollbarBGColor(prompt.DefaultColor),
+		prompt.OptionScrollbarThumbColor(prompt.DefaultColor),
+	}
+
+	// only set with color, the plain case keeps go-prompt's default
+	if color {
+		opts = append(opts, prompt.OptionPreviewSuggestionTextColor(prompt.Cyan))
+	}
+
+	return opts
 }
 
 // completerHelper creates a PromptSuggester that filters suggestions based on
@@ -292,7 +268,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 		// wait for input, context cancellation, or timeout
 		select {
 		case <-ctx.Done():
-			return "", application.ErrActionAborted
+			return "", pi.cancelationError
 		case result := <-resultChan:
 			if result.err != nil {
 				slog.Error("error reading input", "error", result.err)
@@ -384,8 +360,8 @@ func getQueryFromPipe(r io.Reader) string {
 }
 
 // quitKeybind returns the quitKeybind for the completer.
-func quitKeybind(t *Term) prompt.KeyBind {
-	return prompt.KeyBind{
+func quitKeybind(t *Term) prompt.Option {
+	return prompt.OptionAddKeyBind(prompt.KeyBind{
 		Key: prompt.ControlC,
 		Fn: func(*prompt.Buffer) {
 			if t.state.Current() != nil {
@@ -394,9 +370,20 @@ func quitKeybind(t *Term) prompt.KeyBind {
 				}
 			}
 
-			t.interruptFn(application.ErrActionAborted)
+			t.interruptFn(t.cancelationError)
 		},
-	}
+	})
+}
+
+func selectKeybind() prompt.Option {
+	return prompt.OptionAddKeyBind(prompt.KeyBind{
+		Key: prompt.ControlY,
+		Fn: func(buf *prompt.Buffer) {
+			// the highlighted suggestion is accepted by this keypress;
+			// add a separator to start the next word (tags example)
+			buf.InsertText(", ", false, true)
+		},
+	})
 }
 
 // buildPrompt returns a formatted string with a question and options.
@@ -434,7 +421,7 @@ func WaitForEnter(ctx context.Context, msg string) error {
 
 // redrawPromptWithSelection replaces the prompt line with the given prompt `q`
 // and highlights the selected option with the given color.
-func redrawPromptWithSelection(w io.Writer, q, selected string, c highlightFn) {
+func redrawPromptWithSelection(w io.Writer, q, selected string, c HighlightFn) {
 	result := capitalize(strings.ToLower(strings.TrimSpace(selected)))
 	_, _ = fmt.Fprint(w, cursorUp, cursorReturn)
 	_, _ = fmt.Fprint(w, q)
@@ -448,9 +435,4 @@ func capitalize(s string) string {
 	}
 	r, size := utf8.DecodeRuneInString(s)
 	return string(unicode.ToUpper(r)) + s[size:]
-}
-
-// ansiRemover removes ANSI codes from a given string.
-func ansiRemover(s string) string {
-	return ansiEscapeRe.ReplaceAllString(s, "")
 }

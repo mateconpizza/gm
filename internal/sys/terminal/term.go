@@ -15,39 +15,45 @@ import (
 
 	prompt "github.com/c-bata/go-prompt"
 	"golang.org/x/term"
-
-	"github.com/mateconpizza/gm/internal/application"
 )
 
-var ErrOptNotFound = errors.New("option not found")
+var (
+	ErrActionAborted = errors.New("action aborted")
+	ErrOptNotFound   = errors.New("option not found")
+)
 
 // defaultInterruptFn is the default interrupt function for the terminal.
 func defaultInterruptFn(err error) { slog.Debug("InterruptFn not set") }
 
-type pagerRunFunc func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error
+type (
+	// pagerRunFunc handles running external pagers (like less) for long text output.
+	pagerRunFunc func(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error
 
-type isTerminalFunc func(fd int) bool
+	// isTerminalFunc checks if a given file descriptor points to an interactive terminal.
+	isTerminalFunc func(fd int) bool
 
-type readPasswordFunc func(fd int) ([]byte, error)
+	// readPasswordFunc securely reads input from a file descriptor without echoing characters.
+	readPasswordFunc func(fd int) ([]byte, error)
 
-// TermOptFn is an option function for the terminal.
-type TermOptFn func(*Options)
+	// TermOptFn configures terminal settings using the functional options pattern.
+	TermOptFn func(*Options)
+)
 
 // Options represents the options for the terminal.
 type Options struct {
-	reader       io.Reader
-	writer       io.Writer
-	interruptFn  func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
-	inputRetries int         // retries specifies the maximum number of retries allowed for user input.
-	state        *State
-	force        bool // force is a flag to force the terminal to run in non-interactive mode.
+	interruptFn      func(error) // interruptFn handles cancellation (Ctrl-C, ESC, etc.)
+	inputRetries     int         // inputRetries specifies the maximum number of retries allowed for user input
+	state            *State      // state manages persistent session or terminal state
+	colorizer        *Colorizer  // colorizer styles terminal output with colors
+	cancelationError error       // cancelationError stores the specific error returned upon user cancellation
+	force            bool        // force is a flag to force the terminal to run in non-interactive mode isTerminal
 
+	pagerFunc    pagerRunFunc
 	isTerminal   isTerminalFunc
 	readPassword readPasswordFunc
 
-	pagerFunc pagerRunFunc
-
-	colorizer *Colorizer
+	reader io.Reader
+	writer io.Writer
 }
 
 // Term is a struct that represents a terminal.
@@ -64,14 +70,15 @@ type Term struct {
 func New(opts ...TermOptFn) *Term {
 	t := &Term{
 		Options: Options{
-			reader:       os.Stdin,
-			writer:       os.Stdout,
-			isTerminal:   term.IsTerminal,
-			readPassword: term.ReadPassword,
-			state:        NewState(),
-			pagerFunc:    defaultPagerRun,
-			inputRetries: 3,
-			colorizer:    &Colorizer{},
+			reader:           os.Stdin,
+			writer:           os.Stdout,
+			isTerminal:       term.IsTerminal,
+			readPassword:     term.ReadPassword,
+			state:            NewState(),
+			pagerFunc:        defaultPagerRun,
+			inputRetries:     3,
+			colorizer:        defaultColorizer,
+			cancelationError: ErrActionAborted,
 		},
 		size: NewSize(),
 	}
@@ -97,6 +104,7 @@ func WithReader(r io.Reader) TermOptFn         { return func(o *Options) { o.rea
 func WithTermState(s *State) TermOptFn         { return func(o *Options) { o.state = s } }
 func WithWriter(w io.Writer) TermOptFn         { return func(o *Options) { o.writer = w } }
 func WithForce(force bool) TermOptFn           { return func(o *Options) { o.force = force } }
+func WithCancelationError(err error) TermOptFn { return func(o *Options) { o.cancelationError = err } }
 
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
@@ -120,6 +128,10 @@ func (t *Term) Input(p string) string {
 }
 
 func (t *Term) InputPassword(ctx context.Context) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+
 	fd := int(os.Stdin.Fd())
 
 	// if not a terminal (piped or test), read plain input
@@ -155,7 +167,7 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 
 	select {
 	case <-ctx.Done():
-		return "", application.ErrActionAborted
+		return "", t.cancelationError
 	case result := <-resultChan:
 		if result.err != nil {
 			return "", fmt.Errorf("reading password: %w", result.err)
@@ -183,7 +195,7 @@ func (t *Term) Prompt(ctx context.Context, p string) (string, error) {
 
 	select {
 	case <-ctx.Done():
-		return "", application.ErrActionAborted
+		return "", t.cancelationError
 	case result := <-resultChan:
 		if result.err != nil {
 			return "", result.err
@@ -205,8 +217,8 @@ func (t *Term) PromptWithFuzzySuggestions(p string, items []string) string {
 
 // ChooseTags prompts the user for input with suggestions based on
 // the provided tags.
-func (t *Term) ChooseTags(p string, items map[string]int) string {
-	return inputWithTags(t, p, items)
+func (t *Term) ChooseTags(ctx context.Context, p string, items map[string]int) (string, error) {
+	return inputWithTags(ctx, t, p, items)
 }
 
 // Confirm prompts the user with a question and options.
@@ -247,7 +259,7 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 	}
 
 	if chosen != "y" {
-		return application.ErrExitFailure
+		return t.cancelationError
 	}
 
 	return nil
@@ -411,13 +423,14 @@ func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string
 	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(display, sep), e))
 
 	return getUserInputWithAttempts(ctx, &PromptInput{
-		reader:     t.currentReader(),
-		writer:     t.writer,
-		rompt:      p,
-		options:    opts, // raw options, used for matching
-		def:        def,
-		maxRetries: t.inputRetries,
-		colorizer:  t.colorizer,
+		reader:           t.currentReader(),
+		writer:           t.writer,
+		rompt:            p,
+		options:          opts, // raw options, used for matching
+		def:              def,
+		maxRetries:       t.inputRetries,
+		colorizer:        t.colorizer,
+		cancelationError: t.cancelationError,
 	})
 }
 

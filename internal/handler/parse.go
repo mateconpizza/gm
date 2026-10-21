@@ -53,7 +53,7 @@ type metadataScraper interface {
 }
 
 type tagTerminal interface {
-	ChooseTags(prompt string, items map[string]int) string
+	ChooseTags(ctx context.Context, prompt string, items map[string]int) (string, error)
 	ClearLine(n int)
 }
 
@@ -430,7 +430,10 @@ func (tr *tagResolver) resolve(ctx context.Context, force bool, initial, glyph s
 		return "", err
 	}
 
-	selected := tr.term.ChooseTags(glyph+" Tags  : ", tags)
+	selected, err := tr.term.ChooseTags(ctx, glyph+" Tags  : ", tags)
+	if err != nil {
+		return "", err
+	}
 
 	return bookmark.ParseTags(selected), nil
 }
