@@ -134,17 +134,19 @@ func (c *Console) Print(ctx context.Context, s string) error { return c.Term().P
 
 func WithDefaultTerminal(color, force bool, f func(error)) Option {
 	p := ansi.NewPalette(color)
-	cz := terminal.NewColorizer(color).
-		WithHotkey(p.Red).
-		WithError(p.BrightRed).
-		WithSuccess(p.BrightGreen).
-		WithSelected(p.BrightYellow).
-		WithMuted(p.Dim)
 
 	return WithTerminal(terminal.New(
 		terminal.WithInterruptFn(f),
-		terminal.WithColorizer(cz),
 		terminal.WithForce(force),
+		terminal.WithCancelationError(application.ErrActionAborted),
+		terminal.WithColorizer(&terminal.Colorizer{
+			Muted:    func(s string) string { return p.Dim.Sprint(s) },
+			Success:  func(s string) string { return p.BrightGreen.Sprint(s) },
+			Selected: func(s string) string { return p.BrightYellow.Sprint(s) },
+			Error:    func(s string) string { return p.BrightRed.Sprint(s) },
+			Hotkey:   func(s string) string { return p.Orange.With(p.Bold).Sprint(s) },
+			Enabled:  color,
+		}),
 	))
 }
 

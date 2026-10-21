@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 )
 
 var (
@@ -39,7 +40,7 @@ func Exit(err error) {
 		slog.Debug(ErrExitFailure.Error())
 		os.Exit(ExitFailure)
 
-	case errors.Is(err, ErrActionAborted):
+	case errors.Is(err, ErrActionAborted) || errors.Is(err, terminal.ErrActionAborted):
 		slog.Debug(ErrActionAborted.Error())
 		os.Exit(ExitInterrupted)
 

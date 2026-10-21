@@ -258,8 +258,11 @@ type mockTerm struct {
 	tags string
 }
 
-func (m *mockTerm) ChooseTags(p string, items map[string]int) string { return m.tags }
-func (m *mockTerm) ClearLine(n int)                                  {}
+func (m *mockTerm) ChooseTags(ctx context.Context, p string, items map[string]int) (string, error) {
+	return m.tags, nil
+}
+
+func (m *mockTerm) ClearLine(n int) {}
 
 func TestTagsFromArgs(t *testing.T) {
 	t.Parallel()
