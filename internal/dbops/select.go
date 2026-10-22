@@ -177,7 +177,7 @@ func (s *Selector) Select(ctx context.Context, opts ...menu.Option) ([]string, e
 	m := picker.New[string](s.app, opts...)
 	m.SetFormatter(formatItem)
 
-	selected, err := m.Select(dbs)
+	selected, err := m.Select(ctx, dbs)
 	if errors.Is(err, menu.ErrActionAborted) {
 		return nil, application.ErrActionAborted
 	}

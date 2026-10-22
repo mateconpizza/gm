@@ -228,7 +228,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 				return fm.Render(c, b)
 			})
 
-			bs, err = m.Select(bs)
+			bs, err = m.Select(ctx, bs)
 			if err != nil {
 				return nil, err
 			}

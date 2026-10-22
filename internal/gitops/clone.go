@@ -159,7 +159,7 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 				return fm.Render(c, b)
 			})
 
-			bs, err = m.Select(bs)
+			bs, err = m.Select(ctx, bs)
 			if err != nil {
 				return err
 			}

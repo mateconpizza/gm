@@ -33,7 +33,7 @@ type fakeSelector[T any] struct {
 	err      error
 }
 
-func (f *fakeSelector[T]) Select(items []T) ([]T, error) {
+func (f *fakeSelector[T]) Select(ctx context.Context, items []T) ([]T, error) {
 	f.items = items
 
 	if f.err != nil {

@@ -152,7 +152,7 @@ func paramsCleaner(u *url.URL) string {
 
 // selectParams presents a multi-select menu to choose which query params to
 // remove.
-func selectParams(m *menu.Menu[string], u *url.URL) ([]string, error) {
+func selectParams(ctx context.Context, m *menu.Menu[string], u *url.URL) ([]string, error) {
 	query := u.Query()
 	sep := "="
 	items := make([]string, 0, len(query))
@@ -167,7 +167,7 @@ func selectParams(m *menu.Menu[string], u *url.URL) ([]string, error) {
 		return nil, ErrNoItems
 	}
 
-	params, err := m.Select(items)
+	params, err := m.Select(ctx, items)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func processBookmarkParams(ctx context.Context, app *application.App, c console,
 	// clear the terminal lines after receiving input
 	c.Term().ClearLine(linesToClear)
 
-	newURL, skipped, err := computeNewURL(m, u, opt)
+	newURL, skipped, err := computeNewURL(ctx, m, u, opt)
 	if err != nil {
 		return "", err
 	}
@@ -247,14 +247,14 @@ func promptParamRemoval(ctx context.Context, app *application.App, c console, ur
 
 // computeNewURL returns a new URL based on the selected option or reports
 // skip/invalid choice.
-func computeNewURL(m *menu.Menu[string], u *url.URL, opt string) (newURL string, skipped bool, err error) {
+func computeNewURL(ctx context.Context, m *menu.Menu[string], u *url.URL, opt string) (newURL string, skipped bool, err error) {
 	switch strings.ToLower(opt) {
 	case "n", "no":
 		return "", true, nil
 	case "y", "yes":
 		return paramsCleaner(u), false, nil
 	case "s", "select":
-		selected, err := selectParams(m, u)
+		selected, err := selectParams(ctx, m, u)
 		if err != nil {
 			return "", false, err
 		}

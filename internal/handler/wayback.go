@@ -428,7 +428,7 @@ func selectSnapshot(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, sna
 		menu.WithFooter(b.URL),
 	)
 
-	selected, err := m.Select(snaps)
+	selected, err := m.Select(ctx, snaps)
 	if err != nil {
 		return wayback.SnapshotInfo{}, err
 	}
