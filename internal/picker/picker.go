@@ -1,6 +1,7 @@
 package picker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -80,9 +81,9 @@ func NewWithFormatter(app *application.App, fm formatter.Formatter, opts ...menu
 	return m
 }
 
-func Select[T comparable](items []T, opts ...menu.Option) ([]T, error) {
+func Select[T comparable](ctx context.Context, items []T, opts ...menu.Option) ([]T, error) {
 	m := menu.New[T](opts...)
-	items, err := m.Select(items)
+	items, err := m.Select(ctx, items)
 	if err != nil {
 		return nil, err
 	}
@@ -91,23 +92,23 @@ func Select[T comparable](items []T, opts ...menu.Option) ([]T, error) {
 }
 
 // BookmarkWithMenu applies menu selection to bookmarks.
-func BookmarkWithMenu(c *ui.Console, m *menu.Menu[*bookmark.Bookmark], bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func BookmarkWithMenu(ctx context.Context, c *ui.Console, m *menu.Menu[*bookmark.Bookmark], bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	if m.Formatter == nil {
 		m.SetFormatter(func(b *bookmark.Bookmark) string {
 			return formatter.Default().Render(c, b)
 		})
 	}
-	return selectionWithMenu(m, bs)
+	return selectionWithMenu(ctx, m, bs)
 }
 
 // selectionWithMenu allows the user to select multiple records in a menu
 // interface.
-func selectionWithMenu[T comparable](m *menu.Menu[T], items []T) ([]T, error) {
+func selectionWithMenu[T comparable](ctx context.Context, m *menu.Menu[T], items []T) ([]T, error) {
 	if len(items) == 0 {
 		return nil, menu.ErrNoItems
 	}
 
-	result, err := m.Select(items)
+	result, err := m.Select(ctx, items)
 	if err != nil {
 		if errors.Is(err, menu.ErrActionAborted) {
 			return nil, application.ErrActionAborted

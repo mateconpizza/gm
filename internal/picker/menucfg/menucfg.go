@@ -74,9 +74,9 @@ func NewDefault() *Config {
 			OpenQR:    menu.NewKeymap().WithBind(menu.KeyCtrlL).WithDesc("open-qr"),
 			QR:        menu.NewKeymap().WithBind(menu.KeyCtrlK).WithDesc("qr-code"),
 			Yank:      menu.NewKeymap().WithBind(menu.KeyCtrlY).WithDesc("yank"),
-			ToggleAll: menu.NewKeymap().WithBind(menu.KeyCtrlA).WithDesc("toggle-all").Hide(),
-			Preview:   menu.NewKeymap().WithBind(menu.KeyCtrlSlash).WithDesc("toggle-preview").Hide(),
-			Repos:     menu.NewKeymap().WithBind(menu.KeyCtrlO).WithDesc("repos").Hide(),
+			ToggleAll: menu.NewKeymap().WithBind(menu.KeyCtrlA).WithDesc("toggle-all").Hide(true),
+			Preview:   menu.NewKeymap().WithBind(menu.KeyCtrlSlash).WithDesc("toggle-preview").Hide(true),
+			Repos:     menu.NewKeymap().WithBind(menu.KeyCtrlO).WithDesc("repos").Hide(true),
 		},
 	}
 }

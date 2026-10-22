@@ -24,7 +24,7 @@ import (
 var ErrNothingToImport = errors.New("nothing to import")
 
 type selector[T any] interface {
-	Select(items []T) ([]T, error)
+	Select(ctx context.Context, items []T) ([]T, error)
 }
 
 type storeReader interface {
@@ -69,7 +69,7 @@ func Database(ctx context.Context, d *deps.Deps, srcDB storeReader) error {
 		return fm.Render(c, b)
 	})
 
-	bs, err = m.Select(bs)
+	bs, err = m.Select(ctx, bs)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func importBookmarksFromBackup(ctx context.Context, d *deps.Deps, srcDB storeRea
 	c := d.Console()
 	defer c.Term().CancelInterruptHandler()
 
-	bookmarks, err = m.Select(bookmarks)
+	bookmarks, err = m.Select(ctx, bookmarks)
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/c-bata/go-prompt v0.2.6
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/mateconpizza/go-fzf v0.1.3
+	github.com/mateconpizza/go-fzf v0.1.4
 	github.com/mateconpizza/gofiles v0.1.1
 	github.com/mateconpizza/rotato v0.1.21
 	github.com/mattn/go-runewidth v0.0.30
@@ -17,8 +17,8 @@ require (
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/image v0.46.0
 	golang.org/x/net v0.59.0
-	golang.org/x/sync v0.23.0
-	golang.org/x/term v0.46.0
+	golang.org/x/sync v0.24.0
+	golang.org/x/term v0.47.0
 	gopkg.in/ini.v1 v1.67.3
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.60.1
@@ -33,7 +33,7 @@ require (
 	github.com/gdamore/tcell/v2 v2.13.10 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/junegunn/fzf v0.74.3 // indirect
+	github.com/junegunn/fzf v0.74.5 // indirect
 	github.com/junegunn/go-shellwords v0.0.0-20250127100254-2aa3b3277741 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -45,8 +45,8 @@ require (
 	github.com/pkg/term v1.2.0-beta.2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect

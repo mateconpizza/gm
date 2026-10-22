@@ -96,7 +96,7 @@ func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark
 		}
 
 		if f.Menu && len(bs) > 0 {
-			bs, err = picker.BookmarkWithMenu(d.Console(), m, bs)
+			bs, err = picker.BookmarkWithMenu(ctx, d.Console(), m, bs)
 			if err != nil {
 				return err
 			}

@@ -89,7 +89,7 @@ func confirmRemove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) (
 				return fm.Render(d.Console(), b)
 			})
 
-			bs, err = m.Select(bs)
+			bs, err = m.Select(ctx, bs)
 			if err != nil {
 				return nil, err
 			}

@@ -126,7 +126,7 @@ func selectBrowser(ctx context.Context, app *application.App, c *ui.Console, arg
 		}),
 	)
 
-	browsers, err := m.Select(browsers())
+	browsers, err := m.Select(ctx, browsers())
 	if err != nil {
 		return browser.Supported{}, err
 	}

@@ -17,7 +17,7 @@ import (
 )
 
 type Menu interface {
-	Select(items []*git.Repo) ([]*git.Repo, error)
+	Select(ctx context.Context, items []*git.Repo) ([]*git.Repo, error)
 }
 
 type Terminal interface {
@@ -105,7 +105,7 @@ func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
 	case "no":
 		return application.ErrActionAborted
 	case "select":
-		repos, err := m.Select(gp.repos)
+		repos, err := m.Select(ctx, gp.repos)
 		if err != nil {
 			return err
 		}

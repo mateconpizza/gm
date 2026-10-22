@@ -117,7 +117,7 @@ func askForEncryption(ctx context.Context, c *ui.Console, app *application.App, 
 	}
 
 	m := menuFingerprint(c, app)
-	key, err := selectFingerprint(m, fps)
+	key, err := selectFingerprint(ctx, m, fps)
 	if err != nil {
 		return err
 	}
@@ -274,8 +274,8 @@ func menuFingerprint(c *ui.Console, app *application.App) *menu.Menu[*gpg.Finger
 	return m
 }
 
-func selectFingerprint(m *menu.Menu[*gpg.Fingerprint], fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
-	keys, err := m.Select(fps)
+func selectFingerprint(ctx context.Context, m *menu.Menu[*gpg.Fingerprint], fps []*gpg.Fingerprint) (*gpg.Fingerprint, error) {
+	keys, err := m.Select(ctx, fps)
 	if err != nil {
 		return nil, err
 	}
