@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -44,7 +43,7 @@ func NewSummary() *Summary {
 }
 
 // GenChecksum generates a checksum for the SyncGitSummary.
-func (s *Summary) GenChecksum() {
+func (s *Summary) GenChecksum() *Summary {
 	const length = 12
 
 	var sb strings.Builder
@@ -68,6 +67,7 @@ func (s *Summary) GenChecksum() {
 	}
 
 	s.Checksum = genHash(sb.String(), length)
+	return s
 }
 
 func (s *Summary) Validate() error {
@@ -104,15 +104,12 @@ type RepoStats struct {
 	TotalVisits int    `db:"total_visits"    json:"total_visits"`
 }
 
-func NewRepoStats() *RepoStats {
-	return &RepoStats{}
-}
+func NewRepoStats() *RepoStats { return &RepoStats{} }
 
 func (rs *RepoStats) Validate() error {
 	if rs.Name == "" {
 		return ErrSummaryMissingName
 	}
-
 	return nil
 }
 
@@ -120,7 +117,7 @@ func (rs *RepoStats) Equal(other *RepoStats) bool {
 	if rs == nil || other == nil {
 		return rs == other
 	}
-	return reflect.DeepEqual(rs, other)
+	return *rs == *other
 }
 
 func (rs *RepoStats) String() string {
@@ -148,9 +145,7 @@ func (rs *RepoStats) String() string {
 	return strings.Join(parts, ", ")
 }
 
-type hostnameFunc func() (string, error)
-
-func summaryComplete(ctx context.Context, g *Git, s *RepoStats, host hostnameFunc, ver string) (*Summary, error) {
+func BuildSummary(ctx context.Context, g *Git, s *RepoStats, hostname, ver string) (*Summary, error) {
 	branch, err := g.Branch(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting branch: %w", err)
@@ -161,11 +156,6 @@ func summaryComplete(ctx context.Context, g *Git, s *RepoStats, host hostnameFun
 		remote = ""
 	}
 
-	h, err := host()
-	if err != nil {
-		return nil, fmt.Errorf("getting hostname: %w", err)
-	}
-
 	summary := &Summary{
 		GitBranch:          branch,
 		GitRemote:          remote,
@@ -173,7 +163,7 @@ func summaryComplete(ctx context.Context, g *Git, s *RepoStats, host hostnameFun
 		ConflictResolution: "timestamp",
 		HashAlgorithm:      "SHA-256",
 		ClientInfo: &ClientInfo{
-			Hostname:   h,
+			Hostname:   hostname,
 			Platform:   runtime.GOOS,
 			Architect:  runtime.GOARCH,
 			AppVersion: ver,
@@ -181,7 +171,5 @@ func summaryComplete(ctx context.Context, g *Git, s *RepoStats, host hostnameFun
 		RepoStats: s,
 	}
 
-	summary.GenChecksum()
-
-	return summary, nil
+	return summary.GenChecksum(), nil
 }

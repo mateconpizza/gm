@@ -138,6 +138,11 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		gitops.RepoFileWriter(app.Flags.Color),
 	)
 
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
+	)
+
 	if err := gitops.Track(ctx, r, app, gm, gr); err != nil {
 		return err
 	}

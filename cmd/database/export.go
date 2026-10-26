@@ -98,13 +98,24 @@ func newExportMarkdownCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to Markdown ")
 			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+				r, err := d.Repository()
+				if err != nil {
+					return err
+				}
+				defer r.Close()
+
+				stats := git.NewRepoStats()
+				if err := r.Stats(ctx, stats); err != nil {
+					return err
+				}
+
 				app.Git.Readme = &git.Readme{
 					Enabled: true,
 					Glyphs:  app.Flags.Glyphs,
 					Summary: app.Flags.Summary,
 				}
 
-				return gitops.NewReadmeFile(ctx, app, os.Stdout, bs)
+				return gitops.NewReadmeFile(ctx, os.Stdout, app, stats, bs)
 			})
 		},
 	}

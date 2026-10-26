@@ -41,6 +41,12 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
 	)
+
+	gm.Git().RegisterPreCommit(
+		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+	)
+
 	c := d.Console()
 	if gm.IsTracked(gr.Name()) {
 		fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Name())))
@@ -63,19 +69,6 @@ func Track(ctx context.Context, r store, app *application.App, gm *git.Mgr, gr *
 		return err
 	}
 
-	stats := git.NewRepoStats()
-	if err := r.Stats(ctx, stats); err != nil {
-		return err
-	}
-
-	sum, err := gr.Summary()
-	if err != nil {
-		return err
-	}
-
-	stats.Name = gr.Name()
-	sum.RepoStats = stats
-
 	if err := gr.Add(ctx, bs); err != nil {
 		return err
 	}
@@ -85,10 +78,6 @@ func Track(ctx context.Context, r store, app *application.App, gm *git.Mgr, gr *
 	}
 
 	if err := gm.WriteRepos(); err != nil {
-		return err
-	}
-
-	if err := gr.WriteSummary(sum); err != nil {
 		return err
 	}
 
@@ -182,6 +171,13 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			RepoFileRemover(),
 			RepoFileWriter(p.Enabled()),
 		)
+
+		gm.Git().
+			ResetPreCommit().
+			RegisterPreCommit(
+				HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+				HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+			)
 
 		if err := Track(ctx, r, app, gm, gr); err != nil {
 			return err

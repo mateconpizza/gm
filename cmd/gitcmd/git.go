@@ -236,6 +236,11 @@ func newSyncCmd(app *application.App) *cobra.Command {
 				gitops.RepoFileWriter(app.Flags.Color),
 			)
 
+			gm.Git().RegisterPreCommit(
+				gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+				gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
+			)
+
 			bs, err := r.All(ctx)
 			if err != nil {
 				return err
@@ -302,6 +307,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "info",
 		Short:   "show repository status and configuration",
+		Aliases: []string{"view"},
 		Example: app.Example(`  $ {cmd} git info`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd.Context(), args, gitops.InfoCmd)

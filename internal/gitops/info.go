@@ -147,9 +147,9 @@ func ReadmePrompt(ctx context.Context, d *deps.Deps) error {
 			continue
 		}
 
-		hook := PreCommitReadme(app)
+		hook := HookReadme(app, BookmarksFromStore(r), StatsFromStore(r))
 
-		if err := hook(ctx); err != nil {
+		if err := hook.Run(ctx, gm.Git()); err != nil {
 			return err
 		}
 	}

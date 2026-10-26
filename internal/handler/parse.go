@@ -21,7 +21,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
-	"github.com/mateconpizza/gm/pkg/git"
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
@@ -379,9 +378,7 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		return nil
 	}
 
-	gm, err := gitops.NewManager(app,
-		git.WithPreCommit(gitops.PreCommitReadme(app)),
-	)
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -390,6 +387,11 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
+	)
+
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
 	)
 
 	return gitops.Add(ctx, gm, gr, fresh)

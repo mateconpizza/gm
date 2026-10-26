@@ -16,6 +16,19 @@ var (
 
 const TrackerFile = ".tracked.json"
 
+func IsTracked(root, name string) bool {
+	if !fileExists(filepath.Join(root, TrackerFile)) {
+		return false
+	}
+
+	t := newTracker(root)
+	if err := t.load(); err != nil {
+		return false
+	}
+
+	return t.contains(name)
+}
+
 // Tracker manages a list of tracked repositories stored in a file.
 type Tracker struct {
 	file *JSONFile[[]string] // ["main", "work", "org", ... ]

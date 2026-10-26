@@ -310,6 +310,9 @@ linters:
       - path: "internal/gitops/info.go"
         linters:
           - nestif
+      - path: "internal/gitops/precommit_test.go"
+        linters:
+          - nestif
     generated: lax
     presets:
       - common-false-positives

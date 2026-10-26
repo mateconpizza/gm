@@ -184,13 +184,23 @@ func Remove(ctx context.Context, d *deps.Deps) error {
 		return fmt.Errorf("%w: removing the main database requires %s", ErrInvalidOption, f)
 	}
 
+	value := func(s string) string {
+		return p.BrightYellow.With(p.Italic).Sprint(
+			files.CollapseHomeDir(s),
+		)
+	}
+
 	if !app.Flags.Force && !app.Flags.Yes {
 		c.NewBannerBuilder().
 			WithTitle("Remove Database/s").
 			WithTitleGlyph(c.Glyphs().Del).
 			WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 			WithSubtitle("this action cannot be undone").
-			Render()
+			Build().
+			Rowln().
+			Info("database: " + value(app.Path.DB()+"\n")).
+			Rowln().
+			Flush()
 
 		fmt.Fprint(d.Writer(), SummaryRepoFromPath(ctx, c, app.Path.DB(), app.Path.Backup()))
 		err := c.ConfirmErr(ctx, p.BrightRed.Wrap("remove", p.Bold)+" "+filepath.Base(app.Path.DB())+"?", "n")

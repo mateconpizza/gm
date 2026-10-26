@@ -879,20 +879,18 @@ func TestSummaryComplete(t *testing.T) {
 	t.Parallel()
 
 	errBranch := errors.New("exit status 128: not a git repository")
-	hostnameErr := errors.New("hostname err")
 
 	stats := &RepoStats{Name: "test-repo", Bookmarks: 5}
 
 	tests := []struct {
-		name        string
-		branchOut   string
-		branchErr   error
-		remoteOut   string
-		remoteErr   error
-		hostnameErr error
-		wantErr     error
-		wantBranch  string
-		wantRemote  string
+		name       string
+		branchOut  string
+		branchErr  error
+		remoteOut  string
+		remoteErr  error
+		wantErr    error
+		wantBranch string
+		wantRemote string
 	}{
 		{
 			name:       "success_with_remote",
@@ -920,11 +918,6 @@ func TestSummaryComplete(t *testing.T) {
 			branchErr: errBranch,
 			wantErr:   errBranch,
 		},
-		{
-			name:        "hostname_err",
-			hostnameErr: hostnameErr,
-			wantErr:     hostnameErr,
-		},
 	}
 
 	for _, tt := range tests {
@@ -940,22 +933,18 @@ func TestSummaryComplete(t *testing.T) {
 				t.Fatalf("New() error = %v", err)
 			}
 
-			hostnameFunc := func() (string, error) {
-				return "hostname", tt.hostnameErr
-			}
-
 			before := time.Now()
-			sum, err := summaryComplete(t.Context(), g, stats, hostnameFunc, "1.2.3")
+			sum, err := BuildSummary(t.Context(), g, stats, "hostname", "1.2.3")
 			after := time.Now()
 
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("summaryComplete() error = %v, want %v", err, tt.wantErr)
+					t.Fatalf("BuildSummary() error = %v, want %v", err, tt.wantErr)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("summaryComplete() unexpected error: %v", err)
+				t.Fatalf("BuildSummary() unexpected error: %v", err)
 			}
 
 			if sum.GitBranch != tt.wantBranch {
@@ -981,7 +970,7 @@ func TestSummaryComplete(t *testing.T) {
 				t.Fatal("ClientInfo is nil")
 			}
 
-			wantHostname, _ := hostnameFunc()
+			wantHostname := "hostname"
 			if sum.ClientInfo.Hostname != wantHostname {
 				t.Errorf("ClientInfo.Hostname = %q, want %q", sum.ClientInfo.Hostname, wantHostname)
 			}

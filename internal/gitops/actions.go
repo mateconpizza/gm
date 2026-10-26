@@ -81,6 +81,11 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		RepoFileWriter(app.Flags.Color),
 	)
 
+	gm.Git().RegisterPreCommit(
+		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+	)
+
 	return gm.Commit(ctx,
 		gr.CommitMsg(git.RepoAction("commit changes"), ""),
 	)
@@ -120,6 +125,12 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
 	)
+
+	gm.Git().RegisterPreCommit(
+		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+	)
+
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
@@ -215,23 +226,27 @@ func StreamLog(ctx context.Context, g *git.Git, p *ansi.Palette) error {
 	return nil
 }
 
-func NewReadmeFile(ctx context.Context, app *application.App, w io.Writer, bs []*bookmark.Bookmark) error {
+func BookmarksFromStore(r store) BookmarksLoader {
+	return func(ctx context.Context) ([]*bookmark.Bookmark, error) {
+		return r.All(ctx)
+	}
+}
+
+// StatsFromStore adapts a database to a StatsLoader.
+func StatsFromStore(r store) StatsLoader {
+	return func(ctx context.Context) (*git.RepoStats, error) {
+		s := git.NewRepoStats()
+		if err := r.Stats(ctx, s); err != nil {
+			return nil, err
+		}
+		s.Name = r.BaseName()
+
+		return s, nil
+	}
+}
+
+func NewReadmeFile(ctx context.Context, w io.Writer, app *application.App, stats *git.RepoStats, bs []*bookmark.Bookmark) error {
 	cfg := app.Git.Readme
-
-	if !cfg.Enabled {
-		return nil
-	}
-
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	s := db.NewStats()
-	if err := r.Stats(ctx, s); err != nil {
-		return err
-	}
 
 	return bookio.NewMarkdown(
 		bs,
@@ -240,12 +255,12 @@ func NewReadmeFile(ctx context.Context, app *application.App, w io.Writer, bs []
 		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
 		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(app.Flags.Sort, bs) }),
 		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
-			Bookmarks:   s.Bookmarks,
-			Tags:        s.Tags,
-			Favorites:   s.Favorites,
-			Archived:    s.Archived,
-			DeadLinks:   s.DeadLinks,
-			TotalVisits: s.TotalVisits,
+			Bookmarks:   stats.Bookmarks,
+			Tags:        stats.Tags,
+			Favorites:   stats.Favorites,
+			Archived:    stats.Archived,
+			DeadLinks:   stats.DeadLinks,
+			TotalVisits: stats.TotalVisits,
 		})),
 	).Render()
 }
