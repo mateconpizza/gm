@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 
-	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -106,14 +105,9 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			dbFiles, err := files.Find(app.Path.Home(), "*.db")
-			if err != nil {
-				return fmt.Errorf("finding db files: %w", err)
-			}
-
 			fmt.Fprintln(os.Stdout)
 
-			return gitops.TrackMgr(cmd.Context(), gm, ui.NewDefaultConsole(app, app.Exit), dbFiles)
+			return gitops.TrackMgr(cmd.Context(), app, gm, ui.NewDefaultConsole(app, app.Exit), app.Databases())
 		},
 	}
 

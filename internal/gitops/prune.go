@@ -25,10 +25,9 @@ type gitManager interface {
 	Drop(ctx context.Context, gr *git.Repo) error
 	Repos() []string
 	Untrack(ctx context.Context, gr *git.Repo) error
-	SaveChanges(ctx context.Context, gr *git.Repo, msg git.CommitMessage) error
 	IsTracked(name string) bool
 	IsEnabled() bool
-	UpdateAndSave(ctx context.Context, p git.UpdateParams, msg git.CommitMessage) error
+	Commit(ctx context.Context, msg git.CommitMessage) error
 }
 
 type saveChangesFunc func(ctx context.Context, msg git.CommitMessage) error
@@ -141,7 +140,7 @@ func PruneRepo(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.
 	}
 
 	persistFn := func(ctx context.Context, msg git.CommitMessage) error {
-		return gm.SaveChanges(ctx, gr, msg)
+		return gm.Commit(ctx, msg)
 	}
 
 	return newRepoReconciler().

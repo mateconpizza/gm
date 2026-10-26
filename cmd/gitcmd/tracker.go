@@ -1,9 +1,6 @@
 package gitcmd
 
 import (
-	"fmt"
-
-	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -63,16 +60,11 @@ func newMgrCmd(app *application.App) *cobra.Command {
 		Short:   "select which database to track",
 		Aliases: []string{"mgr", "m"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbFiles, err := files.Find(app.Path.Home(), "*.db")
-			if err != nil {
-				return fmt.Errorf("finding db files: %w", err)
-			}
-
 			gm, err := gitops.NewManager(app)
 			if err != nil {
 				return err
 			}
-			return gitops.TrackMgr(cmd.Context(), gm, ui.NewDefaultConsole(app, app.Exit), dbFiles)
+			return gitops.TrackMgr(cmd.Context(), app, gm, ui.NewDefaultConsole(app, app.Exit), app.Databases())
 		},
 	}
 

@@ -30,7 +30,6 @@ func RepoFileReader(color bool) git.RepoOptFunc { return git.WithRepoReader(read
 func RepoFileRemover() git.RepoOptFunc          { return git.WithRepoRemover(removeFiles) }
 func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(writeFiles(color)) }
 func RepoStatsReader(r store) git.RepoOptFunc   { return git.WithRepoStore(r) }
-func MgrVersion(ver string) git.MgrOptFunc      { return git.WithVersion(ver) }
 
 // Init initializes Git support and configures repository encryption.
 func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
@@ -86,8 +85,7 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		git.WithRepoStore(r),
 	)
 
-	return gm.SaveChanges(ctx,
-		gr,
+	return gm.Commit(ctx,
 		gr.CommitMsg(git.RepoAction("commit changes"), ""),
 	)
 }
@@ -131,7 +129,7 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
 
-	return gm.SaveChanges(ctx, gr, msg)
+	return gm.Commit(ctx, msg)
 }
 
 func SyncAll(ctx context.Context, d *deps.Deps) error {
@@ -146,8 +144,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 	}
 
 	c := d.Console()
-	w := c.Writer()
-	p := c.Palette()
+	w, p := c.Writer(), c.Palette()
 
 	for _, name := range gm.Repos() {
 		if err := ctx.Err(); err != nil {

@@ -23,17 +23,13 @@ type mockManager struct {
 	trackedName string
 	untrackErr  error
 	untrackMsg  string
-
-	updateAndSaveErr    error
-	updateAndSaveCalled bool
-	gotOld, gotFresh    *bookmark.Bookmark
 }
 
 func (gm *mockManager) IsEnabled() bool                                        { return gm.isEnabled }
 func (gm *mockManager) Drop(ctx context.Context, gr *git.Repo) error           { return gm.dropErr }
 func (gm *mockManager) Repos() []string                                        { return []string{} }
 func (gm *mockManager) NewRepo(name string, opts ...git.RepoOptFunc) *git.Repo { return nil }
-func (gm *mockManager) SaveChanges(ctx context.Context, gr *git.Repo, mesg git.CommitMessage) error {
+func (gm *mockManager) Commit(ctx context.Context, mesg git.CommitMessage) error {
 	gm.savedMsg = mesg
 	return gm.saveChangesErr
 }
@@ -45,13 +41,6 @@ func (gm *mockManager) Untrack(ctx context.Context, gr *git.Repo) error {
 func (gm *mockManager) IsTracked(name string) bool {
 	gm.trackedName = name
 	return gm.isTracked
-}
-
-func (gm *mockManager) UpdateAndSave(ctx context.Context, p git.UpdateParams, msg git.CommitMessage) error {
-	gm.updateAndSaveCalled = true
-	gm.gotOld = p.Old
-	gm.gotFresh = p.Fresh
-	return gm.updateAndSaveErr
 }
 
 func TestAdd(t *testing.T) {

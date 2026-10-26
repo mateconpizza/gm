@@ -17,6 +17,7 @@ import (
 )
 
 type store interface {
+	BaseName() string
 	Stats(ctx context.Context, dest any) error
 	All(ctx context.Context) ([]*bookmark.Bookmark, error)
 }
@@ -55,10 +56,7 @@ func NewManager(app *application.App, opts ...git.GitOpt) (*git.Mgr, error) {
 		return nil, err
 	}
 
-	gm, err := git.NewManager(root,
-		git.WithGit(g),
-		git.WithVersion(app.Version()),
-	)
+	gm, err := git.NewManager(root, git.WithGit(g))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +90,7 @@ func Add(ctx context.Context, gm gitManager, gr *git.Repo, b *bookmark.Bookmark)
 	if err := gr.Add(ctx, []*bookmark.Bookmark{b}); err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Add, "bookmark"))
+	return gm.Commit(ctx, gr.CommitMsg(git.Add, "bookmark"))
 }
 
 func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Bookmark) error {
@@ -102,7 +100,7 @@ func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Boo
 	if err := gr.RmMany(ctx, bs, files.RemoveEmptyDirs); err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Del, func() string {
+	return gm.Commit(ctx, gr.CommitMsg(git.Del, func() string {
 		if len(bs) > 1 {
 			return "bookmarks"
 		}

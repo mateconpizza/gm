@@ -47,14 +47,14 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Name())))
 	}
 
-	if err := Track(ctx, r, gm, gr); err != nil {
+	if err := Track(ctx, r, app, gm, gr); err != nil {
 		return err
 	}
 
 	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Name())))
 }
 
-func Track(ctx context.Context, r store, gm *git.Mgr, gr *git.Repo) error {
+func Track(ctx context.Context, r store, app *application.App, gm *git.Mgr, gr *git.Repo) error {
 	if gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitTracked, gr.Name())
 	}
@@ -142,7 +142,7 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 	return c.Success(sb.String() + "\n").String()
 }
 
-func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
+func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
 	c.NewBannerBuilder().
 		WithTitle("Git Tracker Databases").
 		WithComment(" (ctrl-c to exit)").
@@ -184,7 +184,8 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 			RepoFileWriter(p.Enabled()),
 			git.WithRepoStore(r),
 		)
-		if err := Track(ctx, r, gm, gr); err != nil {
+
+		if err := Track(ctx, r, app, gm, gr); err != nil {
 			return err
 		}
 

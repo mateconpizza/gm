@@ -101,7 +101,8 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 					Repo:  r,
 					Old:   old,
 					Fresh: fresh,
-					Msg:   git.NewRepo(r.BaseName(), "").CommitMsg(git.Edit, "bookmark"),
+					Msg: git.NewRepo(r.BaseName(), "").
+						CommitMsg(git.Edit, "bookmark"),
 				})
 			})
 
@@ -412,7 +413,7 @@ func Rename(ctx context.Context, d *deps.Deps, name string, renameFunc func(src,
 	destDBPath := filepath.Join(app.Path.Data, newName)
 
 	if files.Exists(destDBPath) {
-		return fmt.Errorf("%w: %q", os.ErrExist, app.Flags.Output)
+		return fmt.Errorf("%w: %q", os.ErrExist, app.Flags.Rename)
 	}
 
 	// prompt for confirmation
@@ -742,6 +743,8 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		gitops.RepoStatsReader(r),
 	)
 
+	isTracked := gm.IsTracked(gr.Name())
+
 	for _, b := range bs {
 		if b.HTTPStatusCode == http.StatusTooManyRequests {
 			continue
@@ -751,20 +754,17 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 			return err
 		}
 
-		if gm.IsTracked(gr.Name()) {
-			if err := gm.Update(ctx, git.UpdateParams{
-				Repo:     gr,
-				Old:      b,
-				Fresh:    b,
-				PostRmFn: files.RemoveEmptyDirs,
-			}); err != nil {
-				return err
-			}
+		if !isTracked {
+			continue
+		}
+
+		if err := gr.Update(ctx, b, b, files.RemoveEmptyDirs); err != nil {
+			return err
 		}
 	}
 
-	if gm.IsTracked(gr.Name()) {
-		err := gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Update, "status"))
+	if isTracked {
+		err := gm.Commit(ctx, gr.CommitMsg(git.Update, "status"))
 		if err != nil && !errors.Is(err, git.ErrGitUpToDate) {
 			return err
 		}
@@ -807,16 +807,10 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		gitops.RepoStatsReader(p.Repo),
 	)
 
-	if gm.IsEnabled() && gm.IsTracked(gr.Name()) {
-		up := git.UpdateParams{
-			Repo:     gr,
-			Old:      p.Old,
-			Fresh:    p.Fresh,
-			PostRmFn: files.RemoveEmptyDirs,
-		}
-		if err := gm.UpdateAndSave(ctx, up, p.Msg); err != nil {
-			return err
-		}
+	if err := gm.Apply(ctx, p.Msg, func(ctx context.Context) error {
+		return gr.Update(ctx, p.Old, p.Fresh, files.RemoveEmptyDirs)
+	}); err != nil {
+		return err
 	}
 
 	return runOnPersisted(p)

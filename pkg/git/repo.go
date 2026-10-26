@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -220,6 +221,15 @@ func (gr *Repo) Summary() (*Summary, error) {
 	sum.RepoStats.Name = gr.Name()
 
 	return &sum, nil
+}
+
+func (gr *Repo) Update(ctx context.Context, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
+	if err := gr.Rm(ctx, old, postRm); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("removing %s: %w", old.URL, err)
+		}
+	}
+	return gr.Add(ctx, []*bookmark.Bookmark{fresh})
 }
 
 // Stats returns current stats from the git repository.
