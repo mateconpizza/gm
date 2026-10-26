@@ -234,7 +234,6 @@ func newSyncCmd(app *application.App) *cobra.Command {
 				gitops.RepoFileReader(app.Flags.Color),
 				gitops.RepoFileRemover(),
 				gitops.RepoFileWriter(app.Flags.Color),
-				gitops.RepoStatsReader(r),
 			)
 
 			bs, err := r.All(ctx)

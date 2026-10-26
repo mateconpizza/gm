@@ -29,7 +29,6 @@ var _ bookio.FileManager = (*files.FileManager)(nil)
 func RepoFileReader(color bool) git.RepoOptFunc { return git.WithRepoReader(readFiles(color)) }
 func RepoFileRemover() git.RepoOptFunc          { return git.WithRepoRemover(removeFiles) }
 func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(writeFiles(color)) }
-func RepoStatsReader(r store) git.RepoOptFunc   { return git.WithRepoStore(r) }
 
 // Init initializes Git support and configures repository encryption.
 func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
@@ -65,24 +64,21 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		return err
 	}
 
-	gm, err := NewManager(app,
-		git.WithPreCommit(PreCommitReadme(app)),
-	)
-	if err != nil {
-		return err
-	}
-
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 	defer r.Close()
 
+	gm, err := NewManager(app)
+	if err != nil {
+		return err
+	}
+
 	gr := gm.NewRepo(r.BaseName(),
 		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
 
 	return gm.Commit(ctx,
@@ -123,7 +119,6 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
-		RepoStatsReader(r),
 	)
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
@@ -174,7 +169,6 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 			RepoFileReader(app.Flags.Color),
 			RepoFileRemover(),
 			RepoFileWriter(app.Flags.Color),
-			RepoStatsReader(r),
 		)
 
 		if err := PruneRepo(ctx, gm, gr, bs); err != nil {

@@ -46,10 +46,12 @@ func newJSONFile[T any](path string) *JSONFile[T] {
 	}
 }
 
-func (f *JSONFile[T]) exists() bool { return f.existsFunc(f.path) }
-func (f *JSONFile[T]) read() error  { return f.readFunc(f.path, &f.value) }
-func (f *JSONFile[T]) set(v T)      { f.value = v }
-func (f *JSONFile[T]) write() error { return f.writeFunc(f.path, &f.value) }
+func (j *JSONFile[T]) Path() string { return j.path }
+func (j *JSONFile[T]) Exists() bool { return j.existsFunc(j.path) }
+func (j *JSONFile[T]) Read() error  { return j.readFunc(j.path, &j.value) }
+func (j *JSONFile[T]) Set(v T)      { j.value = v }
+func (j *JSONFile[T]) Write() error { return j.writeFunc(j.path, &j.value) }
+func (j *JSONFile[T]) Data() T      { return j.value }
 
 // Exists checks if a file fileExists.
 func fileExists(s string) bool {

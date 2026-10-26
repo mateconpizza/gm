@@ -21,11 +21,10 @@ type Path struct {
 func NewPath() *Path { return &Path{} }
 
 func (p *Path) Home() string       { return p.Data }
-func (p *Path) Git() string        { return filepath.Join(p.Data, "git") }
 func (p *Path) Backup() string     { return filepath.Join(p.Data, "backup") }
 func (p *Path) DB() string         { return p.Database }
 func (p *Path) ConfigFile() string { return filepath.Join(p.Data, ConfigFilename) }
-
+func (p *Path) Git() string        { return filepath.Join(p.Data, "git") }
 func (p *Path) GitReadme(repoName string) string {
 	return filepath.Join(p.Git(), repoName, bookio.ReadmeFile)
 }

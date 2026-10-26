@@ -339,7 +339,6 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(r),
 	)
 
 	if err := gitops.Remove(ctx, gm, gr, bs); err != nil {

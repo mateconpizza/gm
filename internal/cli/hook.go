@@ -280,7 +280,6 @@ func HookGitPrune(app *application.App) HookE {
 			gitops.RepoFileReader(app.Flags.Color),
 			gitops.RepoFileRemover(),
 			gitops.RepoFileWriter(app.Flags.Color),
-			gitops.RepoStatsReader(r),
 		)
 
 		bs, err := r.All(ctx)

@@ -390,7 +390,6 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
 
 	return gitops.Add(ctx, gm, gr, fresh)

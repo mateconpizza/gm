@@ -30,8 +30,8 @@ func newTracker(destDir string) *Tracker {
 
 // load loads the tracked repositories from the file (if exists).
 func (t *Tracker) load() error {
-	if t.file.exists() {
-		return t.file.read()
+	if t.file.Exists() {
+		return t.file.Read()
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func (t *Tracker) write() error {
 	slices.Sort(t.file.value)
 	t.file.value = slices.Compact(t.file.value)
 	slog.Debug("writing tracker file", "repos", t.file.value)
-	return t.file.write()
+	return t.file.Write()
 }
 
 // track adds a new repository to the tracker.

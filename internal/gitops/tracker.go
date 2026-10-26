@@ -40,7 +40,6 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
 	c := d.Console()
 	if gm.IsTracked(gr.Name()) {
@@ -182,7 +181,6 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			RepoFileReader(p.Enabled()),
 			RepoFileRemover(),
 			RepoFileWriter(p.Enabled()),
-			git.WithRepoStore(r),
 		)
 
 		if err := Track(ctx, r, app, gm, gr); err != nil {

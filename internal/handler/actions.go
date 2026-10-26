@@ -303,7 +303,6 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
 	if !gm.IsTracked(gr.Name()) {
 		return nil
@@ -393,7 +392,6 @@ func DropRepo(ctx context.Context, d *deps.Deps) error {
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(r),
 	)
 
 	return gitops.Drop(ctx, gm, gr, d.Console())
@@ -740,7 +738,6 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(r),
 	)
 
 	isTracked := gm.IsTracked(gr.Name())
@@ -793,9 +790,7 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		return runOnPersisted(p)
 	}
 
-	gm, err := gitops.NewManager(app,
-		git.WithPreCommit(gitops.PreCommitReadme(app)),
-	)
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -804,7 +799,6 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(p.Repo),
 	)
 
 	if err := gm.Apply(ctx, p.Msg, func(ctx context.Context) error {

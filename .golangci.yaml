@@ -301,6 +301,9 @@ linters:
       - path: "internal/sys/terminal/state_test.go"
         linters:
           - nilnil
+      - path: "pkg/git/files.go"
+        linters:
+          - ireturn
       - path: "pkg/bookio/writer_test.go"
         linters:
           - nestif

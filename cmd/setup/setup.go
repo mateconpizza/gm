@@ -19,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/git"
 )
 
 type Inserter interface {
@@ -137,7 +136,6 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
 
 	if err := gitops.Track(ctx, r, app, gm, gr); err != nil {
