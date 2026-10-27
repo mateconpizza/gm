@@ -45,13 +45,16 @@ func NewCmd(app *application.App) *cobra.Command {
 
 	c.AddCommand(
 		newInitRepoCmd(app), // initialize a bookmarks repository
-		newCloneCmd(app),    // clone bookmarks from a remote repository
 		newTrackerCmd(app),  // configure repository tracking
+		newEnableCmd(app),   // enable git integration
+		newDisableCmd(app),  // disable git integration
+		newInfoCmd(app),     // show repository status and configuration
+		newCloneCmd(app),    // clone bookmarks from a remote repository
 		newCommitCmd(app),   // commit bookmark database changes
 		newPushCmd(app),     // push bookmark changes to a remote
 		newSyncCmd(app),     // synchronize bookmarks with the repository
 		newRawCmd(app),      // run arbitrary git commands
-		newConfigCmd(app),   // configuration
+		newSetCmd(app),      // configuration
 	)
 
 	return c
@@ -319,38 +322,34 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newReadmeCmd(_ *application.App) *cobra.Command {
+func newReadmeCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "readme",
-		Short: "generate README.md",
+		Short: "repository README.md",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd.Context(), args, gitops.ReadmePrompt)
 		},
 	}
+	cmdutil.HideFlag(c, "filter", "reverse")
+	c.Flags().BoolVarP(&app.Flags.Configure, "reconfigure", "r", false, "reconfigure opts")
 	return c
 }
 
-func newConfigCmd(app *application.App) *cobra.Command {
+func newSetCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:         "config",
+		Use:         "set",
 		Short:       "configuration",
-		Aliases:     []string{"cfg"},
+		Aliases:     []string{"cfg", "config"},
 		Annotations: cli.SkipFormatter,
-		Example: app.Example(`  $ {cmd} git config enable
-  $ {cmd} git config disable
-  $ {cmd} git config info
-  $ {cmd} git config logging enable
-  $ {cmd} git config logging disable
-  $ {cmd} git config readme`),
+		Example: app.Example(`  $ {cmd} git set logging enable
+  $ {cmd} git set logging disable
+  $ {cmd} git set readme`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
 	}
 
 	c.AddCommand(
-		newEnableCmd(app),  // enable git integration
-		newDisableCmd(app), // disable git integration
-		newInfoCmd(app),    // show repository status and configuration
 		newLoggingCmd(app), // configure git command logging
 		newReadmeCmd(app),  // generate a README.md
 	)
