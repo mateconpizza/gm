@@ -40,21 +40,26 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
+
+	gm.Git().RegisterPreCommit(
+		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+	)
+
 	c := d.Console()
 	if gm.IsTracked(gr.Name()) {
 		fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", gr.Name())))
 	}
 
-	if err := Track(ctx, r, gm, gr); err != nil {
+	if err := Track(ctx, r, app, gm, gr); err != nil {
 		return err
 	}
 
 	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q tracked\n", gr.Name())))
 }
 
-func Track(ctx context.Context, r store, gm *git.Mgr, gr *git.Repo) error {
+func Track(ctx context.Context, r store, app *application.App, gm *git.Mgr, gr *git.Repo) error {
 	if gm.IsTracked(gr.Name()) {
 		return fmt.Errorf("%w: %q", git.ErrGitTracked, gr.Name())
 	}
@@ -63,19 +68,6 @@ func Track(ctx context.Context, r store, gm *git.Mgr, gr *git.Repo) error {
 	if err != nil {
 		return err
 	}
-
-	stats := git.NewRepoStats()
-	if err := r.Stats(ctx, stats); err != nil {
-		return err
-	}
-
-	sum, err := gr.Summary()
-	if err != nil {
-		return err
-	}
-
-	stats.Name = gr.Name()
-	sum.RepoStats = stats
 
 	if err := gr.Add(ctx, bs); err != nil {
 		return err
@@ -86,10 +78,6 @@ func Track(ctx context.Context, r store, gm *git.Mgr, gr *git.Repo) error {
 	}
 
 	if err := gm.WriteRepos(); err != nil {
-		return err
-	}
-
-	if err := gr.WriteSummary(sum); err != nil {
 		return err
 	}
 
@@ -142,7 +130,7 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 	return c.Success(sb.String() + "\n").String()
 }
 
-func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
+func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
 	c.NewBannerBuilder().
 		WithTitle("Git Tracker Databases").
 		WithComment(" (ctrl-c to exit)").
@@ -153,6 +141,13 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 
 	files.PrioritizeFile(dbFiles, application.MainDBName)
 	p := c.Palette()
+
+	preCommitHooks := func(r store, gr *git.Repo, g *git.Git) {
+		g.ResetPreCommit().RegisterPreCommit(
+			HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+			HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+		)
+	}
 
 	for i, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
@@ -182,9 +177,11 @@ func TrackMgr(ctx context.Context, gm *git.Mgr, c *ui.Console, dbFiles []string)
 			RepoFileReader(p.Enabled()),
 			RepoFileRemover(),
 			RepoFileWriter(p.Enabled()),
-			git.WithRepoStore(r),
 		)
-		if err := Track(ctx, r, gm, gr); err != nil {
+
+		preCommitHooks(r, gr, gm.Git())
+
+		if err := Track(ctx, r, app, gm, gr); err != nil {
 			return err
 		}
 

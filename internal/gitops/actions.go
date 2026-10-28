@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -29,46 +28,9 @@ var _ bookio.FileManager = (*files.FileManager)(nil)
 func RepoFileReader(color bool) git.RepoOptFunc { return git.WithRepoReader(readFiles(color)) }
 func RepoFileRemover() git.RepoOptFunc          { return git.WithRepoRemover(removeFiles) }
 func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(writeFiles(color)) }
-func RepoStatsReader(r store) git.RepoOptFunc   { return git.WithRepoStore(r) }
-func MgrVersion(ver string) git.MgrOptFunc      { return git.WithVersion(ver) }
-
-// Init initializes Git support and configures repository encryption.
-func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
-	if err := gm.Init(ctx, app.Flags.Reinit); err != nil {
-		if errors.Is(err, git.ErrGitInitialized) {
-			p := ansi.NewPalette(app.Flags.Color)
-			s := p.BrightYellow.With(p.Italic).Sprint("git init --reinit")
-			return fmt.Errorf("%w, use %s", err, s)
-		}
-		return err
-	}
-
-	if err := gm.CommitEmpty(ctx, CoreCommitMsg("initialized")); err != nil {
-		return err
-	}
-
-	c := ui.NewDefaultConsole(app, app.Exit)
-	if err := askForEncryption(ctx, c, app, gm); err != nil {
-		return err
-	}
-
-	if err := c.Print(ctx, c.SuccessMesg("git initialized\n")); err != nil {
-		return err
-	}
-
-	app.Git.Enabled = true
-	return app.WriteConfig(true)
-}
 
 func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
-	gm, err := NewManager(app,
-		git.WithPreCommit(PreCommitReadme(app)),
-	)
 	if err != nil {
 		return err
 	}
@@ -79,15 +41,23 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 	}
 	defer r.Close()
 
+	gm, err := NewManager(app)
+	if err != nil {
+		return err
+	}
+
 	gr := gm.NewRepo(r.BaseName(),
 		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
 
-	return gm.SaveChanges(ctx,
-		gr,
+	gm.Git().RegisterPreCommit(
+		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+	)
+
+	return gm.Commit(ctx,
 		gr.CommitMsg(git.RepoAction("commit changes"), ""),
 	)
 }
@@ -125,13 +95,18 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		RepoFileReader(app.Flags.Color),
 		RepoFileRemover(),
 		RepoFileWriter(app.Flags.Color),
-		RepoStatsReader(r),
 	)
+
+	gm.Git().RegisterPreCommit(
+		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+	)
+
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
 
-	return gm.SaveChanges(ctx, gr, msg)
+	return gm.Commit(ctx, msg)
 }
 
 func SyncAll(ctx context.Context, d *deps.Deps) error {
@@ -146,8 +121,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 	}
 
 	c := d.Console()
-	w := c.Writer()
-	p := c.Palette()
+	w, p := c.Writer(), c.Palette()
 
 	for _, name := range gm.Repos() {
 		if err := ctx.Err(); err != nil {
@@ -177,7 +151,6 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 			RepoFileReader(app.Flags.Color),
 			RepoFileRemover(),
 			RepoFileWriter(app.Flags.Color),
-			RepoStatsReader(r),
 		)
 
 		if err := PruneRepo(ctx, gm, gr, bs); err != nil {
@@ -224,23 +197,27 @@ func StreamLog(ctx context.Context, g *git.Git, p *ansi.Palette) error {
 	return nil
 }
 
-func NewReadmeFile(ctx context.Context, app *application.App, w io.Writer, bs []*bookmark.Bookmark) error {
+func BookmarksFromStore(r store) BookmarksLoader {
+	return func(ctx context.Context) ([]*bookmark.Bookmark, error) {
+		return r.All(ctx)
+	}
+}
+
+// StatsFromStore adapts a database to a StatsLoader.
+func StatsFromStore(r store) StatsLoader {
+	return func(ctx context.Context) (*git.RepoStats, error) {
+		s := git.NewRepoStats()
+		if err := r.Stats(ctx, s); err != nil {
+			return nil, err
+		}
+		s.Name = r.BaseName()
+
+		return s, nil
+	}
+}
+
+func NewReadmeFile(ctx context.Context, w io.Writer, app *application.App, stats *git.RepoStats, bs []*bookmark.Bookmark) error {
 	cfg := app.Git.Readme
-
-	if !cfg.Enabled {
-		return nil
-	}
-
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	s := db.NewStats()
-	if err := r.Stats(ctx, s); err != nil {
-		return err
-	}
 
 	return bookio.NewMarkdown(
 		bs,
@@ -249,12 +226,12 @@ func NewReadmeFile(ctx context.Context, app *application.App, w io.Writer, bs []
 		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
 		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(app.Flags.Sort, bs) }),
 		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
-			Bookmarks:   s.Bookmarks,
-			Tags:        s.Tags,
-			Favorites:   s.Favorites,
-			Archived:    s.Archived,
-			DeadLinks:   s.DeadLinks,
-			TotalVisits: s.TotalVisits,
+			Bookmarks:   stats.Bookmarks,
+			Tags:        stats.Tags,
+			Favorites:   stats.Favorites,
+			Archived:    stats.Archived,
+			DeadLinks:   stats.DeadLinks,
+			TotalVisits: stats.TotalVisits,
 		})),
 	).Render()
 }

@@ -437,7 +437,7 @@ func TestRepo_Read(t *testing.T) {
 			gr := NewRepo(tt.name, tempDir, opts...)
 
 			if tt.summaryFile != nil {
-				if err := os.WriteFile(gr.file.path, tt.summaryFile, 0o644); err != nil {
+				if err := os.WriteFile(gr.file.Path(), tt.summaryFile, 0o644); err != nil {
 					t.Fatalf("setup: writing summary file: %v", err)
 				}
 			}
@@ -621,21 +621,6 @@ func TestRepo_Summary(t *testing.T) {
 	}
 }
 
-type mockRepoDB struct {
-	statsErr error
-}
-
-func (m *mockRepoDB) Stats(ctx context.Context, dest any) error {
-	if m.statsErr != nil {
-		return m.statsErr
-	}
-	if stats, ok := dest.(*RepoStats); ok {
-		stats.Bookmarks = 10
-		stats.Tags = 5
-	}
-	return nil
-}
-
 func TestRepo_Stats(t *testing.T) {
 	t.Parallel()
 
@@ -707,67 +692,6 @@ func TestRepo_Stats(t *testing.T) {
 
 			if got.Name != tt.wantStats.Name || got.Bookmarks != tt.wantStats.Bookmarks || got.Tags != tt.wantStats.Tags {
 				t.Fatalf("Stats() = %+v; want %+v", got, tt.wantStats)
-			}
-		})
-	}
-}
-
-func TestRepo_StatsFromDB(t *testing.T) {
-	t.Parallel()
-
-	dbErr := errors.New("db error")
-
-	tests := []struct {
-		name      string
-		repoName  string
-		dbErr     error
-		wantName  string
-		wantMarks int
-		wantErr   error
-	}{
-		{
-			name:      "success_from_db",
-			repoName:  "db-repo",
-			dbErr:     nil,
-			wantName:  "db-repo",
-			wantMarks: 10,
-			wantErr:   nil,
-		},
-		{
-			name:      "db_error",
-			repoName:  "db-repo",
-			dbErr:     dbErr,
-			wantName:  "",
-			wantMarks: 0,
-			wantErr:   dbErr,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			r := NewRepo(tt.repoName, t.TempDir())
-			db := &mockRepoDB{statsErr: tt.dbErr}
-
-			gotStats, err := r.StatsFromDB(t.Context(), db)
-
-			if tt.wantErr != nil {
-				if err == nil {
-					t.Fatalf("StatsFromDB() expected error %v, got nil", tt.wantErr)
-				}
-				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("StatsFromDB() expected error %v, got %v", tt.wantErr, err)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("StatsFromDB() unexpected error: %v", err)
-			}
-
-			if gotStats.Name != tt.wantName || gotStats.Bookmarks != tt.wantMarks {
-				t.Fatalf("StatsFromDB() stats = %+v; want name=%q bookmarks=%d", gotStats, tt.wantName, tt.wantMarks)
 			}
 		})
 	}
@@ -955,20 +879,18 @@ func TestSummaryComplete(t *testing.T) {
 	t.Parallel()
 
 	errBranch := errors.New("exit status 128: not a git repository")
-	hostnameErr := errors.New("hostname err")
 
 	stats := &RepoStats{Name: "test-repo", Bookmarks: 5}
 
 	tests := []struct {
-		name        string
-		branchOut   string
-		branchErr   error
-		remoteOut   string
-		remoteErr   error
-		hostnameErr error
-		wantErr     error
-		wantBranch  string
-		wantRemote  string
+		name       string
+		branchOut  string
+		branchErr  error
+		remoteOut  string
+		remoteErr  error
+		wantErr    error
+		wantBranch string
+		wantRemote string
 	}{
 		{
 			name:       "success_with_remote",
@@ -996,11 +918,6 @@ func TestSummaryComplete(t *testing.T) {
 			branchErr: errBranch,
 			wantErr:   errBranch,
 		},
-		{
-			name:        "hostname_err",
-			hostnameErr: hostnameErr,
-			wantErr:     hostnameErr,
-		},
 	}
 
 	for _, tt := range tests {
@@ -1016,22 +933,18 @@ func TestSummaryComplete(t *testing.T) {
 				t.Fatalf("New() error = %v", err)
 			}
 
-			hostnameFunc := func() (string, error) {
-				return "hostname", tt.hostnameErr
-			}
-
 			before := time.Now()
-			sum, err := summaryComplete(t.Context(), g, stats, hostnameFunc, "1.2.3")
+			sum, err := BuildSummary(t.Context(), g, stats, "hostname", "1.2.3")
 			after := time.Now()
 
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("summaryComplete() error = %v, want %v", err, tt.wantErr)
+					t.Fatalf("BuildSummary() error = %v, want %v", err, tt.wantErr)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("summaryComplete() unexpected error: %v", err)
+				t.Fatalf("BuildSummary() unexpected error: %v", err)
 			}
 
 			if sum.GitBranch != tt.wantBranch {
@@ -1057,7 +970,7 @@ func TestSummaryComplete(t *testing.T) {
 				t.Fatal("ClientInfo is nil")
 			}
 
-			wantHostname, _ := hostnameFunc()
+			wantHostname := "hostname"
 			if sum.ClientInfo.Hostname != wantHostname {
 				t.Errorf("ClientInfo.Hostname = %q, want %q", sum.ClientInfo.Hostname, wantHostname)
 			}

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 
-	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -46,13 +45,16 @@ func NewCmd(app *application.App) *cobra.Command {
 
 	c.AddCommand(
 		newInitRepoCmd(app), // initialize a bookmarks repository
-		newCloneCmd(app),    // clone bookmarks from a remote repository
 		newTrackerCmd(app),  // configure repository tracking
+		newEnableCmd(app),   // enable git integration
+		newDisableCmd(app),  // disable git integration
+		newInfoCmd(app),     // show repository status and configuration
+		newCloneCmd(app),    // clone bookmarks from a remote repository
 		newCommitCmd(app),   // commit bookmark database changes
 		newPushCmd(app),     // push bookmark changes to a remote
 		newSyncCmd(app),     // synchronize bookmarks with the repository
 		newRawCmd(app),      // run arbitrary git commands
-		newConfigCmd(app),   // configuration
+		newSetCmd(app),      // configuration
 	)
 
 	return c
@@ -106,14 +108,9 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 				return err
 			}
 
-			dbFiles, err := files.Find(app.Path.Home(), "*.db")
-			if err != nil {
-				return fmt.Errorf("finding db files: %w", err)
-			}
-
 			fmt.Fprintln(os.Stdout)
 
-			return gitops.TrackMgr(cmd.Context(), gm, ui.NewDefaultConsole(app, app.Exit), dbFiles)
+			return gitops.TrackMgr(cmd.Context(), app, gm, ui.NewDefaultConsole(app, app.Exit), app.Databases())
 		},
 	}
 
@@ -240,7 +237,11 @@ func newSyncCmd(app *application.App) *cobra.Command {
 				gitops.RepoFileReader(app.Flags.Color),
 				gitops.RepoFileRemover(),
 				gitops.RepoFileWriter(app.Flags.Color),
-				gitops.RepoStatsReader(r),
+			)
+
+			gm.Git().RegisterPreCommit(
+				gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+				gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
 			)
 
 			bs, err := r.All(ctx)
@@ -309,6 +310,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "info",
 		Short:   "show repository status and configuration",
+		Aliases: []string{"view", "stats"},
 		Example: app.Example(`  $ {cmd} git info`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd.Context(), args, gitops.InfoCmd)
@@ -320,38 +322,34 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newReadmeCmd(_ *application.App) *cobra.Command {
+func newReadmeCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "readme",
-		Short: "generate README.md",
+		Short: "repository README.md",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd.Context(), args, gitops.ReadmePrompt)
 		},
 	}
+	cmdutil.HideFlag(c, "filter", "reverse")
+	c.Flags().BoolVarP(&app.Flags.Configure, "reconfigure", "r", false, "reconfigure opts")
 	return c
 }
 
-func newConfigCmd(app *application.App) *cobra.Command {
+func newSetCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:         "config",
+		Use:         "set",
 		Short:       "configuration",
-		Aliases:     []string{"cfg"},
+		Aliases:     []string{"cfg", "config"},
 		Annotations: cli.SkipFormatter,
-		Example: app.Example(`  $ {cmd} git config enable
-  $ {cmd} git config disable
-  $ {cmd} git config info
-  $ {cmd} git config logging enable
-  $ {cmd} git config logging disable
-  $ {cmd} git config readme`),
+		Example: app.Example(`  $ {cmd} git set logging enable
+  $ {cmd} git set logging disable
+  $ {cmd} git set readme`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
 	}
 
 	c.AddCommand(
-		newEnableCmd(app),  // enable git integration
-		newDisableCmd(app), // disable git integration
-		newInfoCmd(app),    // show repository status and configuration
 		newLoggingCmd(app), // configure git command logging
 		newReadmeCmd(app),  // generate a README.md
 	)

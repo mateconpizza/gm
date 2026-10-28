@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 
+	files "github.com/mateconpizza/gofiles"
+
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -29,6 +31,12 @@ func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	p := d.Console().Palette()
+	value := func(s string) string {
+		return p.BrightYellow.With(p.Italic).Sprint(
+			files.CollapseHomeDir(s),
+		)
+	}
+
 	d.Console().NewBannerBuilder().
 		WithTitle("Remove Bookmarks").
 		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
@@ -36,6 +44,8 @@ func Remove(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		WithSubtitle("this action cannot be undone").
 		WithComment(" (ctrl-c to exit)").
 		Build().
+		Rowln().
+		Info("source: " + value(app.Path.DB()+"\n")).
 		Rowln().
 		Flush()
 

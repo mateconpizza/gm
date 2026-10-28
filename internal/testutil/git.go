@@ -28,6 +28,8 @@ type FakeGitExecuter struct {
 	tokenResponses []FakeTokenResponse
 }
 
+func NewFakeGitExecuter() *FakeGitExecuter { return &FakeGitExecuter{} }
+
 func (f *FakeGitExecuter) Output(ctx context.Context, dir string, args ...string) (string, error) {
 	cmds := append([]string(nil), args...) // defensive copy - args' backing array can be reused by the caller
 	f.calls = append(f.calls, cmds)

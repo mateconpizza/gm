@@ -12,12 +12,14 @@ import (
 )
 
 type fakeRepoDB struct {
+	name      string
 	bookmarks []*bookmark.Bookmark
 	total     int
 	err       error
 }
 
 func (f *fakeRepoDB) All(ctx context.Context) ([]*bookmark.Bookmark, error) { return f.bookmarks, nil }
+func (f *fakeRepoDB) BaseName() string                                      { return f.name }
 
 func (f *fakeRepoDB) Stats(ctx context.Context, dest any) error {
 	if f.err != nil {
@@ -29,7 +31,7 @@ func (f *fakeRepoDB) Stats(ctx context.Context, dest any) error {
 	return nil
 }
 
-func newTestMgrRepo(t *testing.T, fake *testutil.FakeGitExecuter, db *fakeRepoDB, version string, opts ...git.RepoOptFunc) (*git.Mgr, *git.Repo) {
+func newTestMgrRepo(t *testing.T, fake *testutil.FakeGitExecuter, opts ...git.RepoOptFunc) (*git.Mgr, *git.Repo) {
 	t.Helper()
 
 	tempDir := t.TempDir()
@@ -38,14 +40,11 @@ func newTestMgrRepo(t *testing.T, fake *testutil.FakeGitExecuter, db *fakeRepoDB
 		t.Fatalf("New() error = %v", err)
 	}
 
-	gm, err := git.NewManager(tempDir, git.WithGit(g), git.WithVersion(version))
+	gm, err := git.NewManager(tempDir, git.WithGit(g))
 	if err != nil {
 		t.Fatalf("NewManager() error = %v", err)
 	}
 
-	if db != nil {
-		opts = append(opts, git.WithRepoStore(db))
-	}
 	gr := gm.NewRepo("myrepo", opts...)
 
 	return gm, gr
@@ -56,7 +55,6 @@ func TestTrack(t *testing.T) {
 
 	errGitAdd := errors.New("git add error")
 	errGitCommit := errors.New("git commit error")
-	errGitStats := errors.New("stats error")
 	errRepoWriter := errors.New("writing repository")
 
 	tests := []struct {
@@ -84,12 +82,6 @@ func TestTrack(t *testing.T) {
 			preTrack: true,
 			opts:     []git.RepoOptFunc{RepoFileWriter(false)},
 			wantErr:  git.ErrGitTracked,
-		},
-		{
-			name:    "stats_error",
-			db:      &fakeRepoDB{err: errGitStats},
-			opts:    []git.RepoOptFunc{RepoFileWriter(false)},
-			wantErr: errGitStats,
 		},
 		{
 			name: "git_add_failure",
@@ -130,7 +122,7 @@ func TestTrack(t *testing.T) {
 				tt.setupFake(fake)
 			}
 
-			gm, gr := newTestMgrRepo(t, fake, tt.db, "1.0.0", tt.opts...)
+			gm, gr := newTestMgrRepo(t, fake, tt.opts...)
 
 			if tt.preTrack {
 				if err := gm.Track(gr.Name()); err != nil {
@@ -138,7 +130,8 @@ func TestTrack(t *testing.T) {
 				}
 			}
 
-			err := Track(t.Context(), tt.db, gm, gr)
+			app := testutil.NewApp(t)
+			err := Track(t.Context(), tt.db, app, gm, gr)
 
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {

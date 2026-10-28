@@ -280,13 +280,17 @@ func HookGitPrune(app *application.App) HookE {
 			gitops.RepoFileReader(app.Flags.Color),
 			gitops.RepoFileRemover(),
 			gitops.RepoFileWriter(app.Flags.Color),
-			gitops.RepoStatsReader(r),
 		)
 
 		bs, err := r.All(ctx)
 		if err != nil {
 			return err
 		}
+
+		gm.Git().RegisterPreCommit(
+			gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+			gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
+		)
 
 		return gitops.PruneRepo(ctx, gm, gr, bs)
 	}

@@ -7,22 +7,25 @@ import (
 	"os"
 )
 
-type Readme struct {
-	Enabled bool   `json:"enabled" yaml:"enabled"`
-	Glyphs  string `json:"glyphs"  yaml:"glyphs"`
-	Summary string `json:"summary" yaml:"summary"`
-}
+type (
+	Readme struct {
+		Enabled bool   `json:"enabled" yaml:"enabled"`
+		Glyphs  string `json:"glyphs"  yaml:"glyphs"`
+		Summary string `json:"summary" yaml:"summary"`
+	}
 
-type Config struct {
-	Enabled bool    `json:"enabled"          yaml:"enabled"`          // Enable git
-	Log     bool    `json:"logging"          yaml:"logging"`          // Enable logging
-	Remote  string  `json:"remote,omitempty" yaml:"remote,omitempty"` // Remote repo
-	Readme  *Readme `json:"readme,omitempty" yaml:"readme,omitempty"` // Readme repo
+	Config struct {
+		Enabled bool    `json:"enabled"          yaml:"enabled"`          // Enable git
+		Log     bool    `json:"logging"          yaml:"logging"`          // Enable logging
+		Remote  string  `json:"remote,omitempty" yaml:"remote,omitempty"` // Remote repo
+		Readme  *Readme `json:"readme,omitempty" yaml:"readme,omitempty"` // Readme repo
+		Hooks   []Hook  `json:"-"                yaml:"-"`
 
-	writer io.Writer // Writer for logging
-}
+		writer io.Writer // Writer for logging
+	}
 
-type ConfigOpt func(*Config)
+	ConfigOpt func(*Config)
+)
 
 func NewConfig(opts ...ConfigOpt) *Config {
 	c := &Config{

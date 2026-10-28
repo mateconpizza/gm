@@ -7,22 +7,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 var ErrNoVersionFound = errors.New("git: no mgr version found")
 
-type MgrOptFunc func(*MgrOptions)
+type (
+	MgrOptFunc func(*MgrOptions)
 
-type MgrOptions struct {
-	g       *Git
-	version string
-	fileMgr *fileManager
-}
+	MgrOptions struct {
+		g       *Git
+		fileMgr *fileManager
+	}
+)
 
-func WithGit(g *Git) MgrOptFunc         { return func(mo *MgrOptions) { mo.g = g } }
-func WithVersion(ver string) MgrOptFunc { return func(mo *MgrOptions) { mo.version = ver } }
+func WithGit(g *Git) MgrOptFunc { return func(mo *MgrOptions) { mo.g = g } }
 
 type Mgr struct {
 	*MgrOptions
@@ -65,7 +63,6 @@ func (gm *Mgr) Git() *Git                                     { return gm.g }
 func (gm *Mgr) IsTracked(name string) bool                    { return gm.tracker.contains(name) }
 func (gm *Mgr) Repos() []string                               { return gm.tracker.list() }
 func (gm *Mgr) WriteRepos() error                             { return gm.tracker.write() }
-func (gm *Mgr) Version() string                               { return gm.version }
 func (gm *Mgr) Track(names ...string) error                   { return gm.tracker.track(names...) }
 func (gm *Mgr) SetCfg(ctx context.Context, k, v string) error { return gm.g.SetCfgLocal(ctx, k, v) }
 
@@ -84,60 +81,18 @@ func (gm *Mgr) Init(ctx context.Context, force bool) error {
 	return gm.g.Init(ctx, force)
 }
 
-func (gm *Mgr) SaveChanges(ctx context.Context, gr *Repo, msg CommitMessage) error {
-	if gm.version == "" {
-		return ErrNoVersionFound
-	}
-	if gr.DB() == nil {
-		return fmt.Errorf("%w: stats loader", ErrNoFunctionFound)
-	}
-	oldStats, err := gr.Stats()
-	if err != nil {
-		return err
-	}
-	freshStats, err := gr.StatsFromDB(ctx, gr.db)
-	if err != nil {
-		return err
-	}
-	should, err := gm.shouldSave(ctx, oldStats, freshStats)
-	if err != nil {
-		return err
-	}
-	if !should {
-		return ErrGitUpToDate
-	}
-	// FIX: update full summary only in git push.
-	sum, err := summaryComplete(ctx, gm.g, freshStats, os.Hostname, gm.version)
-	if err != nil {
-		return err
-	}
-	if err := sum.Validate(); err != nil {
-		return err
-	}
-	if err := gr.WriteSummary(sum); err != nil {
-		return err
-	}
-	return gm.g.commitIfChanged(ctx, msg)
-}
-
 func (gm *Mgr) NewRepo(name string, opts ...RepoOptFunc) *Repo {
 	name = strings.TrimSuffix(name, filepath.Ext(name))
 	return NewRepo(name, filepath.Join(gm.Root(), name), opts...)
 }
 
-func (gm *Mgr) Update(ctx context.Context, p UpdateParams) error {
-	if gm.version == "" {
-		return ErrNoVersionFound
+// Apply runs fn, which changes the repo's files, and then saves the changes.
+func (gm *Mgr) Apply(ctx context.Context, msg CommitMessage, fn func(context.Context) error) error {
+	if err := fn(ctx); err != nil {
+		return err
 	}
-	if p.Repo.db == nil {
-		return fmt.Errorf("%w: in repo %q", ErrNoStoreFound, p.Repo.name)
-	}
-	if err := p.Repo.Rm(ctx, p.Old, p.PostRmFn); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("removing %s: %w", p.Old.URL, err)
-		}
-	}
-	return p.Repo.Add(ctx, []*bookmark.Bookmark{p.Fresh})
+
+	return gm.Commit(ctx, msg)
 }
 
 func (gm *Mgr) Drop(ctx context.Context, gr *Repo) error {
@@ -147,7 +102,7 @@ func (gm *Mgr) Drop(ctx context.Context, gr *Repo) error {
 	if err := gm.fileMgr.removeExcept(gr.fullpath, keep); err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, gr.CommitMsg(Del, "repo"))
+	return gm.Commit(ctx, gr.CommitMsg(Del, "repo"))
 }
 
 func (gm *Mgr) Untrack(ctx context.Context, gr *Repo) error {
@@ -238,29 +193,4 @@ func (gm *Mgr) Rename(ctx context.Context, oldName, newName string) error {
 	}
 
 	return gm.Commit(ctx, gr.CommitMsg(Rename, oldBase))
-}
-
-type UpdateParams struct {
-	Repo     *Repo
-	Old      *bookmark.Bookmark
-	Fresh    *bookmark.Bookmark
-	PostRmFn PostRemovalFunc
-}
-
-func (gm *Mgr) UpdateAndSave(ctx context.Context, p UpdateParams, msg CommitMessage) error {
-	if err := gm.Update(ctx, p); err != nil {
-		return err
-	}
-	return gm.SaveChanges(ctx, p.Repo, msg)
-}
-
-func (gm *Mgr) shouldSave(ctx context.Context, old, fresh *RepoStats) (bool, error) {
-	changed, err := gm.g.HasChanges(ctx)
-	if err != nil {
-		return false, err
-	}
-	if !changed && old.Equal(fresh) {
-		return false, nil
-	}
-	return true, nil
 }

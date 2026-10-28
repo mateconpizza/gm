@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -34,34 +35,38 @@ const (
 	Rename RepoAction = "rename"
 )
 
-type RepoDB interface {
-	Stats(ctx context.Context, dest any) error
-}
-
 type (
 	ReaderFunc      func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error)
 	WriterFunc      func(ctx context.Context, path string, bs []*bookmark.Bookmark) error
 	RemoverFunc     func(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error
 	PostRemovalFunc func(path string) error
 	SumWriterFunc   func(path string, sum *Summary) error
+
+	RepoOptFunc func(*RepoOptions)
+
+	FileWriter[T any] interface {
+		Path() string
+		Exists() bool
+		Write() error
+		Read() error
+		Data() T
+		Set(v T)
+	}
 )
 
-type RepoOptFunc func(*RepoOptions)
-
 type RepoOptions struct {
-	db      RepoDB
 	reader  ReaderFunc
 	writer  WriterFunc
 	remover RemoverFunc
-	file    *JSONFile[Summary]
+	file    FileWriter[Summary]
 }
 
 func WithRepoWriter(w WriterFunc) RepoOptFunc    { return func(ro *RepoOptions) { ro.writer = w } }
 func WithRepoReader(r ReaderFunc) RepoOptFunc    { return func(ro *RepoOptions) { ro.reader = r } }
 func WithRepoRemover(rm RemoverFunc) RepoOptFunc { return func(ro *RepoOptions) { ro.remover = rm } }
-func WithRepoStore(store RepoDB) RepoOptFunc     { return func(ro *RepoOptions) { ro.db = store } }
-func WithSummaryPersist(fn SumWriterFunc) RepoOptFunc {
-	return func(ro *RepoOptions) { ro.file.writeFunc = fn }
+
+func WithSummaryWriter[T Summary](sw FileWriter[Summary]) RepoOptFunc {
+	return func(ro *RepoOptions) { ro.file = sw }
 }
 
 type Repo struct {
@@ -90,7 +95,6 @@ func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
 
 func (gr *Repo) Name() string     { return gr.name }
 func (gr *Repo) Root() string     { return filepath.Dir(gr.fullpath) }
-func (gr *Repo) DB() RepoDB       { return gr.db }
 func (gr *Repo) Fullpath() string { return gr.fullpath }
 
 func (gr *Repo) String() string {
@@ -209,43 +213,42 @@ func (gr *Repo) Count() (int, error) {
 // from disk if present. If no summary file exists yet, it returns a zero
 // Summary with the repo name set.
 func (gr *Repo) Summary() (*Summary, error) {
-	if gr.file.exists() {
-		if err := gr.file.read(); err != nil {
+	if gr.file.Exists() {
+		if err := gr.file.Read(); err != nil {
 			return nil, err
 		}
 	}
 
-	sum := gr.file.value
+	sum := gr.file.Data()
 	sum.normalize()
 	sum.RepoStats.Name = gr.Name()
 
 	return &sum, nil
 }
 
+func (gr *Repo) Update(ctx context.Context, old, fresh *bookmark.Bookmark, postRm PostRemovalFunc) error {
+	if err := gr.Rm(ctx, old, postRm); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("removing %s: %w", old.URL, err)
+		}
+	}
+	return gr.Add(ctx, []*bookmark.Bookmark{fresh})
+}
+
 // Stats returns current stats from the git repository.
 func (gr *Repo) Stats() (*RepoStats, error) {
-	if !gr.file.exists() {
+	if !gr.file.Exists() {
 		return &RepoStats{}, nil
 	}
 
-	err := gr.file.read()
+	err := gr.file.Read()
 	if err != nil {
 		return &RepoStats{}, err
 	}
 
-	sum := gr.file.value
+	sum := gr.file.Data()
 	sum.RepoStats.Name = gr.Name()
 	return sum.RepoStats, nil
-}
-
-// StatsFromDB returns fresh stats from the current database.
-func (gr *Repo) StatsFromDB(ctx context.Context, db RepoDB) (*RepoStats, error) {
-	stats := NewRepoStats()
-	if err := db.Stats(ctx, stats); err != nil {
-		return nil, err
-	}
-	stats.Name = gr.Name()
-	return stats, nil
 }
 
 func (gr *Repo) WriteSummary(s *Summary) error {
@@ -253,10 +256,10 @@ func (gr *Repo) WriteSummary(s *Summary) error {
 	if err := s.Validate(); err != nil {
 		return err
 	}
-	slog.Debug("git summary: writing", "file", gr.file.path)
+	slog.Debug("git summary: writing", "file", gr.file.Path())
 	s.RepoStats.Name = gr.Name()
-	gr.file.set(*s)
-	return gr.file.write()
+	gr.file.Set(*s)
+	return gr.file.Write()
 }
 
 // CommitMsg construct the repo commit message.

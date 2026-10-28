@@ -12,7 +12,6 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/git"
 )
 
 var (
@@ -328,9 +327,7 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		return err
 	}
 
-	gm, err := gitops.NewManager(app,
-		git.WithPreCommit(gitops.PreCommitReadme(app)),
-	)
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -339,7 +336,11 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(r),
+	)
+
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
 	)
 
 	if err := gitops.Remove(ctx, gm, gr, bs); err != nil {

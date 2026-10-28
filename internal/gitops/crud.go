@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	files "github.com/mateconpizza/gofiles"
@@ -17,6 +18,7 @@ import (
 )
 
 type store interface {
+	BaseName() string
 	Stats(ctx context.Context, dest any) error
 	All(ctx context.Context) ([]*bookmark.Bookmark, error)
 }
@@ -55,10 +57,7 @@ func NewManager(app *application.App, opts ...git.GitOpt) (*git.Mgr, error) {
 		return nil, err
 	}
 
-	gm, err := git.NewManager(root,
-		git.WithGit(g),
-		git.WithVersion(app.Version()),
-	)
+	gm, err := git.NewManager(root, git.WithGit(g))
 	if err != nil {
 		return nil, err
 	}
@@ -75,12 +74,14 @@ func NewGitCommandLogger(color bool) git.GitOpt {
 
 	// command logger
 	return git.WithGitCmdLogger(func(w io.Writer, commands []string) {
+		c := p.BrightYellow.With(p.Italic)
 		headerFrame := frame.New(
-			frame.WithColorBorder(p.BrightYellow.Sprint),
+			frame.WithColorBorder(c.Sprint),
 			frame.WithBordersSmallBlock(),
 			frame.WithWriter(w),
 		)
-		fullCmd := p.BrightYellow.Wrap(strings.Join(commands, " "), p.Italic)
+		commands[0] = filepath.Base(commands[0])
+		fullCmd := c.Sprint(strings.Join(commands, " "))
 		headerFrame.Midln(fullCmd).Flush()
 	})
 }
@@ -92,7 +93,7 @@ func Add(ctx context.Context, gm gitManager, gr *git.Repo, b *bookmark.Bookmark)
 	if err := gr.Add(ctx, []*bookmark.Bookmark{b}); err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Add, "bookmark"))
+	return gm.Commit(ctx, gr.CommitMsg(git.Add, "bookmark"))
 }
 
 func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Bookmark) error {
@@ -102,7 +103,7 @@ func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Boo
 	if err := gr.RmMany(ctx, bs, files.RemoveEmptyDirs); err != nil {
 		return err
 	}
-	return gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Del, func() string {
+	return gm.Commit(ctx, gr.CommitMsg(git.Del, func() string {
 		if len(bs) > 1 {
 			return "bookmarks"
 		}

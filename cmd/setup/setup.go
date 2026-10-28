@@ -19,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/db"
-	"github.com/mateconpizza/gm/pkg/git"
 )
 
 type Inserter interface {
@@ -96,7 +95,8 @@ func initializeAction(ctx context.Context, d *deps.Deps) error {
 
 // InitAppPostFunc ask user to track new database if git is initialized.
 func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
-	app, err := application.FromContext(cmd.Context())
+	ctx := cmd.Context()
+	app, err := application.FromContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
@@ -117,7 +117,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 
 	c := ui.NewDefaultConsole(app, app.Exit)
 
-	if !c.Confirm(cmd.Context(), fmt.Sprintf("Track database %q?", name), "n") {
+	if !c.Confirm(ctx, fmt.Sprintf("Track database %q?", name), "n") {
 		c.ReplaceLine(c.Warning(fmt.Sprintf("Skipping database %q", name)).String())
 		return nil
 	}
@@ -127,7 +127,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("creating repo path: %w", err)
 	}
 
-	r, err := db.New(cmd.Context(), app.Path.DB())
+	r, err := db.New(ctx, app.Path.DB())
 	if err != nil {
 		return err
 	}
@@ -136,13 +136,18 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
-	if err := gitops.Track(cmd.Context(), r, gm, gr); err != nil {
+
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
+	)
+
+	if err := gitops.Track(ctx, r, app, gm, gr); err != nil {
 		return err
 	}
 
-	return c.Print(cmd.Context(), c.SuccessMesg(fmt.Sprintf("database %q tracked\n", name)))
+	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q tracked\n", name)))
 }
 
 // initWorkspace creates the paths for the application.

@@ -101,7 +101,8 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 					Repo:  r,
 					Old:   old,
 					Fresh: fresh,
-					Msg:   git.NewRepo(r.BaseName(), "").CommitMsg(git.Edit, "bookmark"),
+					Msg: git.NewRepo(r.BaseName(), "").
+						CommitMsg(git.Edit, "bookmark"),
 				})
 			})
 
@@ -293,6 +294,10 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	if !git.IsTracked(app.Path.Git(), r.BaseName()) {
+		return nil
+	}
+
 	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
@@ -302,11 +307,12 @@ func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		git.WithRepoStore(r),
 	)
-	if !gm.IsTracked(gr.Name()) {
-		return nil
-	}
+
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
+	)
 
 	return gm.Untrack(ctx, gr)
 }
@@ -343,12 +349,20 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	value := func(s string) string {
+		return p.BrightYellow.With(p.Italic).Sprint(
+			files.CollapseHomeDir(s),
+		)
+	}
+
 	c.NewBannerBuilder().
 		WithTitle("Remove Database/s").
 		WithTitleGlyph(c.Glyphs().Warning).
 		WithTitleColor(p.BrightRed.With(p.Bold).Sprint).
 		WithSubtitle("this action cannot be undone").
 		Build().
+		Rowln().
+		Info("database: " + value(app.Path.DB()+"\n")).
 		Rowln().
 		Flush()
 
@@ -392,7 +406,11 @@ func DropRepo(ctx context.Context, d *deps.Deps) error {
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(r),
+	)
+
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
 	)
 
 	return gitops.Drop(ctx, gm, gr, d.Console())
@@ -412,7 +430,7 @@ func Rename(ctx context.Context, d *deps.Deps, name string, renameFunc func(src,
 	destDBPath := filepath.Join(app.Path.Data, newName)
 
 	if files.Exists(destDBPath) {
-		return fmt.Errorf("%w: %q", os.ErrExist, app.Flags.Output)
+		return fmt.Errorf("%w: %q", os.ErrExist, app.Flags.Rename)
 	}
 
 	// prompt for confirmation
@@ -739,8 +757,14 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(r),
 	)
+
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
+	)
+
+	isTracked := gm.IsTracked(gr.Name())
 
 	for _, b := range bs {
 		if b.HTTPStatusCode == http.StatusTooManyRequests {
@@ -751,20 +775,17 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 			return err
 		}
 
-		if gm.IsTracked(gr.Name()) {
-			if err := gm.Update(ctx, git.UpdateParams{
-				Repo:     gr,
-				Old:      b,
-				Fresh:    b,
-				PostRmFn: files.RemoveEmptyDirs,
-			}); err != nil {
-				return err
-			}
+		if !isTracked {
+			continue
+		}
+
+		if err := gr.Update(ctx, b, b, files.RemoveEmptyDirs); err != nil {
+			return err
 		}
 	}
 
-	if gm.IsTracked(gr.Name()) {
-		err := gm.SaveChanges(ctx, gr, gr.CommitMsg(git.Update, "status"))
+	if isTracked {
+		err := gm.Commit(ctx, gr.CommitMsg(git.Update, "status"))
 		if err != nil && !errors.Is(err, git.ErrGitUpToDate) {
 			return err
 		}
@@ -789,13 +810,12 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		return err
 	}
 
-	if !app.GitEnabled() {
+	isTracked := git.IsTracked(app.Path.Git(), app.DBBaseName())
+	if !app.GitEnabled() || !isTracked {
 		return runOnPersisted(p)
 	}
 
-	gm, err := gitops.NewManager(app,
-		git.WithPreCommit(gitops.PreCommitReadme(app)),
-	)
+	gm, err := gitops.NewManager(app)
 	if err != nil {
 		return err
 	}
@@ -804,19 +824,17 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		gitops.RepoFileReader(app.Flags.Color),
 		gitops.RepoFileRemover(),
 		gitops.RepoFileWriter(app.Flags.Color),
-		gitops.RepoStatsReader(p.Repo),
 	)
 
-	if gm.IsEnabled() && gm.IsTracked(gr.Name()) {
-		up := git.UpdateParams{
-			Repo:     gr,
-			Old:      p.Old,
-			Fresh:    p.Fresh,
-			PostRmFn: files.RemoveEmptyDirs,
-		}
-		if err := gm.UpdateAndSave(ctx, up, p.Msg); err != nil {
-			return err
-		}
+	gm.Git().RegisterPreCommit(
+		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(p.Repo)),
+		gitops.HookReadme(app, gitops.BookmarksFromStore(p.Repo), gitops.StatsFromStore(p.Repo)),
+	)
+
+	if err := gm.Apply(ctx, p.Msg, func(ctx context.Context) error {
+		return gr.Update(ctx, p.Old, p.Fresh, files.RemoveEmptyDirs)
+	}); err != nil {
+		return err
 	}
 
 	return runOnPersisted(p)

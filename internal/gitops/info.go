@@ -16,6 +16,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+var ErrGitNoInformation = errors.New("no information")
+
 func CoreCommitMsg(msg string) git.CommitMessage { return git.CommitMessage("[core] " + msg) }
 
 // Info returns a prettify info of the repository.
@@ -105,6 +107,10 @@ func InfoCmd(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	if i == "" {
+		return ErrGitNoInformation
+	}
+
 	c := d.Console()
 	c.NewBannerBuilder().
 		WithTitle("Git Information").
@@ -124,7 +130,8 @@ func ReadmePrompt(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	if err := configureReadme(ctx, d.Console(), app); err != nil {
+	c := d.Console()
+	if err := enableReadme(ctx, c, app); err != nil {
 		return err
 	}
 
@@ -147,9 +154,9 @@ func ReadmePrompt(ctx context.Context, d *deps.Deps) error {
 			continue
 		}
 
-		hook := PreCommitReadme(app)
+		hook := HookReadme(app, BookmarksFromStore(r), StatsFromStore(r))
 
-		if err := hook(ctx); err != nil {
+		if err := hook.Run(ctx, gm.Git()); err != nil {
 			return err
 		}
 	}
@@ -162,7 +169,7 @@ func ReadmePrompt(ctx context.Context, d *deps.Deps) error {
 	return gm.Commit(ctx, CoreCommitMsg("add readme"))
 }
 
-func configureReadme(ctx context.Context, c *ui.Console, app *application.App) error {
+func enableReadme(ctx context.Context, c *ui.Console, app *application.App) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -171,32 +178,40 @@ func configureReadme(ctx context.Context, c *ui.Console, app *application.App) e
 	p := c.Palette()
 	readme := p.Bold.Sprint("README.md")
 
-	if r.Enabled {
-		s := p.BrightYellow.Sprint("Disable")
-		if !c.Confirm(ctx, fmt.Sprintf("%s %s on git repositories?", s, readme), "y") {
-			return nil
-		}
-
-		r.Enabled = false
-	} else {
-		if !c.Confirm(ctx, fmt.Sprintf("Add %s to git repositories?", readme), "y") {
-			return nil
-		}
-
-		glyphs, err := c.Choose(ctx, "Which glyphs to use?", bookio.SupportedGlyphs, "emoji")
-		if err != nil {
-			return err
-		}
-
-		summary, err := c.Choose(ctx, "Which summary style to use?", bookio.SupportedSummary, "badges")
-		if err != nil {
-			return err
-		}
-
-		r.Enabled = true
-		r.Glyphs = glyphs
-		r.Summary = summary
+	if app.Flags.Configure {
+		return configureReadme(ctx, app, c)
 	}
+
+	action, color := "Enable", p.BrightGreen
+	if r.Enabled {
+		action, color = "Disable", p.BrightYellow
+	}
+	if !c.Confirm(ctx, fmt.Sprintf("%s %s on git repositories?", color.Sprint(action), readme), "y") {
+		return app.Abort()
+	}
+	r.Enabled = !r.Enabled
+
+	if err := app.WriteConfig(true); err != nil {
+		return err
+	}
+
+	return c.Print(ctx, c.SuccessMesg("settings saved\n"))
+}
+
+func configureReadme(ctx context.Context, app *application.App, c *ui.Console) error {
+	glyphs, err := c.Choose(ctx, "Which glyphs to use?", bookio.SupportedGlyphs, "emoji")
+	if err != nil {
+		return err
+	}
+
+	summary, err := c.Choose(ctx, "Which summary style to use?", bookio.SupportedSummary, "badges")
+	if err != nil {
+		return err
+	}
+
+	r := app.Git.Readme
+	r.Glyphs = glyphs
+	r.Summary = summary
 
 	if err := app.WriteConfig(true); err != nil {
 		return err

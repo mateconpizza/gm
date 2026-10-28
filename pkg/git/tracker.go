@@ -16,6 +16,19 @@ var (
 
 const TrackerFile = ".tracked.json"
 
+func IsTracked(root, name string) bool {
+	if !fileExists(filepath.Join(root, TrackerFile)) {
+		return false
+	}
+
+	t := newTracker(root)
+	if err := t.load(); err != nil {
+		return false
+	}
+
+	return t.contains(name)
+}
+
 // Tracker manages a list of tracked repositories stored in a file.
 type Tracker struct {
 	file *JSONFile[[]string] // ["main", "work", "org", ... ]
@@ -30,8 +43,8 @@ func newTracker(destDir string) *Tracker {
 
 // load loads the tracked repositories from the file (if exists).
 func (t *Tracker) load() error {
-	if t.file.exists() {
-		return t.file.read()
+	if t.file.Exists() {
+		return t.file.Read()
 	}
 	return nil
 }
@@ -45,7 +58,7 @@ func (t *Tracker) write() error {
 	slices.Sort(t.file.value)
 	t.file.value = slices.Compact(t.file.value)
 	slog.Debug("writing tracker file", "repos", t.file.value)
-	return t.file.write()
+	return t.file.Write()
 }
 
 // track adds a new repository to the tracker.

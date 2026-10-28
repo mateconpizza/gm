@@ -91,24 +91,18 @@ func readGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark,
 	return ReadRepoFilesWithPrompt(ctx, cfg)
 }
 
-func askForEncryption(ctx context.Context, c *ui.Console, app *application.App, gm *git.Mgr) error {
+func askForEncryption(ctx context.Context, app *application.App, c *ui.Console, gm *git.Mgr) error {
 	fr := gpg.NewKeyResolver(app.Path.Git())
 	if fr.Initialized() {
 		return nil
 	}
 
-	_, err := sys.Which(gpg.Command)
+	bin, err := sys.Which(gpg.Command)
 	if err != nil {
 		slog.Debug("git repo with GPG, command not found", "command", gpg.Command)
 		if errors.Is(err, exec.ErrNotFound) {
 			return nil
 		}
-	}
-
-	p := c.Palette()
-	c.Frame().Rowln().Success("GPG command found").Ln().Flush()
-	if !c.Confirm(ctx, "Use GPG for encryption? "+p.BrightRed.Wrap("(experimental)", p.Italic), "n") {
-		return nil
 	}
 
 	fps, err := fr.List(ctx)
@@ -121,6 +115,18 @@ func askForEncryption(ctx context.Context, c *ui.Console, app *application.App, 
 	if err != nil {
 		return err
 	}
+
+	p, f := c.Palette(), c.Frame()
+	fn := func(s string) string { return p.Italic.Wrap(s, p.Bold) }
+
+	f.Success("GPG command found: " + fn(bin)).Ln().
+		Rowln().
+		Flush()
+
+	c.NewBannerBuilder().
+		WithTitle("GPG Keys").
+		WithSubtitle("Using GPG key " + fn(key.UserID)).
+		Render()
 
 	return initGPG(ctx, c, gm, key)
 }

@@ -9,11 +9,12 @@ import (
 
 type Flags struct {
 	// Actions
-	Menu   bool   // Menu mode
-	List   bool   // List items
-	Print  bool   // Print something
-	All    bool   // Include all items
-	Rename string // Rename action
+	Menu      bool   // Menu mode
+	List      bool   // List items
+	Print     bool   // Print something
+	All       bool   // Include all items
+	Rename    string // Rename action
+	Configure bool   // Configure action
 
 	// Output format
 	Output  string // Output

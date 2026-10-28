@@ -56,13 +56,17 @@ func NewApp(t *testing.T) *application.App {
 		Name:   application.Name,
 		Cmd:    application.Command,
 		DBName: application.MainDBName,
-		Path:   &application.Path{},
+		Path: &application.Path{
+			Data: t.TempDir(),
+		},
 		Flags: &application.Flags{
 			ColorStr: "never",
 			Color:    false,
 		},
-		UI:  application.NewUI(),
-		Git: &git.Config{},
+		UI: application.NewUI(),
+		Git: &git.Config{
+			Readme: &git.Readme{},
+		},
 		Info: &application.Information{
 			URL:     "https://github.com/mateconpizza/gm#readme",
 			Title:   "Gomarks: A bookmark manager",
