@@ -283,7 +283,7 @@ func (g *Git) ResetPreCommit() *Git {
 }
 
 func (g *Git) run(ctx context.Context, repoPath string, commands ...string) error {
-	g.commandLogger(g.writer, slices.Insert(commands, 0, filepath.Base(g.cmd.bin)))
+	g.commandLogger(g.writer, slices.Insert(commands, 0, g.cmd.bin))
 	return g.cmd.Exec(ctx, g.writer, repoPath, commands...)
 }
 

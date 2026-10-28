@@ -310,7 +310,7 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "info",
 		Short:   "show repository status and configuration",
-		Aliases: []string{"view"},
+		Aliases: []string{"view", "stats"},
 		Example: app.Example(`  $ {cmd} git info`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmdutil.Run(cmd.Context(), args, gitops.InfoCmd)

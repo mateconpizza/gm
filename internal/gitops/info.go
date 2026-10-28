@@ -16,6 +16,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+var ErrGitNoInformation = errors.New("no information")
+
 func CoreCommitMsg(msg string) git.CommitMessage { return git.CommitMessage("[core] " + msg) }
 
 // Info returns a prettify info of the repository.
@@ -103,6 +105,10 @@ func InfoCmd(ctx context.Context, d *deps.Deps) error {
 	i, err := Info(ctx, d)
 	if err != nil {
 		return err
+	}
+
+	if i == "" {
+		return ErrGitNoInformation
 	}
 
 	c := d.Console()

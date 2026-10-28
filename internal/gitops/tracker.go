@@ -142,6 +142,13 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 	files.PrioritizeFile(dbFiles, application.MainDBName)
 	p := c.Palette()
 
+	preCommitHooks := func(r store, gr *git.Repo, g *git.Git) {
+		g.ResetPreCommit().RegisterPreCommit(
+			HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
+			HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
+		)
+	}
+
 	for i, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
@@ -172,12 +179,7 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			RepoFileWriter(p.Enabled()),
 		)
 
-		gm.Git().
-			ResetPreCommit().
-			RegisterPreCommit(
-				HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
-				HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
-			)
+		preCommitHooks(r, gr, gm.Git())
 
 		if err := Track(ctx, r, app, gm, gr); err != nil {
 			return err

@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -29,34 +28,6 @@ var _ bookio.FileManager = (*files.FileManager)(nil)
 func RepoFileReader(color bool) git.RepoOptFunc { return git.WithRepoReader(readFiles(color)) }
 func RepoFileRemover() git.RepoOptFunc          { return git.WithRepoRemover(removeFiles) }
 func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(writeFiles(color)) }
-
-// Init initializes Git support and configures repository encryption.
-func Init(ctx context.Context, app *application.App, gm *git.Mgr) error {
-	if err := gm.Init(ctx, app.Flags.Reinit); err != nil {
-		if errors.Is(err, git.ErrGitInitialized) {
-			p := ansi.NewPalette(app.Flags.Color)
-			s := p.BrightYellow.With(p.Italic).Sprint("git init --reinit")
-			return fmt.Errorf("%w, use %s", err, s)
-		}
-		return err
-	}
-
-	if err := gm.CommitEmpty(ctx, CoreCommitMsg("initialized")); err != nil {
-		return err
-	}
-
-	c := ui.NewDefaultConsole(app, app.Exit)
-	if err := askForEncryption(ctx, c, app, gm); err != nil {
-		return err
-	}
-
-	if err := c.Print(ctx, c.SuccessMesg("git initialized\n")); err != nil {
-		return err
-	}
-
-	app.Git.Enabled = true
-	return app.WriteConfig(true)
-}
 
 func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	app, err := d.Application(ctx)

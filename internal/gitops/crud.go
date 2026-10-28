@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	files "github.com/mateconpizza/gofiles"
@@ -73,12 +74,14 @@ func NewGitCommandLogger(color bool) git.GitOpt {
 
 	// command logger
 	return git.WithGitCmdLogger(func(w io.Writer, commands []string) {
+		c := p.BrightYellow.With(p.Italic)
 		headerFrame := frame.New(
-			frame.WithColorBorder(p.BrightYellow.Sprint),
+			frame.WithColorBorder(c.Sprint),
 			frame.WithBordersSmallBlock(),
 			frame.WithWriter(w),
 		)
-		fullCmd := p.BrightYellow.Wrap(strings.Join(commands, " "), p.Italic)
+		commands[0] = filepath.Base(commands[0])
+		fullCmd := c.Sprint(strings.Join(commands, " "))
 		headerFrame.Midln(fullCmd).Flush()
 	})
 }
