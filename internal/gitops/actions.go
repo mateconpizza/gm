@@ -272,20 +272,23 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 }
 
 func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {
-	genFunc := b.JSONPath
-	if gpg.IsInitialized(filepath.Dir(repoPath)) { // root path
-		genFunc = b.GPGPath
+	root := filepath.Dir(repoPath)
+
+	var filename string
+	var err error
+
+	switch {
+	case gpg.IsInitialized(root):
+		filename, err = b.GPGPath()
+	default:
+		filename, err = b.Path(".json")
 	}
 
-	filename, err := genFunc()
 	if err != nil {
 		return "", err
 	}
 
-	// [[GOMARKS_HOME/git]/[repoName][domain/bookmark.ext]]
-	fullpath := filepath.Join(repoPath, filename)
-
-	return fullpath, nil
+	return filepath.Join(repoPath, filename), nil
 }
 
 var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg|rename|initialized)\b`)

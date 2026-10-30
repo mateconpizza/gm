@@ -12,8 +12,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-// ExportToNetscapeHTML exports bookmarks to Netscape HTML format.
-func ExportToNetscapeHTML(bs []*bookmark.Bookmark, writer io.Writer) error {
+// WriteNetscapeHTML exports bookmarks to Netscape HTML format.
+func WriteNetscapeHTML(bs []*bookmark.Bookmark, writer io.Writer) error {
 	// Write HTML header
 	_, err := writer.Write([]byte(`<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <!-- This is an automatically generated file.

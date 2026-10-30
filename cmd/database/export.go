@@ -16,7 +16,6 @@ import (
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
-	"github.com/mateconpizza/gm/internal/ui/printer"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -54,7 +53,7 @@ func newExportHTMLCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to HTML ")
 			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				return bookio.ExportToNetscapeHTML(bs, os.Stdout)
+				return bookio.WriteNetscapeHTML(bs, os.Stdout)
 			})
 		},
 	}
@@ -68,7 +67,7 @@ func newExportJSONCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to JSON ")
 			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				return printer.RecordsJSON(os.Stdout, bs)
+				return bookio.WriteJSON(os.Stdout, bs)
 			})
 		},
 	}
@@ -82,7 +81,7 @@ func newExportCSVCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to CSV ")
 			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				return bookio.ExportToCSV(bs, os.Stdout, bookio.ParseCSVFields(app.Flags.Field))
+				return bookio.WriteCSV(os.Stdout, bs, bookio.ParseCSVFields(app.Flags.Field))
 			})
 		},
 	}

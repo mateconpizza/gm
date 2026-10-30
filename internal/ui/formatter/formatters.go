@@ -685,7 +685,7 @@ func ByFields(c Console, bs []*bookmark.Bookmark, fieldsInput string) error {
 		var row []string
 
 		for _, spec := range specs {
-			val, err := b.Field(spec.name)
+			val, err := bookmark.Field(spec.name, b)
 			if err != nil {
 				return err
 			}

@@ -310,6 +310,9 @@ linters:
       - path: "internal/gitops/info.go"
         linters:
           - nestif
+      - path: "internal/bookmark/port/port.go"
+        linters:
+          - errcheck
       - path: "internal/gitops/precommit_test.go"
         linters:
           - nestif

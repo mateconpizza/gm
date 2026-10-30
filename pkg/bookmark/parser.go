@@ -5,51 +5,51 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 )
 
-// hashDomain generates a hash from a domain.
-func hashDomain(domain string) string {
-	return generateHash(domain, 12)
+// Field returns the value of a field.
+func Field(f string, b *Bookmark) (string, error) {
+	var s string
+
+	switch f {
+	case "id", "i", "1":
+		s = strconv.Itoa(b.ID)
+	case "url", "u", "2":
+		s = b.URL
+	case "title", "t", "3":
+		s = b.Title
+	case "tags", "T", "4":
+		s = b.Tags
+	case "desc", "d", "5":
+		s = b.Desc
+	case "notes", "n", "6":
+		s = b.Notes
+	case "domain", "dom", "7":
+		d, err := b.Domain()
+		if err != nil {
+			return "", err
+		}
+		return d, nil
+	default:
+		return "", fmt.Errorf("%w: %q", ErrBookmarkUnknownField, f)
+	}
+
+	return s, nil
 }
 
-// hashURL generates a hash from a hashURL.
-func hashURL(rawURL string) string {
-	return generateHash(rawURL, 12)
-}
-
-func generateHash(s string, c int) string {
-	hash := sha256.Sum256([]byte(s))
-	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
-}
-
-// genChecksum generates a checksum for the bookmark.
-func genChecksum(rawURL, title, desc, tags, notes string) string {
-	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s|notes:%s", rawURL, title, desc, tags, notes)
-	return generateHash(data, 8)
-}
-
-// fromBytes unmarshals a bookmark from bytes.
-func fromBytes(b []byte) (*Bookmark, error) {
-	bj := BookmarkJSON{}
-	if err := json.Unmarshal(b, &bj); err != nil {
+// NewFromBuffer unmarshals a bookmark from bytes.
+func NewFromBuffer(buf []byte) (*Bookmark, error) {
+	bj := NewRecord()
+	if err := json.Unmarshal(buf, &bj); err != nil {
 		return nil, err
 	}
 
-	return NewFromJSON(&bj), nil
-}
-
-func toBytes(b *Bookmark) []byte {
-	bj, err := json.MarshalIndent(b.JSON(), "", "  ")
-	if err != nil {
-		return nil
-	}
-
-	return bj
+	return bj.Bookmark(), nil
 }
 
 // ParseTags normalizes a string of tags by separating them by commas, sorting
@@ -113,21 +113,14 @@ func Domain(rawURL string) (string, error) {
 // Validate validates the bookmark.
 func Validate(b *Bookmark) error {
 	if b.URL == "" {
-		slog.Error("bookmark is invalid. URL is empty")
 		return ErrBookmarkURLEmpty
 	}
 
 	if b.Tags == "," || b.Tags == "" {
-		slog.Error("bookmark is invalid. Tags are empty")
 		return ErrBookmarkTagsEmpty
 	}
 
 	return nil
-}
-
-func ValidateChecksumJSON(b *BookmarkJSON) bool {
-	tags := ParseTags(strings.Join(b.Tags, ","))
-	return b.Checksum == genChecksum(b.URL, b.Title, b.Desc, tags, b.Notes)
 }
 
 func Fields() []string {
@@ -141,34 +134,19 @@ func Fields() []string {
 	return fields
 }
 
-// CopyMetadata copies non-content bookmark metadata from src to dst.
-func CopyMetadata(dst, src *Bookmark) *Bookmark {
-	// Identity
-	dst.ID = src.ID
+// hashDomain generates a hash from a domain.
+func hashDomain(domain string) string { return generateHash(domain, 12) }
 
-	// Data
-	dst.Notes = src.Notes
+// hashURL generates a hash from a hashURL.
+func hashURL(rawURL string) string { return generateHash(rawURL, 12) }
 
-	// Timestamps
-	dst.CreatedAt = src.CreatedAt
-	dst.LastVisit = src.LastVisit
-	dst.LastStatusChecked = src.LastStatusChecked
+func generateHash(s string, c int) string {
+	hash := sha256.Sum256([]byte(s))
+	return base64.RawURLEncoding.EncodeToString(hash[:])[:c]
+}
 
-	// Usage stats
-	dst.VisitCount = src.VisitCount
-	dst.Favorite = src.Favorite
-
-	// Link health
-	dst.HTTPStatusCode = src.HTTPStatusCode
-	dst.HTTPStatusText = src.HTTPStatusText
-	dst.IsActive = src.IsActive
-
-	// Media / enrichment
-	dst.FaviconURL = src.FaviconURL
-
-	// Archive metadata
-	dst.ArchiveURL = src.ArchiveURL
-	dst.ArchiveTimestamp = src.ArchiveTimestamp
-
-	return dst
+// genChecksum generates a checksum for the bookmark.
+func genChecksum(rawURL, title, desc, tags, notes string) string {
+	data := fmt.Sprintf("u:%s|t:%s|d:%s|tags:%s|notes:%s", rawURL, title, desc, tags, notes)
+	return generateHash(data, 8)
 }

@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -65,114 +63,15 @@ type Bookmark struct {
 }
 
 // New creates a new bookmark.
-func New() *Bookmark {
-	return &Bookmark{}
-}
-
-type BookmarkJSON struct {
-	// FIX: remove this struct
-	ID                int      `json:"id"`
-	URL               string   `json:"url"`
-	Tags              []string `json:"tags"`
-	Title             string   `json:"title"`
-	Desc              string   `json:"desc"`
-	Notes             string   `json:"notes"`
-	CreatedAt         string   `json:"created_at"`
-	LastVisit         string   `json:"last_visit"`
-	UpdatedAt         string   `json:"updated_at"`
-	VisitCount        int      `json:"visit_count"`
-	Favorite          bool     `json:"favorite"`
-	FaviconURL        string   `json:"favicon_url"`
-	FaviconLocal      string   `json:"favicon_local"`
-	Checksum          string   `json:"checksum"`
-	ArchiveURL        string   `json:"archive_url"`       // Internet Archive URL
-	ArchiveTimestamp  string   `json:"archive_timestamp"` // Internet Archive timestamp
-	LastStatusChecked string   `json:"last_checked"`      // Last checked timestamp.
-	HTTPStatusCode    int      `json:"status_code"`       // HTTP status code (200, 404, etc.)
-	HTTPStatusText    string   `json:"status_text"`       // OK, Not Found, etc
-	IsActive          bool     `json:"is_active"`         // true if the URL is active (200-299)
-}
-
-func NewJSON() *BookmarkJSON {
-	return &BookmarkJSON{}
-}
-
-func NewFromBuffer(buf []byte) (*Bookmark, error) {
-	return fromBytes(buf)
-}
-
-func NewFromJSON(j *BookmarkJSON) *Bookmark {
-	var b Bookmark
-	data, _ := json.Marshal(j)
-	_ = json.Unmarshal(data, &b)
-
-	// convert tags back to string
-	b.Tags = ParseTags(strings.Join(j.Tags, ","))
-
-	return &b
-}
-
-func (b *Bookmark) JSON() *BookmarkJSON {
-	bj := &BookmarkJSON{}
-
-	bVal := reflect.ValueOf(b).Elem()
-	jsonVal := reflect.ValueOf(bj).Elem()
-
-	for i := range bVal.NumField() {
-		field := bVal.Type().Field(i)
-		if field.Name == "Tags" {
-			continue
-		}
-
-		jsonField := jsonVal.FieldByName(field.Name)
-		if jsonField.IsValid() && jsonField.CanSet() {
-			jsonField.Set(bVal.Field(i))
-		}
-	}
-
-	t := func(s string) []string {
-		return strings.FieldsFunc(s, func(r rune) bool {
-			return r == ',' || r == ' '
-		})
-	}
-
-	bj.Tags = t(b.Tags)
-
-	return bj
-}
+func New() *Bookmark { return &Bookmark{} }
 
 func (b *Bookmark) Bytes() []byte {
-	return toBytes(b)
-}
-
-// Field returns the value of a field.
-func (b *Bookmark) Field(f string) (string, error) {
-	var s string
-
-	switch f {
-	case "id", "i", "1":
-		s = strconv.Itoa(b.ID)
-	case "url", "u", "2":
-		s = b.URL
-	case "title", "t", "3":
-		s = b.Title
-	case "tags", "T", "4":
-		s = b.Tags
-	case "desc", "d", "5":
-		s = b.Desc
-	case "notes", "n", "6":
-		s = b.Notes
-	case "domain", "dom", "7":
-		d, err := b.Domain()
-		if err != nil {
-			return "", err
-		}
-		return d, nil
-	default:
-		return "", fmt.Errorf("%w: %q", ErrBookmarkUnknownField, f)
+	bj, err := json.MarshalIndent(b.Record(), "", "  ")
+	if err != nil {
+		return nil
 	}
 
-	return s, nil
+	return bj
 }
 
 // Equals reports whether b and o have the same URL, Tags, Title and Desc.
@@ -222,9 +121,10 @@ func (b *Bookmark) BufferNotes() []byte {
 // GenChecksum generates a checksum for the bookmark.
 //
 // It uses the URL, Title, Description and Tags.
-func (b *Bookmark) GenChecksum() {
-	b.Checksum = genChecksum(b.URL, b.Title, b.Desc, b.Tags, b.Notes)
-}
+func (b *Bookmark) GenChecksum() { b.Checksum = genChecksum(b.URL, b.Title, b.Desc, b.Tags, b.Notes) }
+
+// HashURL returns the hash of a bookmark URL.
+func (b *Bookmark) HashURL() string { return hashURL(b.URL) }
 
 // HashPath returns the hash path of a bookmark.
 //
@@ -234,13 +134,7 @@ func (b *Bookmark) HashPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return filepath.Join(hashDomain(s), b.Checksum), nil
-}
-
-// HashURL returns the hash of a bookmark URL.
-func (b *Bookmark) HashURL() string {
-	return hashURL(b.URL)
 }
 
 // HashDomain returns the hash domain of a bookmark.
@@ -249,30 +143,25 @@ func (b *Bookmark) HashDomain() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-
 	return hashDomain(domain), nil
 }
 
 // Domain returns the domain of a bookmark.
-func (b *Bookmark) Domain() (string, error) {
-	return Domain(b.URL)
-}
+func (b *Bookmark) Domain() (string, error) { return Domain(b.URL) }
 
-// JSONPath returns the path to the JSON file.
+// Path returns the file path for the bookmark with the given extension.
 //
-//	domain -> urlHash.json
-func (b *Bookmark) JSONPath() (string, error) {
+//	domain -> urlHash.ext
+func (b *Bookmark) Path(ext string) (string, error) {
 	domain, err := Domain(b.URL)
 	if err != nil {
 		return "", fmt.Errorf("%w", err)
 	}
-
 	urlHash := hashURL(b.URL)
-
-	return filepath.Join(domain, urlHash+".json"), nil
+	return filepath.Join(domain, urlHash+ext), nil
 }
 
-// GPGPath returns the path to the GPG file.
+// GPGPath returns the path to the GPG-encrypted bookmark file.
 //
 //	domainHash -> urlHash.gpg
 func (b *Bookmark) GPGPath() (string, error) {
@@ -280,7 +169,6 @@ func (b *Bookmark) GPGPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("hashing path: %w", err)
 	}
-
 	return hashPath + ".gpg", nil
 }
 
@@ -290,6 +178,36 @@ func (b *Bookmark) Copy() *Bookmark {
 	}
 	cp := *b
 	return &cp
+}
+
+// Record converts the bookmark to its portable form.
+func (b *Bookmark) Record() *Record {
+	splitTags := func(s string) []string {
+		return strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ' ' })
+	}
+
+	return &Record{
+		ID:                b.ID,
+		URL:               b.URL,
+		Tags:              splitTags(b.Tags),
+		Title:             b.Title,
+		Desc:              b.Desc,
+		Notes:             b.Notes,
+		CreatedAt:         b.CreatedAt,
+		LastVisit:         b.LastVisit,
+		UpdatedAt:         b.UpdatedAt,
+		VisitCount:        b.VisitCount,
+		Favorite:          b.Favorite,
+		FaviconURL:        b.FaviconURL,
+		FaviconLocal:      b.FaviconLocal,
+		Checksum:          b.Checksum,
+		ArchiveURL:        b.ArchiveURL,
+		ArchiveTimestamp:  b.ArchiveTimestamp,
+		LastStatusChecked: b.LastStatusChecked,
+		HTTPStatusCode:    b.HTTPStatusCode,
+		HTTPStatusText:    b.HTTPStatusText,
+		IsActive:          b.IsActive,
+	}
 }
 
 func (b *Bookmark) String() string {
@@ -305,4 +223,56 @@ func (b *Bookmark) String() string {
 		b.HTTPStatusText,
 		b.IsActive,
 	)
+}
+
+// Record is the portable form of a Bookmark, used for JSON and YAML.
+type Record struct {
+	ID                int      `json:"id"                yaml:"id"`
+	URL               string   `json:"url"               yaml:"url"`
+	Tags              []string `json:"tags"              yaml:"tags"`
+	Title             string   `json:"title"             yaml:"title"`
+	Desc              string   `json:"desc"              yaml:"desc"`
+	Notes             string   `json:"notes"             yaml:"notes"`
+	CreatedAt         string   `json:"created_at"        yaml:"created_at"`
+	LastVisit         string   `json:"last_visit"        yaml:"last_visit,omitempty"`
+	UpdatedAt         string   `json:"updated_at"        yaml:"updated_at"`
+	VisitCount        int      `json:"visit_count"       yaml:"visit_count"`
+	Favorite          bool     `json:"favorite"          yaml:"favorite"`
+	FaviconURL        string   `json:"favicon_url"       yaml:"favicon_url,omitempty"`
+	FaviconLocal      string   `json:"favicon_local"     yaml:"favicon_local,omitempty"`
+	Checksum          string   `json:"checksum"          yaml:"checksum"`
+	ArchiveURL        string   `json:"archive_url"       yaml:"archive_url,omitempty"`
+	ArchiveTimestamp  string   `json:"archive_timestamp" yaml:"archive_timestamp,omitempty"`
+	LastStatusChecked string   `json:"last_checked"      yaml:"last_checked,omitempty"`
+	HTTPStatusCode    int      `json:"status_code"       yaml:"status_code"`
+	HTTPStatusText    string   `json:"status_text"       yaml:"status_text"`
+	IsActive          bool     `json:"is_active"         yaml:"is_active"`
+}
+
+func NewRecord() *Record { return &Record{} }
+
+// Bookmark converts the record back to a Bookmark.
+func (r *Record) Bookmark() *Bookmark {
+	return &Bookmark{
+		ID:                r.ID,
+		URL:               r.URL,
+		Tags:              ParseTags(strings.Join(r.Tags, ",")),
+		Title:             r.Title,
+		Desc:              r.Desc,
+		Notes:             r.Notes,
+		CreatedAt:         r.CreatedAt,
+		LastVisit:         r.LastVisit,
+		UpdatedAt:         r.UpdatedAt,
+		VisitCount:        r.VisitCount,
+		Favorite:          r.Favorite,
+		FaviconURL:        r.FaviconURL,
+		FaviconLocal:      r.FaviconLocal,
+		Checksum:          r.Checksum,
+		ArchiveURL:        r.ArchiveURL,
+		ArchiveTimestamp:  r.ArchiveTimestamp,
+		LastStatusChecked: r.LastStatusChecked,
+		HTTPStatusCode:    r.HTTPStatusCode,
+		HTTPStatusText:    r.HTTPStatusText,
+		IsActive:          r.IsActive,
+	}
 }

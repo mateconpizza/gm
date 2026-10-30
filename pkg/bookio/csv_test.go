@@ -140,7 +140,7 @@ func TestExportToCSV(t *testing.T) {
 			t.Parallel()
 			var buf bytes.Buffer
 
-			err := ExportToCSV(tt.bookmarks, &buf, tt.fields)
+			err := WriteCSV(&buf, tt.bookmarks, tt.fields)
 
 			if tt.wantErr != nil {
 				if err == nil {

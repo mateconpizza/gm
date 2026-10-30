@@ -52,7 +52,7 @@ func TestHTMLParse(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := ExportToNetscapeHTML(bs, &buf); err != nil {
+	if err := WriteNetscapeHTML(bs, &buf); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
