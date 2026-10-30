@@ -49,7 +49,7 @@ var defaultColorizer = &Colorizer{
 type PromptInput struct {
 	reader           *bufio.Reader
 	writer           io.Writer
-	rompt            string
+	prompt           string
 	options          []string
 	def              string
 	colorizer        *Colorizer
@@ -250,7 +250,7 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, error) {
 	var count int
 	for count < pi.maxRetries {
-		_, _ = fmt.Fprint(pi.writer, pi.rompt)
+		_, _ = fmt.Fprint(pi.writer, pi.prompt)
 
 		// ch to receive input result
 		type inputResult struct {
@@ -279,7 +279,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 
 			// user accepted the default
 			if userInput == "" && pi.def != "" || userInput == pi.def {
-				redrawPromptWithSelection(pi.writer, pi.rompt, pi.def, pi.colorizer.Success)
+				redrawPromptWithSelection(pi.writer, pi.prompt, pi.def, pi.colorizer.Success)
 				return pi.def, nil
 			}
 
@@ -289,19 +289,19 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 				if opt == pi.def {
 					c = pi.colorizer.Success
 				}
-				redrawPromptWithSelection(pi.writer, pi.rompt, opt, c)
+				redrawPromptWithSelection(pi.writer, pi.prompt, opt, c)
 				return opt, nil
 			}
 
 			count++
 			// user ran out of retries
 			if count <= pi.maxRetries-1 {
-				ClearLine(pi.writer, len(strings.Split(pi.rompt, "\n")))
+				ClearLine(pi.writer, len(strings.Split(pi.prompt, "\n")))
 			}
 		}
 	}
 
-	redrawPromptWithSelection(pi.writer, pi.rompt, "error", pi.colorizer.Error)
+	redrawPromptWithSelection(pi.writer, pi.prompt, "error", pi.colorizer.Error)
 	return "", fmt.Errorf("%d %w", pi.maxRetries, ErrIncorrectAttempts)
 }
 
@@ -435,4 +435,162 @@ func capitalize(s string) string {
 	}
 	r, size := utf8.DecodeRuneInString(s)
 	return string(unicode.ToUpper(r)) + s[size:]
+}
+
+// resolveOption matches input against opts, case-insensitively. An exact match
+// wins; otherwise the input must be a prefix of exactly one option.
+// It returns the option as it was passed in, not what the user typed.
+func resolveOption(input string, opts []string) (string, bool) {
+	if input == "" {
+		return "", false
+	}
+
+	var match string
+	var n int
+	for _, o := range opts {
+		lo := strings.ToLower(o)
+		if lo == input {
+			return o, true
+		}
+		if strings.HasPrefix(lo, input) {
+			match = o
+			n++
+		}
+	}
+
+	return match, n == 1
+}
+
+// uniquePrefixLen returns the length of the shortest prefix of opt that no
+// other option in all shares.
+func uniquePrefixLen(opt string, all []string) int {
+	for n := 1; n < len(opt); n++ {
+		count := 0
+		for _, o := range all {
+			if strings.HasPrefix(o, opt[:n]) {
+				count++
+			}
+		}
+		if count == 1 {
+			return n
+		}
+	}
+
+	return len(opt)
+}
+
+func uniqueOptions(opts []string) []string {
+	seen := make(map[string]struct{}, len(opts))
+	out := make([]string, 0, len(opts))
+
+	for _, o := range opts {
+		if o == "" {
+			continue
+		}
+		key := strings.ToLower(o)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, o)
+	}
+
+	return out
+}
+
+// choice is one option split into the typeable prefix and the rest.
+type choice struct {
+	hot, tail string // original casing
+	isDef     bool
+}
+
+// parseChoices lowercases the options and finds the shortest unique prefix of
+// each one. The default is capitalized and placed last.
+func parseChoices(opts []string, def string) []choice {
+	lower := make([]string, len(opts))
+	for i, o := range opts {
+		lower[i] = strings.ToLower(o)
+	}
+
+	out := make([]choice, 0, len(opts))
+
+	var defChoice *choice
+
+	for i, o := range opts {
+		n := uniquePrefixLen(lower[i], lower)
+		c := choice{hot: o[:n], tail: o[n:], isDef: o == def}
+
+		if c.isDef {
+			defChoice = &c
+
+			continue
+		}
+
+		out = append(out, c)
+	}
+
+	if defChoice != nil {
+		out = append(out, *defChoice)
+	}
+
+	return out
+}
+
+func ChoicesInlineFmt(left, separator, right string) ChoicesFmt {
+	return func(cz *Colorizer, opts []string, def string) string {
+		parts := make([]string, 0, len(opts))
+		for _, c := range parseChoices(opts, def) {
+			hot, tail := strings.ToLower(c.hot), strings.ToLower(c.tail)
+			if c.isDef && hot != "" {
+				hot = strings.ToUpper(hot[:1]) + hot[1:]
+			}
+			parts = append(parts, cz.Hotkey(hot)+cz.Muted(tail))
+		}
+
+		return cz.Muted(left) + strings.Join(parts, cz.Muted(separator)) + cz.Muted(right)
+	}
+}
+
+// ChoicesInlineBracketedFmt renders the options as [t/b/M]:, highlighting the
+// shortest prefix that identifies each one, with the default capitalized and
+// last.
+func ChoicesInlineBracketedFmt(cz *Colorizer, opts []string, def string) string {
+	return ChoicesInlineFmt("[", "/", "]")(cz, opts, def)
+}
+
+// ChoicesInlineParenthesisFmt renders the options as (t/b/M):, highlighting
+// the shortest prefix that identifies each one, with the default capitalized
+// and last.
+func ChoicesInlineParenthesisFmt(cz *Colorizer, opts []string, def string) string {
+	return ChoicesInlineFmt("(", "/", ")")(cz, opts, def)
+}
+
+// ChoicesKeepCaseFmt keeps each option as written: [GPG/JSON/Abort]:
+// The default goes last and uses the success color.
+func ChoicesKeepCaseFmt(cz *Colorizer, opts []string, def string) string {
+	parts := make([]string, 0, len(opts))
+	for _, c := range parseChoices(opts, def) {
+		if c.isDef {
+			parts = append(parts, cz.Success(c.hot+c.tail))
+			continue
+		}
+		parts = append(parts, cz.Hotkey(c.hot)+cz.Muted(c.tail))
+	}
+	return cz.Muted("[") + strings.Join(parts, cz.Muted("/")) + cz.Muted("]:")
+}
+
+// ChoicesBracketedFmt marks the typeable prefix: (G)PG (J)SON [A]bort:
+// The default uses square brackets, the others use parentheses.
+func ChoicesBracketedFmt(cz *Colorizer, opts []string, def string) string {
+	parts := make([]string, 0, len(opts))
+	for _, c := range parseChoices(opts, def) {
+		open, closing := "(", ")"
+		if c.isDef {
+			open, closing = "[", "]"
+			c.hot = strings.ToUpper(c.hot)
+		}
+		parts = append(parts, cz.Muted(open)+cz.Hotkey(c.hot)+cz.Muted(closing+c.tail))
+	}
+
+	return strings.Join(parts, " ") + cz.Muted(":")
 }
