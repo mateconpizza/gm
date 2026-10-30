@@ -35,6 +35,9 @@ type (
 	// readPasswordFunc securely reads input from a file descriptor without echoing characters.
 	readPasswordFunc func(fd int) ([]byte, error)
 
+	// ChoicesFmt renders the options part of a prompt, brackets included.
+	ChoicesFmt func(cz *Colorizer, opts []string, def string) string
+
 	// TermOptFn configures terminal settings using the functional options pattern.
 	TermOptFn func(*Options)
 )
@@ -51,6 +54,7 @@ type Options struct {
 	pagerFunc    pagerRunFunc
 	isTerminal   isTerminalFunc
 	readPassword readPasswordFunc
+	choicesFmt   ChoicesFmt
 
 	reader io.Reader
 	writer io.Writer
@@ -79,6 +83,7 @@ func New(opts ...TermOptFn) *Term {
 			inputRetries:     3,
 			colorizer:        defaultColorizer,
 			cancelationError: ErrActionAborted,
+			choicesFmt:       ChoicesInlineBracketedFmt,
 		},
 		size: NewSize(),
 	}
@@ -106,6 +111,15 @@ func WithWriter(w io.Writer) TermOptFn         { return func(o *Options) { o.wri
 func WithForce(force bool) TermOptFn           { return func(o *Options) { o.force = force } }
 func WithCancelationError(err error) TermOptFn { return func(o *Options) { o.cancelationError = err } }
 
+// WithChoicesFmt sets how options are rendered in choice prompts.
+func WithChoicesFmt(f ChoicesFmt) TermOptFn {
+	return func(o *Options) {
+		if f != nil {
+			o.choicesFmt = f
+		}
+	}
+}
+
 // SetReader sets the reader for the terminal.
 func (t *Term) SetReader(r io.Reader) {
 	t.mu.Lock()
@@ -114,8 +128,8 @@ func (t *Term) SetReader(r io.Reader) {
 	t.br = bufio.NewReader(r)
 }
 
-// SetWriter sets the writer for the terminal.
-func (t *Term) SetWriter(w io.Writer) { t.writer = w }
+func (t *Term) SetWriter(w io.Writer)       { t.writer = w }
+func (t *Term) SetChoicesFmt(fn ChoicesFmt) { t.choicesFmt = fn }
 
 // Input get the Input data from the user and return it.
 func (t *Term) Input(p string) string {
@@ -271,10 +285,12 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 	if def != "" {
 		full, ok := resolveOption(strings.ToLower(def), opts)
 		if !ok {
-			return "", fmt.Errorf("%q %w in [%s]", def, ErrOptNotFound, strings.Join(opts, "|"))
+			return "", fmt.Errorf("%q %w in [%s]", def, ErrOptNotFound, strings.Join(opts, ","))
 		}
 		def = full
 	}
+
+	opts = uniqueOptions(opts)
 
 	if t.force {
 		slog.Debug("choose", "def", def)
@@ -338,9 +354,7 @@ func (t *Term) SetInterruptFn(fn func(error)) {
 }
 
 // InterruptFn returns current interruptFn.
-func (t *Term) InterruptFn() func(error) {
-	return t.interruptFn
-}
+func (t *Term) InterruptFn() func(error) { return t.interruptFn }
 
 // CancelInterruptHandler cancels the interrupt handler.
 func (t *Term) CancelInterruptHandler() {
@@ -414,18 +428,14 @@ func (t *Term) currentReader() *bufio.Reader {
 	return t.br
 }
 
-// promptWithChoices prompts the user to enter one of the given options.
+// promptWithChoicesErr prompts the user to enter one of the given options.
 func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string, def string) (string, error) {
-	dimmer := t.colorizer.Muted
-	sep, s, e := dimmer("/"), dimmer("["), dimmer("]:")
-
-	display := fmtChoices(t.colorizer, opts, def)
-	p := buildPrompt(q, fmt.Sprintf("%s%s%s", s, strings.Join(display, sep), e))
+	p := buildPrompt(q, t.choicesFmt(t.colorizer, opts, def))
 
 	return getUserInputWithAttempts(ctx, &PromptInput{
 		reader:           t.currentReader(),
 		writer:           t.writer,
-		rompt:            p,
+		prompt:           p,
 		options:          opts, // raw options, used for matching
 		def:              def,
 		maxRetries:       t.inputRetries,
@@ -536,79 +546,4 @@ func defaultPagerRun(ctx context.Context, args []string, stdin io.Reader, stdout
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd.Run()
-}
-
-// resolveOption matches input against opts, case-insensitively. An exact match
-// wins; otherwise the input must be a prefix of exactly one option.
-// It returns the option as it was passed in, not what the user typed.
-func resolveOption(input string, opts []string) (string, bool) {
-	if input == "" {
-		return "", false
-	}
-
-	var match string
-	var n int
-	for _, o := range opts {
-		lo := strings.ToLower(o)
-		if lo == input {
-			return o, true
-		}
-		if strings.HasPrefix(lo, input) {
-			match = o
-			n++
-		}
-	}
-
-	return match, n == 1
-}
-
-// uniquePrefixLen returns the length of the shortest prefix of opt that no
-// other option in all shares.
-func uniquePrefixLen(opt string, all []string) int {
-	for n := 1; n < len(opt); n++ {
-		count := 0
-		for _, o := range all {
-			if strings.HasPrefix(o, opt[:n]) {
-				count++
-			}
-		}
-		if count == 1 {
-			return n
-		}
-	}
-
-	return len(opt)
-}
-
-// fmtChoices lowercases the options, highlights the shortest prefix that
-// identifies each one, and capitalizes the default (placed last).
-func fmtChoices(cz *Colorizer, opts []string, def string) []string {
-	lower := make([]string, len(opts))
-	for i, o := range opts {
-		lower[i] = strings.ToLower(o)
-	}
-
-	var (
-		formatted []string
-		defOpt    string
-	)
-
-	for i, o := range lower {
-		n := uniquePrefixLen(o, lower)
-		hot, tail := o[:n], o[n:]
-
-		if opts[i] == def {
-			hot = strings.ToUpper(hot[:1]) + hot[1:]
-			defOpt = cz.Hotkey(hot) + cz.Muted(tail)
-			continue
-		}
-
-		formatted = append(formatted, cz.Hotkey(hot)+cz.Muted(tail))
-	}
-
-	if defOpt != "" {
-		formatted = append(formatted, defOpt)
-	}
-
-	return formatted
 }

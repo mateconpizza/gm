@@ -117,7 +117,7 @@ func TestTermGetUserInput(t *testing.T) {
 			mockPromptInput := &PromptInput{
 				reader:     bufio.NewReader(strings.NewReader(tt.input)),
 				writer:     &strings.Builder{},
-				rompt:      tt.prompt,
+				prompt:     tt.prompt,
 				options:    tt.options,
 				def:        tt.defaultVal,
 				maxRetries: 3,
