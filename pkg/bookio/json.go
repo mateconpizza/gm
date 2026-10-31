@@ -2,8 +2,10 @@ package bookio
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -29,12 +31,12 @@ var JSONStrategy = &RepositoryLoader{
 }
 
 func jsonLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
-	bj := &bookmark.BookmarkJSON{}
+	bj := bookmark.NewRecord()
 	if err := files.ReadJSON(path, bj); err != nil {
 		return nil, fmt.Errorf("%w: %s", err, path)
 	}
 
-	return bookmark.NewFromJSON(bj), nil
+	return bj.Bookmark(), nil
 }
 
 // SaveAsJSON creates files structure.
@@ -55,11 +57,11 @@ func SaveAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error)
 
 	urlHash := b.HashURL()
 	filePathJSON := filepath.Join(domainPath, urlHash+jsonExt)
-	updated, err := files.WriteJSONIfChanged(filePathJSON, b.JSON(), force)
+	updated, err := files.WriteJSONIfChanged(filePathJSON, b.Record(), force)
 
 	// Handle file conflict
 	if errors.Is(err, os.ErrExist) {
-		bj := bookmark.BookmarkJSON{}
+		bj := bookmark.NewRecord()
 		if err := files.ReadJSON(filePathJSON, &bj); err != nil {
 			return false, fmt.Errorf("%w", err)
 		}
@@ -78,4 +80,35 @@ func SaveAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error)
 	}
 
 	return updated, nil
+}
+
+func WriteJSON(w io.Writer, bs []*bookmark.Bookmark) error {
+	bj := make([]*bookmark.Record, 0, len(bs))
+	for i := range bs {
+		bj = append(bj, bs[i].Record())
+	}
+
+	data, err := json.MarshalIndent(&bj, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshalling JSON: %w", err)
+	}
+
+	_, err = w.Write(data)
+	return err
+}
+
+func ReadJSON(r io.Reader) ([]*bookmark.Bookmark, error) {
+	var bj []*bookmark.Record
+
+	j := json.NewDecoder(r)
+	if err := j.Decode(&bj); err != nil {
+		return nil, err
+	}
+
+	bs := make([]*bookmark.Bookmark, 0, len(bj))
+	for i := range bj {
+		bs = append(bs, bj[i].Bookmark())
+	}
+
+	return bs, nil
 }

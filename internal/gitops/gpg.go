@@ -164,7 +164,7 @@ func createGPGFile(ctx context.Context, g Encryptor, repoPath string, b *bookmar
 		return fmt.Errorf("gpgfile: failed creating dir: %w, %q", err, filepath.Dir(fullpath))
 	}
 
-	data, err := json.MarshalIndent(b.JSON(), "", "  ")
+	data, err := json.MarshalIndent(b.Record(), "", "  ")
 	if err != nil {
 		return fmt.Errorf("gpgfile: JSON marshal: %w", err)
 	}
@@ -189,12 +189,12 @@ func gpgBookmarkFileLoader(g *gpg.GPG) bookio.LoaderFileFunc {
 			return nil, fmt.Errorf("%w: %q", err, path)
 		}
 
-		bj := &bookmark.BookmarkJSON{}
+		bj := bookmark.NewRecord()
 		if err := json.Unmarshal(content, bj); err != nil {
 			return nil, fmt.Errorf("error unmarshalling JSON: %w, %s", err, path)
 		}
 
-		return bookmark.NewFromJSON(bj), nil
+		return bj.Bookmark(), nil
 	}
 }
 

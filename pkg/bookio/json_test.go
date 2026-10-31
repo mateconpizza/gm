@@ -69,7 +69,7 @@ func TestSaveAsJSON_ConflictChecksumUpdate(t *testing.T) {
 	domain, _ := b2.Domain()
 	hash := b2.HashURL()
 	path := filepath.Join(root, domain, hash+".json")
-	bj := bookmark.NewJSON()
+	bj := bookmark.NewRecord()
 	err = files.ReadJSON(path, bj)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

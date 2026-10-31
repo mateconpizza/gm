@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -172,7 +171,7 @@ func ByField(ctx context.Context, c *ui.Console, fields string, bs []*bookmark.B
 	for _, b := range bs {
 		var row []string
 		for _, spec := range specs {
-			val, err := b.Field(spec.name)
+			val, err := bookmark.Field(spec.name, b)
 			if err != nil {
 				return err
 			}
@@ -385,24 +384,6 @@ func TimestampDecorator(app *application.App) func(info *FileInfo) *FileInfo {
 		}
 		return info
 	}
-}
-
-// RecordsJSON formats the bookmarks in RecordsJSON.
-func RecordsJSON(w io.Writer, bs []*bookmark.Bookmark) error {
-	slog.Debug("formatting bookmarks in JSON", "count", len(bs))
-	r := make([]*bookmark.BookmarkJSON, 0, len(bs))
-	for _, b := range bs {
-		r = append(r, b.JSON())
-	}
-
-	j, err := port.ToJSON(r)
-	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	fmt.Fprintln(w, string(j))
-
-	return nil
 }
 
 // TagsJSON formats the tags counter in JSON.

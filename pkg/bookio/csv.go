@@ -20,7 +20,7 @@ var (
 
 var CSVDefaultHeader = []string{"id", "url", "title", "desc", "created_at", "favorite", "notes"}
 
-func ExportToCSV(bs []*bookmark.Bookmark, writer io.Writer, fields []string) error {
+func WriteCSV(writer io.Writer, bs []*bookmark.Bookmark, fields []string) error {
 	if len(fields) == 0 {
 		fields = CSVDefaultHeader
 	}
@@ -84,7 +84,7 @@ func ExportToCSV(bs []*bookmark.Bookmark, writer io.Writer, fields []string) err
 	return w.Error()
 }
 
-func ImportFromCSV(r io.Reader) ([]*bookmark.Bookmark, error) {
+func ReadCSV(r io.Reader) ([]*bookmark.Bookmark, error) {
 	cr := csv.NewReader(r)
 
 	header, err := cr.Read()

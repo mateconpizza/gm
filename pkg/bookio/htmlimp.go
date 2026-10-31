@@ -154,6 +154,25 @@ func (bp *BookmarkNetscapeParser) extractTextRecursive(n *html.Node, text *strin
 	}
 }
 
+func ReadNetscapeHTML(f io.ReadSeeker) ([]*bookmark.Bookmark, error) {
+	if err := IsValidNetscapeFile(f); err != nil {
+		return nil, err
+	}
+
+	bp := NewHTMLParser()
+	nbs, err := bp.ParseHTML(f)
+	if err != nil {
+		return nil, err
+	}
+
+	bs := make([]*bookmark.Bookmark, 0, len(nbs))
+	for i := range nbs {
+		bs = append(bs, FromNetscape(&nbs[i]))
+	}
+
+	return bs, nil
+}
+
 // FromNetscape converts a BookmarkNetscape to a Bookmark.
 func FromNetscape(nb *BookmarkNetscape) *bookmark.Bookmark {
 	if len(nb.Tags) == 0 {
