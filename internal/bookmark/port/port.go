@@ -8,11 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -166,6 +168,22 @@ func ImportFromCSV(ctx context.Context, d *deps.Deps, path string) error {
 	}
 
 	return importPipeline(ctx, d, "from CSV", path, bs)
+}
+
+func WriteYAML(w io.Writer, bs []*bookmark.Bookmark) error {
+	recs := make([]*bookmark.Record, len(bs))
+	for i, b := range bs {
+		recs[i] = b.Record()
+	}
+
+	enc := yaml.NewEncoder(w)
+	enc.SetIndent(2)
+
+	if err := enc.Encode(recs); err != nil {
+		return err
+	}
+
+	return enc.Close() // flushes the encoder
 }
 
 // importPipeline handles deduplication, user prompting, and persistence.

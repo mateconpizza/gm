@@ -10,6 +10,7 @@ import (
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/cli"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
@@ -31,6 +32,7 @@ func newExportCmd(app *application.App) *cobra.Command {
 	cmds := []func(*application.App) *cobra.Command{
 		newExportHTMLCmd,
 		newExportJSONCmd,
+		newExportYAMLCmd,
 		newExportCSVCmd,
 		newExportMarkdownCmd,
 	}
@@ -122,6 +124,21 @@ func newExportMarkdownCmd(app *application.App) *cobra.Command {
 	flagsMarkdown(c, app)
 
 	return c
+}
+
+func newExportYAMLCmd(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:     "yaml [id|query]",
+		Short:   "export to YAML",
+		Aliases: []string{"yml"},
+		Hidden:  true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			m := setupMenu(app, " export to YAML ")
+			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+				return port.WriteYAML(os.Stdout, bs)
+			})
+		},
+	}
 }
 
 func setupMenu(app *application.App, label string) *menu.Menu[*bookmark.Bookmark] {
