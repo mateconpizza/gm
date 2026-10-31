@@ -46,7 +46,7 @@ func testBuildBuffer(t *testing.T) {
 	}
 
 	s := NotesStrategy{}
-	buf, err := s.BuildBuffer("main.db", "1.0.0", b, 1, 1)
+	buf, err := s.BuildBuffer(b, 1, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

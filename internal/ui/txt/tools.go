@@ -89,6 +89,68 @@ func newDiffColor(c Colors, text, add, del string) string {
 	return strings.Join(r, "\n")
 }
 
+// DiffContext returns a diff with unchanged regions folded to the given
+// number of context lines around changes.
+func DiffContext(a, b []byte, contextLines int) string { return foldDiff(Diff(a, b), contextLines) }
+
+func foldDiff(text string, contextLines int) string {
+	if contextLines < 0 {
+		contextLines = 0
+	}
+
+	lines := strings.Split(text, "\n")
+	changed := make([]bool, len(lines))
+	hasChanges := false
+
+	for i, line := range lines {
+		changed[i] = strings.HasPrefix(line, addMarker) ||
+			strings.HasPrefix(line, delMarker)
+		hasChanges = hasChanges || changed[i]
+	}
+
+	if !hasChanges {
+		return text
+	}
+
+	keep := make([]bool, len(lines))
+
+	// preserve the first and last lines for structural context.
+	keep[0], keep[len(lines)-1] = true, true
+
+	// keep context around every added or deleted line.
+	for i, isChanged := range changed {
+		if !isChanged {
+			continue
+		}
+
+		start := max(0, i-contextLines)
+		end := min(len(lines)-1, i+contextLines)
+
+		for j := start; j <= end; j++ {
+			keep[j] = true
+		}
+	}
+
+	var result []string
+	omitted := false
+
+	for i, line := range lines {
+		if !keep[i] {
+			omitted = true
+			continue
+		}
+
+		if omitted {
+			result = append(result, "...")
+			omitted = false
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}
+
 // ExtractBlock extracts a block of text starting from the first line
 // that has the startMarker until either the endMarker is found or EOF.
 // If endMarker is empty, it extracts until EOF.

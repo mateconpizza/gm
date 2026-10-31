@@ -36,6 +36,15 @@ import (
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
+func NewSpinner(app *application.App) *rotato.Rotato {
+	return rotato.New(
+		rotato.WithColor(app.Flags.Color),
+		rotato.WithMessage("scraping webpage..."),
+		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithSpinnerColor(rotato.FgBrightMagenta),
+	)
+}
+
 // Open opens the URLs in the browser for the bookmarks in the provided slice.
 func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	const maxGoroutines = 5
@@ -642,12 +651,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		}
 
 	case "edit":
-		sp := rotato.New(
-			rotato.WithColor(app.Flags.Color),
-			rotato.WithMessage("scraping webpage..."),
-			rotato.WithMessageColor(rotato.FgYellow),
-			rotato.WithSpinnerColor(rotato.FgBrightMagenta),
-		)
+		sp := NewSpinner(app)
 		session := editor.NewEditSession().
 			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(sp)).
 			WithDiffer(c.Differ()).
@@ -723,16 +727,9 @@ func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, 
 		return err
 	}
 
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-
 	return session.
 		WithTerminal(d.Console()).
 		WithEditor(te).
-		WithDBName(r.BaseName()).
-		WithVersion(app.Version()).
 		Run(ctx, bs)
 }
 

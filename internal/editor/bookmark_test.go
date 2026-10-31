@@ -25,8 +25,8 @@ func TestBookmarkStrategyParseBufferDelegates(t *testing.T) {
 		return &bookmark.Bookmark{ID: 99}, nil
 	}
 
-	bs := NewBookmarkStrategy().
-		WithParseBuffer(fake)
+	bs := NewBookmarkStrategy()
+	bs.parseBuffer = fake
 
 	got, err := bs.ParseBuffer(t.Context(), nil, &bookmark.Bookmark{})
 	if err != nil {
@@ -60,7 +60,7 @@ func TestBookmarkStrategy_ParseBuffer(t *testing.T) {
 			name: "custom_parser_success",
 			setupFn: func() *BookmarkStrategy {
 				return NewBookmarkStrategy().
-					WithParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+					withParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 						return &bookmark.Bookmark{ID: 999}, nil
 					})
 			},
@@ -72,7 +72,7 @@ func TestBookmarkStrategy_ParseBuffer(t *testing.T) {
 			name: "custom_parser_error",
 			setupFn: func() *BookmarkStrategy {
 				return NewBookmarkStrategy().
-					WithParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+					withParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 						return nil, errCustom
 					})
 			},
@@ -84,7 +84,7 @@ func TestBookmarkStrategy_ParseBuffer(t *testing.T) {
 			name: "empty_buffer_handled_by_custom",
 			setupFn: func() *BookmarkStrategy {
 				return NewBookmarkStrategy().
-					WithParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+					withParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 						if len(buf) == 0 {
 							return nil, errEmptyBuffer
 						}
@@ -99,7 +99,7 @@ func TestBookmarkStrategy_ParseBuffer(t *testing.T) {
 			name: "nil_buffer_handled_by_custom",
 			setupFn: func() *BookmarkStrategy {
 				return NewBookmarkStrategy().
-					WithParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+					withParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 						if buf == nil {
 							return nil, errEmptyBuffer
 						}
@@ -114,7 +114,7 @@ func TestBookmarkStrategy_ParseBuffer(t *testing.T) {
 			name: "nil_original_handled_by_custom",
 			setupFn: func() *BookmarkStrategy {
 				return NewBookmarkStrategy().
-					WithParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+					withParseBuffer(func(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 						if original == nil {
 							return nil, errCustom
 						}
@@ -171,9 +171,11 @@ func TestBookmarkStrategyZeroValueFallsBackToDefault(t *testing.T) {
 func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 	t.Parallel()
 
-	bs := NewBookmarkStrategy()
 	dbName := "test_db"
 	version := "1.2.3"
+	bs := NewBookmarkStrategy()
+	bs.version = version
+	bs.dbName = dbName
 
 	padded := func(s, v any) string {
 		return txt.PaddedLineWithWidth(s, v, 10)
@@ -256,7 +258,7 @@ func TestBookmarkStrategy_BuildBuffer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := bs.BuildBuffer(dbName, version, tt.b, tt.idx, tt.total)
+			got, err := bs.BuildBuffer(tt.b, tt.idx, tt.total)
 			if err != nil {
 				t.Fatalf("BuildBuffer() unexpected error: %v", err)
 			}

@@ -32,8 +32,6 @@ type EditSession struct {
 	term     Terminal
 	editor   TextEditor
 	persist  PersistFunc
-	dbName   string
-	version  string
 	strategy EditStrategy
 	writer   io.Writer
 
@@ -42,9 +40,7 @@ type EditSession struct {
 
 func NewEditSession() *EditSession {
 	return &EditSession{
-		dbName:  "main",
-		version: "x.x.x",
-		writer:  os.Stdout,
+		writer: os.Stdout,
 	}
 }
 
@@ -65,16 +61,6 @@ func (e *EditSession) WithEditor(te TextEditor) *EditSession {
 
 func (e *EditSession) WithWriter(w io.Writer) *EditSession {
 	e.writer = w
-	return e
-}
-
-func (e *EditSession) WithDBName(s string) *EditSession {
-	e.dbName = s
-	return e
-}
-
-func (e *EditSession) WithVersion(s string) *EditSession {
-	e.version = s
 	return e
 }
 
@@ -153,7 +139,7 @@ func (e *EditSession) processSingleRecord(ctx context.Context, old *bookmark.Boo
 
 // buildAndEdit prepares record for editing and launches editor.
 func (e *EditSession) buildAndEdit(ctx context.Context, r *bookmark.Bookmark, idx, total int, s EditStrategy) ([]byte, error) {
-	buf, err := s.BuildBuffer(e.dbName, e.version, r, idx, total)
+	buf, err := s.BuildBuffer(r, idx, total)
 	if err != nil {
 		return nil, err
 	}
