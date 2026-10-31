@@ -3,6 +3,7 @@ package editor
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -12,32 +13,43 @@ var _ EditStrategy = (*JSONStrategy)(nil)
 
 type JSONStrategy struct{}
 
-func NewJSONStrategy() *JSONStrategy {
-	return &JSONStrategy{}
-}
+func NewJSONStrategy() *JSONStrategy { return &JSONStrategy{} }
 
-func (JSONStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+func (js *JSONStrategy) BuildBuffer(b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
-	old := bytes.TrimRight(original.Bytes(), "\n")
-	fresh := bytes.TrimRight(buf, "\n")
+func (js *JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+	oldBytes := bytes.TrimRight(old.Bytes(), "\n")
+	freshBytes := bytes.TrimRight(buf, "\n")
 
-	if bytes.Equal(old, fresh) {
+	if bytes.Equal(oldBytes, freshBytes) {
 		return nil, ErrBufferUnchanged
 	}
 
-	bm, err := bookmark.NewFromBuffer(fresh)
+	fresh, err := bookmark.NewFromBuffer(freshBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	return bm, nil
+	if err := bookmark.Validate(fresh); err != nil {
+		return nil, err
+	}
+
+	if old.ID != fresh.ID {
+		return nil, fmt.Errorf("%w: %d", bookmark.ErrBookmarkInvalidID, fresh.ID)
+	}
+
+	if old.Equals(fresh) {
+		return nil, ErrBufferUnchanged
+	}
+
+	return fresh, nil
 }
 
-func (JSONStrategy) Diff(d Differ, old, fresh *bookmark.Bookmark) string {
-	return txt.DiffColorize(d, txt.Diff(old.Bytes(), fresh.Bytes()))
+func (js *JSONStrategy) Diff(d Differ, old, fresh *bookmark.Bookmark) string {
+	diff := txt.DiffContext(old.Bytes(), fresh.Bytes(), 3)
+	return txt.DiffColorize(d, diff)
 }
 
-func (JSONStrategy) FileType() string { return "json" }
+func (js *JSONStrategy) FileType() string { return "json" }

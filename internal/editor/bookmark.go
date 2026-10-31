@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/frame"
@@ -20,23 +19,45 @@ type BookmarkParseBufFunc func(ctx context.Context, buf []byte, original *bookma
 type BookmarkStrategy struct {
 	parseBuffer BookmarkParseBufFunc
 	spinner     spinner
+	appName     string
+	dbName      string
+	version     string
 }
 
-func NewBookmarkStrategy() *BookmarkStrategy {
-	return &BookmarkStrategy{}
-}
+// NewBookmarkStrategy bookmark strategy.
+//
+//	-------------------
+//	ID Title
+//
+//	database: dbName
+//	version: 	x.x.x
+//	----- label -------
+//
+//	Data
+//	---------- [footer]
+func NewBookmarkStrategy() *BookmarkStrategy { return &BookmarkStrategy{} }
 
 func (bs *BookmarkStrategy) WithSpinner(sp spinner) *BookmarkStrategy {
 	bs.spinner = sp
 	return bs
 }
 
-func (bs *BookmarkStrategy) WithParseBuffer(fn BookmarkParseBufFunc) *BookmarkStrategy {
-	bs.parseBuffer = fn
+func (bs *BookmarkStrategy) WithRepoName(s string) *BookmarkStrategy {
+	bs.dbName = s
 	return bs
 }
 
-func (bs *BookmarkStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+func (bs *BookmarkStrategy) WithAppVersion(s string) *BookmarkStrategy {
+	bs.version = s
+	return bs
+}
+
+func (bs *BookmarkStrategy) WithAppName(s string) *BookmarkStrategy {
+	bs.appName = s
+	return bs
+}
+
+func (bs *BookmarkStrategy) BuildBuffer(b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	var (
 		pad   = 10
 		f     = frame.New(frame.WithBordersCustom("# ", "# ", "# ", "# "))
@@ -57,8 +78,8 @@ func (bs *BookmarkStrategy) BuildBuffer(dbName, version string, b *bookmark.Book
 	separator := txt.SpanCenter(width-2, "", char)
 	title := strings.ReplaceAll(b.Title, "\n", " ")
 	idTitleLine := fmt.Sprintf("%d %s", b.ID, txt.Shorten(title, width-6))
-	dbName = txt.PaddedLineWithWidth("database:", dbName, pad)
-	version = txt.PaddedLineWithWidth("version:", formatVersion(version), pad)
+	dbName := txt.PaddedLineWithWidth("database:", bs.dbName, pad)
+	version := txt.PaddedLineWithWidth("version:", formatVersion(bs.version), pad)
 	sepTitle := txt.SpanCenter(width-2, label, char)
 
 	return f.
@@ -74,19 +95,24 @@ func (bs *BookmarkStrategy) BuildBuffer(dbName, version string, b *bookmark.Book
 		Bytes(), nil
 }
 
-func (bs *BookmarkStrategy) ParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (bs *BookmarkStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 	parse := bs.parseBuffer
 	if parse == nil {
-		return defaultParseBuffer(ctx, buf, original, bs.spinner)
+		return defaultParseBuffer(ctx, buf, old, bs.spinner)
 	}
-	return parse(ctx, buf, original)
+	return parse(ctx, buf, old)
 }
 
 func (bs *BookmarkStrategy) Diff(d Differ, old, fresh *bookmark.Bookmark) string {
 	return txt.DiffColorize(d, txt.Diff(old.Buffer(), fresh.Buffer()))
 }
 
-func (bs *BookmarkStrategy) FileType() string { return application.Name }
+func (bs *BookmarkStrategy) FileType() string { return bs.appName }
+
+func (bs *BookmarkStrategy) withParseBuffer(fn BookmarkParseBufFunc) *BookmarkStrategy {
+	bs.parseBuffer = fn
+	return bs
+}
 
 func bookmarkFromBytes(buf []byte, b *bookmark.Bookmark) {
 	lines := strings.Split(string(buf), "\n") // bytes to lines

@@ -16,13 +16,26 @@ var _ EditStrategy = (*NotesStrategy)(nil)
 
 type NotesStrategy struct {
 	sectionMarker string
+	dbName        string
 }
 
-func NewNotesStrategy() *NotesStrategy {
-	return &NotesStrategy{}
+// NewNotesStrategy notes strategy.
+//
+//	<!-- ------------------
+//	[ID] Title
+//	Tags:
+//	URL:
+//	Database:
+//	<!-- --- label ------->
+//	Notes
+func NewNotesStrategy() *NotesStrategy { return &NotesStrategy{} }
+
+func (ns *NotesStrategy) WithRepoName(s string) *NotesStrategy {
+	ns.dbName = s
+	return ns
 }
 
-func (ns *NotesStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmark, idx, total int) ([]byte, error) {
+func (ns *NotesStrategy) BuildBuffer(b *bookmark.Bookmark, idx, total int) ([]byte, error) {
 	var (
 		bd      = frame.NewBorders("<!-- ", " ", "<!-", "-->")
 		f       = frame.New(frame.WithBorders(bd))
@@ -47,18 +60,18 @@ func (ns *NotesStrategy) BuildBuffer(dbName, version string, b *bookmark.Bookmar
 		Rowln(idTitle).                                   // [ID] Title
 		Rowln(bullet("Tags", txt.TagsWithPound(b.Tags))). // Tags:
 		Rowln(bullet("URL", urlLine)).                    // URL:
-		Rowln(bullet("Database", dbName)).                // Database:
+		Rowln(bullet("Database", ns.dbName)).             // Database:
 		Text(ns.sectionMarker + headerFooter).Footerln(). // <!-- --- label ------->
 		Text(b.Notes).                                    // Notes
 		Bytes(), nil
 }
 
-func (ns *NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, og *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (ns *NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 	editedNotes := txt.ExtractBlockBytesRaw(buf, ns.sectionMarker, "")
-	if bytes.Equal([]byte(og.Notes), editedNotes) {
+	if bytes.Equal([]byte(old.Notes), editedNotes) {
 		return nil, ErrBufferUnchanged
 	}
-	clone := og.Copy()
+	clone := old.Copy()
 	clone.Notes = string(editedNotes)
 	return clone, nil
 }

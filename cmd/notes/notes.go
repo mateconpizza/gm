@@ -77,8 +77,12 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			m := setupMenu(app, menu.WithKeybinds(menu.KeymapTogglePreview()))
-			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
+			return cmdutil.Execute(
+				cmd.Context(),
+				args,
+				setupMenu(app, menu.WithKeybinds(menu.KeymapTogglePreview())),
+				handler.Edit(cmd.Context(), editor.NewNotesStrategy().
+					WithRepoName(app.DBBaseName())))
 		},
 	}
 

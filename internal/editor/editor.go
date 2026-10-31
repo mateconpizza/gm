@@ -21,7 +21,7 @@ var (
 )
 
 // Fallback text editors if $EDITOR || $GOMARKS_EDITOR var is not set.
-var textEditors = []string{"vim", "nvim", "nano", "emacs"}
+var textEditors = []string{"vim", "nvim", "nano", "emacs", "hx", "micro"}
 
 type Editor struct {
 	name string
@@ -35,7 +35,7 @@ type Editor struct {
 // If env variable `EDITOR` is not set, uses the first available
 // `TextEditors`
 //
-// # fallbackEditors: `"vim", "nvim", "nano", "emacs"`.
+//	fallbackEditors: `vim, nvim, nano, emacs, hx, micro`.
 func NewEditor(s string) (*Editor, error) {
 	envs := []string{s, DefTextEditorEnv}
 	// find $EDITOR and $GOMARKS_EDITOR
