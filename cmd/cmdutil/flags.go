@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
 )
 
@@ -44,14 +45,14 @@ global:
 `
 
 func FlagOutput(c *cobra.Command, app *application.App, def string, supportedOutput []string) {
-	c.Flags().StringVarP(&app.Flags.Output, "output", "o", def, WrapFields(supportedOutput, ", ", 60))
+	c.Flags().StringVarP(&app.Flags.Output, "output", "o", def, wrapAtWidth(supportedOutput, 60))
 	FlagCompletion(c, "output", func(cmd *cobra.Command) ([]string, error) {
 		return supportedOutput, nil
 	})
 }
 
 func FlagFields(c *cobra.Command, app *application.App, fields []string) {
-	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "", WrapFields(fields, ", ", 60))
+	c.Flags().StringVarP(&app.Flags.Field, "fields", "f", "", wrapAtWidth(fields, 60))
 	FlagCompletion(c, "fields", func(cmd *cobra.Command) ([]string, error) {
 		return fields, nil
 	})
@@ -85,19 +86,26 @@ func FlagsFilter(c *cobra.Command, app *application.App) {
 	FlagCompletion(c, "tag", tagFetcher(app))
 }
 
+func FlagsFormat(c *cobra.Command, app *application.App, supported []string) {
+	c.Flags().StringVarP(&app.Flags.Format, "format", "f", "bookmark", wrapAtWidth(supported, 60))
+	FlagCompletion(c, "format", func(cmd *cobra.Command) ([]string, error) {
+		return supported, nil
+	})
+}
+
 func FlagMenu(c *cobra.Command, app *application.App) {
 	c.Flags().BoolVarP(&app.Flags.Menu, "menu", "m", false, "select interactively")
 }
 
 func FlagSort(c *cobra.Command, app *application.App, sortSupported []string) {
-	c.Flags().StringVarP(&app.Flags.Sort, "sort", "s", "", WrapFields(sortSupported, ", ", 60))
+	c.Flags().StringVarP(&app.Flags.Sort, "sort", "s", "", wrapAtWidth(sortSupported, 120))
 	FlagCompletion(c, "sort", func(cmd *cobra.Command) ([]string, error) {
 		return sortSupported, nil
 	})
 }
 
 func FlagFilter(c *cobra.Command, app *application.App, filterSupported []string) {
-	c.PersistentFlags().StringVarP(&app.Flags.Filter, "filter", "F", "", WrapFields(filterSupported, ", ", 60))
+	c.PersistentFlags().StringVarP(&app.Flags.Filter, "filter", "F", "", wrapAtWidth(filterSupported, 120))
 	FlagCompletion(c, "filter", func(cmd *cobra.Command) ([]string, error) {
 		return filterSupported, nil
 	})
@@ -186,4 +194,31 @@ func tagFetcher(app *application.App) FlagItemsFetcher {
 
 		return tags, nil
 	}
+}
+
+func wrapAtWidth(supported []string, w int) string { return wrapFields(supported, ", ", w) }
+
+// wrapFields formats fields into lines no longer than maxLen,
+// joining fields with sep and inserting newlines when needed.
+func wrapFields(fields []string, sep string, maxLen int) string {
+	var sb strings.Builder
+	line := ""
+
+	for i, f := range fields {
+		part := f
+		if i < len(fields)-1 {
+			part += sep
+		}
+
+		if txt.VisibleWidth(line)+txt.VisibleWidth(part) > maxLen && line != "" {
+			sb.WriteString(line)
+			sb.WriteByte('\n')
+			line = part
+		} else {
+			line += part
+		}
+	}
+
+	sb.WriteString(line)
+	return sb.String()
 }

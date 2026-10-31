@@ -2,7 +2,6 @@ package edit
 
 import (
 	menu "github.com/mateconpizza/go-fzf"
-	"github.com/mateconpizza/rotato"
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
@@ -15,9 +14,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-// FIX: NewCmd menu: current functionality exits the menu after editing a bookmark.
-// New functionality must keep menu after editing.
-
 func NewCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "edit [query]",
@@ -26,95 +22,67 @@ func NewCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} edit <id> or <query>
   $ {cmd} edit --menu --sort favorite
   $ {cmd} edit --tag golang,awesome
-  $ {cmd} edit --tag golang --json
+  $ {cmd} edit --tag golang --format json # yaml, notes
   $ {cmd} edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.Formatter()
-			p := fm.Menu.Placeholder()
-
-			kb := menucfg.NewBindBuilder().
-				WithCommand(app.Command()).
-				WithDBName(app.DBBaseName()).
-				WithPlaceholder(p.Multi())
-
-			k := app.Menu.Keymaps()
-			k.Edit.Enabled = true
-
-			m := picker.NewWithFormatter(
-				app, fm,
-				menu.WithMultiSelection(),
-				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
-				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
-				menu.WithKeybinds(
-					kb.New(k.Edit.Bind, "as-json").WithExecute("edit --json"),
-					kb.New(k.EditNotes.Bind, "notes").WithExecute("edit notes"),
-					kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
-					kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
-					kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
-				),
-				// header
-				menu.WithHeader("select record/s"),
-				menu.WithHeaderLabel(" edition "),
-				menu.WithHeaderKeymaps(),
-			)
-
-			var strategy editor.EditStrategy
-			strategy = editor.NewJSONStrategy()
-			if !app.Flags.JSON {
-				sp := rotato.New(
-					rotato.WithColor(app.Flags.Color),
-					rotato.WithMessage("scraping webpage..."),
-					rotato.WithMessageColor(rotato.FgYellow),
-					rotato.WithSpinnerColor(rotato.FgBrightMagenta),
-				)
-				strategy = editor.NewBookmarkStrategy().WithSpinner(sp)
-			}
-
-			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), strategy))
+			m := setupMenu(app)
+			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), newStrategy(app)))
 		},
 	}
 
-	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "JSON format")
 	cmdutil.FlagSort(c, app, bookmark.SortSupported)
 	cmdutil.FlagMenu(c, app)
 	cmdutil.FlagsFilter(c, app)
+	cmdutil.FlagsFormat(c, app, editor.Supported)
 	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
-
-	c.AddCommand(newEditNotesCmd(app))
 
 	return c
 }
 
-func newEditNotesCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:   "notes [query]",
-		Short: "edit notes with text editor",
-		Example: app.Example(`  $ {cmd} edit notes <id> or <query>
-  $ {cmd} edit notes --menu --sort favorite
-  $ {cmd} edit notes --tag golang,awesome
-  $ {cmd} edit notes --tag golang --tag awesome`),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fm := app.Formatter()
-			p := fm.Menu.Placeholder()
-			m := picker.NewWithFormatter(
-				app,
-				fm,
-				menu.WithMultiSelection(),
-				menu.WithHeader("select record/s"),
-				menu.WithBorderLabel(" notes "),
-				menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), "notes", p.Single())),
-				menu.WithKeybinds(menu.KeymapTogglePreview(), menu.KeymapToggleAll()),
-				menu.WithHeaderKeymaps(),
-				menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
-			)
-			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), editor.NewNotesStrategy()))
-		},
+func newStrategy(app *application.App) editor.EditStrategy {
+	switch app.Flags.Format {
+	case "json":
+		return editor.NewJSONStrategy()
+	case "yaml":
+		return editor.NewYAMLStrategy()
+	case "notes":
+		return editor.NewNotesStrategy().
+			WithRepoName(app.DBBaseName())
+	default:
+		return editor.NewBookmarkStrategy().
+			WithRepoName(app.DBBaseName()).
+			WithAppName(app.Name).
+			WithAppVersion(app.Version()).
+			WithSpinner(handler.NewSpinner(app))
 	}
+}
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+func setupMenu(app *application.App) *menu.Menu[*bookmark.Bookmark] {
+	fm := app.Formatter()
+	p := fm.Menu.Placeholder()
 
-	return c
+	kb := menucfg.NewBindBuilder().
+		WithCommand(app.Command()).
+		WithDBName(app.DBBaseName()).
+		WithPlaceholder(p.Multi())
+
+	k := app.Menu.Keymaps()
+	k.Edit.Enabled = true
+
+	return picker.NewWithFormatter(
+		app, fm,
+		menu.WithMultiSelection(),
+		menu.WithPreviewWindow(picker.PreviewWindowArg(app.Menu.Preview)),
+		menu.WithPreviewCmd(picker.PreviewCmd(app.Command(), app.DBBaseName(), p.Single())),
+		menu.WithKeybinds(
+			kb.New(k.EditNotes.Bind, "notes").WithExecute("edit notes"),
+			kb.Builtin(k.ToggleAll, menu.KeybindActionToggleAll),
+			kb.Builtin(k.Preview, menu.KeybindActionTogglePreview),
+			kb.NewKeymap().WithBind(menu.KeyTab).WithDesc("toggle-select"),
+		),
+		// header
+		menu.WithHeader("select record/s"),
+		menu.WithHeaderLabel(" edition "),
+		menu.WithHeaderKeymaps(),
+	)
 }
