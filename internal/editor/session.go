@@ -104,25 +104,35 @@ func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark) error {
 }
 
 // processSingleRecord handles the edit loop for a single record.
-func (e *EditSession) processSingleRecord(ctx context.Context, original *bookmark.Bookmark, idx, total int) error {
-	currentRecord := original
+func (e *EditSession) processSingleRecord(ctx context.Context, old *bookmark.Bookmark, idx, total int) error {
+	currentRecord := old
+	hasPendingChanges := false
 
-	// Loop to handle the "retry" action for a single record.
+	// loop to handle the "retry" action for a single record.
 	for {
 		editedBuf, err := e.buildAndEdit(ctx, currentRecord, idx, total, e.strategy)
 		if err != nil {
 			return err
 		}
 
-		updated, err := e.strategy.ParseBuffer(ctx, editedBuf, currentRecord)
-		if errors.Is(err, ErrBufferUnchanged) {
-			return nil // Success: nothing changed, move to the next record.
-		}
-		if err != nil {
+		fresh, err := e.strategy.ParseBuffer(ctx, editedBuf, currentRecord)
+		switch {
+		case errors.Is(err, ErrBufferUnchanged):
+			if !hasPendingChanges {
+				return nil // success: nothing changed, move to the next record.
+			}
+
+			// preserve changes from previous editing attempts.
+			fresh = currentRecord
+
+		case err != nil:
 			return err
+
+		default:
+			hasPendingChanges = true
 		}
 
-		fmt.Fprintln(e.writer, e.strategy.Diff(e.differ, original, updated))
+		fmt.Fprintln(e.writer, e.strategy.Diff(e.differ, old, fresh))
 
 		opt, err := e.term.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
@@ -131,13 +141,12 @@ func (e *EditSession) processSingleRecord(ctx context.Context, original *bookmar
 
 		switch strings.ToLower(opt) {
 		case "yes":
-			return e.saveRecordChanges(ctx, original, updated)
+			return e.saveRecordChanges(ctx, old, fresh)
 		case "no":
 			// Skip and continue
 			return nil
 		case "edit":
-			// Retry
-			currentRecord = updated
+			currentRecord = fresh
 		}
 	}
 }
