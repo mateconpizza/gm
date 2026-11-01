@@ -316,6 +316,9 @@ linters:
       - path: "internal/gitops/precommit_test.go"
         linters:
           - nestif
+      - path: "cmd/edit/edit.go"
+        linters:
+          - ireturn
     generated: lax
     presets:
       - common-false-positives

@@ -3,7 +3,6 @@ package cmdutil
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
 
@@ -55,6 +54,33 @@ func setup(ctx context.Context, args *[]string) (*deps.Deps, func(), error) {
 	)
 
 	return d, r.Close, nil
+}
+
+func Bookmarks(ctx context.Context, app *application.App, fn func(bs []*bookmark.Bookmark) error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	r, err := db.New(ctx, app.Path.DB())
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	bs, err := r.All(ctx)
+	if err != nil {
+		return err
+	}
+
+	if app.Flags.Menu {
+		m := picker.NewWithFormatter(app, app.Formatter(), menu.WithMultiSelection())
+		bs, err = m.Select(ctx, bs)
+		if err != nil {
+			return err
+		}
+	}
+
+	return fn(bs)
 }
 
 func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
@@ -115,29 +141,4 @@ func Run(ctx context.Context, args []string, fn RunFunc) error {
 	defer cleanup()
 
 	return fn(ctx, d)
-}
-
-// WrapFields formats fields into lines no longer than maxLen,
-// joining fields with sep and inserting newlines when needed.
-func WrapFields(fields []string, sep string, maxLen int) string {
-	var sb strings.Builder
-	line := ""
-
-	for i, f := range fields {
-		part := f
-		if i < len(fields)-1 {
-			part += sep
-		}
-
-		if len(line)+len(part) > maxLen && line != "" {
-			sb.WriteString(line)
-			sb.WriteByte('\n')
-			line = part
-		} else {
-			line += part
-		}
-	}
-
-	sb.WriteString(line)
-	return sb.String()
 }
