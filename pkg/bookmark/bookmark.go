@@ -151,7 +151,7 @@ func (b *Bookmark) Domain() (string, error) { return Domain(b.URL) }
 
 // Path returns the file path for the bookmark with the given extension.
 //
-//	domain -> urlHash.ext
+//	domain -> urlHash.<ext>
 func (b *Bookmark) Path(ext string) (string, error) {
 	domain, err := Domain(b.URL)
 	if err != nil {
@@ -170,6 +170,17 @@ func (b *Bookmark) GPGPath() (string, error) {
 		return "", fmt.Errorf("hashing path: %w", err)
 	}
 	return hashPath + ".gpg", nil
+}
+
+// PathEncrypted returns the path to the GPG-encrypted bookmark file.
+//
+//	domainHash -> urlHash.<ext>
+func (b *Bookmark) PathEncrypted(ext string) (string, error) {
+	hashPath, err := b.HashPath()
+	if err != nil {
+		return "", fmt.Errorf("hashing path: %w", err)
+	}
+	return hashPath + ext, nil
 }
 
 func (b *Bookmark) Copy() *Bookmark {
