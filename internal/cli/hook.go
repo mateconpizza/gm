@@ -25,7 +25,10 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-var ErrInvalidOption = errors.New("invalid option")
+var (
+	ErrInvalidOption = errors.New("invalid option")
+	ErrDBUnlockFirst = errors.New("unlock database first")
+)
 
 const (
 	AnnotationSkipDBCheck   = "skip-db-check"
@@ -417,7 +420,7 @@ func checkDatabaseLocked(p string) error {
 	err := locker.IsLocked(p)
 	if err != nil {
 		if errors.Is(err, locker.ErrFileLocked) {
-			return locker.ErrDBUnlockFirst
+			return ErrDBUnlockFirst
 		}
 
 		return fmt.Errorf("%w", err)

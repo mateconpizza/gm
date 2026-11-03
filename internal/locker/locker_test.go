@@ -121,11 +121,11 @@ func TestLockAndUnlocked(t *testing.T) {
 	b := []byte(
 		"Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
 	)
-	ciphertext, err := encrypt(b, pp)
+	ciphertext, err := encrypt(t.Context(), b, pp)
 	if err != nil {
 		t.Fatalf("Encryption failed: %v", err)
 	}
-	plaintext, err := decrypt(ciphertext, pp)
+	plaintext, err := Decrypt(t.Context(), ciphertext, pp)
 	if err != nil {
 		t.Fatalf("Decryption failed: %v", err)
 	}
