@@ -32,8 +32,8 @@ type (
 	// isTerminalFunc checks if a given file descriptor points to an interactive terminal.
 	isTerminalFunc func(fd int) bool
 
-	// readPasswordFunc securely reads input from a file descriptor without echoing characters.
-	readPasswordFunc func(fd int) ([]byte, error)
+	// ReadPasswordFunc securely reads input from a file descriptor without echoing characters.
+	ReadPasswordFunc func(fd int) ([]byte, error)
 
 	// ChoicesFmt renders the options part of a prompt, brackets included.
 	ChoicesFmt func(cz *Colorizer, opts []string, def string) string
@@ -53,7 +53,7 @@ type Options struct {
 
 	pagerFunc    pagerRunFunc
 	isTerminal   isTerminalFunc
-	readPassword readPasswordFunc
+	readPassword ReadPasswordFunc
 	choicesFmt   ChoicesFmt
 
 	reader io.Reader
@@ -113,11 +113,11 @@ func WithCancelationError(err error) TermOptFn { return func(o *Options) { o.can
 
 // WithChoicesFmt sets how options are rendered in choice prompts.
 func WithChoicesFmt(f ChoicesFmt) TermOptFn {
-	return func(o *Options) {
-		if f != nil {
-			o.choicesFmt = f
-		}
-	}
+	return func(o *Options) { o.choicesFmt = f }
+}
+
+func WithReadPassword(f ReadPasswordFunc) TermOptFn {
+	return func(o *Options) { o.readPassword = f }
 }
 
 // SetReader sets the reader for the terminal.
@@ -313,14 +313,18 @@ func (t *Term) ClearLine(n int) {
 	ClearLine(t.writer, n)
 }
 
-// ReplaceLine deletes n lines in the console and prints the given string.
-func (t *Term) ReplaceLine(n int, s string) {
+// ReplaceLines deletes n lines in the console and prints the given string.
+func (t *Term) ReplaceLines(n int, s string) {
 	if !t.isInteractiveTerminal(n) {
 		slog.Warn("error replacing line", "error", ErrNotInteractive)
 		return
 	}
 
-	ReplaceLine(t.writer, n, s)
+	ReplaceLines(t.writer, n, s)
+}
+
+func (t *Term) ReplaceLine(s string) {
+	fmt.Fprintf(t.writer, "\r\033[2K%s", s)
 }
 
 // ClearChars deletes n characters in the console.

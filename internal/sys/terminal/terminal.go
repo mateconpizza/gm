@@ -113,8 +113,8 @@ func ClearLine(w io.Writer, n int) {
 	}
 }
 
-// ReplaceLine replaces a line in the console.
-func ReplaceLine(w io.Writer, n int, s string) {
+// ReplaceLines replaces a line in the console.
+func ReplaceLines(w io.Writer, n int, s string) {
 	ClearLine(w, n)
 	fmt.Fprintln(w, s)
 }

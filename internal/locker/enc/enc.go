@@ -11,12 +11,12 @@ import (
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-type EncryptionType string
+type Encryption string
 
 const (
-	None   EncryptionType = "none"
-	GPG    EncryptionType = "gpg"
-	AESGCM EncryptionType = "gcm"
+	None   Encryption = "none"
+	GPG    Encryption = "gpg"
+	AESGCM Encryption = "gcm"
 )
 
 type Cipher interface {

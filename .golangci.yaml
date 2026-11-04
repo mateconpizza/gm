@@ -319,7 +319,7 @@ linters:
       - path: "cmd/edit/edit.go"
         linters:
           - ireturn
-      - path: "internal/locker/enc/session.go"
+      - path: "internal/session/session.go"
         linters:
           - ireturn
     generated: lax

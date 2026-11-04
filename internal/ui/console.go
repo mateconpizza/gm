@@ -116,8 +116,8 @@ func (c *Console) Differ() *Differ                           { return c.differ }
 func (c *Console) Glyphs() *formatter.Glyphs                 { return c.glyphs }
 func (c *Console) Writer() io.Writer                         { return c.writer }
 func (c *Console) IsPiped() bool                             { return c.term.IsPiped() }
-func (c *Console) ReplaceLine(s string)                      { c.term.ReplaceLine(1, s) }
-func (c *Console) ReplaceLines(n int, s string)              { c.term.ReplaceLine(n, s) }
+func (c *Console) ReplaceLine(s string)                      { c.term.ReplaceLines(1, s) }
+func (c *Console) ReplaceLines(n int, s string)              { c.term.ReplaceLines(n, s) }
 func (c *Console) SetReader(r io.Reader)                     { c.term.SetReader(r) }
 func (c *Console) SetWriter(w io.Writer)                     { c.term.SetWriter(w) }
 func (c *Console) Error(s string) *frame.Frame               { return c.frame.Reset().Error(s) }
