@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	jsonExt         = ".json"
+	JSONExtension   = ".json"
 	summaryFile     = "summary.json"  // Git and database metadata
 	trackerFilepath = ".tracked.json" // Tracked databases in Git
 )
@@ -25,7 +25,7 @@ var JSONStrategy = &RepositoryLoader{
 	Prefix: "Loading JSON bookmarks",
 	FileFilter: And(
 		IsFile,
-		HasExtension(jsonExt),
+		HasExtension(JSONExtension),
 		NotNamed(summaryFile, trackerFilepath),
 	),
 }
@@ -56,7 +56,7 @@ func SaveAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error)
 	}
 
 	urlHash := b.HashURL()
-	filePathJSON := filepath.Join(domainPath, urlHash+jsonExt)
+	filePathJSON := filepath.Join(domainPath, urlHash+JSONExtension)
 	updated, err := files.WriteJSONIfChanged(filePathJSON, b.Record(), force)
 
 	// Handle file conflict
