@@ -15,6 +15,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -195,6 +196,19 @@ func StreamLog(ctx context.Context, g *git.Git, p *ansi.Palette) error {
 	}
 
 	return nil
+}
+
+func Cipher(app *application.App) func(ctx context.Context) (enc.Cipher, error) {
+	return func(ctx context.Context) (enc.Cipher, error) {
+		root := app.Path.Git()
+
+		rc, err := ResolveConfig(root)
+		if err != nil {
+			return nil, fmt.Errorf("load repo config: %w", err)
+		}
+
+		return app.Session().Cipher(ctx, root, app.DBBaseName(), rc.Encryption)
+	}
 }
 
 func BookmarksFromStore(r store) BookmarksLoader {
