@@ -42,7 +42,7 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		RepoFileWriter(app.Flags.Color),
 	)
 
-	gm.Git().RegisterPreCommit(
+	gm.Git().PreCommit().Register(
 		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
 		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
 	)
@@ -143,7 +143,8 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 	p := c.Palette()
 
 	preCommitHooks := func(r store, gr *git.Repo, g *git.Git) {
-		g.ResetPreCommit().RegisterPreCommit(
+		g.PreCommit().Reset()
+		g.PreCommit().Register(
 			HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
 			HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
 		)

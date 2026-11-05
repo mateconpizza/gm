@@ -285,47 +285,6 @@ func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) 
 	return nil
 }
 
-// RemoveAndUntrack removes db file and untrack from the git repositorie if the
-// repo its been tracked.
-func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	if err := dbops.Remove(ctx, d); err != nil {
-		return err
-	}
-
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
-	if !git.IsTracked(app.Path.Git(), r.BaseName()) {
-		return nil
-	}
-
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(app.Flags.Color),
-		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(app.Flags.Color),
-	)
-
-	gm.Git().RegisterPreCommit(
-		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-	)
-
-	return gm.Untrack(ctx, gr)
-}
-
 func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
 	if err != nil {
@@ -417,7 +376,7 @@ func DropRepo(ctx context.Context, d *deps.Deps) error {
 		gitops.RepoFileWriter(app.Flags.Color),
 	)
 
-	gm.Git().RegisterPreCommit(
+	gm.Git().PreCommit().Register(
 		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
 		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
 	)
@@ -756,7 +715,7 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		gitops.RepoFileWriter(app.Flags.Color),
 	)
 
-	gm.Git().RegisterPreCommit(
+	gm.Git().PreCommit().Register(
 		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
 		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
 	)
@@ -823,7 +782,7 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		gitops.RepoFileWriter(app.Flags.Color),
 	)
 
-	gm.Git().RegisterPreCommit(
+	gm.Git().PreCommit().Register(
 		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(p.Repo)),
 		gitops.HookReadme(app, gitops.BookmarksFromStore(p.Repo), gitops.StatsFromStore(p.Repo)),
 	)

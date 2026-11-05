@@ -53,7 +53,7 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		RepoFileWriter(app.Flags.Color),
 	)
 
-	gm.Git().RegisterPreCommit(
+	gm.Git().PreCommit().Register(
 		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
 		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
 	)
@@ -98,7 +98,7 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		RepoFileWriter(app.Flags.Color),
 	)
 
-	gm.Git().RegisterPreCommit(
+	gm.Git().PreCommit().Register(
 		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
 		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
 	)

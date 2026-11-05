@@ -239,7 +239,7 @@ func newSyncCmd(app *application.App) *cobra.Command {
 				gitops.RepoFileWriter(app.Flags.Color),
 			)
 
-			gm.Git().RegisterPreCommit(
+			gm.Git().PreCommit().Register(
 				gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
 				gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
 			)
