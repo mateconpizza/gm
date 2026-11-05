@@ -20,6 +20,7 @@ type (
 		Remote  string  `json:"remote,omitempty" yaml:"remote,omitempty"` // Remote repo
 		Readme  *Readme `json:"readme,omitempty" yaml:"readme,omitempty"` // Readme repo
 		Hooks   []Hook  `json:"-"                yaml:"-"`
+		mgr     *Mgr
 
 		writer io.Writer // Writer for logging
 	}
@@ -47,6 +48,8 @@ func WithConfigSummary(s string) ConfigOpt   { return func(c *Config) { c.Readme
 
 func (c *Config) SetWriter(w io.Writer) { c.writer = w }
 func (c *Config) Writer() io.Writer     { return c.writer }
+func (c *Config) SetManager(gm *Mgr)    { c.mgr = gm }
+func (c *Config) Manager() *Mgr         { return c.mgr }
 
 func (c *Config) Status() string {
 	if !c.Enabled {

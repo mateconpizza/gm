@@ -3,10 +3,10 @@ package gpg
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
-
-	"github.com/mateconpizza/gm/internal/testutil"
 )
 
 func TestKeyResolver_Resolve(t *testing.T) {
@@ -110,7 +110,9 @@ func TestKeyResolver_Resolve(t *testing.T) {
 
 			tempDir := t.TempDir()
 			if tt.createFile {
-				testutil.NewFile(t, tempDir, fingerprintIDFilename, []byte("test"))
+				if err := os.WriteFile(filepath.Join(tempDir, fingerprintIDFilename), []byte("test"), 0o600); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			opts := []KeyResolverOpt{}

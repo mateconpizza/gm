@@ -16,31 +16,79 @@ import (
 )
 
 type (
-	PromptFunc func(ctx context.Context, t *terminal.Term, repo string) (string, error)
-	SessionOpt func(*Session)
+	// PromptFunc asks for a passphrase.
+	PromptFunc func(ctx context.Context, t *terminal.Term, repo string, confirm bool) (string, error)
 
+	// Session manages passphrase acquisition, caching, and validation.
 	Session struct {
-		prompt   PromptFunc // asks for a passphrase
-		mu       sync.Mutex
-		shared   string
-		validate bool
-		term     *terminal.Term
-		writer   io.Writer
+		prompt       PromptFunc
+		shared       string
+		validation   bool
+		confirmation bool
+
+		mu     sync.Mutex
+		term   *terminal.Term
+		writer io.Writer
 	}
 )
 
-func New(opts ...SessionOpt) *Session {
-	es := &Session{
-		prompt: promptNewPassphrase(os.Stdout),
-		writer: os.Stdout,
+// New returns a new Session with the provided options.
+func New() *Session {
+	return &Session{
+		prompt: defaultPrompt(os.Stdout),
 		term:   terminal.New(),
+		writer: os.Stdout,
 	}
-	for _, opt := range opts {
-		opt(es)
-	}
-	return es
 }
 
+// WithConfirmation sets whether passphrase confirmation is required.
+func (s *Session) WithConfirmation(b bool) *Session {
+	s.confirmation = b
+	return s
+}
+
+// WithValidation sets whether passphrases are validated against encrypted
+// files.
+func (s *Session) WithValidation(b bool) *Session {
+	s.validation = b
+	return s
+}
+
+// WithPrompt sets a custom prompt function.
+func (s *Session) WithPrompt(fn PromptFunc) *Session {
+	if fn != nil {
+		s.prompt = fn
+	}
+	return s
+}
+
+// WithTerm sets a custom terminal instance.
+func (s *Session) WithTerm(t *terminal.Term) *Session {
+	if t != nil {
+		s.term = t
+	}
+	return s
+}
+
+// WithWriter sets a custom output writer.
+func (s *Session) WithWriter(w io.Writer) *Session {
+	if w != nil {
+		s.writer = w
+	}
+	return s
+}
+
+// WithPassphrase sets a fixed passphrase, bypassing interactive prompting.
+func (s *Session) WithPassphrase(passphrase string) *Session {
+	s.shared = passphrase
+	s.prompt = func(context.Context, *terminal.Term, string, bool) (string, error) {
+		return passphrase, nil
+	}
+	return s
+}
+
+// Cipher returns the appropriate Cipher implementation based on the encryption
+// type.
 func (s *Session) Cipher(ctx context.Context, root, repo string, e enc.Encryption) (enc.Cipher, error) {
 	switch e {
 	case enc.GPG:
@@ -64,7 +112,7 @@ func (s *Session) passphraseAndValidate(ctx context.Context, root, repo string) 
 		return "", err
 	}
 
-	if !s.validate {
+	if !s.validation {
 		return p, nil
 	}
 
@@ -79,7 +127,7 @@ func (s *Session) passphrase(ctx context.Context, repo string) (string, error) {
 		return s.shared, nil
 	}
 
-	p, err := s.prompt(ctx, s.term, repo)
+	p, err := s.prompt(ctx, s.term, repo, s.confirmation)
 	if err != nil {
 		return "", err // nothing is stored, so the next call asks again
 	}
@@ -88,29 +136,9 @@ func (s *Session) passphrase(ctx context.Context, repo string) (string, error) {
 	return p, nil
 }
 
-func WithValidate() SessionOpt             { return func(s *Session) { s.validate = true } }
-func WithPrompt(fn PromptFunc) SessionOpt  { return func(s *Session) { s.prompt = fn } }
-func WithTerm(t *terminal.Term) SessionOpt { return func(s *Session) { s.term = t } }
-func WithWriter(w io.Writer) SessionOpt    { return func(s *Session) { s.writer = w } }
-
-// WithPassphrase prompts once for an existing repository's passphrase.
-func WithPassphrase() SessionOpt {
-	return func(s *Session) {
-		s.prompt = promptPassphrase(s.writer)
-		s.validate = true
-	}
-}
-
-// WithNewPassphrase prompts twice to confirm a new repository's passphrase.
-func WithNewPassphrase() SessionOpt {
-	return func(s *Session) {
-		s.prompt = promptNewPassphrase(s.writer)
-	}
-}
-
-// promptNewPassphrase asks twice, for repos that are about to be encrypted.
-func promptNewPassphrase(w io.Writer) PromptFunc {
-	return func(ctx context.Context, t *terminal.Term, repo string) (string, error) {
+// defaultPrompt asks passphrase for repos that are about to be encrypted.
+func defaultPrompt(w io.Writer) PromptFunc {
+	return func(ctx context.Context, t *terminal.Term, repo string, confirm bool) (string, error) {
 		fmt.Fprintf(w, "Password for %q: ", repo)
 		p1, err := t.InputPassword(ctx)
 		if err != nil {
@@ -118,6 +146,10 @@ func promptNewPassphrase(w io.Writer) PromptFunc {
 		}
 
 		defer t.ReplaceLine("")
+
+		if !confirm {
+			return p1, nil
+		}
 
 		t.ReplaceLine(fmt.Sprintf("Confirm password for %q: ", repo))
 		p2, err := t.InputPassword(ctx)
@@ -133,19 +165,8 @@ func promptNewPassphrase(w io.Writer) PromptFunc {
 	}
 }
 
-// promptPassphrase asks once, for repos that already exist (a typo just fails to decrypt).
-func promptPassphrase(w io.Writer) PromptFunc {
-	return func(ctx context.Context, t *terminal.Term, repo string) (string, error) {
-		fmt.Fprintf(w, "Password for %q: ", repo)
-		p, err := t.InputPassword(ctx)
-		t.ReplaceLine("")
-
-		return p, err
-	}
-}
-
 func validatePassphrase(ctx context.Context, root, passphrase string) (string, error) {
-	path, err := findSample(root, locker.Extension.String())
+	path, err := findSample(ctx, root, locker.Extension.String())
 	if err != nil {
 		return "", err
 	}
@@ -162,16 +183,21 @@ func validatePassphrase(ctx context.Context, root, passphrase string) (string, e
 
 // findSample returns one encrypted file from the repo, or "" if there are none
 // yet.
-func findSample(dir, suffix string) (string, error) {
+func findSample(ctx context.Context, dir, suffix string) (string, error) {
 	var found string
 
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		if !d.IsDir() && strings.HasSuffix(path, suffix) {
 			found = path
-			return fs.SkipAll // stop at the first one
+			return fs.SkipAll
 		}
 
 		return nil

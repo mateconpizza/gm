@@ -52,34 +52,32 @@ func (f *MenuRunner) WithRetCode(i int) *MenuRunner {
 func NewApp(t *testing.T) *application.App {
 	t.Helper()
 
-	return &application.App{
-		Name:   application.Name,
-		Cmd:    application.Command,
-		DBName: application.MainDBName,
-		Path: &application.Path{
-			Data: t.TempDir(),
-		},
-		Flags: &application.Flags{
-			ColorStr: "never",
-			Color:    false,
-		},
-		UI: application.NewUI(),
-		Git: &git.Config{
-			Readme: &git.Readme{},
-		},
-		Info: &application.Information{
-			URL:     "https://github.com/mateconpizza/gm#readme",
-			Title:   "Gomarks: A bookmark manager",
-			Tags:    "golang,awesome,bookmarks,cli",
-			Short:   "Simple yet powerful bookmark manager for your terminal",
-			Version: "0.0.1",
-		},
-		Env: &application.Env{
-			Home:   application.EnvHome,
-			Editor: application.EnvEditor,
-		},
-		Menu: &menucfg.Config{},
+	app := application.NewApp(t.TempDir())
+	app.Name = application.Name
+	app.Cmd = application.Command
+	app.DBName = application.MainDBName
+	app.Flags = &application.Flags{
+		ColorStr: "never",
+		Color:    false,
 	}
+	app.UI = application.NewUI()
+	app.Git = &git.Config{
+		Readme: &git.Readme{},
+	}
+	app.Info = &application.Information{
+		URL:     "https://github.com/mateconpizza/gm#readme",
+		Title:   "Gomarks: A bookmark manager",
+		Tags:    "golang,awesome,bookmarks,cli",
+		Short:   "Simple yet powerful bookmark manager for your terminal",
+		Version: "0.0.1",
+	}
+	app.Env = &application.Env{
+		Home:   application.EnvHome,
+		Editor: application.EnvEditor,
+	}
+	app.Menu = &menucfg.Config{}
+
+	return app
 }
 
 func NewConsole(t *testing.T, w io.Writer) *ui.Console {
