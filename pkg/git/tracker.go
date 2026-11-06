@@ -14,10 +14,10 @@ var (
 	ErrGitTracked       = errors.New("git: repo already tracked")
 )
 
-const TrackerFile = ".tracked.json"
+const TrackerFilename = ".tracked.json"
 
 func IsTracked(root, name string) bool {
-	if !fileExists(filepath.Join(root, TrackerFile)) {
+	if !fileExists(filepath.Join(root, TrackerFilename)) {
 		return false
 	}
 
@@ -37,7 +37,7 @@ type Tracker struct {
 // newTracker returns a new Tracker for the given root directory.
 func newTracker(destDir string) *Tracker {
 	return &Tracker{
-		file: newJSONFile[[]string](filepath.Join(destDir, TrackerFile)),
+		file: newJSONFile[[]string](filepath.Join(destDir, TrackerFilename)),
 	}
 }
 

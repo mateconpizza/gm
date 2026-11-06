@@ -235,13 +235,13 @@ func HookGitSync(app *application.App) HookE {
 		}
 
 		app.Git.SetWriter(os.Stdout)
-		gm, err := gitops.NewManager(app)
-		if err != nil {
-			return err
-		}
+		gm := app.Git.Manager()
 
-		return gitops.Sync(ctx, app, gm, gm.NewRepo(app.DBBaseName()).
-			CommitMsg(git.RepoAction(msg), ""))
+		return gitops.Sync(ctx,
+			app,
+			gm,
+			gm.NewRepo(app.DBBaseName()).CommitMsg(git.RepoAction(msg), ""),
+		)
 	}
 }
 
@@ -279,23 +279,31 @@ func HookGitPrune(app *application.App) HookE {
 		}
 		defer r.Close()
 
-		gr := gm.NewRepo(r.Name(),
-			gitops.RepoFileReader(app.Flags.Color),
-			gitops.RepoFileRemover(),
-			gitops.RepoFileWriter(app.Flags.Color),
-		)
+		sess := app.Session().
+			WithConfirmation(true).
+			WithValidation(true)
+
+		gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 
 		bs, err := r.All(ctx)
 		if err != nil {
 			return err
 		}
 
-		gm.Git().RegisterPreCommit(
-			gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-			gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-		)
+		gitops.RegisterHooks(r, app, gr)
 
 		return gitops.PruneRepo(ctx, gm, gr, bs)
+	}
+}
+
+func HookGitEnsureTracked(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		gm := app.Git.Manager()
+		if gm.IsTracked(app.DBBaseName()) {
+			return nil
+		}
+
+		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBBaseName())
 	}
 }
 
@@ -400,6 +408,25 @@ func HookEnsureAppInitialize(app *application.App) HookE {
 		}
 
 		return fmt.Errorf("%w: run '%s' for setup", application.ErrAppNoSetup, command)
+	}
+}
+
+// HookGitManager returns a hook that initializes and attaches the git manager
+// when git is enabled.
+func HookGitManager(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		if !app.Git.Enabled {
+			return nil
+		}
+
+		gm, err := gitops.NewManager(app)
+		if err != nil {
+			return err
+		}
+
+		app.Git.SetManager(gm)
+
+		return nil
 	}
 }
 

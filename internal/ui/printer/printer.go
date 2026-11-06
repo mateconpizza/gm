@@ -19,7 +19,6 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -320,10 +319,9 @@ func DatabasesTable(ctx context.Context, w io.Writer, dataPath string, opts ...F
 }
 
 func DatabaseDecorator(app *application.App) func(info *FileInfo) *FileInfo {
-	gm, _ := gitops.NewManager(app)
-
 	p := ansi.NewPalette(app.Flags.Color)
 	g := app.Glyphs()
+	gm := app.Git.Manager()
 
 	return func(info *FileInfo) *FileInfo {
 		baseName := files.StripExts(info.Base)

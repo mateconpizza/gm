@@ -175,6 +175,7 @@ func newCurrentCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		Use:         "current",
 		Short:       "current default",
+		Aliases:     []string{"default", "def"},
 		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stdout, app.DBName)

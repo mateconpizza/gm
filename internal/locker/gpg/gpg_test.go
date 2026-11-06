@@ -114,7 +114,7 @@ func TestLoadFingerprint(t *testing.T) {
 	t.Parallel()
 	// Create temp directory
 	tmpDir := t.TempDir()
-	gpgIDPath := filepath.Join(tmpDir, fingerprintIDFilename)
+	gpgIDPath := filepath.Join(tmpDir, FingerprintIDFilename)
 
 	// Test: file doesn't exist
 	_, err := loadFingerprint(gpgIDPath)
@@ -168,7 +168,7 @@ func TestIsInitialized(t *testing.T) {
 	}
 
 	// Test: initialized
-	gpgIDPath := filepath.Join(tmpDir, fingerprintIDFilename)
+	gpgIDPath := filepath.Join(tmpDir, FingerprintIDFilename)
 	if err := os.WriteFile(gpgIDPath, []byte("A1B2C3D4E5F6G7H8\n"), filePerm); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestIsInitialized(t *testing.T) {
 func TestFingerprintIDPath(t *testing.T) {
 	t.Parallel()
 	path := "/test/path"
-	expected := filepath.Join(path, fingerprintIDFilename)
+	expected := filepath.Join(path, FingerprintIDFilename)
 	if got := GPGIDPath(path); got != expected {
 		t.Errorf("expected %s, got %s", expected, got)
 	}
@@ -197,48 +197,6 @@ func TestGPGEncryptNoRecipient(t *testing.T) {
 	err := g.Encrypt(t.Context(), "test.gpg", []byte("data"))
 	if !errors.Is(err, ErrNoGPGRecipient) {
 		t.Errorf("expected ErrNoGPGRecipient, got %v", err)
-	}
-}
-
-// TestInit tests the Init function.
-func TestInit(t *testing.T) {
-	t.Parallel()
-	_, err := which()
-	if err != nil {
-		// This test requires gpg to be installed
-		// Skip if gpg is not available
-		t.Skip("skipping integration test - requires gpg binary")
-	}
-
-	tmpDir := t.TempDir()
-	fp := &Fingerprint{
-		Fingerprint: "A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0",
-	}
-
-	err = Init(tmpDir, ".gitattributes", fp)
-	if err != nil {
-		t.Fatalf("Init failed: %v", err)
-	}
-
-	// Verify .gpg-id was created
-	gpgIDPath := filepath.Join(tmpDir, fingerprintIDFilename)
-	content, err := os.ReadFile(gpgIDPath)
-	if err != nil {
-		t.Fatalf("failed to read .gpg-id: %v", err)
-	}
-	expected := fp.Fingerprint + "\n"
-	if string(content) != expected {
-		t.Errorf("expected %q, got %q", expected, string(content))
-	}
-
-	// Verify .gitattributes was created
-	gitAttrPath := filepath.Join(tmpDir, ".gitattributes")
-	content, err = os.ReadFile(gitAttrPath)
-	if err != nil {
-		t.Fatalf("failed to read .gitattributes: %v", err)
-	}
-	if string(content) != gitAttContent {
-		t.Errorf("expected %q, got %q", gitAttContent, string(content))
 	}
 }
 

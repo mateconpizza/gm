@@ -14,6 +14,7 @@ import (
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
+	"github.com/mateconpizza/gm/internal/session"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -52,6 +53,7 @@ type (
 		Menu   *menucfg.Config `json:"menu"          yaml:"menu"`          // Menu configuration
 		Git    *git.Config     `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
 
+		session     *session.Session
 		initialized bool
 	}
 
@@ -77,6 +79,7 @@ func NewApp(dataHome string) *App {
 		Path: &Path{
 			Data: dataHome,
 		},
+		session: session.New(),
 	}
 }
 
@@ -147,7 +150,7 @@ func (app *App) WriteConfig(force bool) error {
 		cfg.Git = &gitCfg
 	}
 
-	return WriteYAML(app.Path.ConfigFile(), &cfg, force)
+	return writeYAML(app.Path.ConfigFile(), &cfg, force)
 }
 
 // Validate validates the configuration file.
@@ -236,6 +239,7 @@ func (app *App) Exit(err error)                 { Exit(err) }
 func (app *App) Formatter() formatter.Formatter { return app.UI.formatter }
 func (app *App) Glyphs() *formatter.Glyphs      { return app.UI.glyphs }
 func (app *App) Format() string                 { return app.UI.Format }
+func (app *App) Session() *session.Session      { return app.session }
 
 func (app *App) Example(template string) string {
 	return strings.NewReplacer(
@@ -247,7 +251,8 @@ func (app *App) Example(template string) string {
 
 func (app *App) DefaultDB() string {
 	tempApp := NewApp("")
-	err := ReadYAML(app.Path.ConfigFile(), &tempApp)
+	r, _ := os.Open(app.Path.ConfigFile())
+	err := bookio.ReadYAML(r, tempApp)
 	if err != nil {
 		// config not found, use main defaults
 		return MainDBName
@@ -299,7 +304,8 @@ func New(info *Information) *App {
 			Home:   EnvHome,
 			Editor: EnvEditor,
 		},
-		Menu: menucfg.NewDefault(),
+		Menu:    menucfg.NewDefault(),
+		session: session.New(),
 	}
 }
 

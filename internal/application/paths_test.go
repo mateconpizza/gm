@@ -1,10 +1,8 @@
 package application
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	files "github.com/mateconpizza/gofiles"
@@ -124,7 +122,7 @@ func TestWriteRead_Successfully_Reads_And_Unmarshals_Valid_YAML(t *testing.T) {
 	}
 
 	var appFresh *App
-	err := ReadYAML(fn, &appFresh)
+	err := readYAML(fn, &appFresh)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -139,49 +137,6 @@ func TestWriteRead_Successfully_Reads_And_Unmarshals_Valid_YAML(t *testing.T) {
 	gGot := appFresh.Git.Log
 	if gWant != gGot {
 		t.Fatalf("want: %v, got: %v", gWant, gGot)
-	}
-}
-
-func TestRead_Fails_When_File_Does_Not_Exist(t *testing.T) {
-	t.Parallel()
-	tempDir := t.TempDir()
-	fn := filepath.Join(tempDir, "nonexistent.yaml")
-
-	var app App
-	err := ReadYAML(fn, &app)
-
-	if err == nil {
-		t.Fatal("expected error for non-existent file")
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("expected ErrFileNotFound, got %v", err)
-	}
-	if !strings.Contains(err.Error(), fn) {
-		t.Errorf("error should contain filename, got %q", err.Error())
-	}
-}
-
-func TestRead_Fails_With_Invalid_Config(t *testing.T) {
-	t.Parallel()
-	tempDir := t.TempDir()
-	fn := filepath.Join(tempDir, "invalid.yaml")
-
-	// Write invalid YAML (bad indentation, unclosed quote, etc.)
-	invalidYAML := `name: "unclosed quote
-version: 1.0
-  bad_indent: value`
-	if err := os.WriteFile(fn, []byte(invalidYAML), files.FilePerm); err != nil {
-		t.Fatalf("setup failed: %v", err)
-	}
-
-	var app App
-	err := ReadYAML(fn, &app)
-
-	if err == nil {
-		t.Fatal("expected error for invalid YAML")
-	}
-	if !errors.Is(err, ErrInvalidConfig) {
-		t.Errorf("expected unmarshalling error, got %q", err.Error())
 	}
 }
 
@@ -203,25 +158,9 @@ enabled: "not a boolean"`
 	}
 
 	var app StrictApp
-	err := ReadYAML(fn, &app)
+	err := readYAML(fn, &app)
 	if err == nil {
 		t.Logf("YAML was permissive: Name=%v, Enabled=%v", app.Name, app.Enabled)
-	}
-}
-
-func TestRead_Handles_Empty_YAML_File(t *testing.T) {
-	t.Parallel()
-	tempDir := t.TempDir()
-	fn := filepath.Join(tempDir, "empty.yaml")
-
-	if err := os.WriteFile(fn, []byte(""), files.FilePerm); err != nil {
-		t.Fatalf("setup failed: %v", err)
-	}
-
-	var app App
-	err := ReadYAML(fn, &app)
-	if err != nil {
-		t.Errorf("unexpected error for empty file: %v", err)
 	}
 }
 

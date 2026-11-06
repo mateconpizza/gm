@@ -69,7 +69,11 @@ func newExportJSONCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to JSON ")
 			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				return bookio.WriteJSON(os.Stdout, bs)
+				bj := make([]*bookmark.Record, 0, len(bs))
+				for i := range bs {
+					bj = append(bj, bs[i].Record())
+				}
+				return bookio.WriteJSON(os.Stdout, &bj)
 			})
 		},
 	}
@@ -116,7 +120,12 @@ func newExportMarkdownCmd(app *application.App) *cobra.Command {
 					Summary: app.Flags.Summary,
 				}
 
-				return gitops.NewReadmeFile(ctx, os.Stdout, app, stats, bs)
+				return gitops.NewReadmeFile(
+					os.Stdout,
+					gitops.ReadmeOpts(app, r.BaseName()),
+					stats,
+					bs,
+				)
 			})
 		},
 	}

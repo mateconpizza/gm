@@ -1,6 +1,7 @@
 package gitcmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -10,10 +11,10 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // NewCmd is the git command.
@@ -49,6 +50,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		newEnableCmd(app),   // enable git integration
 		newDisableCmd(app),  // disable git integration
 		newInfoCmd(app),     // show repository status and configuration
+		newReadmeCmd(app),   // generate a README.md
 		newCloneCmd(app),    // clone bookmarks from a remote repository
 		newCommitCmd(app),   // commit bookmark database changes
 		newPushCmd(app),     // push bookmark changes to a remote
@@ -79,12 +81,7 @@ func newPushCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
-
-			return gm.Push(cmd.Context())
+			return app.Git.Manager().Push(cmd.Context())
 		},
 	}
 
@@ -99,18 +96,23 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipGitSync,
 		PreRun:      cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+				gm, err := gitops.NewManager(app)
+				if err != nil {
+					return err
+				}
 
-			if err := gitops.Init(cmd.Context(), app, gm); err != nil {
-				return err
-			}
+				app.Git.SetManager(gm)
 
-			fmt.Fprintln(os.Stdout)
+				c := d.Console()
+				if err := gitops.Init(cmd.Context(), app, c); err != nil {
+					return err
+				}
 
-			return gitops.TrackMgr(cmd.Context(), app, gm, ui.NewDefaultConsole(app, app.Exit), app.Databases())
+				fmt.Fprintln(os.Stdout)
+
+				return gitops.TrackMgr(cmd.Context(), app, gm, c, app.Databases())
+			})
 		},
 	}
 
@@ -217,39 +219,27 @@ func newSyncCmd(app *application.App) *cobra.Command {
 		Short:  "synchronize bookmarks with the repository",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			if app.Flags.All {
-				return cmdutil.Run(cmd.Context(), args, gitops.SyncAll)
-			}
+			return cmdutil.Execute(cmd.Context(), args, nil, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+				if app.Flags.All {
+					return cmdutil.Run(ctx, args, gitops.SyncAll)
+				}
 
-			r, err := db.New(ctx, app.Path.DB())
-			if err != nil {
-				return err
-			}
-			defer r.Close()
+				r, err := d.Repository()
+				if err != nil {
+					return err
+				}
+				defer r.Close()
 
-			gm, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
+				sess := app.Session().
+					WithConfirmation(false).
+					WithValidation(true)
 
-			gr := gm.NewRepo(r.Name(),
-				gitops.RepoFileReader(app.Flags.Color),
-				gitops.RepoFileRemover(),
-				gitops.RepoFileWriter(app.Flags.Color),
-			)
+				gm := app.Git.Manager()
+				gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
+				gitops.RegisterHooks(r, app, gr)
 
-			gm.Git().RegisterPreCommit(
-				gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-				gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-			)
-
-			bs, err := r.All(ctx)
-			if err != nil {
-				return err
-			}
-
-			return gitops.PruneRepo(ctx, gm, gr, bs)
+				return gitops.PruneRepo(ctx, gm, gr, bs)
+			})
 		},
 	}
 
@@ -322,19 +312,6 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newReadmeCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:   "readme",
-		Short: "repository README.md",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, gitops.ReadmePrompt)
-		},
-	}
-	cmdutil.HideFlag(c, "filter", "reverse")
-	c.Flags().BoolVarP(&app.Flags.Configure, "reconfigure", "r", false, "reconfigure opts")
-	return c
-}
-
 func newSetCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "set",
@@ -342,8 +319,7 @@ func newSetCmd(app *application.App) *cobra.Command {
 		Aliases:     []string{"cfg", "config"},
 		Annotations: cli.SkipFormatter,
 		Example: app.Example(`  $ {cmd} git set logging enable
-  $ {cmd} git set logging disable
-  $ {cmd} git set readme`),
+  $ {cmd} git set logging disable`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -351,9 +327,92 @@ func newSetCmd(app *application.App) *cobra.Command {
 
 	c.AddCommand(
 		newLoggingCmd(app), // configure git command logging
-		newReadmeCmd(app),  // generate a README.md
 	)
 	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag", "filter")
 
+	return c
+}
+
+func newReadmeCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "readme",
+		Short: "repository README.md",
+		Run: func(cmd *cobra.Command, args []string) {
+			newReadmeStatus(app).Run(cmd, args)
+		},
+	}
+
+	cmdutil.HideFlag(c, "filter", "reverse")
+	c.Flags().BoolVarP(&app.Flags.Configure, "reconfigure", "r", false, "reconfigure opts")
+
+	app.Session().
+		WithValidation(true)
+
+	c.AddCommand(
+		newReadmeEnable(app),
+		newReadmeDisable(app),
+		newReadmeStatus(app),
+		newReadmeSync(app),
+	)
+	return c
+}
+
+func newReadmeEnable(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "enable",
+		Short:   "enable repository README.md",
+		Aliases: []string{"on"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if app.Git.Readme.Enabled {
+				slog.Warn("git: readme already enable")
+				return app.Failure()
+			}
+			return cmdutil.Run(cmd.Context(), args, gitops.EnableReadme)
+		},
+	}
+	return c
+}
+
+func newReadmeDisable(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:     "disable",
+		Short:   "disable repository README.md",
+		Aliases: []string{"off"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !app.Git.Readme.Enabled {
+				slog.Warn("git: readme already disable")
+				return app.Failure()
+			}
+			return cmdutil.Run(cmd.Context(), args, gitops.DisableReadme)
+		},
+	}
+}
+
+func newReadmeSync(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "sync",
+		Short: "sync with database",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !app.Git.Readme.Enabled {
+				slog.Warn("git: readme disabled")
+				return app.Failure()
+			}
+			return cmdutil.Run(cmd.Context(), args, gitops.EnableReadme)
+		},
+	}
+}
+
+func newReadmeStatus(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "status",
+		Short: "show status",
+		Run: func(cmd *cobra.Command, args []string) {
+			s := "enabled"
+			if !app.Git.Readme.Enabled {
+				s = "disabled"
+			}
+			fmt.Fprintln(os.Stdout, s)
+		},
+	}
 	return c
 }

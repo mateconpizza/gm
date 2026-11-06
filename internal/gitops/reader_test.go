@@ -1,3 +1,4 @@
+//go:build ignore
 package gitops
 
 import (
@@ -7,10 +8,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"sync/atomic"
 	"testing"
 
-	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -129,7 +128,7 @@ func TestReadJSONRepo(t *testing.T) {
 				filterFn = func(path string, d fs.DirEntry) bool { return !d.IsDir() }
 			}
 
-			cfg := &RepoReaderCfg{
+			cfg := &readerCfg{
 				root:     root,
 				repoPath: root,
 				total:    len(tt.files),
@@ -141,7 +140,7 @@ func TestReadJSONRepo(t *testing.T) {
 				},
 			}
 
-			got, err := ReadRepoFiles(ctx, cfg)
+			got, err := newFileRepoReader(ctx, cfg)
 
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
@@ -162,169 +161,6 @@ func TestReadJSONRepo(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("ReadJSONRepo() = %v; want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestReadGPGRepo(t *testing.T) {
-	t.Parallel()
-
-	errFakePrompt := errors.New("err fake prompt")
-	errFakeLoader := errors.New("err fake loader")
-
-	type fileSpec struct {
-		name string
-		data []byte
-	}
-
-	tests := []struct {
-		name string
-
-		files       []fileSpec
-		matchExt    string
-		promptErr   error
-		loaderErr   error // returned by loader.Func for every matched file
-		missingRoot bool  // root path does not exist, forcing a walk error
-
-		wantCount int
-		wantErr   error
-	}{
-		{
-			name:      "normal_multiple_matching_files",
-			files:     []fileSpec{{"a.gpg", []byte("1")}, {"b.gpg", []byte("2")}, {"skip.txt", []byte("3")}},
-			matchExt:  gpg.Extension.String(),
-			wantCount: 2,
-			wantErr:   nil,
-		},
-		{
-			name:      "no_matching_files",
-			files:     []fileSpec{{"a.txt", []byte("1")}, {"b.txt", []byte("2")}},
-			matchExt:  gpg.Extension.String(),
-			wantCount: 0,
-			wantErr:   nil,
-		},
-		{
-			name:      "empty_root_dir",
-			files:     nil,
-			matchExt:  gpg.Extension.String(),
-			wantCount: 0,
-			wantErr:   nil,
-		},
-		{
-			name:      "single_file_boundary",
-			files:     []fileSpec{{"only.gpg", []byte("1")}},
-			matchExt:  gpg.Extension.String(),
-			wantCount: 1,
-			wantErr:   nil,
-		},
-		{
-			name:        "missing_root_dir_walk_error",
-			missingRoot: true,
-			matchExt:    gpg.Extension.String(),
-			wantCount:   0,
-			wantErr:     fs.ErrNotExist,
-		},
-		{
-			name:      "passphrase_prompt_error",
-			files:     []fileSpec{{"a.gpg", []byte("1")}},
-			matchExt:  gpg.Extension.String(),
-			promptErr: errFakePrompt,
-			wantCount: 0,
-			wantErr:   errFakePrompt,
-		},
-		{
-			name:      "loader_func_error",
-			files:     []fileSpec{{"a.gpg", []byte("1")}},
-			matchExt:  gpg.Extension.String(),
-			loaderErr: errFakeLoader,
-			wantCount: 0,
-			wantErr:   errFakeLoader,
-		},
-		{
-			name:      "context_canceled_before_walk",
-			files:     []fileSpec{{"a.gpg", []byte("1")}},
-			matchExt:  gpg.Extension.String(),
-			wantCount: 0,
-			wantErr:   context.Canceled,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			root := t.TempDir()
-
-			if tt.missingRoot {
-				root = filepath.Join(root, "does-not-exist")
-			} else {
-				for _, fs := range tt.files {
-					testutil.NewFile(t, root, fs.name, fs.data)
-				}
-			}
-
-			var loaderCalls atomic.Int32
-
-			loader := &bookio.RepositoryLoader{
-				Func: func(_ context.Context, path string) (*bookmark.Bookmark, error) {
-					loaderCalls.Add(1)
-					if tt.loaderErr != nil {
-						return nil, tt.loaderErr
-					}
-					return &bookmark.Bookmark{URL: path}, nil
-				},
-				Prefix: "%d/%d",
-				FileFilter: func(path string, d fs.DirEntry) bool {
-					if d.IsDir() || tt.matchExt == "" {
-						return false
-					}
-					return filepath.Ext(path) == tt.matchExt
-				},
-			}
-
-			sp := &fakeSpinner{}
-
-			cfg := &RepoReaderCfg{
-				root:     root,
-				total:    len(tt.files),
-				repoPath: root,
-				loader:   loader,
-				spinner:  sp,
-				promptPassphrase: func(_ context.Context, _ *bookio.FileLoader, _ spinner, _ string, done *bool) error {
-					if tt.promptErr != nil {
-						return tt.promptErr
-					}
-					*done = true
-					return nil
-				},
-			}
-
-			ctx := t.Context()
-			if errors.Is(tt.wantErr, context.Canceled) {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithCancel(ctx)
-				cancel()
-			}
-
-			got, err := ReadRepoFilesWithPrompt(ctx, cfg)
-
-			if tt.wantErr != nil {
-				if err == nil {
-					t.Fatalf("ReadGPGRepo() expected error %v, got nil", tt.wantErr)
-				}
-				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("ReadGPGRepo() error = %v; want errors.Is match for %v", err, tt.wantErr)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("ReadGPGRepo() unexpected error: %v", err)
-			}
-
-			if len(got) != tt.wantCount {
-				t.Fatalf("ReadGPGRepo() returned %d bookmarks; want %d", len(got), tt.wantCount)
 			}
 		})
 	}

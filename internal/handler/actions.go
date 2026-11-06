@@ -25,6 +25,7 @@ import (
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/session"
 	"github.com/mateconpizza/gm/internal/sys"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -102,7 +103,7 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 		}
 		defer r.Close()
 
-		session := editor.NewEditSession().
+		es := editor.NewEditSession().
 			WithStrategy(strategy).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
@@ -115,7 +116,7 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 				})
 			})
 
-		return runEditSession(ctx, d, bs, session)
+		return runEditSession(ctx, d, bs, es)
 	}
 }
 
@@ -285,57 +286,13 @@ func UpdateMetadata(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) 
 	return nil
 }
 
-// RemoveAndUntrack removes db file and untrack from the git repositorie if the
-// repo its been tracked.
-func RemoveAndUntrack(ctx context.Context, d *deps.Deps) error {
-	r, err := d.Repository()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	if err := dbops.Remove(ctx, d); err != nil {
-		return err
-	}
-
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
-	if !git.IsTracked(app.Path.Git(), r.BaseName()) {
-		return nil
-	}
-
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(app.Flags.Color),
-		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(app.Flags.Color),
-	)
-
-	gm.Git().RegisterPreCommit(
-		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-	)
-
-	return gm.Untrack(ctx, gr)
-}
-
 func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
+	gm := app.Git.Manager()
 
 	c := d.Console()
 	p := c.Palette()
@@ -406,21 +363,10 @@ func DropRepo(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(app.Flags.Color),
-		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(app.Flags.Color),
-	)
-
-	gm.Git().RegisterPreCommit(
-		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-	)
+	gm := app.Git.Manager()
+	ops := gitops.NewRepoOps(app.Session())
+	gr := gm.NewRepo(r.Name(), ops.Remover())
+	gitops.RegisterHooks(r, app, gr)
 
 	return gitops.Drop(ctx, gm, gr, d.Console())
 }
@@ -467,13 +413,7 @@ func Rename(ctx context.Context, d *deps.Deps, name string, renameFunc func(src,
 		return nil
 	}
 
-	// git manager
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
-
-	return gm.Rename(ctx, oldName, newName)
+	return app.Git.Manager().Rename(ctx, oldName, newName)
 }
 
 type MarkdownCfg struct {
@@ -517,15 +457,7 @@ func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) err
 
 	if gm.IsTracked(name) {
 		result.WriteString(" and untracked")
-		gr := gm.NewRepo(name,
-			gitops.RepoFileReader(p.Enabled()),
-			gitops.RepoFileRemover(),
-			gitops.RepoFileWriter(p.Enabled()),
-		)
-		if !gm.IsTracked(gr.Name()) {
-			return nil
-		}
-
+		gr := gitops.NewRepo(gm, name, session.New(), c.Palette().Enabled())
 		if err := gm.Untrack(ctx, gr); err != nil {
 			return err
 		}
@@ -651,9 +583,8 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		}
 
 	case "edit":
-		sp := NewSpinner(app)
-		session := editor.NewEditSession().
-			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(sp)).
+		es := editor.NewEditSession().
+			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app))).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, PersistParams{
@@ -667,7 +598,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 				})
 			})
 
-		err := runEditSession(ctx, d, []*bookmark.Bookmark{&updated}, session)
+		err := runEditSession(ctx, d, []*bookmark.Bookmark{&updated}, es)
 		if err != nil {
 			return err
 		}
@@ -717,7 +648,7 @@ func updateBookmarkData(ctx context.Context, p *ansi.Palette, b *bookmark.Bookma
 	return updatedB, nil
 }
 
-func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, session *editor.EditSession) error {
+func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, es *editor.EditSession) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
@@ -727,7 +658,7 @@ func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, 
 		return err
 	}
 
-	return session.
+	return es.
 		WithTerminal(d.Console()).
 		WithEditor(te).
 		Run(ctx, bs)
@@ -750,16 +681,12 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		return err
 	}
 
-	gr := gm.NewRepo(r.BaseName(),
-		gitops.RepoFileReader(app.Flags.Color),
-		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(app.Flags.Color),
-	)
+	sess := app.Session().
+		WithConfirmation(true).
+		WithValidation(true)
 
-	gm.Git().RegisterPreCommit(
-		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-	)
+	gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
+	gitops.RegisterHooks(r, app, gr)
 
 	isTracked := gm.IsTracked(gr.Name())
 
@@ -817,16 +744,12 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		return err
 	}
 
-	gr := gm.NewRepo(app.DBBaseName(),
-		gitops.RepoFileReader(app.Flags.Color),
-		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(app.Flags.Color),
-	)
+	sess := app.Session().
+		WithConfirmation(false).
+		WithValidation(true)
 
-	gm.Git().RegisterPreCommit(
-		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(p.Repo)),
-		gitops.HookReadme(app, gitops.BookmarksFromStore(p.Repo), gitops.StatsFromStore(p.Repo)),
-	)
+	gr := gitops.NewRepo(gm, p.Repo.BaseName(), sess, app.Flags.Color)
+	gitops.RegisterHooks(p.Repo, app, gr)
 
 	if err := gm.Apply(ctx, p.Msg, func(ctx context.Context) error {
 		return gr.Update(ctx, p.Old, p.Fresh, files.RemoveEmptyDirs)

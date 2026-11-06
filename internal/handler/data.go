@@ -332,16 +332,8 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		return err
 	}
 
-	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(app.Flags.Color),
-		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(app.Flags.Color),
-	)
-
-	gm.Git().RegisterPreCommit(
-		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-	)
+	gr := gitops.NewRepo(gm, r.BaseName(), app.Session(), app.Flags.Color)
+	gitops.RegisterHooks(r, app, gr)
 
 	if err := gitops.Remove(ctx, gm, gr, bs); err != nil {
 		return err

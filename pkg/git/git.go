@@ -39,7 +39,6 @@ type GitOptions struct {
 	commandLogger CmdLogger
 	executer      ExecuterFunc
 	cmd           *Commander
-	preCommit     []*Hook
 }
 
 func WithGitWriter(w io.Writer) GitOpt       { return func(o *GitOptions) { o.writer = w } }
@@ -47,16 +46,19 @@ func WithGitCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.co
 func WithExecuter(fn ExecuterFunc) GitOpt    { return func(o *GitOptions) { o.executer = fn } }
 func WithCommander(c *Commander) GitOpt      { return func(o *GitOptions) { o.cmd = c } }
 
-// WithPreCommit adds hooks that run, in order, before every commit.
-func WithPreCommit(hooks ...*Hook) GitOpt {
-	return func(o *GitOptions) { o.preCommit = append(o.preCommit, hooks...) }
+type PreCommit struct {
+	hooks []*Hook
 }
+
+func (pc *PreCommit) Register(h ...*Hook) { pc.hooks = append(pc.hooks, h...) }
+func (pc *PreCommit) Reset()              { pc.hooks = make([]*Hook, 0) }
 
 // Git handles operational tasks on a local Git repository.
 type Git struct {
 	*GitOptions
 
-	fullpath string
+	fullpath  string
+	preCommit *PreCommit
 }
 
 // New verifies the system environment and returns a usable Git workflow
@@ -88,7 +90,10 @@ func New(path string, opts ...GitOpt) (*Git, error) {
 		WithExecutor(o.executer)
 
 	return &Git{
-		fullpath:   path,
+		fullpath: path,
+		preCommit: &PreCommit{
+			hooks: make([]*Hook, 0),
+		},
 		GitOptions: o,
 	}, nil
 }
@@ -276,11 +281,7 @@ func (g *Git) SetUpstream(ctx context.Context, repoPath string) error {
 	return g.run(ctx, repoPath, "push", "--set-upstream", "origin", b)
 }
 
-func (g *Git) RegisterPreCommit(h ...*Hook) { g.preCommit = append(g.preCommit, h...) }
-func (g *Git) ResetPreCommit() *Git {
-	g.preCommit = make([]*Hook, 0)
-	return g
-}
+func (g *Git) PreCommit() *PreCommit { return g.preCommit }
 
 func (g *Git) run(ctx context.Context, repoPath string, commands ...string) error {
 	g.commandLogger(g.writer, slices.Insert(commands, 0, g.cmd.bin))
@@ -348,7 +349,7 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 		return err
 	}
 
-	if err := g.runHooks(ctx, g.preCommit); err != nil {
+	if err := g.runHooks(ctx, g.preCommit.hooks); err != nil {
 		return err
 	}
 

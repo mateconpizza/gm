@@ -12,7 +12,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -36,16 +36,12 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(app.Flags.Color),
-		RepoFileRemover(),
-		RepoFileWriter(app.Flags.Color),
-	)
+	sess := app.Session().
+		WithConfirmation(true).
+		WithValidation(true)
 
-	gm.Git().RegisterPreCommit(
-		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
-		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
-	)
+	gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
+	RegisterHooks(r, app, gr)
 
 	c := d.Console()
 	if gm.IsTracked(gr.Name()) {
@@ -104,7 +100,7 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q untracked\n", gr.Name())))
 }
 
-func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
+func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo, f RepoFormat) string {
 	p := c.Palette()
 	name := gr.Name()
 
@@ -114,10 +110,12 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 		return c.Error(sb.String()).StringReset()
 	}
 
-	g := c.Glyphs()
-	repoType := p.BrightMagenta.Sprint(g.JSON + " ")
-	if gpg.IsInitialized(gm.Root()) {
-		repoType = p.BrightMagenta.Sprint(g.GPG + " ")
+	var repoType string
+	switch f {
+	case RepoFormatYAML:
+		repoType = p.Orange.Sprint(RepoFormatYAML + " ")
+	case RepoFormatJSON:
+		repoType = p.BrightMagenta.Sprint(RepoFormatJSON + " ")
 	}
 
 	if name == files.StripExts(application.MainDBName) {
@@ -139,17 +137,12 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 		Rowln().
 		Flush()
 
+	sess := app.Session().
+		WithConfirmation(true)
+
 	files.PrioritizeFile(dbFiles, application.MainDBName)
-	p := c.Palette()
 
-	preCommitHooks := func(r store, gr *git.Repo, g *git.Git) {
-		g.ResetPreCommit().RegisterPreCommit(
-			HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
-			HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
-		)
-	}
-
-	for i, dbPath := range dbFiles {
+	for _, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return application.ErrExitFailure
@@ -173,13 +166,8 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			return err
 		}
 
-		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(p.Enabled()),
-			RepoFileRemover(),
-			RepoFileWriter(p.Enabled()),
-		)
-
-		preCommitHooks(r, gr, gm.Git())
+		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
+		RegisterHooks(r, app, gr)
 
 		if err := Track(ctx, r, app, gm, gr); err != nil {
 			return err
@@ -187,10 +175,7 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 
 		r.Close()
 
-		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", name)).String())
-		if i != len(dbFiles)-1 {
-			fmt.Fprintln(c.Writer())
-		}
+		c.ReplaceLine(c.Success(fmt.Sprintf("%q tracked", name)).String())
 	}
 
 	return nil
@@ -216,8 +201,20 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		WithTitle("Git Tracked Databases").
 		WithSubtitle("showing tracked databases with git").
 		Build().
-		Rowln().
-		Flush()
+		Rowln()
+
+	rc, err := ResolveConfig(gm.Root())
+	if err != nil {
+		return err
+	}
+
+	if rc.Encryption != enc.None {
+		c.Frame().
+			Midln(txt.PaddedLine("encryption:", c.Palette().BrightBlue.Sprint(rc.Encryption))).
+			Rowln()
+	}
+
+	c.Frame().Flush()
 
 	var tracked strings.Builder
 	var untracked strings.Builder
@@ -229,7 +226,7 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		name := filepath.Base(dbPath)
 		gr := gm.NewRepo(name)
 
-		s := TrackStatus(c, gm, gr)
+		s := TrackStatus(c, gm, gr, rc.Format)
 		if s == "" {
 			continue
 		}

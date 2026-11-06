@@ -20,15 +20,14 @@ type (
 	// BookmarkAction defines a task to be performed on a set of bookmarks.
 	BookmarkAction func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 
-	// Filter is a predicate used to narrow down a slice of bookmarks
-	// before they are passed to an action or presented in a menu.
+	// Filter narrows down a slice of bookmarks.
 	Filter func([]*bookmark.Bookmark) []*bookmark.Bookmark
 
 	// RunFunc is a command action that only requires dependency setup.
 	RunFunc func(ctx context.Context, d *deps.Deps) error
 )
 
-// setup initializes the config, db and app for the subcommands..
+// setup initializes the application dependencies for subcommands.
 func setup(ctx context.Context, args *[]string) (*deps.Deps, func(), error) {
 	app, err := application.FromContext(ctx)
 	if err != nil {
@@ -56,33 +55,6 @@ func setup(ctx context.Context, args *[]string) (*deps.Deps, func(), error) {
 	return d, r.Close, nil
 }
 
-func Bookmarks(ctx context.Context, app *application.App, fn func(bs []*bookmark.Bookmark) error) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	r, err := db.New(ctx, app.Path.DB())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	bs, err := r.All(ctx)
-	if err != nil {
-		return err
-	}
-
-	if app.Flags.Menu {
-		m := picker.NewWithFormatter(app, app.Formatter(), menu.WithMultiSelection())
-		bs, err = m.Select(ctx, bs)
-		if err != nil {
-			return err
-		}
-	}
-
-	return fn(bs)
-}
-
 func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
 	return Run(ctx, args, func(ctx context.Context, d *deps.Deps) error {
 		bs, err := handler.Data(ctx, d, args)
@@ -96,29 +68,15 @@ func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark
 		}
 
 		f := app.Flags
-		bs, err = bookmark.Sort(f.Sort, bs)
+
+		bs, err = sortBookmarks(bs, f.Sort, f.Reverse)
 		if err != nil {
 			return err
 		}
 
-		if f.Reverse {
-			bs, _ = bookmark.Sort("reverse", bs)
-		}
-
-		bs, err = bookmark.FilterBy(f.Filter, bs)
+		bs, err = filterBookmarks(bs, f.Filter, filters, f.Head, f.Tail)
 		if err != nil {
 			return err
-		}
-
-		for _, filter := range filters {
-			bs = filter(bs)
-		}
-
-		if f.Head > 0 || f.Tail > 0 {
-			bs, err = handler.FilterByHeadAndTail(bs, f.Head, f.Tail)
-			if err != nil {
-				return fmt.Errorf("failed to filter by head/tail: %w", err)
-			}
 		}
 
 		if f.Menu && len(bs) > 0 {
@@ -132,12 +90,52 @@ func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark
 	})
 }
 
-// Run sets up command dependencies, runs action, and handles cleanup.
+// sortBookmarks applies the requested sort order and optional reversal.
+func sortBookmarks(bs []*bookmark.Bookmark, order string, reverse bool) ([]*bookmark.Bookmark, error) {
+	var err error
+
+	bs, err = bookmark.Sort(order, bs)
+	if err != nil {
+		return nil, err
+	}
+
+	if reverse {
+		bs, _ = bookmark.Sort("reverse", bs)
+	}
+
+	return bs, nil
+}
+
+// filterBookmarks applies configured, custom, and head/tail filters in order.
+func filterBookmarks(bs []*bookmark.Bookmark, filter string, filters []Filter, head, tail int) ([]*bookmark.Bookmark, error) {
+	var err error
+
+	bs, err = bookmark.FilterBy(filter, bs)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, apply := range filters {
+		bs = apply(bs)
+	}
+
+	if head > 0 || tail > 0 {
+		bs, err = handler.FilterByHeadAndTail(bs, head, tail)
+		if err != nil {
+			return nil, fmt.Errorf("failed to filter by head/tail: %w", err)
+		}
+	}
+
+	return bs, nil
+}
+
+// Run sets up command dependencies, runs the action, and handles cleanup.
 func Run(ctx context.Context, args []string, fn RunFunc) error {
 	d, cleanup, err := setup(ctx, &args)
 	if err != nil {
 		return err
 	}
+
 	defer cleanup()
 
 	return fn(ctx, d)

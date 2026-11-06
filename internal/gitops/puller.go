@@ -10,7 +10,7 @@ import (
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/session"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -52,23 +52,26 @@ func NewPuller(c *ui.Console, srcDir, dstDir string, opts ...PullerOpt) *GitPull
 	return gp
 }
 
-func WithWriter(w io.Writer) PullerOpt { return func(gp *GitPuller) { gp.writer = w } }
-
 // Repos returns the loaded repositories if processing has been initiated.
 func (gp *GitPuller) Repos() []*git.Repo { return gp.repos }
 
 // Pull pulls bookmarks from remote git repository and replicate the
 // repositories as databases.
-func (gp *GitPuller) Pull() error {
+func (gp *GitPuller) Pull(sess *session.Session) error {
 	if err := gp.scan(); err != nil {
 		return err
 	}
 
-	if err := gp.loadAll(); err != nil {
+	if err := gp.loadAll(sess); err != nil {
 		return err
 	}
 
-	printHeader(gp)
+	rc, err := ResolveConfig(gp.srcDir)
+	if err != nil {
+		return err
+	}
+
+	printHeader(gp, rc)
 
 	return nil
 }
@@ -93,10 +96,6 @@ func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
 	opt, err := t.Choose(ctx, "import repositories?", opts, "n")
 	if err != nil {
 		return err
-	}
-
-	if n == 1 {
-		return nil
 	}
 
 	switch opt {
@@ -152,13 +151,15 @@ func (gp *GitPuller) scan() error {
 }
 
 // loadAll discovers and loads metadata for all available repositories.
-func (gp *GitPuller) loadAll() error {
+func (gp *GitPuller) loadAll(sess *session.Session) error {
+	ops := NewRepoOps(sess)
+
 	for _, repoName := range gp.found {
 		fullpath := filepath.Join(gp.srcDir, repoName)
 		gr := git.NewRepo(
 			repoName,
 			fullpath,
-			RepoFileReader(gp.console.Palette().Enabled()),
+			ops.Reader(),
 		)
 
 		gp.repos = append(gp.repos, gr)
@@ -187,7 +188,7 @@ func printStats(c *ui.Console, stats *git.RepoStats) {
 }
 
 // printHeader writes the operational overview to the terminal.
-func printHeader(rp *GitPuller) {
+func printHeader(rp *GitPuller, rc RepoConfig) {
 	var (
 		c      = rp.console
 		p      = c.Palette()
@@ -202,15 +203,17 @@ func printHeader(rp *GitPuller) {
 
 	rp.console.NewBannerBuilder().
 		WithTitle("Repository cloned successfully").
-		WithSubtitle("Path: "+path).
+		WithSubtitle(txt.PaddedLine("destination:", path)).
 		Build().
+		Midln(txt.PaddedLine(p.Dim.Sprint("encryption:"), p.Blue.Sprint(rc.Encryption))).
+		Rowln().
 		CustomFunc(square, p.Bold.Sprint("Found repositories")).
 		Ln().
 		Flush()
 
-	t := p.BrightCyan.Sprint("JSON")
-	if gpg.IsInitialized(rp.srcDir) {
-		t = p.BrightMagenta.Sprint("GPG")
+	t := p.BrightCyan.Sprint(RepoFormatJSON)
+	if rc.Format == RepoFormatYAML {
+		t = p.Orange.Sprint(RepoFormatYAML)
 	}
 
 	for _, gr := range rp.repos {

@@ -11,11 +11,10 @@ import (
 	"strings"
 
 	files "github.com/mateconpizza/gofiles"
-	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -24,10 +23,6 @@ import (
 )
 
 var _ bookio.FileManager = (*files.FileManager)(nil)
-
-func RepoFileReader(color bool) git.RepoOptFunc { return git.WithRepoReader(readFiles(color)) }
-func RepoFileRemover() git.RepoOptFunc          { return git.WithRepoRemover(removeFiles) }
-func RepoFileWriter(color bool) git.RepoOptFunc { return git.WithRepoWriter(writeFiles(color)) }
 
 func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	app, err := d.Application(ctx)
@@ -41,21 +36,13 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 	}
 	defer r.Close()
 
-	gm, err := NewManager(app)
-	if err != nil {
-		return err
-	}
+	sess := app.Session().
+		WithConfirmation(true).
+		WithValidation(true)
 
-	gr := gm.NewRepo(r.BaseName(),
-		RepoFileReader(app.Flags.Color),
-		RepoFileRemover(),
-		RepoFileWriter(app.Flags.Color),
-	)
-
-	gm.Git().RegisterPreCommit(
-		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
-		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
-	)
+	gm := app.Git.Manager()
+	gr := NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
+	RegisterHooks(r, app, gr)
 
 	return gm.Commit(ctx,
 		gr.CommitMsg(git.RepoAction("commit changes"), ""),
@@ -91,16 +78,12 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
 	}
 
-	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(app.Flags.Color),
-		RepoFileRemover(),
-		RepoFileWriter(app.Flags.Color),
-	)
+	sess := app.Session().
+		WithConfirmation(false).
+		WithValidation(true)
 
-	gm.Git().RegisterPreCommit(
-		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
-		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
-	)
+	gr := NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
+	RegisterHooks(r, app, gr)
 
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
@@ -115,15 +98,18 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm, err := NewManager(app)
-	if err != nil {
-		return err
-	}
-
 	c := d.Console()
 	w, p := c.Writer(), c.Palette()
 
-	for _, name := range gm.Repos() {
+	gm := app.Git.Manager()
+	repos := gm.Repos()
+	files.PrioritizeFile(repos, app.DBBaseName())
+
+	sess := app.Session().
+		WithConfirmation(false).
+		WithValidation(true)
+
+	for _, name := range repos {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -147,11 +133,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 			return err
 		}
 
-		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(app.Flags.Color),
-			RepoFileRemover(),
-			RepoFileWriter(app.Flags.Color),
-		)
+		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 
 		if err := PruneRepo(ctx, gm, gr, bs); err != nil {
 			if errors.Is(err, git.ErrGitUpToDate) {
@@ -197,6 +179,19 @@ func StreamLog(ctx context.Context, g *git.Git, p *ansi.Palette) error {
 	return nil
 }
 
+func Cipher(app *application.App) func(ctx context.Context) (enc.Cipher, error) {
+	return func(ctx context.Context) (enc.Cipher, error) {
+		root := app.Path.Git()
+
+		rc, err := ResolveConfig(root)
+		if err != nil {
+			return nil, fmt.Errorf("load repo config: %w", err)
+		}
+
+		return app.Session().NewCipher(ctx, root, app.DBBaseName(), rc.Encryption)
+	}
+}
+
 func BookmarksFromStore(r store) BookmarksLoader {
 	return func(ctx context.Context) ([]*bookmark.Bookmark, error) {
 		return r.All(ctx)
@@ -216,15 +211,14 @@ func StatsFromStore(r store) StatsLoader {
 	}
 }
 
-func NewReadmeFile(ctx context.Context, w io.Writer, app *application.App, stats *git.RepoStats, bs []*bookmark.Bookmark) error {
-	cfg := app.Git.Readme
-
+// NewReadmeFile renders the README markdown to w.
+func NewReadmeFile(w io.Writer, cfg *ReadmeCfg, stats *git.RepoStats, bs []*bookmark.Bookmark) error {
 	return bookio.NewMarkdown(
 		bs,
-		bookio.WithTitle(fmt.Sprintf("Bookmarks from %q", app.DBBaseName())),
+		bookio.WithTitle(fmt.Sprintf("Bookmarks from %q", cfg.Name)),
 		bookio.WithWriter(w),
 		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
-		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(app.Flags.Sort, bs) }),
+		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(cfg.Sort, bs) }),
 		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
 			Bookmarks:   stats.Bookmarks,
 			Tags:        stats.Tags,
@@ -236,62 +230,7 @@ func NewReadmeFile(ctx context.Context, w io.Writer, app *application.App, stats
 	).Render()
 }
 
-func readFiles(color bool) func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
-	sp := rotato.New(
-		rotato.WithColor(color),
-		rotato.WithMessage("starting..."),
-		rotato.WithPrefixColor(rotato.StyleDim),
-		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
-		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
-		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-	)
-
-	return func(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
-		return newRepoReader(ctx, &RepoReaderCfg{
-			name:     filepath.Base(path),
-			root:     filepath.Dir(path),
-			repoPath: path,
-			total:    total,
-			spinner:  sp,
-		})
-	}
-}
-
-func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	c, err := bookio.NewFileRemover(repoPath, files.DefaultManager, genFullpath)
-	if err != nil {
-		return err
-	}
-
-	return c.Rm(ctx, bs)
-}
-
-func genFullpath(repoPath string, b *bookmark.Bookmark) (string, error) {
-	root := filepath.Dir(repoPath)
-
-	var filename string
-	var err error
-
-	switch {
-	case gpg.IsInitialized(root):
-		filename, err = b.GPGPath()
-	default:
-		filename, err = b.Path(".json")
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(repoPath, filename), nil
-}
-
-var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg|rename|initialized)\b`)
+var actionRe = regexp.MustCompile(`^(add|update|del|edit|import|sync|http|wayback|commit|params|gpg|rename|initialized|yaml|json)\b`)
 
 // newHighlighter returns a function that closes over the pre-computed map.
 func newHighlighter(p *ansi.Palette) func(string) string {
@@ -307,6 +246,8 @@ func newHighlighter(p *ansi.Palette) func(string) string {
 		"commit":      p.BrightMagenta.Sprint("commit"),
 		"params":      p.Blue.Sprint("params"),
 		"gpg":         p.Red.Sprint("gpg"),
+		"yaml":        p.Orange.Sprint("yaml"),
+		"json":        p.Green.Sprint("json"),
 		"rename":      p.BrightYellow.Sprint("rename"),
 		"initialized": p.Red.Sprint("initialized"),
 	}

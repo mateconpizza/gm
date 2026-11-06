@@ -24,7 +24,7 @@ type FileManager interface {
 	RmEmptyDirs(root string) error
 }
 
-type GenFullpathFn func(root string, b *bookmark.Bookmark) (string, error)
+type GenFullpathFn func(b *bookmark.Bookmark) (string, error)
 
 type FileRemover struct {
 	root        string
@@ -68,7 +68,7 @@ func (fr *FileRemover) Rm(ctx context.Context, bs []*bookmark.Bookmark) error {
 			case <-ctx.Done():
 				return ctx.Err()
 			default:
-				fullpath, err := fr.genFullpath(fr.root, b)
+				fullpath, err := fr.genFullpath(b)
 				if err != nil {
 					return fmt.Errorf("generating fullpath for %d: %w", b.ID, err)
 				}

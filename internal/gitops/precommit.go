@@ -1,14 +1,17 @@
 package gitops
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
 )
@@ -19,6 +22,9 @@ type (
 
 	// BookmarksLoader returns the bookmarks to render.
 	BookmarksLoader func(ctx context.Context) ([]*bookmark.Bookmark, error)
+
+	// CipherLoader returns the cipher used to write the README.
+	CipherLoader func(ctx context.Context) (enc.Cipher, error)
 )
 
 // HookSummaryWrite creates a hook that updates the repository summary.
@@ -72,44 +78,54 @@ func HookSummaryWrite(gr *git.Repo, version string, load StatsLoader) *git.Hook 
 }
 
 // HookReadme creates a Git hook that generates and writes the README.md.
-func HookReadme(app *application.App, bookmarks BookmarksLoader, stats StatsLoader) *git.Hook {
+func HookReadme(o *ReadmeCfg, bookmarks BookmarksLoader, stats StatsLoader, cipher CipherLoader) *git.Hook {
 	return &git.Hook{
 		Name: "readme",
 		Run: func(ctx context.Context, g *git.Git) error {
-			if !app.Git.Readme.Enabled {
-				return nil
-			}
-
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-
-			path := app.Path.GitReadme(app.DBBaseName())
-
-			f, err := files.New(path, true)
-			if err != nil {
-				return err
-			}
-
-			defer func() {
-				if err := f.Close(); err != nil {
-					slog.Debug("closing destination file", "error", err)
-				}
-			}()
 
 			bs, err := bookmarks(ctx)
 			if err != nil {
 				return fmt.Errorf("load bookmarks: %w", err)
 			}
 
-			g.Log(fmt.Sprintf("git pre-commit: writing README.md (%s)", app.DBBaseName()))
-
 			fresh, err := stats(ctx)
 			if err != nil {
+				return fmt.Errorf("load stats: %w", err)
+			}
+
+			var buf bytes.Buffer
+			if err := NewReadmeFile(&buf, o, fresh, bs); err != nil {
+				return fmt.Errorf("generate readme: %w", err)
+			}
+
+			c, err := cipher(ctx)
+			if err != nil {
+				return fmt.Errorf("cipher: %w", err)
+			}
+
+			if err := os.MkdirAll(filepath.Dir(o.Path), files.DirPerm); err != nil {
 				return err
 			}
 
-			return NewReadmeFile(ctx, f, app, fresh, bs)
+			// ignore if same file
+			fullpath := o.Path + c.Suffix()
+			if files.Exists(fullpath) {
+				data, err := c.Read(ctx, fullpath)
+				if err != nil {
+					return err
+				}
+				if bytes.Equal(data, buf.Bytes()) {
+					slog.Debug("pre-commit readme: update-to-date")
+					return nil
+				}
+			}
+
+			g.Log(fmt.Sprintf("git pre-commit: writing README.md (%s)", o.Name))
+
+			return c.Write(ctx, fullpath, buf.Bytes())
 		},
 	}
 }
@@ -127,5 +143,33 @@ func HookHasChanges() *git.Hook {
 			}
 			return nil
 		},
+	}
+}
+
+// RegisterHooks registers the git hooks used to keep repository files up to
+// date (summary and README if enabled).
+func RegisterHooks(r store, app *application.App, gr *git.Repo) {
+	gm := app.Git.Manager()
+
+	hook := gm.Git().PreCommit()
+	hook.Reset()
+
+	hook.Register(
+		HookSummaryWrite(
+			gr,
+			app.Version(),
+			StatsFromStore(r),
+		),
+	)
+
+	if app.Git.Readme.Enabled {
+		hook.Register(
+			HookReadme(
+				ReadmeOpts(app, r.BaseName()),
+				BookmarksFromStore(r),
+				StatsFromStore(r),
+				Cipher(app),
+			),
+		)
 	}
 }

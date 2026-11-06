@@ -3,11 +3,8 @@ package bookio
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 
 	files "github.com/mateconpizza/gofiles"
 
@@ -15,7 +12,7 @@ import (
 )
 
 const (
-	jsonExt         = ".json"
+	JSONExtension   = ".json"
 	summaryFile     = "summary.json"  // Git and database metadata
 	trackerFilepath = ".tracked.json" // Tracked databases in Git
 )
@@ -25,7 +22,7 @@ var JSONStrategy = &RepositoryLoader{
 	Prefix: "Loading JSON bookmarks",
 	FileFilter: And(
 		IsFile,
-		HasExtension(jsonExt),
+		HasExtension(JSONExtension),
 		NotNamed(summaryFile, trackerFilepath),
 	),
 }
@@ -39,60 +36,11 @@ func jsonLoader(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 	return bj.Bookmark(), nil
 }
 
-// SaveAsJSON creates files structure.
-//
-//	root -> dbName -> domain -> urlHash.json
-//
-// Returns true if the file was created or updated, false if no changes were made.
-func SaveAsJSON(rootPath string, b *bookmark.Bookmark, force bool) (bool, error) {
-	domain, err := b.Domain()
-	if err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	domainPath := filepath.Join(rootPath, domain)
-	if err := files.MkdirAll(domainPath); err != nil {
-		return false, fmt.Errorf("%w", err)
-	}
-
-	urlHash := b.HashURL()
-	filePathJSON := filepath.Join(domainPath, urlHash+jsonExt)
-	updated, err := files.WriteJSONIfChanged(filePathJSON, b.Record(), force)
-
-	// Handle file conflict
-	if errors.Is(err, os.ErrExist) {
-		bj := bookmark.NewRecord()
-		if err := files.ReadJSON(filePathJSON, &bj); err != nil {
-			return false, fmt.Errorf("%w", err)
-		}
-
-		// No need to update if checksums match
-		if bj.Checksum == b.Checksum {
-			return false, nil
-		}
-
-		// Checksums differ, force update
-		return SaveAsJSON(rootPath, b, true)
-	}
-
-	if err != nil {
-		return false, err
-	}
-
-	return updated, nil
-}
-
-func WriteJSON(w io.Writer, bs []*bookmark.Bookmark) error {
-	bj := make([]*bookmark.Record, 0, len(bs))
-	for i := range bs {
-		bj = append(bj, bs[i].Record())
-	}
-
-	data, err := json.MarshalIndent(&bj, "", "  ")
+func WriteJSON[T any](w io.Writer, v *T) error {
+	data, err := json.MarshalIndent(&v, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshalling JSON: %w", err)
 	}
-
 	_, err = w.Write(data)
 	return err
 }
