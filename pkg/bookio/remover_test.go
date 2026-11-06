@@ -53,7 +53,7 @@ func TestNewFileRemover(t *testing.T) {
 			"valid_creation",
 			"/repo",
 			&MockFileManager{},
-			func(root string, b *bookmark.Bookmark) (string, error) { return "/repo/file", nil },
+			func(b *bookmark.Bookmark) (string, error) { return "/repo/file", nil },
 			false,
 			"",
 		},
@@ -61,7 +61,7 @@ func TestNewFileRemover(t *testing.T) {
 			"empty_root",
 			"",
 			&MockFileManager{},
-			func(root string, b *bookmark.Bookmark) (string, error) { return "", nil },
+			func(b *bookmark.Bookmark) (string, error) { return "", nil },
 			true,
 			"root path cannot be empty",
 		},
@@ -69,7 +69,7 @@ func TestNewFileRemover(t *testing.T) {
 			"nil_file_manager",
 			"/repo",
 			nil,
-			func(root string, b *bookmark.Bookmark) (string, error) { return "", nil },
+			func(b *bookmark.Bookmark) (string, error) { return "", nil },
 			true,
 			"file manager cannot be nil",
 		},
@@ -124,7 +124,7 @@ func TestFileRemoverRm(t *testing.T) {
 			"remove_single_file",
 			"/repo",
 			[]*bookmark.Bookmark{{ID: 1, Title: "test"}},
-			func(root string, b *bookmark.Bookmark) (string, error) {
+			func(b *bookmark.Bookmark) (string, error) {
 				return "/repo/test.json", nil
 			},
 			&MockFileManager{
@@ -139,7 +139,7 @@ func TestFileRemoverRm(t *testing.T) {
 			"file_not_found",
 			"/repo",
 			[]*bookmark.Bookmark{{ID: 1}},
-			func(root string, b *bookmark.Bookmark) (string, error) {
+			func(b *bookmark.Bookmark) (string, error) {
 				return "/repo/notfound.json", nil
 			},
 			&MockFileManager{
@@ -156,7 +156,7 @@ func TestFileRemoverRm(t *testing.T) {
 			"remove_fails",
 			"/repo",
 			[]*bookmark.Bookmark{{ID: 1}},
-			func(root string, b *bookmark.Bookmark) (string, error) {
+			func(b *bookmark.Bookmark) (string, error) {
 				return "/repo/test.json", nil
 			},
 			&MockFileManager{
@@ -173,7 +173,7 @@ func TestFileRemoverRm(t *testing.T) {
 			"cleanup_fails",
 			"/repo",
 			[]*bookmark.Bookmark{{ID: 1}},
-			func(root string, b *bookmark.Bookmark) (string, error) {
+			func(b *bookmark.Bookmark) (string, error) {
 				return "/repo/test.json", nil
 			},
 			&MockFileManager{
@@ -190,7 +190,7 @@ func TestFileRemoverRm(t *testing.T) {
 			"empty_bookmarks",
 			"/repo",
 			[]*bookmark.Bookmark{},
-			func(root string, b *bookmark.Bookmark) (string, error) {
+			func(b *bookmark.Bookmark) (string, error) {
 				return "/repo/test.json", nil
 			},
 			&MockFileManager{},

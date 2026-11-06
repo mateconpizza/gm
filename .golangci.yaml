@@ -322,6 +322,9 @@ linters:
       - path: "internal/session/session.go"
         linters:
           - ireturn
+      - path: "internal/gitops/repo_config.go"
+        linters:
+          - ireturn
     generated: lax
     presets:
       - common-false-positives

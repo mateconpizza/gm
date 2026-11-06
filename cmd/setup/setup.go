@@ -105,10 +105,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
+	gm := app.Git.Manager()
 
 	name := app.DBBaseName()
 	if gm.IsTracked(name) {
@@ -132,16 +129,8 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	gr := gm.NewRepo(r.Name(),
-		gitops.RepoFileReader(app.Flags.Color),
-		gitops.RepoFileRemover(),
-		gitops.RepoFileWriter(app.Flags.Color),
-	)
-
-	gm.Git().PreCommit().Register(
-		gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-		gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-	)
+	gr := gitops.NewRepo(gm, r.BaseName(), app.Session())
+	gitops.RegisterHooks(r, app, gr)
 
 	if err := gitops.Track(ctx, r, app, gm, gr); err != nil {
 		return err

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/session"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -56,6 +57,7 @@ func TestTrack(t *testing.T) {
 	errGitAdd := errors.New("git add error")
 	errGitCommit := errors.New("git commit error")
 	errRepoWriter := errors.New("writing repository")
+	ops := NewRepoOps(session.New())
 
 	tests := []struct {
 		name       string
@@ -69,18 +71,18 @@ func TestTrack(t *testing.T) {
 		{
 			name: "normal_success",
 			db:   &fakeRepoDB{total: 5},
-			opts: []git.RepoOptFunc{RepoFileWriter(false)},
+			opts: []git.RepoOptFunc{ops.Writer()},
 		},
 		{
 			name: "empty_bookmarks",
 			db:   &fakeRepoDB{total: 0, bookmarks: nil},
-			opts: []git.RepoOptFunc{RepoFileWriter(false)},
+			opts: []git.RepoOptFunc{ops.Writer()},
 		},
 		{
 			name:     "already_tracked",
 			db:       &fakeRepoDB{total: 1},
 			preTrack: true,
-			opts:     []git.RepoOptFunc{RepoFileWriter(false)},
+			opts:     []git.RepoOptFunc{ops.Writer()},
 			wantErr:  git.ErrGitTracked,
 		},
 		{
@@ -90,7 +92,7 @@ func TestTrack(t *testing.T) {
 				f.On("status", "changed", nil)
 				f.On("add", "", errGitAdd)
 			},
-			opts:    []git.RepoOptFunc{RepoFileWriter(false)},
+			opts:    []git.RepoOptFunc{ops.Writer()},
 			wantErr: errGitAdd,
 		},
 		{
@@ -100,7 +102,7 @@ func TestTrack(t *testing.T) {
 				f.On("status", "changed", nil)
 				f.On("commit", "", errGitCommit)
 			},
-			opts:    []git.RepoOptFunc{RepoFileWriter(false)},
+			opts:    []git.RepoOptFunc{ops.Writer()},
 			wantErr: errGitCommit,
 		},
 		{

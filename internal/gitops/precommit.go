@@ -129,3 +129,20 @@ func HookHasChanges() *git.Hook {
 		},
 	}
 }
+
+// RegisterHooks registers the git hooks used to keep repository files up to
+// date (summary and README if enabled).
+func RegisterHooks(r store, app *application.App, gr *git.Repo) {
+	gm := app.Git.Manager()
+
+	hook := gm.Git().PreCommit()
+	hook.Reset()
+
+	hook.Register(
+		HookSummaryWrite(
+			gr,
+			app.Version(),
+			StatsFromStore(r),
+		),
+	)
+}

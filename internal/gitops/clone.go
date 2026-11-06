@@ -16,7 +16,7 @@ import (
 	"github.com/mateconpizza/gm/internal/bookmark/port"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -50,9 +50,14 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	rc, err := ResolveConfig(tmpPath)
+	if err != nil {
+		return err
+	}
+
 	for _, gr := range gp.Repos() {
-		if gpg.IsInitialized(gr.Root()) &&
-			!t.Confirm(ctx, fmt.Sprintf("read encrypted repository %q?", gr.Name()), "yes") {
+		if rc.Encryption != enc.None &&
+			!t.Confirm(ctx, fmt.Sprintf("read encrypted (%s) repository %q?", rc.Encryption, gr.Name()), "yes") {
 			continue
 		}
 
@@ -79,7 +84,7 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 	}
 
 	gp := NewPuller(d.Console(), tmpPath, g.Root())
-	if err := gp.Pull(); err != nil {
+	if err := gp.Pull(app.Session()); err != nil {
 		return nil, err
 	}
 
@@ -134,14 +139,14 @@ func handleImportLoop(ctx context.Context, d *deps.Deps, gr *git.Repo) error {
 	)
 
 	for {
-		opt, err := c.Choose(ctx, p.Bold.Wrap(gr.Name(), p.Italic)+": import mode?", opts, "m")
+		opt, err := c.Choose(ctx, p.Bold.Wrap(gr.Name(), p.Italic)+": import bookmarks?", opts, "m")
 		if err != nil {
 			return err
 		}
 
 		switch opt {
 		case "abort":
-			return nil
+			return application.ErrActionAborted
 		case "merge":
 			return insertRecords(ctx, d, bs)
 		case "create":

@@ -2,145 +2,105 @@ package gitops
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
-	"github.com/mateconpizza/rotato"
+	files "github.com/mateconpizza/gofiles"
 
-	"github.com/mateconpizza/gm/internal/locker/gpg"
-	"github.com/mateconpizza/gm/internal/sys/terminal"
-	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-type RepoWriterCfg struct {
+type writerCfg struct {
 	name      string // repo name
 	root      string // git root path
 	repoPath  string // repo fullpath
 	bookmarks []*bookmark.Bookmark
 	spinner   spinner
 	writer    *bookio.RepositoryWriter
+
+	cipher     enc.Cipher
+	serializer bookio.Serializer
 }
 
-func newRepoWriter(ctx context.Context, cfg *RepoWriterCfg) error {
-	switch {
-	case gpg.IsInitialized(cfg.root):
-		return newGPGRepoWriter(ctx, cfg)
+func newFileRepoWriter(ctx context.Context, cfg *writerCfg) error {
+	cfg.writer = &bookio.RepositoryWriter{
+		Prefix: fmt.Sprintf("[%s] %s", filepath.Base(cfg.repoPath), "Writing bookmarks [%d/%d]"),
+		FileFilter: bookio.And(
+			bookio.IsFile,
+			bookio.NotNamed(git.SummaryFileName, git.TrackerFilename, bookio.ReadmeFile+cfg.cipher.Suffix()),
+		),
+		Func: func(ctx context.Context, b *bookmark.Bookmark) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 
-	default:
-		return newJSONRepoWriter(ctx, cfg)
-	}
-}
+			filename, err := cfg.cipher.Path(b, cfg.serializer.Ext())
+			if err != nil {
+				return err
+			}
+			path := filepath.Join(cfg.repoPath, filename)
+			if err := files.MkdirAll(filepath.Dir(path)); err != nil {
+				return fmt.Errorf("creating dir for %s: %w", path, err)
+			}
 
-func writeFiles(color bool) func(ctx context.Context, path string, bs []*bookmark.Bookmark) error {
-	sp := rotato.New(
-		rotato.WithColor(color),
-		rotato.WithMessage("starting..."),
-		rotato.WithPrefixColor(rotato.StyleDim),
-		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
-		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
-		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-	)
+			same, err := hasChecksum(path, b.Checksum, cfg.serializer)
+			if err != nil {
+				return err
+			}
+			if same {
+				return nil
+			}
 
-	return func(ctx context.Context, path string, bs []*bookmark.Bookmark) error {
-		return newRepoWriter(ctx, &RepoWriterCfg{
-			name:      filepath.Base(path),
-			root:      filepath.Dir(path),
-			repoPath:  path,
-			bookmarks: bs,
-			spinner:   sp,
-		})
-	}
-}
+			data, err := cfg.serializer.Marshal(b.Record())
+			if err != nil {
+				return fmt.Errorf("marshal %s: %w", path, err)
+			}
 
-func newGPGRepoWriter(ctx context.Context, cfg *RepoWriterCfg) error {
-	k := gpg.NewKeyResolver(cfg.root)
-	fp, err := k.Resolve(ctx)
-	if err != nil {
-		return fmt.Errorf("gpg strategy: %w", err)
-	}
+			cfg.spinner.UpdateMesg("writing..." + filepath.Base(path))
 
-	if err := fp.Validate(); err != nil {
-		return err
+			return cfg.cipher.Write(ctx, path, data)
+		},
 	}
 
 	cfg.spinner.Start(ctx)
 	defer cfg.spinner.Done()
 
+	w := bookio.NewFileWriter(cfg.writer.Func)
 	n := len(cfg.bookmarks)
-	t := terminal.New()
-	g := gpg.New(fp.Fingerprint)
-
-	cfg.writer = WriterGPGStrategy(cfg.repoPath, g)
-	writer := bookio.NewFileWriter(cfg.writer.Func)
 
 	for i := range n {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		b := cfg.bookmarks[i]
-		writer.Write(ctx, b)
-
-		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.writer.Prefix, writer.Current(), n))
-		cfg.spinner.UpdateMesg("encrypting..." + filepath.Base(txt.Shorten(b.URL, t.MinWidth())))
-	}
-
-	return nil
-}
-
-func newJSONRepoWriter(ctx context.Context, cfg *RepoWriterCfg) error {
-	cfg.writer = WriterJSONStrategy(cfg.repoPath)
-	cfg.spinner.Start(ctx)
-	defer cfg.spinner.Done()
-
-	writer := bookio.NewFileWriter(cfg.writer.Func)
-
-	for i := range cfg.bookmarks {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
+		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.writer.Prefix, w.Current(), n))
 
 		b := cfg.bookmarks[i]
-		writer.Write(ctx, b)
+		w.Write(ctx, b)
 	}
 
-	return writer.Wait()
+	return w.Wait()
 }
 
-func WriterJSONStrategy(repoPath string) *bookio.RepositoryWriter {
-	return &bookio.RepositoryWriter{
-		Prefix: "Writing JSON bookmarks",
-		FileFilter: bookio.And(
-			bookio.IsFile,
-			bookio.HasExtension(".json"),
-			bookio.NotNamed(git.SummaryFileName, git.TrackerFile),
-		),
-		Func: func(ctx context.Context, b *bookmark.Bookmark) error {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			_, err := bookio.SaveAsJSON(repoPath, b, true)
-			return err
-		},
+// hasChecksum reports whether the file at path exists and holds the given checksum.
+func hasChecksum(path, want string, s bookio.Serializer) (bool, error) {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
 	}
-}
-
-func WriterGPGStrategy(repoPath string, g Encryptor) *bookio.RepositoryWriter {
-	name := filepath.Base(repoPath)
-
-	return &bookio.RepositoryWriter{
-		Prefix: fmt.Sprintf("[%s] %s", name, "Encrypting bookmarks [%d/%d]"),
-		FileFilter: bookio.And(
-			bookio.IsFile,
-			bookio.HasExtension(gpg.Extension.String()),
-			bookio.NotNamed(git.SummaryFileName),
-		),
-		Func: func(ctx context.Context, b *bookmark.Bookmark) error {
-			return createGPGFile(ctx, g, repoPath, b)
-		},
+	if err != nil {
+		return false, err
 	}
+
+	r, err := s.Unmarshal(data)
+	if err != nil {
+		return false, fmt.Errorf("reading existing %s: %w", path, err)
+	}
+
+	return r.Checksum == want, nil
 }

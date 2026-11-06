@@ -235,13 +235,13 @@ func HookGitSync(app *application.App) HookE {
 		}
 
 		app.Git.SetWriter(os.Stdout)
-		gm, err := gitops.NewManager(app)
-		if err != nil {
-			return err
-		}
+		gm := app.Git.Manager()
 
-		return gitops.Sync(ctx, app, gm, gm.NewRepo(app.DBBaseName()).
-			CommitMsg(git.RepoAction(msg), ""))
+		return gitops.Sync(ctx,
+			app,
+			gm,
+			gm.NewRepo(app.DBBaseName()).CommitMsg(git.RepoAction(msg), ""),
+		)
 	}
 }
 
@@ -279,10 +279,14 @@ func HookGitPrune(app *application.App) HookE {
 		}
 		defer r.Close()
 
-		gr := gm.NewRepo(r.Name(),
-			gitops.RepoFileReader(app.Flags.Color),
-			gitops.RepoFileRemover(),
-			gitops.RepoFileWriter(app.Flags.Color),
+		sess := app.Session().
+			WithConfirmation(true).
+			WithValidation(true)
+
+		gr := gitops.NewRepo(
+			gm,
+			r.BaseName(),
+			sess,
 		)
 
 		bs, err := r.All(ctx)
@@ -290,10 +294,7 @@ func HookGitPrune(app *application.App) HookE {
 			return err
 		}
 
-		gm.Git().PreCommit().Register(
-			gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-			gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-		)
+		gitops.RegisterHooks(r, app, gr)
 
 		return gitops.PruneRepo(ctx, gm, gr, bs)
 	}

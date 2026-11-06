@@ -1,6 +1,7 @@
 package gitcmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -10,10 +11,10 @@ import (
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
-	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/db"
+	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
 // NewCmd is the git command.
@@ -99,18 +100,23 @@ func newInitRepoCmd(app *application.App) *cobra.Command {
 		Annotations: cli.SkipGitSync,
 		PreRun:      cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+				gm, err := gitops.NewManager(app)
+				if err != nil {
+					return err
+				}
 
-			if err := gitops.Init(cmd.Context(), app, gm); err != nil {
-				return err
-			}
+				app.Git.SetManager(gm)
 
-			fmt.Fprintln(os.Stdout)
+				c := d.Console()
+				if err := gitops.Init(cmd.Context(), app, c); err != nil {
+					return err
+				}
 
-			return gitops.TrackMgr(cmd.Context(), app, gm, ui.NewDefaultConsole(app, app.Exit), app.Databases())
+				fmt.Fprintln(os.Stdout)
+
+				return gitops.TrackMgr(cmd.Context(), app, gm, c, app.Databases())
+			})
 		},
 	}
 
@@ -217,39 +223,27 @@ func newSyncCmd(app *application.App) *cobra.Command {
 		Short:  "synchronize bookmarks with the repository",
 		PreRun: cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			if app.Flags.All {
-				return cmdutil.Run(cmd.Context(), args, gitops.SyncAll)
-			}
+			return cmdutil.Execute(cmd.Context(), args, nil, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+				if app.Flags.All {
+					return cmdutil.Run(ctx, args, gitops.SyncAll)
+				}
 
-			r, err := db.New(ctx, app.Path.DB())
-			if err != nil {
-				return err
-			}
-			defer r.Close()
+				r, err := d.Repository()
+				if err != nil {
+					return err
+				}
+				defer r.Close()
 
-			gm, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
+				sess := app.Session().
+					WithConfirmation(false).
+					WithValidation(true)
 
-			gr := gm.NewRepo(r.Name(),
-				gitops.RepoFileReader(app.Flags.Color),
-				gitops.RepoFileRemover(),
-				gitops.RepoFileWriter(app.Flags.Color),
-			)
+				gm := app.Git.Manager()
+				gr := gitops.NewRepo(gm, r.BaseName(), sess)
+				gitops.RegisterHooks(r, app, gr)
 
-			gm.Git().PreCommit().Register(
-				gitops.HookSummaryWrite(gr, app.Version(), gitops.StatsFromStore(r)),
-				gitops.HookReadme(app, gitops.BookmarksFromStore(r), gitops.StatsFromStore(r)),
-			)
-
-			bs, err := r.All(ctx)
-			if err != nil {
-				return err
-			}
-
-			return gitops.PruneRepo(ctx, gm, gr, bs)
+				return gitops.PruneRepo(ctx, gm, gr, bs)
+			})
 		},
 	}
 

@@ -2,96 +2,31 @@ package gitops
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	menu "github.com/mateconpizza/go-fzf"
-	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/locker"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
+	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/txt"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
-	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-// ReadRepoFilesWithPrompt handles reading encrypted GPG bookmark repositories.
-func ReadRepoFilesWithPrompt(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	f := bookio.NewFileLoader(cfg.loader.Func)
-
-	cfg.spinner.Start(ctx)
-	defer cfg.spinner.Done()
-
-	var passphrasePrompted bool
-
-	if err := filepath.WalkDir(cfg.repoPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return fmt.Errorf("%w: walking root: %s, on file: %s", err, cfg.root, path)
-		}
-
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
-		if !cfg.loader.FileFilter(path, d) {
-			return nil
-		}
-
-		// handle prompt for GPG passphrase on the first valid file
-		if !passphrasePrompted {
-			if err := cfg.passphrasePrompt()(ctx, f, cfg.spinner, path, &passphrasePrompted); err != nil {
-				return err
-			}
-			passphrasePrompted = true
-		}
-
-		f.Load(ctx, path)
-
-		cfg.spinner.UpdatePrefix(fmt.Sprintf(cfg.loader.Prefix, f.Count(1), cfg.total))
-		cfg.spinner.UpdateMesg("decrypting..." + filepath.Base(path))
-
-		return nil
-	}); err != nil {
-		cfg.spinner.Fail(err.Error())
-		return nil, err
-	}
-
-	return f.Results()
-}
-
-// readGPGRepo resolves the repo's GPG key, builds the matching loader
-// strategy, and reads the repository.
-func readGPGRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	k := gpg.NewKeyResolver(cfg.root)
-
-	fp, err := k.Resolve(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if fp.Expired() {
-		cfg.spinner.AddPrefixDecorator(func(msg string) string {
-			return msg + " warn: key has expired"
-		})
-	}
-
-	cfg.loader = gpgStrategy(cfg.name, fp.Fingerprint)
-
-	return ReadRepoFilesWithPrompt(ctx, cfg)
-}
-
-func askForEncryption(ctx context.Context, app *application.App, c *ui.Console, gm *git.Mgr) error {
+func askForGPGEncryption(ctx context.Context, app *application.App, c *ui.Console, gm *git.Mgr) error {
 	fr := gpg.NewKeyResolver(app.Path.Git())
 	if fr.Initialized() {
 		return nil
@@ -131,71 +66,60 @@ func askForEncryption(ctx context.Context, app *application.App, c *ui.Console, 
 	return initGPG(ctx, c, gm, key)
 }
 
-func gpgStrategy(name, recipient string) *bookio.RepositoryLoader {
-	g := gpg.New(recipient)
-
-	return &bookio.RepositoryLoader{
-		Func:   gpgBookmarkFileLoader(g),
-		Prefix: fmt.Sprintf("[%s] %s", name, "GPG bookmarks [%d/%d]"),
-		FileFilter: bookio.And(
-			bookio.IsFile,
-			bookio.HasExtension(gpg.Extension.String()),
-			bookio.NotNamed(git.SummaryFileName),
-		),
-	}
-}
-
-type Encryptor interface {
-	Encrypt(ctx context.Context, path string, content []byte) error
-}
-
-func createGPGFile(ctx context.Context, g Encryptor, repoPath string, b *bookmark.Bookmark) error {
-	fullpath, err := genFullpath(repoPath, b)
-	if err != nil {
-		return fmt.Errorf("gpgfile: %w", err)
-	}
-
-	if files.Exists(fullpath) {
-		slog.Warn("gpgfile: not found", "file", fullpath)
+func askForEncryption(ctx context.Context, app *application.App, gm *git.Mgr, cfg *RepoConfig, c *ui.Console) error {
+	c.Term().SetChoicesFmt(terminal.ChoicesInlineBracketedFmt)
+	if !c.Confirm(ctx, "Use encryption?", "n") {
 		return nil
 	}
+	encryptionHeader(c)
 
-	if err := files.MkdirAll(filepath.Dir(fullpath)); err != nil {
-		return fmt.Errorf("gpgfile: failed creating dir: %w, %q", err, filepath.Dir(fullpath))
-	}
+	c.Term().SetChoicesFmt(terminal.ChoicesKeepCaseFmt)
+	defer c.Term().SetChoicesFmt(terminal.ChoicesInlineBracketedFmt)
 
-	data, err := json.MarshalIndent(b.Record(), "", "  ")
+	opt, err := c.Choose(ctx, "Which one?", []string{"GPG", "AES-GCM", "None"}, "None")
 	if err != nil {
-		return fmt.Errorf("gpgfile: JSON marshal: %w", err)
+		return err
 	}
 
-	if err := g.Encrypt(ctx, fullpath, data); err != nil {
-		return fmt.Errorf("gpgfile: creating file: %w", err)
+	// setup first, so a failed setup leaves no config behind
+	switch opt {
+	case "GPG":
+		cfg.Encryption = enc.GPG
+		if err := askForGPGEncryption(ctx, app, c, gm); err != nil {
+			return err
+		}
+	case "AES-GCM":
+		cfg.Encryption = enc.AESGCM
+		if err := locker.Init(app.Path.Git(), git.AttributesFile); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// gpgBookmarkFileLoader returns a loader function that decrypts and parses
-// GPG-encrypted bookmark.
-func gpgBookmarkFileLoader(g *gpg.GPG) bookio.LoaderFileFunc {
-	return func(ctx context.Context, path string) (*bookmark.Bookmark, error) {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
+func encryptionHeader(c *ui.Console) {
+	p, f := c.Palette(), c.Frame()
 
-		content, err := g.Decrypt(ctx, path)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %q", err, path)
-		}
+	c.NewBannerBuilder().
+		WithTitle("Encryption options").
+		WithSubtitle("Choose how bookmark files are encrypted in the Git repository.").
+		WithComment(" (ctrl-c to exit)").
+		Build().
+		Rowln()
 
-		bj := bookmark.NewRecord()
-		if err := json.Unmarshal(content, bj); err != nil {
-			return nil, fmt.Errorf("error unmarshalling JSON: %w, %s", err, path)
+	for _, s := range EncryptionOpts {
+		var c ansi.Style
+		switch s.Type {
+		case string(enc.GPG):
+			c = p.BrightBlue
+		case string(enc.AESGCM):
+			c = p.Orange
 		}
-
-		return bj.Bookmark(), nil
+		f.Midln(txt.PaddedLineWithWidth(c.Wrap(strings.ToUpper(s.Type), p.Bold), s.Desc, 5))
 	}
+
+	f.Rowln().Flush()
 }
 
 // promptGPGPassphrase handles unlocking and initializing the first GPG file.

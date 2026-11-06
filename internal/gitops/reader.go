@@ -7,9 +7,10 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 var ErrRepoReader = errors.New("reading repository")
@@ -29,8 +30,8 @@ type spinner interface {
 // decrypting repository files.
 type PassphrasePrompt func(ctx context.Context, f *bookio.FileLoader, sp spinner, path string, done *bool) error
 
-// RepoReaderCfg groups the configuration needed to read a repository.
-type RepoReaderCfg struct {
+// readerCfg groups the configuration needed to read a repository.
+type readerCfg struct {
 	name     string // repo name
 	root     string // git root path
 	repoPath string // repo fullpath
@@ -39,32 +40,55 @@ type RepoReaderCfg struct {
 	spinner  spinner
 
 	promptPassphrase PassphrasePrompt
+
+	cipher     enc.Cipher
+	serializer bookio.Serializer
 }
 
-func (c *RepoReaderCfg) passphrasePrompt() PassphrasePrompt {
+func (c *readerCfg) passphrasePrompt() PassphrasePrompt {
 	if c.promptPassphrase != nil {
 		return c.promptPassphrase
 	}
 	return promptGPGPassphrase
 }
 
-func newRepoReader(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	switch {
-	case gpg.IsInitialized(cfg.root):
-		return readGPGRepo(ctx, cfg)
+func fileReader(cfg *readerCfg) *bookio.RepositoryLoader {
+	return &bookio.RepositoryLoader{
+		Prefix: fmt.Sprintf("[%s] %s", filepath.Base(cfg.repoPath), "reading bookmarks"),
+		FileFilter: bookio.And(
+			bookio.IsFile,
+			bookio.HasExtension(cfg.cipher.Suffix()),
+			bookio.NotNamed(git.SummaryFileName, git.TrackerFilename, bookio.ReadmeFile+cfg.cipher.Suffix()),
+		),
+		Func: func(ctx context.Context, path string) (*bookmark.Bookmark, error) {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 
-	default:
-		return readJSONRepo(ctx, cfg)
+			data, err := cfg.cipher.Read(ctx, path)
+			if err != nil {
+				return nil, err
+			}
+
+			br, err := cfg.serializer.Unmarshal(data)
+			if err != nil {
+				return nil, fmt.Errorf("%w path: %q", err, path)
+			}
+
+			return br.Bookmark(), nil
+		},
 	}
 }
 
-// ReadRepoFiles handles reading standard JSON bookmark repositories.
-func ReadRepoFiles(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	f := bookio.NewFileLoader(cfg.loader.Func)
-
+func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmark, error) {
+	cfg.loader = fileReader(cfg)
 	cfg.spinner.UpdatePrefix(cfg.loader.Prefix)
 	cfg.spinner.Start(ctx)
 	defer cfg.spinner.Done()
+
+	r := bookio.NewFileLoader(cfg.loader.Func)
+
+	var passphrasePrompted bool
 
 	if err := filepath.WalkDir(cfg.repoPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -79,22 +103,23 @@ func ReadRepoFiles(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmar
 			return nil
 		}
 
-		cfg.spinner.UpdatePrefix(fmt.Sprintf("%s [%d/%d]", cfg.loader.Prefix, f.Count(1), cfg.total))
+		// handle prompt for GPG passphrase on the first valid file.
+		if !passphrasePrompted {
+			if err := cfg.passphrasePrompt()(ctx, r, cfg.spinner, path, &passphrasePrompted); err != nil {
+				return err
+			}
+			passphrasePrompted = true
+		}
+
+		cfg.spinner.UpdatePrefix(fmt.Sprintf("%s [%d/%d]", cfg.loader.Prefix, r.Count(1), cfg.total))
 		cfg.spinner.UpdateMesg("reading..." + filepath.Base(path))
 
-		f.Load(ctx, path)
+		r.Load(ctx, path)
 
 		return nil
 	}); err != nil {
-		cfg.spinner.Fail(err.Error())
-		return nil, fmt.Errorf("%w: %w", ErrRepoReader, err)
+		return nil, fmt.Errorf("%w %q: %w", ErrRepoReader, cfg.name, err)
 	}
 
-	return f.Results()
-}
-
-// readJSONRepo reads a plain, unencrypted JSON repository.
-func readJSONRepo(ctx context.Context, cfg *RepoReaderCfg) ([]*bookmark.Bookmark, error) {
-	cfg.loader = bookio.JSONStrategy
-	return ReadRepoFiles(ctx, cfg)
+	return r.Results()
 }

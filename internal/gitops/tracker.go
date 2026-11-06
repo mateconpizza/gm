@@ -36,16 +36,12 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gr := gm.NewRepo(r.Name(),
-		RepoFileReader(app.Flags.Color),
-		RepoFileRemover(),
-		RepoFileWriter(app.Flags.Color),
-	)
+	sess := app.Session().
+		WithConfirmation(true).
+		WithValidation(true)
 
-	gm.Git().PreCommit().Register(
-		HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
-		HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
-	)
+	gr := NewRepo(gm, r.BaseName(), sess)
+	RegisterHooks(r, app, gr)
 
 	c := d.Console()
 	if gm.IsTracked(gr.Name()) {
@@ -139,18 +135,12 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 		Rowln().
 		Flush()
 
+	sess := app.Session().
+		WithConfirmation(true)
+
 	files.PrioritizeFile(dbFiles, application.MainDBName)
-	p := c.Palette()
 
-	preCommitHooks := func(r store, gr *git.Repo, g *git.Git) {
-		g.PreCommit().Reset()
-		g.PreCommit().Register(
-			HookSummaryWrite(gr, app.Version(), StatsFromStore(r)),
-			HookReadme(app, BookmarksFromStore(r), StatsFromStore(r)),
-		)
-	}
-
-	for i, dbPath := range dbFiles {
+	for _, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
 				return application.ErrExitFailure
@@ -174,13 +164,8 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			return err
 		}
 
-		gr := gm.NewRepo(r.Name(),
-			RepoFileReader(p.Enabled()),
-			RepoFileRemover(),
-			RepoFileWriter(p.Enabled()),
-		)
-
-		preCommitHooks(r, gr, gm.Git())
+		gr := NewRepo(gm, r.BaseName(), sess)
+		RegisterHooks(r, app, gr)
 
 		if err := Track(ctx, r, app, gm, gr); err != nil {
 			return err
@@ -188,10 +173,7 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 
 		r.Close()
 
-		c.ReplaceLine(c.Success(fmt.Sprintf("Tracking %q", name)).String())
-		if i != len(dbFiles)-1 {
-			fmt.Fprintln(c.Writer())
-		}
+		c.ReplaceLine(c.Success(fmt.Sprintf("%q tracked", name)).String())
 	}
 
 	return nil

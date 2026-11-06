@@ -9,6 +9,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/pkg/bookio"
 )
 
 var ErrRepoConfig = errors.New("gitops: invalid repo config")
@@ -117,4 +118,16 @@ func ResolveConfig(root string) (RepoConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+// serializerFor picks the serializer for a repo format.
+func serializerFor(f RepoFormat) (bookio.Serializer, error) {
+	switch f {
+	case RepoFormatJSON:
+		return bookio.JSONSerializer{}, nil
+	case RepoFormatYAML:
+		return bookio.YAMLSerializer{}, nil
+	default:
+		return nil, fmt.Errorf("%w: no serializer for format %q", ErrRepoConfig, f)
+	}
 }
