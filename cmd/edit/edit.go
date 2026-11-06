@@ -53,7 +53,7 @@ func newStrategy(app *application.App) editor.EditStrategy {
 			WithRepoName(app.DBBaseName()).
 			WithAppName(app.Name).
 			WithAppVersion(app.Version()).
-			WithSpinner(handler.NewSpinner(app))
+			WithSpinner(handler.NewSpinner(app.Flags.Color))
 	}
 }
 

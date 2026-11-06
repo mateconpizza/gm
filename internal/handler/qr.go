@@ -77,7 +77,7 @@ func QROpen(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	var (
 		count atomic.Uint32
 		c, p  = d.Console(), d.Console().Palette()
-		dim   = rotato.FgGray.With(rotato.StyleBold)
+		dim   = p.Gray.With(p.Bold)
 		s     = fmt.Sprintf("%s %d bookmarks qr-code", p.BrightGreen.Wrap("open", p.Bold), len(bs))
 	)
 
@@ -86,11 +86,10 @@ func QROpen(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	sp := rotato.New(
-		rotato.WithColor(app.Flags.Color),
 		rotato.WithSpinnerStyle(rotato.SpinnerBlock),
-		rotato.WithSpinnerColor(rotato.FgBrightMagenta, rotato.StyleBold),
+		rotato.WithSpinnerColor(p.BrightMagenta.With(p.Bold).Format),
 		rotato.WithMessage("QR-Code"),
-		rotato.WithMessageColor(rotato.FgBrightGreen),
+		rotato.WithMessageColor(p.BrightGreen.Format),
 		rotato.WithMessageDecorator(func(prefix string) string {
 			current := count.Load()
 			return fmt.Sprintf("%s %s", dim.Sprintf("[%d/%d]", current, len(bs)), prefix)

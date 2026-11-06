@@ -133,7 +133,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithSpinner(NewSpinner(app)))
+	sc := scraper.New(newURL, scraper.WithSpinner(NewSpinner(app.Flags.Color)))
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(ctx, c, sc, bTemp)
@@ -334,7 +334,7 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 		return app.Abort()
 	case "edit":
 		session := editor.NewEditSession().
-			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app))).
+			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app.Flags.Color))).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return insertAndAddBookmark(ctx, r, app, fresh)
