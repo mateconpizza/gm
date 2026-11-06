@@ -12,7 +12,6 @@ import (
 	"time"
 
 	menu "github.com/mateconpizza/go-fzf"
-	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/enc"
@@ -150,7 +149,6 @@ func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, sp spinner, 
 	defer cancel()
 
 	deadline, _ := ctxPrompt.Deadline()
-	dimmer := rotato.FgYellow.With(rotato.StyleDim, rotato.StyleBold)
 
 	sp.UpdateMesg("waiting for GPG passphrase")
 	sp.SetMessageDecorator(func(msg string) string {
@@ -159,7 +157,7 @@ func promptGPGPassphrase(ctx context.Context, f *bookio.FileLoader, sp spinner, 
 		if remaining == 0 || *prompted {
 			return msg
 		}
-		return msg + " " + dimmer.Sprintf("(%.0fs left)", remaining.Seconds())
+		return msg + " " + fmt.Sprintf("(%.0fs left)", remaining.Seconds())
 	})
 
 	// blocks until the user types their passphrase in the GPG prompt

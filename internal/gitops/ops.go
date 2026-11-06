@@ -9,6 +9,7 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/session"
+	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -161,13 +162,14 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 }
 
 func NewSpinner(color bool) *rotato.Rotato {
+	p := ansi.NewPalette(color)
+
 	return rotato.New(
-		rotato.WithColor(color),
 		rotato.WithMessage("starting..."),
-		rotato.WithPrefixColor(rotato.FgGray),
-		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
-		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
-		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
-		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		rotato.WithPrefixColor(p.Gray.Format),
+		rotato.WithSpinnerColor(p.BrightYellow.With(p.Bold).Format),
+		rotato.WithMessageColor(p.BrightBlue.With(p.Italic).Format),
+		rotato.WithFailSymbolColor(p.BrightRed.With(p.Bold).Format),
+		rotato.WithFailMessageColor(p.BrightRed.With(p.Bold).Format),
 	)
 }

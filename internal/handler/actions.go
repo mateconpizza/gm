@@ -37,12 +37,13 @@ import (
 	"github.com/mateconpizza/gm/pkg/scraper"
 )
 
-func NewSpinner(app *application.App) *rotato.Rotato {
+func NewSpinner(color bool) *rotato.Rotato {
+	p := ansi.NewPalette(color)
+
 	return rotato.New(
-		rotato.WithColor(app.Flags.Color),
 		rotato.WithMessage("scraping webpage..."),
-		rotato.WithMessageColor(rotato.FgYellow),
-		rotato.WithSpinnerColor(rotato.FgBrightMagenta),
+		rotato.WithMessageColor(p.Yellow.Format),
+		rotato.WithSpinnerColor(p.BrightMagenta.Format),
 	)
 }
 
@@ -62,10 +63,9 @@ func Open(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	}
 
 	sp := rotato.New(
-		rotato.WithColor(app.Flags.Color),
 		rotato.WithMessage("opening bookmarks..."),
-		rotato.WithMessageColor(rotato.FgBrightGreen),
-		rotato.WithSpinnerColor(rotato.FgBrightGreen),
+		rotato.WithMessageColor(p.BrightGreen.Format),
+		rotato.WithSpinnerColor(p.BrightGreen.Format),
 	)
 
 	if err := openInBrowser(ctx, &openOpts{
@@ -584,7 +584,7 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 
 	case "edit":
 		es := editor.NewEditSession().
-			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app))).
+			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app.Flags.Color))).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, PersistParams{
@@ -632,9 +632,8 @@ func updateBookmarkData(ctx context.Context, p *ansi.Palette, b *bookmark.Bookma
 	su := txt.Shorten(updatedB.URL, 60)
 
 	sp := rotato.New(
-		rotato.WithColor(p.Enabled()),
 		rotato.WithMessage("scraping "+p.Italic.Sprint(su)),
-		rotato.WithSpinnerColor(rotato.FgBrightMagenta),
+		rotato.WithSpinnerColor(p.BrightMagenta.Format),
 	)
 
 	sc := scraper.New(updatedB.URL, scraper.WithSpinner(sp))

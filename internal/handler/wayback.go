@@ -37,24 +37,24 @@ func newResult(u, s, m string) SnapshotResult {
 func WaybackLatestSnapshot(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 	var (
 		count atomic.Uint32
-		dim   = rotato.FgGray.With(rotato.StyleBold)
+		p     = d.Console().Palette()
+		dim   = p.Gray.With(p.Bold)
 		total = uint32(len(bs))
 	)
 
 	results := make(chan SnapshotResult, len(bs))
 
 	sp := rotato.New(
-		rotato.WithColor(d.Console().Palette().Enabled()),
 		rotato.WithPrefix("Snapshots"),
 		rotato.WithPrefixDecorator(func(prefix string) string { // n/N <prefix>
 			current := count.Load()
 			return fmt.Sprintf("%s %s", prefix, dim.Sprintf("%d/%d", current, total))
 		}),
-		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
-		rotato.WithMessageColor(rotato.FgYellow),
+		rotato.WithSpinnerColor(p.BrightGreen.With(p.Bold).Format),
+		rotato.WithMessageColor(p.Yellow.Format),
 		rotato.WithMessageDecorator(func(msg string) string { return "Fetching " + msg }),
-		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
-		rotato.WithFailMessageColor(rotato.FgBrightRed),
+		rotato.WithDoneMessageColor(p.BrightGreen.With(p.Italic).Format),
+		rotato.WithFailMessageColor(p.BrightRed.Format),
 	)
 
 	sp.Start(ctx)
@@ -378,13 +378,12 @@ func fetchSnapshots(ctx context.Context, c *ui.Console, ct *wayback.WaybackMachi
 	deadline, _ := ctx.Deadline()
 
 	sp := rotato.New(
-		rotato.WithColor(c.Palette().Enabled()),
 		rotato.WithPrefix("Snapshots"),
-		rotato.WithSpinnerColor(rotato.FgBrightGreen, rotato.StyleBold),
+		rotato.WithSpinnerColor(p.BrightGreen.With(p.Bold).Format),
 		rotato.WithMessage("fetching "+p.Italic.Sprint(u)),
 		rotato.WithMessageDecorator(func(msg string) string {
 			remaining := max(time.Until(deadline).Round(time.Second), 0)
-			return msg + " " + rotato.DimCountdownDecorator(remaining)
+			return msg + " " + p.Dim.Sprint(rotato.CountdownDecorator(remaining))
 		}),
 	)
 

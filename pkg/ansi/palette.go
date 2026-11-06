@@ -39,6 +39,7 @@ func (s Style) Fprint(w io.Writer, a ...any)                { fmt.Fprint(w, s.Sp
 func (s Style) Fprintln(w io.Writer, a ...any)              { fmt.Fprintln(w, s.Sprint(a...)) }
 func (s Style) Printf(w io.Writer, format string, a ...any) { fmt.Fprint(w, s.Sprintf(format, a...)) }
 func (s Style) Code() string                                { return string(s.code) }
+func (s Style) Format(a string) string                      { return s.Sprint(a) }
 
 func combineStyles(styles ...Style) string {
 	var sb strings.Builder

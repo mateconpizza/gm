@@ -301,12 +301,12 @@ func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark
 // Define the main function to load the Chrome database.
 func loadChromeDatabase(ctx context.Context, path, uniqueTag string, addParentFolderAsTag, color bool) ([]blinkBookmark, error) {
 	byteValue, _ := os.ReadFile(path)
+	p := ansi.NewPalette(color)
 
 	s := rotato.New(
-		rotato.WithColor(color),
 		rotato.WithMessage("parsing bookmark file..."),
-		rotato.WithMessageColor(rotato.FgBrightBlue),
-		rotato.WithSpinnerColor(rotato.FgGray),
+		rotato.WithMessageColor(p.BrightBlue.Format),
+		rotato.WithSpinnerColor(p.Gray.Format),
 	)
 	s.Start(ctx)
 	defer s.Done()

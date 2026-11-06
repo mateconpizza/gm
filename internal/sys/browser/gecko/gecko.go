@@ -203,11 +203,13 @@ func openSQLite(ctx context.Context, c *ui.Console, dbPath string) (*sqlx.DB, er
 		return nil, err
 	}
 
+	p := c.Palette()
+
 	s := rotato.New(
-		rotato.WithColor(c.Palette().Enabled()),
-		rotato.WithMessage(c.Palette().BrightBlue.Sprint("connecting to database...")),
-		rotato.WithSpinnerColor(rotato.FgGray),
-		rotato.WithFailMessageColor(rotato.FgBrightRed),
+		rotato.WithMessage("connecting to database..."),
+		rotato.WithMessageColor(p.BrightBlue.Format),
+		rotato.WithSpinnerColor(p.Gray.Format),
+		rotato.WithFailMessageColor(p.BrightRed.Format),
 	)
 	s.Start(ctx)
 	defer s.Done()

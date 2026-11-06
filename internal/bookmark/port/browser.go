@@ -94,13 +94,13 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 		return bs, nil
 	}
 
+	p := c.Palette()
 	sp := rotato.New(
-		rotato.WithColor(app.Flags.Color),
-		rotato.WithSpinnerColor(rotato.FgGray),
+		rotato.WithSpinnerColor(p.Gray.Format),
 		rotato.WithMessage("scraping missing data..."),
-		rotato.WithMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
-		rotato.WithDoneMessageColor(rotato.FgBrightGreen, rotato.StyleItalic),
-		rotato.WithDoneSymbolColor(rotato.FgBrightGreen, rotato.StyleBold),
+		rotato.WithMessageColor(p.BrightGreen.With(p.Italic).Format),
+		rotato.WithDoneMessageColor(p.BrightGreen.With(p.Italic).Format),
+		rotato.WithDoneSymbolColor(p.BrightGreen.With(p.Bold).Format),
 	)
 
 	if err := metadata.ScrapeDescriptions(ctx, sp, bs); err != nil {
