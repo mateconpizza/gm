@@ -120,7 +120,7 @@ func removeReadmes(ctx context.Context, app *application.App, dbs []string) erro
 	cipher, err := app.Session().
 		WithPassphrase("").
 		WithValidation(false).
-		Cipher(ctx, root, "", rc.Encryption)
+		NewCipher(ctx, root, "", rc.Encryption)
 	if err != nil {
 		return err
 	}

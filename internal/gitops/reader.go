@@ -54,7 +54,7 @@ func (c *readerCfg) passphrasePrompt() PassphrasePrompt {
 
 func fileReader(cfg *readerCfg) *bookio.RepositoryLoader {
 	return &bookio.RepositoryLoader{
-		Prefix: fmt.Sprintf("[%s] %s", filepath.Base(cfg.repoPath), "reading bookmarks"),
+		Prefix: fmt.Sprintf("[%s] %s", filepath.Base(cfg.repoPath), "bookmarks"),
 		FileFilter: bookio.And(
 			bookio.IsFile,
 			bookio.HasExtension(cfg.cipher.Suffix()),

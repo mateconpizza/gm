@@ -457,7 +457,7 @@ func removeOneDB(ctx context.Context, c console, gm *git.Mgr, dbPath string) err
 
 	if gm.IsTracked(name) {
 		result.WriteString(" and untracked")
-		gr := gitops.NewRepo(gm, name, session.New())
+		gr := gitops.NewRepo(gm, name, session.New(), c.Palette().Enabled())
 		if err := gm.Untrack(ctx, gr); err != nil {
 			return err
 		}
@@ -685,7 +685,7 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		WithConfirmation(true).
 		WithValidation(true)
 
-	gr := gitops.NewRepo(gm, r.BaseName(), sess)
+	gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 	gitops.RegisterHooks(r, app, gr)
 
 	isTracked := gm.IsTracked(gr.Name())
@@ -748,7 +748,7 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		WithConfirmation(false).
 		WithValidation(true)
 
-	gr := gitops.NewRepo(gm, p.Repo.BaseName(), sess)
+	gr := gitops.NewRepo(gm, p.Repo.BaseName(), sess, app.Flags.Color)
 	gitops.RegisterHooks(p.Repo, app, gr)
 
 	if err := gm.Apply(ctx, p.Msg, func(ctx context.Context) error {

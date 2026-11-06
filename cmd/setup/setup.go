@@ -129,7 +129,7 @@ func InitAppPostFunc(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	gr := gitops.NewRepo(gm, r.BaseName(), app.Session())
+	gr := gitops.NewRepo(gm, r.BaseName(), app.Session(), app.Flags.Color)
 	gitops.RegisterHooks(r, app, gr)
 
 	if err := gitops.Track(ctx, r, app, gm, gr); err != nil {

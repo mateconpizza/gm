@@ -14,8 +14,11 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-func NewRepo(gm *git.Mgr, name string, sess *session.Session, opts ...RepoOpsOptFunc) *git.Repo {
-	f := NewRepoOps(sess, opts...)
+func NewRepo(gm *git.Mgr, name string, sess *session.Session, color bool) *git.Repo {
+	f := NewRepoOps(
+		sess,
+		WithSpinner(NewSpinner(color)),
+	)
 
 	return gm.NewRepo(name,
 		f.Reader(),
@@ -45,7 +48,11 @@ func NewRepoOps(sess *session.Session, opts ...RepoOpsOptFunc) *RepoOps {
 }
 
 func WithSpinner(sp spinner) RepoOpsOptFunc {
-	return func(ro *RepoOps) { ro.spinner = sp }
+	return func(ro *RepoOps) {
+		if sp != nil {
+			ro.spinner = sp
+		}
+	}
 }
 
 func (ro *RepoOps) Reader() git.RepoOptFunc  { return git.WithRepoReader(ro.readFiles) }
@@ -64,7 +71,7 @@ func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bo
 		return nil, err
 	}
 
-	cipher, err := ro.session.Cipher(ctx, root, filepath.Base(path), rc.Encryption)
+	cipher, err := ro.session.NewCipher(ctx, root, filepath.Base(path), rc.Encryption)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +99,7 @@ func (ro *RepoOps) writeFiles(ctx context.Context, path string, bs []*bookmark.B
 		return err
 	}
 
-	cipher, err := ro.session.Cipher(ctx, root, filepath.Base(path), rc.Encryption)
+	cipher, err := ro.session.NewCipher(ctx, root, filepath.Base(path), rc.Encryption)
 	if err != nil {
 		return err
 	}
@@ -128,7 +135,7 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 		WithPassphrase("").
 		WithValidation(false)
 
-	cipher, err := sess.Cipher(ctx, root, filepath.Base(repoPath), rc.Encryption)
+	cipher, err := sess.NewCipher(ctx, root, filepath.Base(repoPath), rc.Encryption)
 	if err != nil {
 		return err
 	}
@@ -151,4 +158,16 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 	}
 
 	return r.Rm(ctx, bs)
+}
+
+func NewSpinner(color bool) *rotato.Rotato {
+	return rotato.New(
+		rotato.WithColor(color),
+		rotato.WithMessage("starting..."),
+		rotato.WithPrefixColor(rotato.FgGray),
+		rotato.WithSpinnerColor(rotato.FgBrightYellow.With(rotato.StyleBold)),
+		rotato.WithMessageColor(rotato.FgBrightBlue.With(rotato.StyleItalic)),
+		rotato.WithFailSymbolColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+		rotato.WithFailMessageColor(rotato.FgBrightRed.With(rotato.StyleBold)),
+	)
 }

@@ -16,28 +16,32 @@ import (
 )
 
 type (
-	// PromptFunc asks for a passphrase.
-	PromptFunc func(ctx context.Context, t *terminal.Term, repo string, confirm bool) (string, error)
-
 	// Session manages passphrase acquisition, caching, and validation.
 	Session struct {
-		prompt       PromptFunc
-		shared       string
-		validation   bool
-		confirmation bool
+		prompt         PromptFunc
+		shared         string
+		validation     bool
+		validationFunc ValidateFunc
+		confirmation   bool
 
 		mu     sync.Mutex
 		term   *terminal.Term
 		writer io.Writer
 	}
+
+	// PromptFunc asks for a passphrase.
+	PromptFunc func(ctx context.Context, t *terminal.Term, repo string, confirm bool) (string, error)
+
+	ValidateFunc func(ctx context.Context, root, passphrase string) (string, error)
 )
 
 // New returns a new Session with the provided options.
 func New() *Session {
 	return &Session{
-		prompt: defaultPrompt(os.Stdout),
-		term:   terminal.New(),
-		writer: os.Stdout,
+		prompt:         defaultPrompt(os.Stdout),
+		validationFunc: validatePassphrase,
+		term:           terminal.New(),
+		writer:         os.Stdout,
 	}
 }
 
@@ -87,9 +91,14 @@ func (s *Session) WithPassphrase(passphrase string) *Session {
 	return s
 }
 
-// Cipher returns the appropriate Cipher implementation based on the encryption
+func (s *Session) WithValidationFunc(fn ValidateFunc) *Session {
+	s.validationFunc = fn
+	return s
+}
+
+// NewCipher returns the appropriate NewCipher implementation based on the encryption
 // type.
-func (s *Session) Cipher(ctx context.Context, root, repo string, e enc.Encryption) (enc.Cipher, error) {
+func (s *Session) NewCipher(ctx context.Context, root, repo string, e enc.Encryption) (enc.Cipher, error) {
 	switch e {
 	case enc.GPG:
 		return enc.NewGPG(ctx, root)
@@ -116,7 +125,7 @@ func (s *Session) passphraseAndValidate(ctx context.Context, root, repo string) 
 		return p, nil
 	}
 
-	return validatePassphrase(ctx, root, p)
+	return s.validationFunc(ctx, root, p)
 }
 
 func (s *Session) passphrase(ctx context.Context, repo string) (string, error) {

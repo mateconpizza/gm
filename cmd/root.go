@@ -33,6 +33,7 @@ func NewRootCmd(app *application.App) *cobra.Command {
 			cli.HookInjectApp(app),
 			cli.HookEnsureDatabase(app),
 			cli.HookFormatter(app),
+			cli.HookGitManager(app),
 		),
 		RunE: rootCmdFunc(app),
 	}

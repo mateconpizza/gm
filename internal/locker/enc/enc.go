@@ -74,6 +74,7 @@ func (g *GCMCipher) Suffix() string { return locker.Extension.String() }
 type GPGCipher struct {
 	encryptor func(ctx context.Context, path string, content []byte) error
 	decryptor func(ctx context.Context, encryptedPath string) ([]byte, error)
+	ext       gpg.Ext
 }
 
 func NewGPG(ctx context.Context, root string) (*GPGCipher, error) {
@@ -86,6 +87,7 @@ func NewGPG(ctx context.Context, root string) (*GPGCipher, error) {
 	g := gpg.New(fp.Fingerprint)
 
 	return &GPGCipher{
+		ext:       gpg.Extension,
 		encryptor: g.Encrypt,
 		decryptor: g.Decrypt,
 	}, nil
@@ -106,6 +108,6 @@ func (g *GPGCipher) Path(b *bookmark.Bookmark, ext string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	path = gpg.Extension.Join(path)
+	path = g.ext.Join(path)
 	return path, nil
 }

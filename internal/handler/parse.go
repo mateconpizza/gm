@@ -6,8 +6,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/mateconpizza/rotato"
-
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -135,14 +133,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sp := rotato.New(
-		rotato.WithColor(app.Flags.Color),
-		rotato.WithMessage("scraping webpage..."),
-		rotato.WithMessageColor(rotato.FgYellow),
-		rotato.WithSpinnerColor(rotato.FgBrightMagenta),
-	)
-
-	sc := scraper.New(newURL, scraper.WithSpinner(sp))
+	sc := scraper.New(newURL, scraper.WithSpinner(NewSpinner(app)))
 
 	// fetch title, description and tags
 	fetchTitleAndDesc(ctx, c, sc, bTemp)
@@ -342,15 +333,8 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 	case "no":
 		return app.Abort()
 	case "edit":
-		sp := rotato.New(
-			rotato.WithColor(app.Flags.Color),
-			rotato.WithMessage("scraping webpage..."),
-			rotato.WithMessageColor(rotato.FgYellow),
-			rotato.WithSpinnerColor(rotato.FgBrightMagenta),
-		)
-
 		session := editor.NewEditSession().
-			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(sp)).
+			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app))).
 			WithDiffer(c.Differ()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return insertAndAddBookmark(ctx, r, app, fresh)
@@ -383,7 +367,7 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		WithValidation(true)
 
 	gm := app.Git.Manager()
-	gr := gitops.NewRepo(gm, app.DBBaseName(), sess)
+	gr := gitops.NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
 	gitops.RegisterHooks(r, app, gr)
 
 	return gitops.Add(ctx, gm, gr, fresh)

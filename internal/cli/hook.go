@@ -283,11 +283,7 @@ func HookGitPrune(app *application.App) HookE {
 			WithConfirmation(true).
 			WithValidation(true)
 
-		gr := gitops.NewRepo(
-			gm,
-			r.BaseName(),
-			sess,
-		)
+		gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 
 		bs, err := r.All(ctx)
 		if err != nil {
@@ -297,6 +293,17 @@ func HookGitPrune(app *application.App) HookE {
 		gitops.RegisterHooks(r, app, gr)
 
 		return gitops.PruneRepo(ctx, gm, gr, bs)
+	}
+}
+
+func HookGitEnsureTracked(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		gm := app.Git.Manager()
+		if gm.IsTracked(app.DBBaseName()) {
+			return nil
+		}
+
+		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBBaseName())
 	}
 }
 
@@ -401,6 +408,25 @@ func HookEnsureAppInitialize(app *application.App) HookE {
 		}
 
 		return fmt.Errorf("%w: run '%s' for setup", application.ErrAppNoSetup, command)
+	}
+}
+
+// HookGitManager returns a hook that initializes and attaches the git manager
+// when git is enabled.
+func HookGitManager(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		if !app.Git.Enabled {
+			return nil
+		}
+
+		gm, err := gitops.NewManager(app)
+		if err != nil {
+			return err
+		}
+
+		app.Git.SetManager(gm)
+
+		return nil
 	}
 }
 

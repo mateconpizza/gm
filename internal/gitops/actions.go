@@ -41,7 +41,7 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		WithValidation(true)
 
 	gm := app.Git.Manager()
-	gr := NewRepo(gm, app.DBBaseName(), sess)
+	gr := NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
 	RegisterHooks(r, app, gr)
 
 	return gm.Commit(ctx,
@@ -82,7 +82,7 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		WithConfirmation(false).
 		WithValidation(true)
 
-	gr := NewRepo(gm, app.DBBaseName(), sess)
+	gr := NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
 	RegisterHooks(r, app, gr)
 
 	if err := gr.Add(ctx, bs); err != nil {
@@ -133,7 +133,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 			return err
 		}
 
-		gr := NewRepo(gm, r.BaseName(), sess)
+		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 
 		if err := PruneRepo(ctx, gm, gr, bs); err != nil {
 			if errors.Is(err, git.ErrGitUpToDate) {
@@ -188,7 +188,7 @@ func Cipher(app *application.App) func(ctx context.Context) (enc.Cipher, error) 
 			return nil, fmt.Errorf("load repo config: %w", err)
 		}
 
-		return app.Session().Cipher(ctx, root, app.DBBaseName(), rc.Encryption)
+		return app.Session().NewCipher(ctx, root, app.DBBaseName(), rc.Encryption)
 	}
 }
 
@@ -246,6 +246,8 @@ func newHighlighter(p *ansi.Palette) func(string) string {
 		"commit":      p.BrightMagenta.Sprint("commit"),
 		"params":      p.Blue.Sprint("params"),
 		"gpg":         p.Red.Sprint("gpg"),
+		"yaml":        p.Orange.Sprint("yaml"),
+		"json":        p.Green.Sprint("json"),
 		"rename":      p.BrightYellow.Sprint("rename"),
 		"initialized": p.Red.Sprint("initialized"),
 	}

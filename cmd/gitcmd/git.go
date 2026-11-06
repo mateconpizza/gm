@@ -235,7 +235,7 @@ func newSyncCmd(app *application.App) *cobra.Command {
 					WithValidation(true)
 
 				gm := app.Git.Manager()
-				gr := gitops.NewRepo(gm, r.BaseName(), sess)
+				gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 				gitops.RegisterHooks(r, app, gr)
 
 				return gitops.PruneRepo(ctx, gm, gr, bs)

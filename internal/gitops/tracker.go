@@ -12,7 +12,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
-	"github.com/mateconpizza/gm/internal/locker/gpg"
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/db"
@@ -40,7 +40,7 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		WithConfirmation(true).
 		WithValidation(true)
 
-	gr := NewRepo(gm, r.BaseName(), sess)
+	gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 	RegisterHooks(r, app, gr)
 
 	c := d.Console()
@@ -100,7 +100,7 @@ func Untrack(ctx context.Context, d *deps.Deps) error {
 	return c.Print(ctx, c.SuccessMesg(fmt.Sprintf("database %q untracked\n", gr.Name())))
 }
 
-func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
+func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo, f RepoFormat) string {
 	p := c.Palette()
 	name := gr.Name()
 
@@ -110,10 +110,12 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo) string {
 		return c.Error(sb.String()).StringReset()
 	}
 
-	g := c.Glyphs()
-	repoType := p.BrightMagenta.Sprint(g.JSON + " ")
-	if gpg.IsInitialized(gm.Root()) {
-		repoType = p.BrightMagenta.Sprint(g.GPG + " ")
+	var repoType string
+	switch f {
+	case RepoFormatYAML:
+		repoType = p.Orange.Sprint(RepoFormatYAML + " ")
+	case RepoFormatJSON:
+		repoType = p.BrightMagenta.Sprint(RepoFormatJSON + " ")
 	}
 
 	if name == files.StripExts(application.MainDBName) {
@@ -164,7 +166,7 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			return err
 		}
 
-		gr := NewRepo(gm, r.BaseName(), sess)
+		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 		RegisterHooks(r, app, gr)
 
 		if err := Track(ctx, r, app, gm, gr); err != nil {
@@ -199,8 +201,20 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		WithTitle("Git Tracked Databases").
 		WithSubtitle("showing tracked databases with git").
 		Build().
-		Rowln().
-		Flush()
+		Rowln()
+
+	rc, err := ResolveConfig(gm.Root())
+	if err != nil {
+		return err
+	}
+
+	if rc.Encryption != enc.None {
+		c.Frame().
+			Midln(txt.PaddedLine("encryption:", c.Palette().BrightBlue.Sprint(rc.Encryption))).
+			Rowln()
+	}
+
+	c.Frame().Flush()
 
 	var tracked strings.Builder
 	var untracked strings.Builder
@@ -212,7 +226,7 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		name := filepath.Base(dbPath)
 		gr := gm.NewRepo(name)
 
-		s := TrackStatus(c, gm, gr)
+		s := TrackStatus(c, gm, gr, rc.Format)
 		if s == "" {
 			continue
 		}
