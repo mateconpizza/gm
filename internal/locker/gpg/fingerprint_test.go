@@ -110,7 +110,7 @@ func TestKeyResolver_Resolve(t *testing.T) {
 
 			tempDir := t.TempDir()
 			if tt.createFile {
-				if err := os.WriteFile(filepath.Join(tempDir, fingerprintIDFilename), []byte("test"), 0o600); err != nil {
+				if err := os.WriteFile(filepath.Join(tempDir, FingerprintIDFilename), []byte("test"), 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}

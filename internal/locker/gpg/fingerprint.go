@@ -20,8 +20,8 @@ var (
 	ErrNotInitialized = errors.New("gpg: not initialized")
 )
 
-// fingerprintIDFilename is the filename storing the GPG recipient fingerprint.
-const fingerprintIDFilename = ".gpg-id"
+// FingerprintIDFilename is the filename storing the GPG recipient fingerprint.
+const FingerprintIDFilename = ".gpg-id"
 
 type TrustLevel string
 
@@ -100,7 +100,7 @@ type KeyResolver struct {
 // NewKeyResolver returns a new fingerprint resolver.
 func NewKeyResolver(root string, opts ...KeyResolverOpt) *KeyResolver {
 	fr := &KeyResolver{
-		keyPath: filepath.Join(root, fingerprintIDFilename),
+		keyPath: filepath.Join(root, FingerprintIDFilename),
 		loader:  loadFingerprint,
 		List:    listFingerprints,
 	}

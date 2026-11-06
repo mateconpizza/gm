@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+
+	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/locker/enc"
@@ -161,4 +165,17 @@ func confirmReinit(ctx context.Context, gm *git.Mgr, c *ui.Console) error {
 	f.Rowln().Flush()
 
 	return c.ConfirmErr(ctx, "delete and reinitialize?", "n")
+}
+
+func initAESGCM(path, gitAttrFile string) error {
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	gf, err := files.NewWithData(filepath.Join(path, gitAttrFile), []byte(gcmGitAttribute), true)
+	if err != nil {
+		return fmt.Errorf("failed to write .gitattributes: %w", err)
+	}
+
+	return gf.Close()
 }

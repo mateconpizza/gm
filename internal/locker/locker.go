@@ -30,9 +30,6 @@ var (
 	ErrCipherTextShort    = errors.New("ciphertext too short")
 )
 
-// gitAttContent defines the Git attributes rule for encrypted files.
-const gitAttContent = "*.enc binary"
-
 type Ext string
 
 func (e Ext) Join(filename string) string {
@@ -170,19 +167,6 @@ func IsLocked(s string) error {
 	return nil
 }
 
-func Init(path, gitAttrFile string) error {
-	if err := os.MkdirAll(path, files.DirPerm); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	gf, err := files.NewWithData(filepath.Join(path, gitAttrFile), []byte(gitAttContent), true)
-	if err != nil {
-		return fmt.Errorf("failed to write .gitattributes: %w", err)
-	}
-
-	return gf.Close()
-}
-
 // encrypt encrypts data using AES-GCM with the given passphrase.
 func encrypt(ctx context.Context, plaintext []byte, passphrase string) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
@@ -306,7 +290,7 @@ func backupFile(filePath string) (string, error) {
 
 	// Write backup file
 	//nolint:gosec //false positive
-	err = os.WriteFile(backupPath, data, files.FilePerm)
+	err = os.WriteFile(backupPath, data, 0o600)
 	if err != nil {
 		return "", fmt.Errorf("failed to create backup file: %w", err)
 	}
@@ -322,7 +306,7 @@ func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPat
 	slog.Debug("writing file", "path", targetPath)
 	// Write data to the target file
 	//nolint:gosec //false positive
-	err := os.WriteFile(targetPath, data, files.FilePerm)
+	err := os.WriteFile(targetPath, data, 0o600)
 	if err != nil {
 		// If writing fails, attempt to restore from backup
 		slog.Debug("restore from backup", "path", backupPath)

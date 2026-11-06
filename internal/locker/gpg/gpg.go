@@ -33,25 +33,26 @@ func (e Ext) Join(filename string) string {
 func (e Ext) String() string { return string(e) }
 
 const (
-	Command           = "gpg"            // Command is the GPG executable name.
-	gitAttContent     = "*.gpg diff=gpg" // gitAttContent defines the Git attributes rule for encrypted files.
-	Extension     Ext = ".gpg"           // Extension is the file extension for encrypted files.
+	Command       = "gpg"  // Command is the GPG executable name.
+	Extension Ext = ".gpg" // Extension is the file extension for encrypted files.
 )
 
 const (
-	dirPerm  = 0o755 // Permissions for new directories.
-	filePerm = 0o644 // Permissions for new files.
+	dirPerm  = 0o700 // Permissions for new directories.
+	filePerm = 0o600 // Permissions for new files.
 )
 
-type Executor func(ctx context.Context, args ...string) *exec.Cmd
+type (
+	// GPG holds configuration for running GPG commands.
+	GPG struct {
+		recipient string
+		exec      Executor
+	}
 
-type GPGOpt func(*GPG)
+	Executor func(ctx context.Context, args ...string) *exec.Cmd
 
-// GPG holds configuration for running GPG commands.
-type GPG struct {
-	recipient string
-	exec      Executor
-}
+	GPGOpt func(*GPG)
+)
 
 // New returns a new GPG instance after locating the gpg binary.
 func New(recipient string, opts ...GPGOpt) *GPG {
@@ -180,32 +181,8 @@ func Encrypt(ctx context.Context, fingerprintPath, path string, content []byte) 
 	return New(recipientKey).Encrypt(ctx, path, content)
 }
 
-// Init will extract the gpg fingerprint and save it to .gpg-id.
-func Init(path, gitAttrFile string, fingerprint *Fingerprint) error {
-	if _, err := which(); err != nil {
-		return fmt.Errorf("%w: %s", err, Command)
-	}
-
-	if err := os.MkdirAll(path, dirPerm); err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	fileIDPath := filepath.Join(path, fingerprintIDFilename)
-	err := os.WriteFile(fileIDPath, []byte(fingerprint.Fingerprint+"\n"), filePerm)
-	if err != nil {
-		return fmt.Errorf("failed to write .gpg-id: %w", err)
-	}
-
-	err = os.WriteFile(filepath.Join(path, gitAttrFile), []byte(gitAttContent), filePerm)
-	if err != nil {
-		return fmt.Errorf("failed to write .gitattributes: %w", err)
-	}
-
-	return nil
-}
-
 // GPGIDPath returns the path to the .gpg-id file inside the given repo directory.
-func GPGIDPath(repoPath string) string { return filepath.Join(repoPath, fingerprintIDFilename) }
+func GPGIDPath(repoPath string) string { return filepath.Join(repoPath, FingerprintIDFilename) }
 
 func defaultExecuter(binPath string) func(context.Context, ...string) *exec.Cmd {
 	return func(ctx context.Context, args ...string) *exec.Cmd {

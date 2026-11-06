@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,7 +15,6 @@ import (
 	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/internal/picker"
@@ -24,6 +25,15 @@ import (
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/git"
+)
+
+const (
+	// gcmGitAttribute defines the Git attributes rule for encrypted
+	// files.
+	gcmGitAttribute = "*.enc binary"
+
+	// gpgGitAttribute defines the Git attributes rule for encrypted files.
+	gpgGitAttribute = "*.gpg diff=gpg"
 )
 
 func askForGPGEncryption(ctx context.Context, app *application.App, c *ui.Console, gm *git.Mgr) error {
@@ -63,7 +73,7 @@ func askForGPGEncryption(ctx context.Context, app *application.App, c *ui.Consol
 		WithSubtitle("Using GPG key " + fn(key.UserID)).
 		Render()
 
-	return initGPG(ctx, c, gm, key)
+	return setupGPG(ctx, c, gm, key)
 }
 
 func askForEncryption(ctx context.Context, app *application.App, gm *git.Mgr, cfg *RepoConfig, c *ui.Console) error {
@@ -90,7 +100,7 @@ func askForEncryption(ctx context.Context, app *application.App, gm *git.Mgr, cf
 		}
 	case "AES-GCM":
 		cfg.Encryption = enc.AESGCM
-		if err := locker.Init(app.Path.Git(), git.AttributesFile); err != nil {
+		if err := initAESGCM(app.Path.Git(), git.AttributesFile); err != nil {
 			return err
 		}
 	}
@@ -215,12 +225,16 @@ func selectFingerprint(ctx context.Context, m *menu.Menu[*gpg.Fingerprint], fps 
 	return key, nil
 }
 
-func initGPG(ctx context.Context, c *ui.Console, gm *git.Mgr, k *gpg.Fingerprint) error {
+func setupGPG(ctx context.Context, c *ui.Console, gm *git.Mgr, k *gpg.Fingerprint) error {
 	if err := k.Validate(); err != nil {
 		return fmt.Errorf("gpg init: %w", err)
 	}
 
-	if err := gpg.Init(gm.Root(), git.AttributesFile, k); err != nil {
+	if err := which(gpg.Command); err != nil {
+		return fmt.Errorf("%w: %s", err, gpg.Command)
+	}
+
+	if err := initGPG(gm.Root(), git.AttributesFile, k); err != nil {
 		return fmt.Errorf("gpg init: %w", err)
 	}
 
@@ -237,5 +251,33 @@ func initGPG(ctx context.Context, c *ui.Console, gm *git.Mgr, k *gpg.Fingerprint
 
 	fmt.Fprintln(c.Writer(), c.SuccessMesg(fmt.Sprintf("GPG repo initialized with key %q", k.UserID)))
 
+	return nil
+}
+
+// initGPG will extract the gpg fingerprint and save it to .gpg-id.
+func initGPG(path, gitAttrFile string, fingerprint *gpg.Fingerprint) error {
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	fileIDPath := filepath.Join(path, gpg.FingerprintIDFilename)
+	err := os.WriteFile(fileIDPath, []byte(fingerprint.Fingerprint+"\n"), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write .gpg-id: %w", err)
+	}
+
+	err = os.WriteFile(filepath.Join(path, gitAttrFile), []byte(gpgGitAttribute), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write .gitattributes: %w", err)
+	}
+
+	return nil
+}
+
+func which(c string) error {
+	_, err := exec.LookPath(c)
+	if err != nil {
+		return exec.ErrNotFound
+	}
 	return nil
 }
