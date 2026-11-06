@@ -3,6 +3,7 @@ package locker
 import (
 	"bytes"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -137,128 +138,152 @@ func TestLockAndUnlocked(t *testing.T) {
 
 func TestWriteAndReplaceFile(t *testing.T) {
 	t.Parallel()
-	// Helper function to create and write to a file for testing
-	createTestFile := func(t *testing.T, content string) string {
-		t.Helper()
-		tf := testTempFile(t)
 
-		err := os.WriteFile(tf.Name(), []byte(content), files.FilePerm)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return tf.Name()
+	tests := []struct {
+		name     string
+		target   string // relative to the temp dir; used as a raw suffix, so "./x" stays uncleaned
+		original string
+		backup   string
+		data     []byte
+		seed     map[string]string // files created before the call
+		want     map[string]string // files that must exist afterwards, with exact content
+		wantGone []string          // files that must not exist afterwards
+		wantErr  error
+		wantMsg  string // substring of the error message
+	}{
+		{
+			name:     "replaces_original_with_target",
+			target:   "new.txt",
+			original: "orig.txt",
+			backup:   "bak.txt",
+			data:     []byte("new"),
+			seed:     map[string]string{"orig.txt": "old", "bak.txt": "bak"},
+			want:     map[string]string{"new.txt": "new", "bak.txt": "bak"},
+			wantGone: []string{"orig.txt"},
+		},
+		{
+			name:     "same_path_keeps_file",
+			target:   "a.txt",
+			original: "a.txt",
+			backup:   "bak.txt",
+			data:     []byte("new"),
+			seed:     map[string]string{"a.txt": "old", "bak.txt": "bak"},
+			want:     map[string]string{"a.txt": "new", "bak.txt": "bak"},
+		},
+		{
+			name:     "same_path_uncleaned_keeps_file",
+			target:   "./a.txt",
+			original: "a.txt",
+			backup:   "bak.txt",
+			data:     []byte("new"),
+			seed:     map[string]string{"a.txt": "old", "bak.txt": "bak"},
+			want:     map[string]string{"a.txt": "new", "bak.txt": "bak"},
+		},
+		{
+			name:     "nil_data_creates_empty_file",
+			target:   "new.txt",
+			original: "orig.txt",
+			backup:   "bak.txt",
+			data:     nil,
+			seed:     map[string]string{"orig.txt": "old", "bak.txt": "bak"},
+			want:     map[string]string{"new.txt": "", "bak.txt": "bak"},
+			wantGone: []string{"orig.txt"},
+		},
+		{
+			name:     "write_error_restores_backup",
+			target:   "missing/new.txt",
+			original: "orig.txt",
+			backup:   "bak.txt",
+			data:     []byte("new"),
+			seed:     map[string]string{"bak.txt": "bak"},
+			want:     map[string]string{"orig.txt": "bak"},
+			wantGone: []string{"bak.txt"},
+			wantErr:  fs.ErrNotExist,
+			wantMsg:  "failed to write file",
+		},
+		{
+			name:     "write_error_restore_also_fails",
+			target:   "missing/new.txt",
+			original: "orig.txt",
+			backup:   "bak.txt",
+			data:     []byte("new"),
+			wantGone: []string{"orig.txt", "bak.txt"},
+			wantErr:  fs.ErrNotExist,
+			wantMsg:  "failed to write file and restore backup",
+		},
+		{
+			name:     "remove_error_restores_backup",
+			target:   "new.txt",
+			original: "orig.txt",
+			backup:   "bak.txt",
+			data:     []byte("new"),
+			seed:     map[string]string{"bak.txt": "bak"},
+			want:     map[string]string{"new.txt": "new", "orig.txt": "bak"},
+			wantGone: []string{"bak.txt"},
+			wantErr:  fs.ErrNotExist,
+			wantMsg:  "failed to remove original file",
+		},
+		{
+			name:     "remove_error_restore_also_fails",
+			target:   "new.txt",
+			original: "orig.txt",
+			backup:   "bak.txt",
+			data:     []byte("new"),
+			want:     map[string]string{"new.txt": "new"},
+			wantGone: []string{"orig.txt", "bak.txt"},
+			wantErr:  fs.ErrNotExist,
+			wantMsg:  "failed to remove original file and restore backup",
+		},
 	}
 
-	// Helper function to read a file's content
-	readFileContent := func(t *testing.T, path string) string {
-		t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		content, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
+			dir := t.TempDir()
 
-		return string(content)
-	}
+			for name, content := range tt.seed {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+					t.Fatalf("seed %s: %v", name, err)
+				}
+			}
 
-	// Helper function to check if a file exists
-	fileExists := func(path string) bool {
-		_, err := os.Stat(path)
-		return err == nil
-	}
-
-	t.Run("successful write and replace", func(t *testing.T) {
-		t.Parallel()
-		// Create original file
-		originalPath := createTestFile(t, "original content")
-		// Create backup file
-		backupPath := createTestFile(t, "backup content")
-		// Define target path
-		targetPath := filepath.Join(t.TempDir(), "target.txt")
-		// Test data to write
-		data := []byte("new content")
-		// Execute the function
-		err := writeAndReplaceFile(targetPath, data, originalPath, backupPath)
-		// Assertions
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-		if !fileExists(targetPath) {
-			t.Error("Target file should exist")
-		}
-		if fileExists(originalPath) {
-			t.Error("Original file should be removed")
-		}
-		content := readFileContent(t, targetPath)
-		if content != "new content" {
-			t.Errorf("Target file should contain new content, got %q", content)
-		}
-	})
-
-	t.Run("fails when backup restore fails", func(t *testing.T) {
-		t.Parallel()
-		// Setup test files
-		original := testTempFile(t)
-		backup := "/invalid/backup/path" // Will cause restore to fail
-		target := "/non/existent/path"   // Will cause write to fail
-
-		// Execute
-		err := writeAndReplaceFile(target, []byte("new content"), original.Name(), backup)
-
-		// Verify
-		if err == nil {
-			t.Error("Expected error, got nil")
-		}
-		if err != nil && !strings.Contains(err.Error(), "failed to write file and restore backup") {
-			t.Errorf("Error should contain 'failed to write file and restore backup', got %v", err)
-		}
-		if err != nil && !strings.Contains(err.Error(), "original error") {
-			t.Errorf("Error should contain 'original error', got %v", err)
-		}
-	})
-
-	t.Run("failed write restores from backup", func(t *testing.T) {
-		t.Parallel()
-		// Setup test files
-		original := testTempFile(t)
-		backup := testTempFile(t)
-		target := "/non/existent/path" // Will cause write to fail
-
-		// Write initial content to original and backup
-		originalContent := []byte("original content")
-		err := os.WriteFile(original.Name(), originalContent, files.FilePerm)
-		if err != nil {
-			t.Fatalf("Failed to write original file: %v", err)
-		}
-		err = os.WriteFile(backup.Name(), originalContent, files.FilePerm)
-		if err != nil {
-			t.Fatalf("Failed to write backup file: %v", err)
-		}
-
-		// Execute
-		err = writeAndReplaceFile(target, []byte("new content"), original.Name(), backup.Name())
-
-		// Verify
-		if err == nil {
-			t.Error("Expected error, got nil")
-		}
-		if err != nil && !strings.Contains(err.Error(), "failed to write file") {
-			t.Errorf("Error should contain 'failed to write file', got %v", err)
-		}
-
-		// Check original was restored
-		currentContent, err := os.ReadFile(original.Name())
-		if err != nil {
-			t.Fatalf("Failed to read original file: %v", err)
-		}
-
-		if !bytes.Equal(currentContent, originalContent) {
-			t.Errorf(
-				"Original content not restored. Expected %q, got %q",
-				string(originalContent),
-				string(currentContent),
+			err := writeAndReplaceFile(
+				dir+"/"+tt.target,
+				tt.data,
+				filepath.Join(dir, tt.original),
+				filepath.Join(dir, tt.backup),
 			)
-		}
-	})
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("error = %v; want errors.Is %v", err, tt.wantErr)
+				}
+				if !strings.Contains(err.Error(), tt.wantMsg) {
+					t.Fatalf("error = %q; want it to contain %q", err.Error(), tt.wantMsg)
+				}
+			} else if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			for name, wantContent := range tt.want {
+				got, readErr := os.ReadFile(filepath.Join(dir, name))
+				if readErr != nil {
+					t.Fatalf("expected %s to exist: %v", name, readErr)
+				}
+				if string(got) != wantContent {
+					t.Fatalf("%s = %q; want %q", name, got, wantContent)
+				}
+			}
+
+			for _, name := range tt.wantGone {
+				if _, statErr := os.Stat(filepath.Join(dir, name)); !errors.Is(statErr, fs.ErrNotExist) {
+					t.Fatalf("expected %s to be gone, stat error = %v", name, statErr)
+				}
+			}
+		})
+	}
 }

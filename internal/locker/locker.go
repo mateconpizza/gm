@@ -325,19 +325,21 @@ func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPat
 
 	slog.Debug("replacing file", "original", originalPath, "target", targetPath)
 	// Remove the original file
-	err = os.Remove(originalPath)
-	if err != nil {
-		// If removal fails, attempt to restore from backup
-		restoreErr := os.Rename(backupPath, originalPath)
-		if restoreErr != nil {
-			return fmt.Errorf(
-				"failed to remove original file and restore backup: %w (original error: %w)",
-				restoreErr,
-				err,
-			)
-		}
+	if filepath.Clean(targetPath) != filepath.Clean(originalPath) {
+		err = os.Remove(originalPath)
+		if err != nil {
+			// If removal fails, attempt to restore from backup
+			restoreErr := os.Rename(backupPath, originalPath)
+			if restoreErr != nil {
+				return fmt.Errorf(
+					"failed to remove original file and restore backup: %w (original error: %w)",
+					restoreErr,
+					err,
+				)
+			}
 
-		return fmt.Errorf("failed to remove original file: %w", err)
+			return fmt.Errorf("failed to remove original file: %w", err)
+		}
 	}
 
 	slog.Debug("wrote and replaced file", "path", targetPath)
