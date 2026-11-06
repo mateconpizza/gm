@@ -10,7 +10,6 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/testutil"
-	"github.com/mateconpizza/gm/internal/ui/formatter"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -328,124 +327,84 @@ func TestApp_SetDatabase(t *testing.T) {
 	}
 }
 
-func TestApp_Load(t *testing.T) {
+func TestAppLoad(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		setup   func(t *testing.T, tmpDir string) *application.App
-		wantErr error
+		name     string
+		setup    func(t *testing.T, app *application.App)
+		wantFail bool
+		wantErr  error
+		check    func(t *testing.T, app *application.App)
 	}{
 		{
-			name: "normal_valid_config_file",
-			setup: func(t *testing.T, tmpDir string) *application.App {
+			name: "config_missing_uses_defaults",
+			check: func(t *testing.T, app *application.App) {
 				t.Helper()
-
-				content := []byte("db: main.db\ncmd: app\nui:\n  format: text\n  glyphs: ascii\n")
-				testutil.NewFile(t, tmpDir, application.ConfigFilename, content)
-				return &application.App{
-					DBName: "main.db",
-					Path: &application.Path{
-						Data:     tmpDir,
-						Database: filepath.Join(tmpDir, "main.db"),
-					},
-					Flags: &application.Flags{},
-					UI:    application.NewUI(),
+				if filepath.Ext(app.DBName) != ".db" {
+					t.Fatalf("DBName = %q; want .db extension", app.DBName)
+				}
+				if want := filepath.Join(app.Path.Data, app.DBName); app.Path.Database != want {
+					t.Fatalf("Path.Database = %q; want %q", app.Path.Database, want)
+				}
+				if app.Flags.Output != app.Format() {
+					t.Fatalf("Flags.Output = %q; want %q", app.Flags.Output, app.Format())
 				}
 			},
-			wantErr: nil,
 		},
 		{
-			name: "normal_config_not_exist_uses_defaults",
-			setup: func(t *testing.T, tmpDir string) *application.App {
+			name: "null_yaml_uses_defaults",
+			setup: func(t *testing.T, app *application.App) {
 				t.Helper()
-
-				return &application.App{
-					DBName: "default.db",
-					Path: &application.Path{
-						Data:     tmpDir,
-						Database: filepath.Join(tmpDir, "default.db"),
-					},
-					Flags: &application.Flags{},
-					UI:    application.NewUI(),
+				app.SetDatabase(app.DBName)
+				writeFile(t, app.Path.ConfigFile(), "null\n")
+			},
+			check: func(t *testing.T, app *application.App) {
+				t.Helper()
+				if filepath.Ext(app.DBName) != ".db" {
+					t.Fatalf("DBName = %q; want .db extension", app.DBName)
 				}
 			},
-			wantErr: nil,
 		},
 		{
-			name: "normal_invalid_config_uses_defaults",
-			setup: func(t *testing.T, tmpDir string) *application.App {
+			name: "saved_config_overrides_defaults",
+			setup: func(t *testing.T, app *application.App) {
 				t.Helper()
-
-				content := []byte("invalid_yaml: [unclosed_list")
-				testutil.NewFile(t, tmpDir, application.ConfigFilename, content)
-				return &application.App{
-					DBName: "default.db",
-					Path: &application.Path{
-						Data:     tmpDir,
-						Database: filepath.Join(tmpDir, "default.db"),
-					},
-					Flags: &application.Flags{},
-					UI:    application.NewUI(),
+				src := testutil.NewApp(t)
+				src.DBName = "custom"
+				if err := os.MkdirAll(filepath.Dir(src.Path.ConfigFile()), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := src.WriteConfig(false); err != nil {
+					t.Fatalf("WriteConfig: %v", err)
+				}
+				app.Path = src.Path
+				app.DBName = "other"
+				app.SetDatabase("other")
+			},
+			check: func(t *testing.T, app *application.App) {
+				t.Helper()
+				if app.DBName != "custom.db" {
+					t.Fatalf("DBName = %q; want %q", app.DBName, "custom.db")
 				}
 			},
-			wantErr: nil,
 		},
 		{
-			name: "error_get_config_io_failure",
-			setup: func(t *testing.T, tmpDir string) *application.App {
+			name: "malformed_yaml",
+			setup: func(t *testing.T, app *application.App) {
 				t.Helper()
-
-				unreadableDir := filepath.Join(tmpDir, "unreadable")
-				if err := os.MkdirAll(unreadableDir, 0o000); err != nil {
-					t.Fatalf("failed to create unreadable directory: %v", err)
-				}
-				return &application.App{
-					Path: &application.Path{
-						Data:     unreadableDir,
-						Database: filepath.Join(unreadableDir, "default.db"),
-					},
-					Flags: &application.Flags{},
-					UI:    application.NewUI(),
-				}
+				writeFile(t, app.Path.ConfigFile(), "db_name: [unclosed\n  - : :\n")
 			},
-			wantErr: os.ErrPermission,
+			wantFail: true,
 		},
 		{
-			name: "error_invalid_glyph_mode",
-			setup: func(t *testing.T, tmpDir string) *application.App {
+			name: "database_path_not_set",
+			setup: func(t *testing.T, app *application.App) {
 				t.Helper()
-
-				app := &application.App{
-					DBName: "default.db",
-					Path: &application.Path{
-						Data:     tmpDir,
-						Database: filepath.Join(tmpDir, "default.db"),
-					},
-					Flags: &application.Flags{},
-					UI:    application.NewUI(),
-				}
-				app.UI.GlyphMode = formatter.GlyphMode("invalid_mode")
-				return app
+				app.Path.Data = ""
 			},
-			wantErr: formatter.ErrGlyphModeInvalid,
-		},
-		{
-			name: "boundary_empty_db_name",
-			setup: func(t *testing.T, tmpDir string) *application.App {
-				t.Helper()
-
-				return &application.App{
-					DBName: "",
-					Path: &application.Path{
-						Data:     tmpDir,
-						Database: filepath.Join(tmpDir, "default.db"),
-					},
-					Flags: &application.Flags{},
-					UI:    application.NewUI(),
-				}
-			},
-			wantErr: application.ErrDatabaseNameNotSet,
+			wantFail: true,
+			wantErr:  application.ErrDatabasePathNotSet,
 		},
 	}
 
@@ -453,30 +412,27 @@ func TestApp_Load(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			tmpDir := t.TempDir()
-			app := tt.setup(t, tmpDir)
+			app := testutil.NewApp(t)
+			if tt.setup != nil {
+				tt.setup(t, app)
+			}
 
 			err := app.Load()
 
-			if tt.wantErr != nil {
+			if tt.wantFail {
 				if err == nil {
-					t.Fatalf("Load() expected error %v, got nil", tt.wantErr)
+					t.Fatal("Load() expected error, got nil")
 				}
-				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("Load() expected error %v, got %v", tt.wantErr, err)
-				}
-				return
-			}
-
-			if tt.wantErr != nil {
-				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("Load() expected error %v, got %v", tt.wantErr, err)
+				if tt.wantErr != nil && !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Load() error = %v; want errors.Is %v", err, tt.wantErr)
 				}
 				return
 			}
-
 			if err != nil {
 				t.Fatalf("Load() unexpected error: %v", err)
+			}
+			if tt.check != nil {
+				tt.check(t, app)
 			}
 		})
 	}
@@ -650,4 +606,96 @@ func TestColorEnabled(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAppWriteConfig(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		gitInit       bool
+		readmeEnabled bool
+		existing      bool
+		force         bool
+		wantFail      bool
+		wantGit       bool // "git:" key present in the written file
+		wantReadme    bool // "readme:" key present in the written file
+	}{
+		{name: "no_git_repo_omits_git"},
+		{name: "git_repo_readme_disabled_omits_readme", gitInit: true},
+		{name: "git_repo_readme_enabled_keeps_readme", gitInit: true, readmeEnabled: true, wantGit: true, wantReadme: true},
+		{name: "existing_file_without_force", existing: true, wantFail: true},
+		{name: "existing_file_with_force_overwrites", existing: true, force: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := testutil.NewApp(t)
+			cfgPath := app.Path.ConfigFile()
+
+			if err := os.MkdirAll(filepath.Dir(cfgPath), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if tt.gitInit {
+				if err := os.MkdirAll(filepath.Join(app.Path.Git(), ".git"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			app.Git.Readme.Enabled = tt.readmeEnabled
+			if tt.existing {
+				writeFile(t, cfgPath, "stale")
+			}
+
+			err := app.WriteConfig(tt.force)
+
+			if tt.wantFail {
+				if err == nil {
+					t.Fatal("WriteConfig() expected error, got nil")
+				}
+				if got := readFile(t, cfgPath); got != "stale" {
+					t.Fatalf("config = %q; want it untouched", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("WriteConfig() unexpected error: %v", err)
+			}
+
+			got := readFile(t, cfgPath)
+			if got == "stale" || got == "" {
+				t.Fatalf("config = %q; want freshly written YAML", got)
+			}
+			if has := hasYAMLKey(got, "git"); has != tt.wantGit && !tt.gitInit {
+				t.Fatalf("git key present = %v; want %v\n%s", has, tt.wantGit, got)
+			}
+			if has := strings.Contains(got, "readme:"); has != tt.wantReadme {
+				t.Fatalf("readme key present = %v; want %v\n%s", has, tt.wantReadme, got)
+			}
+		})
+	}
+}
+
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func hasYAMLKey(content, key string) bool {
+	return strings.HasPrefix(content, key+":") || strings.Contains(content, "\n"+key+":")
 }

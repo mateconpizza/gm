@@ -150,7 +150,7 @@ func (app *App) WriteConfig(force bool) error {
 		cfg.Git = &gitCfg
 	}
 
-	return WriteYAML(app.Path.ConfigFile(), &cfg, force)
+	return writeYAML(app.Path.ConfigFile(), &cfg, force)
 }
 
 // Validate validates the configuration file.
@@ -251,7 +251,8 @@ func (app *App) Example(template string) string {
 
 func (app *App) DefaultDB() string {
 	tempApp := NewApp("")
-	err := ReadYAML(app.Path.ConfigFile(), &tempApp)
+	r, _ := os.Open(app.Path.ConfigFile())
+	err := bookio.ReadYAML(r, tempApp)
 	if err != nil {
 		// config not found, use main defaults
 		return MainDBName

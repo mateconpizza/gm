@@ -8,7 +8,6 @@ import (
 
 	files "github.com/mateconpizza/gofiles"
 	gap "github.com/muesli/go-app-paths"
-	yaml "gopkg.in/yaml.v3"
 
 	"github.com/mateconpizza/gm/pkg/bookio"
 )
@@ -71,7 +70,7 @@ func getConfig(p string, app *App) error {
 		return fmt.Errorf("config %w", os.ErrNotExist)
 	}
 
-	if err := ReadYAML(p, &app); err != nil {
+	if err := readYAML(p, &app); err != nil {
 		return err
 	}
 
@@ -82,29 +81,22 @@ func getConfig(p string, app *App) error {
 	return app.Validate()
 }
 
-// ReadYAML unmarshals the YAML data from the specified file.
-func ReadYAML[T any](p string, v *T) error {
+// readYAML unmarshals the YAML data from the specified file.
+func readYAML[T any](p string, v *T) error {
 	if !files.Exists(p) {
 		return fmt.Errorf("%w: %q", os.ErrNotExist, p)
 	}
 
-	content, err := os.ReadFile(p)
+	f, err := os.Open(p)
 	if err != nil {
-		return fmt.Errorf("error reading config file: %w", err)
+		return err
 	}
 
-	err = yaml.Unmarshal(content, &v)
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidConfig, err)
-	}
-
-	slog.Debug("YamlRead", "path", p)
-
-	return nil
+	return bookio.ReadYAML(f, &v)
 }
 
-// WriteYAML writes the provided YAML data to the specified file.
-func WriteYAML[T any](p string, v *T, force bool) error {
+// writeYAML writes the provided YAML data to the specified file.
+func writeYAML[T any](p string, v *T, force bool) error {
 	f, err := files.New(p, force)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
@@ -116,17 +108,5 @@ func WriteYAML[T any](p string, v *T, force bool) error {
 		}
 	}()
 
-	data, err := yaml.Marshal(&v)
-	if err != nil {
-		return fmt.Errorf("error marshalling YAML: %w", err)
-	}
-
-	_, err = f.Write(data)
-	if err != nil {
-		return fmt.Errorf("error writing to file: %w", err)
-	}
-
-	slog.Info("YamlWrite success", "path", p)
-
-	return nil
+	return bookio.WriteYAML(f, &v)
 }
