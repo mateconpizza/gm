@@ -50,6 +50,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		newEnableCmd(app),   // enable git integration
 		newDisableCmd(app),  // disable git integration
 		newInfoCmd(app),     // show repository status and configuration
+		newReadmeCmd(app),   // generate a README.md
 		newCloneCmd(app),    // clone bookmarks from a remote repository
 		newCommitCmd(app),   // commit bookmark database changes
 		newPushCmd(app),     // push bookmark changes to a remote
@@ -80,12 +81,7 @@ func newPushCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             cli.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
-
-			return gm.Push(cmd.Context())
+			return app.Git.Manager().Push(cmd.Context())
 		},
 	}
 
@@ -316,19 +312,6 @@ func newInfoCmd(app *application.App) *cobra.Command {
 	return c
 }
 
-func newReadmeCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
-		Use:   "readme",
-		Short: "repository README.md",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, gitops.ReadmePrompt)
-		},
-	}
-	cmdutil.HideFlag(c, "filter", "reverse")
-	c.Flags().BoolVarP(&app.Flags.Configure, "reconfigure", "r", false, "reconfigure opts")
-	return c
-}
-
 func newSetCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "set",
@@ -336,8 +319,7 @@ func newSetCmd(app *application.App) *cobra.Command {
 		Aliases:     []string{"cfg", "config"},
 		Annotations: cli.SkipFormatter,
 		Example: app.Example(`  $ {cmd} git set logging enable
-  $ {cmd} git set logging disable
-  $ {cmd} git set readme`),
+  $ {cmd} git set logging disable`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -345,9 +327,92 @@ func newSetCmd(app *application.App) *cobra.Command {
 
 	c.AddCommand(
 		newLoggingCmd(app), // configure git command logging
-		newReadmeCmd(app),  // generate a README.md
 	)
 	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag", "filter")
 
+	return c
+}
+
+func newReadmeCmd(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "readme",
+		Short: "repository README.md",
+		Run: func(cmd *cobra.Command, args []string) {
+			newReadmeStatus(app).Run(cmd, args)
+		},
+	}
+
+	cmdutil.HideFlag(c, "filter", "reverse")
+	c.Flags().BoolVarP(&app.Flags.Configure, "reconfigure", "r", false, "reconfigure opts")
+
+	app.Session().
+		WithValidation(true)
+
+	c.AddCommand(
+		newReadmeEnable(app),
+		newReadmeDisable(app),
+		newReadmeStatus(app),
+		newReadmeSync(app),
+	)
+	return c
+}
+
+func newReadmeEnable(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "enable",
+		Short:   "enable repository README.md",
+		Aliases: []string{"on"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if app.Git.Readme.Enabled {
+				slog.Warn("git: readme already enable")
+				return app.Failure()
+			}
+			return cmdutil.Run(cmd.Context(), args, gitops.EnableReadme)
+		},
+	}
+	return c
+}
+
+func newReadmeDisable(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:     "disable",
+		Short:   "disable repository README.md",
+		Aliases: []string{"off"},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !app.Git.Readme.Enabled {
+				slog.Warn("git: readme already disable")
+				return app.Failure()
+			}
+			return cmdutil.Run(cmd.Context(), args, gitops.DisableReadme)
+		},
+	}
+}
+
+func newReadmeSync(app *application.App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "sync",
+		Short: "sync with database",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !app.Git.Readme.Enabled {
+				slog.Warn("git: readme disabled")
+				return app.Failure()
+			}
+			return cmdutil.Run(cmd.Context(), args, gitops.EnableReadme)
+		},
+	}
+}
+
+func newReadmeStatus(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "status",
+		Short: "show status",
+		Run: func(cmd *cobra.Command, args []string) {
+			s := "enabled"
+			if !app.Git.Readme.Enabled {
+				s = "disabled"
+			}
+			fmt.Fprintln(os.Stdout, s)
+		},
+	}
 	return c
 }

@@ -211,15 +211,14 @@ func StatsFromStore(r store) StatsLoader {
 	}
 }
 
-func NewReadmeFile(ctx context.Context, w io.Writer, app *application.App, stats *git.RepoStats, bs []*bookmark.Bookmark) error {
-	cfg := app.Git.Readme
-
+// NewReadmeFile renders the README markdown to w.
+func NewReadmeFile(w io.Writer, cfg *ReadmeCfg, stats *git.RepoStats, bs []*bookmark.Bookmark) error {
 	return bookio.NewMarkdown(
 		bs,
-		bookio.WithTitle(fmt.Sprintf("Bookmarks from %q", app.DBBaseName())),
+		bookio.WithTitle(fmt.Sprintf("Bookmarks from %q", cfg.Name)),
 		bookio.WithWriter(w),
 		bookio.WithDecorator(bookio.MarkdownGlyphsDecorator(cfg.Glyphs)),
-		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(app.Flags.Sort, bs) }),
+		bookio.WithSorter(func(bs []*bookmark.Bookmark) { _, _ = bookmark.Sort(cfg.Sort, bs) }),
 		bookio.WithSummary(bookio.MarkdownSummaryFmt(cfg.Summary, &bookio.MarkdownSummary{
 			Bookmarks:   stats.Bookmarks,
 			Tags:        stats.Tags,

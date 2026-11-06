@@ -1,10 +1,13 @@
 package gitcmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
 )
@@ -60,11 +63,9 @@ func newMgrCmd(app *application.App) *cobra.Command {
 		Short:   "select which database to track",
 		Aliases: []string{"mgr", "m"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			gm, err := gitops.NewManager(app)
-			if err != nil {
-				return err
-			}
-			return gitops.TrackMgr(cmd.Context(), app, gm, ui.NewDefaultConsole(app, app.Exit), app.Databases())
+			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+				return gitops.TrackMgr(ctx, app, app.Git.Manager(), d.Console(), app.Databases())
+			})
 		},
 	}
 

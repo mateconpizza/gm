@@ -116,7 +116,12 @@ func newExportMarkdownCmd(app *application.App) *cobra.Command {
 					Summary: app.Flags.Summary,
 				}
 
-				return gitops.NewReadmeFile(ctx, os.Stdout, app, stats, bs)
+				return gitops.NewReadmeFile(
+					os.Stdout,
+					gitops.ReadmeOpts(app, r.BaseName()),
+					stats,
+					bs,
+				)
 			})
 		},
 	}

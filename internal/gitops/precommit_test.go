@@ -1,6 +1,7 @@
 package gitops
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -185,152 +187,118 @@ func TestHookSummaryWrite(t *testing.T) {
 func TestHookReadme(t *testing.T) {
 	t.Parallel()
 
-	errBookmarks := errors.New("bookmarks unavailable")
-	errStats := errors.New("stats unavailable")
+	var (
+		errBookmarks = errors.New("bookmarks failed")
+		errStats     = errors.New("stats failed")
+		errCipher    = errors.New("cipher failed")
+	)
 
-	bs := func(n int) []*bookmark.Bookmark {
-		out := make([]*bookmark.Bookmark, 0, n)
-		for i := range n {
-			out = append(out, &bookmark.Bookmark{
-				ID:    i + 1,
-				URL:   fmt.Sprintf("https://example%d.com", i),
-				Title: fmt.Sprintf("Title %d", i),
-			})
-		}
-		return out
-	}
+	bms := []*bookmark.Bookmark{{}}
+	stats := &git.RepoStats{}
 
 	tests := []struct {
 		name         string
-		enabled      bool
+		bms          []*bookmark.Bookmark
 		cancelCtx    bool
-		bookmarks    int
 		bookmarksErr error
 		statsErr     error
-
-		wantErr          error
-		wantErrMsg       string
-		wantBookmarkCall int // times the bookmarks loader ran
-		wantStatsCall    int // times the stats loader ran
-		wantFile         bool
-		wantContent      bool // the README must not be empty
+		cipherErr    error
+		readErr      error
+		existing     string // "", "same" or "different"
+		wantWrites   int
+		wantErr      error
 	}{
-		{
-			name: "typical_writes_readme", enabled: true, bookmarks: 3,
-			wantBookmarkCall: 1, wantStatsCall: 1, wantFile: true, wantContent: true,
-		},
-		{
-			name: "single_bookmark", enabled: true, bookmarks: 1,
-			wantBookmarkCall: 1, wantStatsCall: 1, wantFile: true, wantContent: true,
-		},
-		{
-			name: "empty_bookmarks_still_writes", enabled: true, bookmarks: 0,
-			wantBookmarkCall: 1, wantStatsCall: 1, wantFile: true, wantContent: true,
-		},
-		{
-			name: "disabled_does_nothing", enabled: false, bookmarks: 3,
-		},
-		{
-			name: "canceled_context", enabled: true, cancelCtx: true, bookmarks: 3,
-			wantErr: context.Canceled,
-		},
-		// NOTE: the README file is opened (and truncated) before the loaders
-		// run, so a failing loader leaves an empty file behind. This
-		// documents the current behaviour.
-		{
-			name: "bookmarks_loader_fails", enabled: true, bookmarks: 3, bookmarksErr: errBookmarks,
-			wantErr: errBookmarks, wantErrMsg: "load bookmarks",
-			wantBookmarkCall: 1, wantFile: true,
-		},
-		{
-			name: "stats_loader_fails", enabled: true, bookmarks: 3, statsErr: errStats,
-			wantErr:          errStats,
-			wantBookmarkCall: 1, wantStatsCall: 1, wantFile: true,
-		},
+		{name: "missing_file_writes", bms: bms, wantWrites: 1},
+		{name: "empty_bookmarks_writes", bms: nil, wantWrites: 1},
+		{name: "same_content_skips_write", bms: bms, existing: "same", wantWrites: 0},
+		{name: "different_content_overwrites", bms: bms, existing: "different", wantWrites: 1},
+		{name: "ctx_cancelled", bms: bms, cancelCtx: true, wantErr: context.Canceled},
+		{name: "bookmarks_error", bms: bms, bookmarksErr: errBookmarks, wantErr: errBookmarks},
+		{name: "stats_error", bms: bms, statsErr: errStats, wantErr: errStats},
+		{name: "cipher_error", bms: bms, cipherErr: errCipher, wantErr: errCipher},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			app := testutil.NewApp(t)
-			app.Git.Readme.Enabled = tt.enabled
+			cfg := &ReadmeCfg{
+				Name: "test",
+				Path: filepath.Join(t.TempDir(), "sub", "README.md"),
+			}
 
-			path := app.Path.GitReadme(app.DBBaseName())
-			testutil.NewDir(t, filepath.Dir(path))
+			fc := testutil.NewFakeCipher(".fake")
+			fullpath := cfg.Path + fc.Suffix()
 
-			ctx := t.Context()
+			var want bytes.Buffer
+			if err := NewReadmeFile(&want, cfg, stats, tt.bms); err != nil {
+				t.Fatalf("NewReadmeFile: %v", err)
+			}
+
+			if tt.existing != "" {
+				if err := os.MkdirAll(filepath.Dir(cfg.Path), 0o750); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(fullpath, nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				content := []byte("stale")
+				if tt.existing == "same" {
+					content = want.Bytes()
+				}
+				fc.Put(fullpath, content)
+			}
+
+			bookmarks := func(context.Context) ([]*bookmark.Bookmark, error) {
+				return tt.bms, tt.bookmarksErr
+			}
+			statsLoader := func(context.Context) (*git.RepoStats, error) {
+				return stats, tt.statsErr
+			}
+			cipher := func(context.Context) (enc.Cipher, error) {
+				if tt.cipherErr != nil {
+					return nil, tt.cipherErr
+				}
+				return fc, nil
+			}
+
+			h := HookReadme(cfg, bookmarks, statsLoader, cipher)
+			if h.Name != "readme" {
+				t.Fatalf("Hook.Name = %q; want %q", h.Name, "readme")
+			}
+
+			g := testutil.NewGit(
+				t,
+				t.TempDir(),
+				git.WithExecuter(testutil.NewFakeGitExecuter().Run),
+			)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
 			if tt.cancelCtx {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithCancel(ctx)
 				cancel()
 			}
 
-			var bookmarkCalls, statsCalls int
-
-			loadBookmarks := func(ctx context.Context) ([]*bookmark.Bookmark, error) {
-				bookmarkCalls++
-				if tt.bookmarksErr != nil {
-					return nil, tt.bookmarksErr
-				}
-				return bs(tt.bookmarks), nil
-			}
-			loadStats := func(ctx context.Context) (*git.RepoStats, error) {
-				statsCalls++
-				if tt.statsErr != nil {
-					return nil, tt.statsErr
-				}
-				return &git.RepoStats{
-					Name: app.DBBaseName(), Bookmarks: tt.bookmarks, Tags: 26, Favorites: 2,
-					Archived: 2, DeadLinks: 0, TotalVisits: 32,
-				}, nil
-			}
-
-			g := testutil.NewGit(t, t.TempDir())
-
-			hook := HookReadme(app, loadBookmarks, loadStats)
-			if hook.Name != "readme" {
-				t.Fatalf("hook.Name = %q; want %q", hook.Name, "readme")
-			}
-
-			err := hook.Run(ctx, g)
+			err := h.Run(ctx, g)
 
 			if tt.wantErr != nil {
-				if err == nil {
-					t.Fatalf("PreCommitReadme() expected error %v, got nil", tt.wantErr)
-				}
 				if !errors.Is(err, tt.wantErr) {
-					t.Fatalf("PreCommitReadme() error = %v; want errors.Is match for %v", err, tt.wantErr)
+					t.Fatalf("Run() error = %v; want %v", err, tt.wantErr)
 				}
-				if tt.wantErrMsg != "" && !strings.Contains(err.Error(), tt.wantErrMsg) {
-					t.Fatalf("PreCommitReadme() error = %v; want it to contain %q", err, tt.wantErrMsg)
-				}
-			} else if err != nil {
-				t.Fatalf("PreCommitReadme() unexpected error: %v", err)
-			}
-
-			if bookmarkCalls != tt.wantBookmarkCall {
-				t.Fatalf("bookmarks loader calls = %d; want %d", bookmarkCalls, tt.wantBookmarkCall)
-			}
-			if statsCalls != tt.wantStatsCall {
-				t.Fatalf("stats loader calls = %d; want %d", statsCalls, tt.wantStatsCall)
-			}
-
-			data, readErr := os.ReadFile(path)
-			if !tt.wantFile {
-				if !errors.Is(readErr, os.ErrNotExist) {
-					t.Fatalf("README should not exist, read error = %v", readErr)
+				if fc.Writes() != 0 {
+					t.Fatalf("Run() wrote %d times on error; want 0", fc.Writes())
 				}
 				return
 			}
-			if readErr != nil {
-				t.Fatalf("reading README: %v", readErr)
+			if err != nil {
+				t.Fatalf("Run() unexpected error: %v", err)
 			}
-			if tt.wantContent && len(data) == 0 {
-				t.Fatal("README is empty; want rendered content")
+
+			if fc.Writes() != tt.wantWrites {
+				t.Fatalf("writes = %d; want %d", fc.Writes(), tt.wantWrites)
 			}
-			if !tt.wantContent && len(data) != 0 {
-				t.Fatalf("README = %q; want an empty file after a failed load", data)
+			if got, _ := fc.Get(fullpath); !bytes.Equal(got, want.Bytes()) {
+				t.Fatalf("stored README = %q; want %q", got, want.Bytes())
 			}
 		})
 	}
