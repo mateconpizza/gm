@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -137,10 +139,15 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 		Rowln().
 		Flush()
 
-	sess := app.Session().
-		WithConfirmation(true)
+	dbFiles, trackAll, err := trackSelection(ctx, dbFiles, c.Choose, app)
+	if err != nil {
+		return err
+	}
 
 	files.PrioritizeFile(dbFiles, application.MainDBName)
+
+	sess := app.Session().
+		WithConfirmation(true)
 
 	for _, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
@@ -157,7 +164,7 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			continue
 		}
 
-		if !c.Confirm(ctx, fmt.Sprintf("Track %q?", name), "n") {
+		if !trackAll && !c.Confirm(ctx, fmt.Sprintf("Track %q?", name), "n") {
 			continue
 		}
 
@@ -181,7 +188,7 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 	return nil
 }
 
-func TrackMgrStatus(c *ui.Console, app *application.App) error {
+func TrackMgrStatus(app *application.App, c *ui.Console) error {
 	gm, err := NewManager(app)
 	if err != nil {
 		return err
@@ -203,7 +210,7 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		Build().
 		Rowln()
 
-	rc, err := ResolveConfig(gm.Root())
+	rc, err := resolveConfig(gm.Root())
 	if err != nil {
 		return err
 	}
@@ -243,4 +250,42 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 	fmt.Fprint(c.Writer(), untracked.String())
 
 	return nil
+}
+
+type chooseFunc func(ctx context.Context, q string, opts []string, def string) (string, error)
+
+func trackSelection(ctx context.Context, dbFiles []string, choose chooseFunc, app *application.App) (result []string, trackAll bool, err error) {
+	if len(dbFiles) <= 1 {
+		return dbFiles, false, nil
+	}
+
+	opt, err := choose(ctx, "track all?", []string{"yes", "select", "no"}, "y")
+	if err != nil {
+		return nil, false, err
+	}
+
+	result = dbFiles
+
+	switch opt {
+	case "select":
+		h := "select database/s to track " +
+			app.Glyphs().Sep +
+			" use <TAB> for multi-selection"
+		result, err = dbops.NewDatabaseSelector(app).
+			WithOpts(
+				menu.WithHeader(h),
+				menu.WithMultiSelection(),
+				menu.WithHeaderKeymaps(),
+			).
+			Select(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		trackAll = true
+
+	case "yes":
+		trackAll = true
+	}
+
+	return result, trackAll, nil
 }

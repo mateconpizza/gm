@@ -66,7 +66,7 @@ func (gp *GitPuller) Pull(sess *session.Session) error {
 		return err
 	}
 
-	rc, err := ResolveConfig(gp.srcDir)
+	rc, err := resolveConfig(gp.srcDir)
 	if err != nil {
 		return err
 	}

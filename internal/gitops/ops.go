@@ -62,7 +62,7 @@ func (ro *RepoOps) Remover() git.RepoOptFunc { return git.WithRepoRemover(remove
 
 func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
 	root := filepath.Dir(path)
-	rc, err := ResolveConfig(root)
+	rc, err := resolveConfig(root)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bo
 
 func (ro *RepoOps) writeFiles(ctx context.Context, path string, bs []*bookmark.Bookmark) error {
 	root := filepath.Dir(path)
-	rc, err := ResolveConfig(root)
+	rc, err := resolveConfig(root)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 	}
 
 	root := filepath.Dir(repoPath)
-	rc, err := ResolveConfig(root)
+	rc, err := resolveConfig(root)
 	if err != nil {
 		return err
 	}

@@ -8,16 +8,21 @@ import (
 	"strings"
 )
 
-type LoggerFunc func(s string) string
+const RepoCoreName string = "core"
 
-type LogStyle struct {
-	PreProcessor func(msg string) string
-	Hash         LoggerFunc
-	Repo         LoggerFunc
-	Message      LoggerFunc
-	Status       LoggerFunc
-	Info         LoggerFunc
-}
+type (
+	LoggerFunc func(s string) string
+
+	LogStyle struct {
+		PreProcessor func(msg string) string
+		Hash         LoggerFunc
+		Repo         LoggerFunc
+		Message      LoggerFunc
+		Status       LoggerFunc
+		Highlight    LoggerFunc
+		Info         LoggerFunc
+	}
+)
 
 func defaultLoggerFunc(s string) string { return s }
 
@@ -64,7 +69,13 @@ func (e *LogEntry) Colored() string {
 	}
 
 	fn(e.styler.Hash(e.Hash))
-	fn(e.styler.Repo(e.Repo))
+
+	if e.Repo == RepoCoreName {
+		fn(e.styler.Highlight(e.Repo))
+	} else {
+		fn(e.styler.Repo(e.Repo))
+	}
+
 	fn(e.styler.Message(e.Mesg))
 	fn(e.styler.Status(e.Status))
 

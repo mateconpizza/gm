@@ -59,6 +59,8 @@ func NewCmd(app *application.App) *cobra.Command {
 		newSetCmd(app),      // configuration
 	)
 
+	cmdutil.HideFlag(c, "reverse", "filter")
+
 	return c
 }
 
@@ -192,11 +194,14 @@ func newDisableCmd(app *application.App) *cobra.Command {
 
 func newEnableCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:                "enable",
-		Short:              "enable git integration",
-		Annotations:        cli.SkipGitCheck,
-		PersistentPostRunE: cli.HookGitPrune(app),
-		Aliases:            []string{"on"},
+		Use:         "enable",
+		Short:       "enable git integration",
+		Annotations: cli.SkipGitCheck,
+		Aliases:     []string{"on"},
+		PersistentPostRunE: cli.ChainHooks(
+			cli.HookGitManager(app),
+			cli.HookGitPrune(app),
+		),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if app.GitEnabled() {
 				slog.Warn("git: already enabled")

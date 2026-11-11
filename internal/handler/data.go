@@ -327,16 +327,14 @@ func removeRecords(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		return err
 	}
 
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
-	}
+	if app.Git.Enabled {
+		gm := app.Git.Manager()
+		gr := gitops.NewRepo(gm, r.BaseName(), app.Session(), app.Flags.Color)
+		gitops.RegisterHooks(r, app, gr)
 
-	gr := gitops.NewRepo(gm, r.BaseName(), app.Session(), app.Flags.Color)
-	gitops.RegisterHooks(r, app, gr)
-
-	if err := gitops.Remove(ctx, gm, gr, bs); err != nil {
-		return err
+		if err := gitops.Remove(ctx, gm, gr, bs); err != nil {
+			return err
+		}
 	}
 
 	c := d.Console()

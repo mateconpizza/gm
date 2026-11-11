@@ -45,12 +45,12 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 		app.Exit(err)
 	})
 
-	gp, err := fetchGitRepos(ctx, d, app, tmpPath)
+	gp, err := newGitPuller(ctx, d, app, tmpPath)
 	if err != nil {
 		return err
 	}
 
-	rc, err := ResolveConfig(tmpPath)
+	rc, err := resolveConfig(tmpPath)
 	if err != nil {
 		return err
 	}
@@ -69,15 +69,9 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
-func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*GitPuller, error) {
-	g, err := NewGit(
-		d.Writer(),
-		app.Path.Git(),
-		NewGitCommandLogger(app.Flags.Color),
-	)
-	if err != nil {
-		return nil, err
-	}
+func newGitPuller(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*GitPuller, error) {
+	gm := app.Git.Manager()
+	g := gm.Git()
 
 	if err := g.CloneInto(ctx, app.Git.Remote, tmpPath); err != nil {
 		return nil, fmt.Errorf("cloning remote repo: %w", err)
@@ -107,7 +101,7 @@ func fetchGitRepos(ctx context.Context, d *deps.Deps, app *application.App, tmpP
 		return txt.PaddedLine(name, dimmer.Sprintf("(%s)", gr.String()))
 	})
 
-	err = gp.Select(ctx, m, d.Console())
+	err := gp.Select(ctx, m, d.Console())
 	if err != nil {
 		return nil, err
 	}

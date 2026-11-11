@@ -114,7 +114,11 @@ func configureRepoOptions(ctx context.Context, app *application.App, c *ui.Conso
 		return app.Abort()
 	}
 
-	cfg := RepoConfig{Version: RepoConfigVersion, Format: RepoFormat(strings.ToLower(format)), Encryption: enc.None}
+	cfg := RepoConfig{
+		Version:    RepoConfigVersion,
+		Format:     RepoFormat(strings.ToLower(format)),
+		Encryption: enc.None,
+	}
 	if err := askForEncryption(ctx, app, gm, &cfg, c); err != nil {
 		return err
 	}
