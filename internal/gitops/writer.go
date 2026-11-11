@@ -2,9 +2,7 @@ package gitops
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	files "github.com/mateconpizza/gofiles"
@@ -48,7 +46,7 @@ func newFileRepoWriter(ctx context.Context, cfg *writerCfg) error {
 				return fmt.Errorf("creating dir for %s: %w", path, err)
 			}
 
-			same, err := hasChecksum(path, b.Checksum, cfg.serializer)
+			same, err := hasChecksum(ctx, path, b.Checksum, cfg.cipher, cfg.serializer)
 			if err != nil {
 				return err
 			}
@@ -87,12 +85,14 @@ func newFileRepoWriter(ctx context.Context, cfg *writerCfg) error {
 	return w.Wait()
 }
 
-// hasChecksum reports whether the file at path exists and holds the given checksum.
-func hasChecksum(path, want string, s bookio.Serializer) (bool, error) {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
+// hasChecksum reports whether the file at path exists and holds the given
+// checksum.
+func hasChecksum(ctx context.Context, path, want string, c enc.Cipher, s bookio.Serializer) (bool, error) {
+	if !files.Exists(path) {
 		return false, nil
 	}
+
+	data, err := c.Read(ctx, path)
 	if err != nil {
 		return false, err
 	}
