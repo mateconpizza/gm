@@ -55,6 +55,7 @@ func initAppConfig(app *application.App) {
 		app.Flags.ColorStr,
 		terminal.StdinPiped,
 		terminal.StdoutPiped,
+		terminal.StderrPiped,
 		terminal.NoColorEnv,
 	)
 

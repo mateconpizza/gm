@@ -134,6 +134,15 @@ func StdoutPiped() bool {
 	return (fi.Mode() & os.ModeCharDevice) == 0
 }
 
+// StderrPiped reports whether standard error is redirected or piped.
+func StderrPiped() bool {
+	fi, err := os.Stderr.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) == 0
+}
+
 func getSize() (width, height int, err error) {
 	fd := int(os.Stdout.Fd())
 

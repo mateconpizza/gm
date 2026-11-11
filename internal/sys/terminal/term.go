@@ -527,7 +527,6 @@ func (t *Term) withRestoredTerminal(fn func() error) error {
 }
 
 func (t *Term) saveTermState() error {
-	slog.Debug("saving terminal state")
 	if !t.isTerminal(int(os.Stdin.Fd())) {
 		slog.Debug("not a terminal, skipping saveState")
 		return nil
@@ -536,7 +535,6 @@ func (t *Term) saveTermState() error {
 }
 
 func (t *Term) restoreTermState() error {
-	slog.Debug("restoring terminal state")
 	if !t.isTerminal(int(os.Stdin.Fd())) {
 		slog.Debug("not a terminal, skipping restoreState")
 		return nil
