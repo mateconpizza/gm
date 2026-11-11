@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -34,12 +35,14 @@ type EditSession struct {
 	persist  PersistFunc
 	strategy EditStrategy
 	writer   io.Writer
+	logger   *slog.Logger
 
 	differ Differ
 }
 
 func NewEditSession() *EditSession {
 	return &EditSession{
+		logger: slog.New(slog.DiscardHandler),
 		writer: os.Stdout,
 	}
 }
@@ -74,6 +77,11 @@ func (e *EditSession) WithDiffer(dc Differ) *EditSession {
 	return e
 }
 
+func (e *EditSession) WithLogger(l *slog.Logger) *EditSession {
+	e.logger = l
+	return e
+}
+
 // Run processes records for editing using the specified strategy.
 func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark) error {
 	if err := e.validate(); err != nil {
@@ -91,13 +99,17 @@ func (e *EditSession) Run(ctx context.Context, bs []*bookmark.Bookmark) error {
 
 // processSingleRecord handles the edit loop for a single record.
 func (e *EditSession) processSingleRecord(ctx context.Context, old *bookmark.Bookmark, idx, total int) error {
+	log := e.logger.With("record_idx", idx, "total", total, "bookmark_id", old.ID)
+
 	currentRecord := old
 	hasPendingChanges := false
 
 	// loop to handle the "retry" action for a single record.
 	for {
+		log.Debug("starting edit iteration")
 		editedBuf, err := e.buildAndEdit(ctx, currentRecord, idx, total, e.strategy)
 		if err != nil {
+			log.Error("failed during build and edit", "error", err)
 			return err
 		}
 
@@ -105,16 +117,20 @@ func (e *EditSession) processSingleRecord(ctx context.Context, old *bookmark.Boo
 		switch {
 		case errors.Is(err, ErrBufferUnchanged):
 			if !hasPendingChanges {
+				log.Debug("buffer unchanged and no pending changes, skipping")
 				return nil // success: nothing changed, move to the next record.
 			}
 
+			log.Debug("buffer unchanged but has pending changes, preserving previous state")
 			// preserve changes from previous editing attempts.
 			fresh = currentRecord
 
 		case err != nil:
+			log.Error("failed to parse edited buffer", "error", err)
 			return err
 
 		default:
+			log.Debug("changes detected in edited buffer")
 			hasPendingChanges = true
 		}
 
@@ -122,16 +138,22 @@ func (e *EditSession) processSingleRecord(ctx context.Context, old *bookmark.Boo
 
 		opt, err := e.term.Choose(ctx, "save changes?", []string{"yes", "no", "edit"}, "y")
 		if err != nil {
+			log.Error("failed to prompt save choice", "error", err)
 			return err
 		}
 
+		log = log.With("user_choice", opt)
+
 		switch strings.ToLower(opt) {
 		case "yes":
+			log.Debug("saving record changes")
 			return e.saveRecordChanges(ctx, old, fresh)
 		case "no":
+			log.Debug("user discarded changes")
 			// Skip and continue
 			return nil
 		case "edit":
+			log.Debug("user requested re-editing")
 			currentRecord = fresh
 		}
 	}

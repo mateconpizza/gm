@@ -652,7 +652,7 @@ func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, 
 	if err != nil {
 		return err
 	}
-	te, err := editor.NewEditor(app.Env.Editor)
+	te, err := editor.NewEditor(app.Env.Editor, app.Logger())
 	if err != nil {
 		return err
 	}
