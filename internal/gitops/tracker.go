@@ -203,7 +203,7 @@ func TrackMgrStatus(c *ui.Console, app *application.App) error {
 		Build().
 		Rowln()
 
-	rc, err := ResolveConfig(gm.Root())
+	rc, err := resolveConfig(gm.Root())
 	if err != nil {
 		return err
 	}

@@ -153,11 +153,12 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 
 func StreamLog(ctx context.Context, g *git.Git, p *ansi.Palette) error {
 	logger := &git.LogStyle{
-		Hash:         func(s string) string { return p.BrightYellow.Sprint(s) },
-		Repo:         func(s string) string { return p.BrightGreen.Sprint(s) },
+		Hash:         p.BrightYellow.Format,
+		Repo:         p.BrightGreen.Format,
 		Message:      func(s string) string { return s },
-		Status:       func(s string) string { return p.Gray.With(p.Italic).Sprint(s) },
-		Info:         func(s string) string { return p.BrightBlue.Sprint(s) },
+		Status:       p.Gray.With(p.Italic).Format,
+		Info:         p.BrightBlue.Format,
+		Highlight:    p.Magenta.Format,
 		PreProcessor: newHighlighter(p),
 	}
 
@@ -183,7 +184,7 @@ func Cipher(app *application.App) func(ctx context.Context) (enc.Cipher, error) 
 	return func(ctx context.Context) (enc.Cipher, error) {
 		root := app.Path.Git()
 
-		rc, err := ResolveConfig(root)
+		rc, err := resolveConfig(root)
 		if err != nil {
 			return nil, fmt.Errorf("load repo config: %w", err)
 		}
@@ -246,7 +247,7 @@ func newHighlighter(p *ansi.Palette) func(string) string {
 		"commit":      p.BrightMagenta.Sprint("commit"),
 		"params":      p.Blue.Sprint("params"),
 		"gpg":         p.Red.Sprint("gpg"),
-		"yaml":        p.Orange.Sprint("yaml"),
+		"yaml":        p.BrightYellow.Sprint("yaml"),
 		"json":        p.Green.Sprint("json"),
 		"rename":      p.BrightYellow.Sprint("rename"),
 		"initialized": p.Red.Sprint("initialized"),

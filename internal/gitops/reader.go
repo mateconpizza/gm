@@ -53,13 +53,20 @@ func (c *readerCfg) passphrasePrompt() PassphrasePrompt {
 }
 
 func fileReader(cfg *readerCfg) *bookio.RepositoryLoader {
+	filters := make([]bookio.FileFilterFunc, 0, 3)
+	ext := cfg.cipher.Suffix()
+	if ext != "" {
+		filters = append(filters, bookio.HasExtension(cfg.cipher.Suffix()))
+	}
+
+	filters = append(filters,
+		bookio.IsFile,
+		bookio.NotNamed(git.SummaryFileName, git.TrackerFilename, bookio.ReadmeFile+cfg.cipher.Suffix()),
+	)
+
 	return &bookio.RepositoryLoader{
-		Prefix: fmt.Sprintf("[%s] %s", filepath.Base(cfg.repoPath), "bookmarks"),
-		FileFilter: bookio.And(
-			bookio.IsFile,
-			bookio.HasExtension(cfg.cipher.Suffix()),
-			bookio.NotNamed(git.SummaryFileName, git.TrackerFilename, bookio.ReadmeFile+cfg.cipher.Suffix()),
-		),
+		Prefix:     fmt.Sprintf("[%s] %s", filepath.Base(cfg.repoPath), "bookmarks"),
+		FileFilter: bookio.And(filters...),
 		Func: func(ctx context.Context, path string) (*bookmark.Bookmark, error) {
 			if err := ctx.Err(); err != nil {
 				return nil, err

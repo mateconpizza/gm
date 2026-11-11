@@ -101,7 +101,7 @@ func (c RepoConfig) Save(root string) error {
 	return os.WriteFile(filepath.Join(root, RepoConfigFile), append(data, '\n'), 0o600)
 }
 
-func ResolveConfig(root string) (RepoConfig, error) {
+func resolveConfig(root string) (RepoConfig, error) {
 	cfg, err := LoadRepoConfig(root)
 	if err == nil {
 		return cfg, nil

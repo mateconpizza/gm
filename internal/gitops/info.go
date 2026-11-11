@@ -3,6 +3,7 @@ package gitops
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/mateconpizza/gm/internal/deps"
@@ -12,7 +13,9 @@ import (
 
 var ErrGitNoInformation = errors.New("no information")
 
-func CoreCommitMsg(msg string) git.CommitMessage { return git.CommitMessage("[core] " + msg) }
+func CoreCommitMsg(msg string) git.CommitMessage {
+	return git.CommitMessage(fmt.Sprintf("[%s] %s", git.RepoCoreName, msg))
+}
 
 // Info returns a prettify info of the repository.
 func Info(ctx context.Context, d *deps.Deps) (string, error) {
@@ -44,7 +47,7 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 
 	// repo type
-	rc, err := ResolveConfig(app.Path.Git())
+	rc, err := resolveConfig(app.Path.Git())
 	if err != nil {
 		return "", err
 	}
