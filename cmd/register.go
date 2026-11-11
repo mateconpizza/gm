@@ -59,7 +59,12 @@ func initAppConfig(app *application.App) {
 		terminal.NoColorEnv,
 	)
 
-	application.SetVerbosity(app.Flags.Verbose)
+	app.SetLogger(
+		application.SetupLogger(
+			app.Flags.Verbose,
+			app.Flags.Color,
+		),
+	)
 
 	// git
 	app.Git.Load()
