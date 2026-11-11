@@ -89,7 +89,7 @@ func SetVerbosity(verbose int) {
 	slog.Debug("logging", "level", level)
 }
 
-func ColorEnabled(mode string, stdinPiped, stdoutPiped, noColor func() bool) bool {
+func ColorEnabled(mode string, stdinPiped, stdoutPiped, stderrPiped, noColor func() bool) bool {
 	switch mode {
 	case "always":
 		return true
@@ -98,6 +98,7 @@ func ColorEnabled(mode string, stdinPiped, stdoutPiped, noColor func() bool) boo
 	default: // auto
 		return !stdinPiped() &&
 			!stdoutPiped() &&
+			!stderrPiped() &&
 			!noColor()
 	}
 }

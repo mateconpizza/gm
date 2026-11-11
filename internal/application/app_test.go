@@ -576,33 +576,44 @@ func TestApp_PrettyVersion(t *testing.T) {
 func TestColorEnabled(t *testing.T) {
 	t.Parallel()
 
+	fn := func(b bool) func() bool { return func() bool { return b } }
+
 	tests := []struct {
-		name            string
-		colorStr        string
-		stdinPiped      bool
-		stdoutPiped     bool
-		noColor         bool
-		expectedEnabled bool
+		name       string
+		mode       string
+		stdinPipe  bool
+		stdoutPipe bool
+		stderrPipe bool
+		noColor    bool
+		want       bool
 	}{
-		{"always", "always", true, true, true, true},
-		{"never", "never", false, false, false, false},
-		{"auto interactive terminal", "auto", false, false, false, true},
-		{"auto stdin piped", "auto", true, false, false, false},
-		{"auto stdout piped", "auto", false, true, false, false},
-		{"auto NO_COLOR set", "auto", false, false, true, false},
+		{"auto_all_tty_color_allowed", "auto", false, false, false, false, true},
+		{"auto_stdin_piped", "auto", true, false, false, false, false},
+		{"auto_stdout_piped", "auto", false, true, false, false, false},
+		{"auto_stderr_piped", "auto", false, false, true, false, false},
+		{"auto_no_color_set", "auto", false, false, false, true, false},
+		{"always_overrides_pipes_and_no_color", "always", true, true, true, true, true},
+		{"never_overrides_tty", "never", false, false, false, false, false},
+		{"empty_mode_defaults_to_auto", "", false, false, false, false, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := application.ColorEnabled(
-				tt.colorStr,
-				func() bool { return tt.stdinPiped },
-				func() bool { return tt.stdoutPiped },
-				func() bool { return tt.noColor },
+
+			got := application.ColorEnabled(
+				tt.mode,
+				fn(tt.stdinPipe),
+				fn(tt.stdoutPipe),
+				fn(tt.stderrPipe),
+				fn(tt.noColor),
 			)
-			if result != tt.expectedEnabled {
-				t.Errorf("got %v, want %v", result, tt.expectedEnabled)
+
+			if got != tt.want {
+				t.Fatalf(
+					"ColorEnabled(%q, stdin=%v, stdout=%v, stderr=%v, noColor=%v) = %v; want %v",
+					tt.mode, tt.stdinPipe, tt.stdoutPipe, tt.stderrPipe, tt.noColor, got, tt.want,
+				)
 			}
 		})
 	}
