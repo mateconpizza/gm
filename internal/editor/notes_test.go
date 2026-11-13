@@ -2,6 +2,7 @@ package editor
 
 import (
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -71,7 +72,8 @@ func testParseBufferUnchanged(t *testing.T) {
 	s := NotesStrategy{}
 	buf := []byte("<!--\nabc")
 
-	_, err := s.ParseBuffer(t.Context(), buf, orig)
+	l := slog.New(slog.DiscardHandler)
+	_, err := s.ParseBuffer(t.Context(), l, buf, orig)
 	if !errors.Is(err, ErrBufferUnchanged) {
 		t.Errorf("expected ErrBufferUnchanged, got %v", err)
 	}
@@ -84,7 +86,8 @@ func testParseBufferChanged(t *testing.T) {
 	want := "xyz"
 	buf := []byte("<!--\n" + want)
 
-	rec, err := s.ParseBuffer(t.Context(), buf, orig)
+	l := slog.New(slog.DiscardHandler)
+	rec, err := s.ParseBuffer(t.Context(), l, buf, orig)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

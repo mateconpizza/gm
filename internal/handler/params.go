@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/url"
+	"slices"
 	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
@@ -33,6 +35,9 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 		return err
 	}
 
+	log := app.Logger().With("fn", "params-url")
+	log.Debug("cleaning URL params", "count", len(bs))
+
 	m := picker.New[string](
 		app,
 		menu.WithBorderLabel("URL Parameters"),
@@ -40,8 +45,12 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 		menu.WithMultiSelection(),
 	)
 
+	var updated int
+
 	for _, b := range bs {
-		newURL, err := processBookmarkParams(ctx, app, d.Console(), m, b.URL)
+		blog := log.With("id", b.ID)
+
+		newURL, err := processBookmarkParams(ctx, app, blog, d.Console(), m, b.URL)
 		if err != nil {
 			return fmt.Errorf("processing: %w", err)
 		}
@@ -50,29 +59,35 @@ func ParamsURL(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error
 			continue
 		}
 
-		b.URL = newURL
-
 		mesg := git.NewRepo(app.DBBaseName(), "").
 			CommitMsg(git.Update, "params")
 
 		// save to db and git
-		if err := persistBookmarkUpdate(ctx, d, b, newURL, mesg); err != nil {
+		if err := persistBookmarkUpdate(ctx, d, blog, b, newURL, mesg); err != nil {
 			return err
 		}
+		updated++
 	}
+
+	log.Debug("params cleaning finished", "updated", updated, "total", len(bs))
 
 	return nil
 }
 
 func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, args []string) error {
+	log := app.Logger().With("fn", "params-user-input")
+
 	inputURL := args[0]
 	if inputURL == "" || !ValidURL(args[0]) {
+		log.Debug("invalid or empty URL input")
 		return app.Failure()
 	}
 
 	t := c.Term()
 
 	if app.Flags.All || t.StdinPiped() {
+		log.Debug("stripping all params", "all", app.Flags.All, "stdin_piped", t.StdinPiped())
+
 		newURL, err := paramsStripAll(inputURL)
 		if err != nil {
 			return err
@@ -89,12 +104,13 @@ func ParamsUserInput(ctx context.Context, app *application.App, c *ui.Console, a
 		menu.WithMultiSelection(),
 	)
 
-	newURL, err := processBookmarkParams(ctx, app, c, m, inputURL)
+	newURL, err := processBookmarkParams(ctx, app, log, c, m, inputURL)
 	if err != nil {
 		return err
 	}
 
 	if newURL == "" {
+		log.Debug("no URL produced, nothing to print")
 		return app.Failure()
 	}
 
@@ -182,22 +198,29 @@ func selectParams(ctx context.Context, m *menu.Menu[string], u *url.URL) ([]stri
 
 // processBookmarkParams prompts for param removal and persists updates if
 // confirmed.
-func processBookmarkParams(ctx context.Context, app *application.App, c console, m *menu.Menu[string], urlStr string) (string, error) {
+func processBookmarkParams(ctx context.Context, app *application.App, log *slog.Logger, c console, m *menu.Menu[string], urlStr string) (string, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return "", err
 	}
 
-	if len(u.Query()) == 0 {
-		slog.Debug("skipping: no params found", slog.String("url", urlStr))
+	// Log host+path and param names only: values can hold tokens.
+	log = log.With("target", u.Host+u.Path)
+
+	q := u.Query()
+	if len(q) == 0 {
+		log.Debug("skipping, no params found")
 		return "", nil
 	}
 
+	log.Debug("params found", "keys", slices.Sorted(maps.Keys(q)))
+
 	if app.Flags.Yes || app.Flags.Force {
+		log.Debug("auto-removing all params", "yes", app.Flags.Yes, "force", app.Flags.Force)
 		return paramsCleaner(u), nil
 	}
 
-	opt, linesToClear, err := promptParamRemoval(ctx, app, c, urlStr, u.Query())
+	opt, linesToClear, err := promptParamRemoval(ctx, app, log, c, urlStr, q)
 	if err != nil {
 		return "", err
 	}
@@ -211,23 +234,26 @@ func processBookmarkParams(ctx context.Context, app *application.App, c console,
 	}
 
 	if skipped {
+		log.Debug("skipped by user", "option", opt)
 		f, p := c.Frame(), c.Palette()
 		f.Warning(p.BrightYellow.Wrap("skipping ", p.Italic) + p.Dim.Sprint(urlStr)).Ln().Flush()
 		return "", nil
 	}
 
+	log.Debug("new URL computed", "option", opt)
+
 	return newURL, nil
 }
 
 // promptParamRemoval displays URL param diff and asks whether to remove them.
-func promptParamRemoval(ctx context.Context, app *application.App, c console, urlStr string, q url.Values) (opt string, lines int, err error) {
+func promptParamRemoval(ctx context.Context, app *application.App, log *slog.Logger, c console, urlStr string, q url.Values) (opt string, lines int, err error) {
 	f, p := c.Frame(), c.Palette()
 	sep := "="
 
-	// Format parameters for the diff
+	// Format parameters for the diff, in a stable order
 	params := make([]string, 0, len(q))
-	for key, values := range q {
-		for _, value := range values {
+	for _, key := range slices.Sorted(maps.Keys(q)) {
+		for _, value := range q[key] {
 			params = append(params, fmt.Sprintf("%s%s%s\n", p.Red.Sprint(key), sep, value))
 		}
 	}
@@ -239,10 +265,18 @@ func promptParamRemoval(ctx context.Context, app *application.App, c console, ur
 	if len(q) > 1 {
 		opts = append(opts, "select")
 	}
+
+	log.Debug("prompting for param removal", "options", opts)
+
 	s := p.BrightGreen.Wrap(c.Glyphs().Question, p.Bold) + p.BrightRed.Wrap(" continue?", p.Bold)
 	opt, err = c.Term().Choose(ctx, s, opts, "n")
+	if err != nil {
+		return opt, lines, err
+	}
 
-	return opt, lines, err
+	log.Debug("param removal option chosen", "option", opt)
+
+	return opt, lines, nil
 }
 
 // computeNewURL returns a new URL based on the selected option or reports
@@ -277,7 +311,9 @@ func computeNewURL(ctx context.Context, m *menu.Menu[string], u *url.URL, opt st
 
 // persistBookmarkUpdate updates the bookmark URL in the DB and Git if no
 // duplicate exists.
-func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, newURL string, msg git.CommitMessage) error {
+func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, log *slog.Logger, b *bookmark.Bookmark, newURL string, msg git.CommitMessage) error {
+	log = log.With("fn", "persist-bookmark-update")
+
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 	id := func(val any) string { return p.Bold.Sprint("[", val, "] ") }
@@ -292,6 +328,7 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	}
 	// TODO: use bookmark.Deduplicate or port.DeduplicateReport
 	if book, has := r.Has(ctx, newB.URL); has {
+		log.Debug("skipping, cleaned URL already exists", "existing_id", book.ID)
 		f.Error(id(newB.ID) + p.BrightRed.Wrap("already", p.Italic) + " exists with " + id(book.ID)).
 			Ln().Flush()
 		return nil
@@ -301,12 +338,21 @@ func persistBookmarkUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 	if err != nil {
 		return err
 	}
-	return persistFunc(ctx, app, PersistParams{
+
+	log.Debug("persisting updated bookmark")
+
+	if err := persistFunc(ctx, app, PersistParams{
 		Repo:  r,
 		Old:   b,
 		Fresh: &newB,
 		Msg:   msg,
-	})
+	}); err != nil {
+		return err
+	}
+
+	log.Debug("bookmark persisted")
+
+	return nil
 }
 
 func paramsStripAll(rawURL string) (string, error) {

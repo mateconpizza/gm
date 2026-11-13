@@ -102,7 +102,7 @@ func (s *Session) WithValidationFunc(fn ValidateFunc) *Session {
 // WithLogger sets a custom logger, tagged with the component name.
 func (s *Session) WithLogger(l *slog.Logger) *Session {
 	if l != nil {
-		s.logger = l.With("component", "session")
+		s.logger = l.With("fn", "session")
 	}
 	return s
 }

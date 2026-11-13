@@ -81,7 +81,7 @@ func NewApp(dataHome string) *App {
 			Data: dataHome,
 		},
 		session: session.New(),
-		logger:  slog.New(slog.DiscardHandler),
+		logger:  slog.Default(),
 	}
 }
 

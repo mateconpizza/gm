@@ -113,7 +113,7 @@ func (e *EditSession) processSingleRecord(ctx context.Context, old *bookmark.Boo
 			return err
 		}
 
-		fresh, err := e.strategy.ParseBuffer(ctx, editedBuf, currentRecord)
+		fresh, err := e.strategy.ParseBuffer(ctx, e.log(), editedBuf, currentRecord)
 		switch {
 		case errors.Is(err, ErrBufferUnchanged):
 			if !hasPendingChanges {
@@ -205,4 +205,11 @@ func (e *EditSession) validate() error {
 		return fn("Differ")
 	}
 	return nil
+}
+
+func (e *EditSession) log() *slog.Logger {
+	if e.logger == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return e.logger
 }

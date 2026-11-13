@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
@@ -45,6 +47,8 @@ func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	log := app.Logger().With("fn", "import-database")
+
 	selected, err := dbops.NewDatabaseSelector(app).
 		WithExclutions(app.Path.DB()).
 		WithOpts(menu.WithHeader("choose a database to import from")).
@@ -52,6 +56,7 @@ func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
 	if err != nil {
 		return err
 	}
+	log.Debug("database selected", "name", filepath.Base(selected[0]))
 
 	rSrc, err := db.New(ctx, selected[0])
 	if err != nil {
@@ -68,6 +73,8 @@ func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	log := app.Logger().With("fn", "import-backup")
+
 	selected, err := dbops.NewBackupSelector(app).
 		WithOpts(menu.WithHeader("choose a backup to import from")).
 		Select(ctx)
@@ -76,6 +83,7 @@ func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
 	}
 
 	backupPath := selected[0]
+	log.Debug("backup selected", "name", filepath.Base(backupPath))
 
 	srcRepo, err := db.New(ctx, backupPath)
 	if err != nil {
@@ -156,6 +164,8 @@ func ImportFromJSON(ctx context.Context, d *deps.Deps, path string) error {
 }
 
 func ImportFromCSV(ctx context.Context, d *deps.Deps, path string) error {
+	log := fnLog(ctx, d, "import-csv")
+
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -166,6 +176,7 @@ func ImportFromCSV(ctx context.Context, d *deps.Deps, path string) error {
 	if err != nil {
 		return err
 	}
+	log.Debug("read bookmarks", "file", filepath.Base(path), "count", len(bs))
 
 	return importPipeline(ctx, d, "from CSV", path, bs)
 }
@@ -188,6 +199,11 @@ func WriteYAML(w io.Writer, bs []*bookmark.Bookmark) error {
 
 // importPipeline handles deduplication, user prompting, and persistence.
 func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
 	c := d.Console()
 
 	r, err := d.Repository()
@@ -195,19 +211,24 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 		return err
 	}
 
+	log := app.Logger().With(
+		"fn", "import-pipeline",
+		"source", source,
+		"from", filepath.Base(from),
+		"db", r.Name(),
+	)
+	log.Debug("starting import", "found", len(bs))
+
 	printImportHeader(c, source, r.Fullpath(), from, len(bs))
 
 	deduplicated, err := DeduplicateReport(ctx, c, r, bs)
 	if err != nil {
 		return err
 	}
-
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
+	log.Debug("deduplicated", "before", len(bs), "after", len(deduplicated), "skipped", len(bs)-len(deduplicated))
 
 	if len(deduplicated) == 0 {
+		log.Debug("nothing to import after deduplication")
 		c.Frame().Error(ErrNothingToImport.Error() + "\n").Flush()
 		return app.Failure()
 	}
@@ -217,11 +238,14 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 		if err != nil {
 			return err
 		}
+	} else {
+		log.Debug("skipping prompt", "force", app.Flags.Force, "yes", app.Flags.Yes)
 	}
 
 	if err := r.InsertMany(ctx, deduplicated); err != nil {
 		return err
 	}
+	log.Debug("import finished", "inserted", len(deduplicated))
 
 	return c.Print(ctx, c.SuccessMesg("imported ", len(deduplicated), " bookmarks\n"))
 }
@@ -262,6 +286,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 		return nil, err
 	}
 
+	log := app.Logger().With("fn", "import-prompt")
 	c := d.Console()
 
 	for {
@@ -280,6 +305,8 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 		if err != nil {
 			return nil, err
 		}
+
+		log.Debug("option chosen", "option", opt, "count", n)
 
 		switch strings.ToLower(opt) {
 		case "no":
@@ -301,10 +328,12 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 				return fm.Render(c, b)
 			})
 
+			before := len(bs)
 			bs, err = m.Select(ctx, bs)
 			if err != nil {
 				return nil, err
 			}
+			log.Debug("selection narrowed", "before", before, "after", len(bs))
 
 		case "yes":
 			return bs, nil
@@ -366,10 +395,13 @@ func database(ctx context.Context, d *deps.Deps, srcDB storeReader) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
+	log := app.Logger().With("fn", "import-from-database", "src", srcDB.Name())
+
 	bs, err := srcDB.All(ctx)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
+	log.Debug("loaded source bookmarks", "count", len(bs))
 
 	c := d.Console()
 	fm := app.Formatter()
@@ -395,28 +427,45 @@ func database(ctx context.Context, d *deps.Deps, srcDB storeReader) error {
 		return fm.Render(c, b)
 	})
 
+	n := len(bs)
 	bs, err = m.Select(ctx, bs)
 	if err != nil {
 		return err
 	}
+	log.Debug("records selected", "before", n, "after", len(bs))
 
 	return importPipeline(ctx, d, "from database", srcDB.Name(), bs)
 }
 
 // importBookmarksFromBackup imports bookmarks from a backup.
 func importBookmarksFromBackup(ctx context.Context, d *deps.Deps, srcDB storeReader, m selector[*bookmark.Bookmark]) error {
-	bookmarks, err := srcDB.All(ctx)
+	log := fnLog(ctx, d, "import-from-backup")
+
+	bs, err := srcDB.All(ctx)
 	if err != nil {
 		return err
 	}
+	log.Debug("loaded backup bookmarks", "src", srcDB.Name(), "count", len(bs))
 
 	c := d.Console()
 	defer c.Term().CancelInterruptHandler()
 
-	bookmarks, err = m.Select(ctx, bookmarks)
+	n := len(bs)
+	bs, err = m.Select(ctx, bs)
 	if err != nil {
 		return err
 	}
+	log.Debug("records selected", "before", n, "after", len(bs))
 
-	return importPipeline(ctx, d, "from backup", srcDB.Name(), bookmarks)
+	return importPipeline(ctx, d, "from backup", srcDB.Name(), bs)
+}
+
+// fnLog returns the app logger scoped to fn. It never fails, so callers that
+// only need a logger don't get an extra error path.
+func fnLog(ctx context.Context, d *deps.Deps, fn string) *slog.Logger {
+	l := slog.Default()
+	if app, err := d.Application(ctx); err == nil {
+		l = app.Logger()
+	}
+	return l.With("fn", fn)
 }

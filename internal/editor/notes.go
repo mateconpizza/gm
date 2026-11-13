@@ -3,6 +3,7 @@ package editor
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -66,13 +67,23 @@ func (ns *NotesStrategy) BuildBuffer(b *bookmark.Bookmark, idx, total int) ([]by
 		Bytes(), nil
 }
 
-func (ns *NotesStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (ns *NotesStrategy) ParseBuffer(ctx context.Context, l *slog.Logger, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+	log := l.With("fn", "parse-buffer", "strategy", "notes", "id", old.ID)
+
 	editedNotes := txt.ExtractBlockBytesRaw(buf, ns.sectionMarker, "")
 	if bytes.Equal([]byte(old.Notes), editedNotes) {
+		log.Debug("buffer unchanged")
 		return nil, ErrBufferUnchanged
 	}
+
+	if len(editedNotes) == 0 {
+		log.Debug("notes cleared", "old_bytes", len(old.Notes))
+	}
+
 	clone := old.Copy()
 	clone.Notes = string(editedNotes)
+	log.Debug("notes parsed", "old_bytes", len(old.Notes), "new_bytes", len(editedNotes))
+
 	return clone, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -19,11 +20,14 @@ func (js *JSONStrategy) BuildBuffer(b *bookmark.Bookmark, idx, total int) ([]byt
 	return b.Bytes(), nil
 }
 
-func (js *JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (js *JSONStrategy) ParseBuffer(ctx context.Context, l *slog.Logger, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+	log := l.With("fn", "parse-buffer", "strategy", "json", "id", old.ID)
+
 	oldBytes := bytes.TrimRight(old.Bytes(), "\n")
 	freshBytes := bytes.TrimRight(buf, "\n")
 
 	if bytes.Equal(oldBytes, freshBytes) {
+		log.Debug("buffer unchanged")
 		return nil, ErrBufferUnchanged
 	}
 
@@ -37,12 +41,16 @@ func (js *JSONStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookma
 	}
 
 	if old.ID != fresh.ID {
+		log.Debug("id changed in buffer", "old_id", old.ID, "new_id", fresh.ID)
 		return nil, fmt.Errorf("%w: %d", bookmark.ErrBookmarkInvalidID, fresh.ID)
 	}
 
 	if old.Equals(fresh) {
+		log.Debug("buffer unchanged after parsing", "bytes", len(freshBytes))
 		return nil, ErrBufferUnchanged
 	}
+
+	log.Debug("buffer parsed", "bytes", len(freshBytes))
 
 	return fresh, nil
 }

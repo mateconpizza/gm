@@ -31,10 +31,12 @@ func SetupLogger(verbose int, color bool) *slog.Logger {
 		slog.LevelDebug, // -vvvv
 	}
 
-	return newLoggerWithColor(
-		levels[min(verbose, len(levels))-1],
-		color,
-	)
+	level := levels[min(verbose, len(levels))-1]
+	l := newLoggerWithColor(level, color)
+
+	l.Debug("verbosity", "level", level)
+
+	return l
 }
 
 type Handler struct {

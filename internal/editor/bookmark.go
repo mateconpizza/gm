@@ -3,6 +3,7 @@ package editor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/bookmark/metadata"
@@ -95,11 +96,17 @@ func (bs *BookmarkStrategy) BuildBuffer(b *bookmark.Bookmark, idx, total int) ([
 		Bytes(), nil
 }
 
-func (bs *BookmarkStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (bs *BookmarkStrategy) ParseBuffer(ctx context.Context, l *slog.Logger, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+	log := l.With("fn", "parse-buffer")
+
 	parse := bs.parseBuffer
 	if parse == nil {
-		return defaultParseBuffer(ctx, buf, old, bs.spinner)
+		log.Debug("using default parser", "bytes", len(buf))
+		return defaultParseBuffer(ctx, log, buf, old, bs.spinner)
 	}
+
+	log.Debug("using custom parser", "bytes", len(buf))
+
 	return parse(ctx, buf, old)
 }
 
@@ -108,7 +115,6 @@ func (bs *BookmarkStrategy) Diff(d Differ, old, fresh *bookmark.Bookmark) string
 }
 
 func (bs *BookmarkStrategy) FileType() string { return bs.appName }
-
 func (bs *BookmarkStrategy) withParseBuffer(fn BookmarkParseBufFunc) *BookmarkStrategy {
 	bs.parseBuffer = fn
 	return bs
@@ -135,18 +141,41 @@ type spinner interface {
 	Done(mesg ...string)
 }
 
-func defaultParseBuffer(ctx context.Context, buf []byte, original *bookmark.Bookmark, sp spinner) (*bookmark.Bookmark, error) {
+func defaultParseBuffer(ctx context.Context, log *slog.Logger, buf []byte, original *bookmark.Bookmark, sp spinner) (*bookmark.Bookmark, error) {
 	edited := original.Copy()
 	bookmarkFromBytes(buf, edited)
 	edited.Notes = original.Notes
 	if original.Equals(edited) {
+		log.Debug("buffer unchanged")
 		return nil, ErrBufferUnchanged
 	}
+
+	log.Debug("buffer changed", "fields", changedFields(original, edited))
 
 	edited = metadata.EnrichBookmark(ctx, sp, edited)
 	if err := bookmark.Validate(edited); err != nil {
 		return nil, err
 	}
 
+	log.Debug("buffer parsed", "fields", changedFields(original, edited))
+
 	return edited, nil
+}
+
+// changedFields lists which editable fields differ, without their values.
+func changedFields(a, b *bookmark.Bookmark) []string {
+	var fields []string
+	if a.URL != b.URL {
+		fields = append(fields, "url")
+	}
+	if a.Title != b.Title {
+		fields = append(fields, "title")
+	}
+	if a.Tags != b.Tags {
+		fields = append(fields, "tags")
+	}
+	if a.Desc != b.Desc {
+		fields = append(fields, "desc")
+	}
+	return fields
 }

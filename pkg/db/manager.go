@@ -89,7 +89,7 @@ func (m *Manager) log() *slog.Logger {
 	if m.logger != nil {
 		return m.logger
 	}
-	return slog.Default().With("component", "db-manager")
+	return slog.Default().With("fn", "db-manager")
 }
 
 // Shutdown closes all open connections and logs warnings if any were left open.

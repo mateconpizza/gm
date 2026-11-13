@@ -44,7 +44,7 @@ func (r *SQLite) WithLogger(l *slog.Logger) *SQLite {
 
 // Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLite) Close() {
-	log := r.logger.With("opteration", "db-close", "name", r.Name())
+	log := r.logger.With("fn", "db-close", "name", r.Name())
 
 	r.closeOnce.Do(func() {
 		log.Debug("closing database")

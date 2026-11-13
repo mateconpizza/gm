@@ -53,7 +53,7 @@ func Data(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmar
 // fetchBookmarks retrieves records based on user input and filtering criteria.
 func fetchBookmarks(ctx context.Context, d *deps.Deps, log *slog.Logger, args []string) ([]*bookmark.Bookmark, error) {
 	// Try to get by IDs first
-	if bs, err := getByIDs(ctx, d, args); err != nil {
+	if bs, err := getByIDs(ctx, d, log, args); err != nil {
 		if !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 			return nil, err
 		}
@@ -65,7 +65,7 @@ func fetchBookmarks(ctx context.Context, d *deps.Deps, log *slog.Logger, args []
 	}
 
 	// Try to get by query
-	if bs, err := getByQuery(ctx, d, args); err != nil {
+	if bs, err := getByQuery(ctx, d, log, args); err != nil {
 		return nil, err
 	} else if len(bs) > 0 {
 		log.Debug("found by query", "count", len(bs))
@@ -88,38 +88,47 @@ func fetchBookmarks(ctx context.Context, d *deps.Deps, log *slog.Logger, args []
 }
 
 // getByIDs retrieves records from the database based on IDs.
-func getByIDs(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
-	slog.Debug("getting by IDs")
+func getByIDs(ctx context.Context, d *deps.Deps, log *slog.Logger, args []string) ([]*bookmark.Bookmark, error) {
+	log = log.With("fn", "get-by-ids")
 
 	ids, err := extractIDsFrom(args)
 	if len(ids) == 0 {
-		return nil, bookmark.ErrBookmarkInvalidID // Signal that this isn't the right method
+		log.Debug("no valid IDs in args", "args", args)
+		return nil, bookmark.ErrBookmarkInvalidID
 	}
 
 	if err != nil && !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
+	log.Debug("extracted IDs", "ids", ids)
 
 	r, err := d.Repository()
 	if err != nil {
 		return nil, err
 	}
+
 	bs, err := r.ByIDList(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
 
 	if len(bs) == 0 {
+		log.Debug("no records found for IDs", "ids", ids, "db", r.Name())
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
 		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, r.Name())
 	}
+
+	log.Debug("records found", "requested", len(ids), "found", len(bs))
 
 	return bs, nil
 }
 
 // getByQuery executes a search query on the given repository.
-func getByQuery(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
+func getByQuery(ctx context.Context, d *deps.Deps, log *slog.Logger, args []string) ([]*bookmark.Bookmark, error) {
+	log = log.With("fn", "get-by-query")
+
 	if len(args) == 0 {
+		log.Debug("no args, skipping query")
 		return []*bookmark.Bookmark{}, nil
 	}
 
@@ -127,11 +136,16 @@ func getByQuery(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.B
 	if err != nil {
 		return nil, err
 	}
+
 	q := strings.Join(args, "%")
+	log.Debug("querying", "query", q, "db", r.Name())
+
 	bs, err := r.ByQuery(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("%w %q", err, strings.Join(args, " "))
 	}
+
+	log.Debug("query matched", "count", len(bs))
 
 	return bs, nil
 }

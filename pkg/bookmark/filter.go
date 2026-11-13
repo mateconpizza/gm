@@ -3,7 +3,6 @@ package bookmark
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"maps"
 	"slices"
 	"strings"
@@ -125,7 +124,6 @@ func Deduplicate(bs, existing []*Bookmark) (fresh, duplicates []*Bookmark) {
 		}
 
 		if _, ok := seen[b.URL]; ok {
-			slog.Warn("deduplicate", "url", b.URL)
 			duplicates = append(duplicates, b)
 			continue
 		}

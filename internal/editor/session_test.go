@@ -3,6 +3,7 @@ package editor_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -48,7 +49,7 @@ func (f *fakeStrategy) BuildBuffer(_ *bookmark.Bookmark, _, _ int) ([]byte, erro
 	return f.buf, nil
 }
 
-func (f *fakeStrategy) ParseBuffer(_ context.Context, _ []byte, _ *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (f *fakeStrategy) ParseBuffer(_ context.Context, _ *slog.Logger, _ []byte, _ *bookmark.Bookmark) (*bookmark.Bookmark, error) {
 	return f.parsed, f.parseErr
 }
 

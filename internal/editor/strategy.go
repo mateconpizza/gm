@@ -3,6 +3,7 @@ package editor
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
@@ -17,7 +18,7 @@ type (
 		BuildBuffer(b *bookmark.Bookmark, idx, total int) ([]byte, error)
 
 		// Parses buffer back into a bookmark
-		ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error)
+		ParseBuffer(ctx context.Context, l *slog.Logger, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error)
 
 		// Compares old/new for diff display
 		Diff(d Differ, old, fresh *bookmark.Bookmark) string
