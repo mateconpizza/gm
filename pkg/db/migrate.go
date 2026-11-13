@@ -30,62 +30,52 @@ type Migration struct {
 }
 
 func Migrate(ctx context.Context, r *SQLite, ms []Migration) error {
-	ok, err := NeedsMigration(ctx, r, ms)
+	log := r.logger.With("fn", "db-migrate", "db", r.Name())
+
+	ok, err := needsMigration(ctx, r, ms)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		slog.DebugContext(ctx, "no migration need it")
+		log.Debug("no migration needed")
 		return nil
 	}
-
-	slog.DebugContext(ctx, "starting database migration")
 
 	current, err := r.CurrentSchemaVersion(ctx)
 	if err != nil {
-		slog.DebugContext(ctx, "failed to get current version", "error", err)
 		return err
 	}
-	slog.DebugContext(ctx, "current database version", "version", current)
 
-	pendingCount := 0
+	var pending []Migration
 	for _, m := range ms {
-		if m.Version <= current {
-			slog.DebugContext(ctx, "skipping migration", "version", m.Version, "reason", "already applied")
-			continue
+		if m.Version > current {
+			pending = append(pending, m)
 		}
-		pendingCount++
 	}
 
-	if pendingCount == 0 {
-		slog.DebugContext(ctx, "database is up to date", "current_version", current)
+	if len(pending) == 0 {
+		log.Debug("database is up to date", "version", current)
 		return nil
 	}
 
-	slog.DebugContext(ctx, "applying pending migrations", "count", pendingCount, "from_version", current)
+	log.Debug("applying pending migrations", "count", len(pending), "from_version", current)
 
 	finalVersion := current
+	for _, m := range pending {
+		mlog := log.With("version", m.Version, "name", m.Name)
 
-	for _, m := range ms {
-		if m.Version <= current {
-			continue
-		}
-
-		slog.DebugContext(ctx, "applying migration", "version", m.Version, "name", m.Name)
+		mlog.Debug("applying migration")
 
 		if err := applyMigration(ctx, r, m); err != nil {
-			slog.DebugContext(ctx, "migration failed",
-				"version", m.Version,
-				"name", m.Name,
-				"error", err)
-			return err
+			mlog.Debug("migration failed", "error", err)
+			return fmt.Errorf("migration %d (%s): %w", m.Version, m.Name, err)
 		}
 
-		slog.DebugContext(ctx, "migration applied successfully", "version", m.Version, "name", m.Name)
+		mlog.Debug("migration applied")
 		finalVersion = m.Version
 	}
 
-	slog.DebugContext(ctx, "database migration completed", "final_version", finalVersion)
+	log.Debug("migration completed", "from_version", current, "final_version", finalVersion)
 	return nil
 }
 
@@ -97,8 +87,10 @@ func (r *SQLite) SQLiteVersion(ctx context.Context) (string, error) {
 	var ver string
 	err := r.DB.QueryRowContext(ctx, `SELECT sqlite_version()`).Scan(&ver)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("getting sqlite version: %w", err)
 	}
+
+	r.logger.Debug("sqlite version", "fn", "db-sqlite-version", "version", ver)
 
 	return ver, nil
 }
@@ -107,28 +99,29 @@ func (r *SQLite) CurrentSchemaVersion(ctx context.Context) (int, error) {
 	var ver int
 	err := r.DB.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&ver)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("getting schema version: %w", err)
 	}
+
+	r.logger.Debug("schema version", "fn", "db-schema-version", "db", r.Name(), "version", ver)
 
 	return ver, nil
 }
 
-func NeedsMigration(ctx context.Context, r *SQLite, ms []Migration) (bool, error) {
+func needsMigration(ctx context.Context, r *SQLite, ms []Migration) (bool, error) {
 	current, err := r.CurrentSchemaVersion(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	latest := LatestMigrationVersion(ms)
+	latest := latestMigrationVersion(ms)
 
 	return current < latest, nil
 }
 
-func LatestMigrationVersion(ms []Migration) int {
+func latestMigrationVersion(ms []Migration) int {
 	if len(ms) == 0 {
 		return 0
 	}
-
 	return ms[len(ms)-1].Version
 }
 

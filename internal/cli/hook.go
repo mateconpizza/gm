@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -150,7 +151,7 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 	}
 
 	if files.Exists(app.Path.DB()) {
-		if ok, _ := db.IsInitializedFromPath(ctx, app.Path.DB()); ok {
+		if ok, _ := dbops.IsInitializedFromPath(ctx, app.Path.DB()); ok {
 			return fmt.Errorf("%w: %q", db.ErrDBAlreadyInitialized, app.DBName)
 		}
 		return fmt.Errorf("%q %w", app.DBName, db.ErrDBAlreadyInitialized)

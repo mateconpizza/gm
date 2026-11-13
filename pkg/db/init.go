@@ -24,7 +24,7 @@ func (t Table) Exists(ctx context.Context, r *SQLite) (bool, error) {
 		t.String(),
 	)
 	if err != nil {
-		slog.DebugContext(ctx, "checking if table exists", "name", t, "error", err)
+		slog.Debug("checking if table exists", "name", t, "error", err)
 		return false, fmt.Errorf("tableExists: %w", err)
 	}
 
@@ -67,7 +67,7 @@ func (r *SQLite) DropSecure(ctx context.Context) error {
 func (r *SQLite) IsInitialized(ctx context.Context) bool {
 	v, err := r.CurrentSchemaVersion(ctx)
 	if err != nil {
-		slog.DebugContext(ctx, "getting schema version", "error", err)
+		slog.Debug("getting schema version", "error", err)
 		return false
 	}
 

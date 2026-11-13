@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -71,6 +70,7 @@ func (r *SQLite) getOrCreateTag(ctx context.Context, tx *sqlx.Tx, s string) (int
 		if err != nil {
 			return 0, fmt.Errorf("creating tag: error creating tag: %w", err)
 		}
+		r.logger.Debug("tag created", "fn", "db-get-or-create-tag", "tag", s, "tag_id", tagID)
 	}
 
 	return tagID, nil
@@ -78,7 +78,8 @@ func (r *SQLite) getOrCreateTag(ctx context.Context, tx *sqlx.Tx, s string) (int
 
 // associateTags associates tags to the given record.
 func (r *SQLite) associateTags(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
-	slog.DebugContext(ctx, "associating tags with URL", "tags", b.Tags, "url", b.URL)
+	log := r.logger.With("fn", "db-associate-tags", "id", b.ID, "url", b.URL)
+	log.Debug("associating tags", "tags", b.Tags)
 
 	tags := strings.SplitSeq(b.Tags, ",")
 	for tag := range tags {
@@ -91,7 +92,7 @@ func (r *SQLite) associateTags(ctx context.Context, tx *sqlx.Tx, b *bookmark.Boo
 			return err
 		}
 
-		slog.DebugContext(ctx, "processing Tags", "tag", tag, "tagID", tagID)
+		log.Debug("tag associated", "tag", tag, "tag_id", tagID)
 
 		_ = tx.MustExecContext(
 			ctx,
@@ -107,13 +108,17 @@ func (r *SQLite) associateTags(ctx context.Context, tx *sqlx.Tx, b *bookmark.Boo
 // cleanOrphanTagsTx removes all tags that are not associated with any
 // bookmark.
 func (r *SQLite) cleanOrphanTagsTx(ctx context.Context, tx *sqlx.Tx) error {
-	_, err := tx.ExecContext(ctx, `
+	res, err := tx.ExecContext(ctx, `
 		DELETE FROM tags
 		WHERE id NOT IN (
 			SELECT DISTINCT tag_id FROM bookmark_tags
 		);`)
 	if err != nil {
 		return err
+	}
+
+	if n, err := res.RowsAffected(); err == nil && n > 0 {
+		r.logger.Debug("orphan tags removed", "fn", "db-clean-orphan-tags", "count", n)
 	}
 
 	return nil
