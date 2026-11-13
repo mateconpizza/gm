@@ -28,7 +28,7 @@ var (
 // If the environment variable is not set, returns the default value.
 func Env(s, def string) string {
 	if v, ok := os.LookupEnv(s); ok {
-		slog.Debug("environment variable found", "variable", s)
+		slog.Debug("environment variable found", "variable", s, "value", v)
 		return v
 	}
 	slog.Debug("environment variable not set, using default", "variable", s)
@@ -166,25 +166,24 @@ func WithSignalContext(parent context.Context, err error) (context.Context, cont
 	slog.Debug("signal context initialized")
 
 	go func() {
+		// always release the signal registration when the goroutine exits,
+		// whether by signal, parent cancel, or the returned cancel func.
+		defer signal.Stop(signals)
+
 		select {
 		case <-ctx.Done():
-			slog.Debug("signal context canceled", "cause", context.Cause(ctx))
+			slog.Debug("context done", "cause", context.Cause(ctx))
 			return
 		case s := <-signals:
 			cause := fmt.Errorf("%w with signal %s", err, s)
-			slog.Debug("received termination signal",
-				"signal", s,
-				"cause", cause,
-			)
+			slog.Debug("received termination signal", "signal", s.String(), "cause", cause)
 			fmt.Fprintln(os.Stdout)
 			cancelCause(cause)
 		}
 	}()
 
 	return ctx, func() {
-		slog.Debug("canceling signal context")
-		signal.Stop(signals)
+		slog.Debug("canceling", "fn", "signal-context")
 		cancelCause(nil)
-		slog.Debug("signal context canceled")
 	}
 }

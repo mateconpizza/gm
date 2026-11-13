@@ -42,7 +42,7 @@ type EditSession struct {
 
 func NewEditSession() *EditSession {
 	return &EditSession{
-		logger: slog.New(slog.DiscardHandler),
+		logger: slog.Default(),
 		writer: os.Stdout,
 	}
 }

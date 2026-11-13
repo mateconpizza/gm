@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -34,6 +35,7 @@ type (
 
 		console *ui.Console
 		writer  io.Writer
+		logger  *slog.Logger
 	}
 
 	PullerOpt func(*GitPuller)
@@ -45,12 +47,17 @@ func NewPuller(c *ui.Console, srcDir, dstDir string, opts ...PullerOpt) *GitPull
 		dstDir:  dstDir,
 		console: c,
 		writer:  os.Stdout,
+		logger:  slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(gp)
 	}
+	gp.logger = gp.logger.With("component", "git-puller")
+
 	return gp
 }
+
+func WithPullerLogger(l *slog.Logger) PullerOpt { return func(gp *GitPuller) { gp.logger = l } }
 
 // Repos returns the loaded repositories if processing has been initiated.
 func (gp *GitPuller) Repos() []*git.Repo { return gp.repos }
@@ -58,6 +65,9 @@ func (gp *GitPuller) Repos() []*git.Repo { return gp.repos }
 // Pull pulls bookmarks from remote git repository and replicate the
 // repositories as databases.
 func (gp *GitPuller) Pull(sess *session.Session) error {
+	log := gp.logger.With("fn", "pull", "src", gp.srcDir, "dst", gp.dstDir)
+	log.Debug("starting pull")
+
 	if err := gp.scan(); err != nil {
 		return err
 	}
@@ -72,21 +82,30 @@ func (gp *GitPuller) Pull(sess *session.Session) error {
 	}
 
 	printHeader(gp, rc)
+	log.Debug("pull completed", "repos", len(gp.repos))
 
 	return nil
 }
 
 // Read read bookmarks in the repository.
 func (gp *GitPuller) Read(ctx context.Context, gr *git.Repo) error {
+	log := gp.logger.With("fn", "read", "repo", gr.Name())
+
 	_, err := gr.Stats()
 	if err != nil {
+		log.Debug("skipping repo, stats failed", "error", err)
 		fmt.Fprintln(gp.writer, "skipping "+gr.Name(), err.Error())
 		return nil
 	}
+
+	log.Debug("reading repo")
+
 	return gr.Read(ctx)
 }
 
-func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
+func (gp *GitPuller) selection(ctx context.Context, m Menu, t Terminal) error {
+	log := gp.logger.With("fn", "selection")
+
 	opts := []string{"yes", "no"}
 	n := len(gp.found)
 	if n > 1 {
@@ -97,6 +116,7 @@ func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
 	if err != nil {
 		return err
 	}
+	log.Debug("option chosen", "option", opt, "found", n)
 
 	switch opt {
 	case "yes":
@@ -109,14 +129,17 @@ func (gp *GitPuller) Select(ctx context.Context, m Menu, t Terminal) error {
 			return err
 		}
 
+		log.Debug("repos selected", "before", len(gp.repos), "after", len(repos))
 		gp.repos = repos
 	}
 
 	return nil
 }
 
-// PrintDetails outputs a repository's metadata profile and summary metrics.
-func (gp *GitPuller) PrintDetails(gr *git.Repo) error {
+// printDetails outputs a repository's metadata profile and summary metrics.
+func (gp *GitPuller) printDetails(gr *git.Repo) error {
+	log := gp.logger.With("fn", "print-details", "repo", gr.Name())
+
 	f, p := gp.console.Frame(), gp.console.Palette()
 	f.Rowln().Info(p.Bold.Sprintf("Repository %q\n", gr.Name()))
 
@@ -126,25 +149,32 @@ func (gp *GitPuller) PrintDetails(gr *git.Repo) error {
 	}
 
 	if stats.Bookmarks == 0 {
+		log.Debug("repo has no bookmarks, skipping")
 		skip := p.BrightYellow.Wrap("skipping ", p.Italic)
 		gp.console.Warning(skip + gr.Name() + ": no bookmark found").Ln().Flush()
 		return git.ErrGitRepoEmpty
 	}
 
+	log.Debug("printing stats", "bookmarks", stats.Bookmarks)
 	printStats(gp.console, stats)
+
 	return nil
 }
 
 // scan finds matching subdirectories in the working root.
 func (gp *GitPuller) scan() error {
+	log := gp.logger.With("fn", "scan", "src", gp.srcDir)
+
 	repos, err := files.ListRootFolders(gp.srcDir, ".git")
 	if err != nil {
 		return err
 	}
 	if len(repos) == 0 {
+		log.Debug("no git repositories found")
 		return git.ErrGitNoRepos
 	}
 
+	log.Debug("repositories found", "count", len(repos), "repos", repos)
 	gp.found = repos
 
 	return nil
@@ -152,10 +182,13 @@ func (gp *GitPuller) scan() error {
 
 // loadAll discovers and loads metadata for all available repositories.
 func (gp *GitPuller) loadAll(sess *session.Session) error {
+	log := gp.logger.With("fn", "load-all")
 	ops := NewRepoOps(sess)
 
 	for _, repoName := range gp.found {
 		fullpath := filepath.Join(gp.srcDir, repoName)
+		log.Debug("loading repo", "repo", repoName, "path", fullpath)
+
 		gr := git.NewRepo(
 			repoName,
 			fullpath,
@@ -164,6 +197,8 @@ func (gp *GitPuller) loadAll(sess *session.Session) error {
 
 		gp.repos = append(gp.repos, gr)
 	}
+
+	log.Debug("repos loaded", "count", len(gp.repos))
 
 	return nil
 }

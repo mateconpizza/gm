@@ -50,7 +50,6 @@ func (d *Deps) Application(ctx context.Context) (*application.App, error) {
 	if d.app != nil {
 		return d.app, nil
 	}
-
 	return application.FromContext(ctx)
 }
 
@@ -58,7 +57,6 @@ func (d *Deps) Repository() (*db.SQLite, error) {
 	if d.repo == nil {
 		return nil, db.ErrDBNotFound
 	}
-
 	return d.repo, nil
 }
 

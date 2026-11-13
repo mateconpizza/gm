@@ -2,6 +2,7 @@ package gitops
 
 import (
 	"context"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
@@ -15,11 +16,9 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-func NewRepo(gm *git.Mgr, name string, sess *session.Session, color bool) *git.Repo {
-	f := NewRepoOps(
-		sess,
-		WithSpinner(NewSpinner(color)),
-	)
+func NewRepo(gm *git.Mgr, name string, sess *session.Session, color bool, opts ...RepoOpsOptFunc) *git.Repo {
+	opts = append([]RepoOpsOptFunc{WithSpinner(NewSpinner(color))}, opts...)
+	f := NewRepoOps(sess, opts...)
 
 	return gm.NewRepo(name,
 		f.Reader(),
@@ -32,6 +31,7 @@ type (
 	RepoOps struct {
 		session *session.Session
 		spinner spinner
+		logger  *slog.Logger
 	}
 
 	RepoOpsOptFunc func(*RepoOps)
@@ -41,10 +41,13 @@ func NewRepoOps(sess *session.Session, opts ...RepoOpsOptFunc) *RepoOps {
 	ro := &RepoOps{
 		session: sess,
 		spinner: rotato.New(),
+		logger:  slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(ro)
 	}
+	ro.logger = ro.logger.With("component", "repo-ops")
+
 	return ro
 }
 
@@ -56,16 +59,27 @@ func WithSpinner(sp spinner) RepoOpsOptFunc {
 	}
 }
 
+func WithRepoOpsLogger(l *slog.Logger) RepoOpsOptFunc {
+	return func(ro *RepoOps) {
+		if l != nil {
+			ro.logger = l
+		}
+	}
+}
+
 func (ro *RepoOps) Reader() git.RepoOptFunc  { return git.WithRepoReader(ro.readFiles) }
 func (ro *RepoOps) Writer() git.RepoOptFunc  { return git.WithRepoWriter(ro.writeFiles) }
-func (ro *RepoOps) Remover() git.RepoOptFunc { return git.WithRepoRemover(removeFiles) }
+func (ro *RepoOps) Remover() git.RepoOptFunc { return git.WithRepoRemover(ro.removeFiles) }
 
 func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
+	log := ro.logger.With("fn", "read-files", "repo", filepath.Base(path))
+
 	root := filepath.Dir(path)
 	rc, err := resolveConfig(root)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("reading repo", "path", path, "total", total, "format", rc.Format, "encryption", rc.Encryption)
 
 	serializer, err := serializerFor(rc.Format)
 	if err != nil {
@@ -77,7 +91,7 @@ func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bo
 		return nil, err
 	}
 
-	return newFileRepoReader(ctx, &readerCfg{
+	bs, err := newFileRepoReader(ctx, &readerCfg{
 		name:       filepath.Base(path),
 		root:       filepath.Dir(path),
 		repoPath:   path,
@@ -85,15 +99,26 @@ func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bo
 		spinner:    ro.spinner,
 		serializer: serializer,
 		cipher:     cipher,
+		logger:     log,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug("repo read", "count", len(bs))
+
+	return bs, nil
 }
 
 func (ro *RepoOps) writeFiles(ctx context.Context, path string, bs []*bookmark.Bookmark) error {
+	log := ro.logger.With("fn", "write-files", "repo", filepath.Base(path))
+
 	root := filepath.Dir(path)
 	rc, err := resolveConfig(root)
 	if err != nil {
 		return err
 	}
+	log.Debug("writing repo", "path", path, "count", len(bs), "format", rc.Format, "encryption", rc.Encryption)
 
 	serializer, err := serializerFor(rc.Format)
 	if err != nil {
@@ -105,7 +130,7 @@ func (ro *RepoOps) writeFiles(ctx context.Context, path string, bs []*bookmark.B
 		return err
 	}
 
-	return newFileRepoWriter(ctx, &writerCfg{
+	err = newFileRepoWriter(ctx, &writerCfg{
 		name:       filepath.Base(path),
 		root:       root,
 		repoPath:   path,
@@ -114,18 +139,28 @@ func (ro *RepoOps) writeFiles(ctx context.Context, path string, bs []*bookmark.B
 		cipher:     cipher,
 		serializer: serializer,
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Debug("repo written", "count", len(bs))
+
+	return nil
 }
 
-func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
+func (ro *RepoOps) removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
+	log := ro.logger.With("fn", "remove-files", "repo", filepath.Base(repoPath))
 
 	root := filepath.Dir(repoPath)
 	rc, err := resolveConfig(root)
 	if err != nil {
 		return err
 	}
+	log.Debug("removing files", "path", repoPath, "count", len(bs), "format", rc.Format)
 
 	serializer, err := serializerFor(rc.Format)
 	if err != nil {
@@ -152,13 +187,21 @@ func removeFiles(ctx context.Context, repoPath string, bs []*bookmark.Bookmark) 
 		}
 
 		fullpath := filepath.Join(repoPath, filename)
+		log.Debug("resolved file to remove", "id", b.ID, "file", filename)
+
 		return fullpath, nil
 	})
 	if err != nil {
 		return err
 	}
 
-	return r.Rm(ctx, bs)
+	if err := r.Rm(ctx, bs); err != nil {
+		return err
+	}
+
+	log.Debug("files removed", "count", len(bs))
+
+	return nil
 }
 
 func NewSpinner(color bool) *rotato.Rotato {

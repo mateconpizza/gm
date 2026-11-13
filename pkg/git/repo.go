@@ -59,11 +59,13 @@ type RepoOptions struct {
 	writer  WriterFunc
 	remover RemoverFunc
 	file    FileWriter[Summary]
+	logger  *slog.Logger
 }
 
 func WithRepoWriter(w WriterFunc) RepoOptFunc    { return func(ro *RepoOptions) { ro.writer = w } }
 func WithRepoReader(r ReaderFunc) RepoOptFunc    { return func(ro *RepoOptions) { ro.reader = r } }
 func WithRepoRemover(rm RemoverFunc) RepoOptFunc { return func(ro *RepoOptions) { ro.remover = rm } }
+func WithRepoLogger(l *slog.Logger) RepoOptFunc  { return func(ro *RepoOptions) { ro.logger = l } }
 
 func WithSummaryWriter[T Summary](sw FileWriter[Summary]) RepoOptFunc {
 	return func(ro *RepoOptions) { ro.file = sw }
@@ -80,7 +82,8 @@ type Repo struct {
 func NewRepo(name, dstDir string, opts ...RepoOptFunc) *Repo {
 	sumFilepath := filepath.Join(dstDir, SummaryFileName)
 	o := &RepoOptions{
-		file: newJSONFile[Summary](sumFilepath),
+		file:   newJSONFile[Summary](sumFilepath),
+		logger: slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -98,9 +101,10 @@ func (gr *Repo) Root() string     { return filepath.Dir(gr.fullpath) }
 func (gr *Repo) Fullpath() string { return gr.fullpath }
 
 func (gr *Repo) String() string {
+	log := gr.logger.With("repo", gr.name)
 	stats, err := gr.Stats()
 	if err != nil {
-		slog.Error("error getting repo summary", "error", err)
+		log.Error("error getting repo summary", "error", err)
 		return ""
 	}
 	return stats.String()
@@ -128,11 +132,14 @@ func (gr *Repo) Add(ctx context.Context, bs []*bookmark.Bookmark) error {
 }
 
 func (gr *Repo) RmMany(ctx context.Context, bs []*bookmark.Bookmark, postRm PostRemovalFunc) error {
+	log := gr.logger.With("repo", gr.name, "count", len(bs))
+
 	if gr.remover == nil {
 		return fmt.Errorf("%w: file remover", ErrNoFunctionFound)
 	}
 
 	if err := gr.remover(ctx, gr.fullpath, bs); err != nil {
+		log.Error("failed to remove bookmarks via remover function", "error", err)
 		return err
 	}
 
@@ -147,8 +154,11 @@ func (gr *Repo) RmMany(ctx context.Context, bs []*bookmark.Bookmark, postRm Post
 	})
 
 	if err := postRm(gr.Fullpath()); err != nil {
+		log.Error("post removal function failed", "path", gr.Fullpath(), "error", err)
 		return fmt.Errorf("post removal function: %q: %w", gr.Fullpath(), err)
 	}
+
+	log.Debug("bookmarks successfully removed in batch")
 
 	return nil
 }
@@ -256,7 +266,8 @@ func (gr *Repo) WriteSummary(s *Summary) error {
 	if err := s.Validate(); err != nil {
 		return err
 	}
-	slog.Debug("git summary: writing", "file", gr.file.Path())
+	log := gr.logger.With("repo", gr.name, "file", gr.file.Path())
+	log.Debug("git summary writing")
 	s.RepoStats.Name = gr.Name()
 	gr.file.Set(*s)
 	return gr.file.Write()

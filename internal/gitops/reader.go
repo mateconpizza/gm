@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path/filepath"
 
 	"github.com/mateconpizza/gm/internal/locker/enc"
+	"github.com/mateconpizza/gm/internal/locker/gpg"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 	"github.com/mateconpizza/gm/pkg/git"
@@ -43,6 +45,15 @@ type readerCfg struct {
 
 	cipher     enc.Cipher
 	serializer bookio.Serializer
+	logger     *slog.Logger
+}
+
+// log returns the configured logger, or the default one if none was set.
+func (c *readerCfg) log() *slog.Logger {
+	if c.logger == nil {
+		return slog.Default()
+	}
+	return c.logger
 }
 
 func (c *readerCfg) passphrasePrompt() PassphrasePrompt {
@@ -88,6 +99,9 @@ func fileReader(cfg *readerCfg) *bookio.RepositoryLoader {
 }
 
 func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmark, error) {
+	log := cfg.log().With("fn", "file-repo-reader", "repo", cfg.name)
+	log.Debug("starting", "path", cfg.repoPath, "total", cfg.total)
+
 	cfg.loader = fileReader(cfg)
 	cfg.spinner.UpdatePrefix(cfg.loader.Prefix)
 	cfg.spinner.Start(ctx)
@@ -103,6 +117,7 @@ func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmar
 		}
 
 		if err := ctx.Err(); err != nil {
+			log.Debug("context done while walking", "cause", context.Cause(ctx))
 			return err
 		}
 
@@ -111,7 +126,8 @@ func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmar
 		}
 
 		// handle prompt for GPG passphrase on the first valid file.
-		if !passphrasePrompted {
+		if !passphrasePrompted && cfg.cipher.Suffix() == gpg.Extension.String() {
+			log.Debug("first valid file, handling passphrase prompt", "file", filepath.Base(path))
 			if err := cfg.passphrasePrompt()(ctx, r, cfg.spinner, path, &passphrasePrompted); err != nil {
 				return err
 			}
@@ -128,5 +144,12 @@ func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmar
 		return nil, fmt.Errorf("%w %q: %w", ErrRepoReader, cfg.name, err)
 	}
 
-	return r.Results()
+	bs, err := r.Results()
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug("finished", "count", len(bs), "expected", cfg.total)
+
+	return bs, nil
 }

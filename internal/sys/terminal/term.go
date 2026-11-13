@@ -58,6 +58,7 @@ type Options struct {
 
 	reader io.Reader
 	writer io.Writer
+	logger *slog.Logger
 }
 
 // Term is a struct that represents a terminal.
@@ -84,6 +85,7 @@ func New(opts ...TermOptFn) *Term {
 			colorizer:        defaultColorizer,
 			cancelationError: ErrActionAborted,
 			choicesFmt:       ChoicesInlineBracketedFmt,
+			logger:           slog.Default(),
 		},
 		size: NewSize(),
 	}
@@ -110,6 +112,7 @@ func WithTermState(s *State) TermOptFn         { return func(o *Options) { o.sta
 func WithWriter(w io.Writer) TermOptFn         { return func(o *Options) { o.writer = w } }
 func WithForce(force bool) TermOptFn           { return func(o *Options) { o.force = force } }
 func WithCancelationError(err error) TermOptFn { return func(o *Options) { o.cancelationError = err } }
+func WithLogger(l *slog.Logger) TermOptFn      { return func(o *Options) { o.logger = l } }
 
 // WithChoicesFmt sets how options are rendered in choice prompts.
 func WithChoicesFmt(f ChoicesFmt) TermOptFn {
@@ -142,7 +145,10 @@ func (t *Term) Input(p string) string {
 }
 
 func (t *Term) InputPassword(ctx context.Context) (string, error) {
+	log := t.logger.With("fn", "input-password")
+
 	if err := ctx.Err(); err != nil {
+		log.Debug("context already canceled before reading password", "error", err)
 		return "", err
 	}
 
@@ -150,8 +156,10 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 
 	// if not a terminal (piped or test), read plain input
 	if !t.isTerminal(fd) {
+		log.Debug("stdin is not a terminal, reading plain input")
 		password, err := t.currentReader().ReadString('\n')
 		if err != nil && !errors.Is(err, io.EOF) {
+			log.Error("failed to read plain password string", "error", err)
 			return "", fmt.Errorf("reading password: %w", err)
 		}
 		return strings.TrimSuffix(password, "\n"), nil
@@ -159,11 +167,12 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 
 	// Save and restore terminal state
 	if err := t.saveTermState(); err != nil {
+		log.Error("failed to save terminal state", "error", err)
 		return "", err
 	}
 	defer func() {
 		if err := t.restoreTermState(); err != nil {
-			slog.Warn("restoring terminal state", "error", err)
+			log.Warn("failed to restore terminal state", "error", err)
 		}
 	}()
 
@@ -175,17 +184,21 @@ func (t *Term) InputPassword(ctx context.Context) (string, error) {
 	resultChan := make(chan passwordResult, 1)
 
 	go func() {
+		log.Debug("starting secure password prompt reader")
 		p, err := t.readPassword(fd)
 		resultChan <- passwordResult{password: string(p), err: err}
 	}()
 
 	select {
 	case <-ctx.Done():
+		log.Warn("password input canceled by context", "cause", ctx.Err())
 		return "", t.cancelationError
 	case result := <-resultChan:
 		if result.err != nil {
+			log.Error("failed to read secure password", "error", result.err)
 			return "", fmt.Errorf("reading password: %w", result.err)
 		}
+		log.Debug("password successfully read")
 		return result.password, nil
 	}
 }
@@ -239,7 +252,7 @@ func (t *Term) ChooseTags(ctx context.Context, p string, items map[string]int) (
 func (t *Term) Confirm(ctx context.Context, q, def string) bool {
 	err := t.ConfirmErr(ctx, q, def)
 	if err != nil {
-		slog.Debug("terminal confirm", "err", err)
+		t.logger.Debug("terminal confirm", "err", err)
 	}
 
 	return err == nil
@@ -251,10 +264,12 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 		return err
 	}
 
+	log := t.logger.With("fn", "confirm", "question", q)
+
 	def = strings.ToLower(def)
 
 	if t.force {
-		slog.Debug("force", "def", def)
+		log.Debug("force enabled, auto-confirming", "def", def)
 		return nil
 	}
 
@@ -264,8 +279,11 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 
 	opts := []string{"y", "n"}
 	if !slices.Contains(opts, def) {
+		log.Debug("invalid default, falling back to 'n'", "def", def)
 		def = "n"
 	}
+
+	log.Debug("prompting", "default", def)
 
 	chosen, err := t.promptWithChoicesErr(ctx, q, opts, def)
 	if err != nil {
@@ -273,19 +291,27 @@ func (t *Term) ConfirmErr(ctx context.Context, q, def string) error {
 	}
 
 	if chosen != "y" {
+		log.Debug("declined", "chosen", chosen)
 		return t.cancelationError
 	}
+
+	log.Debug("confirmed")
 
 	return nil
 }
 
 // Choose prompts the user to enter one of the given options.
 func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
+	log := t.logger.With("fn", "choose", "question", q)
+
 	// the default can be a full option or a unique prefix ("b" -> "badges")
 	if def != "" {
 		full, ok := resolveOption(strings.ToLower(def), opts)
 		if !ok {
 			return "", fmt.Errorf("%q %w in [%s]", def, ErrOptNotFound, strings.Join(opts, ","))
+		}
+		if full != def {
+			log.Debug("default resolved", "input", def, "resolved", full)
 		}
 		def = full
 	}
@@ -293,9 +319,11 @@ func (t *Term) Choose(ctx context.Context, q string, opts []string, def string) 
 	opts = uniqueOptions(opts)
 
 	if t.force {
-		slog.Debug("choose", "def", def)
+		log.Debug("force enabled, using default", "def", def)
 		return def, nil
 	}
+
+	log.Debug("prompting", "options", opts, "default", def)
 
 	return t.promptWithChoicesErr(ctx, q, opts, def)
 }
@@ -445,6 +473,7 @@ func (t *Term) promptWithChoicesErr(ctx context.Context, q string, opts []string
 		maxRetries:       t.inputRetries,
 		colorizer:        t.colorizer,
 		cancelationError: t.cancelationError,
+		logger:           t.logger,
 	})
 }
 

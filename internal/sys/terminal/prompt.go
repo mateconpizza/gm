@@ -55,6 +55,14 @@ type PromptInput struct {
 	colorizer        *Colorizer
 	maxRetries       int // maxRetries specifies the maximum number of retries allowed for user input.
 	cancelationError error
+	logger           *slog.Logger
+}
+
+func (pi *PromptInput) log() *slog.Logger {
+	if pi.logger == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return pi.logger
 }
 
 type (
@@ -249,6 +257,8 @@ func completerTagsWithCount[T comparable, V any](m map[T]V, filter filterFn) Pro
 // getUserInputWithAttempts reads user input and validates against the options,
 // with a limited number of attempts (3).
 func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, error) {
+	log := pi.log().With("fn", "user-input")
+
 	var count int
 	for count < pi.maxRetries {
 		_, _ = fmt.Fprint(pi.writer, pi.prompt)
@@ -269,10 +279,11 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 		// wait for input, context cancellation, or timeout
 		select {
 		case <-ctx.Done():
+			log.Debug("context done while waiting for input", "cause", context.Cause(ctx))
 			return "", pi.cancelationError
 		case result := <-resultChan:
 			if result.err != nil {
-				slog.Error("error reading input", "error", result.err)
+				log.Error("error reading input", "error", result.err)
 				return "", result.err
 			}
 
@@ -280,12 +291,14 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 
 			// user accepted the default
 			if userInput == "" && pi.def != "" || userInput == pi.def {
+				log.Debug("default accepted", "def", pi.def)
 				redrawPromptWithSelection(pi.writer, pi.prompt, pi.def, pi.colorizer.Success)
 				return pi.def, nil
 			}
 
 			// exact match or unique prefix
 			if opt, ok := resolveOption(userInput, pi.options); ok {
+				log.Debug("option selected", "input", userInput, "option", opt)
 				c := pi.colorizer.Selected
 				if opt == pi.def {
 					c = pi.colorizer.Success
@@ -295,6 +308,8 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 			}
 
 			count++
+			log.Debug("invalid input", "input", userInput, "attempt", count, "max", pi.maxRetries)
+
 			// user ran out of retries
 			if count <= pi.maxRetries-1 {
 				ClearLine(pi.writer, len(strings.Split(pi.prompt, "\n")))
@@ -302,6 +317,7 @@ func getUserInputWithAttempts(ctx context.Context, pi *PromptInput) (string, err
 		}
 	}
 
+	log.Debug("out of attempts", "max", pi.maxRetries)
 	redrawPromptWithSelection(pi.writer, pi.prompt, "error", pi.colorizer.Error)
 	return "", fmt.Errorf("%d %w", pi.maxRetries, ErrIncorrectAttempts)
 }

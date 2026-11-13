@@ -9,8 +9,6 @@ import (
 	"strings"
 )
 
-var ErrNoVersionFound = errors.New("git: no mgr version found")
-
 type (
 	MgrOptFunc func(*MgrOptions)
 
