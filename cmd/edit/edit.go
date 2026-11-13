@@ -4,8 +4,8 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
@@ -26,15 +26,15 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} edit --tag golang --tag awesome`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app)
-			return cmdutil.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), newStrategy(app)))
+			return command.Execute(cmd.Context(), args, m, handler.Edit(cmd.Context(), newStrategy(app)))
 		},
 	}
 
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagsFormat(c, app, editor.Supported)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagsFormat(c, app, editor.Supported)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }

@@ -9,10 +9,9 @@ import (
 	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/setup"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -29,7 +28,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} new <URL> --title <title>
   $ {cmd} new <URL> --title <title> --tags <golang,awesome>`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return handler.AddBookmark(cmd.Context(), d, args)
 			})
 		},
@@ -50,7 +49,7 @@ func newAddDatabase(app *application.App) *cobra.Command {
 		Short:       "add a database",
 		Aliases:     []string{"database"},
 		Example:     app.Example(`  $ {cmd} new db --db <name>`),
-		Annotations: cli.SkipDBCheck,
+		Annotations: command.SkipDBCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if files.Exists(app.Path.DB()) {
 				return fmt.Errorf("%w: %q", db.ErrDBExists, app.DBName)
@@ -59,7 +58,7 @@ func newAddDatabase(app *application.App) *cobra.Command {
 		},
 		PostRunE: setup.InitCmd.PostRunE,
 	}
-	cmdutil.FlagDBRequired(c, app)
+	command.FlagDBRequired(c, app)
 	return c
 }
 
@@ -72,7 +71,7 @@ func newBackupAddCmd(app *application.App) *cobra.Command {
   $ {cmd} new bk
   $ {cmd} new bk --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, dbops.NewBackup)
+			return command.Run(cmd.Context(), args, dbops.NewBackup)
 		},
 	}
 	return c

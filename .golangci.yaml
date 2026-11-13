@@ -165,7 +165,7 @@ linters:
       - path: "cmd/setup/setup_test.go"
         linters:
           - paralleltest # using t.Setenv from `testutil.SetupApp`
-      - path: "internal/cli/hook_test.go"
+      - path: "internal/command/hook_test.go"
         linters:
           - gocritic
         text: "dupOption:"

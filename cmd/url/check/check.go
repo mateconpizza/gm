@@ -7,8 +7,8 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -24,7 +24,7 @@ func NewCheckCmd(app *application.App) *cobra.Command {
   $ {cmd} url check -c 2,4
   $ {cmd} url check --code 404,403`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
+			return command.Execute(
 				cmd.Context(),
 				args,
 				setupMenu(app, " bookmark status "),
@@ -37,11 +37,11 @@ func NewCheckCmd(app *application.App) *cobra.Command {
 	fields := []string{"200", "300", "400", "500"}
 	c.Flags().StringVarP(&app.Flags.Field, "code", "c", "", "filter status code: "+strings.Join(fields, ", "))
 
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
-	cmdutil.FlagCompletion(c, "code", func(cmd *cobra.Command) ([]string, error) {
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagCompletion(c, "code", func(cmd *cobra.Command) ([]string, error) {
 		return fields, nil
 	})
 
@@ -56,14 +56,14 @@ func newUpdateCmd(app *application.App) *cobra.Command {
 		Short: "update metadata: title, desc, tags",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " update metadata ")
-			return cmdutil.Execute(cmd.Context(), args, m, handler.UpdateMetadata)
+			return command.Execute(cmd.Context(), args, m, handler.UpdateMetadata)
 		},
 	}
 
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }
@@ -77,7 +77,7 @@ func NewStatusCmd(app *application.App) *cobra.Command {
   $ {cmd} url status -c 2,4
   $ {cmd} url status --code 404,403`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
+			return command.Execute(
 				cmd.Context(),
 				args,
 				nil,
@@ -90,7 +90,7 @@ func NewStatusCmd(app *application.App) *cobra.Command {
 	fields := []string{"200", "300", "400", "500"}
 	c.Flags().StringVarP(&app.Flags.Field, "code", "c", "", "filter status code: "+strings.Join(fields, ", "))
 
-	cmdutil.FlagCompletion(c, "code", func(cmd *cobra.Command) ([]string, error) {
+	command.FlagCompletion(c, "code", func(cmd *cobra.Command) ([]string, error) {
 		return fields, nil
 	})
 

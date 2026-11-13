@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
@@ -31,8 +31,8 @@ var InitCmd = &cobra.Command{
 	Use:               "init",
 	Short:             "initialize a new bookmarks database",
 	Hidden:            true,
-	Annotations:       cli.SkipDBCheck,
-	PersistentPreRunE: cli.HookCheckIfDatabaseInitialized,
+	Annotations:       command.SkipDBCheck,
+	PersistentPreRunE: command.HookCheckIfDatabaseInitialized,
 	PostRunE:          InitAppPostFunc,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: convert `InitCmd` to command builder(*application.App)

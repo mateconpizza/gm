@@ -3,9 +3,8 @@ package database
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/ui"
 )
@@ -15,7 +14,7 @@ func newBackupCmd(app *application.App) *cobra.Command {
 		Use:         "backup",
 		Aliases:     []string{"b", "bk"},
 		Short:       "backup management",
-		Annotations: cli.SkipGitSync,
+		Annotations: command.SkipGitSync,
 	}
 	c.AddCommand(
 		newBackupListCmd(app),
@@ -60,9 +59,9 @@ func newBackupListCmd(app *application.App) *cobra.Command {
   $ {cmd} db backup list --db work
   $ {cmd} db backup ls`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, dbops.BackupList)
+			return command.Run(cmd.Context(), args, dbops.BackupList)
 		},
 	}
-	cmdutil.HideFlag(c, "yes", "force")
+	command.HideFlag(c, "yes", "force")
 	return c
 }

@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
@@ -37,7 +37,7 @@ func newTrackCmd(_ *application.App) *cobra.Command {
 		Short:   "track a database",
 		Aliases: []string{"t", "add", "new"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, gitops.NewTrack)
+			return command.Run(cmd.Context(), args, gitops.NewTrack)
 		},
 	}
 
@@ -50,7 +50,7 @@ func newUntrackCmd(_ *application.App) *cobra.Command {
 		Short:   "untrack a database",
 		Aliases: []string{"u", "remove", "rm", "r"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, gitops.Untrack)
+			return command.Run(cmd.Context(), args, gitops.Untrack)
 		},
 	}
 
@@ -63,7 +63,7 @@ func newMgrCmd(app *application.App) *cobra.Command {
 		Short:   "select which database to track",
 		Aliases: []string{"mgr", "m"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return gitops.TrackMgr(ctx, app, app.Git.Manager(), d.Console(), app.Databases())
 			})
 		},

@@ -8,8 +8,8 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -25,7 +25,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive --menu
   $ {cmd} url archive --tag golang`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
+			return command.Execute(
 				cmd.Context(),
 				args,
 				setupMenu(app),
@@ -34,8 +34,8 @@ func NewCmd(app *application.App) *cobra.Command {
 			)
 		},
 	}
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagMenu(c, app)
 	c.AddCommand(newLookupCmd(app), newSaveCmd(app))
 
 	return c
@@ -52,7 +52,7 @@ func newLookupCmd(app *application.App) *cobra.Command {
   $ {cmd} url archive get --menu
   $ {cmd} url archive fetch 179 --timeout 45s`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
+			return command.Execute(
 				cmd.Context(),
 				args,
 				setupMenu(app),
@@ -68,9 +68,9 @@ func newLookupCmd(app *application.App) *cobra.Command {
 	f.IntVarP(&app.Flags.Year, "year", "Y", 0, "restrict snapshots to a specific year")
 	f.DurationVar(&app.Flags.Timeout, "timeout", 30*time.Second, "maximum time to wait for snapshot retrieval")
 
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }
@@ -80,7 +80,7 @@ func newSaveCmd(app *application.App) *cobra.Command {
 		Use:   "add",
 		Short: "wayback request",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
+			return command.Execute(
 				cmd.Context(),
 				args,
 				setupMenu(app),
@@ -89,9 +89,9 @@ func newSaveCmd(app *application.App) *cobra.Command {
 			)
 		},
 	}
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
 	return c
 }
 

@@ -1,11 +1,9 @@
-// Package cli provides utilities for building and managing Cobra commands.
-package cli
+package command
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
@@ -96,10 +94,10 @@ func ChainHooks(hooks ...HookE) HookE {
 // Returns an error if database is missing, locked, or needs initialization.
 func HookEnsureDatabase(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
+		log := app.Logger().With("hook", "ensure-db", "command", cmd.CommandPath())
 		if cmd.HasParent() {
-			slog.Debug("ensure database", "parent", cmd.Parent().Name())
+			log = log.With("parent", cmd.Parent().Name())
 		}
-		slog.Debug("ensure database", "command", cmd.Name())
 
 		if exit := dispatch(cmd, app); exit {
 			return nil
@@ -108,7 +106,7 @@ func HookEnsureDatabase(app *application.App) HookE {
 		// Walk up the command chain: skip if any ancestor declares skip-db-check
 		for c := cmd; c != nil; c = c.Parent() {
 			if v, ok := c.Annotations[AnnotationSkipDBCheck]; ok && v == "true" {
-				slog.Debug("skipping db check for", "command", c.Name())
+				log.Debug("skipping db check", "skipped_by", c.CommandPath())
 				return nil
 			}
 		}
@@ -122,12 +120,15 @@ func HookEnsureDatabase(app *application.App) HookE {
 			return nil
 		}
 
-		if files.Exists(app.Path.DB()) {
+		path := app.Path.DB()
+		if files.Exists(path) {
+			log.Info("database found", "path", path)
 			databaseChecked = true
 			return nil
 		}
 
-		if err := checkDatabaseLocked(app.Path.DB()); err != nil {
+		if err := checkDatabaseLocked(path); err != nil {
+			log.Error("database locked", "path", path)
 			return err
 		}
 
@@ -163,6 +164,8 @@ func HookCheckIfDatabaseInitialized(cmd *cobra.Command, _ []string) error {
 // HookGitEnsureEnv ensures Git environment is properly set up.
 func HookGitEnsureEnv(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
+		log := app.Logger().With("hook", "git-ensure-env", "command", cmd.CommandPath())
+
 		// This will handle when the `c.DisableFlagParsing` is true and show help command.
 		for _, arg := range args {
 			if arg == "-h" || arg == "--help" || arg == "help" {
@@ -173,27 +176,31 @@ func HookGitEnsureEnv(app *application.App) HookE {
 
 		for c := cmd; c != nil; c = c.Parent() {
 			if v, ok := c.Annotations[AnnotationSkipGitCheck]; ok && v == "true" {
-				slog.Debug("skipping git environment check for", "command", c.Name())
+				log.Debug("skipping git environment check", "skipped_by", c.CommandPath())
 				return nil
 			}
 		}
+
+		log.Debug("checking git environment")
 
 		_, err := git.New(app.Path.Git())
 		if err != nil {
 			return fmt.Errorf("hook git: %w", err)
 		}
 
-		switch cmd.Name() {
-		case "init", "import", "clone":
+		if cmd.Name() == "init" {
+			log.Debug("git setup command, skipping initialization check")
 			return nil
 		}
 
 		isInitialized := git.Initialized(app.Path.Git())
 		if !app.GitEnabled() && isInitialized {
+			log.Debug("git is disabled but repository is initialized")
 			return git.ErrGitDisabled
 		}
 
 		if !isInitialized {
+			log.Debug("git repository not initialized")
 			p := ansi.NewPalette(app.Flags.Color)
 			i := p.BrightYellow.With(p.Italic).Sprintf("%s git init", app.Cmd)
 			return fmt.Errorf("%w: use '%s' to setup", git.ErrGitNotInitialized, i)
@@ -218,15 +225,17 @@ func HookGitSync(app *application.App) HookE {
 			}
 		}
 
+		log := app.Logger().With("hook", "git-sync", "command", cmd.CommandPath())
+
 		// Walk up the command chain: skip if any ancestor declares skip-git-sync
 		for c := cmd; c != nil; c = c.Parent() {
 			if v, ok := c.Annotations[AnnotationSkipGitSync]; ok && v == "true" {
-				slog.Debug("skipping git sync", "command", cmd.CommandPath(), "skipped_by", c.CommandPath())
+				log.Debug("skipping git sync", "skipped_by", c.CommandPath())
 				return nil
 			}
 		}
 
-		slog.Debug("hook: git sync, checking for changes")
+		log.Debug("checking for changes")
 		ctx, cancel := context.WithTimeout(ctx, 100*time.Second)
 		defer cancel()
 
@@ -262,7 +271,7 @@ func HookGitPrune(app *application.App) HookE {
 			}
 		}
 
-		slog.Debug("hook: checks for differences between database and local repo and syncs them")
+		app.Logger().Debug("hook: checks for differences between database and local repo and syncs them")
 		app.Git.SetWriter(os.Stdout)
 		gm, err := gitops.NewManager(app)
 		if err != nil {
@@ -270,7 +279,7 @@ func HookGitPrune(app *application.App) HookE {
 		}
 
 		if !gm.IsTracked(app.DBBaseName()) {
-			slog.Debug("hook git: repo not tracked", "name", app.DBBaseName())
+			app.Logger().Debug("hook git: repo not tracked", "name", app.DBBaseName())
 			return nil
 		}
 
@@ -318,19 +327,16 @@ func HookGitEnableLogging(app *application.App) Hook {
 // HookInjectApp returns a hook that injects the app into the command context.
 func HookInjectApp(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
+		log := app.Logger().With("hook", "inject-app", "command", cmd.CommandPath())
 
+		ctx := cmd.Context()
 		if ctx == nil {
 			ctx = context.Background()
-			slog.Debug("hook inject app: context was nil, using background")
+			log.Debug("context was nil, using background")
 		}
 
 		if _, err := application.FromContext(ctx); err == nil {
-			// App already injected, skip
-			slog.Debug(
-				"hook inject app: already present, skipping",
-				"command", cmd.Name(),
-			)
+			log.Debug("app already in context, skipping")
 			return nil
 		}
 
@@ -340,11 +346,7 @@ func HookInjectApp(app *application.App) HookE {
 		}
 		cmd.SetContext(ctx)
 
-		slog.Debug(
-			"hook inject app: injected into context",
-			"command", cmd.Name(),
-			"args", args,
-		)
+		log.Debug("app injected into context", "args", args)
 
 		return nil
 	}
@@ -354,9 +356,11 @@ func HookInjectApp(app *application.App) HookE {
 // flags.
 func HookFormatter(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
+		log := app.Logger().With("hook", "formatter", "command", cmd.CommandPath())
+
 		for c := cmd; c != nil; c = c.Parent() {
 			if v, ok := c.Annotations[AnnotationSkipFormatter]; ok && v == "true" {
-				slog.Debug("skipping UI formatter set", "command", cmd.CommandPath(), "skipped_by", c.CommandPath())
+				log.Debug("skipping UI formatter set", "skipped_by", c.CommandPath())
 				return nil
 			}
 		}
@@ -372,6 +376,7 @@ func HookFormatter(app *application.App) HookE {
 		}
 
 		app.WithFormatter(fm)
+		log.Debug("formatter set and registered", "format", app.Menu.Format)
 
 		return nil
 	}
@@ -416,7 +421,10 @@ func HookEnsureAppInitialize(app *application.App) HookE {
 // when git is enabled.
 func HookGitManager(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
+		log := app.Logger().With("hook", "git-manager", "command", cmd.CommandPath())
+
 		if !app.Git.Enabled {
+			log.Debug("git is disabled, skipping git manager initialization")
 			return nil
 		}
 
@@ -426,6 +434,7 @@ func HookGitManager(app *application.App) HookE {
 		}
 
 		app.Git.SetManager(gm)
+		log.Debug("git manager initialized and attached")
 
 		return nil
 	}
@@ -458,14 +467,17 @@ func checkDatabaseLocked(p string) error {
 }
 
 func dispatch(cmd *cobra.Command, app *application.App) bool {
+	log := app.Logger().With("command", cmd.CommandPath())
+
 	// Skip Home initialized check
 	if cmd.CommandPath() == app.Cmd+" init" {
+		log.Debug("skipping initialized check")
 		return true
 	}
 
 	// Skip DB check if explicitly unlocking
 	if unlock, _ := cmd.Flags().GetBool("unlock"); unlock {
-		slog.Debug("ensure database dispatch", "unlock", unlock)
+		log.Debug("ensuring database dispatch", "unlock", unlock)
 		return true
 	}
 
