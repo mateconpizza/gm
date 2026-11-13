@@ -1,4 +1,4 @@
-package cmdutil
+package command
 
 import (
 	"path/filepath"

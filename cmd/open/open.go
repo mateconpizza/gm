@@ -4,9 +4,8 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
@@ -23,7 +22,7 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} open --menu --sort favorite
   $ {cmd} open --tag golang,awesome
   $ {cmd} open --tag golang --tag awesome`),
-		Annotations: cli.SkipGitSync,
+		Annotations: command.SkipGitSync,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fm := app.Formatter()
 			p := fm.Menu.Placeholder()
@@ -47,12 +46,12 @@ func NewCmd(app *application.App) *cobra.Command {
 				),
 			)
 
-			return cmdutil.Execute(cmd.Context(), args, m, handler.Open)
+			return command.Execute(cmd.Context(), args, m, handler.Open)
 		},
 	}
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 	return c
 }

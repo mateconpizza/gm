@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/cmd/add"
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/config"
 	"github.com/mateconpizza/gm/cmd/database"
 	"github.com/mateconpizza/gm/cmd/edit"
@@ -18,6 +17,7 @@ import (
 	urlcmd "github.com/mateconpizza/gm/cmd/url"
 	"github.com/mateconpizza/gm/cmd/yank"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -45,7 +45,7 @@ func Setup(root *cobra.Command, app *application.App) {
 
 	for i := range cmds {
 		c := cmds[i](app)
-		cmdutil.DisableFlagSorting(c)
+		command.DisableFlagSorting(c)
 		root.AddCommand(c)
 	}
 }
@@ -83,28 +83,28 @@ func registerRootFlags(c *cobra.Command, app *application.App) {
 
 	// -- local --
 	// limit results (head/tail semantics)
-	cmdutil.FlagsFilter(c, app)
+	command.FlagsFilter(c, app)
 
 	// interactive mode
-	cmdutil.FlagMenu(c, app)
+	command.FlagMenu(c, app)
 
 	// output formatting
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	// sorting strategy (domain-specific ordering options)
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagSort(c, app, bookmark.SortSupported)
 
 	// filtering strategy
-	cmdutil.FlagFilter(c, app, bookmark.FilterSupported)
+	command.FlagFilter(c, app, bookmark.FilterSupported)
 
 	// field selection for output projection
-	cmdutil.FlagFields(c, app, []string{"id", "url", "title", "tags", "desc"})
+	command.FlagFields(c, app, []string{"id", "url", "title", "tags", "desc"})
 
 	// -- global --
 	g := c.PersistentFlags()
 
 	// database selection
-	cmdutil.FlagDatabase(c, app)
+	command.FlagDatabase(c, app)
 
 	// output colorization policy
 	g.StringVar(&app.Flags.ColorStr, "color", "auto", "colorize output: auto, always, never")

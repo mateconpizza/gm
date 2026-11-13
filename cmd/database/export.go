@@ -8,10 +8,9 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/picker"
@@ -39,10 +38,10 @@ func newExportCmd(app *application.App) *cobra.Command {
 
 	for i := range cmds {
 		cmd := cmds[i](app)
-		cmdutil.FlagSort(cmd, app, bookmark.SortSupported)
-		cmdutil.FlagMenu(cmd, app)
-		cmdutil.FlagsFilter(cmd, app)
-		cmdutil.FlagOutput(cmd, app, app.Format(), formatter.ValidFormats())
+		command.FlagSort(cmd, app, bookmark.SortSupported)
+		command.FlagMenu(cmd, app)
+		command.FlagsFilter(cmd, app)
+		command.FlagOutput(cmd, app, app.Format(), formatter.ValidFormats())
 		c.AddCommand(cmd)
 	}
 	return c
@@ -54,7 +53,7 @@ func newExportHTMLCmd(app *application.App) *cobra.Command {
 		Short: "export to HTML Netscape",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to HTML ")
-			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return command.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.WriteNetscapeHTML(bs, os.Stdout)
 			})
 		},
@@ -68,7 +67,7 @@ func newExportJSONCmd(app *application.App) *cobra.Command {
 		Short: "export to JSON",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to JSON ")
-			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return command.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				bj := make([]*bookmark.Record, 0, len(bs))
 				for i := range bs {
 					bj = append(bj, bs[i].Record())
@@ -86,12 +85,12 @@ func newExportCSVCmd(app *application.App) *cobra.Command {
 		Short: "export to CSV",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to CSV ")
-			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return command.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return bookio.WriteCSV(os.Stdout, bs, bookio.ParseCSVFields(app.Flags.Field))
 			})
 		},
 	}
-	cmdutil.FlagFields(c, app, append([]string{"all"}, bookmark.Fields()...))
+	command.FlagFields(c, app, append([]string{"all"}, bookmark.Fields()...))
 	return c
 }
 
@@ -102,7 +101,7 @@ func newExportMarkdownCmd(app *application.App) *cobra.Command {
 		Aliases: []string{"readme", "md"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to Markdown ")
-			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return command.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				r, err := d.Repository()
 				if err != nil {
 					return err
@@ -143,7 +142,7 @@ func newExportYAMLCmd(app *application.App) *cobra.Command {
 		Hidden:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			m := setupMenu(app, " export to YAML ")
-			return cmdutil.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+			return command.Execute(cmd.Context(), args, m, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				return port.WriteYAML(os.Stdout, bs)
 			})
 		},
@@ -180,7 +179,7 @@ func setupMenu(app *application.App, label string) *menu.Menu[*bookmark.Bookmark
 }
 
 func flagCompletion(c *cobra.Command, flag string, items []string) {
-	cmdutil.FlagCompletion(c, flag, func(cmd *cobra.Command) ([]string, error) {
+	command.FlagCompletion(c, flag, func(cmd *cobra.Command) ([]string, error) {
 		return items, nil
 	})
 }
@@ -198,9 +197,9 @@ func flagsMarkdown(c *cobra.Command, app *application.App) {
 	flagCompletion(c, "type", bookio.SupportedTypes)
 	_ = f.MarkHidden("type")
 
-	c.PreRunE = cli.ChainHooks(
-		cli.HookValidateFlags(&app.Flags.Summary, bookio.SupportedSummary),
-		cli.HookValidateFlags(&app.Flags.Glyphs, bookio.SupportedGlyphs),
-		cli.HookValidateFlags(&app.Flags.Type, bookio.SupportedTypes),
+	c.PreRunE = command.ChainHooks(
+		command.HookValidateFlags(&app.Flags.Summary, bookio.SupportedSummary),
+		command.HookValidateFlags(&app.Flags.Glyphs, bookio.SupportedGlyphs),
+		command.HookValidateFlags(&app.Flags.Type, bookio.SupportedTypes),
 	)
 }

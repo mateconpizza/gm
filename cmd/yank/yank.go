@@ -4,8 +4,8 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
@@ -25,15 +25,15 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} yank --tag golang,awesome
   $ {cmd} yank --json <query>`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd.Context(), args, setupMenu(app), handler.Yank)
+			return command.Execute(cmd.Context(), args, setupMenu(app), handler.Yank)
 		},
 	}
 
 	c.Flags().BoolVarP(&app.Flags.JSON, "json", "j", false, "yank as JSON")
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }

@@ -8,9 +8,9 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/handler"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
@@ -29,14 +29,14 @@ func NewCmd(app *application.App) *cobra.Command {
   $ {cmd} qr text "https://golang.org" --output go.png
   $ {cmd} qr text "https://golang.org"`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd.Context(), args, setupMenu(app), handler.QR)
+			return command.Execute(cmd.Context(), args, setupMenu(app), handler.QR)
 		},
 	}
 
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
-	cmdutil.FlagsFilter(c, app)
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagsFilter(c, app)
 
 	c.AddCommand(newOpenCmd(app), newGenQR(app))
 
@@ -54,14 +54,14 @@ func newOpenCmd(app *application.App) *cobra.Command {
   $ {cmd} qr open --tag devops
   $ {cmd} qr open "api" --force`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(cmd.Context(), args, setupMenu(app), handler.QROpen)
+			return command.Execute(cmd.Context(), args, setupMenu(app), handler.QROpen)
 		},
 	}
 
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
-	cmdutil.FlagsFilter(c, app)
+	command.FlagMenu(c, app)
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagsFilter(c, app)
 
 	return c
 }

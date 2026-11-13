@@ -7,8 +7,8 @@ import (
 	menu "github.com/mateconpizza/go-fzf"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/handler"
@@ -53,7 +53,7 @@ func NewCmd(app *application.App) *cobra.Command {
 				),
 			)
 
-			return cmdutil.Execute(
+			return command.Execute(
 				cmd.Context(),
 				args,
 				m,
@@ -63,10 +63,10 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 	c.AddCommand(newEditNotesCmd(app))
 
 	return c
@@ -77,7 +77,7 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		Use:   "edit [query]",
 		Short: "edit notes with text editor",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Execute(
+			return command.Execute(
 				cmd.Context(),
 				args,
 				setupMenu(app, menu.WithKeybinds(menu.KeymapTogglePreview())),
@@ -86,10 +86,10 @@ func newEditNotesCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.FlagSort(c, app, bookmark.SortSupported)
-	cmdutil.FlagMenu(c, app)
-	cmdutil.FlagsFilter(c, app)
-	cmdutil.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
+	command.FlagSort(c, app, bookmark.SortSupported)
+	command.FlagMenu(c, app)
+	command.FlagsFilter(c, app)
+	command.FlagOutput(c, app, app.Format(), formatter.ValidFormats())
 
 	return c
 }

@@ -10,9 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/picker"
 	"github.com/mateconpizza/gm/internal/sys"
@@ -28,12 +27,12 @@ func NewRootCmd(app *application.App) *cobra.Command {
 		Args:         cobra.MinimumNArgs(0),
 		Short:        strings.ToLower(app.Info.Short),
 		SilenceUsage: true,
-		PersistentPreRunE: cli.ChainHooks(
-			cli.HookEnsureAppInitialize(app),
-			cli.HookInjectApp(app),
-			cli.HookEnsureDatabase(app),
-			cli.HookFormatter(app),
-			cli.HookGitManager(app),
+		PersistentPreRunE: command.ChainHooks(
+			command.HookEnsureAppInitialize(app),
+			command.HookInjectApp(app),
+			command.HookEnsureDatabase(app),
+			command.HookFormatter(app),
+			command.HookGitManager(app),
 		),
 		RunE: rootCmdFunc(app),
 	}
@@ -66,14 +65,14 @@ func Execute(c *cobra.Command, err error) error {
 	return c.ExecuteContext(ctx)
 }
 
-func rootCmdFunc(app *application.App) cli.HookE {
+func rootCmdFunc(app *application.App) command.HookE {
 	return func(cmd *cobra.Command, args []string) error {
 		if app.Flags.Version {
 			fmt.Fprint(os.Stdout, app.PrettyVersion())
 			return nil
 		}
 
-		return cmdutil.Execute(
+		return command.Execute(
 			cmd.Context(),
 			args,
 			picker.NewMainMenu(app),
@@ -97,10 +96,10 @@ func rootCmdFunc(app *application.App) cli.HookE {
 
 func setupRootCmd(c *cobra.Command) {
 	// add custom template function used inside usage/help templates
-	cobra.AddTemplateFunc("hasFlags", cmdutil.HasFlags)
+	cobra.AddTemplateFunc("hasFlags", command.HasFlags)
 
 	// override default usage template with a custom one
-	c.SetUsageTemplate(cmdutil.UsageTemplate)
+	c.SetUsageTemplate(command.UsageTemplate)
 
 	// keep flag order as defined (do not sort alphabetically)
 	c.PersistentFlags().SortFlags = false

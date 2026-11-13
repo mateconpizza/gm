@@ -1,4 +1,5 @@
-package cmdutil
+// Package command provides utilities for building and managing Cobra commands.
+package command
 
 import (
 	"context"
@@ -34,14 +35,22 @@ func setup(ctx context.Context, args *[]string) (*deps.Deps, func(), error) {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
+	log := app.Logger().With("fn", "command-setup")
+	log.Debug("setting up dependencies", "db", app.DBBaseName())
+
 	r, err := db.New(ctx, app.Path.DB())
 	if err != nil {
 		return nil, nil, err
 	}
 
+	before := len(*args)
 	terminal.ReadPipedInput(args)
+	if n := len(*args); n != before {
+		log.Debug("read piped input", "args_before", before, "args_after", n)
+	}
 
 	c := ui.NewDefaultConsole(app, func(err error) {
+		log.Debug("console requested exit", "error", err)
 		r.Close()
 		app.Exit(err)
 	})
@@ -52,22 +61,36 @@ func setup(ctx context.Context, args *[]string) (*deps.Deps, func(), error) {
 		deps.WithConsole(c),
 	)
 
+	log.Debug("dependencies ready")
+
 	return d, r.Close, nil
 }
 
 func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark], action BookmarkAction, filters ...Filter) error {
 	return Run(ctx, args, func(ctx context.Context, d *deps.Deps) error {
-		bs, err := handler.Data(ctx, d, args)
-		if err != nil {
-			return err
-		}
-
 		app, err := d.Application(ctx)
 		if err != nil {
 			return err
 		}
 
 		f := app.Flags
+		log := app.Logger().With("fn", "execute")
+		log.Debug("executing",
+			"nargs", len(args),
+			"sort", f.Sort,
+			"reverse", f.Reverse,
+			"filter", f.Filter,
+			"head", f.Head,
+			"tail", f.Tail,
+			"menu", f.Menu,
+		)
+
+		bs, err := handler.Data(ctx, d, args)
+		if err != nil {
+			return err
+		}
+
+		n := len(bs)
 
 		bs, err = sortBookmarks(bs, f.Sort, f.Reverse)
 		if err != nil {
@@ -79,12 +102,20 @@ func Execute(ctx context.Context, args []string, m *menu.Menu[*bookmark.Bookmark
 			return err
 		}
 
+		log.Debug("sorted and filtered", "before", n, "after", len(bs), "custom_filters", len(filters))
+
 		if f.Menu && len(bs) > 0 {
+			n = len(bs)
+
 			bs, err = picker.BookmarkWithMenu(ctx, d.Console(), m, bs)
 			if err != nil {
 				return err
 			}
+
+			log.Debug("menu selection", "before", n, "after", len(bs))
 		}
+
+		log.Debug("running action", "count", len(bs))
 
 		return action(ctx, d, bs)
 	})

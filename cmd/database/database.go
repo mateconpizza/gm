@@ -9,9 +9,8 @@ import (
 	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
@@ -54,13 +53,13 @@ func newStatsCmd(app *application.App) *cobra.Command {
 		Use:         "stats",
 		Short:       "show database stats",
 		Aliases:     []string{"i", "show", "info", "status"},
-		Annotations: cli.SkipGitSync,
+		Annotations: command.SkipGitSync,
 		Example: app.Example(`  $ {cmd} db stats
   $ {cmd} db stats --db work
   $ {cmd} db stats --json
   $ {cmd} db stats --db {db} --json`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return printer.RepoStats(ctx, d, gitops.Info)
 			})
 		},
@@ -76,7 +75,7 @@ func newListCmd(app *application.App) *cobra.Command {
 		Use:         "list",
 		Aliases:     []string{"l", "ls"},
 		Short:       "list all databases",
-		Annotations: cli.SkipGitSync,
+		Annotations: command.SkipGitSync,
 		Example:     app.Example(`  $ {cmd} db list`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return printer.DatabasesTable(cmd.Context(), os.Stdout, app.Path.Home(),
@@ -89,7 +88,7 @@ func newListCmd(app *application.App) *cobra.Command {
 		},
 	}
 
-	cmdutil.HideFlag(c, "force", "yes")
+	command.HideFlag(c, "force", "yes")
 
 	return c
 }
@@ -114,11 +113,11 @@ func newDropCmd(app *application.App) *cobra.Command {
 			$ {cmd} db drop --db {db} --yes
 			$ {cmd} db drop --db work --yes`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, handler.DropRepo)
+			return command.Run(cmd.Context(), args, handler.DropRepo)
 		},
 	}
 
-	cmdutil.FlagDBRequired(c, app)
+	command.FlagDBRequired(c, app)
 
 	return c
 }
@@ -127,7 +126,7 @@ func newLockCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:         "lock",
 		Short:       "lock a database",
-		Annotations: cli.SkipGitSync,
+		Annotations: command.SkipGitSync,
 		Example: app.Example(`  $ {cmd} db lock --db {db}
   $ {cmd} db lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -144,7 +143,10 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 		Short: "unlock a database",
 		Example: app.Example(`  $ {cmd} db unlock --db {db}
   $ {cmd} db unlock --db work`),
-		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
+		Annotations: command.ChainAnnotations(
+			command.SkipDBCheck,
+			command.SkipGitSync,
+		),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return dbops.UnlockDatabase(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit))
 		},
@@ -155,9 +157,12 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 
 func newUseCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:         "use [name]",
-		Short:       "set default database",
-		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
+		Use:   "use [name]",
+		Short: "set default database",
+		Annotations: command.ChainAnnotations(
+			command.SkipDBCheck,
+			command.SkipGitSync,
+		),
 		Example: app.Example(`  $ {cmd} db use <name>
   $ {cmd} db use default`),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -173,10 +178,13 @@ func newUseCmd(app *application.App) *cobra.Command {
 
 func newCurrentCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
-		Use:         "current",
-		Short:       "current default",
-		Aliases:     []string{"default", "def"},
-		Annotations: cli.ChainAnnotations(cli.SkipDBCheck, cli.SkipGitSync),
+		Use:     "current",
+		Short:   "current default",
+		Aliases: []string{"default", "def"},
+		Annotations: command.ChainAnnotations(
+			command.SkipDBCheck,
+			command.SkipGitSync,
+		),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stdout, app.DBName)
 			return nil
@@ -218,7 +226,7 @@ func newRenameCmd(app *application.App) *cobra.Command {
 			return handler.ValidateRenameTarget(app)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return handler.Rename(ctx, d, files.EnsureExt(app.Flags.Rename, ".db"), os.Rename)
 			})
 		},

@@ -13,10 +13,9 @@ import (
 	files "github.com/mateconpizza/gofiles"
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/editor"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/internal/ui/printer"
@@ -27,7 +26,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		Use:         "config",
 		Aliases:     []string{"cfg", "conf"},
 		Short:       "configuration",
-		Annotations: cli.SkipFormatter,
+		Annotations: command.SkipFormatter,
 		Example: app.Example(`  $ {cmd} config create
   $ {cmd} config create --force
   $ {cmd} config edit
@@ -43,7 +42,7 @@ func NewCmd(app *application.App) *cobra.Command {
 		},
 	}
 	c.Flags().BoolVar(&app.Flags.Print, "print", false, "print config file location")
-	cmdutil.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag")
+	command.HideFlag(c, "color", "db", "menu", "head", "tail", "fields", "sort", "tag")
 
 	c.AddCommand(newCreateCmd(app), newEditCmd(app), newViewCmd(app))
 
@@ -61,7 +60,7 @@ func newCreateCmd(app *application.App) *cobra.Command {
 			return createConfig(app, ui.NewDefaultConsole(app, app.Exit))
 		},
 	}
-	cmdutil.HideFlag(c, "db")
+	command.HideFlag(c, "db")
 	return c
 }
 

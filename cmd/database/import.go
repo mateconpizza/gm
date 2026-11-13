@@ -5,11 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateconpizza/gm/cmd/cmdutil"
 	"github.com/mateconpizza/gm/cmd/gitcmd"
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/bookmark/port"
-	"github.com/mateconpizza/gm/internal/cli"
+	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/deps"
 )
 
@@ -18,7 +17,7 @@ func newImportCmd(app *application.App) *cobra.Command {
 		Use:                "import",
 		Aliases:            []string{"imp", "i"},
 		Short:              "import bookmarks",
-		PersistentPostRunE: cli.HookGitSync(app),
+		PersistentPostRunE: command.HookGitSync(app),
 	}
 
 	c.AddCommand(
@@ -28,6 +27,7 @@ func newImportCmd(app *application.App) *cobra.Command {
 		newImportFromBackupCmd(app),
 		newImportFromGit(app),
 		newImportFromJSON(app),
+		newImportFromCSV(app),
 	)
 
 	return c
@@ -42,7 +42,7 @@ func newImportFromDatabaseCmd(app *application.App) *cobra.Command {
 			if app.Flags.Path != "" {
 				return newImportFromFileCmd(app).RunE(cmd, args)
 			}
-			return cmdutil.Run(cmd.Context(), args, port.ImportFromDatabase)
+			return command.Run(cmd.Context(), args, port.ImportFromDatabase)
 		},
 	}
 
@@ -57,7 +57,7 @@ func newImportFromBackupCmd(_ *application.App) *cobra.Command {
 		Short:   "import backup",
 		Aliases: []string{"bk"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, port.ImportFromBackup)
+			return command.Run(cmd.Context(), args, port.ImportFromBackup)
 		},
 	}
 }
@@ -67,7 +67,7 @@ func newImportBrowserCmd(_ *application.App) *cobra.Command {
 		Use:   "browser",
 		Short: "import browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, port.ImportFromBrowser(args))
+			return command.Run(cmd.Context(), args, port.ImportFromBrowser(args))
 		},
 	}
 }
@@ -77,7 +77,7 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 		Use:   "html",
 		Short: "import html",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromHTML(cmd.Context(), d, app.Flags.Path)
 			})
 		},
@@ -92,7 +92,7 @@ func newImportHTMLCmd(app *application.App) *cobra.Command {
 func newImportFromFileCmd(app *application.App) *cobra.Command {
 	return &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromDatabasePath(cmd.Context(), d, app.Flags.Path)
 			})
 		},
@@ -122,7 +122,7 @@ func newImportFromJSON(app *application.App) *cobra.Command {
 		Use:   "json",
 		Short: "import json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmdutil.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return port.ImportFromJSON(cmd.Context(), d, app.Flags.Path)
 			})
 		},
@@ -131,5 +131,20 @@ func newImportFromJSON(app *application.App) *cobra.Command {
 	c.Flags().StringVarP(&app.Flags.Path, "filename", "f", "", "filename path")
 	_ = c.MarkFlagRequired("filename")
 
+	return c
+}
+
+func newImportFromCSV(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "csv",
+		Short: "import csv",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+				return port.ImportFromCSV(cmd.Context(), d, app.Flags.Path)
+			})
+		},
+	}
+	c.Flags().StringVarP(&app.Flags.Path, "filename", "f", "", "filename path")
+	_ = c.MarkFlagRequired("filename")
 	return c
 }
