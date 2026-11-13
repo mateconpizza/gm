@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +28,7 @@ type (
 		mu     sync.Mutex
 		term   *terminal.Term
 		writer io.Writer
+		logger *slog.Logger
 	}
 
 	// PromptFunc asks for a passphrase.
@@ -42,6 +44,7 @@ func New() *Session {
 		validationFunc: validatePassphrase,
 		term:           terminal.New(),
 		writer:         os.Stdout,
+		logger:         slog.Default().With("component", "session"),
 	}
 }
 
@@ -96,9 +99,20 @@ func (s *Session) WithValidationFunc(fn ValidateFunc) *Session {
 	return s
 }
 
+// WithLogger sets a custom logger, tagged with the component name.
+func (s *Session) WithLogger(l *slog.Logger) *Session {
+	if l != nil {
+		s.logger = l.With("fn", "session")
+	}
+	return s
+}
+
 // NewCipher returns the appropriate NewCipher implementation based on the encryption
 // type.
 func (s *Session) NewCipher(ctx context.Context, root, repo string, e enc.Encryption) (enc.Cipher, error) {
+	log := s.logger.With("fn", "new-cipher", "repo", repo, "root", root)
+	log.Debug("creating cipher", "encryption", e)
+
 	switch e {
 	case enc.GPG:
 		return enc.NewGPG(ctx, root)
@@ -111,36 +125,56 @@ func (s *Session) NewCipher(ctx context.Context, root, repo string, e enc.Encryp
 		return enc.NewGCM(p), nil
 
 	default:
+		log.Debug("no encryption, using plain cipher")
 		return &enc.PlainCipher{}, nil
 	}
 }
 
 func (s *Session) passphraseAndValidate(ctx context.Context, root, repo string) (string, error) {
+	log := s.logger.With("fn", "passphrase-validate", "repo", repo)
+
 	p, err := s.passphrase(ctx, repo)
 	if err != nil {
 		return "", err
 	}
 
 	if !s.validation {
+		log.Debug("validation disabled, skipping")
 		return p, nil
 	}
 
-	return s.validationFunc(ctx, root, p)
+	log.Debug("validating passphrase", "root", root)
+
+	p, err = s.validationFunc(ctx, root, p)
+	if err != nil {
+		return "", err
+	}
+
+	log.Debug("passphrase validated")
+
+	return p, nil
 }
 
 func (s *Session) passphrase(ctx context.Context, repo string) (string, error) {
+	log := s.logger.With("fn", "passphrase", "repo", repo)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.shared != "" {
+		log.Debug("using cached passphrase")
 		return s.shared, nil
 	}
+
+	log.Debug("prompting for passphrase", "confirm", s.confirmation)
 
 	p, err := s.prompt(ctx, s.term, repo, s.confirmation)
 	if err != nil {
 		return "", err // nothing is stored, so the next call asks again
 	}
 	s.shared = p
+
+	log.Debug("passphrase acquired and cached")
 
 	return p, nil
 }

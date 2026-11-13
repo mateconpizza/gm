@@ -47,6 +47,8 @@ type (
 	GPG struct {
 		recipient string
 		exec      Executor
+
+		logger *slog.Logger
 	}
 
 	Executor func(ctx context.Context, args ...string) *exec.Cmd
@@ -59,6 +61,7 @@ func New(recipient string, opts ...GPGOpt) *GPG {
 	g := &GPG{
 		recipient: recipient,
 		exec:      defaultExecuter(Command),
+		logger:    slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(g)
@@ -66,7 +69,8 @@ func New(recipient string, opts ...GPGOpt) *GPG {
 	return g
 }
 
-func WithExecutor(fn Executor) GPGOpt { return func(g *GPG) { g.exec = fn } }
+func WithExecutor(fn Executor) GPGOpt  { return func(g *GPG) { g.exec = fn } }
+func WithLogger(l *slog.Logger) GPGOpt { return func(g *GPG) { g.logger = l } }
 
 // Decrypt decrypts a file using the configured GPG binary.
 func (g *GPG) Decrypt(ctx context.Context, encryptedPath string) ([]byte, error) {
@@ -97,7 +101,8 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 		return ErrNoGPGRecipient
 	}
 
-	slog.Debug("gpg: starting encryption")
+	log := g.logger.With("fn", "gpg-encrypt", "path", path)
+	log.Debug("starting encryption", "recipient", g.recipient)
 
 	cmd := g.exec(
 		ctx,
@@ -109,7 +114,7 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 		path,
 	)
 
-	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
+	log.Debug("executing command", "args", cmd.Args)
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -124,7 +129,7 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 		return fmt.Errorf("gpg encrypt failed: %w: %s", err, stderr.String())
 	}
 
-	slog.Info("gpg: encryption successful", "encrypted_path", path)
+	log.Info("encryption successful")
 
 	return nil
 }
@@ -132,7 +137,9 @@ func (g *GPG) Encrypt(ctx context.Context, path string, content []byte) error {
 // Unlocked reports whether the given encrypted file can be decrypted without a
 // passphrase prompt.
 func (g *GPG) Unlocked(ctx context.Context, filePath string) (bool, error) {
-	slog.Debug("gpg: checking if unlocked")
+	log := g.logger.With("fn", "gpg-unlocked", "path", filePath)
+
+	log.Debug("checking if unlocked")
 
 	cmd := g.exec(
 		ctx,

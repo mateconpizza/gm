@@ -337,7 +337,12 @@ func formatDatabaseFn(ctx context.Context, p *ansi.Palette, path string, pad int
 		createdAt = "err"
 	}
 
-	name = files.StripExts(r.Name())
+	s := r.Name()
+	if s == application.MainDBName {
+		s = p.BrightYellow.Sprint(s)
+	}
+
+	name = files.StripExts(s)
 	return txt.PaddedLineWithWidth(
 		name,
 		main+" "+createdAt,

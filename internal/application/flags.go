@@ -1,9 +1,6 @@
 package application
 
 import (
-	"log/slog"
-	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -55,38 +52,6 @@ type Flags struct {
 	Type    string
 	Summary string
 	Glyphs  string
-}
-
-func SetVerbosity(verbose int) {
-	levels := []slog.Level{
-		slog.LevelError,
-		slog.LevelWarn,
-		slog.LevelInfo,
-		slog.LevelDebug,
-	}
-	level := levels[min(verbose, len(levels)-1)]
-
-	logger := slog.New(
-		slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			AddSource: true,
-			Level:     level,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				if a.Key == "source" {
-					if source, ok := a.Value.Any().(*slog.Source); ok {
-						dir, file := filepath.Split(source.File)
-						source.File = filepath.Join(filepath.Base(filepath.Clean(dir)), file)
-
-						return slog.Attr{Key: "source", Value: slog.AnyValue(source)}
-					}
-				}
-
-				return a
-			},
-		}),
-	)
-	slog.SetDefault(logger)
-
-	slog.Debug("logging", "level", level)
 }
 
 func ColorEnabled(mode string, stdinPiped, stdoutPiped, stderrPiped, noColor func() bool) bool {

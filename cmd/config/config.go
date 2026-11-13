@@ -134,7 +134,7 @@ func editConfig(ctx context.Context, app *application.App) error {
 		return fmt.Errorf("config %w", os.ErrNotExist)
 	}
 
-	te, err := editor.NewEditor(app.Env.Editor)
+	te, err := editor.NewEditor(app.Env.Editor, app.Logger())
 	if err != nil {
 		return err
 	}

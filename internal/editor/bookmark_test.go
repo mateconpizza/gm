@@ -3,6 +3,7 @@ package editor
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -14,7 +15,8 @@ import (
 type fakeSpinner struct{}
 
 func (sp fakeSpinner) Start(ctx context.Context) {}
-func (sp fakeSpinner) Done(mesg ...string)       {}
+
+func (sp fakeSpinner) Done(mesg ...string) {}
 
 func TestBookmarkStrategyParseBufferDelegates(t *testing.T) {
 	t.Parallel()
@@ -28,7 +30,8 @@ func TestBookmarkStrategyParseBufferDelegates(t *testing.T) {
 	bs := NewBookmarkStrategy()
 	bs.parseBuffer = fake
 
-	got, err := bs.ParseBuffer(t.Context(), nil, &bookmark.Bookmark{})
+	l := slog.New(slog.DiscardHandler)
+	got, err := bs.ParseBuffer(t.Context(), l, nil, &bookmark.Bookmark{})
 	if err != nil {
 		t.Fatalf("ParseBuffer() unexpected error: %v", err)
 	}
@@ -132,7 +135,8 @@ func TestBookmarkStrategy_ParseBuffer(t *testing.T) {
 			t.Parallel()
 
 			bs := tt.setupFn()
-			got, err := bs.ParseBuffer(ctx, tt.buf, tt.original)
+			l := slog.New(slog.DiscardHandler)
+			got, err := bs.ParseBuffer(ctx, l, tt.buf, tt.original)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -162,7 +166,8 @@ func TestBookmarkStrategyZeroValueFallsBackToDefault(t *testing.T) {
 
 	original := testutil.NewBookmark(t)
 	original.Tags = bookmark.ParseTags(original.Tags)
-	_, err := bs.ParseBuffer(t.Context(), original.Buffer(), original)
+	l := slog.New(slog.DiscardHandler)
+	_, err := bs.ParseBuffer(t.Context(), l, original.Buffer(), original)
 	if !errors.Is(err, ErrBufferUnchanged) {
 		t.Fatalf("zero-value BookmarkStrategy.ParseBuffer() = %v; want ErrBufferUnchanged (fallback to defaultParseBuffer)", err)
 	}
@@ -433,7 +438,7 @@ func TestDefaultParseBuffer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := defaultParseBuffer(t.Context(), tt.buf, tt.original, &fakeSpinner{})
+			got, err := defaultParseBuffer(t.Context(), slog.New(slog.DiscardHandler), tt.buf, tt.original, &fakeSpinner{})
 
 			if tt.wantErrAny {
 				if err == nil {

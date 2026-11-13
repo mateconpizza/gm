@@ -325,6 +325,9 @@ linters:
       - path: "internal/gitops/repo_config.go"
         linters:
           - ireturn
+      - path: "internal/application/logger.go"
+        linters:
+          - gocritic
     generated: lax
     presets:
       - common-false-positives

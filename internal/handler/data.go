@@ -21,41 +21,54 @@ var (
 
 // Data retrieves and filters bookmarks based on configuration and arguments.
 func Data(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
-	bs, err := fetchBookmarks(ctx, d, args)
+	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	bs, err = applyFilters(ctx, d, bs)
+	log := app.Logger().With("fn", "data", "args", args)
+	log.Debug("fetching bookmarks")
+
+	bs, err := fetchBookmarks(ctx, d, log, args)
+	if err != nil {
+		return nil, err
+	}
+	log.Debug("fetched bookmarks", "count", len(bs))
+
+	bs, err = applyFilters(ctx, d, log, bs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply filters: %w", err)
 	}
 
 	if len(bs) == 0 {
+		log.Debug("no items after filters")
 		return nil, ErrNoItems
 	}
+
+	log.Debug("data ready", "count", len(bs))
 
 	return bs, nil
 }
 
 // fetchBookmarks retrieves records based on user input and filtering criteria.
-func fetchBookmarks(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
-	slog.Debug("FetchBookmarks", "args", args)
-
+func fetchBookmarks(ctx context.Context, d *deps.Deps, log *slog.Logger, args []string) ([]*bookmark.Bookmark, error) {
 	// Try to get by IDs first
-	if bs, err := getByIDs(ctx, d, args); err != nil {
+	if bs, err := getByIDs(ctx, d, log, args); err != nil {
 		if !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 			return nil, err
 		}
 		// If invalid ID, try query instead
+		log.Debug("args are not valid IDs, trying query")
 	} else if len(bs) > 0 {
+		log.Debug("found by IDs", "count", len(bs))
 		return bs, nil
 	}
 
 	// Try to get by query
-	if bs, err := getByQuery(ctx, d, args); err != nil {
+	if bs, err := getByQuery(ctx, d, log, args); err != nil {
 		return nil, err
 	} else if len(bs) > 0 {
+		log.Debug("found by query", "count", len(bs))
 		return bs, nil
 	}
 
@@ -65,46 +78,57 @@ func fetchBookmarks(ctx context.Context, d *deps.Deps, args []string) ([]*bookma
 		return nil, err
 	}
 	if len(args) == 0 {
+		log.Debug("no args, fetching all records")
 		return r.All(ctx)
 	}
 
 	// No results found
+	log.Debug("nothing matched args")
 	return []*bookmark.Bookmark{}, nil
 }
 
 // getByIDs retrieves records from the database based on IDs.
-func getByIDs(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
-	slog.Debug("getting by IDs")
+func getByIDs(ctx context.Context, d *deps.Deps, log *slog.Logger, args []string) ([]*bookmark.Bookmark, error) {
+	log = log.With("fn", "get-by-ids")
 
 	ids, err := extractIDsFrom(args)
 	if len(ids) == 0 {
-		return nil, bookmark.ErrBookmarkInvalidID // Signal that this isn't the right method
+		log.Debug("no valid IDs in args", "args", args)
+		return nil, bookmark.ErrBookmarkInvalidID
 	}
 
 	if err != nil && !errors.Is(err, bookmark.ErrBookmarkInvalidID) {
 		return nil, fmt.Errorf("failed to extract IDs: %w", err)
 	}
+	log.Debug("extracted IDs", "ids", ids)
 
 	r, err := d.Repository()
 	if err != nil {
 		return nil, err
 	}
+
 	bs, err := r.ByIDList(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get records by ID list: %w", err)
 	}
 
 	if len(bs) == 0 {
+		log.Debug("no records found for IDs", "ids", ids, "db", r.Name())
 		bids := strings.TrimRight(strings.Join(args, ", "), "\n")
 		return nil, fmt.Errorf("%w by id/s: %s in %q", db.ErrRecordNotFound, bids, r.Name())
 	}
+
+	log.Debug("records found", "requested", len(ids), "found", len(bs))
 
 	return bs, nil
 }
 
 // getByQuery executes a search query on the given repository.
-func getByQuery(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.Bookmark, error) {
+func getByQuery(ctx context.Context, d *deps.Deps, log *slog.Logger, args []string) ([]*bookmark.Bookmark, error) {
+	log = log.With("fn", "get-by-query")
+
 	if len(args) == 0 {
+		log.Debug("no args, skipping query")
 		return []*bookmark.Bookmark{}, nil
 	}
 
@@ -112,17 +136,22 @@ func getByQuery(ctx context.Context, d *deps.Deps, args []string) ([]*bookmark.B
 	if err != nil {
 		return nil, err
 	}
+
 	q := strings.Join(args, "%")
+	log.Debug("querying", "query", q, "db", r.Name())
+
 	bs, err := r.ByQuery(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("%w %q", err, strings.Join(args, " "))
 	}
 
+	log.Debug("query matched", "count", len(bs))
+
 	return bs, nil
 }
 
 // applyFilters applies tag and head/tail filters to the bookmark list.
-func applyFilters(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func applyFilters(ctx context.Context, d *deps.Deps, log *slog.Logger, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return nil, err
@@ -131,66 +160,60 @@ func applyFilters(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([
 
 	// Filter by tags
 	if len(f.Tags) > 0 {
-		bs, err = filterByTags(ctx, d, f.Tags, bs)
+		before := len(bs)
+		bs, err = filterByTags(ctx, d, log, f.Tags, bs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to filter by tags: %w", err)
 		}
+		log.Debug("tag filter applied", "tags", f.Tags, "before", before, "after", len(bs))
 	}
 
 	return bs, nil
 }
 
 // filterByTags returns a slice of bookmarks that contain ALL of the provided tags.
-func filterByTags(ctx context.Context, d *deps.Deps, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
-	n := len(bs)
-	slog.Debug("by tags", "tags", tags, "count", n)
+func filterByTags(ctx context.Context, d *deps.Deps, log *slog.Logger, tags []string, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+	log = log.With("filter", "tags", "tags", tags)
 
-	// If we have existing bookmarks, filter them by tags
-	if n > 0 {
-		return filterBookmarksByTags(bs, tags), nil
-	}
-
-	// Otherwise, get bookmarks from repository by tags
-	// We need to find the intersection of bookmarks that have ALL tags
-	if len(tags) == 0 {
-		return []*bookmark.Bookmark{}, nil
-	}
-
-	// Get bookmarks for the first tag
-	firstTag := ""
+	// Drop empty tags once, instead of checking in several places.
+	valid := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		if tag != "" {
-			firstTag = tag
-			break
+			valid = append(valid, tag)
 		}
 	}
 
-	if firstTag == "" {
+	if len(valid) == 0 {
+		log.Debug("no non-empty tags, nothing to filter")
 		return []*bookmark.Bookmark{}, nil
 	}
 
+	// If we have existing bookmarks, filter them by tags
+	if len(bs) > 0 {
+		log.Debug("filtering existing bookmarks", "count", len(bs))
+		return filterBookmarksByTags(bs, valid), nil
+	}
+
+	// Otherwise, get bookmarks from the repository by the first tag, then
+	// keep only those that have ALL tags.
 	r, err := d.Repository()
 	if err != nil {
 		return nil, err
 	}
+
+	firstTag := valid[0]
+	log.Debug("querying repository by first tag", "first_tag", firstTag)
+
 	candidates, err := r.ByTag(ctx, firstTag)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bookmarks by tag %q: %w", firstTag, err)
 	}
+	log.Debug("candidates found", "count", len(candidates))
 
-	// Filter candidates to only include those that have ALL remaining tags
-	remainingTags := make([]string, 0, len(tags)-1)
-	for _, tag := range tags {
-		if tag != "" && tag != firstTag {
-			remainingTags = append(remainingTags, tag)
-		}
-	}
-
-	result := filterBookmarksByTags(candidates, append([]string{firstTag}, remainingTags...))
-
+	result := filterBookmarksByTags(candidates, valid)
 	if len(result) == 0 {
-		tagsList := strings.Join(tags, ", ")
-		return nil, fmt.Errorf("%w by tags: %q", db.ErrRecordNoMatch, tagsList)
+		log.Debug("no bookmark has all tags")
+		return nil, fmt.Errorf("%w by tags: %q", db.ErrRecordNoMatch, strings.Join(tags, ", "))
 	}
 
 	return result, nil

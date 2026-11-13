@@ -574,6 +574,22 @@ func BackupList(ctx context.Context, d *deps.Deps) error {
 	return nil
 }
 
+// IsInitializedFromPath checks if the database is initialized.
+func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
+	log := slog.Default().With("fn", "db-is-initialized", "path", p)
+
+	r, err := db.New(ctx, p)
+	if err != nil {
+		return false, err
+	}
+	defer r.Close()
+
+	ok := r.IsInitialized(ctx)
+	log.Debug("initialization checked", "initialized", ok)
+
+	return ok, nil
+}
+
 // removeSlicePath removes a slice of paths.
 func removeSlicePath(ctx context.Context, d *deps.Deps, dbs []string) error {
 	c, f := d.Console(), d.Console().Frame()

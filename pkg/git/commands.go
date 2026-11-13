@@ -14,15 +14,16 @@ import (
 )
 
 var (
-	ErrGit               = errors.New("exit status 128")
-	ErrGitInitialized    = errors.New("git: is initialized")
-	ErrGitNotInitialized = errors.New("git: is not initialized")
-	ErrGitDisabled       = errors.New("git: is disabled")
-	ErrGitNoCommits      = errors.New("git: no commits found")
-	ErrGitNoUpstream     = errors.New("git: no upstream configured")
-	ErrGitUpstreamExists = errors.New("git: remote origin already exists")
-	ErrGitUpToDate       = errors.New("git: everything up-to-date")
-	ErrGitRepoEmpty      = errors.New("git: empty repository")
+	ErrGit                = errors.New("exit status 128")
+	ErrGitInitialized     = errors.New("git: is initialized")
+	ErrGitNotInitialized  = errors.New("git: is not initialized")
+	ErrGitDisabled        = errors.New("git: is disabled")
+	ErrGitNoCommits       = errors.New("git: no commits found")
+	ErrGitNoUpstream      = errors.New("git: no upstream configured")
+	ErrGitUpstreamExists  = errors.New("git: remote origin already exists")
+	ErrGitUpToDate        = errors.New("git: everything up-to-date")
+	ErrGitRepoEmpty       = errors.New("git: empty repository")
+	ErrGitExecNoArguments = errors.New("git: no arguments")
 )
 
 // Commander runs a single named binary, routing every invocation through
@@ -89,15 +90,30 @@ func Exec(ctx context.Context, repoPath string, commands ...string) error {
 // defaultExecuter runs a command with the given arguments and writes the
 // output to the writer.
 func defaultExecuter(ctx context.Context, dir string, w io.Writer, r io.Reader, s ...string) error {
-	slog.Debug("defaultExecuter", "cmds", s)
+	if len(s) == 0 {
+		return fmt.Errorf("executing command: %w", ErrGitExecNoArguments)
+	}
+
+	slog.Debug("executing command", "fn", "default-executer", "command", s[0], "args", s[1:], "dir", dir)
+
+	// Tee the output: the user still sees it through w, and we keep a copy
+	// to put the failure reason in the returned error.
+	var buf bytes.Buffer
+	out := io.MultiWriter(w, &buf)
+
 	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
 	cmd.Dir = dir
 	cmd.Stdin = r
-	cmd.Stdout = w
-	cmd.Stderr = w
+	cmd.Stdout = out
+	cmd.Stderr = out // same value as Stdout, so writes are serialized
+
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%w", err)
+		if msg := strings.TrimSpace(buf.String()); msg != "" {
+			return fmt.Errorf("running %s: %w: %s", s[0], err, msg)
+		}
+		return fmt.Errorf("running %s: %w", s[0], err)
 	}
+
 	return nil
 }
 

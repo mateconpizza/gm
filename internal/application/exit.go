@@ -3,7 +3,6 @@ package application
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/mateconpizza/gm/internal/sys/cleanup"
@@ -37,15 +36,12 @@ func Exit(err error) {
 		os.Exit(ExitSuccess)
 
 	case errors.Is(err, ErrExitFailure):
-		slog.Debug(ErrExitFailure.Error())
 		os.Exit(ExitFailure)
 
 	case errors.Is(err, ErrActionAborted) || errors.Is(err, terminal.ErrActionAborted):
-		slog.Debug(ErrActionAborted.Error())
 		os.Exit(ExitInterrupted)
 
 	default:
-		slog.Debug("exit", "error", err)
 		fmt.Fprintf(os.Stderr, "%s: %s\n", Name, err)
 		os.Exit(ExitFailure)
 	}

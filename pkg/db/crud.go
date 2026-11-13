@@ -41,7 +41,10 @@ const bookmarkColumns = `
 
 // InsertOne creates a new record in the main table.
 func (r *SQLite) InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error) {
+	log := r.logger.With("fn", "db-insert-one", "db", r.Name())
+
 	if err := bookmark.Validate(b); err != nil {
+		log.Debug("validation failed", "url", b.URL, "error", err)
 		return 0, err
 	}
 
@@ -51,8 +54,13 @@ func (r *SQLite) InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, er
 		id, err = r.insertIntoTx(ctx, tx, b)
 		return err
 	})
+	if err != nil {
+		return 0, err
+	}
 
-	return id, err
+	log.Debug("bookmark inserted", "id", id, "url", b.URL)
+
+	return id, nil
 }
 
 func (r *SQLite) InsertMany(ctx context.Context, bs []*bookmark.Bookmark) error {
@@ -65,9 +73,11 @@ func (r *SQLite) DeleteMany(ctx context.Context, ids []int) error {
 	if n == 0 {
 		return ErrRecordIDNotProvided
 	}
-	slog.DebugContext(ctx, "delete many", "ids", ids)
 
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+	log := r.logger.With("fn", "db-delete-many", "db", r.Name())
+	log.Debug("deleting bookmarks", "count", n, "ids", ids)
+
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		// Delete from bookmark_tags first (foreign key constraint)
 		q1, args1, err := sqlx.In("DELETE FROM bookmark_tags WHERE bookmark_id IN (?)", ids)
 		if err != nil {
@@ -83,19 +93,32 @@ func (r *SQLite) DeleteMany(ctx context.Context, ids []int) error {
 		if err != nil {
 			return fmt.Errorf("preparing bookmarks delete: %w", err)
 		}
-		_, err = tx.ExecContext(ctx, q2, args2...)
+		res, err := tx.ExecContext(ctx, q2, args2...)
 		if err != nil {
 			return fmt.Errorf("deleting from bookmarks: %w", err)
+		}
+		if affected, err := res.RowsAffected(); err == nil {
+			log.Debug("bookmarks deleted", "requested", n, "affected", affected)
 		}
 
 		// Clean up orphaned tags
 		return r.cleanOrphanTagsTx(ctx, tx)
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Debug("delete committed", "count", n)
+
+	return nil
 }
 
 // UpdateOne updates an existing bookmark by ID (or URL).
 func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+	log := r.logger.With("fn", "db-update-one", "db", r.Name(), "id", b.ID, "url", b.URL)
+	log.Debug("updating bookmark")
+
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		// Update record
 		if err := r.updateRecordTx(ctx, tx, b); err != nil {
 			return fmt.Errorf("update record: %w", err)
@@ -113,6 +136,13 @@ func (r *SQLite) UpdateOne(ctx context.Context, b *bookmark.Bookmark) error {
 
 		return r.cleanOrphanTagsTx(ctx, tx)
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Debug("bookmark updated")
+
+	return nil
 }
 
 // updateRecordTx updates a bookmark inside a transaction.
@@ -143,8 +173,13 @@ func (r *SQLite) updateRecordTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bo
 	WHERE id = :id OR url = :url
 	`
 
-	if _, err := tx.NamedExecContext(ctx, query, b); err != nil {
+	res, err := tx.NamedExecContext(ctx, query, b)
+	if err != nil {
 		return fmt.Errorf("%w", err)
+	}
+
+	if n, err := res.RowsAffected(); err == nil {
+		r.logger.Debug("bookmark record updated", "fn", "db-update-record", "id", b.ID, "rows", n)
 	}
 
 	return nil
@@ -152,7 +187,9 @@ func (r *SQLite) updateRecordTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bo
 
 // All returns all bookmarks.
 func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
-	slog.DebugContext(ctx, "fetching all bookmarks from database: "+r.Name())
+	log := r.logger.With("fn", "db-all", "db", r.Name())
+	log.Debug("fetching all bookmarks")
+
 	q := `
     SELECT
 			` + bookmarkColumns + `,
@@ -171,18 +208,22 @@ func (r *SQLite) All(ctx context.Context) ([]*bookmark.Bookmark, error) {
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "fetched bookmarks", "count", len(bs))
+	log.Debug("fetched bookmarks", "count", len(bs))
 
 	return bs, nil
 }
 
 // ByID returns a record by its ID in the give table.
 func (r *SQLite) ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error) {
-	if bID > r.MaxID(ctx) {
-		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, r.MaxID(ctx))
+	log := r.logger.With("fn", "db-by-id", "db", r.Name(), "id", bID)
+
+	maxID := r.MaxID(ctx)
+	if bID > maxID {
+		log.Debug("id out of range", "max", maxID)
+		return nil, fmt.Errorf("%w. max: %d", ErrRecordNotFound, maxID)
 	}
 
-	slog.InfoContext(ctx, "getting record by ID", "id", bID)
+	log.Debug("getting record by ID")
 
 	q := `
     SELECT
@@ -199,6 +240,7 @@ func (r *SQLite) ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error) 
 	err := r.DB.GetContext(ctx, &b, q, bID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			log.Debug("record not found")
 			return nil, fmt.Errorf("%w with id: %d", ErrRecordNotFound, bID)
 		}
 
@@ -297,7 +339,8 @@ func (r *SQLite) ByTag(ctx context.Context, tag string) ([]*bookmark.Bookmark, e
 
 // ByQuery returns records by query in the give table.
 func (r *SQLite) ByQuery(ctx context.Context, query string) ([]*bookmark.Bookmark, error) {
-	slog.InfoContext(ctx, "getting records by query", "query", query)
+	log := r.logger.With("fn", "db-by-query", "db", r.Name(), "query", query)
+	log.Debug("getting records by query")
 
 	q := `
     SELECT
@@ -320,10 +363,11 @@ func (r *SQLite) ByQuery(ctx context.Context, query string) ([]*bookmark.Bookmar
 
 	// FIX: remove
 	if len(bs) == 0 {
+		log.Debug("no matches")
 		return nil, ErrRecordNoMatch
 	}
 
-	slog.InfoContext(ctx, "got records by query", "count", len(bs), "query", query)
+	log.Debug("got records by query", "count", len(bs))
 
 	return bs, nil
 }
@@ -333,6 +377,7 @@ func (r *SQLite) ByQuery(ctx context.Context, query string) ([]*bookmark.Bookmar
 func (r *SQLite) MaxID(ctx context.Context) int {
 	var lastIndex int
 	if err := r.DB.QueryRowxContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM bookmarks").Scan(&lastIndex); err != nil {
+		r.logger.Debug("max id failed", "fn", "db-max-id", "error", err)
 		return 0
 	}
 
@@ -341,7 +386,10 @@ func (r *SQLite) MaxID(ctx context.Context) int {
 
 // WithTx executes a function within a transaction.
 func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
+	log := r.logger.With("fn", "db-with-tx", "db", r.Name())
+
 	if err := ctx.Err(); err != nil {
+		log.Debug("context done before transaction", "cause", context.Cause(ctx))
 		return err
 	}
 
@@ -353,19 +401,18 @@ func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 	// Handle rollback only on failure.
 	defer func() {
 		if p := recover(); p != nil {
+			log.Error("panic in transaction, rolling back", "panic", p)
 			_ = tx.Rollback() // ensure rollback on panic
 			panic(p)          // re-throw the panic
 		} else if err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-				slog.DebugContext(
-					ctx,
-					"transaction rollback failed",
-					"original_error",
-					err,
-					"rollback_error",
-					rollbackErr,
+				log.Debug("transaction rollback failed",
+					"original_error", err,
+					"rollback_error", rollbackErr,
 				)
+				return
 			}
+			log.Debug("transaction rolled back", "error", err)
 		}
 	}()
 
@@ -379,19 +426,39 @@ func (r *SQLite) WithTx(ctx context.Context, fn func(tx *sqlx.Tx) error) error {
 		return fmt.Errorf("commit failed: %w", err)
 	}
 
+	log.Debug("transaction committed")
+
 	return nil
 }
 
 func (r *SQLite) AddVisit(ctx context.Context, bID int) error {
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+	log := r.logger.With("fn", "db-add-visit", "db", r.Name(), "id", bID)
+
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		return updateVisit(ctx, tx, bID)
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Debug("visit added")
+
+	return nil
 }
 
 func (r *SQLite) SetFavorite(ctx context.Context, b *bookmark.Bookmark) error {
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+	log := r.logger.With("fn", "db-set-favorite", "db", r.Name(), "id", b.ID)
+
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		return updateFavorite(ctx, tx, b)
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Debug("favorite updated", "favorite", b.Favorite)
+
+	return nil
 }
 
 // FavoritesList returns the favorite bookmarks.
@@ -450,6 +517,7 @@ func (r *SQLite) ByOrder(ctx context.Context, column, sortBy string) ([]*bookmar
 func (r *SQLite) Count(ctx context.Context, table Table) int {
 	var n int
 	if err := r.DB.QueryRowxContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&n); err != nil {
+		r.logger.Debug("count failed", "fn", "db-count", "table", table, "error", err)
 		return 0
 	}
 
@@ -458,22 +526,28 @@ func (r *SQLite) Count(ctx context.Context, table Table) int {
 
 // Has checks if a record exists in the main table.
 func (r *SQLite) Has(ctx context.Context, bURL string) (*bookmark.Bookmark, bool) {
+	log := r.logger.With("fn", "db-has", "db", r.Name(), "url", bURL)
+
 	var exists bool
 	err := r.DB.QueryRowxContext(ctx, "SELECT EXISTS(SELECT 1 FROM bookmarks WHERE url = ?)", bURL).
 		Scan(&exists)
 	if err != nil {
-		slog.DebugContext(ctx, "error checking existence", "error", err)
+		log.Debug("error checking existence", "error", err)
 		return nil, false
 	}
 
 	if !exists {
+		log.Debug("not found")
 		return nil, false
 	}
 
 	item, err := r.ByURL(ctx, bURL)
 	if err != nil {
+		log.Debug("exists but failed to load", "error", err)
 		return nil, false
 	}
+
+	log.Debug("found", "id", item.ID)
 
 	return item, true
 }
@@ -499,7 +573,8 @@ func (r *SQLite) bySQL(ctx context.Context, q string, args ...any) ([]*bookmark.
 
 // deleteOneTx deletes an single record in the given table.
 func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) error {
-	slog.DebugContext(ctx, "deleting record", "id", b.ID, "url", b.URL)
+	log := r.logger.With("fn", "db-delete-one-tx", "id", b.ID, "url", b.URL)
+	log.Debug("deleting record")
 
 	// remove tags relationships first
 	if _, err := tx.ExecContext(
@@ -511,31 +586,37 @@ func (r *SQLite) deleteOneTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookm
 	}
 
 	// remove main record
-	_, err := tx.ExecContext(ctx, "DELETE FROM bookmarks WHERE id = ?", b.ID)
+	res, err := tx.ExecContext(ctx, "DELETE FROM bookmarks WHERE id = ?", b.ID)
 	if err != nil {
 		return fmt.Errorf("failed to delete record: %w", err)
 	}
 
-	slog.DebugContext(ctx, "deleted record", "id", b.ID)
+	if n, err := res.RowsAffected(); err == nil {
+		log.Debug("record deleted", "rows", n)
+	}
 
 	return nil
 }
 
 // deleteAll deletes all records in the give table.
 func (r *SQLite) deleteAll(ctx context.Context, tx *sqlx.Tx, ts ...Table) error {
+	log := r.logger.With("fn", "db-delete-all", "db", r.Name())
+
 	if len(ts) == 0 {
-		slog.DebugContext(ctx, "no tables to delete")
+		log.Debug("no tables to delete")
 		return nil
 	}
 
-	slog.DebugContext(ctx, "deleting all records from tables", "tables", ts)
+	log.Debug("deleting all records", "tables", ts)
 
 	for _, t := range ts {
-		slog.DebugContext(ctx, "deleting records from table", "table", t)
-
-		_, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", t))
+		res, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", t))
 		if err != nil {
 			return fmt.Errorf("failed to delete from %s: %w", t, err)
+		}
+
+		if n, err := res.RowsAffected(); err == nil {
+			log.Debug("table cleared", "table", t, "rows", n)
 		}
 	}
 
@@ -543,12 +624,14 @@ func (r *SQLite) deleteAll(ctx context.Context, tx *sqlx.Tx, ts ...Table) error 
 }
 
 func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) error {
-	slog.InfoContext(ctx, "inserting records into main table", "count", len(bs))
+	log := r.logger.With("fn", "db-insert-bulk", "db", r.Name())
+	log.Debug("inserting records", "count", len(bs))
+
 	sort.Slice(bs, func(i, j int) bool {
 		return bs[i].ID < bs[j].ID
 	})
 
-	return r.WithTx(ctx, func(tx *sqlx.Tx) error {
+	err := r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		for _, b := range bs {
 			if _, err := r.insertIntoTx(ctx, tx, b); err != nil {
 				return err
@@ -557,6 +640,13 @@ func (r *SQLite) insertBulkPtr(ctx context.Context, bs []*bookmark.Bookmark) err
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Debug("bulk insert committed", "count", len(bs))
+
+	return nil
 }
 
 // insertIntoTx inserts a record inside an existing transaction.
@@ -571,7 +661,7 @@ func (r *SQLite) insertIntoTx(ctx context.Context, tx *sqlx.Tx, b *bookmark.Book
 		return 0, fmt.Errorf("failed to associate tags: %w", err)
 	}
 
-	slog.DebugContext(ctx, "inserted record", "url", b.URL)
+	r.logger.Debug("record inserted in tx", "fn", "db-insert-into-tx", "id", bID, "url", b.URL)
 
 	return bID, nil
 }
@@ -638,7 +728,7 @@ func insertRecord(ctx context.Context, tx *sqlx.Tx, b *bookmark.Bookmark) (int64
 
 // updateVisit updates the visit count and last visit date for a bookmark.
 func updateVisit(ctx context.Context, tx *sqlx.Tx, bID int) error {
-	slog.DebugContext(ctx, "updating visit count", "id", bID)
+	slog.Debug("updating visit count", "id", bID)
 	_, err := tx.ExecContext(
 		ctx,
 		"UPDATE bookmarks SET visit_count = visit_count + 1, last_visit = ? WHERE id = ?",

@@ -106,6 +106,7 @@ func Edit(ctx context.Context, strategy editor.EditStrategy) func(context.Contex
 		es := editor.NewEditSession().
 			WithStrategy(strategy).
 			WithDiffer(c.Differ()).
+			WithLogger(app.Logger()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, PersistParams{
 					Repo:  r,
@@ -583,9 +584,16 @@ func processMetadataUpdate(ctx context.Context, d *deps.Deps, b *bookmark.Bookma
 		}
 
 	case "edit":
+		e := editor.NewBookmarkStrategy().
+			WithRepoName(app.DBBaseName()).
+			WithAppName(app.Name).
+			WithAppVersion(app.Version()).
+			WithSpinner(NewSpinner(app.Flags.Color))
+
 		es := editor.NewEditSession().
-			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app.Flags.Color))).
+			WithStrategy(e).
 			WithDiffer(c.Differ()).
+			WithLogger(app.Logger()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return persistFunc(ctx, app, PersistParams{
 					Repo:  r,
@@ -652,7 +660,7 @@ func runEditSession(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, 
 	if err != nil {
 		return err
 	}
-	te, err := editor.NewEditor(app.Env.Editor)
+	te, err := editor.NewEditor(app.Env.Editor, app.Logger())
 	if err != nil {
 		return err
 	}

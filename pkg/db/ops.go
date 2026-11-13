@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -28,13 +27,15 @@ const (
 )
 
 func (r *SQLite) ReorderIDs(ctx context.Context) error {
-	slog.DebugContext(ctx, "Reordering bookmark IDs")
+	log := r.logger.With("fn", "db-reorder-ids", "db", r.Name())
+	log.Debug("reordering bookmark IDs")
 
 	bs, err := r.All(ctx)
 	if err != nil && !errors.Is(err, ErrRecordNotFound) {
 		return err
 	}
 	if len(bs) == 0 {
+		log.Debug("no bookmarks, nothing to reorder")
 		return nil
 	}
 
@@ -42,20 +43,30 @@ func (r *SQLite) ReorderIDs(ctx context.Context) error {
 
 	err = r.WithTx(ctx, func(tx *sqlx.Tx) error {
 		for _, tbl := range mainTables {
-			slog.DebugContext(ctx, "deleting records from", "table", tbl)
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tbl)); err != nil {
+			res, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s", tbl))
+			if err != nil {
 				return fmt.Errorf("clearing table %q: %w", tbl, err)
+			}
+			if n, err := res.RowsAffected(); err == nil {
+				log.Debug("table cleared", "table", tbl, "rows", n)
 			}
 		}
 
-		return resetSQLiteSequence(ctx, tx, mainTables...)
+		return r.resetSQLiteSequence(ctx, tx, mainTables...)
 	})
 	if err != nil {
 		return err
 	}
 
 	// Reinsert bookmarks with new IDs
-	return r.InsertMany(ctx, bs)
+	log.Debug("reinserting bookmarks", "count", len(bs))
+	if err := r.InsertMany(ctx, bs); err != nil {
+		return err
+	}
+
+	log.Debug("reorder completed", "count", len(bs))
+
+	return nil
 }
 
 // Backup creates a timestamped backup of the SQLite database at the specified destination.
@@ -72,7 +83,9 @@ func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) 
 	// destDSN -> 20060102-150405_dbName.db
 	destDSN := fmt.Sprintf("%s_%s", now.Format(defaultDateFormat), r.Name())
 	destPath := filepath.Join(destRoot, destDSN)
-	slog.InfoContext(ctx, "creating SQLite backup", "src", r.Cfg.Fullpath(), "dest", destPath)
+
+	log := r.logger.With("fn", "db-new-backup", "db", r.Name(), "dest", destPath)
+	log.Debug("creating backup", "src", r.Cfg.Fullpath())
 
 	_, err := os.Stat(destPath)
 	if !os.IsNotExist(err) {
@@ -80,6 +93,7 @@ func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) 
 	}
 
 	_ = r.DB.MustExecContext(ctx, "VACUUM INTO ?", destPath)
+	log.Debug("vacuum into completed")
 
 	backup, err := New(ctx, destPath)
 	if err != nil {
@@ -95,6 +109,8 @@ func (r *SQLite) newBackup(ctx context.Context, destRoot string, now time.Time) 
 		return "", err
 	}
 
+	log.Debug("backup created")
+
 	return destPath, nil
 }
 
@@ -107,10 +123,11 @@ func (r *SQLite) CheckIntegrity(ctx context.Context) error {
 	}
 
 	if result != "ok" {
+		r.logger.Warn("integrity check failed", "fn", "db-check-integrity", "db", r.Name(), "result", result)
 		return fmt.Errorf("%w: integrity check: %q", ErrDBCorrupted, result)
 	}
 
-	slog.DebugContext(ctx, "SQLite integrity verified", "result", result)
+	r.logger.Debug("integrity verified", "fn", "db-check-integrity", "db", r.Name(), "result", result)
 
 	return nil
 }
@@ -149,16 +166,23 @@ func (r *SQLite) SetBackupAt(ctx context.Context, now time.Time) error {
 	return r.SetMetadata(ctx, MetaKeyBackupAt, now.UTC().Format(TimeFormatSqlite))
 }
 
-// IsInitializedFromPath checks if the database is initialized.
-func IsInitializedFromPath(ctx context.Context, p string) (bool, error) {
-	slog.DebugContext(ctx, "checking if database is initialized", "path", p)
-	r, err := New(ctx, p)
-	if err != nil {
-		return false, err
-	}
-	defer r.Close()
+// resetSQLiteSequence resets the SQLite sequence for the given table.
+func (r *SQLite) resetSQLiteSequence(ctx context.Context, tx *sqlx.Tx, tables ...Table) error {
+	log := r.logger.With("fn", "db-reset-sequence", "db", r.Name())
 
-	return r.IsInitialized(ctx), nil
+	if len(tables) == 0 {
+		log.Warn("no tables provided to reset sqlite sequence")
+		return nil
+	}
+
+	for _, t := range tables {
+		if _, err := tx.ExecContext(ctx, "DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
+			return fmt.Errorf("resetting sqlite sequence: %w", err)
+		}
+		log.Debug("sequence reset", "table", t)
+	}
+
+	return nil
 }
 
 // drop removes all records database.
@@ -168,7 +192,7 @@ func drop(ctx context.Context, r *SQLite) error {
 			return err
 		}
 
-		return resetSQLiteSequence(ctx, tx, tables...)
+		return r.resetSQLiteSequence(ctx, tx, tables...)
 	})
 	if err != nil {
 		return fmt.Errorf("%w", err)
@@ -178,30 +202,15 @@ func drop(ctx context.Context, r *SQLite) error {
 }
 
 func vacuum(ctx context.Context, r *SQLite) error {
-	slog.DebugContext(ctx, "vacuuming database")
+	log := r.logger.With("fn", "db-vacuum", "db", r.Name())
+	log.Debug("vacuuming database")
 
 	_, err := r.DB.ExecContext(ctx, "VACUUM")
 	if err != nil {
 		return fmt.Errorf("vacuum: %w", err)
 	}
 
-	return nil
-}
-
-// resetSQLiteSequence resets the SQLite sequence for the given table.
-func resetSQLiteSequence(ctx context.Context, tx *sqlx.Tx, tables ...Table) error {
-	if len(tables) == 0 {
-		slog.WarnContext(ctx, "no tables provided to reset sqlite sequence")
-		return nil
-	}
-
-	for _, t := range tables {
-		slog.DebugContext(ctx, "resetting sqlite sequence", "table", t)
-
-		if _, err := tx.ExecContext(ctx, "DELETE FROM sqlite_sequence WHERE name=?", t); err != nil {
-			return fmt.Errorf("resetting sqlite sequence: %w", err)
-		}
-	}
+	log.Debug("vacuum completed")
 
 	return nil
 }

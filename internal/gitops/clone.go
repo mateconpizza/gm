@@ -24,6 +24,8 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
+var ErrGitManager = errors.New("git: manager is nil")
+
 func Clone(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
 	if err != nil {
@@ -33,51 +35,71 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 	// keep temp path lifecycle here so the defer cleanly wipes it out at the
 	// very end
 	tmpPath := filepath.Join(os.TempDir(), app.Name+"-clone")
+	log := app.Logger().With("fn", "clone", "tmp_path", tmpPath)
+
 	if files.Exists(tmpPath) {
+		log.Debug("removing existing clone temp directory")
 		_ = files.RemoveAll(tmpPath)
 	}
-	fn := func() { _ = files.RemoveAll(tmpPath) }
+	fn := func() {
+		log.Debug("cleaning up clone temp directory")
+		_ = files.RemoveAll(tmpPath)
+	}
 	defer fn()
 
 	t := d.Console().Term()
 	t.SetInterruptFn(func(err error) {
+		log.Warn("clone interrupted, cleaning up", "error", err)
 		fn()
 		app.Exit(err)
 	})
 
 	gp, err := newGitPuller(ctx, d, app, tmpPath)
 	if err != nil {
+		log.Error("failed to create git puller", "error", err)
 		return err
 	}
 
 	rc, err := resolveConfig(tmpPath)
 	if err != nil {
+		log.Error("failed to resolve clone configuration", "error", err)
 		return err
 	}
 
+	log.Debug("configuration resolved successfully", "encryption", rc.Encryption)
+
 	for _, gr := range gp.Repos() {
+		repoLog := log.With("repo", gr.Name())
 		if rc.Encryption != enc.None &&
 			!t.Confirm(ctx, fmt.Sprintf("read encrypted (%s) repository %q?", rc.Encryption, gr.Name()), "yes") {
+			repoLog.Debug("user skipped encrypted repository")
 			continue
 		}
 
+		repoLog.Debug("processing repository")
 		if err := processRepo(ctx, d, gp, gr); err != nil {
+			repoLog.Error("failed to process repository", "error", err)
 			return err
 		}
 	}
 
+	log.Debug("completed successfully")
 	return nil
 }
 
 func newGitPuller(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*GitPuller, error) {
 	gm := app.Git.Manager()
+	if gm == nil {
+		return nil, ErrGitManager
+	}
+
 	g := gm.Git()
 
 	if err := g.CloneInto(ctx, app.Git.Remote, tmpPath); err != nil {
 		return nil, fmt.Errorf("cloning remote repo: %w", err)
 	}
 
-	gp := NewPuller(d.Console(), tmpPath, g.Root())
+	gp := NewPuller(d.Console(), tmpPath, g.Root(), WithPullerLogger(app.Logger()))
 	if err := gp.Pull(app.Session()); err != nil {
 		return nil, err
 	}
@@ -101,7 +123,7 @@ func newGitPuller(ctx context.Context, d *deps.Deps, app *application.App, tmpPa
 		return txt.PaddedLine(name, dimmer.Sprintf("(%s)", gr.String()))
 	})
 
-	err := gp.Select(ctx, m, d.Console())
+	err := gp.selection(ctx, m, d.Console())
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +136,7 @@ func processRepo(ctx context.Context, d *deps.Deps, gp *GitPuller, gr *git.Repo)
 		return err
 	}
 
-	if err := gp.PrintDetails(gr); err != nil {
+	if err := gp.printDetails(gr); err != nil {
 		if errors.Is(err, git.ErrGitRepoEmpty) {
 			return nil // move to next
 		}

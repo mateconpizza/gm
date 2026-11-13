@@ -112,20 +112,26 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 		return err
 	}
 
+	log := app.Logger().With("fn", "parse-new-bookmark")
+
 	title := app.Flags.Title
 	tags := app.Flags.TagsStr
 
 	c := d.Console()
 	newURL, err := newURLFromArgs(ctx, c, a, c.Term().Input, readURLFromClipboard)
 	if err != nil {
+		log.Error("failed to resolve URL from arguments", "error", err)
 		return err
 	}
+
+	log = log.With("url", newURL)
 
 	r, err := d.Repository()
 	if err != nil {
 		return err
 	}
 	if bm, exists := r.Has(ctx, newURL); exists {
+		log.Warn("bookmark already exists", "existing_id", bm.ID)
 		return fmt.Errorf("%w with id=%d", bookmark.ErrBookmarkDuplicate, bm.ID)
 	}
 
@@ -138,6 +144,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	// fetch title, description and tags
 	fetchTitleAndDesc(ctx, c, sc, bTemp)
 	if err := tagsFromArgs(ctx, d, c.Term(), sc, bTemp); err != nil {
+		log.Error("failed to parse tags", "error", err)
 		return err
 	}
 
@@ -146,6 +153,8 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	b.Desc = strings.Join(txt.SplitIntoChunks(bTemp.desc, c.Term().MinWidth()), "\n")
 	b.Tags = bookmark.ParseTags(bTemp.tags)
 	b.FaviconURL = bTemp.favicon
+
+	log.Debug("bookmark successfully parsed", "title", b.Title, "tags_count", len(b.Tags))
 
 	return nil
 }
@@ -319,48 +328,72 @@ func saveNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) er
 		return err
 	}
 
+	log := app.Logger().With("fn", "save-new-bookmark", "url", b.URL)
+
 	if app.Flags.Force {
+		log.Debug("force flag enabled, inserting bookmark directly")
 		return r.InsertMany(ctx, []*bookmark.Bookmark{b})
 	}
 
 	c := d.Console()
 	opt, err := c.Choose(ctx, "save bookmark?", []string{"yes", "no", "edit"}, "y")
 	if err != nil {
+		log.Error("failed to prompt save choice", "error", err)
 		return fmt.Errorf("%w", err)
 	}
 
+	log = log.With("user_choice", opt)
+
 	switch strings.ToLower(opt) {
 	case "no":
+		log.Debug("user aborted bookmark save")
 		return app.Abort()
 	case "edit":
+		log.Debug("user chose to edit bookmark before saving")
+		e := editor.NewBookmarkStrategy().
+			WithRepoName(app.DBBaseName()).
+			WithAppName(app.Name).
+			WithAppVersion(app.Version()).
+			WithSpinner(NewSpinner(app.Flags.Color))
 		session := editor.NewEditSession().
-			WithStrategy(editor.NewBookmarkStrategy().WithSpinner(NewSpinner(app.Flags.Color))).
+			WithStrategy(e).
 			WithDiffer(c.Differ()).
+			WithLogger(app.Logger()).
 			WithPersistFunc(func(ctx context.Context, old, fresh *bookmark.Bookmark) error {
 				return insertAndAddBookmark(ctx, r, app, fresh)
 			})
 
 		return runEditSession(ctx, d, []*bookmark.Bookmark{b}, session)
 	default:
+		log.Debug("saving bookmark normally")
 		return insertAndAddBookmark(ctx, r, app, b)
 	}
 }
 
 // insertAndAddBookmark inserts a bookmark and applies git add.
 func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application.App, b *bookmark.Bookmark) error {
+	log := app.Logger().With("fn", "insert-and-add-bookmark", "url", b.URL)
+
 	newID, err := r.InsertOne(ctx, b)
 	if err != nil {
+		log.Error("failed to insert bookmark", "error", err)
 		return err
 	}
 
+	log = log.With("bookmark_id", newID)
+
 	fresh, err := r.ByID(ctx, int(newID))
 	if err != nil {
+		log.Error("failed to retrieve inserted bookmark by ID", "error", err)
 		return err
 	}
 
 	if !app.GitEnabled() {
+		log.Debug("git integration disabled, skipping git add")
 		return nil
 	}
+
+	log.Debug("adding bookmark to git repository")
 
 	sess := app.Session().
 		WithConfirmation(true).
@@ -370,7 +403,13 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 	gr := gitops.NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
 	gitops.RegisterHooks(r, app, gr)
 
-	return gitops.Add(ctx, gm, gr, fresh)
+	if err := gitops.Add(ctx, gm, gr, fresh); err != nil {
+		log.Error("failed to add bookmark to git", "error", err)
+		return err
+	}
+
+	log.Debug("bookmark successfully inserted and added to git")
+	return nil
 }
 
 type tagResolver struct {

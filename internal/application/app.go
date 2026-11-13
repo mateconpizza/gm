@@ -54,6 +54,7 @@ type (
 		Git    *git.Config     `json:"git,omitempty" yaml:"git,omitempty"` // Git configuration
 
 		session     *session.Session
+		logger      *slog.Logger
 		initialized bool
 	}
 
@@ -80,6 +81,7 @@ func NewApp(dataHome string) *App {
 			Data: dataHome,
 		},
 		session: session.New(),
+		logger:  slog.Default(),
 	}
 }
 
@@ -241,6 +243,13 @@ func (app *App) Glyphs() *formatter.Glyphs      { return app.UI.glyphs }
 func (app *App) Format() string                 { return app.UI.Format }
 func (app *App) Session() *session.Session      { return app.session }
 
+func (app *App) Logger() *slog.Logger {
+	if app.logger == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return app.logger
+}
+
 func (app *App) Example(template string) string {
 	return strings.NewReplacer(
 		"{cmd}", app.Cmd,
@@ -305,6 +314,7 @@ func New(info *Information) *App {
 			Editor: EnvEditor,
 		},
 		Menu:    menucfg.NewDefault(),
+		logger:  slog.New(slog.DiscardHandler),
 		session: session.New(),
 	}
 }

@@ -39,12 +39,14 @@ type GitOptions struct {
 	commandLogger CmdLogger
 	executer      ExecuterFunc
 	cmd           *Commander
+	logger        *slog.Logger
 }
 
 func WithGitWriter(w io.Writer) GitOpt       { return func(o *GitOptions) { o.writer = w } }
 func WithGitCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.commandLogger = hook } }
 func WithExecuter(fn ExecuterFunc) GitOpt    { return func(o *GitOptions) { o.executer = fn } }
 func WithCommander(c *Commander) GitOpt      { return func(o *GitOptions) { o.cmd = c } }
+func WithLogger(l *slog.Logger) GitOpt       { return func(o *GitOptions) { o.logger = l } }
 
 type PreCommit struct {
 	hooks []*Hook
@@ -64,10 +66,11 @@ type Git struct {
 // New verifies the system environment and returns a usable Git workflow
 // client.
 func New(path string, opts ...GitOpt) (*Git, error) {
-	o := &GitOptions{writer: os.Stdout}
+	o := &GitOptions{writer: os.Stdout, logger: slog.New(slog.DiscardHandler)}
 	for _, opt := range opts {
 		opt(o)
 	}
+	o.logger = o.logger.With("component", "git")
 
 	if o.commandLogger == nil {
 		o.commandLogger = func(w io.Writer, commands []string) {
@@ -75,8 +78,9 @@ func New(path string, opts ...GitOpt) (*Git, error) {
 		}
 	}
 
+	customExec := o.executer != nil
 	bin := command
-	if o.executer == nil {
+	if !customExec {
 		o.executer = defaultExecuter
 
 		found, err := which(command)
@@ -88,6 +92,8 @@ func New(path string, opts ...GitOpt) (*Git, error) {
 
 	o.cmd = NewCommander(bin).
 		WithExecutor(o.executer)
+
+	o.logger.Debug("git client ready", "bin", bin, "path", path, "custom_executer", customExec)
 
 	return &Git{
 		fullpath: path,
@@ -115,6 +121,7 @@ func (g *Git) Exec(ctx context.Context, commands ...string) error {
 }
 
 func (g *Git) Output(ctx context.Context, commands ...string) (string, error) {
+	g.logger.Debug("git output", "fn", "output", "cmd", subcmd(commands), "dir", g.fullpath)
 	g.commandLogger(g.writer, slices.Insert(commands, 0, g.cmd.bin))
 	return g.cmd.Output(ctx, g.fullpath, commands...)
 }
@@ -187,13 +194,25 @@ func (g *Git) HasChanges(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("git status failed: %w", err)
 	}
 
-	return strings.TrimSpace(output) != "", nil
+	changed := strings.TrimSpace(output) != ""
+	g.logger.Debug("checked changes", "fn", "has-changes", "changed", changed)
+
+	return changed, nil
 }
 
 func (g *Git) FileHasChanges(ctx context.Context, filePath string) bool {
 	_, err := g.cmd.Output(ctx, g.fullpath, "diff", "--quiet", "--", filePath)
-	var exitErr *exec.ExitError
-	return errors.As(err, &exitErr) && exitErr.ExitCode() == 1
+	if err == nil {
+		return false
+	}
+
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		return exitErr.ExitCode() == 1
+	}
+
+	g.logger.Debug("file diff failed", "fn", "file-has-changes", "file", filepath.Base(filePath), "error", err)
+
+	return false
 }
 
 // HasUnpushedCommits checks if there are any unpushed commits.
@@ -214,6 +233,8 @@ func (g *Git) UnpushedCommits(ctx context.Context) (int, error) {
 }
 
 func (g *Git) Push(ctx context.Context) error {
+	log := g.logger.With("fn", "push", "path", g.fullpath)
+
 	// check if remote exists
 	remotes, err := g.cmd.Output(ctx, g.fullpath, "remote")
 	if err != nil {
@@ -221,6 +242,7 @@ func (g *Git) Push(ctx context.Context) error {
 	}
 
 	if strings.TrimSpace(remotes) == "" {
+		log.Debug("no remotes configured")
 		return ErrGitNoUpstream
 	}
 
@@ -232,20 +254,26 @@ func (g *Git) Push(ctx context.Context) error {
 	// check if branch has upstream
 	err = g.cmd.Run(ctx, io.Discard, g.fullpath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
 	if err != nil {
-		// no upstream, so set it
+		log.Debug("no upstream, setting it", "branch", branch)
 		return g.cmd.Run(ctx, os.Stdout, g.fullpath, "push", "--set-upstream", "origin", branch)
 	}
+
+	log.Debug("pushing", "branch", branch)
 
 	return g.run(ctx, g.fullpath, "push")
 }
 
 // Init creates a new Git repository.
 func (g *Git) Init(ctx context.Context, force bool) error {
+	log := g.logger.With("fn", "init", "path", g.fullpath, "force", force)
+
 	if IsInitialized(g.fullpath) && !force {
+		log.Debug("already initialized")
 		return ErrGitInitialized
 	}
 
 	if fileExists(g.fullpath) && force {
+		log.Debug("removing existing repository")
 		if err := os.RemoveAll(g.fullpath); err != nil {
 			return err
 		}
@@ -254,6 +282,8 @@ func (g *Git) Init(ctx context.Context, force bool) error {
 	if err := os.MkdirAll(g.fullpath, DirPerm); err != nil {
 		return err
 	}
+
+	log.Debug("initializing repository")
 
 	return g.run(ctx, g.fullpath, "init")
 }
@@ -264,6 +294,7 @@ func (g *Git) AddRemote(ctx context.Context, repoURL string, force bool) error {
 	if force {
 		action = "set-url"
 	}
+	g.logger.Debug("configuring remote", "fn", "add-remote", "action", action)
 
 	return g.run(ctx, g.fullpath, "remote", action, "origin", repoURL)
 }
@@ -277,6 +308,7 @@ func (g *Git) SetUpstream(ctx context.Context, repoPath string) error {
 	if err != nil {
 		return err
 	}
+	g.logger.Debug("setting upstream", "fn", "set-upstream", "branch", b)
 
 	return g.run(ctx, repoPath, "push", "--set-upstream", "origin", b)
 }
@@ -292,10 +324,7 @@ func (g *Git) run(ctx context.Context, repoPath string, commands ...string) erro
 func (g *Git) hasCommits(ctx context.Context) bool {
 	err := g.cmd.Run(ctx, io.Discard, g.fullpath, "rev-parse", "--verify", "HEAD")
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() != 0 {
-			return false
-		}
-
+		g.logger.Debug("no commits", "fn", "has-commits", "error", err)
 		return false
 	}
 
@@ -308,10 +337,11 @@ func (g *Git) unpushedCommitsCount(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("count unpushed commits: %w", err)
 	}
 
-	n, err := strconv.Atoi(s)
+	n, err := strconv.Atoi(strings.TrimSpace(s))
 	if err != nil {
 		return 0, fmt.Errorf("parse unpushed commit count %q: %w", s, err)
 	}
+	g.logger.Debug("counted unpushed commits", "fn", "unpushed-count", "count", n)
 
 	return n, nil
 }
@@ -349,6 +379,8 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 		return err
 	}
 
+	log := g.logger.With("fn", "commit-if-changed", "path", g.fullpath)
+
 	if err := g.runHooks(ctx, g.preCommit.hooks); err != nil {
 		return err
 	}
@@ -359,12 +391,15 @@ func (g *Git) commitIfChanged(ctx context.Context, msg CommitMessage) error {
 
 	status, err := g.Status(ctx)
 	if err != nil {
+		log.Debug("status unavailable, committing without it", "error", err)
 		status = ""
 	}
 
 	if status != "" {
 		status = " (" + status + ")"
 	}
+
+	log.Debug("committing", "msg", msg.String(), "status", strings.TrimSpace(status))
 
 	return g.Commit(ctx, fmt.Sprintf("%s%s", msg, status))
 }
@@ -374,15 +409,19 @@ func (g *Git) commitEmpty(ctx context.Context, msg CommitMessage) error {
 }
 
 func (g *Git) runHooks(ctx context.Context, hooks []*Hook) error {
+	log := g.logger.With("fn", "run-hooks")
+	log.Debug("running pre-commit hooks", "count", len(hooks))
+
 	for _, h := range hooks {
 		if h.Run == nil {
+			log.Debug("hook has no Run func, skipping", "name", h.Name)
 			continue
 		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		slog.Debug("pre-commit hook", "name", h.Name)
+		log.Debug("running hook", "name", h.Name)
 		if err := h.Run(ctx, g); err != nil {
 			return fmt.Errorf("pre-commit %s: %w", h.Name, err)
 		}
@@ -408,4 +447,12 @@ func (s Stats) String() string {
 		parts = append(parts, fmt.Sprintf("~mod:%d", s.Mod))
 	}
 	return strings.Join(parts, " ")
+}
+
+// subcmd returns the git subcommand ("commit", "push") without its arguments.
+func subcmd(c []string) string {
+	if len(c) == 0 {
+		return ""
+	}
+	return c[0]
 }

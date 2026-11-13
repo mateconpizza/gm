@@ -20,13 +20,12 @@ type SQLite struct {
 	DB        *sqlx.DB `json:"-"`
 	Cfg       *Cfg     `json:"db"`
 	closeOnce sync.Once
+	logger    *slog.Logger
 }
 
 // New returns a new SQLiteRepository from an existing database path.
 func New(ctx context.Context, p string) (*SQLite, error) {
 	return newRepository(ctx, p, func(path string) error {
-		slog.DebugContext(ctx, "new repo: checking if database exists")
-
 		if !fileExists(path) {
 			return fmt.Errorf("%w: %q", ErrDBNotFound, filepath.Base(path))
 		}
@@ -38,34 +37,39 @@ func New(ctx context.Context, p string) (*SQLite, error) {
 func (r *SQLite) Name() string     { return r.Cfg.Name }
 func (r *SQLite) BaseName() string { return strings.TrimSuffix(r.Cfg.Name, filepath.Ext(r.Cfg.Name)) }
 func (r *SQLite) Fullpath() string { return r.Cfg.Fullpath() }
+func (r *SQLite) WithLogger(l *slog.Logger) *SQLite {
+	r.logger = l
+	return r
+}
 
 // Close closes the SQLite database connection and logs any errors encountered.
 func (r *SQLite) Close() {
-	s := r.Name()
+	log := r.logger.With("fn", "db-close", "name", r.Name())
+
 	r.closeOnce.Do(func() {
-		slog.Debug("database closed", "name", s)
+		log.Debug("closing database")
 
 		if err := r.DB.Close(); err != nil {
-			slog.Error("closing database", "name", s, "error", err)
+			log.Error("closing database failed", "error", err)
 		}
 
-		manager.Unregister(s)
+		manager.Unregister(r.Name())
+		log.Debug("database closed")
 	})
 }
 
 // newSQLiteRepository returns a new SQLiteRepository.
 func newSQLiteRepository(db *sqlx.DB, cfg *Cfg) *SQLite {
 	return &SQLite{
-		DB:  db,
-		Cfg: cfg,
+		DB:     db,
+		Cfg:    cfg,
+		logger: slog.Default(),
 	}
 }
 
 // Init initializes a new SQLiteRepository at the provided path.
 func Init(ctx context.Context, p string) (*SQLite, error) {
 	return newRepository(ctx, p, func(path string) error {
-		slog.DebugContext(ctx, "init repo: checking if database exists", "path", path)
-
 		if fileExists(path) {
 			return fmt.Errorf("%w: %q", ErrDBExists, path)
 		}
@@ -80,6 +84,9 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 		return nil, fmt.Errorf("%w: %q", ErrDBNotFound, p)
 	}
 
+	log := slog.Default().With("fn", "db-new-repository", "path", p)
+	log.Debug("opening database")
+
 	if err := validate(p); err != nil {
 		return nil, err
 	}
@@ -91,22 +98,27 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 
 	db, err := OpenDatabase(ctx, p, c)
 	if err != nil {
-		slog.DebugContext(ctx, "NewRepo", "error", err, "path", p)
-		return nil, err
+		return nil, fmt.Errorf("opening database %q: %w", c.Name, err)
 	}
 
 	r := newSQLiteRepository(db, c)
 
 	ms, err := LoadMigrations()
 	if err != nil {
-		return nil, err
+		_ = db.Close()
+		return nil, fmt.Errorf("loading migrations: %w", err)
 	}
 
+	log.Debug("migrations loaded", "count", len(ms))
+
 	if err := Migrate(ctx, r, ms); err != nil {
+		_ = db.Close()
 		return nil, err
 	}
 
 	manager.Register(c.Name, r)
+
+	log.Debug("database opened", "name", c.Name)
 
 	return r, nil
 }
@@ -134,7 +146,6 @@ func buildSQLiteDSN(path string, params map[string]string) string {
 // OpenDatabase opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
 func OpenDatabase(ctx context.Context, path string, cfg *Cfg) (*sqlx.DB, error) {
-	slog.DebugContext(ctx, "opening database", "path", path)
 	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
 	dbParams := map[string]string{
@@ -203,11 +214,7 @@ func NewSQLiteCfg(p string) (*Cfg, error) {
 }
 
 // Fullpath returns the full path to the SQLite database.
-func (c *Cfg) Fullpath() string {
-	return filepath.Join(c.Path, c.Name)
-}
+func (c *Cfg) Fullpath() string { return filepath.Join(c.Path, c.Name) }
 
 // Exists returns true if the SQLite database exists.
-func (c *Cfg) Exists() bool {
-	return fileExists(c.Fullpath())
-}
+func (c *Cfg) Exists() bool { return fileExists(c.Fullpath()) }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -51,19 +50,22 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 
 // Sync stages tracked bookmark data and commits any resulting changes to Git.
 func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.CommitMessage) error {
-	slog.Debug("starting git sync")
+	log := app.Logger().With("fn", "git-sync", "db", app.DBBaseName())
+
+	log.Debug("starting")
+
 	if !app.GitEnabled() {
-		slog.Warn("git sync: disabled")
+		log.Warn("git disabled in app config, skipping")
 		return nil
 	}
 
 	if !gm.IsEnabled() {
-		slog.Debug("git sync disabled, skipping", "enabled", gm.IsEnabled())
+		log.Debug("git manager disabled, skipping")
 		return nil
 	}
 
 	if !gm.IsTracked(app.DBBaseName()) {
-		slog.Debug("database path not tracked in git, skipping sync")
+		log.Debug("database not tracked in git, skipping")
 		return nil
 	}
 
@@ -77,6 +79,7 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 	if err != nil {
 		return fmt.Errorf("git sync: failed to fetch bookmarks: %w", err)
 	}
+	log.Debug("loaded bookmarks", "count", len(bs))
 
 	sess := app.Session().
 		WithConfirmation(false).
@@ -89,6 +92,7 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
 	}
 
+	log.Debug("committing changes")
 	return gm.Commit(ctx, msg)
 }
 
@@ -98,12 +102,15 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
+	log := app.Logger().With("fn", "git-sync-all")
+
 	c := d.Console()
 	w, p := c.Writer(), c.Palette()
 
 	gm := app.Git.Manager()
 	repos := gm.Repos()
 	files.PrioritizeFile(repos, app.DBBaseName())
+	log.Debug("syncing repos", "count", len(repos))
 
 	sess := app.Session().
 		WithConfirmation(false).
@@ -114,12 +121,15 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 			return err
 		}
 
+		rlog := log.With("repo", name)
+
 		var sb strings.Builder
 		app.Git.SetWriter(&sb)
 
 		path := filepath.Join(app.Path.Home(), name)
 		path = files.EnsureExt(path, "db")
 		if !files.Exists(path) {
+			rlog.Debug("database file not found, skipping", "path", path)
 			continue
 		}
 
@@ -132,17 +142,20 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 		if err != nil {
 			return err
 		}
+		rlog.Debug("loaded bookmarks", "count", len(bs))
 
 		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 
 		if err := PruneRepo(ctx, gm, gr, bs); err != nil {
 			if errors.Is(err, git.ErrGitUpToDate) {
+				rlog.Debug("repo up-to-date")
 				fmt.Fprintf(w, "git: repo %s up-to-date\n", p.BrightYellow.Sprint(name))
 				continue
 			}
 			return err
 		}
 
+		rlog.Debug("repo synced")
 		fmt.Fprint(w, sb.String())
 	}
 

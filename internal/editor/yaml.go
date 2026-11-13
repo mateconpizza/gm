@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 
 	yaml "gopkg.in/yaml.v3"
 
@@ -29,13 +30,16 @@ func (ys *YAMLStrategy) BuildBuffer(b *bookmark.Bookmark, idx, total int) ([]byt
 	return ys.marshal(b.Record())
 }
 
-func (ys *YAMLStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+func (ys *YAMLStrategy) ParseBuffer(ctx context.Context, l *slog.Logger, buf []byte, old *bookmark.Bookmark) (*bookmark.Bookmark, error) {
+	log := l.With("fn", "parse-buffer", "strategy", "yaml", "id", old.ID)
+
 	oldBytes, err := ys.marshal(old.Record())
 	if err != nil {
 		return nil, err
 	}
 
 	if bytes.Equal(oldBytes, buf) {
+		log.Debug("buffer unchanged")
 		return nil, ErrBufferUnchanged
 	}
 
@@ -50,12 +54,16 @@ func (ys *YAMLStrategy) ParseBuffer(ctx context.Context, buf []byte, old *bookma
 	}
 
 	if old.ID != fresh.ID {
+		log.Debug("id changed in buffer", "old_id", old.ID, "new_id", fresh.ID)
 		return nil, fmt.Errorf("%w: %d", bookmark.ErrBookmarkInvalidID, fresh.ID)
 	}
 
 	if fresh.Equals(old) {
+		log.Debug("buffer unchanged after parsing", "bytes", len(buf))
 		return nil, ErrBufferUnchanged
 	}
+
+	log.Debug("buffer parsed", "bytes", len(buf))
 
 	return fresh, nil
 }

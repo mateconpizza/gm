@@ -30,6 +30,8 @@ func setReadme(ctx context.Context, d *deps.Deps, enabled bool) error {
 		return err
 	}
 
+	log := app.Logger().With("fn", "set-readme", "enabled", enabled)
+
 	app.Git.Readme.Enabled = enabled
 
 	gm := app.Git.Manager()
@@ -43,6 +45,7 @@ func setReadme(ctx context.Context, d *deps.Deps, enabled bool) error {
 		msg = "add readme"
 	}
 
+	log.Debug("updating readmes")
 	if err := update(ctx, app, app.Databases()); err != nil {
 		return err
 	}
@@ -51,10 +54,12 @@ func setReadme(ctx context.Context, d *deps.Deps, enabled bool) error {
 		return err
 	}
 
+	log.Debug("writing config")
 	if err := app.WriteConfig(true); err != nil {
 		return err
 	}
 
+	log.Debug("committing", "msg", msg)
 	if err := gm.Commit(ctx, CoreCommitMsg(msg)); err != nil {
 		return err
 	}

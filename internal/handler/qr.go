@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 
 	files "github.com/mateconpizza/gofiles"
-	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -24,15 +24,27 @@ var QRFormats = []string{".jpeg", ".png", ".jpg"}
 
 // QR handles creation, rendering or opening of QR-Codes.
 func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
+	app, err := d.Application(ctx)
+	if err != nil {
+		return err
+	}
+
+	log := app.Logger().With("fn", "qr")
+
 	c, p := d.Console(), d.Console().Palette()
 	n := len(bs)
+	piped := c.IsPiped()
+	log.Debug("showing qr-codes", "count", n, "piped", piped)
 
 	for i := range bs {
 		b := bs[i]
+		blog := log.With("id", b.ID)
+
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return err
 		}
+		blog.Debug("qr-code generated", "index", i+1, "total", n)
 
 		var sb strings.Builder
 
@@ -45,17 +57,13 @@ func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		output := sb.String()
 		fmt.Fprint(d.Writer(), output)
 
-		if c.IsPiped() {
+		if piped {
 			continue
-		}
-
-		app, err := d.Application(ctx)
-		if err != nil {
-			return err
 		}
 
 		if err := c.WaitForEnter(ctx, fmt.Sprintf("[%d/%d] Press ENTER to continue...", i+1, n)); err != nil {
 			if errors.Is(err, context.Canceled) {
+				blog.Debug("canceled by user while waiting", "index", i+1)
 				return app.Abort()
 			}
 			return err
@@ -63,6 +71,8 @@ func QR(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 		d.Console().Term().ClearLine(txt.CountLines(output))
 	}
+
+	log.Debug("qr-codes shown", "count", n)
 
 	return nil
 }
@@ -74,27 +84,26 @@ func QROpen(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		return err
 	}
 
+	log := app.Logger().With("fn", "qr-open")
+
 	var (
 		count atomic.Uint32
 		c, p  = d.Console(), d.Console().Palette()
-		dim   = p.Gray.With(p.Bold)
 		s     = fmt.Sprintf("%s %d bookmarks qr-code", p.BrightGreen.Wrap("open", p.Bold), len(bs))
 	)
+
+	log.Debug("opening qr-codes", "count", len(bs), "force", app.Flags.Force)
 
 	if err := c.ConfirmLimit(ctx, len(bs), 10, s, app.Flags.Force); err != nil {
 		return err
 	}
 
-	sp := rotato.New(
-		rotato.WithSpinnerStyle(rotato.SpinnerBlock),
-		rotato.WithSpinnerColor(p.BrightMagenta.With(p.Bold).Format),
-		rotato.WithMessage("QR-Code"),
-		rotato.WithMessageColor(p.BrightGreen.Format),
-		rotato.WithMessageDecorator(func(prefix string) string {
-			current := count.Load()
-			return fmt.Sprintf("%s %s", dim.Sprintf("[%d/%d]", current, len(bs)), prefix)
-		}),
-	)
+	sp := NewSpinner(app.Flags.Color)
+	sp.UpdateMesg("QR-Code")
+	sp.AddMessageDecorator(func(prefix string) string {
+		current := count.Load()
+		return fmt.Sprintf("%s %s", p.Gray.Sprintf("[%d/%d]", current, len(bs)), prefix)
+	})
 
 	sp.Start(ctx)
 	defer sp.Done()
@@ -103,6 +112,8 @@ func QROpen(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 	for i := range bs {
 		b := bs[i]
+		blog := log.With("id", b.ID)
+
 		qrcode := qr.New(b.URL)
 		if err := qrcode.Generate(); err != nil {
 			return err
@@ -122,10 +133,14 @@ func QROpen(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 		}
 
 		count.Add(1)
+		blog.Debug("opening image", "index", i+1, "total", len(bs))
+
 		if err := qrcode.Open(ctx); err != nil {
 			return err
 		}
 	}
+
+	log.Debug("qr-codes opened", "count", len(bs))
 
 	return nil
 }
@@ -140,7 +155,11 @@ func QRSave(qrcode *qr.QRCode, path string) error {
 		if err != nil {
 			return err
 		}
-		return qrcode.Write(fn)
+		if err := qrcode.Write(fn); err != nil {
+			return err
+		}
+		slog.Debug("qr-code saved", "fn", "qr-save", "path", fn)
+		return nil
 
 	default:
 		return fmt.Errorf("%w: %q (use: %s)", ErrInvalidFormat, ext, strings.Join(QRFormats, ", "))

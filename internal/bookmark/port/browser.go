@@ -28,10 +28,13 @@ func ImportFromBrowser(args []string) func(ctx context.Context, d *deps.Deps) er
 			return err
 		}
 
+		log := app.Logger().With("fn", "import-from-browser")
+
 		br, err := selectBrowser(ctx, app, d.Console(), args)
 		if err != nil {
 			return err
 		}
+		log.Debug("browser", "name", br.Browser.Name())
 
 		if err := br.Browser.LoadPaths(); err != nil {
 			return fmt.Errorf("%w", err)
