@@ -8,6 +8,9 @@ import (
 // manager tracks and manages open SQLite connections.
 var manager = NewManager()
 
+// Get returns the open connection registered under name.
+func Get(name string) (*SQLite, bool) { return manager.Lookup(name) }
+
 // Manager tracks and manages open SQLite connections.
 type Manager struct {
 	mu     sync.RWMutex
@@ -55,6 +58,20 @@ func (m *Manager) Unregister(s string) {
 	l.Debug("unregistered connection", "name", s, "open", n)
 }
 
+// Lookup returns the tracked connection registered under name.
+func (m *Manager) Lookup(name string) (*SQLite, bool) {
+	m.mu.RLock()
+	conn, ok := m.conns[name]
+	l := m.log()
+	m.mu.RUnlock()
+
+	if !ok {
+		l.Debug("connection not tracked", "fn", "get", "name", name)
+	}
+
+	return conn, ok
+}
+
 // CloseAll closes all tracked connections.
 func (m *Manager) CloseAll() {
 	m.mu.Lock()
@@ -100,7 +117,7 @@ func Shutdown() {
 	manager.mu.RUnlock()
 
 	if open > 0 {
-		l.Warn("unclosed database connections detected", "count", open)
+		l.Info("unclosed database connections detected", "count", open)
 		manager.CloseAll()
 	}
 }

@@ -26,7 +26,7 @@ func setupTestDB(t *testing.T) *SQLite {
 	safeTestName := strings.ReplaceAll(t.Name(), "/", "_")
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", safeTestName)
 
-	db, err := OpenDatabase(t.Context(), dsn, c)
+	db, err := Connect(t.Context(), dsn, c)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -65,7 +65,7 @@ func setupTestDBNoMigration(t *testing.T) *SQLite {
 	safeTestName := strings.ReplaceAll(t.Name(), "/", "_")
 	dsn := fmt.Sprintf("file:%s_nomig?mode=memory&cache=shared", safeTestName)
 
-	db, err := OpenDatabase(t.Context(), dsn, c)
+	db, err := Connect(t.Context(), dsn, c)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -127,7 +127,7 @@ func testPopulatedDB(t *testing.T, n int) *SQLite {
 func TestInit(t *testing.T) {
 	t.Parallel()
 	c, _ := NewSQLiteCfg("")
-	db, err := OpenDatabase(t.Context(), "file:testdb?mode=memory&cache=shared", c)
+	db, err := Connect(t.Context(), "file:testdb?mode=memory&cache=shared", c)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
