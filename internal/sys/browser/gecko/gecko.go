@@ -214,7 +214,7 @@ func openSQLite(ctx context.Context, c *ui.Console, dbPath string) (*sqlx.DB, er
 	s.Start(ctx)
 	defer s.Done()
 
-	r, err := db.OpenDatabase(ctx, dbPath, cfg)
+	r, err := db.Connect(ctx, dbPath, cfg)
 	if err != nil {
 		if strings.Contains(err.Error(), ErrDatabaseLocked.Error()) {
 			return nil, ErrBrowserIsOpen

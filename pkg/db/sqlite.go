@@ -96,7 +96,7 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	db, err := OpenDatabase(ctx, p, c)
+	db, err := Connect(ctx, p, c)
 	if err != nil {
 		return nil, fmt.Errorf("opening database %q: %w", c.Name, err)
 	}
@@ -143,9 +143,9 @@ func buildSQLiteDSN(path string, params map[string]string) string {
 	return fmt.Sprintf("%s%s%s", path, separator, queryParams.Encode())
 }
 
-// OpenDatabase opens a SQLite database at the specified path and verifies
+// Connect opens a SQLite database at the specified path and verifies
 // the connection, returning the database handle or an error.
-func OpenDatabase(ctx context.Context, path string, cfg *Cfg) (*sqlx.DB, error) {
+func Connect(ctx context.Context, path string, cfg *Cfg) (*sqlx.DB, error) {
 	isTestingMode := strings.Contains(path, "mode=memory") || path == ":memory:"
 
 	dbParams := map[string]string{
@@ -218,3 +218,17 @@ func (c *Cfg) Fullpath() string { return filepath.Join(c.Path, c.Name) }
 
 // Exists returns true if the SQLite database exists.
 func (c *Cfg) Exists() bool { return fileExists(c.Fullpath()) }
+
+// Open returns the tracked connection for path, or opens one if none exists.
+func Open(ctx context.Context, path string) (r *SQLite, err error) {
+	if r, ok := Get(filepath.Base(path)); ok {
+		return r, nil
+	}
+
+	r, err = New(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
