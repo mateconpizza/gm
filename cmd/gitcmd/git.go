@@ -11,8 +11,10 @@ import (
 	"github.com/mateconpizza/gm/internal/command"
 	"github.com/mateconpizza/gm/internal/deps"
 	"github.com/mateconpizza/gm/internal/gitops"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/git"
 )
 
 // NewCmd is the git command.
@@ -25,10 +27,11 @@ func NewCmd(app *application.App) *cobra.Command {
 		PersistentPreRunE:  command.HookGitEnsureEnv(app),
 		PreRun:             command.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(
-				app.Git.Writer(),
+			g, err := git.New(
 				app.Path.Git(),
 				gitops.NewGitCommandLogger(app.Flags.Color),
+				git.WithLogger(app.Logger()),
+				git.WithWriter(app.Git.Writer()),
 			)
 			if err != nil {
 				return err
@@ -129,10 +132,11 @@ func newRawCmd(app *application.App) *cobra.Command {
 		DisableFlagParsing: true,
 		PreRun:             command.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			g, err := gitops.NewGit(
-				app.Git.Writer(),
+			g, err := git.New(
 				app.Path.Git(),
 				gitops.NewGitCommandLogger(app.Flags.Color),
+				git.WithLogger(app.Logger()),
+				git.WithWriter(app.Git.Writer()),
 			)
 			if err != nil {
 				return err
@@ -224,7 +228,7 @@ func newSyncCmd(app *application.App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return command.Execute(cmd.Context(), args, nil, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 				if app.Flags.All {
-					return command.Run(ctx, args, gitops.SyncAll)
+					return gitops.SyncAll(ctx, d)
 				}
 
 				r, err := d.Repository()
@@ -340,15 +344,19 @@ func newSetCmd(app *application.App) *cobra.Command {
 
 func newReadmeCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "readme",
-		Short: "repository README.md",
+		Use:               "readme",
+		Short:             "repository README.md",
+		PersistentPreRunE: command.HookGitReadmeEnable(app),
 		Run: func(cmd *cobra.Command, args []string) {
-			newReadmeStatus(app).Run(cmd, args)
+			s := "enabled"
+			if !app.Git.Readme.Enabled {
+				s = "disabled"
+			}
+			fmt.Fprintln(os.Stdout, s)
 		},
 	}
 
 	command.HideFlag(c, "filter", "reverse")
-	c.Flags().BoolVarP(&app.Flags.Configure, "reconfigure", "r", false, "reconfigure opts")
 
 	app.Session().
 		WithValidation(true)
@@ -356,7 +364,8 @@ func newReadmeCmd(app *application.App) *cobra.Command {
 	c.AddCommand(
 		newReadmeEnable(app),
 		newReadmeDisable(app),
-		newReadmeStatus(app),
+		newReadmeView(app),
+		newReadmeConfigure(app),
 		newReadmeSync(app),
 	)
 	return c
@@ -364,16 +373,19 @@ func newReadmeCmd(app *application.App) *cobra.Command {
 
 func newReadmeEnable(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "enable",
-		Short:   "enable repository README.md",
-		Aliases: []string{"on"},
+		Use:         "enable",
+		Short:       "enable repository README.md",
+		Aliases:     []string{"on"},
+		Annotations: command.SkipGitReadmeCheck,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log := app.Logger().With("command", cmd.CommandPath())
 			if app.Git.Readme.Enabled {
 				log.Warn("git: readme already enable")
 				return app.Failure()
 			}
-			return command.Run(cmd.Context(), args, gitops.EnableReadme)
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+				return gitops.EnableReadme(ctx, app, d.Console())
+			})
 		},
 	}
 	return c
@@ -390,7 +402,7 @@ func newReadmeDisable(app *application.App) *cobra.Command {
 				log.Warn("git: readme already disable")
 				return app.Failure()
 			}
-			return command.Run(cmd.Context(), args, gitops.DisableReadme)
+			return gitops.DisableReadme(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit))
 		},
 	}
 }
@@ -400,27 +412,37 @@ func newReadmeSync(app *application.App) *cobra.Command {
 		Use:   "sync",
 		Short: "sync with database",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log := app.Logger().With("command", cmd.CommandPath())
-			if !app.Git.Readme.Enabled {
-				log.Warn("git: readme disabled")
-				return app.Failure()
-			}
-			return command.Run(cmd.Context(), args, gitops.EnableReadme)
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+				return gitops.EnableReadme(ctx, app, d.Console())
+			})
 		},
 	}
 }
 
-func newReadmeStatus(app *application.App) *cobra.Command {
+func newReadmeView(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:   "status",
-		Short: "show status",
-		Run: func(cmd *cobra.Command, args []string) {
-			s := "enabled"
-			if !app.Git.Readme.Enabled {
-				s = "disabled"
-			}
-			fmt.Fprintln(os.Stdout, s)
+		Use:     "view",
+		Aliases: []string{"show"},
+		Short:   "Display the repository README",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitops.ViewReadme(cmd.Context(), app)
 		},
 	}
+	command.HideFlag(c, "filter", "yes", "force", "reverse")
+	return c
+}
+
+func newReadmeConfigure(app *application.App) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "configure",
+		Aliases: []string{"config", "cfg"},
+		Short:   "Configure README settings",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
+				return gitops.ConfigureReadme(ctx, app, d.Console())
+			})
+		},
+	}
+	command.HideFlag(c, "filter", "yes", "force", "reverse")
 	return c
 }

@@ -683,9 +683,9 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		return err
 	}
 
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
+	gm := app.Git.Manager()
+	if gm == nil {
+		return gitops.ErrGitManager
 	}
 
 	sess := app.Session().
@@ -746,9 +746,9 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		return runOnPersisted(p)
 	}
 
-	gm, err := gitops.NewManager(app)
-	if err != nil {
-		return err
+	gm := app.Git.Manager()
+	if gm == nil {
+		return gitops.ErrGitManager
 	}
 
 	sess := app.Session().

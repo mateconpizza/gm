@@ -19,6 +19,7 @@ type fakeRepoDB struct {
 	err       error
 }
 
+func (f *fakeRepoDB) Close()                                                {}
 func (f *fakeRepoDB) All(ctx context.Context) ([]*bookmark.Bookmark, error) { return f.bookmarks, nil }
 func (f *fakeRepoDB) BaseName() string                                      { return f.name }
 
