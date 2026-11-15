@@ -296,7 +296,9 @@ func TestGPG_Unlocked(t *testing.T) {
 		name     string
 		exec     func(ctx context.Context, args ...string) *exec.Cmd
 		filePath string
+		cancel   bool // cancel the context before calling Unlocked
 		want     bool
+		wantErr  error
 	}{
 		{
 			name:     "unlocked_file_succeeds",
@@ -323,14 +325,6 @@ func TestGPG_Unlocked(t *testing.T) {
 			want:     false,
 		},
 		{
-			name: "cancelled_context",
-			exec: func(ctx context.Context, args ...string) *exec.Cmd {
-				return exec.CommandContext(ctx, "sleep", "10")
-			},
-			filePath: "secret.gpg",
-			want:     false,
-		},
-		{
 			name: "command_exits_nonzero",
 			exec: func(ctx context.Context, args ...string) *exec.Cmd {
 				return exec.CommandContext(ctx, "sh", "-c", "exit 2")
@@ -346,6 +340,23 @@ func TestGPG_Unlocked(t *testing.T) {
 			filePath: "any.gpg",
 			want:     true,
 		},
+		{
+			name: "cancelled_context_returns_error",
+			exec: func(ctx context.Context, args ...string) *exec.Cmd {
+				return exec.CommandContext(ctx, "sleep", "10")
+			},
+			filePath: "secret.gpg",
+			cancel:   true,
+			wantErr:  context.Canceled,
+		},
+		{
+			name: "gpg_binary_missing_returns_error",
+			exec: func(ctx context.Context, args ...string) *exec.Cmd {
+				return exec.CommandContext(ctx, "gpg-binary-that-does-not-exist")
+			},
+			filePath: "secret.gpg",
+			wantErr:  exec.ErrNotFound,
+		},
 	}
 
 	for _, tt := range tests {
@@ -353,7 +364,7 @@ func TestGPG_Unlocked(t *testing.T) {
 			t.Parallel()
 
 			ctx := t.Context()
-			if tt.name == "cancelled_context" {
+			if tt.cancel {
 				var cancel context.CancelFunc
 				ctx, cancel = context.WithCancel(ctx)
 				cancel()
@@ -362,11 +373,21 @@ func TestGPG_Unlocked(t *testing.T) {
 			g := New("", WithExecutor(tt.exec))
 
 			got, err := g.Unlocked(ctx, tt.filePath)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Unlocked(%q) expected error %v, got nil", tt.filePath, tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Unlocked(%q) error = %v; want %v", tt.filePath, err, tt.wantErr)
+				}
+				return
+			}
 			if err != nil {
-				t.Fatalf("NoPinentry(%q) unexpected error: %v", tt.filePath, err)
+				t.Fatalf("Unlocked(%q) unexpected error: %v", tt.filePath, err)
 			}
 			if got != tt.want {
-				t.Fatalf("NoPinentry(%q) = %v; want %v", tt.filePath, got, tt.want)
+				t.Fatalf("Unlocked(%q) = %v; want %v", tt.filePath, got, tt.want)
 			}
 		})
 	}

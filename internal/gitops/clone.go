@@ -24,8 +24,6 @@ import (
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
-var ErrGitManager = errors.New("git: manager is nil")
-
 func Clone(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
 	if err != nil {
