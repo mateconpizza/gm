@@ -846,7 +846,7 @@ func TestRepo_WriteSummary(t *testing.T) {
 			summaryPath := filepath.Join(tempDir, "summary.json")
 			r := NewRepo(tt.name,
 				tempDir,
-				WithSummaryWriter(newJSONFile[Summary](summaryPath)),
+				WithRepoSummaryWriter(newJSONFile[Summary](summaryPath)),
 			)
 
 			err := r.WriteSummary(tt.summary)

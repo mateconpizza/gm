@@ -32,7 +32,10 @@ func Info(ctx context.Context, d *deps.Deps) (string, error) {
 	}
 	defer r.Close()
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return "", err
+	}
 	if !gm.IsTracked(app.DBBaseName()) || !gm.IsEnabled() {
 		return f.StringReset(), err
 	}

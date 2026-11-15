@@ -250,7 +250,10 @@ func HookGitSync(app *application.App) HookE {
 		}
 
 		app.Git.SetWriter(os.Stdout)
-		gm := app.Git.Manager()
+		gm, err := app.Git.Manager()
+		if err != nil {
+			return err
+		}
 
 		return gitops.Sync(ctx,
 			app,
@@ -278,9 +281,12 @@ func HookGitPrune(app *application.App) HookE {
 
 		app.Logger().Debug("hook: checks for differences between database and local repo and syncs them")
 		app.Git.SetWriter(os.Stdout)
-		gm, err := gitops.NewManager(app)
+		gm, err := app.Git.Manager()
 		if err != nil {
-			return fmt.Errorf("hook git: new git manager: %w", err)
+			return err
+		}
+		if gm == nil {
+			return fmt.Errorf("hook git: git manager: %w", git.ErrManagerNotSet)
 		}
 
 		if !gm.IsTracked(app.DBBaseName()) {
@@ -305,7 +311,7 @@ func HookGitPrune(app *application.App) HookE {
 			return err
 		}
 
-		gitops.RegisterHooks(r, app, gr)
+		gitops.RegisterHooks(r, app, gm, gr)
 
 		return gitops.PruneRepo(ctx, gm, gr, bs)
 	}
@@ -313,7 +319,10 @@ func HookGitPrune(app *application.App) HookE {
 
 func HookGitEnsureTracked(app *application.App) HookE {
 	return func(cmd *cobra.Command, args []string) error {
-		gm := app.Git.Manager()
+		gm, err := app.Git.Manager()
+		if err != nil {
+			return err
+		}
 		if gm.IsTracked(app.DBBaseName()) {
 			return nil
 		}

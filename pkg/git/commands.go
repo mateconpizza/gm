@@ -98,17 +98,16 @@ func defaultExecuter(ctx context.Context, dir string, w io.Writer, r io.Reader, 
 
 	// Tee the output: the user still sees it through w, and we keep a copy
 	// to put the failure reason in the returned error.
-	var buf bytes.Buffer
-	out := io.MultiWriter(w, &buf)
+	var stderr bytes.Buffer
 
 	cmd := exec.CommandContext(ctx, s[0], s[1:]...)
 	cmd.Dir = dir
 	cmd.Stdin = r
-	cmd.Stdout = out
-	cmd.Stderr = out // same value as Stdout, so writes are serialized
+	cmd.Stdout = w
+	cmd.Stderr = io.MultiWriter(w, &stderr)
 
 	if err := cmd.Run(); err != nil {
-		if msg := strings.TrimSpace(buf.String()); msg != "" {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
 			return fmt.Errorf("running %s: %w: %s", s[0], err, msg)
 		}
 		return fmt.Errorf("running %s: %w", s[0], err)

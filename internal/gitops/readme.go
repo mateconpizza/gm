@@ -59,7 +59,10 @@ func setReadme(ctx context.Context, app *application.App, c console, enabled boo
 
 	app.Git.Readme.Enabled = enabled
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 	g := gm.Git()
 
 	update := removeReadmes
@@ -93,7 +96,10 @@ func setReadme(ctx context.Context, app *application.App, c console, enabled boo
 }
 
 func generateReadmes(ctx context.Context, app *application.App, dbs []string) error {
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 
 	files.PrioritizeFile(dbs, app.DBName)
 	for _, path := range dbs {

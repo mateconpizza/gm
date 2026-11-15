@@ -1,11 +1,14 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 )
+
+var ErrManagerNotSet = errors.New("git: manager is not set")
 
 type (
 	Readme struct {
@@ -49,7 +52,13 @@ func WithConfigSummary(s string) ConfigOpt   { return func(c *Config) { c.Readme
 func (c *Config) SetWriter(w io.Writer) { c.writer = w }
 func (c *Config) Writer() io.Writer     { return c.writer }
 func (c *Config) SetManager(gm *Mgr)    { c.mgr = gm }
-func (c *Config) Manager() *Mgr         { return c.mgr }
+
+func (c *Config) Manager() (*Mgr, error) {
+	if c.mgr == nil {
+		return nil, ErrManagerNotSet
+	}
+	return c.mgr, nil
+}
 
 func (c *Config) Status() string {
 	if !c.Enabled {

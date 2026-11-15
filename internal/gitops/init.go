@@ -38,7 +38,10 @@ var EncryptionOpts = []StorageOpt{
 func Init(ctx context.Context, app *application.App, c *ui.Console) error {
 	p := c.Palette()
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 
 	if app.Flags.Reinit && gm.IsEnabled() {
 		if err := confirmReinit(ctx, gm, c); err != nil {
