@@ -400,9 +400,12 @@ func insertAndAddBookmark(ctx context.Context, r bookmarkStore, app *application
 		WithConfirmation(true).
 		WithValidation(true)
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 	gr := gitops.NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
-	gitops.RegisterHooks(r, app, gr)
+	gitops.RegisterHooks(r, app, gm, gr)
 
 	if err := gitops.Add(ctx, gm, gr, fresh); err != nil {
 		log.Error("failed to add bookmark to git", "error", err)

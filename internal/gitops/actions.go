@@ -39,9 +39,12 @@ func CommitChanges(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) e
 		WithConfirmation(true).
 		WithValidation(true)
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 	gr := NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
-	RegisterHooks(r, app, gr)
+	RegisterHooks(r, app, gm, gr)
 
 	return gm.Commit(ctx,
 		gr.CommitMsg(git.RepoAction("commit changes"), ""),
@@ -86,7 +89,7 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 		WithValidation(true)
 
 	gr := NewRepo(gm, app.DBBaseName(), sess, app.Flags.Color)
-	RegisterHooks(r, app, gr)
+	RegisterHooks(r, app, gm, gr)
 
 	if err := gr.Add(ctx, bs); err != nil {
 		return fmt.Errorf("git sync: failed to add bookmarks: %w", err)
@@ -107,7 +110,10 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 	c := d.Console()
 	w, p := c.Writer(), c.Palette()
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 	repos := gm.Repos()
 	files.PrioritizeFile(repos, app.DBBaseName())
 	log.Debug("syncing repos", "count", len(repos))

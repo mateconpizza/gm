@@ -88,9 +88,9 @@ func Clone(ctx context.Context, d *deps.Deps) error {
 }
 
 func newGitPuller(ctx context.Context, d *deps.Deps, app *application.App, tmpPath string) (*GitPuller, error) {
-	gm := app.Git.Manager()
-	if gm == nil {
-		return nil, ErrGitManager
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return nil, err
 	}
 
 	g := gm.Git()
@@ -123,7 +123,7 @@ func newGitPuller(ctx context.Context, d *deps.Deps, app *application.App, tmpPa
 		return txt.PaddedLine(name, dimmer.Sprintf("(%s)", gr.String()))
 	})
 
-	err := gp.selection(ctx, m, d.Console())
+	err = gp.selection(ctx, m, d.Console())
 	if err != nil {
 		return nil, err
 	}

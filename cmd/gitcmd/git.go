@@ -78,17 +78,19 @@ func newCommitCmd(app *application.App) *cobra.Command {
 }
 
 func newPushCmd(app *application.App) *cobra.Command {
-	c := &cobra.Command{
+	return &cobra.Command{
 		Use:                "push",
 		Short:              "push bookmark changes to a remote",
 		DisableFlagParsing: true,
 		PreRun:             command.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return app.Git.Manager().Push(cmd.Context())
+			gm, err := app.Git.Manager()
+			if err != nil {
+				return err
+			}
+			return gm.Push(cmd.Context())
 		},
 	}
-
-	return c
 }
 
 // newInitRepoCmd initializes a new, empty Git repository.
@@ -241,9 +243,12 @@ func newSyncCmd(app *application.App) *cobra.Command {
 					WithConfirmation(false).
 					WithValidation(true)
 
-				gm := app.Git.Manager()
+				gm, err := app.Git.Manager()
+				if err != nil {
+					return err
+				}
 				gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
-				gitops.RegisterHooks(r, app, gr)
+				gitops.RegisterHooks(r, app, gm, gr)
 
 				return gitops.PruneRepo(ctx, gm, gr, bs)
 			})

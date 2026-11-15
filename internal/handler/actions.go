@@ -293,7 +293,10 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 
 	c := d.Console()
 	p := c.Palette()
@@ -364,10 +367,13 @@ func DropRepo(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	gm := app.Git.Manager()
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
 	ops := gitops.NewRepoOps(app.Session())
 	gr := gm.NewRepo(r.Name(), ops.Remover())
-	gitops.RegisterHooks(r, app, gr)
+	gitops.RegisterHooks(r, app, gm, gr)
 
 	return gitops.Drop(ctx, gm, gr, d.Console())
 }
@@ -414,7 +420,12 @@ func Rename(ctx context.Context, d *deps.Deps, name string, renameFunc func(src,
 		return nil
 	}
 
-	return app.Git.Manager().Rename(ctx, oldName, newName)
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
+	}
+
+	return gm.Rename(ctx, oldName, newName)
 }
 
 type MarkdownCfg struct {
@@ -683,9 +694,9 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		return err
 	}
 
-	gm := app.Git.Manager()
-	if gm == nil {
-		return gitops.ErrGitManager
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
 	}
 
 	sess := app.Session().
@@ -693,7 +704,7 @@ func saveStatusUpdates(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmar
 		WithValidation(true)
 
 	gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
-	gitops.RegisterHooks(r, app, gr)
+	gitops.RegisterHooks(r, app, gm, gr)
 
 	isTracked := gm.IsTracked(gr.Name())
 
@@ -746,9 +757,9 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		return runOnPersisted(p)
 	}
 
-	gm := app.Git.Manager()
-	if gm == nil {
-		return gitops.ErrGitManager
+	gm, err := app.Git.Manager()
+	if err != nil {
+		return err
 	}
 
 	sess := app.Session().
@@ -756,7 +767,7 @@ func persistFunc(ctx context.Context, app *application.App, p PersistParams) err
 		WithValidation(true)
 
 	gr := gitops.NewRepo(gm, p.Repo.BaseName(), sess, app.Flags.Color)
-	gitops.RegisterHooks(p.Repo, app, gr)
+	gitops.RegisterHooks(p.Repo, app, gm, gr)
 
 	if err := gm.Apply(ctx, p.Msg, func(ctx context.Context) error {
 		return gr.Update(ctx, p.Old, p.Fresh, files.RemoveEmptyDirs)

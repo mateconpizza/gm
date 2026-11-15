@@ -67,7 +67,7 @@ func WithRepoReader(r ReaderFunc) RepoOptFunc    { return func(ro *RepoOptions) 
 func WithRepoRemover(rm RemoverFunc) RepoOptFunc { return func(ro *RepoOptions) { ro.remover = rm } }
 func WithRepoLogger(l *slog.Logger) RepoOptFunc  { return func(ro *RepoOptions) { ro.logger = l } }
 
-func WithSummaryWriter[T Summary](sw FileWriter[Summary]) RepoOptFunc {
+func WithRepoSummaryWriter[T Summary](sw FileWriter[Summary]) RepoOptFunc {
 	return func(ro *RepoOptions) { ro.file = sw }
 }
 

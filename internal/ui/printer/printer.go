@@ -321,7 +321,7 @@ func DatabasesTable(ctx context.Context, w io.Writer, dataPath string, opts ...F
 func DatabaseDecorator(app *application.App) func(info *FileInfo) *FileInfo {
 	p := ansi.NewPalette(app.Flags.Color)
 	g := app.Glyphs()
-	gm := app.Git.Manager()
+	gm, _ := app.Git.Manager()
 
 	return func(info *FileInfo) *FileInfo {
 		baseName := files.StripExts(info.Base)

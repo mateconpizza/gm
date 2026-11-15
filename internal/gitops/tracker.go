@@ -27,13 +27,13 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	r, err := db.New(ctx, app.Path.DB())
+	r, err := db.Open(ctx, app.Path.DB())
 	if err != nil {
 		return err
 	}
 	defer r.Close()
 
-	gm, err := NewManager(app)
+	gm, err := app.Git.Manager()
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func NewTrack(ctx context.Context, d *deps.Deps) error {
 		WithValidation(true)
 
 	gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
-	RegisterHooks(r, app, gr)
+	RegisterHooks(r, app, gm, gr)
 
 	c := d.Console()
 	if gm.IsTracked(gr.Name()) {
@@ -82,13 +82,13 @@ func Track(ctx context.Context, r store, app *application.App, gm *git.Mgr, gr *
 	return gm.Commit(ctx, gr.CommitMsg(git.Add, "tracking"))
 }
 
-func Untrack(ctx context.Context, d *deps.Deps) error {
+func NewUntrack(ctx context.Context, d *deps.Deps) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return err
 	}
 
-	gm, err := NewManager(app)
+	gm, err := app.Git.Manager()
 	if err != nil {
 		return err
 	}
@@ -168,13 +168,13 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 			continue
 		}
 
-		r, err := db.New(ctx, dbPath)
+		r, err := db.Open(ctx, dbPath)
 		if err != nil {
 			return err
 		}
 
 		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
-		RegisterHooks(r, app, gr)
+		RegisterHooks(r, app, gm, gr)
 
 		if err := Track(ctx, r, app, gm, gr); err != nil {
 			return err
@@ -189,7 +189,7 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 }
 
 func TrackMgrStatus(app *application.App, c *ui.Console) error {
-	gm, err := NewManager(app)
+	gm, err := app.Git.Manager()
 	if err != nil {
 		return err
 	}
