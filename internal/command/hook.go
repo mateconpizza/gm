@@ -34,11 +34,12 @@ const (
 	AnnotationSkipFormatter = "skip-formatter"
 	AnnotationSkipGitCheck  = "skip-git-check"
 	AnnotationSkipGitSync   = "skip-git-sync"
+	AnnotationSkipGitReadme = "skip=git-readme"
 )
 
 var (
-	// SkipDBCheck is used in subcmds declarations to skip the database
-	// existence check.
+	// SkipDBCheck is used in subcmds declarations to skip the database existence
+	// check.
 	SkipDBCheck = map[string]string{AnnotationSkipDBCheck: "true"}
 
 	// SkipGitSync is used in subcmds declarations to skip the git commit.
@@ -47,6 +48,10 @@ var (
 	// SkipGitCheck is used in subcmds declarations to skip the git existence
 	// check.
 	SkipGitCheck = map[string]string{AnnotationSkipGitCheck: "true"}
+
+	// SkipGitReadmeCheck is used in subcmds declarations to skip the git readme
+	// enable check.
+	SkipGitReadmeCheck = map[string]string{AnnotationSkipGitReadme: "true"}
 
 	// SkipFormatter is used in subcmds declarations to skip the output format
 	// validation.
@@ -435,6 +440,28 @@ func HookGitManager(app *application.App) HookE {
 
 		app.Git.SetManager(gm)
 		log.Debug("git manager initialized and attached")
+
+		return nil
+	}
+}
+
+func HookGitReadmeEnable(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		log := app.Logger().With("hook", "git-readme", "command", cmd.CommandPath())
+
+		for c := cmd; c != nil; c = c.Parent() {
+			if v, ok := c.Annotations[AnnotationSkipGitReadme]; ok && v == "true" {
+				log.Debug("skipping git readme check", "skipped_by", c.CommandPath())
+				return nil
+			}
+		}
+
+		if !app.Git.Readme.Enabled {
+			log.Debug("git readme is disabled")
+			return gitops.ErrGitReadmeDisable
+		}
+
+		log.Debug("git readme is enabled")
 
 		return nil
 	}

@@ -42,18 +42,42 @@ type GitOptions struct {
 	logger        *slog.Logger
 }
 
-func WithGitWriter(w io.Writer) GitOpt       { return func(o *GitOptions) { o.writer = w } }
-func WithGitCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.commandLogger = hook } }
-func WithExecuter(fn ExecuterFunc) GitOpt    { return func(o *GitOptions) { o.executer = fn } }
-func WithCommander(c *Commander) GitOpt      { return func(o *GitOptions) { o.cmd = c } }
-func WithLogger(l *slog.Logger) GitOpt       { return func(o *GitOptions) { o.logger = l } }
+func WithWriter(w io.Writer) GitOpt       { return func(o *GitOptions) { o.writer = w } }
+func WithCmdLogger(hook CmdLogger) GitOpt { return func(o *GitOptions) { o.commandLogger = hook } }
+func WithExecuter(fn ExecuterFunc) GitOpt { return func(o *GitOptions) { o.executer = fn } }
+func WithCommander(c *Commander) GitOpt   { return func(o *GitOptions) { o.cmd = c } }
+func WithLogger(l *slog.Logger) GitOpt    { return func(o *GitOptions) { o.logger = l } }
 
 type PreCommit struct {
-	hooks []*Hook
+	hooks  []*Hook
+	logger *slog.Logger
 }
 
-func (pc *PreCommit) Register(h ...*Hook) { pc.hooks = append(pc.hooks, h...) }
-func (pc *PreCommit) Reset()              { pc.hooks = make([]*Hook, 0) }
+func NewPreCommit(l *slog.Logger) *PreCommit {
+	return &PreCommit{
+		hooks:  make([]*Hook, 0),
+		logger: l.With("component", "pre-commit"),
+	}
+}
+
+func (pc *PreCommit) Reset()         { pc.hooks = make([]*Hook, 0) }
+func (pc *PreCommit) Hooks() []*Hook { return pc.hooks }
+func (pc *PreCommit) Register(h ...*Hook) {
+	log := pc.logger.With("fn", "register-hooks")
+
+	for _, hook := range h {
+		if hook == nil {
+			log.Warn("ignoring nil hook")
+			continue
+		}
+		if hook.Run == nil {
+			log.Warn("hook has no Run func, it will never run", "name", hook.Name)
+		}
+
+		pc.hooks = append(pc.hooks, hook)
+		log.Debug("hook registered", "name", hook.Name, "total", len(pc.hooks))
+	}
+}
 
 // Git handles operational tasks on a local Git repository.
 type Git struct {
@@ -96,10 +120,8 @@ func New(path string, opts ...GitOpt) (*Git, error) {
 	o.logger.Debug("git client ready", "bin", bin, "path", path, "custom_executer", customExec)
 
 	return &Git{
-		fullpath: path,
-		preCommit: &PreCommit{
-			hooks: make([]*Hook, 0),
-		},
+		fullpath:   path,
+		preCommit:  NewPreCommit(o.logger),
 		GitOptions: o,
 	}, nil
 }

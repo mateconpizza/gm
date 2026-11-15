@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -133,7 +134,7 @@ func TestHookSummaryWrite(t *testing.T) {
 					return nil, tt.loadErr
 				}
 				return &stats, nil
-			})
+			}, slog.New(slog.DiscardHandler))
 
 			ctx := t.Context()
 			if errors.Is(tt.wantErr, context.Canceled) {
@@ -262,7 +263,7 @@ func TestHookReadme(t *testing.T) {
 				return fc, nil
 			}
 
-			h := HookReadme(cfg, bookmarks, statsLoader, cipher)
+			h := HookReadme(cfg, bookmarks, statsLoader, cipher, slog.New(slog.DiscardHandler))
 			if h.Name != "readme" {
 				t.Fatalf("Hook.Name = %q; want %q", h.Name, "readme")
 			}

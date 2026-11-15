@@ -37,6 +37,7 @@ type bookmarkStore interface {
 	ByID(ctx context.Context, bID int) (*bookmark.Bookmark, error)
 	InsertOne(ctx context.Context, b *bookmark.Bookmark) (int64, error)
 	UpdateOne(ctx context.Context, b *bookmark.Bookmark) error
+	Close()
 }
 
 type metadataScraper interface {

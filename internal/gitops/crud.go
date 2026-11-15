@@ -21,12 +21,14 @@ type store interface {
 	BaseName() string
 	Stats(ctx context.Context, dest any) error
 	All(ctx context.Context) ([]*bookmark.Bookmark, error)
+	Close()
 }
 
 type console interface {
 	Confirm(ctx context.Context, q, def string) bool
 	SuccessMesg(a ...any) string
 	Print(ctx context.Context, s string) error
+	Choose(ctx context.Context, q string, opts []string, def string) (string, error)
 }
 
 type ManagerConfig struct {
@@ -52,7 +54,12 @@ func NewManager(app *application.App, opts ...git.GitOpt) (*git.Mgr, error) {
 
 	root := app.Path.Git()
 
-	g, err := NewGit(w, root, append(opts, NewGitCommandLogger(app.Flags.Color))...)
+	opts = append(opts,
+		NewGitCommandLogger(app.Flags.Color),
+		git.WithLogger(app.Logger()),
+		git.WithWriter(w),
+	)
+	g, err := git.New(root, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -65,15 +72,11 @@ func NewManager(app *application.App, opts ...git.GitOpt) (*git.Mgr, error) {
 	return gm, nil
 }
 
-func NewGit(w io.Writer, root string, opts ...git.GitOpt) (*git.Git, error) {
-	return git.New(root, append(opts, git.WithGitWriter(w))...)
-}
-
 func NewGitCommandLogger(color bool) git.GitOpt {
 	p := ansi.NewPalette(color)
 
 	// command logger
-	return git.WithGitCmdLogger(func(w io.Writer, commands []string) {
+	return git.WithCmdLogger(func(w io.Writer, commands []string) {
 		c := p.BrightYellow.With(p.Italic)
 		headerFrame := frame.New(
 			frame.WithColorBorder(c.Sprint),

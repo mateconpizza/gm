@@ -305,6 +305,9 @@ func (c *mockConsole) Confirm(ctx context.Context, prompt, defaultAns string) bo
 }
 
 func (c *mockConsole) SuccessMesg(a ...any) string { return fmt.Sprintf("Successfully: %s", a[0]) }
+func (c *mockConsole) Choose(ctx context.Context, q string, opts []string, def string) (string, error) {
+	return "", nil
+}
 
 func (c *mockConsole) Print(ctx context.Context, msg string) error {
 	c.printedMsg = msg
