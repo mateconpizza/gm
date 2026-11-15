@@ -149,16 +149,33 @@ func (g *GPG) Unlocked(ctx context.Context, filePath string) (bool, error) {
 		filePath,
 	)
 
-	slog.Debug("gpg: executing GPG command", "args", cmd.Args)
+	log.Debug("executing command", "args", cmd.Args)
 
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 
-	u := cmd.Run() == nil
+	err := cmd.Run()
+	if err == nil {
+		log.Debug("result", "unlocked", true)
+		return true, nil
+	}
 
-	slog.Debug("gpg: result", "unlocked", u)
+	// a canceled context kills gpg, which shows up as an ExitError below.
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return false, fmt.Errorf("gpg unlocked check: %w", ctxErr)
+	}
 
-	return u, nil
+	// gpg ran and exited non-zero: the key is locked (or the file can't be
+	// decrypted without a prompt). That is a valid "false" answer, not an error.
+	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
+		log.Debug("result", "unlocked", false, "exit_code", ee.ExitCode())
+		return false, nil
+	}
+
+	// gpg could not run at all (not installed, bad path).
+	log.Error("running gpg failed", "error", err)
+
+	return false, fmt.Errorf("gpg unlocked check: %w", err)
 }
 
 // IsInitialized returns true if GPG is active.

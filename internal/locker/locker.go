@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	files "github.com/mateconpizza/gofiles"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -33,7 +32,10 @@ var (
 type Ext string
 
 func (e Ext) Join(filename string) string {
-	return files.EnsureExt(filename, string(e))
+	if strings.HasSuffix(filename, e.String()) {
+		return filename
+	}
+	return filename + e.String()
 }
 
 func (e Ext) String() string {
@@ -158,8 +160,8 @@ func IsLocked(s string) error {
 	slog.Debug("checking if file is locked")
 
 	s = Extension.Join(s)
-	if files.Exists(s) {
-		return fmt.Errorf("%w: %q", ErrFileLocked, filepath.Base(s))
+	if fileExists(s) {
+		return ErrFileLocked
 	}
 
 	slog.Debug("file not locked")
@@ -266,7 +268,7 @@ func validateInput(path, passphrase string) error {
 		return ErrPassphraseEmpty
 	}
 
-	if !files.Exists(path) {
+	if !fileExists(path) {
 		return fmt.Errorf("%w: %s", os.ErrNotExist, path)
 	}
 
@@ -275,7 +277,7 @@ func validateInput(path, passphrase string) error {
 
 // backupFile creates a backup of the given file.
 func backupFile(filePath string) (string, error) {
-	if !files.Exists(filePath) {
+	if !fileExists(filePath) {
 		return "", fmt.Errorf("%w: %s", os.ErrNotExist, filePath)
 	}
 	// Generate backup filename with timestamp
@@ -345,4 +347,9 @@ func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPat
 	slog.Debug("wrote and replaced file", "path", targetPath)
 
 	return nil
+}
+
+func fileExists(s string) bool {
+	_, err := os.Stat(s)
+	return !os.IsNotExist(err)
 }
