@@ -35,6 +35,7 @@ type Options struct {
 	doc     *goquery.Document
 	started bool
 	sp      spinner
+	logger  *slog.Logger
 }
 
 type Scraper struct {
@@ -43,9 +44,12 @@ type Scraper struct {
 
 func WithSpinner(sp spinner) OptFn { return func(o *Options) { o.sp = sp } }
 
+func WithLogger(l *slog.Logger) OptFn { return func(o *Options) { o.logger = l } }
+
 // Start fetches and parses the URL content.
 func (s *Scraper) Start(ctx context.Context) error {
 	if s.started {
+		s.logger.Debug("already started, skipping")
 		return nil
 	}
 
@@ -54,7 +58,8 @@ func (s *Scraper) Start(ctx context.Context) error {
 		defer s.sp.Done()
 	}
 
-	s.doc = scrapeURL(ctx, s.uri)
+	s.logger.Debug("starting scrape")
+	s.doc = scrapeURL(ctx, s.logger, s.uri)
 	s.started = true
 
 	return nil
@@ -71,6 +76,7 @@ func (s *Scraper) Title() (string, error) {
 
 	t := s.doc.Find("title").Text()
 	if t == "" {
+		s.logger.Debug("no title found, using default")
 		return defaultTitle, nil
 	}
 
@@ -132,16 +138,19 @@ func (s *Scraper) Favicon() (string, error) {
 	for _, sel := range selectors {
 		href, exists := s.doc.Find(sel).First().Attr("href")
 		if exists && href != "" {
+			s.logger.Debug("favicon found", "selector", sel, "href", href)
 			return s.resolveFaviconURL(href), nil
 		}
 	}
 
 	base, err := url.Parse(s.uri)
 	if err != nil {
+		s.logger.Warn("favicon fallback failed, invalid url", "err", err)
 		return "", nil
 	}
 
 	base.Path = defaultFaviconPath
+	s.logger.Debug("no favicon link found, using default path", "favicon", base.String())
 
 	return base.String(), nil
 }
@@ -187,11 +196,13 @@ func (s *Scraper) TagsRepo() ([]string, error) {
 func (s *Scraper) resolveFaviconURL(href string) string {
 	baseURL, err := url.Parse(s.uri)
 	if err != nil {
+		s.logger.Warn("resolve favicon: invalid base url", "href", href, "err", err)
 		return href
 	}
 
 	faviconURL, err := url.Parse(href)
 	if err != nil {
+		s.logger.Warn("resolve favicon: invalid href", "href", href, "err", err)
 		return href
 	}
 
@@ -200,12 +211,13 @@ func (s *Scraper) resolveFaviconURL(href string) string {
 
 // New creates a new Scraper.
 func New(s string, opts ...OptFn) *Scraper {
-	o := &Options{}
+	o := &Options{logger: slog.New(slog.DiscardHandler)}
 	for _, opt := range opts {
 		opt(o)
 	}
 
 	o.uri = s
+	o.logger = o.logger.With("component", "scraper", "url", s)
 
 	return &Scraper{
 		Options: *o,
@@ -224,16 +236,21 @@ func setHeaders(r *http.Request) {
 }
 
 // scrapeURL fetches and parses the HTML content from a URL.
-func scrapeURL(ctx context.Context, s string) *goquery.Document {
+func scrapeURL(ctx context.Context, log *slog.Logger, s string) *goquery.Document {
+	raw := s
 	s = normalizeURL(s)
+	if s != raw {
+		log.Debug("no scheme, defaulting to http", "normalized", s)
+	}
+
 	if !isSupportedScheme(s) {
-		slog.Warn("unsupported scheme", "url", s)
+		log.Warn("unsupported scheme", "normalized", s)
 		return emptyDoc()
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, http.NoBody)
 	if err != nil {
-		slog.Warn("failed to create request", "url", s, "error", err)
+		log.Warn("failed to create request", "err", err)
 		return emptyDoc()
 	}
 
@@ -253,53 +270,57 @@ func scrapeURL(ctx context.Context, s string) *goquery.Document {
 
 	res, err := cl.Do(req)
 	if err != nil {
-		d := time.Since(startTime).Milliseconds()
-		slog.Warn("request failed", "url", s, "error", err.Error(), "duration_ms", d)
-
+		log.Warn("request failed", "err", err, "duration", time.Since(startTime))
 		return emptyDoc()
 	}
 
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			slog.Warn("error closing response body", "url", s, "error", err)
+			log.Warn("error closing response body", "err", err)
 		}
 	}()
 
-	slog.Info("received response", "url", s, "status", res.StatusCode, "duration", time.Since(startTime))
+	log.Debug("received response", "status", res.StatusCode, "duration", time.Since(startTime))
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		logResponseStatusCode(res, s)
+		logResponseStatusCode(log, res)
 		return emptyDoc()
 	}
+
 	// Check content type to make sure it's HTML
 	contentType := res.Header.Get("Content-Type")
 	if !strings.Contains(strings.ToLower(contentType), "html") {
-		slog.Warn("unexpected content type", "url", s, "content_type", contentType)
+		log.Warn("unexpected content type", "content_type", contentType)
 	}
+
 	// Read the body with a limit to prevent memory issues
 	// with excessively large responses
 	bodyReader := io.LimitReader(res.Body, 10*1024*1024) // 10MB limit
 
 	doc, err := goquery.NewDocumentFromReader(bodyReader)
 	if err != nil {
-		slog.Warn("failed to parse HTML", "url", s, "error", err)
+		log.Warn("failed to parse HTML", "err", err)
 		return emptyDoc()
 	}
+
+	log.Debug("scrape complete", "duration", time.Since(startTime))
 
 	return doc
 }
 
 // logResponseStatusCode logs the status code of the HTTP response.
-func logResponseStatusCode(res *http.Response, s string) {
+func logResponseStatusCode(log *slog.Logger, res *http.Response) {
 	switch res.StatusCode {
 	case http.StatusNotFound:
-		slog.Warn("page not found (404)", "url", s)
+		log.Warn("page not found (404)")
 	case http.StatusForbidden, http.StatusUnauthorized:
-		slog.Warn("access denied", "url", s, "status_code", res.StatusCode)
+		log.Warn("access denied", "status_code", res.StatusCode)
 	case http.StatusTooManyRequests:
-		slog.Warn("rate limited", "url", s)
+		log.Warn("rate limited")
 	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
-		slog.Warn("server error", "url", s, "status_code", res.StatusCode)
+		log.Warn("server error", "status_code", res.StatusCode)
+	default:
+		log.Warn("unexpected status", "status_code", res.StatusCode)
 	}
 }
 
