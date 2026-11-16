@@ -495,8 +495,7 @@ func checkDatabaseLocked(p string) error {
 		if errors.Is(err, locker.ErrFileLocked) {
 			return ErrDBUnlockFirst
 		}
-
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	return nil

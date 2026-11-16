@@ -13,6 +13,7 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/locker/enc"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
@@ -134,12 +135,19 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 
 		path := filepath.Join(app.Path.Home(), name)
 		path = files.EnsureExt(path, "db")
-		if !files.Exists(path) {
-			rlog.Debug("database file not found, skipping", "path", path)
+
+		if err := locker.IsLocked(path); err != nil {
+			rlog.Warn(err.Error())
+			fmt.Fprintf(w, "git: repo %s is locked\n", p.BrightMagenta.Sprint(name))
 			continue
 		}
 
-		r, err := db.New(ctx, path)
+		if !files.Exists(path) {
+			rlog.Warn("database file not found, skipping", "path", path)
+			continue
+		}
+
+		r, err := db.Open(ctx, path)
 		if err != nil {
 			return fmt.Errorf("%w: %q", err, path)
 		}
