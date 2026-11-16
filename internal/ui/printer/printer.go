@@ -326,7 +326,7 @@ func DatabaseDecorator(app *application.App) func(info *FileInfo) *FileInfo {
 	return func(info *FileInfo) *FileInfo {
 		baseName := files.StripExts(info.Base)
 		isDefault := baseName == app.DBBaseName()
-		isTracked := gm.IsEnabled() && gm.IsTracked(baseName)
+		isTracked := gm != nil && gm.IsEnabled() && gm.IsTracked(baseName)
 		isLocked := filepath.Ext(info.Base) == locker.Extension.String()
 
 		var sb strings.Builder

@@ -328,6 +328,9 @@ linters:
       - path: "internal/application/logger.go"
         linters:
           - gocritic
+      - path: "internal/bookmark/metadata/metadata.go"
+        linters:
+          - nestif
     generated: lax
     presets:
       - common-false-positives

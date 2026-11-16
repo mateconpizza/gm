@@ -80,8 +80,9 @@ func (r *Response) String() string {
 }
 
 // Check checks the status of a slice of bookmarks.
-func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark, log *slog.Logger) ([]*bookmark.Bookmark, error) {
 	start := time.Now()
+	log.Debug("checking bookmarks", "workers", runtime.NumCPU())
 
 	sp := setupSpinner(c.Palette())
 	sp.Start(ctx)
@@ -107,18 +108,27 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*book
 		g.Go(func() error {
 			select {
 			case <-ctx.Done():
+				log.Debug("skipped, context done", "url", b.URL, "err", ctx.Err())
 				return ctx.Err()
 			default:
 				old := *b
-				res := makeRequest(ctx, w, p, c.Frame().IconsStyle(), b)
+				res := makeRequest(ctx, w, p, c.Frame().IconsStyle(), b, log)
 				if err := ctx.Err(); err != nil {
+					log.Debug("cancelled after request", "url", b.URL, "err", err)
 					return err
 				}
 
 				sp.Print(res.String())
 				current.Add(1)
 
-				if res.statusCode != old.HTTPStatusCode {
+				changed := res.statusCode != old.HTTPStatusCode
+				log.Debug("checked",
+					"url", b.URL,
+					"old", old.HTTPStatusCode,
+					"new", res.statusCode,
+					"changed", changed,
+				)
+				if changed {
 					results.Add(&res)
 				}
 
@@ -128,12 +138,22 @@ func Check(ctx context.Context, c *ui.Console, bs []*bookmark.Bookmark) ([]*book
 	}
 
 	if err := g.Wait(); err != nil {
+		log.Error("check interrupted",
+			"checked", current.Load(),
+			"total", total,
+			"err", err,
+		)
 		return nil, err
 	}
 
 	sp.Done()
 
 	duration := time.Since(start)
+	log.Info("check complete",
+		"total", total,
+		"changed", len(results.updated),
+		"duration", duration,
+	)
 	printSummaryStatus(c, results.res, duration)
 
 	return results.updated, nil
@@ -277,7 +297,7 @@ func handleRequestError(p *ansi.Palette, icons *frame.Icons, b *bookmark.Bookmar
 
 // makeRequest sends an HTTP GET request to the URL of the given bookmark and
 // returns a response.
-func makeRequest(ctx context.Context, w io.Writer, p *ansi.Palette, icons *frame.Icons, b *bookmark.Bookmark) Response {
+func makeRequest(ctx context.Context, w io.Writer, p *ansi.Palette, icons *frame.Icons, b *bookmark.Bookmark, log *slog.Logger) Response {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -288,22 +308,26 @@ func makeRequest(ctx context.Context, w io.Writer, p *ansi.Palette, icons *frame
 		http.NoBody,
 	)
 	if err != nil {
-		slog.Error("creating request", "url", b.URL, "error", err)
+		log.Error("creating request", "url", b.URL, "err", err)
 		return buildResponse(p, icons, b, http.StatusNotFound)
 	}
 
 	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Debug("request failed", "url", b.URL, "err", err)
 		return handleRequestError(p, icons, b, err)
 	}
 
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
+			log.Warn("closing response body", "url", b.URL, "err", err)
 			fmt.Fprintln(w, "error closing response body:", err)
 		}
 	}()
+
+	log.Debug("response received", "url", b.URL, "status", resp.StatusCode)
 
 	return buildResponse(p, icons, b, resp.StatusCode)
 }

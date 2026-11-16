@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/mateconpizza/gm/internal/testutil"
@@ -112,6 +113,7 @@ func TestOpenInBrowser(t *testing.T) {
 				spinner:   spin,
 				bookmarks: tt.bookmarks,
 				opener:    tt.openerFunc,
+				logger:    slog.New(slog.DiscardHandler),
 			}
 
 			ctx := t.Context()

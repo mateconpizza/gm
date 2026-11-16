@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -98,7 +99,7 @@ func Test_NewURLFromArgs(t *testing.T) {
 				return tt.terminalInput
 			}
 
-			got, err := newURLFromArgs(t.Context(), c, tt.args, mockTakeInput, mockClipReader)
+			got, err := newURLFromArgs(t.Context(), c, tt.args, mockTakeInput, mockClipReader, slog.New(slog.DiscardHandler))
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -349,7 +350,7 @@ func TestTagsFromArgs(t *testing.T) {
 			b := &bookmarkTemp{tags: tt.initialTags}
 			term := &mockTerm{tags: tt.wantTags}
 
-			err = tagsFromArgs(t.Context(), d, term, sc, b)
+			err = tagsFromArgs(t.Context(), d, term, sc, b, slog.New(slog.DiscardHandler))
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -495,7 +496,7 @@ func TestFetchTitleAndDesc(t *testing.T) {
 			b := tt.initial
 			sc := &tt.scraper
 
-			fetchTitleAndDesc(t.Context(), c, sc, &b)
+			fetchTitleAndDesc(t.Context(), c, sc, &b, slog.New(slog.DiscardHandler))
 
 			if b.title != tt.want.title {
 				t.Errorf("fetchTitleAndDesc() title = %q, want %q", b.title, tt.want.title)

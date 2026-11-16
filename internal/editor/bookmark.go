@@ -152,7 +152,7 @@ func defaultParseBuffer(ctx context.Context, log *slog.Logger, buf []byte, origi
 
 	log.Debug("buffer changed", "fields", changedFields(original, edited))
 
-	edited = metadata.EnrichBookmark(ctx, sp, edited)
+	edited = metadata.EnrichBookmark(ctx, sp, edited, log)
 	if err := bookmark.Validate(edited); err != nil {
 		return nil, err
 	}

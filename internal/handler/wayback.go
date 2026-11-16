@@ -104,6 +104,7 @@ func WaybackSnapshots(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark
 		wayback.WithByYear(app.Flags.Year),
 		wayback.WithLimit(app.Flags.Limit),
 		wayback.WithTimeout(app.Flags.Timeout),
+		wayback.WithLogger(app.Logger()),
 	)
 
 	c := d.Console()
@@ -255,6 +256,7 @@ func processBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark) Sn
 
 	ct := wayback.New(
 		wayback.WithTimeout(app.Flags.Timeout),
+		wayback.WithLogger(app.Logger()),
 	)
 
 	s, err := ct.ClosestSnapshot(ctx, b.URL)
@@ -333,7 +335,7 @@ func waybackMenu[T wayback.SnapshotInfo](c *ui.Console, app *application.App, op
 	opts = append(
 		opts,
 		menu.WithOutputColor(p.Enabled()),
-		menu.WithHeader(p.BrightRed.Wrap("donate <3 https://archive.org/donate", p.Bold)),
+		menu.WithHeader(p.BrightRed.Wrap("donate <3 "+wayback.DonationURL, p.Bold)),
 		menu.WithCycle(),
 	)
 

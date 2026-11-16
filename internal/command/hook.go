@@ -285,9 +285,6 @@ func HookGitPrune(app *application.App) HookE {
 		if err != nil {
 			return err
 		}
-		if gm == nil {
-			return fmt.Errorf("hook git: git manager: %w", git.ErrManagerNotSet)
-		}
 
 		if !gm.IsTracked(app.DBBaseName()) {
 			app.Logger().Debug("hook git: repo not tracked", "name", app.DBBaseName())

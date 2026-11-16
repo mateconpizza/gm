@@ -106,7 +106,7 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 		rotato.WithDoneSymbolColor(p.BrightGreen.With(p.Bold).Format),
 	)
 
-	if err := metadata.ScrapeDescriptions(ctx, sp, bs); err != nil {
+	if err := metadata.ScrapeDescriptions(ctx, sp, bs, app.Logger()); err != nil {
 		return nil, fmt.Errorf("scrapping missing description: %w", err)
 	}
 
