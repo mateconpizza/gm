@@ -217,7 +217,7 @@ func New(s string, opts ...OptFn) *Scraper {
 	}
 
 	o.uri = s
-	o.logger = o.logger.With("component", "scraper", "url", s)
+	o.logger = o.logger.With("cmp", "scraper", "url", s)
 
 	return &Scraper{
 		Options: *o,

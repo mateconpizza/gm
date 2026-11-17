@@ -84,7 +84,7 @@ func newRepository(ctx context.Context, p string, validate func(string) error) (
 		return nil, fmt.Errorf("%w: %q", ErrDBNotFound, p)
 	}
 
-	log := slog.Default().With("fn", "db-new-repository", "path", p)
+	log := slog.Default().With("op", "db-new-repository", "path", p)
 	log.Debug("opening database")
 
 	if err := validate(p); err != nil {

@@ -3,6 +3,7 @@ package gitops
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 
 	files "github.com/mateconpizza/gofiles"
@@ -23,6 +24,14 @@ type writerCfg struct {
 
 	cipher     enc.Cipher
 	serializer bookio.Serializer
+	logger     *slog.Logger
+}
+
+func (w *writerCfg) log() *slog.Logger {
+	if w.logger == nil {
+		return slog.Default()
+	}
+	return w.logger
 }
 
 func newFileRepoWriter(ctx context.Context, cfg *writerCfg) error {
@@ -68,7 +77,8 @@ func newFileRepoWriter(ctx context.Context, cfg *writerCfg) error {
 	cfg.spinner.Start(ctx)
 	defer cfg.spinner.Done()
 
-	w := bookio.NewFileWriter(cfg.writer.Func)
+	w := bookio.NewFileWriter(cfg.writer.Func).
+		WithLogger(cfg.log())
 	n := len(cfg.bookmarks)
 
 	for i := range n {

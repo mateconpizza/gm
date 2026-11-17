@@ -94,7 +94,7 @@ func defaultExecuter(ctx context.Context, dir string, w io.Writer, r io.Reader, 
 		return fmt.Errorf("executing command: %w", ErrGitExecNoArguments)
 	}
 
-	slog.Debug("executing command", "fn", "default-executer", "command", s[0], "args", s[1:], "dir", dir)
+	slog.Debug("executing command", "op", "default-executer", "command", s[0], "args", s[1:], "dir", dir)
 
 	// Tee the output: the user still sees it through w, and we keep a copy
 	// to put the failure reason in the returned error.

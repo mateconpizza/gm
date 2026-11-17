@@ -18,7 +18,7 @@ type Serializer interface {
 
 type JSONSerializer struct{}
 
-func (JSONSerializer) Ext() string { return JSONExtension }
+func (JSONSerializer) Ext() string { return ".json" }
 func (JSONSerializer) Marshal(r *bookmark.Record) ([]byte, error) {
 	return json.MarshalIndent(r, "", "  ")
 }

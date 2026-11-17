@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,7 +96,7 @@ func TestBackupFile(t *testing.T) {
 	}
 
 	t.Run("valid filepath", func(t *testing.T) {
-		_, err := backupFile(tf.Name())
+		_, err := backupFile(slog.New(slog.DiscardHandler), tf.Name())
 		if err != nil {
 			t.Errorf("Expected no error for valid filepath, got %v", err)
 		}
@@ -104,7 +105,7 @@ func TestBackupFile(t *testing.T) {
 	t.Run("invalid filepath", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := backupFile("/tmp/invalid/path")
+		_, err := backupFile(slog.New(slog.DiscardHandler), "/tmp/invalid/path")
 		if err == nil {
 			t.Error("Expected error for invalid filepath, got nil")
 		}
@@ -249,6 +250,7 @@ func TestWriteAndReplaceFile(t *testing.T) {
 			}
 
 			err := writeAndReplaceFile(
+				slog.New(slog.DiscardHandler),
 				dir+"/"+tt.target,
 				tt.data,
 				filepath.Join(dir, tt.original),

@@ -317,16 +317,21 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	log := app.Logger().With("fn", "remove-repos")
+	log := app.Logger().With("op", "remove-repos")
+
+	log.Debug("starting database removal")
 
 	gm, err := app.Git.Manager()
 	if err != nil {
+		log.Error("failed to get git manager", "error", err)
 		return err
 	}
 
 	c := d.Console()
 	p := c.Palette()
 	boldRed := p.BrightRed.With(p.Bold)
+
+	log.Debug("selecting databases for removal")
 
 	items, err := dbops.NewDatabaseSelector(app).
 		WithItemDecorator(gitTrackedMarker(app.Glyphs(), gm.IsTracked)).
@@ -340,10 +345,22 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 				boldRed.Sprint("this action cannot be undone"),
 			)),
 		).
+		WithLogger(log).
 		Select(ctx)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, app.Abort()) {
+			log.Debug("database selection canceled")
+		} else {
+			log.Error("failed to select databases", "error", err)
+		}
 		return err
 	}
+
+	if len(items) == 0 {
+		log.Debug("no databases selected")
+		return nil
+	}
+
 	log.Debug("databases selected", "count", len(items))
 
 	value := func(s string) string {
@@ -363,21 +380,38 @@ func RemoveRepos(ctx context.Context, d *deps.Deps) error {
 		Rowln().
 		Flush()
 
-	for i := range items {
+	total := len(items)
+
+	for i, item := range items {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
-				log.Debug("canceled by user", "done", i, "total", len(items))
+				log.Debug("database removal canceled by user",
+					"done", i,
+					"total", total,
+				)
 				return app.Abort()
 			}
+
+			log.Warn("database removal interrupted",
+				"done", i,
+				"total", total,
+				"error", err,
+			)
 			return err
 		}
 
-		if err := removeOneDB(ctx, c, gm, items[i], log); err != nil {
+		log.Debug("removing database", "index", i+1, "total", total)
+
+		if err := removeOneDB(ctx, c, gm, item, log); err != nil {
+			log.Debug("database removal stopped",
+				"done", i,
+				"total", total,
+			)
 			return err
 		}
 	}
 
-	log.Debug("remove finished", "total", len(items))
+	log.Debug("database removal completed", "removed", total)
 
 	return nil
 }

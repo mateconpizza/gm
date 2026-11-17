@@ -52,7 +52,7 @@ func NewPuller(c *ui.Console, srcDir, dstDir string, opts ...PullerOpt) *GitPull
 	for _, opt := range opts {
 		opt(gp)
 	}
-	gp.logger = gp.logger.With("component", "git-puller")
+	gp.logger = gp.logger.With("cmp", "git-puller")
 
 	return gp
 }

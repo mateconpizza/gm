@@ -94,6 +94,10 @@ func New(opts ...TermOptFn) *Term {
 		opt(&t.Options)
 	}
 
+	t.logger = t.logger.With("cmp", "terminal")
+	t.state = t.state.WithLogger(t.logger)
+	t.size.logger = t.logger
+
 	// Set default interrupt handler if not provided
 	if t.interruptFn == nil {
 		t.interruptFn = defaultInterruptFn
@@ -132,7 +136,14 @@ func (t *Term) SetReader(r io.Reader) {
 }
 
 func (t *Term) SetWriter(w io.Writer)       { t.writer = w }
+func (t *Term) Writer() io.Writer           { return t.writer }
 func (t *Term) SetChoicesFmt(fn ChoicesFmt) { t.choicesFmt = fn }
+func (t *Term) SetLogger(l *slog.Logger) {
+	if l != nil {
+		t.logger = l.With("cmp", "terminal")
+		t.state = t.state.WithLogger(l)
+	}
+}
 
 // Input get the Input data from the user and return it.
 func (t *Term) Input(p string) string {
@@ -333,8 +344,10 @@ func (t *Term) WaitForEnter(ctx context.Context, msg string) error { return Wait
 
 // ClearLine deletes n lines in the console.
 func (t *Term) ClearLine(n int) {
+	log := t.logger.With("fn", "clear-line", "lines", n)
+
 	if !t.isInteractiveTerminal(n) {
-		slog.Debug("clearing line", "error", ErrNotInteractive)
+		log.Warn("skipping line clearing", "error", ErrNotInteractive)
 		return
 	}
 
@@ -343,11 +356,14 @@ func (t *Term) ClearLine(n int) {
 
 // ReplaceLines deletes n lines in the console and prints the given string.
 func (t *Term) ReplaceLines(n int, s string) {
+	log := t.logger.With("fn", "replace-lines", "lines", n)
+
 	if !t.isInteractiveTerminal(n) {
-		slog.Warn("error replacing line", "error", ErrNotInteractive)
+		log.Warn("skipping line replacement", "error", ErrNotInteractive)
 		return
 	}
 
+	log.Debug("replacing terminal lines")
 	ReplaceLines(t.writer, n, s)
 }
 
@@ -357,21 +373,27 @@ func (t *Term) ReplaceLine(s string) {
 
 // ClearChars deletes n characters in the console.
 func (t *Term) ClearChars(n int) {
+	log := t.logger.With("fn", "clear-chars", "count", n)
+
 	if !t.isInteractiveTerminal(n) {
-		slog.Warn("error clearing chars", "error", ErrNotInteractive)
+		log.Warn("skipping character clearing", "error", ErrNotInteractive)
 		return
 	}
 
+	log.Debug("clearing terminal characters")
 	ClearChars(t.writer, n)
 }
 
 // Clear clears the terminal.
 func (t *Term) Clear() {
+	log := t.logger.With("fn", "clear")
+
 	if !t.isInteractiveTerminal(1) {
-		slog.Warn("error clearing the term", "error", ErrNotInteractive)
+		log.Warn("skipping terminal clear", "error", ErrNotInteractive)
 		return
 	}
 
+	log.Debug("clearing terminal")
 	clearTerminal(t.writer)
 }
 
@@ -381,7 +403,7 @@ func (t *Term) Clear() {
 // If fn is nil, the interrupt handler is disabled.
 func (t *Term) SetInterruptFn(fn func(error)) {
 	// FIX: remove
-	slog.Info("setting interrupt function")
+	t.logger.Info("setting interrupt function")
 	t.interruptFn = fn
 }
 
@@ -433,9 +455,12 @@ func (t *Term) ShowCursor() error {
 	return err
 }
 
-func (t *Term) Height() int   { return t.size.height }
-func (t *Term) Width() int    { return t.size.width }
+func (t *Term) Height() int { return t.size.height }
+
+func (t *Term) Width() int { return t.size.width }
+
 func (t *Term) MaxWidth() int { return t.size.maxWidth }
+
 func (t *Term) MinWidth() int { return t.size.minWidth }
 
 // Print writes content to the terminal, paginating if the output
@@ -537,18 +562,20 @@ func (t *Term) paginate(ctx context.Context, content string) error {
 // withRestoredTerminal saves the terminal state, runs fn, then restores it
 // regardless of how fn exits. Safe to call even if stdin is not a terminal.
 func (t *Term) withRestoredTerminal(fn func() error) error {
+	log := t.logger.With("fn", "with-restored-terminal")
+
 	if !t.isTerminal(int(os.Stdin.Fd())) {
+		log.Debug("not a terminal, skipping state restoration")
 		return fn()
 	}
 
 	if err := t.state.Save(); err != nil {
-		slog.Debug("failed to save terminal state", "err", err)
 		return fn()
 	}
 
 	defer func() {
 		if err := t.state.Restore(); err != nil {
-			slog.Debug("failed to restore terminal state", "err", err)
+			log.Debug("failed to restore terminal state", "error", err)
 		}
 	}()
 
@@ -556,16 +583,18 @@ func (t *Term) withRestoredTerminal(fn func() error) error {
 }
 
 func (t *Term) saveTermState() error {
+	log := t.logger.With("fn", "save-term-state")
 	if !t.isTerminal(int(os.Stdin.Fd())) {
-		slog.Debug("not a terminal, skipping saveState")
+		log.Debug("not a terminal, skipping state save")
 		return nil
 	}
 	return t.state.Save()
 }
 
 func (t *Term) restoreTermState() error {
+	log := t.logger.With("fn", "restore-term-state")
 	if !t.isTerminal(int(os.Stdin.Fd())) {
-		slog.Debug("not a terminal, skipping restoreState")
+		log.Debug("not a terminal, skipping state restoration")
 		return nil
 	}
 	return t.state.Restore()

@@ -94,7 +94,7 @@ func New(opts ...OptFn) *WaybackMachine {
 		o.timeout = defaultTimeout
 	}
 
-	o.logger = o.logger.With("component", "wayback")
+	o.logger = o.logger.With("cmp", "wayback")
 
 	return &WaybackMachine{
 		Options: o,

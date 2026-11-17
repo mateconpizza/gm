@@ -60,7 +60,7 @@ func (r *RepoReconciler) WithBookmarks(bs []*bookmark.Bookmark) *RepoReconciler 
 
 func (r *RepoReconciler) WithLogger(l *slog.Logger) *RepoReconciler {
 	if l != nil {
-		r.logger = l.With("component", "reconciler")
+		r.logger = l.With("cmp", "reconciler")
 	}
 	return r
 }
@@ -94,7 +94,7 @@ func (r *RepoReconciler) Reconcile(ctx context.Context) error {
 }
 
 func (r *RepoReconciler) readRepo(ctx context.Context) error {
-	log := r.logger.With("fn", "read-repo")
+	log := r.logger.With("stage", "read-repo")
 
 	log.Debug("reading repository bookmarks")
 
@@ -116,7 +116,7 @@ func (r *RepoReconciler) msg(action git.RepoAction, msg string) git.CommitMessag
 
 // addMissing adds bookmarks missing from the repository.
 func (r *RepoReconciler) addMissing(ctx context.Context) error {
-	log := r.logger.With("fn", "add-missing")
+	log := r.logger.With("stage", "add-missing")
 
 	missing := bookmark.Difference(r.repo.Bookmarks(), r.dbBookmarks)
 
@@ -147,7 +147,7 @@ func (r *RepoReconciler) addMissing(ctx context.Context) error {
 
 // pruneStale removes repository bookmarks not found in the database.
 func (r *RepoReconciler) pruneStale(ctx context.Context) error {
-	log := r.logger.With("fn", "prune-stale")
+	log := r.logger.With("stage", "prune-stale")
 
 	stale, _ := bookmark.Deduplicate(r.repo.Bookmarks(), r.dbBookmarks)
 
@@ -178,7 +178,7 @@ func (r *RepoReconciler) pruneStale(ctx context.Context) error {
 
 // removeOrphans removes orphaned bookmarks from the repository.
 func (r *RepoReconciler) removeOrphans(ctx context.Context) error {
-	log := r.logger.With("fn", "remove-orphans")
+	log := r.logger.With("stage", "remove-orphans")
 
 	diff := bookmark.Difference(r.dbBookmarks, r.repo.Bookmarks())
 

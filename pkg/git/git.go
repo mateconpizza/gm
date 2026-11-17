@@ -56,7 +56,7 @@ type PreCommit struct {
 func NewPreCommit(l *slog.Logger) *PreCommit {
 	return &PreCommit{
 		hooks:  make([]*Hook, 0),
-		logger: l.With("component", "pre-commit"),
+		logger: l.With("cmp", "pre-commit"),
 	}
 }
 
@@ -94,7 +94,7 @@ func New(path string, opts ...GitOpt) (*Git, error) {
 	for _, opt := range opts {
 		opt(o)
 	}
-	o.logger = o.logger.With("component", "git")
+	o.logger = o.logger.With("cmp", "git")
 
 	if o.commandLogger == nil {
 		o.commandLogger = func(w io.Writer, commands []string) {

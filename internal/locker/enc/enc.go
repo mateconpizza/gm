@@ -2,6 +2,7 @@ package enc
 
 import (
 	"context"
+	"log/slog"
 	"os"
 
 	files "github.com/mateconpizza/gofiles"
@@ -54,7 +55,7 @@ func (g *GCMCipher) Write(ctx context.Context, path string, content []byte) erro
 	if err := os.WriteFile(path, content, files.FilePerm); err != nil {
 		return err
 	}
-	return locker.Lock(ctx, path, g.passphrase)
+	return locker.Lock(ctx, path, g.passphrase, slog.Default())
 }
 
 func (g *GCMCipher) Read(ctx context.Context, path string) ([]byte, error) {

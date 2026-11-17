@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,24 +22,27 @@ import (
 
 var ErrNoItems = errors.New("no items")
 
-type ItemDecorator func(string) string
+type (
+	// Selector encapsulates options for listing and picking databases or backups.
+	Selector struct {
+		app        *application.App
+		root       string
+		ext        string
+		exclutions []string
+		filter     func(string) bool
+		preview    string
 
-type ItemFormatter func(ctx context.Context, p *ansi.Palette, path string, w int) string
+		itemFormatter ItemFormatter
+		itemDecorator ItemDecorator
 
-// Selector encapsulates options for listing and picking databases or backups.
-type Selector struct {
-	app        *application.App
-	root       string
-	ext        string
-	exclutions []string
-	filter     func(string) bool
-	preview    string
+		opts   []menu.Option
+		logger *slog.Logger
+	}
 
-	itemFormatter ItemFormatter
-	itemDecorator ItemDecorator
+	ItemDecorator func(string) string
 
-	opts []menu.Option
-}
+	ItemFormatter func(ctx context.Context, p *ansi.Palette, path string, w int) string
+)
 
 func NewSelector(app *application.App, root string) *Selector {
 	return &Selector{
@@ -129,6 +133,13 @@ func (s *Selector) WithFilter(fn func(string) bool) *Selector {
 	return s
 }
 
+func (s *Selector) WithLogger(l *slog.Logger) *Selector {
+	if l != nil {
+		s.logger = l
+	}
+	return s
+}
+
 // Select runs the interactive picker dialog.
 func (s *Selector) Select(ctx context.Context, opts ...menu.Option) ([]string, error) {
 	dbs, err := files.ListWithExclude(s.root, s.ext, s.exclutions...)
@@ -210,6 +221,7 @@ func LoadFromMenu(ctx context.Context, app *application.App) error {
 
 	_, err := NewDatabaseSelector(app).
 		WithOpts(menu.WithKeybinds(load, setDefault)).
+		WithLogger(app.Logger().With("selector", "database")).
 		Select(ctx)
 	if err != nil {
 		return err
@@ -247,7 +259,15 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 		return nil, err
 	}
 
+	log := app.Logger().With("op", "select-backups-to-remove")
+
+	log.Debug("preparing backup selection",
+		"available", len(fs),
+		"all", app.Flags.All,
+	)
+
 	if app.Flags.Yes || app.Flags.Force {
+		log.Debug("skipping interactive selection", "selected", len(fs))
 		return fs, nil
 	}
 
@@ -260,6 +280,7 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 		if all {
 			return true
 		}
+
 		base := filepath.Base(s)
 		_, name, _ := strings.Cut(base, "_")
 		return name == filepath.Base(app.Path.DB())
@@ -272,8 +293,10 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 		return app.DBBaseName()
 	}
 
+	log.Debug("selecting backups", "database", header())
+
 	p := c.Palette()
-	return NewBackupSelector(app).
+	selected, err := NewBackupSelector(app).
 		WithFilter(filter).
 		WithOpts(
 			menu.WithMultiSelection(),
@@ -282,6 +305,16 @@ func selectBackupsToRemove(ctx context.Context, d *deps.Deps, fs []string) ([]st
 				header(),
 				app.Glyphs().Sep,
 				p.BrightRed.Wrap("this action cannot be undone", p.Bold),
-			))).
+			)),
+		).
+		WithLogger(log.With("selector", "backup")).
 		Select(ctx)
+	if err != nil {
+		log.Debug("backup selection failed", "error", err)
+		return nil, err
+	}
+
+	log.Debug("backups selected", "count", len(selected))
+
+	return selected, nil
 }

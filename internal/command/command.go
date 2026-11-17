@@ -35,7 +35,7 @@ func setup(ctx context.Context, args *[]string) (*deps.Deps, func(), error) {
 		return nil, nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
-	log := app.Logger().With("fn", "command-setup")
+	log := app.Logger().With("op", "command-setup")
 	log.Debug("setting up dependencies", "db", app.DBBaseName())
 
 	r, err := db.New(ctx, app.Path.DB())

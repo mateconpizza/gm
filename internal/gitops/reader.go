@@ -48,7 +48,6 @@ type readerCfg struct {
 	logger     *slog.Logger
 }
 
-// log returns the configured logger, or the default one if none was set.
 func (c *readerCfg) log() *slog.Logger {
 	if c.logger == nil {
 		return slog.Default()
@@ -99,7 +98,7 @@ func fileReader(cfg *readerCfg) *bookio.RepositoryLoader {
 }
 
 func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmark, error) {
-	log := cfg.log().With("fn", "file-repo-reader")
+	log := cfg.log()
 	log.Debug("starting", "path", cfg.repoPath, "total", cfg.total)
 
 	cfg.loader = fileReader(cfg)
@@ -107,7 +106,8 @@ func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmar
 	cfg.spinner.Start(ctx)
 	defer cfg.spinner.Done()
 
-	r := bookio.NewFileLoader(cfg.loader.Func)
+	r := bookio.NewFileLoader(cfg.loader.Func).
+		WithLogger(log)
 
 	var passphrasePrompted bool
 
@@ -134,10 +134,10 @@ func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmar
 			passphrasePrompted = true
 		}
 
-		cfg.spinner.UpdatePrefix(fmt.Sprintf("%s [%d/%d]", cfg.loader.Prefix, r.Count(1), cfg.total))
-		cfg.spinner.UpdateMesg("reading..." + filepath.Base(path))
-
 		r.Load(ctx, path)
+
+		cfg.spinner.UpdatePrefix(fmt.Sprintf("%s [%d/%d]", cfg.loader.Prefix, r.Current(), cfg.total))
+		cfg.spinner.UpdateMesg("reading..." + filepath.Base(path))
 
 		return nil
 	}); err != nil {

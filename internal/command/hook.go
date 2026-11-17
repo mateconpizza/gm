@@ -329,6 +329,47 @@ func HookGitEnsureTracked(app *application.App) HookE {
 	}
 }
 
+// HookValidateRenameTarget rejects renaming the main or default database,
+// since both are protected names the app relies on internally.
+func HookValidateRenameTarget(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		log := app.Logger().With("fn", "validate-rename-target")
+
+		strip := func(s string) string {
+			return strings.TrimSuffix(s, filepath.Ext(s))
+		}
+
+		m := application.MainDBName
+		if app.DBName == m {
+			log.Warn("rename rejected", "database", m, "reason", "cannot rename main database")
+
+			p := ansi.NewPalette(app.Flags.Color)
+			return fmt.Errorf(
+				"%w: cannot rename %s database",
+				dbops.ErrInvalidRename,
+				p.BrightYellow.With(p.Italic).Sprint(m),
+			)
+		}
+
+		// Prevent renaming the default database file.
+		base := app.DBBaseName()
+		if strip(base) == strip(app.DefaultDB()) {
+			log.Warn("rename rejected",
+				"database", base,
+				"reason", "cannot rename default database",
+			)
+
+			return fmt.Errorf("%w: cannot rename default database: %q",
+				dbops.ErrInvalidRename, base,
+			)
+		}
+
+		log.Debug("rename target validated", "database", base)
+
+		return nil
+	}
+}
+
 // HookGitEnableLogging returns a hook that enables git command logging.
 func HookGitEnableLogging(app *application.App) Hook {
 	return func(cmd *cobra.Command, args []string) {
