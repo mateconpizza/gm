@@ -279,7 +279,8 @@ func HookGitPrune(app *application.App) HookE {
 			}
 		}
 
-		app.Logger().Debug("hook: checks for differences between database and local repo and syncs them")
+		log := app.Logger().With("hook", "git-prune", "command", cmd.CommandPath())
+		log.Debug("checks for differences between database and local repo and syncs them")
 		app.Git.SetWriter(os.Stdout)
 		gm, err := app.Git.Manager()
 		if err != nil {
@@ -287,7 +288,7 @@ func HookGitPrune(app *application.App) HookE {
 		}
 
 		if !gm.IsTracked(app.DBBaseName()) {
-			app.Logger().Debug("hook git: repo not tracked", "name", app.DBBaseName())
+			log.Debug("repo not tracked", "name", app.DBBaseName())
 			return nil
 		}
 
@@ -297,20 +298,20 @@ func HookGitPrune(app *application.App) HookE {
 		}
 		defer r.Close()
 
-		sess := app.Session().
-			WithConfirmation(true).
-			WithValidation(true)
-
-		gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
-
 		bs, err := r.All(ctx)
 		if err != nil {
 			return err
 		}
 
+		sess := app.Session().
+			WithConfirmation(true).
+			WithValidation(true).
+			WithLogger(log)
+
+		gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 		gitops.RegisterHooks(r, app, gm, gr)
 
-		return gitops.PruneRepo(ctx, gm, gr, bs)
+		return gitops.PruneRepo(ctx, gm, gr, bs, log)
 	}
 }
 

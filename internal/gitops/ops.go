@@ -17,7 +17,7 @@ import (
 )
 
 func NewRepo(gm *git.Mgr, name string, sess *session.Session, color bool, opts ...RepoOpsOptFunc) *git.Repo {
-	opts = append([]RepoOpsOptFunc{WithSpinner(NewSpinner(color))}, opts...)
+	opts = append([]RepoOpsOptFunc{WithSpinner(newSpinner(color))}, opts...)
 	f := NewRepoOps(sess, opts...)
 
 	return gm.NewRepo(name,
@@ -169,7 +169,8 @@ func (ro *RepoOps) removeFiles(ctx context.Context, repoPath string, bs []*bookm
 
 	sess := session.New().
 		WithPassphrase("").
-		WithValidation(false)
+		WithValidation(false).
+		WithLogger(log)
 
 	cipher, err := sess.NewCipher(ctx, root, filepath.Base(repoPath), rc.Encryption)
 	if err != nil {
@@ -204,7 +205,7 @@ func (ro *RepoOps) removeFiles(ctx context.Context, repoPath string, bs []*bookm
 	return nil
 }
 
-func NewSpinner(color bool) *rotato.Rotato {
+func newSpinner(color bool) *rotato.Rotato {
 	p := ansi.NewPalette(color)
 
 	return rotato.New(

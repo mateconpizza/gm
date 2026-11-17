@@ -2,6 +2,8 @@ package gitops
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -114,26 +116,41 @@ func Remove(ctx context.Context, gm gitManager, gr *git.Repo, bs []*bookmark.Boo
 	}()))
 }
 
-func Drop(ctx context.Context, gm gitManager, gr *git.Repo, c console) error {
+func Drop(ctx context.Context, gm gitManager, gr *git.Repo, c console, log *slog.Logger) error {
+	log = log.With("op", "git.drop", "repo", gr.Name())
+
 	if !gm.IsEnabled() {
-		slog.Debug("git repo: git disable")
+		log.Debug("git disabled, skipping")
 		return nil
 	}
-	slog.Debug("git repo: start repo drop")
 	if !gm.IsTracked(gr.Name()) {
+		log.Debug("repo not tracked, skipping")
 		return nil
 	}
+
 	if !c.Confirm(ctx, "drop git repo?", "n") {
+		log.Debug("drop declined by user")
 		return nil
 	}
 	if err := gm.Drop(ctx, gr); err != nil {
-		return err
+		if errors.Is(err, git.ErrGitUpToDate) {
+			log.Debug("drop failed", "err", git.ErrGitUpToDate)
+			return nil
+		}
+		log.Error("drop failed", "err", err)
+		return fmt.Errorf("drop git repo %q: %w", gr.Name(), err)
 	}
+	log.Info("git repo dropped")
+
 	if !c.Confirm(ctx, "untrack database?", "n") {
+		log.Debug("untrack declined by user")
 		return nil
 	}
 	if err := gm.Untrack(ctx, gr); err != nil {
-		return err
+		log.Error("untrack failed", "err", err)
+		return fmt.Errorf("untrack %q: %w", gr.Name(), err)
 	}
+	log.Info("repo untracked")
+
 	return c.Print(ctx, c.SuccessMesg("database untracked\n"))
 }

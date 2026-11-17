@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -426,7 +427,7 @@ func TestDrop(t *testing.T) {
 
 			repo := git.NewRepo("test-repo", t.TempDir())
 
-			err := Drop(t.Context(), mgr, repo, cons)
+			err := Drop(t.Context(), mgr, repo, cons, slog.New(slog.DiscardHandler))
 
 			if tt.wantErr != nil {
 				if err == nil {

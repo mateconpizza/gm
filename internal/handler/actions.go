@@ -406,7 +406,7 @@ func DropRepo(ctx context.Context, d *deps.Deps) error {
 	gr := gm.NewRepo(r.Name(), ops.Remover())
 	gitops.RegisterHooks(r, app, gm, gr)
 
-	return gitops.Drop(ctx, gm, gr, d.Console())
+	return gitops.Drop(ctx, gm, gr, d.Console(), app.Logger())
 }
 
 func Rename(ctx context.Context, d *deps.Deps, name string, renameFunc func(src, dest string) error) error {

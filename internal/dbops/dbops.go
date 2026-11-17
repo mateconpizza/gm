@@ -129,10 +129,21 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 	if err != nil {
 		return err
 	}
+
+	log := slog.With("op", "drop", "repo", r.Name())
+	log.Debug("starting", "yes", app.Flags.Yes, "force", app.Flags.Force)
+
 	if app.Flags.Yes || app.Flags.Force {
+		log.Debug("confirmation skipped by flag")
+		if err := r.DropSecure(ctx); err != nil {
+			log.Error("drop failed", "err", err)
+			return fmt.Errorf("drop %q: %w", r.Name(), err)
+		}
+		log.Info("dropped")
+
 		fmt.Fprintln(d.Writer(), c.SuccessMesg("database dropped"))
 
-		return r.DropSecure(ctx)
+		return nil
 	}
 
 	s, err := RepoInfo(ctx, d)
@@ -154,16 +165,20 @@ func Drop(ctx context.Context, d *deps.Deps) error {
 
 	q := "continue?"
 	if r.Name() == application.MainDBName {
+		log.Warn("dropping main database")
 		q = c.WarningMesg("dropping \"main\" database, continue?")
 	}
 
 	if err := c.ConfirmErr(ctx, q, "n"); err != nil {
+		log.Debug("aborted by user", "err", err)
 		return err
 	}
 
 	if err := r.DropSecure(ctx); err != nil {
-		return err
+		log.Error("drop failed", "err", err)
+		return fmt.Errorf("drop %q: %w", r.Name(), err)
 	}
+	log.Info("dropped")
 
 	return c.Print(ctx, c.SuccessMesg("database dropped\n"))
 }

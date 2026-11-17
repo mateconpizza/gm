@@ -99,7 +99,7 @@ func fileReader(cfg *readerCfg) *bookio.RepositoryLoader {
 }
 
 func newFileRepoReader(ctx context.Context, cfg *readerCfg) ([]*bookmark.Bookmark, error) {
-	log := cfg.log().With("fn", "file-repo-reader", "repo", cfg.name)
+	log := cfg.log().With("fn", "file-repo-reader")
 	log.Debug("starting", "path", cfg.repoPath, "total", cfg.total)
 
 	cfg.loader = fileReader(cfg)
