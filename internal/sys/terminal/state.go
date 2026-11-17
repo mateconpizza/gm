@@ -52,7 +52,7 @@ func (s *State) WithLogger(l *slog.Logger) *State {
 }
 
 func (s *State) Save() error {
-	l := s.log()
+	l := s.log().With("fn", "save-state")
 	l.Debug("saving terminal state")
 	oldState, err := s.saveFunc()
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *State) Save() error {
 }
 
 func (s *State) Restore() error {
-	l := s.log()
+	l := s.log().With("fn", "restore-state")
 	l.Debug("restoring terminal state")
 	if s.current == nil {
 		l.Warn("no terminal state to restore")

@@ -69,7 +69,7 @@ func ExecuteCmd(ctx context.Context, arg ...string) error {
 		return fmt.Errorf("executing command: %w", ErrNoArguments)
 	}
 
-	slog.Debug("executing command", "fn", "execute-cmd", "command", arg[0], "nargs", len(arg)-1)
+	slog.Debug("executing command", "op", "execute-cmd", "command", arg[0], "nargs", len(arg)-1)
 
 	cmd := exec.CommandContext(ctx, arg[0], arg[1:]...)
 	if err := cmd.Run(); err != nil {

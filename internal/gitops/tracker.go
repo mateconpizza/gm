@@ -131,6 +131,14 @@ func TrackStatus(c *ui.Console, gm *git.Mgr, gr *git.Repo, f RepoFormat) string 
 }
 
 func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Console, dbFiles []string) error {
+	log := app.Logger().With(
+		"op", "track-databases",
+		"cmp", "gitops",
+		"fn", "track-mgr",
+	)
+
+	log.Debug("starting database tracking", "available", len(dbFiles))
+
 	c.NewBannerBuilder().
 		WithTitle("Git Tracker Databases").
 		WithComment(" (ctrl-c to exit)").
@@ -141,49 +149,99 @@ func TrackMgr(ctx context.Context, app *application.App, gm *git.Mgr, c *ui.Cons
 
 	dbFiles, trackAll, err := trackSelection(ctx, dbFiles, c.Choose, app)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Debug("database selection canceled")
+		} else {
+			log.Error("failed to select databases", "error", err)
+		}
 		return err
+	}
+
+	log.Debug("databases selected",
+		"count", len(dbFiles),
+		"track_all", trackAll,
+	)
+
+	if len(dbFiles) == 0 {
+		log.Debug("no databases selected")
+		return nil
 	}
 
 	files.PrioritizeFile(dbFiles, application.MainDBName)
 
-	sess := app.Session().
-		WithConfirmation(true)
+	sess := app.Session().WithConfirmation(true)
 
-	for _, dbPath := range dbFiles {
+	var tracked, skipped, alreadyTracked int
+
+	for i, dbPath := range dbFiles {
 		if err := ctx.Err(); err != nil {
 			if errors.Is(err, context.Canceled) {
+				log.Debug("database tracking canceled",
+					"tracked", tracked,
+					"skipped", skipped,
+					"already_tracked", alreadyTracked,
+					"remaining", len(dbFiles)-i,
+				)
 				return application.ErrExitFailure
 			}
 
+			log.Warn("database tracking interrupted",
+				"tracked", tracked,
+				"remaining", len(dbFiles)-i,
+				"error", err,
+			)
 			return err
 		}
 
 		name := files.StripExts(filepath.Base(dbPath))
+		dbLog := log.With("database", name)
+
 		if gm.IsTracked(name) {
+			dbLog.Debug("database already tracked")
 			fmt.Fprint(c.Writer(), c.Info(fmt.Sprintf("%q is already tracked\n", name)))
+			alreadyTracked++
 			continue
 		}
 
 		if !trackAll && !c.Confirm(ctx, fmt.Sprintf("Track %q?", name), "n") {
+			dbLog.Debug("database tracking skipped")
+			skipped++
 			continue
 		}
 
+		dbLog.Debug("opening database")
+
 		r, err := db.Open(ctx, dbPath)
 		if err != nil {
+			dbLog.Error("failed to open database", "error", err)
 			return err
 		}
 
 		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 		RegisterHooks(r, app, gm, gr)
 
+		dbLog.Debug("tracking database")
+
 		if err := Track(ctx, r, app, gm, gr); err != nil {
+			r.Close()
+			dbLog.Error("failed to track database", "error", err)
 			return err
 		}
 
 		r.Close()
 
 		c.ReplaceLine(c.Success(fmt.Sprintf("%q tracked", name)).String())
+
+		tracked++
+		dbLog.Debug("database tracked successfully")
 	}
+
+	log.Debug("database tracking completed",
+		"tracked", tracked,
+		"skipped", skipped,
+		"already_tracked", alreadyTracked,
+		"total", len(dbFiles),
+	)
 
 	return nil
 }
@@ -277,6 +335,7 @@ func trackSelection(ctx context.Context, dbFiles []string, choose chooseFunc, ap
 				menu.WithMultiSelection(),
 				menu.WithHeaderKeymaps(),
 			).
+			WithLogger(app.Logger().With("selector", "database")).
 			Select(ctx)
 		if err != nil {
 			return nil, false, err

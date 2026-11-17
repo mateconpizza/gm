@@ -13,7 +13,9 @@ import (
 
 	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/deps"
+	"github.com/mateconpizza/gm/internal/locker"
 	"github.com/mateconpizza/gm/internal/locker/enc"
+	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookio"
 	"github.com/mateconpizza/gm/pkg/bookmark"
@@ -99,16 +101,10 @@ func Sync(ctx context.Context, app *application.App, gm *git.Mgr, msg git.Commit
 	return gm.Commit(ctx, msg)
 }
 
-func SyncAll(ctx context.Context, d *deps.Deps) error {
-	app, err := d.Application(ctx)
-	if err != nil {
-		return err
-	}
-
+func SyncAll(ctx context.Context, w io.Writer, app *application.App, c *ui.Console) error {
 	log := app.Logger().With("fn", "git-sync-all")
 
-	c := d.Console()
-	w, p := c.Writer(), c.Palette()
+	p := c.Palette()
 
 	gm, err := app.Git.Manager()
 	if err != nil {
@@ -134,12 +130,19 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 
 		path := filepath.Join(app.Path.Home(), name)
 		path = files.EnsureExt(path, "db")
-		if !files.Exists(path) {
-			rlog.Debug("database file not found, skipping", "path", path)
+
+		if err := locker.IsLocked(path); err != nil {
+			rlog.Warn(err.Error())
+			fmt.Fprintf(w, "git: repo %s is locked\n", p.BrightMagenta.Sprint(name))
 			continue
 		}
 
-		r, err := db.New(ctx, path)
+		if !files.Exists(path) {
+			rlog.Warn("database file not found, skipping", "path", path)
+			continue
+		}
+
+		r, err := db.Open(ctx, path)
 		if err != nil {
 			return fmt.Errorf("%w: %q", err, path)
 		}
@@ -152,7 +155,7 @@ func SyncAll(ctx context.Context, d *deps.Deps) error {
 
 		gr := NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 
-		if err := PruneRepo(ctx, gm, gr, bs); err != nil {
+		if err := PruneRepo(ctx, gm, gr, bs, log); err != nil {
 			if errors.Is(err, git.ErrGitUpToDate) {
 				rlog.Debug("repo up-to-date")
 				fmt.Fprintf(w, "git: repo %s up-to-date\n", p.BrightYellow.Sprint(name))

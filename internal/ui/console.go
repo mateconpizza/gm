@@ -5,6 +5,7 @@ package ui
 import (
 	"context"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -71,7 +72,8 @@ func NewConsole(opts ...Option) *Console {
 func NewDefaultConsole(app *application.App, fn func(error)) *Console {
 	force := app.Flags.Yes ||
 		app.Flags.Force ||
-		terminal.StdinPiped()
+		terminal.StdinPiped() ||
+		terminal.StderrPiped()
 
 	g := app.Glyphs()
 	color := app.Flags.Color
@@ -120,12 +122,11 @@ func (c *Console) ReplaceLine(s string)                      { c.term.ReplaceLin
 func (c *Console) ReplaceLines(n int, s string)              { c.term.ReplaceLines(n, s) }
 func (c *Console) SetReader(r io.Reader)                     { c.term.SetReader(r) }
 func (c *Console) SetWriter(w io.Writer)                     { c.term.SetWriter(w) }
+func (c *Console) SetLogger(l *slog.Logger)                  { c.term.SetLogger(l) }
 func (c *Console) Error(s string) *frame.Frame               { return c.frame.Reset().Error(s) }
 func (c *Console) Info(s string) *frame.Frame                { return c.frame.Reset().Info(s) }
 func (c *Console) Success(s string) *frame.Frame             { return c.frame.Reset().Success(s) }
 func (c *Console) Warning(s string) *frame.Frame             { return c.frame.Reset().Warning(s) }
-func (c *Console) Flush() *frame.Frame                       { return c.frame.Flush() }
-func (c *Console) Reset() *frame.Frame                       { return c.frame.Reset() }
 func (c *Console) MaxWidth() int                             { return c.Term().MaxWidth() }
 func (c *Console) MinWidth() int                             { return c.Term().MinWidth() }
 func (c *Console) Width() int                                { return c.Term().Width() }
@@ -188,7 +189,7 @@ func (c *Console) InputPassword(ctx context.Context, s string) (string, error) {
 }
 
 func (c *Console) InputPasswordConfirm(ctx context.Context) (string, error) {
-	s, err := c.InputPassword(ctx, " Password: ")
+	s, err := c.InputPassword(ctx, "Password: ")
 	if err != nil {
 		return "", err
 	}
@@ -197,7 +198,7 @@ func (c *Console) InputPasswordConfirm(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	s2, err := c.InputPassword(ctx, " Confirm Password: ")
+	s2, err := c.InputPassword(ctx, "Confirm Password: ")
 	if err != nil {
 		return "", err
 	}

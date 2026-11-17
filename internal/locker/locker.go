@@ -59,112 +59,177 @@ func deriveKey(passphrase string, salt []byte) []byte {
 
 // Lock encrypts the given file using AES-GCM encryption and adds .enc
 // extension.
-func Lock(ctx context.Context, path, passphrase string) error {
+func Lock(ctx context.Context, path, passphrase string, logger *slog.Logger) error {
+	log := logger.With(
+		"cmp", "locker",
+		"fn", "lock",
+		"file", filepath.Base(path),
+	)
+
+	log.Debug("locking file")
+
 	if err := ctx.Err(); err != nil {
+		log.Debug("locking canceled", "error", err)
 		return err
 	}
-
-	slog.Debug("locking file", "path", path)
 
 	if err := validateInput(path, passphrase); err != nil {
+		log.Warn("invalid lock input", "error", err)
 		return err
 	}
 
-	// Create a backup
-	backupPath, err := backupFile(path)
+	// Create a backup.
+	backupPath, err := backupFile(log, path)
 	if err != nil {
+		log.Error("failed to create backup", "error", err)
 		return fmt.Errorf("backup creation failed: %w", err)
 	}
 
-	// Read the file content
+	log.Debug("backup created", "backup", filepath.Base(backupPath))
+
+	// Read the file content.
 	plaintext, err := os.ReadFile(path)
 	if err != nil {
+		log.Error("failed to read input file", "error", err)
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
 
-	// Perform encryption
+	log.Debug("input file read", "size", len(plaintext))
+
+	// Perform encryption.
 	ciphertext, err := encrypt(ctx, plaintext, passphrase)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			log.Debug("encryption canceled", "error", ctxErr)
+			return ctxErr
+		}
+
+		log.Error("failed to encrypt file", "error", err)
 		return err
 	}
 
-	// Write encrypted data to disk
+	log.Debug("file encrypted", "size", len(ciphertext))
+
+	// Write encrypted data to disk.
 	lockedPath := Extension.Join(path)
 
-	err = writeAndReplaceFile(lockedPath, ciphertext, path, backupPath)
-	if err != nil {
+	if err := writeAndReplaceFile(log, lockedPath, ciphertext, path, backupPath); err != nil {
+		log.Error("failed to replace input file", "error", err)
 		return err
 	}
 
-	slog.Debug("file locked", "path", lockedPath)
+	log.Debug("file locked successfully", "output", filepath.Base(lockedPath))
 
-	// Cleanup successful operation
-	_ = os.Remove(backupPath)
+	// Cleanup successful operation.
+	if err := os.Remove(backupPath); err != nil {
+		log.Warn("failed to remove temporary backup",
+			"backup", filepath.Base(backupPath),
+			"error", err,
+		)
+	}
 
 	return nil
 }
 
 // Unlock decrypts the given .enc file using AES-GCM decryption and removes the
 // .enc extension.
-func Unlock(ctx context.Context, path, passphrase string) error {
+func Unlock(ctx context.Context, path, passphrase string, logger *slog.Logger) error {
+	log := logger.With(
+		"cmp", "locker",
+		"fn", "unlock",
+		"file", filepath.Base(path),
+	)
+
+	log.Debug("unlocking file")
+
 	if err := ctx.Err(); err != nil {
+		log.Debug("unlock canceled", "error", err)
 		return err
 	}
 
-	slog.Debug("unlocking file", "path", path)
-
 	if err := validateInput(path, passphrase); err != nil {
+		log.Warn("invalid unlock input", "error", err)
 		return err
 	}
 
 	if !strings.HasSuffix(path, Extension.String()) {
-		return fmt.Errorf("%w: got %q, path: %q", ErrFileExtMismatch, filepath.Ext(path), path)
+		err := fmt.Errorf("%w: got %q, path: %q",
+			ErrFileExtMismatch, filepath.Ext(path), path,
+		)
+		log.Warn("invalid encrypted file extension", "error", err)
+		return err
 	}
 
-	// Read the encrypted content
+	// Read the encrypted content.
 	ciphertext, err := os.ReadFile(path)
 	if err != nil {
+		log.Error("failed to read encrypted file", "error", err)
 		return fmt.Errorf("failed to read locked file: %w", err)
 	}
 
-	// Perform decryption
+	log.Debug("encrypted file read", "size", len(ciphertext))
+
+	// Perform decryption.
 	plaintext, err := Decrypt(ctx, ciphertext, passphrase)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			log.Debug("decryption canceled", "error", ctxErr)
+			return ctxErr
+		}
+
+		log.Warn("failed to decrypt file", "error", err)
 		return err
 	}
 
-	// Create a backup before modifying files
-	backupPath, err := backupFile(path)
+	log.Debug("file decrypted", "size", len(plaintext))
+
+	// Create a backup before modifying files.
+	backupPath, err := backupFile(log, path)
 	if err != nil {
+		log.Error("failed to create backup", "error", err)
 		return fmt.Errorf("backup creation failed: %w", err)
 	}
 
-	// Write decrypted data to disk
+	log.Debug("backup created", "backup", filepath.Base(backupPath))
+
+	// Write decrypted data to disk.
 	decryptedPath := strings.TrimSuffix(path, Extension.String())
 
-	err = writeAndReplaceFile(decryptedPath, plaintext, path, backupPath)
-	if err != nil {
+	if err := writeAndReplaceFile(log, decryptedPath, plaintext, path, backupPath); err != nil {
+		log.Error("failed to replace encrypted file", "error", err)
 		return err
 	}
 
-	slog.Debug("file unlocked", "path", decryptedPath)
+	log.Debug("file unlocked successfully")
 
-	// Cleanup successful operation
-	_ = os.Remove(backupPath)
+	// Cleanup successful operation.
+	if err := os.Remove(backupPath); err != nil {
+		log.Warn("failed to remove temporary backup",
+			"backup", filepath.Base(backupPath),
+			"error", err,
+		)
+	}
 
 	return nil
 }
 
 // IsLocked checks if the given file has .enc extension.
-func IsLocked(s string) error {
-	slog.Debug("checking if file is locked")
+func IsLocked(path string) error {
+	log := slog.Default().With(
+		"cmp", "locker",
+		"fn", "is-locked",
+		"file", filepath.Base(path),
+	)
 
-	s = Extension.Join(s)
-	if fileExists(s) {
+	log.Debug("checking file lock state")
+
+	encryptedPath := Extension.Join(path)
+	if fileExists(encryptedPath) {
+		log.Debug("file is locked")
 		return ErrFileLocked
 	}
 
-	slog.Debug("file not locked")
+	log.Debug("file is not locked")
 
 	return nil
 }
@@ -276,45 +341,70 @@ func validateInput(path, passphrase string) error {
 }
 
 // backupFile creates a backup of the given file.
-func backupFile(filePath string) (string, error) {
+func backupFile(log *slog.Logger, filePath string) (string, error) {
+	log = log.With(
+		"stage", "backup-file",
+		"file", filepath.Base(filePath),
+	)
+
+	log.Debug("creating file backup")
+
 	if !fileExists(filePath) {
-		return "", fmt.Errorf("%w: %s", os.ErrNotExist, filePath)
+		err := fmt.Errorf("%w: %s", os.ErrNotExist, filePath)
+		log.Warn("source file not found", "error", err)
+		return "", err
 	}
-	// Generate backup filename with timestamp
+
+	// Generate backup filename with timestamp.
 	timestamp := time.Now().Format("20060102_150405")
 	backupPath := fmt.Sprintf("%s.backup_%s", filePath, timestamp)
 
-	// Read the original file
+	// Read the original file.
 	data, err := os.ReadFile(filePath)
 	if err != nil {
+		log.Error("failed to read file for backup", "error", err)
 		return "", fmt.Errorf("failed to read file for backup: %w", err)
 	}
 
-	// Write backup file
-	//nolint:gosec //false positive
-	err = os.WriteFile(backupPath, data, 0o600)
-	if err != nil {
+	// Write backup file.
+	//nolint:gosec // false positive
+	if err := os.WriteFile(backupPath, data, 0o600); err != nil {
+		log.Error("failed to create backup file", "error", err)
 		return "", fmt.Errorf("failed to create backup file: %w", err)
 	}
 
-	slog.Debug("created backup file", "path", backupPath)
+	log.Debug("backup file created",
+		"backup", filepath.Base(backupPath),
+		"size", len(data),
+	)
 
 	return backupPath, nil
 }
 
 // writeAndReplaceFile writes data to targetPath, removes originalPath on
 // success, and handles error recovery using backupPath.
-func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPath string) error {
-	slog.Debug("writing file", "path", targetPath)
-	// Write data to the target file
-	//nolint:gosec //false positive
+func writeAndReplaceFile(log *slog.Logger, targetPath string, data []byte, originalPath, backupPath string) error {
+	log = log.With(
+		"stage", "write-and-replace-file",
+		"target", filepath.Base(targetPath),
+	)
+
+	log.Debug("writing file", "size", len(data))
+
+	// Write data to the target file.
+	//nolint:gosec // false positive
 	err := os.WriteFile(targetPath, data, 0o600)
 	if err != nil {
-		// If writing fails, attempt to restore from backup
-		slog.Debug("restore from backup", "path", backupPath)
+		log.Error("failed to write target file", "error", err)
+
+		log.Debug("restoring backup",
+			"backup", filepath.Base(backupPath),
+		)
 
 		restoreErr := os.Rename(backupPath, originalPath)
 		if restoreErr != nil {
+			log.Error("failed to restore backup", "error", restoreErr)
+
 			return fmt.Errorf(
 				"failed to write file and restore backup: %w (original error: %w)",
 				restoreErr,
@@ -322,17 +412,26 @@ func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPat
 			)
 		}
 
+		log.Debug("backup successfully restored")
+
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
-	slog.Debug("replacing file", "original", originalPath, "target", targetPath)
-	// Remove the original file
+	// Remove the original file.
 	if filepath.Clean(targetPath) != filepath.Clean(originalPath) {
-		err = os.Remove(originalPath)
-		if err != nil {
-			// If removal fails, attempt to restore from backup
+		log.Debug("removing original file", "original", filepath.Base(originalPath))
+
+		if err := os.Remove(originalPath); err != nil {
+			log.Error("failed to remove original file", "error", err)
+
+			log.Debug("restoring backup",
+				"backup", filepath.Base(backupPath),
+			)
+
 			restoreErr := os.Rename(backupPath, originalPath)
 			if restoreErr != nil {
+				log.Error("failed to restore backup", "error", restoreErr)
+
 				return fmt.Errorf(
 					"failed to remove original file and restore backup: %w (original error: %w)",
 					restoreErr,
@@ -340,11 +439,13 @@ func writeAndReplaceFile(targetPath string, data []byte, originalPath, backupPat
 				)
 			}
 
+			log.Debug("backup successfully restored")
+
 			return fmt.Errorf("failed to remove original file: %w", err)
 		}
 	}
 
-	slog.Debug("wrote and replaced file", "path", targetPath)
+	log.Debug("file written and replaced successfully")
 
 	return nil
 }

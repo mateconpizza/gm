@@ -279,18 +279,16 @@ func HookGitPrune(app *application.App) HookE {
 			}
 		}
 
-		app.Logger().Debug("hook: checks for differences between database and local repo and syncs them")
+		log := app.Logger().With("hook", "git-prune", "command", cmd.CommandPath())
+		log.Debug("checks for differences between database and local repo and syncs them")
 		app.Git.SetWriter(os.Stdout)
 		gm, err := app.Git.Manager()
 		if err != nil {
 			return err
 		}
-		if gm == nil {
-			return fmt.Errorf("hook git: git manager: %w", git.ErrManagerNotSet)
-		}
 
 		if !gm.IsTracked(app.DBBaseName()) {
-			app.Logger().Debug("hook git: repo not tracked", "name", app.DBBaseName())
+			log.Debug("repo not tracked", "name", app.DBBaseName())
 			return nil
 		}
 
@@ -300,20 +298,20 @@ func HookGitPrune(app *application.App) HookE {
 		}
 		defer r.Close()
 
-		sess := app.Session().
-			WithConfirmation(true).
-			WithValidation(true)
-
-		gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
-
 		bs, err := r.All(ctx)
 		if err != nil {
 			return err
 		}
 
+		sess := app.Session().
+			WithConfirmation(true).
+			WithValidation(true).
+			WithLogger(log)
+
+		gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
 		gitops.RegisterHooks(r, app, gm, gr)
 
-		return gitops.PruneRepo(ctx, gm, gr, bs)
+		return gitops.PruneRepo(ctx, gm, gr, bs, log)
 	}
 }
 
@@ -328,6 +326,47 @@ func HookGitEnsureTracked(app *application.App) HookE {
 		}
 
 		return fmt.Errorf("%w: %q", git.ErrGitNotTracked, app.DBBaseName())
+	}
+}
+
+// HookValidateRenameTarget rejects renaming the main or default database,
+// since both are protected names the app relies on internally.
+func HookValidateRenameTarget(app *application.App) HookE {
+	return func(cmd *cobra.Command, args []string) error {
+		log := app.Logger().With("fn", "validate-rename-target")
+
+		strip := func(s string) string {
+			return strings.TrimSuffix(s, filepath.Ext(s))
+		}
+
+		m := application.MainDBName
+		if app.DBName == m {
+			log.Warn("rename rejected", "database", m, "reason", "cannot rename main database")
+
+			p := ansi.NewPalette(app.Flags.Color)
+			return fmt.Errorf(
+				"%w: cannot rename %s database",
+				dbops.ErrInvalidRename,
+				p.BrightYellow.With(p.Italic).Sprint(m),
+			)
+		}
+
+		// Prevent renaming the default database file.
+		base := app.DBBaseName()
+		if strip(base) == strip(app.DefaultDB()) {
+			log.Warn("rename rejected",
+				"database", base,
+				"reason", "cannot rename default database",
+			)
+
+			return fmt.Errorf("%w: cannot rename default database: %q",
+				dbops.ErrInvalidRename, base,
+			)
+		}
+
+		log.Debug("rename target validated", "database", base)
+
+		return nil
 	}
 }
 
@@ -495,8 +534,7 @@ func checkDatabaseLocked(p string) error {
 		if errors.Is(err, locker.ErrFileLocked) {
 			return ErrDBUnlockFirst
 		}
-
-		return fmt.Errorf("%w", err)
+		return err
 	}
 
 	return nil

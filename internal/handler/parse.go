@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 
 	"github.com/mateconpizza/gm/internal/application"
@@ -119,7 +120,7 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	tags := app.Flags.TagsStr
 
 	c := d.Console()
-	newURL, err := newURLFromArgs(ctx, c, a, c.Term().Input, readURLFromClipboard)
+	newURL, err := newURLFromArgs(ctx, c, a, c.Term().Input, readURLFromClipboard, log)
 	if err != nil {
 		log.Error("failed to resolve URL from arguments", "error", err)
 		return err
@@ -140,11 +141,15 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	bTemp.title = title
 	bTemp.tags = tags
 
-	sc := scraper.New(newURL, scraper.WithSpinner(NewSpinner(app.Flags.Color)))
+	sc := scraper.New(
+		newURL,
+		scraper.WithSpinner(NewSpinner(app.Flags.Color)),
+		scraper.WithLogger(log),
+	)
 
 	// fetch title, description and tags
-	fetchTitleAndDesc(ctx, c, sc, bTemp)
-	if err := tagsFromArgs(ctx, d, c.Term(), sc, bTemp); err != nil {
+	fetchTitleAndDesc(ctx, c, sc, bTemp, log)
+	if err := tagsFromArgs(ctx, d, c.Term(), sc, bTemp, log); err != nil {
 		log.Error("failed to parse tags", "error", err)
 		return err
 	}
@@ -155,7 +160,9 @@ func parseNewBookmark(ctx context.Context, d *deps.Deps, b *bookmark.Bookmark, a
 	b.Tags = bookmark.ParseTags(bTemp.tags)
 	b.FaviconURL = bTemp.favicon
 
-	log.Debug("bookmark successfully parsed", "title", b.Title, "tags_count", len(b.Tags))
+	log.Debug("bookmark successfully parsed", "title", b.Title, "tags_count", len(strings.FieldsFunc(b.Tags, func(r rune) bool {
+		return r == ',' || r == ' '
+	})))
 
 	return nil
 }
@@ -189,7 +196,9 @@ func readURLFromClipboard(ctx context.Context, c console) string {
 }
 
 // newURLFromArgs parse URL from args.
-func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput, cr clipboardReader) (string, error) {
+func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput, cr clipboardReader, log *slog.Logger) (string, error) {
+	log = log.With("fn", "new-url-from-args")
+
 	f, p := c.Frame(), c.Palette()
 
 	dot := func() string {
@@ -199,6 +208,8 @@ func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput,
 	// checks if url is provided
 	if len(args) > 0 {
 		bURL := strings.TrimRight(args[0], "\n")
+		log.Debug("url from args", "nargs", len(args), "length", len(bURL))
+
 		f.CustomFunc(dot, p.BrightMagenta.Sprint("URL\t:")).
 			Text(" " + p.Gray.Sprint(bURL)).Ln().Flush()
 
@@ -208,10 +219,13 @@ func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput,
 	// checks clipboard
 	cb := cr(ctx, c)
 	if cb != "" {
+		log.Debug("url from clipboard", "length", len(cb))
 		return cb, nil
 	}
+	log.Debug("clipboard empty, prompting")
 
 	if err := ctx.Err(); err != nil {
+		log.Debug("context done before prompt", "cause", context.Cause(ctx))
 		return "", err
 	}
 
@@ -219,13 +233,17 @@ func newURLFromArgs(ctx context.Context, c console, args []string, ti takeInput,
 
 	bURL := ti(" ")
 	if bURL == "" {
+		log.Debug("empty url from prompt")
 		return bURL, metadata.ErrURLEmpty
 	}
+	log.Debug("url from prompt", "length", len(bURL))
 
 	return bURL, nil
 }
 
-func tagsFromArgs(ctx context.Context, d *deps.Deps, t tagTerminal, sc metadataScraper, b *bookmarkTemp) error {
+func tagsFromArgs(ctx context.Context, d *deps.Deps, t tagTerminal, sc metadataScraper, b *bookmarkTemp, log *slog.Logger) error {
+	log = log.With("fn", "tags-from-args")
+
 	c := d.Console()
 	f, p := c.Frame(), c.Palette()
 
@@ -237,35 +255,45 @@ func tagsFromArgs(ctx context.Context, d *deps.Deps, t tagTerminal, sc metadataS
 
 	if b.tags != "" {
 		b.tags = bookmark.ParseTags(b.tags)
+		log.Debug("using provided tags")
 		f.Textln(" " + p.Gray.Wrap(b.tags, p.Italic)).Flush()
 		return nil
 	}
 
 	r, err := d.Repository()
 	if err != nil {
+		log.Error("failed to get repository", "error", err)
 		return err
 	}
 
 	app, err := d.Application(ctx)
 	if err != nil {
+		log.Error("failed to get application", "error", err)
 		return err
 	}
 
-	tr := newTagResolver(r, sc, t)
-	tags, err := tr.resolve(ctx, app.Flags.Force, b.tags, d.Console().Glyphs().Square)
+	log.Debug("resolving tags", "force", app.Flags.Force)
+
+	tr := newTagResolver(r, sc, t, log)
+	tags, err := tr.resolve(ctx, app.Flags.Force, b.tags, c.Glyphs().Square)
 	if err != nil {
+		log.Error("failed to resolve tags", "error", err)
 		return err
 	}
 
 	t.ClearLine(1)
 	b.tags = tags
+
+	log.Debug("tags resolved")
 	f.Textln(" " + p.Gray.Wrap(b.tags, p.Italic)).Flush()
 
 	return nil
 }
 
 // fetchTitleAndDesc fetch and display title and description.
-func fetchTitleAndDesc(ctx context.Context, c console, sc metadataScraper, b *bookmarkTemp) {
+func fetchTitleAndDesc(ctx context.Context, c console, sc metadataScraper, b *bookmarkTemp, log *slog.Logger) {
+	log = log.With("fn", "fetch-title-and-desc")
+
 	f, p := c.Frame(), c.Palette()
 	const indentation int = 10
 
@@ -277,17 +305,39 @@ func fetchTitleAndDesc(ctx context.Context, c console, sc metadataScraper, b *bo
 	}
 
 	if b.title != "" {
+		log.Debug("using provided title")
 		t := p.Gray.Sprint(txt.SplitAndAlign(b.title, width, indentation))
 		f.CustomFunc(dot, p.BrightCyan.Sprint("Title\t: ")).Textln(t).Flush()
-
 		return
 	}
 
-	// scrape data
-	_ = sc.Start(ctx)
-	b.title, _ = sc.Title()
-	b.desc, _ = sc.Desc()
-	b.favicon, _ = sc.Favicon()
+	log.Debug("scraping page metadata")
+
+	if err := sc.Start(ctx); err != nil {
+		log.Debug("failed to start metadata scraper", "error", err)
+	}
+
+	var err error
+	b.title, err = sc.Title()
+	if err != nil {
+		log.Debug("failed to fetch title", "error", err)
+	}
+
+	b.desc, err = sc.Desc()
+	if err != nil {
+		log.Debug("failed to fetch description", "error", err)
+	}
+
+	b.favicon, err = sc.Favicon()
+	if err != nil {
+		log.Debug("failed to fetch favicon", "error", err)
+	}
+
+	log.Debug("page metadata fetched",
+		"has_title", b.title != "",
+		"has_description", b.desc != "",
+		"has_favicon", b.favicon != "",
+	)
 
 	// title
 	t := p.Gray.Sprint(txt.SplitAndAlign(b.title, width, indentation))
@@ -304,14 +354,21 @@ func fetchTitleAndDesc(ctx context.Context, c console, sc metadataScraper, b *bo
 
 	// tags
 	if b.tags == "" {
-		if keywords, _ := sc.Keywords(); keywords != "" {
+		keywords, err := sc.Keywords()
+		if err != nil {
+			log.Debug("failed to fetch keywords", "error", err)
+		} else if keywords != "" {
 			b.tags = keywords
+			log.Debug("using page keywords")
 		}
 
 		// codeberg, gitlab, github
-		if tags, _ := sc.TagsRepo(); len(tags) > 0 {
-			tags, _ := sc.TagsRepo()
+		tags, err := sc.TagsRepo()
+		if err != nil {
+			log.Debug("failed to fetch repository tags", "error", err)
+		} else if len(tags) > 0 {
 			b.tags = strings.Join(tags, ",")
+			log.Debug("using repository tags", "count", len(tags))
 		}
 	}
 
@@ -420,40 +477,58 @@ type tagResolver struct {
 	store   tagStore
 	scraper metadataScraper
 	term    tagTerminal
+	logger  *slog.Logger
 }
 
-func newTagResolver(r tagStore, sc metadataScraper, t tagTerminal) *tagResolver {
+func newTagResolver(r tagStore, sc metadataScraper, t tagTerminal, log *slog.Logger) *tagResolver {
 	return &tagResolver{
 		store:   r,
 		scraper: sc,
 		term:    t,
+		logger:  log,
 	}
 }
 
 func (tr *tagResolver) resolve(ctx context.Context, force bool, initial, glyph string) (string, error) {
+	log := tr.logger.With("fn", "tag-resolver")
+
 	if initial != "" {
+		log.Debug("using provided tags")
 		return bookmark.ParseTags(initial), nil
 	}
 
-	_ = tr.scraper.Start(ctx)
+	if err := tr.scraper.Start(ctx); err != nil {
+		log.Debug("failed to start metadata scraper", "error", err)
+	}
 
-	if keywords, _ := tr.scraper.Keywords(); keywords != "" {
+	keywords, err := tr.scraper.Keywords()
+	if err != nil {
+		log.Debug("failed to fetch keywords", "error", err)
+	} else if keywords != "" {
+		log.Debug("using page keywords")
 		return bookmark.ParseTags(keywords), nil
 	}
 
 	if force {
+		log.Debug("using default tags")
 		return bookmark.DefaultTag, nil
 	}
 
 	tags, err := tr.store.TagsCounter(ctx)
 	if err != nil {
+		log.Error("failed to retrieve existing tags", "error", err)
 		return "", err
 	}
 
+	log.Debug("retrieved existing tags", "count", len(tags))
+
 	selected, err := tr.term.ChooseTags(ctx, glyph+" Tags  : ", tags)
 	if err != nil {
+		log.Error("failed to choose tags", "error", err)
 		return "", err
 	}
+
+	log.Debug("tags selected")
 
 	return bookmark.ParseTags(selected), nil
 }

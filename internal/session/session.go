@@ -44,7 +44,7 @@ func New() *Session {
 		validationFunc: validatePassphrase,
 		term:           terminal.New(),
 		writer:         os.Stdout,
-		logger:         slog.Default().With("component", "session"),
+		logger:         slog.Default().With("cmp", "session"),
 	}
 }
 
@@ -102,7 +102,7 @@ func (s *Session) WithValidationFunc(fn ValidateFunc) *Session {
 // WithLogger sets a custom logger, tagged with the component name.
 func (s *Session) WithLogger(l *slog.Logger) *Session {
 	if l != nil {
-		s.logger = l.With("fn", "session")
+		s.logger = l.With("cmp", "session")
 	}
 	return s
 }

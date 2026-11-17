@@ -13,7 +13,7 @@ import (
 	"github.com/mateconpizza/gm/internal/gitops"
 	"github.com/mateconpizza/gm/internal/ui"
 	"github.com/mateconpizza/gm/pkg/ansi"
-	"github.com/mateconpizza/gm/pkg/bookmark"
+	"github.com/mateconpizza/gm/pkg/db"
 	"github.com/mateconpizza/gm/pkg/git"
 )
 
@@ -228,30 +228,48 @@ func newSyncCmd(app *application.App) *cobra.Command {
 		Short:  "synchronize bookmarks with the repository",
 		PreRun: command.HookGitEnableLogging(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return command.Execute(cmd.Context(), args, nil, func(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
-				if app.Flags.All {
-					return gitops.SyncAll(ctx, d)
-				}
+			ctx := cmd.Context()
 
-				r, err := d.Repository()
-				if err != nil {
-					return err
-				}
-				defer r.Close()
+			log := app.Logger().With("cmd", "sync", "all", app.Flags.All)
+			log.Debug("starting sync")
 
-				sess := app.Session().
-					WithConfirmation(false).
-					WithValidation(true)
+			if app.Flags.All {
+				return gitops.SyncAll(ctx, app.Git.Writer(), app, ui.NewDefaultConsole(app, app.Exit))
+			}
 
-				gm, err := app.Git.Manager()
-				if err != nil {
-					return err
-				}
-				gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
-				gitops.RegisterHooks(r, app, gm, gr)
+			r, err := db.Open(ctx, app.Path.DB())
+			if err != nil {
+				return err
+			}
+			defer r.Close()
 
-				return gitops.PruneRepo(ctx, gm, gr, bs)
-			})
+			bs, err := r.All(ctx)
+			if err != nil {
+				return err
+			}
+			log = log.With("db", r.BaseName())
+			log.Debug("loaded bookmarks", "count", len(bs))
+
+			sess := app.Session().
+				WithConfirmation(false).
+				WithValidation(true).
+				WithLogger(log)
+
+			gm, err := app.Git.Manager()
+			if err != nil {
+				return err
+			}
+
+			gr := gitops.NewRepo(gm, r.BaseName(), sess, app.Flags.Color)
+			gitops.RegisterHooks(r, app, gm, gr)
+
+			if err := gitops.PruneRepo(ctx, gm, gr, bs, log); err != nil {
+				return err
+			}
+
+			log.Debug("sync finished")
+
+			return nil
 		},
 	}
 

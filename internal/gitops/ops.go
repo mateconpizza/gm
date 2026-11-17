@@ -17,7 +17,7 @@ import (
 )
 
 func NewRepo(gm *git.Mgr, name string, sess *session.Session, color bool, opts ...RepoOpsOptFunc) *git.Repo {
-	opts = append([]RepoOpsOptFunc{WithSpinner(NewSpinner(color))}, opts...)
+	opts = append([]RepoOpsOptFunc{WithSpinner(newSpinner(color))}, opts...)
 	f := NewRepoOps(sess, opts...)
 
 	return gm.NewRepo(name,
@@ -46,7 +46,7 @@ func NewRepoOps(sess *session.Session, opts ...RepoOpsOptFunc) *RepoOps {
 	for _, opt := range opts {
 		opt(ro)
 	}
-	ro.logger = ro.logger.With("component", "repo-ops")
+	ro.logger = ro.logger.With("op", "repo-ops")
 
 	return ro
 }
@@ -72,7 +72,7 @@ func (ro *RepoOps) Writer() git.RepoOptFunc  { return git.WithRepoWriter(ro.writ
 func (ro *RepoOps) Remover() git.RepoOptFunc { return git.WithRepoRemover(ro.removeFiles) }
 
 func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bookmark.Bookmark, error) {
-	log := ro.logger.With("fn", "read-files", "repo", filepath.Base(path))
+	log := ro.logger.With("stage", "read-files", "repo", filepath.Base(path))
 
 	root := filepath.Dir(path)
 	rc, err := resolveConfig(root)
@@ -111,7 +111,7 @@ func (ro *RepoOps) readFiles(ctx context.Context, path string, total int) ([]*bo
 }
 
 func (ro *RepoOps) writeFiles(ctx context.Context, path string, bs []*bookmark.Bookmark) error {
-	log := ro.logger.With("fn", "write-files", "repo", filepath.Base(path))
+	log := ro.logger.With("stage", "write-files", "repo", filepath.Base(path))
 
 	root := filepath.Dir(path)
 	rc, err := resolveConfig(root)
@@ -138,6 +138,7 @@ func (ro *RepoOps) writeFiles(ctx context.Context, path string, bs []*bookmark.B
 		spinner:    ro.spinner,
 		cipher:     cipher,
 		serializer: serializer,
+		logger:     ro.logger,
 	})
 	if err != nil {
 		return err
@@ -153,7 +154,7 @@ func (ro *RepoOps) removeFiles(ctx context.Context, repoPath string, bs []*bookm
 		return err
 	}
 
-	log := ro.logger.With("fn", "remove-files", "repo", filepath.Base(repoPath))
+	log := ro.logger.With("stage", "remove-files", "repo", filepath.Base(repoPath))
 
 	root := filepath.Dir(repoPath)
 	rc, err := resolveConfig(root)
@@ -169,7 +170,8 @@ func (ro *RepoOps) removeFiles(ctx context.Context, repoPath string, bs []*bookm
 
 	sess := session.New().
 		WithPassphrase("").
-		WithValidation(false)
+		WithValidation(false).
+		WithLogger(log)
 
 	cipher, err := sess.NewCipher(ctx, root, filepath.Base(repoPath), rc.Encryption)
 	if err != nil {
@@ -204,7 +206,7 @@ func (ro *RepoOps) removeFiles(ctx context.Context, repoPath string, bs []*bookm
 	return nil
 }
 
-func NewSpinner(color bool) *rotato.Rotato {
+func newSpinner(color bool) *rotato.Rotato {
 	p := ansi.NewPalette(color)
 
 	return rotato.New(

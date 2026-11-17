@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	files "github.com/mateconpizza/gofiles"
+	"github.com/mateconpizza/rotato"
 
 	"github.com/mateconpizza/gm/internal/bookmark/qr"
 	"github.com/mateconpizza/gm/internal/deps"
@@ -100,6 +101,7 @@ func QROpen(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) error {
 
 	sp := NewSpinner(app.Flags.Color)
 	sp.UpdateMesg("QR-Code")
+	sp.UpdateSymbols(rotato.WithSymbolsBlock())
 	sp.AddMessageDecorator(func(prefix string) string {
 		current := count.Load()
 		return fmt.Sprintf("%s %s", p.Gray.Sprintf("[%d/%d]", current, len(bs)), prefix)

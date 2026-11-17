@@ -95,8 +95,9 @@ func newListCmd(app *application.App) *cobra.Command {
 
 func newDatabaseLoadCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
-		Use:    "select",
-		Hidden: true,
+		Use:     "select",
+		Aliases: []string{"sel"},
+		Hidden:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return dbops.LoadFromMenu(cmd.Context(), app)
 		},
@@ -130,7 +131,7 @@ func newLockCmd(app *application.App) *cobra.Command {
 		Example: app.Example(`  $ {cmd} db lock --db {db}
   $ {cmd} db lock --db work`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.LockDatabase(cmd.Context(), app)
+			return dbops.LockDatabase(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit), args)
 		},
 	}
 
@@ -148,7 +149,7 @@ func newUnlockCmd(app *application.App) *cobra.Command {
 			command.SkipGitSync,
 		),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dbops.UnlockDatabase(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit))
+			return dbops.UnlockDatabase(cmd.Context(), app, ui.NewDefaultConsole(app, app.Exit), args)
 		},
 	}
 
@@ -221,17 +222,17 @@ func newRenameCmd(app *application.App) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "rename",
 		Short:   "rename database",
-		Aliases: []string{"mv"},
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return handler.ValidateRenameTarget(app)
-		},
+		Aliases: []string{"mv", "move"},
+		Example: app.Example(`  $ {cmd} db mv --db other --to work
+  $ {cmd} db rename --db other --to work`),
+		PreRunE: command.HookValidateRenameTarget(app),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return command.Run(cmd.Context(), args, func(ctx context.Context, d *deps.Deps) error {
 				return handler.Rename(ctx, d, files.EnsureExt(app.Flags.Rename, ".db"), os.Rename)
 			})
 		},
 	}
-	c.Flags().StringVarP(&app.Flags.Rename, "name", "n", "", "new name")
+	c.Flags().StringVar(&app.Flags.Rename, "to", "", "new name")
 	_ = c.MarkFlagRequired("name")
 	return c
 }

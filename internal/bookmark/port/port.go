@@ -47,11 +47,12 @@ func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	log := app.Logger().With("fn", "import-database")
+	log := app.Logger().With("op", "import-database")
 
 	selected, err := dbops.NewDatabaseSelector(app).
 		WithExclutions(app.Path.DB()).
 		WithOpts(menu.WithHeader("choose a database to import from")).
+		WithLogger(log.With("selector", "database")).
 		Select(ctx)
 	if err != nil {
 		return err
@@ -64,7 +65,7 @@ func ImportFromDatabase(ctx context.Context, d *deps.Deps) error {
 	}
 	defer rSrc.Close()
 
-	return database(ctx, d, rSrc)
+	return database(ctx, d, rSrc, log)
 }
 
 func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
@@ -73,10 +74,11 @@ func ImportFromBackup(ctx context.Context, d *deps.Deps) error {
 		return err
 	}
 
-	log := app.Logger().With("fn", "import-backup")
+	log := app.Logger().With("op", "import-backup")
 
 	selected, err := dbops.NewBackupSelector(app).
 		WithOpts(menu.WithHeader("choose a backup to import from")).
+		WithLogger(log.With("selector", "backup")).
 		Select(ctx)
 	if err != nil {
 		return err
@@ -212,7 +214,7 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 	}
 
 	log := app.Logger().With(
-		"fn", "import-pipeline",
+		"op", "import-pipeline",
 		"source", source,
 		"from", filepath.Base(from),
 		"db", r.Name(),
@@ -234,7 +236,7 @@ func importPipeline(ctx context.Context, d *deps.Deps, source, from string, bs [
 	}
 
 	if !app.Flags.Force && !app.Flags.Yes {
-		deduplicated, err = promptImportSelection(ctx, d, deduplicated)
+		deduplicated, err = promptImportSelection(ctx, d, deduplicated, log)
 		if err != nil {
 			return err
 		}
@@ -276,7 +278,7 @@ func printImportHeader(c *ui.Console, header, fromName, toName string, n int) {
 }
 
 // promptImportSelection runs the interactive action loop.
-func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark) ([]*bookmark.Bookmark, error) {
+func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookmark, logger *slog.Logger) ([]*bookmark.Bookmark, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -286,7 +288,7 @@ func promptImportSelection(ctx context.Context, d *deps.Deps, bs []*bookmark.Boo
 		return nil, err
 	}
 
-	log := app.Logger().With("fn", "import-prompt")
+	log := logger.With("fn", "import-prompt")
 	c := d.Console()
 
 	for {
@@ -389,13 +391,13 @@ func DeduplicateReport(ctx context.Context, c *ui.Console, r storeReader, bs []*
 }
 
 // database imports bookmarks from a database.
-func database(ctx context.Context, d *deps.Deps, srcDB storeReader) error {
+func database(ctx context.Context, d *deps.Deps, srcDB storeReader, logger *slog.Logger) error {
 	app, err := d.Application(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	log := app.Logger().With("fn", "import-from-database", "src", srcDB.Name())
+	log := logger.With("fn", "import-from-database", "src", srcDB.Name())
 
 	bs, err := srcDB.All(ctx)
 	if err != nil {

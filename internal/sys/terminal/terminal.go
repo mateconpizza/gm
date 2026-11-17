@@ -31,6 +31,7 @@ type loadSizeFunc func() (width int, height int, err error)
 
 type TermSizeOptions struct {
 	loadSize loadSizeFunc
+	logger   *slog.Logger
 }
 
 type TermSizeOptFn func(*TermSizeOptions)
@@ -50,6 +51,7 @@ func NewSize(opts ...TermSizeOptFn) *TermSize {
 		minWidth: 80,
 		TermSizeOptions: TermSizeOptions{
 			loadSize: getSize,
+			logger:   slog.New(slog.DiscardHandler),
 		},
 	}
 
@@ -59,7 +61,7 @@ func NewSize(opts ...TermSizeOptFn) *TermSize {
 
 	width, height, err := s.loadSize()
 	if err != nil {
-		slog.Debug("could not determine terminal size", "error", err)
+		s.log().Error("could not determine terminal size", "error", err)
 		return s
 	}
 
@@ -79,10 +81,24 @@ func withLoadSizeFunc(fn loadSizeFunc) TermSizeOptFn {
 	}
 }
 
+func WithSizeLogger(l *slog.Logger) TermSizeOptFn {
+	return func(o *TermSizeOptions) {
+		if l != nil {
+			o.logger = l
+		}
+	}
+}
+
 func (s *TermSize) Height() int   { return s.height }
 func (s *TermSize) MaxWidth() int { return s.maxWidth }
 func (s *TermSize) MinWidth() int { return s.minWidth }
 func (s *TermSize) Width() int    { return s.width }
+func (s *TermSize) log() *slog.Logger {
+	if s.logger == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return s.logger
+}
 
 // NoColorEnv disables color output if the NO_COLOR environment variable is
 // set.

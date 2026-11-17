@@ -90,7 +90,7 @@ func (r *SQLite) SQLiteVersion(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("getting sqlite version: %w", err)
 	}
 
-	r.logger.Debug("sqlite version", "fn", "db-sqlite-version", "version", ver)
+	r.logger.Debug("sqlite version", "op", "db-sqlite-version", "version", ver)
 
 	return ver, nil
 }
@@ -102,7 +102,7 @@ func (r *SQLite) CurrentSchemaVersion(ctx context.Context) (int, error) {
 		return -1, fmt.Errorf("getting schema version: %w", err)
 	}
 
-	r.logger.Debug("schema version", "fn", "db-schema-version", "db", r.Name(), "version", ver)
+	r.logger.Debug("schema version", "op", "db-schema-version", "db", r.Name(), "version", ver)
 
 	return ver, nil
 }

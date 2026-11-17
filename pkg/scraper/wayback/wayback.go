@@ -36,6 +36,18 @@ const (
 	//
 	// Example: https://web.archive.org/cdx/search/cdx?url=example.com&output=json
 	cdxAPI = "https://web.archive.org/cdx/search/cdx"
+
+	// saveAPI is the Wayback Machine Save Page endpoint.
+	// Used to request a new snapshot of a URL.
+	//
+	// Example: https://web.archive.org/save/https://example.com
+	saveAPI = "https://web.archive.org/save/"
+
+	// replayURLPrefix is the base URL for replaying an archived snapshot.
+	replayURLPrefix = "https://web.archive.org/web/"
+
+	// DonationURL is the Internet Archive donation page.
+	DonationURL = "https://archive.org/donate"
 )
 
 const (
@@ -53,6 +65,7 @@ type Options struct {
 	limit   int
 	year    int
 	timeout time.Duration
+	logger  *slog.Logger
 }
 
 // WaybackMachine provides methods to query the Internet Archive Wayback Machine.
@@ -68,7 +81,7 @@ func (wm *WaybackMachine) Timeout() time.Duration {
 
 // New creates a new WaybackMachine with sensible defaults.
 func New(opts ...OptFn) *WaybackMachine {
-	o := &Options{}
+	o := &Options{logger: slog.New(slog.DiscardHandler)}
 	for _, fn := range opts {
 		fn(o)
 	}
@@ -81,6 +94,8 @@ func New(opts ...OptFn) *WaybackMachine {
 		o.timeout = defaultTimeout
 	}
 
+	o.logger = o.logger.With("cmp", "wayback")
+
 	return &WaybackMachine{
 		Options: o,
 		client:  &http.Client{Timeout: o.timeout},
@@ -88,24 +103,12 @@ func New(opts ...OptFn) *WaybackMachine {
 }
 
 // WithLimit sets the maximum number of snapshots to fetch.
-func WithLimit(n int) OptFn {
-	return func(o *Options) {
-		o.limit = n
-	}
-}
+func WithLimit(n int) OptFn { return func(o *Options) { o.limit = n } }
 
 // WithByYear sets the year of the snapshots to fetch.
-func WithByYear(n int) OptFn {
-	return func(o *Options) {
-		o.year = n
-	}
-}
-
-func WithTimeout(t time.Duration) OptFn {
-	return func(o *Options) {
-		o.timeout = t
-	}
-}
+func WithByYear(n int) OptFn            { return func(o *Options) { o.year = n } }
+func WithTimeout(t time.Duration) OptFn { return func(o *Options) { o.timeout = t } }
+func WithLogger(l *slog.Logger) OptFn   { return func(o *Options) { o.logger = l } }
 
 // AvailableSnapshot represents the Wayback "available" API response.
 type AvailableSnapshot struct {
@@ -127,8 +130,13 @@ type SnapshotInfo struct {
 
 // ClosestSnapshot returns the closest archived version of a URL.
 func (wm *WaybackMachine) ClosestSnapshot(ctx context.Context, urlStr string) (*SnapshotInfo, error) {
+	log := wm.logger.With("fn", "closest-snapshot", "url", urlStr)
+
+	log.Debug("checking archive availability")
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, availableAPI, http.NoBody)
 	if err != nil {
+		log.Error("failed to create request", "error", err)
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
@@ -140,38 +148,58 @@ func (wm *WaybackMachine) ClosestSnapshot(ctx context.Context, urlStr string) (*
 
 	resp, err := wm.client.Do(req)
 	if err != nil {
+		log.Error("availability request failed", "error", err)
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			slog.Error("failed to close response body", "error", err)
+			log.Debug("failed to close response body", "error", err)
 		}
 	}()
 
 	if resp.StatusCode != http.StatusOK {
+		log.Error("availability API returned unexpected status", "status", resp.Status)
 		return nil, fmt.Errorf("%w: %s", ErrAPIRequestFail, resp.Status)
 	}
 
 	var data AvailableSnapshot
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		log.Error("failed to decode availability response", "error", err)
 		return nil, fmt.Errorf("decode: %w", err)
 	}
-	if !data.ArchivedSnapshots.Closest.Available {
+
+	closest := data.ArchivedSnapshots.Closest
+	if !closest.Available {
+		log.Debug("no archived version available")
 		return nil, ErrNoVersionAvailable
 	}
 
-	return &SnapshotInfo{
-		ArchiveURL:       data.ArchivedSnapshots.Closest.URL,
-		ArchiveTimestamp: data.ArchivedSnapshots.Closest.Timestamp,
-	}, nil
+	snapshot := &SnapshotInfo{
+		ArchiveURL:       closest.URL,
+		ArchiveTimestamp: closest.Timestamp,
+	}
+
+	log.Debug("archive found", "timestamp", snapshot.ArchiveTimestamp)
+
+	return snapshot, nil
 }
 
 // Snapshots fetches the last N snapshots for a URL.
 func (wm *WaybackMachine) Snapshots(ctx context.Context, urlStr string) ([]SnapshotInfo, error) {
+	log := wm.logger.With(
+		"fn", "snapshots",
+		"url", urlStr,
+		"limit", wm.limit,
+		"year", wm.year,
+	)
+
+	log.Debug("fetching snapshots")
+
 	endpoint := fmt.Sprintf("%s?%s", cdxAPI, wm.params(urlStr))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, http.NoBody)
 	if err != nil {
+		log.Error("failed to create request", "error", err)
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
@@ -179,52 +207,71 @@ func (wm *WaybackMachine) Snapshots(ctx context.Context, urlStr string) ([]Snaps
 
 	resp, err := wm.client.Do(req)
 	if err != nil {
-		return nil, err
+		log.Error("snapshot request failed", "error", err)
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			slog.Error("failed to close response body", "error", err)
+			log.Debug("failed to close response body", "error", err)
 		}
 	}()
 
 	if resp.StatusCode != http.StatusOK {
+		log.Error("CDX API returned unexpected status", "status", resp.Status)
 		return nil, fmt.Errorf("%w: %s", ErrAPIRequestFail, resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Error("failed to read response body", "error", err)
 		return nil, fmt.Errorf("read: %w", err)
 	}
 
 	var raw [][]string
 	if err := json.Unmarshal(body, &raw); err != nil {
+		log.Error("failed to decode snapshot response", "error", err)
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
+
 	if len(raw) <= 1 {
+		log.Debug("no snapshots found")
 		return nil, ErrNoSnapshots
 	}
 
-	snapshots := make([]SnapshotInfo, 0, len(raw))
+	snapshots := make([]SnapshotInfo, 0, len(raw)-1)
+	skipped := 0
+
 	for _, row := range raw[1:] {
 		if len(row) < 3 {
+			skipped++
 			continue
 		}
 
 		snapshots = append(snapshots, SnapshotInfo{
-			ArchiveURL:       fmt.Sprintf("https://web.archive.org/web/%s/%s", row[1], row[2]),
+			ArchiveURL:       fmt.Sprintf("%s%s/%s", replayURLPrefix, row[1], row[2]),
 			ArchiveTimestamp: row[1],
 		})
 	}
+
+	log.Debug("snapshots retrieved",
+		"count", len(snapshots),
+		"skipped", skipped,
+	)
 
 	return snapshots, nil
 }
 
 // SaveSnapshot requests the Wayback Machine to archive a URL (create new snapshot).
 func (wm *WaybackMachine) SaveSnapshot(ctx context.Context, urlStr string) (string, error) {
-	saveURL := "https://web.archive.org/save/" + urlStr
+	log := wm.logger.With("fn", "save-snapshot", "url", urlStr)
+
+	log.Debug("requesting snapshot")
+
+	saveURL := saveAPI + urlStr
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, saveURL, http.NoBody)
 	if err != nil {
+		log.Error("failed to create request", "error", err)
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -232,18 +279,28 @@ func (wm *WaybackMachine) SaveSnapshot(ctx context.Context, urlStr string) (stri
 
 	resp, err := wm.client.Do(req)
 	if err != nil {
+		log.Error("snapshot request failed", "error", err)
 		return "", fmt.Errorf("failed to save snapshot: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			slog.Error("failed to close response body", "error", err)
+			log.Debug("failed to close response body", "error", err)
 		}
 	}()
 
-	// The response redirects to the archived page
+	// The response redirects to the archived page.
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		return resp.Request.URL.String(), nil
+		archiveURL := resp.Request.URL.String()
+
+		log.Debug("snapshot saved",
+			"status", resp.StatusCode,
+			"archive_url", archiveURL,
+		)
+
+		return archiveURL, nil
 	}
+
+	log.Error("failed to save snapshot", "status", resp.Status)
 
 	return "", fmt.Errorf("%w status: %s", ErrSaveFailed, resp.Status)
 }

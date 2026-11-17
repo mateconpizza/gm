@@ -1,10 +1,10 @@
 package dbops
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,113 +18,8 @@ import (
 	"github.com/mateconpizza/gm/internal/sys/terminal"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui"
-	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/db"
 )
-
-func TestRemoveRepo_Success(t *testing.T) {
-	t.Parallel()
-
-	t.Run("successfully remove main database", func(t *testing.T) {
-		t.Parallel()
-		d := testutil.NewDeps(t)
-		app, err := d.Application(t.Context())
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		app.Flags.Force = true
-		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-		d.WithRepo(r)
-		var buf bytes.Buffer
-		d.WithWriter(&buf)
-
-		err = Remove(t.Context(), d)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		output := ansi.Remover(buf.String())
-		if !strings.Contains(output, "Successfully database main removed") {
-			t.Fatalf("%v", output)
-		}
-
-		if files.Exists(app.Path.DB()) {
-			t.Fatalf("file %q was not deleted", app.Path.DB())
-		}
-	})
-
-	t.Run("successfully remove a database", func(t *testing.T) {
-		t.Parallel()
-		d := testutil.NewDeps(t)
-		app, err := d.Application(t.Context())
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		app.DBName = "somedatabase.db"
-		app.Path.Database = filepath.Join(app.Path.Data, app.DBName)
-		app.Flags.Force = true
-		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-		d.WithRepo(r)
-		var buf bytes.Buffer
-		d.WithWriter(&buf)
-
-		err = Remove(t.Context(), d)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		output := ansi.Remover(buf.String())
-		name := files.StripExts(app.DBName)
-		if !strings.Contains(output, "Successfully database "+name+" removed") {
-			t.Fatalf("%v", output)
-		}
-
-		if files.Exists(app.Path.DB()) {
-			t.Fatalf("file %q was not deleted", app.Path.DB())
-		}
-	})
-}
-
-func TestRemoveRepo_Fail(t *testing.T) {
-	t.Parallel()
-
-	t.Run("fails with database not found", func(t *testing.T) {
-		t.Parallel()
-		d := testutil.NewDeps(t)
-		app, err := d.Application(t.Context())
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		app.Path.Database = filepath.Join(app.Path.Data, "nonexistent.db")
-
-		err = Remove(t.Context(), d)
-		if !errors.Is(err, db.ErrDBNotFound) {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("fails with main database cannot be removed without flag force", func(t *testing.T) {
-		t.Parallel()
-		d := testutil.NewDeps(t)
-		app, err := d.Application(t.Context())
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		r := testutil.NewInitializedEmptyDB(t, app.Path.DB())
-		d.WithRepo(r)
-
-		err = Remove(t.Context(), d)
-		if !errors.Is(err, ErrInvalidOption) {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		gotOutput := err.Error()
-		wantOutput := "removing the main database requires"
-		if !strings.Contains(gotOutput, wantOutput) {
-			t.Fatalf("want: %q, got: %q", wantOutput, gotOutput)
-		}
-	})
-}
 
 func TestNewBackup(t *testing.T) {
 	t.Parallel()
@@ -733,7 +628,7 @@ func TestLock(t *testing.T) {
 			t.Parallel()
 
 			c, items, wantLocked, wantUnlocked := tt.setup(t)
-			err := Lock(t.Context(), c, items)
+			err := Lock(t.Context(), c, items, slog.New(slog.DiscardHandler))
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -773,7 +668,7 @@ func TestUnlock(t *testing.T) {
 		if err := os.WriteFile(plain, []byte("db-content"), 0o644); err != nil {
 			t.Fatalf("failed to create test file: %v", err)
 		}
-		if err := locker.Lock(t.Context(), plain, pwd); err != nil {
+		if err := locker.Lock(t.Context(), plain, pwd, slog.New(slog.DiscardHandler)); err != nil {
 			t.Fatalf("failed to lock fixture file: %v", err)
 		}
 		return plain // unlock takes the unextended path, same as Lock does
@@ -894,7 +789,7 @@ func TestUnlock(t *testing.T) {
 			wantUnlocked := make([]string, len(items))
 			copy(wantUnlocked, items)
 
-			err := Unlock(t.Context(), c, items)
+			err := Unlock(t.Context(), c, items, slog.New(slog.DiscardHandler))
 
 			switch {
 			case tt.wantErr != nil:

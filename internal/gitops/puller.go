@@ -52,7 +52,7 @@ func NewPuller(c *ui.Console, srcDir, dstDir string, opts ...PullerOpt) *GitPull
 	for _, opt := range opts {
 		opt(gp)
 	}
-	gp.logger = gp.logger.With("component", "git-puller")
+	gp.logger = gp.logger.With("cmp", "git-puller")
 
 	return gp
 }
@@ -183,7 +183,7 @@ func (gp *GitPuller) scan() error {
 // loadAll discovers and loads metadata for all available repositories.
 func (gp *GitPuller) loadAll(sess *session.Session) error {
 	log := gp.logger.With("fn", "load-all")
-	ops := NewRepoOps(sess)
+	ops := NewRepoOps(sess, WithRepoOpsLogger(gp.logger))
 
 	for _, repoName := range gp.found {
 		fullpath := filepath.Join(gp.srcDir, repoName)

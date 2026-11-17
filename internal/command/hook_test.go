@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 
 	"github.com/mateconpizza/gm/internal/application"
+	"github.com/mateconpizza/gm/internal/dbops"
 	"github.com/mateconpizza/gm/internal/picker/menucfg"
 	"github.com/mateconpizza/gm/internal/testutil"
 	"github.com/mateconpizza/gm/internal/ui/formatter"
@@ -597,6 +599,100 @@ func TestHookEnsureAppInitialize(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("HookEnsureAppInitialize() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestHookValidateRenameTarget(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		setup   func(app *application.App)
+		wantErr error
+	}{
+		{
+			name: "normal_valid_target",
+			setup: func(app *application.App) {
+				app.DBName = "user_data.db"
+			},
+			wantErr: nil,
+		},
+		{
+			name: "main_database_exact_match",
+			setup: func(app *application.App) {
+				app.DBName = application.MainDBName
+			},
+			wantErr: dbops.ErrInvalidRename,
+		},
+		{
+			name: "main_database_case_sensitive",
+			setup: func(app *application.App) {
+				// == comparison is case-sensitive, so this should not match the main DB
+				app.DBName = strings.ToUpper(application.MainDBName)
+			},
+			wantErr: nil,
+		},
+		{
+			name: "empty_dbname",
+			setup: func(app *application.App) {
+				app.DBName = ""
+			},
+			wantErr: nil,
+		},
+		{
+			// Assuming DBBaseName() and DefaultDB() derive from DBName or match this naming convention.
+			name: "default_database_exact_match",
+			setup: func(app *application.App) {
+				app.DBName = application.MainDBName
+			},
+			wantErr: dbops.ErrInvalidRename,
+		},
+		{
+			name: "default_database_no_extension",
+			setup: func(app *application.App) {
+				// strip("main") == "main", matching strip("main.db")
+				app.DBName = "main"
+			},
+			wantErr: dbops.ErrInvalidRename,
+		},
+		{
+			name: "multiple_extensions_valid",
+			setup: func(app *application.App) {
+				app.DBName = "my_data.tar.gz"
+			},
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := testutil.NewApp(t)
+			tt.setup(app)
+
+			root := &cobra.Command{Use: app.Cmd}
+			cmd := &cobra.Command{Use: "rename"}
+			cmd.SetContext(t.Context())
+			root.AddCommand(cmd)
+
+			hook := HookValidateRenameTarget(app)
+			err := hook(cmd, []string{})
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("ValidateRenameTarget() expected error %v, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("ValidateRenameTarget() expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("ValidateRenameTarget() unexpected error: %v", err)
 			}
 		})
 	}

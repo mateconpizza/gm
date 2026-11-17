@@ -27,7 +27,7 @@ func NewManager() *Manager {
 func (m *Manager) WithLogger(l *slog.Logger) *Manager {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.logger = l.With("component", "db-manager")
+	m.logger = l.With("cmp", "db-manager")
 	return m
 }
 
@@ -106,7 +106,7 @@ func (m *Manager) log() *slog.Logger {
 	if m.logger != nil {
 		return m.logger
 	}
-	return slog.Default().With("fn", "db-manager")
+	return slog.Default().With("op", "db-manager")
 }
 
 // Shutdown closes all open connections and logs warnings if any were left open.
