@@ -20,7 +20,7 @@ require (
 	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/term v0.48.0
-	gopkg.in/ini.v1 v1.67.3
+	gopkg.in/ini.v1 v1.68.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.61.1
 )
