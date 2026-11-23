@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"path/filepath"
 	"strings"
 
 	menu "github.com/mateconpizza/go-fzf"
@@ -28,39 +30,80 @@ func ImportFromBrowser(args []string) func(ctx context.Context, d *deps.Deps) er
 			return err
 		}
 
-		log := app.Logger().With("fn", "import-from-browser")
+		opLog := app.Logger().With("op", "import-browser")
+		log := opLog.With("cmp", "port", "fn", "import-browser")
 
-		br, err := selectBrowser(ctx, app, d.Console(), args)
+		b := newBrowser(app.Flags.Path, app.Flags.BrowserType, log)
+
+		br := b
+		if br == nil {
+			if br, err = chooseBrowser(ctx, app, args, log); err != nil {
+				return err
+			}
+		}
+
+		if err := br.LoadPaths(log); err != nil {
+			return fmt.Errorf("load browser paths: %w", err)
+		}
+
+		printImportBanner(d, app)
+
+		bs, err := readBrowserBookmarks(ctx, app, opLog, d.Console(), br)
 		if err != nil {
 			return err
 		}
-		log.Debug("browser", "name", br.Browser.Name())
 
-		if err := br.Browser.LoadPaths(); err != nil {
-			return fmt.Errorf("%w", err)
-		}
-
-		// find bookmarks
-		bs, err := br.Browser.Import(ctx, d.Console(), app.Flags.Yes)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return app.Abort()
-			}
-			return fmt.Errorf("import from browser %q: %w", strings.ToLower(br.Browser.Name()), err)
-		}
-
-		// clean and process found bookmarks
 		bs, err = parseFoundInBrowser(ctx, d, bs)
 		if err != nil {
-			return err
+			return fmt.Errorf("process imported bookmarks: %w", err)
 		}
 
-		return importPipeline(ctx, d, "from browser", br.Browser.Name(), bs)
+		log.Debug("browser bookmarks processed", "browser", br.Name(), "count", len(bs))
+
+		return importPipeline(ctx, d, "browser", br.Name(), bs)
 	}
 }
 
-// browsers the list of supported browsers.
-func browsers() []browser.Supported {
+func chooseBrowser(ctx context.Context, app *application.App, args []string, log *slog.Logger) (browser.Browser, error) {
+	sel, err := selectBrowser(ctx, app, args, SupportedBrowsers())
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Debug("browser selection canceled")
+		}
+		return nil, err
+	}
+
+	return sel.Browser, nil
+}
+
+func readBrowserBookmarks(ctx context.Context, app *application.App, opLog *slog.Logger, c *ui.Console, b browser.Browser) ([]*bookmark.Bookmark, error) {
+	m := setupMenu(app, opLog.With("stage", "bookmark-selection"))
+
+	bs, err := b.Import(ctx, opLog.With("stage", "read-browser-bookmarks"), m, c)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, app.Abort()
+		}
+		return nil, fmt.Errorf("import from browser %q: %w", strings.ToLower(b.Name()), err)
+	}
+
+	return bs, nil
+}
+
+func printImportBanner(d *deps.Deps, app *application.App) {
+	p := d.Console().Palette()
+	d.Console().NewBannerBuilder().
+		WithTitle("Import Bookmarks from Browser").
+		WithTitleGlyph(app.Glyphs().Add).
+		WithTitleColor(p.BrightGreen.With(p.Bold).Sprint).
+		WithSubtitle("merge bookmarks into your collection").
+		WithComment(" (ctrl-c to exit)").
+		Build().
+		Rowln().
+		Flush()
+}
+
+func SupportedBrowsers() []browser.Supported {
 	return append(gecko.Supported, blink.Supported...)
 }
 
@@ -85,22 +128,20 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 	}
 
 	if len(bs) == 0 {
-		p := c.Palette()
-		c.Frame().Error("no new bookmark found, ").
-			Textln(p.BrightYellow.Wrap("skipping import", p.Italic)).
-			Flush()
+		c.Frame().Reset().Error("no bookmark found\n").Flush()
 		return bs, app.Failure()
 	}
 
-	if !app.Flags.Yes &&
-		!c.Confirm(ctx, fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs)), "n") {
+	p := c.Palette()
+	q := fmt.Sprintf("scrape missing data from %d bookmarks found?", len(bs))
+	if !c.Confirm(ctx, q, "n") {
 		return bs, nil
 	}
 
-	p := c.Palette()
 	sp := rotato.New(
 		rotato.WithSpinnerColor(p.Gray.Format),
 		rotato.WithMessage("scraping missing data..."),
+		rotato.WithPrefixColor(p.Gray.Format),
 		rotato.WithMessageColor(p.BrightGreen.With(p.Italic).Format),
 		rotato.WithDoneMessageColor(p.BrightGreen.With(p.Italic).Format),
 		rotato.WithDoneSymbolColor(p.BrightGreen.With(p.Bold).Format),
@@ -114,13 +155,15 @@ func parseFoundInBrowser(ctx context.Context, d *deps.Deps, bs []*bookmark.Bookm
 }
 
 // selectBrowser returns the key of the browser selected by the user.
-func selectBrowser(ctx context.Context, app *application.App, c *ui.Console, args []string) (browser.Supported, error) {
+func selectBrowser(ctx context.Context, app *application.App, args []string, browsers []browser.Supported) (browser.Supported, error) {
 	if err := ctx.Err(); err != nil {
 		return browser.Supported{}, err
 	}
 
 	m := picker.New[browser.Supported](
 		app,
+		menu.WithHeader("select a browser to import from"),
+		menu.WithLogger(app.Logger().With("op", "select-browser")),
 		menu.WithArgs(func(b *menu.ArgsBuilder) *menu.ArgsBuilder {
 			if len(args) > 0 {
 				return b.Custom("--query=" + args[0])
@@ -129,21 +172,39 @@ func selectBrowser(ctx context.Context, app *application.App, c *ui.Console, arg
 		}),
 	)
 
-	browsers, err := m.Select(ctx, browsers())
+	browsers, err := m.Select(ctx, browsers)
 	if err != nil {
 		return browser.Supported{}, err
 	}
 
-	p := c.Palette()
-	c.NewBannerBuilder().
-		WithTitle("Import Bookmarks from Browser").
-		WithTitleGlyph(app.Glyphs().Add).
-		WithTitleColor(p.BrightGreen.With(p.Bold).Sprint).
-		WithSubtitle("merge bookmarks into your collection").
-		WithComment(" (ctrl-c to exit)").
-		Render()
-
 	selected := browsers[0]
 
 	return selected, nil
+}
+
+func setupMenu(app *application.App, l *slog.Logger) *menu.Menu[string] {
+	h := "select profile/s to import from " +
+		app.Glyphs().Sep +
+		" use <TAB> for multi-selection"
+
+	return picker.New[string](
+		app,
+		menu.WithLogger(l),
+		menu.WithHeader(h),
+		menu.WithMultiSelection(),
+		menu.WithHeaderKeymaps(),
+		menu.WithKeybinds(menu.KeymapToggleAll()),
+	)
+}
+
+func newBrowser(p, t string, l *slog.Logger) browser.Browser {
+	l.Debug("user-browser", "path", p, "type", t)
+	switch t {
+	case gecko.Gecko.String():
+		return gecko.Register(filepath.Base(p), p)
+	case blink.Blink.String():
+		return blink.Register(filepath.Base(p), p)
+	default:
+		return nil
+	}
 }

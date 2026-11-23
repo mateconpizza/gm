@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	runewidth "github.com/mattn/go-runewidth"
 
@@ -579,6 +581,14 @@ func Pill(color, inverse ansi.Style, msg, sepLeft, sepRight string) string {
 	sb.WriteString(color.Wrap(msg, inverse))
 	sb.WriteString(color.Sprint(sepRight))
 	return sb.String()
+}
+
+func Capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 // wrapParagraph wraps a single paragraph (no newlines) into multiple lines.
