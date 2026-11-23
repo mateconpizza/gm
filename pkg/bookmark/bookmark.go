@@ -15,12 +15,12 @@ const (
 )
 
 var (
-	ErrBookmarkDuplicate       = errors.New("bookmark already exists")
-	ErrBookmarkInvalidID       = errors.New("invalid bookmark id")
-	ErrBookmarkNotFound        = errors.New("no bookmark found")
-	ErrBookmarkTagsEmpty       = errors.New("tags cannot be empty")
-	ErrBookmarkURLEmpty        = errors.New("URL cannot be empty")
-	ErrBookmarkUnknownField    = errors.New("bookmark field unknown")
+	ErrBookmarkDuplicate    = errors.New("bookmark already exists")
+	ErrBookmarkInvalidID    = errors.New("invalid bookmark id")
+	ErrBookmarkNotFound     = errors.New("no bookmark found")
+	ErrBookmarkTagsEmpty    = errors.New("tags cannot be empty")
+	ErrBookmarkURLEmpty     = errors.New("URL cannot be empty")
+	ErrBookmarkUnknownField = errors.New("bookmark field unknown")
 )
 
 // Bookmark represents a bookmark.

@@ -331,6 +331,9 @@ linters:
       - path: "internal/bookmark/metadata/metadata.go"
         linters:
           - nestif
+      - path: "internal/bookmark/port/browser.go"
+        linters:
+          - ireturn
     generated: lax
     presets:
       - common-false-positives

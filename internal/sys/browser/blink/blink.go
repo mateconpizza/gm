@@ -7,24 +7,29 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"maps"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
-	"time"
 
+	menu "github.com/mateconpizza/go-fzf"
 	files "github.com/mateconpizza/gofiles"
 	"github.com/mateconpizza/rotato"
 
+	"github.com/mateconpizza/gm/internal/application"
 	"github.com/mateconpizza/gm/internal/sys/browser"
 	browserpath "github.com/mateconpizza/gm/internal/sys/browser/paths"
 	"github.com/mateconpizza/gm/internal/ui"
+	"github.com/mateconpizza/gm/internal/ui/txt"
 	"github.com/mateconpizza/gm/pkg/ansi"
 	"github.com/mateconpizza/gm/pkg/bookmark"
 )
 
-var (
-	ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
-	ErrBrowserUnsupported      = errors.New("browser is unsupported")
-)
+var ErrBrowserConfigPathNotSet = errors.New("browser config path not set")
+
+const Blink browser.Engine = "blink"
 
 var _ browser.Browser = (*BlinkBrowser)(nil)
 
@@ -36,7 +41,7 @@ var Supported = []browser.Supported{
 	{Browser: New("Edge")},
 }
 
-var blinkBrowserPaths = map[string]Paths{
+var browserPaths = map[string]Paths{
 	"Chromium": {
 		profiles:  browserpath.BlinkProfilePath("chromium"),
 		bookmarks: browserpath.BlinkBookmarksPath("chromium"),
@@ -59,6 +64,19 @@ var blinkBrowserPaths = map[string]Paths{
 	},
 }
 
+func Register(name, path string) *BlinkBrowser {
+	name = txt.Capitalize(name)
+	p := Paths{
+		profiles:  browserpath.BlinkProfilePath(path),
+		bookmarks: browserpath.BlinkBookmarksPath(path),
+	}
+	browserPaths[name] = p
+	return &BlinkBrowser{
+		name:  name,
+		paths: p,
+	}
+}
+
 type Paths struct {
 	profiles  string
 	bookmarks string
@@ -66,32 +84,46 @@ type Paths struct {
 
 type BlinkBrowser struct {
 	name  string
-	short string
 	paths Paths
 }
 
-func (b *BlinkBrowser) Name() string   { return b.name }
-func (b *BlinkBrowser) Short() string  { return b.short }
-func (b *BlinkBrowser) String() string { return ansi.BrightBlue.Sprint(b.name) }
+func (b *BlinkBrowser) Name() string           { return b.name }
+func (b *BlinkBrowser) String() string         { return ansi.BrightBlue.Sprint(b.name) }
+func (b *BlinkBrowser) Engine() browser.Engine { return Blink }
 
-func (b *BlinkBrowser) LoadPaths() error {
-	p, ok := blinkBrowserPaths[b.name]
+func (b *BlinkBrowser) LoadPaths(l *slog.Logger) error {
+	log := l.With("cmp", "blink", "fn", "load-paths", "browser", b.name)
+	log.Debug("loading browser paths")
+
+	p, ok := browserPaths[b.name]
 	if !ok {
-		return fmt.Errorf("%w: %q", ErrBrowserUnsupported, b.name)
+		err := fmt.Errorf("%w: %q", browser.ErrUnsupported, b.name)
+		log.Warn("unsupported browser", "error", err)
+		return err
 	}
 
 	b.paths = p
+
+	log.Debug("browser paths loaded")
 
 	return nil
 }
 
 // Import extracts profile system names and user names.
-func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([]*bookmark.Bookmark, error) {
-	if b.paths.bookmarks == "" || b.paths.profiles == "" {
+func (b *BlinkBrowser) Import(ctx context.Context, l *slog.Logger, m *menu.Menu[string], c *ui.Console) ([]*bookmark.Bookmark, error) {
+	log := l.With("cmp", "blink", "fn", "import")
+	if b.paths.bookmarks == "" {
+		log.Error("bookmarks path is empty")
+		return nil, ErrBrowserConfigPathNotSet
+	}
+
+	if b.paths.profiles == "" {
+		log.Error("profiles path is empty")
 		return nil, ErrBrowserConfigPathNotSet
 	}
 
 	if !files.Exists(b.paths.profiles) {
+		log.Warn("browser profiles configuration not found")
 		return nil, fmt.Errorf("%w: %q", os.ErrNotExist, b.paths.profiles)
 	}
 
@@ -110,29 +142,91 @@ func (b *BlinkBrowser) Import(ctx context.Context, c *ui.Console, force bool) ([
 		Rowln().
 		Header(p.BrightBlue.Wrap(b.Name(), p.Bold)).
 		Textln(p.Dim.Wrap(fmt.Sprintf(" (%d profiles found)", len(profiles)), p.Italic)).
-		Rowln().
 		Flush()
 
+	n := len(profiles)
+	log.Debug("browser profiles discovered", "count", n)
+
+	if n == 0 {
+		log.Debug("no browser profiles found")
+		return nil, nil
+	}
+
+	if n > 1 {
+		profiles, err = profileSelection(ctx, log, m, c, profiles)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var bs []*bookmark.Bookmark
-	for profile, v := range profiles {
+	processed, skipped := 0, 0
+
+	profileLog := l.With("cmp", "blink", "stage", "process-profile")
+
+	for name, systemName := range profiles {
 		if err := ctx.Err(); err != nil {
+			log.Debug("profile import canceled",
+				"processed", processed,
+				"skipped", skipped,
+				"error", err,
+			)
 			return nil, err
 		}
 
-		bookmarksPath := fmt.Sprintf(b.paths.bookmarks, profile)
-		if err := processProfile(ctx, c, &bs, v, files.ExpandHomeDir(bookmarksPath), force); err != nil {
-			return nil, err
+		bookmarksPath := fmt.Sprintf(b.paths.bookmarks, systemName)
+		profile := browser.NewProfile(name, files.ExpandHomeDir(bookmarksPath), b.Name(), b.Engine())
+		if err := processProfile(ctx, profileLog, c, profile); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				log.Error("failed to process browser profile",
+					"profile", systemName,
+					"error", err,
+				)
+				return nil, err
+			}
+
+			skipped++
+			log.Debug("skipping profile",
+				"profile", systemName,
+				"reason", "bookmarks database not found",
+			)
+
+			c.Term().ClearLine(1)
+
+			pf := p.Italic.Wrap(profile.Name+":", p.Bold)
+			skip := p.BrightYellow.Wrap("skipping")
+			reason := p.Italic.Sprint("no bookmarks found")
+
+			c.Warning(fmt.Sprintf("%s profile %s %s", skip, pf, reason)).
+				Ln().
+				Flush()
+
+			continue
 		}
+
+		fresh, duplicates := bookmark.DeduplicateURL(bs, profile.Bookmarks)
+
+		bs = append(bs, fresh...)
+
+		if len(duplicates) > 0 {
+			log.Debug("duplicate bookmarks skipped",
+				"profile", systemName,
+				"count", len(duplicates),
+			)
+		}
+		processed++
+
+		log.Debug("profile processed",
+			"profile", systemName,
+			"bookmarks", len(profile.Bookmarks),
+		)
 	}
 
 	return bs, nil
 }
 
 func New(name string) *BlinkBrowser {
-	return &BlinkBrowser{
-		name:  name,
-		short: strings.ToLower(string(name[0])),
-	}
+	return &BlinkBrowser{name: name}
 }
 
 // JSONRoot structure of the JSON bookmarks file.
@@ -229,71 +323,91 @@ func processChromiumProfiles(jsonData []byte) (map[string]string, error) {
 
 	result := make(map[string]string)
 	for systemName, info := range data.Profile.InfoCache {
-		result[systemName] = info.Name
+		result[info.Name] = systemName
 	}
 
 	return result, nil
 }
 
 // processProfile extracts profile system names and user names.
-func processProfile(ctx context.Context, c *ui.Console, bs *[]*bookmark.Bookmark, profile, path string, force bool) error {
+func processProfile(ctx context.Context, l *slog.Logger, c *ui.Console, profile *browser.Profile) error {
+	log := l.With("fn", "process-profile", "profile", profile.Name)
+
 	if err := ctx.Err(); err != nil {
+		log.Debug("profile processing canceled", "error", err)
 		return err
 	}
 
 	f, p := c.Frame(), c.Palette()
 	skip := p.BrightYellow.Sprint("skipping")
-	pf := p.Italic.Wrap(profile, p.Bold)
-	if !files.Exists(path) {
+	pf := p.Italic.Wrap(profile.Name, p.Bold)
+
+	if !files.Exists(profile.Path) {
+		log.Warn("profile bookmarks file not found, skipping",
+			"path", filepath.Base(profile.Path),
+		)
+
 		f.Reset()
-		f.Headerln(skip + " profile " + pf + p.Italic.Sprint(": bookmarks file not found")).Flush()
+		f.Warning(skip + " profile " + pf + p.Italic.Sprint(": bookmarks file not found\n")).Flush()
 		return nil
 	}
 
-	if !force {
-		if err := c.ConfirmErr(ctx, fmt.Sprintf("import bookmarks from %q profile?", profile), "y"); err != nil {
-			reason := p.Italic.Sprint(": skipped by user")
-			c.ReplaceLine(f.Warning(skip + " profile " + pf + reason).String())
-			return nil
-		}
-	} else {
-		c.Warning("force import bookmarks from '" + profile + "' profile\n").Flush()
-	}
+	log.Debug("loading Chrome bookmarks database")
 
-	uniqueTag := getTodayFormatted()
+	uniqueTag := strings.ToLower(profile.Source) + "-" + profile.Name
 	addParentFolderAsTag := true
 
-	result, err := loadChromeDatabase(ctx, path, uniqueTag, addParentFolderAsTag, c.Palette().Enabled())
+	result, err := loadChromeDatabase(
+		ctx,
+		profile.Path,
+		uniqueTag,
+		addParentFolderAsTag,
+		c.Palette().Enabled(),
+	)
 	if err != nil {
+		log.Error("failed to load Chrome bookmarks database", "error", err)
 		fmt.Fprintln(c.Writer(), "Error loading Chrome database:", err)
 	}
 
-	// original size
-	ogSize := len(*bs)
+	log.Debug("Chrome bookmarks loaded", "count", len(result))
 
-	for _, c := range result {
-		b := bookmark.New()
-		b.Title = c.title
-		b.URL = c.url
-		b.Tags = bookmark.ParseTags(strings.Join(c.tags, ","))
-
-		// deduplicate by URL
-		duplicate := false
-		for _, existing := range *bs {
-			if existing.URL == c.url {
-				duplicate = true
-				break
-			}
+	seen := make(map[string]struct{}, len(profile.Bookmarks)+len(result))
+	for _, existing := range profile.Bookmarks {
+		if existing != nil {
+			seen[existing.URL] = struct{}{}
 		}
-		if duplicate {
+	}
+
+	imported, duplicates := 0, 0
+
+	profileColor := p.Random()
+
+	for _, item := range result {
+		if _, exists := seen[item.url]; exists {
+			duplicates++
 			continue
 		}
 
-		*bs = append(*bs, b)
+		b := bookmark.New()
+		b.Title = item.title
+		b.URL = item.url
+		b.Tags = bookmark.ParseTags(strings.Join(item.tags, ","))
+		b.Meta.Origin = profileColor.Sprint(profile.Name)
+		b.Meta.Source = p.Red.Sprint(strings.ToLower(profile.Source))
+
+		seen[b.URL] = struct{}{}
+		profile.Bookmarks = append(profile.Bookmarks, b)
+		imported++
 	}
 
+	log.Debug("profile bookmarks processed",
+		"imported", imported,
+		"duplicates", duplicates,
+		"total", len(profile.Bookmarks),
+	)
+
 	found := p.BrightBlue.Sprint("found")
-	c.Info(fmt.Sprintf("%s %d bookmarks\n", found, len(*bs)-ogSize)).Flush()
+	c.Info(fmt.Sprintf("%s %d bookmarks in profile %q\n", found, imported, profile.Name)).Flush()
 
 	return nil
 }
@@ -353,7 +467,54 @@ func loadChromeDatabase(ctx context.Context, path, uniqueTag string, addParentFo
 	return results, nil
 }
 
-func getTodayFormatted() string {
-	today := time.Now()
-	return today.Format("2006Jan02")
+func profileSelection(ctx context.Context, log *slog.Logger, m *menu.Menu[string], c *ui.Console, profiles map[string]string) (map[string]string, error) {
+	n := len(profiles)
+
+	if n == 0 {
+		log.Debug("no browser profiles available")
+		return profiles, nil
+	}
+
+	if n == 1 {
+		log.Debug("automatically selecting the only profile")
+		return profiles, nil
+	}
+
+	log.Debug("requesting profile selection", "count", n)
+
+	opt, err := c.Choose(ctx, "process all profiles?", []string{"yes", "select"}, "yes")
+	if err != nil {
+		log.Debug("profile selection failed", "error", err)
+		return nil, err
+	}
+
+	switch opt {
+	case "yes":
+		log.Debug("all profiles selected", "count", n)
+		return profiles, nil
+
+	case "select":
+		names := slices.Sorted(maps.Keys(profiles))
+
+		selected, err := m.Select(ctx, names)
+		if err != nil {
+			log.Debug("profile selection failed", "error", err)
+			return nil, err
+		}
+
+		result := make(map[string]string, len(selected))
+		for _, name := range selected {
+			if path, ok := profiles[name]; ok {
+				result[name] = path
+			}
+		}
+
+		log.Debug("profiles selected", "count", len(result))
+
+		return result, nil
+
+	default: // cancel
+		log.Debug("profile import canceled")
+		return nil, application.ErrActionAborted
+	}
 }
