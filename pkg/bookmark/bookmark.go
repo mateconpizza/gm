@@ -60,6 +60,8 @@ type Bookmark struct {
 
 	// Integrity
 	Checksum string `db:"checksum" json:"checksum"` // Checksum or hash (URL, Title, Description and Tags)
+
+	Meta Meta `db:"-" json:"-"`
 }
 
 // New creates a new bookmark.
@@ -287,3 +289,22 @@ func (r *Record) Bookmark() *Bookmark {
 		IsActive:          r.IsActive,
 	}
 }
+
+// Meta holds transient, in-memory data about an item while it moves through a
+// process (import, dedupe, enrich). It is never persisted.
+type Meta struct {
+	Source string // kind of origin: "firefox", "chrome", "json", "csv", "backup"
+	Origin string // which one: profile, file or database name ("work", "mine", "export.json")
+	IsNew  bool   // not yet in the destination store
+	IsDup  bool   // already exists in the destination store (duplicate URL)
+	Note   string // free-form message for the UI, e.g. "imported from Brave"
+}
+
+// MarkNew flags the item as not present in the destination store.
+func (m *Meta) MarkNew() { m.IsNew, m.IsDup = true, false }
+
+// MarkDup flags the item as already present in the destination store.
+func (m *Meta) MarkDup() { m.IsNew, m.IsDup = false, true }
+
+// Notef sets the UI note from a format string.
+func (m *Meta) Notef(format string, args ...any) { m.Note = fmt.Sprintf(format, args...) }
