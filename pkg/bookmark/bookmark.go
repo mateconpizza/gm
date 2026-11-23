@@ -9,7 +9,10 @@ import (
 	"strings"
 )
 
-const DefaultTag = "notag"
+const (
+	DefaultTag    = "notag"
+	DefaultDomain = "nodomain"
+)
 
 var (
 	ErrBookmarkDuplicate       = errors.New("bookmark already exists")
@@ -17,10 +20,7 @@ var (
 	ErrBookmarkNotFound        = errors.New("no bookmark found")
 	ErrBookmarkTagsEmpty       = errors.New("tags cannot be empty")
 	ErrBookmarkURLEmpty        = errors.New("URL cannot be empty")
-	ErrBookmarkTitleRequired   = errors.New("title is required")
 	ErrBookmarkUnknownField    = errors.New("bookmark field unknown")
-	ErrBookmarkInvalidChecksum = errors.New("invalid checksum")
-	ErrBookmarkArchiveURL      = errors.New("no archive URL found")
 )
 
 // Bookmark represents a bookmark.

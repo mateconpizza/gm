@@ -118,7 +118,7 @@ func (r *RepoReconciler) msg(action git.RepoAction, msg string) git.CommitMessag
 func (r *RepoReconciler) addMissing(ctx context.Context) error {
 	log := r.logger.With("stage", "add-missing")
 
-	missing := bookmark.Difference(r.repo.Bookmarks(), r.dbBookmarks)
+	missing := bookmark.ByChecksum(r.repo.Bookmarks(), r.dbBookmarks)
 
 	if len(missing) == 0 {
 		log.Debug("no missing bookmarks found")
@@ -149,7 +149,7 @@ func (r *RepoReconciler) addMissing(ctx context.Context) error {
 func (r *RepoReconciler) pruneStale(ctx context.Context) error {
 	log := r.logger.With("stage", "prune-stale")
 
-	stale, _ := bookmark.Deduplicate(r.repo.Bookmarks(), r.dbBookmarks)
+	stale, _ := bookmark.DeduplicateURL(r.dbBookmarks, r.repo.Bookmarks())
 
 	if len(stale) == 0 {
 		log.Debug("no stale bookmarks found")
@@ -180,7 +180,7 @@ func (r *RepoReconciler) pruneStale(ctx context.Context) error {
 func (r *RepoReconciler) removeOrphans(ctx context.Context) error {
 	log := r.logger.With("stage", "remove-orphans")
 
-	diff := bookmark.Difference(r.dbBookmarks, r.repo.Bookmarks())
+	diff := bookmark.ByChecksum(r.dbBookmarks, r.repo.Bookmarks())
 
 	if len(diff) == 0 {
 		log.Debug("no orphaned bookmarks found")

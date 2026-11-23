@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestDeduplicate(t *testing.T) {
+func TestDeduplicateURL(t *testing.T) {
 	t.Parallel()
 	bk := func(url string) *Bookmark {
 		return &Bookmark{URL: url}
@@ -93,7 +93,7 @@ func TestDeduplicate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			gotFresh, gotDuplicates := Deduplicate(tt.bs, tt.existing)
+			gotFresh, gotDuplicates := DeduplicateURL(tt.existing, tt.bs)
 
 			if !cmpBookmarks(gotFresh, tt.wantFresh) {
 				t.Errorf("fresh = %v; want %v", gotFresh, tt.wantFresh)
@@ -105,7 +105,7 @@ func TestDeduplicate(t *testing.T) {
 	}
 }
 
-func TestDifference(t *testing.T) {
+func TestByChecksum(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -218,7 +218,7 @@ func TestDifference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := Difference(tt.a, tt.b)
+			got := ByChecksum(tt.a, tt.b)
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("difference() = %#v; want %#v", got, tt.want)

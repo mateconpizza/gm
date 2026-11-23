@@ -105,55 +105,36 @@ func FilterBy(s string, bs []*Bookmark) ([]*Bookmark, error) {
 	}), nil
 }
 
-// Deduplicate partitions bs into fresh and duplicate bookmarks.
-func Deduplicate(bs, existing []*Bookmark) (fresh, duplicates []*Bookmark) {
-	fresh = make([]*Bookmark, 0, len(bs))
-	duplicates = make([]*Bookmark, 0, len(bs))
-	seen := make(map[string]struct{}, len(existing))
+// Deduplicate splits incoming into fresh bookmarks and duplicates of existing
+// ones or of earlier incoming ones, matched by key.
+func Deduplicate(incoming, existing []*Bookmark, key KeyFunc) (fresh, duplicates []*Bookmark) {
+	fresh = make([]*Bookmark, 0, len(incoming))
+	duplicates = make([]*Bookmark, 0)
+
+	seen := make(map[string]struct{}, len(existing)+len(incoming))
 
 	for _, b := range existing {
-		if b == nil {
-			continue
+		if b != nil {
+			seen[key(b)] = struct{}{}
 		}
-		seen[b.URL] = struct{}{}
 	}
 
-	for _, b := range bs {
+	for _, b := range incoming {
 		if b == nil {
 			continue
 		}
 
-		if _, ok := seen[b.URL]; ok {
+		k := key(b)
+		if _, ok := seen[k]; ok {
 			duplicates = append(duplicates, b)
 			continue
 		}
 
+		seen[k] = struct{}{}
 		fresh = append(fresh, b)
 	}
 
 	return fresh, duplicates
-}
-
-// Difference returns bookmarks in b that are not in a.
-func Difference(a, b []*Bookmark) []*Bookmark {
-	bMap := make(map[string]struct{}, len(a))
-	for _, bm := range a {
-		if bm != nil {
-			bMap[bm.Checksum] = struct{}{}
-		}
-	}
-
-	var diff []*Bookmark
-	for _, bm := range b {
-		if bm == nil {
-			continue
-		}
-		if _, exists := bMap[bm.Checksum]; !exists {
-			diff = append(diff, bm)
-		}
-	}
-
-	return diff
 }
 
 // Filter returns bookmarks matching predicate.
@@ -165,4 +146,130 @@ func Filter(bs []*Bookmark, predicate func(b *Bookmark) bool) []*Bookmark {
 		}
 	}
 	return filtered
+}
+
+type KeyFunc func(*Bookmark) string
+
+func KeyURL(b *Bookmark) string      { return b.URL }
+func KeyChecksum(b *Bookmark) string { return b.Checksum }
+func KeyTitle(b *Bookmark) string    { return strings.ToLower(strings.TrimSpace(b.Title)) }
+
+func KeyDomain(b *Bookmark) string {
+	d, err := b.Domain()
+	if err != nil || d == "" {
+		return DefaultDomain
+	}
+	return d
+}
+
+// DeduplicateURL separates incoming bookmarks by whether their URLs exist in
+// existing.
+func DeduplicateURL(existing, incoming []*Bookmark) (fresh, duplicates []*Bookmark) {
+	return Partition(existing, incoming, KeyURL)
+}
+
+// ByChecksum returns bookmarks in b whose checksums do not occur in a.
+func ByChecksum(a, b []*Bookmark) []*Bookmark {
+	diff, _ := Partition(a, b, KeyChecksum)
+	return diff
+}
+
+// Partition separates bookmarks in b by whether their keys exist in a.
+func Partition(a, b []*Bookmark, key KeyFunc) (onlyInB, inBoth []*Bookmark) {
+	seen := make(map[string]struct{}, len(a))
+
+	for _, bm := range a {
+		if bm != nil {
+			seen[key(bm)] = struct{}{}
+		}
+	}
+
+	for _, bm := range b {
+		if bm == nil {
+			continue
+		}
+
+		if _, ok := seen[key(bm)]; ok {
+			inBoth = append(inBoth, bm)
+			continue
+		}
+
+		onlyInB = append(onlyInB, bm)
+	}
+
+	return onlyInB, inBoth
+}
+
+func MarkImport(existing, incoming []*Bookmark, source string, key KeyFunc) (fresh, dups []*Bookmark) {
+	fresh, dups = Deduplicate(incoming, existing, key)
+	for _, b := range fresh {
+		b.Meta.Source, b.Meta.IsNew = source, true
+	}
+	for _, b := range dups {
+		b.Meta.Source, b.Meta.IsDup = source, true
+	}
+	return fresh, dups
+}
+
+// Removed in existing but gone from the source (e.g. deleted in the browser).
+func Removed(existing, incoming []*Bookmark) []*Bookmark {
+	removed, _ := Partition(incoming, existing, KeyURL)
+	return removed
+}
+
+// Common bookmarks present in both lists (from existing's side).
+func Common(existing, incoming []*Bookmark) []*Bookmark {
+	_, both := Partition(incoming, existing, KeyURL)
+	return both
+}
+
+// Changed same URL, different content, i.e. the bookmark should be updated.
+func Changed(existing, incoming []*Bookmark) []*Bookmark {
+	byURL := make(map[string]*Bookmark, len(existing))
+	for _, b := range existing {
+		if b != nil {
+			byURL[b.URL] = b
+		}
+	}
+
+	var out []*Bookmark
+	for _, in := range incoming {
+		if in == nil {
+			continue
+		}
+		if old, ok := byURL[in.URL]; ok && old.Checksum != in.Checksum {
+			in.ID = old.ID // keep identity for the update
+			out = append(out, in)
+		}
+	}
+	return out
+}
+
+// Unique returns bookmarks with distinct keys.
+func Unique(bs []*Bookmark, key KeyFunc) []*Bookmark {
+	fresh, _ := Deduplicate(bs, nil, key)
+	return fresh
+}
+
+// GroupBy groups bookmarks by their keys.
+func GroupBy(bs []*Bookmark, key KeyFunc) map[string][]*Bookmark {
+	g := make(map[string][]*Bookmark)
+	for _, b := range bs {
+		if b != nil {
+			k := key(b)
+			g[k] = append(g[k], b)
+		}
+	}
+	return g
+}
+
+// DuplicateGroups returns groups of bookmarks with duplicate keys.
+func DuplicateGroups(bs []*Bookmark, key KeyFunc) [][]*Bookmark {
+	var out [][]*Bookmark
+	for _, g := range GroupBy(bs, key) {
+		if len(g) > 1 {
+			out = append(out, g)
+		}
+	}
+	return out
 }

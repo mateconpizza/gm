@@ -363,7 +363,7 @@ func DeduplicateReport(ctx context.Context, c *ui.Console, r storeReader, bs []*
 		return nil, err
 	}
 
-	fresh, duplicates := bookmark.Deduplicate(bs, existing)
+	fresh, duplicates := bookmark.DeduplicateURL(existing, bs)
 	if len(duplicates) == 0 {
 		return fresh, nil
 	}
